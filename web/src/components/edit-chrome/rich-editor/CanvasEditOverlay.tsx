@@ -13,8 +13,9 @@
  *   - The target element is hidden (`visibility: hidden`) for the
  *     duration of the edit so the overlay sits in its layout slot
  *     without visual overlap. Layout doesn't shift.
- *   - Esc reverts. Enter commits (single-line variant only). Outside-
- *     click / blur commits automatically — no Done button required.
+ *   - W1-L3: Esc COMMITS (keeps the typed text — undoable via ⌘Z), same as
+ *     Enter (single-line variant only) and outside-click / blur. No gesture
+ *     silently discards the operator's work; no Done button required.
  *   - On commit, the `onCommit` callback receives the new marker string
  *     and the parent's existing `findPathByValue` path-rewrite path
  *     handles the save.
@@ -48,10 +49,12 @@ interface Props {
    * blockquote / div → multi.
    */
   variant: "single" | "multi";
-  /** Called once with the final marker string. */
+  /**
+   * Called once with the final marker string. W1-L3 — BOTH blur/outside-click
+   * AND Escape route here: the typed text is always kept (committing is
+   * undoable via ⌘Z), so no gesture silently discards the operator's work.
+   */
   onCommit: (next: string) => void;
-  /** Called when the operator hits Escape. */
-  onCancel: () => void;
   /**
    * CANVAS-7B — the parent stashes the overlay's own `commit()` here so the
    * undo-handoff can force the same commit (live text → node history) the
@@ -80,7 +83,6 @@ export function CanvasEditOverlay({
   tenantId,
   variant,
   onCommit,
-  onCancel,
   commitRef,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -146,12 +148,6 @@ export function CanvasEditOverlay({
     );
   }, [initialValue, onCommit]);
 
-  const cancel = useCallback(() => {
-    if (committedRef.current) return;
-    committedRef.current = true;
-    onCancel();
-  }, [onCancel]);
-
   // CANVAS-7B — expose this overlay's own `commit()` to the parent so the
   // undo-handoff can force a commit (same path as blur / outside-click) before
   // a node-level undo runs. Cleared on unmount so a stale handle never fires.
@@ -181,8 +177,15 @@ export function CanvasEditOverlay({
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
+        // W1-L3 — Escape COMMITS (keeps the typed text), identical to blur.
+        // Previously Escape discarded silently, destroying work with no warning
+        // and no recovery. Committing is undoable (⌘Z reverts the text change as
+        // one atomic step), so "Escape to back out" still works — without the
+        // data loss. `stopPropagation` so the edit-shell's own Escape (deselect)
+        // doesn't also fire on the same keystroke.
         e.preventDefault();
-        cancel();
+        e.stopPropagation();
+        commit();
       } else if (e.key === "Enter" && variant === "single" && !e.shiftKey) {
         e.preventDefault();
         commit();
@@ -194,7 +197,7 @@ export function CanvasEditOverlay({
       document.removeEventListener("mousedown", onMouseDown, true);
       document.removeEventListener("keydown", onKey, true);
     };
-  }, [variant, commit, cancel]);
+  }, [variant, commit]);
 
   useEffect(() => {
     const root = fieldRef.current;

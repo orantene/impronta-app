@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useAdminShell, FONTS, COLORS, MY_TALENT_PROFILE, TRANSITION, type InquiryRecord } from "../../state";
 import { Avatar } from "../../primitives";
 import { currentTalentId } from "../messages-shared";
@@ -35,11 +37,12 @@ export function DetailsPanel({ inquiry, pov }: { inquiry: InquiryRecord; pov: De
 // ── CLIENT view — short, warm, reassurance-shaped ──
 export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
   const { toast } = useAdminShell();
+  const t = useT();
   const coord = inquiry.coordinators[0];
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* Your project */}
-      <DetailSection title="Your project">
+      <DetailSection title={t("dashboard.adminTabs.details.yourProject")}>
         <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }} className="text-admin-ink">{inquiry.title}</div>
         {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
           <div style={{ fontSize: 12.5, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">{inquiry.brief.summary}</div>
@@ -48,17 +51,17 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
 
       {/* Your contact — single coordinator, not "Participants" */}
       {coord && (
-        <DetailSection title="Your contact">
+        <DetailSection title={t("dashboard.adminTabs.details.yourContact")}>
           <div className="flex items-center gap-2.5">
             <Avatar size={36} tone="auto" hashSeed={coord.name} initials={coord.initials} />
             <div className="flex-1">
               <div className="text-admin-ink text-admin-13 font-bold">{coord.name}</div>
-              <div className="text-admin-ink-muted text-admin-11h">Your coordinator</div>
+              <div className="text-admin-ink-muted text-admin-11h">{t("dashboard.adminTabs.details.yourCoordinator")}</div>
             </div>
-            <button type="button" disabled title="Use the Messages tab to contact this coordinator." style={disabledBtn({
+            <button type="button" disabled title={t("dashboard.adminTabs.details.messageTitle")} style={disabledBtn({
               padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600,
               border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, cursor: "pointer",
-            })}>Message</button>
+            })}>{t("dashboard.adminTabs.details.message")}</button>
           </div>
         </DetailSection>
       )}
@@ -70,7 +73,7 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
           stays locked (private to coordinator + talent). This is where
           the client sees WHO they're hiring. */}
       {inquiry.talent.length > 0 && (
-        <DetailSection title="Your talent">
+        <DetailSection title={t("dashboard.adminTabs.details.yourTalent")}>
           {inquiry.talent
             .filter(t => {
               const s = (t.state ?? "").toLowerCase();
@@ -93,8 +96,8 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
             <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
               <button
                 type="button"
-                onClick={() => toast("Message your coordinator to request additional talent — they handle adds from their workspace.")}
-                title="Tap to learn how to request talent"
+                onClick={() => toast(t("dashboard.adminTabs.details.requestTalentToast"))}
+                title={t("dashboard.adminTabs.details.requestTalentTitle")}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
                   padding: "5px 10px", borderRadius: 999,
@@ -106,12 +109,12 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
                 <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                   <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
-                Request talent
+                {t("dashboard.adminTabs.details.requestTalent")}
               </button>
               <button
                 type="button"
-                onClick={() => toast("Message your coordinator to swap a talent — they handle replacements from their workspace.")}
-                title="Tap to learn how to swap a talent"
+                onClick={() => toast(t("dashboard.adminTabs.details.swapToast"))}
+                title={t("dashboard.adminTabs.details.swapTitle")}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 5,
                   padding: "5px 10px", borderRadius: 999,
@@ -120,7 +123,7 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
                   fontSize: 11.5, fontWeight: 500, fontFamily: FONTS.body,
                 }}
               >
-                Request a swap
+                {t("dashboard.adminTabs.details.requestSwap")}
               </button>
             </div>
           )}
@@ -128,7 +131,7 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
       )}
 
       {/* When + where, combined into one calm card */}
-      <DetailSection title="When & where">
+      <DetailSection title={t("dashboard.adminTabs.details.whenWhere")}>
         <div className="text-admin-ink text-admin-13 font-medium">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
@@ -139,7 +142,7 @@ export function ClientDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
           </div>
         )}
         {inquiry.location.mode === "tbc" && (
-          <div style={{ fontSize: 12, marginTop: 4, fontStyle: "italic" }} className="text-admin-ink-dim">Location TBC</div>
+          <div style={{ fontSize: 12, marginTop: 4, fontStyle: "italic" }} className="text-admin-ink-dim">{t("dashboard.adminTabs.details.locationTbc")}</div>
         )}
       </DetailSection>
     </div>
@@ -160,15 +163,16 @@ export function ClientTalentCard({
   // lets the parent open a real picker drawer (add/swap/remove).
   onSwap?: () => void;
 }) {
+  const t = useT();
   const stateMeta = (() => {
     const s = (talent.state || "").toLowerCase();
     if (s === "accepted" || s === "confirmed" || s === "booked") {
-      return { label: stagePast ? "Worked together" : "Confirmed", bg: COLORS.successSoft, fg: COLORS.success };
+      return { label: stagePast ? t("dashboard.adminTabs.details.workedTogether") : t("dashboard.adminTabs.details.confirmed"), bg: COLORS.successSoft, fg: COLORS.success };
     }
     if (s === "pending" || s === "invited") {
-      return { label: "Pending acceptance", bg: `${COLORS.amber}18`, fg: COLORS.amber };
+      return { label: t("dashboard.adminTabs.details.pendingAcceptance"), bg: `${COLORS.amber}18`, fg: COLORS.amber };
     }
-    return { label: "Standby", bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted };
+    return { label: t("dashboard.adminTabs.details.standby"), bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted };
   })();
   return (
     <div style={{
@@ -198,8 +202,8 @@ export function ClientTalentCard({
           type="button"
           onClick={onSwap}
           disabled={!onSwap}
-          title={onSwap ? undefined : "Swap requests need a live coordinator workflow."}
-          aria-label={`Swap ${talent.name}`}
+          title={onSwap ? undefined : t("dashboard.adminTabs.details.swapNeedsWorkflow")}
+          aria-label={interpolate(t("dashboard.adminTabs.details.swapName"), { name: talent.name })}
           style={onSwap ? {
           flexShrink: 0,
           width: 28, height: 28, borderRadius: 8,
@@ -226,13 +230,14 @@ export function ClientTalentCard({
 export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoordinator: boolean }) {
   const coord = inquiry.coordinators[0];
   const { toast } = useAdminShell();
+  const t = useT();
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {/* The job */}
-      <DetailSection title="The job">
+      <DetailSection title={t("dashboard.adminTabs.details.theJob")}>
         <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }} className="text-admin-ink">{inquiry.title}</div>
         {inquiry.client.name && (
-          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">For {inquiry.client.name}</div>
+          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminTabs.details.forClient"), { name: inquiry.client.name })}</div>
         )}
       </DetailSection>
 
@@ -240,7 +245,7 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
           inquiry.brief.summary; notes captures wardrobe / usage / mood
           context. Skip the section if nothing meaningful was provided. */}
       {(inquiry.brief.summary && inquiry.brief.summary !== inquiry.title) || inquiry.brief.notes ? (
-        <DetailSection title="Brief">
+        <DetailSection title={t("dashboard.adminTabs.details.brief")}>
           {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && (
             <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">{inquiry.brief.summary}</div>
           )}
@@ -251,32 +256,32 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
       ) : null}
 
       {/* Schedule — talent's most-asked question */}
-      <DetailSection title="Schedule">
+      <DetailSection title={t("dashboard.adminTabs.details.scheduleSection")}>
         <div className="text-admin-ink text-sm font-bold">
           {inquiry.schedule.start}
           {inquiry.schedule.end && ` → ${inquiry.schedule.end}`}
         </div>
         {inquiry.schedule.callTime && (
-          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">Call time: {inquiry.schedule.callTime}</div>
+          <div style={{ fontSize: 12, marginTop: 3 }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminTabs.details.callTimePrefix"), { time: inquiry.schedule.callTime })}</div>
         )}
       </DetailSection>
 
       {/* Location — upgraded to a static-map tile so talent gets a real
           spatial signal at-a-glance, not just an "Open in Maps" link. */}
       {(inquiry.location.city || inquiry.location.venue || inquiry.location.address) && (
-        <DetailSection title="Location">
+        <DetailSection title={t("dashboard.adminTabs.details.location")}>
           <LocationMapTile
             venue={inquiry.location.venue}
             address={inquiry.location.address}
             city={inquiry.location.city}
-            onOpenMaps={() => toast("Open map")}
+            onOpenMaps={() => toast(t("dashboard.adminTabs.details.openMapToast"))}
           />
         </DetailSection>
       )}
 
       {/* Coordinator card */}
       {coord && (
-        <DetailSection title="Your coordinator">
+        <DetailSection title={t("dashboard.adminTabs.details.yourCoordinator")}>
           <div className="flex items-center gap-2.5">
             <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
               <Avatar size={32} tone="auto" hashSeed={coord.name} initials={coord.initials} />
@@ -289,12 +294,12 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
                 </span>
                 <CoordRoleBadge role={coord.role} />
               </div>
-              <div className="text-admin-ink-muted text-admin-11">{coord.role === "owner" ? "Workspace owner" : "Coordinator"}</div>
+              <div className="text-admin-ink-muted text-admin-11">{coord.role === "owner" ? t("dashboard.adminTabs.details.workspaceOwner") : t("dashboard.adminTabs.details.coordinator")}</div>
             </div>
-            <button type="button" onClick={() => toast(`Messaging ${coord.name}…`)} style={{
+            <button type="button" onClick={() => toast(interpolate(t("dashboard.adminTabs.details.messagingToast"), { name: coord.name }))} style={{
               padding: "5px 11px", borderRadius: 999, fontSize: 11, fontWeight: 600,
               border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, cursor: "pointer",
-            }}>Message</button>
+            }}>{t("dashboard.adminTabs.details.message")}</button>
           </div>
         </DetailSection>
       )}
@@ -308,12 +313,12 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
           Hidden when there's only one talent (e.g. c9 Lyra solo
           hostess) — the section reads as redundant chrome there. */}
       {inquiry.talent.length > 1 && (
-        <DetailSection title="Who's on this job">
-          {inquiry.talent.map(t => (
+        <DetailSection title={t("dashboard.adminTabs.details.whosOnJob")}>
+          {inquiry.talent.map(mem => (
             <RosterMemberRow
-              key={t.talentId}
-              talent={t}
-              isMe={t.talentId === currentTalentId() || t.name === MY_TALENT_PROFILE.name}
+              key={mem.talentId}
+              talent={mem}
+              isMe={mem.talentId === currentTalentId() || mem.name === MY_TALENT_PROFILE.name}
               stagePast={inquiry.status === "wrapped" || inquiry.status === "cancelled"}
             />
           ))}
@@ -328,15 +333,16 @@ export function TalentDetailsView({ inquiry }: { inquiry: InquiryRecord; isCoord
 // teammates with state, not just the user's own row. The lineup is the
 // most-asked question after "where + when?". ──
 export function RosterMemberRow({ talent, isMe, stagePast }: { talent: { talentId: string; name: string; initials: string; state: string; photoUrl?: string }; isMe?: boolean; stagePast?: boolean }) {
+  const t = useT();
   const stateMeta = (() => {
     const s = (talent.state || "").toLowerCase();
     if (s === "accepted" || s === "confirmed" || s === "booked") {
-      return { label: "Accepted", bg: COLORS.successSoft, fg: COLORS.success };
+      return { label: t("dashboard.adminTabs.details.accepted"), bg: COLORS.successSoft, fg: COLORS.success };
     }
     if (s === "declined" || s === "rejected" || s === "withdrew") {
-      return { label: "Declined", bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted };
+      return { label: t("dashboard.adminTabs.details.declined"), bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted };
     }
-    return { label: "Pending", bg: `${COLORS.amber}18`, fg: COLORS.amber };
+    return { label: t("dashboard.adminTabs.details.pending"), bg: `${COLORS.amber}18`, fg: COLORS.amber };
   })();
   return (
     <div style={{
@@ -360,14 +366,14 @@ export function RosterMemberRow({ talent, isMe, stagePast }: { talent: { talentI
             background: COLORS.indigoDeep, color: "#fff",
             letterSpacing: 0.3, textTransform: "uppercase",
             verticalAlign: "middle",
-          }}>You</span>
+          }}>{t("dashboard.adminTabs.details.you")}</span>
         )}
       </span>
       {/* Past stage: drop the live-pipeline state pills (Pending / etc.
           stop being relevant once the job is wrapped) and surface a
           neutral "Worked together" cue instead. */}
       {stagePast ? (
-        <span style={{ fontSize: 9.5, fontWeight: 600, padding: "2px 7px", borderRadius: 999, background: "rgba(11,11,13,0.04)", textTransform: "uppercase", letterSpacing: 0.4, flexShrink: 0 }} className="text-admin-ink-muted">Worked together</span>
+        <span style={{ fontSize: 9.5, fontWeight: 600, padding: "2px 7px", borderRadius: 999, background: "rgba(11,11,13,0.04)", textTransform: "uppercase", letterSpacing: 0.4, flexShrink: 0 }} className="text-admin-ink-muted">{t("dashboard.adminTabs.details.workedTogether")}</span>
       ) : (
         <span style={{
           fontSize: 9.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
@@ -386,11 +392,12 @@ export function RosterMemberRow({ talent, isMe, stagePast }: { talent: { talentI
 export function LocationMapTile({
   venue, address, city, onOpenMaps,
 }: { venue?: string; address?: string; city?: string; onOpenMaps: () => void }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onOpenMaps}
-      aria-label="Open in Maps"
+      aria-label={t("dashboard.adminTabs.details.openInMaps")}
       style={{
         position: "relative", width: "100%",
         padding: 0, border: `1px solid ${COLORS.borderSoft}`,
@@ -463,7 +470,7 @@ export function LocationMapTile({
           )}
         </div>
         <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 3 }} className="text-admin-accent">
-          Maps
+          {t("dashboard.adminTabs.details.maps")}
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
             <path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -476,36 +483,37 @@ export function LocationMapTile({
 // ── ADMIN view — operations console: full participants, source, controls ──
 export function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
   const { toast } = useAdminShell();
+  const t = useT();
   return (
     <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
-      <DetailSection title="Brief">
-        <DetailField label="Project" value={inquiry.title} />
-        {inquiry.client.name && <DetailField label="Client" value={inquiry.client.name} />}
-        {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && <DetailField label="Summary" value={inquiry.brief.summary} multiline />}
-        {inquiry.brief.notes && <DetailField label="Notes" value={inquiry.brief.notes} multiline />}
+      <DetailSection title={t("dashboard.adminTabs.details.briefSection")}>
+        <DetailField label={t("dashboard.adminTabs.details.project")} value={inquiry.title} />
+        {inquiry.client.name && <DetailField label={t("dashboard.adminTabs.details.client")} value={inquiry.client.name} />}
+        {inquiry.brief.summary && inquiry.brief.summary !== inquiry.title && <DetailField label={t("dashboard.adminTabs.details.summary")} value={inquiry.brief.summary} multiline />}
+        {inquiry.brief.notes && <DetailField label={t("dashboard.adminTabs.details.notes")} value={inquiry.brief.notes} multiline />}
       </DetailSection>
 
-      <DetailSection title="Schedule">
-        <DetailField label="Start" value={inquiry.schedule.start} />
-        {inquiry.schedule.end && <DetailField label="End" value={inquiry.schedule.end} />}
-        {inquiry.schedule.callTime && <DetailField label="Call time" value={inquiry.schedule.callTime} />}
+      <DetailSection title={t("dashboard.adminTabs.details.scheduleSection")}>
+        <DetailField label={t("dashboard.adminTabs.details.start")} value={inquiry.schedule.start} />
+        {inquiry.schedule.end && <DetailField label={t("dashboard.adminTabs.details.end")} value={inquiry.schedule.end} />}
+        {inquiry.schedule.callTime && <DetailField label={t("dashboard.adminTabs.details.callTime")} value={inquiry.schedule.callTime} />}
       </DetailSection>
 
-      <DetailSection title="Location">
-        <DetailField label="Mode" value={inquiry.location.mode === "tbc" ? "TBC" : inquiry.location.mode.replace("_", " ")} />
-        {inquiry.location.city && <DetailField label="City" value={inquiry.location.city} />}
-        {inquiry.location.venue && <DetailField label="Venue" value={inquiry.location.venue} />}
+      <DetailSection title={t("dashboard.adminTabs.details.locationSection")}>
+        <DetailField label={t("dashboard.adminTabs.details.mode")} value={inquiry.location.mode === "tbc" ? t("dashboard.adminTabs.details.tbc") : inquiry.location.mode.replace("_", " ")} />
+        {inquiry.location.city && <DetailField label={t("dashboard.adminTabs.details.city")} value={inquiry.location.city} />}
+        {inquiry.location.venue && <DetailField label={t("dashboard.adminTabs.details.venue")} value={inquiry.location.venue} />}
       </DetailSection>
 
-      <DetailSection title="Participants">
+      <DetailSection title={t("dashboard.adminTabs.details.participants")}>
         {inquiry.coordinators.map(c => (
           <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
             <Avatar size={28} tone="auto" hashSeed={c.name} initials={c.initials} />
             <div className="flex-1">
               <div className="text-admin-ink text-admin-13 font-semibold">{c.name}</div>
               <div className="text-admin-ink-muted text-admin-11">
-                {c.role === "owner" ? "Workspace owner · Coordinator" : "Coordinator"}
-                {c.alsoTalentId && " · Also booked as talent"}
+                {c.role === "owner" ? t("dashboard.adminTabs.details.workspaceOwnerCoord") : t("dashboard.adminTabs.details.coordinator")}
+                {c.alsoTalentId && ` · ${t("dashboard.adminTabs.details.alsoBookedTalent")}`}
               </div>
             </div>
           </div>
@@ -513,25 +521,25 @@ export function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
         {inquiry.talent.length > 0 && (
           <>
             <div style={{ fontSize: 10.5, fontWeight: 600, marginTop: 8, marginBottom: 4 }} className="text-admin-ink-dim">
-              Talent
+              {t("dashboard.adminTabs.details.talent")}
             </div>
-            {inquiry.talent.map(t => (
-              <div key={t.talentId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
-                <Avatar size={26} tone="auto" hashSeed={t.name} initials={t.initials} />
-                <span style={{ flex: 1, fontSize: 12.5 }} className="text-admin-ink">{t.name}</span>
+            {inquiry.talent.map(tal => (
+              <div key={tal.talentId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
+                <Avatar size={26} tone="auto" hashSeed={tal.name} initials={tal.initials} />
+                <span style={{ flex: 1, fontSize: 12.5 }} className="text-admin-ink">{tal.name}</span>
                 <span style={{
                   fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
                   background:
-                      t.state === "confirmed" ? COLORS.successSoft
-                    : t.state === "hold"      ? COLORS.amberSoft
-                    : t.state === "declined"  ? COLORS.coralSoft
+                      tal.state === "confirmed" ? COLORS.successSoft
+                    : tal.state === "hold"      ? COLORS.amberSoft
+                    : tal.state === "declined"  ? COLORS.coralSoft
                     : "rgba(11,11,13,0.05)",
                   color:
-                      t.state === "confirmed" ? COLORS.successDeep
-                    : t.state === "hold"      ? COLORS.amberDeep
-                    : t.state === "declined"  ? COLORS.coralDeep
+                      tal.state === "confirmed" ? COLORS.successDeep
+                    : tal.state === "hold"      ? COLORS.amberDeep
+                    : tal.state === "declined"  ? COLORS.coralDeep
                     : COLORS.inkMuted,
-                                  }}>{t.state}</span>
+                                  }}>{tal.state}</span>
               </div>
             ))}
           </>
@@ -539,10 +547,10 @@ export function AdminDetailsView({ inquiry }: { inquiry: InquiryRecord }) {
         <AdminParticipantsActions inquiry={inquiry} />
       </DetailSection>
 
-      <DetailSection title="Source">
-        <DetailField label="Channel" value={inquiry.source.kind.replace("_", " ")} />
-        <DetailField label="Created" value={inquiry.createdAt} />
-        <DetailField label="By" value={inquiry.createdBy.name} />
+      <DetailSection title={t("dashboard.adminTabs.details.source")}>
+        <DetailField label={t("dashboard.adminTabs.details.channel")} value={inquiry.source.kind.replace("_", " ")} />
+        <DetailField label={t("dashboard.adminTabs.details.created")} value={inquiry.createdAt} />
+        <DetailField label={t("dashboard.adminTabs.details.by")} value={inquiry.createdBy.name} />
       </DetailSection>
     </div>
   );

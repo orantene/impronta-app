@@ -40,7 +40,7 @@ const SURFACE_TABS: ReadonlyArray<{ key: PlatformThemeSurface; label: string; bl
   {
     key: "talent",
     label: "Talent Site Defaults",
-    blurb: "The default for new talent pages — falls back to the agency default when unset.",
+    blurb: "The default for new talent pages, falls back to the agency default when unset.",
   },
 ];
 
@@ -147,8 +147,8 @@ export function SiteDefaultsEditor() {
               ok: true,
               msg:
                 surface === "talent"
-                  ? "Saved — new talent pages now inherit this."
-                  : "Saved — every new agency / workspace now inherits this.",
+                  ? "Saved. New talent pages now inherit this."
+                  : "Saved. Every new agency / workspace now inherits this.",
             }
           : { ok: false, msg: `Failed: ${r.error}` },
       );

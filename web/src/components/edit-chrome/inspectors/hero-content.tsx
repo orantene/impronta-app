@@ -13,6 +13,7 @@ import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 import { CHROME } from "../kit";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import { LinkKindPicker } from "@/lib/site-admin/sections/shared/LinkKindPicker";
+import { useEditorLocale } from "../use-editor-locale";
 import {
   InspectorGroup,
   InspectorSection,
@@ -49,11 +50,14 @@ function cleanObject<T extends Record<string, unknown>>(o: T): T {
 
 type HeroNodeRole = "headline" | "subheadline" | "primaryCta" | "secondaryCta";
 
-function heroNodeRoleLabel(role: HeroNodeRole | null): string | null {
-  if (role === "headline") return "Headline";
-  if (role === "subheadline") return "Description";
-  if (role === "primaryCta") return "Primary button";
-  if (role === "secondaryCta") return "Secondary button";
+function heroNodeRoleLabel(
+  role: HeroNodeRole | null,
+  t: ReturnType<typeof useEditorLocale>["t"],
+): string | null {
+  if (role === "headline") return t("Headline");
+  if (role === "subheadline") return t("Description");
+  if (role === "primaryCta") return t("Primary button");
+  if (role === "secondaryCta") return t("Secondary button");
   return null;
 }
 
@@ -68,6 +72,7 @@ function CtaInlineRow({
   onChange: (next: CtaShape | null) => void;
   nodeRole?: string;
 }) {
+  const { t } = useEditorLocale();
   function patch(partial: Partial<CtaShape>) {
     const next: CtaShape = {
       label: partial.label ?? cta?.label ?? "",
@@ -87,18 +92,18 @@ function CtaInlineRow({
         data-hero-node-role={nodeRole}
       >
         <div className={KIT.field}>
-          <label className={KIT.label}>Text</label>
+          <label className={KIT.label}>{t("Text")}</label>
           <input
             type="text"
             className={KIT.input}
-            placeholder="Button label"
+            placeholder={t("Button label")}
             maxLength={60}
             value={cta?.label ?? ""}
             onChange={(e) => patch({ label: e.target.value })}
           />
         </div>
         <div className={KIT.field}>
-          <label className={KIT.label}>Link</label>
+          <label className={KIT.label}>{t("Link")}</label>
           <LinkKindPicker
             value={cta?.href}
             onChange={(next) => patch({ href: next })}
@@ -115,6 +120,7 @@ export function HeroContentInspector({
   selectedBuilderNodeId,
   onChange,
 }: HeroContentProps) {
+  const { t } = useEditorLocale();
   const headline = (draftProps.headline as string | undefined) ?? "";
   const subheadline = (draftProps.subheadline as string | undefined) ?? "";
   const primaryCta = (draftProps.primaryCta as CtaShape | undefined) ?? null;
@@ -139,7 +145,7 @@ export function HeroContentInspector({
     }
     return null;
   }, [selectedBuilderNodeId]);
-  const focusLabel = useMemo(() => heroNodeRoleLabel(focusRole), [focusRole]);
+  const focusLabel = useMemo(() => heroNodeRoleLabel(focusRole, t), [focusRole, t]);
 
   useEffect(() => {
     if (!focusRole) return;
@@ -222,65 +228,65 @@ export function HeroContentInspector({
             color: CHROME.accentInk,
           }}
         >
-          Editing selected canvas node: {focusLabel}
+          {t("Editing selected canvas node:")} {focusLabel}
         </div>
       ) : null}
 
-      <InspectorSection title="Hero Content">
+      <InspectorSection title={t("Hero Content")}>
         <div className={KIT.field}>
-          <label className={KIT.label}>Eyebrow</label>
+          <label className={KIT.label}>{t("Eyebrow")}</label>
           <input
             type="text"
             className={KIT.input}
-            placeholder="Optional — e.g. IMPRONTA MODELS"
+            placeholder={t("Optional, e.g. IMPRONTA MODELS")}
             maxLength={80}
             value={eyebrow}
             onChange={(e) => patchEyebrow(e.target.value)}
           />
         </div>
         <div className={KIT.field} data-hero-node-role="headline">
-          <label className={KIT.label}>Heading</label>
+          <label className={KIT.label}>{t("Heading")}</label>
           <RichEditor
             value={headline}
             onChange={(next) => update({ headline: next })}
             variant="single"
             tenantId={tenantId}
-            ariaLabel="Heading"
+            ariaLabel={t("Heading")}
           />
         </div>
         <div className={KIT.field} data-hero-node-role="subheadline">
-          <label className={KIT.label}>Description</label>
+          <label className={KIT.label}>{t("Description")}</label>
           <RichEditor
             value={subheadline}
             onChange={(next) => update({ subheadline: next || undefined })}
             variant="multi"
             tenantId={tenantId}
-            placeholder="Supporting copy under the headline"
-            ariaLabel="Description"
+            placeholder={t("Supporting copy under the headline")}
+            ariaLabel={t("Description")}
           />
         </div>
       </InspectorSection>
 
       <CtaInlineRow
-        title="Primary Button"
+        title={t("Primary Button")}
         cta={primaryCta}
         onChange={(next) => update({ primaryCta: next ?? undefined })}
         nodeRole="primaryCta"
       />
 
       <CtaInlineRow
-        title="Secondary Button"
+        title={t("Secondary Button")}
         cta={secondaryCta}
         onChange={(next) => update({ secondaryCta: next ?? undefined })}
         nodeRole="secondaryCta"
       />
 
-      <InspectorSection title="Right Image">
+      <InspectorSection title={t("Right Image")}>
         <MediaPickerButton
           tenantId={tenantId}
           value={backdropUrl}
           onChange={patchBackdrop}
-          emptyLabel="Add hero image"
+          emptyLabel={t("Add hero image")}
           aspect="16/9"
           variant="row"
         />
@@ -289,8 +295,8 @@ export function HeroContentInspector({
       <InspectorGroup
         title={
           slides.length > 1
-            ? `Multi-slide reel (${slides.length})`
-            : "Multi-slide reel"
+            ? `${t("Multi-slide reel")} (${slides.length})`
+            : t("Multi-slide reel")
         }
         collapsible
         storageKey="hero:slides"
@@ -298,7 +304,7 @@ export function HeroContentInspector({
       >
         {slides.length <= 1 ? (
           <p className={KIT.hint}>
-            Add a second slide to turn the hero into a cross-fade reel.
+            {t("Add a second slide to turn the hero into a cross-fade reel.")}
           </p>
         ) : null}
         {slides.length > 0 ? (
@@ -311,7 +317,7 @@ export function HeroContentInspector({
               >
                 <div className="mb-2 flex items-center justify-between">
                   <span className="font-semibold" style={{ color: CHROME.muted }}>
-                    Slide {i + 1}
+                    {t("Slide {n}").replace("{n}", String(i + 1))}
                   </span>
                   <div className="flex items-center gap-1">
                     <button
@@ -319,7 +325,7 @@ export function HeroContentInspector({
                       onClick={() => moveSlide(i, -1)}
                       disabled={i === 0}
                       className={`${KIT.subtleButton} px-1.5 disabled:opacity-30`}
-                      aria-label="Move up"
+                      aria-label={t("Move up")}
                     >
                       ↑
                     </button>
@@ -328,7 +334,7 @@ export function HeroContentInspector({
                       onClick={() => moveSlide(i, 1)}
                       disabled={i === slides.length - 1}
                       className={`${KIT.subtleButton} px-1.5 disabled:opacity-30`}
-                      aria-label="Move down"
+                      aria-label={t("Move down")}
                     >
                       ↓
                     </button>
@@ -346,7 +352,7 @@ export function HeroContentInspector({
                   <input
                     type="url"
                     className={KIT.input}
-                    placeholder="Image URL"
+                    placeholder={t("Image URL")}
                     value={slide.backgroundImageUrl ?? ""}
                     onChange={(e) =>
                       patchSlide(i, {
@@ -357,7 +363,7 @@ export function HeroContentInspector({
                   <input
                     type="text"
                     className={KIT.input}
-                    placeholder="Slide headline (optional)"
+                    placeholder={t("Slide headline (optional)")}
                     value={slide.headline ?? ""}
                     onChange={(e) =>
                       patchSlide(i, { headline: e.target.value || undefined })
@@ -374,7 +380,7 @@ export function HeroContentInspector({
           disabled={slides.length >= 8}
           className={`${KIT.ghostButton} mt-2 w-fit disabled:opacity-40`}
         >
-          + Add slide
+          {t("+ Add slide")}
         </button>
       </InspectorGroup>
       </div>

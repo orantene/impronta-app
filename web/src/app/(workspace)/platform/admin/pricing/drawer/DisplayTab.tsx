@@ -9,10 +9,12 @@
 import { useState, useTransition } from "react";
 import type { PricingTierRow } from "@/lib/pricing/pricing-types";
 import { updateTierDisplay } from "@/lib/server-actions/admin-product-pricing";
+import { useT } from "@/i18n/use-t";
 import { HQ, F } from "../_tokens";
 import { SectionLabel, Field, Toggle, inputStyle } from "../_primitives";
 
 export function DisplayTab({ tier }: { tier: PricingTierRow }) {
+  const t = useT();
   const [name, setName] = useState(tier.name);
   const [tagline, setTagline] = useState(tier.tagline ?? "");
   const [isFeatured, setIsFeatured] = useState(tier.isFeatured);
@@ -53,11 +55,11 @@ export function DisplayTab({ tier }: { tier: PricingTierRow }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <SectionLabel
-        title="Display"
-        hint="Renaming the tier syncs the matching Stripe Product (single-call mutation)."
+        title={t("dashboard.platform.pricing.displayTab.title")}
+        hint={t("dashboard.platform.pricing.displayTab.hint")}
       />
 
-      <Field label="Name">
+      <Field label={t("dashboard.platform.pricing.displayTab.name")}>
         <input
           type="text"
           value={name}
@@ -66,29 +68,29 @@ export function DisplayTab({ tier }: { tier: PricingTierRow }) {
           style={inputStyle()}
         />
       </Field>
-      <Field label="Tagline">
+      <Field label={t("dashboard.platform.pricing.displayTab.tagline")}>
         <input
           type="text"
           value={tagline}
           onChange={(e) => setTagline(e.target.value)}
           maxLength={160}
-          placeholder="Short subline shown under the price"
+          placeholder={t("dashboard.platform.pricing.displayTab.taglinePlaceholder")}
           style={inputStyle()}
         />
       </Field>
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
         <Toggle
-          label="Featured"
+          label={t("dashboard.platform.pricing.displayTab.featured")}
           checked={isFeatured}
           onChange={setIsFeatured}
-          hint='Adds "Most popular" treatment on marketing.'
+          hint={t("dashboard.platform.pricing.displayTab.featuredHint")}
         />
         <Toggle
-          label="Active"
+          label={t("dashboard.platform.pricing.displayTab.active")}
           checked={isActive}
           onChange={setIsActive}
-          hint="Hide entirely from marketing if off."
+          hint={t("dashboard.platform.pricing.displayTab.activeHint")}
         />
       </div>
 
@@ -116,16 +118,18 @@ export function DisplayTab({ tier }: { tier: PricingTierRow }) {
             fontWeight: 600,
           }}
         >
-          {state === "saving" ? "Saving…" : "Save display"}
+          {state === "saving"
+            ? t("dashboard.platform.pricing.displayTab.saving")
+            : t("dashboard.platform.pricing.displayTab.saveDisplay")}
         </button>
         {state === "saved" && (
           <span style={{ fontSize: 11.5, color: HQ.green }}>
-            Saved + Stripe synced.
+            {t("dashboard.platform.pricing.displayTab.savedSynced")}
           </span>
         )}
         {state === "stub" && (
           <span style={{ fontSize: 11.5, color: HQ.amber }}>
-            Saved in DB — Stripe rename skipped.
+            {t("dashboard.platform.pricing.displayTab.savedStripeSkipped")}
           </span>
         )}
         {state === "error" && (

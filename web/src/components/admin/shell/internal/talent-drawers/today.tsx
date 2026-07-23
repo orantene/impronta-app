@@ -8,6 +8,8 @@
 // Bodies copied byte-for-byte from talent-drawers.tsx; no behavior change.
 // ════════════════════════════════════════════════════════════════════
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, TALENT_BOOKINGS, TALENT_REQUESTS, useAdminShell, type TalentRequest } from "../state";
 import {
   ClientTrustChip,
@@ -19,14 +21,24 @@ import {
 } from "../primitives";
 import { KvRow } from "./shared";
 
+// ─── Discriminant → catalog-key maps (render label via t(), switch on raw union) ──
+const REQUEST_KIND_KEYS: Record<TalentRequest["kind"], string> = {
+  offer: "dashboard.talentDrawers.requestKinds.offer",
+  hold: "dashboard.talentDrawers.requestKinds.hold",
+  casting: "dashboard.talentDrawers.requestKinds.casting",
+  request: "dashboard.talentDrawers.requestKinds.request",
+};
+const REQUEST_STATUS_KEYS: Record<TalentRequest["status"], string> = {
+  "needs-answer": "dashboard.talentDrawers.requestStatus.needsAnswer",
+  viewed: "dashboard.talentDrawers.requestStatus.viewed",
+  accepted: "dashboard.talentDrawers.requestStatus.accepted",
+  declined: "dashboard.talentDrawers.requestStatus.declined",
+  expired: "dashboard.talentDrawers.requestStatus.expired",
+};
+
 // ─── RequestKindBadge (moved from _talent.tsx — only used by drawers) ────────
 function RequestKindBadge({ kind, status }: { kind: TalentRequest["kind"]; status: TalentRequest["status"] }) {
-  const labels: Record<TalentRequest["kind"], string> = {
-    offer: "Offer",
-    hold: "Hold",
-    casting: "Casting",
-    request: "Request",
-  };
+  const t = useT();
   let bg = "rgba(11,11,13,0.05)";
   let fg = COLORS.ink;
   if (status === "needs-answer") {
@@ -55,7 +67,7 @@ function RequestKindBadge({ kind, status }: { kind: TalentRequest["kind"]; statu
         textTransform: "uppercase",
       }}
     >
-      {labels[kind]}
+      {t(REQUEST_KIND_KEYS[kind])}
     </span>
   );
 }
@@ -64,14 +76,15 @@ function RequestKindBadge({ kind, status }: { kind: TalentRequest["kind"]; statu
 
 export function TalentTodayPulseDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-today-pulse";
   const items = TALENT_REQUESTS.filter((r) => r.status === "needs-answer" || r.status === "viewed");
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Inbox · what's hot"
-      description="Everything from your agencies that's still in motion."
+      title={t("dashboard.talentDrawers.today.pulseTitle")}
+      description={t("dashboard.talentDrawers.today.pulseDesc")}
       width={560}
     >
       <div className="flex flex-col gap-2">
@@ -101,7 +114,7 @@ export function TalentTodayPulseDrawer() {
                 <ClientTrustChip level={r.clientTrust} compact />
               </div>
               <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-                via {r.agency}
+                {interpolate(t("dashboard.talentDrawers.today.via"), { agency: r.agency })}
                 {r.date && <> · {r.date}</>}
                 {r.amount && <> · {r.amount}</>}
               </div>
@@ -117,7 +130,8 @@ export function TalentTodayPulseDrawer() {
 // ─── Offer detail drawer ──────────────────────────────────────────
 
 export function TalentOfferDetailDrawer() {
-  const { state, closeDrawer, openDrawer } = useAdminShell();
+  const { state, closeDrawer, setTalentPage } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-offer-detail" || state.drawer.drawerId === "talent-request-detail";
   const id = (state.drawer.payload?.id as string) ?? "rq1";
   const r = TALENT_REQUESTS.find((x) => x.id === id) ?? TALENT_REQUESTS[0];
@@ -127,83 +141,57 @@ export function TalentOfferDetailDrawer() {
       open={open}
       onClose={closeDrawer}
       title={`${r.client} · ${r.brief}`}
-      description={`via ${r.agency}${r.date ? ` · ${r.date}` : ""}`}
+      description={`${interpolate(t("dashboard.talentDrawers.today.via"), { agency: r.agency })}${r.date ? ` · ${r.date}` : ""}`}
       toolbar={<ClientTrustChip level={r.clientTrust} />}
       width={560}
       footer={
         r.status === "needs-answer" ? (
           <>
-            {/* Decline/Accept are disabled here — this drawer uses prototype mock IDs (no real inquiryId).
-                The real accept/decline flow routes through the Messages shell, which has the live inquiry context.
-                TODO Phase 3+: when offer-detail is rewritten against bridge inquiry data, wire acceptInquiryInvitation /
-                declineInquiryInvitation from talent-pipeline.ts. */}
-            <button
-              disabled
-              title="Open in Messages to respond"
-              style={{
-                background: "transparent",
-                border: `1px solid ${COLORS.borderSoft}`,
-                color: COLORS.inkDim,
-                padding: "8px 12px",
-                borderRadius: 8,
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                fontWeight: 500,
-                cursor: "not-allowed",
-                marginRight: "auto",
-                opacity: 0.5,
+            {/* W14: accept/decline live in Messages, which holds the real inquiry context.
+                Rather than parking two permanently-disabled buttons here, the footer sends
+                the user to the surface where the decision can actually be made. */}
+            <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
+            <PrimaryButton
+              onClick={() => {
+                closeDrawer();
+                setTalentPage("messages");
               }}
             >
-              Decline
-            </button>
-            <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-            <PrimaryButton disabled>
-              Accept
+              {t("dashboard.talentDrawers.today.openInMessagesCta")}
             </PrimaryButton>
           </>
         ) : (
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         )
       }
     >
       <div className="flex flex-col gap-4">
-        <KvRow label="Status" value={statusLabel(r.status)} />
-        <KvRow label="Date" value={r.date ?? "TBC"} />
-        <KvRow label="Fee" value={r.amount ?? "TBC"} />
-        <KvRow label="Client" value={r.client} />
-        <KvRow label="Agency" value={r.agency} />
-        <Divider label="Brief" />
+        <KvRow label={t("dashboard.talentDrawers.today.labelStatus")} value={t(REQUEST_STATUS_KEYS[r.status])} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelDate")} value={r.date ?? t("dashboard.talentDrawers.today.tbc")} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelFee")} value={r.amount ?? t("dashboard.talentDrawers.today.tbc")} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelClient")} value={r.client} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelAgency")} value={r.agency} />
+        <Divider label={t("dashboard.talentDrawers.today.brief")} />
         <p style={{ fontFamily: FONTS.body, fontSize: 13.5, lineHeight: 1.6 }} className="text-admin-ink">
-          The agency briefed this as: &quot;<em>{r.brief}</em>&quot;. Tap accept to confirm — your agency
-          will turn this into a confirmed booking with full call sheet and contract once the
-          client locks in. You can also hold open if you want more time.
+          {t("dashboard.talentDrawers.today.offerBriefIntro")} &quot;<em>{r.brief}</em>&quot;. {t("dashboard.talentDrawers.today.offerBriefOutro")}
         </p>
-        <Divider label="Terms (preview)" />
+        <Divider label={t("dashboard.talentDrawers.today.termsPreview")} />
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink-muted">
-          <li>Usage: web + social, 12 months · in-region (Europe)</li>
-          <li>Turnaround: deliver same week</li>
-          <li>Buyout option: clients can extend usage at +30%</li>
-          <li>Cancellation: 50% if &lt; 48h notice</li>
+          <li>{t("dashboard.talentDrawers.today.term1")}</li>
+          <li>{t("dashboard.talentDrawers.today.term2")}</li>
+          <li>{t("dashboard.talentDrawers.today.term3")}</li>
+          <li>{t("dashboard.talentDrawers.today.term4")}</li>
         </ul>
       </div>
     </DrawerShell>
   );
 }
 
-function statusLabel(s: TalentRequest["status"]): string {
-  return ({
-    "needs-answer": "Needs your answer",
-    viewed: "Viewed",
-    accepted: "Accepted",
-    declined: "Declined",
-    expired: "Expired",
-  } as const)[s];
-}
-
 // ─── Booking detail (call sheet) ──────────────────────────────────
 
 export function TalentBookingDetailDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-booking-detail";
   const id = (state.drawer.payload?.id as string) ?? "bk1";
   const b = TALENT_BOOKINGS.find((x) => x.id === id) ?? TALENT_BOOKINGS[0];
@@ -213,26 +201,26 @@ export function TalentBookingDetailDrawer() {
       open={open}
       onClose={closeDrawer}
       title={`${b.client} · ${b.brief}`}
-      description={`Booking via ${b.agency}`}
+      description={interpolate(t("dashboard.talentDrawers.today.bookingVia"), { agency: b.agency })}
       width={560}
-      footer={<PrimaryButton onClick={closeDrawer}>Got it</PrimaryButton>}
+      footer={<PrimaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.gotIt")}</PrimaryButton>}
     >
       <div className="flex flex-col gap-3.5">
-        <KvRow label="Date" value={b.endDate ? `${b.startDate} → ${b.endDate}` : b.startDate} />
-        <KvRow label="Call time" value={b.call} />
-        <KvRow label="Location" value={b.location} />
-        <KvRow label="Fee" value={b.amount} />
-        <KvRow label="Status" value={b.status} />
-        <Divider label="What to bring" />
+        <KvRow label={t("dashboard.talentDrawers.today.labelDate")} value={b.endDate ? `${b.startDate} → ${b.endDate}` : b.startDate} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelCallTime")} value={b.call} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelLocation")} value={b.location} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelFee")} value={b.amount} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelStatus")} value={b.status} />
+        <Divider label={t("dashboard.talentDrawers.today.whatToBring")} />
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
-          <li>Nude underwear · neutral footwear</li>
-          <li>Hair dry & natural · light skin prep only</li>
-          <li>Government ID · agency contract reference</li>
+          <li>{t("dashboard.talentDrawers.today.bring1")}</li>
+          <li>{t("dashboard.talentDrawers.today.bring2")}</li>
+          <li>{t("dashboard.talentDrawers.today.bring3")}</li>
         </ul>
-        <Divider label="Contacts on the day" />
-        <KvRow label="Producer" value="Inés López · +34 612 — 451" />
-        <KvRow label="Stylist" value="Lia Roca" />
-        <KvRow label="Photographer" value="Studio Roca" />
+        <Divider label={t("dashboard.talentDrawers.today.contactsOnDay")} />
+        <KvRow label={t("dashboard.talentDrawers.today.labelProducer")} value="Inés López · +34 612 451" />
+        <KvRow label={t("dashboard.talentDrawers.today.labelStylist")} value="Lia Roca" />
+        <KvRow label={t("dashboard.talentDrawers.today.labelPhotographer")} value="Studio Roca" />
       </div>
     </DrawerShell>
   );

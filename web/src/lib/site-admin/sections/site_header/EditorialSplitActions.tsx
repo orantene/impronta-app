@@ -310,9 +310,10 @@ export function EditorialSplitActions({
         </Link>
       )}
 
-      {/* Inquiry — paper-plane glyph (prototype `.ai-inq`). Opens the
-          inquiry-cart drawer when context is available; falls back to a
-          link to the primary CTA. */}
+      {/* Inquiry — paper-plane glyph (prototype `.ai-inq`). W2-E: opens the
+          canonical CHAT launcher (preloaded with the lineup), not the legacy
+          InquiryDrawer sheet. requestOpenChat falls back to the sheet only when
+          no launcher is mounted on this surface. */}
       {inquiryModal ? (
         <button
           type="button"
@@ -321,7 +322,7 @@ export function EditorialSplitActions({
           aria-label={copy.inquiry}
           data-discovery-header-inquiry
           data-active={hasCart ? "true" : undefined}
-          onClick={() => inquiryModal.openInquiry()}
+          onClick={() => inquiryModal.requestOpenChat()}
         >
           <svg
             viewBox="0 0 24 24"

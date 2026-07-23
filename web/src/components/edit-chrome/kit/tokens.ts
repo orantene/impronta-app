@@ -114,9 +114,14 @@ export const CHROME = {
   green: "#14732e",
   greenBg: "rgba(20, 115, 46, 0.10)",
   greenLine: "rgba(20, 115, 46, 0.20)",
-  amber: "#b45309",
-  amberBg: "rgba(180, 83, 9, 0.10)",
-  amberLine: "rgba(180, 83, 9, 0.22)",
+  // "amber" is retained as a token NAME for import stability, but it no
+  // longer resolves to gold/rust: admin chrome must never use gold/rust/amber
+  // (owner rule). It now maps to the cool BLUE "attention / pending" role, so
+  // the most-seen dirty-state ("Unpublished changes") pill + preflight
+  // warnings read as calm cool signals instead of alarm-gold. Errors stay rose.
+  amber: "#2c5fdb",
+  amberBg: "rgba(58, 123, 255, 0.10)",
+  amberLine: "rgba(58, 123, 255, 0.24)",
   rose: "#b42323",
   roseBg: "rgba(180, 35, 35, 0.10)",
   roseLine: "rgba(180, 35, 35, 0.22)",
@@ -158,17 +163,10 @@ export const INSPECTOR_PANEL_RIGHT_INSET_PX =
 export const INSPECTOR_DOCK_OPEN_STORAGE_KEY =
   "impronta.editChrome.inspectorDockOpen.v1";
 
-/** Persisted "shrunk to handle" state for the left command dock + right inspector rail. */
-export const COMMAND_DOCK_COLLAPSED_STORAGE_KEY =
-  "impronta.editChrome.commandDockCollapsed.v1";
-export const INSPECTOR_RAIL_COLLAPSED_STORAGE_KEY =
-  "impronta.editChrome.inspectorRailCollapsed.v1";
-
-/** Persisted set of pinned item ids — pinned items stay visible when a rail is collapsed. */
-export const COMMAND_DOCK_PINNED_STORAGE_KEY =
-  "impronta.editChrome.commandDockPinned.v1";
-export const INSPECTOR_RAIL_PINNED_STORAGE_KEY =
-  "impronta.editChrome.inspectorRailPinned.v1";
+// W2-C3 removed the dock/inspector-rail collapse + pin meta-chrome. The
+// persisted collapse/pin storage keys that backed those controls
+// (commandDockCollapsed / inspectorRailCollapsed / commandDockPinned /
+// inspectorRailPinned) are gone with them — the rails are now fixed.
 
 /** Multi-layer box-shadows. Each value can drop straight into `style.boxShadow`. */
 export const CHROME_SHADOWS = {
@@ -200,6 +198,14 @@ export const CHROME_SHADOWS = {
   dropLine:
     "0 0 0 4px rgba(58, 123, 255, 0.12)," +
     " 0 0 16px 4px rgba(58, 123, 255, 0.40)",
+  // Left command dock + right inspector rail cards. One shared value so the two
+  // mirrored rails can't drift; replaces the identical bespoke DOCK_SHADOW /
+  // RAIL_SHADOW strings that used to be redeclared in each file.
+  railCard: "0 1px 2px rgba(0,0,0,0.04), 0 10px 28px -12px rgba(0,0,0,0.14)",
+  // Inspector panel + canvas toolbar card shadow. One shared value so the
+  // inspector kit (BUILDER_VISUAL.panelShadow / toolbarShadow) derives from
+  // the one chrome source instead of re-declaring the identical string.
+  panel: "0 8px 28px -8px rgba(0,0,0,0.14), 0 0 0 1px rgba(24,24,27,0.08)",
 } as const;
 
 /**
@@ -228,6 +234,11 @@ export const CHROME_RADII = {
   md: 8,
   lg: 10,
   xl: 14,
+  // One documented larger step above the mockup `--r-*` scale, reserved for the
+  // big floating "card" chrome: the left command dock + right inspector rail
+  // pill. Both mirrored rails reference this single token (via DOCK_RADIUS_PX /
+  // RAIL_RADIUS_PX) so the two can't drift, instead of each re-declaring `20`.
+  xxl: 20,
 } as const;
 
 /** Drawer widths by kind, taken from the mockup's `.dw-*` classes. */

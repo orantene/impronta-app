@@ -119,7 +119,7 @@ export function ComponentStylesEditor({
                 }
                 style={{ ...fieldStyle, padding: "6px 8px", borderRadius: RADII.icon }}
               >
-                <option value={UNSET}>— (theme default)</option>
+                <option value={UNSET}>(theme default)</option>
                 {c.options.map((o) => (
                   <option key={o} value={o}>
                     {c.optionLabels?.[o] ?? o}

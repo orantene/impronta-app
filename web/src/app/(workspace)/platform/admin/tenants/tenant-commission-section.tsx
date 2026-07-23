@@ -23,6 +23,8 @@ import {
   actionClearTenantCommissionOverride,
   actionReviewCommissionRequest,
 } from "./commission-actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 
 function bpsToDisplay(bps: number | null): string {
   if (bps === null) return "—";
@@ -30,6 +32,7 @@ function bpsToDisplay(bps: number | null): string {
 }
 
 export function CommissionSection({ detail, onChanged, defaultOpen }: SectionProps) {
+  const t = useT();
   const { commission } = detail;
   const { override, openRequest } = commission;
 
@@ -52,7 +55,7 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
         setNote("");
         await onChanged();
       } else {
-        setMsg({ tone: "err", text: res.error ?? "Action failed." });
+        setMsg({ tone: "err", text: res.error ?? t("dashboard.platform.tenants.actionFailed") });
       }
     });
   }
@@ -60,12 +63,12 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
   function handleSet() {
     const pct = parseFloat(takePct);
     if (!isFinite(pct) || pct < 0 || pct > 50) {
-      setMsg({ tone: "err", text: "Take must be between 0% and 50%." });
+      setMsg({ tone: "err", text: t("dashboard.platform.tenants.takeRangeError") });
       return;
     }
     const floor = parseFloat(floorCents);
     if (!isFinite(floor) || floor < 0) {
-      setMsg({ tone: "err", text: "Floor must be 0 or positive cents." });
+      setMsg({ tone: "err", text: t("dashboard.platform.tenants.floorError") });
       return;
     }
     run(
@@ -76,18 +79,18 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
           platformTakeFloorCents: Math.round(floor),
           note: note.trim() || undefined,
         }),
-      "Commission override saved.",
+      t("dashboard.platform.tenants.commissionSaved"),
     );
   }
 
   return (
     <Accordion
-      title="Commission override"
+      title={t("dashboard.platform.tenants.sectionCommission")}
       trailing={
         override ? (
-          <Chip bg={HQ.amberSoft} color={HQ.amber}>Override active</Chip>
+          <Chip bg={HQ.amberSoft} color={HQ.amber}>{t("dashboard.platform.tenants.overrideActiveChip")}</Chip>
         ) : openRequest ? (
-          <Chip bg="rgba(155,168,183,0.15)" color={HQ.inkMuted}>Request pending</Chip>
+          <Chip bg="rgba(155,168,183,0.15)" color={HQ.inkMuted}>{t("dashboard.platform.tenants.requestPending")}</Chip>
         ) : null
       }
       defaultOpen={defaultOpen ?? Boolean(override || openRequest)}
@@ -104,8 +107,7 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
             color: HQ.amber,
           }}
         >
-          ⚠ Do not enable overrides for workspaces that receive cross-tenant inquiries
-          until execution plan #2 ships.
+          ⚠ {t("dashboard.platform.tenants.commissionWarning")}
         </div>
 
         {/* Active override card */}
@@ -120,10 +122,10 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 12.5, color: HQ.ink, fontWeight: 600 }}>
-                {bpsToDisplay(override.platformTakeBps)} platform take
+                {interpolate(t("dashboard.platform.tenants.platformTake"), { value: bpsToDisplay(override.platformTakeBps) })}
               </span>
               {override.platformTakeFloorCents != null && override.platformTakeFloorCents > 0 && (
-                <Chip outline>floor ${(override.platformTakeFloorCents / 100).toFixed(2)}</Chip>
+                <Chip outline>{interpolate(t("dashboard.platform.tenants.floor"), { value: `$${(override.platformTakeFloorCents / 100).toFixed(2)}` })}</Chip>
               )}
             </div>
             {override.overrideNote && (
@@ -132,14 +134,14 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
               </div>
             )}
             <div style={{ marginTop: 4, fontSize: 10.5, color: HQ.inkDim }}>
-              Set {override.setAt ? new Date(override.setAt).toLocaleDateString() : "—"}
+              {interpolate(t("dashboard.platform.tenants.setOn"), { date: override.setAt ? new Date(override.setAt).toLocaleDateString() : "—" })}
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <Btn tone="danger" onClick={() => setConfirmClear(true)} disabled={pending}>
-                Clear override
+                {t("dashboard.platform.tenants.clearOverride")}
               </Btn>
               <Btn onClick={() => setShowForm((v) => !v)} disabled={pending}>
-                {showForm ? "Cancel" : "Replace"}
+                {showForm ? t("dashboard.platform.tenants.cancel") : t("dashboard.platform.tenants.replace")}
               </Btn>
             </div>
           </div>
@@ -159,32 +161,31 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
             }}
           >
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: HQ.inkDim }}>
-              {override ? "Replace override" : "Set commission override"}
+              {override ? t("dashboard.platform.tenants.replaceOverride") : t("dashboard.platform.tenants.setCommissionOverride")}
             </div>
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Platform take (%)
+              {t("dashboard.platform.tenants.platformTakePct")}
               <input type="number" min={0} max={50} step={0.01} value={takePct} disabled={pending}
-                placeholder="e.g. 5" onChange={(e) => setTakePct(e.target.value)}
+                placeholder={t("dashboard.platform.tenants.platformTakePlaceholder")} onChange={(e) => setTakePct(e.target.value)}
                 style={{ ...inputStyle, marginTop: 3 }} />
             </label>
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Floor (cents, 0 = no floor)
+              {t("dashboard.platform.tenants.floorCents")}
               <input type="number" min={0} step={1} value={floorCents} disabled={pending}
                 onChange={(e) => setFloorCents(e.target.value)}
                 style={{ ...inputStyle, marginTop: 3 }} />
             </label>
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Internal note (optional)
+              {t("dashboard.platform.tenants.internalNoteOptional")}
               <input type="text" value={note} disabled={pending}
                 onChange={(e) => setNote(e.target.value)}
                 style={{ ...inputStyle, marginTop: 3 }} />
             </label>
             <Btn tone="primary" onClick={handleSet} disabled={pending}>
-              {pending ? "Saving…" : "Save override"}
+              {pending ? t("dashboard.platform.tenants.saving") : t("dashboard.platform.tenants.saveOverride")}
             </Btn>
             <p style={{ fontSize: 10.5, color: HQ.inkDim, margin: 0 }}>
-              Overrides the platform default and plan-tier rate for this workspace.
-              Resolver precedence: tenant override &gt; plan tier &gt; platform default.
+              {t("dashboard.platform.tenants.commissionResolverNote")}
             </p>
           </div>
         )}
@@ -203,11 +204,10 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
             }}
           >
             <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: HQ.amber }}>
-              Open rate request
+              {t("dashboard.platform.tenants.openRateRequest")}
             </div>
             <div style={{ fontSize: 12.5, color: HQ.ink }}>
-              Workspace is requesting{" "}
-              <strong>{bpsToDisplay(openRequest.requestedPlatformTakeBps)}</strong>
+              {interpolate(t("dashboard.platform.tenants.requestingRate"), { value: bpsToDisplay(openRequest.requestedPlatformTakeBps) })}
             </div>
             {openRequest.requestedNote && (
               <div style={{ fontSize: 11.5, color: HQ.inkMuted }}>
@@ -216,13 +216,13 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
             )}
             {openRequest.requestedAt && (
               <div style={{ fontSize: 10.5, color: HQ.inkDim }}>
-                Submitted {new Date(openRequest.requestedAt).toLocaleDateString()}
+                {interpolate(t("dashboard.platform.tenants.submittedOn"), { date: new Date(openRequest.requestedAt).toLocaleDateString() })}
               </div>
             )}
             <label style={{ fontSize: 11, color: HQ.inkMuted }}>
-              Review note (optional)
+              {t("dashboard.platform.tenants.reviewNoteOptional")}
               <input type="text" value={reviewNote} disabled={pending}
-                placeholder="Reason for approval or denial"
+                placeholder={t("dashboard.platform.tenants.reviewNotePlaceholder")}
                 onChange={(e) => setReviewNote(e.target.value)}
                 style={{ ...inputStyle, marginTop: 3 }} />
             </label>
@@ -235,18 +235,18 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
                     platformTakeBps: openRequest.requestedPlatformTakeBps ?? undefined,
                     reviewNote,
                   }),
-                  "Request approved.",
+                  t("dashboard.platform.tenants.requestApproved"),
                 )}
               >
-                Approve
+                {t("dashboard.platform.tenants.approve")}
               </Btn>
               <Btn tone="danger" disabled={pending}
                 onClick={() => run(
                   () => actionReviewCommissionRequest({ tenantId: detail.id, decision: "deny", reviewNote }),
-                  "Request denied.",
+                  t("dashboard.platform.tenants.requestDenied"),
                 )}
               >
-                Deny
+                {t("dashboard.platform.tenants.deny")}
               </Btn>
             </div>
           </div>
@@ -254,9 +254,9 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
 
         {!override && !openRequest && !showForm && (
           <div style={{ fontSize: 12.5, color: HQ.inkMuted }}>
-            No override — using platform default or plan-tier rate.
+            {t("dashboard.platform.tenants.noOverrideDefault")}
             <div style={{ marginTop: 8 }}>
-              <Btn onClick={() => setShowForm(true)}>Set override</Btn>
+              <Btn onClick={() => setShowForm(true)}>{t("dashboard.platform.tenants.setOverride")}</Btn>
             </div>
           </div>
         )}
@@ -266,19 +266,14 @@ export function CommissionSection({ detail, onChanged, defaultOpen }: SectionPro
 
       <ConfirmModal
         open={confirmClear}
-        title="Clear commission override"
-        body={
-          <>
-            Remove the custom commission rate for <strong>{detail.name}</strong>?
-            They will return to the platform default or plan-tier rate.
-          </>
-        }
-        confirmLabel="Clear override"
+        title={t("dashboard.platform.tenants.clearCommissionTitle")}
+        body={interpolate(t("dashboard.platform.tenants.clearCommissionBody"), { workspace: detail.name })}
+        confirmLabel={t("dashboard.platform.tenants.clearOverride")}
         pending={pending}
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
           setConfirmClear(false);
-          run(() => actionClearTenantCommissionOverride({ tenantId: detail.id }), "Override cleared.");
+          run(() => actionClearTenantCommissionOverride({ tenantId: detail.id }), t("dashboard.platform.tenants.overrideCleared"));
         }}
       />
     </Accordion>

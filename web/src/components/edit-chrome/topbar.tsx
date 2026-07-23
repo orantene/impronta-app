@@ -11,7 +11,8 @@ import {
   saveCustomBreakpoints,
   type BuilderBreakpoint,
 } from "./breakpoint-registry";
-import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
+import { useAdvancedMode } from "./advanced-mode";
+import { visibleViewportTiers } from "./advanced-mode-visibility";
 
 /**
  * EditTopBar — mission control bar for the canvas editor.
@@ -42,6 +43,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
+import { copyPublishedHomepageAction } from "@/lib/site-admin/edit-mode/composition-actions";
+import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { localeMetadata } from "@/i18n/config";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
@@ -76,15 +79,6 @@ const TB_CONTROL_H = 40;
 const TB_ICON_PX = 18;
 const TB_FONT_PX = 14;
 const TB_RADIUS = 10;
-
-/**
- * Phase 1 canvas-first redesign: the pin/reset workspace controls are hidden
- * from the topbar to keep it clean while panels are being re-homed. The
- * underlying logic (`pinWorkspaceLayout` / `resetWorkspaceLayout` in
- * EditContext) is untouched; flip this back on (or move it into a layout
- * utility panel) in a later phase.
- */
-const SHOW_WORKSPACE_CONTROLS = false;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -311,7 +305,7 @@ function PagePicker({
         }
       })
       .catch(() => {
-        setFetchErr("Couldn't load pages — try again.");
+        setFetchErr("Couldn't load pages. Try again.");
         setPages([]);
         setAvailability(null);
       })
@@ -937,7 +931,7 @@ function SaveStatus({
           label={label}
           title={
             mutationError?.code === "VERSION_CONFLICT"
-              ? "This page changed elsewhere — choose Reload latest or Keep my version in the banner."
+              ? "This page changed in another tab or session. Choose Reload latest or Keep editing this copy in the banner."
               : "Your last draft didn't save. It will retry on your next edit; reload the editor if it persists."
           }
         />
@@ -958,11 +952,11 @@ function SaveStatus({
           borderColor: CHROME.amberLine,
         }}
         title="Edits are only in your draft until you publish. If the canvas or device preview looks one step behind, wait for autosave to finish or switch viewport to refresh the preview."
-        aria-label="Unsaved draft — changes are not fully saved yet, or the preview may still be catching up."
+        aria-label="Unsaved draft. Changes are not fully saved yet, or the preview may still be catching up."
       >
         <span
           className={dot}
-          style={{ width: 6, height: 6, background: CHROME.amber, boxShadow: "0 0 8px rgba(180,83,9,0.6)" }}
+          style={{ width: 6, height: 6, background: CHROME.amber, boxShadow: "0 0 8px rgba(58,123,255,0.6)" }}
           aria-hidden
         />
         Unsaved draft
@@ -985,8 +979,8 @@ function SaveStatus({
         style={{ color: CHROME.muted }}
         title={
           lastDraftSavedAt
-            ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()} — visitors see the last published version until you publish.`
-            : "Draft is saved on our servers — visitors still see the published site until you click Publish."
+            ? `Draft last saved at ${new Date(lastDraftSavedAt).toLocaleString()}. Visitors see the last published version until you publish.`
+            : "Draft is saved on our servers. Visitors still see the published site until you click Publish."
         }
         aria-label={savedAgoText}
       >
@@ -1089,13 +1083,6 @@ const VIEWPORT_OPTS: ReadonlyArray<{
   },
 ];
 
-/** Mockup topbar shows Desktop · Tablet · Mobile only (icon toggles). */
-const MOCKUP_VIEWPORT_KEYS: readonly EditDevice[] = [
-  "desktop",
-  "tablet",
-  "mobile",
-];
-
 function viewportTierActive(device: EditDevice, key: EditDevice): boolean {
   if (device === key) return true;
   return key === "desktop" && (device === "wide" || device === "compact");
@@ -1103,9 +1090,9 @@ function viewportTierActive(device: EditDevice, key: EditDevice): boolean {
 
 function viewportPreviewTitle(device: EditDevice, label: string): string {
   if (device === "desktop") {
-    return `${label} — full-width editing canvas`;
+    return `${label}: full-width editing canvas`;
   }
-  return `${label} — device-width iframe preview; reloads when the draft saves so breakpoints stay accurate`;
+  return `${label}: device-width iframe preview, reloads when the draft saves so breakpoints stay accurate`;
 }
 
 /**
@@ -1178,7 +1165,7 @@ function ContentLocaleToggle({
         boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
       }}
       role="radiogroup"
-      aria-label="Content language (in-session preview + per-element translation)"
+      aria-label="Content language (in-session preview + per-block translation)"
       onKeyDown={handleKey}
     >
       {orderedLocales.map((code, i) => {
@@ -1198,8 +1185,8 @@ function ContentLocaleToggle({
             }}
             title={
               isDefault
-                ? `Show the page in ${label} (default) — ←/→ to cycle`
-                : `Translate / preview the page in ${label} — untranslated blocks dim — ←/→ to cycle`
+                ? `Show the page in ${label} (default). ←/→ to cycle`
+                : `Translate / preview the page in ${label} (untranslated blocks dim). ←/→ to cycle`
             }
             onClick={() => selectLocale(code)}
             className="inline-flex items-center gap-[5px] rounded-full border-none px-[14px] py-[7px] text-[13px] font-semibold uppercase tracking-[0.04em] transition-all"
@@ -1263,6 +1250,7 @@ function ViewportSwitcher({
 }) {
   const mobileEditAvailable = typeof setMobileEditMode === "function";
   const breakpoints = useBuilderBreakpoints();
+  const { advanced } = useAdvancedMode();
   // Picking a tier: Mobile enters the editing mode; the others exit it. When no
   // mode plumbing is present, this is exactly the old `setDevice`.
   const selectTier = (key: EditDevice) => {
@@ -1275,17 +1263,20 @@ function ViewportSwitcher({
     }
     setDevice(key);
   };
-  // The frame tools (#17) only make sense on a non-desktop device frame, and
-  // only when the context setters are present.
+  // The frame tools (#17) — custom width + landscape — are a power-user surface:
+  // available only on a non-desktop frame, only with the context setters, AND
+  // only when Advanced is ON (W2-C4). The core per-breakpoint editing stays.
   const frameToolsAvailable =
+    advanced &&
     device !== "desktop" &&
     previewFrame != null &&
     typeof setPreviewFrameWidth === "function" &&
     typeof togglePreviewRotated === "function";
 
-  const visibleOpts = VIEWPORT_OPTS.filter((opt) =>
-    MOCKUP_VIEWPORT_KEYS.includes(opt.key),
-  );
+  // W2-C4 — default (Advanced OFF) shows Desktop · Tablet · Mobile; Advanced ON
+  // adds Wide + Compact. Order follows the canonical VIEWPORT_OPTS list.
+  const visibleTierKeys = new Set(visibleViewportTiers(advanced));
+  const visibleOpts = VIEWPORT_OPTS.filter((opt) => visibleTierKeys.has(opt.key));
 
   return (
     <div className="inline-flex shrink-0 items-center gap-2">
@@ -1306,7 +1297,7 @@ function ViewportSwitcher({
               onClick={() => selectTier(opt.key)}
               title={
                 opt.key === "mobile" && mobileEditAvailable
-                  ? "Mobile editing — edit the mobile layout: scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
+                  ? "Mobile editing: edit the mobile layout, scope style edits to mobile, hide/reorder blocks per-phone, run mobile health checks"
                   : viewportPreviewTitle(opt.key, label)
               }
               aria-label={
@@ -1476,8 +1467,8 @@ function ViewportFrameTools({
           isCustom
             ? "Clear the custom width to rotate the device frame"
             : isRotated
-              ? "Portrait — rotate the frame back"
-              : "Landscape — rotate the device frame (breakpoints re-fire at the wider width)"
+              ? "Portrait, rotate the frame back"
+              : "Landscape, rotate the device frame (breakpoints re-fire at the wider width)"
         }
         className="inline-flex items-center gap-[5px] rounded-full border-none px-[10px] py-[5px] text-[11px] font-semibold tracking-[-0.005em] transition-all"
         style={{
@@ -1567,8 +1558,8 @@ function PreviewToggle({
       onClick={() => setPreviewing(!previewing)}
       title={
         previewing
-          ? "Exit preview — show editing tools"
-          : "Preview — hide editing tools and interact with the page"
+          ? "Exit preview, show editing tools"
+          : "Preview, hide editing tools and interact with the page"
       }
       ariaLabel={previewing ? "Exit preview" : "Preview"}
     >
@@ -1714,7 +1705,10 @@ type PublishMenuOption =
   | "revisions"
   | "page-settings"
   | "duplicate-page"
-  | "unpublish";
+  | "unpublish"
+  | "pull-from-live:replace"
+  | "pull-from-live:above"
+  | "pull-from-live:below";
 
 function PublishSplitButton({
   onPublish,
@@ -1934,6 +1928,47 @@ function PublishSplitButton({
             description="Browse and restore past saves"
             onClick={() => { onMenuSelect("revisions"); setMenuOpen(false); }}
           />
+          <div
+            role="separator"
+            style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
+          />
+          {/* Pull from live: Replace */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            }
+            title="Pull from live: Replace"
+            description="Replace your draft with the live homepage"
+            onClick={() => { onMenuSelect("pull-from-live:replace"); setMenuOpen(false); }}
+          />
+          {/* Pull from live: Add above */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            }
+            title="Pull from live: Add above"
+            description="Add the live homepage blocks above your draft"
+            onClick={() => { onMenuSelect("pull-from-live:above"); setMenuOpen(false); }}
+          />
+          {/* Pull from live: Add below */}
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <polyline points="19 12 12 19 5 12" />
+              </svg>
+            }
+            title="Pull from live: Add below"
+            description="Add the live homepage blocks below your draft"
+            onClick={() => { onMenuSelect("pull-from-live:below"); setMenuOpen(false); }}
+          />
           {/* Page settings */}
           <MenuItem
             icon={
@@ -2104,7 +2139,7 @@ function BreakpointsPopover() {
     <div className="relative shrink-0" data-breakpoints-popover>
       <TbIconBtn
         id={triggerId}
-        title="Breakpoints — custom viewport tiers"
+        title="Breakpoints, custom screen sizes"
         ariaLabel="Breakpoints"
         ariaExpanded={open}
         ariaHaspopup="dialog"
@@ -2506,134 +2541,6 @@ function ShareButton({
   );
 }
 
-/**
- * WorkspaceLayoutControls — Photoshop-style "pin / reset workspace" pair.
- *
- * Pin (📌) saves where the operator has dragged the floating panels (today:
- * the Inspector dock) so the layout PERSISTS across refresh instead of
- * snapping home. Reset (⟲) clears the saved layout and returns the panels to
- * their default home positions immediately. Calm, icon-only, grouped in the
- * same subtle pill the other topbar tool groups use; the pin fills with the
- * accent once a layout is saved so the operator can see it's "stuck". Renders
- * nothing outside an `EditProvider`.
- */
-function WorkspaceLayoutControls() {
-  const editCtx = useMaybeEditContext();
-  if (!editCtx) return null;
-  const {
-    hasSavedWorkspaceLayout,
-    pinWorkspaceLayout,
-    resetWorkspaceLayout,
-  } = editCtx;
-
-  return (
-    <div
-      role="group"
-      aria-label="Panel workspace"
-      className="inline-flex shrink-0 items-center gap-0.5 rounded-full p-[3px]"
-      style={{
-        background: "rgba(0,0,0,0.05)",
-        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
-      }}
-    >
-      <BuilderCoachmarkTip
-        id="pin-workspace"
-        message="Pin the panel layout so your workspace restores after refresh."
-        placement="below"
-      >
-        <button
-          type="button"
-          onClick={pinWorkspaceLayout}
-          title={
-            hasSavedWorkspaceLayout
-              ? "Workspace pinned — panel positions are saved and restore on refresh. Click to re-pin to the current layout."
-              : "Pin workspace — save where you've placed the panels so they stay put after a refresh"
-          }
-          aria-label="Pin workspace layout"
-          aria-pressed={hasSavedWorkspaceLayout}
-          className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-full border-none transition-colors"
-          style={{
-            background: hasSavedWorkspaceLayout ? CHROME.surface : "transparent",
-            color: hasSavedWorkspaceLayout ? CHROME.accent : CHROME.muted,
-            boxShadow: hasSavedWorkspaceLayout
-              ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
-              : "none",
-          }}
-          onMouseEnter={(e) => {
-            if (hasSavedWorkspaceLayout) return;
-            e.currentTarget.style.background = CHROME.surface;
-            e.currentTarget.style.color = CHROME.ink;
-          }}
-          onMouseLeave={(e) => {
-            if (hasSavedWorkspaceLayout) return;
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = CHROME.muted;
-          }}
-        >
-          {/* pin glyph (lucide "pin") */}
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill={hasSavedWorkspaceLayout ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M12 17v5" />
-            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
-          </svg>
-        </button>
-      </BuilderCoachmarkTip>
-      <button
-        type="button"
-        onClick={resetWorkspaceLayout}
-        disabled={!hasSavedWorkspaceLayout}
-        title={
-          hasSavedWorkspaceLayout
-            ? "Reset workspace — clear the saved layout and return panels to their default positions"
-            : "Workspace is already at its default layout"
-        }
-        aria-label="Reset workspace layout to default"
-        className="inline-flex size-[30px] items-center justify-center rounded-full border-none transition-colors disabled:cursor-not-allowed"
-        style={{
-          background: "transparent",
-          color: hasSavedWorkspaceLayout ? CHROME.muted : CHROME.muted3,
-          cursor: hasSavedWorkspaceLayout ? "pointer" : "not-allowed",
-        }}
-        onMouseEnter={(e) => {
-          if (!hasSavedWorkspaceLayout) return;
-          e.currentTarget.style.background = CHROME.surface;
-          e.currentTarget.style.color = CHROME.ink;
-        }}
-        onMouseLeave={(e) => {
-          if (!hasSavedWorkspaceLayout) return;
-          e.currentTarget.style.background = "transparent";
-          e.currentTarget.style.color = CHROME.muted;
-        }}
-      >
-        {/* reset / restore glyph (lucide "rotate-ccw") */}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-          <path d="M3 3v5h5" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
 // ── Lab Exit Button ───────────────────────────────────────────────────────────
 
 /**
@@ -2968,12 +2875,64 @@ export function TopBar({
       else void improntaLog("edit_chrome_topbar.info", {
         message: "[topbar] unpublish/archive: no handler wired",
       });
+    } else if (
+      opt === "pull-from-live:replace" ||
+      opt === "pull-from-live:above" ||
+      opt === "pull-from-live:below"
+    ) {
+      const mode =
+        opt === "pull-from-live:replace"
+          ? "replace"
+          : opt === "pull-from-live:above"
+            ? "above"
+            : "below";
+      void runPullFromLive(mode);
     } else if (opt === "discard") {
       // Phase 4 — discard draft (revert to live snapshot)
       void improntaLog("edit_chrome_topbar.info", {
         message: "[topbar] discard draft: not yet implemented",
       });
     }
+  }
+
+  // Pull from live: import the tenant's LIVE published homepage into the draft.
+  // DRAFT-ONLY (the lib op never touches the published snapshot or busts the
+  // public cache). Runs from the `...` menu (not the advisory-heavy Publish
+  // drawer) so it never main-thread-freezes on large homes. Mirrors the
+  // publish-drawer's handleCopyFromLive: confirm -> safeAction -> refresh.
+  async function runPullFromLive(mode: "replace" | "above" | "below") {
+    if (!editCtx) return;
+    // Only Replace discards the current draft, so only it needs a confirm.
+    // Add above / add below are additive (a single undo reverts them), so they
+    // run in one click without a prompt.
+    if (
+      mode === "replace" &&
+      typeof window !== "undefined" &&
+      !window.confirm(
+        "Replace your draft with the live homepage? Discards unsaved draft edits.",
+      )
+    ) {
+      return;
+    }
+    const res = await safeAction(
+      () => copyPublishedHomepageAction({ locale: editCtx.locale, mode }),
+      {
+        name: "pullFromLiveHomepage",
+        fallback: {
+          ok: false as const,
+          error:
+            "Network error. Couldn't pull from live. Check your connection and try again.",
+          code: "network",
+        },
+      },
+    );
+    if (res.ok) {
+      // Reload the editor from the server (same refresh used after copy /
+      // restore / publish) so the canvas reflects the updated draft.
+      await editCtx.refreshComposition();
+      return;
+    }
+    editCtx.reportMutationError(res.error);
   }
 
   return (
@@ -3042,7 +3001,9 @@ export function TopBar({
       {/* ── Right cluster — history · collaboration · save & publish ──
        * Page-level tools only. Element/section editing lives in the inspector
        * and the floating toolbar; tool panels launch from the left command
-       * dock. Search · Add · Page settings · Theme · Help now live in the dock.
+       * dock (Add · Pages · Structure · Design · Assets · Help). Search lives
+       * only in the ⌘K command palette; Page Settings has its single home in
+       * the publish menu below.
        */}
       <TbIconBtn title="Undo (⌘Z)" onClick={onUndo} disabled={!canUndo}>
         <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -3067,8 +3028,6 @@ export function TopBar({
         </svg>
       </TbIconBtn>
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
-
-      {SHOW_WORKSPACE_CONTROLS ? <WorkspaceLayoutControls /> : null}
 
       {onSaveDraft ? (
         <TbOutlineBtn

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { Bullet, CapsLabel, Icon } from "../../primitives";
 import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, POLAROID_SET, TALENT_PROFILES_BY_ID, TALENT_SPECIALTY_LABEL, applyProfileOverride, buildFreshTalentProfile, computeProfileCompleteness, getProfileById, useAdminShell, useProfileOverrideSubscription } from "../../state";
 import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
@@ -16,6 +17,7 @@ import { BadgeChip, ProfileChip, TierPill } from "./profile-sections-2";
 // outstanding without opening each section.
 export function AllSectionsGrid({ openSection }: { openSection: (s: string) => void }) {
   const { tenantSlug, bridgeTalentSelfProfile } = useAdminShell();
+  const copy = useDashboardText();
   const hidePolaroids = tenantSlug === "impronta";
   // Subscribe + read merged profile so completion chips refresh when
   // the talent edits anything in the shell.
@@ -50,8 +52,8 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
     return Boolean(v);
   };
   const ratio = (filled: number, total: number): { status: Status; remainder?: string } => {
-    if (filled === 0) return { status: "empty",   remainder: `Add ${total} required` };
-    if (filled < total) return { status: "partial", remainder: `${total - filled} of ${total} left` };
+    if (filled === 0) return { status: "empty",   remainder: `${copy.t("Add")} ${total} ${copy.t("required")}` };
+    if (filled < total) return { status: "partial", remainder: `${total - filled} ${copy.t("of")} ${total} ${copy.t("left")}` };
     return { status: "complete" };
   };
   // Identity — required: stage name, pronouns, age (proxies for the
@@ -80,13 +82,13 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
   // Rates — required: rateCard set.
   const ratesRatio = ratio(p.rateCard ? 1 : 0, 1);
   // Availability — completed when any blocks set.
-  const availabilityRatio: { status: Status; remainder?: string } = AVAILABILITY_BLOCKS.length > 0 ? { status: "complete" } : { status: "empty", remainder: "Block your unavailable dates" };
+  const availabilityRatio: { status: Status; remainder?: string } = AVAILABILITY_BLOCKS.length > 0 ? { status: "complete" } : { status: "empty", remainder: copy.t("Block your unavailable dates") };
   // Languages — at least 1.
-  const languagesRatio: { status: Status; remainder?: string } = p.languages.length > 0 ? { status: "complete" } : { status: "empty", remainder: "Add a language" };
+  const languagesRatio: { status: Status; remainder?: string } = p.languages.length > 0 ? { status: "complete" } : { status: "empty", remainder: copy.t("Add a language") };
   // Skills — at least 3.
   const skillsRatio = ratio(Math.min(p.skills.length, 3), 3);
   // Credits — at least 1.
-  const creditsRatio: { status: Status; remainder?: string } = p.credits.length > 0 ? { status: "complete" } : { status: "empty", remainder: "Add your first credit" };
+  const creditsRatio: { status: Status; remainder?: string } = p.credits.length > 0 ? { status: "complete" } : { status: "empty", remainder: copy.t("Add your first credit") };
   // Limits — optional.
   const limitsRatio: { status: Status } = p.limits.length > 0 ? { status: "complete" } : { status: "optional" };
   // Files — required: W-8BEN + model release uploaded.
@@ -97,11 +99,11 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
   // Trust — bookingStats.completedBookings as a proxy.
   const trustRatio: { status: Status; remainder?: string } = p.bookingStats?.completedBookings && p.bookingStats.completedBookings > 0
     ? { status: "complete" }
-    : { status: "partial", remainder: "Verify ID + payout" };
+    : { status: "partial", remainder: copy.t("Verify ID + payout") };
 
   const sections: SectionDef[] = [
     { id: "identity",      emoji: "👤", label: "Identity",       description: "Stage name · pronouns · gender · DOB. You control privacy per field.", ...identityRatio },
-    { id: "services",      emoji: "🎯", label: "Services",       description: "Talent type, specialties, and what you're growing into.", ...servicesRatio },
+    { id: "services",      emoji: "🎯", label: "Talent type & specialties", description: "Your talent type, specialties, and what you're growing into.", ...servicesRatio },
     { id: "location",      emoji: "📍", label: "Location & travel", description: "Home base · cities you work · passport · driver's license.", ...locationRatio },
     { id: "media",         emoji: "📷", label: "Cover · headshot · reel", description: "Banner, main photo, hello reel, showreel.", ...mediaRatio },
     { id: "albums",        emoji: "🗂", label: "Portfolio albums", description: "Editorial · Lookbook · Behind-the-scenes · Personal.", ...albumsRatio },
@@ -172,15 +174,15 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
                 display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
                 marginBottom: 2,
               }}>
-                <span className="text-admin-ink text-admin-13h font-bold">{s.label}</span>
+                <span className="text-admin-ink text-admin-13h font-bold">{copy.t(s.label)}</span>
                 <span style={{
                   fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
                   textTransform: "uppercase",
                   padding: "2px 7px", borderRadius: 999,
                   background: meta.bg, color: meta.fg,
-                }}>{meta.label}</span>
+                }}>{copy.t(meta.label)}</span>
               </div>
-              <div style={{ fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">{s.description}</div>
+              <div style={{ fontSize: 11.5, lineHeight: 1.45 }} className="text-admin-ink-muted">{copy.t(s.description)}</div>
               {s.remainder && (
                 <div style={{
                   fontSize: 11, fontWeight: 600, color: meta.fg,
@@ -205,6 +207,7 @@ export function AllSectionsGrid({ openSection }: { openSection: (s: string) => v
 
 export function ProfileHero() {
   const { openDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const copy = useDashboardText();
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   useProfileOverrideSubscription();
   const baseHero = applyProfileOverride(
@@ -249,46 +252,69 @@ export function ProfileHero() {
         overflow: "hidden",
       }}
     >
-      {/* Cover photo */}
+      {/* Cover photo. Empty state is a SHORT band with one actionable CTA —
+          the old 200px band shouting "No cover photo" in 48px dead text ate
+          the whole fold on a fresh profile. */}
       <div
         style={{
           position: "relative",
-          height: 200,
+          height: coverSrc ? 200 : 120,
           background: coverSrc
             ? `url(${coverSrc}) center/cover, ${COLORS.surfaceAlt}`
             : `linear-gradient(180deg, ${COLORS.surfaceAlt} 0%, rgba(15,79,62,0.18) 100%)`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 72,
-          letterSpacing: 8,
         }}
       >
-        {!coverSrc && <span style={{ filter: "saturate(0.8)", fontSize: 48, fontFamily: FONTS.body }} className="text-admin-ink-muted">No cover photo</span>}
-        <button
-          onClick={() => openSection("media")}
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            background: "rgba(11,11,13,0.55)",
-            color: "#fff",
-            border: "none",
-            padding: "5px 10px",
-            borderRadius: 999,
-            fontFamily: FONTS.body,
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-            backdropFilter: "blur(6px)",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            letterSpacing: 0.3,
-          }}
-        >
-          <Icon name="palette" size={11} stroke={2} color="#fff" /> Replace cover
-        </button>
+        {!coverSrc && (
+          <button
+            onClick={() => openSection("media")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.85)",
+              border: `1px solid ${COLORS.borderSoft}`,
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            <Icon name="palette" size={12} stroke={2} color={COLORS.accentDeep} /> {copy.t("Add a cover photo")}
+          </button>
+        )}
+        {coverSrc && (
+          <button
+            onClick={() => openSection("media")}
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              background: "rgba(11,11,13,0.55)",
+              color: "#fff",
+              border: "none",
+              padding: "5px 10px",
+              borderRadius: 999,
+              fontFamily: FONTS.body,
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              backdropFilter: "blur(6px)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              letterSpacing: 0.3,
+            }}
+          >
+            <Icon name="palette" size={11} stroke={2} color="#fff" /> {copy.t("Replace cover")}
+          </button>
+        )}
       </div>
 
       {/* Identity strip */}
@@ -315,7 +341,7 @@ export function ProfileHero() {
             boxShadow: "0 6px 18px -8px rgba(0,0,0,0.25)",
             padding: 0,
           }}
-          aria-label="Edit headshot"
+          aria-label={copy.t("Edit headshot")}
         >
           {!avatarSrc && <span className="text-[40px]">👤</span>}
           <span style={{ position: "absolute", bottom: 2, right: 2, width: 26, height: 26, borderRadius: "50%", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }} className="bg-admin-fill">
@@ -368,7 +394,7 @@ export function ProfileHero() {
               maxWidth: 280,
             }}
           >
-            <CapsLabel>Trust</CapsLabel>
+            <CapsLabel>{copy.t("Trust")}</CapsLabel>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {p.badges.slice(0, 4).map((b) => (
                 <BadgeChip key={b.kind} badge={b} compact />
@@ -400,18 +426,19 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
   // Falls back to MY_TALENT_PROFILE only when nothing was passed (legacy
   // call sites / standalone prototype demo).
   const p = profile ?? MY_TALENT_PROFILE;
+  const copy = useDashboardText();
   const items = [
-    { label: "Discover rank", value: p.discoverRank > 0 ? `#${p.discoverRank}` : "—", sub: p.discoverRank > 0 ? "Updated daily" : "Not yet ranked", tone: COLORS.indigo },
+    { label: copy.t("Discover rank"), value: p.discoverRank > 0 ? `#${p.discoverRank}` : "—", sub: p.discoverRank > 0 ? copy.t("Updated daily") : copy.t("Not yet ranked"), tone: COLORS.indigo },
     {
-      label: "Views · 7d",
+      label: copy.t("Views · 7d"),
       value: p.profileViews7d.toLocaleString(),
       sub: p.profileViews7d > 0
-        ? `${p.viewsTrend > 0 ? "▲" : "▼"} ${Math.abs(p.viewsTrend)}% vs last week`
-        : "No views yet",
+        ? `${p.viewsTrend > 0 ? "▲" : "▼"} ${Math.abs(p.viewsTrend)}% ${copy.t("vs last week")}`
+        : copy.t("No views yet"),
       tone: p.viewsTrend > 0 ? COLORS.success : COLORS.amber,
     },
-    { label: "Inquiries · 7d", value: String(p.inquiries7d), sub: p.inquiries7d > 0 ? `${p.bookingStats.repeatClients} repeat clients` : "No inquiries yet", tone: COLORS.coral },
-    { label: "On-time rate", value: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.onTimeRate}%` : "—", sub: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.completedBookings} bookings` : "No bookings yet", tone: COLORS.success },
+    { label: copy.t("Inquiries · 7d"), value: String(p.inquiries7d), sub: p.inquiries7d > 0 ? `${p.bookingStats.repeatClients} ${copy.t("repeat clients")}` : copy.t("No inquiries yet"), tone: COLORS.coral },
+    { label: copy.t("On-time rate"), value: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.onTimeRate}%` : "—", sub: p.bookingStats.completedBookings > 0 ? `${p.bookingStats.completedBookings} ${copy.t("bookings")}` : copy.t("No bookings yet"), tone: COLORS.success },
   ];
   return (
     <div style={{ fontFamily: FONTS.body }}>
@@ -419,8 +446,8 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
         display: "flex", alignItems: "center", justifyContent: "space-between",
         marginBottom: 10,
       }}>
-        <CapsLabel>Profile performance</CapsLabel>
-        <span className="text-admin-ink-dim text-admin-11">Last 7 days</span>
+        <CapsLabel>{copy.t("Profile performance")}</CapsLabel>
+        <span className="text-admin-ink-dim text-admin-11">{copy.t("Last 7 days")}</span>
       </div>
       <div data-tulala-talent-stat-strip style={{
         background: "#fff", borderRadius: 12,

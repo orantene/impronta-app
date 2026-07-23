@@ -35,6 +35,7 @@ import {
   useQueuedRouterRefresh,
   useSaveAndClose
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 7 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -42,6 +43,8 @@ import {
 export function StorefrontVisibilityDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
   const { state, closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [pending, startTransition] = useTransition();
 
   // Defaults derived from the workspace plan — applied when the namespace
@@ -77,8 +80,8 @@ export function StorefrontVisibilityDrawer() {
   const save = () => {
     startTransition(async () => {
       const r = await patchAgencySettingsNamespace("", "visibility", flags as unknown as Record<string, unknown>);
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Visibility saved"); queueRouterRefresh(); closeDrawer(); }
+      if (!r.ok) toast(copy.isSpanish ? `No se pudo guardar: ${r.error}` : `Save failed: ${r.error}`);
+      else { toast(tt("Visibility saved")); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -86,19 +89,19 @@ export function StorefrontVisibilityDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Storefront visibility"
-      description="What's public on your storefront — and what shows up in Tulala discovery."
-      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Save"} />}
+      title={tt("Storefront visibility")}
+      description={tt("What's public on your storefront, and what shows up in Tulala discovery.")}
+      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? tt("Saving…") : tt("Save")} />}
     >
-      <Section title="Public storefront">
-        <ToggleRow label="Show roster grid" defaultOn={flags.rosterGrid} onChange={(v) => set("rosterGrid", v)} />
-        <ToggleRow label="Show client logos" defaultOn={flags.clientLogos} onChange={(v) => set("clientLogos", v)} />
-        <ToggleRow label="Show editorial posts" defaultOn={flags.editorialPosts} onChange={(v) => set("editorialPosts", v)} />
-        <ToggleRow label="Allow direct inquiries" defaultOn={flags.directInquiries} onChange={(v) => set("directInquiries", v)} />
+      <Section title={tt("Public storefront")}>
+        <ToggleRow label={tt("Show roster grid")} defaultOn={flags.rosterGrid} onChange={(v) => set("rosterGrid", v)} />
+        <ToggleRow label={tt("Show client logos")} defaultOn={flags.clientLogos} onChange={(v) => set("clientLogos", v)} />
+        <ToggleRow label={tt("Show editorial posts")} defaultOn={flags.editorialPosts} onChange={(v) => set("editorialPosts", v)} />
+        <ToggleRow label={tt("Allow direct inquiries")} defaultOn={flags.directInquiries} onChange={(v) => set("directInquiries", v)} />
       </Section>
-      <Section title="Tulala discovery" description="On Free, you appear in our public talent directory. Studio and up are private by default.">
-        <ToggleRow label="Listed in Tulala directory" defaultOn={flags.discoveryListed} onChange={(v) => set("discoveryListed", v)} />
-        <ToggleRow label="Featured rotation eligible" defaultOn={flags.discoveryFeatured} onChange={(v) => set("discoveryFeatured", v)} />
+      <Section title={tt("Tulala discovery")} description={tt("On Free, you appear in our public talent directory. Studio and up are private by default.")}>
+        <ToggleRow label={tt("Listed in Tulala directory")} defaultOn={flags.discoveryListed} onChange={(v) => set("discoveryListed", v)} />
+        <ToggleRow label={tt("Featured rotation eligible")} defaultOn={flags.discoveryFeatured} onChange={(v) => set("discoveryFeatured", v)} />
       </Section>
     </DrawerShell>
   );
@@ -107,45 +110,47 @@ export function StorefrontVisibilityDrawer() {
 
 export function HubDistributionDrawer() {
   const { state, closeDrawer, openUpgrade } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const isUnlocked = meetsPlan(state.plan, "network");
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Hub distribution"
-      description={isUnlocked ? "Push talent to discovery across all your brands." : "Available on Network."}
+      title={tt("Hub distribution")}
+      description={isUnlocked ? tt("Push talent to discovery across all your brands.") : tt("Available on Network.")}
       footer={
         isUnlocked ? (
-          <PrimaryButton onClick={closeDrawer}>Save</PrimaryButton>
+          <PrimaryButton onClick={closeDrawer}>{tt("Save")}</PrimaryButton>
         ) : (
           <PrimaryButton
             onClick={() =>
               openUpgrade({
-                feature: "Hub distribution",
-                why: "Push talent to discovery across all your agency brands at once.",
+                feature: tt("Hub distribution"),
+                why: tt("Push talent to discovery across all your agency brands at once."),
                 requiredPlan: "network",
               })
             }
           >
-            Upgrade to Network
+            {tt("Upgrade to Network")}
           </PrimaryButton>
         )
       }
     >
       {isUnlocked ? (
-        <Section title="Connected brands">
+        <Section title={tt("Connected brands")}>
           <ToggleRow label="Acme Models · Madrid" defaultOn />
           <ToggleRow label="Acme Models · Paris" defaultOn />
           <ToggleRow label="Acme Editorial" defaultOn={false} />
         </Section>
       ) : (
-        <Section title="What this unlocks">
+        <Section title={tt("What this unlocks")}>
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
             {[
-              "Run multiple agency brands as one operation",
-              "Move roster across brands without losing history",
-              "Hub-level analytics across all brands",
-              "Cross-roster pool for shared talent",
+              tt("Run multiple agency brands as one operation"),
+              tt("Move roster across brands without losing history"),
+              tt("Hub-level analytics across all brands"),
+              tt("Cross-roster pool for shared talent"),
             ].map((p) => (
               <li key={p} style={{ display: "flex", gap: 10, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>
                 <Icon name="check" size={14} stroke={2} color={COLORS.green} />
@@ -163,6 +168,8 @@ export function HubDistributionDrawer() {
 export function FilterConfigDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
   const { closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [pending, startTransition] = useTransition();
   const [flags, setFlags] = useState({
     drafts: true,
@@ -191,8 +198,8 @@ export function FilterConfigDrawer() {
   const save = () => {
     startTransition(async () => {
       const r = await patchAgencySettingsNamespace("", "filters", flags as unknown as Record<string, unknown>);
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Filters saved"); queueRouterRefresh(); closeDrawer(); }
+      if (!r.ok) toast(copy.isSpanish ? `No se pudo guardar: ${r.error}` : `Save failed: ${r.error}`);
+      else { toast(tt("Filters saved")); queueRouterRefresh(); closeDrawer(); }
     });
   };
 
@@ -200,21 +207,21 @@ export function FilterConfigDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Filters"
-      description="Narrow down what you see."
-      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? "Saving…" : "Apply filters"} />}
+      title={tt("Filters")}
+      description={tt("Narrow down what you see.")}
+      footer={<StandardFooter onSave={save} disabled={pending || !loaded} saveLabel={pending ? tt("Saving…") : tt("Apply filters")} />}
     >
-      <Section title="Stage" framed>
-        <ToggleRow label="Drafts" defaultOn={flags.drafts} onChange={(v) => set("drafts", v)} />
-        <ToggleRow label="Awaiting client" defaultOn={flags.awaitingClient} onChange={(v) => set("awaitingClient", v)} />
-        <ToggleRow label="Confirmed" defaultOn={flags.confirmed} onChange={(v) => set("confirmed", v)} />
-        <ToggleRow label="Archived" defaultOn={flags.archived} onChange={(v) => set("archived", v)} />
+      <Section title={tt("Stage")} framed>
+        <ToggleRow label={tt("Drafts")} defaultOn={flags.drafts} onChange={(v) => set("drafts", v)} />
+        <ToggleRow label={tt("Awaiting client")} defaultOn={flags.awaitingClient} onChange={(v) => set("awaitingClient", v)} />
+        <ToggleRow label={tt("Confirmed")} defaultOn={flags.confirmed} onChange={(v) => set("confirmed", v)} />
+        <ToggleRow label={tt("Archived")} defaultOn={flags.archived} onChange={(v) => set("archived", v)} />
       </Section>
-      <Section title="Talent" framed>
-        <SelectInput options={["All talent", "Marta Reyes", "Kai Lin", "Tomás Navarro"]} />
+      <Section title={tt("Talent")} framed>
+        <SelectInput options={[tt("All talent"), "Marta Reyes", "Kai Lin", "Tomás Navarro"]} />
       </Section>
-      <Section title="Date range" framed>
-        <SelectInput options={["Any time", "This week", "This month", "This quarter"]} />
+      <Section title={tt("Date range")} framed>
+        <SelectInput options={[tt("Any time"), tt("This week"), tt("This month"), tt("This quarter")]} />
       </Section>
     </DrawerShell>
   );
@@ -223,53 +230,61 @@ export function FilterConfigDrawer() {
 
 export function DangerZoneDrawer() {
   const { closeDrawer, toast, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Danger zone"
-      description="Irreversible actions. Be sure before you click."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Danger zone")}
+      description={tt("Irreversible actions. Be sure before you click.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
-      <Section title="Pause workspace" description="Support can take your storefront offline temporarily. Data is preserved.">
+      <Section title={tt("Pause workspace")} description={tt("Support can take your storefront offline temporarily. Data is preserved.")}>
         <ConfirmTypedAction
-          actionLabel="Email pause request"
+          actionLabel={tt("Email pause request")}
           confirmPhrase="pause"
           tone="amber"
           onConfirm={() => {
             openSupportEmail(
-              "Tulala workspace pause request",
-              `Please pause the ${effectiveTenant.name} workspace storefront. I understand data is preserved.`,
+              copy.isSpanish ? "Solicitud de pausa del espacio de trabajo Tulala" : "Tulala workspace pause request",
+              copy.isSpanish
+                ? `Por favor, pausen la tienda del espacio de trabajo ${effectiveTenant.name}. Entiendo que los datos se conservan.`
+                : `Please pause the ${effectiveTenant.name} workspace storefront. I understand data is preserved.`,
             );
-            toast("Opening workspace support email");
+            toast(tt("Opening workspace support email"));
           }}
         />
       </Section>
-      <Section title="Transfer ownership" description="Support reviews ownership transfer requests before any account access changes.">
+      <Section title={tt("Transfer ownership")} description={tt("Support reviews ownership transfer requests before any account access changes.")}>
         <ConfirmTypedAction
-          actionLabel="Email transfer request"
+          actionLabel={tt("Email transfer request")}
           confirmPhrase="transfer"
           tone="amber"
           onConfirm={() => {
             openSupportEmail(
-              "Tulala ownership transfer request",
-              `Please review an ownership transfer request for ${effectiveTenant.name}.`,
+              copy.isSpanish ? "Solicitud de transferencia de titularidad Tulala" : "Tulala ownership transfer request",
+              copy.isSpanish
+                ? `Por favor, revisen una solicitud de transferencia de titularidad de ${effectiveTenant.name}.`
+                : `Please review an ownership transfer request for ${effectiveTenant.name}.`,
             );
-            toast("Opening ownership support email");
+            toast(tt("Opening ownership support email"));
           }}
         />
       </Section>
-      <Section title="Delete workspace" description="Permanent deletion requires support review and a final export.">
+      <Section title={tt("Delete workspace")} description={tt("Permanent deletion requires support review and a final export.")}>
         <ConfirmTypedAction
-          actionLabel="Email deletion request"
+          actionLabel={tt("Email deletion request")}
           confirmPhrase={effectiveTenant.name}
           tone="red"
           onConfirm={() => {
             openSupportEmail(
-              "Tulala workspace deletion request",
-              `Please review a deletion request for ${effectiveTenant.name}. I understand this is permanent and should include a final export before deletion.`,
+              copy.isSpanish ? "Solicitud de eliminación del espacio de trabajo Tulala" : "Tulala workspace deletion request",
+              copy.isSpanish
+                ? `Por favor, revisen una solicitud de eliminación de ${effectiveTenant.name}. Entiendo que es permanente y debe incluir una exportación final antes de eliminar.`
+                : `Please review a deletion request for ${effectiveTenant.name}. I understand this is permanent and should include a final export before deletion.`,
             );
-            toast("Opening deletion support email");
+            toast(tt("Opening deletion support email"));
           }}
         />
       </Section>
@@ -296,6 +311,8 @@ export function SimpleStubDrawer({
   sections: { label: string; input: string }[];
 }) {
   const { closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const onSave = useSaveAndClose("Saved");
   return (
     <DrawerShell
@@ -307,7 +324,7 @@ export function SimpleStubDrawer({
     >
       {sections.length === 0 ? (
         <p style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.55 }} className="text-admin-ink-muted">
-          This drawer is part of the prototype skeleton — its detailed content lands in the next iteration.
+          {tt("This drawer is part of the prototype skeleton. Its detailed content lands in the next iteration.")}
         </p>
       ) : (
         sections.map((s) => (
@@ -327,6 +344,8 @@ export function SimpleStubDrawer({
 
 export function PlanCompareDrawer() {
   const { state, closeDrawer, openUpgrade, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "plan-compare";
   const currentPlan = state.plan;
 
@@ -396,16 +415,16 @@ export function PlanCompareDrawer() {
         >
           <div>
             <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.4, margin: 0, lineHeight: 1.2 }} className="text-admin-ink">
-              Choose your plan
+              {tt("Choose your plan")}
             </h2>
             <p style={{ fontFamily: FONTS.body, fontSize: 13.5, margin: "6px 0 0", lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Find the right fit for where your agency is headed. All plans include core messaging and the public roster.
+              {tt("Find the right fit for where your agency is headed. All plans include core messaging and the public roster.")}
             </p>
           </div>
           <button
             type="button"
             onClick={closeDrawer}
-            aria-label="Close"
+            aria-label={tt("Close")}
             style={{
               width: 36, height: 36, borderRadius: 10,
               border: `1px solid ${COLORS.borderSoft}`,
@@ -478,7 +497,7 @@ export function PlanCompareDrawer() {
                       letterSpacing: 0.6, textTransform: "uppercase",
                       padding: "3px 8px", borderRadius: "0 0 7px 7px",
                     }}>
-                      Most popular
+                      {tt("Most popular")}
                     </div>
                   )}
 
@@ -491,7 +510,7 @@ export function PlanCompareDrawer() {
                       letterSpacing: 0.6, textTransform: "uppercase",
                       padding: "3px 8px", borderRadius: "0 0 7px 7px",
                     }}>
-                      Current plan
+                      {tt("Current plan")}
                     </div>
                   )}
 
@@ -515,7 +534,7 @@ export function PlanCompareDrawer() {
                     </span>
                     {header.price.includes("/mo") && (
                       <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
-                        /month
+                        {copy.isSpanish ? "/mes" : "/month"}
                       </span>
                     )}
                   </div>
@@ -534,12 +553,14 @@ export function PlanCompareDrawer() {
                       borderRadius: 9, fontFamily: FONTS.body,
                       fontSize: 12.5, fontWeight: 600, cursor: "default",
                     }}>
-                      ✓ Your plan
+                      {copy.isSpanish ? "✓ Tu plan" : "✓ Your plan"}
                     </button>
                   ) : isLower ? (
                     <button
                       type="button"
-                      onClick={() => toast(`Downgrade to ${meta.label} runs through support — we'll review your roster first.`)}
+                      onClick={() => toast(copy.isSpanish
+                        ? `Bajar a ${meta.label} se gestiona con soporte. Primero revisaremos tu lista.`
+                        : `Downgrade to ${meta.label} runs through support, we'll review your roster first.`)}
                       style={{
                         width: "100%", padding: "9px 0",
                         background: "transparent", color: COLORS.inkMuted,
@@ -551,7 +572,7 @@ export function PlanCompareDrawer() {
                       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      Downgrade
+                      {tt("Downgrade")}
                     </button>
                   ) : (
                     <button
@@ -574,7 +595,7 @@ export function PlanCompareDrawer() {
                       onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.98)"; }}
                       onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
                     >
-                      Upgrade to {meta.label} →
+                      {copy.isSpanish ? `Mejorar a ${meta.label} →` : `Upgrade to ${meta.label} →`}
                     </button>
                   )}
                 </div>
@@ -585,7 +606,7 @@ export function PlanCompareDrawer() {
           {/* ── Feature comparison table ── */}
           <div style={{ padding: "0 28px 28px" }}>
             <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 10 }} className="text-admin-ink-muted">
-              Feature breakdown
+              {tt("Feature breakdown")}
             </div>
             <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, overflow: "hidden" }}>
               {/* Column headers row */}
@@ -641,7 +662,7 @@ export function PlanCompareDrawer() {
                       {row.dimension}
                     </span>
                     <Popover content={row.why}>
-                      <button type="button" aria-label={`Why ${row.dimension} matters`}
+                      <button type="button" aria-label={copy.isSpanish ? `Por qué importa ${row.dimension}` : `Why ${row.dimension} matters`}
                         style={{
                           display: "inline-flex", alignItems: "center", justifyContent: "center",
                           width: 14, height: 14, borderRadius: "50%",
@@ -679,7 +700,7 @@ export function PlanCompareDrawer() {
             </div>
             {/* Tax note */}
             <div style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 10, textAlign: "right" }} className="text-admin-ink-muted">
-              USD · ex tax · billed monthly or annually (20% off)
+              {copy.isSpanish ? "USD · sin impuestos · facturado mensual o anualmente (20% de descuento)" : "USD · ex tax · billed monthly or annually (20% off)"}
             </div>
           </div>
         </div>
@@ -707,27 +728,29 @@ export function PlanCompareDrawer() {
 
 export function ClientTrustDetailDrawer() {
   const { state, closeDrawer, openDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open  = state.drawer.drawerId === "client-trust-detail";
   const level = (state.drawer.payload?.level as string) ?? "basic";
 
   const tiers = [
-    { id: "basic",    label: "Basic",    color: COLORS.inkMuted, bg: "rgba(11,11,13,0.04)",     badge: "—", requirements: ["Verified email", "Completed profile"], access: ["Browse public rosters", "Submit inquiries"] },
-    { id: "verified", label: "Verified", color: COLORS.green,       bg: "rgba(46,125,91,0.08)",    badge: "✓", requirements: ["Identity verification", "Phone confirmed"], access: ["Direct talent contact (if talent allows)", "Priority processing"] },
-    { id: "silver",   label: "Silver",   color: COLORS.amberDeep,       bg: COLORS.amberSoft,    badge: "◈", requirements: ["Verified identity", "1+ completed booking", "No disputes"], access: ["First-look on new availability", "Extended 72h holds"] },
-    { id: "gold",     label: "Gold",     color: "#7A5C00",       bg: "rgba(217,163,6,0.10)",    badge: "★", requirements: ["Verified identity", "Funded account", "3+ bookings", "5★ avg"], access: ["Dedicated coordinator", "VIP talent access", "Direct messaging all tiers"] },
+    { id: "basic",    label: tt("Basic"),    color: COLORS.inkMuted, bg: "rgba(11,11,13,0.04)",     badge: "—", requirements: [tt("Verified email"), tt("Completed profile")], access: [tt("Browse public rosters"), tt("Submit inquiries")] },
+    { id: "verified", label: tt("Verified"), color: COLORS.green,       bg: "rgba(46,125,91,0.08)",    badge: "✓", requirements: [tt("Identity verification"), tt("Phone confirmed")], access: [tt("Direct talent contact (if talent allows)"), tt("Priority processing")] },
+    { id: "silver",   label: tt("Silver"),   color: COLORS.amberDeep,       bg: COLORS.amberSoft,    badge: "◈", requirements: [tt("Verified identity"), tt("1+ completed booking"), tt("No disputes")], access: [tt("First-look on new availability"), tt("Extended 72h holds")] },
+    { id: "gold",     label: tt("Gold"),     color: "#7A5C00",       bg: "rgba(217,163,6,0.10)",    badge: "★", requirements: [tt("Verified identity"), tt("Funded account"), tt("3+ bookings"), tt("5★ avg")], access: [tt("Dedicated coordinator"), tt("VIP talent access"), tt("Direct messaging all tiers")] },
   ];
   const currentIdx = tiers.findIndex((t) => t.id === level);
   const current    = tiers[currentIdx] ?? tiers[0]!;
   const next       = tiers[currentIdx + 1];
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Client Trust Ladder" description="Higher trust unlocks access opportunities — never pay-to-DM" defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("Client Trust Ladder")} description={tt("Higher trust unlocks access opportunities, never pay-to-DM")} defaultSize="half">
       <div className="flex flex-col gap-5">
         <div style={{ padding: "14px 16px", background: current.bg, border: `1px solid ${current.color}33`, borderLeft: `3px solid ${current.color}`, borderRadius: 10, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <span className="text-lg">{current.badge}</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: current.color }}>{current.label}</span>
-            <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" as const, color: current.color }}>Current tier</span>
+            <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" as const, color: current.color }}>{tt("Current tier")}</span>
           </div>
           {current.access.map((a, i) => (
             <div key={i} style={{ fontSize: 12.5, color: COLORS.inkMuted, display: "flex", gap: 8, marginBottom: 3 }}>
@@ -745,7 +768,7 @@ export function ClientTrustDetailDrawer() {
                   {isPast ? "✓" : t.badge}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div style={{ fontSize: 13, fontWeight: 600, color: isCurrent ? t.color : COLORS.ink, marginBottom: 3 }}>{t.label}{isCurrent && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400 }} className="text-admin-ink-muted">— you are here</span>}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isCurrent ? t.color : COLORS.ink, marginBottom: 3 }}>{t.label}{isCurrent && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400 }} className="text-admin-ink-muted">· {tt("you are here")}</span>}</div>
                   <div className="text-admin-ink-muted text-admin-11h">{t.requirements.join(" · ")}</div>
                 </div>
               </div>
@@ -754,10 +777,10 @@ export function ClientTrustDetailDrawer() {
         </div>
         {next && (
           <div style={{ padding: "14px 16px", background: "rgba(11,11,13,0.02)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">Unlock {next.label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">{copy.isSpanish ? `Desbloquear ${next.label}` : `Unlock ${next.label}`}</div>
             <div style={{ fontSize: 12, marginBottom: 10 }} className="text-admin-ink-muted">{next.requirements.join(", ")}</div>
             <button type="button" onClick={() => openDrawer("kyc-verification")} style={{ padding: "8px 16px", background: COLORS.fill, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              Start verification →
+              {tt("Start verification →")}
             </button>
           </div>
         )}

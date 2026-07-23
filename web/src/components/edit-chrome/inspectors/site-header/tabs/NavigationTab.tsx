@@ -286,7 +286,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <button
         type="button"
         onClick={onAdd}
-        className="inline-flex items-center gap-1.5 rounded-md bg-[#3d4f7c] px-3.5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#4a5e94]"
+        className="inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-3.5 py-2 text-[12px] font-semibold text-white shadow-sm transition hover:bg-violet-500"
       >
         <PlusGlyph />
         Add first link

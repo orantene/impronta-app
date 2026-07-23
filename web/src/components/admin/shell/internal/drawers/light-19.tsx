@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useC
 import { useRouter } from "next/navigation";
 import {
   COLORS,
+  accentAlpha,
   CapsLabel,
   DrawerShell,
   FONTS,
@@ -14,6 +15,7 @@ import {
   Toggle,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -21,6 +23,8 @@ import {
 export function CalendarSyncDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "calendar-sync";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   const ICAL_URL = "https://app.tulala.digital/cal/export/impronta-oran.ics?token=abc123";
   const INTEGRATIONS = [
@@ -33,15 +37,15 @@ export function CalendarSyncDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Calendar sync"
-      description="Sync your Tulala bookings with your personal calendar. Changes appear within 5 minutes."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Calendar sync")}
+      description={tt("Sync your Tulala bookings with your personal calendar. Changes appear within 5 minutes.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       defaultSize="half"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         {/* Integrations */}
         <div>
-          <CapsLabel>Connected calendars</CapsLabel>
+          <CapsLabel>{tt("Connected calendars")}</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             {INTEGRATIONS.map((intg) => (
               <div
@@ -49,7 +53,7 @@ export function CalendarSyncDrawer() {
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   padding: "12px 14px", background: COLORS.surfaceAlt,
-                  borderRadius: RADIUS.md, border: `1px solid ${intg.connected ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                  borderRadius: RADIUS.md, border: `1px solid ${intg.connected ? accentAlpha("44") : COLORS.borderSoft}`,
                 }}
               >
                 <div className="flex items-center gap-2.5">
@@ -57,7 +61,7 @@ export function CalendarSyncDrawer() {
                   <div>
                     <div className="text-admin-ink text-admin-13 font-semibold">{intg.name}</div>
                     <div style={{ fontSize: 11, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted, marginTop: 1 }}>
-                      {intg.note}
+                      {tt(intg.note)}
                     </div>
                   </div>
                 </div>
@@ -72,7 +76,7 @@ export function CalendarSyncDrawer() {
                     borderRadius: RADIUS.sm, cursor: "default", opacity: 0.5,
                   }}
                 >
-                  {intg.connected ? "Disconnect" : "Connect"}
+                  {intg.connected ? tt("Disconnect") : tt("Connect")}
                 </button>
               </div>
             ))}
@@ -81,9 +85,9 @@ export function CalendarSyncDrawer() {
 
         {/* iCal subscription URL */}
         <div>
-          <CapsLabel>iCal subscription URL</CapsLabel>
+          <CapsLabel>{tt("iCal subscription URL")}</CapsLabel>
           <div style={{ marginTop: 8, fontSize: 12.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Add this URL to any calendar app that supports iCal subscriptions (Apple Calendar, Outlook, Fantastical). Read-only, updates every 15 minutes.
+            {tt("Add this URL to any calendar app that supports iCal subscriptions (Apple Calendar, Outlook, Fantastical). Read-only, updates every 15 minutes.")}
           </div>
           <div className="flex gap-2">
             <div style={{ flex: 1, fontSize: 11.5, fontFamily: "monospace", border: `1px solid ${COLORS.border}`, padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink bg-admin-surface-alt rounded-admin-sm">
@@ -94,8 +98,8 @@ export function CalendarSyncDrawer() {
               onClick={() => {
                 void navigator.clipboard
                   .writeText(ICAL_URL)
-                  .then(() => toast("iCal URL copied"))
-                  .catch(() => toast("Couldn't copy — copy manually"));
+                  .then(() => toast(tt("iCal URL copied")))
+                  .catch(() => toast(tt("Couldn't copy, copy manually")));
               }}
               style={{
                 padding: "7px 12px", background: COLORS.fill, border: "none",
@@ -103,7 +107,7 @@ export function CalendarSyncDrawer() {
                 fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
               }}
             >
-              Copy
+              {tt("Copy")}
             </button>
           </div>
         </div>
@@ -116,6 +120,8 @@ export function CalendarSyncDrawer() {
 export function SystemStatusDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "system-status";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   type ComponentStatus = { name: string; status: "operational" | "degraded" | "outage"; latency?: string };
   const COMPONENTS: ComponentStatus[] = [
@@ -145,9 +151,13 @@ export function SystemStatusDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="System status"
-      description={`Real-time Tulala infrastructure health. Last updated ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`}
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("System status")}
+      description={
+        copy.isSpanish
+          ? `Estado de la infraestructura de Tulala en tiempo real. Última actualización ${new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}.`
+          : `Real-time Tulala infrastructure health. Last updated ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`
+      }
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       defaultSize="half"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
@@ -158,13 +168,13 @@ export function SystemStatusDrawer() {
             background: allOperational ? COLORS.success : COLORS.coral,
           }} />
           <div style={{ fontSize: 13, fontWeight: 700, color: allOperational ? COLORS.successDeep : COLORS.coralDeep }}>
-            {allOperational ? "All systems operational" : "Some systems degraded"}
+            {allOperational ? tt("All systems operational") : tt("Some systems degraded")}
           </div>
         </div>
 
         {/* Component grid */}
         <div>
-          <CapsLabel>Components</CapsLabel>
+          <CapsLabel>{tt("Components")}</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
             {COMPONENTS.map((comp) => (
               <div
@@ -175,13 +185,13 @@ export function SystemStatusDrawer() {
                   borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
                 }}
               >
-                <div className="text-admin-ink text-admin-13 font-medium">{comp.name}</div>
+                <div className="text-admin-ink text-admin-13 font-medium">{tt(comp.name)}</div>
                 <div className="flex items-center gap-2.5">
                   {comp.latency && (
                     <span className="text-admin-ink-muted text-admin-11">{comp.latency}</span>
                   )}
                   <span style={{ fontSize: 10.5, fontWeight: 700, color: statusColor(comp.status), background: statusBg(comp.status), padding: "2px 7px", textTransform: "capitalize" }} className="rounded-admin-sm">
-                    {comp.status}
+                    {tt(comp.status)}
                   </span>
                 </div>
               </div>
@@ -191,7 +201,7 @@ export function SystemStatusDrawer() {
 
         {/* Incident log */}
         <div>
-          <CapsLabel>Recent incidents</CapsLabel>
+          <CapsLabel>{tt("Recent incidents")}</CapsLabel>
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             {INCIDENTS.map((inc) => (
               <div
@@ -204,7 +214,7 @@ export function SystemStatusDrawer() {
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                   <div className="text-admin-ink text-admin-13 font-semibold">{inc.title}</div>
                   <span style={{ fontSize: 10.5, fontWeight: 700, flexShrink: 0, color: inc.resolved ? COLORS.successDeep : COLORS.coral, background: inc.resolved ? COLORS.successSoft : COLORS.coralSoft, padding: "2px 7px" }} className="rounded-admin-sm">
-                    {inc.resolved ? "Resolved" : "Ongoing"}
+                    {inc.resolved ? tt("Resolved") : tt("Ongoing")}
                   </span>
                 </div>
                 <div style={{ fontSize: 11.5, marginTop: 4 }} className="text-admin-ink-muted">
@@ -227,6 +237,8 @@ export function SystemStatusDrawer() {
 export function TelemetryDashboardDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "telemetry-dashboard";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   const METRICS = [
     { label: "Error rate (24h)",    value: "0.08%",  sub: "↓ from 0.12% yesterday",  tone: "green"  as const },
@@ -255,9 +267,9 @@ export function TelemetryDashboardDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Telemetry dashboard"
-      description="Production health, Web Vitals, and conversion funnel. Sampled at 10%. Updated every 5 minutes."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Telemetry dashboard")}
+      description={tt("Production health, Web Vitals, and conversion funnel. Sampled at 10%. Updated every 5 minutes.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
       defaultSize="half"
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
@@ -269,24 +281,24 @@ export function TelemetryDashboardDrawer() {
               padding: "12px 14px", border: `1px solid ${toneColor(m.tone)}22`,
             }}>
               <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }} className="text-admin-ink-muted">
-                {m.label}
+                {tt(m.label)}
               </div>
               <div style={{ fontSize: 20, fontWeight: 800, color: toneColor(m.tone), marginBottom: 2 }}>
                 {m.value}
               </div>
-              <div className="text-admin-ink-muted text-admin-10h">{m.sub}</div>
+              <div className="text-admin-ink-muted text-admin-10h">{tt(m.sub)}</div>
             </div>
           ))}
         </div>
 
         {/* Event funnel */}
         <div style={{ padding: "14px 16px", border: `1px solid ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
-          <CapsLabel>Conversion funnel · today</CapsLabel>
+          <CapsLabel>{tt("Conversion funnel · today")}</CapsLabel>
           <div className="mt-3">
             {EVENT_FUNNEL.map((step, i) => (
               <div key={step.label} style={{ marginBottom: i < EVENT_FUNNEL.length - 1 ? 10 : 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12.5 }} className="text-admin-ink">
-                  <span className="font-medium">{step.label}</span>
+                  <span className="font-medium">{tt(step.label)}</span>
                   <span className="text-admin-ink-muted">{step.count.toLocaleString()} · {step.pct}%</span>
                 </div>
                 <div style={{ background: COLORS.border, borderRadius: 3, height: 6, overflow: "hidden" }}>
@@ -308,7 +320,7 @@ export function TelemetryDashboardDrawer() {
           borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
           fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
         }}>
-          Full telemetry in Vercel Analytics + Sentry. This drawer shows the subset surfaced to workspace admins. Error detail and traces require HQ access.
+          {tt("Full telemetry in Vercel Analytics + Sentry. This drawer shows the subset surfaced to workspace admins. Error detail and traces require HQ access.")}
         </div>
       </div>
     </DrawerShell>
@@ -319,6 +331,8 @@ export function TelemetryDashboardDrawer() {
 export function BetaProgramDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "beta-program";
+  const copy = useDashboardText();
+  const tt = copy.t;
 
   type Flag = { id: string; name: string; description: string; rollout: number; enrolled: boolean };
   const [flags, setFlags] = useState<Flag[]>([
@@ -336,21 +350,21 @@ export function BetaProgramDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Beta program"
-      description="Opt your workspace into early-access features. You can leave any beta at any time."
+      title={tt("Beta program")}
+      description={tt("Opt your workspace into early-access features. You can leave any beta at any time.")}
       footer={
         <div className="flex gap-2">
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
           <button
             type="button"
-            onClick={() => { toast("Beta preferences saved"); closeDrawer(); }}
+            onClick={() => { toast(tt("Beta preferences saved")); closeDrawer(); }}
             style={{
               padding: "9px 18px", background: COLORS.fill, border: "none",
               borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
               fontSize: 13, fontWeight: 600, cursor: "pointer",
             }}
           >
-            Save
+            {tt("Save")}
           </button>
         </div>
       }
@@ -362,24 +376,24 @@ export function BetaProgramDrawer() {
             key={flag.id}
             style={{
               padding: "14px 16px", background: COLORS.surfaceAlt,
-              borderRadius: RADIUS.lg, border: `1px solid ${flag.enrolled ? COLORS.accent + "44" : COLORS.borderSoft}`,
+              borderRadius: RADIUS.lg, border: `1px solid ${flag.enrolled ? accentAlpha("44") : COLORS.borderSoft}`,
               display: "flex", gap: 12, alignItems: "flex-start",
             }}
           >
             <Toggle on={flag.enrolled} onChange={() => toggle(flag.id)} />
             <div className="flex-1">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                <span className="text-admin-ink text-admin-13 font-semibold">{flag.name}</span>
+                <span className="text-admin-ink text-admin-13 font-semibold">{tt(flag.name)}</span>
                 <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px" }} className="text-admin-indigo-deep bg-admin-indigo-soft rounded-admin-sm">
-                  {flag.rollout}% rollout
+                  {copy.isSpanish ? `${flag.rollout}% desplegado` : `${flag.rollout}% rollout`}
                 </span>
                 {flag.enrolled && (
                   <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px" }} className="text-admin-success-deep bg-admin-success-soft rounded-admin-sm">
-                    Enrolled
+                    {tt("Enrolled")}
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{flag.description}</div>
+              <div style={{ fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{tt(flag.description)}</div>
             </div>
           </div>
         ))}
@@ -396,8 +410,11 @@ export function BetaProgramDrawer() {
 export function CsvImportDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "csv-import";
+  const copy = useDashboardText();
+  const tt = copy.t;
   const importType = (state.drawer.payload?.type as "talent" | "clients") ?? "talent";
   const [step, setStep] = useState<"upload" | "mapping" | "preview" | "done">("upload");
+  const importTypeLabel = importType === "talent" ? tt("talent") : tt("clients");
 
   const TALENT_COLUMNS  = ["First name", "Last name", "Email", "Height (cm)", "Shoe size", "Category", "Instagram"];
   const CLIENT_COLUMNS  = ["Company name", "Contact name", "Email", "Phone", "Country"];
@@ -416,24 +433,35 @@ export function CsvImportDrawer() {
     <DrawerShell
       open={open}
       onClose={() => { setStep("upload"); closeDrawer(); }}
-      title={`Import ${importType}`}
-      description={`Upload a CSV to bulk-import ${importType === "talent" ? "talent profiles" : "client records"}. Map columns, preview, then commit.`}
+      title={copy.isSpanish ? `Importar ${importTypeLabel}` : `Import ${importTypeLabel}`}
+      description={
+        copy.isSpanish
+          ? `Sube un CSV para importar en bloque ${importType === "talent" ? "perfiles de talent" : "registros de clientes"}. Asigna columnas, previsualiza y confirma.`
+          : `Upload a CSV to bulk-import ${importType === "talent" ? "talent profiles" : "client records"}. Map columns, preview, then commit.`
+      }
       footer={
         <div className="flex gap-2">
           {step !== "upload" && step !== "done" && (
             <SecondaryButton onClick={() => setStep(step === "mapping" ? "upload" : step === "preview" ? "mapping" : "preview")}>
-              ← Back
+              {tt("← Back")}
             </SecondaryButton>
           )}
           {step === "done" ? (
-            <SecondaryButton onClick={() => { setStep("upload"); closeDrawer(); }}>Close</SecondaryButton>
+            <SecondaryButton onClick={() => { setStep("upload"); closeDrawer(); }}>{tt("Close")}</SecondaryButton>
           ) : (
             <button
               type="button"
               onClick={() => {
                 if (step === "upload")   setStep("mapping");
                 else if (step === "mapping")  setStep("preview");
-                else if (step === "preview")  { setStep("done"); toast(`${PREVIEW_ROWS.length} rows imported`); }
+                else if (step === "preview")  {
+                  setStep("done");
+                  toast(
+                    copy.isSpanish
+                      ? `${PREVIEW_ROWS.length} fila${PREVIEW_ROWS.length === 1 ? "" : "s"} importada${PREVIEW_ROWS.length === 1 ? "" : "s"}`
+                      : `${PREVIEW_ROWS.length} row${PREVIEW_ROWS.length === 1 ? "" : "s"} imported`,
+                  );
+                }
               }}
               style={{
                 padding: "9px 18px", background: COLORS.fill, border: "none",
@@ -441,7 +469,7 @@ export function CsvImportDrawer() {
                 fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
-              {step === "upload" ? "Next: Map columns →" : step === "mapping" ? "Next: Preview →" : "Commit import"}
+              {step === "upload" ? tt("Next: Map columns →") : step === "mapping" ? tt("Next: Preview →") : tt("Commit import")}
             </button>
           )}
         </div>
@@ -481,10 +509,10 @@ export function CsvImportDrawer() {
           >
             <div style={{ fontSize: 28, marginBottom: 10 }}>📂</div>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">
-              Drop your CSV here, or click to browse
+              {tt("Drop your CSV here, or click to browse")}
             </div>
             <div style={{ fontSize: 11.5, marginBottom: 14 }} className="text-admin-ink-muted">
-              Max 5 MB · UTF-8 encoding · First row = headers
+              {tt("Max 5 MB · UTF-8 encoding · First row = headers")}
             </div>
             <button
               type="button"
@@ -495,19 +523,19 @@ export function CsvImportDrawer() {
                 fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
-              Browse file
+              {tt("Browse file")}
             </button>
           </div>
         )}
 
         {step === "mapping" && (
           <div>
-            <CapsLabel>Map CSV columns to Tulala fields</CapsLabel>
+            <CapsLabel>{tt("Map CSV columns to Tulala fields")}</CapsLabel>
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
               {columns.map((col) => (
                 <div key={col} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: COLORS.surfaceAlt, borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}` }}>
-                  <span className="text-admin-ink text-admin-12h font-medium">{col}</span>
-                  <span className="text-admin-success-deep text-admin-11h">✓ Auto-matched</span>
+                  <span className="text-admin-ink text-admin-12h font-medium">{tt(col)}</span>
+                  <span className="text-admin-success-deep text-admin-11h">{tt("✓ Auto-matched")}</span>
                 </div>
               ))}
             </div>
@@ -516,14 +544,14 @@ export function CsvImportDrawer() {
 
         {step === "preview" && (
           <div>
-            <CapsLabel>Preview ({PREVIEW_ROWS.length} rows · sample)</CapsLabel>
+            <CapsLabel>{copy.isSpanish ? `Vista previa (${PREVIEW_ROWS.length} filas · muestra)` : `Preview (${PREVIEW_ROWS.length} rows · sample)`}</CapsLabel>
             <div style={{ marginTop: 8, overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: FONTS.body }}>
                 <thead>
                   <tr>
                     {columns.slice(0, 4).map((col) => (
                       <th key={col} style={{ padding: "6px 10px", textAlign: "left", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, color: COLORS.inkMuted, fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        {col}
+                        {tt(col)}
                       </th>
                     ))}
                   </tr>
@@ -546,9 +574,11 @@ export function CsvImportDrawer() {
 
         {step === "done" && (
           <div style={{ padding: "16px 18px", border: `1px solid rgba(46,125,91,0.2)` }} className="bg-admin-success-soft rounded-admin-lg">
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }} className="text-admin-success-deep">✓ Import complete</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }} className="text-admin-success-deep">{tt("✓ Import complete")}</div>
             <div className="text-admin-success-deep text-admin-12h">
-              {PREVIEW_ROWS.length} {importType} records imported successfully. They appear in your roster immediately.
+              {copy.isSpanish
+                ? `${PREVIEW_ROWS.length} registros de ${importTypeLabel} importados correctamente. Aparecen en tu lista de inmediato.`
+                : `${PREVIEW_ROWS.length} ${importType} records imported successfully. They appear in your roster immediately.`}
             </div>
           </div>
         )}
@@ -561,6 +591,8 @@ export function CsvImportDrawer() {
 export function MigrationAssistantDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "migration-assistant";
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [source, setSource] = useState<"excel" | "whatsapp" | "airtable">("excel");
   const [analysed, setAnalysed] = useState(false);
 
@@ -570,34 +602,34 @@ export function MigrationAssistantDrawer() {
     airtable:  { label: "Airtable",               icon: "🗃️", hint: "Export your base as CSV from Airtable → Download" },
   };
   const ANALYSIS_RESULT = source === "whatsapp"
-    ? { found: 23, entities: "client conversations", notes: "Detected 23 client threads. AI will map each conversation to a contact + 3 draft inquiries." }
-    : { found: 47, entities: source === "excel" ? "talent rows" : "records", notes: "AI detected 6 columns including 2 that look like measurements. Review the mapping before committing." };
+    ? { found: 23, entities: tt("client conversations"), notes: tt("Detected 23 client threads. AI will map each conversation to a contact + 3 draft inquiries.") }
+    : { found: 47, entities: source === "excel" ? tt("talent rows") : tt("records"), notes: tt("AI detected 6 columns including 2 that look like measurements. Review the mapping before committing.") };
 
   return (
     <DrawerShell
       open={open}
       onClose={() => { setAnalysed(false); closeDrawer(); }}
-      title="Migration assistant"
-      description="AI-assisted import from your existing tools. We parse the structure and map it to Tulala — you review and commit."
+      title={tt("Migration assistant")}
+      description={tt("AI-assisted import from your existing tools. We parse the structure and map it to Tulala, you review and commit.")}
       footer={
         analysed ? (
           <div className="flex gap-2">
-            <SecondaryButton onClick={() => setAnalysed(false)}>← Back</SecondaryButton>
+            <SecondaryButton onClick={() => setAnalysed(false)}>{tt("← Back")}</SecondaryButton>
             <button
               type="button"
-              onClick={() => { toast("Migration queued — you'll receive an email when it's done"); closeDrawer(); }}
+              onClick={() => { toast(tt("Migration queued, you'll receive an email when it's done")); closeDrawer(); }}
               style={{
                 padding: "9px 18px", background: COLORS.fill, border: "none",
                 borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
                 fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
-              Confirm migration
+              {tt("Confirm migration")}
             </button>
           </div>
         ) : (
           <div className="flex gap-2">
-            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+            <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
             <button
               type="button"
               onClick={() => setAnalysed(true)}
@@ -607,7 +639,7 @@ export function MigrationAssistantDrawer() {
                 fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
-              Analyse file →
+              {tt("Analyse file →")}
             </button>
           </div>
         )
@@ -621,21 +653,23 @@ export function MigrationAssistantDrawer() {
               <Icon name="sparkle" size={14} color={COLORS.royal} stroke={1.7} />
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }} className="text-admin-royal-deep">
-                  AI analysis complete
+                  {tt("AI analysis complete")}
                 </div>
                 <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-royal-deep">
-                  Found {ANALYSIS_RESULT.found} {ANALYSIS_RESULT.entities}. {ANALYSIS_RESULT.notes}
+                  {copy.isSpanish
+                    ? `Se encontraron ${ANALYSIS_RESULT.found} ${ANALYSIS_RESULT.entities}. ${ANALYSIS_RESULT.notes}`
+                    : `Found ${ANALYSIS_RESULT.found} ${ANALYSIS_RESULT.entities}. ${ANALYSIS_RESULT.notes}`}
                 </div>
               </div>
             </div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Migration runs in the background. You can close this drawer — we&apos;ll notify you when it&apos;s done. Existing data is not affected.
+              {tt("Migration runs in the background. You can close this drawer, we'll notify you when it's done. Existing data is not affected.")}
             </div>
           </>
         ) : (
           <>
             <div>
-              <CapsLabel>Data source</CapsLabel>
+              <CapsLabel>{tt("Data source")}</CapsLabel>
               <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
                 {(Object.entries(SOURCE_META) as [typeof source, typeof SOURCE_META[typeof source]][]).map(([key, meta]) => (
                   <button
@@ -645,7 +679,7 @@ export function MigrationAssistantDrawer() {
                     style={{
                       display: "flex", alignItems: "center", gap: 12,
                       padding: "12px 14px", background: source === key ? COLORS.accentSoft : COLORS.surfaceAlt,
-                      border: `1px solid ${source === key ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                      border: `1px solid ${source === key ? accentAlpha("44") : COLORS.borderSoft}`,
                       borderRadius: RADIUS.md, cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
                       transition: TRANSITION.sm,
                     }}
@@ -653,7 +687,7 @@ export function MigrationAssistantDrawer() {
                     <span className="text-xl">{meta.icon}</span>
                     <div>
                       <div className="text-admin-ink text-admin-13 font-semibold">{meta.label}</div>
-                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{meta.hint}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">{tt(meta.hint)}</div>
                     </div>
                     {source === key && (
                       <Icon name="check" size={14} color={COLORS.accent} stroke={2.5} />
@@ -665,9 +699,9 @@ export function MigrationAssistantDrawer() {
             <div style={{ padding: "32px 20px", textAlign: "center", border: `2px dashed ${COLORS.border}` }} className="bg-admin-surface-alt rounded-admin-lg">
               <div style={{ fontSize: 22, marginBottom: 8 }}>{SOURCE_META[source].icon}</div>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
-                Drop your file here
+                {tt("Drop your file here")}
               </div>
-              <div className="text-admin-ink-muted text-admin-11h">or click to browse</div>
+              <div className="text-admin-ink-muted text-admin-11h">{tt("or click to browse")}</div>
             </div>
           </>
         )}

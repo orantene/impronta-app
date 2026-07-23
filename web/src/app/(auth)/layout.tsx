@@ -4,8 +4,10 @@ import { headers } from "next/headers";
 import { getSiteUrl } from "@/lib/auth-flow";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { PublicLanguageToggle } from "@/components/public-language-toggle";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
@@ -19,19 +21,30 @@ export const metadata: Metadata = {
 /**
  * Resolve the brand label to render in the auth chrome.
  *
- * - On an agency/hub host, show the tenant's `public_name`. If the tenant
- *   hasn't set one yet, fall through to the platform brand so the wordmark
- *   is never a stale constant from another tenant.
- * - On app / marketing / unknown hosts, show the platform brand.
+ * Registration and sign-in are Tulala-platform surfaces by default — everyone
+ * signs into the same platform. The tenant's own brand only takes over when the
+ * agency is on a whitelabel tier (Agency / Network): then a talent or client
+ * signing in on that agency's host sees the agency brand, not Tulala.
+ *
+ * - On a WHITELABEL agency/hub host, show the tenant's `public_name` (falling
+ *   back to the platform brand if it hasn't been set yet, so the wordmark is
+ *   never a stale constant from another tenant).
+ * - On a non-whitelabel agency/hub host, and on app / marketing / unknown
+ *   hosts, show the platform brand (Tulala).
  */
 async function resolveAuthBrand(): Promise<{ label: string; isTenant: boolean }> {
   const ctx = await getPublicHostContext();
   if (ctx.kind === "agency" || ctx.kind === "hub") {
-    const identity = await loadPublicIdentity(ctx.tenantId).catch(() => null);
-    return {
-      label: identity?.public_name?.trim() || PLATFORM_BRAND.name,
-      isTenant: true,
-    };
+    const [identity, whitelabel] = await Promise.all([
+      loadPublicIdentity(ctx.tenantId).catch(() => null),
+      loadTenantWhitelabel(ctx.tenantId).catch(() => false),
+    ]);
+    if (whitelabel) {
+      return {
+        label: identity?.public_name?.trim() || PLATFORM_BRAND.name,
+        isTenant: true,
+      };
+    }
   }
   return { label: PLATFORM_BRAND.name, isTenant: false };
 }
@@ -79,7 +92,7 @@ export default async function AuthLayout({
         />
       </main>
 
-      <AuthFooter />
+      <AuthFooter brandLabel={brand.label} isTenant={brand.isTenant} />
     </div>
   );
 }
@@ -115,27 +128,9 @@ function AuthTopBar({
               {brandLabel}
             </span>
           ) : (
-            <>
-              <span
-                className="plt-display"
-                style={{
-                  fontWeight: 700,
-                  letterSpacing: "-0.045em",
-                  fontSize: "1.375rem",
-                }}
-              >
-                tulala
-              </span>
-              <span
-                style={{
-                  color: "var(--plt-forest)",
-                  fontSize: "1.375rem",
-                  fontWeight: 700,
-                }}
-              >
-                .
-              </span>
-            </>
+            <span style={{ color: "var(--plt-ink-strong)" }}>
+              <TulalaLogo wordmarkHeight={23} />
+            </span>
           )}
         </Link>
       </div>
@@ -143,7 +138,20 @@ function AuthTopBar({
   );
 }
 
-function AuthFooter() {
+function AuthFooter({
+  brandLabel,
+  isTenant,
+}: {
+  brandLabel: string;
+  isTenant: boolean;
+}) {
+  // On a whitelabel agency host the footer carries the agency's name; otherwise
+  // it stays the Tulala platform line.
+  const footerLine = isTenant
+    ? `© ${new Date().getFullYear()} ${brandLabel}.`
+    : // Same copyright line as the marketing footer's bottom rail: legal name +
+      // positioning. The category message lives in the logo lockup only.
+      `© ${new Date().getFullYear()} ${PLATFORM_BRAND.legalName}. ${PLATFORM_BRAND.positioning}`;
   return (
     <footer
       className="py-8"
@@ -157,7 +165,7 @@ function AuthFooter() {
           className="text-[0.75rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          © {new Date().getFullYear()} Tulala. The talent business platform.
+          {footerLine}
         </p>
         <div className="flex items-center gap-5 text-[0.75rem]">
           <Link

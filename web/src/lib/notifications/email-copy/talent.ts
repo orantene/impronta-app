@@ -61,6 +61,21 @@ export const TALENT_EN = {
     button: "View inquiry →",
   },
 
+  // talent.offer_ready — emails/talent/OfferReady.tsx
+  "talent.offer_ready": {
+    subject: "You have an offer to review",
+    preview: "You have an offer to review",
+    heading: "You have an offer to review",
+    fallbackName: "there",
+    fallbackEvent: "a booking",
+    intro: "Hi {name}, an offer for {event} is ready for your review. Here's your rate and the details.",
+    labelAmount: "Your rate",
+    labelDate: "Date",
+    labelLocation: "Location",
+    note: "Open the offer to approve or ask a question. Your rate is what you'll be paid for this booking.",
+    button: "Review offer →",
+  },
+
   // talent.booking_confirmed — emails/talent/BookingConfirmed.tsx
   "talent.booking_confirmed": {
     subject: "Booking confirmed",
@@ -177,6 +192,20 @@ export const TALENT_ES: typeof TALENT_EN = {
     labelLocation: "Ubicación",
     note: "Te avisaremos cuando haya una oferta lista para tu revisión. Inicia sesión para ver todos los detalles.",
     button: "Ver solicitud →",
+  },
+
+  "talent.offer_ready": {
+    subject: "Tienes una oferta para revisar",
+    preview: "Tienes una oferta para revisar",
+    heading: "Tienes una oferta para revisar",
+    fallbackName: "hola",
+    fallbackEvent: "una reserva",
+    intro: "Hola {name}, una oferta para {event} está lista para tu revisión. Aquí tienes tu tarifa y los detalles.",
+    labelAmount: "Tu tarifa",
+    labelDate: "Fecha",
+    labelLocation: "Ubicación",
+    note: "Abre la oferta para aprobarla o hacer una pregunta. Tu tarifa es lo que recibirás por esta reserva.",
+    button: "Revisar oferta →",
   },
 
   "talent.booking_confirmed": {

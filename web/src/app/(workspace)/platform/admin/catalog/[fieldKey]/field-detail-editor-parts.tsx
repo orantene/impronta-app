@@ -1,5 +1,9 @@
 import type { FieldDetailRecommendation } from "../../../catalog-field-detail-data";
 import { removePlatformFieldRecommendationAction } from "../actions";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 const HQ = {
   cardSoft: "rgba(255,255,255,0.04)",
@@ -200,9 +204,21 @@ export function SubmitButton({
   );
 }
 
-export function SaveNotice({ saved, error }: { saved?: string; error?: string }) {
+export function SaveNotice({
+  saved,
+  error,
+  t,
+}: {
+  saved?: string;
+  error?: string;
+  // Optional: this primitive is shared by several catalog surfaces that have
+  // not been localized yet. When `t` is passed (localized callers), the "Saved"
+  // notice is translated; without it, the English literal is the status quo.
+  t?: Translate;
+}) {
   if (!saved && !error) return null;
   const ok = !!saved;
+  const savedNotice = t ? interpolate(t(`${K}.saveNoticeSaved`), { what: saved ?? "" }) : `Saved ${saved}.`;
   return (
     <div
       role={ok ? "status" : "alert"}
@@ -216,7 +232,7 @@ export function SaveNotice({ saved, error }: { saved?: string; error?: string })
         marginBottom: 14,
       }}
     >
-      {ok ? `Saved ${saved}.` : error}
+      {ok ? savedNotice : error}
     </div>
   );
 }
@@ -233,9 +249,11 @@ export function optionsJson(value: unknown): string {
 export function MappingRow({
   rec,
   fieldKey,
+  t,
 }: {
   rec: FieldDetailRecommendation;
   fieldKey: string;
+  t: Translate;
 }) {
   return (
     <div
@@ -252,19 +270,19 @@ export function MappingRow({
       <div style={{ minWidth: 0 }}>
         <div style={{ color: HQ.ink, fontWeight: 650 }}>{rec.term_name_en}</div>
         <div style={{ color: HQ.inkDim, fontFamily: "ui-monospace, monospace", fontSize: 10.5 }}>
-          {rec.term_slug} · level {rec.level} · {rec.term_type}
+          {rec.term_slug} · {interpolate(t(`${K}.mappingRowLevel`), { level: rec.level })} · {rec.term_type}
         </div>
       </div>
       <span style={{ color: rec.relationship === "required" ? HQ.red : HQ.green }}>
         {rec.relationship}
       </span>
       <span style={{ color: HQ.inkMuted }}>
-        {rec.required_before_publish ? "blocks publish" : "optional"} · #{rec.display_order}
+        {rec.required_before_publish ? t(`${K}.mappingRowBlocksPublish`) : t(`${K}.mappingRowOptional`)} · #{rec.display_order}
       </span>
       <form action={removePlatformFieldRecommendationAction}>
         <input type="hidden" name="id" value={rec.id} />
         <input type="hidden" name="field_key" value={fieldKey} />
-        <SubmitButton tone="danger">Remove</SubmitButton>
+        <SubmitButton tone="danger">{t(`${K}.mappingRowRemove`)}</SubmitButton>
       </form>
     </div>
   );

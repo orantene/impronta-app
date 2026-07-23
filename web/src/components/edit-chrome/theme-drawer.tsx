@@ -566,7 +566,7 @@ export function ThemeDrawer(): ReactElement | null {
       setDraft({ ...res.themeDraft, ...draft });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Network error — try again.",
+        err instanceof Error ? err.message : "Network error. Try again.",
       );
     } finally {
       setBusy("idle");
@@ -638,7 +638,7 @@ export function ThemeDrawer(): ReactElement | null {
       setConfirmingPublish(false);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Network error — try again.",
+        err instanceof Error ? err.message : "Network error. Try again.",
       );
     } finally {
       setBusy("idle");
@@ -1310,7 +1310,7 @@ function AdvancedTab({
             }}
           >
             <span style={{ fontSize: 11, color: CHROME.muted }}>
-              Read-only — edit through the controls above.
+              Read-only. Edit through the controls above.
             </span>
             <button
               type="button"

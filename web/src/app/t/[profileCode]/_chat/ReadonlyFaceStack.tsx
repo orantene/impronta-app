@@ -23,7 +23,7 @@ import { interpolate } from "@/i18n/interpolate";
 import {
   AVATAR_GROUND,
   FACE_OBJECT_POSITION,
-  initialsOf,
+  PERSON_SILHOUETTE_SVG,
 } from "./launcher-avatar-styles";
 import { FONT, type Palette } from "./mini-chat-styles";
 
@@ -96,7 +96,18 @@ function OneFace({
           }}
         />
       ) : (
-        initialsOf(face.displayName)
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: "100%",
+            height: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(90,102,120,0.7)",
+          }}
+          dangerouslySetInnerHTML={{ __html: PERSON_SILHOUETTE_SVG }}
+        />
       )}
     </span>
   );

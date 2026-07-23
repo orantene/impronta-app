@@ -41,15 +41,23 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { ServicesBlock } from "../_light/ServicesBlock";
 import { ServiceMenuBlock } from "../_light/ServiceMenuBlock";
+import { TalentStorefront } from "../_shared/TalentStorefront";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "../_light/SkillsExperienceBlock";
 import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicFeaturedMedia } from "@/components/talent/connections/PublicFeaturedMedia";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { NoirReveal } from "./NoirReveal";
-import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import {
+  heroRatingChipLabel,
+  type LightProfileLayoutProps,
+} from "../_light/LightProfileLayout";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -68,11 +76,19 @@ function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: Detail
   return order.map((group) => ({ group, rows: byGroup.get(group)! }));
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "·";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/**
+ * Letter-free person silhouette used as the no-photo portrait/avatar fallback.
+ * Inherits `currentColor` from each `__mono`/`.mono` container so it keeps the
+ * theme accent. `size` is the SVG width/height as a % of the (flex-centered)
+ * container.
+ */
+function Silhouette({ size = "46%" }: { size?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8.2" r="3.6" />
+      <path d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z" />
+    </svg>
+  );
 }
 
 /**
@@ -167,6 +183,10 @@ const NOIR_CSS = `
 [data-profile-theme="noir"] .nf-chips{ display:flex; gap:10px; flex-wrap:wrap; margin-top:22px; }
 [data-profile-theme="noir"] .nf-chip{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; font-weight:500; padding:7px 15px; border:1px solid var(--nf-line); border-radius:2px; color:rgba(236,228,211,0.74); }
 [data-profile-theme="noir"] .nf-chip--gold{ border-color:rgba(224,192,116,0.55); color:var(--nf-champagne); }
+[data-profile-theme="noir"] a.nf-chip{ text-decoration:none; transition:border-color .2s ease,color .2s ease; }
+[data-profile-theme="noir"] a.nf-chip:hover{ border-color:rgba(224,192,116,0.85); color:var(--nf-champagne); }
+html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
+[data-profile-theme="noir"] #reviews{ scroll-margin-top:96px; }
 [data-profile-theme="noir"] .nf-bio{ color:rgba(236,228,211,0.74); margin-top:24px; max-width:50ch; font-size:1rem; line-height:1.8; }
 [data-profile-theme="noir"] .nf-actions{ display:flex; gap:12px; margin-top:32px; flex-wrap:wrap; align-items:center; }
 [data-profile-theme="noir"] .nf-hero-extra{ margin-top:26px; display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
@@ -271,6 +291,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     startingFrom,
     bookingNote,
     serviceMenuItems,
+    storefrontOfferings,
     disciplineLabels,
     fitLabels,
     skills,
@@ -282,6 +303,8 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
     otherDetailRows,
     ratingSummary,
     talentReviews,
+    testimonials = [],
+    heroRating,
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -333,7 +356,8 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       serviceAreas.length > 0 ||
       Boolean(startingFrom) ||
       Boolean(bookingNote));
-  const hasServiceMenu = !isFreePlan && serviceMenuItems.length > 0;
+  const hasStorefront = !isFreePlan && storefrontOfferings.length > 0;
+  const hasServiceMenu = hasStorefront || (!isFreePlan && serviceMenuItems.length > 0);
   const showClients = fieldVisibility.showIndustries && industries.length > 0;
 
   const labels = {
@@ -410,7 +434,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             />
           ) : (
             <div className="nf-portrait__mono" aria-hidden="true">
-              {initials(name)}
+              <Silhouette />
             </div>
           )}
         </div>
@@ -420,6 +444,11 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
           <h1>{name}</h1>
 
           <div className="nf-chips">
+            {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
+              <ReviewsAnchorLink className="nf-chip nf-chip--gold">
+                {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
+              </ReviewsAnchorLink>
+            ) : null}
             {livesIn ? <span className="nf-chip">{livesIn}</span> : null}
             {agency ? <span className="nf-chip nf-chip--gold">{labels.represented}</span> : null}
             {langShort.length > 0 ? (
@@ -538,12 +567,20 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
           ) : null}
           {hasServiceMenu ? (
             <div style={{ marginTop: hasServices ? 28 : 0 }}>
-              <ServiceMenuBlock
-                items={serviceMenuItems}
-                locale={locale}
-                heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
-                disciplineLabels={disciplineLabels}
-              />
+              {hasStorefront ? (
+                <TalentStorefront
+                  offerings={storefrontOfferings}
+                  locale={locale}
+                  heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                />
+              ) : (
+                <ServiceMenuBlock
+                  items={serviceMenuItems}
+                  locale={locale}
+                  heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                  disciplineLabels={disciplineLabels}
+                />
+              )}
             </div>
           ) : null}
         </section>
@@ -601,7 +638,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
 
       {/* ── 8. REVIEWS ──────────────────────────────────────────────────── */}
       {ratingSummary.count > 0 ? (
-        <section className="nf-wrap nf-section" data-profile-section="reviews" data-nf-reveal>
+        <section id="reviews" className="nf-wrap nf-section" data-profile-section="reviews" data-nf-reveal>
           <div className="nf-sec-head">
             <div>
               <span className="nf-eyebrow">{labels.reviewsEyebrow}</span>
@@ -613,7 +650,19 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             reviews={talentReviews}
             theme="dark"
             heading=""
+            talentName={name}
           />
+        </section>
+      ) : null}
+
+      {/* ── 8b. INVITED TESTIMONIALS (separate from verified reviews) ────── */}
+      {testimonials.length > 0 ? (
+        <section
+          className="nf-wrap nf-section"
+          data-profile-section="testimonials"
+          data-nf-reveal
+        >
+          <TestimonialsSection testimonials={testimonials} theme="dark" />
         </section>
       ) : null}
 
@@ -640,7 +689,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
                     />
                   ) : (
                     <div className="nf-portrait__mono" aria-hidden="true">
-                      {initials(st.displayName)}
+                      <Silhouette />
                     </div>
                   )}
                   <div className="nf-similar__cap">
@@ -689,9 +738,11 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
               >
                 <PublicCmsFooterNav locale={locale} />
               </div>
-              <span className="nf-foot__pw">
-                Powered by <em>Tulala</em>
-              </span>
+              {props.whitelabel ? null : (
+                <span className="nf-foot__pw">
+                  Powered by <em>Tulala</em>
+                </span>
+              )}
             </div>
           </div>
         </footer>
@@ -704,7 +755,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profileImageUrl} alt="" />
           ) : (
-            <span className="mono">{initials(name)}</span>
+            <span className="mono"><Silhouette size="60%" /></span>
           )}
           <div style={{ minWidth: 0 }}>
             <div className="n">{name}</div>

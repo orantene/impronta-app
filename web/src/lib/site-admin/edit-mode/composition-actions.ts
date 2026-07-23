@@ -32,8 +32,10 @@ import {
   ensureHomepageRow,
   publishHomepage,
   saveHomepageDraftComposition,
+  type PullFromLiveMode,
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { isSameSessionNewerWrite } from "@/lib/site-admin/server/beacon-last-write-wins";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
 import { publishSection } from "@/lib/site-admin/server/sections";
@@ -181,6 +183,17 @@ export interface CompositionData {
   /** Locales available for the active tenant (read-only here — used for the
    *  Topbar locale switcher and the clone-from-locale command). */
   availableLocales: ReadonlyArray<Locale>;
+  /**
+   * W1-L2 — the WS1-D `edit_session_id` stamped on the page row by the LAST
+   * draft write (`null` on legacy rows or after an unstamped write). Lets the
+   * client tell "my own reload after my own beacon bump" (stamp === my per-tab
+   * session token) apart from a genuinely foreign write — used to keep the
+   * persisted undo stack across a same-session reload instead of dropping it
+   * on the version mismatch the beacon itself caused. Optional: surfaces that
+   * don't stamp (talent/site-shell adapters) omit it and rehydrate keeps the
+   * strict version-match rule.
+   */
+  lastWriterEditSessionId?: string | null;
 }
 
 export type CompositionLoadResult =
@@ -369,7 +382,7 @@ export async function loadHomepageCompositionAction(input: {
     const { data: pageRow, error: pageErr } = await admin
       .from("cms_pages")
       .select(
-        "id, title, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld, version, published_at",
+        "id, title, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld, version, published_at, edit_session_id",
       )
       .eq("tenant_id", scope.tenantId)
       .eq("locale", locale)
@@ -390,6 +403,8 @@ export async function loadHomepageCompositionAction(input: {
         json_ld: unknown | null;
         version: number;
         published_at: string | null;
+        // W1-L2 — last draft writer's edit-session stamp (see CompositionData).
+        edit_session_id: string | null;
       }>();
     if (pageErr || !pageRow) {
       return {
@@ -537,6 +552,7 @@ export async function loadHomepageCompositionAction(input: {
         slotDefs,
         library,
         availableLocales: localeSettings.supportedLocales,
+        lastWriterEditSessionId: pageRow.edit_session_id,
       },
     };
   }
@@ -631,6 +647,8 @@ export async function loadHomepageCompositionAction(input: {
   let draftRevisionBuilderTree: BuilderNodeTree | undefined;
   let draftRevisionStyleClasses: BuilderStyleClassRegistry | undefined;
   let draftRevisionStylePresets: BuilderStylePresetRegistry | undefined;
+  // W1-L2 — last draft writer's edit-session stamp (see CompositionData).
+  let lastWriterEditSessionId: string | null = null;
   const adminClient = createServiceRoleClient();
   if (adminClient) {
     const revisionExtras = await loadDraftRevisionExtras(
@@ -643,6 +661,13 @@ export async function loadHomepageCompositionAction(input: {
     if (isFreeformPage) {
       draftRevisionBuilderTree = revisionExtras.builderTree;
     }
+    const { data: stampRow } = await adminClient
+      .from("cms_pages")
+      .select("edit_session_id")
+      .eq("tenant_id", scope.tenantId)
+      .eq("id", page.pageId)
+      .maybeSingle<{ edit_session_id: string | null }>();
+    lastWriterEditSessionId = stampRow?.edit_session_id ?? null;
   }
 
   const legacyBuilderSlots: LegacySnapshotSlot[] = comp
@@ -692,6 +717,7 @@ export async function loadHomepageCompositionAction(input: {
       slotDefs,
       library,
       availableLocales: localeSettings.supportedLocales,
+      lastWriterEditSessionId,
     },
   };
 }
@@ -798,7 +824,7 @@ export async function saveHomepageCompositionAction(
       const { data: pageRow, error: loadErr } = await admin
         .from("cms_pages")
         .select(
-          "id, locale, slug, template_key, system_template_key, is_system_owned, template_schema_version, title, status, body, hero, meta_title, meta_description, og_title, og_description, og_image_url, og_image_media_asset_id, noindex, include_in_sitemap, canonical_url, version",
+          "id, locale, slug, template_key, system_template_key, is_system_owned, template_schema_version, title, status, body, hero, meta_title, meta_description, og_title, og_description, og_image_url, og_image_media_asset_id, noindex, include_in_sitemap, canonical_url, version, edit_session_id, draft_seq",
         )
         .eq("id", input.pageId)
         .eq("tenant_id", scope.tenantId)
@@ -824,17 +850,46 @@ export async function saveHomepageCompositionAction(
           include_in_sitemap: boolean;
           canonical_url: string | null;
           version: number;
+          edit_session_id: string | null;
+          draft_seq: number | null;
         }>();
       if (loadErr || !pageRow) {
         return { ok: false, error: "Page not found.", code: "NOT_FOUND" };
       }
       if (pageRow.version !== input.expectedVersion) {
-        return {
-          ok: false,
-          error: "Someone else edited this page. Changes reloaded — try again.",
-          code: "VERSION_CONFLICT",
-          currentVersion: pageRow.version,
-        };
+        // W1-L2 — SESSION ADOPTION. After the editor's own full-page reload
+        // its pagehide beacon may have bumped `version`, so this save's stale
+        // `expectedVersion` is the SAME session continuing, not a foreign
+        // conflict. Adopt IFF the stored stamp matches this session with an
+        // older seq AND the incoming payload carries real content (never adopt
+        // an empty tree — draft-integrity guard; without a cheap stored-content
+        // read on this lighter path we simply require incoming content).
+        const incomingHasContent =
+          (Array.isArray(input.builderTree) && input.builderTree.length > 0) ||
+          Object.values(input.slots).some(
+            (entries) => Array.isArray(entries) && entries.length > 0,
+          );
+        const adopted =
+          input.editSession &&
+          incomingHasContent &&
+          isSameSessionNewerWrite(
+            {
+              editSessionId: pageRow.edit_session_id,
+              draftSeq: pageRow.draft_seq,
+            },
+            {
+              editSessionId: input.editSession.id,
+              draftSeq: input.editSession.seq,
+            },
+          );
+        if (!adopted) {
+          return {
+            ok: false,
+            error: "Someone else edited this page. Changes reloaded — try again.",
+            code: "VERSION_CONFLICT",
+            currentVersion: pageRow.version,
+          };
+        }
       }
 
       const allSectionIds = Array.from(
@@ -916,7 +971,7 @@ export async function saveHomepageCompositionAction(
       const nextVersion = pageRow.version + 1;
 
       // Update page metadata fields (introTagline is homepage-only; skip).
-      const { error: updErr } = await admin
+      const { data: updRow, error: updErr } = await admin
         .from("cms_pages")
         .update({
           title: input.metadata.title,
@@ -931,18 +986,36 @@ export async function saveHomepageCompositionAction(
           updated_at: new Date().toISOString(),
           // WS1-D — stamp the writer's edit-session token + draft seq so the
           // pagehide beacon can later last-write-wins against the stored draft.
+          // W1-L2 — an UNSTAMPED save clears the stamps (a stale stamp must
+          // never grant a later same-session LWW past a foreign write).
           ...(input.editSession
             ? {
                 edit_session_id: input.editSession.id,
                 draft_seq: input.editSession.seq,
               }
-            : {}),
+            : { edit_session_id: null, draft_seq: null }),
         })
         .eq("id", input.pageId)
         .eq("tenant_id", scope.tenantId)
-        .eq("version", input.expectedVersion); // second CAS guard
+        // Second CAS guard — keyed on the version we just READ (identical to
+        // expectedVersion on the normal path; the CURRENT version under W1-L2
+        // session adoption).
+        .eq("version", pageRow.version)
+        .select("id")
+        .maybeSingle<{ id: string }>();
       if (updErr) {
         return { ok: false, error: CLIENT_ERROR.update };
+      }
+      // W1-L2 — the second CAS used to be UNCHECKED: a lost race no-oped the
+      // page-row update but still rewrote the draft rows below. Detect the
+      // zero-row write and fail honestly as a version conflict instead.
+      if (!updRow) {
+        return {
+          ok: false,
+          error: "Someone else edited this page. Changes reloaded — try again.",
+          code: "VERSION_CONFLICT",
+          currentVersion: pageRow.version + 1,
+        };
       }
 
       // Replace draft slot rows atomically: delete then insert.
@@ -1148,6 +1221,10 @@ export async function createAndInsertSectionAction(input: {
   sectionTypeKey: string;
   sectionTemplateStarterId?: string | null;
   sectionTemplateStarterStylePresetId?: string | null;
+  /** WS1-D / W1-L2 — per-tab edit-session token + monotonic draft seq, threaded
+   *  to the save so the write is stamped (keeps the beacon LWW lane + session
+   *  adoption alive for the editor's insert path). */
+  editSession?: { id: string; seq: number };
 }): Promise<CreateAndInsertResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -1354,6 +1431,7 @@ export async function createAndInsertSectionAction(input: {
     metadata: input.metadata,
     slots: slotsCopy,
     builderTree: input.builderTree,
+    editSession: input.editSession,
   });
   if (!saveRes.ok) {
     return {
@@ -1398,6 +1476,9 @@ export async function duplicateSectionAction(input: {
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
   builderTree?: BuilderNodeTree;
   sourceSectionId: string;
+  /** WS1-D / W1-L2 — per-tab edit-session token + monotonic draft seq, threaded
+   *  to the save so the write is stamped. */
+  editSession?: { id: string; seq: number };
 }): Promise<CreateAndInsertResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -1547,6 +1628,7 @@ export async function duplicateSectionAction(input: {
     metadata: input.metadata,
     slots: slotsCopy,
     builderTree: input.builderTree,
+    editSession: input.editSession,
   });
   if (!saveRes.ok) {
     return {
@@ -1806,6 +1888,10 @@ export async function publishHomepageFromEditModeAction(input: {
   /** STYLE-1 — site-scoped style presets + clipboard baked into the published
    *  snapshot alongside styleClasses. */
   stylePresets?: BuilderStylePresetRegistry;
+  /** W1-L2 — per-tab edit-session token + monotonic draft seq. Lets the
+   *  publish be adopted at the current version when the operator's own
+   *  pagehide beacon bumped it (see publishHomepage). */
+  editSession?: { id: string; seq: number };
 }): Promise<PublishResult> {
   const auth = await requireStaff();
   if (!auth.ok) {
@@ -1918,6 +2004,9 @@ export async function publishHomepageFromEditModeAction(input: {
       styleClasses: input.styleClasses,
       // STYLE-1 — bake presets alongside classes so they survive publish.
       stylePresets: input.stylePresets,
+      // W1-L2 — same-session adoption when the operator's own beacon bump made
+      // the expectedVersion stale (see publishHomepage).
+      editSession: input.editSession,
     });
     if (!result.ok) {
       if (result.code === "VERSION_CONFLICT") {
@@ -2050,6 +2139,12 @@ export type CopyPublishedResult =
  */
 export async function copyPublishedHomepageAction(input: {
   locale: string;
+  /**
+   * Pull-from-live merge mode. Omitted → `"replace"` (back-compat: the
+   * publish-drawer "Copy from live" caller passes no mode and still overwrites
+   * the draft). `"above"` / `"below"` splice the live sections onto the draft.
+   */
+  mode?: PullFromLiveMode;
 }): Promise<CopyPublishedResult> {
   const auth = await requireStaff();
   if (!auth.ok) {
@@ -2066,12 +2161,17 @@ export async function copyPublishedHomepageAction(input: {
   if (!isLocale(input.locale)) {
     return { ok: false, error: "Invalid locale", code: "VALIDATION_FAILED" };
   }
+  const mode: PullFromLiveMode = input.mode ?? "replace";
+  if (mode !== "replace" && mode !== "above" && mode !== "below") {
+    return { ok: false, error: "Invalid mode", code: "VALIDATION_FAILED" };
+  }
 
   try {
     const result = await copyPublishedToDraft(auth.supabase, {
       tenantId: scope.tenantId,
       locale: input.locale,
       actorProfileId: auth.user.id,
+      mode,
     });
     if (!result.ok) {
       return {

@@ -295,6 +295,8 @@ type Ctx = {
   bridgeWorkspaceUnread: number | undefined;
   /** Phase 5 — whether the first-run toggle tip has been seen. undefined = prototype/mock mode. */
   bridgeFirstRunToggleTipSeen: boolean | undefined;
+  /** W14 — whether the talent dismissed the Day-1 checklist. undefined = prototype/mock mode. */
+  bridgeTalentChecklistDismissed: boolean | undefined;
 
   // ── Phase 3.12.2 talent self-surface bridge fields ─────────────────────────
   /**
@@ -382,6 +384,9 @@ type Ctx = {
     kind: string;
     /** Brand logo URL — replaces the TULALA wordmark when present. */
     logoUrl?: string | null;
+    /** Whitelabel accent hex — injected as `--tulala-accent` on the shell
+     *  root (whitelabel-tier tenants only). */
+    accentColor?: string | null;
     /**
      * Task 0.5 — Verified custom domain from agency_domains. Null when
      * no custom domain is live yet. The Website settings TierCard reads
@@ -405,6 +410,13 @@ type Ctx = {
      * OverviewFree reads this to show the "Network setup pending" banner.
      */
     networkRequestedAt?: string | null;
+    /**
+     * TALENT SURFACE ONLY — true when the signed-in talent is exclusively
+     * represented by this (active) agency. Set by the platform talent layout;
+     * undefined on the workspace surface. Gates whitelabel branding on the
+     * talent dashboard together with the agency's plan tier.
+     */
+    talentExclusive?: boolean;
   } | null;
   /**
    * Real signed-in user identity. null = standalone demo mode; chrome falls
@@ -556,6 +568,11 @@ function adaptBridgeInquiry(w: WorkspaceInquiryForMessages): RichInquiry {
             thumb: talent.photoUrl ?? "",
             headline: talent.headline ?? undefined,
             status: mapParticipantStatus(talent.status),
+            // Verified standing, resolved by the data-bridge's single batched
+            // loadTalentChipInfo read (no per-row query). Null → no rating →
+            // the thread's trust chip renders nothing (absence is neutral).
+            ratingAvg: talent.ratingAvg ?? null,
+            ratingCount: talent.ratingCount ?? null,
           })),
         }]
       : [];
@@ -830,6 +847,7 @@ function talentPageToSegment(p: TalentPage): string {
     messages:  "inbox",  // messages → inbox canonical route
     inbox:     "inbox",
     profile:   "profile",
+    reviews:   "reviews",
     calendar:  "calendar",
     money:     "money",
     payouts:   "payouts",
@@ -1429,7 +1447,10 @@ export function AdminShellProvider({
     return score >= 60;
   }, [talentContactGates, profileVerifications, claimStatusByTalent]);
   const [density, setDensityState] = useState<Density>("comfortable");
-  const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("topbar");
+  // Sidebar-first (Shopify mental model) — the vertical rail is the default
+  // workspace chrome; users who explicitly picked the topbar keep it via the
+  // localStorage hydration below.
+  const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("sidebar");
   // Roster-card badge prefs — seeded SSR from the bridge, mutated by the studio.
   const [rosterCardBadges, setRosterCardBadgesState] = useState<RosterCardBadgePrefs>(
     () => normalizeRosterCardBadges(initialBridgeData?.rosterCardBadges),
@@ -1870,6 +1891,8 @@ export function AdminShellProvider({
   const bridgeWorkspaceUnread: number | undefined = initialBridgeData?.workspaceUnread;
   // First-run tooltip flag. undefined in prototype mode → tooltip hidden.
   const bridgeFirstRunToggleTipSeen: boolean | undefined = initialBridgeData?.firstRunToggleTipSeen;
+  // W14 — Day-1 checklist dismissal. undefined in prototype mode → not dismissed.
+  const bridgeTalentChecklistDismissed: boolean | undefined = initialBridgeData?.talentChecklistDismissed;
 
   // Phase 1 (master plan) — chrome identity bridge.
   // When provided by the workspace admin layout, the prototype's chrome
@@ -1977,9 +2000,9 @@ export function AdminShellProvider({
   const effectiveWebsiteState = useMemo(
     () =>
       bridgeWebsite != null
-        ? mergeWebsiteStateFromBridge(bridgeWebsite, bridgeTenantIdentity?.slug ?? "")
+        ? mergeWebsiteStateFromBridge(bridgeWebsite, bridgeTenantIdentity?.slug ?? "", effectiveTeamMembers)
         : WEBSITE_STATE,
-    [bridgeWebsite, bridgeTenantIdentity?.slug],
+    [bridgeWebsite, bridgeTenantIdentity?.slug, effectiveTeamMembers],
   );
 
   // Payouts surface — pass-through bridge payload consumed by the in-shell
@@ -2121,6 +2144,7 @@ export function AdminShellProvider({
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
       bridgeFirstRunToggleTipSeen,
+      bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
       locale,
@@ -2237,6 +2261,7 @@ export function AdminShellProvider({
       bridgeTalentUnread,
       bridgeWorkspaceUnread,
       bridgeFirstRunToggleTipSeen,
+      bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
       locale,

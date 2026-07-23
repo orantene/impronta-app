@@ -597,7 +597,7 @@ export function MediaPickerDrawer({
                           </span>
                         ) : null}
                         {selected ? (
-                          <span className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full bg-[#3d4f7c] text-white shadow">
+                          <span className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full bg-violet-600 text-white shadow">
                             <Check className="size-3.5" />
                           </span>
                         ) : null}
@@ -672,7 +672,7 @@ export function MediaPickerDrawer({
                     ? "No uploads yet"
                     : "No photos yet"
               }
-              detail="Use Upload above to add a photo — or add photos to your profile and they'll appear here too."
+              detail="Use Upload above to add a photo, or add photos to your profile and they'll appear here too."
             />
           ) : (
             <StatePanel

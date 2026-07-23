@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { buildPostPublicPathname, buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
 import { EmptyState, Icon, PrimaryButton, SecondaryButton } from "../primitives";
@@ -76,17 +78,18 @@ function WebsitePagesStatusTabs({
   onChange: (id: WebsitePagesTabId) => void;
   counts: Record<WebsitePagesTabId, number>;
 }) {
+  const t = useT();
   const tabs: { id: WebsitePagesTabId; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "published", label: "Live" },
-    { id: "draft", label: "Draft" },
-    { id: "scheduled", label: "Scheduled" },
-    { id: "archived", label: "Archived" },
+    { id: "all", label: t("dashboard.adminWebsite.pagesTabAll") },
+    { id: "published", label: t("dashboard.adminWebsite.pagesTabLive") },
+    { id: "draft", label: t("dashboard.adminWebsite.pagesTabDraft") },
+    { id: "scheduled", label: t("dashboard.adminWebsite.pagesTabScheduled") },
+    { id: "archived", label: t("dashboard.adminWebsite.pagesTabArchived") },
   ];
   return (
     <div
       role="group"
-      aria-label="Filter pages by publication status"
+      aria-label={t("dashboard.adminWebsite.pagesFilterAria")}
       data-tulala-pages-status-filter
       style={{
         display: "inline-flex",
@@ -102,16 +105,16 @@ function WebsitePagesStatusTabs({
         fontFamily: FONTS.body,
       }}
     >
-      {tabs.map(t => {
-        const n = counts[t.id];
-        const isActive = active === t.id;
+      {tabs.map(tab => {
+        const n = counts[tab.id];
+        const isActive = active === tab.id;
         return (
           <button
-            key={t.id}
+            key={tab.id}
             type="button"
             aria-pressed={isActive}
-            aria-label={`${t.label}: ${n} pages`}
-            onClick={() => onChange(t.id)}
+            aria-label={interpolate(t("dashboard.adminWebsite.pagesTabAria"), { label: tab.label, count: n })}
+            onClick={() => onChange(tab.id)}
             style={{
               padding: "6px 12px",
               fontSize: 11.5,
@@ -130,7 +133,7 @@ function WebsitePagesStatusTabs({
               gap: 6,
             }}
           >
-            {t.label}
+            {tab.label}
             <span
               style={{
                 fontVariantNumeric: "tabular-nums",
@@ -164,20 +167,26 @@ function WebsiteSubviewTabs({
   active: "site" | "card-design" | "profile-pages";
   tenantSlug: string | undefined;
 }) {
+  const t = useT();
   const router = useRouter();
   const base = tenantSlug ? `/${tenantSlug}/admin/website` : "/admin/website";
   const tabs: { id: "site" | "card-design" | "profile-pages"; label: string; href: string }[] = [
-    { id: "site", label: "Site", href: base },
-    { id: "card-design", label: "Card Design", href: `${base}/card-design` },
-    { id: "profile-pages", label: "Profile Pages", href: `${base}/profile-pages` },
+    { id: "site", label: t("dashboard.adminWebsite.subviewSite"), href: base },
+    { id: "card-design", label: t("dashboard.adminWebsite.subviewCardDesign"), href: `${base}/card-design` },
+    { id: "profile-pages", label: t("dashboard.adminWebsite.subviewProfilePages"), href: `${base}/profile-pages` },
   ];
+  // De-dup with a mobile carve-out: on desktop the sidebar rail shows these
+  // three destinations as nested sub-links under Website, so the tab strip
+  // is hidden there. At ≤720px the rail itself is hidden (bottom tab bar
+  // takes over page-level nav), so this strip returns as the only sub-view
+  // switcher. Display is class-driven so the media query owns it.
   return (
     <div
       role="tablist"
-      aria-label="Website sections"
+      aria-label={t("dashboard.adminWebsite.subviewAria")}
       data-tulala-website-subview-tabs
+      className="hidden max-[720px]:inline-flex"
       style={{
-        display: "inline-flex",
         gap: 4,
         background: COLORS.surfaceAlt,
         border: `1px solid ${COLORS.borderSoft}`,
@@ -187,15 +196,15 @@ function WebsiteSubviewTabs({
         fontFamily: FONTS.body,
       }}
     >
-      {tabs.map(t => {
-        const isActive = t.id === active;
+      {tabs.map(tab => {
+        const isActive = tab.id === active;
         return (
           <button
-            key={t.id}
+            key={tab.id}
             type="button"
             role="tab"
             aria-selected={isActive}
-            onClick={() => router.push(t.href)}
+            onClick={() => router.push(tab.href)}
             style={{
               border: "none",
               borderRadius: 999,
@@ -209,7 +218,7 @@ function WebsiteSubviewTabs({
               transition: `background ${TRANSITION.micro}`,
             }}
           >
-            {t.label}
+            {tab.label}
           </button>
         );
       })}
@@ -218,6 +227,13 @@ function WebsiteSubviewTabs({
 }
 
 export function WebsitePage() {
+  const t = useT();
+  // t() is called inside useCallback closures below; keep a ref so we can read
+  // the latest translator without listing `t` in the callbacks' dep arrays.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const router = useRouter();
   const pathname = usePathname();
   const {
@@ -261,7 +277,7 @@ export function WebsitePage() {
   const openPageVisualEditor = useCallback(
     (page: WebsitePageRow) => {
       if (!editorBaseUrl) {
-        toast("Live site URL isn’t available yet — check Domain below.");
+        toast(tRef.current("dashboard.adminWebsite.toastLiveUrlUnavailableDomain"));
         return;
       }
       const raw = page.slug.trim();
@@ -271,7 +287,7 @@ export function WebsitePage() {
           : normalizeSlugPath(raw.replace(/^\/+/u, ""));
       if (inner && !isValidSlugPath(inner)) {
         toast(
-          "This URL doesn’t map to a public page path — open the live site and use ?edit=1 there.",
+          tRef.current("dashboard.adminWebsite.toastUrlNoPublicPath"),
         );
         return;
       }
@@ -279,7 +295,7 @@ export function WebsitePage() {
         inner === "" ? "/" : buildPublicPathname(locale as Locale, inner);
       const url = `${editorBaseUrl}${pathname}?edit=1&panel=sections`;
       window.open(url, "_blank", "noopener,noreferrer");
-      toast("Opening visual editor…");
+      toast(tRef.current("dashboard.adminWebsite.toastOpeningVisualEditor"));
     },
     [editorBaseUrl, locale, toast],
   );
@@ -287,30 +303,30 @@ export function WebsitePage() {
   const openPostOnLive = useCallback(
     (post: WebsitePost) => {
       if (!liveOrigin) {
-        toast("Live site URL isn’t available yet.");
+        toast(tRef.current("dashboard.adminWebsite.toastLiveUrlUnavailable"));
         return;
       }
       const raw = post.slug.trim().replace(/^\/+/u, "");
       const firstSegment = raw.split("/").filter(Boolean)[0] ?? "";
       const pathname = buildPostPublicPathname(locale as Locale, firstSegment);
       window.open(`${liveOrigin}${pathname}`, "_blank", "noopener,noreferrer");
-      toast("Opening post…");
+      toast(tRef.current("dashboard.adminWebsite.toastOpeningPost"));
     },
     [liveOrigin, locale, toast],
   );
 
   const openHomepageEditor = useCallback(() => {
     if (!editorBaseUrl) {
-      toast("Live site URL isn’t available yet.");
+      toast(tRef.current("dashboard.adminWebsite.toastLiveUrlUnavailable"));
       return;
     }
     window.open(`${editorBaseUrl}?edit=1&panel=sections`, "_blank", "noopener,noreferrer");
-    toast("Opening homepage editor…");
+    toast(tRef.current("dashboard.adminWebsite.toastOpeningHomepageEditor"));
   }, [editorBaseUrl, toast]);
 
   const handleAddPage = useCallback(() => {
     if (isPlatformHub) {
-      toast("This site is managed in code — the page builder is disabled here.");
+      toast(tRef.current("dashboard.adminWebsite.toastSiteManagedInCode"));
       return;
     }
     startCreatePageTransition(() => {
@@ -322,12 +338,12 @@ export function WebsitePage() {
         }
         await router.refresh();
         if (!editorBaseUrl) {
-          toast("Draft page created — open it from the list with Visual editor.");
+          toast(tRef.current("dashboard.adminWebsite.toastDraftCreatedOpenVisual"));
           return;
         }
         const inner = normalizeSlugPath(res.slug.replace(/^\/+/u, ""));
         if (!isValidSlugPath(inner)) {
-          toast("Draft page created — open it from the list.");
+          toast(tRef.current("dashboard.adminWebsite.toastDraftCreatedOpenList"));
           return;
         }
         // Open the editor at the locale the page was CREATED at (tenant default),
@@ -340,7 +356,7 @@ export function WebsitePage() {
           "_blank",
           "noopener,noreferrer",
         );
-        toast("Opening visual editor…");
+        toast(tRef.current("dashboard.adminWebsite.toastOpeningVisualEditor"));
       })();
     });
   }, [
@@ -404,23 +420,23 @@ export function WebsitePage() {
     <>
       <WebsiteSubviewTabs active="site" tenantSlug={tenantSlug} />
       <PageHeader
-        title="Website"
-        subtitle={`${w.domain.primaryDomain} · pages, posts, redirects, code, tracking, SEO`}
+        title={t("dashboard.adminWebsite.title")}
+        subtitle={interpolate(t("dashboard.adminWebsite.subtitle"), { domain: w.domain.primaryDomain })}
         actions={
           <>
-            {!canEdit && <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">Read-only</span>}
+            {!canEdit && <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.readOnly")}</span>}
             <SecondaryButton
               size="sm"
               disabled={!liveOrigin}
               onClick={() => liveOrigin && window.open(liveOrigin, "_blank", "noopener,noreferrer")}
             >
               <span className="inline-flex items-center gap-1.5">
-                <Icon name="external" size={12} stroke={1.7} /> View live
+                <Icon name="external" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.viewLive")}
               </span>
             </SecondaryButton>
             <SecondaryButton size="sm" disabled={!liveOrigin} onClick={openHomepageEditor}>
               <span className="inline-flex items-center gap-1.5">
-                <Icon name="pencil" size={12} stroke={1.7} /> Edit homepage
+                <Icon name="pencil" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.editHomepage")}
               </span>
             </SecondaryButton>
             {websiteUsesLiveCms && canEdit ? (
@@ -430,7 +446,7 @@ export function WebsitePage() {
                 onClick={handleAddPage}
               >
                 <span className="inline-flex items-center gap-1.5">
-                  <Icon name="plus" size={12} stroke={1.7} /> Add page
+                  <Icon name="plus" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.addPage")}
                 </span>
               </PrimaryButton>
             ) : null}
@@ -448,21 +464,21 @@ export function WebsitePage() {
         fontFamily: FONTS.body,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.7 }}>Live URL</span>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.7 }}>{t("dashboard.adminWebsite.liveUrl")}</span>
           <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 14, fontWeight: 600 }}>{liveOrigin || "—"}</span>
-          <button type="button" disabled={!liveOrigin} onClick={() => { try { navigator.clipboard.writeText(liveOrigin); } catch {} toast("Copied"); }}
+          <button type="button" disabled={!liveOrigin} onClick={() => { try { navigator.clipboard.writeText(liveOrigin); } catch {} toast(t("dashboard.adminWebsite.toastCopied")); }}
             style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.30)", background: "transparent", color: "#fff", fontFamily: FONTS.body, cursor: liveOrigin ? "pointer" : "not-allowed", opacity: liveOrigin ? 1 : 0.45 }}
-          >Copy</button>
+          >{t("dashboard.adminWebsite.copy")}</button>
           <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: w.maintenance.enabled ? COLORS.amber : "#5BD893" }} />
-            {w.maintenance.enabled ? "In maintenance" : "Live"}
+            {w.maintenance.enabled ? t("dashboard.adminWebsite.inMaintenance") : t("dashboard.adminWebsite.live")}
           </span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
-          <HeroStat label="Pages live"      value={totals.publishedPages.toString()} sub={`${totals.draftPages} draft`} />
-          <HeroStat label="Posts"            value={totals.publishedPosts.toString()} sub={`${w.posts.length - totals.publishedPosts} unpublished`} />
-          <HeroStat label="301 redirects"    value={totals.activeRedirects.toString()} sub={`${w.redirects.length - totals.activeRedirects} paused`} />
-          <HeroStat label="Scheduled"        value={totals.scheduledPages.toString()} sub={totals.scheduledPages > 0 ? "next: SS27" : "none"} />
+          <HeroStat label={t("dashboard.adminWebsite.heroPagesLive")}      value={totals.publishedPages.toString()} sub={interpolate(t("dashboard.adminWebsite.heroDraftCount"), { count: totals.draftPages })} />
+          <HeroStat label={t("dashboard.adminWebsite.heroPosts")}            value={totals.publishedPosts.toString()} sub={interpolate(t("dashboard.adminWebsite.heroUnpublishedCount"), { count: w.posts.length - totals.publishedPosts })} />
+          <HeroStat label={t("dashboard.adminWebsite.heroRedirects")}    value={totals.activeRedirects.toString()} sub={interpolate(t("dashboard.adminWebsite.heroPausedCount"), { count: w.redirects.length - totals.activeRedirects })} />
+          <HeroStat label={t("dashboard.adminWebsite.heroScheduled")}        value={totals.scheduledPages.toString()} sub={totals.scheduledPages > 0 ? t("dashboard.adminWebsite.heroNextScheduled") : t("dashboard.adminWebsite.heroNone")} />
         </div>
       </section>
 
@@ -484,11 +500,11 @@ export function WebsitePage() {
             <div style={{ padding: "12px 16px", borderRadius: 12, border: `1px solid ${COLORS.amberDeep}33`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body }} className="bg-admin-amber-soft">
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS.amberDeep, flexShrink: 0 }} />
               <div className="flex-1 min-w-0">
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-amber-deep">Maintenance mode active</div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase" }} className="text-admin-amber-deep">{t("dashboard.adminWebsite.maintenanceModeActive")}</div>
                 <div style={{ fontSize: 13, marginTop: 2 }} className="text-admin-ink">{w.maintenance.message}</div>
               </div>
-              <button type="button" onClick={() => { try { navigator.clipboard.writeText(w.maintenance.bypassToken); } catch {} toast("Bypass token copied"); }}
-                style={{ fontSize: 11, padding: "5px 10px", borderRadius: 7, border: `1px solid ${COLORS.amberDeep}55`, background: "#fff", color: COLORS.amberDeep, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body, flexShrink: 0 }}>Copy bypass</button>
+              <button type="button" onClick={() => { try { navigator.clipboard.writeText(w.maintenance.bypassToken); } catch {} toast(t("dashboard.adminWebsite.toastBypassCopied")); }}
+                style={{ fontSize: 11, padding: "5px 10px", borderRadius: 7, border: `1px solid ${COLORS.amberDeep}55`, background: "#fff", color: COLORS.amberDeep, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body, flexShrink: 0 }}>{t("dashboard.adminWebsite.copyBypass")}</button>
             </div>
           )}
           {w.announcement.enabled && (
@@ -503,21 +519,20 @@ export function WebsitePage() {
       {/* Pages — visual card grid (the hero asset, not a table) */}
       <section style={{ marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Pages</h2>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.pagesHeading")}</h2>
           <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-            {totals.publishedPages} live · {totals.draftPages} draft · {totals.scheduledPages} scheduled
-            {totals.archivedPages > 0 ? ` · ${totals.archivedPages} archived` : ""}
+            {interpolate(t("dashboard.adminWebsite.pagesCountSummary"), { live: totals.publishedPages, draft: totals.draftPages, scheduled: totals.scheduledPages })}
+            {totals.archivedPages > 0 ? interpolate(t("dashboard.adminWebsite.pagesCountArchivedSuffix"), { archived: totals.archivedPages }) : ""}
           </span>
         </div>
         <p style={{ margin: "0 0 12px", fontSize: 12, fontFamily: FONTS.body, lineHeight: 1.45 }} className="text-admin-ink-muted">
-          Click a page to open the visual editor on your live site (<span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>?edit=1</span>
-          ). Hits below are placeholder until analytics bridge to this surface.
+          {t("dashboard.adminWebsite.pagesHelp")}
         </p>
         {w.pages.length === 0 ? (
           <EmptyState
             icon="info"
-            title="No pages yet"
-            body="Pages from your workspace will appear here once the CMS lists them for this tenant."
+            title={t("dashboard.adminWebsite.pagesEmptyTitle")}
+            body={t("dashboard.adminWebsite.pagesEmptyBody")}
             compact
           />
         ) : (
@@ -528,25 +543,25 @@ export function WebsitePage() {
                 icon="info"
                 title={
                   pagesTab === "draft"
-                    ? "No draft pages"
+                    ? t("dashboard.adminWebsite.pagesFilterEmptyDraftTitle")
                     : pagesTab === "scheduled"
-                      ? "Nothing scheduled"
+                      ? t("dashboard.adminWebsite.pagesFilterEmptyScheduledTitle")
                       : pagesTab === "archived"
-                        ? "No archived pages"
+                        ? t("dashboard.adminWebsite.pagesFilterEmptyArchivedTitle")
                         : pagesTab === "published"
-                          ? "No live pages"
-                          : "No pages"
+                          ? t("dashboard.adminWebsite.pagesFilterEmptyLiveTitle")
+                          : t("dashboard.adminWebsite.pagesFilterEmptyDefaultTitle")
                 }
                 body={
                   pagesTab === "draft"
-                    ? "Drafts you save before publishing will appear here."
+                    ? t("dashboard.adminWebsite.pagesFilterEmptyDraftBody")
                     : pagesTab === "scheduled"
-                      ? "Pages with a future publish time show under Scheduled."
+                      ? t("dashboard.adminWebsite.pagesFilterEmptyScheduledBody")
                       : pagesTab === "archived"
-                        ? "Archived pages are hidden from the live site but stay in your workspace."
+                        ? t("dashboard.adminWebsite.pagesFilterEmptyArchivedBody")
                         : pagesTab === "published"
-                          ? "Publish a draft or pick another tab."
-                          : "Try another filter."
+                          ? t("dashboard.adminWebsite.pagesFilterEmptyLiveBody")
+                          : t("dashboard.adminWebsite.pagesFilterEmptyDefaultBody")
                 }
                 compact
               />
@@ -575,19 +590,19 @@ export function WebsitePage() {
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">
-              Posts <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{w.posts.length}</span>
+              {t("dashboard.adminWebsite.postsHeading")} <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{w.posts.length}</span>
             </h3>
           </div>
           <div className="flex flex-col gap-1.5">
             {w.posts.length === 0 ? (
-              <EmptyState icon="info" title="No posts" body="Blog posts will list here when present." compact />
+              <EmptyState icon="info" title={t("dashboard.adminWebsite.postsEmptyTitle")} body={t("dashboard.adminWebsite.postsEmptyBody")} compact />
             ) : (
               w.posts.map(p => (
                 <button
                   key={p.id}
                   type="button"
                   disabled={!liveOrigin}
-                  aria-label={`Open post on live site: ${p.title}`}
+                  aria-label={interpolate(t("dashboard.adminWebsite.postsOpenAria"), { title: p.title })}
                   onClick={() => openPostOnLive(p)}
                   style={{
                     display: "grid",
@@ -624,7 +639,7 @@ export function WebsitePage() {
                   </div>
                   <div style={{ textAlign: "right" }} className="text-admin-ink-muted">
                     <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{(p.hits7d ?? 0).toLocaleString()}</div>
-                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>hits 7d</div>
+                    <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>{t("dashboard.adminWebsite.hits7d")}</div>
                   </div>
                 </button>
               ))
@@ -636,19 +651,19 @@ export function WebsitePage() {
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">
-              Redirects <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{totals.activeRedirects}/{w.redirects.length}</span>
+              {t("dashboard.adminWebsite.redirectsHeading")} <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{totals.activeRedirects}/{w.redirects.length}</span>
             </h3>
           </div>
           <div className="flex flex-col gap-1.5">
             {w.redirects.length === 0 ? (
-              <EmptyState icon="info" title="No redirects" body="URL redirects will appear here when configured." compact />
+              <EmptyState icon="info" title={t("dashboard.adminWebsite.redirectsEmptyTitle")} body={t("dashboard.adminWebsite.redirectsEmptyBody")} compact />
             ) : (
               w.redirects.map(r => (
               <div key={r.id} style={{ padding: "9px 12px", borderRadius: 9, border: `1px solid ${COLORS.borderSoft}`, background: r.active ? "#fff" : COLORS.surfaceAlt, opacity: r.active ? 1 : 0.7 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, fontFamily: "ui-monospace, monospace" }} className="bg-admin-indigo-soft text-admin-indigo-deep">{r.statusCode}</span>
                   <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }} className="text-admin-ink-muted">{r.match}</span>
-                  <span style={{ marginLeft: "auto", fontFamily: "ui-monospace, monospace", fontSize: 11, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">{(r.hits7d ?? 0).toLocaleString()} hits</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "ui-monospace, monospace", fontSize: 11, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminWebsite.redirectHits"), { count: (r.hits7d ?? 0).toLocaleString() })}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }} className="text-admin-ink">{r.from}</span>
@@ -665,44 +680,44 @@ export function WebsitePage() {
       {/* Configuration — single 3-column card combining Domain / SEO / Tracking */}
       <section style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Configuration</h2>
-          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">Domain · SEO · Tracking</span>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.configHeading")}</h2>
+          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.configSubheading")}</span>
         </div>
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, overflow: "hidden", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
           {/* Domain */}
           <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, position: "relative" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">Domain</span>
-              {canEdit && <button type="button" onClick={() => openDrawer("domain")} style={{ fontSize: 11, color: COLORS.indigoDeep, background: "transparent", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: FONTS.body }}>Manage →</button>}
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.domainLabel")}</span>
+              {canEdit && <button type="button" onClick={() => openDrawer("domain")} style={{ fontSize: 11, color: COLORS.indigoDeep, background: "transparent", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: FONTS.body }}>{t("dashboard.adminWebsite.manageArrow")}</button>}
             </div>
             <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.3, wordBreak: "break-all", marginBottom: 12 }} className="text-admin-ink">{w.domain.primaryDomain}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <ConfigStatusRow label="DNS" status={w.domain.status === "verified" ? "ok" : "warn"} value={w.domain.status === "verified" ? "Verified" : "Pending"} />
-              <ConfigStatusRow label="SSL" status={w.domain.sslStatus === "active" ? "ok" : "warn"} value={w.domain.sslStatus === "active" ? `Active · renews ${w.domain.sslExpiresOn ?? "—"}` : w.domain.sslStatus} />
-              <ConfigStatusRow label="Records" status={(w.domain.dnsRecords ?? []).every(r => r.matched) ? "ok" : "warn"} value={`${(w.domain.dnsRecords ?? []).filter(r => r.matched).length}/${(w.domain.dnsRecords ?? []).length} matched`} />
+              <ConfigStatusRow label={t("dashboard.adminWebsite.dnsLabel")} status={w.domain.status === "verified" ? "ok" : "warn"} value={w.domain.status === "verified" ? t("dashboard.adminWebsite.dnsVerified") : t("dashboard.adminWebsite.dnsPending")} />
+              <ConfigStatusRow label={t("dashboard.adminWebsite.sslLabel")} status={w.domain.sslStatus === "active" ? "ok" : "warn"} value={w.domain.sslStatus === "active" ? interpolate(t("dashboard.adminWebsite.sslActiveRenews"), { date: w.domain.sslExpiresOn ?? "—" }) : w.domain.sslStatus} />
+              <ConfigStatusRow label={t("dashboard.adminWebsite.recordsLabel")} status={(w.domain.dnsRecords ?? []).every(r => r.matched) ? "ok" : "warn"} value={interpolate(t("dashboard.adminWebsite.recordsMatched"), { matched: (w.domain.dnsRecords ?? []).filter(r => r.matched).length, total: (w.domain.dnsRecords ?? []).length })} />
             </div>
           </div>
 
           {/* SEO */}
           <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">SEO defaults</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: w.seo.robotsMode === "indexable" ? COLORS.successSoft : COLORS.amberSoft, color: w.seo.robotsMode === "indexable" ? COLORS.successDeep : COLORS.amberDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>{w.seo.robotsMode === "indexable" ? "Indexable" : "No-index"}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoDefaultsLabel")}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: w.seo.robotsMode === "indexable" ? COLORS.successSoft : COLORS.amberSoft, color: w.seo.robotsMode === "indexable" ? COLORS.successDeep : COLORS.amberDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>{w.seo.robotsMode === "indexable" ? t("dashboard.adminWebsite.seoIndexable") : t("dashboard.adminWebsite.seoNoIndex")}</span>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }} className="text-admin-ink">{w.seo.siteTitle}</div>
-            <div style={{ fontSize: 11.5, marginBottom: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{w.seo.description}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }} className="text-admin-ink">{w.seo.siteTitle || t("dashboard.adminWebsite.notSet")}</div>
+            <div style={{ fontSize: 11.5, marginBottom: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{w.seo.description || t("dashboard.adminWebsite.notSet")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">Title template</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} className="text-admin-ink">{w.seo.titleTemplate}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">Sitemap</span><span style={{ color: w.seo.sitemapEnabled ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 600 }}>{w.seo.sitemapEnabled ? "Enabled" : "Disabled"}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">Canonical</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }} className="text-admin-ink">{w.seo.canonicalDomain}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoTitleTemplate")}</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} className="text-admin-ink">{w.seo.titleTemplate || t("dashboard.adminWebsite.notSet")}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoSitemap")}</span><span style={{ color: w.seo.sitemapEnabled ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 600 }}>{w.seo.sitemapEnabled ? t("dashboard.adminWebsite.seoEnabled") : t("dashboard.adminWebsite.seoDisabled")}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoCanonical")}</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }} className="text-admin-ink">{w.seo.canonicalDomain}</span></div>
             </div>
           </div>
 
           {/* Tracking — chip cluster */}
           <div style={{ padding: 18, fontFamily: FONTS.body }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">Tracking</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, textTransform: "uppercase", letterSpacing: 0.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">Consent: {w.tracking.cookieConsent}</span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.trackingLabel")}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, textTransform: "uppercase", letterSpacing: 0.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">{interpolate(t("dashboard.adminWebsite.trackingConsent"), { mode: w.tracking.cookieConsent })}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {[
@@ -712,13 +727,13 @@ export function WebsitePage() {
                 { label: "GTM", value: w.tracking.gtmContainerId },
                 { label: "Hotjar", value: w.tracking.hotjarSiteId },
                 { label: "LinkedIn", value: w.tracking.linkedInPartnerId },
-              ].map(t => {
-                const active = t.value.length > 0;
+              ].map(tr => {
+                const active = tr.value.length > 0;
                 return (
-                  <span key={t.label} title={active ? t.value : "Not configured"}
+                  <span key={tr.label} title={active ? tr.value : t("dashboard.adminWebsite.notConfigured")}
                     style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: active ? COLORS.successSoft : COLORS.surfaceAlt, border: `1px solid ${active ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, fontSize: 11.5, fontWeight: 600, color: active ? COLORS.successDeep : COLORS.inkDim }}>
                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? COLORS.successDeep : COLORS.inkDim }} />
-                    {t.label}
+                    {tr.label}
                   </span>
                 );
               })}

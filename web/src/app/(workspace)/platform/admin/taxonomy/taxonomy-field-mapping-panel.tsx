@@ -3,6 +3,15 @@ import {
   removePlatformTaxonomyFieldMappingAction,
   setPlatformTaxonomyFieldMappingAction,
 } from "./actions";
+import { interpolate } from "@/i18n/interpolate";
+import { createTranslator } from "@/i18n/messages";
+
+type Translate = (key: string) => string;
+
+// Fallback translator for consumers that don't yet thread a request-locale `t`
+// (e.g. the catalog type-detail view, localized in a later wave). Resolves the
+// same catalog keys in English so the panel always renders real copy.
+const enFallbackT: Translate = createTranslator("en");
 
 const HQ = {
   cardSoft: "rgba(255,255,255,0.04)",
@@ -108,39 +117,42 @@ function MiniButton({
   );
 }
 
-function mappingFlags(mapping: TaxonomyFieldMapping): string {
+function mappingFlags(mapping: TaxonomyFieldMapping, t: Translate): string {
   const flags: string[] = [];
-  if (mapping.required_at_registration) flags.push("registration");
-  if (mapping.required_before_publish) flags.push("publish blocker");
-  if (mapping.required_before_verification) flags.push("verification");
-  if (mapping.requires_verification) flags.push("review");
-  if (mapping.is_admin_only) flags.push("admin-only");
-  return flags.length > 0 ? flags.join(" · ") : "optional";
+  if (mapping.required_at_registration) flags.push(t("dashboard.platform.taxonomy.mappingFlagRegistration"));
+  if (mapping.required_before_publish) flags.push(t("dashboard.platform.taxonomy.mappingFlagPublishBlocker"));
+  if (mapping.required_before_verification) flags.push(t("dashboard.platform.taxonomy.mappingFlagVerification"));
+  if (mapping.requires_verification) flags.push(t("dashboard.platform.taxonomy.mappingFlagReview"));
+  if (mapping.is_admin_only) flags.push(t("dashboard.platform.taxonomy.mappingFlagAdminOnly"));
+  return flags.length > 0 ? flags.join(" · ") : t("dashboard.platform.taxonomy.mappingFlagOptional");
 }
 
 export function TaxonomyFieldMappingPanel({
   term,
   mappings,
   fieldOptions,
+  t = enFallbackT,
 }: {
   term: { id: string; slug: string; name_en: string };
   mappings: TaxonomyFieldMapping[];
   fieldOptions: TaxonomyFieldOption[];
+  /** Request-locale translator. Omitted consumers fall back to English. */
+  t?: Translate;
 }) {
   const activeFieldOptions = fieldOptions.filter((field) => !field.deprecated_at);
 
   return (
     <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 12, padding: 12, background: HQ.cardSoft }}>
       <div style={{ color: HQ.ink, fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
-        Fields for {term.name_en}
+        {interpolate(t("dashboard.platform.taxonomy.mappingFieldsFor"), { name: term.name_en })}
       </div>
       <div style={{ color: HQ.inkMuted, fontSize: 11.5, marginBottom: 12 }}>
-        Direct mappings decide which dynamic Details fields load when this category/type is selected. Parent terms also affect descendants through the resolver.
+        {t("dashboard.platform.taxonomy.mappingIntro")}
       </div>
 
       {mappings.length === 0 ? (
         <div style={{ color: HQ.inkDim, fontSize: 12, marginBottom: 12 }}>
-          No direct fields mapped to this taxonomy term yet.
+          {t("dashboard.platform.taxonomy.mappingNone")}
         </div>
       ) : (
         <div style={{ display: "grid", gap: 7, marginBottom: 14 }}>
@@ -169,19 +181,19 @@ export function TaxonomyFieldMappingPanel({
                 <div style={{ color: HQ.inkDim, fontFamily: "ui-monospace, monospace", fontSize: 10.5 }}>
                   {mapping.field_key} · {mapping.field_tier}
                   {mapping.field_section ? ` · ${mapping.field_section}` : ""}
-                  {mapping.field_deprecated ? " · archived" : ""}
+                  {mapping.field_deprecated ? ` · ${t("dashboard.platform.taxonomy.mappingArchived")}` : ""}
                 </div>
               </div>
               <span style={{ color: mapping.relationship === "required" ? HQ.red : HQ.green, fontWeight: 700 }}>
                 {mapping.relationship}
               </span>
               <span style={{ color: mapping.required_before_publish ? HQ.amber : HQ.inkMuted }}>
-                {mappingFlags(mapping)} · #{mapping.display_order}
+                {mappingFlags(mapping, t)} · #{mapping.display_order}
               </span>
               <form action={removePlatformTaxonomyFieldMappingAction}>
                 <input type="hidden" name="id" value={mapping.id} />
                 <input type="hidden" name="return_term" value={term.slug} />
-                <MiniButton tone="danger">Remove</MiniButton>
+                <MiniButton tone="danger">{t("dashboard.platform.taxonomy.mappingRemove")}</MiniButton>
               </form>
             </div>
           ))}
@@ -202,9 +214,9 @@ export function TaxonomyFieldMappingPanel({
         <input type="hidden" name="taxonomy_term_id" value={term.id} />
         <input type="hidden" name="return_term" value={term.slug} />
         <label style={{ display: "grid", gap: 5, color: HQ.inkMuted, fontSize: 11, fontWeight: 650 }}>
-          Add or update field
+          {t("dashboard.platform.taxonomy.mappingAddUpdate")}
           <select name="field_definition_id" defaultValue="" style={inputStyle}>
-            <option value="">Choose an active field...</option>
+            <option value="">{t("dashboard.platform.taxonomy.mappingChooseField")}</option>
             {activeFieldOptions.map((field) => (
               <option key={field.id} value={field.id}>
                 {field.label} · {field.field_key} · {field.tier}
@@ -213,26 +225,26 @@ export function TaxonomyFieldMappingPanel({
           </select>
         </label>
         <label style={{ display: "grid", gap: 5, color: HQ.inkMuted, fontSize: 11, fontWeight: 650 }}>
-          Relationship
+          {t("dashboard.platform.taxonomy.mappingRelationship")}
           <select name="relationship" defaultValue="applies" style={inputStyle}>
-            <option value="applies">applies</option>
-            <option value="recommended">recommended</option>
-            <option value="required">required</option>
+            <option value="applies">{t("dashboard.platform.taxonomy.mappingRelApplies")}</option>
+            <option value="recommended">{t("dashboard.platform.taxonomy.mappingRelRecommended")}</option>
+            <option value="required">{t("dashboard.platform.taxonomy.mappingRelRequired")}</option>
           </select>
         </label>
         <label style={{ display: "grid", gap: 5, color: HQ.inkMuted, fontSize: 11, fontWeight: 650 }}>
-          Order
+          {t("dashboard.platform.taxonomy.mappingOrder")}
           <input name="display_order" type="number" defaultValue={100} style={inputStyle} />
         </label>
         <div style={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: 14 }}>
-          <Check name="required_at_registration" label="Required at registration" />
-          <Check name="required_before_publish" label="Required before publish" />
-          <Check name="required_before_verification" label="Required before verification" />
-          <Check name="requires_verification" label="Requires verification" />
-          <Check name="is_admin_only" label="Admin-only mapping" tone="danger" />
+          <Check name="required_at_registration" label={t("dashboard.platform.taxonomy.mappingRequiredAtRegistration")} />
+          <Check name="required_before_publish" label={t("dashboard.platform.taxonomy.mappingRequiredBeforePublish")} />
+          <Check name="required_before_verification" label={t("dashboard.platform.taxonomy.mappingRequiredBeforeVerification")} />
+          <Check name="requires_verification" label={t("dashboard.platform.taxonomy.mappingRequiresVerification")} />
+          <Check name="is_admin_only" label={t("dashboard.platform.taxonomy.mappingAdminOnly")} tone="danger" />
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
-          <MiniButton>Save field mapping</MiniButton>
+          <MiniButton>{t("dashboard.platform.taxonomy.mappingSave")}</MiniButton>
         </div>
       </form>
     </div>

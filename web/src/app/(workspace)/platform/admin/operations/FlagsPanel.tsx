@@ -8,8 +8,11 @@
 // the `saveFlag` server action, which re-checks isPlatformAdmin server-side.
 
 import { useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
 import type { FlagDef, FlagGroup } from "./flags-registry";
 import { saveFlag } from "./flags-actions";
+
+type Translate = (key: string) => string;
 
 const HQ = {
   card: "#16161A",
@@ -50,23 +53,29 @@ function asStr(v: unknown): string {
   return "";
 }
 
-function summarize(def: FlagDef, value: unknown): string {
+function summarize(def: FlagDef, value: unknown, t: Translate): string {
   switch (def.control.kind) {
     case "toggle":
-      return asBool(value) ? "On" : "Off";
+      return asBool(value)
+        ? t("dashboard.platform.operations.valueOn")
+        : t("dashboard.platform.operations.valueOff");
     case "select": {
       const s = asStr(value);
       const opt = def.control.options.find((o) => o.value === s);
-      return opt ? opt.label : s ? s : "—";
+      if (opt) return opt.labelKey ? t(opt.labelKey) : opt.label;
+      return s ? s : "—";
     }
     case "number":
-      return value == null || value === "" ? "Not set" : asStr(value);
+      return value == null || value === ""
+        ? t("dashboard.platform.operations.valueNotSet")
+        : asStr(value);
     case "text":
-      return asStr(value) || "Not set";
+      return asStr(value) || t("dashboard.platform.operations.valueNotSet");
   }
 }
 
 function FlagRow({ def, initial }: { def: FlagDef; initial: unknown }) {
+  const t = useT();
   const [value, setValue] = useState<string>(() => {
     switch (def.control.kind) {
       case "toggle":
@@ -96,10 +105,10 @@ function FlagRow({ def, initial }: { def: FlagDef; initial: unknown }) {
 
   const statusEl = (() => {
     if (pending || status.kind === "saving") {
-      return <span style={{ color: HQ.amber, fontSize: 11 }}>Saving…</span>;
+      return <span style={{ color: HQ.amber, fontSize: 11 }}>{t("dashboard.platform.operations.saving")}</span>;
     }
     if (status.kind === "saved") {
-      return <span style={{ color: HQ.green, fontSize: 11 }}>✓ Saved</span>;
+      return <span style={{ color: HQ.green, fontSize: 11 }}>{t("dashboard.platform.operations.saved")}</span>;
     }
     if (status.kind === "error") {
       return (
@@ -133,19 +142,19 @@ function FlagRow({ def, initial }: { def: FlagDef; initial: unknown }) {
           }}
         >
           <span style={{ fontSize: 13, fontWeight: 600, color: HQ.ink }}>
-            {def.label}
+            {t(def.labelKey)}
           </span>
           <span style={{ fontFamily: FM, fontSize: 11, color: HQ.inkDim }}>
             {def.key}
           </span>
         </div>
         <div style={{ fontSize: 11.5, color: HQ.inkMuted, marginTop: 3 }}>
-          {def.description}
+          {t(def.descriptionKey)}
         </div>
         <div style={{ fontSize: 11, color: HQ.inkDim, marginTop: 4 }}>
-          Current:{" "}
+          {t("dashboard.platform.operations.current")}{" "}
           <span style={{ color: HQ.inkMuted, fontWeight: 600 }}>
-            {summarize(def, savedValue)}
+            {summarize(def, savedValue, t)}
           </span>
         </div>
       </div>
@@ -191,6 +200,7 @@ function Control({
   onChange: (next: string) => void;
   onCommitText: (next: string) => void;
 }) {
+  const t = useT();
   const baseFieldStyle: React.CSSProperties = {
     background: HQ.cardSoft,
     border: `1px solid ${HQ.border}`,
@@ -249,11 +259,11 @@ function Control({
         >
           {/* Allow an unset row to show until the admin picks a value. */}
           {!def.control.options.some((o) => o.value === value) && (
-            <option value={value}>— select —</option>
+            <option value={value}>{t("dashboard.platform.operations.selectPlaceholder")}</option>
           )}
           {def.control.options.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {o.labelKey ? t(o.labelKey) : o.label}
             </option>
           ))}
         </select>
@@ -299,6 +309,7 @@ export function FlagsPanel({
   groups: ReadonlyArray<FlagGroup>;
   values: Record<string, unknown>;
 }) {
+  const t = useT();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       {groups.map((group) => (
@@ -322,10 +333,10 @@ export function FlagsPanel({
                 textTransform: "uppercase",
               }}
             >
-              {group.title}
+              {t(group.titleKey)}
             </span>
             <p style={{ margin: "4px 0 0", fontSize: 12, color: HQ.inkMuted }}>
-              {group.blurb}
+              {t(group.blurbKey)}
             </p>
           </div>
           {group.flags.map((def) => (

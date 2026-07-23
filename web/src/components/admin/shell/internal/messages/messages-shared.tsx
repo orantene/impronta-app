@@ -14,6 +14,14 @@ export const currentTalentId = () =>
   `t-${MY_TALENT_PROFILE.name.split(" ")[0]?.toLowerCase()}`;
 export type MessagesPov = "admin" | "talent" | "client";
 
+/**
+ * WS-7.5 — "R" reply shortcut. The inbox list dispatches this window
+ * event; whichever DraftComposer is mounted focuses its input in
+ * response. Event-based so the list doesn't need a ref into the thread
+ * pane's composer.
+ */
+export const FOCUS_COMPOSER_EVENT = "tulala:focus-composer";
+
 // ════════════════════════════════════════════════════════════════════
 // SHARED — adapters + common helpers
 // ════════════════════════════════════════════════════════════════════
@@ -94,6 +102,9 @@ export function renderWithDateGroups<T>(
   items: T[],
   getAgeHrs: (item: T) => number,
   renderRow: (item: T) => React.ReactNode,
+  /** Optional translator (copy.t). Defaults to identity so existing
+   *  callers keep the English labels unchanged. */
+  t: (s: string) => string = (s) => s,
 ): React.ReactNode {
   const out: React.ReactNode[] = [];
   let lastBucket: ReturnType<typeof dateGroupKey> | null = null;
@@ -116,7 +127,7 @@ export function renderWithDateGroups<T>(
           position: "sticky", top: 0, zIndex: 1,
           borderBottom: `1px solid ${COLORS.borderSoft}`,
         }}>
-          {DATE_GROUP_LABEL[b]}
+          {t(DATE_GROUP_LABEL[b])}
         </div>,
       );
       lastBucket = b;

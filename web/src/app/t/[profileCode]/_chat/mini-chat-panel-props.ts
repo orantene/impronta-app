@@ -1,4 +1,7 @@
-import type { MiniChatPanelProps } from "@/lib/inquiry/guest-chat-contract";
+import type {
+  MiniChatPanelProps,
+  ScanGuestConversationCallback,
+} from "@/lib/inquiry/guest-chat-contract";
 
 import type { SurfaceMode } from "./mini-chat-styles";
 
@@ -13,6 +16,12 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * tenants are byte-identical.
    */
   surfaceMode?: SurfaceMode;
+  /**
+   * P0-5 / W0-F — the panel is mounted on a HUB host (platform/network hub or
+   * the marketing apex), not an agency. Drives the SEND-path copy so the send
+   * button + notes never call the platform "the agency". Default false.
+   */
+  isHub?: boolean;
   /** When true, render 2-pane expanded mode. Owned by TalentProfileChatLauncher. */
   expanded?: boolean;
   /** Toggle handler from TalentProfileChatLauncher's setExpanded. */
@@ -49,4 +58,16 @@ export type MiniChatPanelLocalProps = MiniChatPanelProps & {
    * structured commit creates one).
    */
   onInquiryIdChange?: (inquiryId: string | null) => void;
+  /**
+   * DOCK v2 — the shipped AI conversation scan (fill empty inquiry detail fields
+   * from the chat). Threaded to the "Fill from conversation" button in the Add
+   * details sheet. Null hides the scan affordance.
+   */
+  onScanConversation?: ScanGuestConversationCallback | null;
+  /**
+   * DOCK v2: remount the panel with resume suppressed so the next interaction
+   * creates a fresh private draft (used by "Start an inquiry" when the active
+   * thread is already SENT). The lineup cart survives the remount.
+   */
+  onStartFresh?: (() => void) | null;
 };

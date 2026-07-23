@@ -109,6 +109,41 @@ export async function signInWithEmail(
   redirect(resolvePostAuthDestination(profileData, nextPath));
 }
 
+export type SignInModalState = { ok: true } | { ok: false; error: string } | null;
+
+/**
+ * In-place email sign-in for the marketing login MODAL (apex host). Unlike
+ * `signInWithEmail`, this does NOT redirect: the session cookie is written by
+ * the server client (parent-domain scoped, so the apex + every subdomain sees
+ * it), and the modal closes + `router.refresh()`es so the current page flips to
+ * the signed-in header without leaving `tulala.digital`. The account menu then
+ * carries the user into their workspace when they choose to.
+ */
+export async function signInWithEmailModal(
+  _prev: SignInModalState,
+  formData: FormData,
+): Promise<SignInModalState> {
+  const t = authT(formData);
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+  if (!email || !password) {
+    return { ok: false, error: t("public.auth.actions.emailPasswordRequired") };
+  }
+
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) {
+    return { ok: false, error: SUPABASE_ENV_HELP };
+  }
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    logServerError("auth/signInWithEmailModal", error);
+    return { ok: false, error: t("public.auth.actions.signInGeneric") };
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
 export async function signUpWithEmail(
   _prev: AuthActionState,
   formData: FormData,

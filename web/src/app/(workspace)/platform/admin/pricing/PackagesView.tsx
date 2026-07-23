@@ -18,6 +18,8 @@ import {
   isSalePriceActive,
   formatPriceWindow,
 } from "@/lib/pricing/pricing-types";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD, FAMILY_COLORS } from "./_tokens";
 import { Pill } from "./_primitives";
 
@@ -117,6 +119,7 @@ function TierCard({
   family: string;
   onClick: () => void;
 }) {
+  const t = useT();
   const headline = pickHeadlinePrice(tier.prices);
   const accent = FAMILY_COLORS[family] ?? HQ.ink;
   const stripeOk = tier.stripeProductId !== null;
@@ -173,11 +176,21 @@ function TierCard({
         >
           {tier.name}
         </span>
-        {tier.isFeatured && <Pill color={accent}>Featured</Pill>}
-        {!tier.isActive && <Pill color={HQ.inkDim}>Hidden</Pill>}
+        {tier.isFeatured && (
+          <Pill color={accent}>
+            {t("dashboard.platform.pricing.card.featured")}
+          </Pill>
+        )}
+        {!tier.isActive && (
+          <Pill color={HQ.inkDim}>
+            {t("dashboard.platform.pricing.card.hidden")}
+          </Pill>
+        )}
         {activeSale && (
           <Pill color={HQ.amber}>
-            SALE · {formatPriceWindow(activeSale)}
+            {interpolate(t("dashboard.platform.pricing.card.sale"), {
+              window: formatPriceWindow(activeSale),
+            })}
           </Pill>
         )}
       </div>
@@ -223,7 +236,7 @@ function TierCard({
           </>
         ) : (
           <span style={{ fontSize: 13, color: HQ.inkDim, fontStyle: "italic" }}>
-            No active price
+            {t("dashboard.platform.pricing.card.noActivePrice")}
           </span>
         )}
       </div>
@@ -238,8 +251,19 @@ function TierCard({
           letterSpacing: 0.3,
         }}
       >
-        <span>{tier.features.length} features</span>
-        {otherPriceCount > 0 && <span>· {otherPriceCount} more prices</span>}
+        <span>
+          {interpolate(t("dashboard.platform.pricing.card.featuresCount"), {
+            count: tier.features.length,
+          })}
+        </span>
+        {otherPriceCount > 0 && (
+          <span>
+            ·{" "}
+            {interpolate(t("dashboard.platform.pricing.card.morePrices"), {
+              count: otherPriceCount,
+            })}
+          </span>
+        )}
         <span style={{ flex: 1 }} />
         <span
           style={{
@@ -259,7 +283,9 @@ function TierCard({
             }}
             aria-hidden
           />
-          {stripeOk ? "Stripe linked" : "No Stripe product"}
+          {stripeOk
+            ? t("dashboard.platform.pricing.card.stripeLinked")
+            : t("dashboard.platform.pricing.card.noStripeProduct")}
         </span>
       </div>
     </button>

@@ -35,15 +35,20 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { ServicesBlock } from "../_light/ServicesBlock";
 import { ServiceMenuBlock } from "../_light/ServiceMenuBlock";
+import { TalentStorefront } from "../_shared/TalentStorefront";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "../_light/SkillsExperienceBlock";
 import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicFeaturedMedia } from "@/components/talent/connections/PublicFeaturedMedia";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
-import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -62,11 +67,19 @@ function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: Detail
   return order.map((group) => ({ group, rows: byGroup.get(group)! }));
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "·";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/**
+ * Letter-free person silhouette used as the no-photo portrait/avatar fallback.
+ * Inherits `currentColor` from each `__mono`/`.mono` container so it keeps the
+ * theme accent. `size` is the SVG width/height as a % of the (flex-centered)
+ * container.
+ */
+function Silhouette({ size = "46%" }: { size?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8.2" r="3.6" />
+      <path d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z" />
+    </svg>
+  );
 }
 
 /** Two-digit section index, e.g. 1 → "01". */
@@ -141,6 +154,8 @@ const ATELIER_CSS = `
 [data-profile-theme="atelier"] .at-split__intro .at-chips,[data-profile-theme="atelier"] .at-split__intro .at-actions,[data-profile-theme="atelier"] .at-split__intro .at-extra{ justify-content:flex-start; }
 [data-profile-theme="atelier"] .at-chip{ font-size:9.5px; letter-spacing:0.18em; text-transform:uppercase; font-weight:600; padding:6px 13px; border:1px solid var(--pp-line); border-radius:1px; color:var(--pp-ink-soft); }
 [data-profile-theme="atelier"] .at-chip--accent{ border-color:var(--pp-accent); color:var(--pp-accent); }
+[data-profile-theme="atelier"] a.at-chip{ text-decoration:none; transition:opacity .2s ease; } [data-profile-theme="atelier"] a.at-chip:hover{ opacity:0.78; }
+html:has([data-profile-theme="atelier"]){ scroll-behavior:smooth; } [data-profile-theme="atelier"] #reviews{ scroll-margin-top:96px; }
 [data-profile-theme="atelier"] .at-bio{ color:var(--pp-ink-soft); margin-top:20px; max-width:54ch; font-size:1.02rem; line-height:1.85; }
 [data-profile-theme="atelier"] .at-hero .at-bio,[data-profile-theme="atelier"] .at-cover__inner .at-bio{ margin-inline:auto; }
 [data-profile-theme="atelier"] .at-cover__inner .at-bio{ color:rgba(255,255,255,0.84); }
@@ -240,6 +255,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
     startingFrom,
     bookingNote,
     serviceMenuItems,
+    storefrontOfferings,
     disciplineLabels,
     fitLabels,
     skills,
@@ -251,6 +267,8 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
     otherDetailRows,
     ratingSummary,
     talentReviews,
+    testimonials = [],
+    heroRating,
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -314,7 +332,8 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
       serviceAreas.length > 0 ||
       Boolean(startingFrom) ||
       Boolean(bookingNote));
-  const hasServiceMenu = !isFreePlan && serviceMenuItems.length > 0;
+  const hasStorefront = !isFreePlan && storefrontOfferings.length > 0;
+  const hasServiceMenu = hasStorefront || (!isFreePlan && serviceMenuItems.length > 0);
   const hasFeaturedMedia = featuredMediaItems.length > 0;
   const hasPortfolio = galleryItems.length > 0;
   const hasReviews = ratingSummary.count > 0;
@@ -344,6 +363,11 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
 
   const chips = (
     <div className="at-chips">
+      {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
+        <ReviewsAnchorLink className="at-chip at-chip--accent">
+          {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
+        </ReviewsAnchorLink>
+      ) : null}
       {livesIn ? <span className="at-chip">{livesIn}</span> : null}
       {agency ? <span className="at-chip at-chip--accent">{labels.represented}</span> : null}
       {langShort.length > 0 ? <span className="at-chip">{langShort.join(" · ")}</span> : null}
@@ -451,13 +475,13 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
           </div>
         </section>
       ) : (
-        // Text-only masthead — no images at all. Monogram, never a gray box.
+        // Text-only masthead — no images at all. Silhouette, never a gray box.
         <section className="at-col at-hero" data-profile-section="hero">
           {eyebrowLine ? <span className="at-eyebrow">{eyebrowLine}</span> : null}
           <h1>{name}</h1>
           <div className="at-portrait">
             <div className="at-portrait__mono" aria-hidden="true">
-              {initials(name)}
+              <Silhouette />
             </div>
           </div>
           {chips}
@@ -563,12 +587,20 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
           ) : null}
           {hasServiceMenu ? (
             <div style={{ marginTop: hasServices ? 28 : 0 }}>
-              <ServiceMenuBlock
-                items={serviceMenuItems}
-                locale={locale}
-                heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
-                disciplineLabels={disciplineLabels}
-              />
+              {hasStorefront ? (
+                <TalentStorefront
+                  offerings={storefrontOfferings}
+                  locale={locale}
+                  heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                />
+              ) : (
+                <ServiceMenuBlock
+                  items={serviceMenuItems}
+                  locale={locale}
+                  heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                  disciplineLabels={disciplineLabels}
+                />
+              )}
             </div>
           ) : null}
         </section>
@@ -607,7 +639,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
 
       {/* ── REVIEWS ──────────────────────────────────────────────────────── */}
       {hasReviews ? (
-        <section className="at-col at-section" aria-label="Client reviews" data-profile-section="reviews">
+        <section id="reviews" className="at-col at-section" aria-label="Client reviews" data-profile-section="reviews">
           <div className="at-head">
             <span className="at-head__no">{nextNo()}</span>
             <span className="at-head__dash" aria-hidden="true" />
@@ -618,7 +650,19 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
             reviews={talentReviews}
             theme={reviewsTheme}
             heading=""
+            talentName={name}
           />
+        </section>
+      ) : null}
+
+      {/* ── INVITED TESTIMONIALS (separate from verified reviews) ────────── */}
+      {testimonials.length > 0 ? (
+        <section
+          className="at-col at-section"
+          aria-label="Invited testimonials"
+          data-profile-section="testimonials"
+        >
+          <TestimonialsSection testimonials={testimonials} theme={reviewsTheme} />
         </section>
       ) : null}
 
@@ -644,7 +688,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
                     />
                   ) : (
                     <div className="at-similar__mono" aria-hidden="true">
-                      {initials(st.displayName)}
+                      <Silhouette />
                     </div>
                   )}
                 </Link>
@@ -691,9 +735,11 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
               >
                 <PublicCmsFooterNav locale={locale} />
               </div>
-              <span className="at-foot__pw">
-                Powered by <em>Tulala</em>
-              </span>
+              {props.whitelabel ? null : (
+                <span className="at-foot__pw">
+                  Powered by <em>Tulala</em>
+                </span>
+              )}
             </div>
           </div>
         </footer>
@@ -706,7 +752,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={profileImageUrl} alt="" />
           ) : (
-            <span className="mono">{initials(name)}</span>
+            <span className="mono"><Silhouette size="60%" /></span>
           )}
           <div style={{ minWidth: 0 }}>
             <div className="n">{name}</div>

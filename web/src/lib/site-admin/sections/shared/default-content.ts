@@ -173,7 +173,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
           { label: "Riviera Maya", value: "riviera-maya" },
           { label: "Mexico City", value: "mexico-city" },
           { label: "Buenos Aires", value: "buenos-aires" },
-          { label: "— More cities coming —", disabled: true },
+          { label: "More cities coming", disabled: true },
         ],
       },
       mediaMode: "static",
@@ -660,12 +660,10 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     name: "Logo cloud — new",
     props: {
       eyebrow: "Trusted by",
-      logos: [
-        { imageUrl: "https://placehold.co/160x60/png?text=Logo+1", alt: "Logo 1" },
-        { imageUrl: "https://placehold.co/160x60/png?text=Logo+2", alt: "Logo 2" },
-        { imageUrl: "https://placehold.co/160x60/png?text=Logo+3", alt: "Logo 3" },
-        { imageUrl: "https://placehold.co/160x60/png?text=Logo+4", alt: "Logo 4" },
-      ],
+      // No seed logos — the operator adds real partner logos. Never ship
+      // placeholder/stock imagery (placehold.co). The section renders nothing
+      // until at least one real logo is added.
+      logos: [],
       columnsDesktop: 6,
       variant: "muted",
     },

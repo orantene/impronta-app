@@ -674,6 +674,28 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "3",
     group: "Template families",
   },
+  "directory.card.show-standing": {
+    key: "directory.card.show-standing",
+    label: "Show talent standing",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["off", "compact", "full"]),
+    defaultValue: "compact",
+    group: "Template families",
+    description:
+      "Whether the talent standing / rating shows on directory cards. `off` hides it; `compact` shows the score without the read-all link; `full` shows the score and a read-all link.",
+  },
+  "directory.card.standing-style": {
+    key: "directory.card.standing-style",
+    label: "Standing style",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["tier", "signal", "both"]),
+    defaultValue: "both",
+    group: "Template families",
+    description:
+      "How the standing renders when shown. `tier` shows the named tier only; `signal` shows the numeric signal only; `both` shows the tier and the signal.",
+  },
 
   // ── Card design (P2) — the unified talent-card palette ────────────────
   // Consumed by the ONE canonical <TalentCard> (components/talent-cards) via
@@ -743,6 +765,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     group: "Template families",
     description:
       "Which profile blocks show. `editorial-bridal` = hero+about+specialties+event_styles+portfolio+travel+packages+testimonials+related+sticky_cta. `minimal` = hero+about+inquiry.",
+  },
+  "profile.reviews-visibility": {
+    key: "profile.reviews-visibility",
+    label: "Reviews on profile",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["visible", "hidden"]),
+    defaultValue: "visible",
+    group: "Template families",
+    description:
+      "Whether the reviews section shows on talent profile pages. `visible` shows it; `hidden` removes it.",
   },
 
   // ── Template families (M7.1) ─────────────────────────────────────────

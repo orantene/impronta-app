@@ -33,6 +33,7 @@ import type {
   FxPreview,
 } from "@/lib/pricing/pricing-types";
 import type { TrialOffer } from "@/lib/plan-trials/offers";
+import { useT } from "@/i18n/use-t";
 import { HQ, F } from "./_tokens";
 import { PageHeader } from "./PageHeader";
 import { PackagesView } from "./PackagesView";
@@ -115,8 +116,9 @@ function TabStrip({
   onChange,
 }: {
   activeTab: PricingTab;
-  onChange: (t: PricingTab) => void;
+  onChange: (tab: PricingTab) => void;
 }) {
+  const t = useT();
   return (
     <div
       role="tablist"
@@ -130,17 +132,17 @@ function TabStrip({
       <TabBtn
         active={activeTab === "packages"}
         onClick={() => onChange("packages")}
-        label="Packages"
+        label={t("dashboard.platform.pricing.tabs.packages")}
       />
       <TabBtn
         active={activeTab === "discounts"}
         onClick={() => onChange("discounts")}
-        label="Discounts"
+        label={t("dashboard.platform.pricing.tabs.discounts")}
       />
       <TabBtn
         active={activeTab === "trials"}
         onClick={() => onChange("trials")}
-        label="Trials"
+        label={t("dashboard.platform.pricing.tabs.trials")}
       />
     </div>
   );

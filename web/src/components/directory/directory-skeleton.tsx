@@ -8,7 +8,7 @@ export function DirectoryGridSkeleton() {
       {Array.from({ length: PLACEHOLDER_COUNT }).map((_, i) => (
         <div
           key={i}
-          className="overflow-hidden rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]"
+          className="overflow-hidden rounded-lg border border-border bg-muted/40"
         >
           <Skeleton className="aspect-[3/4] w-full rounded-none" />
           <div className="space-y-2 p-3">

@@ -295,7 +295,7 @@ async function callerHasRelationshipToTenant(
     .from("agency_memberships")
     .select("id")
     .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
+    .eq("profile_id", userId)
     .limit(1)
     .maybeSingle();
   if (membership) return true;

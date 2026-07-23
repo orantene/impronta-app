@@ -16,9 +16,13 @@
  *     cookie, is resolved server-side inside those actions).
  */
 
+import { setPendingOffering } from "./pending-offering-store";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import type { TalentChatLauncherProps } from "@/lib/inquiry/guest-chat-contract";
+import type {
+  ScanGuestConversationCallback,
+  TalentChatLauncherProps,
+} from "@/lib/inquiry/guest-chat-contract";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
@@ -32,13 +36,6 @@ import {
 import type { InquiryWorkflowPhase } from "@/lib/inquiry/inquiry-lifecycle";
 import { launcherLabelForCta } from "@/lib/inquiry/launcher-cta-label";
 
-import {
-  trackChatOpened,
-  trackLineupAdd,
-  trackLineupRemove,
-  type Jon360FunnelContext,
-} from "@/lib/analytics/jon360-funnel-events";
-
 import { MiniChatPanel } from "./MiniChatPanel";
 import { LauncherProjectPicker } from "./LauncherProjectPicker";
 import { NewMessagePulse } from "./NewMessagePulse";
@@ -46,10 +43,16 @@ import { LauncherAvatarStack } from "./LauncherAvatarStack";
 import { FlyingAvatar } from "./FlyingAvatar";
 import { useFlyToRail } from "./use-fly-to-rail";
 import { useCartTalents } from "./use-cart-talents";
-import { useCartTalentRegistry } from "./cart-talent-registry";
+import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
+import { useNarrowLauncherViewport } from "./use-compact-viewport";
+import { ChatGlyph, CloseGlyph } from "./chat-launcher-glyphs";
+import { useLauncherSessionRestore } from "./use-launcher-session-restore";
+import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
+import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
 import {
   DEFAULT_ACCENT,
+  FONT,
   GUEST_CHAT_LAUNCHER_BOTTOM_PX,
   firstNameOf,
   readableOn,
@@ -77,6 +80,14 @@ type TalentProfileChatLauncherLocalProps = TalentChatLauncherProps & {
   draftInquiryId?: string | null;
   otherOpenInquiries?: OtherOpenInquiry[];
   ctaIdentity?: "guest" | "client";
+  /** DOCK v2 — forwarded to the panel: the AI conversation scan action. */
+  onScanConversation?: ScanGuestConversationCallback | null;
+  /**
+   * P0-5 / W0-F — this launcher is mounted on a HUB host (platform/network hub
+   * or the marketing apex), not an agency. Threaded to the panel so the SEND
+   * path drops the "the agency" framing. Default false (agency + talent hosts).
+   */
+  isHub?: boolean;
   /**
    * Phase 8 returning-visitor REPLIED pulse — true when the active SENT inquiry
    * has an unread coordinator reply as its latest message (derived server-side
@@ -102,7 +113,10 @@ export function TalentProfileChatLauncher({
   sourcePage,
   brand,
   existingInquiryId = null,
+  existingContactPromoted = null,
   prefill = null,
+  offerings = [],
+  onAttachOffering = null,
   onStartInquiry,
   onSendMessage,
   fetchMessages,
@@ -114,6 +128,7 @@ export function TalentProfileChatLauncher({
   onLoadDetails = null,
   onListRoster = null,
   onResolveCartPortraits = null,
+  onScanConversation = null,
   soundOnReply = true,
   identity = "guest",
   // `label` (legacy static override) is intentionally NOT destructured: the
@@ -131,9 +146,38 @@ export function TalentProfileChatLauncher({
   otherOpenInquiries = [],
   ctaIdentity = "guest",
   unreadCoordinatorReply = false,
+  isHub = false,
 }: TalentProfileChatLauncherLocalProps) {
   const mounted = useClientMounted();
   const [open, setOpen] = useState(false);
+  // W2-B — "seen" marker for the unseen-reply signal. Opening the panel means the
+  // visitor has now seen the coordinator's reply, so we locally suppress the
+  // replied label + pulse from that point on (the server recomputes the durable
+  // "seen" state on the next load). Best-effort: a stuck "replied" that never
+  // clears is the failure we must avoid, so any open flips this true for good.
+  const [replySeen, setReplySeen] = useState(false);
+  useEffect(() => {
+    if (open) setReplySeen(true);
+  }, [open]);
+  // Audit item 7 (Lane G) — below ~700px the free-floating avatar cluster (up to
+  // 3 circles breaking the pill's top edge, or the "+N …more" chip) has been
+  // observed drifting over profile content (review text / section headers) in
+  // real-browser testing. Below the threshold the cluster collapses into the
+  // pill's own count badge instead of rendering as a separate floating stack.
+  const narrowLauncher = useNarrowLauncherViewport();
+
+  // Storefront CTA seam: a service card's "Book/Request/Ask for quote" opens
+  // this launcher carrying the clicked offering (structured provenance +
+  // visible "Requesting: …" first-message prefix downstream).
+  useEffect(() => {
+    const onOfferingRequest = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail === "object") setPendingOffering(detail);
+      setOpen(true);
+    };
+    window.addEventListener("tulala:offering-request", onOfferingRequest);
+    return () => window.removeEventListener("tulala:offering-request", onOfferingRequest);
+  }, []);
   // Jon 360 Phase 7 — wire the pill's (previously dead) transform transition to a
   // real hover/active lift. Reduced-motion-safe: the transitions/transforms are
   // suppressed under prefers-reduced-motion below.
@@ -148,12 +192,6 @@ export function TalentProfileChatLauncher({
   // When the +N chip / a rail avatar is tapped, open the panel scrolled to the
   // Talent section. The panel reads this one-shot intent and clears it.
   const [openToTalent, setOpenToTalent] = useState(false);
-  // Phase 8 returning-visitor REPLIED pulse — a one-shot rising edge the pill's
-  // NewMessagePulse consumes. Fired ~1.2s after mount when a returning visitor
-  // lands with an unread coordinator reply on a CLOSED launcher, so the pulse
-  // dot draws the eye to "{agency} replied". Cleared once the visitor opens the
-  // panel (they have now seen the reply).
-  const [repliedPulse, setRepliedPulse] = useState(false);
 
   // ── The launcher pill IS the inquiry cart (plan §4.A) ──────────────────────
   // The rail's avatars are a pure projection of the single source of truth
@@ -189,6 +227,86 @@ export function TalentProfileChatLauncher({
   // without touching the ref. The ref stays the source of truth for the imperative
   // paths (early-row create / remove runner); this just shadows it for render reads.
   const [liveInquiryId, setLiveInquiryId] = useState<string | null>(existingInquiryId);
+
+  // DOCK v2 "start fresh": remount the panel WITHOUT the resumed (sent)
+  // inquiry so the next interaction ensures a brand-new private draft. The
+  // cart (lineup) survives — the new draft picks it up through the existing
+  // preload bridge. An in-progress DRAFT is never discarded here; callers only
+  // invoke this when the active thread is already sent (or absent).
+  const [freshEpoch, setFreshEpoch] = useState(0);
+  // When set, the remounted panel resumes THIS draft (the separate-inquiry
+  // flow mints it server-side first); null = plain resume-suppressed fresh.
+  const [freshOverrideId, setFreshOverrideId] = useState<string | null>(null);
+  const startFreshDraft = useCallback(() => {
+    try {
+      window.sessionStorage.setItem("impronta.dockView", "chat");
+    } catch {
+      /* private mode */
+    }
+    setFreshOverrideId(null);
+    setFreshEpoch((n) => n + 1);
+  }, []);
+  const resumeSuppressed = freshEpoch > 0;
+
+  // DOCK v2.1 — "start a separate inquiry about {talent}" (profile CTA
+  // chooser). The in-progress draft is NEVER lost: it is already autosaved
+  // server-side on every change and stays reachable from the Inquiries tab.
+  // Order matters: (1) mint the NEW draft first (forceNew ensure), so the cart
+  // projection — which targets the NEWEST draft — can no longer touch the old
+  // one; (2) reset the cart to just this talent; (3) remount the panel resumed
+  // directly into the new draft.
+  const separateReq = inquiryModal?.separateInquiryRequest ?? null;
+  const separateSeqRef = useRef(0);
+  useEffect(() => {
+    if (!separateReq || separateReq.seq === separateSeqRef.current) return;
+    separateSeqRef.current = separateReq.seq;
+    const talent = separateReq.payload;
+    if (!onEnsureInquiry) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await onEnsureInquiry({
+        tenantSlug,
+        talentProfileId: talent.talentProfileId,
+        talentProfileCode: talent.profileCode || null,
+        sourcePage,
+        forceNew: true,
+      });
+      if (cancelled || !res.ok) return;
+      registerCartTalent(talent.talentProfileId, {
+        displayName: talent.displayName,
+        portraitUrl: talent.portraitUrl,
+      });
+      for (const id of cart.cartIds) {
+        if (id !== talent.talentProfileId) {
+          cart.setInCart({ talentProfileId: id, profileCode: "" }, false, sourcePage);
+        }
+      }
+      if (!cart.isInCart(talent.talentProfileId)) {
+        cart.setInCart(
+          {
+            talentProfileId: talent.talentProfileId,
+            profileCode: talent.profileCode,
+            displayName: talent.displayName,
+          },
+          true,
+          sourcePage,
+        );
+      }
+      try {
+        window.sessionStorage.setItem("impronta.dockView", "chat");
+      } catch {
+        /* private mode */
+      }
+      setFreshOverrideId(res.inquiryId);
+      setFreshEpoch((n) => n + 1);
+      setOpen(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Re-runs on unrelated dep changes are no-ops: the seq guard above only
+    // lets each request through once.
+  }, [separateReq, onEnsureInquiry, tenantSlug, sourcePage, cart, setOpen]);
 
   // B6: the panel registers its unified talent-patch runner here so the rail
   // X-remove writes the record through the SAME useUnifiedInquiry.patch path the
@@ -296,50 +414,17 @@ export function TalentProfileChatLauncher({
     setOpen(true);
   }
 
-  // Restore the open panel across a refresh (B1) so the conversation doesn't
-  // appear to reset. sessionStorage is per-tab → a refresh restores; closing the
-  // tab forgets. Only auto-restore when there's a LIVE thread to show — never
-  // auto-open an empty intro chat, which would read as spammy (strategy §10).
-  const openStateKey = `tulala_guestchat_open:${talentProfileId}`;
-  useEffect(() => {
-    if (!existingInquiryId) return;
-    try {
-      if (sessionStorage.getItem(openStateKey) === "1") setOpen(true);
-    } catch {
-      /* sessionStorage blocked (some privacy modes) — stay closed, no-op. */
-    }
-    // existingInquiryId + openStateKey are stable for a given mount, so this
-    // restores once and never re-opens after the user manually closes.
-  }, [existingInquiryId, openStateKey]);
-  useEffect(() => {
-    try {
-      if (open) sessionStorage.setItem(openStateKey, "1");
-      else sessionStorage.removeItem(openStateKey);
-    } catch {
-      /* ignore — persistence is best-effort. */
-    }
-  }, [open, openStateKey]);
+  // Restore the open panel across a refresh (B1). Extracted to
+  // useLauncherSessionRestore (W1-A decomposition pre-pass).
+  useLauncherSessionRestore({ existingInquiryId, talentProfileId, open, setOpen });
 
-  // Phase 3 — announce this launcher to the shared modal context so a repointed
-  // front door's requestOpenChat() targets the chat surface (and falls back to
-  // the legacy sheet only when no launcher is mounted).
-  const registerChatLauncher = inquiryModal?.registerChatLauncher;
-  useEffect(() => {
-    if (!registerChatLauncher) return;
-    return registerChatLauncher();
-  }, [registerChatLauncher]);
-
-  // Phase 3 — open this panel when a repointed directory front door asks for it
-  // (the cue is a monotonically-increasing counter; the initial 0 is ignored so
-  // the panel never auto-opens on mount). This is what makes the chat launcher
-  // the single canonical inquiry surface.
-  const lastOpenChatCue = useRef(openChatCue);
-  useEffect(() => {
-    if (openChatCue === 0) return;
-    if (openChatCue === lastOpenChatCue.current) return;
-    lastOpenChatCue.current = openChatCue;
-    setOpen(true);
-  }, [openChatCue]);
+  // Phase 3 — directory front-door registration + repointed-cue open. Extracted
+  // to useDirectoryFrontDoorSync (W1-A decomposition pre-pass).
+  useDirectoryFrontDoorSync({
+    registerChatLauncher: inquiryModal?.registerChatLauncher,
+    openChatCue,
+    setOpen,
+  });
 
   // Stable names array — cartTalents is already identity-stable (useCartTalents
   // memoizes on its signature), so this yields a stable reference and avoids
@@ -349,66 +434,19 @@ export function TalentProfileChatLauncher({
     [cartTalents],
   );
 
-  // Phase 0c CRO — the standard Jon-360 funnel context, rebuilt per render from
-  // the live cart. liveInquiryIdRef tracks the early-row id once it exists.
-  const funnelCtx = useCallback(
-    (): Jon360FunnelContext => ({
-      inquiryId: liveInquiryIdRef.current,
-      tenantId,
-      lineupCount: cart.cartCount,
-      identity: ctaIdentity,
-      source: sourcePage,
-    }),
-    [tenantId, cart.cartCount, ctaIdentity, sourcePage],
-  );
-
-  // Phase 0c CRO — lineup_add / lineup_remove from a single cartIds diff so both
-  // the rail X and a directory card "+" route through one firing point (no
-  // double-count). Skips the initial mount snapshot (restored saved_talent ids
-  // are not fresh adds).
-  const prevCartIdsRef = useRef<readonly string[] | null>(null);
-  useEffect(() => {
-    const prev = prevCartIdsRef.current;
-    const next = cart.cartIds;
-    prevCartIdsRef.current = next;
-    if (prev === null) return; // first snapshot — not a user action
-    const prevSet = new Set(prev);
-    const nextSet = new Set(next);
-    for (const id of next) {
-      if (!prevSet.has(id)) trackLineupAdd(funnelCtx(), id);
-    }
-    for (const id of prev) {
-      if (!nextSet.has(id)) trackLineupRemove(funnelCtx(), id);
-    }
-  }, [cart.cartIds, funnelCtx]);
-
-  // Phase 0c CRO — chat_opened once per open transition (not on every render
-  // while open). Covers every open path (pill click, +N chip, restored session,
-  // repointed front-door cue).
-  const prevOpenRef = useRef(false);
-  useEffect(() => {
-    if (open && !prevOpenRef.current) trackChatOpened(funnelCtx());
-    prevOpenRef.current = open;
-  }, [open, funnelCtx]);
-
-  // Phase 8 — REPLIED pulse one-shot. When a returning visitor lands with an
-  // unread coordinator reply and the launcher is still closed, fire the pulse
-  // once shortly after mount (a beat so it reads as "new", not a flash on paint).
-  // Opening the panel marks the reply seen and suppresses the pulse. The fired
-  // flag below is reset to false right after so NewMessagePulse only sees a
-  // single false->true->false rising edge. Reduced-motion is handled inside the
-  // pulse (it degrades to a static highlight), so no extra guard here.
-  const repliedPulseFiredRef = useRef(false);
-  useEffect(() => {
-    if (!unreadCoordinatorReply || open || repliedPulseFiredRef.current) return;
-    repliedPulseFiredRef.current = true;
-    const fire = window.setTimeout(() => setRepliedPulse(true), 1200);
-    const settle = window.setTimeout(() => setRepliedPulse(false), 1900);
-    return () => {
-      window.clearTimeout(fire);
-      window.clearTimeout(settle);
-    };
-  }, [unreadCoordinatorReply, open]);
+  // Phase 0c CRO funnel firing (lineup_add/remove, chat_opened) + Phase 8
+  // returning-visitor REPLIED pulse. Extracted to useJon360LauncherTracking
+  // (W1-A decomposition pre-pass).
+  const { repliedPulse } = useJon360LauncherTracking({
+    tenantId,
+    cartCount: cart.cartCount,
+    cartIds: cart.cartIds,
+    ctaIdentity,
+    sourcePage,
+    open,
+    unreadCoordinatorReply,
+    liveInquiryIdRef,
+  });
 
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
@@ -425,6 +463,11 @@ export function TalentProfileChatLauncher({
   // launcher passes its talentProfileId; the agency launcher passes "" -> null
   // focus, which maps to the lineup-review states.
   const focusTalentId = talentProfileId && talentProfileId.length > 0 ? talentProfileId : null;
+  // W2-B — the live "unseen agency reply" signal: the server-derived flag, minus
+  // any local open (which marks it seen). Drives BOTH the resolver's `replied`
+  // state ("{agency} replied") and the pulse ring, so opening the thread clears
+  // the label and the pulse together.
+  const unseenAgencyReply = unreadCoordinatorReply && !replySeen;
   const ctaState = resolveInquiryCta({
     talentProfileId: focusTalentId,
     isInLineup: focusTalentId ? cart.isInCart(focusTalentId) : false,
@@ -440,6 +483,7 @@ export function TalentProfileChatLauncher({
     lastActivityAt,
     coordinatorId,
     lastMessageRole,
+    hasUnseenAgencyReply: unseenAgencyReply,
   });
   // Brand voice for the empty / replied / closed states. The launcher reads as
   // "Message {agency}" when empty (locked decision 1 — the lifecycle-aware label
@@ -449,13 +493,6 @@ export function TalentProfileChatLauncher({
   // Phase 8 — forward the live lineup count so a resumed STALE draft reads
   // "Finish your inquiry (N)" (the resume_draft state carries no count itself).
   const launcherLabel = launcherLabelForCta(ctaState, t, brandVoice, cart.cartCount);
-  // When the label already reads "Your lineup (N)" the separate count chip is a
-  // duplicate number on the same pill — suppress it in that case.
-  const labelShowsCount =
-    (ctaState.kind === "in_lineup" ||
-      ctaState.kind === "add_to_lineup" ||
-      ctaState.kind === "review_lineup") &&
-    cart.cartCount > 0;
 
   if (!mounted) return null;
 
@@ -468,6 +505,10 @@ export function TalentProfileChatLauncher({
     window.matchMedia("(pointer:coarse)").matches;
 
   const hasCart = cartTalents.length > 0;
+  // Below the narrow threshold the avatar rail never renders (collapsed into
+  // the pill's count badge below), so nothing breaks the pill's top edge and
+  // the wrapper needs no reserved top margin for it.
+  const showAvatarRail = !narrowLauncher && !open && hasCart;
 
   return (
     <>
@@ -475,32 +516,43 @@ export function TalentProfileChatLauncher({
       <FlyingAvatar flight={flight} onDone={onFlightDone} />
 
       {/* Floating launcher pill wrapper. Bottom-right, above the panel's anchor.
-          When the cart is non-empty the avatar rail breaks the TOP edge of the
-          pill, so the wrapper gets a top margin to keep overhanging circles from
-          clipping the viewport (plan §4.A.3). */}
+          W1-D — the wrapper is a bottom-anchored flex COLUMN (align to the right
+          edge). The avatar rail, the pick-inquiry picker, and the pill are all
+          in-flow children, so each reserves its own real vertical space: the rail
+          no longer overhangs an out-of-flow, unreserved zone above a bottom-fixed
+          box (the old `position:absolute; top:-16` + ineffective `marginTop:18`
+          combo that both clipped the circles AND overlaid — and stole — clicks
+          meant for the pill). The rail sits ABOVE the pill and only kisses its
+          top edge (marginBottom:-6), so the pill button stays the topmost hit
+          target at its own centre and label. Below ~700px the rail is suppressed
+          entirely (audit item 7 — no floating cluster on narrow viewports). */}
       <div
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
           bottom: `calc(${GUEST_CHAT_LAUNCHER_BOTTOM_PX}px + env(safe-area-inset-bottom))`,
           zIndex: 95,
-          marginTop: hasCart ? 18 : 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
         }}
       >
-        {/* The avatar cart — only renders when the cart is non-empty (§4.A.8).
-            Absolutely positioned breaking the pill's top edge; newest rightmost. */}
-        {!open && hasCart && (
+        {/* The avatar cart — DISPLAY-ONLY count (faces + a single "+N"). Only when
+            the cart is non-empty AND there is enough lateral room (§4.A.8 + audit
+            item 7). In-flow above the pill (reserves its own height); newest
+            rightmost. marginBottom:-6 lets the faces kiss the pill's top edge for
+            the lifted look without covering the pill's clickable centre. */}
+        {showAvatarRail && (
           <div
             style={{
-              position: "absolute",
-              top: -16,
-              right: 12,
+              marginRight: 12,
+              marginBottom: -6,
+              position: "relative",
               zIndex: 1,
             }}
           >
             <LauncherAvatarStack
               cartTalents={cartTalents}
-              onRemoveTalent={handleRemoveTalent}
               onOpenToTalentSection={handleOpenToTalent}
               accent={accent}
               accentInk={accentInk}
@@ -567,8 +619,7 @@ export function TalentProfileChatLauncher({
             border: "none",
             background: accent,
             color: accentInk,
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            fontFamily: FONT,
             fontSize: 14,
             fontWeight: 600,
             letterSpacing: 0.1,
@@ -595,7 +646,7 @@ export function TalentProfileChatLauncher({
               inherits). Only meaningful on the closed launcher with an unread
               coordinator reply; the component self-fires one ring per false->true
               edge and is reduced-motion-safe (degrades to a static highlight). */}
-          {!open && unreadCoordinatorReply && (
+          {!open && unseenAgencyReply && (
             <NewMessagePulse active={repliedPulse} accent={accent} />
           )}
           {open ? (
@@ -604,34 +655,11 @@ export function TalentProfileChatLauncher({
             <ChatGlyph color={accentInk} />
           )}
           <span>{open ? "Close" : launcherLabel}</span>
-          {/* Jon 360 Phase 7 — cart count chip ON the pill. Shows how many talents
-              are in the inquiry cart (only when closed + non-empty). Frosted neutral
-              chip so it reads on any accent without re-clamping. */}
-          {!open && hasCart && !labelShowsCount && (
-            <span
-              aria-hidden
-              style={{
-                minWidth: 20,
-                height: 20,
-                padding: "0 6px",
-                marginLeft: 1,
-                borderRadius: 10,
-                background: "rgba(255,255,255,0.22)",
-                color: accentInk,
-                border: "1px solid rgba(255,255,255,0.4)",
-                fontSize: 12,
-                fontWeight: 700,
-                lineHeight: "18px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backdropFilter: "blur(4px)",
-                WebkitBackdropFilter: "blur(4px)",
-              }}
-            >
-              {cartTalents.length}
-            </span>
-          )}
+          {/* W1-D — the separate cart count chip (the "9" bubble) was REMOVED. It
+              double-counted against the avatar stack (faces + a single "+N" chip
+              ARE the count) and, in states like `sent_awaiting`, `labelShowsCount`
+              left BOTH visible. The count is now carried by the faces, or — when
+              there are no faces — by the label's own "(N)" in the lineup states. */}
         </button>
       </div>
 
@@ -650,6 +678,8 @@ export function TalentProfileChatLauncher({
       )}
 
       <MiniChatPanel
+        offerings={offerings}
+        onAttachOffering={onAttachOffering}
         open={open}
         onClose={() => {
           setOpen(false);
@@ -663,8 +693,12 @@ export function TalentProfileChatLauncher({
         talentProfileCode={talentProfileCode}
         sourcePage={sourcePage}
         brand={brand}
+        isHub={isHub}
         surfaceMode={surfaceMode}
-        existingInquiryId={existingInquiryId}
+        key={freshEpoch}
+        existingInquiryId={resumeSuppressed ? freshOverrideId : existingInquiryId}
+        existingContactPromoted={resumeSuppressed ? (freshOverrideId ? false : null) : existingContactPromoted}
+        onStartFresh={startFreshDraft}
         prefill={prefill}
         onStartInquiry={onStartInquiry}
         onSendMessage={onSendMessage}
@@ -676,6 +710,7 @@ export function TalentProfileChatLauncher({
         onEnsureInquiry={onEnsureInquiry}
         onLoadDetails={onLoadDetails}
         onListRoster={onListRoster}
+        onScanConversation={onScanConversation}
         soundOnReply={soundOnReply}
         identity={identity}
         openFullHref={openFullHref}
@@ -693,42 +728,5 @@ export function TalentProfileChatLauncher({
         }}
       />
     </>
-  );
-}
-
-function ChatGlyph({ color }: { color: string }) {
-  return (
-    <svg
-      width="19"
-      height="19"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-    </svg>
-  );
-}
-
-function CloseGlyph({ color }: { color: string }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useDashboardText } from "../../dashboard-i18n";
 import { CapsLabel, EmptyState, SecondaryButton } from "../../primitives";
 import { AVAILABILITY_BLOCKS, COLORS, EARNINGS_ROWS, FONTS, MY_TALENT_PROFILE, PAYMENT_METHOD_META, RICH_INQUIRIES, TALENT_BOOKINGS, TALENT_REQUESTS, TRANSITION, useAdminShell } from "../../state";
 import { ICalSubscribeCard } from "../../wave2";
@@ -16,6 +17,7 @@ import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 
 export function CalendarPage() {
   const { openDrawer, toast, bridgeTalentSelfProfile, bridgeTalentCalendarEntries } = useAdminShell();
+  const copy = useDashboardText();
   // Bridge-aware conversations — same source as TalentTodayPage and
   // TalentJobShell. When the bridge has real data, use it for the calendar.
   const conversations = useTalentConversations();
@@ -36,8 +38,8 @@ export function CalendarPage() {
         const startDay = startDate.getDate();
         const endDay = endDate.getDate();
         const dateLabel = startDay === endDay
-          ? `${MONTH_SHORT[startDate.getMonth()]} ${startDay}`
-          : `${MONTH_SHORT[startDate.getMonth()]} ${startDay}–${endDay}`;
+          ? `${copy.t(MONTH_SHORT[startDate.getMonth()])} ${startDay}`
+          : `${copy.t(MONTH_SHORT[startDate.getMonth()])} ${startDay}–${endDay}`;
         const uiKind: CalendarEventKind =
           entry.kind === "booking" && entry.status === "confirmed" ? "booked"
           : entry.kind === "booking" && entry.status === "completed" ? "past"
@@ -52,12 +54,12 @@ export function CalendarPage() {
           endDay,
           dateLabel,
           status: entry.kind === "hold"
-            ? (entry.holdStrength === "firm" ? "Firm hold" : "Soft hold")
-            : (entry.status ?? "Confirmed"),
+            ? copy.t(entry.holdStrength === "firm" ? "Firm hold" : "Soft hold")
+            : (entry.status ?? copy.t("Confirmed")),
           drawer: { id: "talent-hub-detail", payload: { id: entry.inquiryId ?? entry.id } },
         };
       });
-  }, [bridgeTalentCalendarEntries]);
+  }, [bridgeTalentCalendarEntries, copy]);
   const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "cancelled" | "all">("booked");
   // F7: Month / Week / Day view toggle. Bridge mode defaults to "week"
   // (a focused near-term view); all three views — including the now real,
@@ -79,21 +81,21 @@ export function CalendarPage() {
     setBlockError(null);
     const talentProfileId = bridgeTalentSelfProfile?.id;
     if (!talentProfileId) {
-      setBlockError("Profile not loaded — refresh and try again.");
+      setBlockError(copy.t("Profile not loaded — refresh and try again."));
       return;
     }
     if (!blockStart || !blockEnd) {
-      setBlockError("Pick a start and end date.");
+      setBlockError(copy.t("Pick a start and end date."));
       return;
     }
     if (!blockReason.trim()) {
-      setBlockError("Add a short reason (e.g. Vacation, Personal).");
+      setBlockError(copy.t("Add a short reason (e.g. Vacation, Personal)."));
       return;
     }
     const startIso = new Date(`${blockStart}T00:00:00`).toISOString();
     const endIso = new Date(`${blockEnd}T23:59:59`).toISOString();
     if (new Date(endIso).getTime() <= new Date(startIso).getTime()) {
-      setBlockError("End must be after start.");
+      setBlockError(copy.t("End must be after start."));
       return;
     }
     startBlockTransition(async () => {
@@ -109,7 +111,7 @@ export function CalendarPage() {
         setBlockError(res.error);
         return;
       }
-      toast("Block saved");
+      toast(copy.t("Block saved"));
       setBlockFormOpen(false);
       setBlockStart("");
       setBlockEnd("");
@@ -127,7 +129,7 @@ export function CalendarPage() {
   // Deterministic format — avoids server/client ICU space-character mismatch
   // that caused React hydration error #418 (narrow no-break vs regular space).
   const MONTH_NAMES_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const monthLabel = `${MONTH_NAMES_LONG[calMonth - 1] ?? ""} ${calYear}`;
+  const monthLabel = `${copy.t(MONTH_NAMES_LONG[calMonth - 1])} ${calYear}`;
   const stepMonth = (dir: 1 | -1) => {
     setCalMonth((m) => {
       const next = m + dir;
@@ -165,7 +167,7 @@ export function CalendarPage() {
       endDay: parseMayDay(b.endDate ?? b.startDate),
       dateLabel: b.endDate ? `${b.startDate}–${b.endDate.replace(/^[A-Za-z, ]+/, "")}` : b.startDate,
       amount: b.amount,
-      status: `Confirmed · ${b.location}`,
+      status: `${copy.t("Confirmed")} · ${b.location}`,
       drawer: { id: "talent-booking-detail", payload: { id: b.id } },
     })),
     // Pending: holds + offers awaiting reply. Skip when the same client
@@ -182,14 +184,14 @@ export function CalendarPage() {
         brief: r.brief,
         startDay: parseMayDay(r.date),
         endDay: parseMayDay(r.date, true),
-        dateLabel: r.date ?? "Date TBC",
+        dateLabel: r.date ?? copy.t("Date TBC"),
         amount: r.amount,
         status:
           r.kind === "hold"
-            ? "Hold · awaiting your reply"
+            ? copy.t("Hold · awaiting your reply")
             : r.kind === "offer" && r.status === "accepted"
-              ? "Offer with client"
-              : `${r.kind.charAt(0).toUpperCase() + r.kind.slice(1)} · awaiting your reply`,
+              ? copy.t("Offer with client")
+              : `${r.kind.charAt(0).toUpperCase() + r.kind.slice(1)} · ${copy.t("awaiting your reply")}`,
         drawer: { id: "talent-offer-detail", payload: { id: r.id } },
       }),
     ),
@@ -208,8 +210,8 @@ export function CalendarPage() {
         brief: i.brief,
         startDay: parseMayDay(i.date),
         endDay: parseMayDay(i.date, true),
-        dateLabel: i.date ?? "Date TBC",
-        status: "Coordinator picking talent",
+        dateLabel: i.date ?? copy.t("Date TBC"),
+        status: copy.t("Coordinator picking talent"),
         drawer: { id: "inquiry-workspace", payload: { inquiryId: i.id, pov: "talent" } },
       })),
     // Past bookings — append payment method to status microcopy when
@@ -220,7 +222,7 @@ export function CalendarPage() {
         const earning = EARNINGS_ROWS.find((e) => e.client === b.client && e.amount === b.amount);
         const methodShort = earning ? PAYMENT_METHOD_META[earning.paymentMethod].short : null;
         const payoutSpeed = earning ? computePayoutSpeed(b.startDate, earning.payoutDate) : null;
-        const statusBits: string[] = [b.status === "paid" ? "Paid" : "Wrapped"];
+        const statusBits: string[] = [copy.t(b.status === "paid" ? "Paid" : "Wrapped")];
         if (methodShort) statusBits.push(methodShort);
         if (payoutSpeed) statusBits.push(payoutSpeed);
         return {
@@ -243,12 +245,12 @@ export function CalendarPage() {
     ...TALENT_BOOKINGS.filter((b) => b.status === "cancelled").map(
       (b): CalendarEvent => {
         const who = b.cancelledBy === "client"
-          ? "Client cancelled"
+          ? copy.t("Client cancelled")
           : b.cancelledBy === "talent"
-            ? "You cancelled"
+            ? copy.t("You cancelled")
             : b.cancelledBy === "agency"
-              ? "Agency cancelled"
-              : "Cancelled";
+              ? copy.t("Agency cancelled")
+              : copy.t("Cancelled");
         const microcopy = [who];
         if (b.cancelTiming) microcopy.push(b.cancelTiming);
         if (b.cancelReason) microcopy.push(b.cancelReason);
@@ -275,12 +277,12 @@ export function CalendarPage() {
         brief: r.brief,
         startDay: parseMayDay(r.date),
         endDay: parseMayDay(r.date, true),
-        dateLabel: r.date ?? "Date TBC",
+        dateLabel: r.date ?? copy.t("Date TBC"),
         amount: r.amount,
         status:
           r.status === "declined"
-            ? "You declined"
-            : "Expired · no response in window",
+            ? copy.t("You declined")
+            : copy.t("Expired · no response in window"),
         drawer: { id: "talent-offer-detail", payload: { id: r.id } },
       }),
     ),
@@ -306,9 +308,9 @@ export function CalendarPage() {
         const MONTH_NAMES_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         const dateLabel = c.date
           ? (c.date.match(/^\d{4}-\d{2}-\d{2}/)
-              ? (() => { const d = new Date(c.date + "T00:00:00"); return `${d.getDate()} ${MONTH_NAMES_SHORT[d.getMonth()] ?? ""}`; })()
+              ? (() => { const d = new Date(c.date + "T00:00:00"); return `${d.getDate()} ${copy.t(MONTH_NAMES_SHORT[d.getMonth()])}`; })()
               : c.date)
-          : "Date TBC";
+          : copy.t("Date TBC");
         return {
           id: c.id,
           kind,
@@ -318,11 +320,11 @@ export function CalendarPage() {
           endDay,
           dateLabel,
           status:
-            kind === "booked"    ? `Booked${c.location ? ` · ${c.location}` : ""}`
-            : kind === "pending"  ? "Awaiting your response"
-            : kind === "inquiry"  ? "Coordinator in touch"
-            : kind === "cancelled" ? "Cancelled"
-            : "Completed",
+            kind === "booked"    ? `${copy.t("Booked")}${c.location ? ` · ${c.location}` : ""}`
+            : kind === "pending"  ? copy.t("Awaiting your response")
+            : kind === "inquiry"  ? copy.t("Coordinator in touch")
+            : kind === "cancelled" ? copy.t("Cancelled")
+            : copy.t("Completed"),
           drawer: { id: "inquiry-workspace", payload: { inquiryId: c.id, pov: "talent" } },
         };
       })
@@ -368,14 +370,14 @@ export function CalendarPage() {
   return (
     <>
       <PageHeader
-        title="Calendar"
-        subtitle="Bookings, holds & availability"
+        title={copy.t("Calendar")}
+        subtitle={copy.t("Bookings, holds & availability")}
         actions={
           // "+ Add" (the talent-add-event drawer) is hidden until off-platform
           // work-logging / calendar-blocking is actually built — both drawer modes
           // are unpersisted "coming soon" stubs, so the button was a dead CTA.
           <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
-            Availability
+            {copy.t("Availability")}
           </SecondaryButton>
         }
       />
@@ -411,7 +413,7 @@ export function CalendarPage() {
             <button
               type="button"
               onClick={() => stepMonth(-1)}
-              aria-label="Previous month"
+              aria-label={copy.t("Previous month")}
               style={{ background: "transparent", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontFamily: FONTS.body, color: COLORS.ink }}
             >‹</button>
             <span style={{ fontSize: 13, fontWeight: 600, fontFamily: FONTS.body, minWidth: 120, textAlign: "center" }} className="text-admin-ink">
@@ -420,7 +422,7 @@ export function CalendarPage() {
             <button
               type="button"
               onClick={() => stepMonth(1)}
-              aria-label="Next month"
+              aria-label={copy.t("Next month")}
               style={{ background: "transparent", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontFamily: FONTS.body, color: COLORS.ink }}
             >›</button>
           </div>
@@ -429,7 +431,7 @@ export function CalendarPage() {
         {/* View mode toggle — Month / Week / Day. Month hidden in bridge mode (grid is static). */}
         <div
           role="tablist"
-          aria-label="Calendar view"
+          aria-label={copy.t("Calendar view")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -462,7 +464,7 @@ export function CalendarPage() {
                   textTransform: "capitalize",
                 }}
               >
-                {m}
+                {copy.t(m)}
               </button>
             );
           })}
@@ -497,19 +499,19 @@ export function CalendarPage() {
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.inkMuted; }}
             >
               <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>＋</span>
-              Block dates
+              {copy.t("Block dates")}
             </button>
           ) : (
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10 }} className="text-admin-ink-muted">
-                Mark yourself unavailable
+                {copy.t("Mark yourself unavailable")}
               </div>
               <div style={{
                 display: "grid", gap: 10,
                 gridTemplateColumns: "1fr 1fr", marginBottom: 10,
               }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5 }} className="text-admin-ink-muted">
-                  From
+                  {copy.t("From")}
                   <input
                     type="date"
                     value={blockStart}
@@ -522,7 +524,7 @@ export function CalendarPage() {
                   />
                 </label>
                 <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5 }} className="text-admin-ink-muted">
-                  To
+                  {copy.t("To")}
                   <input
                     type="date"
                     value={blockEnd}
@@ -536,10 +538,10 @@ export function CalendarPage() {
                 </label>
               </div>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11.5, marginBottom: 10 }} className="text-admin-ink-muted">
-                Reason
+                {copy.t("Reason")}
                 <input
                   type="text"
-                  placeholder="e.g. Vacation, personal, travel"
+                  placeholder={copy.t("e.g. Vacation, personal, travel")}
                   value={blockReason}
                   onChange={(e) => setBlockReason(e.target.value)}
                   maxLength={80}
@@ -574,7 +576,7 @@ export function CalendarPage() {
                     fontSize: 12.5, fontWeight: 500, cursor: blockSaving ? "not-allowed" : "pointer",
                   }}
                 >
-                  Cancel
+                  {copy.t("Cancel")}
                 </button>
                 <button
                   type="button"
@@ -587,11 +589,11 @@ export function CalendarPage() {
                     fontSize: 12.5, fontWeight: 600, cursor: blockSaving ? "not-allowed" : "pointer",
                   }}
                 >
-                  {blockSaving ? "Saving…" : "Save block"}
+                  {blockSaving ? copy.t("Saving…") : copy.t("Save block")}
                 </button>
               </div>
               <div style={{ marginTop: 10, fontSize: 11, fontStyle: "italic", lineHeight: 1.45 }} className="text-admin-ink-dim">
-                Blocks are visible to your agency but private to clients. They keep your calendar accurate so coordinators don&apos;t pitch you for dates you can&apos;t take.
+                {copy.t("Blocks are visible to your agency but private to clients. They keep your calendar accurate so coordinators don't pitch you for dates you can't take.")}
               </div>
             </div>
           )}
@@ -616,7 +618,7 @@ export function CalendarPage() {
       {/* Week view — 7-row stack with day labels. Same row format as
           the list below but explicitly grouped by day. */}
       {viewMode === "week" && (
-        <CalendarWeekView events={effectiveEvents} onOpen={(d) => openDrawer(d.id, d.payload)} />
+        <CalendarWeekView events={effectiveEvents} onOpen={(d) => openDrawer(d.id, d.payload)} year={calYear} month={calMonth} />
       )}
 
       {/* Day view — single-day timeline with morning/afternoon/evening
@@ -631,16 +633,16 @@ export function CalendarPage() {
       <section>
         <CapsLabel>
           {filter === "all"
-            ? `All events · ${filteredEvents.length}`
+            ? `${copy.t("All events")} · ${filteredEvents.length}`
             : filter === "booked"
-              ? `Confirmed · ${filteredEvents.length}`
+              ? `${copy.t("Confirmed")} · ${filteredEvents.length}`
               : filter === "pending"
-                ? `Pending replies · ${filteredEvents.length}`
+                ? `${copy.t("Pending replies")} · ${filteredEvents.length}`
                 : filter === "inquiry"
-                  ? `Open inquiries · ${filteredEvents.length}`
+                  ? `${copy.t("Open inquiries")} · ${filteredEvents.length}`
                   : filter === "cancelled"
-                    ? `Cancelled · ${filteredEvents.length}`
-                    : `Past · ${filteredEvents.length}`}
+                    ? `${copy.t("Cancelled")} · ${filteredEvents.length}`
+                    : `${copy.t("Past")} · ${filteredEvents.length}`}
         </CapsLabel>
         <div
           style={{
@@ -656,21 +658,21 @@ export function CalendarPage() {
               icon="calendar"
               title={
                 filter === "booked"
-                  ? "Calendar's clear"
+                  ? copy.t("Calendar's clear")
                   : filter === "pending"
-                    ? "Nothing pending — you're caught up"
+                    ? copy.t("Nothing pending — you're caught up")
                     : filter === "inquiry"
-                      ? "No live inquiries"
-                      : "Archive's empty for now"
+                      ? copy.t("No live inquiries")
+                      : copy.t("Archive's empty for now")
               }
               body={
                 filter === "booked"
-                  ? "No confirmed bookings on the books. The first one always lands faster than you think."
+                  ? copy.t("No confirmed bookings on the books. The first one always lands faster than you think.")
                   : filter === "pending"
-                    ? "Every hold has been confirmed or released. Nice."
+                    ? copy.t("Every hold has been confirmed or released. Nice.")
                     : filter === "inquiry"
-                      ? "Open inquiries will surface here so they don't get lost in the inbox."
-                      : "Past bookings will collect here once the first one wraps."
+                      ? copy.t("Open inquiries will surface here so they don't get lost in the inbox.")
+                      : copy.t("Past bookings will collect here once the first one wraps.")
               }
               compact
             />
@@ -690,63 +692,87 @@ export function CalendarPage() {
 
       <div style={{ height: 16 }} />
 
-      {/* Blocked dates — secondary section, kept compact */}
-      <section className="mb-6">
-        <CapsLabel>Blocked dates · {AVAILABILITY_BLOCKS.length}</CapsLabel>
-        <div
-          style={{
-            marginTop: 10,
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            padding: AVAILABILITY_BLOCKS.length === 0 ? 0 : "0 14px",
-          }}
-        >
-          {AVAILABILITY_BLOCKS.length === 0 ? (
-            <EmptyState
-              icon="calendar"
-              title="No dates blocked"
-              body="Block unavailable dates so agencies don't pitch you for jobs you can't take."
-              compact
-            />
-          ) : null}
-          {AVAILABILITY_BLOCKS.map((a) => (
+      {/* Blocked dates — secondary section, kept compact.
+          BRIDGE MODE renders the talent's REAL blocks (the same rows the
+          block-dates form above writes). It used to render the mock
+          AVAILABILITY_BLOCKS fixture unconditionally, so a real talent saw
+          demo blocks while their own saved blocks never appeared here. */}
+      {(() => {
+        const realBlocks = (bridgeTalentCalendarEntries ?? [])
+          .filter((e) => e.kind === "block")
+          .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+        const fmtRange = (startsAt: string, endsAt: string): string => {
+          const loc = copy.isSpanish ? "es-MX" : "en-US";
+          const s = new Date(startsAt);
+          const e = new Date(endsAt);
+          if (isNaN(s.getTime())) return "";
+          const opts = { month: "short", day: "numeric" } as const;
+          const startLabel = s.toLocaleDateString(loc, opts);
+          if (isNaN(e.getTime())) return startLabel;
+          // Half-open [start, end): a midnight end belongs to the previous day.
+          const endInclusive = new Date(e);
+          if (e.getHours() === 0 && e.getMinutes() === 0 && endInclusive > s) {
+            endInclusive.setDate(endInclusive.getDate() - 1);
+          }
+          const endLabel = endInclusive.toLocaleDateString(loc, opts);
+          return endLabel === startLabel ? startLabel : `${startLabel} – ${endLabel}`;
+        };
+        const rows = isBridgeMode
+          ? realBlocks.map((e) => ({
+              key: e.id,
+              travel: /travel|flight|trip|tour|viaje/iu.test(`${e.title} ${e.subLabel ?? ""}`),
+              range: fmtRange(e.startsAt, e.endsAt),
+              reason: e.title || e.subLabel || copy.t("Unavailable"),
+            }))
+          : AVAILABILITY_BLOCKS.map((a) => ({
+              key: a.id,
+              travel: a.type === "travel",
+              range: `${a.startDate} – ${a.endDate}`,
+              reason: a.reason,
+            }));
+        return (
+          <section className="mb-6">
+            <CapsLabel>{copy.t("Blocked dates")} · {rows.length}</CapsLabel>
             <div
-              key={a.id}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 0",
-                borderTop: `1px solid ${COLORS.borderSoft}`,
-                fontFamily: FONTS.body,
+                marginTop: 10,
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 12,
+                padding: rows.length === 0 ? 0 : "0 14px",
               }}
             >
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted, }}
-              />
-              <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
-                {a.startDate} – {a.endDate}
-              </span>
-              <span className="text-admin-ink-muted text-xs">{a.reason}</span>
-              <button
-                onClick={() => openDrawer("talent-availability", { id: a.id })}
-                style={{
-                  background: "transparent",
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 7,
-                  padding: "4px 9px",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  color: COLORS.inkMuted,
-                  cursor: "pointer",
-                }}
-              >
-                Edit
-              </button>
+              {rows.length === 0 ? (
+                <EmptyState
+                  icon="calendar"
+                  title={copy.t("No dates blocked")}
+                  body={copy.t("Block unavailable dates so agencies don't pitch you for jobs you can't take.")}
+                  compact
+                />
+              ) : null}
+              {rows.map((r) => (
+                <div
+                  key={r.key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 0",
+                    borderTop: `1px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.travel ? COLORS.amber : COLORS.inkMuted }} />
+                  <span style={{ flex: 1, fontSize: 13.5 }} className="text-admin-ink">
+                    {r.range}
+                  </span>
+                  <span className="text-admin-ink-muted text-xs">{r.reason}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
+        );
+      })()}
 
       <ICalSubscribeCard
         talentName={bridgeTalentSelfProfile?.displayName ?? MY_TALENT_PROFILE.name}

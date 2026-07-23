@@ -37,7 +37,7 @@
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
-import { updateTag } from "next/cache";
+import { safeUpdateTag } from "./render-safe-cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
@@ -206,8 +206,10 @@ async function insertSectionRevision(
 }
 
 function bustSectionTags(tenantId: string, sectionId: string): void {
-  updateTag(tagFor(tenantId, "sections", { id: sectionId }));
-  updateTag(tagFor(tenantId, "sections-all"));
+  // safeUpdateTag: these run during render in the provisioning trampoline
+  // (onboardStarterContent → publishSection). See render-safe-cache.ts.
+  safeUpdateTag(tagFor(tenantId, "sections", { id: sectionId }));
+  safeUpdateTag(tagFor(tenantId, "sections-all"));
 }
 
 // ---- upsert ---------------------------------------------------------------

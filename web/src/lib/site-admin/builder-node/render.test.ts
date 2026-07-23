@@ -34,6 +34,32 @@ describe("renderBuilderNodes", () => {
     assert.match(html, /data-builder-node-id="free:copy"/);
   });
 
+  it("emits theme-paired band role backgrounds with a paired foreground (AIQ-13)", () => {
+    const html = render([
+      { id: "free:accent", kind: "container", props: { layout: "stack", style: { background: "accent" } }, children: [{ id: "free:ah", kind: "heading", props: { text: "Accent", level: 2 } }] },
+      { id: "free:muted", kind: "container", props: { layout: "stack", style: { background: "muted" } }, children: [{ id: "free:mp", kind: "paragraph", props: { text: "Muted" } }] },
+    ]);
+    // accent → brand primary background + surface-raised text
+    assert.match(html, /background:var\(--token-color-primary/);
+    assert.match(html, /color:var\(--token-color-surface-raised/);
+    // muted → blended raised surface + ink text
+    assert.match(html, /color-mix\(in oklab/);
+    assert.match(html, /data-builder-style-background="accent"/);
+    assert.match(html, /data-builder-style-background="muted"/);
+  });
+
+  it("button base chrome is uppercase, tracked, and lifts on hover (AIQ-25)", () => {
+    const html = render([
+      { id: "free:cta", kind: "button", props: { label: "Book talent", href: "/inquire", tone: "primary" } },
+    ]);
+    // Chrome lives in the injected <style> sheet, not the element markup.
+    assert.match(html, /\.site-builder-node--button\{[^}]*text-transform:uppercase/);
+    assert.match(html, /\.site-builder-node--button\{[^}]*letter-spacing:0\.08em/);
+    assert.match(html, /\.site-builder-node--button\{[^}]*padding:0\.85rem 1\.6rem/);
+    assert.match(html, /\.site-builder-node--button:hover\{transform:translateY\(-2px\)\}/);
+    assert.match(html, /prefers-reduced-motion:reduce\)\{[^@]*\.site-builder-node--button:hover\{transform:none\}/);
+  });
+
   it("skips legacy role-bound child nodes in freeform mode", () => {
     const html = render([
       {
@@ -1070,8 +1096,9 @@ describe("renderBuilderNodes", () => {
       { id: "t:strong", kind: "paragraph", props: { text: "Bold", style: { tone: "strong" } } },
     ]);
 
-    // Button color is wired to the brand primary token (literal fallback keeps the default).
-    assert.match(html, /background:var\(--token-color-primary,#111\)/);
+    // Button color is wired to the brand primary token; the fallback nests the ink
+    // token so a theme with no primary still gets a visible (not near-black) button.
+    assert.match(html, /background:var\(--token-color-primary,var\(--token-color-ink,#111\)\)/);
     // Heading + paragraph fonts wired to the themed font tokens (additive, inherit fallback).
     assert.match(html, /font-family:var\(--site-heading-font,inherit\)/);
     assert.match(html, /font-family:var\(--site-body-font,inherit\)/);

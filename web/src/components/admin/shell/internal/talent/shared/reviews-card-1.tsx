@@ -17,7 +17,8 @@
  * Renders nothing useful-empty: if the talent has no reviews AND no clients to
  * rate, the whole card is suppressed so the dashboard stays clean.
  *
- * Tokens from the shell state module (COLORS/FONTS/RADIUS); star primitives
+ * Styled via the admin design-token utility classes (text/bg/border-admin-*,
+ * font-admin-*, rounded-admin-*) from admin-color-bridge.css; star primitives
  * shared from components/reviews.
  */
 
@@ -33,7 +34,8 @@ import type {
   TalentReview,
 } from "@/lib/reviews/review-types";
 import { StarPicker, StaticStars } from "@/components/reviews/star-rating";
-import { COLORS, FONTS, RADIUS, useAdminShell } from "../../state";
+import { useDashboardText } from "../../dashboard-i18n";
+import { FONTS, useAdminShell } from "../../state";
 
 const MAX_BODY = 1000;
 
@@ -59,6 +61,7 @@ function LeaveClientReviewForm({
   onClose: () => void;
   onSaved: (rating: number, body: string | null) => void;
 }) {
+  const copy = useDashboardText();
   const existing = counterparty.existingReview;
   const [rating, setRating] = useState(existing?.rating ?? 0);
   const [hover, setHover] = useState(0);
@@ -67,12 +70,12 @@ function LeaveClientReviewForm({
   const [error, setError] = useState<string | null>(null);
 
   const isEdit = existing != null;
-  const label = counterparty.clientName ?? "this client";
+  const label = counterparty.clientName ?? copy.t("this client");
   const saving = state === "saving";
 
   async function submit() {
     if (rating < 1 || rating > 5) {
-      setError("Please pick a star rating (1–5).");
+      setError(copy.t("Please pick a star rating (1–5)."));
       setState("error");
       return;
     }
@@ -90,69 +93,37 @@ function LeaveClientReviewForm({
       setState("saved");
       onSaved(rating, trimmed.length > 0 ? trimmed : null);
     } else {
-      setError(res.error || "Could not save your review.");
+      setError(res.error || copy.t("Could not save your review."));
       setState("error");
     }
   }
 
   if (state === "saved") {
     return (
-      <div
-        style={{
-          marginTop: 10,
-          padding: "12px 14px",
-          borderRadius: RADIUS.md,
-          background: COLORS.accentSoft,
-          border: `1px solid ${COLORS.accentSoft}`,
-          fontFamily: FONTS.body,
-          fontSize: 12.5,
-          color: COLORS.accentDeep,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontWeight: 600 }}>Thanks — your review of {label} is saved.</span>
+      <div className="mt-[10px] flex items-center gap-[8px] rounded-admin-md border border-admin-accent-soft bg-admin-accent-soft px-[14px] py-[12px] font-admin-body text-admin-12h text-admin-accent-deep">
+        <span className="font-semibold">{copy.t("Thanks — your review of")} {label} {copy.t("is saved.")}</span>
         <button
           type="button"
           onClick={onClose}
-          style={{
-            marginLeft: "auto",
-            fontSize: 12,
-            fontWeight: 600,
-            color: COLORS.accentDeep,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-          }}
+          className="ml-auto cursor-pointer border-none bg-transparent font-admin-body text-[12px] font-semibold text-admin-accent-deep"
         >
-          Done
+          {copy.t("Done")}
         </button>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        marginTop: 10,
-        padding: "12px 14px",
-        borderRadius: RADIUS.md,
-        background: "#fff",
-        border: `1px solid ${COLORS.border}`,
-        fontFamily: FONTS.body,
-      }}
-    >
-      <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 8 }} className="text-admin-ink">
-        {isEdit ? `Edit your review of ${label}` : `Rate ${label}`}
+    <div className="mt-[10px] rounded-admin-md border border-admin-border bg-white px-[14px] py-[12px] font-admin-body">
+      <div className="mb-[8px] text-admin-12h font-bold text-admin-ink">
+        {isEdit ? `${copy.t("Edit your review of")} ${label}` : `${copy.t("Rate")} ${label}`}
       </div>
 
       <StarPicker
         rating={rating}
         hover={hover}
         disabled={saving}
-        label={`Star rating for ${label}`}
+        label={`${copy.t("Star rating for")} ${label}`}
         fontFamily={FONTS.body}
         onSelect={setRating}
         onHover={setHover}
@@ -163,67 +134,35 @@ function LeaveClientReviewForm({
         disabled={saving}
         maxLength={MAX_BODY}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={`What was it like working with ${label}?`}
+        placeholder={`${copy.t("What was it like working with")} ${label}?`}
         rows={3}
-        style={{
-          width: "100%",
-          marginTop: 8,
-          resize: "vertical",
-          minHeight: 60,
-          padding: "9px 11px",
-          fontSize: 12.5,
-          lineHeight: 1.5,
-          fontFamily: FONTS.body,
-          color: COLORS.ink,
-          background: COLORS.surface,
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: 8,
-          outline: "none",
-          boxSizing: "border-box",
-        }}
+        className="mt-[8px] box-border min-h-[60px] w-full resize-y rounded-[8px] border border-admin-border-soft bg-admin-surface px-[11px] py-[9px] font-admin-body text-admin-12h leading-[1.5] text-admin-ink outline-none"
       />
 
       {state === "error" && error && (
-        <div style={{ marginTop: 7, fontSize: 11.5, fontWeight: 500, color: COLORS.red }}>
+        <div className="mt-[7px] text-admin-11h font-medium text-admin-red">
           {error}
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+      <div className="mt-[10px] flex items-center gap-[10px]">
         <button
           type="button"
           onClick={submit}
           disabled={saving || rating < 1}
-          style={{
-            padding: "8px 15px",
-            fontSize: 12,
-            fontWeight: 600,
-            fontFamily: FONTS.body,
-            color: "#fff",
-            background: rating < 1 ? "rgba(11,11,13,0.18)" : COLORS.accent,
-            border: "none",
-            borderRadius: 8,
-            cursor: saving || rating < 1 ? "default" : "pointer",
-            opacity: saving ? 0.8 : 1,
-          }}
+          className={`rounded-[8px] border-none px-[15px] py-[8px] font-admin-body text-[12px] font-semibold text-white ${
+            rating < 1 ? "bg-[rgba(11,11,13,0.18)]" : "bg-admin-accent"
+          } ${saving || rating < 1 ? "cursor-default" : "cursor-pointer"} ${saving ? "opacity-80" : "opacity-100"}`}
         >
-          {saving ? "Saving…" : isEdit ? "Update review" : "Publish review"}
+          {copy.t(saving ? "Saving…" : isEdit ? "Update review" : "Publish review")}
         </button>
         {!saving && (
           <button
             type="button"
             onClick={onClose}
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: COLORS.inkMuted,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-            }}
+            className="cursor-pointer border-none bg-transparent font-admin-body text-[12px] font-semibold text-admin-ink-muted"
           >
-            Cancel
+            {copy.t("Cancel")}
           </button>
         )}
       </div>
@@ -247,6 +186,7 @@ function ReviewableClientRow({
   row: CounterpartyState;
   onSaved: (rating: number, body: string | null) => void;
 }) {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const { counterparty, saved } = row;
   const current =
@@ -255,52 +195,35 @@ function ReviewableClientRow({
       ? { rating: counterparty.existingReview.rating, body: counterparty.existingReview.body }
       : null);
   const reviewed = current != null;
-  const label = counterparty.clientName ?? "this client";
+  const label = counterparty.clientName ?? copy.t("this client");
 
   const forForm: ReviewableCounterparty = saved
     ? { ...counterparty, existingReview: { rating: saved.rating, body: saved.body } }
     : counterparty;
 
   return (
-    <div
-      style={{
-        padding: "10px 12px",
-        borderRadius: RADIUS.md,
-        border: `1px solid ${COLORS.borderSoft}`,
-        background: "#fff",
-        fontFamily: FONTS.body,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              fontSize: 12.5,
-              fontWeight: 600,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-            className="text-admin-ink"
-          >
+    <div className="rounded-admin-md border border-admin-border-soft bg-white px-[12px] py-[10px] font-admin-body">
+      <div className="flex items-center gap-[10px]">
+        <div className="min-w-0 flex-1">
+          <div className="overflow-hidden text-ellipsis whitespace-nowrap text-admin-12h font-semibold text-admin-ink">
             {label}
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 2, flexWrap: "wrap" }}>
+          <div className="mt-[2px] flex flex-wrap items-center gap-[8px]">
             {counterparty.eventTitle && (
-              <span style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+              <span className="text-admin-11h text-admin-ink-muted">
                 {counterparty.eventTitle}
               </span>
             )}
             {counterparty.eventDate && (
-              <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+              <span className="text-admin-11 text-admin-ink-muted">
                 {formatDate(counterparty.eventDate)}
               </span>
             )}
             {reviewed && current && (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <span className="inline-flex items-center gap-[5px]">
                 <StaticStars rating={current.rating} />
-                <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
-                  Your review
+                <span className="text-admin-11 text-admin-ink-muted">
+                  {copy.t("Your review")}
                 </span>
               </span>
             )}
@@ -310,20 +233,9 @@ function ReviewableClientRow({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            style={{
-              flexShrink: 0,
-              padding: "6px 12px",
-              fontSize: 11.5,
-              fontWeight: 600,
-              fontFamily: FONTS.body,
-              color: COLORS.accent,
-              background: COLORS.accentSoft,
-              border: `1px solid ${COLORS.accentSoft}`,
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
+            className="shrink-0 cursor-pointer rounded-[8px] border border-admin-accent-soft bg-admin-accent-soft px-[12px] py-[6px] font-admin-body text-admin-11h font-semibold text-admin-accent"
           >
-            {reviewed ? "Edit review" : "Rate the client"}
+            {copy.t(reviewed ? "Edit review" : "Rate the client")}
           </button>
         )}
       </div>
@@ -344,6 +256,7 @@ function ReviewableClientRow({
 
 export function TalentReviewsCard() {
   const { tenantSlug, bridgeTalentSelfProfile, setTalentPage, openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
 
   const [received, setReceived] = useState<{
@@ -395,9 +308,13 @@ export function TalentReviewsCard() {
   const hasReviewables = reviewables.length > 0;
   if (!hasReceived && !hasReviewables) return null;
 
-  const visibleReceived = received.reviews
-    .filter((r) => r.status === "published")
-    .slice(0, 3);
+  const publishedReceived = received.reviews.filter((r) => r.status === "published");
+  // Teaser: show at most 2 recent reviews here; the dedicated Reviews page
+  // carries the full list + reputation standing.
+  const visibleReceived = publishedReceived.slice(0, 2);
+  const hiddenCount = Math.max(0, received.summary.count - visibleReceived.length);
+
+  const seeAllReviews = () => setTalentPage("reviews");
 
   const openProfileReviews = () => {
     if (!talentId) return;
@@ -408,100 +325,77 @@ export function TalentReviewsCard() {
       section: "reviews",
     });
   };
+  // `openProfileReviews` retained for the profile-editor deep link (report a
+  // review); reachable from the dedicated Reviews page's Report actions.
+  void openProfileReviews;
 
   return (
-    <div
-      style={{
-        borderRadius: RADIUS.lg,
-        border: `1px solid ${COLORS.border}`,
-        background: COLORS.card,
-        padding: 16,
-        fontFamily: FONTS.body,
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <span
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            letterSpacing: 0.8,
-            textTransform: "uppercase",
-          }}
-          className="text-admin-ink-muted"
-        >
-          Reviews
+    <div className="flex flex-col gap-[14px] rounded-admin-lg border border-admin-border bg-admin-card p-[16px] font-admin-body">
+      <div className="flex items-center justify-between gap-[10px]">
+        <span className="text-admin-10h font-bold uppercase tracking-[0.8px] text-admin-ink-muted">
+          {copy.t("Reviews")}
         </span>
         {hasReceived && (
           <button
             type="button"
-            onClick={openProfileReviews}
-            style={{
-              fontSize: 11.5,
-              fontWeight: 600,
-              color: COLORS.inkMuted,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-            }}
+            onClick={seeAllReviews}
+            className="cursor-pointer border-none bg-transparent font-admin-body text-admin-11h font-semibold text-admin-ink-muted"
           >
-            Manage in profile →
+            {copy.t("See all reviews →")}
           </button>
         )}
       </div>
 
       {/* Received summary */}
       {hasReceived && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className="flex flex-col gap-[10px]">
+          <div className="flex items-center gap-[10px]">
             <StaticStars rating={Math.round(received.summary.average)} size={16} />
-            <span style={{ fontSize: 17, fontWeight: 700 }} className="text-admin-ink">
+            <span className="text-admin-17 font-bold text-admin-ink">
               {received.summary.average.toFixed(1)}
             </span>
-            <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
-              from {received.summary.count} review{received.summary.count === 1 ? "" : "s"}
+            <span className="text-[12px] text-admin-ink-muted">
+              {copy.t("from")} {received.summary.count} {copy.t(received.summary.count === 1 ? "review" : "reviews")}
             </span>
           </div>
           {visibleReceived.map((r) => (
             <div
               key={r.id}
-              style={{
-                padding: "9px 11px",
-                borderRadius: RADIUS.md,
-                border: `1px solid ${COLORS.borderSoft}`,
-                background: COLORS.surface,
-              }}
+              className="rounded-admin-md border border-admin-border-soft bg-admin-surface px-[11px] py-[9px]"
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <div className="flex flex-wrap items-center gap-[8px]">
                 <StaticStars rating={r.rating} />
-                <span style={{ fontSize: 12, fontWeight: 600 }} className="text-admin-ink">
-                  {r.clientName ?? "A client"}
+                <span className="text-[12px] font-semibold text-admin-ink">
+                  {r.clientName ?? copy.t("A client")}
                 </span>
-                <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
+                <span className="text-admin-11 text-admin-ink-muted">
                   {formatDate(r.createdAt)}
                 </span>
               </div>
               {r.body && (
-                <div style={{ fontSize: 12, lineHeight: 1.5, marginTop: 5 }} className="text-admin-ink">
+                <div className="mt-[5px] text-[12px] leading-[1.5] text-admin-ink">
                   {r.body}
                 </div>
               )}
             </div>
           ))}
+          <button
+            type="button"
+            onClick={seeAllReviews}
+            className="cursor-pointer self-start border-none bg-transparent p-0 font-admin-body text-admin-11h font-semibold text-admin-accent"
+          >
+            {hiddenCount > 0
+              ? `${copy.t("See all")} ${received.summary.count} ${copy.t("reviews")} →`
+              : copy.t("See all reviews →")}
+          </button>
         </div>
       )}
 
       {/* Rate your clients */}
       {hasReviewables && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <span
-            style={{ fontSize: 11.5, fontWeight: 600 }}
-            className="text-admin-ink"
-          >
-            Rate your clients ({reviewables.length})
+        <div className="flex flex-col gap-[8px]">
+          <span className="text-admin-11h font-semibold text-admin-ink">
+            {copy.t("Rate your clients")} ({reviewables.length})
           </span>
           {reviewables.map((row, i) => (
             <ReviewableClientRow

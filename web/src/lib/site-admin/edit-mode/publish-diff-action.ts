@@ -2,6 +2,8 @@
 
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 
 export interface PublishedSnapshotRow {
   slotKey: string;
@@ -16,6 +18,15 @@ export type LoadPublishedSnapshotResult =
       ok: true;
       rows: ReadonlyArray<PublishedSnapshotRow>;
       publishedAt: string | null;
+      /**
+       * W1-L2 — the builder tree baked into the published snapshot (`null`
+       * when never published or the snapshot predates builder trees). Lets the
+       * publish drawer compute an HONEST "changes since last publish" count for
+       * FREEFORM pages, whose slot-row diff is always empty.
+       */
+      publishedBuilderTree: BuilderNodeTree | null;
+      /** Whether a published snapshot exists at all (never published → false). */
+      hasPublishedSnapshot: boolean;
     }
   | { ok: false; error: string };
 
@@ -76,5 +87,8 @@ export async function loadPublishedSnapshotRowsAction(input: {
     ok: true,
     rows: parseSnapshotRows(snapshot),
     publishedAt: row.published_at ?? null,
+    publishedBuilderTree: parseBuilderTreeFromSnapshot(snapshot) ?? null,
+    hasPublishedSnapshot:
+      snapshot !== null && snapshot !== undefined && typeof snapshot === "object",
   };
 }

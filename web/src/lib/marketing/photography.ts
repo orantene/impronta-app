@@ -1,7 +1,7 @@
 /**
  * Central registry for marketing lifestyle imagery.
  *
- * Every photo slot is defined here — the scene, the author credit, the alt
+ * Every photo slot is defined here: the scene, the author credit, the alt
  * text, and a crop hint. Components reference slots by key, which keeps image
  * choice out of UI code and lets the whole photography layer be re-curated in
  * a single file when we commission or replace shots.
@@ -14,7 +14,7 @@ export type MarketingPhoto = {
   key: string;
   url: (params?: { w?: number; q?: number }) => string;
   alt: string;
-  /** Intent of the scene — helps future curators swap without losing meaning. */
+  /** Intent of the scene: helps future curators swap without losing meaning. */
   intent: string;
   /** Focal point for object-position, keeps subject in frame on crop. */
   focal: "center" | "top" | "bottom" | "left-center" | "right-center";
@@ -31,7 +31,7 @@ const local =
   });
 
 export const MARKETING_PHOTOS = {
-  /** Homepage hero — many kinds of talent and service work can become income. */
+  /** Homepage hero: many kinds of talent and service work can become income. */
   heroServices: local(
     "/marketing/photos/talent-services-hero.jpg",
     "Singer, chef, cleaner, and beauty professional working in a premium modern studio",
@@ -39,7 +39,7 @@ export const MARKETING_PHOTOS = {
     "center",
   )("heroServices"),
 
-  /** Talent CTA — a young adult performer checking a booking on her phone. */
+  /** Talent CTA: a young adult performer checking a booking on her phone. */
   talentBooking: local(
     "/marketing/photos/independent-singer-booking.jpg",
     "Independent singer smiling while checking a booking on her phone in a rehearsal room",
@@ -47,7 +47,7 @@ export const MARKETING_PHOTOS = {
     "top",
   )("talentBooking"),
 
-  /** Agency/workspace CTA — a team building their roster website and pipeline. */
+  /** Agency/workspace CTA: a team building their roster website and pipeline. */
   agencyBuilder: local(
     "/marketing/photos/agency-workspace-builder.jpg",
     "Small agency team reviewing a roster website and inquiry dashboard together",
@@ -55,7 +55,7 @@ export const MARKETING_PHOTOS = {
     "center",
   )("agencyBuilder"),
 
-  /** Service marketplace band — real people doing high-value work. */
+  /** Service marketplace band: real people doing high-value work. */
   servicePros: local(
     "/marketing/photos/service-pros-lifestyle.jpg",
     "Cleaner, chef, makeup artist, and fitness professional working in bright premium spaces",
@@ -63,7 +63,7 @@ export const MARKETING_PHOTOS = {
     "center",
   )("servicePros"),
 
-  /** Agencies and hubs discovery page — choosing where to apply next. */
+  /** Agencies and hubs discovery page: choosing where to apply next. */
   hubDiscovery: local(
     "/marketing/photos/hub-agency-discovery.jpg",
     "Adult talent reviewing agency and hub opportunities on a tablet in a creative studio",
@@ -71,7 +71,7 @@ export const MARKETING_PHOTOS = {
     "right-center",
   )("hubDiscovery"),
 
-  /** Independent operator — solo professional, warm tone. */
+  /** Independent operator: solo professional, warm tone. */
   operator: local(
     "/marketing/photos/independent-singer-booking.jpg",
     "Independent singer smiling while checking a booking on her phone in a rehearsal room",
@@ -79,7 +79,7 @@ export const MARKETING_PHOTOS = {
     "top",
   )("operator"),
 
-  /** Agency — coordinated team reviewing work at a long workspace table. */
+  /** Agency: coordinated team reviewing work at a long workspace table. */
   agency: local(
     "/marketing/photos/agency-workspace-builder.jpg",
     "Small agency team reviewing a roster website and inquiry dashboard together",
@@ -87,7 +87,7 @@ export const MARKETING_PHOTOS = {
     "center",
   )("agency"),
 
-  /** Organization — modern open-plan workspace for scaled teams. */
+  /** Organization: modern open-plan workspace for scaled teams. */
   organization: local(
     "/marketing/photos/hub-agency-discovery.jpg",
     "Talent browsing agency and hub opportunities in a modern creative studio",
@@ -95,7 +95,7 @@ export const MARKETING_PHOTOS = {
     "right-center",
   )("organization"),
 
-  /** Homepage lifestyle band — services and talent in motion. */
+  /** Homepage lifestyle band: services and talent in motion. */
   reviewMoment: local(
     "/marketing/photos/service-pros-lifestyle.jpg",
     "Cleaner, chef, makeup artist, and fitness professional working in bright premium spaces",
@@ -103,7 +103,7 @@ export const MARKETING_PHOTOS = {
     "center",
   )("reviewMoment"),
 
-  /** /get-started side — welcoming, buyer-focused portrait. */
+  /** /get-started side: welcoming, buyer-focused portrait. */
   welcome: local(
     "/marketing/photos/independent-singer-booking.jpg",
     "Independent singer smiling while checking a booking on her phone in a rehearsal room",
@@ -111,7 +111,7 @@ export const MARKETING_PHOTOS = {
     "top",
   )("welcome"),
 
-  /** /integrations — devices, surfaces, systems. */
+  /** /integrations: devices, surfaces, systems. */
   systems: local(
     "/marketing/photos/agency-workspace-builder.jpg",
     "Small agency team reviewing a roster website and inquiry dashboard together",
@@ -119,7 +119,7 @@ export const MARKETING_PHOTOS = {
     "center",
   )("systems"),
 
-  /* ── Fresh 2026 set — distinct, single-subject scenes (no phone/laptop clichés) ── */
+  /* ── Fresh 2026 set: distinct, single-subject scenes (no phone/laptop clichés) ── */
   audienceTalent: local(
     "/marketing/photos/mk-audience-talent.jpg",
     "Musician absorbed in playing electric guitar in warm studio light",

@@ -114,8 +114,10 @@ export const builderNodeStyleValueSchema = z.object({
   marginTop: z.enum(["none", "s", "m", "l"]).optional(),
   marginBottom: z.enum(["none", "s", "m", "l"]).optional(),
   paddingX: z.enum(["none", "s", "m", "l"]).optional(),
-  paddingY: z.enum(["none", "s", "m", "l"]).optional(),
-  background: z.enum(["none", "surface", "contrast"]).optional(),
+  // paddingY gains an `xl` (6rem/96px) section-scale step for real vertical
+  // rhythm (AIQ-7); paddingX/margins stay capped at `l`.
+  paddingY: z.enum(["none", "s", "m", "l", "xl"]).optional(),
+  background: z.enum(["none", "surface", "contrast", "accent", "muted"]).optional(),
   radius: z.enum(["none", "sm", "md", "lg", "pill"]).optional(),
   objectFit: z.enum(["cover", "contain"]).optional(),
   objectPosition: z.string().max(40).optional(),

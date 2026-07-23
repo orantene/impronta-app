@@ -165,7 +165,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
             </div>
             <span className="text-[10px] text-muted-foreground/70">
               Best-effort scan for brand colors + Google Fonts on the page.
-              Result fills the box below — review then click Apply.
+              Result fills the box below, review then click Apply.
             </span>
           </div>
           <textarea
@@ -183,14 +183,14 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">
               Hex colors normalize to <code>#rrggbb</code>. Unknown keys are
-              dropped on save. Apply does not save — review then click
+              dropped on save. Apply does not save, review then click
               Save&nbsp;draft.
             </span>
             <button
               type="button"
               onClick={handleApply}
               disabled={!raw.trim()}
-              className="rounded-md border border-[#3d4f7c] bg-[#3d4f7c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#4a5e94] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-md border border-violet-600 bg-violet-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Apply to draft
             </button>

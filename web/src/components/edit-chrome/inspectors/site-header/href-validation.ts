@@ -53,7 +53,7 @@ export function validateHref(raw: string): HrefValidation {
   if (PROTOCOL_LIKE.test(v)) {
     return {
       kind: "warn",
-      message: "Unrecognized URL scheme — did you mean http://, mailto:, or tel:?",
+      message: "Unrecognized URL scheme. Did you mean http://, mailto:, or tel:?",
     };
   }
 

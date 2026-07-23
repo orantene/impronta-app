@@ -23,6 +23,16 @@ export type InstantBookFormPayload = {
   eventDate?: string | null;
   eventLocation?: string | null;
   sourcePage?: string | null;
+  /** Storefront direct booking — the chosen talent_offerings.id. */
+  offeringId?: string | null;
+  /** Client chose "pay at the appointment" (honored only if the offering allows it). */
+  payInPerson?: boolean;
+  /** D4 — chosen option (talent_offering_variants.id); engine re-validates ownership + price. */
+  variantId?: string | null;
+  /** D4 — chosen extras (talent_offering_addons.id[]); engine re-validates ownership + prices. */
+  addOnIds?: string[];
+  /** D5 — client-picked quantity; engine clamps + gates on per-unit price types / products. */
+  quantity?: number;
 };
 
 export type InstantBookActionResult =
@@ -51,6 +61,11 @@ export async function createInstantBookingAction(
       eventLocation: payload.eventLocation ?? null,
       sourcePage: payload.sourcePage ?? null,
       currencyCode: operatingCurrency,
+      offeringId: payload.offeringId ?? null,
+      payInPerson: payload.payInPerson === true,
+      variantId: payload.variantId ?? null,
+      addOnIds: payload.addOnIds ?? [],
+      quantity: payload.quantity,
     });
 
     if (!res.ok) {

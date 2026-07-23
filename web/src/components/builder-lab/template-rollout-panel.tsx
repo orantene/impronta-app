@@ -282,7 +282,7 @@ function TenantMultiPicker({
           }}
         >
           <span style={{ fontWeight: 700 }}>
-            {unknownIds.length} unknown {unknownIds.length === 1 ? "ID" : "IDs"} — removed from list
+            {unknownIds.length} unknown {unknownIds.length === 1 ? "ID" : "IDs"}, removed from list
           </span>
           {unknownIds.map((id) => (
             <span key={id} style={{ fontFamily: "ui-monospace, monospace", fontSize: 10, opacity: 0.85 }}>
@@ -385,7 +385,7 @@ function TenantMultiPicker({
             )}
             {more && !loading && (
               <div style={{ fontSize: 10.5, color: LAB.inkDim, padding: "4px 8px", textAlign: "center" }}>
-                Showing first 16 — type to narrow
+                Showing first 16, type to narrow
               </div>
             )}
           </div>
@@ -652,7 +652,7 @@ export function RolloutPanel({
             color: LAB.inkMuted,
           }}
         >
-          Rollout percentage — {pct}%
+          Rollout percentage: {pct}%
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <input

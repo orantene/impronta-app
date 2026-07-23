@@ -103,6 +103,15 @@ export type InquiryCtaInput = {
   coordinatorId: string | null;
   /** Author of the most recent message in the active thread, or null. */
   lastMessageRole: LastMessageRole;
+  /**
+   * W2-B — the active SENT inquiry has an UNSEEN agency/coordinator reply as its
+   * latest message (the ball is with the visitor). Additive + optional: when
+   * omitted (undefined/false) the resolver behaves exactly as before. When true
+   * on a SENT/live phase it yields the `replied` state ("{agency} replied" +
+   * pulse), which is cleared the moment the thread is opened (the caller flips
+   * this back to false on open — a false-negative is fine, a stuck true is not).
+   */
+  hasUnseenAgencyReply?: boolean;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -133,6 +142,15 @@ export type InquiryCtaState =
   | { kind: "sent_awaiting"; phase: InquiryWorkflowPhase }
   /** Inquiry sent AND a live two-way conversation is underway. */
   | { kind: "live_conversation"; phase: InquiryWorkflowPhase; coordinatorId: string }
+  /**
+   * Inquiry sent AND an UNSEEN agency reply is waiting (W2-B). Distinct from
+   * live_conversation (which is the SEEN, two-way state): this is the only state
+   * that reads "{agency} replied" and draws the pulse. Opening the thread clears
+   * the unseen signal, so it collapses back to live_conversation / sent_awaiting.
+   * coordinatorId is nullable because the reply itself proves agency presence
+   * even in the (test-only) case where no coordinator id is threaded through.
+   */
+  | { kind: "replied"; phase: InquiryWorkflowPhase; coordinatorId: string | null }
   /** Inquiry is terminal; render the closed state with the mapped reason. */
   | { kind: "terminal"; reason: TerminalReason };
 
@@ -212,7 +230,7 @@ function isDraftStale(lastActivityAt: string | null, now: number): boolean {
  *
  * Precedence (order is the product; do not reorder):
  *   0. Active inquiry that is terminal           -> terminal
- *   1. Active inquiry in a SENT/live phase        -> live_conversation | sent_awaiting
+ *   1. Active inquiry in a SENT/live phase        -> replied | live_conversation | sent_awaiting
  *   2. talent focus + other open inquiries        -> pick_inquiry
  *   3. talent focus + already in lineup           -> in_lineup
  *   4. talent focus + active draft (not in lineup)-> add_to_lineup
@@ -237,6 +255,7 @@ export function resolveInquiryCta(
     lastActivityAt,
     coordinatorId,
     lastMessageRole,
+    hasUnseenAgencyReply = false,
   } = input;
 
   const hasActiveInquiry = activePhase != null || activeStatus != null;
@@ -254,6 +273,14 @@ export function resolveInquiryCta(
   //    message came from the coordinator or the viewer ("you"). Otherwise it is
   //    a one-way "sent, awaiting" airlock.
   if (activePhase != null && SENT_LIVE_PHASES.has(activePhase)) {
+    // 1a. An UNSEEN agency reply wins within the sent family: it is the only
+    //     state that reads "{agency} replied" + pulses. The input flag is
+    //     authoritative (the seam already gates it on a seated coordinator whose
+    //     line is the latest, unread); the resolver stays pure and just surfaces
+    //     it. Opening the thread flips the flag off, collapsing back to 1b/1c.
+    if (hasUnseenAgencyReply) {
+      return { kind: "replied", phase: activePhase, coordinatorId };
+    }
     if (
       coordinatorId != null &&
       lastMessageRole != null &&

@@ -9,6 +9,7 @@ export const DIRECTORY_SORT_VALUES = [
   "featured",
   "recent",
   "updated",
+  "top_rated",
 ] as const;
 
 export type DirectorySortValue = (typeof DIRECTORY_SORT_VALUES)[number];
@@ -75,12 +76,22 @@ export type DirectoryCardDTO = {
    * `agencyName` + `isExclusive`: primary-roster ownership; null = independent.
    * `nextAvailableDate`: ISO yyyy-mm-dd (or null when no signal exists).
    * `availableDaysInNext30`: 0-30 (or null when unknown).
+   *
+   * Review / craft-standing signal (additive; see lib/reviews/craft-standing):
+   * `ratingAvg`: mean published rating (or null when no eligible reviews).
+   * `ratingCount`: count of published reviews used for `ratingAvg`.
+   * `ratingAllCount`: total reviews incl. any not counted in the average.
+   * `wouldBookAgainPct`: 0-100 (or null when no signal exists).
    */
   trustTier?: string | null;
   agencyName?: string | null;
   isExclusive?: boolean;
   nextAvailableDate?: string | null;
   availableDaysInNext30?: number | null;
+  ratingAvg?: number | null;
+  ratingCount?: number | null;
+  ratingAllCount?: number | null;
+  wouldBookAgainPct?: number | null;
 };
 
 /**
@@ -113,6 +124,14 @@ export type DirectoryPageResponse = {
   taxonomyTermIds: string[];
   /** Present when items were produced from AI search with explanations enabled. */
   aiOverlayByTalentId?: Record<string, DirectoryAiCardOverlay>;
+  /**
+   * Whether the tenant surface has the reviews (STANDING) entitlement — the
+   * same gate that nulls the per-card rating fields. The toolbar uses it to
+   * hide the "Top rated" sort option where rating can never affect order.
+   * Absent (older responses / early-exit paths) reads as enabled so the
+   * option never flickers off on the platform host.
+   */
+  reviewsEnabled?: boolean;
 };
 
 /** URL `ff` facet: OR within `values`, AND across different `fieldKey`s. */

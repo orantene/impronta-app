@@ -35,11 +35,14 @@ import {
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadGuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 
 /**
  * Resolve agencies.slug from a tenant id (service-role read). The hub arm of
@@ -78,9 +81,16 @@ export async function AgencyChatLauncherMount({
   //  - marketing / app (the tulala.digital platform apex, which has no tenant
   //    of its own) → the in-house platform network hub, so visitors can
   //    "message the platform" and the inquiry lands in the hub's Messages.
+  // Hub hosts (the platform/network hub `kind: "hub"`, plus the marketing/app
+  // apex that resolves to the platform hub) are NOT agencies. This flag drives
+  // the SEND-path copy so the send button + notes never call Tulala "the agency".
+  const isHub = ctx.kind !== "agency";
+
   let tenantId: string;
   let tenantSlug: string;
-  let fallbackName = "the agency";
+  // Default sender name when the tenant has no public_name. Agencies keep the
+  // generic "the agency"; a hub host defaults to the platform brand instead.
+  let fallbackName = isHub ? PLATFORM_BRAND.name : "the agency";
   if ((ctx.kind === "agency" || ctx.kind === "hub") && ctx.tenantId) {
     tenantId = ctx.tenantId;
     // Only the agency arm of PublicHostContext carries a slug; the hub arm does
@@ -108,15 +118,54 @@ export async function AgencyChatLauncherMount({
   // empty slug yields a non-functional launcher. Never render a dead one.
   if (!tenantSlug.trim()) return null;
 
+  // P2 chrome hygiene — the in-place page builder (EditChromeMount) can mount
+  // on this same storefront path (homepage / directory) with its topbar +
+  // canvas chrome, and this launcher's fixed floating bubble has no
+  // awareness of that — it rendered on top of the editor canvas with no way
+  // to suppress it. Gate on the same tenant-scoped edit cookie the editor
+  // itself reads, so the live-site "Message {agency}" bubble never fights
+  // the builder chrome while an operator is actively editing this tenant.
+  if (await isEditModeActiveForTenant(tenantId)) return null;
+
   const settings = await loadGuestChatSettings(tenantId);
-  if (!settings.enabled || !settings.showOnDirectory) return null;
+  // Per-surface gate. `enabled` is the master switch; then each public surface
+  // has its own flag. The home ("/") and directory ("/directory") surfaces are
+  // controlled independently (show_on_home vs show_on_directory). Any OTHER
+  // source page (a generic /p/* CMS page) has no per-page flag — it rides the
+  // master `enabled` switch only.
+  if (!settings.enabled) return null;
+  const surfaceEnabled =
+    sourcePage === "/"
+      ? settings.showOnHome
+      : sourcePage === "/directory"
+        ? settings.showOnDirectory
+        : true;
+  if (!surfaceEnabled) return null;
 
   const [identity, branding] = await Promise.all([
     loadPublicIdentity(tenantId),
     loadPublicBranding(tenantId),
   ]);
 
-  const agencyName = identity?.public_name?.trim() || fallbackName;
+  // W3 — Tulala Concierge framing. On a hub host the panel identity reads
+  // "Tulala Concierge" (not the bare platform brand with a generic monogram) and
+  // the opener invites an event brief. This override flows through `brand`:
+  //   - agencyName / talentDisplayName → panel header + monogram ("T") + the
+  //     inquiry receipt / status strip ("{agency} has your inquiry"), so those
+  //     surfaces read "Tulala Concierge has your inquiry" honestly on the hub —
+  //     no new isHub prop threaded into the panel internals (parallel lane).
+  //   - greeting → the opener line in the conversation body.
+  // Agencies are unchanged: they keep their own public_name.
+  const conciergeName = interpolate(t("public.guestChat.hubConciergeName"), {
+    brand: PLATFORM_BRAND.name,
+  });
+  const agencyName = isHub
+    ? conciergeName
+    : identity?.public_name?.trim() || fallbackName;
+  // Hub opener: prefer a tenant-configured greeting, else the concierge default.
+  const greeting = isHub
+    ? settings.greeting?.trim() || t("public.guestChat.hubConciergeGreeting")
+    : settings.greeting;
   const accentColor = branding?.primary_color ?? branding?.accent_color ?? null;
   const theme =
     typeof branding?.theme_json === "object" && branding.theme_json !== null
@@ -155,17 +204,21 @@ export async function AgencyChatLauncherMount({
       talentProfileId=""
       talentProfileCode=""
       sourcePage={sourcePage}
+      // Hub host: drives the SEND-path copy (send button "Send", route-not-agency
+      // subline + notes). The roster picker resolves the hub source server-side.
+      isHub={isHub}
       brand={{
         agencyName,
         // Drives the opener voice ("Hi — I'm {agency}'s booking assistant").
         talentDisplayName: agencyName,
         accentColor,
         logoUrl,
-        greeting: settings.greeting,
+        greeting,
         locale,
       }}
       label={t("public.guestChat.bookNow")}
       existingInquiryId={active?.inquiryId ?? null}
+      existingContactPromoted={active?.contactPromoted ?? null}
       prefill={active?.prefill ?? null}
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}

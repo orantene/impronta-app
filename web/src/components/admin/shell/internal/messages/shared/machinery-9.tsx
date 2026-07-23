@@ -2,10 +2,31 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
+import { useT } from "@/i18n/use-t";
 import { COLORS, FONTS, TRANSITION } from "../../state";
 import { Icon } from "../../primitives";
 import { disabledBtn } from "./machinery-13";
 import type { TabDef, ThreadTabId } from "./machinery-8";
+
+// Thread-tab id → catalog label key. The builder (machinery-1) emits
+// English fallback labels + a stable `id`; we localize here at render so
+// every POV's tab bar (client / talent / admin) is translated in one
+// place. Falls back to the builder's `label` when a key is missing.
+const TAB_LABEL_KEYS: Record<string, string> = {
+  client:    "dashboard.adminTabs.tabBar.client",
+  talent:    "dashboard.adminTabs.tabBar.talent",
+  group:     "dashboard.adminTabs.tabBar.group",
+  activity:  "dashboard.adminTabs.tabBar.activity",
+  chat:      "dashboard.adminTabs.tabBar.chat",
+  lineup:    "dashboard.adminTabs.tabBar.lineup",
+  offer:     "dashboard.adminTabs.tabBar.offer",
+  logistics: "dashboard.adminTabs.tabBar.logistics",
+  payment:   "dashboard.adminTabs.tabBar.payment",
+  booking:   "dashboard.adminTabs.tabBar.booking",
+  event:     "dashboard.adminTabs.tabBar.event",
+  details:   "dashboard.adminTabs.tabBar.details",
+  files:     "dashboard.adminTabs.tabBar.files",
+};
 
 export function ThreadTabBar({
   tabs, activeId, onSelect,
@@ -14,11 +35,20 @@ export function ThreadTabBar({
   activeId: ThreadTabId;
   onSelect: (id: ThreadTabId) => void;
 }) {
+  const t = useT();
+  // Localize a tab's label from its stable id; fall back to the
+  // builder-supplied English label when no key matches.
+  const tabLabel = (tab: TabDef): string => {
+    const key = TAB_LABEL_KEYS[tab.id];
+    if (!key) return tab.label;
+    const out = t(key);
+    return out === key ? tab.label : out;
+  };
   // #4 — Reorder so locked tabs always sit AT THE END (visual hierarchy:
   // active before locked). Stable order otherwise.
   const ordered = useMemo(() => {
-    const active = tabs.filter(t => t.state === "active");
-    const locked = tabs.filter(t => t.state === "locked");
+    const active = tabs.filter(tb => tb.state === "active");
+    const locked = tabs.filter(tb => tb.state === "locked");
     return [...active, ...locked];
   }, [tabs]);
 
@@ -71,19 +101,20 @@ export function ThreadTabBar({
         + "[data-tulala-thread-tabs] button svg{width:15px!important;height:15px!important}"
         + "}"
       }} />
-      {ordered.map((t, idx) => {
-        const active = t.id === activeId;
-        const locked = t.state === "locked";
+      {ordered.map((tab, idx) => {
+        const active = tab.id === activeId;
+        const locked = tab.state === "locked";
+        const label = tabLabel(tab);
         return (
           <button
-            key={t.id}
+            key={tab.id}
             ref={(el) => { tabRefs.current[idx] = el; }}
             type="button"
             role="tab"
             aria-selected={active}
-            aria-label={t.label}
+            aria-label={label}
             tabIndex={active ? 0 : -1}
-            onClick={() => onSelect(t.id)}
+            onClick={() => onSelect(tab.id)}
             onKeyDown={(e) => onKeyDown(e, idx)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
@@ -103,17 +134,17 @@ export function ThreadTabBar({
             {/* Tab icon — used everywhere on mobile (where the text
                 label hides), and as a quiet leading mark on desktop. */}
             <span aria-hidden style={{ display: "inline-flex", color: "currentColor" }}>
-              {tabIcon(t.id, locked)}
+              {tabIcon(tab.id, locked)}
             </span>
-            <span data-tulala-tab-label>{t.label}</span>
-            {t.badge !== undefined && (
+            <span data-tulala-tab-label>{label}</span>
+            {tab.badge !== undefined && (
               <span style={{
                 fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
                 background: active ? COLORS.fill : "rgba(11,11,13,0.08)",
                 color: active ? "#fff" : COLORS.inkMuted,
                 minWidth: 16, textAlign: "center",
               }}>
-                {t.badge}
+                {tab.badge}
               </span>
             )}
           </button>
@@ -137,6 +168,7 @@ export function ThreadSearchTrigger({
   onJumpPayment?: () => void;
   onJumpApproval?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   // Adapt the message rows to ThreadSearchMessage shape.
   const adaptedMessages: ThreadSearchMessage[] = useMemo(
@@ -151,12 +183,12 @@ export function ThreadSearchTrigger({
   );
   const jumpTargets: JumpTarget[] = useMemo(() => {
     const out: JumpTarget[] = [];
-    if (onJumpOffer) out.push({ kind: "offer", label: "Offer", onJump: onJumpOffer });
-    if (onJumpCallSheet) out.push({ kind: "call-sheet", label: "Call sheet", onJump: onJumpCallSheet });
-    if (onJumpPayment) out.push({ kind: "payment", label: "Payment", onJump: onJumpPayment });
-    if (onJumpApproval) out.push({ kind: "approval", label: "Client approval", onJump: onJumpApproval });
+    if (onJumpOffer) out.push({ kind: "offer", label: t("dashboard.adminThread.threadSearch.jumpOffer"), onJump: onJumpOffer });
+    if (onJumpCallSheet) out.push({ kind: "call-sheet", label: t("dashboard.adminThread.threadSearch.jumpCallSheet"), onJump: onJumpCallSheet });
+    if (onJumpPayment) out.push({ kind: "payment", label: t("dashboard.adminThread.threadSearch.jumpPayment"), onJump: onJumpPayment });
+    if (onJumpApproval) out.push({ kind: "approval", label: t("dashboard.adminThread.threadSearch.jumpApproval"), onJump: onJumpApproval });
     return out;
-  }, [onJumpOffer, onJumpCallSheet, onJumpPayment, onJumpApproval]);
+  }, [onJumpOffer, onJumpCallSheet, onJumpPayment, onJumpApproval, t]);
   // Reference inquiryId in the closure so it's not dead-prop.
   void inquiryId;
   return (
@@ -164,8 +196,8 @@ export function ThreadSearchTrigger({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="Search this conversation"
-        title="Search conversation"
+        aria-label={t("dashboard.adminThread.threadSearch.searchAria")}
+        title={t("dashboard.adminThread.threadSearch.searchTitle")}
         style={{
           width: 32, height: 32,
           padding: 0,
@@ -315,6 +347,7 @@ export function LockedTabOverlay({
   /** Optional faint preview behind the overlay — gives a sense of what's there */
   ghostPreview?: React.ReactNode;
 }) {
+  const t = useT();
   const [pending, setPending] = useState(false);
   return (
     <div style={{ position: "relative", padding: "28px 20px 40px", overflow: "hidden", minHeight: 320 }}>
@@ -350,7 +383,7 @@ export function LockedTabOverlay({
         {pending ? (
           <div style={{ marginTop: 16, padding: "10px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }} className="bg-admin-success-soft text-admin-success">
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
-            Request sent — coordinator will review
+            {t("dashboard.adminThread.lockedRequestSent")}
           </div>
         ) : (
           <button

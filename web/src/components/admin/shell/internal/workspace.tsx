@@ -32,6 +32,7 @@ function vsb(): "smooth" | "auto" {
     : "smooth";
 }
 import { MentionTypeahead } from "./wave2";
+import { useDashboardText } from "./dashboard-i18n";
 import { sendInquiryMessageAsAdmin } from "@/lib/server-actions/admin-inquiries";
 import { sendInquiryMessageAsClient } from "@/lib/server-actions/client-pipeline";
 import { sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
@@ -3331,21 +3332,18 @@ const SHORTCUT_GROUPS = [
       { keys: ["?"],         label: "Keyboard shortcuts" },
     ],
   },
+  // Only shortcuts that actually work are listed — an advertised-but-dead
+  // shortcut is a broken promise. "/" and Tab were listed here before they
+  // existed; re-add each one WITH its implementation. E and R are LIVE as
+  // of WS-7.5 wave 6 (admin-1.tsx keydown + FOCUS_COMPOSER_EVENT).
   {
-    title: "List navigation",
+    title: "List navigation (Messages)",
     shortcuts: [
-      { keys: ["J"],         label: "Next item" },
-      { keys: ["K"],         label: "Previous item" },
-      { keys: ["E"],         label: "Archive selected" },
-      { keys: ["R"],         label: "Reply" },
-      { keys: ["⏎"],        label: "Open selected" },
-    ],
-  },
-  {
-    title: "Messaging",
-    shortcuts: [
-      { keys: ["/"],         label: "Search messages" },
-      { keys: ["Tab"],       label: "Switch thread (Private ↔ Group)" },
+      { keys: ["J"],         label: "Focus next thread" },
+      { keys: ["K"],         label: "Focus previous thread" },
+      { keys: ["⏎"],        label: "Open focused thread" },
+      { keys: ["E"],         label: "Archive focused thread" },
+      { keys: ["R"],         label: "Reply: focus the composer" },
     ],
   },
 ];
@@ -3357,6 +3355,7 @@ export function ShortcutHelpOverlay({
   open: boolean;
   onClose: () => void;
 }) {
+  const copy = useDashboardText();
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => { if (e.key === "Escape" || e.key === "?") onClose(); };
@@ -3392,7 +3391,7 @@ export function ShortcutHelpOverlay({
           marginBottom: 12,
         }}>
           <span style={{ fontSize: 15, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">
-            Keyboard shortcuts
+            {copy.t("Keyboard shortcuts")}
           </span>
           <button
             type="button"
@@ -3417,7 +3416,7 @@ export function ShortcutHelpOverlay({
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title}>
               <div style={{ fontSize:      10, fontWeight:    700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily:    FONTS.body, marginBottom:  8 }} className="text-admin-ink-dim">
-                {group.title}
+                {copy.t(group.title)}
               </div>
               <div className="flex flex-col gap-1">
                 {group.shortcuts.map((sc, i) => (
@@ -3428,7 +3427,7 @@ export function ShortcutHelpOverlay({
                     gap:         8,
                   }}>
                     <span style={{ fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-                      {sc.label}
+                      {copy.t(sc.label)}
                     </span>
                     <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
                       {sc.keys.map((k, ki) => (

@@ -7,6 +7,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
 
 const HQ = {
   panel: "#0E0E11",
@@ -17,14 +18,16 @@ const HQ = {
 
 export function FieldDrawer({
   children,
-  title = "Field editor",
+  title,
   ariaLabel,
 }: {
   children: React.ReactNode;
   title?: string;
   ariaLabel?: string;
 }) {
+  const t = useT();
   const router = useRouter();
+  const resolvedTitle = title ?? t("dashboard.platform.catalog.drawerFieldEditor");
 
   // Close on Escape + lock the underlying page scroll while open.
   useEffect(() => {
@@ -44,7 +47,7 @@ export function FieldDrawer({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={ariaLabel ?? title}
+      aria-label={ariaLabel ?? resolvedTitle}
       style={{
         position: "fixed",
         inset: 0,
@@ -61,7 +64,7 @@ export function FieldDrawer({
       {/* Backdrop */}
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t("dashboard.platform.catalog.drawerClose")}
         onClick={() => router.back()}
         style={{
           position: "absolute",
@@ -115,12 +118,12 @@ export function FieldDrawer({
               fontFamily: '"Inter", system-ui, sans-serif',
             }}
           >
-            {title}
+            {resolvedTitle}
           </span>
           <button
             type="button"
             onClick={() => router.back()}
-            aria-label="Close field editor"
+            aria-label={t("dashboard.platform.catalog.drawerCloseEditor")}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -136,7 +139,7 @@ export function FieldDrawer({
               fontFamily: '"Inter", system-ui, sans-serif',
             }}
           >
-            Close ✕
+            {t("dashboard.platform.catalog.drawerCloseLabel")}
           </button>
         </div>
 

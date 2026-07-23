@@ -18,7 +18,6 @@ import {
   gateNestedInsertKinds,
   type BuilderIconName,
   type BuilderNode,
-  type BuilderNodeCompositionPreset,
   type BuilderNodeCompositionPresetId,
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
@@ -42,6 +41,7 @@ import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Stepper, TextInput, Toggle } from "../kit";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
+import { AiGenerateImageButton } from "./ai-generate-image-button";
 import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
@@ -321,7 +321,7 @@ export function BuilderNodeContentInspector({
       <div className="flex flex-col gap-3">
         <Card state="active">
           <CardHead
-            title="Tulala component"
+            title="Tulala block"
             sub={node.props.sectionTypeKey}
             iconAccent="blue"
           />
@@ -348,7 +348,7 @@ export function BuilderNodeContentInspector({
         <BuilderNodeFlatPanel>
           <p className={KIT.hint}>
             Raw HTML blocks can only be edited by a platform owner. The block
-            stays live on the page — ask an owner to change its markup.
+            stays live on the page. Ask an owner to change its markup.
           </p>
         </BuilderNodeFlatPanel>
       );
@@ -473,6 +473,15 @@ export function BuilderNodeContentInspector({
             variant="row"
           />
           <div className={KIT.field}>
+            <label className={KIT.label}>Generate with AI</label>
+            <AiGenerateImageButton
+              defaultSubject={node.props.alt ?? ""}
+              onGenerated={({ url, mediaId, alt }) => {
+                void commitPatch({ src: url, mediaId, alt: node.props.alt || alt });
+              }}
+            />
+          </div>
+          <div className={KIT.field}>
             <label className={KIT.label}>Alt text</label>
             <BuilderNodeLocalizableTextField
               node={node}
@@ -497,7 +506,7 @@ export function BuilderNodeContentInspector({
                 void commitPatch({ priority: next || undefined });
               }}
               label="Load priority (LCP)"
-              helper="Mark this as the page's hero image. Loads eagerly with high fetch priority — use on at most one above-the-fold image."
+              helper="Mark this as the page's hero image. Loads eagerly with high fetch priority. Use on at most one above-the-fold image."
             />
           </div>
         </BuilderNodeSection>
@@ -509,7 +518,7 @@ export function BuilderNodeContentInspector({
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
-          <CardHead title="Icon node" sub="Inline SVG" iconAccent="blue" />
+          <CardHead title="Icon" sub="Inline SVG" iconAccent="blue" />
           <CardBody>
             <div className="flex flex-col gap-3">
               <Field flush>
@@ -1107,7 +1116,7 @@ export function BuilderNodeContentInspector({
                       void commitPatch({ tiers: nextTiers });
                     }}
                     label="Highlighted"
-                    helper="Shows this tier with a visual accent — usually the recommended plan."
+                    helper="Shows this tier with a visual accent, usually the recommended plan."
                   />
                 </div>
 
@@ -1349,7 +1358,7 @@ export function BuilderNodeContentInspector({
                     })}
                   />
                   <Helper>
-                    Required for inbox delivery — the id of the form section to record
+                    Required for inbox delivery, the id of the form section to record
                     submissions under. Without it the form renders but submissions are
                     rejected.
                   </Helper>
@@ -2773,7 +2782,7 @@ export function BuilderNodeContentInspector({
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
-          <CardHead title="Divider node" sub="Horizontal rule" iconAccent="blue" />
+          <CardHead title="Divider" sub="Horizontal rule" iconAccent="blue" />
           <CardBody>
             <Field flush>
               <FieldLabel>Tone</FieldLabel>
@@ -2801,7 +2810,7 @@ export function BuilderNodeContentInspector({
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
-          <CardHead title="Spacer node" sub="Vertical gap" iconAccent="blue" />
+          <CardHead title="Spacer" sub="Vertical gap" iconAccent="blue" />
           <CardBody>
             <Field flush>
               <FieldLabel>Size</FieldLabel>
@@ -2920,10 +2929,6 @@ function NestedBlocksCard({
   const [selectedChildIds, setSelectedChildIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-  const [packQuery, setPackQuery] = useState("");
-  const [packCategory, setPackCategory] = useState<
-    "all" | BuilderNodeCompositionPreset["category"]
-  >("all");
   // INS-3: inline naming for "Save pattern" (replaces window.prompt).
   const [savePatternNamingOpen, setSavePatternNamingOpen] = useState(false);
   useEffect(() => {
@@ -2938,31 +2943,6 @@ function NestedBlocksCard({
   const compositionPresets = BUILDER_NODE_COMPOSITION_PRESETS.filter((preset) =>
     addKinds.includes(preset.rootKind),
   );
-  const packCategories = useMemo(() => {
-    const categories = new Set<BuilderNodeCompositionPreset["category"]>();
-    for (const preset of compositionPresets) categories.add(preset.category);
-    return ["all", ...categories] as const;
-  }, [compositionPresets]);
-  const visibleCompositionPresets = useMemo(() => {
-    const q = packQuery.trim().toLowerCase();
-    return compositionPresets.filter((preset) => {
-      if (packCategory !== "all" && preset.category !== packCategory) {
-        return false;
-      }
-      if (!q) return true;
-      const hay = [
-        preset.label,
-        preset.description,
-        preset.category,
-        preset.dataMode,
-        preset.rootKind,
-        ...preset.keywords,
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [compositionPresets, packCategory, packQuery]);
   const toggleSelectedChild = (nodeId: string) => {
     setSelectedChildIds((current) => {
       const next = new Set(current);
@@ -3197,112 +3177,11 @@ function NestedBlocksCard({
               onCancel={() => setSavePatternNamingOpen(false)}
             />
           ) : null}
-          {compositionPresets.length > 0 ? (
-            <details
-              data-builder-node-composition-presets=""
-              className="rounded-lg border border-stone-200 bg-white px-3 py-2"
-              open={nodes.length <= 3}
-            >
-              <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
-                Section packs ({compositionPresets.length})
-              </summary>
-              <div className="mt-2 flex flex-col gap-2">
-                <div className="flex flex-col gap-2 rounded-md border border-stone-200 bg-[#faf9f6] p-2">
-                  <input
-                    data-builder-node-composition-search=""
-                    type="search"
-                    value={packQuery}
-                    onChange={(event) => setPackQuery(event.currentTarget.value)}
-                    placeholder="Search section packs"
-                    className={KIT.input}
-                  />
-                  <div
-                    data-builder-node-composition-category-filter=""
-                    className="flex flex-wrap gap-1.5"
-                  >
-                    {packCategories.map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        className={
-                          packCategory === category
-                            ? KIT.primaryButton
-                            : KIT.ghostButton
-                        }
-                        onClick={() =>
-                          setPackCategory(
-                            category as "all" | BuilderNodeCompositionPreset["category"],
-                          )
-                        }
-                      >
-                        {category === "all" ? "All" : category}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {visibleCompositionPresets.map((preset) => (
-                  <div
-                    key={preset.id}
-                    className="rounded-md border border-stone-200 bg-[#faf9f6] px-3 py-2"
-                  >
-                    <div className="flex items-start gap-3">
-                      <CompositionPresetPreview preset={preset} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[11px] font-semibold text-stone-800">
-                          {preset.label}
-                        </span>
-                        <span className="mt-0.5 block text-[10.5px] leading-snug text-stone-500">
-                          {preset.description}
-                        </span>
-                        <span className="mt-1 inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-500">
-                          {formatPresetLabel(preset.category)} · {preset.sectionCount} blocks
-                        </span>
-                        <span className="mt-2 flex flex-wrap gap-1">
-                          <span
-                            data-builder-node-composition-data-mode={preset.dataMode}
-                            className={
-                              preset.dataMode === "data-ready"
-                                ? "border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-emerald-700"
-                                : "border border-stone-200 bg-white px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-stone-500"
-                            }
-                          >
-                            {preset.dataMode === "data-ready" ? "Data ready" : "Starter"}
-                          </span>
-                          {preset.keywords.slice(0, 3).map((keyword) => (
-                            <span
-                              key={`${preset.id}-${keyword}`}
-                              className="border border-stone-200 bg-white px-1.5 py-0.5 text-[9.5px] font-medium text-stone-500"
-                            >
-                              {keyword}
-                            </span>
-                          ))}
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        data-builder-node-composition-preset={preset.id}
-                        className={KIT.subtleButton}
-                        onClick={() => {
-                          void onAddCompositionPreset(preset.id);
-                        }}
-                      >
-                        Insert
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {visibleCompositionPresets.length === 0 ? (
-                  <div
-                    data-builder-node-composition-empty=""
-                    className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11.5px] text-stone-500"
-                  >
-                    No section packs match this search. Try a category, data-ready,
-                    roster, map, FAQ, or story.
-                  </div>
-                ) : null}
-              </div>
-            </details>
-          ) : null}
+          {/* W2-C4 — the in-content "Section packs" gallery was REMOVED. The
+              Add gallery (command dock) is the single insert surface; a second
+              full gallery here duplicated it. The composition presets are still
+              reachable inline via the contextual "Insert block here" picker
+              (renderInsertPicker) and remain fully in the data model. */}
           <MyBlocksPanel parentNodeId={parentNodeId} />
           <ComponentLibraryPanel parentNodeId={parentNodeId} />
           {presets.length > 0 ? (
@@ -3506,7 +3385,7 @@ function NestedBlocksCard({
                           disabled={index === 0}
                           title={
                             index === 0
-                              ? "Already first — can't move up"
+                              ? "Already first, can't move up"
                               : "Move block up one position"
                           }
                           aria-label="Move block up"
@@ -3522,7 +3401,7 @@ function NestedBlocksCard({
                           disabled={index === nodes.length - 1}
                           title={
                             index === nodes.length - 1
-                              ? "Already last — can't move down"
+                              ? "Already last, can't move down"
                               : "Move block down one position"
                           }
                           aria-label="Move block down"
@@ -3595,66 +3474,6 @@ function NestedBlocksCard({
   );
 }
 
-function CompositionPresetPreview({
-  preset,
-}: {
-  preset: BuilderNodeCompositionPreset;
-}) {
-  const rows =
-    preset.category === "data"
-      ? ["wide", "grid", "grid", "grid"]
-      : preset.category === "hero"
-        ? ["wide", "thin", "wide", "chips"]
-        : preset.category === "story"
-          ? ["split", "split", "thin"]
-          : preset.category === "trust"
-            ? ["thin", "chips", "wide"]
-            : ["thin", "wide", "wide", "button"];
-  return (
-    <span
-      aria-hidden
-      className="grid shrink-0 gap-1 border border-stone-200 bg-white p-1.5"
-      style={{ width: 66, minHeight: 48 }}
-    >
-      {rows.map((row, index) => {
-        if (row === "grid") {
-          return (
-            <span key={`${preset.id}:${index}`} className="grid grid-cols-3 gap-1">
-              <span className="h-3 bg-stone-200" />
-              <span className="h-3 bg-stone-200" />
-              <span className="h-3 bg-stone-200" />
-            </span>
-          );
-        }
-        if (row === "split") {
-          return (
-            <span key={`${preset.id}:${index}`} className="grid grid-cols-2 gap-1">
-              <span className="h-4 bg-stone-200" />
-              <span className="h-4 bg-stone-100" />
-            </span>
-          );
-        }
-        if (row === "chips") {
-          return (
-            <span key={`${preset.id}:${index}`} className="grid grid-cols-3 gap-1">
-              <span className="h-2 bg-stone-100" />
-              <span className="h-2 bg-stone-100" />
-              <span className="h-2 bg-stone-100" />
-            </span>
-          );
-        }
-        return (
-          <span
-            key={`${preset.id}:${index}`}
-            className={row === "button" ? "h-3 bg-stone-800" : "bg-stone-200"}
-            style={{ height: row === "thin" ? 4 : 12 }}
-          />
-        );
-      })}
-    </span>
-  );
-}
-
 function formatPresetLabel(value: string): string {
   return value
     .split("-")
@@ -3703,7 +3522,7 @@ function contentHint(node: Exclude<BuilderNode, { kind: "section" }>): string {
     case "masonry":
       return "Masonry content is managed through its child blocks. Add images or cards in Structure; columns and gap live in Layout.";
     case "card":
-      return "Card blocks wrap heading, paragraph, image, and button children — not nested layout shells. Edit blocks in Structure; surface style in Layout.";
+      return "Card blocks wrap heading, paragraph, image, and button children, not nested layout shells. Edit blocks in Structure; surface style in Layout.";
     case "cta_group":
       return "CTA groups hold buttons only. Add headline or body copy as sibling blocks outside this group (e.g. in a container). Row vs stack lives in Layout.";
     case "divider":
@@ -4117,7 +3936,7 @@ function VariantPicker({
         }}
         options={options.map((v) => ({ value: v, label: variantLabel(v) }))}
       />
-      <Helper>Restyles to a preset look — your content stays.</Helper>
+      <Helper>Restyles to a preset look, your content stays.</Helper>
     </Field>
   );
 }

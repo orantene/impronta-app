@@ -26,14 +26,15 @@ import {
   type InquiryOfferActionState,
 } from "../_actions/inquiry-offer-actions";
 import {
-  BALANCE_METHOD_LABELS,
-  BALANCE_METHOD_DESCRIPTIONS,
-  REFUND_POLICY_LABELS,
-  REFUND_POLICY_DESCRIPTIONS,
+  BALANCE_METHOD_LABEL_KEYS,
+  BALANCE_METHOD_DESCRIPTION_KEYS,
+  REFUND_POLICY_LABEL_KEYS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
   normalizeDepositPct,
 } from "@/lib/billing/commercial-terms-types";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -69,7 +70,7 @@ export function OfferTab({
 }) {
   const t = useT();
   if (!details) {
-    return <div style={{ padding: 24, color: C.inkMuted, fontSize: 13 }}>{t("dashboard.clientOffer.loading")}</div>;
+    return <TabLoadingSkeleton label={t("dashboard.clientOffer.loading")} />;
   }
   if (!details.offer?.exists) {
     return (
@@ -342,15 +343,15 @@ function BookingTerms({
               ? t("dashboard.clientOffer.paidInFull")
               : interpolate(t("dashboard.clientOffer.balanceVia"), {
                   amount: formatMoney(balanceMajor, offer.currency),
-                  method: BALANCE_METHOD_LABELS[terms.balanceMethod],
+                  method: t(BALANCE_METHOD_LABEL_KEYS[terms.balanceMethod]),
                 })
           }
-          hint={BALANCE_METHOD_DESCRIPTIONS[terms.balanceMethod]}
+          hint={t(BALANCE_METHOD_DESCRIPTION_KEYS[terms.balanceMethod])}
         />
         <TermRow
           label={t("dashboard.clientOffer.refunds")}
-          value={REFUND_POLICY_LABELS[terms.refundPolicy]}
-          hint={REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]}
+          value={t(REFUND_POLICY_LABEL_KEYS[terms.refundPolicy])}
+          hint={t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])}
           last
         />
       </div>
@@ -618,27 +619,37 @@ function DecisionRibbon({
 }) {
   const t = useT();
   const [confirming, setConfirming] = useState<"approve" | "counter" | "decline" | null>(null);
+  // Once a terminal decision (approve/decline) is submitted successfully, lock the
+  // whole ribbon until the parent refresh unmounts it. Without this, the drawer
+  // closes on success but the ribbon reappears with stale offer.status for a beat,
+  // letting a second decision fire (a confusing version-conflict, or a double action).
+  const [finalizing, setFinalizing] = useState(false);
+  const lock = (base: React.CSSProperties): React.CSSProperties =>
+    finalizing ? { ...base, opacity: 0.5, cursor: "wait" } : base;
   return (
     <>
       <div className="flex gap-2 flex-wrap">
         <button
           type="button"
           onClick={() => setConfirming("approve")}
-          style={primaryBtn}
+          disabled={finalizing}
+          style={lock(primaryBtn)}
         >
           {t("dashboard.clientOffer.approveLock")}
         </button>
         <button
           type="button"
           onClick={() => setConfirming("counter")}
-          style={ghostBtn}
+          disabled={finalizing}
+          style={lock(ghostBtn)}
         >
           {t("dashboard.clientOffer.counter")}
         </button>
         <button
           type="button"
           onClick={() => setConfirming("decline")}
-          style={ghostBtn}
+          disabled={finalizing}
+          style={lock(ghostBtn)}
         >
           {t("dashboard.clientOffer.decline")}
         </button>
@@ -656,6 +667,11 @@ function DecisionRibbon({
           {t("dashboard.clientOffer.askQuestion")}
         </a>
       </div>
+      {finalizing && (
+        <div style={{ marginTop: 8, fontSize: 12, color: C.inkMuted }}>
+          {t("dashboard.clientOffer.finalizingDecision")}
+        </div>
+      )}
 
       {confirming === "approve" && (
         <ApproveDrawer
@@ -663,6 +679,7 @@ function DecisionRibbon({
           tenantSlug={tenantSlug}
           onClose={() => setConfirming(null)}
           onAfterAction={onAfterAction}
+          onFinalize={() => setFinalizing(true)}
         />
       )}
       {confirming === "counter" && (
@@ -679,6 +696,7 @@ function DecisionRibbon({
           tenantSlug={tenantSlug}
           onClose={() => setConfirming(null)}
           onAfterAction={onAfterAction}
+          onFinalize={() => setFinalizing(true)}
         />
       )}
     </>
@@ -780,11 +798,14 @@ function ApproveDrawer({
   tenantSlug,
   onClose,
   onAfterAction,
+  onFinalize,
 }: {
   details: ClientInquiryDetails;
   tenantSlug: string;
   onClose: () => void;
   onAfterAction?: () => void;
+  /** Fired on success so the parent ribbon locks against a second decision. */
+  onFinalize?: () => void;
 }) {
   const t = useT();
   const offer = details.offer!;
@@ -796,10 +817,11 @@ function ApproveDrawer({
 
   useEffect(() => {
     if (state.kind === "approved") {
+      onFinalize?.();
       onAfterAction?.();
       onClose();
     }
-  }, [state, onClose, onAfterAction]);
+  }, [state, onClose, onAfterAction, onFinalize]);
 
   // ESC close
   useEffect(() => {
@@ -859,7 +881,7 @@ function ApproveDrawer({
         {offer.commercialTerms && (
           <SummaryRow
             label={t("dashboard.clientOffer.refunds")}
-            value={REFUND_POLICY_LABELS[offer.commercialTerms.refundPolicy]}
+            value={t(REFUND_POLICY_LABEL_KEYS[offer.commercialTerms.refundPolicy])}
           />
         )}
         <Hint>
@@ -903,11 +925,14 @@ function DeclineDrawer({
   tenantSlug,
   onClose,
   onAfterAction,
+  onFinalize,
 }: {
   details: ClientInquiryDetails;
   tenantSlug: string;
   onClose: () => void;
   onAfterAction?: () => void;
+  /** Fired on success so the parent ribbon locks against a second decision. */
+  onFinalize?: () => void;
 }) {
   const t = useT();
   const offer = details.offer!;
@@ -921,10 +946,11 @@ function DeclineDrawer({
 
   useEffect(() => {
     if (state.kind === "rejected") {
+      onFinalize?.();
       onAfterAction?.();
       onClose();
     }
-  }, [state, onClose, onAfterAction]);
+  }, [state, onClose, onAfterAction, onFinalize]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

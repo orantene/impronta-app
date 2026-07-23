@@ -10,11 +10,16 @@
  * anchored popover that lets the client choose:
  *
  *   Add {firstName} to:
- *     • [existing inquiry · N talents · status]   → captureGuestChip(kind:"talent")
+ *     • [existing DRAFT inquiry · N talents · status]  → captureGuestChip(kind:"talent")
  *                                                    appending the focused talent to
  *                                                    that inquiry's lineup
  *   + Start a new inquiry with just {firstName}   → useInquiryProjectPark.startSeparateInquiry
  *                                                    (park current lineup + seed the new one)
+ *
+ * FREEZE ON SEND (decision D3): only DRAFT inquiries are offered as add-targets.
+ * Once an inquiry is sent its lineup is frozen (captureGuestChip refuses non-draft
+ * writes server-side), so sent threads are filtered out of the add-list and a
+ * plain-language hint points the guest at starting a new inquiry instead.
  *
  * Why this lives in its own component (not inline in TalentProfileChatLauncher):
  *   • It owns the lazy enrichment of the resolver's MINIMAL otherOpenInquiries
@@ -41,11 +46,12 @@ import type {
 } from "@/lib/inquiry/guest-chat-contract";
 import type { OtherOpenInquiry } from "@/lib/inquiry/inquiry-context-resolver";
 import type { Translator } from "@/i18n/interpolate";
+import { interpolate } from "@/i18n/interpolate";
 import type { TalentCardRef } from "@/lib/talent-cards/contracts";
 
 import { InquiryProjectPicker } from "./InquiryProjectPicker";
 import { useInquiryProjectPark } from "./use-inquiry-project-park";
-import type { SurfaceMode } from "./mini-chat-styles";
+import { FONT, paletteFor, type SurfaceMode } from "./mini-chat-styles";
 
 export type LauncherProjectPickerProps = {
   /** The focused talent the picker adds (profile/card in view). */
@@ -105,6 +111,22 @@ export function LauncherProjectPicker({
 
   const [summaries, setSummaries] = useState<GuestInquirySummary[] | null>(null);
 
+  // FREEZE ON SEND (decision D3): only a private DRAFT inquiry can take a lineup
+  // change. captureGuestChip now refuses any non-draft write server-side, so
+  // offering a SENT thread as an add-target would only ever produce a silent
+  // refusal. We therefore split the enriched set: drafts are the real add-targets
+  // (the picker rows), and the presence of any sent thread drives a plain-language
+  // hint ("start a new inquiry to add {name}"). This keeps the whole fix inside
+  // this seam — the presentational InquiryProjectPicker stays lineup-agnostic.
+  const draftTargets = useMemo(
+    () => (summaries ?? []).filter((s) => s.isDraft),
+    [summaries],
+  );
+  const hasSentOthers = useMemo(
+    () => (summaries ?? []).some((s) => !s.isDraft),
+    [summaries],
+  );
+
   useEffect(() => {
     let cancelled = false;
     const openIds = new Set(openIdsKey ? openIdsKey.split(",") : []);
@@ -142,17 +164,20 @@ export function LauncherProjectPicker({
     ensureInquiry: onEnsureInquiry,
   });
 
-  // Add the focused talent to an EXISTING inquiry's lineup. captureGuestChip
+  // Add the focused talent to an EXISTING DRAFT inquiry's lineup. captureGuestChip
   // (kind:"talent") has REPLACE semantics on selected_ids, so append the focused
   // talent to the target's current lineup and write the full set. Idempotent: if
   // the talent is somehow already on that lineup we write the unchanged set.
+  // Only draftTargets are ever passed to the picker, so a non-draft target here is
+  // defensive — a frozen inquiry never takes a chip write from this seam.
   const handleAddToInquiry = async (inquiryId: string): Promise<{ ok: boolean }> => {
-    const target = (summaries ?? []).find((s) => s.inquiryId === inquiryId);
-    const existingIds = target ? target.lineup.map((f) => f.talentProfileId) : [];
+    const target = draftTargets.find((s) => s.inquiryId === inquiryId);
+    if (!target) return { ok: false };
+    const existingIds = target.lineup.map((f) => f.talentProfileId);
     const nextIds = existingIds.includes(focusedTalentId)
       ? existingIds
       : [...existingIds, focusedTalentId];
-    const existingNames = target ? target.lineup.map((f) => f.displayName) : [];
+    const existingNames = target.lineup.map((f) => f.displayName);
     const nextNames = existingIds.includes(focusedTalentId)
       ? existingNames
       : [...existingNames, displayName];
@@ -181,19 +206,41 @@ export function LauncherProjectPicker({
   };
 
   // Until the enrichment resolves (or when it resolves empty), render nothing so
-  // the picker never flashes an empty popover. The resolver already guarantees
-  // at least one other-open inquiry, so an empty result is a transient cold read.
-  if (!summaries || summaries.length === 0) return null;
+  // the picker never flashes an empty popover. The resolver already guarantees at
+  // least one other-open inquiry, so an empty result is a transient cold read.
+  // With freeze-on-send the picker only earns its keep when there is at least one
+  // DRAFT to add to; when every other inquiry is already sent there is nothing to
+  // append to, so we stay hidden and the guest starts a fresh inquiry from the pill.
+  if (!summaries || draftTargets.length === 0) return null;
+
+  const C = paletteFor(surfaceMode);
 
   return (
-    <InquiryProjectPicker
-      firstName={firstName}
-      openInquiries={summaries}
-      onAddToInquiry={handleAddToInquiry}
-      onStartNew={handleStartNew}
-      accent={accent}
-      surfaceMode={surfaceMode}
-      t={t}
-    />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+      <InquiryProjectPicker
+        firstName={firstName}
+        openInquiries={draftTargets}
+        onAddToInquiry={handleAddToInquiry}
+        onStartNew={handleStartNew}
+        accent={accent}
+        surfaceMode={surfaceMode}
+        t={t}
+      />
+      {hasSentOthers && (
+        <span
+          role="note"
+          style={{
+            maxWidth: 240,
+            fontSize: 11,
+            lineHeight: 1.35,
+            color: C.inkMuted,
+            fontFamily: FONT,
+            textAlign: "right",
+          }}
+        >
+          {interpolate(t("public.guestChat.pickerSentLockedHint"), { name: firstName })}
+        </span>
+      )}
+    </div>
   );
 }

@@ -6,6 +6,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useT } from "@/i18n/use-t";
 
 // ─── HQ design tokens (dark surface) ─────────────────────────────────────────
 
@@ -23,22 +24,23 @@ const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui,
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "today",      label: "Today",       segment: "today"      },
-  { id: "tenants",    label: "Tenants",     segment: "tenants"    },
-  { id: "users",      label: "Users",       segment: "users"      },
-  { id: "network",    label: "Network",     segment: "network"    },
-  { id: "billing",    label: "Billing",     segment: "billing"    },
-  { id: "pricing",    label: "Pricing",     segment: "pricing"    },
-  { id: "operations", label: "Operations",  segment: "operations" },
-  { id: "integrations", label: "Integrations", segment: "integrations" },
-  { id: "email",      label: "Email",       segment: "email"      },
-  { id: "catalog",    label: "Profile Fields", segment: "catalog" },
-  { id: "taxonomy",   label: "Taxonomy",    segment: "taxonomy"   },
-  { id: "languages",  label: "Languages",   segment: "languages"  },
-  { id: "translations", label: "Translations", segment: "translations" },
-  { id: "builder-lab", label: "Builder Lab", segment: "builder-lab" },
-  { id: "settings",   label: "Settings",    segment: "settings"   },
-  { id: "audit-log", label: "Audit Log",   segment: "audit-log" },
+  { id: "today",      labelKey: "dashboard.platform.nav.today",        segment: "today"      },
+  { id: "tenants",    labelKey: "dashboard.platform.nav.tenants",      segment: "tenants"    },
+  { id: "users",      labelKey: "dashboard.platform.nav.users",        segment: "users"      },
+  { id: "network",    labelKey: "dashboard.platform.nav.network",      segment: "network"    },
+  { id: "billing",    labelKey: "dashboard.platform.nav.billing",      segment: "billing"    },
+  { id: "pricing",    labelKey: "dashboard.platform.nav.pricing",      segment: "pricing"    },
+  { id: "operations", labelKey: "dashboard.platform.nav.operations",   segment: "operations" },
+  { id: "integrations", labelKey: "dashboard.platform.nav.integrations", segment: "integrations" },
+  { id: "ai-providers", labelKey: "dashboard.platform.nav.aiProviders", segment: "ai-providers" },
+  { id: "email",      labelKey: "dashboard.platform.nav.email",        segment: "email"      },
+  { id: "catalog",    labelKey: "dashboard.platform.nav.catalog",      segment: "catalog" },
+  { id: "taxonomy",   labelKey: "dashboard.platform.nav.taxonomy",     segment: "taxonomy"   },
+  { id: "languages",  labelKey: "dashboard.platform.nav.languages",    segment: "languages"  },
+  { id: "translations", labelKey: "dashboard.platform.nav.translations", segment: "translations" },
+  { id: "builder-lab", labelKey: "dashboard.platform.nav.builderLab",  segment: "builder-lab" },
+  { id: "settings",   labelKey: "dashboard.platform.nav.settings",     segment: "settings"   },
+  { id: "audit-log", labelKey: "dashboard.platform.nav.auditLog",      segment: "audit-log" },
 ] as const;
 
 const BASE = "/platform/admin";
@@ -47,6 +49,7 @@ const BASE = "/platform/admin";
 
 export function PlatformTopbar() {
   const pathname = usePathname();
+  const t = useT();
 
   // Active segment: /platform/admin/tenants → "tenants"
   const after = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : "";
@@ -121,7 +124,7 @@ export function PlatformTopbar() {
 
         {/* Page nav */}
         <nav
-          aria-label="Platform sections"
+          aria-label={t("dashboard.platform.nav.ariaLabel")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -159,7 +162,7 @@ export function PlatformTopbar() {
                   transition: "color 100ms",
                 }}
               >
-                {tab.label}
+                {t(tab.labelKey)}
 
                 {/* Active underline */}
                 <span

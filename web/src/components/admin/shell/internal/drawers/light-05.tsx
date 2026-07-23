@@ -9,6 +9,7 @@ import {
   Avatar,
   Bullet,
   COLORS,
+  accentAlpha,
   DrawerShell,
   FONTS,
   FieldRow,
@@ -175,7 +176,7 @@ export function DomainDrawer() {
         <Section title="Custom domain" description="Run your storefront at your own brand's domain.">
           <div style={{
             padding: "16px 16px", borderRadius: 10,
-            background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}20`,
+            background: COLORS.accentSoft, border: `1px solid ${accentAlpha("20")}`,
             display: "flex", flexDirection: "column", gap: 10,
           }}>
             <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>

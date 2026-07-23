@@ -43,6 +43,13 @@ export type TalentCardAspect = "4:5" | "1:1" | "3:4" | "16:9";
 
 export type TalentCardNameFallback = "code" | "role" | "first_name" | "hidden";
 
+/**
+ * Grid density signal, threaded from the directory section's `density` knob.
+ * `"comfortable"` (default) keeps the original spacing; `"compact"` tightens
+ * the caption padding + name size so a denser column count reads cleanly.
+ */
+export type TalentCardDensity = "comfortable" | "compact";
+
 export type TalentCardShow = {
   showName: boolean;
   showTalentType: boolean;
@@ -70,6 +77,12 @@ export type TalentCardProps = {
   /** First grid row → LCP priority. */
   priority?: boolean;
   index?: number;
+  /**
+   * Grid density. `"comfortable"` (default) is the original spacing; `"compact"`
+   * tightens the caption padding + name size so a denser layout reads cleanly.
+   * Prop-driven so the card stays pure — no ancestor CSS descendant reads.
+   */
+  density?: TalentCardDensity;
   /**
    * Root behavior. `"link"` (default) → a `<Link>` to `data.profileHref`.
    * `"button"` → a `role="button"` div that fires `onActivate` on click /
@@ -103,6 +116,19 @@ export type TalentCardProps = {
   availabilitySlot?: ReactNode;
   secondaryActionSlot?: ReactNode;
   badgeSlot?: ReactNode;
+  /**
+   * Standing-chip visibility escape hatch. `"auto"` (default) keeps the
+   * existing behavior: the chip renders with the `data-card-standing` hook
+   * and stays gated by the `html[data-token-card-standing]` CSS rule in
+   * token-presets.css (so it's silent on any surface that hasn't opted the
+   * `<html>` root into a standing token). `"always"` is for surfaces that
+   * resolve the reviews entitlement themselves server-side (e.g. the
+   * cross-tenant Discover grid, which has no single tenant token to read) —
+   * it swaps the wrapper to `data-card-standing-shown` so the CSS gate
+   * doesn't apply, while still requiring the same credibility-floor data
+   * check inside the chip.
+   */
+  showStanding?: "auto" | "always";
 };
 
 /**

@@ -34,6 +34,7 @@ import {
 import { GoogleFontsLink } from "./google-fonts-link";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
+import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
 import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { PwaServiceWorkerRegister } from "@/components/pwa/sw-register";
@@ -98,8 +99,12 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  // Marketing apex base so the inherited `opengraph-image` file-route and any
+  // relative canonical resolve to tulala.digital, not the request host. Every
+  // non-marketing surface overrides this in its own generateMetadata.
+  metadataBase: new URL(`https://${PLATFORM_BRAND.domain}`),
   title: {
-    default: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
+    default: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
     template: `%s · ${PLATFORM_BRAND.name}`,
   },
   description: PLATFORM_BRAND.description,
@@ -112,16 +117,22 @@ export const metadata: Metadata = {
     title: PLATFORM_BRAND.name,
     statusBarStyle: "default",
   },
+  // Google Search Console ownership for the https://tulala.digital/ URL-prefix
+  // property. Not a secret: it is served in the public <head> by design, and
+  // Google requires it to stay in place or the property silently un-verifies.
+  verification: {
+    google: "AT_7Nj7SfihEJhb9W1jP4oFW5fyoguijnMpqpIN7x0k",
+  },
   openGraph: {
     siteName: PLATFORM_BRAND.name,
-    title: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
+    title: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
     description: PLATFORM_BRAND.description,
     url: `https://${PLATFORM_BRAND.domain}/`,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
+    title: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
     description: PLATFORM_BRAND.description,
   },
 };
@@ -186,6 +197,11 @@ export default async function RootLayout({
         {/* Tenant custom code — head snippet. Storefront-only (publicScope),
             entitlement + status gated inside the resolver. */}
         {publicScope && <TenantCustomCodeHead tenantId={publicScope.tenantId} />}
+        {/* Platform JSON-LD (Organization + WebSite + SoftwareApplication).
+            Emitted on the platform/marketing surface only; `publicScope` is
+            non-null solely for tenant-resolved storefront requests, where the
+            Tulala Organization entity would be wrong. */}
+        {!publicScope && <PlatformJsonLd />}
         {/* Phase 13 — load tenant Google Fonts when picker tokens set. */}
         <GoogleFontsLink tokens={designTokens} />
         {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
@@ -200,6 +216,10 @@ export default async function RootLayout({
           metaPixelId={tenantAnalytics?.metaPixelId}
           tiktokPixelId={tenantAnalytics?.tiktokPixelId}
           linkedInPartnerId={tenantAnalytics?.linkedInPartnerId}
+          // Tenant id → GA4 `tenant_id` custom dimension. Only present on
+          // storefront requests (publicScope non-null); platform/marketing
+          // surface sends no tenant_id.
+          tenantId={publicScope?.tenantId}
         />
         <WebVitalsReporter />
         <CspViolationReporter />

@@ -9,10 +9,13 @@
  *      element. The overlay hosts the same `RichEditor` primitive used by
  *      the inspector — same toolbar, same marker round-trip, same
  *      brand-accent token, same Cmd-B / Cmd-I / Cmd-K shortcuts. On
- *      Enter / outside-click / blur the overlay commits via
+ *      Enter / outside-click / blur / Escape the overlay commits via
  *      `findPathByValue` against the active section's draft props (the
  *      inspector's autosave loop does the round-trip + CAS +
- *      router.refresh()). Escape reverts.
+ *      router.refresh()). W1-L3 — Escape now COMMITS (keeps the typed text,
+ *      undoable via ⌘Z) instead of silently discarding; on a server-rendered
+ *      canvas every commit also optimistically repaints the target element so
+ *      the edit is visible immediately, not after the deferred refresh.
  *
  *   2. Hover an `<img>` → a floating "Replace" pill appears near the top-
  *      right of the image. Click it → MediaPickerDialog opens. On pick we
@@ -43,7 +46,10 @@ import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
 import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
+import { isAnyBuilderNodeCanvasMounted } from "./client-builder-canvas-bridge";
+import { applyOptimisticInlineRepaint } from "./inline-editor-repaint";
 import { useInlineEditorCommitHandoff } from "./use-inline-editor-commit-handoff";
+import { dismissCoachmark } from "./builder-coachmarks";
 import {
   findBuilderNodeById,
   resolveBuilderNodeTextValue,
@@ -53,8 +59,10 @@ import {
 } from "./inline-editor-builder-resolvers";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { useActiveContentLocale } from "./active-content-locale-bridge";
-import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
-import { setOverlayProp } from "@/lib/site-admin/builder-node/i18n-overlay";
+import {
+  useInlineTextCommit,
+  type InlineBuilderNodeTextTarget,
+} from "./use-inline-text-commit";
 
 type Banner =
   | { kind: "none" }
@@ -66,19 +74,9 @@ interface ActiveTextEdit {
   original: string;
   variant: "single" | "multi";
   resyncKey?: number;
-  builderNode?: {
-    id: string;
-    propKey: "text" | "label" | "title" | "brand";
-    /** Patches `section_embed.props.config[sectionEmbedConfigKey]` when set. */
-    sectionEmbedConfigKey?: string;
-    /**
-     * WS5 — the content locale this edit authors, captured when the overlay
-     * opened. Default locale → writes the base prop; a secondary locale →
-     * writes `node.i18n[locale][propKey]`. `sectionEmbedConfigKey` edits stay
-     * base-only (curated section_embed config has no per-element overlay).
-     */
-    locale: string;
-  };
+  /** W1-L3 — shape shared with the extracted commit hook (locale semantics
+   *  documented on `InlineBuilderNodeTextTarget`). */
+  builderNode?: InlineBuilderNodeTextTarget;
 }
 
 interface TargetImageEdit {
@@ -164,110 +162,19 @@ export function InlineEditor() {
     selectedIdRef.current = selectedSectionId;
   }, [selectedSectionId]);
 
-  // ── text commit helpers ──────────────────────────────────────────────
-  const commitText = useCallback(
-    (original: string, next: string) => {
-      if (next === original) return;
-      const tree = draftPropsRef.current;
-      if (!tree) return;
-      const hit = findPathByValue(tree, original);
-      if (!hit) {
-        setBanner({
-          kind: "error",
-          text: "Couldn't find this text to save. Open the inspector to edit this field.",
-        });
-        return;
-      }
-      if (hit.occurrences > 1) {
-        setBanner({
-          kind: "error",
-          text: "This text appears more than once in this section — edit it from the inspector to disambiguate.",
-        });
-        return;
-      }
-      const updated = setByPath(tree, hit.path, next);
-      setDraftProps(updated);
-      setDirty(true);
-    },
-    [setDraftProps, setDirty],
-  );
-
-  const commitBuilderNodeText = useCallback(
-    async (
-      target: NonNullable<ActiveTextEdit["builderNode"]>,
-      original: string,
-      next: string,
-    ) => {
-      if (next === original) return;
-      if (next.trim().length === 0) {
-        setBanner({
-          kind: "error",
-          text: "This block cannot be saved empty. Use delete if you want to remove it.",
-        });
-        return;
-      }
-      if (target.sectionEmbedConfigKey) {
-        const node = findBuilderNodeById(builderTreeRef.current, target.id);
-        if (!node || node.kind !== "section_embed") {
-          setBanner({
-            kind: "error",
-            text: "Couldn't find this Tulala component to save.",
-          });
-          return;
-        }
-        const config = {
-          ...((node.props.config ?? {}) as Record<string, unknown>),
-          [target.sectionEmbedConfigKey]: next.trim(),
-        };
-        const result = await patchBuilderNodeProps(target.id, { config });
-        if (!result.ok) {
-          const text = result.error ?? "Couldn't save this block. Try the inspector.";
-          reportMutationError(text);
-          setBanner({ kind: "error", text });
-        }
-        return;
-      }
-
-      // WS5 — Behavior 3: when a secondary content locale is active and this is
-      // a localizable prop, the edit writes the per-element translation overlay
-      // (`node.i18n[locale][prop]`) instead of the base/default-locale prop. The
-      // canvas re-resolves through `resolveNodeProp`, so the node flips to full
-      // opacity + a green dot. The default locale (and any non-localizable prop)
-      // keeps writing the base prop exactly as before → byte-identical.
-      const node = findBuilderNodeById(builderTreeRef.current, target.id);
-      if (
-        node &&
-        target.locale !== defaultLocale &&
-        isLocalizableProp(node.kind, target.propKey)
-      ) {
-        const nextOverlay = setOverlayProp(
-          node.i18n,
-          target.locale,
-          target.propKey,
-          next.trim(),
-        );
-        const result = await patchBuilderNodeProps(target.id, {
-          i18n: nextOverlay,
-        });
-        if (!result.ok) {
-          const text = result.error ?? "Couldn't save this translation. Try the inspector.";
-          reportMutationError(text);
-          setBanner({ kind: "error", text });
-        }
-        return;
-      }
-
-      const result = await patchBuilderNodeProps(target.id, {
-        [target.propKey]: next.trim(),
-      });
-      if (!result.ok) {
-        const text = result.error ?? "Couldn't save this block. Try the inspector.";
-        reportMutationError(text);
-        setBanner({ kind: "error", text });
-      }
-    },
-    [patchBuilderNodeProps, reportMutationError, defaultLocale],
-  );
+  // ── text commit helpers (W1-L3 — extracted to use-inline-text-commit.ts) ──
+  // Both return whether the edit was actually APPLIED, so `endActiveEdit` can
+  // trigger the optimistic canvas repaint only when something really changed.
+  const { commitText, commitBuilderNodeText } = useInlineTextCommit({
+    draftPropsRef,
+    builderTreeRef,
+    defaultLocale,
+    patchBuilderNodeProps,
+    reportMutationError,
+    setBanner,
+    setDraftProps,
+    setDirty,
+  });
 
   // ── text editing driver ──────────────────────────────────────────────
   useEffect(() => {
@@ -373,6 +280,11 @@ export function InlineEditor() {
         e.preventDefault();
         e.stopPropagation();
         selectBuilderNode(builderNodeTarget.id);
+        // The operator just performed the exact gesture the "double-click any
+        // text to edit it inline" coachmark teaches — dismiss it now so it
+        // doesn't dangle near the text once the edit overlay opens over it
+        // (P2 chrome hygiene: see builder-coachmark-tip.tsx's live-dismiss sub).
+        dismissCoachmark("double-click-edit");
         setActiveEdit({
           el: editable,
           original,
@@ -407,6 +319,8 @@ export function InlineEditor() {
       const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
         ? "single"
         : "multi";
+      // Same gesture-taught dismiss as the freeform builder-node path above.
+      dismissCoachmark("double-click-edit");
       setActiveEdit({ el: editable, original, variant });
     }
 
@@ -417,24 +331,40 @@ export function InlineEditor() {
   }, [selectBuilderNode]);
 
   // QA 2026-05-13 — wrapped in useCallback so child surfaces that memoize
-  // `onCommit` / `onCancel` props don't capture a stale closure between
-  // double-click and blur. Deps include `activeEdit` since the body reads it;
-  // both commit fns are stable across renders.
+  // `onCommit` don't capture a stale closure between double-click and blur. Deps
+  // include `activeEdit` since the body reads it; both commit fns are stable
+  // across renders. W1-L3 — `commit` is always true from current callers (blur /
+  // Enter / Escape all commit); the param is kept for the general contract.
   const endActiveEdit = useCallback(
     async (commit: boolean, next?: string): Promise<void> => {
       if (!activeEdit) return;
       void flushCanvasTextStylePatches();
       if (commit && next !== undefined) {
+        let applied = false;
         if (activeEdit.builderNode) {
           // CANVAS-7B — AWAIT the node-history commit so the undo-handoff can
           // guarantee the typed text is in `past` before a node-level undo.
-          await commitBuilderNodeText(
+          applied = await commitBuilderNodeText(
             activeEdit.builderNode,
             activeEdit.original,
             next,
           );
         } else {
-          commitText(activeEdit.original, next);
+          applied = commitText(activeEdit.original, next);
+        }
+        // W1-L3 — OPTIMISTIC REPAINT. On the default (flag-off) freeform surface
+        // the visible canvas is SERVER-rendered and reads neither the live client
+        // tree nor the canvas bridge, so a committed edit would show stale text
+        // until the deferred save-time `router.refresh()` (the "edit vanished"
+        // report). When no client canvas is mounted, write the committed value
+        // into the target element we already hold; the later refresh reconciles
+        // the identical text (the element carries `suppressHydrationWarning`). A
+        // client-canvas-mounted surface repaints via the tree bridge, so we skip
+        // the manual write there to avoid fighting React.
+        if (applied && !isAnyBuilderNodeCanvasMounted()) {
+          applyOptimisticInlineRepaint(activeEdit.el, next, {
+            rich: !activeEdit.builderNode?.sectionEmbedConfigKey,
+          });
         }
       }
       setActiveEdit(null);
@@ -607,7 +537,7 @@ export function InlineEditor() {
       if (hit.occurrences > 1) {
         setBanner({
           kind: "error",
-          text: "This image URL appears more than once in this section — replace it from the inspector.",
+          text: "This image URL appears more than once in this section. Replace it from the inspector.",
         });
         return;
       }
@@ -712,7 +642,7 @@ export function InlineEditor() {
           className={`pointer-events-auto rounded-md px-3 py-2 text-xs font-medium shadow-lg ${
             banner.kind === "error"
               ? "bg-amber-50 text-amber-800 border border-amber-200"
-              : "bg-[#3d4f7c] text-white"
+              : "bg-violet-600 text-white"
           }`}
         >
           {banner.text}
@@ -728,7 +658,6 @@ export function InlineEditor() {
           tenantId={tenantId ?? undefined}
           commitRef={overlayCommitRef}
           onCommit={(next) => runCommit(next)}
-          onCancel={() => void endActiveEdit(false)}
         />
       ) : null}
 

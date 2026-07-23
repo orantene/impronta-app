@@ -8,6 +8,8 @@
 import { loadFieldGroupDetail } from "../../../group/group-detail-data";
 import { FieldDrawer } from "../../../field-drawer";
 import { GroupDetailView } from "../../../group/group-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +23,12 @@ export default async function InterceptedGroupDrawer({
   const { groupId } = await params;
   const { saved, error } = await searchParams;
   const group = await loadFieldGroupDetail(groupId);
+  const t = createTranslator(await getRequestLocale());
+  const K = "dashboard.platform.catalog";
 
   return (
-    <FieldDrawer title="Field group" ariaLabel="Field group editor">
-      <GroupDetailView group={group} saved={saved} error={error} variant="drawer" />
+    <FieldDrawer title={t(`${K}.createFieldGroup`)} ariaLabel={t(`${K}.groupDrawerAriaEditor`)}>
+      <GroupDetailView group={group} saved={saved} error={error} variant="drawer" t={t} />
     </FieldDrawer>
   );
 }

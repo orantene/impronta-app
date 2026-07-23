@@ -3,6 +3,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 
 /**
  * Tenant-aware email brand resolution.
@@ -65,7 +66,7 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
   let brand = platformBrand();
   try {
     const [agencyRes, domainRes, identityRes] = await Promise.all([
-      admin.from("agencies").select("display_name, slug").eq("id", tenantId).maybeSingle(),
+      admin.from("agencies").select("display_name, slug, plan_tier").eq("id", tenantId).maybeSingle(),
       admin
         .from("agency_domains")
         .select("hostname")
@@ -79,13 +80,20 @@ export async function resolveTenantBrand(tenantId: string | null): Promise<Email
         .maybeSingle(),
     ]);
 
-    const agency = agencyRes.data as { display_name?: string | null; slug?: string | null } | null;
+    const agency = agencyRes.data as {
+      display_name?: string | null;
+      slug?: string | null;
+      plan_tier?: string | null;
+    } | null;
     const primaryHost = (domainRes.data as { hostname?: string | null } | null)?.hostname ?? null;
     const locale = normalizeLocale(
       (identityRes.data as { default_locale?: string | null } | null)?.default_locale,
     );
 
-    if (agency?.display_name) {
+    // Agency-branded email only on a whitelabel tier (Agency / Network);
+    // otherwise the email stays Tulala-branded (platform default), keeping the
+    // resolved locale so the template still renders in the tenant's language.
+    if (agency?.display_name && planTierHasWhitelabel(agency.plan_tier)) {
       brand = {
         wordmark: agency.display_name.toUpperCase(),
         accountName: agency.display_name,

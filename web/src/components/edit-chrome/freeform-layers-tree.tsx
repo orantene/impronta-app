@@ -33,6 +33,11 @@ import { useBuilderTree } from "./builder-tree-bridge";
 import { useHoveredBuilderNodeId } from "./hover-bridge";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { FreeformInsertPopover } from "./freeform-insert-popover";
+import { generateBuilderNodesAction } from "@/lib/site-admin/builder-core/ai/generate-nodes-action";
+import {
+  starterSurfaceForKind,
+  textToPageSurfaceForStarterSurface,
+} from "./empty-canvas-starter-surface";
 import {
   BUILDER_NODE_REGISTRY,
   gateNestedInsertKinds,
@@ -47,7 +52,7 @@ import {
   resolveLayerDisplayName,
   resolveResponsiveOverrides,
   type ResponsiveOverrideSummary,
-} from "./freeform-layer-name";
+} from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { filterFreeformRowsWithAncestors } from "./navigator-layer-search";
 import {
   useNavigatorDisclosure,
@@ -155,8 +160,22 @@ function findFirstContainer(nodes: ReadonlyArray<BuilderNode>): BuilderNode | nu
 }
 
 /**
- * Flatten the tree to indented rows in document order. When the single root is a
- * layout wrapper container, its children start at depth 0 (not nested under it).
+ * Flatten the tree to indented rows in document order.
+ *
+ * W1-L1 — depth is a STABLE function of each node's real position in the tree:
+ * a node always renders at its true nesting level and its container always keeps
+ * its own row. This intentionally does NOT special-case "the whole page is one
+ * wrapper container" by hoisting that wrapper's children to depth 0. That hoist
+ * was keyed on `tree.length === 1`, so it flipped ON/OFF as the root count
+ * changed — and a delete that collapsed a multi-root page down to a single
+ * container root would suddenly lift THAT survivor's children to page level and
+ * hide its wrapper row. To the operator this read as "deleting a section
+ * unwrapped its children into page-level orphans" (P0, audit 2026-07-09), even
+ * though the tree data was intact and the canvas was unchanged — a pure layers
+ * panel artifact. Rendering the real nesting removes the flip entirely: deleting
+ * one node never changes where any other node appears. A lone container root
+ * still reads cleanly because `resolveLayerDisplayName` borrows the heading it
+ * wraps for the row name (not a bare "Container").
  */
 export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
   const rows: LayerRow[] = [];
@@ -202,38 +221,11 @@ export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
     return subtreeIds;
   };
 
-  // A freeform full-page design is usually a single wrapper container holding
-  // the whole page. Hoist its children to the top level so the list reads as a
-  // page of blocks, not one giant root. Only collapse a *container* root (it's
-  // the structural page wrapper); a lone section/block root stays visible.
-  const onlyRoot =
-    tree.length === 1 &&
-    tree[0] &&
-    tree[0].kind === "container" &&
-    "children" in tree[0] &&
-    Array.isArray(tree[0].children) &&
-    tree[0].children.length > 0
-      ? tree[0]
-      : null;
-
-  if (onlyRoot && "children" in onlyRoot && Array.isArray(onlyRoot.children)) {
-    // The hoisted wrapper has NO row of its own, so the header must target it by
-    // id + its real child kinds — else the kind-gated pill never renders. The
-    // hoisted children's real parent IS the wrapper, so the drop resolver routes
-    // a depth-0 reorder back through it (not the page root).
-    walk(onlyRoot.children, 0, onlyRoot.id, onlyRoot.kind, onlyRoot.locked === true);
-    return {
-      rows,
-      rootContainerId: onlyRoot.id,
-      rootContainerKinds: rawChildKindsForKind(onlyRoot.kind),
-      descendantsByNode,
-    };
-  }
-
   walk(tree, 0, null, null, false);
-  // No hoisted wrapper: target the first container ANYWHERE (a page may nest its
-  // only container under a section). With none, target tree root (`null`) + the
-  // container catalog so the operator can still seed a first block.
+  // The "+ Add block" header appends into the first container ANYWHERE in the
+  // tree (a page's only container may be nested under a section/wrapper). With no
+  // container at all, target the tree root (`null`) + the container catalog so
+  // the operator can still seed a first block.
   const firstContainer = findFirstContainer(tree);
   return {
     rows,
@@ -349,12 +341,19 @@ export function FreeformLayersTree({
     removeBuilderNode,
     insertBuilderNode,
     insertBuilderSectionEmbed,
+    insertBuilderComponent,
     patchBuilderNodeProps,
     reportMutationError,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
     setHoveredBuilderNodeId,
+    surfaceKind,
   } = useEditContext();
+  // "Generate a section with AI" reuses the same surface split the blank-canvas
+  // starter uses, so the insert-popover generator inherits the audience preset.
+  const aiSurface = textToPageSurfaceForStarterSurface(
+    starterSurfaceForKind(surfaceKind),
+  );
   const builderTree = useBuilderTree(); // WS2 — value from the tree micro-store
   const hoveredBuilderNodeId = useHoveredBuilderNodeId(); // W2-T3 — value from the bridge
   const selectedBuilderNodeId = useSelectedBuilderNodeId(); // W2 (selection-bridge) — value from the micro-store
@@ -486,6 +485,37 @@ export function FreeformLayersTree({
     (parentId: string | null, sectionTypeKey: string) =>
       runInsert(() => insertBuilderSectionEmbed(parentId, sectionTypeKey)),
     [insertBuilderSectionEmbed, runInsert],
+  );
+
+  // "Generate a section with AI" from the insert popover. Composes ONE section
+  // from the brief and inserts it as an editable subtree at the target (re-minted
+  // ids, undo + autosave via insertBuilderComponent). Not routed through
+  // runInsert: the popover must stay open through the async call so it can show
+  // pending + surface an inline error, and closes itself on success.
+  const handleGenerateSection = useCallback(
+    async (brief: string): Promise<{ ok: boolean; error?: string }> => {
+      const composed = await generateBuilderNodesAction({
+        brief,
+        scope: "section",
+        surface: aiSurface,
+        // AIQ-12 — active theme background mode → model color guidance (see action).
+        backgroundMode:
+          document.documentElement.getAttribute("data-token-background-mode") ?? undefined,
+      });
+      if (!composed.ok) return { ok: false, error: composed.error };
+      const section = composed.builderTree[0];
+      if (!section) return { ok: false, error: "The AI did not return a section." };
+      // A section is only valid at the page root, so append it there (not under
+      // the popover's nested parent).
+      const result = await insertBuilderComponent(null, JSON.stringify(section));
+      if (!result.ok) {
+        return { ok: false, error: result.error ?? "Could not insert the section." };
+      }
+      setInsertTarget(null);
+      if (result.nodeId) selectBuilderNode(result.nodeId);
+      return { ok: true };
+    },
+    [aiSurface, insertBuilderComponent, selectBuilderNode],
   );
 
   const handleMove = useCallback(
@@ -723,6 +753,7 @@ export function FreeformLayersTree({
           onPickSectionEmbed={(sectionTypeKey) =>
             void handleInsertSectionEmbed(insertTarget.parentId, sectionTypeKey)
           }
+          onGenerateSection={handleGenerateSection}
           onDismiss={() => setInsertTarget(null)}
         />
       ) : null}
@@ -841,7 +872,7 @@ export function FreeformLayersTree({
                 : row.locked
                   ? "inset 3px 0 0 rgba(250,174,0,0.5)"
                   : canvasHovered
-                    ? "inset 3px 0 0 rgba(61,79,124,0.45)"
+                    ? "inset 3px 0 0 rgba(124,58,237,0.45)"
                     : "none",
               transition: "background 140ms ease, box-shadow 140ms ease, color 80ms ease",
             }}
@@ -1061,12 +1092,12 @@ function HeaderAddButton({
         height: 24,
         padding: "0 9px 0 7px",
         borderRadius: 999,
-        border: `1px solid ${lit ? "rgba(61,79,124,0.45)" : "rgba(61,79,124,0.28)"}`,
+        border: `1px solid ${lit ? "rgba(124,58,237,0.45)" : "rgba(124,58,237,0.28)"}`,
         background: disabled
           ? "transparent"
           : lit
-            ? "rgba(61,79,124,0.14)"
-            : "rgba(61,79,124,0.07)",
+            ? "rgba(124,58,237,0.14)"
+            : "rgba(124,58,237,0.07)",
         color: disabled ? CHROME.muted2 : CHROME.accent,
         fontSize: 11,
         fontWeight: 600,

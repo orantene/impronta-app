@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
+import { useEditorLocale } from "../use-editor-locale";
 import {
   InspectorGroup,
   KIT,
@@ -72,10 +73,11 @@ function parseItems(value: unknown): TalentTypeGridItem[] {
 
 function talentTypeGridNodeRoleLabel(
   role: TalentTypeGridNodeRole | null,
+  t: ReturnType<typeof useEditorLocale>["t"],
 ): string | null {
-  if (role === "subheadline") return "Eyebrow";
-  if (role === "headline") return "Headline";
-  if (role === "copy") return "Subheading";
+  if (role === "subheadline") return t("Eyebrow");
+  if (role === "headline") return t("Headline");
+  if (role === "copy") return t("Subheading");
   return null;
 }
 
@@ -85,6 +87,7 @@ export function TalentTypeGridContentInspector({
   selectedBuilderNodeId,
   onChange,
 }: TalentTypeGridContentInspectorProps) {
+  const { t } = useEditorLocale();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const mode = (asString(draftProps.mode, "manual") as SourceMode) ?? "manual";
   const items = parseItems(draftProps.items);
@@ -128,8 +131,8 @@ export function TalentTypeGridContentInspector({
     return null;
   }, [selectedBuilderNodeId]);
   const focusLabel = useMemo(
-    () => talentTypeGridNodeRoleLabel(focusRole),
-    [focusRole],
+    () => talentTypeGridNodeRoleLabel(focusRole, t),
+    [focusRole, t],
   );
 
   useEffect(() => {
@@ -173,7 +176,7 @@ export function TalentTypeGridContentInspector({
     update({
       items: [
         ...items,
-        { label: "New discipline", description: "", icon: "*" },
+        { label: t("New discipline"), description: "", icon: "*" },
       ].slice(0, 18),
     });
   }
@@ -199,64 +202,62 @@ export function TalentTypeGridContentInspector({
     <div ref={rootRef} className="flex flex-col gap-4">
       {focusLabel ? (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
-          Editing selected canvas node: {focusLabel}
+          {t("Editing selected canvas node:")} {focusLabel}
         </div>
       ) : null}
       <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">V11 talent roster preset</p>
+            <p className="text-sm font-semibold">{t("V11 talent roster preset")}</p>
             <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
-              Applies the prototype rail: large featured pod, three-row card
-              rail, image overlays, icons, descriptions, arrows, and See all
-              link.
+              {t("Applies the prototype rail: large featured pod, three-row card rail, image overlays, icons, descriptions, arrows, and See all link.")}
             </p>
           </div>
           <button type="button" className={KIT.primaryButton} onClick={applyV11Preset}>
-            Apply full preset
+            {t("Apply full preset")}
           </button>
         </div>
       </div>
 
-      <InspectorGroup title="Header" storageKey="talent_type_grid:header">
+      <InspectorGroup title={t("Header")} storageKey="talent_type_grid:header">
         <div className="grid grid-cols-1 gap-3">
           <div
             className={KIT.field}
             data-talent-type-grid-node-role="subheadline"
           >
-            <span className={KIT.label}>Eyebrow</span>
+            <span className={KIT.label}>{t("Eyebrow")}</span>
             <RichEditor
               value={asString(draftProps.eyebrow)}
               onChange={(next) => update({ eyebrow: next || undefined })}
               variant="single"
               tenantId={tenantId}
-              placeholder="Optional - e.g. The roster"
-              ariaLabel="Talent by discipline eyebrow"
+              placeholder={t("Optional - e.g. The roster")}
+              ariaLabel={t("Talent by discipline eyebrow")}
             />
           </div>
           <div
             className={KIT.field}
             data-talent-type-grid-node-role="headline"
           >
-            <span className={KIT.label}>Headline</span>
+            <span className={KIT.label}>{t("Headline")}</span>
             <RichEditor
-              value={asString(draftProps.headline, "Talent, by discipline")}
+              value={asString(draftProps.headline, t("Talent, by discipline"))}
               onChange={(next) => update({ headline: next || undefined })}
               variant="single"
               tenantId={tenantId}
-              ariaLabel="Talent by discipline headline"
+              ariaLabel={t("Talent by discipline headline")}
               className={KIT.inputLg}
             />
           </div>
           <div className={KIT.field} data-talent-type-grid-node-role="copy">
-            <span className={KIT.label}>Subheading</span>
+            <span className={KIT.label}>{t("Subheading")}</span>
             <RichEditor
               value={asString(draftProps.subheadline)}
               onChange={(next) => update({ subheadline: next || undefined })}
               variant="multi"
               tenantId={tenantId}
-              placeholder="Optional supporting line"
-              ariaLabel="Talent by discipline subheading"
+              placeholder={t("Optional supporting line")}
+              ariaLabel={t("Talent by discipline subheading")}
               className={`${KIT.textarea} min-h-[96px] whitespace-pre-wrap break-words`}
             />
           </div>
@@ -264,32 +265,32 @@ export function TalentTypeGridContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Typography"
-        info="Section text uses the Style tab for selected heading nodes. These controls tune the repeated card text."
+        title={t("Typography")}
+        info={t("Section text uses the Style tab for selected heading nodes. These controls tune the repeated card text.")}
         storageKey="talent_type_grid:typography"
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className={KIT.field}>
-            <span className={KIT.label}>Card title scale</span>
+            <span className={KIT.label}>{t("Card title scale")}</span>
             <VisualChipGroup<CardTitleScale>
               value={cardTitleScale}
               onChange={(next) => update({ cardTitleScale: next })}
               options={[
-                { value: "compact", label: "Compact", preview: null },
-                { value: "balanced", label: "Balanced", preview: null },
-                { value: "display", label: "Display", preview: null },
+                { value: "compact", label: t("Compact"), preview: null },
+                { value: "balanced", label: t("Balanced"), preview: null },
+                { value: "display", label: t("Display"), preview: null },
               ]}
               columns={3}
             />
           </div>
           <div className={KIT.field}>
-            <span className={KIT.label}>Description scale</span>
+            <span className={KIT.label}>{t("Description scale")}</span>
             <VisualChipGroup<CardCopyScale>
               value={cardCopyScale}
               onChange={(next) => update({ cardCopyScale: next })}
               options={[
-                { value: "compact", label: "Compact", preview: null },
-                { value: "comfortable", label: "Comfort", preview: null },
+                { value: "compact", label: t("Compact"), preview: null },
+                { value: "comfortable", label: t("Comfort"), preview: null },
               ]}
               columns={2}
             />
@@ -298,31 +299,31 @@ export function TalentTypeGridContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Who Shows Up"
-        info="Manual cards use these exact entries. Dynamic mode derives live roster taxonomy for this tenant."
+        title={t("Who Shows Up")}
+        info={t("Manual cards use these exact entries. Dynamic mode derives live roster taxonomy for this tenant.")}
         storageKey="talent_type_grid:source"
       >
         <VisualChipGroup<SourceMode>
           value={mode}
           onChange={(next) => update({ mode: next })}
           options={[
-            { value: "manual", label: "Manual cards", preview: <ModePreview mode="manual" /> },
-            { value: "dynamic", label: "Live taxonomy", preview: <ModePreview mode="dynamic" /> },
+            { value: "manual", label: t("Manual cards"), preview: <ModePreview mode="manual" /> },
+            { value: "dynamic", label: t("Live taxonomy"), preview: <ModePreview mode="dynamic" /> },
           ]}
           columns={2}
         />
         {mode === "dynamic" ? (
           <div className="mt-3 flex flex-col gap-3">
             <ToggleRow
-              label="Parent-category rollup"
+              label={t("Parent-category rollup")}
               checked={draftProps.parentCategoryMode === true}
               onChange={(checked) => update({ parentCategoryMode: checked })}
             />
             <label className={KIT.field}>
-              <span className={KIT.label}>Restrict taxonomy term IDs</span>
+              <span className={KIT.label}>{t("Restrict taxonomy term IDs")}</span>
               <input
                 className={KIT.input}
-                placeholder="empty = all roster disciplines"
+                placeholder={t("empty = all roster disciplines")}
                 value={selectedTermIds.join(", ")}
                 onChange={(event) =>
                   update({
@@ -335,7 +336,7 @@ export function TalentTypeGridContentInspector({
                 }
               />
               <span className={KIT.hint}>
-                Safe interim until the visual taxonomy picker lands.
+                {t("Safe interim until the visual taxonomy picker lands.")}
               </span>
             </label>
           </div>
@@ -343,8 +344,8 @@ export function TalentTypeGridContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Prototype Layout"
-        info="Controls the v11 card rail and responsive behavior."
+        title={t("Prototype Layout")}
+        info={t("Controls the v11 card rail and responsive behavior.")}
         storageKey="talent_type_grid:layout"
       >
         <VisualChipGroup<DesktopLayout>
@@ -353,27 +354,27 @@ export function TalentTypeGridContentInspector({
           options={[
             {
               value: "featured-pod-rail",
-              label: "V11 rail",
+              label: t("V11 rail"),
               preview: <LayoutPreview kind="rail" />,
             },
             {
               value: "horizontal-rail",
-              label: "Rail",
+              label: t("Rail"),
               preview: <LayoutPreview kind="horizontal" />,
             },
             {
               value: "equal-grid",
-              label: "Grid",
+              label: t("Grid"),
               preview: <LayoutPreview kind="grid" />,
             },
             {
               value: "editorial-asymmetric",
-              label: "Asymmetric",
+              label: t("Asymmetric"),
               preview: <LayoutPreview kind="asym" />,
             },
             {
               value: "compact-grid",
-              label: "Compact",
+              label: t("Compact"),
               preview: <LayoutPreview kind="compact" />,
             },
           ]}
@@ -381,20 +382,20 @@ export function TalentTypeGridContentInspector({
         />
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className={KIT.field}>
-            <span className={KIT.label}>Mobile layout</span>
+            <span className={KIT.label}>{t("Mobile layout")}</span>
             <VisualChipGroup<MobileLayout>
               value={mobileLayout}
               onChange={(next) => update({ mobileLayout: next })}
               options={[
-                { value: "horizontal-scroll", label: "Scroll", preview: null },
-                { value: "stacked", label: "Stack", preview: null },
-                { value: "compact-grid", label: "Compact", preview: null },
+                { value: "horizontal-scroll", label: t("Scroll"), preview: null },
+                { value: "stacked", label: t("Stack"), preview: null },
+                { value: "compact-grid", label: t("Compact"), preview: null },
               ]}
               columns={3}
             />
           </div>
           <div className={KIT.field}>
-            <span className={KIT.label}>Image ratio</span>
+            <span className={KIT.label}>{t("Image ratio")}</span>
             <VisualChipGroup<CardRatio>
               value={cardRatio}
               onChange={(next) => update({ cardRatio: next })}
@@ -408,27 +409,27 @@ export function TalentTypeGridContentInspector({
             />
           </div>
           <div className={KIT.field}>
-            <span className={KIT.label}>Text position</span>
+            <span className={KIT.label}>{t("Text position")}</span>
             <VisualChipGroup<TextPosition>
               value={textPosition}
               onChange={(next) => update({ textPosition: next })}
               options={[
-                { value: "overlay-bottom", label: "Overlay", preview: null },
-                { value: "below", label: "Below", preview: null },
+                { value: "overlay-bottom", label: t("Overlay"), preview: null },
+                { value: "below", label: t("Below"), preview: null },
               ]}
               columns={2}
             />
           </div>
           <div className={KIT.field}>
-            <span className={KIT.label}>Overlay strength</span>
+            <span className={KIT.label}>{t("Overlay strength")}</span>
             <VisualChipGroup<OverlayStrength>
               value={imageOverlayStrength}
               onChange={(next) => update({ imageOverlayStrength: next })}
               options={[
-                { value: "strong", label: "Strong", preview: null },
-                { value: "medium", label: "Medium", preview: null },
-                { value: "soft", label: "Soft", preview: null },
-                { value: "none", label: "None", preview: null },
+                { value: "strong", label: t("Strong"), preview: null },
+                { value: "medium", label: t("Medium"), preview: null },
+                { value: "soft", label: t("Soft"), preview: null },
+                { value: "none", label: t("None"), preview: null },
               ]}
               columns={4}
             />
@@ -436,42 +437,42 @@ export function TalentTypeGridContentInspector({
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <ToggleRow
-            label="Images"
+            label={t("Images")}
             checked={showImages}
             onChange={(checked) => update({ showImages: checked })}
           />
           <ToggleRow
-            label="Descriptions"
+            label={t("Descriptions")}
             checked={showDescriptions}
             onChange={(checked) => update({ showDescriptions: checked })}
           />
           <ToggleRow
-            label="Card icons"
+            label={t("Card icons")}
             checked={showCardIcons}
             onChange={(checked) => update({ showCardIcons: checked })}
           />
           <ToggleRow
-            label="Rail arrows"
+            label={t("Rail arrows")}
             checked={showRailControls}
             onChange={(checked) => update({ showRailControls: checked })}
           />
           <ToggleRow
-            label="Talent counts"
+            label={t("Talent counts")}
             checked={draftProps.showCount === true}
             onChange={(checked) => update({ showCount: checked })}
           />
           <ToggleRow
-            label="Card CTA"
+            label={t("Card CTA")}
             checked={showCta}
             onChange={(checked) => update({ showCta: checked })}
           />
         </div>
         {showCta ? (
           <label className={`${KIT.field} mt-3`}>
-            <span className={KIT.label}>Card CTA label</span>
+            <span className={KIT.label}>{t("Card CTA label")}</span>
             <input
               className={KIT.input}
-              value={asString(draftProps.ctaLabel, "Explore")}
+              value={asString(draftProps.ctaLabel, t("Explore"))}
               onChange={(event) => update({ ctaLabel: event.target.value })}
             />
           </label>
@@ -480,8 +481,8 @@ export function TalentTypeGridContentInspector({
 
       {mode === "manual" ? (
         <InspectorGroup
-          title="Manual Cards"
-          info="Choose imagery, copy, icons, links, and which card becomes the large pod."
+          title={t("Manual Cards")}
+          info={t("Choose imagery, copy, icons, links, and which card becomes the large pod.")}
           storageKey="talent_type_grid:manual"
         >
           <div className="flex flex-col gap-3">
@@ -493,10 +494,10 @@ export function TalentTypeGridContentInspector({
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-stone-800">
-                      {item.label || `Card ${index + 1}`}
+                      {item.label || `${t("Card")} ${index + 1}`}
                     </p>
                     <p className="text-[11px] text-stone-500">
-                      Card {index + 1}
+                      {t("Card")} {index + 1}
                     </p>
                   </div>
                   <button
@@ -504,7 +505,7 @@ export function TalentTypeGridContentInspector({
                     className="rounded-lg px-2 py-1 text-xs font-medium text-rose-500 transition hover:bg-rose-50"
                     onClick={() => removeItem(index)}
                   >
-                    Remove
+                    {t("Remove")}
                   </button>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
@@ -514,12 +515,12 @@ export function TalentTypeGridContentInspector({
                     onChange={(next) =>
                       patchItem(index, { imageUrl: next ?? undefined })
                     }
-                    emptyLabel="Pick background image"
+                    emptyLabel={t("Pick background image")}
                     aspect="16/9"
                   />
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <label className={KIT.field}>
-                      <span className={KIT.label}>Label</span>
+                      <span className={KIT.label}>{t("Label")}</span>
                       <input
                         className={KIT.input}
                         value={item.label}
@@ -529,7 +530,7 @@ export function TalentTypeGridContentInspector({
                       />
                     </label>
                     <label className={KIT.field}>
-                      <span className={KIT.label}>Icon</span>
+                      <span className={KIT.label}>{t("Icon")}</span>
                       <input
                         className={KIT.input}
                         maxLength={8}
@@ -543,7 +544,7 @@ export function TalentTypeGridContentInspector({
                     </label>
                   </div>
                   <label className={KIT.field}>
-                    <span className={KIT.label}>Description</span>
+                    <span className={KIT.label}>{t("Description")}</span>
                     <input
                       className={KIT.input}
                       value={item.description ?? ""}
@@ -556,7 +557,7 @@ export function TalentTypeGridContentInspector({
                   </label>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <label className={KIT.field}>
-                      <span className={KIT.label}>Image position</span>
+                      <span className={KIT.label}>{t("Image position")}</span>
                       <input
                         className={KIT.input}
                         placeholder="50% 50%"
@@ -569,7 +570,7 @@ export function TalentTypeGridContentInspector({
                       />
                     </label>
                     <div className={KIT.field}>
-                      <span className={KIT.label}>Card link</span>
+                      <span className={KIT.label}>{t("Card link")}</span>
                       <LinkKindPicker
                         value={item.href}
                         onChange={(next) =>
@@ -579,7 +580,7 @@ export function TalentTypeGridContentInspector({
                     </div>
                   </div>
                   <label className={KIT.field}>
-                    <span className={KIT.label}>Image alt text</span>
+                    <span className={KIT.label}>{t("Image alt text")}</span>
                     <input
                       className={KIT.input}
                       value={item.imageAlt ?? ""}
@@ -591,7 +592,7 @@ export function TalentTypeGridContentInspector({
                     />
                   </label>
                   <ToggleRow
-                    label="Feature this card in pod layouts"
+                    label={t("Feature this card in pod layouts")}
                     checked={item.featured === true}
                     onChange={(checked) => setFeaturedItem(index, checked)}
                   />
@@ -599,16 +600,16 @@ export function TalentTypeGridContentInspector({
               </article>
             ))}
             <button type="button" className={KIT.ghostButton} onClick={addItem}>
-              + Add card
+              {t("+ Add card")}
             </button>
           </div>
         </InspectorGroup>
       ) : null}
 
-      <InspectorGroup title="Links" storageKey="talent_type_grid:links">
+      <InspectorGroup title={t("Links")} storageKey="talent_type_grid:links">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className={KIT.field}>
-            <span className={KIT.label}>See all label</span>
+            <span className={KIT.label}>{t("See all label")}</span>
             <input
               className={KIT.input}
               value={asString(draftProps.seeAllLabel)}
@@ -616,7 +617,7 @@ export function TalentTypeGridContentInspector({
             />
           </label>
           <div className={KIT.field}>
-            <span className={KIT.label}>See all href</span>
+            <span className={KIT.label}>{t("See all href")}</span>
             <LinkKindPicker
               value={draftProps.seeAllHref as LinkRef | string | undefined}
               onChange={(next) => update({ seeAllHref: next })}
@@ -626,25 +627,25 @@ export function TalentTypeGridContentInspector({
       </InspectorGroup>
 
       <InspectorGroup
-        title="Advanced"
+        title={t("Advanced")}
         advanced
         collapsible
         storageKey="talent_type_grid:advanced"
       >
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className={KIT.field}>
-            <span className={KIT.label}>Maximum items - {maxItems}</span>
+            <span className={KIT.label}>{t("Maximum items -")} {maxItems}</span>
             <input
               type="range"
               min={1}
               max={18}
               value={maxItems}
               onChange={(event) => update({ maxItems: Number(event.target.value) })}
-              className="w-full accent-[#3d4f7c]"
+              className="w-full accent-violet-600"
             />
           </label>
           <label className={KIT.field}>
-            <span className={KIT.label}>Overlay opacity</span>
+            <span className={KIT.label}>{t("Overlay opacity")}</span>
             <input
               className={KIT.input}
               type="number"
@@ -668,7 +669,7 @@ export function TalentTypeGridContentInspector({
           </label>
         </div>
         <label className={`${KIT.field} mt-3`}>
-          <span className={KIT.label}>Empty state text</span>
+          <span className={KIT.label}>{t("Empty state text")}</span>
           <input
             className={KIT.input}
             value={asString(draftProps.emptyStateText)}
@@ -696,13 +697,14 @@ function ToggleRow({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[#3d4f7c]"
+        className="size-4 accent-violet-600"
       />
     </label>
   );
 }
 
 function ModePreview({ mode }: { mode: SourceMode }) {
+  const { t } = useEditorLocale();
   return (
     <div className="flex h-full w-full items-center justify-center gap-1">
       {mode === "manual" ? (
@@ -713,7 +715,7 @@ function ModePreview({ mode }: { mode: SourceMode }) {
         </>
       ) : (
         <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700">
-          Live
+          {t("Live")}
         </span>
       )}
     </div>

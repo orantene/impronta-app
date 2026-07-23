@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { COLORS, FONTS, fieldsForType, parseVideoUrl, type TaxonomyParentId } from "../../state";
 
 
@@ -32,6 +33,7 @@ function VideoShowcase({
   portfolioVideos: ReadonlyArray<{ url: string; caption?: string; durationSec?: number }>;
   onManage: () => void;
 }) {
+  const copy = useDashboardText();
   // Combine showreel + portfolio videos into a single ordered list.
   // Showreel is always first so it gets the prime visual position.
   const all: Array<{ url: string; caption?: string; durationSec?: number; isReel?: boolean }> = [
@@ -59,7 +61,7 @@ function VideoShowcase({
         <button
           type="button"
           onClick={onManage}
-          aria-label="Add or manage video"
+          aria-label={copy.t("Add or manage video")}
           style={{
             flex: "0 0 auto",
             width: 160,
@@ -80,7 +82,7 @@ function VideoShowcase({
           }}
         >
           <span className="text-lg">+</span>
-          <span>Add video</span>
+          <span>{copy.t("Add video")}</span>
         </button>
       </div>
     </div>
@@ -89,6 +91,7 @@ function VideoShowcase({
 
 
 function VideoCard({ url, caption, durationSec, isReel }: { url: string; caption?: string; durationSec?: number; isReel?: boolean }) {
+  const copy = useDashboardText();
   const [playing, setPlaying] = useState(false);
   const parsed = parseVideoUrl(url);
   // mm:ss formatter, shown bottom-right when we have duration metadata.
@@ -125,7 +128,7 @@ function VideoCard({ url, caption, durationSec, isReel }: { url: string; caption
           <button
             type="button"
             onClick={() => setPlaying(true)}
-            aria-label="Play video"
+            aria-label={copy.t("Play video")}
             style={{
               width: "100%",
               height: "100%",
@@ -209,6 +212,7 @@ export function TierBreakdown({
   const applicable = fieldsForType(types).filter(f =>
     !f.id.startsWith("dyn.") && f.id !== "consent.terms" && f.id !== "media.headshot"
   );
+  const copy = useDashboardText();
   const missingIds = new Set(missing.map(m => m.id));
   const tiers = (["universal", "global", "type-specific"] as const).map(tier => {
     const tierFields = applicable.filter(f => f.tier === tier);
@@ -216,7 +220,7 @@ export function TierBreakdown({
     const tierFilled = tierFields.length - tierMissing;
     return {
       tier,
-      label: tier === "universal" ? "Universal" : tier === "global" ? "Global" : "Type-specific",
+      label: copy.t(tier === "universal" ? "Universal" : tier === "global" ? "Global" : "Type-specific"),
       filled: tierFilled,
       total: tierFields.length,
       complete: tierMissing === 0,
@@ -237,7 +241,7 @@ export function TierBreakdown({
             fontFamily: FONTS.body,
             letterSpacing: 0.2,
           }}
-          title={`${t.label}: ${t.filled} of ${t.total} filled`}
+          title={`${t.label}: ${t.filled} ${copy.t("of")} ${t.total} ${copy.t("filled")}`}
         >
           {t.complete && <span aria-hidden>✓</span>}
           <span>{t.label}: {t.filled}/{t.total}</span>

@@ -31,8 +31,9 @@
  * the editor behaves exactly as before.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { clampMobileEditPanelLeft } from "./mobile-edit-mode";
 import { useMaybeEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
@@ -42,7 +43,7 @@ import {
   kindLabel,
   resolveLayerDisplayName,
   resolveResponsiveOverrides,
-} from "./freeform-layer-name";
+} from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";
@@ -51,6 +52,12 @@ import { CHROME } from "./kit";
 // The navigator rail collapses to this hairline width when closed (mirrors
 // navigator-panel.tsx's collapsed rail). Keep the panel clear of it.
 const NAVIGATOR_COLLAPSED_RAIL_PX = 22;
+
+// Panel geometry — width + the gap kept from the navigator rail and either
+// viewport edge, so the on-screen clamp (clampMobileEditPanelLeft) can keep the
+// whole HUD visible on any viewport width.
+const PANEL_WIDTH = 296;
+const PANEL_EDGE_INSET = 14;
 
 // Stable empty-tree fallback so the `useMemo` deps below don't see a fresh array
 // every render when no EditProvider tree is present.
@@ -317,7 +324,7 @@ function MobileStructureControls({
         aria-pressed={hidden}
         title={
           hidden
-            ? "This block is hidden on mobile — show it again"
+            ? "This block is hidden on mobile, show it again"
             : "Hide this block on mobile only (desktop + tablet unaffected)"
         }
         style={{
@@ -472,13 +479,37 @@ export function MobileEditPanel() {
     [builderTree],
   );
 
+  // Track the viewport width so the fixed-position HUD can be clamped fully
+  // on-screen. `null` until the first client measure (SSR-safe) — the clamp
+  // falls back to the un-clamped navigator-relative offset in that window.
+  const [viewportWidth, setViewportWidth] = useState<number | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => setViewportWidth(window.innerWidth);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   // Only render in mobile-edit mode — and never while previewing (the two are
   // mutually exclusive, enforced in edit-context, but guard belt-and-braces).
   if (!ctx || !ctx.mobileEditMode || ctx.previewing) return null;
 
-  const navOffset = ctx.navigatorOpen
-    ? ctx.navigatorWidth
-    : NAVIGATOR_COLLAPSED_RAIL_PX;
+  // Fixed left offset, clamped so the panel never clips off the LEFT or RIGHT
+  // viewport edge (matches the other dock/floating panels' on-screen rule).
+  const panelLeft = clampMobileEditPanelLeft({
+    navigatorOpen: ctx.navigatorOpen,
+    navigatorWidth: ctx.navigatorWidth,
+    collapsedRailPx: NAVIGATOR_COLLAPSED_RAIL_PX,
+    panelWidth: PANEL_WIDTH,
+    viewportWidth,
+    edgeInset: PANEL_EDGE_INSET,
+  });
+  // On a viewport narrower than the panel itself, shrink rather than overflow.
+  const panelMaxWidth =
+    viewportWidth != null && Number.isFinite(viewportWidth) && viewportWidth > 0
+      ? Math.min(PANEL_WIDTH, viewportWidth - PANEL_EDGE_INSET * 2)
+      : PANEL_WIDTH;
 
   const selectableNode =
     selectedNode && selectedNode.kind !== "section" ? selectedNode : null;
@@ -491,10 +522,11 @@ export function MobileEditPanel() {
       aria-label="Mobile-first editing"
       style={{
         position: "fixed",
-        left: navOffset + 14,
+        left: panelLeft,
         bottom: 18,
         zIndex: 84,
-        width: 296,
+        width: PANEL_WIDTH,
+        maxWidth: panelMaxWidth,
         maxHeight: "calc(100vh - 54px - 36px)",
         display: "flex",
         flexDirection: "column",
@@ -546,7 +578,7 @@ export function MobileEditPanel() {
           type="button"
           onClick={() => ctx.setMobileEditMode(false)}
           title="Exit to desktop editing"
-          aria-label="Exit mobile editing — back to desktop"
+          aria-label="Exit mobile editing, back to desktop"
           style={{
             display: "inline-flex",
             alignItems: "center",

@@ -502,7 +502,7 @@ export function CommentsDrawer() {
                 type="checkbox"
                 checked={includeResolved}
                 onChange={(e) => setIncludeResolved(e.target.checked)}
-                style={{ accentColor: "#3d4f7c", width: 13, height: 13, cursor: "pointer" }}
+                style={{ accentColor: CHROME.accent, width: 13, height: 13, cursor: "pointer" }}
               />
               Show resolved
             </label>
@@ -591,7 +591,7 @@ export function CommentsDrawer() {
                 transition: "border-color 150ms, box-shadow 150ms",
               }}
             >
-              <option value="">— pick a section —</option>
+              <option value="">Pick a section</option>
               {sectionOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {/* T2-2 — strip seeder suffix from section options */}
@@ -615,7 +615,7 @@ export function CommentsDrawer() {
                 color: CHROME.muted,
               }}
             >
-              Save the page once before threading comments — this locale
+              Save the page once before threading comments, this locale
               doesn&rsquo;t have a draft yet.
             </p>
           ) : null}

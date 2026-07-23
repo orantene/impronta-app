@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bookmark, Heart, Send } from "lucide-react";
 import { clientDirectoryHref } from "@/i18n/client-directory-href";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
-import { useFavoritesDrawer } from "@/components/directory/favorites-drawer-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,7 +61,6 @@ export function DirectoryDiscoveryHeaderActions({
   const favoritesCount = discovery?.favoritesCount ?? 0;
   const inquiryModal = useOptionalDirectoryInquiryModal();
   const saveCue = inquiryModal?.saveCue ?? 0;
-  const favoritesDrawer = useFavoritesDrawer();
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -95,7 +93,35 @@ export function DirectoryDiscoveryHeaderActions({
               variant="ghost"
               size="icon"
               className="relative shrink-0"
-              onClick={() => favoritesDrawer?.open()}
+              onClick={() => {
+                // DOCK v2.1 — the heart opens the ONE favorites surface: the
+                // chat dock's Lineup view (Saved shelf + move-to-inquiry),
+                // replacing the legacy favorites drawer. Persist the target
+                // view first so the panel lands on Lineup as it opens (it
+                // re-resolves dockView from sessionStorage on each open), then
+                // ask the launcher to open. The site header renders ABOVE the
+                // page's inquiry-modal provider, so inquiryModal is usually
+                // null here: mirror the plane icon and route through
+                // ?inquiry=open, which the in-provider DirectoryInquiryUrlSync
+                // turns into requestOpenChat. Legacy drawer stays the last
+                // resort only where the launcher is not mounted at all.
+                try {
+                  window.sessionStorage.setItem("impronta.dockView", "lineup");
+                } catch {
+                  /* private mode */
+                }
+                if (inquiryModal) {
+                  inquiryModal.requestOpenChat();
+                  return;
+                }
+                // Site header sits above the provider: route through the URL,
+                // which the in-provider DirectoryInquiryUrlSync turns into an
+                // open cue (same fallback the plane icon uses). On a surface
+                // with neither provider nor launcher this harmlessly no-ops;
+                // the legacy drawer is no longer opened (single favorites
+                // surface = the dock Lineup).
+                router.push(clientDirectoryHref(pathname, "?inquiry=open"));
+              }}
               aria-label={copy.favoritesAria}
               data-discovery-header-favorites
             >

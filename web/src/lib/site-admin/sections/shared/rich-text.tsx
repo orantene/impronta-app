@@ -20,7 +20,10 @@ import type { ReactNode } from "react";
  */
 
 // Match any marker. Order matters: longer/specific markers first.
-const TOKEN_RE = new RegExp(
+// Exported (source-of-truth grammar) so the canvas's optimistic-repaint HTML
+// serializer (`inline-editor-repaint.ts`) tokenizes IDENTICALLY to this React
+// renderer and can never drift from the published render.
+export const TOKEN_RE = new RegExp(
   [
     /\{color:#[0-9a-fA-F]{3,8}\}[^{]*\{\/color\}/.source,
     /\{accent\}[^{]*\{\/accent\}/.source,
@@ -31,11 +34,11 @@ const TOKEN_RE = new RegExp(
   "g",
 );
 
-const ACCENT_RE = /^\{accent\}(.*)\{\/accent\}$/;
-const COLOR_RE = /^\{color:(#[0-9a-fA-F]{3,8})\}(.*)\{\/color\}$/;
-const BOLD_RE = /^\{b\}(.*)\{\/b\}$/;
-const ITALIC_RE = /^\{i\}(.*)\{\/i\}$/;
-const LINK_RE = /^\[([^\]]+)\]\(([^)]+)\)$/;
+export const ACCENT_RE = /^\{accent\}(.*)\{\/accent\}$/;
+export const COLOR_RE = /^\{color:(#[0-9a-fA-F]{3,8})\}(.*)\{\/color\}$/;
+export const BOLD_RE = /^\{b\}(.*)\{\/b\}$/;
+export const ITALIC_RE = /^\{i\}(.*)\{\/i\}$/;
+export const LINK_RE = /^\[([^\]]+)\]\(([^)]+)\)$/;
 
 /**
  * SECURITY — markdown-link href allowlist. Author-supplied text fields render on

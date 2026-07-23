@@ -174,7 +174,7 @@ export function ComponentDefaultsTab({
       setDefaults(res.componentStylesDraft);
       onSaved(res.version, res.componentStylesDraft);
     } catch {
-      setError("Network error — try again.");
+      setError("Network error. Try again.");
     } finally {
       setBusy(false);
     }
@@ -198,7 +198,7 @@ export function ComponentDefaultsTab({
       >
         Set a default look per element type. Every element of that type starts
         here; any one element can still override it. Bind to a theme token so the
-        default follows your palette. Changes preview on the canvas live —{" "}
+        default follows your palette. Changes preview on the canvas live,{" "}
         <b>Save draft</b>, then <b>Publish theme</b> to go live.
       </div>
 

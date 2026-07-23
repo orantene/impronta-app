@@ -308,7 +308,7 @@ export function AssetsDrawer(): ReactElement | null {
         setUsage({});
         setLoadError(libRes.error);
         reportMutationError(
-          libRes.error ?? "The assets library could not load — try again.",
+          libRes.error ?? "The assets library could not load. Try again.",
         );
         setBusy("idle");
         return;
@@ -459,7 +459,7 @@ export function AssetsDrawer(): ReactElement | null {
           raw = body.item as typeof raw;
         }
         if (!raw.id || !raw.publicUrl || !raw.storagePath) {
-          setUploadError("Upload didn't return a usable asset — try again.");
+          setUploadError("Upload didn't return a usable asset. Try again.");
           return false;
         }
         const item: MediaLibraryItem = {
@@ -493,7 +493,7 @@ export function AssetsDrawer(): ReactElement | null {
         uploadOk = true;
       } catch (e) {
         setUploadError(
-          e instanceof Error ? e.message.slice(0, 200) : "Couldn't upload — try again.",
+          e instanceof Error ? e.message.slice(0, 200) : "Couldn't upload. Try again.",
         );
       } finally {
         setUploading(false);
@@ -519,7 +519,7 @@ export function AssetsDrawer(): ReactElement | null {
       } else {
         // handleFileChosen wrote the reason into uploadError; mirror it into
         // the modal-scoped error so it shows inside the crop dialog.
-        setCropError("Couldn't save the cropped image — try again.");
+        setCropError("Couldn't save the cropped image. Try again.");
       }
     },
     [handleFileChosen],

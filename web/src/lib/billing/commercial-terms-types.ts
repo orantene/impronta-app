@@ -67,6 +67,27 @@ export const REFUND_POLICY_DESCRIPTIONS: Record<RefundPolicyKey, string> = {
   manual: "Admin decides each refund manually",
 };
 
+/**
+ * i18n catalog-key siblings for the refund-policy maps (additive, non-breaking).
+ * Localized consumers with a `useT()` render `t(REFUND_POLICY_LABEL_KEYS[key])` /
+ * `t(REFUND_POLICY_DESCRIPTION_KEYS[key])` instead of the raw English maps above;
+ * non-localized consumers (e.g. platform-admin) keep using REFUND_POLICY_LABELS /
+ * REFUND_POLICY_DESCRIPTIONS directly. Keys live under `dashboard.enums.*`.
+ */
+export const REFUND_POLICY_LABEL_KEYS: Record<RefundPolicyKey, string> = {
+  tiered: "dashboard.enums.refundPolicy.tiered",
+  flexible: "dashboard.enums.refundPolicy.flexible",
+  strict: "dashboard.enums.refundPolicy.strict",
+  manual: "dashboard.enums.refundPolicy.manual",
+};
+
+export const REFUND_POLICY_DESCRIPTION_KEYS: Record<RefundPolicyKey, string> = {
+  tiered: "dashboard.enums.refundPolicyDesc.tiered",
+  flexible: "dashboard.enums.refundPolicyDesc.flexible",
+  strict: "dashboard.enums.refundPolicyDesc.strict",
+  manual: "dashboard.enums.refundPolicyDesc.manual",
+};
+
 // ── W6a: offer-level negotiated commercial terms ────────────────────────────
 // These describe the terms NEGOTIATED on a single offer (the admin/talent
 // composer sets them, the client + talent see them, convert snapshots them onto
@@ -114,6 +135,24 @@ export const BALANCE_METHOD_DESCRIPTIONS: Record<BalanceCollectionMethod, string
     "Deposit now; the balance is requested in Messages before the event",
   pay_in_place: "No deposit online — paid in person/on the day",
   full_upfront: "Full amount charged now",
+};
+
+/**
+ * i18n catalog-key siblings for the balance-method maps (additive, non-breaking).
+ * Localized consumers with a `useT()` render `t(BALANCE_METHOD_LABEL_KEYS[m])` /
+ * `t(BALANCE_METHOD_DESCRIPTION_KEYS[m])`; non-localized consumers keep the raw
+ * English maps above. Keys live under `dashboard.enums.*`.
+ */
+export const BALANCE_METHOD_LABEL_KEYS: Record<BalanceCollectionMethod, string> = {
+  request_in_messages: "dashboard.enums.balanceMethod.request_in_messages",
+  pay_in_place: "dashboard.enums.balanceMethod.pay_in_place",
+  full_upfront: "dashboard.enums.balanceMethod.full_upfront",
+};
+
+export const BALANCE_METHOD_DESCRIPTION_KEYS: Record<BalanceCollectionMethod, string> = {
+  request_in_messages: "dashboard.enums.balanceMethodDesc.request_in_messages",
+  pay_in_place: "dashboard.enums.balanceMethodDesc.pay_in_place",
+  full_upfront: "dashboard.enums.balanceMethodDesc.full_upfront",
 };
 
 /**

@@ -13,12 +13,13 @@ import type { Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
-import { COLORS, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
+import { COLORS, FAB_PALETTE_OPEN_EVENT, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
+import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
-import { AccountMenuItem, IdentityBarIconButton, LocaleToggle, ModeTogglePill } from "./IdentityBar-2";
+import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
 import { TALENT_UNREAD } from "./WorkspaceTopbar";
-import { WorkspacePlanBadge } from "./WorkspacePlanBadge";
+import { WorkspacePulseChip } from "./WorkspacePulseChip";
 
 
 export function TulalaIdentityBar() {
@@ -27,7 +28,6 @@ export function TulalaIdentityBar() {
     openDrawer,
     flipMode,
     setClientPage,
-    setTalentPage,
     totalUnread: bridgeTotalUnread,
     bridgeTenantIdentity,
     bridgeSessionIdentity,
@@ -64,7 +64,6 @@ export function TulalaIdentityBar() {
   const inClient    = surface === "client";
   const inTalent    = !inWorkspace && !inClient;
   const agencyCount = bridgeTalentAgencies?.length ?? 0;
-  const isPureTalent = inTalent && !state.alsoTalent;
   // Resolve client profile from the URL/state-driven id. Two profiles
   // for QA: Martina Beach Club (business) and The Gringo (personal).
   // Inline-defined to dodge HMR cache issues with the fresh export.
@@ -204,16 +203,18 @@ export function TulalaIdentityBar() {
     return "—";
   })();
   // Pure talent with zero agencies → invite them to start a workspace of
-  // their own (one-click discovery of the hybrid path). Otherwise fall back
-  // to the existing money / switcher destinations.
+  // their own (one-click discovery of the hybrid path). With agencies, the
+  // chip opens the Switch-agency drawer — the ONE switcher for the talent
+  // surface (the drawer now switches the active-agency cookie in place; the
+  // old raw select strip above the shell is gone). The old routing sent
+  // multi-agency talents to the Money page, which lists agencies but cannot
+  // switch context.
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher")
     : inClient ? openDrawer("client-brand-switcher")
     : inTalent && agencyCount === 0
       ? window.dispatchEvent(new CustomEvent(START_WORKSPACE_EVENT))
-      : isPureTalent || agencyCount !== 1
-        ? setTalentPage("money")
-        : openDrawer("talent-agency-switcher");
+      : openDrawer("talent-agency-switcher");
 
   // The notifications + help drawers differ per surface.
   const notificationsDrawerId = inWorkspace ? "notifications"
@@ -232,109 +233,146 @@ export function TulalaIdentityBar() {
       data-tulala-identity-bar
       className="sticky top-[var(--proto-cbar,50px)] z-50 h-[56px] border-b border-admin-border-soft bg-white px-[24px]"
     >
+      {/* Full-bleed row (no centered max-width box): brand hugs the left
+          edge above the sidebar rail, controls hug the right — Shopify
+          edge alignment. */}
       <div
-        className="mx-auto flex h-full max-w-[1440px] items-center gap-[14px]"
+        className="flex h-full w-full items-center gap-[14px]"
       >
-        {/* Brand mark — talent surface is Tulala-canonical (L41): always the
-            platform wordmark, never the active agency logo. Workspace/client
-            surfaces show the tenant logo when uploaded. */}
-        {inTalent ? (
-          <img
-            src="/brand/tulala-wordmark.svg"
-            alt={TULALA_BRAND.name}
-            data-tulala-brand
-            className="tulala-talent-brand-mark"
-          />
-        ) : bridgeTenantIdentity?.logoUrl ? (
-          <img
-            src={bridgeTenantIdentity.logoUrl}
-            alt={bridgeTenantIdentity.displayName || "Workspace logo"}
-            data-tulala-brand
-            className="block h-[36px] w-auto max-w-[220px] object-contain object-left pr-[4px]"
-          />
-        ) : (
-          <div
-            aria-label={TULALA_BRAND.name}
-            data-tulala-brand
-            className="font-admin-display text-[16px] font-medium uppercase tracking-[0.4px] text-admin-ink pr-[4px]"
-          >
-            {TULALA_BRAND.name}
-          </div>
-        )}
+        {/* Brand mark — whitelabel branding (Agency/Network tier) decides whose
+            brand the talent + client see:
+            • Workspace surface: the agency's OWN staff always see their tenant
+              logo (their workspace, regardless of tier).
+            • Talent surface: the active agency's logo ONLY when the talent is
+              EXCLUSIVE to it and it is on a whitelabel tier; otherwise the
+              Tulala platform wordmark.
+            • Client surface: the home agency's logo ONLY when it is on a
+              whitelabel tier; otherwise the Tulala wordmark.
+            When no eligible agency logo applies, the surface stays Tulala. */}
+        {(() => {
+          const whitelabel = planTierHasWhitelabel(bridgeTenantIdentity?.planTier);
+          const agencyLogoUrl = bridgeTenantIdentity?.logoUrl ?? null;
+          const showAgencyLogo =
+            agencyLogoUrl != null &&
+            (inWorkspace ||
+              (inClient && whitelabel) ||
+              (inTalent && whitelabel && bridgeTenantIdentity?.talentExclusive === true));
+          if (showAgencyLogo && agencyLogoUrl) {
+            return (
+              <img
+                src={agencyLogoUrl}
+                alt={bridgeTenantIdentity?.displayName || "Workspace logo"}
+                data-tulala-brand
+                className="block h-[36px] w-auto max-w-[220px] object-contain object-left pr-[4px]"
+              />
+            );
+          }
+          // Talent surface keeps its dedicated wordmark sizing; workspace/client
+          // fall back to the Tulala text wordmark.
+          if (inTalent) {
+            return (
+              <img
+                src="/brand/tulala-wordmark.svg"
+                alt={TULALA_BRAND.name}
+                data-tulala-brand
+                className="tulala-talent-brand-mark"
+              />
+            );
+          }
+          return (
+            <div
+              aria-label={TULALA_BRAND.name}
+              data-tulala-brand
+              className="font-admin-display text-[16px] font-medium uppercase tracking-[0.4px] text-admin-ink pr-[4px]"
+            >
+              {TULALA_BRAND.name}
+            </div>
+          );
+        })()}
 
         <div data-tulala-id-divider className="mx-[4px] h-[22px] w-px bg-admin-border-soft" />
 
-        {/* User identity — the one human across modes. Click opens
-            the account menu (audit #3). */}
-        <AccountMenuTrigger userName={userName} userInitials={userInitials}>
-          <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
-          <span
-            data-tulala-identity-name
-            className="font-admin-body text-[14px] font-medium tracking-[-0.05px] text-admin-ink"
+        {/* Left context — split by surface (audit: the workspace acting-as
+            chip duplicated the sidebar tenant chip: same name, same switcher
+            drawer, 100px apart). On the workspace surface the RAIL owns
+            identity + switching, and this slot becomes the Business Pulse:
+            live money/ops signals with a breakdown popover. Talent + client
+            surfaces have no rail, so they keep the acting-as switcher. */}
+        {inWorkspace ? (
+          <WorkspacePulseChip />
+        ) : (
+          <button
+            type="button"
+            onClick={onActingClick}
+            aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
+            title={actingSubLabel}
+            className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body hover:bg-[rgba(11,11,13,0.04)] [transition:background_var(--transition-admin-micro)]"
           >
-            {userName}
-          </span>
-          {/* Hamburger icon — universal "menu" affordance. Replaces the
-              ambiguous chevron-down so the avatar reads as a tappable
-              menu trigger, not just identity. */}
-          <span aria-hidden className="ml-px inline-flex items-center text-admin-ink-muted">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-            </svg>
-          </span>
-        </AccountMenuTrigger>
-
-        {/* Subtle separator dot between identity and acting-as.
-            Hidden at phone widths (where the name text also collapses). */}
-        <span
-          aria-hidden
-          data-tulala-id-slash
-          className="-ml-[2px] font-admin-body text-[14px] text-admin-ink-dim"
-        >
-          /
-        </span>
-
-        {/* Acting-as context — flips with mode. Click opens the
-            tenant or agency switcher depending on which side.
-            Audit #4 — chevron rotates on hover to invite the click. */}
-        <button
-          type="button"
-          onClick={onActingClick}
-          aria-label={copy.isSpanish ? `Actuando como ${actingLabel} — cambiar` : `Acting as ${actingLabel} — switch`}
-          title={actingSubLabel}
-          className="tulala-acting-chip inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border-none bg-transparent px-[9px] py-[5px] font-admin-body [transition:background_var(--transition-admin-micro)]"
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
-          <span
-            aria-hidden
-            className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
-          />
-          <span
-            data-tulala-acting-label
-            className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
-          >
-            <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
-              {/* Plan tier moved to its own clickable <WorkspacePlanBadge> in the
-                  right utility cluster — opens a summary popover. */}
-              <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
+            <span
+              aria-hidden
+              className="h-[6px] w-[6px] shrink-0 rounded-full bg-admin-green"
+            />
+            <span
+              data-tulala-acting-label
+              className="inline-flex max-w-[220px] min-w-0 flex-col items-start overflow-hidden"
+            >
+              <span className="inline-flex items-center gap-[6px] font-admin-body text-[13px] font-medium tracking-[-0.05px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.15] text-admin-ink">
+                <span className="overflow-hidden text-ellipsis">{actingLabel}</span>
+              </span>
+              <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
             </span>
-            <span data-tulala-acting-detail className="mt-px font-admin-body text-[10px] font-medium tracking-[0px] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.1] text-admin-ink-muted">{actingDetail}</span>
-          </span>
-          <span
-            aria-hidden
-            className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
-          >
-            <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
-          </span>
-        </button>
+            <span
+              aria-hidden
+              className="tulala-acting-chevron inline-flex [transition:transform_var(--transition-admin-layout)]"
+            >
+              <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+            </span>
+          </button>
+        )}
 
-        <div className="flex-1" />
+        {/* Centered global search — Shopify-style. One pill in the middle of
+            the chrome that opens the unified command palette (same target as
+            ⌘K). Workspace surface only; hidden on mobile where the bottom
+            FAB is the single command surface. */}
+        {inWorkspace ? (
+          <>
+            <div className="flex-1" />
+            <button
+              type="button"
+              data-tulala-topbar-search
+              onClick={() => window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT))}
+              aria-label={copy.isSpanish ? "Buscar en el workspace" : "Search workspace"}
+              className="hidden h-[34px] w-[min(420px,32vw)] min-w-[180px] cursor-pointer items-center gap-[8px] rounded-[9px] border border-admin-border-soft bg-admin-surface px-[10px] font-admin-body text-[12.5px] text-admin-ink-dim md:inline-flex [transition:border-color_var(--transition-admin-micro),background_var(--transition-admin-micro)]"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.background = "#fff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "";
+                e.currentTarget.style.background = "";
+              }}
+            >
+              <Icon name="search" size={13} color={COLORS.inkDim} />
+              <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-left">
+                {copy.isSpanish ? "Buscar" : "Search"}
+              </span>
+              <span
+                aria-hidden
+                className="inline-flex h-[18px] items-center rounded-[5px] border border-admin-border-soft bg-white px-[5px] font-mono text-[10px] font-semibold text-admin-ink-dim"
+              >
+                ⌘K
+              </span>
+            </button>
+            <div className="flex-1" />
+          </>
+        ) : (
+          <div className="flex-1" />
+        )}
 
-        {/* Workspace plan badge — clickable tier chip + summary popover
-            (registration, renewal, seats, subscription, plan override).
-            Workspace surface only: talent + client have no workspace plan. */}
-        {inWorkspace && <WorkspacePlanBadge />}
+        {/* Plan chip / locale pills / help "?" / sign-out icon all moved
+            into the account menu (right-most avatar): the sidebar tenant
+            chip already shows the plan, and Language + Sign out lived in
+            the menu anyway — the standalone controls were duplicates. */}
 
         {/* Mode toggle — only for hybrid users (talent who also have a
             workspace). Hidden on the client surface — clients are
@@ -367,21 +405,6 @@ export function TulalaIdentityBar() {
           <NotificationsBell />
         )}
 
-        <IdentityBarIconButton
-          aria-label={copy.t("Help")}
-          onClick={() => openDrawer("help")}
-        >
-          <span className="font-admin-body text-[13px] font-bold">?</span>
-        </IdentityBarIconButton>
-
-        {/* Locale toggle — the always-visible top-bar pill. Threaded from the
-            shell bridge so registry-added languages (e.g. `fr`) appear, not
-            just the static en/es fallback; hides for single-locale tenants. */}
-        <LocaleToggle
-          supportedLocales={supportedLocales}
-          defaultLocale={tenantDefaultLocale}
-        />
-
         {/* Preview public site — opens the agency homepage in a new tab */}
         <a
           href={tenantSlug ? `/${tenantSlug}` : "/"}
@@ -405,21 +428,16 @@ export function TulalaIdentityBar() {
           </svg>
         </a>
 
-        {/* Sign out — calls the real signOut server action (clears the
-            Supabase session + redirects to "/"). Previously a prototype
-            stub that only fired a toast and never logged the user out. */}
-        <IdentityBarIconButton
-          aria-label={copy.t("Sign out")}
-          onClick={() => {
-            void signOut();
-          }}
-        >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <path d="m16 17 5-5-5-5" />
-            <path d="M21 12H9" />
-          </svg>
-        </IdentityBarIconButton>
+        {/* User identity — Shopify/Gmail-style avatar-only menu trigger.
+            The name used to sit inline and wrapped to two lines whenever
+            the bar got tight (the recurring breakage). It's an avatar
+            button now: never wraps, and the full name + email live in the
+            dropdown header, the aria-label, and a hover tooltip. One human,
+            one menu: profile, settings, plan & billing, notifications,
+            language, help, shortcuts, sign out. */}
+        <AccountMenuTrigger userName={userName} userInitials={userInitials} align="right">
+          <Avatar initials={userInitials} size={28} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
+        </AccountMenuTrigger>
       </div>
 
       {/* Shared dialog — mounted at the bar level so the account menu,
@@ -444,10 +462,13 @@ function AccountMenuTrigger({
   userName,
   userInitials: _userInitials,
   children,
+  align = "left",
 }: {
   userName: string;
   userInitials: string;
   children: ReactNode;
+  /** Which edge the dropdown hugs — "right" when the trigger sits at the bar's right end. */
+  align?: "left" | "right";
 }) {
   const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale } = useAdminShell();
   const copy = useDashboardText();
@@ -502,14 +523,16 @@ function AccountMenuTrigger({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`${copy.t("Open account menu")} — ${copy.t("Signed in as")} ${userName}`}
+        title={userName}
         aria-haspopup="menu"
         aria-expanded={open}
-        // Always-on subtle pill so the trigger reads as a button, not just an
-        // avatar. Stronger when open / hovered. Border makes it visually
-        // distinct from a static avatar. The open/hover shades flow through CSS
-        // custom properties so the imperative hover handlers stay no-render and
-        // React still reconciles the open-state color on toggle.
-        className="inline-flex cursor-pointer items-center gap-[8px] rounded-[999px] border border-[var(--ib-pill-bd)] bg-[var(--ib-pill-bg)] pt-[3px] pr-[8px] pb-[3px] pl-[3px] font-admin-body [transition:background_var(--transition-admin-micro),border-color_var(--transition-admin-micro)]"
+        // Circular avatar button — the avatar IS the affordance (Gmail /
+        // Shopify pattern), so a fixed round ring around it can never wrap
+        // or reflow no matter how tight the bar gets. Symmetric p-[3px] +
+        // rounded-full keeps it a perfect circle. Hover/open shades flow
+        // through CSS custom properties so the imperative handlers stay
+        // no-render while React reconciles the open-state color on toggle.
+        className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-[var(--ib-pill-bd)] bg-[var(--ib-pill-bg)] p-[3px] font-admin-body [transition:background_var(--transition-admin-micro),border-color_var(--transition-admin-micro)]"
         style={{
           "--ib-pill-bg": open ? "rgba(11,11,13,0.08)" : "rgba(11,11,13,0.035)",
           "--ib-pill-bd": open ? "rgba(11,11,13,0.12)" : "rgba(11,11,13,0.07)",
@@ -532,7 +555,7 @@ function AccountMenuTrigger({
       {open && (
         <div
           role="menu"
-          className="absolute left-0 top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]"
+          className={`absolute ${align === "right" ? "right-0" : "left-0"} top-[calc(100%_+_6px)] z-[200] min-w-[240px] rounded-[12px] border border-admin-border-soft bg-white p-[6px] font-admin-body shadow-[0_10px_40px_rgba(11,11,13,0.16)] [animation:tulala-menu-fade_.14s_ease]`}
         >
           <style>{`@keyframes tulala-menu-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           {/* Header — signed-in-as identity */}
@@ -570,6 +593,18 @@ function AccountMenuTrigger({
             sub="Name, domain, branding, team"
             onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
           />
+          {/* Plan & billing — absorbs the old top-bar plan chip (the sidebar
+              tenant chip still shows the plan name at a glance). */}
+          {isWorkspaceSurface && (
+            <AccountMenuItem
+              label="Plan & billing"
+              sub="Seats, invoices, payouts"
+              onClick={() => {
+                setOpen(false);
+                window.location.assign(tenantSlug ? `/${tenantSlug}/admin/account` : "/admin/account");
+              }}
+            />
+          )}
           {/* Talent-surface CTA — let a talent provision their own free
               workspace without leaving their identity. Mirrors the Pure-Workspace
               "Create your talent page" pattern below. The dialog itself is
@@ -600,22 +635,47 @@ function AccountMenuTrigger({
             />
           </div>
           <AccountMenuItem
+            label="Help & guides"
+            sub="How-it-works, docs, support"
+            onClick={() => { setOpen(false); openDrawer("help"); }}
+          />
+          <AccountMenuItem
             label="Keyboard shortcuts"
             sub="Press ? anywhere"
             onClick={() => { setOpen(false); setShortcutsOpen(true); }}
           />
-          {/* Phase 4 — Pure Workspace state: CTA to create own talent page.
-              Rendered only when the signed-in user has no talent profile in
-              this workspace (bridgeTalentSelfProfile is null) AND is on the
-              workspace surface with admin-level access. */}
-          {bridgeTalentSelfProfile === null && state.surface === "workspace" && meetsRole(state.role, "admin") && tenantSlug && (
+          {/* Talent-mode entry — the reliable "get me to my talent
+              dashboard" path. The top-bar mode pill only appears once the
+              server-side isHybrid flag is detected, which lags right after
+              a fresh talent signup; this menu item keys off the talent
+              profile itself (bridgeTalentSelfProfile) and hard-navigates
+              to /<slug>/talent, so it's always there the moment the profile
+              exists. When there is NO profile yet, the same slot offers to
+              create one. Workspace surface + admin only. */}
+          {state.surface === "workspace" && meetsRole(state.role, "admin") && tenantSlug && (
             <>
               <div className="my-1 border-t border-admin-border-soft" />
-              <AccountMenuItem
-                label="Create your talent page"
-                sub="Take bookings as a talent on this workspace"
-                onClick={() => { setOpen(false); setCreateTalentDialogOpen(true); }}
-              />
+              {bridgeTalentSelfProfile !== null ? (
+                <AccountMenuItem
+                  label="Switch to talent"
+                  sub="Go to your talent dashboard"
+                  onClick={() => {
+                    setOpen(false);
+                    // Canonical, Tulala-unified platform talent surface —
+                    // agency-agnostic, no tenant slug. Deliberately NOT
+                    // /{slug}/talent: that legacy redirector checks
+                    // "is workspace admin?" FIRST and bounces a hybrid
+                    // admin+talent user straight back to /{slug}/admin/roster.
+                    window.location.assign("/talent/today");
+                  }}
+                />
+              ) : (
+                <AccountMenuItem
+                  label="Create your talent page"
+                  sub="Take bookings as a talent on this workspace"
+                  onClick={() => { setOpen(false); setCreateTalentDialogOpen(true); }}
+                />
+              )}
             </>
           )}
           <div className="mt-1 border-t border-admin-border-soft pt-1">

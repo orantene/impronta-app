@@ -203,8 +203,11 @@ const neutralPreset: ThemePreset = {
     "directory.card.show-destination-ready-ribbon": "off",
     "directory.card.show-starting-from-price": "off",
     "directory.card.specialty-chips-max": "3",
+    "directory.card.show-standing": "compact",
+    "directory.card.standing-style": "both",
     "profile.sticky-inquiry-bar": "off",
     "profile.blocks-visibility": "all-visible",
+    "profile.reviews-visibility": "visible",
   },
 };
 
@@ -271,8 +274,11 @@ const classicPreset: ThemePreset = {
     "directory.card.show-destination-ready-ribbon": "off",
     "directory.card.show-starting-from-price": "off",
     "directory.card.specialty-chips-max": "3",
+    "directory.card.show-standing": "compact",
+    "directory.card.standing-style": "both",
     "profile.sticky-inquiry-bar": "off",
     "profile.blocks-visibility": "all-visible",
+    "profile.reviews-visibility": "visible",
   },
 };
 
@@ -350,8 +356,11 @@ const editorialBridalPreset: ThemePreset = {
     "directory.card.show-destination-ready-ribbon": "on",
     "directory.card.show-starting-from-price": "on",
     "directory.card.specialty-chips-max": "3",
+    "directory.card.show-standing": "compact",
+    "directory.card.standing-style": "both",
     "profile.sticky-inquiry-bar": "on",
     "profile.blocks-visibility": "editorial-bridal",
+    "profile.reviews-visibility": "visible",
   },
 };
 
@@ -427,8 +436,11 @@ const studioMinimalPreset: ThemePreset = {
     "directory.card.show-destination-ready-ribbon": "off",
     "directory.card.show-starting-from-price": "off",
     "directory.card.specialty-chips-max": "2",
+    "directory.card.show-standing": "compact",
+    "directory.card.standing-style": "both",
     "profile.sticky-inquiry-bar": "off",
     "profile.blocks-visibility": "all-visible",
+    "profile.reviews-visibility": "visible",
   },
 };
 
@@ -510,8 +522,11 @@ const editorialNoirPreset: ThemePreset = {
     "directory.card.show-destination-ready-ribbon": "off",
     "directory.card.show-starting-from-price": "off",
     "directory.card.specialty-chips-max": "3",
+    "directory.card.show-standing": "compact",
+    "directory.card.standing-style": "both",
     "profile.sticky-inquiry-bar": "on",
     "profile.blocks-visibility": "all-visible",
+    "profile.reviews-visibility": "visible",
   },
 };
 

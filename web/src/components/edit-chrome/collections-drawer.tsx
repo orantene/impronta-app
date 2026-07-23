@@ -194,8 +194,8 @@ function CollectionsList({
               className="rounded-lg px-3 py-6 text-center text-[13px]"
               style={{ color: CHROME.muted, background: CHROME.surface }}
             >
-              No collections yet. Create one below — for example a “Team” or
-              “Projects” collection — then bind a repeater to it from the Data
+              No collections yet. Create one below, for example a “Team” or
+              “Projects” collection, then bind a repeater to it from the Data
               tab.
             </p>
           ) : (
@@ -446,7 +446,7 @@ function FieldsEditor({
       </header>
       {fields.length === 0 ? (
         <p className="text-[12px]" style={{ color: CHROME.muted }}>
-          Add a field — e.g. “Name” (text), “Photo” (image), “Link” (url).
+          Add a field, e.g. “Name” (text), “Photo” (image), “Link” (url).
         </p>
       ) : null}
       {fields.map((field, index) => (

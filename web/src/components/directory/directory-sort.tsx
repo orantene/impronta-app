@@ -11,10 +11,17 @@ export function DirectorySort({
   current,
   className,
   sortCopy,
+  showTopRated = true,
 }: {
   current: DirectorySortValue;
   className?: string;
   sortCopy: DirectoryUiCopy["sort"];
+  /**
+   * Hide the "Top rated" option on surfaces without the reviews entitlement
+   * (rating can never affect order there). The option stays visible while the
+   * URL already says sort=top_rated so the select never misrepresents state.
+   */
+  showTopRated?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -23,13 +30,19 @@ export function DirectorySort({
 
   const options = useMemo(
     () =>
-      [
-        { value: "recommended" as const, label: sortCopy.recommended },
-        { value: "featured" as const, label: sortCopy.featured },
-        { value: "recent" as const, label: sortCopy.recent },
-        { value: "updated" as const, label: sortCopy.updated },
-      ] as const,
-    [sortCopy],
+      (
+        [
+          { value: "recommended" as const, label: sortCopy.recommended },
+          { value: "featured" as const, label: sortCopy.featured },
+          { value: "top_rated" as const, label: sortCopy.topRated },
+          { value: "recent" as const, label: sortCopy.recent },
+          { value: "updated" as const, label: sortCopy.updated },
+        ] as const
+      ).filter(
+        (opt) =>
+          opt.value !== "top_rated" || showTopRated || current === "top_rated",
+      ),
+    [sortCopy, showTopRated, current],
   );
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -50,7 +63,7 @@ export function DirectorySort({
       value={current}
       onChange={handleChange}
       className={cn(
-        "h-9 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-sm text-white/70 outline-none transition-colors focus:border-white/40 focus:ring-1 focus:ring-white/25",
+        "h-9 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors focus:border-foreground/40 focus:ring-1 focus:ring-foreground/25",
         pending && "opacity-60",
         className,
       )}

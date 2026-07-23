@@ -78,11 +78,11 @@ export function SubdomainHint({
         <div className="mt-2">
           <p className="text-[0.75rem]" style={{ color: "#8a3e2e" }}>
             {state.reason === "taken"
-              ? "That link is already in use — try another."
+              ? "That link is already in use. Try another."
               : state.reason === "pending"
                 ? "Someone else is claiming that link right now. Try another, or check back in a few minutes."
                 : state.reason === "reserved"
-                  ? "That link is reserved — try another."
+                  ? "That link is reserved. Try another."
                   : state.reason === "format"
                     ? "Use lowercase letters, numbers, or hyphens (no leading/trailing hyphen)."
                     : "Enter a link to continue."}

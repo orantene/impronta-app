@@ -21,8 +21,13 @@ import {
   archiveLocaleAction,
   restoreLocaleAction,
 } from "./actions";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
+
+type Translate = (key: string) => string;
 
 // ─── Design tokens (same HQ palette as the rest of platform admin) ────────────
 
@@ -142,11 +147,13 @@ function ToggleForm({
   field,
   current,
   label,
+  t,
 }: {
   code: string;
   field: "enabled_admin" | "enabled_public";
   current: boolean;
   label: string;
+  t: Translate;
 }) {
   return (
     <form action={toggleLocaleEnabledAction} style={{ display: "inline" }}>
@@ -155,7 +162,11 @@ function ToggleForm({
       <input type="hidden" name="value" value={current ? "false" : "true"} />
       <button
         type="submit"
-        title={current ? `Disable ${label}` : `Enable ${label}`}
+        title={
+          current
+            ? interpolate(t("dashboard.platform.languages.disableTitle"), { label })
+            : interpolate(t("dashboard.platform.languages.enableTitle"), { label })
+        }
         style={{
           background: current ? "rgba(93,211,160,0.12)" : "rgba(255,255,255,0.06)",
           border: `1px solid ${current ? "rgba(93,211,160,0.25)" : HQ.borderSoft}`,
@@ -169,7 +180,9 @@ function ToggleForm({
           letterSpacing: 0.3,
         }}
       >
-        {current ? "ON" : "OFF"}
+        {current
+          ? t("dashboard.platform.languages.badgeOn")
+          : t("dashboard.platform.languages.badgeOff")}
       </button>
     </form>
   );
@@ -188,6 +201,8 @@ export default async function PlatformLanguagesPage({
     show_archived?: string;
   }>;
 }) {
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const params = await searchParams;
   const locales = await loadLocales();
   const showArchived = params.show_archived === "1";
@@ -198,13 +213,14 @@ export default async function PlatformLanguagesPage({
   const visible = showArchived ? locales ?? [] : active;
   const editLocale = editCode ? (locales ?? []).find((l) => l.code === editCode) ?? null : null;
 
+  const code = params.code ?? "";
   const savedMsg =
-    params.saved === "create" ? `Locale "${params.code ?? ""}" created.`
-    : params.saved === "update" ? `Locale "${params.code ?? ""}" updated.`
-    : params.saved === "default" ? `"${params.code ?? ""}" is now the default locale.`
-    : params.saved === "toggle" ? `Locale "${params.code ?? ""}" updated.`
-    : params.saved === "archive" ? `Locale "${params.code ?? ""}" archived.`
-    : params.saved === "restore" ? `Locale "${params.code ?? ""}" restored.`
+    params.saved === "create" ? interpolate(t("dashboard.platform.languages.savedCreate"), { code })
+    : params.saved === "update" ? interpolate(t("dashboard.platform.languages.savedUpdate"), { code })
+    : params.saved === "default" ? interpolate(t("dashboard.platform.languages.savedDefault"), { code })
+    : params.saved === "toggle" ? interpolate(t("dashboard.platform.languages.savedUpdate"), { code })
+    : params.saved === "archive" ? interpolate(t("dashboard.platform.languages.savedArchive"), { code })
+    : params.saved === "restore" ? interpolate(t("dashboard.platform.languages.savedRestore"), { code })
     : null;
 
   return (
@@ -220,11 +236,10 @@ export default async function PlatformLanguagesPage({
             letterSpacing: -0.3,
           }}
         >
-          Language Registry
+          {t("dashboard.platform.languages.title")}
         </h1>
         <p style={{ fontSize: 12.5, color: HQ.inkMuted, margin: "4px 0 0" }}>
-          Platform-level locale catalog. Add a language here and it flows to agencies that support
-          it. Exactly one locale must be marked default at all times.
+          {t("dashboard.platform.languages.subtitle")}
         </p>
       </div>
 
@@ -264,16 +279,16 @@ export default async function PlatformLanguagesPage({
 
       {/* Stats */}
       <HqCard
-        title="Overview"
-        subtitle="Active locales drive URL routing, admin pickers, and translation surfaces."
+        title={t("dashboard.platform.languages.overviewTitle")}
+        subtitle={t("dashboard.platform.languages.overviewSubtitle")}
       >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
           {[
-            { label: "Total", value: (locales ?? []).length, tone: HQ.ink },
-            { label: "Active", value: active.length, tone: HQ.green },
-            { label: "Archived", value: archived.length, tone: archived.length > 0 ? HQ.amber : HQ.inkDim },
-            { label: "Public", value: active.filter((l) => l.enabled_public).length, tone: HQ.green },
-            { label: "Admin only", value: active.filter((l) => l.enabled_admin && !l.enabled_public).length, tone: HQ.amber },
+            { label: t("dashboard.platform.languages.statTotal"), value: (locales ?? []).length, tone: HQ.ink },
+            { label: t("dashboard.platform.languages.statActive"), value: active.length, tone: HQ.green },
+            { label: t("dashboard.platform.languages.statArchived"), value: archived.length, tone: archived.length > 0 ? HQ.amber : HQ.inkDim },
+            { label: t("dashboard.platform.languages.statPublic"), value: active.filter((l) => l.enabled_public).length, tone: HQ.green },
+            { label: t("dashboard.platform.languages.statAdminOnly"), value: active.filter((l) => l.enabled_admin && !l.enabled_public).length, tone: HQ.amber },
           ].map((stat) => (
             <div
               key={stat.label}
@@ -298,30 +313,41 @@ export default async function PlatformLanguagesPage({
           href={showArchived ? "/platform/admin/languages" : "/platform/admin/languages?show_archived=1"}
           style={{ fontSize: 11.5, color: HQ.inkMuted, textDecoration: "underline" }}
         >
-          {showArchived ? "Hide archived locales" : `Show archived (${archived.length})`}
+          {showArchived
+            ? t("dashboard.platform.languages.hideArchived")
+            : interpolate(t("dashboard.platform.languages.showArchived"), { count: archived.length })}
         </a>
       </HqCard>
 
       {/* Locale table */}
       <HqCard
-        title={`Locales (${visible.length})`}
-        subtitle="Toggle enabled flags inline. Use Set default to promote a locale."
+        title={interpolate(t("dashboard.platform.languages.localesTitle"), { count: visible.length })}
+        subtitle={t("dashboard.platform.languages.localesSubtitle")}
       >
         {!locales ? (
           <div style={{ color: HQ.red, fontSize: 12.5 }}>
-            Could not load locales — service client unavailable.
+            {t("dashboard.platform.languages.loadError")}
           </div>
         ) : visible.length === 0 ? (
           <div style={{ color: HQ.inkMuted, fontSize: 12.5 }}>
-            No locales yet. Add the first one below.
+            {t("dashboard.platform.languages.localesEmpty")}
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
                 <tr>
-                  {["Code", "Native", "English", "Sort", "Admin", "Public", "Default", "Fallback", ""].map(
-                    (h) => (
+                  {[
+                    t("dashboard.platform.languages.colCode"),
+                    t("dashboard.platform.languages.colNative"),
+                    t("dashboard.platform.languages.colEnglish"),
+                    t("dashboard.platform.languages.colSort"),
+                    t("dashboard.platform.languages.colAdmin"),
+                    t("dashboard.platform.languages.colPublic"),
+                    t("dashboard.platform.languages.colDefault"),
+                    t("dashboard.platform.languages.colFallback"),
+                    "",
+                  ].map((h) => (
                       <th
                         key={h}
                         style={{
@@ -366,12 +392,12 @@ export default async function PlatformLanguagesPage({
                         {locale.code}
                         {locale.is_default && (
                           <span style={{ marginLeft: 6 }}>
-                            <Badge label="default" tone="green" />
+                            <Badge label={t("dashboard.platform.languages.badgeDefault")} tone="green" />
                           </span>
                         )}
                         {isArchived && (
                           <span style={{ marginLeft: 6 }}>
-                            <Badge label="archived" tone="red" />
+                            <Badge label={t("dashboard.platform.languages.badgeArchived")} tone="red" />
                           </span>
                         )}
                       </td>
@@ -392,35 +418,37 @@ export default async function PlatformLanguagesPage({
                       {/* enabled_admin toggle */}
                       <td style={{ padding: "10px 8px" }}>
                         {isArchived ? (
-                          <Badge label="OFF" tone="red" />
+                          <Badge label={t("dashboard.platform.languages.badgeOff")} tone="red" />
                         ) : (
                           <ToggleForm
                             code={locale.code}
                             field="enabled_admin"
                             current={locale.enabled_admin}
-                            label="Admin"
+                            label={t("dashboard.platform.languages.colAdmin")}
+                            t={t}
                           />
                         )}
                       </td>
                       {/* enabled_public toggle */}
                       <td style={{ padding: "10px 8px" }}>
                         {isArchived ? (
-                          <Badge label="OFF" tone="red" />
+                          <Badge label={t("dashboard.platform.languages.badgeOff")} tone="red" />
                         ) : (
                           <ToggleForm
                             code={locale.code}
                             field="enabled_public"
                             current={locale.enabled_public}
-                            label="Public"
+                            label={t("dashboard.platform.languages.colPublic")}
+                            t={t}
                           />
                         )}
                       </td>
                       {/* Set default */}
                       <td style={{ padding: "10px 8px" }}>
                         {locale.is_default ? (
-                          <Badge label="Yes" tone="green" />
+                          <Badge label={t("dashboard.platform.languages.badgeYes")} tone="green" />
                         ) : isArchived ? (
-                          <Badge label="No" tone="neutral" />
+                          <Badge label={t("dashboard.platform.languages.badgeNo")} tone="neutral" />
                         ) : (
                           <form action={setDefaultLocaleAction} style={{ display: "inline" }}>
                             <input type="hidden" name="code" value={locale.code} />
@@ -437,7 +465,7 @@ export default async function PlatformLanguagesPage({
                                 fontFamily: F,
                               }}
                             >
-                              Set default
+                              {t("dashboard.platform.languages.setDefault")}
                             </button>
                           </form>
                         )}
@@ -467,7 +495,7 @@ export default async function PlatformLanguagesPage({
                             borderRadius: 6,
                           }}
                         >
-                          Edit
+                          {t("dashboard.platform.languages.edit")}
                         </a>
                         {isArchived ? (
                           <form action={restoreLocaleAction} style={{ display: "inline" }}>
@@ -485,7 +513,7 @@ export default async function PlatformLanguagesPage({
                                 fontFamily: F,
                               }}
                             >
-                              Restore
+                              {t("dashboard.platform.languages.restore")}
                             </button>
                           </form>
                         ) : locale.is_default ? (
@@ -506,7 +534,7 @@ export default async function PlatformLanguagesPage({
                                 fontFamily: F,
                               }}
                             >
-                              Archive
+                              {t("dashboard.platform.languages.archive")}
                             </button>
                           </form>
                         )}
@@ -523,8 +551,8 @@ export default async function PlatformLanguagesPage({
       {/* Edit form (shown when ?edit=<code>) */}
       {editLocale && (
         <HqCard
-          title={`Edit locale: ${editLocale.code}`}
-          subtitle="Updating labels or sort order. Toggle enabled flags from the table above."
+          title={interpolate(t("dashboard.platform.languages.editTitle"), { code: editLocale.code })}
+          subtitle={t("dashboard.platform.languages.editSubtitle")}
         >
           <form action={updateLocaleAction}>
             <input type="hidden" name="code" value={editLocale.code} />
@@ -537,36 +565,36 @@ export default async function PlatformLanguagesPage({
               }}
             >
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-                Native label
+                {t("dashboard.platform.languages.nativeLabel")}
                 <input
                   name="label_native"
                   defaultValue={editLocale.label_native}
                   required
                   style={inputStyle}
-                  placeholder="e.g. Français"
+                  placeholder={t("dashboard.platform.languages.nativePlaceholder")}
                 />
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-                English label
+                {t("dashboard.platform.languages.englishLabel")}
                 <input
                   name="label_en"
                   defaultValue={editLocale.label_en}
                   required
                   style={inputStyle}
-                  placeholder="e.g. French"
+                  placeholder={t("dashboard.platform.languages.englishPlaceholder")}
                 />
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-                Fallback locale code
+                {t("dashboard.platform.languages.fallbackLabel")}
                 <input
                   name="fallback_locale"
                   defaultValue={editLocale.fallback_locale ?? ""}
                   style={inputStyle}
-                  placeholder="e.g. en"
+                  placeholder={t("dashboard.platform.languages.fallbackPlaceholder")}
                 />
               </label>
               <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-                Sort order
+                {t("dashboard.platform.languages.sortOrderLabel")}
                 <input
                   name="sort_order"
                   type="number"
@@ -577,13 +605,13 @@ export default async function PlatformLanguagesPage({
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button type="submit" style={primaryButtonStyle}>
-                Save changes
+                {t("dashboard.platform.languages.saveChanges")}
               </button>
               <Link
                 href="/platform/admin/languages"
                 style={{ fontSize: 12.5, color: HQ.inkMuted, textDecoration: "none" }}
               >
-                Cancel
+                {t("dashboard.platform.languages.cancel")}
               </Link>
             </div>
           </form>
@@ -592,8 +620,8 @@ export default async function PlatformLanguagesPage({
 
       {/* Add new locale */}
       <HqCard
-        title="Add language"
-        subtitle="BCP-47 code (e.g. en, es, fr, pt-BR). Code is immutable once created — archive and recreate to correct a typo."
+        title={t("dashboard.platform.languages.addTitle")}
+        subtitle={t("dashboard.platform.languages.addSubtitle")}
       >
         <form action={createLocaleAction}>
           <div
@@ -605,44 +633,44 @@ export default async function PlatformLanguagesPage({
             }}
           >
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-              BCP-47 code *
+              {t("dashboard.platform.languages.codeLabel")}
               <input
                 name="code"
                 required
                 style={inputStyle}
-                placeholder="e.g. fr"
+                placeholder={t("dashboard.platform.languages.codePlaceholder")}
                 pattern="[a-zA-Z]{2,8}(-[a-zA-Z0-9]{1,8})*"
-                title="Valid BCP-47 tag: 2-8 alpha chars, optional subtags (e.g. pt-BR)"
+                title={t("dashboard.platform.languages.codeTitle")}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-              Native label *
+              {t("dashboard.platform.languages.nativeLabelRequired")}
               <input
                 name="label_native"
                 required
                 style={inputStyle}
-                placeholder="e.g. Français"
+                placeholder={t("dashboard.platform.languages.nativePlaceholder")}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-              English label *
+              {t("dashboard.platform.languages.englishLabelRequired")}
               <input
                 name="label_en"
                 required
                 style={inputStyle}
-                placeholder="e.g. French"
+                placeholder={t("dashboard.platform.languages.englishPlaceholder")}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-              Fallback locale code
+              {t("dashboard.platform.languages.fallbackLabel")}
               <input
                 name="fallback_locale"
                 style={inputStyle}
-                placeholder="e.g. en (leave blank for none)"
+                placeholder={t("dashboard.platform.languages.fallbackPlaceholderFull")}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: HQ.inkMuted }}>
-              Sort order
+              {t("dashboard.platform.languages.sortOrderLabel")}
               <input
                 name="sort_order"
                 type="number"
@@ -665,7 +693,7 @@ export default async function PlatformLanguagesPage({
               }}
             >
               <input type="checkbox" name="enabled_admin" defaultChecked style={{ accentColor: HQ.green }} />
-              Enable for admin
+              {t("dashboard.platform.languages.enableAdmin")}
             </label>
             <label
               style={{
@@ -678,7 +706,7 @@ export default async function PlatformLanguagesPage({
               }}
             >
               <input type="checkbox" name="enabled_public" defaultChecked style={{ accentColor: HQ.green }} />
-              Enable for public
+              {t("dashboard.platform.languages.enablePublic")}
             </label>
             <label
               style={{
@@ -691,20 +719,20 @@ export default async function PlatformLanguagesPage({
               }}
             >
               <input type="checkbox" name="is_default" style={{ accentColor: HQ.green }} />
-              Set as default (clears current default)
+              {t("dashboard.platform.languages.setAsDefault")}
             </label>
           </div>
 
           <button type="submit" style={primaryButtonStyle}>
-            Add language
+            {t("dashboard.platform.languages.addButton")}
           </button>
         </form>
       </HqCard>
 
       {/* Rules summary */}
       <HqCard
-        title="Rules"
-        subtitle="These constraints are enforced server-side on every write."
+        title={t("dashboard.platform.languages.rulesTitle")}
+        subtitle={t("dashboard.platform.languages.rulesSubtitle")}
       >
         <ul
           style={{
@@ -716,26 +744,25 @@ export default async function PlatformLanguagesPage({
           }}
         >
           <li>
-            <strong style={{ color: HQ.ink }}>BCP-47 codes only.</strong> e.g.{" "}
+            <strong style={{ color: HQ.ink }}>{t("dashboard.platform.languages.ruleBcp47Strong")}</strong>{" "}
+            {t("dashboard.platform.languages.ruleBcp47Rest")}{" "}
             <code style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>en</code>,{" "}
             <code style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>fr</code>,{" "}
             <code style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }}>pt-BR</code>.
           </li>
           <li>
-            <strong style={{ color: HQ.ink }}>Exactly one default</strong> at all times. Setting a
-            new default atomically clears the old one.
+            <strong style={{ color: HQ.ink }}>{t("dashboard.platform.languages.ruleOneDefaultStrong")}</strong>{" "}
+            {t("dashboard.platform.languages.ruleOneDefaultRest")}
           </li>
           <li>
-            <strong style={{ color: HQ.ink }}>Default cannot be archived or disabled.</strong> Promote
-            another locale first.
+            <strong style={{ color: HQ.ink }}>{t("dashboard.platform.languages.ruleDefaultProtectedStrong")}</strong>{" "}
+            {t("dashboard.platform.languages.ruleDefaultProtectedRest")}
           </li>
           <li>
-            <strong style={{ color: HQ.ink }}>Code is immutable.</strong> Archive and recreate to fix
-            a wrong code.
+            <strong style={{ color: HQ.ink }}>{t("dashboard.platform.languages.ruleImmutableStrong")}</strong>{" "}
+            {t("dashboard.platform.languages.ruleImmutableRest")}
           </li>
-          <li>
-            Setting a locale as default automatically enables it for both admin and public.
-          </li>
+          <li>{t("dashboard.platform.languages.ruleDefaultEnables")}</li>
         </ul>
       </HqCard>
     </div>

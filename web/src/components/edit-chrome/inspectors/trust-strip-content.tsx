@@ -15,6 +15,7 @@ import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 import { InspectorGroup, KIT, VisualChipGroup } from "./kit";
 import { DraggableList, type DragHandleProps } from "./kit/draggable-list";
+import { useEditorLocale } from "../use-editor-locale";
 
 type Variant = "icon-row" | "metrics-row" | "logo-row";
 type Background = "neutral" | "ivory" | "champagne" | "espresso";
@@ -33,51 +34,67 @@ interface Props {
   onChange: (next: Record<string, unknown>) => void;
 }
 
-const VARIANT_OPTIONS: ReadonlyArray<{
+function variantOptions(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<{
   value: Variant;
   label: string;
   info: string;
-}> = [
-  {
-    value: "icon-row",
-    label: "Icon row",
-    info: "Small proof strip with index numerals.",
-  },
-  {
-    value: "metrics-row",
-    label: "Metrics",
-    info: "Large stats with short labels.",
-  },
-  {
-    value: "logo-row",
-    label: "Logo row",
-    info: "Client or publication name strip.",
-  },
-];
+}> {
+  return [
+    {
+      value: "icon-row",
+      label: t("Icon row"),
+      info: t("Small proof strip with index numerals."),
+    },
+    {
+      value: "metrics-row",
+      label: t("Metrics"),
+      info: t("Large stats with short labels."),
+    },
+    {
+      value: "logo-row",
+      label: t("Logo row"),
+      info: t("Client or publication name strip."),
+    },
+  ];
+}
 
-const BACKGROUND_OPTIONS: ReadonlyArray<{
+function backgroundOptions(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<{
   value: Background;
   label: string;
   color: string;
-}> = [
-  { value: "neutral", label: "Neutral", color: "#f8f6f2" },
-  { value: "ivory", label: "Ivory", color: "#f4efe6" },
-  { value: "champagne", label: "Champagne", color: "#e7d6b7" },
-  { value: "espresso", label: "Espresso", color: "#2b211a" },
-];
+}> {
+  return [
+    { value: "neutral", label: t("Neutral"), color: "#f8f6f2" },
+    { value: "ivory", label: t("Ivory"), color: "#f4efe6" },
+    { value: "champagne", label: t("Champagne"), color: "#e7d6b7" },
+    { value: "espresso", label: t("Espresso"), color: "#2b211a" },
+  ];
+}
 
-const DENSITY_OPTIONS: ReadonlyArray<{
+function densityOptions(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<{
   value: Density;
   label: string;
   info: string;
-}> = [
-  { value: "tight", label: "Tight", info: "Compact vertical rhythm." },
-  { value: "standard", label: "Standard", info: "Balanced section rhythm." },
-  { value: "airy", label: "Airy", info: "More breathing room." },
-];
+}> {
+  return [
+    { value: "tight", label: t("Tight"), info: t("Compact vertical rhythm.") },
+    { value: "standard", label: t("Standard"), info: t("Balanced section rhythm.") },
+    { value: "airy", label: t("Airy"), info: t("More breathing room.") },
+  ];
+}
 
-function parseItems(raw: unknown): TrustItemDraft[] {
-  if (!Array.isArray(raw)) return [{ label: "Destination-ready", detail: "", stat: "" }];
+function parseItems(
+  raw: unknown,
+  t: ReturnType<typeof useEditorLocale>["t"],
+): TrustItemDraft[] {
+  const fallback = [{ label: t("Destination-ready"), detail: "", stat: "" }];
+  if (!Array.isArray(raw)) return fallback;
   const next = raw
     .map((item) => {
       const row = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
@@ -88,7 +105,7 @@ function parseItems(raw: unknown): TrustItemDraft[] {
       };
     })
     .slice(0, 6);
-  return next.length > 0 ? next : [{ label: "Destination-ready", detail: "", stat: "" }];
+  return next.length > 0 ? next : fallback;
 }
 
 function cleanObject<T extends Record<string, unknown>>(value: T): T {
@@ -108,12 +125,13 @@ export function TrustStripContentInspector({
   selectedBuilderNodeId,
   onChange,
 }: Props) {
+  const { t } = useEditorLocale();
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
   const headline = (draftProps.headline as string | undefined) ?? "";
   const variant = (draftProps.variant as Variant | undefined) ?? "icon-row";
   const background = (draftProps.background as Background | undefined) ?? "neutral";
   const density = (draftProps.density as Density | undefined) ?? "standard";
-  const items = parseItems(draftProps.items);
+  const items = parseItems(draftProps.items, t);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const focusRole = useMemo(() => {
@@ -124,10 +142,10 @@ export function TrustStripContentInspector({
   }, [selectedBuilderNodeId]);
 
   const focusLabel = useMemo(() => {
-    if (focusRole === "subheadline") return "Eyebrow";
-    if (focusRole === "headline") return "Headline";
+    if (focusRole === "subheadline") return t("Eyebrow");
+    if (focusRole === "headline") return t("Headline");
     return null;
-  }, [focusRole]);
+  }, [focusRole, t]);
 
   useEffect(() => {
     if (!focusRole) return;
@@ -162,7 +180,7 @@ export function TrustStripContentInspector({
   function addItem() {
     if (items.length >= 6) return;
     update({
-      items: [...items, { label: "New item", detail: "", stat: "" }],
+      items: [...items, { label: t("New item"), detail: "", stat: "" }],
     });
   }
 
@@ -205,40 +223,40 @@ export function TrustStripContentInspector({
             color: "#1d4ed8",
           }}
         >
-          Editing selected canvas node: {focusLabel}
+          {t("Editing selected canvas node:")} {focusLabel}
         </div>
       ) : null}
 
-      <InspectorGroup title="Copy">
+      <InspectorGroup title={t("Copy")}>
         <div className={KIT.field} data-trust-strip-node-role="subheadline">
-          <label className={KIT.label}>Eyebrow</label>
+          <label className={KIT.label}>{t("Eyebrow")}</label>
           <RichEditor
             value={eyebrow}
             onChange={(next) => update({ eyebrow: next || undefined })}
             variant="single"
             tenantId={tenantId}
-            placeholder="Optional framing line"
-            ariaLabel="Trust strip eyebrow"
+            placeholder={t("Optional framing line")}
+            ariaLabel={t("Trust strip eyebrow")}
           />
         </div>
         <div className={KIT.field} data-trust-strip-node-role="headline">
-          <label className={KIT.label}>Headline</label>
+          <label className={KIT.label}>{t("Headline")}</label>
           <RichEditor
             value={headline}
             onChange={(next) => update({ headline: next || undefined })}
             variant="single"
             tenantId={tenantId}
-            placeholder="Optional core proof statement"
-            ariaLabel="Trust strip headline"
+            placeholder={t("Optional core proof statement")}
+            ariaLabel={t("Trust strip headline")}
           />
         </div>
       </InspectorGroup>
 
-      <InspectorGroup title="Layout style">
+      <InspectorGroup title={t("Layout style")}>
         <VisualChipGroup<Variant>
           value={variant}
           onChange={(next) => update({ variant: next })}
-          options={VARIANT_OPTIONS.map((option) => ({
+          options={variantOptions(t).map((option) => ({
             value: option.value,
             label: option.label,
             info: option.info,
@@ -248,9 +266,9 @@ export function TrustStripContentInspector({
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Tone">
+      <InspectorGroup title={t("Tone")}>
         <div className="grid grid-cols-4 gap-2">
-          {BACKGROUND_OPTIONS.map((option) => {
+          {backgroundOptions(t).map((option) => {
             const active = option.value === background;
             return (
               <button
@@ -259,7 +277,7 @@ export function TrustStripContentInspector({
                 onClick={() => update({ background: option.value })}
                 className={`flex flex-col items-stretch gap-1.5 rounded-lg border p-1.5 text-left transition ${
                   active
-                    ? "border-indigo-400 shadow-[0_0_0_1px_rgba(61,79,124,0.4)]"
+                    ? "border-indigo-400 shadow-[0_0_0_1px_rgba(124,58,237,0.4)]"
                     : "border-stone-200 hover:border-stone-400"
                 }`}
               >
@@ -276,11 +294,11 @@ export function TrustStripContentInspector({
         </div>
       </InspectorGroup>
 
-      <InspectorGroup title="Density">
+      <InspectorGroup title={t("Density")}>
         <VisualChipGroup<Density>
           value={density}
           onChange={(next) => update({ density: next })}
-          options={DENSITY_OPTIONS.map((option) => ({
+          options={densityOptions(t).map((option) => ({
             value: option.value,
             label: option.label,
             info: option.info,
@@ -290,7 +308,7 @@ export function TrustStripContentInspector({
         />
       </InspectorGroup>
 
-      <InspectorGroup title={`Items (${items.length}/6)`}>
+      <InspectorGroup title={`${t("Items")} (${items.length}/6)`}>
         <DraggableList<TrustItemDraft>
           items={items}
           keyOf={(_, i) => String(i)}
@@ -303,7 +321,7 @@ export function TrustStripContentInspector({
                   type="text"
                   className={KIT.input}
                   maxLength={40}
-                  placeholder="Stat (e.g. 12+ years)"
+                  placeholder={t("Stat (e.g. 12+ years)")}
                   value={item.stat}
                   onChange={(event) =>
                     patchItem(index, { stat: event.target.value })
@@ -314,7 +332,7 @@ export function TrustStripContentInspector({
                   type="text"
                   className={KIT.input}
                   maxLength={80}
-                  placeholder="Label"
+                  placeholder={t("Label")}
                   value={item.label}
                   onChange={(event) =>
                     patchItem(index, { label: event.target.value })
@@ -325,7 +343,7 @@ export function TrustStripContentInspector({
                 type="text"
                 className={KIT.input}
                 maxLength={200}
-                placeholder="Supporting detail (optional)"
+                placeholder={t("Supporting detail (optional)")}
                 value={item.detail}
                 onChange={(event) =>
                   patchItem(index, { detail: event.target.value })
@@ -337,7 +355,7 @@ export function TrustStripContentInspector({
                     type="text"
                     className={KIT.input}
                     maxLength={80}
-                    placeholder="Label"
+                    placeholder={t("Label")}
                     value={item.label}
                   onChange={(event) =>
                     patchItem(index, { label: event.target.value })
@@ -347,8 +365,8 @@ export function TrustStripContentInspector({
               <button
                 type="button"
                 {...handleProps}
-                aria-label="Drag to reorder item"
-                title="Drag to reorder"
+                aria-label={t("Drag to reorder item")}
+                title={t("Drag to reorder")}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-500"
               >
                 <GripVertical className="h-3.5 w-3.5" />
@@ -357,8 +375,8 @@ export function TrustStripContentInspector({
                 type="button"
                 onClick={() => moveItem(index, "up")}
                 disabled={index === 0}
-                  aria-label="Move item up"
-                  title="Move up"
+                  aria-label={t("Move item up")}
+                  title={t("Move up")}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-600 disabled:opacity-40"
                 >
                   <ChevronUp className="h-3.5 w-3.5" />
@@ -367,8 +385,8 @@ export function TrustStripContentInspector({
                   type="button"
                   onClick={() => moveItem(index, "down")}
                   disabled={index === items.length - 1}
-                  aria-label="Move item down"
-                  title="Move down"
+                  aria-label={t("Move item down")}
+                  title={t("Move down")}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-600 disabled:opacity-40"
                 >
                   <ChevronDown className="h-3.5 w-3.5" />
@@ -377,8 +395,8 @@ export function TrustStripContentInspector({
                   type="button"
                   onClick={() => duplicateItem(index)}
                   disabled={items.length >= 6}
-                  aria-label="Duplicate item"
-                  title="Duplicate"
+                  aria-label={t("Duplicate item")}
+                  title={t("Duplicate")}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#ddd7ca] text-stone-600 disabled:opacity-40"
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -389,7 +407,7 @@ export function TrustStripContentInspector({
                   disabled={items.length <= 1}
                   className="rounded-md border border-[#ddd7ca] px-2 py-1 text-xs text-stone-600 disabled:opacity-40"
                 >
-                  Remove
+                  {t("Remove")}
                 </button>
               </div>
             </div>
@@ -401,7 +419,7 @@ export function TrustStripContentInspector({
           disabled={items.length >= 6}
           className="mt-3 rounded-md border border-[#ddd7ca] px-2.5 py-1.5 text-xs font-medium text-stone-700 disabled:opacity-50"
         >
-          Add item
+          {t("Add item")}
         </button>
       </InspectorGroup>
     </div>

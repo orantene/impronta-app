@@ -449,7 +449,7 @@ function DuplicateRenamePanel({
       }}
     >
       <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink, letterSpacing: 0.2 }}>
-        Duplicate — pick a name
+        Duplicate: pick a name
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         <Field label="New title">
@@ -473,7 +473,7 @@ function DuplicateRenamePanel({
       </div>
       {slugConflict ? (
         <div style={{ fontSize: 11.5, color: T.red }}>
-          Slug &ldquo;{slug}&rdquo; is already in use — choose a unique slug.
+          Slug &ldquo;{slug}&rdquo; is already in use, choose a unique slug.
         </div>
       ) : null}
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

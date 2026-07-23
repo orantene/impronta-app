@@ -19,26 +19,29 @@ import {
   openSupportEmail,
   useAdminShell
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 9 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function CrewBookingDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "crew-booking";
   // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Crew booking"
-      description="Book crew and freelancers for a project."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Crew booking")}
+      description={tt("Book crew and freelancers for a project.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="team"
-        title="Coming soon"
-        body="Crew booking isn't available yet."
+        title={tt("Coming soon")}
+        body={tt("Crew booking isn't available yet.")}
       />
     </DrawerShell>
   );
@@ -47,17 +50,19 @@ export function CrewBookingDrawer() {
 
 export function ProductionTimelineDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "production-timeline";
 
   const events = [
     { time: "06:30", label: "Crew call", who: "Photographer, HMU", type: "crew" },
     { time: "07:00", label: "Studio open", who: "Studio One, Shoreditch", type: "location" },
     { time: "07:30", label: "HMU begins", who: "Amara Osei, Chiara Bianchi", type: "talent" },
-    { time: "09:00", label: "First look — Editorial", who: "Look 1 of 4 · White backdrop", type: "shoot" },
+    { time: "09:00", label: "First look, Editorial", who: "Look 1 of 4 · White backdrop", type: "shoot" },
     { time: "10:30", label: "Break", who: "15 min", type: "break" },
-    { time: "10:45", label: "Second look — Product", who: "Look 2 of 4 · Seamless grey", type: "shoot" },
+    { time: "10:45", label: "Second look, Product", who: "Look 2 of 4 · Seamless grey", type: "shoot" },
     { time: "12:00", label: "Lunch", who: "45 min", type: "break" },
-    { time: "12:45", label: "Third & fourth looks", who: "Looks 3–4 · Location exterior", type: "shoot" },
+    { time: "12:45", label: "Third & fourth looks", who: "Looks 3-4 · Location exterior", type: "shoot" },
     { time: "15:00", label: "Wrap", who: "Strike set · Return equipment", type: "crew" },
   ];
 
@@ -65,20 +70,20 @@ export function ProductionTimelineDrawer() {
 
   const footer = (
     <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <GhostButton onClick={closeDrawer}>{tt("Close")}</GhostButton>
       <SecondaryButton
         onClick={() => {
           downloadCsv("production-call-sheet.csv", events);
-          toast("Downloaded call sheet CSV");
+          toast(tt("Downloaded call sheet CSV"));
         }}
       >
-        Export call sheet
+        {tt("Export call sheet")}
       </SecondaryButton>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Production timeline" description="Call-sheet order of events for the shoot day." footer={footer} defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("Production timeline")} description={tt("Call-sheet order of events for the shoot day.")} footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 0, fontFamily: FONTS.body }}>
         {events.map((ev, i) => (
           <div key={i} style={{ display: "flex", gap: 14, paddingBottom: 0 }}>
@@ -107,20 +112,22 @@ export function ProductionTimelineDrawer() {
 
 export function UsageTrackerDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "usage-tracker";
   // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Usage rights"
-      description="Track usage-rights windows and expiry."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Usage rights")}
+      description={tt("Track usage-rights windows and expiry.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="calendar"
-        title="Coming soon"
-        body="Usage-rights tracking isn't available yet."
+        title={tt("Coming soon")}
+        body={tt("Usage-rights tracking isn't available yet.")}
       />
     </DrawerShell>
   );
@@ -129,20 +136,22 @@ export function UsageTrackerDrawer() {
 
 export function RelicenseFlowDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "relicense-flow";
   // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Re-license"
-      description="Extend or renew usage rights."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Re-license")}
+      description={tt("Extend or renew usage rights.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="info"
-        title="Coming soon"
-        body="Re-licensing isn't available yet."
+        title={tt("Coming soon")}
+        body={tt("Re-licensing isn't available yet.")}
       />
     </DrawerShell>
   );
@@ -155,20 +164,22 @@ export function RelicenseFlowDrawer() {
 
 export function OwnershipTransferDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "ownership-transfer";
   // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Ownership transfer"
-      description="Transfer workspace ownership."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Ownership transfer")}
+      description={tt("Transfer workspace ownership.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="info"
-        title="Coming soon"
-        body="Self-serve ownership transfer isn't available yet — contact support to transfer a workspace."
+        title={tt("Coming soon")}
+        body={tt("Self-serve ownership transfer isn't available yet. Contact support to transfer a workspace.")}
       />
     </DrawerShell>
   );
@@ -177,20 +188,22 @@ export function OwnershipTransferDrawer() {
 
 export function MinorAccountDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "minor-account";
   // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Minor account"
-      description="Guardian consent for under-18 talent."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Minor account")}
+      description={tt("Guardian consent for under-18 talent.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="user"
-        title="Coming soon"
-        body="Guardian / minor-account records aren't available yet."
+        title={tt("Coming soon")}
+        body={tt("Guardian / minor-account records aren't available yet.")}
       />
     </DrawerShell>
   );
@@ -203,14 +216,20 @@ export function MinorAccountDrawer() {
 
 export function DiscoveryFeedDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "discovery-feed";
   const [view, setView] = React.useState<"trending" | "editorial">("trending");
+  const viewLabel: Record<"trending" | "editorial", string> = {
+    trending: tt("Trending"),
+    editorial: tt("Editorial"),
+  };
 
   const trending = [
     { name: "Amara Osei", tags: ["commercial", "editorial"], bookings: 14, trend: "+3 this week" },
     { name: "Yuki Tanaka", tags: ["beauty", "luxury"], bookings: 11, trend: "+5 this week" },
     { name: "Marco Dias", tags: ["fitness", "sport"], bookings: 9, trend: "+2 this week" },
-    { name: "Lena Voss", tags: ["fashion", "editorial"], bookings: 8, trend: "–1 this week" },
+    { name: "Lena Voss", tags: ["fashion", "editorial"], bookings: 8, trend: "-1 this week" },
     { name: "Chiara Bianchi", tags: ["lifestyle", "commercial"], bookings: 7, trend: "+1 this week" },
   ];
 
@@ -222,23 +241,23 @@ export function DiscoveryFeedDrawer() {
 
   const footer = (
     <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <GhostButton onClick={closeDrawer}>{tt("Close")}</GhostButton>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Discovery feed" description="Trending talent and editorial picks for client browsing." footer={footer} defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("Discovery feed")} description={tt("Trending talent and editorial picks for client browsing.")} footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
 
         <div className="flex gap-1.5">
           {(["trending", "editorial"] as const).map(v => (
             <div key={v} onClick={() => setView(v)} style={{
-              padding: "6px 16px", borderRadius: RADIUS.sm, cursor: "pointer", fontSize: 12, fontWeight: 600, textTransform: "capitalize",
+              padding: "6px 16px", borderRadius: RADIUS.sm, cursor: "pointer", fontSize: 12, fontWeight: 600,
               background: view === v ? COLORS.accent : COLORS.surface,
               color: view === v ? "#fff" : COLORS.inkMuted,
               border: `1px solid ${view === v ? COLORS.accent : COLORS.border}`,
             }}>
-              {v}
+              {viewLabel[v]}
             </div>
           ))}
         </div>
@@ -292,6 +311,8 @@ export function DiscoveryFeedDrawer() {
 
 export function AvailSearchDrawer() {
   const { state, closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "avail-search";
   const [startDate, setStartDate] = React.useState("2026-05-20");
   const [endDate, setEndDate] = React.useState("2026-05-22");
@@ -306,30 +327,30 @@ export function AvailSearchDrawer() {
 
   const footer = (
     <div className="flex gap-2">
-      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
-      <SecondaryButton onClick={() => { setSearched(true); toast("Availability checked"); }}>Search availability</SecondaryButton>
+      <GhostButton onClick={closeDrawer}>{tt("Cancel")}</GhostButton>
+      <SecondaryButton onClick={() => { setSearched(true); toast(tt("Availability checked")); }}>{tt("Search availability")}</SecondaryButton>
     </div>
   );
 
   return (
-    <DrawerShell open={open} onClose={closeDrawer} title="Availability search" description="Find talent available for a given date range and location." footer={footer} defaultSize="half">
+    <DrawerShell open={open} onClose={closeDrawer} title={tt("Availability search")} description={tt("Find talent available for a given date range and location.")} footer={footer} defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <FieldRow label="From">
+          <FieldRow label={tt("From")}>
             <TextInput value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="YYYY-MM-DD" />
           </FieldRow>
-          <FieldRow label="To">
+          <FieldRow label={tt("To")}>
             <TextInput value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="YYYY-MM-DD" />
           </FieldRow>
         </div>
-        <FieldRow label="Location / region">
-          <TextInput value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. London, Manchester" />
+        <FieldRow label={tt("Location / region")}>
+          <TextInput value={location} onChange={(e) => setLocation(e.target.value)} placeholder={tt("e.g. London, Manchester")} />
         </FieldRow>
 
         {searched && (
           <div className="flex flex-col gap-1.5">
-            <CapsLabel>{results.length} talent available</CapsLabel>
+            <CapsLabel>{copy.isSpanish ? `${results.length} con disponibilidad` : `${results.length} talent available`}</CapsLabel>
             {results.map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -352,7 +373,7 @@ export function AvailSearchDrawer() {
 
         {!searched && (
           <div style={{ textAlign: "center", padding: "32px 16px", fontSize: 12 }} className="text-admin-ink-dim">
-            Enter dates and location, then tap Search
+            {tt("Enter dates and location, then tap Search")}
           </div>
         )}
       </div>
@@ -367,20 +388,22 @@ export function AvailSearchDrawer() {
 
 export function CallSheetDrawer() {
   const { state, closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const open = state.drawer.drawerId === "call-sheet";
   // Honest stub — no backend yet; the previous body was hardcoded demo data.
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Call sheet"
-      description="On-the-day crew, call times and status."
-      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      title={tt("Call sheet")}
+      description={tt("On-the-day crew, call times and status.")}
+      footer={<SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>}
     >
       <EmptyState
         icon="calendar"
-        title="Coming soon"
-        body="Call sheets aren't available yet."
+        title={tt("Coming soon")}
+        body={tt("Call sheets aren't available yet.")}
       />
     </DrawerShell>
   );

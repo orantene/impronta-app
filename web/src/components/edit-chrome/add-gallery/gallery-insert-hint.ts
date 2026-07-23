@@ -65,3 +65,37 @@ export function resolveGalleryInsertHint(
 
   return walk(tree, null, 0);
 }
+
+/**
+ * W1-L4 — the concrete parent/index a gallery insert should land at.
+ *
+ * Unlike {@link resolveGalleryInsertHint} (which returns `null` for an unknown
+ * node so the caller must supply its own fallback), this ALWAYS returns a usable
+ * anchor. The decision, in priority order:
+ *
+ *   1. `selectedNodeId` — if a block/section is selected and still in the tree,
+ *      insert adjacent to it (element into its container, or after its section).
+ *   2. `viewportSectionId` — otherwise, if a section is currently in the canvas
+ *      viewport, insert right after that section (so the new block lands where
+ *      the user is looking, not at the far bottom of the page).
+ *   3. Fallback — append at the end of the root tree. The caller still scrolls
+ *      the new node into view + flashes it, so even the fallback is visible.
+ *
+ * Pure + framework-free: the DOM lookup that produces `viewportSectionId` lives
+ * in the panel; this function only reasons about the tree.
+ */
+export function resolveInsertAnchor(
+  tree: BuilderNodeTree,
+  selectedNodeId: string | null,
+  viewportSectionId: string | null,
+): GalleryInsertHint {
+  if (selectedNodeId !== null && selectedNodeId !== "") {
+    const bySelection = resolveGalleryInsertHint(tree, selectedNodeId);
+    if (bySelection !== null) return bySelection;
+  }
+  if (viewportSectionId !== null && viewportSectionId !== "") {
+    const byViewport = resolveGalleryInsertHint(tree, viewportSectionId);
+    if (byViewport !== null) return byViewport;
+  }
+  return { parentId: null, index: tree.length };
+}

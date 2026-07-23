@@ -54,6 +54,8 @@ export const TALENT_PAGES: TalentPage[] = [
   "messages",
   "public-page",
   "profile",
+  "services",
+  "reviews",
   "calendar",
   "money",
   "settings",
@@ -276,6 +278,8 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   today:       { label: "Today" },
   messages:    { label: "Messages" },
   profile:     { label: "Profile" },
+  services:    { label: "Catalog & Pricing" },
+  reviews:     { label: "Reviews" },
   inbox:       { label: "Inbox" },         // legacy
   calendar:    { label: "Calendar" },
   activity:    { label: "Activity" },      // legacy — redirects to money
@@ -400,6 +404,24 @@ export const INQUIRY_STAGE_META: Record<
   booked: { label: "Booked", tone: "green", description: "Converted to a booking. Inquiry is read-only." },
   rejected: { label: "Rejected", tone: "red", description: "Closed without converting." },
   expired: { label: "Expired", tone: "dim", description: "Lapsed past response window." },
+};
+
+/**
+ * i18n catalog-key siblings for the inquiry-stage labels (additive,
+ * non-breaking). The English `.label` on each INQUIRY_STAGE_META entry stays
+ * the source of truth for the many non-localized consumers; a localized
+ * consumer holding a `useT()` resolves `t(INQUIRY_STAGE_LABEL_KEYS[stage])`.
+ * Keys live under `dashboard.enums.inquiryStage.*`.
+ */
+export const INQUIRY_STAGE_LABEL_KEYS: Record<InquiryStage, string> = {
+  draft: "dashboard.enums.inquiryStage.draft",
+  submitted: "dashboard.enums.inquiryStage.submitted",
+  coordination: "dashboard.enums.inquiryStage.coordination",
+  offer_pending: "dashboard.enums.inquiryStage.offer_pending",
+  approved: "dashboard.enums.inquiryStage.approved",
+  booked: "dashboard.enums.inquiryStage.booked",
+  rejected: "dashboard.enums.inquiryStage.rejected",
+  expired: "dashboard.enums.inquiryStage.expired",
 };
 
 export const REQUIREMENT_ROLE_META: Record<
@@ -612,6 +634,63 @@ export function describeSource(s: InquirySource): { short: string; long: string;
     short: `added by ${channelLabel}`,
     long: `Manually entered by the coordinator (originally ${channelLabel}).`,
     chip: channelLabel,
+  };
+}
+
+// i18n sibling for describeSource (additive — the English version above stays
+// for non-localized consumers, e.g. the inquiry-workspace drawer description).
+// Localized consumers resolve `interpolate(t(shortKey), shortParams)` /
+// `interpolate(t(longKey), longParams)` via their OWN translator. Manual
+// (channel) sources also carry a channel-label key so the interpolated
+// channel name is itself localized. Keys live under
+// `dashboard.adminWork.source.*`.
+const SOURCE_CHANNEL_LABEL_KEYS: Record<
+  Extract<InquirySource, { kind: "manual" }>["channel"],
+  string
+> = {
+  phone:       "dashboard.adminWork.source.channelPhone",
+  email:       "dashboard.adminWork.source.channelEmail",
+  whatsapp:    "dashboard.adminWork.source.channelWhatsApp",
+  "in-person": "dashboard.adminWork.source.channelInPerson",
+};
+export function describeSourceChannelKey(s: Extract<InquirySource, { kind: "manual" }>): string {
+  return SOURCE_CHANNEL_LABEL_KEYS[s.channel];
+}
+export function describeSourceKeys(s: InquirySource): {
+  shortKey: string;
+  shortParams?: Record<string, string | number>;
+  longKey: string;
+  longParams?: Record<string, string | number>;
+} {
+  const SRC = "dashboard.adminWork.source";
+  if (s.kind === "direct") {
+    return {
+      shortKey: `${SRC}.shortVia`, shortParams: { via: s.domain },
+      longKey: `${SRC}.longDirect`, longParams: { domain: s.domain },
+    };
+  }
+  if (s.kind === "hub") {
+    return {
+      shortKey: `${SRC}.shortVia`, shortParams: { via: s.hubName },
+      longKey: `${SRC}.longHub`, longParams: { hubName: s.hubName, domain: s.domain },
+    };
+  }
+  if (s.kind === "marketplace") {
+    return {
+      shortKey: `${SRC}.shortVia`, shortParams: { via: s.platform },
+      longKey: `${SRC}.longMarketplace`, longParams: { platform: s.platform },
+    };
+  }
+  if (s.kind === "talent-page") {
+    const host = s.customDomain ?? `tulala.digital/t/${s.talentSlug}`;
+    return {
+      shortKey: `${SRC}.shortPersonalPage`,
+      longKey: `${SRC}.longTalentPage`, longParams: { host },
+    };
+  }
+  return {
+    shortKey: `${SRC}.shortAddedByChannel`,
+    longKey: `${SRC}.longManualChannel`,
   };
 }
 
@@ -1570,38 +1649,55 @@ export const PLAN_LADDER: PlanLadderRow[] = [
  * caps are soft — when a user is at 80%+ we nudge an upgrade, but never
  * hard-block until they exceed.
  */
+// The English `label`/`detail`/`unit` stay for any non-localized reader;
+// the localized `FreeValuePanel` renders the `*Key` siblings via `t()` (keys
+// under `dashboard.adminWork.freePlan.*`). `storefront.detailKey` is unused
+// at render (the panel overrides that row's detail with the live subdomain)
+// but kept for shape symmetry.
 export const FREE_PLAN_VALUE: Array<{
   id: string;
   label: string;
+  labelKey: string;
   detail: string;
-  used?: { current: number; cap: number; unit: string };
+  detailKey: string;
+  used?: { current: number; cap: number; unit: string; unitKey: string };
 }> = [
   {
     id: "roster",
     label: "Public roster",
+    labelKey: "dashboard.adminWork.freePlan.rosterLabel",
     detail: "Searchable across the Tulala network.",
-    used: { current: 3, cap: 5, unit: "talent" },
+    detailKey: "dashboard.adminWork.freePlan.rosterDetail",
+    used: { current: 3, cap: 5, unit: "talent", unitKey: "dashboard.adminWork.freePlan.unitTalent" },
   },
   {
     id: "inquiries",
     label: "Inbound inquiries",
+    labelKey: "dashboard.adminWork.freePlan.inquiriesLabel",
     detail: "Clients message you through your storefront.",
-    used: { current: 1, cap: 5, unit: "this month" },
+    detailKey: "dashboard.adminWork.freePlan.inquiriesDetail",
+    used: { current: 1, cap: 5, unit: "this month", unitKey: "dashboard.adminWork.freePlan.unitThisMonth" },
   },
   {
     id: "storefront",
     label: "Storefront page",
+    labelKey: "dashboard.adminWork.freePlan.storefrontLabel",
     detail: "Lives at acme-models.tulala.app.",
+    detailKey: "dashboard.adminWork.freePlan.storefrontDetail",
   },
   {
     id: "messaging",
     label: "Talent + client messaging",
+    labelKey: "dashboard.adminWork.freePlan.messagingLabel",
     detail: "Two-thread conversations on every inquiry.",
+    detailKey: "dashboard.adminWork.freePlan.messagingDetail",
   },
   {
     id: "discovery",
     label: "Listed in the public directory",
+    labelKey: "dashboard.adminWork.freePlan.discoveryLabel",
     detail: "Brands looking for talent can find you.",
+    detailKey: "dashboard.adminWork.freePlan.discoveryDetail",
   },
 ];
 
@@ -3381,6 +3477,32 @@ export const TAXONOMY: TaxonomyParent[] = [
   },
 ];
 
+/**
+ * i18n catalog-key siblings for the TAXONOMY *parent* labels (additive,
+ * non-breaking). The English `.label` on each TAXONOMY entry stays the source of
+ * truth for the many non-localized consumers across the admin shell; a localized
+ * consumer that holds a `useT()` (e.g. the talent MyProfile header) resolves
+ * `t(TAXONOMY_PARENT_LABEL_KEYS[id])` and falls back to the English label when a
+ * key is absent. Keys live under `dashboard.enums.talentRole.*`. Only the 13
+ * parent ids are mapped (the only taxonomy labels rendered on localized
+ * surfaces); child role labels remain a noted follow-up.
+ */
+export const TAXONOMY_PARENT_LABEL_KEYS: Record<TaxonomyParentId, string> = {
+  models: "dashboard.enums.talentRole.models",
+  hosts: "dashboard.enums.talentRole.hosts",
+  performers: "dashboard.enums.talentRole.performers",
+  music: "dashboard.enums.talentRole.music",
+  creators: "dashboard.enums.talentRole.creators",
+  chefs: "dashboard.enums.talentRole.chefs",
+  wellness: "dashboard.enums.talentRole.wellness",
+  hospitality: "dashboard.enums.talentRole.hospitality",
+  transportation: "dashboard.enums.talentRole.transportation",
+  photo_video: "dashboard.enums.talentRole.photo_video",
+  event_staff: "dashboard.enums.talentRole.event_staff",
+  security: "dashboard.enums.talentRole.security",
+  services: "dashboard.enums.talentRole.services",
+};
+
 export const PLAN_TAXONOMY_LIMITS: Record<"free" | "studio" | "agency" | "network", number> = {
   free: 3,
   studio: 8,
@@ -4200,6 +4322,26 @@ export function getTeam(plan: Plan): TeamMember[] {
   return plan === "free" ? TEAM_FREE : TEAM_AGENCY;
 }
 
+// Default admin accent — deep forest. Used as the literal fallback inside the
+// `--tulala-accent` custom property, and as the raw hex seed anywhere a real
+// hex value is required (e.g. an <input type="color">, which can't take a var()).
+export const ACCENT_FALLBACK = "#0F4F3E";
+export const ACCENT_DEEP_FALLBACK = "#093328";
+
+/**
+ * Accent tint at a given alpha, whitelabel-aware.
+ *
+ * Sites that used to write `COLORS.accent + "44"` (append an 8-bit alpha hex)
+ * can't do that once `COLORS.accent` is a `var()` — string concatenation would
+ * produce `var(--tulala-accent, #0F4F3E)44`, which is invalid CSS. This returns
+ * a `color-mix()` at the equivalent opacity so the tint still tracks the
+ * tenant's accent. Pass the same 2-digit alpha hex the old code appended.
+ */
+export function accentAlpha(alphaHex: string): string {
+  const pct = Math.round((parseInt(alphaHex, 16) / 255) * 100);
+  return `color-mix(in srgb, var(--tulala-accent, ${ACCENT_FALLBACK}) ${pct}%, transparent)`;
+}
+
 // Visual tokens used by both _primitives and _pages and _drawers
 export const COLORS = {
   // Surfaces
@@ -4223,9 +4365,15 @@ export const COLORS = {
   // "trusted / verified ascendant," not bling), and any "premium / trusted"
   // accent moment. See feedback_admin_aesthetics.md — gold/rust accents were
   // explicitly flagged as a recurring problem.
-  accent: "#0F4F3E",
-  accentDeep: "#093328",
-  accentSoft: "rgba(15,79,62,0.10)",
+  //
+  // Whitelabel: these resolve through `--tulala-accent`, a custom property the
+  // shell root sets only for whitelabel-tier tenants (see admin-shell-client
+  // + _layout-identity.ts). Everywhere else the forest-green fallback wins, so
+  // the default chrome is unchanged. Sites that append an alpha hex to the
+  // accent must use `accentAlpha()` below — a `var()` can't be string-concatenated.
+  accent: `var(--tulala-accent, ${ACCENT_FALLBACK})`,
+  accentDeep: `var(--tulala-accent-deep, ${ACCENT_DEEP_FALLBACK})`,
+  accentSoft: `color-mix(in srgb, var(--tulala-accent, ${ACCENT_FALLBACK}) 10%, transparent)`,
 
   // Status
   green: "#2E7D5B",
@@ -4463,6 +4611,10 @@ export function buildFreshTalentProfile(bridge: {
   primaryTypeLabel: string | null;
   homeCity: string | null;
   headshotUrl: string | null;
+  /** The talent's REAL subscription tier from the bridge. Without it the
+   *  built profile stamped tier "free", so the profile hero's TierPill
+   *  contradicted the nav's plan badge (which reads the bridge tier). */
+  talentTier?: MyTalentProfile["subscription"]["tier"];
 }): MyTalentProfile {
   const initials =
     bridge.displayName
@@ -4564,7 +4716,7 @@ export function buildFreshTalentProfile(bridge: {
     portfolioVideos: [],
     showreelUrl: undefined,
     subscription: {
-      tier: "free",
+      tier: bridge.talentTier ?? "free",
       template: "roster",
       personalPageEnabled: false,
       customDomain: undefined,
@@ -4791,8 +4943,18 @@ export const WEBSITE_STATE: WebsiteState = {
  *  - Analytics zeroed out — real analytics loader is Phase C. `WebsitePerformance`
  *    renders cleanly with all-zeros (top-performer tables filter to `visits > 0`).
  *  - Announcement disabled — SS27 fixture copy removed; real announcement is Phase C.
+ *
+ * `teamMembers` resolves `cms_pages.updated_by` (a raw profile UUID) to the
+ * member's display name for the page cards' "By {name}" line. A member who
+ * has since left the workspace won't resolve — the card shows nothing
+ * rather than a raw UUID (W1-L9 polish).
  */
-export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: string): WebsiteState {
+export function mergeWebsiteStateFromBridge(
+  live: WebsiteData,
+  tenantSlug: string,
+  teamMembers: TeamMember[] = [],
+): WebsiteState {
+  const memberNameById = new Map(teamMembers.map((m) => [m.id, m.name]));
   const host =
     live.domainSummary.primaryHost ??
     live.domainSummary.customDomainHost ??
@@ -4824,7 +4986,10 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: strin
       slug,
       status: mapRowStatus(p.status),
       updatedAt: p.updatedAt ?? new Date().toISOString(),
-      lastEditedBy: p.updatedBy ?? "—",
+      // Resolve the raw profile UUID to a display name. Unresolvable (member
+      // left, or no author recorded) → "" so the card renders nothing
+      // instead of a raw UUID.
+      lastEditedBy: (p.updatedBy && memberNameById.get(p.updatedBy)) || "",
       template: p.templateKey?.replace(/_/g, " ") ?? "page",
       hits7d: 0,
     };
@@ -4873,10 +5038,18 @@ export function mergeWebsiteStateFromBridge(live: WebsiteData, tenantSlug: strin
     sslStatus: sslOk ? "active" : WEBSITE_STATE.domain.sslStatus,
   };
 
+  // Real tenant name (agency_business_identity.public_name), NOT the
+  // "Acme Models" prototype fixture — that placeholder was leaking into
+  // every real tenant's SEO Defaults card (title + title template).
+  const tenantName = live.tenantName?.trim() || "";
   const seoPatch: WebsiteSeoDefaults = {
     ...WEBSITE_STATE.seo,
-    siteTitle: live.seoTitle ?? WEBSITE_STATE.seo.siteTitle,
-    description: live.seoDescription ?? WEBSITE_STATE.seo.description,
+    // Empty string is the "unset" sentinel — the render layer shows a
+    // localized "Not set" state instead of baking an English fallback
+    // string into the data (WebsitePage-1.tsx SEO card).
+    siteTitle: live.seoTitle ?? tenantName,
+    titleTemplate: tenantName ? `%s | ${tenantName}` : "",
+    description: live.seoDescription ?? "",
     canonicalDomain: host,
   };
 

@@ -23,6 +23,17 @@ export const CLIENT_EN = {
     dateLabel: "Date",
     locationLabel: "Location",
   },
+  "client.reply_ready": {
+    // {brand} = agency name (interpolated in the subject via subjectVars).
+    subject: "{brand} replied about your inquiry",
+    preview: "You have a new reply waiting",
+    heading: "You have a reply",
+    // {name} = contact name, {brand} = agency name.
+    intro:
+      "Hi {name}, {brand} just replied to your inquiry. Open the conversation to read it and keep things moving.",
+    note: "This link opens the conversation you started.",
+    button: "Read the reply →",
+  },
   "client.offer_ready": {
     subject: "Your offer is ready",
     preview: "Your offer is ready",
@@ -110,6 +121,15 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     button: "Ver solicitud →",
     dateLabel: "Fecha",
     locationLabel: "Ubicación",
+  },
+  "client.reply_ready": {
+    subject: "{brand} respondió a tu solicitud",
+    preview: "Tienes una nueva respuesta",
+    heading: "Tienes una respuesta",
+    intro:
+      "Hola {name}, {brand} acaba de responder a tu solicitud. Abre la conversación para leerla y seguir avanzando.",
+    note: "Este enlace abre la conversación que iniciaste.",
+    button: "Leer la respuesta →",
   },
   "client.offer_ready": {
     subject: "Tu propuesta está lista",

@@ -24,7 +24,7 @@ import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import type { InquiryReceiptData } from "@/lib/inquiry/guest-chat-contract";
 import { FONT, accentText, paletteFor, type Palette, type SurfaceMode } from "./mini-chat-styles";
-import { AVATAR_GROUND, FACE_OBJECT_POSITION, initialsOf } from "./launcher-avatar-styles";
+import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
 
 export type ReceiptCoordinatorHeaderProps = {
   receipt: InquiryReceiptData;
@@ -145,7 +145,18 @@ function CoordinatorFace({
           }}
         />
       ) : (
-        initialsOf(coordinator.displayName)
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: "100%",
+            height: "100%",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "rgba(90,102,120,0.7)",
+          }}
+          dangerouslySetInnerHTML={{ __html: PERSON_SILHOUETTE_SVG }}
+        />
       )}
     </span>
   );

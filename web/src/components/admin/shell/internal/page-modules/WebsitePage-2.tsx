@@ -1,10 +1,47 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, TRANSITION, fmtMoney } from "../state";
 import type { WebsiteAnalytics, WebsitePageRow, WebsitePeriodMetrics } from "../state";
 import { PageStatusChip } from "./SitePage";
 
+const MIN_MS = 60_000;
+const HOUR_MS = 60 * MIN_MS;
+const DAY_MS = 24 * HOUR_MS;
+const WEEK_MS = 7 * DAY_MS;
+
+/**
+ * Short, locale-aware "updated" timestamp for a page card (W1-L9 polish —
+ * cards previously showed the raw ISO timestamp verbatim). Relative for the
+ * first week ("2h ago", "3d ago" — same convention as Inbox/Pitches), then
+ * a short absolute date ("Jul 9", or "Jul 9, 2025" across a year boundary).
+ */
+function formatPageUpdatedAt(
+  iso: string,
+  t: (key: string) => string,
+  locale: string,
+): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const diff = Math.max(0, Date.now() - then);
+  if (diff < MIN_MS) return t("dashboard.adminWebsite.relJustNow");
+  if (diff < HOUR_MS) return interpolate(t("dashboard.adminWebsite.relMinsAgo"), { count: Math.round(diff / MIN_MS) });
+  if (diff < DAY_MS) return interpolate(t("dashboard.adminWebsite.relHoursAgo"), { count: Math.round(diff / HOUR_MS) });
+  if (diff < WEEK_MS) return interpolate(t("dashboard.adminWebsite.relDaysAgo"), { count: Math.round(diff / DAY_MS) });
+  const sameYear = new Date(then).getFullYear() === new Date().getFullYear();
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      year: sameYear ? undefined : "numeric",
+    }).format(then);
+  } catch {
+    return new Date(then).toDateString();
+  }
+}
 
 export function HeroStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -22,10 +59,12 @@ export function HeroStat({ label, value, sub }: { label: string; value: string; 
 // Each card shows the page title prominently, a faux URL bar, status chip, and
 // an inline bar showing relative hits-7d compared to top page in the set.
 export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRow; maxHits: number; onClick?: () => void }) {
+  const t = useT();
+  const locale = useDashboardLocale();
   const hits = page.hits7d ?? 0;
   const fillPct = maxHits > 0 ? (hits / maxHits) * 100 : 0;
   const isLive = page.status === "published";
-  const label = `Open visual editor for ${page.title} (${page.slug})`;
+  const label = interpolate(t("dashboard.adminWebsite.pageCardOpenAria"), { title: page.title, slug: page.slug });
   return (
     <button type="button" onClick={onClick} aria-label={label}
       style={{
@@ -54,7 +93,7 @@ export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRo
         {/* Inline bar — hits relative to top page */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">Hits 7d</span>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.hits7dCaps")}</span>
             <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{hits.toLocaleString()}</span>
           </div>
           <div style={{ height: 4, borderRadius: 999, overflow: "hidden" }} className="bg-admin-surface-alt">
@@ -62,11 +101,13 @@ export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRo
           </div>
         </div>
         <div aria-hidden style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.02 }} className="text-admin-indigo-deep">
-          Visual editor →
+          {t("dashboard.adminWebsite.visualEditorArrow")}
         </div>
         <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11 }} className="text-admin-ink-muted">
-          <span>by {page.lastEditedBy}</span>
-          <span>{page.updatedAt}</span>
+          {/* Author resolves to a display name upstream (mergeWebsiteStateFromBridge);
+              an unresolvable/blank editor renders nothing rather than a raw UUID. */}
+          <span>{page.lastEditedBy ? interpolate(t("dashboard.adminWebsite.byAuthor"), { name: page.lastEditedBy }) : ""}</span>
+          <span>{formatPageUpdatedAt(page.updatedAt, t, locale)}</span>
         </div>
       </div>
     </button>
@@ -86,11 +127,12 @@ export function ConfigStatusRow({ label, status, value }: { label: string; statu
 
 // Hoisted from inside WebsitePerformance (Q4). Pure aside from fmtPrior,
 // which is lifted to a prop so the booking-revenue tile can pass fmtMoney.
-function Tile({ label, value, current, prior, accent, fmtPrior }: { label: string; value: string; current: number; prior: number; accent?: boolean; fmtPrior?: (n: number) => string }) {
+function Tile({ label, value, current, prior, accent, fmtPrior, isMoney }: { label: string; value: string; current: number; prior: number; accent?: boolean; fmtPrior?: (n: number) => string; isMoney?: boolean }) {
+  const t = useT();
   const delta = prior > 0 ? ((current - prior) / prior) * 100 : 0;
   const dir = Math.abs(delta) < 0.5 ? "flat" : (delta > 0 ? "up" : "down");
   const color = dir === "up" ? COLORS.successDeep : dir === "down" ? COLORS.criticalDeep : COLORS.inkMuted;
-  const priorLabel = fmtPrior && typeof prior === "number" && prior > 1000 && label === "Booking revenue"
+  const priorLabel = fmtPrior && typeof prior === "number" && prior > 1000 && isMoney
     ? fmtPrior(prior)
     : prior.toLocaleString();
   return (
@@ -99,13 +141,14 @@ function Tile({ label, value, current, prior, accent, fmtPrior }: { label: strin
       <div style={{ fontFamily: FONTS.display, fontSize: 24, fontWeight: 600, color: accent ? COLORS.accentDeep : COLORS.ink, marginTop: 4, fontVariantNumeric: "tabular-nums", letterSpacing: -0.3 }}>{value}</div>
       <div style={{ fontSize: 11, color, marginTop: 2 }}>
         {dir === "up" ? "↑" : dir === "down" ? "↓" : "→"} {Math.abs(delta).toFixed(1)}%
-        <span style={{ marginLeft: 4 }} className="text-admin-ink-dim">vs {priorLabel}</span>
+        <span style={{ marginLeft: 4 }} className="text-admin-ink-dim">{interpolate(t("dashboard.adminWebsite.vsPrior"), { prior: priorLabel })}</span>
       </div>
     </div>
   );
 }
 
 export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: WebsiteAnalytics; pages: WebsitePageRow[]; fmtMoney: (n: number) => string }) {
+  const t = useT();
   const [period, setPeriod] = useState<"7d" | "30d">("7d");
   const [topView, setTopView] = useState<"pages" | "talent" | "referrers">("pages");
   const m: WebsitePeriodMetrics = period === "7d" ? analytics.last7d : analytics.last30d;
@@ -133,21 +176,21 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
     }));
 
   const topTalent = byTalent
-    .filter(t => t.visits > 0)
+    .filter(tl => tl.visits > 0)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 4)
-    .map(t => ({ ...t, topPageTitle: pages.find(pg => pg.id === t.topPageId)?.title ?? "—" }));
+    .map(tl => ({ ...tl, topPageTitle: pages.find(pg => pg.id === tl.topPageId)?.title ?? "—" }));
 
   return (
     <section style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">Performance</h2>
-        <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">vs prior {period}</span>
+        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.performanceHeading")}</h2>
+        <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminWebsite.vsPriorPeriod"), { period })}</span>
         <div style={{ marginLeft: "auto", display: "inline-flex", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
           {(["7d", "30d"] as const).map(p => {
             const active = p === period;
             return (
-              <button key={p} type="button" onClick={() => setPeriod(p)} style={{ padding: "5px 12px", fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2, borderRadius: 999, border: "none", cursor: "pointer", background: active ? "#fff" : "transparent", color: active ? COLORS.ink : COLORS.inkMuted, boxShadow: active ? "0 1px 3px rgba(0,0,0,0.06)" : "none", transition: "all 120ms ease" }}>{p === "7d" ? "7 days" : "30 days"}</button>
+              <button key={p} type="button" onClick={() => setPeriod(p)} style={{ padding: "5px 12px", fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2, borderRadius: 999, border: "none", cursor: "pointer", background: active ? "#fff" : "transparent", color: active ? COLORS.ink : COLORS.inkMuted, boxShadow: active ? "0 1px 3px rgba(0,0,0,0.06)" : "none", transition: "all 120ms ease" }}>{p === "7d" ? t("dashboard.adminWebsite.period7days") : t("dashboard.adminWebsite.period30days")}</button>
             );
           })}
         </div>
@@ -155,23 +198,23 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
 
       <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
-          <Tile label="Visits"           value={m.visits.toLocaleString()}   current={m.visits}    prior={m.prior.visits} />
-          <Tile label="Inquiries"        value={m.inquiries.toLocaleString()} current={m.inquiries} prior={m.prior.inquiries} />
-          <Tile label="Bookings"         value={m.bookings.toLocaleString()} current={m.bookings}  prior={m.prior.bookings} />
-          <Tile label="Booking revenue"  value={fmtMoney(m.revenue)}          current={m.revenue}   prior={m.prior.revenue}  accent fmtPrior={fmtMoney} />
+          <Tile label={t("dashboard.adminWebsite.tileVisits")}           value={m.visits.toLocaleString()}   current={m.visits}    prior={m.prior.visits} />
+          <Tile label={t("dashboard.adminWebsite.tileInquiries")}        value={m.inquiries.toLocaleString()} current={m.inquiries} prior={m.prior.inquiries} />
+          <Tile label={t("dashboard.adminWebsite.tileBookings")}         value={m.bookings.toLocaleString()} current={m.bookings}  prior={m.prior.bookings} />
+          <Tile label={t("dashboard.adminWebsite.tileBookingRevenue")}  value={fmtMoney(m.revenue)}          current={m.revenue}   prior={m.prior.revenue}  accent fmtPrior={fmtMoney} isMoney />
         </div>
 
         {/* Funnel strip */}
         <div style={{ border: "1px solid rgba(91,107,160,0.18)", borderRadius: 10, padding: "14px 16px", display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 12 }} className="bg-admin-indigo-soft">
-          <FunnelStep label="Visits"     value={m.visits.toLocaleString()} />
-          <FunnelArrow rate={v2i} caption="visit → inquiry" />
-          <FunnelStep label="Inquiries"  value={m.inquiries.toLocaleString()} />
-          <FunnelArrow rate={i2b} caption="inquiry → booking" />
-          <FunnelStep label="Bookings"   value={m.bookings.toLocaleString()} />
+          <FunnelStep label={t("dashboard.adminWebsite.funnelVisits")}     value={m.visits.toLocaleString()} />
+          <FunnelArrow rate={v2i} caption={t("dashboard.adminWebsite.funnelVisitToInquiry")} />
+          <FunnelStep label={t("dashboard.adminWebsite.funnelInquiries")}  value={m.inquiries.toLocaleString()} />
+          <FunnelArrow rate={i2b} caption={t("dashboard.adminWebsite.funnelInquiryToBooking")} />
+          <FunnelStep label={t("dashboard.adminWebsite.funnelBookings")}   value={m.bookings.toLocaleString()} />
           <div style={{ gridColumn: "1 / -1", paddingTop: 10, marginTop: 4, borderTop: "1px solid rgba(91,107,160,0.18)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-indigo-deep">
-            <span style={{ fontWeight: 600, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.6 }}>Overall conversion</span>
+            <span style={{ fontWeight: 600, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.6 }}>{t("dashboard.adminWebsite.overallConversion")}</span>
             <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, fontSize: 13 }}>{overallConv.toFixed(2)}%
-              <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>({m.bookings} of {m.visits.toLocaleString()})</span>
+              <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>{interpolate(t("dashboard.adminWebsite.conversionOfVisits"), { bookings: m.bookings, visits: m.visits.toLocaleString() })}</span>
             </span>
           </div>
         </div>
@@ -179,11 +222,11 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
         {/* Top performers — Pages | Talent switcher */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-ink-muted">Top performers</div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.topPerformers")}</div>
             <div style={{ display: "inline-flex", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
               {(["pages", "talent", "referrers"] as const).map(v => {
                 const active = topView === v;
-                const label = v === "pages" ? "Pages" : v === "talent" ? "Talent" : "Referrers";
+                const label = v === "pages" ? t("dashboard.adminWebsite.topViewPages") : v === "talent" ? t("dashboard.adminWebsite.topViewTalent") : t("dashboard.adminWebsite.topViewReferrers");
                 return (
                   <button key={v} type="button" onClick={() => setTopView(v)} style={{ padding: "5px 14px", fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2, borderRadius: 999, border: "none", cursor: "pointer", background: active ? "#fff" : "transparent", color: active ? COLORS.ink : COLORS.inkMuted, boxShadow: active ? "0 1px 3px rgba(0,0,0,0.06)" : "none", transition: "all 120ms ease" }}>{label}</button>
                 );
@@ -194,11 +237,11 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
           {topView === "pages" && topPages.length > 0 && (
             <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr", padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">
-                <div>Page</div>
-                <div className="text-right">Visits</div>
-                <div className="text-right">Inquiries</div>
-                <div className="text-right">Bookings</div>
-                <div className="text-right">Conv. rate</div>
+                <div>{t("dashboard.adminWebsite.thPage")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thVisits")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thInquiries")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thBookings")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thConvRate")}</div>
               </div>
               {topPages.map((p, i) => {
                 const conv = p.visits > 0 ? (p.bookings / p.visits) * 100 : 0;
@@ -219,27 +262,27 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
           {topView === "talent" && topTalent.length > 0 && (
             <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`, fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">
-                <div>Talent</div>
-                <div className="text-right">Visits</div>
-                <div className="text-right">Inquiries</div>
-                <div className="text-right">Bookings</div>
-                <div className="text-right">Revenue</div>
-                <div className="text-right">Top page</div>
+                <div>{t("dashboard.adminWebsite.thTalent")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thVisits")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thInquiries")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thBookings")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thRevenue")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thTopPage")}</div>
               </div>
-              {topTalent.map((t, i) => {
-                const conv = t.visits > 0 ? (t.bookings / t.visits) * 100 : 0;
-                const tone = (overallConv > 0 && conv >= overallConv) ? COLORS.successDeep : t.revenue > 0 ? COLORS.indigoDeep : COLORS.inkDim;
+              {topTalent.map((tl, i) => {
+                const conv = tl.visits > 0 ? (tl.bookings / tl.visits) * 100 : 0;
+                const tone = (overallConv > 0 && conv >= overallConv) ? COLORS.successDeep : tl.revenue > 0 ? COLORS.indigoDeep : COLORS.inkDim;
                 return (
-                  <div key={t.talentId} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "10px 14px", alignItems: "center", borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`, fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>
+                  <div key={tl.talentId} style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr 1fr 1.2fr", padding: "10px 14px", alignItems: "center", borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`, fontSize: 13, color: COLORS.ink, fontFamily: FONTS.body }}>
                     <span className="flex flex-col gap-0.5">
-                      <span className="font-semibold">{t.talentName}</span>
-                      <span className="text-admin-ink-dim text-admin-11">{conv > 0 ? `${conv.toFixed(2)}% conv` : "no bookings"}</span>
+                      <span className="font-semibold">{tl.talentName}</span>
+                      <span className="text-admin-ink-dim text-admin-11">{conv > 0 ? interpolate(t("dashboard.adminWebsite.convSuffix"), { pct: conv.toFixed(2) }) : t("dashboard.adminWebsite.noBookings")}</span>
                     </span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.visits.toLocaleString()}</span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.inquiries}</span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{t.bookings}</span>
-                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: tone }}>{fmtMoney(t.revenue)}</span>
-                    <span style={{ textAlign: "right", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{t.topPageTitle}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{tl.visits.toLocaleString()}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{tl.inquiries}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{tl.bookings}</span>
+                    <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", fontWeight: 600, color: tone }}>{fmtMoney(tl.revenue)}</span>
+                    <span style={{ textAlign: "right", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{tl.topPageTitle}</span>
                   </div>
                 );
               })}
@@ -252,9 +295,9 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
           {topView === "referrers" && topReferrers.length > 0 && (
             <div className="overflow-hidden rounded-[10px] border border-admin-border-soft">
               <div className="grid grid-cols-[2fr_1fr_1fr] border-b border-admin-border-soft bg-admin-surface-alt px-3.5 py-2 text-admin-10 font-semibold uppercase tracking-[0.5px] text-admin-ink-muted">
-                <div>Referrer</div>
-                <div className="text-right">Visits</div>
-                <div className="text-right">Share</div>
+                <div>{t("dashboard.adminWebsite.thReferrer")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thVisits")}</div>
+                <div className="text-right">{t("dashboard.adminWebsite.thShare")}</div>
               </div>
               {topReferrers.map((r, i) => {
                 const total = topReferrers.reduce((sum, x) => sum + x.visits, 0);
@@ -264,7 +307,7 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
                     key={r.referrer}
                     className={`grid grid-cols-[2fr_1fr_1fr] items-center px-3.5 py-2.5 text-admin-13 text-admin-ink ${i === 0 ? "" : "border-t border-admin-border-soft"}`}
                   >
-                    <span className="truncate font-semibold">{r.referrer === "direct" ? "Direct / none" : r.referrer}</span>
+                    <span className="truncate font-semibold">{r.referrer === "direct" ? t("dashboard.adminWebsite.referrerDirect") : r.referrer}</span>
                     <span className="text-right tabular-nums">{r.visits.toLocaleString()}</span>
                     <span className="text-right tabular-nums text-admin-ink-muted">{share.toFixed(1)}%</span>
                   </div>
@@ -277,7 +320,7 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
             (topView === "talent" && topTalent.length === 0) ||
             (topView === "referrers" && topReferrers.length === 0)) && (
             <div className="rounded-[10px] border border-admin-border-soft px-3.5 py-4 text-center text-admin-12 text-admin-ink-muted">
-              No {topView === "pages" ? "page" : topView === "talent" ? "talent" : "referrer"} data for this period yet.
+              {topView === "pages" ? t("dashboard.adminWebsite.topEmptyPages") : topView === "talent" ? t("dashboard.adminWebsite.topEmptyTalent") : t("dashboard.adminWebsite.topEmptyReferrers")}
             </div>
           )}
         </div>

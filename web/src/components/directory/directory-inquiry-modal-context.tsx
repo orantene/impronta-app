@@ -15,6 +15,14 @@ export type InquirySuccessParams = {
   activation: string | null;
 };
 
+/** DOCK v2.1 — "start a separate inquiry about {talent}" (profile CTA chooser). */
+export type SeparateInquiryPayload = {
+  talentProfileId: string;
+  profileCode: string;
+  displayName: string;
+  portraitUrl: string | null;
+};
+
 /** Payload for the card-to-pill fly animation (§5.3). */
 export type AnimateAddPayload = {
   fromRect: DOMRect;
@@ -48,6 +56,15 @@ type DirectoryInquiryModalContextValue = {
    * the control is never a dead CTA.
    */
   requestOpenChat: () => void;
+  /**
+   * DOCK v2.1 — ask the chat launcher to mint a SEPARATE draft about one
+   * talent (forceNew ensure; the in-progress draft stays parked + autosaved and
+   * remains reachable from the Inquiries tab). Falls back to requestOpenChat
+   * when no launcher is mounted.
+   */
+  requestSeparateInquiry: (payload: SeparateInquiryPayload) => void;
+  /** The launcher consumes this (seq bumps once per request). */
+  separateInquiryRequest: { seq: number; payload: SeparateInquiryPayload } | null;
   /**
    * The chat launcher calls this on mount/unmount so requestOpenChat knows
    * whether a launcher is listening (and can otherwise fall back to the sheet).
@@ -94,6 +111,19 @@ export function DirectoryInquiryModalProvider({ children }: { children: ReactNod
     };
   }, []);
 
+  const [separateInquiryRequest, setSeparateInquiryRequest] = useState<{
+    seq: number;
+    payload: SeparateInquiryPayload;
+  } | null>(null);
+  const requestSeparateInquiry = useCallback((payload: SeparateInquiryPayload) => {
+    if (chatLauncherCount.current > 0) {
+      setSeparateInquiryRequest((prev) => ({ seq: (prev?.seq ?? 0) + 1, payload }));
+      return;
+    }
+    setSuccess(null);
+    setOpen(true);
+  }, []);
+
   const requestOpenChat = useCallback(() => {
     if (chatLauncherCount.current > 0) {
       setOpenChatCue((n) => n + 1);
@@ -126,12 +156,14 @@ export function DirectoryInquiryModalProvider({ children }: { children: ReactNod
       lastAnimateAdd,
       openChatCue,
       requestOpenChat,
+      requestSeparateInquiry,
+      separateInquiryRequest,
       registerChatLauncher,
       success,
       showSuccess,
       clearSuccess,
     }),
-    [open, openInquiry, saveCue, bumpSaveCue, animateAdd, lastAnimateAdd, openChatCue, requestOpenChat, registerChatLauncher, success, showSuccess, clearSuccess],
+    [open, openInquiry, saveCue, bumpSaveCue, animateAdd, lastAnimateAdd, openChatCue, requestOpenChat, requestSeparateInquiry, separateInquiryRequest, registerChatLauncher, success, showSuccess, clearSuccess],
   );
 
   return (

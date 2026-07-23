@@ -26,7 +26,14 @@ export type DirectoryUiCopy = {
     interpreting: string;
     interpretError: string;
   };
-  sort: { aria: string; recommended: string; featured: string; recent: string; updated: string };
+  sort: {
+    aria: string;
+    recommended: string;
+    featured: string;
+    topRated: string;
+    recent: string;
+    updated: string;
+  };
   filters: {
     locationSearchLabel: string;
     locationPlaceholder: string;
@@ -298,6 +305,7 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       aria: t("public.directory.ui.sort.aria"),
       recommended: t("public.directory.ui.sort.recommended"),
       featured: t("public.directory.ui.sort.featured"),
+      topRated: t("public.directory.ui.sort.topRated"),
       recent: t("public.directory.ui.sort.recent"),
       updated: t("public.directory.ui.sort.updated"),
     },

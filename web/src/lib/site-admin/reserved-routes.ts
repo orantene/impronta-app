@@ -18,6 +18,9 @@ export const PLATFORM_RESERVED_SLUGS = [
   "auth",
   "onboarding",
   "t",
+  // Public parent segment for path-based workspaces (tulala.digital/w/<slug>).
+  // Reserved so a workspace can never claim "w" and shadow the parent.
+  "w",
   "sitemap.xml",
   "robots.txt",
   "_next",

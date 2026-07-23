@@ -26,6 +26,7 @@ import {
   registrationIsLive,
 } from "@/lib/saas/registration-settings";
 import { loadPublicBranding } from "@/lib/site-admin/server/reads";
+import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
 import { TenantRegisterModalHost } from "./tenant-register-modal-host";
 
@@ -41,12 +42,15 @@ export async function TenantRegisterMount() {
 
   const { data: agency } = await admin
     .from("agencies")
-    .select("slug, display_name")
+    .select("slug, display_name, plan_tier")
     .eq("id", scope.tenantId)
     .maybeSingle();
   const slug = agency?.slug ?? null;
   if (!slug) return null;
   const displayName = agency?.display_name?.trim() || "this workspace";
+  const whitelabel = planTierHasWhitelabel(
+    (agency as { plan_tier?: string | null } | null)?.plan_tier,
+  );
 
   const branding = await loadPublicBranding(scope.tenantId);
   const rawSvg = (branding as { brand_mark_svg?: string | null } | null)
@@ -89,6 +93,7 @@ export async function TenantRegisterMount() {
         ctaLabel: settings.ctaLabel,
         isAuthedTalent,
         ssoSignInUrl,
+        whitelabel,
       }}
     />
   );

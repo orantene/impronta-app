@@ -257,7 +257,7 @@ async function check_notification_routes() {
 //    auth bypassed (security failure). 404 = not deployed.
 async function check_notification_crons() {
   console.log("\nNotification cron auth");
-  const crons = ["/api/cron/send-digest-emails", "/api/cron/retry-failed-emails"];
+  const crons = ["/api/cron/send-digest-emails", "/api/cron/retry-failed-emails", "/api/cron/expire-free-reserves"];
   for (const path of crons) {
     try {
       const r = await get(HOST + path);

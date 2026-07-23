@@ -123,7 +123,7 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     id: "open-revisions",
     label: "Open Revisions",
     description:
-      "Command palette only — ⌘H hides the active app on macOS (no global bind).",
+      "Command palette only, ⌘H hides the active app on macOS (no global bind).",
     keys: [],
     category: "drawers",
     paletteAction: true,
@@ -132,7 +132,7 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     id: "open-theme",
     label: "Open Theme drawer",
     description:
-      "Command palette only — ⌘T opens a new browser tab (no global bind).",
+      "Command palette only, ⌘T opens a new browser tab (no global bind).",
     keys: [],
     category: "drawers",
     paletteAction: true,

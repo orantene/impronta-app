@@ -82,6 +82,7 @@ export async function loadMyNotifications(
       title: r.title,
       body: r.body,
       href: buildHref(r, slugByTenant),
+      targetDrawer: r.target_drawer,
       createdAt: r.created_at,
       readAt: r.read_at,
     }));

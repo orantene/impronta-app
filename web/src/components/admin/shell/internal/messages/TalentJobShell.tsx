@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { COLORS, FONTS } from "../state";
-import { Avatar } from "../primitives";
+import React, { useRef, useState, useEffect } from "react";
+import { COLORS, FONTS, useAdminShell } from "../state";
+import { Avatar, useKeyboardListNav } from "../primitives";
 import { useTalentConversations, type Conversation } from "../talent";
 import { TalentAgencyFilterChips } from "../talent/shared/TalentAgencyFilterChips";
 import { AdminInquiryRow } from "./AdminOperationsShell";
 import { EmptyDetail } from "./client-1";
 import { consumePendingConversation, isLocallySeen, isManualUnread, markConvSeen, sortPinnedFirst, useFlagsSubscription, useSeenSubscription } from "./conversation-stash";
 import { ageLabel, renderWithDateGroups, stageStyle, useScrollIntoViewWhenActive } from "./messages-shared";
-import { HoverActionsCss, InboxRowHoverActions, SearchPill, freshnessTone, initialsOf } from "./shared/inbox-identity-1";
+import { HoverActionsCss, InboxRowHoverActions, SearchPill, freshnessTone } from "./shared/inbox-identity-1";
 import { FilterChip } from "./shared/inbox-identity-2";
 import { CollapsedInboxRail, ColumnDivider, MobileInboxTab, TALENT_RATE_FOR_CONV, useResizableInboxLayout } from "./shared/inbox-layout-1";
 import type { TalentFilter } from "./shared/inbox-layout-1";
@@ -188,8 +188,8 @@ export function TalentJobShell() {
 // ── Talent: job-flavored row ──
 // Shows: client + status + dates/location + your-take-home line + your status
 export function TalentJobRow({
-  conv, active, onClick,
-}: { conv: Conversation; active: boolean; onClick: () => void }) {
+  conv, active, onClick, listRef,
+}: { conv: Conversation; active: boolean; onClick: () => void; listRef?: (el: HTMLButtonElement | null) => void }) {
   const sc = stageStyle(conv.stage);
   const yourRate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
   const myStatus: "accepted" | "pending" | "—" =
@@ -270,7 +270,10 @@ export function TalentJobRow({
 
   return (
     <button
-      ref={rowRef}
+      ref={(el) => {
+        rowRef.current = el;
+        listRef?.(el);
+      }}
       type="button"
       onClick={onClick}
       data-tulala-inbox-row
@@ -292,13 +295,15 @@ export function TalentJobRow({
       }}
     >
       <InboxRowHoverActions rowId={conv.id} label={conv.client} />
-      {/* Client avatar — initial in deterministic auto-tint per client
-          name. Most clients are brands (Mango, Bvlgari, Vogue), so
-          a colored initial reads cleaner than a generic logo would.
-          marginTop:2 baselines the avatar with the first text row. */}
+      {/* Client avatar. The Conversation type carries no client photo/logo
+          URL, so there's nothing real to load — the Avatar primitive renders
+          its letter-free silhouette on a per-client auto-tint (hashSeed only
+          picks the tint; it never resolves to stock imagery). photoUrl is
+          left undefined intentionally. marginTop:2 baselines the avatar with
+          the first text row. */}
       <span style={{ flexShrink: 0, marginTop: 2 }}>
         <Avatar
-          initials={initialsOf(conv.client)}
+          photoUrl={undefined}
           hashSeed={conv.client}
           tone="auto"
           size={36}
@@ -473,6 +478,15 @@ export function TalentJobInbox({
    *  button in the inbox header. Hosting shell controls the width. */
   onCollapse?: () => void;
 }) {
+  // W13 — workspace-parity keyboard nav: j/k move focus across job rows,
+  // Enter opens the focused row (rows are <button>s, so activation is
+  // native). Typing in inputs never triggers it (hook guard); an open
+  // drawer suppresses it, same as the workspace inbox.
+  const { state: shellState } = useAdminShell();
+  const orderedConvs = sortPinnedFirst(conversations);
+  const jobRowRefs = useRef<(HTMLElement | null)[]>([]);
+  useKeyboardListNav({ rowsRef: jobRowRefs, disabled: !!shellState.drawer.drawerId });
+
   // Subscribe to pin/manual-unread flags so the inbox re-orders +
   // re-tints when those toggle from a row's hover actions.
   useFlagsSubscription();
@@ -610,10 +624,16 @@ export function TalentJobInbox({
             )}
           </div>
         ) : renderWithDateGroups(
-            sortPinnedFirst(conversations),
+            orderedConvs,
             c => c.lastMessage.ageHrs,
             c => (
-              <TalentJobRow key={c.id} conv={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />
+              <TalentJobRow
+                key={c.id}
+                conv={c}
+                active={c.id === activeId}
+                onClick={() => onSelect(c.id)}
+                listRef={(el) => { jobRowRefs.current[orderedConvs.indexOf(c)] = el; }}
+              />
             ),
           )}
       </div>

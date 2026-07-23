@@ -24,11 +24,7 @@ import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
-import {
-  getActiveTalentAgencyContext,
-  listTalentAgencyContexts,
-} from "@/lib/talent/active-agency-context";
-import { TalentAgencyContextSwitcher } from "@/components/talent/site/TalentAgencyContextSwitcher";
+import { getActiveTalentAgencyContext } from "@/lib/talent/active-agency-context";
 import { TalentSiteDashboardProvider } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { loadTalentPersonalSiteDashboardState } from "@/lib/talent-site/server/dashboard-state";
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
@@ -41,7 +37,9 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
   inbox: "messages",
   messages: "messages",
+  services: "services",
   profile: "profile",
+  reviews: "reviews",
   calendar: "calendar",
   money: "money",
   payouts: "payouts",
@@ -69,6 +67,7 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   planTier: "free",
   kind: "app",
   logoUrl: null,
+  accentColor: null,
   verifiedDomain: null,
   defaultCoordinatorUserId: null,
   inquiryCoordinatorTalentIds: [],
@@ -115,7 +114,6 @@ export default async function PlatformTalentLayout({
   }
 
   const activeAgency = await getActiveTalentAgencyContext(baseProfile.id);
-  const agencyOptions = await listTalentAgencyContexts(baseProfile.id);
   const tenantId = activeAgency?.tenantId ?? null;
 
   const talentSelfProfile =
@@ -206,7 +204,21 @@ export default async function PlatformTalentLayout({
         pitches: null,
         teamMembers: null,
         totalUnread: 0,
-        tenantIdentity: tenantIdentity ?? PLATFORM_TENANT_IDENTITY,
+        // Stamp the talent's exclusivity to the active agency onto the identity
+        // payload. Whitelabel branding on the talent dashboard shows the agency
+        // logo only when the talent is EXCLUSIVE to it (is_primary) AND the
+        // agency is on a whitelabel plan tier; otherwise the surface stays
+        // Tulala-canonical.
+        tenantIdentity: tenantIdentity
+          ? {
+              ...tenantIdentity,
+              talentExclusive: activeAgency?.isPrimary ?? false,
+              // Whitelabel accent on the talent dashboard requires EXCLUSIVE
+              // representation, mirroring the whitelabel logo/brand rule. A
+              // talent on multiple rosters keeps Tulala's chrome.
+              accentColor: activeAgency?.isPrimary ? tenantIdentity.accentColor : null,
+            }
+          : PLATFORM_TENANT_IDENTITY,
         sessionIdentity,
         talentSelfProfile,
         talentPayoutSnapshot,
@@ -218,6 +230,10 @@ export default async function PlatformTalentLayout({
         workspaceUnread: workspaceUnread ?? 0,
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
+        // Read from the RAW prefs, not the hybrid-gated `userPrefs`: the
+        // Day-1 checklist is a talent-only surface, so gating it on hybrid
+        // would make the dismissal never stick for pure talents.
+        talentChecklistDismissed: userPrefsRaw?.talentChecklistDismissed ?? false,
         talentCalendarEntries,
         talentEarnings: displayEarnings,
         profileEditorLayout,
@@ -228,20 +244,10 @@ export default async function PlatformTalentLayout({
         },
       }}
     >
-      {isHybrid && agencyOptions.length > 1 ? (
-        <div
-          style={{
-            padding: "8px 16px 0",
-            maxWidth: 1200,
-            margin: "0 auto",
-          }}
-        >
-          <TalentAgencyContextSwitcher
-            agencies={agencyOptions}
-            activeTenantId={activeAgency?.tenantId ?? null}
-          />
-        </div>
-      ) : null}
+      {/* Agency-context switching lives in the identity bar's "Acting as"
+          chip → Switch-agency drawer (in-place cookie switch + refresh). The
+          old raw <select> strip that rendered here duplicated that control
+          and sat as an unstyled band above the shell chrome. */}
       {children}
     </TalentShellClient>
     </TalentSiteDashboardProvider>

@@ -32,6 +32,7 @@ import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 
 import { InspectorGroup, KIT, VisualChipGroup, type ChipOption } from "./kit";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { useEditorLocale } from "../use-editor-locale";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,24 +99,28 @@ function initSlots(
 
 type AccentOrAuto = AccentKey | "";
 
-const ACCENT_SWATCHES: ReadonlyArray<{
+function accentSwatches(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<{
   key: AccentOrAuto;
   style: React.CSSProperties;
   title: string;
-}> = [
-  {
-    key: "",
-    style: {
-      background:
-        "conic-gradient(#F4CACA 0deg, #C4D4C4 120deg, #E8D8B4 240deg, #F4CACA 360deg)",
+}> {
+  return [
+    {
+      key: "",
+      style: {
+        background:
+          "conic-gradient(#F4CACA 0deg, #C4D4C4 120deg, #E8D8B4 240deg, #F4CACA 360deg)",
+      },
+      title: t("Auto (cycles A→B→C)"),
     },
-    title: "Auto (cycles A→B→C)",
-  },
-  { key: "blush", style: { background: "#F4CACA" }, title: "Blush" },
-  { key: "sage", style: { background: "#C4D4C4" }, title: "Sage" },
-  { key: "champagne", style: { background: "#E8D8B4" }, title: "Champagne" },
-  { key: "ivory", style: { background: "#F5F0E8" }, title: "Ivory" },
-];
+    { key: "blush", style: { background: "#F4CACA" }, title: t("Blush") },
+    { key: "sage", style: { background: "#C4D4C4" }, title: t("Sage") },
+    { key: "champagne", style: { background: "#E8D8B4" }, title: t("Champagne") },
+    { key: "ivory", style: { background: "#F5F0E8" }, title: t("Ivory") },
+  ];
+}
 
 // ── Variant / defaultAccent chips ─────────────────────────────────────────────
 
@@ -162,46 +167,57 @@ function CarouselPreview() {
   );
 }
 
-const VARIANT_CHIPS: ReadonlyArray<ChipOption<VariantKey>> = [
-  { value: "trio-card",     label: "Trio",     preview: <TrioPreview /> },
-  { value: "single-hero",   label: "Hero",     preview: <SingleHeroPreview /> },
-  { value: "carousel-row",  label: "Carousel", preview: <CarouselPreview /> },
-];
+function variantChips(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<ChipOption<VariantKey>> {
+  return [
+    { value: "trio-card",     label: t("Trio"),     preview: <TrioPreview /> },
+    { value: "single-hero",   label: t("Hero"),     preview: <SingleHeroPreview /> },
+    { value: "carousel-row",  label: t("Carousel"), preview: <CarouselPreview /> },
+  ];
+}
 
 function AccentSwatch({ value }: { value: AccentKey }) {
-  const sw = ACCENT_SWATCHES.find((s) => s.key === value) ?? ACCENT_SWATCHES[0]!;
+  const { t } = useEditorLocale();
+  const swatches = accentSwatches(t);
+  const sw = swatches.find((s) => s.key === value) ?? swatches[0]!;
   return (
     <div className="size-6 rounded-full border border-stone-200" style={sw.style} />
   );
 }
 
-const DEFAULT_ACCENT_CHIPS: ReadonlyArray<ChipOption<AccentKey>> = [
-  {
-    value: "auto",
-    label: "Auto",
-    preview: <AccentSwatch value="auto" />,
-    info: "Cycles blush → sage → champagne by position",
-  },
-  { value: "blush",     label: "Blush",     preview: <AccentSwatch value="blush" /> },
-  { value: "sage",      label: "Sage",      preview: <AccentSwatch value="sage" /> },
-  { value: "champagne", label: "Champagne", preview: <AccentSwatch value="champagne" /> },
-  { value: "ivory",     label: "Ivory",     preview: <AccentSwatch value="ivory" /> },
-];
+function defaultAccentChips(
+  t: ReturnType<typeof useEditorLocale>["t"],
+): ReadonlyArray<ChipOption<AccentKey>> {
+  return [
+    {
+      value: "auto",
+      label: t("Auto"),
+      preview: <AccentSwatch value="auto" />,
+      info: t("Cycles blush → sage → champagne by position"),
+    },
+    { value: "blush",     label: t("Blush"),     preview: <AccentSwatch value="blush" /> },
+    { value: "sage",      label: t("Sage"),      preview: <AccentSwatch value="sage" /> },
+    { value: "champagne", label: t("Champagne"), preview: <AccentSwatch value="champagne" /> },
+    { value: "ivory",     label: t("Ivory"),     preview: <AccentSwatch value="ivory" /> },
+  ];
+}
 
 // ── Char count guidance ───────────────────────────────────────────────────────
 
 function QuoteGuidance({ len }: { len: number }) {
+  const { t } = useEditorLocale();
   if (len === 0) {
     return (
       <p className={KIT.hint}>
-        Great quotes are personal and specific. Aim for 2–4 sentences.
+        {t("Great quotes are personal and specific. Aim for 2–4 sentences.")}
       </p>
     );
   }
   if (len <= 120) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-stone-500">Ideal length for three columns</span>
+        <span className="text-[10px] text-stone-500">{t("Ideal length for three columns")}</span>
         <span className="text-[10px] tabular-nums text-stone-500">{len}</span>
       </div>
     );
@@ -209,14 +225,14 @@ function QuoteGuidance({ len }: { len: number }) {
   if (len <= 220) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-amber-500">Getting long — may wrap on mobile</span>
+        <span className="text-[10px] text-amber-500">{t("Getting long, may wrap on mobile")}</span>
         <span className="text-[10px] tabular-nums text-amber-500">{len}</span>
       </div>
     );
   }
   return (
     <div className="flex items-center justify-between">
-      <span className="text-[10px] text-rose-500">Trim for mobile readability</span>
+      <span className="text-[10px] text-rose-500">{t("Trim for mobile readability")}</span>
       <span className="text-[10px] tabular-nums text-rose-500">{len}/360</span>
     </div>
   );
@@ -233,6 +249,7 @@ function VoiceSlot({
   slot: SlotDraft;
   onPatch: (patch: Partial<SlotDraft>) => void;
 }) {
+  const { t } = useEditorLocale();
   const [showLocation, setShowLocation] = useState(Boolean(slot.location));
   const isEmpty = !slot.quote.trim();
 
@@ -252,13 +269,13 @@ function VoiceSlot({
           </span>
           {isEmpty && (
             <span className="text-[10px] text-stone-500">
-              Empty — won&apos;t appear on page
+              {t("Empty, won't appear on page")}
             </span>
           )}
         </div>
         {/* Per-slot accent: instant colour swatches */}
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="Accent colour">
-          {ACCENT_SWATCHES.map(({ key, style, title }) => {
+        <div className="flex items-center gap-1" role="radiogroup" aria-label={t("Accent colour")}>
+          {accentSwatches(t).map(({ key, style, title }) => {
             const active = slot.accent === key;
             return (
               <button
@@ -284,13 +301,13 @@ function VoiceSlot({
 
       {/* Quote — the centrepiece */}
       <div className={KIT.field}>
-        <label className={KIT.label}>Quote</label>
+        <label className={KIT.label}>{t("Quote")}</label>
         <textarea
           className={`${KIT.textarea} min-h-[96px]`}
           value={slot.quote}
           maxLength={360}
           rows={5}
-          placeholder="Write their words here…"
+          placeholder={t("Write their words here…")}
           onChange={(e) => onPatch({ quote: e.target.value })}
         />
         <QuoteGuidance len={slot.quote.length} />
@@ -300,30 +317,29 @@ function VoiceSlot({
       {!isEmpty && (
         <>
           <div className={KIT.field}>
-            <label className={KIT.label}>Name</label>
+            <label className={KIT.label}>{t("Name")}</label>
             <input
               type="text"
               className={KIT.input}
               value={slot.author}
               maxLength={80}
-              placeholder="Full name"
+              placeholder={t("Full name")}
               onChange={(e) => onPatch({ author: e.target.value })}
             />
           </div>
 
           <div className={KIT.field}>
-            <label className={KIT.label}>Role or occasion</label>
+            <label className={KIT.label}>{t("Role or occasion")}</label>
             <input
               type="text"
               className={KIT.input}
               value={slot.context}
               maxLength={120}
-              placeholder="Bridal client · New York"
+              placeholder={t("Bridal client · New York")}
               onChange={(e) => onPatch({ context: e.target.value })}
             />
             <p className={KIT.hint}>
-              Shown beneath the name. E.g. &ldquo;Featured talent&rdquo; or
-              &ldquo;Agency client since 2022&rdquo;.
+              {t('Shown beneath the name. E.g. "Featured talent" or "Agency client since 2022".')}
             </p>
           </div>
 
@@ -333,17 +349,17 @@ function VoiceSlot({
               className={`${KIT.ghostButton} self-start`}
               onClick={() => setShowLocation(true)}
             >
-              + Add location
+              {t("+ Add location")}
             </button>
           ) : (
             <div className={KIT.field}>
-              <label className={KIT.label}>Location</label>
+              <label className={KIT.label}>{t("Location")}</label>
               <input
                 type="text"
                 className={KIT.input}
                 value={slot.location}
                 maxLength={120}
-                placeholder="City, Country"
+                placeholder={t("City, Country")}
                 onChange={(e) => onPatch({ location: e.target.value })}
               />
             </div>
@@ -365,6 +381,7 @@ export function TestimonialsTrioContentInspector({
   // Local slot state — gives stable slot positions (A/B/C) regardless of how
   // many items the underlying array has. Syncs from draftProps on external
   // changes (undo/redo) via the isOurChange guard.
+  const { t } = useEditorLocale();
   const isOurChange = useRef(false);
   const [slots, setSlots] = useState<[SlotDraft, SlotDraft, SlotDraft]>(() =>
     initSlots(draftProps),
@@ -450,38 +467,38 @@ export function TestimonialsTrioContentInspector({
             color: "#1d4ed8",
           }}
         >
-          Editing selected canvas node: {focusRole === "subheadline" ? "Eyebrow" : "Headline"}
+          {t("Editing selected canvas node:")} {focusRole === "subheadline" ? t("Eyebrow") : t("Headline")}
         </div>
       ) : null}
       {/* ── Headline ── */}
       <InspectorGroup
-        title="Headline"
+        title={t("Headline")}
         collapsible
         storageKey="tt-header"
         defaultOpen={Boolean(eyebrow || headline)}
       >
         <div className={KIT.field} data-testimonials-node-role="subheadline">
-          <label className={KIT.label}>Eyebrow</label>
+          <label className={KIT.label}>{t("Eyebrow")}</label>
           <input
             type="text"
             className={KIT.input}
             value={eyebrow}
             maxLength={60}
-            placeholder="What clients say"
+            placeholder={t("What clients say")}
             onChange={(e) =>
               patchMeta({ eyebrow: e.target.value || undefined })
             }
           />
         </div>
         <div className={KIT.field} data-testimonials-node-role="headline">
-          <label className={KIT.label}>Headline</label>
+          <label className={KIT.label}>{t("Headline")}</label>
           <RichEditor
             value={headline}
             onChange={(next) => patchMeta({ headline: next || undefined })}
             variant="single"
             tenantId={tenantId}
-            placeholder="In their own words"
-            ariaLabel="Headline"
+            placeholder={t("In their own words")}
+            ariaLabel={t("Headline")}
           />
         </div>
       </InspectorGroup>
@@ -489,7 +506,7 @@ export function TestimonialsTrioContentInspector({
       {/* ── Three voices ── */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
-          <span className={KIT.sectionTitle}>Three voices</span>
+          <span className={KIT.sectionTitle}>{t("Three voices")}</span>
           <span className="text-[10px] tabular-nums text-stone-500">
             {filledCount} / 3
           </span>
@@ -506,33 +523,33 @@ export function TestimonialsTrioContentInspector({
         </div>
         {filledCount === 0 && (
           <p className={`${KIT.hint} text-amber-600`}>
-            Fill at least one voice to publish this section.
+            {t("Fill at least one voice to publish this section.")}
           </p>
         )}
       </section>
 
       {/* ── Display (advanced) ── */}
       <InspectorGroup
-        title="Display"
+        title={t("Display")}
         advanced
         collapsible
         storageKey="tt-display"
       >
         <div className={KIT.field}>
-          <label className={KIT.label}>Layout</label>
+          <label className={KIT.label}>{t("Layout")}</label>
           <VisualChipGroup
             value={variant}
             onChange={(v) => patchMeta({ variant: v })}
-            options={VARIANT_CHIPS}
+            options={variantChips(t)}
             columns={3}
           />
         </div>
         <div className={KIT.field}>
-          <label className={KIT.label}>Default accent</label>
+          <label className={KIT.label}>{t("Default accent")}</label>
           <VisualChipGroup
             value={defaultAccent}
             onChange={(v) => patchMeta({ defaultAccent: v })}
-            options={DEFAULT_ACCENT_CHIPS}
+            options={defaultAccentChips(t)}
             columns={5}
           />
         </div>

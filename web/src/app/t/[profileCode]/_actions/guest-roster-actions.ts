@@ -24,12 +24,22 @@ import {
   loadDefaultStorefrontRoster,
   loadRosterPortraitsByIds,
 } from "@/lib/home/default-storefront-roster";
+import { loadDiscoverTalents } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
+import { discoverTalentsToRosterItems } from "@/lib/inquiry/hub-roster-adapter";
 import type {
   GuestChatErrorCode,
   GuestChatFailure,
   ListGuestTenantRosterResult,
   ResolveGuestCartPortraitsResult,
 } from "@/lib/inquiry/guest-chat-contract";
+
+/**
+ * How many cross-tenant profiles the hub talent picker loads. The picker is a
+ * client-filtered search list, so this is the upper bound of the searchable set
+ * (the agency path caps at 24 via loadDefaultStorefrontRoster; the hub reads the
+ * wider platform index up to the loader's own max).
+ */
+const HUB_ROSTER_LIMIT = 60;
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -38,7 +48,7 @@ function fail(code: GuestChatErrorCode, message: string): GuestChatFailure {
 }
 
 type ResolvedTenant =
-  | { ok: true; tenantId: string }
+  | { ok: true; tenantId: string; isHub: boolean }
   | { ok: false; failure: GuestChatFailure };
 
 /**
@@ -62,8 +72,23 @@ async function resolvePublicTenant(
     return { ok: false, failure: fail("db_unavailable", "Messaging is temporarily unavailable.") };
   }
 
-  const guestKey = (await headers()).get(GUEST_HEADER);
+  const requestHeaders = await headers();
+  const guestKey = requestHeaders.get(GUEST_HEADER);
   if (!guestKey) {
+    // Observability: the middleware-injected guest header should ALWAYS be
+    // present here (proxy.ts forwards it on both passthrough and rewrite paths).
+    // Its absence means a header-plumbing regression, not a real sessionless
+    // visitor — and it used to fail SILENTLY, which made the marketing-apex
+    // roster outage hard to diagnose. Log the forwarded x-impronta-* header
+    // names (never values) so a recurrence is immediately visible.
+    logServerError(
+      `${logTag}/no-guest-header`,
+      `missing ${GUEST_HEADER}; forwarded impronta headers: [${[
+        ...requestHeaders.keys(),
+      ]
+        .filter((k) => k.startsWith("x-impronta-"))
+        .join(", ")}]`,
+    );
     return {
       ok: false,
       failure: fail(
@@ -75,7 +100,7 @@ async function resolvePublicTenant(
 
   const { data: agency, error: agencyErr } = await admin
     .from("agencies")
-    .select("id, status")
+    .select("id, status, kind")
     .eq("slug", slug)
     .limit(1)
     .maybeSingle();
@@ -87,7 +112,10 @@ async function resolvePublicTenant(
     return { ok: false, failure: fail("tenant_unavailable", "We couldn't find this workspace.") };
   }
 
-  return { ok: true, tenantId: agency.id as string };
+  // A hub tenant (platform hub or a network hub) owns no roster of its own — its
+  // talent comes from the cross-tenant Discover index. Callers branch on this so
+  // the hub picker never hits the empty agency-scoped roster path.
+  return { ok: true, tenantId: agency.id as string, isHub: agency.kind === "hub" };
 }
 
 export async function listGuestTenantRoster(input: {
@@ -99,6 +127,14 @@ export async function listGuestTenantRoster(input: {
       "guest-roster-actions.listGuestTenantRoster",
     );
     if (!tenant.ok) return tenant.failure;
+
+    // Hub host: the tenant has no own roster, so source the picker from the
+    // cross-tenant Discover index (the same platform-wide set the global
+    // directory lists) instead of the empty agency-scoped roster.
+    if (tenant.isHub) {
+      const { items } = await loadDiscoverTalents({ limit: HUB_ROSTER_LIMIT });
+      return { ok: true, roster: discoverTalentsToRosterItems(items) };
+    }
 
     const rows = await loadDefaultStorefrontRoster(tenant.tenantId);
     return {

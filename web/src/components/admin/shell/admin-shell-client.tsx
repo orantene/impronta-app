@@ -41,6 +41,7 @@
 import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useInquiryRealtime } from "@/hooks/use-inquiry-realtime";
+import { CanonicalRouteChildrenProvider } from "./internal/canonical-route-children";
 import {
   AdminShellProvider, useAdminShell, COLORS, FONTS, TRANSITION, Z, meetsRole,
   WORKSPACE_PAGES, PAGE_META,
@@ -58,6 +59,7 @@ import { DrawerRoot, UpgradeModal } from "./internal/drawers";
 import { CommandPalette } from "./internal/palette";
 import { DRAWER_HELP } from "./internal/help";
 import { useDashboardText } from "./internal/dashboard-i18n";
+import { interpolate } from "@/i18n/interpolate";
 // Type-only import — `_data-bridge.ts` is a server-only module guarded by
 // `import "server-only"`, so a runtime import would throw at hydration. The
 // `import type` form is erased at compile time and emits no JS, which is
@@ -252,6 +254,12 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   (s) => s[0] === "admin" && s[1] === "triage",
   // /<tenant>/admin/financials — Business Financials page (L46).
   (s) => s[0] === "admin" && s[1] === "financials",
+  // /<tenant>/admin/bookings/** + /admin/account — these server pages have
+  // no SPA counterpart ("bookings"/"account" are not WorkspacePage ids), so
+  // without a matcher the route rendered BOTH the server page and the SPA
+  // overview stacked on one screen. Yield to the real page.
+  (s) => s[0] === "admin" && s[1] === "bookings",
+  (s) => s[0] === "admin" && s[1] === "account",
   // /<tenant>/admin/roster/applications — apply-flow inbox (L48).
   (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "applications",
   // /<tenant>/admin/roster/registration — Tenant Registration Engine settings.
@@ -297,6 +305,36 @@ function ConditionalAdminShellRoot() {
 }
 
 /**
+ * Workspace variant of the shell root + canonical-route bridge.
+ *
+ * Unlike ConditionalAdminShellRoot (used by the TALENT shell, where canonical
+ * routes render standalone with NO chrome), the WORKSPACE shell HOSTS canonical
+ * route content inside its own `<main>` — so /admin/financials & siblings get
+ * the real sidebar + top bar instead of a naked page.
+ *
+ * On a canonical path: publish `children` to the CanonicalRouteChildren context
+ * (WorkspaceShell's PageRouter renders them in `<main>`) and always mount the
+ * shell. On a normal path: render `children` inline as before (the route page
+ * is a null-visual PageRouteSyncer) and let the SPA render its own page body.
+ *
+ * During SSR (pathname == null) we render `children` inline and skip the shell,
+ * matching the prior no-flash behavior; the shell mounts on hydration.
+ */
+function WorkspaceShellWithCanonicalChildren({ children }: { children?: import("react").ReactNode }) {
+  const pathname = usePathname();
+  const canonical = pathname != null && pathIsCanonical(pathname);
+  return (
+    <CanonicalRouteChildrenProvider value={canonical ? children : null}>
+      {/* Non-canonical (and SSR): render the route page inline. Canonical:
+          the route content is hosted inside the shell's <main> via context. */}
+      {!canonical && children}
+      <RealtimeBridge />
+      {pathname != null && <AdminShellRoot />}
+    </CanonicalRouteChildrenProvider>
+  );
+}
+
+/**
  * RealtimeBridge — subscribes to Supabase realtime for the active
  * tenant and triggers `router.refresh()` on each pipeline-table change.
  * Renders nothing visually; lives inside AdminShellProvider so it can read
@@ -334,9 +372,9 @@ export function AdminShellClient({
           initialPage={initialPage}
           tenantSlug={tenantSlug}
         >
-          {children}
-          <RealtimeBridge />
-          <ConditionalAdminShellRoot />
+          <WorkspaceShellWithCanonicalChildren>
+            {children}
+          </WorkspaceShellWithCanonicalChildren>
         </AdminShellProvider>
       </Suspense>
     </ErrorBoundary>
@@ -590,20 +628,24 @@ function BottomActionFab() {
   // mixes "create X" actions with "go to Y" jumps in one filterable list,
   // replacing the legacy Cmd-K palette's separate sections.
   type Item = { id: string; label: string; sub: string; icon: AdminShellIconName; shortcut?: string; canDo: boolean; run: () => void };
+  // Palette rows are translated at CONSTRUCTION (not render) so the query
+  // filter below matches what the user actually sees in ES.
+  const goTo = (label: string) =>
+    copy.isSpanish ? `Ir a ${copy.t(label)}` : `Go to ${label}`;
   const items: Item[] = (() => {
     if (state.surface === "talent") {
       const create: Item[] = [
-        { id: "block-dates",    label: "Block dates",     sub: "Mark days you're not available",    icon: "calendar", canDo: true,
+        { id: "block-dates",    label: copy.t("Block dates"), sub: copy.t("Mark days you're not available"),    icon: "calendar", canDo: true,
           run: () => openDrawer("talent-block-dates") },
-        { id: "edit-profile",   label: "Edit profile",     sub: "Update photos, bio, rates",         icon: "user",     canDo: true,
+        { id: "edit-profile",   label: copy.t("Edit profile"), sub: copy.t("Update photos, bio, rates"),         icon: "user",     canDo: true,
           run: () => openDrawer("talent-profile-edit") },
-        { id: "polaroids",      label: "Add polaroids",    sub: "Front · side · back · smile",       icon: "plus",     canDo: true,
+        { id: "polaroids",      label: copy.t("Add polaroids"), sub: copy.t("Front · side · back · smile"),       icon: "plus",     canDo: true,
           run: () => openDrawer("talent-profile-edit", { mode: "edit-self", section: "polaroids" }) },
       ];
       const nav: Item[] = (Object.keys(TALENT_PAGE_META) as Array<keyof typeof TALENT_PAGE_META>).map((p) => ({
         id: `nav-talent-${p}`,
-        label: `Go to ${TALENT_PAGE_META[p].label}`,
-        sub: "Talent surface",
+        label: goTo(TALENT_PAGE_META[p].label),
+        sub: copy.t("Talent surface"),
         icon: "arrow-right",
         canDo: true,
         run: () => setTalentPage(p),
@@ -612,15 +654,15 @@ function BottomActionFab() {
     }
     if (state.surface === "client") {
       const create: Item[] = [
-        { id: "new-inquiry",    label: "Send an inquiry",  sub: "Brief us — we'll reply in <2h",     icon: "plus",     canDo: true,
+        { id: "new-inquiry",    label: copy.t("Send an inquiry"), sub: copy.t("Brief us — we'll reply in <2h"),     icon: "plus",     canDo: true,
           run: () => openDrawer("client-send-inquiry") },
-        { id: "shortlist",      label: "Build a shortlist", sub: "Save talent + share a brief",       icon: "team",     canDo: true,
+        { id: "shortlist",      label: copy.t("Build a shortlist"), sub: copy.t("Save talent + share a brief"),       icon: "team",     canDo: true,
           run: () => openDrawer("client-new-shortlist") },
       ];
       const nav: Item[] = (Object.keys(CLIENT_PAGE_META) as Array<keyof typeof CLIENT_PAGE_META>).map((p) => ({
         id: `nav-client-${p}`,
-        label: `Go to ${CLIENT_PAGE_META[p].label}`,
-        sub: "Client surface",
+        label: goTo(CLIENT_PAGE_META[p].label),
+        sub: copy.t("Client surface"),
         icon: "arrow-right",
         canDo: true,
         run: () => setClientPage(p),
@@ -629,15 +671,15 @@ function BottomActionFab() {
     }
     if (state.surface === "platform") {
       const create: Item[] = [
-        { id: "new-tenant",     label: "New tenant",       sub: "Onboard an agency or hub",          icon: "plus",     canDo: true,
+        { id: "new-tenant",     label: copy.t("New tenant"), sub: copy.t("Onboard an agency or hub"),          icon: "plus",     canDo: true,
           run: () => toast("Open tenant intake") },
-        { id: "ops",            label: "Operations alerts", sub: "Cross-tenant flags",                icon: "info",     canDo: true,
+        { id: "ops",            label: copy.t("Operations alerts"), sub: copy.t("Cross-tenant flags"),                icon: "info",     canDo: true,
           run: () => toast("Open operations") },
       ];
       const nav: Item[] = (Object.keys(PLATFORM_PAGE_META) as Array<keyof typeof PLATFORM_PAGE_META>).map((p) => ({
         id: `nav-platform-${p}`,
-        label: `Go to ${PLATFORM_PAGE_META[p].label}`,
-        sub: "Platform surface",
+        label: goTo(PLATFORM_PAGE_META[p].label),
+        sub: copy.t("Platform surface"),
         icon: "arrow-right",
         canDo: true,
         run: () => setPlatformPage(p),
@@ -646,25 +688,25 @@ function BottomActionFab() {
     }
     // workspace (default)
     const create: Item[] = [
-      { id: "new-inquiry",    label: "New inquiry",       sub: "Capture a lead from a client",        icon: "plus",     shortcut: "G I", canDo: meetsRole(state.role, "manager") || state.plan === "free",
+      { id: "new-inquiry",    label: copy.t("New inquiry"), sub: copy.t("Capture a lead from a client"),        icon: "plus",     shortcut: "G I", canDo: meetsRole(state.role, "manager") || state.plan === "free",
         run: () => openDrawer("new-inquiry") },
-      { id: "new-booking",    label: "New booking",       sub: "Confirmed job — skip the inquiry",    icon: "calendar", shortcut: "G B", canDo: meetsRole(state.role, "manager"),
+      { id: "new-booking",    label: copy.t("New booking"), sub: copy.t("Confirmed job — skip the inquiry"),    icon: "calendar", shortcut: "G B", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("new-booking") },
-      { id: "new-talent",     label: "Add talent",        sub: "Create a roster profile",             icon: "user",     shortcut: "G T", canDo: meetsRole(state.role, "editor"),
+      { id: "new-talent",     label: copy.t("Add talent"), sub: copy.t("Create a roster profile"),             icon: "user",     shortcut: "G T", canDo: meetsRole(state.role, "editor"),
         run: () => openDrawer("new-talent") },
-      { id: "new-client",     label: "Add client",        sub: "Track a relationship",                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "manager") && state.plan !== "free",
+      { id: "new-client",     label: copy.t("Add client"), sub: copy.t("Track a relationship"),                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "manager") && state.plan !== "free",
         run: () => openDrawer("client-profile", { id: "new" }) },
-      { id: "invite-team",    label: "Invite teammate",   sub: "Manager or editor",                   icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
+      { id: "invite-team",    label: copy.t("Invite teammate"), sub: copy.t("Manager or editor"),                   icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
         run: () => openDrawer("team") },
-      { id: "snippets",       label: "New snippet",       sub: "Reusable reply for the composer",     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "manager"),
+      { id: "snippets",       label: copy.t("New snippet"), sub: copy.t("Reusable reply for the composer"),     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("inbox-snippets") },
-      { id: "share-card",     label: "Share talent",      sub: "Send a client-facing standalone link", icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "manager"),
+      { id: "share-card",     label: copy.t("Share talent"), sub: copy.t("Send a client-facing standalone link"), icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "manager"),
         run: () => openDrawer("talent-share-card") },
     ];
     const nav: Item[] = WORKSPACE_PAGES.map((p) => ({
       id: `nav-ws-${p}`,
-      label: `Go to ${PAGE_META[p]?.label ?? p}`,
-      sub: PAGE_META[p]?.description ?? "Workspace surface",
+      label: goTo(PAGE_META[p]?.label ?? p),
+      sub: copy.t(PAGE_META[p]?.description ?? "Workspace surface"),
       icon: "arrow-right",
       canDo: true,
       run: () => setPage(p),
@@ -821,8 +863,8 @@ function BottomActionFab() {
                 else if (e.key === "ArrowUp")   { e.preventDefault(); moveSel(-1); }
                 else if (e.key === "Escape" && query) { e.preventDefault(); setQuery(""); }
               }}
-              placeholder="Search, create, or ask Tulala…"
-              aria-label="Search, create, or ask"
+              placeholder={copy.t("Search, create, or ask Tulala…")}
+              aria-label={copy.t("Search, create, or ask")}
               style={{
                 flex: 1, minWidth: 0,
                 border: "none", outline: "none", background: "transparent",
@@ -832,7 +874,7 @@ function BottomActionFab() {
             />
             {query ? (
               <button type="button" onClick={() => { setQuery(""); searchRef.current?.focus(); }}
-                aria-label="Clear search"
+                aria-label={copy.t("Clear search")}
                 style={{
                   border: "none", background: "rgba(11,11,13,0.06)", cursor: "pointer",
                   color: COLORS.inkMuted,
@@ -861,14 +903,14 @@ function BottomActionFab() {
             gap: 4,
             borderBottom: `1px solid ${COLORS.borderSoft}`,
           }}>
-            <FabTabButton label="Create" icon="plus" active={tab === "create"} onClick={() => setTab("create")} />
-            <FabTabButton label="Recent" icon="bolt" active={tab === "recent"} onClick={() => setTab("recent")} badge={FAB_DRAFTS_MOCK > 0 ? FAB_DRAFTS_MOCK : undefined} />
-            <FabTabButton label="Ask AI" icon="sparkle" active={tab === "ai"} onClick={() => { setAiSeed(query.trim()); setTab("ai"); }} accent="royal" />
+            <FabTabButton label={copy.t("Create")} icon="plus" active={tab === "create"} onClick={() => setTab("create")} />
+            <FabTabButton label={copy.t("Recent")} icon="bolt" active={tab === "recent"} onClick={() => setTab("recent")} badge={FAB_DRAFTS_MOCK > 0 ? FAB_DRAFTS_MOCK : undefined} />
+            <FabTabButton label={copy.t("Ask AI")} icon="sparkle" active={tab === "ai"} onClick={() => { setAiSeed(query.trim()); setTab("ai"); }} accent="royal" />
           </div>
 
           {/* Body */}
           {tab === "create" && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 6px" }} role="listbox" aria-label="Search results">
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 6px" }} role="listbox" aria-label={copy.t("Search results")}>
               {filteredItems.map((it, idx) => {
                 const selected = idx === Math.min(selIdx, filteredItems.length - 1);
                 return (
@@ -1061,6 +1103,7 @@ function BottomActionFab() {
 // recent rows are filtered by label/note substring.
 function FabRecentPanel({ query = "" }: { query?: string }) {
   const { openDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
   const drafts = [
     { id: "draft-1", label: "Maria Sandoval — promo model", note: "Draft · started 2h ago", action: () => toast("Resume Maria's profile") },
     { id: "draft-2", label: "Carlos Pérez — DJ",            note: "Draft · started 3d ago", action: () => toast("Resume Carlos's profile") },
@@ -1078,11 +1121,11 @@ function FabRecentPanel({ query = "" }: { query?: string }) {
   const empty = q && filteredDrafts.length === 0 && filteredRecent.length === 0;
   return (
     <div style={{ overflowY: "auto", padding: "10px 6px", maxHeight: 380, fontFamily: FONTS.body }}>
-      <RecentSection title="Drafts" items={filteredDrafts} />
-      <RecentSection title="Last created" items={filteredRecent} />
+      <RecentSection title={copy.t("Drafts")} items={filteredDrafts} />
+      <RecentSection title={copy.t("Last created")} items={filteredRecent} />
       {empty && (
         <div style={{ padding: "14px 14px 6px", fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Nothing recent matches “{query}”.
+          {interpolate(copy.t("Nothing recent matches “{query}”."), { query })}
         </div>
       )}
     </div>
@@ -1165,12 +1208,13 @@ function FabTabButton({ label, icon, active, onClick, accent, badge }: {
 // ── AI chat panel (extracted from AIHelpBot, now mounted inside Fab) ─
 function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
   const { state } = useAdminShell();
+  const copy = useDashboardText();
   const drawerId = state.drawer.drawerId;
   const helpEntry = drawerId ? (DRAWER_HELP as Record<string, typeof DRAWER_HELP[keyof typeof DRAWER_HELP]>)[drawerId] ?? null : null;
   const faqs = helpEntry?.faqs ?? [];
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: "user" | "bot"; text: string }[]>([
-    { role: "bot", text: "Hi! I can answer questions about how to use Tulala. Try asking something or pick a suggestion below." },
+    { role: "bot", text: copy.t("Hi! I can answer questions about how to use Tulala. Try asking something or pick a suggestion below.") },
   ]);
   const listRef = useRef<HTMLDivElement>(null);
   const lastSeed = useRef<string>("");
@@ -1211,12 +1255,12 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 
   const quickSuggestions = faqs.length > 0
     ? faqs.slice(0, 3).map((f) => f.q)
-    : ["How do I send an offer?", "How do I add talent to the roster?", "How do I invite a teammate?"];
+    : [copy.t("How do I send an offer?"), copy.t("How do I add talent to the roster?"), copy.t("How do I invite a teammate?")];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 320, maxHeight: 460 }}>
       {helpEntry && (
-        <div style={{ padding: "6px 14px", fontSize: 10.5, fontWeight: 500 }} className="bg-admin-royal-soft text-admin-royal-deep">Context: {helpEntry.category}</div>
+        <div style={{ padding: "6px 14px", fontSize: 10.5, fontWeight: 500 }} className="bg-admin-royal-soft text-admin-royal-deep">{interpolate(copy.t("Context: {category}"), { category: helpEntry.category })}</div>
       )}
       <div ref={listRef} style={{
         flex: 1, overflowY: "auto", padding: "12px 14px",
@@ -1268,7 +1312,7 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") send(input); }}
-          placeholder="Ask Tulala anything…"
+          placeholder={copy.t("Ask Tulala anything…")}
           style={{
             flex: 1, padding: "9px 12px",
             fontFamily: FONTS.body, fontSize: 12.5,
@@ -1293,6 +1337,20 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 }
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
+  const { bridgeTenantIdentity } = useAdminShell();
+  // Whitelabel accent — only set for whitelabel-tier tenants (the loader
+  // already gates + hex-validates it). When present, `--tulala-accent` and
+  // `--tulala-accent-deep` re-tint every accent token in the shell; when
+  // absent the COLORS fallbacks (forest green) win, so default chrome is
+  // untouched. accent-deep is derived from the same hue at reduced lightness
+  // via color-mix so a single stored hex drives both.
+  const accent = bridgeTenantIdentity?.accentColor ?? null;
+  const accentVars = accent
+    ? ({
+        ["--tulala-accent" as never]: accent,
+        ["--tulala-accent-deep" as never]: `color-mix(in srgb, ${accent} 78%, #000)`,
+      } as React.CSSProperties)
+    : undefined;
   return (
     <>
         {/* Global keyboard-focus styling for the admin shell. Scoped via
@@ -2320,7 +2378,6 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
                its width. */
             .tulala-shell [data-tulala-brand],
             .tulala-shell [data-tulala-id-divider],
-            .tulala-shell [data-tulala-identity-name],
             .tulala-shell [data-tulala-id-slash] {
               display: none !important;
             }
@@ -2443,6 +2500,9 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
             // mode-shell topbars/sidebars) so they offset correctly
             // whether the dev control bar is shown or hidden.
             ["--proto-cbar" as never]: showDevBar ? "50px" : "0px",
+            // Whitelabel accent (whitelabel-tier tenants only) — re-tints the
+            // shell's accent tokens from the agency's brand color.
+            ...accentVars,
             background: COLORS.surface,
             minHeight: "100vh",
             fontFamily: FONTS.body,

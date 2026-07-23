@@ -103,7 +103,7 @@ export function MyBlocksPanel({
       setError(result.error ?? "Couldn't insert the linked instance.");
       return;
     }
-    setNote("Linked instance inserted — edit the master then Sync.");
+    setNote("Linked instance inserted. Edit the master then Sync.");
   }
 
   async function onSyncInstances(component: BuilderComponentRow) {
@@ -265,7 +265,7 @@ export function MyBlocksPanel({
                   <button
                     type="button"
                     data-builder-node-my-block-update-master={component.id}
-                    title="Overwrite this master with the selected block — published instances update live"
+                    title="Overwrite this master with the selected block, published instances update live"
                     className={KIT.ghostButton}
                     disabled={busy}
                     onClick={() => void onUpdateMaster(component)}

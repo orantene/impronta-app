@@ -54,6 +54,13 @@ export type ApiDirectoryCardRpcRow = {
   is_exclusive?: boolean | null;
   next_available_date?: string | null;
   available_days_in_next_30?: number | null;
+  /**
+   * Review / craft-standing aggregates (additive). All null when the talent
+   * has no eligible published reviews.
+   */
+  rating_avg?: number | null;
+  rating_count?: number | null;
+  would_book_again_pct?: number | null;
 };
 
 function pickLocalizedName(
@@ -201,6 +208,14 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
     availableDaysInNext30:
       typeof row.available_days_in_next_30 === "number"
         ? row.available_days_in_next_30
+        : null,
+    // Review / craft-standing signal. Null when no eligible reviews exist.
+    ratingAvg: typeof row.rating_avg === "number" ? row.rating_avg : null,
+    ratingCount:
+      typeof row.rating_count === "number" ? row.rating_count : null,
+    wouldBookAgainPct:
+      typeof row.would_book_again_pct === "number"
+        ? row.would_book_again_pct
         : null,
   };
 }

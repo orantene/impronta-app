@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { rescheduleInquiry } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { pinNextConversation as pinNextConversationP } from "../messages";
 import { SecondaryButton, StatusStrip } from "../primitives";
@@ -11,6 +13,7 @@ import { PageHeader } from "./pages-shared";
 
 
 export function CalendarPage() {
+  const t = useT();
   const { openDrawer, setPage, effectiveCalendarEvents, toast, effectiveTenant } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -56,12 +59,12 @@ export function CalendarPage() {
         : "ink";
       days.forEach((d) => {
         events[d] = events[d] ?? [];
-        events[d].push({ id: inq.id, title: `${inq.clientName} — ${inq.brief.slice(0, 20)}`, tone });
+        events[d].push({ id: inq.id, title: `${inq.clientName} · ${inq.brief.slice(0, 20)}`, tone });
       });
     });
   }
 
-  const monthLabel = new Date(year, month, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, month, 1).toLocaleString(t("dashboard.adminCalendar.dateLocale"), { month: "long", year: "numeric" });
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
   const goToPrev = () => {
     if (month === 0) { setDisplayMonth(11); setDisplayYear((y) => y - 1); }
@@ -85,21 +88,21 @@ export function CalendarPage() {
   return (
     <>
       <PageHeader
-        title="Calendar"
+        title={t("dashboard.adminCalendar.title")}
         actions={
           <SecondaryButton onClick={() => openDrawer("new-booking")}>
-            New booking
+            {t("dashboard.adminCalendar.newBooking")}
           </SecondaryButton>
         }
       />
 
       <StatusStrip
-        ariaLabel={`${monthLabel} overview`}
+        ariaLabel={interpolate(t("dashboard.adminCalendar.overviewAria"), { month: monthLabel })}
         items={[
-          { id: "confirmed",  label: "Confirmed",   value: monthCounts.confirmed,  tone: "green" },
-          { id: "submitted",  label: "Submitted",   value: monthCounts.submitted,  tone: "amber" },
-          { id: "inProgress", label: "In progress", value: monthCounts.inProgress, tone: "ink" },
-          { id: "expired",    label: "Expired",     value: monthCounts.expired,    tone: "red" },
+          { id: "confirmed",  label: t("dashboard.adminCalendar.confirmed"),   value: monthCounts.confirmed,  tone: "green" },
+          { id: "submitted",  label: t("dashboard.adminCalendar.submitted"),   value: monthCounts.submitted,  tone: "amber" },
+          { id: "inProgress", label: t("dashboard.adminCalendar.inProgress"), value: monthCounts.inProgress, tone: "ink" },
+          { id: "expired",    label: t("dashboard.adminCalendar.expired"),     value: monthCounts.expired,    tone: "red" },
         ]}
       />
 
@@ -125,7 +128,7 @@ export function CalendarPage() {
             <div className="text-admin-ink text-sm font-semibold">{monthLabel}</div>
             {/* Timezone display (#11) */}
             <div
-              title="All times are local to the talent's shoot location. Adjust in Settings → Time zones."
+              title={t("dashboard.adminCalendar.timezoneTip")}
               style={{
                 fontSize: 10.5,
                 fontWeight: 500,
@@ -144,7 +147,7 @@ export function CalendarPage() {
           </div>
           <div className="flex gap-1">
             <CalendarNavBtn label="prev" onClick={goToPrev} />
-            <CalendarNavBtn label="Today" onClick={goToToday} disabled={isCurrentMonth} />
+            <CalendarNavBtn label="today" onClick={goToToday} disabled={isCurrentMonth} />
             <CalendarNavBtn label="next" onClick={goToNext} />
           </div>
         </div>
@@ -156,9 +159,12 @@ export function CalendarPage() {
             borderBottom: `1px solid ${COLORS.borderSoft}`,
           }}
         >
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          {Array.from({ length: 7 }, (_, i) =>
+            // 1970-01-04 is a Sunday; step through the week for locale-correct short weekday names.
+            new Intl.DateTimeFormat(t("dashboard.adminCalendar.dateLocale"), { weekday: "short" }).format(new Date(Date.UTC(1970, 0, 4 + i))),
+          ).map((d, i) => (
             <div
-              key={d}
+              key={i}
               style={{
                 padding: "8px 10px",
                 fontSize: 11,
@@ -172,7 +178,7 @@ export function CalendarPage() {
         </div>
         <div
           role="grid"
-          aria-label={`Calendar — ${monthLabel}`}
+          aria-label={interpolate(t("dashboard.adminCalendar.gridAria"), { month: monthLabel })}
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
@@ -187,7 +193,11 @@ export function CalendarPage() {
             const dayEvents = events[day] ?? [];
             const isToday = day === today.getDate();
             const isoDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            const ariaLabel = `${monthLabel.split(" ")[0]} ${day}${dayEvents.length > 0 ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}` : ""}${isToday ? " (today)" : ""}`;
+            const eventsSuffix = dayEvents.length > 0
+              ? `, ${interpolate(t(dayEvents.length === 1 ? "dashboard.adminCalendar.eventCountOne" : "dashboard.adminCalendar.eventCountOther"), { count: dayEvents.length })}`
+              : "";
+            const todaySuffix = isToday ? ` ${t("dashboard.adminCalendar.todayParen")}` : "";
+            const ariaLabel = `${monthLabel.split(" ")[0]} ${day}${eventsSuffix}${todaySuffix}`;
             return (
               <div
                 key={day}
@@ -214,13 +224,13 @@ export function CalendarPage() {
                   const fromDate = e.dataTransfer.getData("text/x-tulala-from-date");
                   if (!inquiryId || isoDate === fromDate) return;
                   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId)) {
-                    toast("Demo events can't be rescheduled — only real inquiries.");
+                    toast(t("dashboard.adminCalendar.demoRescheduleBlocked"));
                     return;
                   }
                   startTransition(async () => {
                     const r = await rescheduleInquiry(effectiveTenant.slug, inquiryId, isoDate);
-                    if (!r.ok) toast(`Reschedule failed: ${r.error}`);
-                    else { toast(`Moved to ${isoDate}`); router.refresh(); }
+                    if (!r.ok) toast(interpolate(t("dashboard.adminCalendar.rescheduleFailed"), { error: r.error }));
+                    else { toast(interpolate(t("dashboard.adminCalendar.movedTo"), { date: isoDate })); router.refresh(); }
                   });
                 }}
                 style={{
@@ -265,7 +275,7 @@ export function CalendarPage() {
                       ev.dataTransfer.effectAllowed = "move";
                     }}
                     onClick={(ev) => { ev.stopPropagation(); pinNextConversationP(e.id); setPage("messages"); }}
-                    title="Click to open · drag to another day to reschedule"
+                    title={t("dashboard.adminCalendar.eventTip")}
                     style={{
                       fontSize: 10.5,
                       color: e.tone === "green" ? COLORS.green : e.tone === "amber" ? COLORS.amber : e.tone === "red" ? "#c0392b" : COLORS.ink,
@@ -292,7 +302,7 @@ export function CalendarPage() {
                 ))}
                 {dayEvents.length > 2 && (
                   <span className="text-admin-accent text-admin-10 font-semibold">
-                    +{dayEvents.length - 2} more
+                    {interpolate(t("dashboard.adminCalendar.moreCount"), { count: dayEvents.length - 2 })}
                   </span>
                 )}
               </div>
@@ -304,8 +314,10 @@ export function CalendarPage() {
   );
 }
 
-function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?: () => void; disabled?: boolean }) {
-  const ariaLabel = label === "prev" ? "Previous month" : label === "next" ? "Next month" : label;
+function CalendarNavBtn({ label, onClick, disabled }: { label: "prev" | "next" | "today"; onClick?: () => void; disabled?: boolean }) {
+  const t = useT();
+  const todayLabel = t("dashboard.adminCalendar.today");
+  const ariaLabel = label === "prev" ? t("dashboard.adminCalendar.prevMonth") : label === "next" ? t("dashboard.adminCalendar.nextMonth") : todayLabel;
   const content =
     label === "prev" ? (
       <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -316,7 +328,7 @@ function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?:
         <path d="M9 6l6 6-6 6" />
       </svg>
     ) : (
-      label
+      todayLabel
     );
   return (
     <button
@@ -325,7 +337,7 @@ function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?:
       onClick={onClick}
       disabled={disabled}
       style={{
-        padding: label === "Today" ? "5px 10px" : "5px 8px",
+        padding: label === "today" ? "5px 10px" : "5px 8px",
         background: "transparent",
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 6,

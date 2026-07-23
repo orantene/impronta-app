@@ -45,7 +45,17 @@ async function resolvedKeyForAnthropicInstance(
   }
   const mode = effectiveCredentialMode(inst, tenant);
   const db = await getDecryptedSecretForInstance(inst.id);
-  return resolveKeyForMode(mode, db, envAnthropic());
+  const resolved = resolveKeyForMode(mode, db, envAnthropic());
+  // DEV-ONLY: the vault key (AI_CREDENTIALS_ENCRYPTION_KEY) is a sensitive
+  // Vercel var that cannot be pulled locally, so an agency-mode DB secret can
+  // never decrypt on a dev box. Fall back to the env key there — this mirrors
+  // what the Anthropic SDK already does implicitly when handed a null key, and
+  // keeps isResolvedAiChatConfigured() consistent with the adapter's real
+  // behavior. Production semantics are unchanged (agency mode = DB key only).
+  if (!resolved && process.env.NODE_ENV === "development") {
+    return envAnthropic();
+  }
+  return resolved;
 }
 
 /**

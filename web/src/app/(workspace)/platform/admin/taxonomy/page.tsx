@@ -6,6 +6,11 @@ import { TaxonomyFieldMappingPanel } from "./taxonomy-field-mapping-panel";
 import { TaxonomyReorderPanel } from "./taxonomy-reorder-panel";
 import { TaxonomyTermForm } from "./taxonomy-term-form";
 import { byLabel as byLabelCmp } from "@/lib/field-engine/sort-comparators";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
 
 export const dynamic = "force-dynamic";
 
@@ -75,10 +80,11 @@ type TaxonomyIssue = {
   slugs: string[];
 };
 
-const ISSUE_LABEL: Record<TaxonomyIssue["kind"], string> = {
-  "name-collision": "Name collision",
-  "group-leaf-same-label": "Group / leaf shared label",
-  "spanish-missing": "Spanish labels missing",
+// enum → catalog key; render label via t(), keep switching on the raw union.
+const ISSUE_LABEL_KEY: Record<TaxonomyIssue["kind"], string> = {
+  "name-collision": "dashboard.platform.taxonomy.issueNameCollision",
+  "group-leaf-same-label": "dashboard.platform.taxonomy.issueGroupLeaf",
+  "spanish-missing": "dashboard.platform.taxonomy.issueSpanishMissing",
 };
 
 type TaxonomyFieldOption = {
@@ -164,7 +170,7 @@ function Stat({
   );
 }
 
-async function loadTaxonomy(): Promise<{
+async function loadTaxonomy(t: Translate): Promise<{
   terms: TaxonomyRow[];
   roots: TaxonomyRow[];
   impacts: Map<string, TaxonomyImpact>;
@@ -337,8 +343,11 @@ async function loadTaxonomy(): Promise<{
     const types = new Set(group.map((term) => term.term_type));
     issues.push({
       kind: types.has("category_group") && types.has("talent_type") ? "group-leaf-same-label" : "name-collision",
-      title: `Shared label: ${group[0].name_en}`,
-      detail: `${group.length} active terms share this label across ${[...types].join(", ")}.`,
+      title: interpolate(t("dashboard.platform.taxonomy.issueSharedLabel"), { name: group[0].name_en }),
+      detail: interpolate(t("dashboard.platform.taxonomy.issueSharedDetail"), {
+        count: group.length,
+        types: [...types].join(", "),
+      }),
       slugs,
     });
   }
@@ -346,8 +355,8 @@ async function loadTaxonomy(): Promise<{
   if (missingSpanish.length > 0) {
     issues.push({
       kind: "spanish-missing",
-      title: `${missingSpanish.length} active talent terms need Spanish labels`,
-      detail: "Bilingual catalog labels should be complete before talent self-edit and registration rely on this engine.",
+      title: interpolate(t("dashboard.platform.taxonomy.issueSpanishTitle"), { count: missingSpanish.length }),
+      detail: t("dashboard.platform.taxonomy.issueSpanishDetail"),
       slugs: missingSpanish.slice(0, 12).map((term) => term.slug),
     });
   }
@@ -381,7 +390,9 @@ export default async function PlatformTaxonomyBuilderPage({
   searchParams: Promise<{ saved?: string; error?: string; type?: string; term?: string }>;
 }) {
   const params = await searchParams;
-  const data = await loadTaxonomy();
+  const locale = await getRequestLocale();
+  const t: Translate = createTranslator(locale);
+  const data = await loadTaxonomy(t);
   const type = params.type ?? "all";
 
   const flat = data ? flattenTree(data.roots) : [];
@@ -405,18 +416,18 @@ export default async function PlatformTaxonomyBuilderPage({
   return (
     <div style={{ fontFamily: F, color: HQ.ink, padding: 4 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 4 }}>
-        <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>Taxonomy Builder</h1>
+        <h1 style={{ fontFamily: FD, fontSize: 22, fontWeight: 600, margin: 0 }}>{t("dashboard.platform.taxonomy.title")}</h1>
         <Link href="/platform/admin/catalog" style={{ fontSize: 11, fontWeight: 700, color: HQ.green, textDecoration: "none" }}>
-          Catalog Map
+          {t("dashboard.platform.taxonomy.catalogMap")}
         </Link>
       </div>
       <div style={{ fontSize: 12.5, color: HQ.inkMuted, marginBottom: 18 }}>
-        The global talent-type tree. Select a term to edit bilingual names, aliases, search synonyms, visibility flags, lifecycle, and field mappings.
+        {t("dashboard.platform.taxonomy.intro")}
       </div>
 
       {params.saved && (
         <div style={{ border: "1px solid rgba(93,211,160,0.28)", background: "rgba(93,211,160,0.10)", color: HQ.green, borderRadius: 10, padding: "9px 12px", fontSize: 12.5, marginBottom: 14 }}>
-          Saved taxonomy change.
+          {t("dashboard.platform.taxonomy.savedChange")}
         </div>
       )}
       {params.error && (
@@ -426,33 +437,33 @@ export default async function PlatformTaxonomyBuilderPage({
       )}
 
       {!data ? (
-        <HqCard title="Unavailable" subtitle="Could not load taxonomy.">
-          <div style={{ color: HQ.inkMuted, fontSize: 12 }}>Retry shortly.</div>
+        <HqCard title={t("dashboard.platform.taxonomy.unavailableTitle")} subtitle={t("dashboard.platform.taxonomy.unavailableSubtitle")}>
+          <div style={{ color: HQ.inkMuted, fontSize: 12 }}>{t("dashboard.platform.taxonomy.unavailableBody")}</div>
         </HqCard>
       ) : (
         <>
-          <HqCard title="Overview" subtitle="Platform sees all terms. Tenant admins, talent, and public users receive filtered/resolved subsets.">
+          <HqCard title={t("dashboard.platform.taxonomy.overviewTitle")} subtitle={t("dashboard.platform.taxonomy.overviewSubtitle")}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
               <div style={{ background: HQ.cardSoft, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "10px 14px", minWidth: 110 }}>
-                <div style={{ fontSize: 11, color: HQ.inkMuted }}>Terms</div>
+                <div style={{ fontSize: 11, color: HQ.inkMuted }}>{t("dashboard.platform.taxonomy.statTerms")}</div>
                 <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 650 }}>{flat.length}</div>
               </div>
               <div style={{ background: HQ.cardSoft, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "10px 14px", minWidth: 110 }}>
-                <div style={{ fontSize: 11, color: HQ.inkMuted }}>Active</div>
+                <div style={{ fontSize: 11, color: HQ.inkMuted }}>{t("dashboard.platform.taxonomy.statActive")}</div>
                 <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 650, color: HQ.green }}>{activeCount}</div>
               </div>
               <div style={{ background: HQ.cardSoft, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "10px 14px", minWidth: 110 }}>
-                <div style={{ fontSize: 11, color: HQ.inkMuted }}>Public filters</div>
+                <div style={{ fontSize: 11, color: HQ.inkMuted }}>{t("dashboard.platform.taxonomy.statPublicFilters")}</div>
                 <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 650, color: HQ.green }}>{publicFilters}</div>
               </div>
               <div style={{ background: HQ.cardSoft, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, padding: "10px 14px", minWidth: 110 }}>
-                <div style={{ fontSize: 11, color: HQ.inkMuted }}>Restricted</div>
+                <div style={{ fontSize: 11, color: HQ.inkMuted }}>{t("dashboard.platform.taxonomy.statRestricted")}</div>
                 <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 650, color: restricted ? HQ.red : HQ.ink }}>{restricted}</div>
               </div>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               <Link href="/platform/admin/taxonomy" style={{ color: type === "all" ? HQ.green : HQ.inkMuted, border: `1px solid ${type === "all" ? HQ.green : HQ.borderSoft}`, borderRadius: 999, padding: "4px 9px", fontSize: 11.5, textDecoration: "none" }}>
-                All
+                {t("dashboard.platform.taxonomy.filterAll")}
               </Link>
               {types.map((termType) => (
                 <Link key={termType} href={`/platform/admin/taxonomy?type=${encodeURIComponent(termType)}`} style={{ color: type === termType ? HQ.green : HQ.inkMuted, border: `1px solid ${type === termType ? HQ.green : HQ.borderSoft}`, borderRadius: 999, padding: "4px 9px", fontSize: 11.5, textDecoration: "none" }}>
@@ -463,24 +474,24 @@ export default async function PlatformTaxonomyBuilderPage({
           </HqCard>
 
           <HqCard
-            title="Taxonomy Health"
-            subtitle="Diagnostics for duplicate labels, bilingual readiness, and hierarchy hygiene. These do not mutate data."
+            title={t("dashboard.platform.taxonomy.healthTitle")}
+            subtitle={t("dashboard.platform.taxonomy.healthSubtitle")}
           >
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 12 }}>
-              <Stat label="Warnings" value={data.issues.length} tone={data.issues.length > 0 ? HQ.amber : HQ.green} />
+              <Stat label={t("dashboard.platform.taxonomy.healthWarnings")} value={data.issues.length} tone={data.issues.length > 0 ? HQ.amber : HQ.green} />
               <Stat
-                label="Group/leaf label collisions"
+                label={t("dashboard.platform.taxonomy.healthGroupLeaf")}
                 value={data.issues.filter((issue) => issue.kind === "group-leaf-same-label").length}
                 tone={data.issues.some((issue) => issue.kind === "group-leaf-same-label") ? HQ.amber : HQ.green}
               />
               <Stat
-                label="Spanish readiness"
-                value={data.issues.some((issue) => issue.kind === "spanish-missing") ? "Needs pass" : "Ready"}
+                label={t("dashboard.platform.taxonomy.healthSpanish")}
+                value={data.issues.some((issue) => issue.kind === "spanish-missing") ? t("dashboard.platform.taxonomy.healthSpanishNeeds") : t("dashboard.platform.taxonomy.healthSpanishReady")}
                 tone={data.issues.some((issue) => issue.kind === "spanish-missing") ? HQ.amber : HQ.green}
               />
             </div>
             {data.issues.length === 0 ? (
-              <div style={{ color: HQ.green, fontSize: 12 }}>No active taxonomy health warnings.</div>
+              <div style={{ color: HQ.green, fontSize: 12 }}>{t("dashboard.platform.taxonomy.healthNoWarnings")}</div>
             ) : (
               <div style={{ display: "grid", gap: 7 }}>
                 {data.issues.slice(0, 8).map((issue) => (
@@ -499,7 +510,7 @@ export default async function PlatformTaxonomyBuilderPage({
                         style={{ color: issue.kind === "spanish-missing" ? HQ.amber : HQ.red, fontSize: 10, fontWeight: 700, minWidth: 150 }}
                         title={issue.kind}
                       >
-                        {ISSUE_LABEL[issue.kind]}
+                        {t(ISSUE_LABEL_KEY[issue.kind])}
                       </span>
                       <strong style={{ color: HQ.ink }}>{issue.title}</strong>
                     </div>
@@ -514,18 +525,30 @@ export default async function PlatformTaxonomyBuilderPage({
           </HqCard>
 
           <HqCard
-            title="Create Taxonomy Term"
-            subtitle="Add a platform category, group, talent type, skill, context, or credential to the canonical engine."
+            title={t("dashboard.platform.taxonomy.createTitle")}
+            subtitle={t("dashboard.platform.taxonomy.createSubtitle")}
           >
-            <CreateTaxonomyTermForm allTerms={flat} />
+            <CreateTaxonomyTermForm allTerms={flat} t={t} />
           </HqCard>
 
-          <HqCard title="Tree editor" subtitle={`${visibleTerms.length} visible term${visibleTerms.length === 1 ? "" : "s"} in this view. Select one term to edit.`}>
+          <HqCard
+            title={t("dashboard.platform.taxonomy.treeEditorTitle")}
+            subtitle={interpolate(
+              visibleTerms.length === 1
+                ? t("dashboard.platform.taxonomy.treeEditorSubtitleOne")
+                : t("dashboard.platform.taxonomy.treeEditorSubtitleMany"),
+              { count: visibleTerms.length },
+            )}
+          >
             <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 0.7fr) minmax(0, 1.3fr)", gap: 16 }}>
               <div style={{ maxHeight: 620, overflow: "auto", border: `1px solid ${HQ.borderSoft}`, borderRadius: 12 }}>
                 {visibleTerms.map((term) => {
                   const selected = selectedTerm?.id === term.id;
-                  const status = term.archived_at ? "archived" : term.is_active ? "active" : "inactive";
+                  const statusLabel = term.archived_at
+                    ? t("dashboard.platform.taxonomy.statusArchived")
+                    : term.is_active
+                      ? t("dashboard.platform.taxonomy.statusActive")
+                      : t("dashboard.platform.taxonomy.statusInactive");
                   const href =
                     `/platform/admin/taxonomy?${new URLSearchParams({
                       ...(type === "all" ? {} : { type }),
@@ -555,7 +578,7 @@ export default async function PlatformTaxonomyBuilderPage({
                         <span style={{ display: "block", color: HQ.inkDim, fontFamily: "ui-monospace, monospace", fontSize: 10 }}>{term.slug}</span>
                       </span>
                       <span style={{ color: term.archived_at || !term.is_active ? HQ.red : HQ.green, fontSize: 10, fontWeight: 800, textTransform: "uppercase" }}>
-                        {status}
+                        {statusLabel}
                       </span>
                     </Link>
                   );
@@ -564,24 +587,24 @@ export default async function PlatformTaxonomyBuilderPage({
               <div>
                 {selectedTerm ? (
                   <>
-                    <TaxonomyTermForm term={selectedTerm} allTerms={flat} open />
+                    <TaxonomyTermForm term={selectedTerm} allTerms={flat} open t={t} />
                     {selectedImpact && (
                       <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
                         <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 12, padding: 12, background: HQ.cardSoft }}>
-                          <div style={{ color: HQ.ink, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Impact preview</div>
+                          <div style={{ color: HQ.ink, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{t("dashboard.platform.taxonomy.impactTitle")}</div>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 8 }}>
-                            <Stat label="Descendants" value={selectedImpact.descendant_count} tone={selectedImpact.descendant_count > 0 ? HQ.green : HQ.inkDim} />
-                            <Stat label="Mappings" value={selectedImpact.field_mapping_count} tone={selectedImpact.field_mapping_count > 0 ? HQ.green : HQ.inkDim} />
-                            <Stat label="Required" value={selectedImpact.required_mapping_count} tone={selectedImpact.required_mapping_count > 0 ? HQ.amber : HQ.inkDim} />
-                            <Stat label="Profiles" value={selectedImpact.talent_assignment_count} tone={selectedImpact.talent_assignment_count > 0 ? HQ.green : HQ.inkDim} />
-                            <Stat label="Tenant overrides" value={selectedImpact.tenant_override_count} tone={selectedImpact.tenant_override_count > 0 ? HQ.amber : HQ.inkDim} />
+                            <Stat label={t("dashboard.platform.taxonomy.impactDescendants")} value={selectedImpact.descendant_count} tone={selectedImpact.descendant_count > 0 ? HQ.green : HQ.inkDim} />
+                            <Stat label={t("dashboard.platform.taxonomy.impactMappings")} value={selectedImpact.field_mapping_count} tone={selectedImpact.field_mapping_count > 0 ? HQ.green : HQ.inkDim} />
+                            <Stat label={t("dashboard.platform.taxonomy.impactRequired")} value={selectedImpact.required_mapping_count} tone={selectedImpact.required_mapping_count > 0 ? HQ.amber : HQ.inkDim} />
+                            <Stat label={t("dashboard.platform.taxonomy.impactProfiles")} value={selectedImpact.talent_assignment_count} tone={selectedImpact.talent_assignment_count > 0 ? HQ.green : HQ.inkDim} />
+                            <Stat label={t("dashboard.platform.taxonomy.impactTenantOverrides")} value={selectedImpact.tenant_override_count} tone={selectedImpact.tenant_override_count > 0 ? HQ.amber : HQ.inkDim} />
                           </div>
                           <div style={{ color: HQ.inkMuted, fontSize: 11.5, marginTop: 9 }}>
-                            Lifecycle and parent changes should be reviewed here before saving. Assignments and values are never deleted by this page.
+                            {t("dashboard.platform.taxonomy.impactNote")}
                           </div>
                         </div>
                         <div style={{ border: `1px solid ${HQ.borderSoft}`, borderRadius: 12, padding: 12, background: HQ.cardSoft }}>
-                          <div style={{ color: HQ.ink, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Drag order</div>
+                          <div style={{ color: HQ.ink, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{t("dashboard.platform.taxonomy.dragOrderTitle")}</div>
                           <TaxonomyReorderPanel
                             siblings={selectedSiblings.map((term) => ({
                               id: term.id,
@@ -600,44 +623,47 @@ export default async function PlatformTaxonomyBuilderPage({
                           term={selectedTerm}
                           mappings={data.mappingsByTerm.get(selectedTerm.id) ?? []}
                           fieldOptions={data.fieldOptions}
+                          t={t}
                         />
                       </div>
                     )}
                   </>
                 ) : (
                   <div style={{ color: HQ.inkMuted, fontSize: 12, padding: "8px 0" }}>
-                    No terms match this filter. Select <strong style={{ color: HQ.ink }}>All</strong> above or create a new term.
+                    {interpolate(t("dashboard.platform.taxonomy.noTermsFilter"), {
+                      all: t("dashboard.platform.taxonomy.filterAll"),
+                    })}
                   </div>
                 )}
               </div>
             </div>
           </HqCard>
 
-          <HqCard title="Preview rules" subtitle="The same term flags feed every downstream surface.">
+          <HqCard title={t("dashboard.platform.taxonomy.previewTitle")} subtitle={t("dashboard.platform.taxonomy.previewSubtitle")}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, fontSize: 12 }}>
               <div style={{ background: HQ.cardSoft, borderRadius: 10, padding: 10 }}>
-                <strong style={{ color: HQ.ink }}>Platform Admin</strong>
-                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>Sees active and archived terms for engine maintenance.</p>
+                <strong style={{ color: HQ.ink }}>{t("dashboard.platform.taxonomy.previewPlatformAdmin")}</strong>
+                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>{t("dashboard.platform.taxonomy.previewPlatformAdminBody")}</p>
               </div>
               <div style={{ background: HQ.cardSoft, borderRadius: 10, padding: 10 }}>
-                <strong style={{ color: HQ.ink }}>Tenant Admin</strong>
-                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>Sees active global terms, narrowed by plan and tenant enablement.</p>
+                <strong style={{ color: HQ.ink }}>{t("dashboard.platform.taxonomy.previewTenantAdmin")}</strong>
+                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>{t("dashboard.platform.taxonomy.previewTenantAdminBody")}</p>
               </div>
               <div style={{ background: HQ.cardSoft, borderRadius: 10, padding: 10 }}>
-                <strong style={{ color: HQ.ink }}>Talent</strong>
-                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>Sees tenant-enabled terms allowed in registration/self-edit.</p>
+                <strong style={{ color: HQ.ink }}>{t("dashboard.platform.taxonomy.previewTalent")}</strong>
+                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>{t("dashboard.platform.taxonomy.previewTalentBody")}</p>
               </div>
               <div style={{ background: HQ.cardSoft, borderRadius: 10, padding: 10 }}>
-                <strong style={{ color: HQ.ink }}>Public</strong>
-                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>Sees public-filter and directory-enabled terms only.</p>
+                <strong style={{ color: HQ.ink }}>{t("dashboard.platform.taxonomy.previewPublic")}</strong>
+                <p style={{ color: HQ.inkMuted, margin: "5px 0 0" }}>{t("dashboard.platform.taxonomy.previewPublicBody")}</p>
               </div>
             </div>
           </HqCard>
 
-          <HqCard title="Recent Taxonomy Audit" subtitle="Platform mutations write audit rows so engine edits remain accountable.">
+          <HqCard title={t("dashboard.platform.taxonomy.auditTitle")} subtitle={t("dashboard.platform.taxonomy.auditSubtitle")}>
             {data.audits.length === 0 ? (
               <div style={{ color: HQ.inkDim, fontSize: 12 }}>
-                No audit rows yet. Every create, edit, or archive of a taxonomy term will appear here.
+                {t("dashboard.platform.taxonomy.auditEmpty")}
               </div>
             ) : (
               <div style={{ display: "grid", gap: 6 }}>

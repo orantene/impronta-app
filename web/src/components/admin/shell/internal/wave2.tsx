@@ -24,12 +24,17 @@
  * the main _state.tsx until any of these graduate to "real."
  */
 
-import React, { useMemo, useState, useEffect, useCallback, type ReactNode } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
 import { actionLoadUserWorkspaces, type UserWorkspace } from "@/lib/server-actions/admin-user-workspaces";
 import { updateWorkspaceAccount } from "@/lib/server-actions/admin-workspace-settings";
 import {
   COLORS,
+  accentAlpha,
   FONTS,
   RADIUS,
   RICH_INQUIRIES,
@@ -62,11 +67,11 @@ const STARTER_SNIPPETS: { id: string; title: string; body: string }[] = [
     id: "confirming-availability",
     title: "Confirming availability",
     body:
-      "Thanks for the brief — checking with talent now and will come back within the hour with availability + hold options.",
+      "Thanks for the brief. Checking with talent now and will come back within the hour with availability + hold options.",
   },
   {
     id: "offer-sent",
-    title: "Offer sent — awaiting client",
+    title: "Offer sent · awaiting client",
     body:
       "Offer sent to the client side; they have until end-of-day to confirm or counter. I'll ping when it lands.",
   },
@@ -74,7 +79,7 @@ const STARTER_SNIPPETS: { id: string; title: string; body: string }[] = [
     id: "polite-decline",
     title: "Polite decline",
     body:
-      "Thanks so much for thinking of us — talent isn't available for these dates. Would love to be in the loop on the next one.",
+      "Thanks so much for thinking of us. Talent isn't available for these dates. Would love to be in the loop on the next one.",
   },
 ];
 
@@ -147,7 +152,7 @@ export function InboxSnippetsDrawer() {
 
         <section className="flex flex-col gap-2">
           <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600 }} className="text-admin-ink-muted">
-            Preview library — {snippets.length}
+            Preview library · {snippets.length}
           </div>
           {snippets.map((s) => (
             <div
@@ -206,7 +211,7 @@ const NOTIF_EVENTS: {
   description: string;
   urgency: "high" | "medium" | "low";
 }[] = [
-  { id: "booking-confirmed", label: "Booking confirmed",  description: "All parties accepted — booking is live.",              urgency: "high"   },
+  { id: "booking-confirmed", label: "Booking confirmed",  description: "All parties accepted; booking is live.",                urgency: "high"   },
   { id: "message-received",  label: "Message received",   description: "New message in any thread you're on.",                 urgency: "medium" },
   { id: "offer-received",    label: "Offer / counter",    description: "Client sends an offer or counter-offer.",              urgency: "high"   },
   { id: "payment-received",  label: "Payment received",   description: "Payout processed or client payment cleared.",          urgency: "high"   },
@@ -352,7 +357,7 @@ export function NotificationsPrefsDrawer() {
                 toast("Notification preferences saved");
                 closeDrawer();
               } catch {
-                setSaveError("Failed to save — please try again.");
+                setSaveError("Failed to save. Please try again.");
               } finally {
                 setSaving(false);
               }
@@ -722,7 +727,7 @@ export function DataExportDrawer() {
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => toast("Export queue is rolling out next sprint — email your coordinator and they'll spin a one-off CSV in the meantime.")}>
+          <PrimaryButton onClick={() => toast("Export queue is rolling out next sprint. Email your coordinator and they'll spin a one-off CSV in the meantime.")}>
             Request export
           </PrimaryButton>
         </div>
@@ -752,7 +757,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Oran Tene",
     actorInitials: "OT",
     action: "confirmed booking",
-    subject: "Mango — Spring lookbook",
+    subject: "Mango · Spring lookbook",
     detail: "All three parties accepted. Total €4,200. Payout receiver: agency.",
   },
   {
@@ -761,7 +766,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Marta Reyes",
     actorInitials: "MR",
     action: "approved their line",
-    subject: "Mango — Spring lookbook",
+    subject: "Mango · Spring lookbook",
   },
   {
     id: "a3",
@@ -769,7 +774,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Estudio Solé",
     actorInitials: "ES",
     action: "approved offer",
-    subject: "Mango — Spring lookbook",
+    subject: "Mango · Spring lookbook",
     detail: "Offer ID off_412. Client accepted standard terms.",
   },
   {
@@ -778,7 +783,7 @@ const MOCK_AUDIT: AuditEvent[] = [
     actor: "Oran Tene",
     actorInitials: "OT",
     action: "sent offer",
-    subject: "Bvlgari — Editorial campaign",
+    subject: "Bvlgari · Editorial campaign",
     detail: "€6,000 base + travel. Hold expires May 4.",
   },
   {
@@ -982,7 +987,7 @@ export function TenantSwitcherDrawer() {
                 Platform
               </span>
               <span style={PLATFORM_SWITCHER_STYLES.subhead} className="text-admin-ink-dim">
-                Tulala HQ — operate any tenant, users, billing, and network.
+                Tulala HQ · operate any tenant, users, billing, and network.
               </span>
             </header>
             <button
@@ -1032,17 +1037,20 @@ export function TenantSwitcherDrawer() {
           const tenants = realWorkspaces
             .filter(w => w.role === roleGroup.toLowerCase())
             .map(w => {
-              // The platform network-hub's public face is the marketing apex
-              // (tulala.digital) — not a `<slug>.tulala.digital` subdomain
-              // (which is never provisioned and 404s). The apex doesn't serve
-              // /admin, so its workspace admin lives on the app host.
+              // Workspace admin ALWAYS lives on the app host
+              // (app.tulala.digital/<slug>/admin), never on the tenant's
+              // public/custom domain. Routing admin through w.domain broke the
+              // switcher whenever that domain was stale or unreachable — e.g. a
+              // tenant whose first-listed subdomain is a dead legacy host
+              // (impronta.studiobooking.io) sent the user to a NXDOMAIN
+              // "site can't be reached". The app host resolves the tenant from
+              // the path and is the same host the current workspace admin uses.
               const isPlatformHub = w.kind === "hub" && w.tier === "network";
+              // `domain` is display-only now: the tenant's public face.
               const domain = isPlatformHub
                 ? "tulala.digital"
                 : (w.domain ?? `${w.slug}.tulala.digital`);
-              const adminUrl = isPlatformHub
-                ? `https://app.tulala.digital/${w.slug}/admin`
-                : `https://${domain}/admin`;
+              const adminUrl = `https://app.tulala.digital/${w.slug}/admin`;
               return {
                 id: w.id,
                 slug: w.slug,
@@ -1218,7 +1226,7 @@ export function TenantSwitcherDrawer() {
                             : pct >= 0.8 ? "#9C6B14"
                             : COLORS.inkMuted;
                           return (
-                            <span title={t.seatsCap === "∞" ? "Network plan — unlimited seats" : `${t.seatsUsed} of ${t.seatsCap} talent seats used`} style={{
+                            <span title={t.seatsCap === "∞" ? "Network plan · unlimited seats" : `${t.seatsUsed} of ${t.seatsCap} talent seats used`} style={{
                               display: "inline-flex", alignItems: "center", gap: 3,
                               color: tone, fontVariantNumeric: "tabular-nums",
                               fontSize: 10.5, fontWeight: 600,
@@ -1273,7 +1281,7 @@ export function TenantSwitcherDrawer() {
                 </span>
               </div>
               <div style={{ fontSize: 11, lineHeight: 1.45, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                You&apos;ll be its Owner. Pick the tier that fits — you can upgrade later.
+                You&apos;ll be its Owner. Pick the tier that fits; you can upgrade later.
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {(["free", "studio", "agency", "network"] as const).map(tier => {
@@ -1348,23 +1356,36 @@ export function TenantSwitcherDrawer() {
 export function TalentAgencySwitcherDrawer() {
   const { state, closeDrawer, openDrawer, tenantSlug, bridgeTalentAgencies } = useAdminShell();
   const open = state.drawer.drawerId === "talent-agency-switcher";
+  const router = useRouter();
+  const [switchPending, startSwitch] = useTransition();
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
-  if (!state.alsoTalent) return null;
+  // Renders for ANY talent-surface user with agency affiliations — this is
+  // the one switcher for the surface. (Was gated to hybrids only, which left
+  // pure talents with no way to change their active agency context.)
 
   const agencies = bridgeTalentAgencies ?? [];
   const primary = agencies.filter(a => a.isPrimary);
   const others  = agencies.filter(a => !a.isPrimary);
   const groups: Array<{ heading: string; sub: string; rows: typeof agencies }> = [];
   if (primary.length)  groups.push({ heading: "Your primary agency", sub: "Bookings and inquiries default to this agency.", rows: primary });
-  if (others.length)   groups.push({ heading: "Other agencies", sub: "Non-exclusive affiliations — you're on their roster.", rows: others });
+  if (others.length)   groups.push({ heading: "Other agencies", sub: "Non-exclusive affiliations · you're on their roster.", rows: others });
 
-  function navigate(slug: string) {
-    closeDrawer();
-    if (typeof window === "undefined") return;
-    const isLocalhost =
-      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const url = isLocalhost ? `/${slug}/talent` : `https://${slug}.tulala.digital/talent`;
-    window.location.assign(url);
+  // Switch the ACTIVE agency context in place: persist the cookie via the
+  // server action, then refresh so the layout reloads the shell under the new
+  // agency (identity, inbox scope, money figures). The old behavior hard-
+  // navigated to /{slug}/talent — a legacy redirector that bounces straight
+  // back to /talent/today WITHOUT touching the active-agency cookie, so the
+  // drawer silently did nothing for a platform talent.
+  function switchTo(tenantId: string) {
+    if (switchPending) return;
+    setSwitchingId(tenantId);
+    startSwitch(async () => {
+      await setActiveTalentAgencyAction(tenantId);
+      closeDrawer();
+      setSwitchingId(null);
+      router.refresh();
+    });
   }
 
   return (
@@ -1422,9 +1443,11 @@ export function TalentAgencySwitcherDrawer() {
                   key={a.id}
                   type="button"
                   data-tulala-row
+                  disabled={switchPending}
+                  aria-busy={switchingId === a.id}
                   onClick={() => {
                     if (isCurrent) { closeDrawer(); return; }
-                    navigate(a.agencySlug);
+                    switchTo(a.id);
                   }}
                   style={{
                     display: "flex", alignItems: "center", gap: 12,
@@ -1432,7 +1455,9 @@ export function TalentAgencySwitcherDrawer() {
                     background: isCurrent ? COLORS.accentSoft : "#fff",
                     border: `1px solid ${isCurrent ? "rgba(15,79,62,0.22)" : COLORS.borderSoft}`,
                     borderRadius: 10,
-                    cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
+                    cursor: switchPending ? "wait" : "pointer",
+                    opacity: switchPending && switchingId !== a.id ? 0.55 : 1,
+                    fontFamily: FONTS.body, textAlign: "left",
                   }}
                 >
                   <Avatar initials={initials} size={36} tone="ink" />
@@ -1626,7 +1651,7 @@ export function WorkspaceProfileDrawer() {
           </div>
           {!canEditIdentity && (
             <div style={{ padding: "8px 10px", borderRadius: 8, background: "rgba(11,11,13,0.05)", fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-              You&apos;re {myRole.toLowerCase()} on this workspace — identity edits require Owner or Admin role.
+              You&apos;re {myRole.toLowerCase()} on this workspace. Identity edits require Owner or Admin role.
             </div>
           )}
         </section>
@@ -1660,28 +1685,9 @@ export function WorkspaceProfileDrawer() {
               → {previewUrl}
             </div>
           </label>
-          <div className="flex flex-col gap-1">
-            <span style={{ fontSize: 11, fontFamily: FONTS.body }} className="text-admin-ink-muted">Logo</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: `1px dashed ${COLORS.border}` }} className="bg-admin-surface-alt">
-              <Avatar initials={name.slice(0, 2).toUpperCase()} size={36} tone="ink" />
-              <button type="button"
-                disabled
-                title="Logo upload coming soon"
-                style={{
-                  padding: "5px 11px", borderRadius: 999,
-                  border: `1px solid ${COLORS.border}`,
-                  background: "#fff", color: COLORS.inkMuted,
-                  fontSize: 11.5, fontWeight: 600, cursor: "not-allowed",
-                  opacity: 0.5,
-                  fontFamily: FONTS.body,
-                }}>
-                Upload logo
-              </button>
-              <span style={{ fontSize: 10.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                PNG / SVG · square, ≥ 200×200
-              </span>
-            </div>
-          </div>
+          {/* Logo upload hidden — the control was a permanently-disabled
+              "Upload logo" button (no upload path wired). Rather than show a
+              dead field, we hide it until logo upload ships. */}
         </section>
 
         {/* Plan + billing */}
@@ -1746,7 +1752,7 @@ export function WorkspaceProfileDrawer() {
             as the workspace from the composer.
             {tier === "free" && (
               <span style={{ display: "block", marginTop: 6 }} className="text-admin-ink-dim">
-                On Free, you ARE the workspace — System User and your personal
+                On Free, you ARE the workspace. System User and your personal
                 identity are the same. Toggle has no visual effect at this tier.
               </span>
             )}
@@ -1807,30 +1813,10 @@ export function WorkspaceProfileDrawer() {
           </div>
         </section>
 
-        {/* Custom domain — Agency + Network only */}
-        {(tier === "agency" || tier === "network") && (
-          <section style={sectionStyle}>
-            <div style={labelStyle}>Custom domain</div>
-            <div style={{ fontSize: 11.5, lineHeight: 1.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-              Replace your tulala subdomain with a domain you own (e.g.
-              <em> book.atelier-roma.com</em>). DNS config required.
-            </div>
-            <button type="button"
-              disabled
-              title="Custom domain setup coming soon"
-              style={{
-                alignSelf: "flex-start",
-                padding: "6px 12px", borderRadius: 999,
-                border: `1px solid ${COLORS.border}`,
-                background: "transparent", color: COLORS.inkMuted,
-                fontSize: 11.5, fontWeight: 600, cursor: "not-allowed",
-                opacity: 0.5,
-                fontFamily: FONTS.body,
-              }}>
-              Add custom domain
-            </button>
-          </section>
-        )}
+        {/* Custom domain (Agency + Network) hidden — the only control was a
+            permanently-disabled "Add custom domain" button with no setup flow
+            wired. Hidden until custom-domain onboarding ships rather than
+            showing a dead section. */}
 
         {/* Save / Cancel */}
         {canEditIdentity && (
@@ -1943,20 +1929,20 @@ type TalentNotif = {
 
 const MOCK_TALENT_NOTIFS: TalentNotif[] = [
   // Action needed — sticky, coral, your move.
-  { id: "tn1", category: "action", icon: "mail", tone: "coral", title: "Mango — Spring lookbook · new offer", sub: "€1,800 · awaiting your reply", when: "5h", unread: true, sticky: true },
-  { id: "tn2", category: "action", icon: "calendar", tone: "coral", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry · May 18–20", when: "2h", unread: true, sticky: true },
+  { id: "tn1", category: "action", icon: "mail", tone: "coral", title: "Mango · Spring lookbook · new offer", sub: "€1,800 · awaiting your reply", when: "5h", unread: true, sticky: true },
+  { id: "tn2", category: "action", icon: "calendar", tone: "coral", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry · May 18-20", when: "2h", unread: true, sticky: true },
   // @-mention from coordinator — talent was tagged in a chat thread.
   // Action-needed because someone asked them directly.
-  { id: "tn-m1", category: "action", icon: "mail", tone: "coral", title: "Ana Vega tagged you on Mango thread", sub: "\"@Marta — confirm wardrobe brief by EOD please\"", when: "1h", unread: true, sticky: true, mention: { from: "Ana Vega" } },
+  { id: "tn-m1", category: "action", icon: "mail", tone: "coral", title: "Ana Vega tagged you on Mango thread", sub: "\"@Marta, confirm wardrobe brief by EOD please\"", when: "1h", unread: true, sticky: true, mention: { from: "Ana Vega" } },
   // System / setup — sticky, indigo, has progress.
   { id: "tn3", category: "system", icon: "sparkle", tone: "indigo", title: "4 steps to get booked", sub: "Complete your profile to enter the inquiry pipeline", unread: true, sticky: true, progress: { done: 0, total: 4, label: "0 of 4 steps" } },
-  { id: "tn4", category: "system", icon: "user", tone: "indigo", title: "Profile 84% complete", sub: "3 fields left — polaroids, rate card, showreel", unread: true, sticky: true, progress: { done: 84, total: 100, label: "84%" } },
+  { id: "tn4", category: "system", icon: "user", tone: "indigo", title: "Profile 84% complete", sub: "3 fields left · polaroids, rate card, showreel", unread: true, sticky: true, progress: { done: 84, total: 100, label: "84%" } },
   // Updates — dismissible × on hover.
   { id: "tn5", category: "update", icon: "check", tone: "success", title: "Vogue Italia booking confirmed", sub: "Tue, May 6 · €1,800", when: "1d" },
   { id: "tn6", category: "update", icon: "team", tone: "indigo", title: "Mango site referred 12 new views", sub: "+8 vs prior week", when: "2d" },
   // @-mention as informational — Carla thanked Marta in a closed thread.
   // Not action-needed but the talent should know they were tagged.
-  { id: "tn-m2", category: "update", icon: "mail", tone: "indigo", title: "Carla Vega tagged you on Loewe thread", sub: "\"@Marta — thanks for bringing me on, was a dream day 🙏\"", when: "3d", mention: { from: "Carla Vega" } },
+  { id: "tn-m2", category: "update", icon: "mail", tone: "indigo", title: "Carla Vega tagged you on Loewe thread", sub: "\"@Marta, thanks for bringing me on, was a dream day 🙏\"", when: "3d", mention: { from: "Carla Vega" } },
 ];
 
 const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }> = {
@@ -2543,7 +2529,7 @@ export function TalentShareCardDrawer() {
             <button
               type="button"
               disabled
-              title="Preview only — clients click this on the shared link"
+              title="Preview only · clients click this on the shared link"
               style={{
                 marginTop: 12,
                 padding: "8px 14px",
@@ -3275,7 +3261,7 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
             <SecondaryButton
               onClick={() => {
                 navigator.clipboard?.writeText(`https://${url}`);
-                toast("Calendar URL copied — paste into your calendar app");
+                toast("Calendar URL copied. Paste into your calendar app");
               }}
             >
               Copy URL
@@ -3516,13 +3502,13 @@ export function ClientOnboardingArc() {
   return (
     <OnboardingArc
       storageKey="tulala_onboard_client"
-      title="Welcome — let's get you booking"
+      title="Welcome, let's get you booking"
       subtitle="Three steps to a booked talent. The faster you go, the better the agencies' response time."
       steps={[
         {
           id: "browse",
           label: "Browse the directory",
-          description: "Filter by specialty, region, and availability — bookmark talent you might want.",
+          description: "Filter by specialty, region, and availability, then bookmark talent you might want.",
           onOpen: () => setClientPage("discover"),
         },
         {
@@ -3560,7 +3546,7 @@ export function TalentOnboardingArc() {
         {
           id: "photos",
           label: "Upload 5+ photos",
-          description: "Variety beats polish — headshot, full-length, motion, and a recent unedited iPhone photo.",
+          description: "Variety beats polish. Headshot, full-length, motion, and a recent unedited iPhone photo.",
           onOpen: () => openDrawer("talent-profile-edit", { mode: "edit-self", section: "media" }),
         },
         {
@@ -3572,7 +3558,7 @@ export function TalentOnboardingArc() {
         {
           id: "share",
           label: "Copy your public link",
-          description: "Share with your other agencies and on socials — bookings come from anywhere.",
+          description: "Share with your other agencies and on socials; bookings come from anywhere.",
           onOpen: () => {
             navigator.clipboard?.writeText("https://tulala.digital/t/marta-reyes");
             toast("Public link copied to clipboard");
@@ -3602,6 +3588,7 @@ export function SavedViewsBar<T>({
   current: T;
   onApply: (view: T) => void;
 }) {
+  const t = useT();
   const { toast } = useAdminShell();
   const storageKey = `tulala_views_${viewKey}`;
   const [views, setViews] = useState<{ id: string; name: string; payload: T }[]>(() => {
@@ -3625,10 +3612,10 @@ export function SavedViewsBar<T>({
   };
 
   const saveCurrent = () => {
-    const name = window.prompt("Name this view");
+    const name = window.prompt(t("dashboard.adminWave.nameThisView"));
     if (!name) return;
     persist([...views, { id: `v-${Date.now()}`, name: name.trim(), payload: current }]);
-    toast(`View "${name}" saved`);
+    toast(interpolate(t("dashboard.adminWave.viewSaved"), { name }));
   };
 
   const remove = (id: string) => {
@@ -3646,7 +3633,7 @@ export function SavedViewsBar<T>({
       }}
     >
       <span style={{ fontSize: 11, fontWeight: 600, marginRight: 4 }} className="text-admin-ink-muted">
-        Views
+        {t("dashboard.adminWave.views")}
       </span>
       {views.map((v) => (
         <span
@@ -3681,7 +3668,7 @@ export function SavedViewsBar<T>({
           <button
             type="button"
             onClick={() => remove(v.id)}
-            aria-label={`Remove view ${v.name}`}
+            aria-label={interpolate(t("dashboard.adminWave.removeView"), { name: v.name })}
             style={{
               background: "transparent",
               border: "none",
@@ -3710,7 +3697,7 @@ export function SavedViewsBar<T>({
           cursor: "pointer",
         }}
       >
-        + Save current
+        {t("dashboard.adminWave.saveCurrent")}
       </button>
     </div>
   );
@@ -3737,10 +3724,11 @@ export function LoadMore({
   shown: number;
   onMore: () => void;
 }) {
+  const t = useT();
   if (shown >= total) {
     return (
       <div style={{ padding: "16px 0 0", textAlign: "center", fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-        End of list · {total} {total === 1 ? "item" : "items"}
+        {interpolate(t(total === 1 ? "dashboard.adminWave.endOfListOne" : "dashboard.adminWave.endOfListOther"), { count: total })}
       </div>
     );
   }
@@ -3761,7 +3749,7 @@ export function LoadMore({
           cursor: "pointer",
         }}
       >
-        Load more · {total - shown} remaining
+        {interpolate(t("dashboard.adminWave.loadMore"), { count: total - shown })}
       </button>
     </div>
   );
@@ -3887,7 +3875,7 @@ export function DrawerCopyLink() {
       onClick={() => {
         if (typeof window === "undefined") return;
         navigator.clipboard?.writeText(window.location.href);
-        toast("Link copied — anyone with access lands here.");
+        toast("Link copied. Anyone with access lands here.");
       }}
       style={{
         width: 28,
@@ -4023,6 +4011,7 @@ export function QuickReplyButtons({
   onCounter: () => void;
   onDecline: () => void;
 }) {
+  const t = useT();
   return (
     <div className="inline-flex gap-1.5">
       <button
@@ -4030,21 +4019,21 @@ export function QuickReplyButtons({
         onClick={onAccept}
         style={quickReplyStyle("ink")}
       >
-        Accept
+        {t("dashboard.adminWave.quickAccept")}
       </button>
       <button
         type="button"
         onClick={onCounter}
         style={quickReplyStyle("ghost")}
       >
-        Counter
+        {t("dashboard.adminWave.quickCounter")}
       </button>
       <button
         type="button"
         onClick={onDecline}
         style={quickReplyStyle("red")}
       >
-        Decline
+        {t("dashboard.adminWave.quickDecline")}
       </button>
     </div>
   );
@@ -4134,14 +4123,15 @@ const CHANGELOG: { date: string; title: string; body: string }[] = [
 ];
 
 export function WhatsNewDrawer() {
+  const t = useT();
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "whats-new";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="What's new"
-      description="Recent product updates, newest first."
+      title={t("dashboard.adminWave.whatsNewTitle")}
+      description={t("dashboard.adminWave.whatsNewDesc")}
     >
       <div className="flex flex-col gap-3.5">
         {CHANGELOG.map((item, idx) => (
@@ -4178,14 +4168,15 @@ export function WhatsNewDrawer() {
 // #25 — HelpDrawer
 // ════════════════════════════════════════════════════════════════════
 export function HelpDrawer() {
+  const t = useT();
   const { state, closeDrawer } = useAdminShell();
   const open = state.drawer.drawerId === "help";
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Help"
-      description="Keyboard shortcuts, getting-started videos, and how to reach support."
+      title={t("dashboard.adminWave.helpTitle")}
+      description={t("dashboard.adminWave.helpDesc")}
     >
       <div className="flex flex-col gap-4">
         <section
@@ -4197,16 +4188,16 @@ export function HelpDrawer() {
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
-            Keyboard shortcuts
+            {t("dashboard.adminWave.keyboardShortcuts")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: FONTS.body }}>
             {(
               [
-                ["⌘K · Ctrl+K", "Command palette"],
-                ["?", "Show this list"],
-                ["Esc", "Close drawers / overlays"],
-                ["j / k", "Navigate list rows"],
-                ["Enter", "Open selected row"],
+                ["⌘K · Ctrl+K", t("dashboard.adminWave.shortcutPalette")],
+                ["?", t("dashboard.adminWave.shortcutShowList")],
+                ["Esc", t("dashboard.adminWave.shortcutClose")],
+                ["j / k", t("dashboard.adminWave.shortcutNavigate")],
+                ["Enter", t("dashboard.adminWave.shortcutOpenRow")],
               ] as const
             ).map(([key, desc]) => (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -4228,32 +4219,32 @@ export function HelpDrawer() {
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }} className="text-admin-ink">
-            Get help
+            {t("dashboard.adminWave.getHelp")}
           </div>
           <div className="flex flex-col gap-1.5">
             <button
               type="button"
               disabled
-              title="Coming soon"
+              title={t("dashboard.adminWave.comingSoon")}
               style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
-              Read the docs →
+              {t("dashboard.adminWave.readDocs")}
             </button>
             <button
               type="button"
               disabled
-              title="Coming soon"
+              title={t("dashboard.adminWave.comingSoon")}
               style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
-              Chat with support →
+              {t("dashboard.adminWave.chatSupport")}
             </button>
             <button
               type="button"
               disabled
-              title="Coming soon"
+              title={t("dashboard.adminWave.comingSoon")}
               style={{ ...helpRowStyle, cursor: "not-allowed", opacity: 0.5 }}
             >
-              Book onboarding call →
+              {t("dashboard.adminWave.bookOnboarding")}
             </button>
           </div>
         </section>
@@ -4308,6 +4299,7 @@ export type WorkspaceActivationState = {
 };
 
 export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationState } = {}) {
+  const t = useT();
   const { openDrawer, setPage, openUpgrade, toast, state: shellState, effectiveTenant } = useAdminShell();
   const [dismissed, setDismissed] = useState(false);
   const [, setReminded] = useState(false);
@@ -4324,22 +4316,22 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
   //   Free  → point to their Tulala subdomain + upsell
   //   Studio+ → "set your branded domain" as before
   const domainStepDesc = isFreePlan
-    ? `Your storefront is live at ${effectiveTenant.domain}. Upgrade for a branded domain.`
-    : "Go live on your branded URL.";
-  const domainStepCta  = isFreePlan ? "Upgrade to Studio" : "Configure";
+    ? interpolate(t("dashboard.adminWave.activationDomainDescFree"), { domain: effectiveTenant.domain })
+    : t("dashboard.adminWave.activationDomainDescPaid");
+  const domainStepCta  = isFreePlan ? t("dashboard.adminWave.activationUpgradeStudio") : t("dashboard.adminWave.activationConfigure");
   const domainStepAction = isFreePlan
-    ? () => openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own brand's domain — not a Tulala subdomain.", unlocks: ["Custom domain (e.g. acme-models.com)", "Auto-renewed SSL", "Verified email-from address"] })
+    ? () => openUpgrade({ feature: t("dashboard.adminWave.activationDomainFeature"), why: t("dashboard.adminWave.activationDomainWhy"), unlocks: [t("dashboard.adminWave.activationDomainUnlock1"), t("dashboard.adminWave.activationDomainUnlock2"), t("dashboard.adminWave.activationDomainUnlock3")] })
     : () => setPage("settings");
 
   const steps: ActivationStep[] = [
     // Phase B de-fixture: defaults changed from `?? true` → `?? false` so
     // standalone/dev mode (no bridge) shows honest incomplete state instead
     // of pre-checked steps. OverviewPage passes real values when bridged.
-    { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: s.hasCompleteProfile ?? false, cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
-    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: s.hasAnyTalent       ?? false, cta: "Add talent",      onCta: () => setPage("roster") },
-    { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: s.hasSentInquiry     ?? false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
-    { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: s.hasPayoutMethod    ?? false, cta: "Set up payouts",  onCta: () => setPage("payouts") },
-    { id: "domain",     label: isFreePlan ? "View your storefront URL" : "Set your workspace domain", desc: domainStepDesc, done: !isFreePlan && (s.hasCustomDomain ?? false), cta: domainStepCta, onCta: domainStepAction },
+    { id: "profile",    label: t("dashboard.adminWave.activationProfileLabel"),  desc: t("dashboard.adminWave.activationProfileDesc"), done: s.hasCompleteProfile ?? false, cta: t("dashboard.adminWave.activationEditProfile"), onCta: () => openDrawer("workspace-settings") },
+    { id: "talent",     label: t("dashboard.adminWave.activationTalentLabel"),   desc: t("dashboard.adminWave.activationTalentDesc"),  done: s.hasAnyTalent       ?? false, cta: t("dashboard.adminWave.activationAddTalent"),   onCta: () => setPage("roster") },
+    { id: "inquiry",    label: t("dashboard.adminWave.activationInquiryLabel"),  desc: t("dashboard.adminWave.activationInquiryDesc"), done: s.hasSentInquiry     ?? false, cta: t("dashboard.adminWave.activationNewInquiry"),  onCta: () => openDrawer("new-inquiry") },
+    { id: "payout",     label: t("dashboard.adminWave.activationPayoutLabel"),   desc: t("dashboard.adminWave.activationPayoutDesc"),  done: s.hasPayoutMethod    ?? false, cta: t("dashboard.adminWave.activationSetupPayouts"), onCta: () => setPage("payouts") },
+    { id: "domain",     label: isFreePlan ? t("dashboard.adminWave.activationDomainLabelFree") : t("dashboard.adminWave.activationDomainLabelPaid"), desc: domainStepDesc, done: !isFreePlan && (s.hasCustomDomain ?? false), cta: domainStepCta, onCta: domainStepAction },
   ];
 
   // Self-hide for established tenants regardless of per-step state —
@@ -4358,10 +4350,10 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 2 }} className="text-admin-ink">
-            Get your workspace ready
+            {t("dashboard.adminWave.activationHeading")}
           </div>
           <div className="text-admin-ink-muted text-xs">
-            {doneCount} of {steps.length} steps complete
+            {interpolate(t("dashboard.adminWave.activationStepsComplete"), { done: doneCount, total: steps.length })}
           </div>
         </div>
         <button
@@ -4369,11 +4361,11 @@ export function WorkspaceActivationBanner(props: { state?: WorkspaceActivationSt
           onClick={() => {
             setDismissed(true);
             setReminded(true);
-            toast("We'll remind you in 24 hours");
+            toast(t("dashboard.adminWave.activationRemindToast"));
           }}
           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}
         >
-          Remind me later
+          {t("dashboard.adminWave.activationRemindLater")}
         </button>
       </div>
 
@@ -4440,30 +4432,31 @@ const TALENT_FIRST_RUN_STEPS = [
   {
     step:  1,
     emoji: "👤",
-    title: "Claim your profile",
-    body:  "Add a photo, bio, height, and measurements so coordinators can find and evaluate you.",
+    titleKey: "dashboard.adminWave.talentRunClaimTitle",
+    bodyKey:  "dashboard.adminWave.talentRunClaimBody",
     cta:   "talent-profile-edit" as const,
-    ctaLabel: "Fill in my profile",
+    ctaLabelKey: "dashboard.adminWave.talentRunClaimCta",
   },
   {
     step:  2,
     emoji: "📸",
-    title: "Upload polaroids",
-    body:  "Your polaroids are the first thing an agency checks. Upload at least 4 fresh, natural shots.",
+    titleKey: "dashboard.adminWave.talentRunPolaroidsTitle",
+    bodyKey:  "dashboard.adminWave.talentRunPolaroidsBody",
     cta:   "talent-profile-edit" as const,
-    ctaLabel: "Upload polaroids",
+    ctaLabelKey: "dashboard.adminWave.talentRunPolaroidsCta",
   },
   {
     step:  3,
     emoji: "📅",
-    title: "Mark your availability",
-    body:  "Let coordinators know when you're free. Block dates you can't work.",
+    titleKey: "dashboard.adminWave.talentRunAvailabilityTitle",
+    bodyKey:  "dashboard.adminWave.talentRunAvailabilityBody",
     cta:   "talent-availability" as const,
-    ctaLabel: "Set availability",
+    ctaLabelKey: "dashboard.adminWave.talentRunAvailabilityCta",
   },
 ];
 
 export function TalentFirstRunBanner() {
+  const t = useT();
   const { openDrawer } = useAdminShell();
   const [currentStep, setCurrentStep] = useState(1);
   const [dismissed, setDismissed] = useState(false);
@@ -4474,25 +4467,28 @@ export function TalentFirstRunBanner() {
   if (dismissed) return null;
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)", padding: "20px 20px 16px", fontFamily: FONTS.body, marginBottom: 20, color: "#fff", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }} className="rounded-admin-xl">
-      {/* Progress dots */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+    // Light on-system card — mirrors ClientFirstRunBanner. Was a dark navy
+    // gradient panel that clashed with the light admin chrome (the only dark
+    // block on the whole talent surface).
+    <div style={{ border: `1px solid ${COLORS.border}`, padding: "18px 18px 14px", fontFamily: FONTS.body, marginBottom: 20 }} className="bg-admin-surface-alt rounded-admin-xl">
+      {/* Step pills */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
         {TALENT_FIRST_RUN_STEPS.map((s) => (
           <div key={s.step} style={{
-            width: s.step <= currentStep ? 20 : 6,
-            height: 6, borderRadius: 999,
-            background: s.step <= currentStep ? COLORS.accent : "rgba(255,255,255,0.2)",
-            transition: "all .25s ease",
+            height: 5, borderRadius: 999,
+            flex: s.step === currentStep ? 3 : 1,
+            background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? accentAlpha("88") : COLORS.border,
+            transition: "all .25s",
           }} />
         ))}
       </div>
 
-      <div style={{ fontSize: 28, marginBottom: 8 }}>{step.emoji}</div>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-        Step {step.step}: {step.title}
+      <div style={{ fontSize: 24, marginBottom: 6 }}>{step.emoji}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }} className="text-admin-ink">
+        {interpolate(t("dashboard.adminWave.firstRunStepTitle"), { step: step.step, title: t(step.titleKey) })}
       </div>
-      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16, lineHeight: 1.55 }}>
-        {step.body}
+      <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.55 }} className="text-admin-ink-muted">
+        {t(step.bodyKey)}
       </div>
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -4506,7 +4502,7 @@ export function TalentFirstRunBanner() {
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
           }}
         >
-          {step.ctaLabel}
+          {t(step.ctaLabelKey)}
         </button>
 
         {!isLast ? (
@@ -4515,12 +4511,12 @@ export function TalentFirstRunBanner() {
             onClick={() => setCurrentStep((n) => n + 1)}
             style={{
               padding: "8px 14px", borderRadius: 999,
-              background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)",
-              border: "none", cursor: "pointer",
+              background: "transparent", color: COLORS.inkMuted,
+              border: `1px solid ${COLORS.borderSoft}`, cursor: "pointer",
               fontFamily: FONTS.body, fontSize: 13,
             }}
           >
-            Skip this step
+            {t("dashboard.adminWave.skipThisStep")}
           </button>
         ) : (
           <button
@@ -4528,12 +4524,12 @@ export function TalentFirstRunBanner() {
             onClick={() => setDismissed(true)}
             style={{
               padding: "8px 14px", borderRadius: 999,
-              background: "transparent", color: "rgba(255,255,255,0.5)",
+              background: "transparent", color: COLORS.inkDim,
               border: "none", cursor: "pointer",
               fontFamily: FONTS.body, fontSize: 12,
             }}
           >
-            Dismiss
+            {t("dashboard.adminWave.dismiss")}
           </button>
         )}
       </div>
@@ -4549,30 +4545,31 @@ const CLIENT_FIRST_RUN_STEPS = [
   {
     step:     1,
     emoji:    "🔒",
-    title:    "Verify your brand",
-    body:     "Complete email + company verification to unlock inquiry sending and shortlist sharing.",
-    ctaLabel: "Verify now",
+    titleKey:    "dashboard.adminWave.clientRunVerifyTitle",
+    bodyKey:     "dashboard.adminWave.clientRunVerifyBody",
+    ctaLabelKey: "dashboard.adminWave.clientRunVerifyCta",
     onCta:    "verify",
   },
   {
     step:     2,
     emoji:    "🔍",
-    title:    "Save your first search",
-    body:     "Browse talent, apply filters, and save the search to get notified when matches appear.",
-    ctaLabel: "Go to Discover",
+    titleKey:    "dashboard.adminWave.clientRunSearchTitle",
+    bodyKey:     "dashboard.adminWave.clientRunSearchBody",
+    ctaLabelKey: "dashboard.adminWave.clientRunSearchCta",
     onCta:    "discover",
   },
   {
     step:     3,
     emoji:    "✉️",
-    title:    "Send your first inquiry",
-    body:     "Pick a talent from your shortlist and send a brief. Coordinators typically reply within 4 hours.",
-    ctaLabel: "New inquiry",
+    titleKey:    "dashboard.adminWave.clientRunInquiryTitle",
+    bodyKey:     "dashboard.adminWave.clientRunInquiryBody",
+    ctaLabelKey: "dashboard.adminWave.clientRunInquiryCta",
     onCta:    "inquiry",
   },
 ];
 
 export function ClientFirstRunBanner() {
+  const t = useT();
   const { openDrawer, setClientPage } = useAdminShell();
   const [currentStep, setCurrentStep] = useState(1);
   const [dismissed, setDismissed] = useState(false);
@@ -4599,7 +4596,7 @@ export function ClientFirstRunBanner() {
             style={{
               height: 5, borderRadius: 999,
               flex: s.step === currentStep ? 3 : 1,
-              background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? COLORS.accent + "88" : COLORS.border,
+              background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? accentAlpha("88") : COLORS.border,
               transition: "all .25s",
             }}
           />
@@ -4608,10 +4605,10 @@ export function ClientFirstRunBanner() {
 
       <div style={{ fontSize: 24, marginBottom: 6 }}>{step.emoji}</div>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 3 }} className="text-admin-ink">
-        Step {step.step}: {step.title}
+        {interpolate(t("dashboard.adminWave.firstRunStepTitle"), { step: step.step, title: t(step.titleKey) })}
       </div>
       <div style={{ fontSize: 13, marginBottom: 14, lineHeight: 1.55 }} className="text-admin-ink-muted">
-        {step.body}
+        {t(step.bodyKey)}
       </div>
 
       <div className="flex gap-2">
@@ -4625,7 +4622,7 @@ export function ClientFirstRunBanner() {
             fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
           }}
         >
-          {step.ctaLabel}
+          {t(step.ctaLabelKey)}
         </button>
         {!isLast ? (
           <button
@@ -4638,7 +4635,7 @@ export function ClientFirstRunBanner() {
               fontFamily: FONTS.body, fontSize: 12,
             }}
           >
-            Skip
+            {t("dashboard.adminWave.skip")}
           </button>
         ) : (
           <button
@@ -4651,7 +4648,7 @@ export function ClientFirstRunBanner() {
               fontFamily: FONTS.body, fontSize: 12,
             }}
           >
-            Done
+            {t("dashboard.adminWave.done")}
           </button>
         )}
       </div>
@@ -4673,6 +4670,7 @@ export type DemoDataBannerProps = {
 };
 
 export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerProps = {}) {
+  const t = useT();
   const { toast } = useAdminShell();
   const [enabled, setEnabled] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -4692,20 +4690,20 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
       if (next) localStorage.setItem(DEMO_DATA_KEY, "true");
       else      localStorage.removeItem(DEMO_DATA_KEY);
     }
-    toast(next ? "Demo data loaded — refresh to apply" : "Demo data cleared — refresh to reset");
+    toast(next ? t("dashboard.adminWave.demoLoadedToast") : t("dashboard.adminWave.demoClearedToast"));
   }
 
   if (dismissed) return null;
 
   return (
-    <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? COLORS.accent + "0D" : COLORS.surfaceAlt, border:         `1px solid ${enabled ? COLORS.accent + "44" : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
+    <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? accentAlpha("0D") : COLORS.surfaceAlt, border:         `1px solid ${enabled ? accentAlpha("44") : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
       <span className="text-lg">🧪</span>
       <div className="flex-1">
         <div className="text-admin-ink text-admin-13 font-semibold">
-          {enabled ? "Demo data is active" : "Evaluating Tulala?"}
+          {enabled ? t("dashboard.adminWave.demoActiveTitle") : t("dashboard.adminWave.demoEvaluatingTitle")}
         </div>
         <div className="text-admin-ink-muted text-admin-11h">
-          {enabled ? "All data shown is fictional." : "Load sample inquiries, bookings, and talent to explore the full platform."}
+          {enabled ? t("dashboard.adminWave.demoActiveDesc") : t("dashboard.adminWave.demoEvaluatingDesc")}
         </div>
       </div>
       <button
@@ -4721,12 +4719,12 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
           flexShrink: 0,
         }}
       >
-        {enabled ? "Clear demo data" : "Load demo data"}
+        {enabled ? t("dashboard.adminWave.demoClearBtn") : t("dashboard.adminWave.demoLoadBtn")}
       </button>
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        aria-label="Dismiss"
+        aria-label={t("dashboard.adminWave.dismiss")}
         style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: COLORS.inkMuted, padding: 0, lineHeight: 1 }}
       >
         ×

@@ -1177,7 +1177,7 @@ function AdvancedNodeLayoutEditor({
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="container">
         <div className="flex items-center justify-between">
-          <span className={FIELD_LABEL}>Selected node</span>
+          <span className={FIELD_LABEL}>Selected block</span>
           <button
             type="button"
             data-builder-node-layout-reset=""
@@ -1195,7 +1195,7 @@ function AdvancedNodeLayoutEditor({
         </div>
         {editingOverride ? (
           <span className={INHERIT_HINT}>
-            Editing {activeTierLabel} layout overrides — desktop values stay the base.
+            Editing {activeTierLabel} layout overrides, desktop values stay the base.
           </span>
         ) : null}
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
@@ -2147,7 +2147,7 @@ export function LayoutPanel({
       {selectedBuilderNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Selected node</div>
+            <div className={SECTION_TITLE}>Selected block</div>
             <div className="flex items-center gap-2">
               {layoutLockedPaths.length > 0 ? <LockBadge /> : null}
               <span className={INHERIT_HINT}>
@@ -2389,7 +2389,7 @@ export function LayoutPanel({
               Full bleed
             </span>
             <span className="text-[10.5px] text-stone-500">
-              Escape the page container — touch viewport edges.
+              Escape the page container, touch viewport edges.
             </span>
           </span>
           <Toggle

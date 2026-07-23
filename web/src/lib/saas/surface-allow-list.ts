@@ -51,7 +51,18 @@
 
 export type HostKind = "agency" | "app" | "hub" | "marketing";
 
-const STATIC_PATHS = ["/sitemap.xml", "/robots.txt"] as const;
+const STATIC_PATHS = [
+  "/sitemap.xml",
+  "/robots.txt",
+  // Root Next.js metadata file-routes (`app/opengraph-image.tsx`,
+  // `app/twitter-image.tsx`). They are host-aware (agency card vs. Tulala
+  // card) and are referenced by absolute URL in every page's og:image /
+  // twitter:image. Without an allow-list entry the marketing host treats the
+  // single segment as a storefront slug and 404s, which silently breaks every
+  // social-share preview. Allowed on all kinds; the route decides what to render.
+  "/opengraph-image",
+  "/twitter-image",
+] as const;
 
 /**
  * Self-contained brand/design prototypes under `/prototypes/*`. These are
@@ -79,6 +90,17 @@ const PROTOTYPE_PREFIX = "/prototypes" as const;
  *                              deployed runtime without a session; without this
  *                              entry the proxy rewrote it to a 404 and the
  *                              smoke check could never read the anti-spam signal.
+ *   - `/api/dev/reset-guest` → QA/E2E fresh-guest-session reset (W0-H). Unlike
+ *                              the rest of `/api/dev/*` (bypassed in proxy.ts
+ *                              for dev + preview ONLY), this single route is
+ *                              also allowed through on production hosts
+ *                              because its own gate accepts either dev/preview
+ *                              OR an authenticated staff session — production
+ *                              staff need it to get a clean guest cookie while
+ *                              QA-ing the live guest chat panel. It clears only
+ *                              the `impronta_guest` cookie (no DB writes) and
+ *                              404s (never 403) when neither gate passes, so
+ *                              listing it here does not advertise a capability.
  * These never leak tenant data and have their own gates.
  */
 const SHARED_API_PREFIXES = [
@@ -86,6 +108,7 @@ const SHARED_API_PREFIXES = [
   "/api/analytics/events",
   "/api/stripe",
   "/api/health",
+  "/api/dev/reset-guest",
 ] as const;
 
 /**
@@ -99,6 +122,13 @@ const SHARED_API_PREFIXES = [
 const COMPLIANCE_PREFIXES = [
   "/unsubscribe",
   "/api/unsubscribe",
+  // STANDING reviews — the emailed review-invite landing at
+  // `/review/<invite_token>`. Like unsubscribe, the per-recipient token in the
+  // URL is the only credential and the link can be opened from any host context
+  // (platform apex, agency vanity domain, or app host), so it must never 404 on
+  // a tenant host. Identity is auth-matched server-side inside the action; the
+  // token is never trusted for identity.
+  "/review",
 ] as const;
 
 /**
@@ -114,6 +144,31 @@ const COMPLIANCE_PREFIXES = [
  *                  locale + host headers.
  */
 const PWA_PATHS = ["/offline"] as const;
+
+/**
+ * Post-checkout landing pages reachable on every surface, regardless of host
+ * kind. Stripe builds `success_url` / `cancel_url` from the request origin
+ * (see `client-pipeline.ts`), so after a client pays, Stripe redirects them to
+ * `/checkout/success` (or `/checkout/cancel`) on whatever host they started
+ * from (app, agency subdomain, custom domain, hub). These pages read only the
+ * returned checkout session and carry no cross-tenant data. Without this entry
+ * a paying customer hits a branded 404 the instant they complete payment.
+ */
+const CHECKOUT_PREFIX = "/checkout" as const;
+
+/**
+ * Public embed loader + roster widget reachable on every surface. They are
+ * dropped as a `<script>` / `<iframe>` on partner sites (frame-ancestors *), so
+ * the originating Host header is an external partner domain that never matches a
+ * seeded `agency_domains` row and must pass the surface gate host-agnostically:
+ *   - `/embed.js`                → the loader script (exact match; the `.js`
+ *                                  suffix is NOT one of the matcher's image-only
+ *                                  extension bypasses, so it reaches this gate)
+ *   - `/embed`, `/embed/roster/*`→ the iframe roster widget
+ * Tenant scope is enforced inside each route handler.
+ */
+const EMBED_PREFIX = "/embed" as const;
+const EMBED_EXACT_PATHS = ["/embed.js"] as const;
 
 const AUTH_PREFIXES = [
   "/login",
@@ -160,6 +215,14 @@ const APP_WORKSPACE_PREFIXES = [
   "/talent",
   "/onboarding",
   "/invite",
+  // Emailed team-invite redemption links (`/team-invite/[id]/route.ts`) resolve
+  // an invite token then redirect to join/login. The email builds the link from
+  // the app/agency host, so without this entry the link 404s at the surface gate
+  // before the route handler can run.
+  "/team-invite",
+  // Editor template preview (`/template-preview/[key]/page.tsx`) is embedded by
+  // every template picker in the site editor — app/agency workspace context.
+  "/template-preview",
   // QA-1 fix — bare `/account` server-redirects the actor to their
   // role-scoped account page (/admin/account, /client/account, or
   // /talent/account). Reachable wherever the role-scoped pages are
@@ -265,6 +328,11 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
 
 const PATH_BASED_TENANT_RESERVED_PREFIXES = new Set([
   ...WORKSPACE_SLUG_RESERVED_PREFIXES,
+  // Canonical public parent segment for path-based workspaces
+  // (tulala.digital/w/<slug>). Reserved so no tenant can claim the slug "w"
+  // and shadow the parent, and so the legacy flat resolver never reads
+  // "/w/<slug>" as tenant "w".
+  "w",
   "contact",
   "directory",
   "get-started",
@@ -337,7 +405,51 @@ export function isTenantSlugCandidate(segment: string | undefined): segment is s
 export function resolvePathBasedTenantPublicPath(
   pathname: string,
 ): PathBasedTenantPublicPath | null {
+  return resolveTenantPartsToPublicPath(pathname.split("/").filter(Boolean));
+}
+
+/**
+ * Canonical public parent segment for path-based (free-tier) workspaces:
+ *
+ *     tulala.digital/w/<tenantSlug>/...
+ *
+ * Workspaces used to live flat at the apex root (`/<tenantSlug>`), which put
+ * every tenant slug in the same namespace as every marketing route — the
+ * reason PATH_BASED_TENANT_RESERVED_PREFIXES has to exist at all. Moving them
+ * under `/w` frees the root namespace permanently: no workspace can shadow a
+ * marketing page, and new marketing routes can be added without checking for
+ * slug collisions.
+ */
+export const WORKSPACE_PATH_SEGMENT = "w" as const;
+
+/** Canonical form: `/w/<tenantSlug>/...`. Returns null for anything else. */
+export function resolveWorkspacePathTenantPublicPath(
+  pathname: string,
+): PathBasedTenantPublicPath | null {
   const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] !== WORKSPACE_PATH_SEGMENT) return null;
+  return resolveTenantPartsToPublicPath(parts.slice(1));
+}
+
+/**
+ * Accepts BOTH the canonical `/w/<slug>` and the legacy flat `/<slug>` shape.
+ * Use this anywhere that reads a tenant out of an inbound URL and must keep
+ * working while legacy links are still in the wild (API routes, i18n hrefs).
+ * Middleware deliberately does NOT use this: it resolves the canonical form
+ * and 301s the legacy one instead.
+ */
+export function resolveAnyTenantPublicPath(
+  pathname: string,
+): PathBasedTenantPublicPath | null {
+  return (
+    resolveWorkspacePathTenantPublicPath(pathname) ??
+    resolvePathBasedTenantPublicPath(pathname)
+  );
+}
+
+function resolveTenantPartsToPublicPath(
+  parts: string[],
+): PathBasedTenantPublicPath | null {
   const tenantSlug = parts[0];
   if (!isTenantSlugCandidate(tenantSlug)) return null;
 
@@ -389,11 +501,23 @@ const MARKETING_PAGE_PREFIXES = [
   // `/help` is a four-role docs hub (operators / agencies / talents / clients).
   "/status",
   "/help",
+  // Talent-category landing pages (`/for/models`, `/for/musicians`, ...).
+  // Two segments on purpose: a single-segment `/models` would collide with
+  // the tenant-slug namespace, `/for/*` never can.
+  "/for",
+  // Educational resource articles + glossary (`/resources/*`).
+  "/resources",
   // Global Talent Directory — public, platform-wide cross-tenant browse of
   // the discoverable set (talent_discover_index matview). Reads no per-tenant
   // private data, requires no auth. `/directory` is already reserved in
   // PATH_BASED_TENANT_RESERVED_PREFIXES so it never resolves as a tenant slug.
   "/directory",
+  // "Agencia de talento" landing page — Spanish-first demand keyword page
+  // (100-1K/mo, LOW competition in Mexico). Single page, no sub-routes.
+  "/agencia-de-talento",
+  // Brand entity + trust page — what Tulala is, what it believes, what it
+  // builds, who it's for. Also the only contact surface (no /contact page).
+  "/about",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {
@@ -430,6 +554,10 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, PROTOTYPE_PREFIX)) return true;
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
   if (anyPrefix(pathname, COMPLIANCE_PREFIXES)) return true;
+  // Post-checkout landing + public embed widget — host-agnostic (see consts).
+  if (hasPrefix(pathname, CHECKOUT_PREFIX)) return true;
+  if (hasPrefix(pathname, EMBED_PREFIX)) return true;
+  if (anyExact(pathname, EMBED_EXACT_PATHS)) return true;
 
   if (kind === "agency") {
     // Agency owners/staff (and clients/talent of this tenant) can use the

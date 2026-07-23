@@ -29,11 +29,15 @@ import type {
   PaymentMethod,
   PersistedBookingCommissionSnapshot,
 } from "@/lib/billing/commission";
+import { isOffPlatformPaymentMethod } from "@/lib/billing/commission";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
 import { formatRateLimitedCopy } from "@/lib/i18n/error-copy";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { notifyBookingCancelled } from "@/lib/notifications/producers/booking-cancelled-notify";
+import { releaseReservedOfferingStock, readInquiryOfferingContext } from "@/lib/talent/offering-stock";
+import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
+import { emitNotification } from "@/lib/notifications/emit";
 import {
   assignCoordinator,
   addSecondaryCoordinator,
@@ -2824,16 +2828,125 @@ export async function markBookingPaymentMethodAction(
     if (existing[0].payment_method === method) {
       return { ok: true, data: { snapshots: existing } };
     }
-    // Reclassification path — blocked in v1. Returns the immutability
-    // message; UI surfaces support hand-off.
-    return {
-      ok: false,
-      error: "Payment method already recorded for this booking. Reclassification needs a refund-style reversal which lands in a follow-up — contact platform support to change.",
-    };
+    // Reclassification path. Re-stamping the rail (e.g. card -> cash) is SAFE as
+    // long as NO payment has settled yet — nothing has moved, so re-persisting the
+    // snapshot with the new method just corrects how the still-uncollected charge
+    // will be recorded (and, for off-platform, how the balance will accrue). Only
+    // a booking whose money has ALREADY moved needs a refund-style reversal.
+    //
+    // This is the offer-path counterpart to instant-book stamping the rail up
+    // front: convertToBooking defaults the snapshot to 'card', so a coordinator
+    // running a cash / efectivo booking must be able to reclassify it before
+    // collecting. "Settled" = booking marked paid, OR an active transaction that
+    // has reached a money-moved state.
+    const { data: bkPay } = await supabase
+      .from("agency_bookings")
+      .select("payment_status")
+      .eq("id", bookingId)
+      .maybeSingle();
+    const activeTxn = await loadActiveBookingTransaction(bookingId, supabase);
+    const settled =
+      bkPay?.payment_status === "paid" ||
+      bkPay?.payment_status === "partial" ||
+      (activeTxn != null &&
+        ["paid", "payout_pending", "payout_sent", "refunded", "disputed"].includes(activeTxn.status));
+    if (settled) {
+      return {
+        ok: false,
+        error: "Payment already settled for this booking. Changing the method now needs a refund-style reversal — contact platform support to change.",
+      };
+    }
+    // persistBookingCommissionSnapshot upserts by natural key and does NOT rewrite
+    // an existing row's payment_method, so clear the current snapshot first, then
+    // re-persist with the new rail. Safe here: nothing has settled, so no
+    // transaction / movement rows depend on it. Service-role for the delete.
+    const svc = createServiceRoleClient() ?? supabase;
+    const { error: clearErr } = await svc.from("booking_commission_snapshot").delete().eq("booking_id", bookingId);
+    if (clearErr) {
+      return { ok: false, error: `Could not clear prior snapshot: ${clearErr.message}` };
+    }
+    const reclassified = await persistBookingCommissionSnapshot(
+      svc, bookingId, method, reason ?? null,
+    );
+    if (!reclassified.ok) {
+      return { ok: false, error: `Could not reclassify commission: ${reclassified.detail ?? reclassified.reason}` };
+    }
+    revalidatePath(`/${tenantSlug}`, "layout");
+    const persisted = await loadBookingCommissionSnapshots(supabase, bookingId);
+    return { ok: true, data: { snapshots: persisted } };
   } catch (err) {
     logServerError("admin._pipeline-actions.markBookingPaymentMethodAction", err);
     return { ok: false, error: "Unexpected error." };
   }
+}
+
+/**
+ * Record a booking as PAID IN CASH / EFECTIVO (off-platform) in one coordinator
+ * action. Composes the whole rail switch + settlement so the coordinator never
+ * has to click through the Stripe-shaped draft/request/receive steps:
+ *   1. reclassify the commission snapshot to the off-platform method (safe
+ *      pre-settlement; markBookingPaymentMethodAction blocks a settled booking);
+ *   2. ensure a transaction exists (manual by construction);
+ *   3. advance it draft -> payment_requested -> paid.
+ * No Stripe and no payout receiver required: the rail-aware trigger lets a
+ * manual transaction settle receiver-free, and the platform fee accrues to the
+ * workspace off-platform balance. See
+ * web/docs/off-platform-settlement-architecture-2026-07-14.md.
+ */
+export async function markInquiryPaidInCash(
+  tenantSlug: string,
+  inquiryId: string,
+  method: PaymentMethod = "cash",
+  reason: string = "efectivo",
+  // 6.3 deposits: cash deals in the cash-first market are deposit-first. The
+  // coordinator can record just the deposit ('partial' booking, balance-due
+  // card emits), then later the balance. 'full' = whole amount (default,
+  // unchanged behaviour for existing callers).
+  checkoutType: "deposit" | "balance" | "full" = "full",
+): Promise<PipelineActionResult> {
+  if (!VALID_PAYMENT_METHODS.includes(method) || !isOffPlatformPaymentMethod(method)) {
+    return { ok: false, error: "Cash settlement requires an off-platform method (cash, wire, venue, crypto, other)." };
+  }
+  const wrapped = await withInquiryBooking<void>(inquiryId, async ({ supabase, bookingId }) => {
+    // 1. Rail switch: stamp the snapshot off-platform (reclassify is a no-op if
+    //    already this method; it refuses only a settled booking). NB: after a
+    //    CASH deposit the booking is 'partial' but the snapshot is already this
+    //    method, so the balance step passes via the same-method early return. A
+    //    card-deposit -> cash-balance mix is refused by design (one method per
+    //    booking, ADR 2026-05-22).
+    const reclass = await markBookingPaymentMethodAction(tenantSlug, bookingId, method, reason);
+    if (!reclass.ok) throw new Error(reclass.error);
+    // 2. Ensure a transaction of the RIGHT checkout type exists
+    //    (createBookingTransaction drafts provider='manual'). A stale DRAFT of a
+    //    different type (e.g. a 'full' draft when recording a deposit) is
+    //    cancelled and replaced; a mismatched txn that already left draft needs
+    //    the coordinator to resolve it explicitly.
+    let txn = await loadActiveBookingTransaction(bookingId, supabase);
+    if (txn && txn.status === "paid") return; // already recorded
+    if (txn && txn.checkoutType !== checkoutType) {
+      if (txn.status === "draft" || txn.status === "payment_requested") {
+        const cancelled = await cancelTransaction(txn.id);
+        if (!cancelled.ok) throw new Error(cancelled.error);
+        txn = null;
+      } else {
+        throw new Error(`An active ${txn.checkoutType} transaction is in progress (${txn.status}). Resolve it before recording a ${checkoutType} cash payment.`);
+      }
+    }
+    if (!txn) {
+      const draft = await createInquiryTransactionDraft(tenantSlug, inquiryId, checkoutType);
+      if (!draft.ok) throw new Error(draft.error);
+      txn = await loadActiveBookingTransaction(bookingId, supabase);
+    }
+    if (!txn) throw new Error("Could not create a transaction to settle.");
+    // 3. Advance to paid (rail-aware: manual needs no payout receiver).
+    if (txn.status === "draft") {
+      const req = await requestPayment(txn.id);
+      if (!req.ok) throw new Error(req.error);
+    }
+    const paid = await markPaid(txn.id);
+    if (!paid.ok) throw new Error(paid.error);
+  });
+  return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
 /**
@@ -3025,7 +3138,7 @@ export async function cancelBookingAction(
 
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id, status, source_inquiry_id")
+      .select("id, status, source_inquiry_id, starts_at, event_date")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -3038,6 +3151,46 @@ export async function cancelBookingAction(
     const prevStatus = booking.status as string;
     if (!CANCELLABLE_STATES.has(prevStatus)) {
       return { ok: false, error: `Booking is already ${prevStatus} and can't be cancelled.` };
+    }
+
+    // G3 — resolve the offering's cancellation-window verdict and stamp it on
+    // the audit trail (informs the refund decision; staff keep override
+    // authority, so this never blocks). Best-effort: a policy-read failure
+    // must never stop a cancel.
+    const cancelInquiryId = (booking.source_inquiry_id as string | null) ?? null;
+    let cancellationPolicy: { cancellation_hours: number; inside_window: boolean; deadline: string | null } | null = null;
+    try {
+      if (cancelInquiryId) {
+        const { data: inqRow } = await supabase
+          .from("inquiries")
+          .select("source_context")
+          .eq("id", cancelInquiryId)
+          .maybeSingle();
+        const offCtx = readInquiryOfferingContext(inqRow?.source_context);
+        if (offCtx?.offering_id) {
+          const { data: offRow } = await supabase
+            .from("talent_offerings")
+            .select("cancellation_hours")
+            .eq("id", offCtx.offering_id)
+            .maybeSingle();
+          const hours = (offRow as { cancellation_hours: number | null } | null)?.cancellation_hours ?? null;
+          const verdict = resolveCancellationWindow({
+            cancellationHours: hours,
+            startsAt: (booking.starts_at as string | null) ?? null,
+            eventDate: (booking.event_date as string | null) ?? null,
+            nowMs: Date.now(),
+          });
+          if (verdict.enforceable && hours != null) {
+            cancellationPolicy = {
+              cancellation_hours: hours,
+              inside_window: verdict.insideWindow,
+              deadline: verdict.deadlineIso,
+            };
+          }
+        }
+      }
+    } catch (policyErr) {
+      logServerError("cancelBookingAction/policy", policyErr);
     }
 
     const { error: updErr } = await supabase
@@ -3054,17 +3207,20 @@ export async function cancelBookingAction(
       bookingId,
       actorUserId: user.id,
       eventType: BOOKING_AUDIT.STATUS_CHANGED,
-      payload: { from: prevStatus, to: "cancelled", reason: reason?.trim() || null },
+      payload: { from: prevStatus, to: "cancelled", reason: reason?.trim() || null, cancellation_policy: cancellationPolicy },
     });
 
     // Audit emit — fire-and-forget.
-    const cancelInquiryId = (booking.source_inquiry_id as string | null) ?? null;
     if (cancelInquiryId) {
       await supabase.rpc("inquiry_audit_emit", {
         p_inquiry_id: cancelInquiryId,
         p_kind: "booking_cancelled",
-        p_payload: { booking_id: bookingId, by_user_id: user.id },
+        p_payload: { booking_id: bookingId, by_user_id: user.id, cancellation_policy: cancellationPolicy },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_cancelled", r.error); });
+
+      // Return a reserved product unit to stock (no-op unless this booking
+      // actually reserved one — see offering-stock.ts). Best-effort.
+      await releaseReservedOfferingStock(cancelInquiryId);
 
       // booking.cancelled notifications (spec §6.4) — client + talent +
       // coordinator, email + in-app. Needs the inquiry for contact/schedule +
@@ -3227,7 +3383,7 @@ export async function closeBookingAction(
 
     const { data: booking, error: lookupErr } = await supabase
       .from("agency_bookings")
-      .select("id, status, source_inquiry_id")
+      .select("id, status, source_inquiry_id, client_user_id")
       .eq("id", bookingId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -3271,6 +3427,37 @@ export async function closeBookingAction(
         p_kind: "booking_wrapped",
         p_payload: { booking_id: bookingId, by_user_id: user.id },
       }).then((r) => { if (r.error) logServerError("audit.emit.booking_wrapped", r.error); });
+    }
+
+    // Post-completion review nudge — prompt the booking's client to leave a
+    // review, deep-linking their client bookings page for this tenant.
+    // Best-effort: never fail the completion if the notification fails.
+    // Idempotent per booking via a stable origin_event_id.
+    const clientUid = (booking.client_user_id as string | null) ?? null;
+    if (clientUid) {
+      try {
+        const { data: agency } = await supabase
+          .from("agencies")
+          .select("display_name")
+          .eq("id", tenantId)
+          .maybeSingle();
+        const agencyName =
+          (agency as { display_name?: string | null } | null)?.display_name?.trim() || "your agency";
+        await emitNotification({
+          userId: clientUid,
+          tenantId,
+          kind: "booking",
+          surface: "client",
+          title: `How was your booking with ${agencyName}?`,
+          body: "Leave a review to share how it went.",
+          targetDrawer: `/client/bookings/${bookingId}`,
+          originEventId: `review-nudge:${bookingId}`,
+          originKind: "review_nudge",
+          originInquiryId: wrapInquiryId,
+        });
+      } catch (nudgeErr) {
+        logServerError("closeBookingAction/review-nudge", nudgeErr);
+      }
     }
 
     revalidatePath(`/${tenantSlug}`, "layout");

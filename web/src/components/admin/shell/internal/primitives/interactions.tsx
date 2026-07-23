@@ -380,13 +380,17 @@ export function Skeleton({
 export function useKeyboardListNav<T extends HTMLElement = HTMLElement>({
   rowsRef,
   onActivate,
+  disabled = false,
 }: {
   rowsRef: React.RefObject<(T | null)[]>;
   onActivate?: (index: number) => void;
+  /** Suppress the shortcuts (e.g. while a drawer/modal owns the keyboard). */
+  disabled?: boolean;
 }) {
   const [activeIdx, setActiveIdx] = useState(0);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (disabled) return;
       const target = e.target as HTMLElement | null;
       if (
         target &&
@@ -421,7 +425,7 @@ export function useKeyboardListNav<T extends HTMLElement = HTMLElement>({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rowsRef, onActivate, activeIdx]);
+  }, [rowsRef, onActivate, activeIdx, disabled]);
   return activeIdx;
 }
 

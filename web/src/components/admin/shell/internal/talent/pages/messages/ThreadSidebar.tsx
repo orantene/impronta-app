@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useDashboardText } from "../../../dashboard-i18n";
 import { Avatar, ClientTrustChip, Icon } from "../../../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../../../state";
 import { BubbleMenuItem } from "./Bubbles";
@@ -21,6 +22,7 @@ export function ThreadHeader({
   onToggleInfo: () => void;
   onBackToList?: () => void;
 }) {
+  const copy = useDashboardText();
   const stage = STAGE_META[conv.stage];
   return (
     <div
@@ -42,7 +44,7 @@ export function ThreadHeader({
           type="button"
           className="tulala-mobile-back"
           onClick={onBackToList}
-          aria-label="Back to messages list"
+          aria-label={copy.t("Back to messages list")}
           style={{
             display: "none",
             width: 32,
@@ -96,8 +98,8 @@ export function ThreadHeader({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          title="Search in thread"
-          aria-label="Search in thread"
+          title={copy.t("Search in thread")}
+          aria-label={copy.t("Search in thread")}
           style={iconButtonSm}
         >
           <Icon name="search" size={13} color={COLORS.inkMuted} stroke={1.7} />
@@ -108,9 +110,9 @@ export function ThreadHeader({
         <button
           type="button"
           onClick={onToggleInfo}
-          aria-label={infoOpen ? "Hide info panel" : "Show info panel"}
+          aria-label={infoOpen ? copy.t("Hide info panel") : copy.t("Show info panel")}
           aria-pressed={infoOpen}
-          title={infoOpen ? "Hide details" : "Show details"}
+          title={infoOpen ? copy.t("Hide details") : copy.t("Show details")}
           style={{
             ...iconButtonSm,
             background: infoOpen ? COLORS.fill : "#fff",
@@ -147,6 +149,7 @@ const iconButtonSm: CSSProperties = {
  * Thread mutations are hidden until they can persist.
  */
 function ThreadOptionsMenu() {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -162,8 +165,8 @@ function ThreadOptionsMenu() {
     <div className="relative">
       <button
         type="button"
-        title="Thread options"
-        aria-label="Thread options"
+        title={copy.t("Thread options")}
+        aria-label={copy.t("Thread options")}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         style={iconButtonSm}
@@ -190,12 +193,12 @@ function ThreadOptionsMenu() {
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Thread actions coming soon</div>
+          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">{copy.t("Thread actions coming soon")}</div>
           <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
-            Star, mute, pin, export, archive, and block need real thread mutations before they appear here.
+            {copy.t("Star, mute, pin, export, archive, and block need real thread mutations before they appear here.")}
           </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
-          <BubbleMenuItem icon="x" label="Close menu" onClick={() => setOpen(false)} />
+          <BubbleMenuItem icon="x" label={copy.t("Close menu")} onClick={() => setOpen(false)} />
         </div>
       )}
     </div>
@@ -228,6 +231,7 @@ export function ThreadInfoSidebar({
   isLocked: boolean;
   onClose: () => void;
 }) {
+  const copy = useDashboardText();
   const { openDrawer } = useAdminShell();
   const [infoTab, setInfoTab] = useState<"details" | "activity">("details");
   // Audit P1-8 — actual swipe-down-to-dismiss for the mobile bottom
@@ -296,7 +300,7 @@ export function ThreadInfoSidebar({
 
       {/* Section: Schedule */}
       {(conv.pinned.schedule || conv.pinned.callTime || conv.date) && (
-        <InfoSection icon="calendar" label="Schedule">
+        <InfoSection icon="calendar" label={copy.t("Schedule")}>
           <div style={{ fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink">
             {conv.date && <div className="font-medium">{conv.date}</div>}
             {conv.pinned.schedule && (
@@ -310,7 +314,7 @@ export function ThreadInfoSidebar({
 
       {/* Section: Location */}
       {conv.location && (
-        <InfoSection icon="map-pin" label="Location">
+        <InfoSection icon="map-pin" label={copy.t("Location")}>
           <div style={{ fontSize: 13, lineHeight: 1.5 }} className="text-admin-ink">{conv.location}</div>
           <a
             href={`https://maps.google.com/?q=${encodeURIComponent(conv.location)}`}
@@ -328,14 +332,14 @@ export function ThreadInfoSidebar({
             }}
           >
             <Icon name="external" size={11} color={COLORS.indigo} />
-            Open in Maps
+            {copy.t("Open in Maps")}
           </a>
         </InfoSection>
       )}
 
       {/* Section: Transport */}
       {conv.pinned.transport && (
-        <InfoSection icon="external" label="Transport">
+        <InfoSection icon="external" label={copy.t("Transport")}>
           <div style={{ fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">
             {conv.pinned.transport}
           </div>
@@ -346,7 +350,7 @@ export function ThreadInfoSidebar({
       {(conv.amountToYou || conv.pinned.rate) && (
         <InfoSection
           icon="info"
-          label={conv.amountToYou ? "Your take-home" : conv.pinned.rate?.status === "you-quoted" ? "Your rate" : conv.pinned.rate?.status === "client-budget" ? "Client budget" : "Agreed rate"}
+          label={conv.amountToYou ? copy.t("Your take-home") : conv.pinned.rate?.status === "you-quoted" ? copy.t("Your rate") : conv.pinned.rate?.status === "client-budget" ? copy.t("Client budget") : copy.t("Agreed rate")}
           locked={isLocked}
         >
           <div style={{ fontSize: 14.5, fontWeight: 600, fontFamily: FONTS.display, letterSpacing: -0.1 }} className="text-admin-green">
@@ -354,7 +358,7 @@ export function ThreadInfoSidebar({
           </div>
           {isLocked && (
             <div style={{ fontSize: 11, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              You see your take-home only. Full offer is between the agency and the client.
+              {copy.t("You see your take-home only. Full offer is between the agency and the client.")}
             </div>
           )}
           {/* Talent can ALWAYS request a change — even on a locked
@@ -367,7 +371,7 @@ export function ThreadInfoSidebar({
 
       {/* Section: Coordinator note (private) */}
       {conv.pinned.coordinatorNote && (
-        <InfoSection icon="info" label="From your coordinator (private)">
+        <InfoSection icon="info" label={copy.t("From your coordinator (private)")}>
           <div style={{ fontSize: 12.5, lineHeight: 1.55, fontStyle: "italic" }} className="text-admin-ink">
             &quot;{conv.pinned.coordinatorNote}&quot;
           </div>
@@ -375,7 +379,7 @@ export function ThreadInfoSidebar({
       )}
 
       {/* Section: Leader */}
-      <InfoSection icon="user" label="Leader on this">
+      <InfoSection icon="user" label={copy.t("Leader on this")}>
         <button
           type="button"
           onClick={() => openDrawer("talent-agency-relationship")}
@@ -403,7 +407,7 @@ export function ThreadInfoSidebar({
       </InfoSection>
 
       {/* Section: Files (mock counts based on stage) */}
-      <InfoSection icon="external" label="Files & attachments">
+      <InfoSection icon="external" label={copy.t("Files & attachments")}>
         <div className="flex flex-col gap-1">
           {[
             { name: "Mood board (4 images)", kind: "📷" },
@@ -469,10 +473,10 @@ export function ThreadInfoSidebar({
             onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.coralSoft)}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            Drop / cancel booking
+            {copy.t("Drop / cancel booking")}
           </button>
           <p style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            Sends a cancel request to your coordinator. They negotiate with the client.
+            {copy.t("Sends a cancel request to your coordinator. They negotiate with the client.")}
           </p>
         </div>
       )}
@@ -494,10 +498,10 @@ export function ThreadInfoSidebar({
               fontWeight: 600,
             }}
           >
-            ✨ Resolve conflict
+            {copy.t("✨ Resolve conflict")}
           </button>
           <p style={{ fontSize: 10.5, marginTop: 6, lineHeight: 1.5 }} className="text-admin-ink-muted">
-            This thread overlaps with another booking. Open the smart resolver to pick a path.
+            {copy.t("This thread overlaps with another booking. Open the smart resolver to pick a path.")}
           </p>
         </div>
       )}
@@ -518,6 +522,7 @@ function InfoSidebarHeader({ onClose, tab, onTabChange }: {
   tab: "details" | "activity";
   onTabChange: (t: "details" | "activity") => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div
       style={{
@@ -529,7 +534,7 @@ function InfoSidebarHeader({ onClose, tab, onTabChange }: {
         borderBottom: `1px solid ${COLORS.borderSoft}`,
       }}
     >
-      <div role="tablist" aria-label="Info tabs" style={{ display: "inline-flex", gap: 0 }}>
+      <div role="tablist" aria-label={copy.t("Info tabs")} style={{ display: "inline-flex", gap: 0 }}>
         {(["details", "activity"] as const).map((t) => {
           const active = tab === t;
           return (
@@ -554,7 +559,7 @@ function InfoSidebarHeader({ onClose, tab, onTabChange }: {
                 textTransform: "capitalize",
               }}
             >
-              {t}
+              {copy.t(t)}
             </button>
           );
         })}
@@ -562,7 +567,7 @@ function InfoSidebarHeader({ onClose, tab, onTabChange }: {
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close info panel"
+        aria-label={copy.t("Close info panel")}
         style={{
           width: 26,
           height: 26,

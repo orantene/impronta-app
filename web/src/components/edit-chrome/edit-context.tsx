@@ -33,7 +33,6 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
 
 import {
   createAndInsertSectionAction,
@@ -50,14 +49,6 @@ import {
   setSectionVisibilityAction,
   type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
-import {
-  buildHomepageBuilderConfig,
-  type BuilderContextConfig,
-  type BuilderGalleryPolicy,
-} from "@/lib/site-admin/builder-core/config";
-import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
-import type { BuilderSurfacePublishInput } from "@/lib/site-admin/builder-core/surface-adapter";
-import type { PublishResult } from "@/lib/site-admin/edit-mode/composition-actions";
 import type {
   AddGalleryItem,
   GallerySurfaceDescriptor,
@@ -67,13 +58,11 @@ import {
   governRawInsertNode,
   governSectionEmbedNode,
 } from "@/lib/site-admin/add-gallery/kind-governance";
-import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import {
   restoreHomepageRevisionAction,
   restorePageRevisionAction,
   fetchNewestDraftRevisionIdAction,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
-import type { RevisionsLoadResult } from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
   EditorMutation,
@@ -100,10 +89,8 @@ import {
   applyBuilderNodeOperation,
   convertBuilderTextNodeRole as convertBuilderTextNodeRoleInTree,
   builderSectionNodeAddressKey,
-  BUILDER_NODE_REGISTRY,
   createBuilderNodeCompositionPreset,
   createBuilderSectionEmbed,
-  builderNodeKindAllowedAtRoot,
   cloneNodeWithFreshIds,
   createBuilderMutationAuditEvent,
   createEditorDispatchAuditEvent,
@@ -111,17 +98,16 @@ import {
   formatBuilderNodeMutationError,
   recordBuilderMutationAuditEvent,
   summarizeBuilderNodeIssues,
-  unboundGallerySectionIdsSignature,
-  assertAdvancedLibraryAllowsOperation,
   isAdvancedElementLibraryEnabledForPlan,
   type BuilderNode,
-  type BuilderNodeMutationCode,
-  type BuilderNodeCompositionPresetId,
   type BuilderNodeOperationKind,
   type BuilderNodeTree,
   type BuilderComponentVariant,
-  type BuilderTextRoleId,
 } from "@/lib/site-admin/builder-node";
+import {
+  applyMobileFixes,
+  collectMobileFixes,
+} from "@/lib/site-admin/builder-node/mobile-fix";
 import { randomUuid } from "@/lib/site-admin/builder-node/make-id";
 import {
   builderPlanAllows,
@@ -148,6 +134,7 @@ import {
   publishAdditionalSelectedIds,
   publishAdditionalSelectedBuilderNodeIds,
 } from "./selection-bridge";
+import { resolveMobileEditModeTransition } from "./mobile-edit-mode";
 import { publishDirty } from "./dirty-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
@@ -179,7 +166,6 @@ import {
 import {
   readPresets as readStylePresets,
   seedPresetsFromHydration,
-  presetRegistryHasContent,
   publishStylePresetRegistry,
 } from "@/lib/site-admin/builder-node/style-presets-storage";
 import { normalizeCompositionSlots } from "./composition-slots";
@@ -191,15 +177,6 @@ import {
   syncBuilderTreeSectionChildren,
 } from "./composition-reconcile";
 import {
-  loadWorkspaceLayout,
-  saveWorkspaceLayout,
-  clearWorkspaceLayout,
-  savedOffsetForPanel,
-  type LayoutStorage,
-  type PanelOffset,
-  type WorkspaceLayoutV1,
-} from "./workspace-layout";
-import {
   findBuilderNodeById,
   resolveHonestSelectedBuilderNodeId,
   treeContainsBuilderNodeId,
@@ -209,10 +186,6 @@ import {
   computeAlignDeltas,
   computeDistributeDeltas,
   mergeStylePatchIntoTree,
-  type MultiNodeAlignMode,
-  type MultiNodeDistributeMode,
-  type MultiNodeRect,
-  type TranslateDelta,
 } from "./multi-node-layout";
 import {
   extendSelection as extendMultiSelection,
@@ -229,1751 +202,71 @@ import {
   serializeBuilderNodeClipboard,
   ungroupBuilderNode,
 } from "./multi-node-transforms";
+import {
+  DEFAULT_PREVIEW_FRAME,
+  type CompositionSnapshot,
+  type EditContextValue,
+  type EditDevice,
+  type LoadedSection,
+  type PageMetadata,
+  type PreviewFrameOverride,
+} from "./edit-context-types";
+import {
+  DEFAULT_METADATA,
+  builderNodeLabel,
+  cloneBuilderNode,
+  cloneSnapshot,
+  defaultHomepageBuilderConfig,
+  findBuilderNodeLocation,
+  findOwnerSectionIdForBuilderNode,
+  findSiteShellSlotForBuilderNode,
+  guardBuilderNodeMutation,
+  mutationTouchesSectionEmbedConfig,
+  mutationTouchesSectionEmbedIslandSet,
+  mutationTouchesUnboundGallerySections,
+  rehydratePersistedUndoStack,
+  resolveCopiedBuilderNodePasteTarget,
+  styleClassesForSave,
+  stylePresetsForSave,
+  type BuilderNodeMutationResult,
+  type EditProviderProps,
+  type HistoryEntry,
+  type HistorySelection,
+} from "./edit-context-internal";
+import { useEditorChrome } from "./use-editor-chrome";
+import { useEditorToasts } from "./use-editor-toasts";
+import { useStarterSyncBridge } from "./use-starter-sync";
+import { useUndoPersistence } from "./use-undo-persistence";
+import { useWorkspacePanels } from "./use-workspace-panels";
 
-/** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
-export const IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT = "impronta:open-template-gallery";
-
-export type EditDevice = "desktop" | "tablet" | "mobile" | "wide" | "compact";
-
-/**
- * Responsive-preview frame override (job #17) — see {@link EditContextValue.previewFrame}.
- * Kept separate from {@link EditDevice} on purpose: `device` is the breakpoint
- * semantic (drives `@media` + which override bucket the inspectors edit) and is
- * consumed pervasively, so widening it would ripple everywhere; the frame's
- * pixel width + orientation are a pure presentation concern that lives here.
- */
-export interface PreviewFrameOverride {
-  /** Explicit frame width in px; `null` = use the active device's natural width. */
-  widthPx: number | null;
-  /** Landscape orientation — swaps the portrait device frame to read wide. */
-  rotated: boolean;
-}
-
-export const DEFAULT_PREVIEW_FRAME: PreviewFrameOverride = {
-  widthPx: null,
-  rotated: false,
-};
-
-export interface LoadedSection {
-  id: string;
-  sectionTypeKey: string;
-  schemaVersion: number;
-  version: number;
-  name: string;
-  props: Record<string, unknown>;
-}
-
-export interface EditMutationError {
-  message: string;
-  operation?: BuilderNodeOperationKind;
-  code?: BuilderNodeMutationCode;
-  details?: ReadonlyArray<string>;
-}
-
-export interface PageMetadata {
-  title: string;
-  /** Browser tab / SERP title when set; falls back to `title` on publish. */
-  metaTitle: string | null;
-  metaDescription: string | null;
-  introTagline: string | null;
-  /** SEO/OG knobs surfaced in the Page settings drawer's Social and URL tabs.
-   *  Stored on cms_pages and applied to <head> by the storefront layout.
-   *  All optional — the renderer falls back to title/metaDescription when an
-   *  og field is absent. */
-  ogTitle: string | null;
-  ogDescription: string | null;
-  ogImageUrl: string | null;
-  canonicalUrl: string | null;
-  /** When true, the page emits `<meta name="robots" content="noindex">`. */
-  noindex: boolean;
-}
-
-export interface CompositionSnapshot {
-  slots: Record<string, CompositionSectionRef[]>;
-  metadata: PageMetadata;
-}
-
-export interface LibraryTarget {
-  slotKey: string;
-  /** null → prepend to slot. Otherwise insert after this sort order. */
-  insertAfterSortOrder: number | null;
-}
-
-export interface BuilderNodePastePreview {
-  copiedKind: BuilderNode["kind"];
-  copiedLabel: string;
-  mode: "inside" | "after" | "append" | "blocked";
-  message: string;
-}
-
-// CANVAS-7 — the four clipboard gestures that earn a transient success toast.
-// Stored on the EditContext so the SHARED clipboard chokepoints (copy/cut/
-// paste/duplicate) raise the same feedback for every entry point — keyboard,
-// the selection-chip "More" menu, and the right-click context menu — with no
-// surface branch. The toast component lives in edit-shell.tsx.
-export type BuilderClipboardAction = "copy" | "cut" | "paste" | "duplicate";
-
-export interface BuilderClipboardActionToast {
-  action: BuilderClipboardAction;
-  /** How many blocks the gesture touched (≥1). Drives "Copied 3 blocks". */
-  count: number;
-  /** Monotonic nonce so a copy→paste burst re-fires the auto-hide timer. */
-  nonce: number;
-}
-
+// ── Public surface (W4-F2 decomposition) ────────────────────────────────────
+// The editor's public types were peeled to ./edit-context-types and the
+// starter window-event constant to ./use-starter-sync; both are re-exported
+// here byte-compatibly so every existing `import { … } from "./edit-context"`
+// keeps working without churn.
+export type {
+  BuilderClipboardAction,
+  BuilderClipboardActionToast,
+  BuilderNodePastePreview,
+  CompositionSnapshot,
+  EditContextValue,
+  EditDevice,
+  EditMutationError,
+  LibraryTarget,
+  LoadedSection,
+  NavigatorRecentAddition,
+  PageMetadata,
+  PreviewFrameOverride,
+} from "./edit-context-types";
+export { DEFAULT_PREVIEW_FRAME } from "./edit-context-types";
 // Re-exported from ./builder-block-presets (MAINT-1 peel) so existing
 // `import { type BuilderBlockPreset } from "../edit-context"` consumers keep
 // working without churn.
 export type { BuilderBlockPreset } from "./builder-block-presets";
-
-export interface NavigatorRecentAddition {
-  sectionId: string;
-  builderNodeId: string | null;
-  kind: "section" | "block";
-  nonce: number;
-}
-
-export interface EditContextValue {
-  tenantId: string;
-  /**
-   * Storefront public name (`agency_business_identity.public_name`, else
-   * `agencies.display_name` / slug). Shown in the top bar so product vs tenant
-   * context stays obvious (human QA BUG-006).
-   */
-  tenantSiteLabel: string | null;
-  /**
-   * Workspace path segment for `/{slug}/admin/*` (agency storefront hosts).
-   * `null` when unknown — prefer legacy `/admin/site-settings/*` hrefs that redirect.
-   */
-  workspaceMembershipSlug: string | null;
-  workspacePlan: string;
-  canEditSiteShell: boolean;
-  /**
-   * The surface this editor is mounted on (homepage / cms_page /
-   * talent_page / platform_lab). EditShell keys the in-editor canvas region off
-   * this — homepage paints via its storefront body, everything else mounts an
-   * in-editor `ClientBuilderCanvas`.
-   */
-  surfaceKind: BuilderSurfaceKind;
-  /**
-   * Whether the Theme drawer is offered. True when the surface's `themeTokens`
-   * capability is on (e.g. Max talents) OR the operator may edit the site shell
-   * (homepage / workspace shell editors). The Theme command-dock button gates on
-   * this so Max-tier talents get Theme without inheriting shell-edit rights.
-   */
-  canEditTheme: boolean;
-  /**
-   * Phase 7A — governed nested builder nodes / element library affordances.
-   * False on **free** workspaces (Simple Mode); paid plans enable Advanced surfaces.
-   */
-  advancedElementLibraryEnabled: boolean;
-  /**
-   * True only for platform owners (super_admin). Gates insertion of
-   * owner-only blocks (raw-HTML `code`) — workspace editors (agency_staff)
-   * never see them in the element library. See OWNER_ONLY_ELEMENT_INSERT_KINDS.
-   */
-  canInsertRawHtmlElements: boolean;
-  /**
-   * WS4 — Add Gallery policy for this surface. Drives the tab bar in
-   * AddGalleryPanel so surfaces whose policy omits `page_templates` never show
-   * that tab, and surfaces that include it always do.
-   */
-  galleryPolicy: BuilderGalleryPolicy;
-  /**
-   * P1 — the surface descriptor the live Add Gallery uses to fetch its merged
-   * catalog (code items ∪ gated published DB templates) via
-   * `fetchSurfaceGalleryItems`. STABLE: memoized off primitives so adding it to
-   * the context value does not churn the value memo / re-render consumers.
-   */
-  gallerySurface: GallerySurfaceDescriptor;
-  locale: string;
-  /**
-   * Tenant default storefront locale (URL may omit prefix). TopBar locale
-   * switcher builds destinations with `withLocalePath` using this — required
-   * when default locale is not English.
-   */
-  defaultLocale: string;
-  /** The slug of the page currently being edited, or null for the homepage. */
-  pageSlug: string | null;
-  /** The cms_pages.id for the page currently being edited. Resolved from the
-   *  composition load; null until the first load completes. All mutations use
-   *  this to target the correct page. */
-  pageId: string | null;
-
-  /** Section the inspector is operating on. Null → "Select a section".
-   *
-   *  Sprint 4 — calling this with a new id ALSO clears the multi-set
-   *  below (plain click semantics). Modifier-aware setters
-   *  (`extendSelection`, `toggleSelection`) preserve it.
-   *
-   *  W2 (selection-bridge) — the VALUE now lives in the `selection-bridge`
-   *  micro-store: read it with `useSelectedSectionId()` from
-   *  "./selection-bridge", NOT off the context (that kept it out of the
-   *  value-memo so a click no longer re-renders every consumer). Only the
-   *  setter remains on the context. */
-  setSelectedSectionId: (id: string | null) => void;
-
-  /** Preview toggle — when true, ALL editing chrome (selection rings,
-   *  hover pills, drag toolbars, link interceptor) is suppressed so the
-   *  operator can interact with the live page exactly as a visitor
-   *  would. Different from `?preview=1` URL mode (which renders draft
-   *  content for logged-out visitors); this is an in-edit-mode flag
-   *  that toggles the chrome on/off. Drawer state is preserved so the
-   *  operator can flip back and continue editing. */
-  previewing: boolean;
-  setPreviewing: (next: boolean) => void;
-
-  /** Sprint 4 — multi-select.
-   *
-   *  Sections the operator extended selection to via shift-click or cmd/
-   *  ctrl-click. Full selection is `[selectedSectionId, ...additional]`
-   *  (with nulls filtered). The inspector always binds to
-   *  `selectedSectionId` only — multi-select is for BULK actions
-   *  (move/duplicate/hide/delete), not multi-edit.
-   *
-   *  W2 (selection-bridge) — read the VALUE with `useAdditionalSelectedIds()`
-   *  from "./selection-bridge" (not off the context); only the mutators remain
-   *  here. */
-  /** Add a section to the multi-set without unseating the primary. Shift-click. */
-  extendSelection: (id: string) => void;
-  /** Toggle a section in/out of the multi-set. Cmd-click. */
-  toggleSelection: (id: string) => void;
-  /** All currently-selected section ids (primary first, then additional). */
-  getAllSelectedIds: () => string[];
-  /**
-   * BuilderNode identity for the primary selection. Today this resolves to
-   * the section-node mirror of the selected cms section; future nested nodes
-   * can keep the same selection contract without inventing a second editor.
-   *
-   * W2 (selection-bridge) — read the VALUE with `useSelectedBuilderNodeId()`
-   * from "./selection-bridge", NOT off the context; only the write API remains.
-   */
-  /**
-   * BuilderNode-first selection entrypoint.
-   * Phase 4 bridge: today section nodes map to existing section selection;
-   * future nested nodes can route through the same API without forking state.
-   */
-  selectBuilderNode: (nodeId: string) => void;
-  /**
-   * W2 (selection-bridge) — read the VALUE with
-   * `useAdditionalSelectedBuilderNodeIds()` from "./selection-bridge"; only the
-   * mutators remain on the context.
-   */
-  extendBuilderNodeSelection: (nodeId: string) => void;
-  toggleBuilderNodeSelection: (nodeId: string) => void;
-  replaceBuilderNodeSelection: (nodeIds: ReadonlyArray<string>) => void;
-  getAllSelectedBuilderNodeIds: () => string[];
-  groupSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  ungroupSelectedBuilderNode: () => Promise<{ ok: boolean; error?: string; nodeIds?: string[] }>;
-  removeSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string }>;
-  duplicateSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; nodeIds?: string[] }>;
-  translateSelectedBuilderNodes: (
-    deltas: Readonly<Record<string, TranslateDelta>>,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  alignSelectedBuilderNodes: (
-    mode: MultiNodeAlignMode,
-    rects: ReadonlyArray<MultiNodeRect>,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  distributeSelectedBuilderNodes: (
-    mode: MultiNodeDistributeMode,
-    rects: ReadonlyArray<MultiNodeRect>,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Job #28 (bulk edit) — merge one top-level `style` patch into EVERY
-   * currently-selected freeform node at once (primary + additional). A key set
-   * to `undefined` clears that prop for the whole selection. Runs through the
-   * same atomic patch/undo path as align/distribute (no parallel system); a
-   * section in the set is skipped. Pass a JSON string so the React Compiler
-   * can't read a mutable captured object and bail the whole context's memo
-   * (matching insertBuilderComponent / setInstanceOverride).
-   */
-  patchSelectedBuilderNodesStyle: (
-    stylePatchJson: string,
-    /**
-     * INS-2 — optional responsive bucket. `"tablet"`/`"mobile"` writes the patch
-     * into `style.responsive[bucket]` for every selected node; omitted/`null`
-     * patches the base (desktop) style. Per-node INS-1 locks are honored either
-     * way (the merge strips locked keys per node).
-     */
-    bucket?: "tablet" | "mobile" | null,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  copySelectedBuilderNodes: () => { ok: boolean; error?: string; count?: number };
-  cutSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; count?: number }>;
-  pasteBuilderNodeClipboard: (
-    targetNodeId?: string | null,
-  ) => Promise<{ ok: boolean; error?: string; nodeIds?: string[] }>;
-  /**
-   * Jump the editor to a section by cms id — same targeting as a navigator row
-   * when the section root builder node is known (inspector + canvas parity).
-   */
-  focusSectionForEdit: (sectionId: string) => void;
-  copiedBuilderNodeKind: BuilderNode["kind"] | null;
-  builderBlockPresets: ReadonlyArray<BuilderBlockPreset>;
-  getCopiedBuilderNodePastePreview: (
-    targetNodeId?: string | null,
-  ) => BuilderNodePastePreview | null;
-  copyBuilderNode: (nodeId: string) => { ok: boolean; error?: string };
-  saveCopiedBuilderNodeAsPreset: (
-    name?: string,
-  ) => { ok: boolean; error?: string; presetId?: string };
-  pasteBuilderBlockPreset: (
-    presetId: string,
-    targetNodeId?: string | null,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  removeBuilderBlockPreset: (presetId: string) => void;
-  pasteCopiedBuilderNode: (
-    targetNodeId?: string | null,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-
-  /**
-   * Section under the cursor, for hover outline. W2-T3 — the VALUE now lives in
-   * the `hover-bridge` micro-store: read it with `useHoveredSectionId()` from
-   * "./hover-bridge", NOT off the context (that kept it out of the value-memo so
-   * a hover sweep no longer re-renders every consumer). Only the setter remains
-   * on the context.
-   */
-  setHoveredSectionId: (id: string | null) => void;
-
-  /**
-   * Freeform builder node under the cursor (canvas OR layers row), for the
-   * bidirectional canvas↔layers highlight. Freeform full-page designs have no
-   * `[data-cms-section]` wrapper, so the hovered SECTION never fires for them;
-   * this is the section-less analog. Hovering a layer row sets it (→ canvas
-   * hover ring); hovering a canvas block sets it (→ layer row tint).
-   *
-   * W2-T3 — read the VALUE with `useHoveredBuilderNodeId()` from "./hover-bridge"
-   * (not off the context); only the setter remains here.
-   */
-  setHoveredBuilderNodeId: (id: string | null) => void;
-
-  device: EditDevice;
-  setDevice: (d: EditDevice) => void;
-  /**
-   * Responsive-preview frame override (job #17). Layers ON TOP of `device`
-   * WITHOUT changing the breakpoint semantics: `device` still decides which
-   * `@media` query the storefront iframe fires at (and which override bucket the
-   * inspectors edit), while this only resizes/rotates the visual frame. So
-   * "tablet landscape" = `device:"tablet"` + `rotated:true` (breakpoints stay
-   * tablet, frame goes wide), and a custom width sets `widthPx` directly.
-   * `widthPx:null` + `rotated:false` = the device's natural portrait frame, the
-   * pre-#17 behaviour. Picking a device tier from the switcher resets both.
-   */
-  previewFrame: PreviewFrameOverride;
-  /** Set an explicit frame width (px), or null to fall back to the device width. */
-  setPreviewFrameWidth: (widthPx: number | null) => void;
-  /** Toggle landscape orientation for the active device frame. */
-  togglePreviewRotated: () => void;
-
-  // ── Wave 6C — mobile-first editing mode (job #35) ──────────────────────
-  /**
-   * Mobile-first editing mode. A focused workflow ON TOP of the Wave-2
-   * responsive system — NOT a second editor. When ON it:
-   *   - pins the canvas viewport to `device:"mobile"` (so the Wave-2B
-   *     style-panel viewport sync scopes every style edit to the mobile
-   *     breakpoint + shows its "Editing Mobile" banner), and
-   *   - surfaces the {@link MobileEditPanel} (Wave-2C health checker +
-   *     per-block hide/reorder mobile-structure affordances).
-   * Toggling it OFF returns the canvas to desktop editing. Purely additive:
-   * when `false` everything behaves exactly as before. Entering also clears
-   * preview mode (the two are mutually exclusive — one hides chrome, the
-   * other adds a chrome panel).
-   */
-  mobileEditMode: boolean;
-  setMobileEditMode: (next: boolean) => void;
-  /**
-   * Wave 6C — set or clear a mobile-only STRUCTURE override on a single node,
-   * reusing the Wave-2A `style.responsive.mobile.{visibility,order}` channel
-   * the renderer already emits. A field set to a value writes it; set to
-   * `undefined` (or `null` for `order`) clears just that field, preserving the
-   * rest of `responsive.mobile`, the `tablet` bucket, and the base style
-   * (surgical read-modify-write, NOT the shallow bulk-style patch which would
-   * clobber sibling breakpoints). Runs through the same engine `patch` op +
-   * undo + autosave path as every other structure edit.
-   */
-  setBuilderNodeMobileStructure: (
-    nodeId: string,
-    patch: { visibility?: "visible" | "hidden"; order?: number | null },
-  ) => Promise<{ ok: boolean; error?: string }>;
-
-  /**
-   * Inspector autosave state. W2-T4 — the `dirty` VALUE now lives in the
-   * `dirty-bridge` micro-store: read it with `useDirty()` from "./dirty-bridge"
-   * (that kept it out of the value-memo so a once-per-burst dirty flip doesn't
-   * re-render every consumer). Only the setter remains on the context.
-   */
-  setDirty: (d: boolean) => void;
-  saving: boolean;
-  setSaving: (s: boolean) => void;
-
-  /** Server-truth payload for the selected section. */
-  loadedSection: LoadedSection | null;
-  setLoadedSection: (s: LoadedSection | null) => void;
-
-  /** Working copy the inspector mutates. */
-  draftProps: Record<string, unknown> | null;
-  setDraftProps: (
-    updater:
-      | Record<string, unknown>
-      | null
-      | ((prev: Record<string, unknown> | null) => Record<string, unknown> | null),
-  ) => void;
-
-  // ── composition state ──────────────────────────────────────────────────
-  compositionLoaded: boolean;
-  compositionLoading: boolean;
-  compositionError: string | null;
-  pageVersion: number | null;
-  /**
-   * Visitor site last publish time for this page (`cms_pages.published_at`), or
-   * `null` if never published. Refreshes with `refreshComposition` after Publish.
-   */
-  liveSitePublishedAt: string | null;
-  /** CAS page row version — read from a ref for saves immediately after async gaps. */
-  getCompositionCasVersion: () => number | null;
-  /**
-   * Publish the current page through the active SURFACE adapter (talent_page /
-   * cms_page / platform_lab). The homepage surface publishes via its own
-   * dedicated action in the publish drawer; this routes everything else so a
-   * talent/workspace freeform page can actually go live (the drawer otherwise
-   * hard-routes to the homepage action, which 401s for non-staff talents).
-   */
-  publishViaSurfaceAdapter: (
-    input: BuilderSurfacePublishInput,
-  ) => Promise<PublishResult>;
-  pageMetadata: PageMetadata | null;
-  slots: Record<string, CompositionSectionRef[]>;
-  // WS2 — `builderTree` is no longer on the context value; read it via the
-  // `useBuilderTree()` selector hook (builder-tree-bridge) so a tree change
-  // re-renders only the readers, not every useEditContext() consumer.
-  slotDefs: CompositionSlotDef[];
-  library: CompositionLibraryEntry[];
-  /** Locales the active tenant has enabled — drives the topbar locale
-   *  switcher. Empty until the first composition load resolves. */
-  availableLocales: ReadonlyArray<string>;
-
-  refreshComposition: () => Promise<void>;
-  /**
-   * P9-1 — RAF-coalesced `router.refresh()` for the storefront RSC tree.
-   * Prefer over `useRouter().refresh()` from any component under `EditProvider`.
-   */
-  queueRouterRefresh: () => Promise<void>;
-  insertSection: (
-    target: LibraryTarget,
-    sectionTypeKey: string,
-    options?: {
-      sectionTemplateStarterId?: string | null;
-      sectionTemplateStarterStylePresetId?: string | null;
-    },
-  ) => Promise<{
-    ok: boolean;
-    error?: string;
-    section?: { id: string; sortOrder: number };
-  }>;
-  removeSection: (sectionId: string) => Promise<{ ok: boolean; error?: string }>;
-  moveSection: (
-    sectionId: string,
-    direction: "up" | "down",
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Move a section to an explicit slot + position. `targetSortOrder` is the
-   * index within the target slot *after* the move (0 = first). Drag-reorder
-   * uses this; the older `moveSection(id, "up"|"down")` is a thin wrapper.
-   */
-  moveSectionTo: (
-    sectionId: string,
-    targetSlotKey: string,
-    targetSortOrder: number,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Reorder a BuilderNode within its current parent list.
-   * Used by the current Navigator child-node controls to evolve toward
-   * true in-canvas structure editing without introducing a second builder.
-   */
-  moveBuilderNodeWithinParent: (
-    nodeId: string,
-    direction: "up" | "down",
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Move a BuilderNode within its current parent list to an explicit target
-   * index (0-based). Used by navigator drag/drop for child-node structure.
-   */
-  moveBuilderNodeToIndex: (
-    nodeId: string,
-    targetIndex: number,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Move a BuilderNode to an explicit parent/index destination. Used by
-   * navigator drag/drop when crossing sibling groups.
-   */
-  moveBuilderNodeToParentIndex: (
-    nodeId: string,
-    targetParentId: string | null,
-    targetIndex: number,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  insertBuilderNode: (
-    parentId: string | null,
-    kind: BuilderNode["kind"],
-    index?: number,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  insertBuilderNodeCompositionPreset: (
-    parentId: string | null,
-    presetId: BuilderNodeCompositionPresetId,
-    index?: number,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  /**
-   * CANVAS-4 — the ONE shared template/starter-apply path for every surface
-   * (storefront homepage, /t/[code] profile, /t/site/[slug] page, Lab
-   * playground). Before the apply runs, the CURRENT full builderTree is pushed
-   * to the undo history (a `builderTree` `{ pre, post }` entry, exactly as a
-   * normal node mutation), so a single `undo()` restores the pre-apply tree
-   * completely through the surface adapter — no raw `setBuilderTree`, no
-   * per-surface snapshot fork. `apply` performs the surface's authoritative
-   * write (server action or client op) and resolves the post-apply tree; on
-   * success the helper adopts that tree locally and raises the shared
-   * `templateAppliedToast` whose Undo button calls `undo()`. A failed `apply`
-   * pops the snapshot so the history stack stays consistent. `label` names the
-   * design in the toast.
-   *
-   * Routing every starter/template apply through this one helper is the
-   * shared-improvement invariant: snapshot-before-apply + Undo is a property of
-   * the EditProvider, never of a surface, so all four surfaces inherit it.
-   */
-  applyTemplateWithUndo: (input: {
-    label: string;
-    apply: () => Promise<
-      { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
-    >;
-  }) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * ONB-1 — the ONE shared "apply a full-page design starter" path used by the
-   * surface-parameterized `EmptyCanvasStarter` on EVERY empty editable surface
-   * (storefront homepage + inner cms_page, /t/[code] profile, /t/site/[slug]
-   * page, Lab playground). It bakes the chosen design by id (server-side, so the
-   * large design trees never enter the client bundle) and routes the apply
-   * through `applyTemplateWithUndo` so snapshot-before-apply + the shared "Template
-   * applied — Undo" toast + autosave are inherited identically on every surface.
-   *
-   * The persist target is the ACTIVE surface, chosen by capability — NOT a
-   * surfaceKind branch in the component:
-   *   - `homepage` keeps its authoritative server action
-   *     (`applyPageDesignToHomepage`, which seeds the Free-plan curated on-ramp
-   *     and writes the empty-slot composition), then adopts the returned tree.
-   *   - Every other surface (cms_page / talent_page / platform_lab / site_shell)
-   *     bakes the tree and persists it through the active `SurfaceAdapter`
-   *     (`persistBuilderTree`), so the design is written to the surface's own
-   *     table — never the homepage-only path. The caller passes `homepageApply`
-   *     (the homepage server-action closure) so this module stays free of a
-   *     storefront-only import; when omitted the adapter path is always used.
-   */
-  applyPageDesignWithUndo: (input: {
-    designId: string;
-    label: string;
-    locale?: string;
-    /**
-     * Homepage-only authoritative apply (the storefront server action). When the
-     * active surface is `homepage` and this is supplied, it is used verbatim;
-     * otherwise the design is baked + persisted through the active adapter.
-     */
-    homepageApply?: () => Promise<
-      { ok: true; tree: BuilderNodeTree } | { ok: false; error?: string }
-    >;
-  }) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * AI-1 — apply an ALREADY-COMPOSED freeform tree (produced by the shared
-   * text-to-page composer from a one-line brief) to the ACTIVE surface. Persists
-   * the tree through the active SurfaceAdapter and routes the whole apply through
-   * `applyTemplateWithUndo`, so the AI page is snapshotted, undoable via the
-   * shared toast, and autosaved identically on every surface — exactly like a
-   * design/template apply. The component never touches the adapter directly; the
-   * persistence stays a property of the EditProvider (the shared-improvement
-   * invariant). The tree has already been validated server-side by the composer
-   * (`validateBuilderNodeTree`) so this path injects nothing unchecked.
-   */
-  applyComposedTreeWithUndo: (input: {
-    tree: BuilderNodeTree;
-    label: string;
-  }) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Insert a curated Tulala component (`section_embed` node) — Directory,
-   * Featured talent, Booking, or CTA — seeded with that section's default
-   * config, at the target. Mirrors the composition-preset insert.
-   */
-  insertBuilderSectionEmbed: (
-    parentId: string | null,
-    sectionTypeKey: string,
-    index?: number,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  /**
-   * Living components — insert a saved block subtree (ids re-minted to copies)
-   * at the target. The subtree is passed as a JSON string (a primitive param,
-   * so the React Compiler can't read it as a mutable captured object and bail
-   * memoization for the whole context). Mirrors the composition-preset insert.
-   */
-  insertBuilderComponent: (
-    parentId: string | null,
-    subtreeJson: string,
-    index?: number,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  /**
-   * Living components Phase 2 — insert a LINKED instance of a saved component.
-   * Identical to insertBuilderComponent but tags the (container) root with
-   * instanceOf=componentId so syncComponentInstances can refresh it later.
-   */
-  insertLinkedComponent: (
-    parentId: string | null,
-    subtreeJson: string,
-    componentId: string,
-    index?: number,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  /**
-   * Re-sync every linked instance of a component on the current page: each
-   * tagged container's children are replaced with a fresh clone of the master
-   * component subtree's children. Returns how many instances were synced.
-   */
-  syncComponentInstances: (
-    componentId: string,
-    masterSubtreeJson: string,
-  ) => Promise<{ ok: boolean; error?: string; synced?: number }>;
-  /**
-   * Detach a single linked instance (by node id) — severs its component link
-   * while keeping its current content, so future syncs skip it.
-   */
-  detachComponentInstance: (
-    nodeId: string,
-  ) => Promise<{ ok: boolean; error?: string; detached?: boolean }>;
-  /**
-   * "2018 bye-bye" — eject a curated section to freeform (its content becomes
-   * roleless editable blocks; the curated component stops rendering). Reversible.
-   */
-  ejectSection: (
-    sectionNodeId: string,
-  ) => Promise<{ ok: boolean; error?: string; ejected?: boolean }>;
-  unejectSection: (
-    sectionNodeId: string,
-  ) => Promise<{ ok: boolean; error?: string; ejected?: boolean }>;
-  /**
-   * Phase 3 — set or clear a per-instance override on a linked instance, keyed
-   * by the MASTER child id. overrideJson is a JSON string of
-   * {text?,imageSrc?,imageAlt?,href?} or null to clear (kept a string to dodge
-   * a React-Compiler object-param memo bail, matching insertBuilderComponent).
-   */
-  setInstanceOverride: (
-    nodeId: string,
-    masterChildId: string,
-    overrideJson: string | null,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Phase 4 (T4.4) — apply a named component VARIANT to a linked instance. The
-   * variant is a preset set of overrides; applying it writes them onto the
-   * instance's override map and records the variant id. variantJson is a JSON
-   * string of {id,name,overrides} (kept a string to dodge a React-Compiler
-   * object-param memo bail, matching setInstanceOverride).
-   */
-  applyInstanceVariant: (
-    nodeId: string,
-    variantJson: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /** Phase 4 (T4.4) — clear the active variant tag on an instance (keeps its
-   * current overrides). */
-  clearInstanceVariant: (
-    nodeId: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Living components — snapshot the currently selected freeform block as a
-   * reusable saved component (persisted to cms_builder_components).
-   */
-  saveSelectedNodeAsComponent: (
-    name: string,
-    description?: string,
-  ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
-  /**
-   * Phase 3 — overwrite an existing master component with the selected block, so
-   * every published linked instance reflects the change live (minus overrides).
-   */
-  updateSelectedNodeAsComponent: (
-    componentId: string,
-  ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
-  duplicateBuilderNode: (
-    nodeId: string,
-  ) => Promise<{ ok: boolean; error?: string; nodeId?: string }>;
-  removeBuilderNode: (
-    nodeId: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Patch a BuilderNode's typed props through the same draft-save path used
-   * by structure edits. Used by the Layout inspector for advanced nodes.
-   */
-  patchBuilderNodeProps: (
-    nodeId: string,
-    patch: Record<string, unknown>,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /** Switch a heading/paragraph block between P and H1–H4 (theme size by default). */
-  convertBuilderTextNodeRole: (
-    nodeId: string,
-    role: BuilderTextRoleId,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  duplicateSection: (
-    sectionId: string,
-  ) => Promise<{ ok: boolean; error?: string; newSectionId?: string }>;
-  /**
-   * Sprint 4 — operator-facing rename. Updates a section's stored `name`
-   * field (used by navigator + chip + inspector when no headline is
-   * available). Loads the section's current props, calls
-   * `saveSectionDraftAction` with the new name, refreshes composition.
-   * Empty/whitespace names are rejected — the caller should validate.
-   */
-  renameSection: (
-    sectionId: string,
-    newName: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Sync section child BuilderNode projections from authoritative section
-   * props after a content save. Keeps child-node rows (headline/subheadline/
-   * CTA) aligned with the current draft without requiring a full reload.
-   */
-  syncBuilderNodeChildrenForSection: (input: {
-    sectionId: string;
-    sectionTypeKey: string;
-    props: Record<string, unknown>;
-  }) => void;
-
-  // ── history ──
-  // WS2 — `canUndo` / `canRedo` are no longer on the context value; read them
-  // via the `useCanUndo()` / `useCanRedo()` selector hooks (history-bridge) so a
-  // history-depth change re-renders only the undo/redo-button readers.
-  undo: () => Promise<void>;
-  redo: () => Promise<void>;
-  /**
-   * Inspector autosave bridge. Call on a successful field edit round-trip
-   * so ⌘Z reverses the change. `pre` is the section props BEFORE the edit,
-   * `post` is the saved state. Version numbers aren't stored — undo loads
-   * the section's current version fresh to stay CAS-safe after any
-   * intervening edits.
-   */
-  recordFieldEdit: (entry: {
-    sectionId: string;
-    sectionTypeKey: string;
-    schemaVersion: number;
-    name: string;
-    pre: Record<string, unknown>;
-    post: Record<string, unknown>;
-  }) => void;
-
-  // ── library overlay ──
-  libraryTarget: LibraryTarget | null;
-  openLibrary: (target: LibraryTarget) => void;
-  closeLibrary: () => void;
-
-  // ── Sprint 3 inline section picker popover ──
-  /**
-   * Sprint 3 navigator/library merge — contextual popover anchored at an
-   * inline `+` insertion point. Replaces the modal library for the most
-   * common insertion path. The full `libraryTarget` modal is still
-   * available as the "Browse all sections…" fallback for search +
-   * advanced + discovery.
-   */
-  pickerPopover: {
-    target: LibraryTarget;
-    /** Anchor point in viewport coordinates (the `+` button center). */
-    x: number;
-    y: number;
-  } | null;
-  openPickerPopover: (target: LibraryTarget, x: number, y: number) => void;
-  closePickerPopover: () => void;
-
-  // ── publish drawer ──
-  publishOpen: boolean;
-  openPublish: () => void;
-  closePublish: () => void;
-
-  // ── page settings drawer ──
-  pageSettingsOpen: boolean;
-  openPageSettings: () => void;
-  closePageSettings: () => void;
-
-  /**
-   * Legacy admin redirects (`/?edit=1&panel=pages`) bump `pagesPickerOpenNonce`
-   * so the TopBar Pages dropdown opens on first paint. Mirrors §24 picker affordance.
-   */
-  pagesPickerOpenNonce: number;
-  requestPagesPickerOpen: () => void;
-
-  /** Dock-launched left floating panels (canvas-first model). */
-  searchPanelOpen: boolean;
-  toggleSearchPanel: () => void;
-  closeSearchPanel: () => void;
-  addMenuOpen: boolean;
-  toggleAddMenu: () => void;
-  closeAddMenu: () => void;
-  allPagesPanelOpen: boolean;
-  openAllPagesPanel: () => void;
-  closeAllPagesPanel: () => void;
-  toggleAllPagesPanel: () => void;
-  brandPanelOpen: boolean;
-  toggleBrandPanel: () => void;
-  closeBrandPanel: () => void;
-
-  // ── revisions drawer (Phase 4) ──
-  /**
-   * Visibility flag for the RevisionsDrawer. The topbar's revisions icon
-   * toggles it; the drawer itself owns its own list-fetch state and re-
-   * fetches on every open so a freshly-saved draft revision shows up
-   * without a hard refresh.
-   */
-  revisionsOpen: boolean;
-  openRevisions: () => void;
-  closeRevisions: () => void;
-
-  // ── theme drawer (Phase 5) ──
-  /**
-   * Visibility flag for the ThemeDrawer. Lights up on the topbar Theme
-   * button + the navigator footer Theme shortcut. The drawer itself owns
-   * the loaded design snapshot (via `loadDesignAction`) and the working
-   * copy of theme tokens; EditContext only owns "is the drawer up" so
-   * keybinds, tabs, and the right-side drawer mutex can route through
-   * one toggle. Lazy-fetches design state on open so a publish from the
-   * /admin/site-settings/design page shows up next time the operator
-   * opens the drawer without a full refresh.
-   */
-  themeOpen: boolean;
-  openTheme: () => void;
-  closeTheme: () => void;
-  /**
-   * Visibility flag for the AssetsDrawer (Phase 7). The drawer owns its
-   * own data fetch (via `loadAssetsLibraryAction` + `scanAssetUsageAction`);
-   * EditContext only owns the open/close mutex so the topbar's library
-   * icon, the navigator footer, and ⌘L can all route through one toggle.
-   */
-  assetsOpen: boolean;
-  openAssets: () => void;
-  closeAssets: () => void;
-
-  // ── collections drawer (Wave 5A, job #36) ──
-  /**
-   * Visibility flag for the CollectionsDrawer — define operator content
-   * collections (Team / Projects / Testimonials) + their rows, then bind a
-   * repeater to one from the data inspector. The drawer owns its own data
-   * fetch (via the collections server actions); EditContext owns only the
-   * open/close mutex so it shares the single right-rail slot.
-   */
-  collectionsOpen: boolean;
-  openCollections: () => void;
-  closeCollections: () => void;
-
-  // ── schedule drawer (Phase 12) ──
-  /**
-   * Visibility flag for the ScheduleDrawer. Lights up on the topbar
-   * Publish-split-button menu's "Schedule publish…" option, and via the
-   * command palette. Mutexes with the other right-side drawers so it
-   * doesn't visually stack. The drawer itself owns its own load of the
-   * current `cms_pages.scheduled_publish_at` so a previously-set fire
-   * time round-trips without re-rendering EditContext.
-   */
-  scheduleOpen: boolean;
-  openSchedule: () => void;
-  closeSchedule: () => void;
-
-  // ── comments drawer (Phase 11) ──
-  /**
-   * Visibility flag for the CommentsDrawer. Operators thread comments on
-   * individual sections; the drawer lists every open thread and lets staff
-   * resolve them. Mutexes with the other right-side drawers so it doesn't
-   * visually stack. The drawer owns its own data fetch (via
-   * `listCommentsAction`) and Realtime subscription so a teammate's writes
-   * round-trip without a refresh.
-   *
-   * `openCommentsForSection` opens the drawer with a section preselected
-   * (e.g. when an operator clicks the canvas pin); `openComments` opens it
-   * to the global "all open threads" view.
-   */
-  commentsOpen: boolean;
-  commentsFocusSectionId: string | null;
-  openComments: () => void;
-  openCommentsForSection: (sectionId: string) => void;
-  closeComments: () => void;
-
-  // ── command palette (Phase 8) ──
-  /**
-   * Visibility flag for the centred ⌘K command palette. Lazy-mounted:
-   * we render `null` while closed so the palette's internal effects
-   * (focus, keyboard listeners) only subscribe when actually visible.
-   * Opening a right-rail drawer via context (`openPublish`, etc.) calls
-   * `dismissCompetingEditorChrome` first (palette + other overlays); operators
-   * can still ⌘K again afterward while a drawer stays open.
-   */
-  paletteOpen: boolean;
-  openPalette: () => void;
-  closePalette: () => void;
-  togglePalette: () => void;
-  /**
-   * Modal template gallery for starter compositions. This is separate from
-   * the saved workspace-template accordion: it opens the wireframe starter
-   * marketplace on any draft, not just the blank canvas.
-   */
-  starterTemplateGalleryOpen: boolean;
-  starterTemplateGalleryHighlightedSlug: string | null;
-  openStarterTemplateGallery: (highlightedSlug?: string | null) => void;
-  closeStarterTemplateGallery: () => void;
-  /**
-   * Visibility flag for the keyboard-shortcuts reference overlay
-   * (Phase 10). The `?` global keybind toggles it; the overlay reads
-   * from the centralised `SHORTCUTS` registry so chips never drift
-   * between the palette and the reference. Right-rail opens dismiss it via
-   * `dismissCompetingEditorChrome` together with the palette.
-   */
-  shortcutOverlayOpen: boolean;
-  openShortcutOverlay: () => void;
-  closeShortcutOverlay: () => void;
-  toggleShortcutOverlay: () => void;
-  /** ⌘K palette + `?` overlay — closes both without touching drawers. */
-  dismissCentredModals: () => void;
-  /**
-   * Closes centred modals plus starter gallery, full-screen library, and
-   * inline picker popover — surfaces that must not stack over a right-rail drawer.
-   */
-  dismissCompetingEditorChrome: () => void;
-  /**
-   * Roll the draft back to the chosen revision. Wraps
-   * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
-   * `dispatchMutation` so the drawer doesn't have to thread pageVersion
-   * itself; on success we refresh the composition + the storefront.
-   */
-  restoreRevision: (
-    revisionId: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
-
-  /**
-   * REV-1b — the active surface's OWNER-gated revision LIST read, or `null`
-   * when the surface has no surface-specific loader (homepage / cms_page, which
-   * the RevisionsDrawer reads via the staff-gated default actions directly).
-   *
-   * The talent-site shell mounts with no `pageSlug`, so the drawer's default
-   * list read would fall through to the staff-gated homepage loader — denied for
-   * a talent. When the surface adapter supplies `loadRevisions`, this routes the
-   * drawer through that owner-gated read instead, so the talent can SEE (not just
-   * restore, per REV-1) their shell's revision history. The shape matches
-   * `loadHomepageRevisionsAction`, so the drawer consumes it without a
-   * surfaceKind fork.
-   */
-  loadSurfaceRevisions:
-    | (() => Promise<RevisionsLoadResult>)
-    | null;
-
-  /** Request the inspector to switch tabs (e.g. floating toolbar Edit/Design). */
-  inspectorTabRequest: {
-    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion";
-    nonce: number;
-  } | null;
-  requestInspectorTab: (
-    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
-  ) => void;
-  /** Toggle the inspector panel from the right tab rail (click again to close). */
-  toggleInspectorTab: (
-    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
-  ) => void;
-  /** Active inspector tab — synced from the dock for rail highlight + toggle. */
-  inspectorActiveTab: "content" | "style" | "layout" | "data" | "motion";
-  setInspectorActiveTab: (
-    tab: "content" | "style" | "layout" | "data" | "motion",
-  ) => void;
-  /** Inspector panel visually merged with the right tab rail. */
-  inspectorRailDocked: boolean;
-  setInspectorRailDocked: (docked: boolean) => void;
-  /** Left dock panel visually merged with the command rail. */
-  commandDockDocked: boolean;
-  setCommandDockDocked: (docked: boolean) => void;
-  registerWorkspacePanelOffset: (
-    panelId: string,
-    setOffset: (
-      next: PanelOffset | ((prev: PanelOffset) => PanelOffset),
-    ) => void,
-  ) => () => void;
-  applyWorkspacePanelOffsetDelta: (
-    panelId: string,
-    delta: PanelOffset,
-  ) => void;
-  setWorkspacePanelOffset: (panelId: string, offset: PanelOffset) => void;
-  getWorkspacePanelOffset: (panelId: string) => PanelOffset | null;
-  getWorkspacePanelRect: (
-    panelId: string,
-  ) => { left: number; top: number; width: number; height: number } | null;
-  /**
-   * Toggle state for the left-rail Structure Navigator (Phase 3).
-   * Controlled so the ⌘\ keybind, the topbar button, and the navigator's
-   * own collapse handle all share one truth. Opens by default in this
-   * phase; later phases may persist user preference per workspace.
-   */
-  navigatorOpen: boolean;
-  setNavigatorOpen: (open: boolean) => void;
-  toggleNavigator: () => void;
-  navigatorWidth: number;
-  setNavigatorWidth: (width: number) => void;
-
-  /** Right inspector panel visibility — persisted across sessions. */
-  inspectorDockOpen: boolean;
-  setInspectorDockOpen: (open: boolean) => void;
-  toggleInspectorDock: () => void;
-
-  // ── Photoshop-style dockable workspace (floating-panel layout) ──────────
-  /**
-   * Pinned-workspace state for the floating edit-chrome panels (navigator +
-   * inspector dock). By default each panel's drag offset is SESSION-ONLY and
-   * snaps back to its home anchor on refresh. When the operator clicks Pin in
-   * the topbar, every floating panel's current offset is captured to a single
-   * versioned localStorage key ({@link WORKSPACE_LAYOUT_STORAGE_KEY}) and the
-   * panels restore to it on the next load instead of snapping home. Reset
-   * clears the saved layout and returns the panels to their home positions.
-   *
-   * `hasSavedWorkspaceLayout` reflects whether a pinned layout currently
-   * exists (drives the Reset control's enabled state + the Pin button's
-   * "saved" affordance).
-   */
-  hasSavedWorkspaceLayout: boolean;
-  /**
-   * Capture every registered floating panel's CURRENT offset and persist it as
-   * the pinned workspace. Idempotent; safe to call repeatedly (re-pins to the
-   * latest positions).
-   */
-  pinWorkspaceLayout: () => void;
-  /**
-   * Clear the pinned workspace and snap every floating panel home immediately
-   * (bumps `workspaceResetNonce`, which the panels watch).
-   */
-  resetWorkspaceLayout: () => void;
-  /**
-   * Monotonic counter bumped on Reset. Floating panels watch this to snap
-   * their session offset back to {0,0} the instant the operator resets.
-   */
-  workspaceResetNonce: number;
-  /**
-   * Seed offset for a floating panel on mount — the panel's saved offset from
-   * the pinned layout, or null when no layout is pinned (→ default home).
-   */
-  getSavedPanelOffset: (panelId: string) => { x: number; y: number } | null;
-  /**
-   * Register a floating panel so Pin can read its live offset and magnet
-   * snapping can read its on-screen rect. Returns an unregister fn for cleanup.
-   * `getOffset` returns the panel's current translate; `getRect` returns its
-   * viewport bounding box (or null if unmounted).
-   */
-  registerWorkspacePanel: (
-    panelId: string,
-    handles: {
-      getOffset: () => { x: number; y: number };
-      getRect: () => { left: number; top: number; width: number; height: number } | null;
-    },
-  ) => () => void;
-  /**
-   * Rects of every OTHER registered floating panel (excludes `panelId`) — the
-   * magnet snap edge-aligns the dragged panel against these.
-   */
-  getOtherWorkspacePanelRects: (
-    panelId: string,
-  ) => ReadonlyArray<{ left: number; top: number; width: number; height: number }>;
-  /**
-   * Short-lived selection feedback for freshly inserted/duplicated content.
-   * The navigator uses this to open, scroll, expand, and tier-highlight the
-   * most recent rows so operators can immediately see what changed.
-   */
-  recentNavigatorAdditions: ReadonlyArray<NavigatorRecentAddition>;
-  clearNavigatorRecentAdditions: () => void;
-
-  /**
-   * W3-T1 — the most-recently inserted/duplicated/pasted block, carried with a
-   * monotonic `nonce` so a repeat insert of the same id still re-fires. Drives
-   * the canvas highlight pulse (a brief settle ring on the new block); the
-   * layout-settle motion itself is handled by the renderer's FLIP wrapper.
-   * `null` until the first insert of the session. Reduced-motion users get no
-   * pulse (the effect that consumes it bails on `prefers-reduced-motion`).
-   */
-  lastInsertedNodeId: { id: string; nonce: number } | null;
-
-  /**
-   * Set a section's `presentation.visibility`. Used by the Navigator
-   * panel's eye toggle. Resolves with `{ ok }` so the caller can render
-   * an inline error toast on failure. On success the composition is
-   * refreshed automatically so the navigator and canvas reflect the
-   * new state without a manual refresh.
-   */
-  setSectionVisibility: (
-    sectionId: string,
-    visibility: SectionVisibility,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  /**
-   * Save just the page metadata (title / meta description / tagline).
-   * Wraps `dispatchMutation` so the change goes through the same optimistic
-   * apply + CAS save + rollback path as structural mutations, and so undo
-   * captures it.
-   */
-  savePageMetadata: (
-    metadata: PageMetadata,
-  ) => Promise<{ ok: boolean; error?: string }>;
-
-  // ── save draft checkpoint ──
-  /**
-   * Trigger an explicit "Save draft" round-trip. Writes a fresh
-   * `cms_page_revisions` row of `kind='draft'` (via the existing autosave
-   * path) so the operator has a recoverable checkpoint without going live.
-   * Resolves with `{ ok: true, savedAt }` on success — `savedAt` is the
-   * server-issued ISO timestamp the UI surfaces in the transient
-   * confirmation chip.
-   */
-  saveDraft: () => Promise<{ ok: boolean; error?: string; savedAt?: string }>;
-  /**
-   * WS4-TASK1: Save an explicit draft checkpoint with a user-supplied label.
-   * Calls `saveDraft()` then fetches the newly-minted revision id (via
-   * `fetchNewestDraftRevisionIdAction`) and persists the label to localStorage
-   * under the standard `builder_revision_labels_v1` key so the revisions drawer
-   * picks it up on its next open.
-   * Resolves `{ ok: true, revisionId, savedAt }` on success; on failure the
-   * error is already surfaced via the mutation-error toast.
-   */
-  saveNamedCheckpoint: (label: string) => Promise<{ ok: boolean; revisionId?: string; error?: string }>;
-  /**
-   * Flush any debounced/coalesced builder-tree draft save immediately and wait
-   * for it (and any save already in flight) to settle. Call this before any
-   * action that reads the persisted draft from the server — chiefly Publish — so
-   * an edit sitting in the debounce window is committed first. Safe to call with
-   * nothing pending (resolves once the save queue is idle).
-   */
-  flushBuilderTreeSave: () => Promise<unknown>;
-  /** ISO timestamp of the most recent successful Save draft press; null when clear. */
-  lastDraftSavedAt: string | null;
-  clearDraftSavedToast: () => void;
-
-  // ── CANVAS-4 — transient toast after a template/starter design is applied ──
-  /**
-   * Truthy while the "Template applied — Undo?" toast is on screen. Holds the
-   * applied design's human label (or a generic fallback) so the toast can name
-   * what landed. Cleared on dismiss, on Undo, or after the auto-hide window.
-   * The toast's Undo button calls `undo()` — the pre-apply snapshot that
-   * `applyTemplateWithUndo` pushed to the history stack restores the prior tree
-   * through the same machinery every other edit uses.
-   */
-  templateAppliedToast: { label: string } | null;
-  clearTemplateAppliedToast: () => void;
-  /**
-   * CANVAS-4 — raise the shared "Template applied — Undo?" toast for an apply
-   * path that ALREADY pushed its own undo snapshot (the "+" gallery
-   * `page_templates` tab routes a full-page template through
-   * `insertBuilderComponent` → `executeBuilderNodeOperation`, which records the
-   * `{ pre, post }` history entry itself). This only surfaces the toast — Undo
-   * still calls `undo()` and replays that existing entry. Server-action replaces
-   * that DON'T snapshot client-side use `applyTemplateWithUndo` instead, which
-   * pushes the snapshot AND raises this same toast.
-   */
-  notifyTemplateApplied: (label: string) => void;
-
-  // ── CANVAS-7 — transient success toast after a clipboard gesture ──
-  /**
-   * Truthy while the "Copied / Cut / Pasted / Duplicated" toast is on screen.
-   * Raised from the SHARED clipboard chokepoints (copy/cut/paste/duplicate)
-   * regardless of entry point, so the chip "More" menu, the keyboard shortcut,
-   * and the right-click context menu all surface identical feedback on every
-   * surface. Coalesces — a copy→paste burst replaces the toast (one chip) and
-   * re-arms the auto-hide rather than stacking. Auto-clears; never collides with
-   * `mutationError` (a failed gesture never calls notifyClipboardAction).
-   */
-  clipboardActionToast: BuilderClipboardActionToast | null;
-  clearClipboardActionToast: () => void;
-
-  // ── transient toast for mutation errors ──
-  /** Most recent mutation error that's still on screen; null when clear. */
-  mutationError: EditMutationError | null;
-  clearMutationError: () => void;
-  /**
-   * Surface a one-off mutation error to the toast. Used by chrome
-   * surfaces that perform their own server actions (Phase 9 share-link
-   * generation, future scheduled-publish, etc.) — they reuse the same
-   * presentation surface internal mutations use.
-   */
-  reportMutationError: (message: string | EditMutationError) => void;
-
-  /**
-   * W3-T2(c/d) — when a builder-tree save loses a CAS race (VERSION_CONFLICT),
-   * the operator's rejected tree is parked here so the conflict toast can offer
-   * a real choice instead of silently discarding the edit:
-   *   - true  → a recovery is pending (toast shows "Reload latest" / "Keep my
-   *             version"). The latest server state is ALREADY loaded (the
-   *             reload ran), so "Reload latest" is just `clearMutationError`.
-   *   - false → no pending recovery.
-   * Cleared on any successful save, an explicit reload, or keep-mine.
-   */
-  hasConflictRecovery: boolean;
-  /**
-   * Re-apply the operator's conflict-rejected tree on top of the freshly
-   * reloaded base version (CAS now matches, so it persists). Preserves the
-   * operator's work across the conflict. No-op when nothing is parked.
-   */
-  keepMyVersionAfterConflict: () => Promise<void>;
-}
+/** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
+export { IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT } from "./use-starter-sync";
 
 const EditContext = createContext<EditContextValue | null>(null);
-
-const DEFAULT_METADATA: PageMetadata = {
-  title: "Homepage",
-  metaTitle: null,
-  metaDescription: null,
-  introTagline: null,
-  ogTitle: null,
-  ogDescription: null,
-  ogImageUrl: null,
-  canonicalUrl: null,
-  noindex: false,
-};
-
-const NAVIGATOR_WIDTH_STORAGE_KEY = "impronta.editChrome.navigator.width.v1";
-const NAVIGATOR_WIDTH_MIN = 280;
-const NAVIGATOR_WIDTH_MAX = 520;
-const NAVIGATOR_WIDTH_DEFAULT = 320;
-
-type BuilderNodeMutationResult =
-  | { ok: true; tree: BuilderNodeTree; nodeId?: string }
-  | {
-      ok: false;
-      code: BuilderNodeMutationCode;
-      error: string;
-      details?: ReadonlyArray<string>;
-    };
-
-function normalizeMutationError(
-  input: string | EditMutationError,
-): EditMutationError {
-  if (typeof input === "string") {
-    return { message: input };
-  }
-  return {
-    message: input.message,
-    operation: input.operation,
-    code: input.code,
-    details:
-      input.details && input.details.length > 0 ? input.details : undefined,
-  };
-}
-
-function mutationErrorFingerprint(input: EditMutationError): string {
-  return [
-    input.message,
-    input.operation ?? "",
-    input.code ?? "",
-    ...(input.details ?? []),
-  ].join("|");
-}
-
-/**
- * Unified undo/redo stack entry. Composition entries capture slots +
- * metadata and revert by re-saving the composition. Field entries
- * capture a single section's pre/post props and revert by re-saving
- * that section through its autosave action. Keeping both on one
- * timeline means ⌘Z honours LIFO across structural and content edits.
- */
-// W3-T8 — the selection that was active when an edit was committed, carried on
-// each HistoryEntry so undo/redo can land the operator back on the affected
-// block with its inspector open (instead of dropping to "nothing selected").
-// Optional: legacy persisted entries (and the rare entry committed with no
-// selection) simply restore nothing.
-interface HistorySelection {
-  sectionId: string | null;
-  builderNodeId: string | null;
-}
-
-type HistoryEntry =
-  | {
-      kind: "composition";
-      snapshot: CompositionSnapshot;
-      selection?: HistorySelection;
-    }
-  | {
-      kind: "builderTree";
-      pre: BuilderNodeTree;
-      post: BuilderNodeTree;
-      selection?: HistorySelection;
-    }
-  | {
-      kind: "field";
-      sectionId: string;
-      sectionTypeKey: string;
-      schemaVersion: number;
-      name: string;
-      pre: Record<string, unknown>;
-      post: Record<string, unknown>;
-      selection?: HistorySelection;
-    }
-  // Marathon W1-T4 — a section visibility toggle or rename. These persist via
-  // the section's own dispatch path (which writes the server record), so they
-  // can't be replayed through the composition snapshot (stripSnapshotForSave
-  // drops name/visibility). Undo/redo re-dispatch with recordHistory:false.
-  | {
-      kind: "sectionMeta";
-      field: "visibility" | "name";
-      sectionId: string;
-      pre: string;
-      post: string;
-      selection?: HistorySelection;
-    };
-
-function cloneSnapshot(s: CompositionSnapshot): CompositionSnapshot {
-  return {
-    metadata: { ...s.metadata },
-    slots: Object.fromEntries(
-      Object.entries(s.slots).map(([k, v]) => [k, v.map((e) => ({ ...e }))]),
-    ),
-  };
-}
-
-function cloneBuilderNodeTree(tree: BuilderNodeTree): BuilderNodeTree {
-  return tree.map((node) => {
-    if ("children" in node && Array.isArray(node.children)) {
-      return {
-        ...node,
-        children: cloneBuilderNodeTree(node.children),
-      };
-    }
-    return { ...node };
-  });
-}
-
-function cloneBuilderNode(node: BuilderNode): BuilderNode {
-  return cloneBuilderNodeTree([node])[0]!;
-}
-
-function findBuilderNodeLocation(
-  tree: ReadonlyArray<BuilderNode>,
-  nodeId: string,
-): {
-  node: BuilderNode;
-  parentId: string | null;
-  index: number;
-  siblingCount: number;
-} | null {
-  function walk(
-    nodes: ReadonlyArray<BuilderNode>,
-    parentId: string | null,
-  ): {
-    node: BuilderNode;
-    parentId: string | null;
-    index: number;
-    siblingCount: number;
-  } | null {
-    for (let index = 0; index < nodes.length; index += 1) {
-      const node = nodes[index]!;
-      if (node.id === nodeId) {
-        return { node, parentId, index, siblingCount: nodes.length };
-      }
-      if ("children" in node && Array.isArray(node.children)) {
-        const nested = walk(node.children, node.id);
-        if (nested) return nested;
-      }
-    }
-    return null;
-  }
-  return walk(tree, null);
-}
-
-function findOwnerSectionIdForBuilderNode(
-  tree: ReadonlyArray<BuilderNode>,
-  nodeId: string,
-): string | null {
-  function walk(
-    nodes: ReadonlyArray<BuilderNode>,
-    currentSectionId: string | null,
-  ): string | null {
-    for (const node of nodes) {
-      const nextSectionId =
-        node.kind === "section"
-          ? node.props.sectionId ?? node.id
-          : currentSectionId;
-      if (node.id === nodeId) return nextSectionId;
-      if ("children" in node && Array.isArray(node.children)) {
-        const nested = walk(node.children, nextSectionId);
-        if (nested) return nested;
-      }
-    }
-    return null;
-  }
-  return walk(tree, null);
-}
-
-function findSiteShellSlotForBuilderNode(
-  tree: ReadonlyArray<BuilderNode>,
-  nodeId: string,
-): "header" | "footer" | null {
-  function walk(
-    nodes: ReadonlyArray<BuilderNode>,
-    currentShellSlot: "header" | "footer" | null,
-  ): "header" | "footer" | null {
-    for (const node of nodes) {
-      const nextShellSlot =
-        node.kind === "section"
-          ? node.props.slotKey === "header" || node.props.slotKey === "footer"
-            ? node.props.slotKey
-            : null
-          : currentShellSlot;
-      if (node.id === nodeId) {
-        return nextShellSlot;
-      }
-      if ("children" in node && Array.isArray(node.children)) {
-        const nested = walk(node.children, nextShellSlot);
-        if (nested) return nested;
-      }
-    }
-    return null;
-  }
-  return walk(tree, null);
-}
-
-function guardBuilderNodeMutation(input: {
-  tree: BuilderNodeTree;
-  operation: BuilderNodeOperationKind;
-  canEditSiteShell: boolean;
-  advancedElementLibraryEnabled: boolean;
-  nodeId?: string;
-  parentId?: string | null;
-}): Extract<BuilderNodeMutationResult, { ok: false }> | null {
-  const advancedGate = assertAdvancedLibraryAllowsOperation(
-    input.operation,
-    input.advancedElementLibraryEnabled,
-  );
-  if (!advancedGate.ok) {
-    return {
-      ok: false,
-      code: "GUARDED_NODE",
-      error: advancedGate.message,
-    };
-  }
-
-  if (input.canEditSiteShell) return null;
-
-  const guardedMessage =
-    "Your current plan cannot edit site shell blocks (header/footer). Upgrade to edit shell structure.";
-
-  if (input.nodeId) {
-    const sourceShellSlot = findSiteShellSlotForBuilderNode(input.tree, input.nodeId);
-    if (sourceShellSlot) {
-      return {
-        ok: false,
-        code: "GUARDED_NODE",
-        error: guardedMessage,
-      };
-    }
-  }
-
-  if (typeof input.parentId === "string") {
-    const targetShellSlot = findSiteShellSlotForBuilderNode(
-      input.tree,
-      input.parentId,
-    );
-    if (targetShellSlot) {
-      return {
-        ok: false,
-        code: "GUARDED_NODE",
-        error: guardedMessage,
-      };
-    }
-  }
-
-  return null;
-}
-
-function builderNodeAllowsChild(
-  parentKind: BuilderNode["kind"],
-  childKind: BuilderNode["kind"],
-): boolean {
-  const policy = BUILDER_NODE_REGISTRY[parentKind].children;
-  if (policy.type === "any") return true;
-  if (policy.type === "none") return false;
-  return policy.kinds.includes(childKind);
-}
-
-function builderNodeLabel(kind: BuilderNode["kind"]): string {
-  return BUILDER_NODE_REGISTRY[kind]?.label ?? kind;
-}
-
-function resolveCopiedBuilderNodePasteTarget(input: {
-  tree: BuilderNodeTree;
-  copiedNode: BuilderNode;
-  targetNodeId?: string | null;
-}):
-  | {
-      ok: true;
-      parentId: string | null;
-      index?: number;
-      preview: BuilderNodePastePreview;
-    }
-  | { ok: false; preview: BuilderNodePastePreview } {
-  const copiedLabel = builderNodeLabel(input.copiedNode.kind);
-
-  if (!input.targetNodeId) {
-    if (builderNodeKindAllowedAtRoot(input.copiedNode.kind)) {
-      return {
-        ok: true,
-        parentId: null,
-        index: undefined,
-        preview: {
-          copiedKind: input.copiedNode.kind,
-          copiedLabel,
-          mode: "append",
-          message: `Paste ${copiedLabel} at the page root.`,
-        },
-      };
-    }
-    return {
-      ok: false,
-      preview: {
-        copiedKind: input.copiedNode.kind,
-        copiedLabel,
-        mode: "blocked",
-        message: `${copiedLabel} needs a compatible parent. Select a section or layout group before pasting.`,
-      },
-    };
-  }
-
-  const location = findBuilderNodeLocation(input.tree, input.targetNodeId);
-  if (!location) {
-    return {
-      ok: false,
-      preview: {
-        copiedKind: input.copiedNode.kind,
-        copiedLabel,
-        mode: "blocked",
-        message: "The selected paste target is no longer on the page.",
-      },
-    };
-  }
-
-  const targetLabel = builderNodeLabel(location.node.kind);
-  if (builderNodeAllowsChild(location.node.kind, input.copiedNode.kind)) {
-    return {
-      ok: true,
-      parentId: location.node.id,
-      index: undefined,
-      preview: {
-        copiedKind: input.copiedNode.kind,
-        copiedLabel,
-        mode: "inside",
-        message: `Paste ${copiedLabel} inside ${targetLabel}.`,
-      },
-    };
-  }
-
-  if (location.parentId === null) {
-    if (builderNodeKindAllowedAtRoot(input.copiedNode.kind)) {
-      return {
-        ok: true,
-        parentId: null,
-        index: location.index + 1,
-        preview: {
-          copiedKind: input.copiedNode.kind,
-          copiedLabel,
-          mode: "after",
-          message: `Paste ${copiedLabel} after ${targetLabel}.`,
-        },
-      };
-    }
-    return {
-      ok: false,
-      preview: {
-        copiedKind: input.copiedNode.kind,
-        copiedLabel,
-        mode: "blocked",
-        message: `${copiedLabel} cannot sit at the page root. Select a section or container.`,
-      },
-    };
-  }
-
-  const parent = findBuilderNodeLocation(input.tree, location.parentId);
-  if (!parent || !builderNodeAllowsChild(parent.node.kind, input.copiedNode.kind)) {
-    return {
-      ok: false,
-      preview: {
-        copiedKind: input.copiedNode.kind,
-        copiedLabel,
-        mode: "blocked",
-        message: `${copiedLabel} cannot be pasted beside ${targetLabel}. Choose a compatible group.`,
-      },
-    };
-  }
-
-  return {
-    ok: true,
-    parentId: location.parentId,
-    index: location.index + 1,
-    preview: {
-      copiedKind: input.copiedNode.kind,
-      copiedLabel,
-      mode: "after",
-      message: `Paste ${copiedLabel} after ${targetLabel}.`,
-    },
-  };
-}
-
-interface EditProviderProps {
-  tenantId: string;
-  workspacePlan?: string | null;
-  /** Falls back to `en` if omitted; edit chrome today operates on the platform default. */
-  locale?: string;
-  /** Tenant default storefront locale (`agency_business_identity`). LocaleSwitcher URLs. */
-  defaultLocale?: string;
-  /** When non-null the editor is on a non-homepage page with this slug.
-   *  Threaded from EditChromeMount via the URL pathname. */
-  pageSlug?: string | null;
-  /** Server-known tenant locales, threaded from EditChromeMount so the
-   *  topbar locale switcher renders on first paint. The composition load
-   *  refreshes this once it lands; this prop just primes it. */
-  initialAvailableLocales?: ReadonlyArray<string>;
-  /**
-   * T1-2 — server-prefetched composition snapshot. When EditChromeMount
-   * resolves the editor while staff is engaged, it loads the composition
-   * server-side and threads it here as the provider's initial state. The
-   * navigator, canvas, add-section drawer, and publish drawer all read
-   * from this context, so seeding it on the server eliminates the "0
-   * sections" first-paint window the audit flagged. Falls back to a
-   * client-side load when this prop is absent (legacy callers, error
-   * recovery, locale switch revalidation).
-   */
-  initialComposition?: CompositionData | null;
-  /** Storefront label threaded from EditChromeMount for top-bar tenant context. */
-  tenantSiteLabel?: string | null;
-  /**
-   * Workspace admin URL segment (`/{slug}/admin/website`, …). Set on agency
-   * storefronts; null on hub — callers fall back to legacy `/admin/site-settings/*`.
-   */
-  workspaceMembershipSlug?: string | null;
-  /** True only for platform owners (super_admin) — gates raw-HTML `code` insertion. */
-  canInsertRawHtmlElements?: boolean;
-  /**
-   * WS1 core-adapter seam — the surface config that specialises this ONE
-   * Page Builder Core for a surface (homepage / cms_page / talent_page /
-   * platform_lab). Every persistence call-site (load / save / save-draft /
-   * restore) routes through `surfaceConfig.surface` (the adapter) instead of
-   * importing the homepage actions directly.
-   *
-   * OPTIONAL with a homepage default: when omitted (every existing storefront
-   * call path), the provider uses `DEFAULT_HOMEPAGE_BUILDER_CONFIG`, whose
-   * adapter is a pure pass-through over the four homepage actions — so the
-   * homepage stays byte-identical. New mount points (BuilderEditorMount) pass
-   * their own config with a different adapter; same provider, zero forked code.
-   */
-  surfaceConfig?: BuilderContextConfig;
-  children: ReactNode;
-}
-
-/**
- * W3 Sub-step C — section_embed reconcile detector.
- *
- * `section_embed` nodes are server-rendered islands: the client canvas
- * (`ClientBuilderCanvas`) renders each one from a `sectionEmbedIslands` map the
- * SERVER pre-rendered, keyed by node id. A purely client-side repaint can paint
- * regular nodes instantly, but it CANNOT conjure an island for a section_embed
- * id the server never rendered (i.e. one created by an add/duplicate). A move
- * keeps the same id, so the cached island repaints client-side — no server
- * round-trip needed. Only a CHANGE TO THE SET of section_embed ids (an id that
- * appears or disappears) requires the server to re-render the storefront RSC
- * tree so the new island exists.
- *
- * Returns true when the section_embed id sets differ between two trees — the
- * signal to eagerly `router.refresh()` (scoped reconcile) so the new island is
- * server-rendered promptly, rather than waiting for the debounced save's
- * trailing refresh. Cheap: O(embed nodes), and embeds are a small minority.
- */
-/** Pure, client-safe section_embed id collector. MUST stay inline / dependency-free:
- *  importing it from section-embed-renderer (server module) leaks "server-only" into
- *  this "use client" file and breaks the production build. */
-function collectSectionEmbedIds(tree: BuilderNodeTree): string[] {
-  const ids: string[] = [];
-  const visit = (node: BuilderNode) => {
-    if (node.kind === "section_embed") ids.push(node.id);
-    if ("children" in node && Array.isArray(node.children)) {
-      for (const child of node.children) visit(child);
-    }
-  };
-  for (const node of tree) visit(node);
-  return ids;
-}
-
-function mutationTouchesSectionEmbedIslandSet(
-  prevTree: BuilderNodeTree,
-  nextTree: BuilderNodeTree,
-): boolean {
-  const prevIds = collectSectionEmbedIds(prevTree);
-  const nextIds = collectSectionEmbedIds(nextTree);
-  if (prevIds.length !== nextIds.length) return true;
-  if (nextIds.length === 0) return false;
-  const prevSet = new Set(prevIds);
-  for (const id of nextIds) {
-    if (!prevSet.has(id)) return true;
-  }
-  return false;
-}
-
-/** Config edits on an existing embed id — island HTML must re-render on the server. */
-function sectionEmbedConfigSignature(tree: BuilderNodeTree): string {
-  const parts: string[] = [];
-  function visit(node: BuilderNode): void {
-    if (node.kind === "section_embed") {
-      parts.push(
-        `${node.id}:${JSON.stringify(node.props.config ?? null)}`,
-      );
-    }
-    if ("children" in node && Array.isArray(node.children)) {
-      for (const child of node.children) visit(child);
-    }
-  }
-  for (const node of tree) visit(node);
-  parts.sort();
-  return parts.join("\n");
-}
-
-function mutationTouchesSectionEmbedConfig(
-  prevTree: BuilderNodeTree,
-  nextTree: BuilderNodeTree,
-): boolean {
-  return sectionEmbedConfigSignature(prevTree) !== sectionEmbedConfigSignature(nextTree);
-}
-
-/** Add Gallery custom sections paint via server HTML on composition-slot pages. */
-function mutationTouchesUnboundGallerySections(
-  prevTree: BuilderNodeTree,
-  nextTree: BuilderNodeTree,
-): boolean {
-  return (
-    unboundGallerySectionIdsSignature(prevTree) !==
-    unboundGallerySectionIdsSignature(nextTree)
-  );
-}
-
-/**
- * WS1 — lazily-built homepage builder config, the EditProvider default when no
- * `surfaceConfig` prop is passed. Computed on first use (NOT at module load) so
- * the import cycle edit-context → homepage-adapter → composition-actions →
- * (section registry) → edit-context never reads a half-initialised export at
- * top level (that would TDZ). The homepage adapter is a pure pass-through, so
- * this default keeps the homepage byte-identical.
- */
-let cachedDefaultHomepageConfig: BuilderContextConfig | null = null;
-function defaultHomepageBuilderConfig(): BuilderContextConfig {
-  if (cachedDefaultHomepageConfig === null) {
-    cachedDefaultHomepageConfig = buildHomepageBuilderConfig(homepageAdapter);
-  }
-  return cachedDefaultHomepageConfig;
-}
-
-/**
- * STYLE-1 — read the page's site-scoped style classes from the local mirror into
- * the `styleClasses` save envelope (or `undefined` when empty). Centralizes the
- * read so every save/publish call site threads the registry identically.
- */
-function styleClassesForSave(pageId: string | null) {
-  const classes = readStyleClasses(pageId);
-  return classes.length > 0 ? toStyleClassRegistry(classes) : undefined;
-}
-
-/** STYLE-1 — read the page's site-scoped presets into the `stylePresets` save
- *  envelope (or `undefined` when empty). */
-function stylePresetsForSave(pageId: string | null) {
-  const registry = readStylePresets(pageId);
-  return presetRegistryHasContent(registry) ? registry : undefined;
-}
 
 export function EditProvider({
   tenantId,
@@ -2307,24 +600,24 @@ export function EditProvider({
   const setMobileEditMode = useCallback(
     (next: boolean) => {
       setMobileEditModeRaw(next);
-      if (next) {
-        // Reuse Wave-2B viewport sync — do NOT duplicate it.
-        setDeviceRaw((prev) => {
-          if (prev !== "mobile") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
-          return "mobile";
-        });
-        // Mobile editing and visitor-preview are mutually exclusive: preview
-        // hides ALL chrome, mobile-edit ADDS a chrome panel. Leave preview.
-        setPreviewingRaw(false);
-        if (typeof document !== "undefined") {
-          delete document.body.dataset.editPreview;
-        }
-      } else {
-        // Return to desktop editing (the pre-feature default canvas).
-        setDeviceRaw((prev) => {
-          if (prev !== "desktop") setPreviewFrame(DEFAULT_PREVIEW_FRAME);
-          return "desktop";
-        });
+      // Pure, unit-tested transition (mobile-edit-mode.ts): a viewport/mode
+      // switch is CLIENT STATE ONLY — it never navigates, pushes a URL, or
+      // toggles a query param (which would remount the editor tree and lose
+      // selection + scroll + undo). We apply the resolved effects through the
+      // same `setDeviceRaw` the topbar switcher uses (reusing the Wave-2B
+      // viewport sync — never duplicating it).
+      const targetDevice = next ? "mobile" : "desktop";
+      setDeviceRaw((prevDevice) => {
+        const t = resolveMobileEditModeTransition(next, prevDevice);
+        if (t.resetPreviewFrame) setPreviewFrame(DEFAULT_PREVIEW_FRAME);
+        return t.device;
+      });
+      const effects = resolveMobileEditModeTransition(next, targetDevice);
+      // Mobile editing and visitor-preview are mutually exclusive: preview
+      // hides ALL chrome, mobile-edit ADDS a chrome panel. Leave preview.
+      if (effects.leavePreview === true) setPreviewingRaw(false);
+      if (effects.clearBodyEditPreview && typeof document !== "undefined") {
+        delete document.body.dataset.editPreview;
       }
     },
     [],
@@ -2610,71 +903,13 @@ export function EditProvider({
   // persisted stack is capped at 10 entries (smaller than the in-memory cap)
   // because serialized snapshots are heavier. We guard with try/catch at every
   // boundary — a storage failure must never break the editor.
-  const UNDO_PERSIST_CAP = 10;
   const undoPersistKey = pageId ? `builder_undo_stack_v1:${pageId}` : null;
 
-  const isKnownHistoryEntry = (e: unknown): e is HistoryEntry =>
-    e !== null &&
-    typeof e === "object" &&
-    "kind" in (e as object) &&
-    ((e as { kind: string }).kind === "composition" ||
-      (e as { kind: string }).kind === "builderTree" ||
-      (e as { kind: string }).kind === "field" ||
-      // W1-T4 — visibility/rename entries survive reload too.
-      (e as { kind: string }).kind === "sectionMeta");
-
-  const [past, setPast] = useState<HistoryEntry[]>(() => {
-    if (!undoPersistKey || typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem(undoPersistKey);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw) as unknown;
-      // W1-T5(a) — the persisted payload is now a VERSIONED envelope
-      // { baseVersion, entries }. A persisted stack's `pre`/`post` trees are
-      // only safe to replay against the page version they were authored on. If
-      // another session (another browser/tab) advanced the page version while
-      // this stack sat in localStorage, replaying it would write a STALE tree
-      // wholesale at the current version — CAS accepts it → silent clobber. So
-      // we DROP the persisted stack whenever its baseVersion ≠ the version we
-      // just loaded. Same-session reloads match (the stack was stamped with the
-      // version current at persist time) and survive.
-      //
-      // Legacy bare-array payloads (pre-W1-T5) have no baseVersion → we cannot
-      // prove they're same-session, so we conservatively drop them once.
-      const loadedVersion = initialComposition?.pageVersion ?? null;
-      let entriesRaw: unknown[] = [];
-      let baseVersion: number | null = null;
-      if (Array.isArray(parsed)) {
-        // Legacy format — unversioned. Drop (can't prove freshness).
-        return [];
-      }
-      if (
-        parsed !== null &&
-        typeof parsed === "object" &&
-        Array.isArray((parsed as { entries?: unknown }).entries)
-      ) {
-        entriesRaw = (parsed as { entries: unknown[] }).entries;
-        const bv = (parsed as { baseVersion?: unknown }).baseVersion;
-        baseVersion = typeof bv === "number" ? bv : null;
-      } else {
-        return [];
-      }
-      // Stale-base guard: only rehydrate when the stamp matches the loaded
-      // version (or we have no loaded version to compare against — first paint).
-      if (
-        loadedVersion !== null &&
-        baseVersion !== null &&
-        baseVersion !== loadedVersion
-      ) {
-        return [];
-      }
-      const valid = entriesRaw.filter(isKnownHistoryEntry);
-      return valid.slice(-UNDO_PERSIST_CAP);
-    } catch {
-      return [];
-    }
-  });
-
+  const [past, setPast] = useState<HistoryEntry[]>(() =>
+    // #18 — rehydrate the persisted undo tail (versioned envelope; see
+    // rehydratePersistedUndoStack for the W1-T5(a)/W1-L2 staleness rules).
+    rehydratePersistedUndoStack({ undoPersistKey, initialComposition }),
+  );
   const [future, setFuture] = useState<HistoryEntry[]>([]);
   const HISTORY_CAP = 50;
   const capHistory = useCallback(
@@ -2708,800 +943,157 @@ export function EditProvider({
     publishCanRedo(future.length > 0);
   }, [past, future]);
 
-  // #18 — Persist `past` to localStorage. We write only the tail
-  // (UNDO_PERSIST_CAP entries) so the serialised size stays small even for
-  // large builder-tree snapshots.
-  //
-  // PERF: the serialize+write used to run SYNCHRONOUSLY on the commit path of
-  // every mutation, blocking the main thread mid-interaction. We now DEBOUNCE
-  // it off the hot path (~500ms after the last change) so a burst of rapid
-  // edits coalesces into a single write. Correctness is preserved by always
-  // serialising the LATEST `past` (read from a ref at flush time) and by
-  // FLUSHING any pending write synchronously on unmount and when the page is
-  // being hidden/unloaded (pagehide + visibilitychange→hidden) — so a reload
-  // immediately after an edit never loses the persisted undo tail.
-  const undoPersistDataRef = useRef<{
-    key: string | null;
-    past: HistoryEntry[];
-    baseVersion: number | null;
-  }>({ key: undoPersistKey, past, baseVersion: pageVersion });
-  useLayoutEffect(() => {
-    undoPersistDataRef.current = {
-      key: undoPersistKey,
-      past,
-      baseVersion: pageVersion,
-    };
+  // #18 — persist `past` to localStorage: debounced off the interaction hot
+  // path, flushed synchronously on unmount / pagehide / visibility→hidden.
+  // Peeled to use-undo-persistence (W4-F2); behavior identical.
+  const { undoPersistDataRef, flushUndoPersist } = useUndoPersistence({
+    undoPersistKey,
+    past,
+    pageVersion,
   });
-  const undoPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const flushUndoPersist = useCallback(() => {
-    if (undoPersistTimerRef.current !== null) {
-      clearTimeout(undoPersistTimerRef.current);
-      undoPersistTimerRef.current = null;
-    }
-    if (typeof window === "undefined") return;
-    const { key, past: latestPast, baseVersion } = undoPersistDataRef.current;
-    if (!key) return;
-    try {
-      const tail = latestPast.slice(-UNDO_PERSIST_CAP);
-      // W1-T5(a) — write a VERSIONED envelope so rehydrate can drop a stack that
-      // a concurrent session has made stale (baseVersion ≠ loaded version).
-      window.localStorage.setItem(
-        key,
-        JSON.stringify({ baseVersion, entries: tail }),
-      );
-    } catch {
-      // Quota exceeded or private-browsing block — silently skip.
-    }
-  }, []);
-
-  // Debounced write — reschedules on every `past` change OR pageVersion change;
-  // the serialize+write runs ~500ms after the last edit, off the interaction hot
-  // path. W1-T5(a): pageVersion is a dep so that after a draft save bumps the
-  // version (which lands ~after the persist debounce that the edit itself armed)
-  // the stack is RE-STAMPED with the session's latest version. Re-stamping with
-  // a newer version + the same entries is always safe (the entries didn't
-  // change; only our knowledge of the current version improved), and it's what
-  // lets a same-session reload match (baseVersion === loaded version) while a
-  // concurrent session's advance is detected as stale.
-  useEffect(() => {
-    if (!undoPersistKey || typeof window === "undefined") return;
-    if (undoPersistTimerRef.current !== null) {
-      clearTimeout(undoPersistTimerRef.current);
-    }
-    undoPersistTimerRef.current = setTimeout(() => {
-      undoPersistTimerRef.current = null;
-      flushUndoPersist();
-    }, 500);
-    return () => {
-      if (undoPersistTimerRef.current !== null) {
-        clearTimeout(undoPersistTimerRef.current);
-        undoPersistTimerRef.current = null;
-      }
-    };
-  }, [past, pageVersion, undoPersistKey, flushUndoPersist]);
-
-  // Flush on unmount and when the page is hidden/unloaded so a reload right
-  // after an edit never loses the persisted undo tail. visibilitychange→hidden
-  // is the reliable signal on mobile/bfcache; pagehide covers desktop unload.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onPageHide = () => flushUndoPersist();
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") flushUndoPersist();
-    };
-    window.addEventListener("pagehide", onPageHide);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      window.removeEventListener("pagehide", onPageHide);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      // Component unmount — write whatever is pending synchronously.
-      flushUndoPersist();
-    };
-  }, [flushUndoPersist]);
-
-  // library overlay target
-  const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(
-    null,
-  );
-
-  // Sprint 3 — section picker popover state. Anchored at the click site of
-  // an inline `+` insertion point (canvas overlay, navigator slot footer).
-  // Distinct from `libraryTarget` so the popover can dismiss without
-  // closing the full modal library, and the modal can be opened directly
-  // (Browse all) without going through the popover.
-  const [pickerPopover, setPickerPopover] = useState<{
-    target: LibraryTarget;
-    x: number;
-    y: number;
-  } | null>(null);
-
-  // publish drawer state
-  const [publishOpen, setPublishOpen] = useState(false);
-
-  // page settings drawer state
-  const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
-
-  const [pagesPickerOpenNonce, setPagesPickerOpenNonce] = useState(0);
-
-  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const [allPagesPanelOpen, setAllPagesPanelOpen] = useState(false);
-  const [brandPanelOpen, setBrandPanelOpen] = useState(false);
-
-  /** Inspector panel starts closed — tab rail only until the operator picks a tab. */
-  const [inspectorDockOpen, setInspectorDockOpenState] = useState(false);
-  const [inspectorRailDocked, setInspectorRailDocked] = useState(false);
-  const [commandDockDocked, setCommandDockDocked] = useState(false);
-  const setInspectorDockOpen = useCallback((open: boolean) => {
-    setInspectorDockOpenState(open);
-    if (!open) setInspectorRailDocked(false);
-  }, []);
-  const toggleInspectorDock = useCallback(() => {
-    setInspectorDockOpenState((prev) => {
-      if (prev) setInspectorRailDocked(false);
-      return !prev;
-    });
-  }, []);
-
-  const [inspectorTabRequest, setInspectorTabRequest] = useState<{
-    tab: "content" | "style" | "layout" | "data" | "responsive" | "motion";
-    nonce: number;
-  } | null>(null);
-  const [inspectorActiveTab, setInspectorActiveTabState] = useState<
-    "content" | "style" | "layout" | "data" | "motion"
-  >("content");
-  const inspectorActiveTabRef = useRef(inspectorActiveTab);
-  useEffect(() => {
-    inspectorActiveTabRef.current = inspectorActiveTab;
-  }, [inspectorActiveTab]);
-  const setInspectorActiveTab = useCallback(
-    (tab: "content" | "style" | "layout" | "data" | "motion") => {
-      inspectorActiveTabRef.current = tab;
-      setInspectorActiveTabState(tab);
-    },
-    [],
-  );
-  const requestInspectorTab = useCallback(
-    (
-      tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
-    ) => {
-      const normalized =
-        tab === "responsive" ? "layout" : tab;
-      setInspectorActiveTab(normalized);
-      setInspectorDockOpen(true);
-      setInspectorTabRequest({
-        tab: normalized,
-        nonce: Date.now(),
-      });
-    },
-    [setInspectorActiveTab, setInspectorDockOpen],
-  );
-  const toggleInspectorTab = useCallback(
-    (
-      tab: "content" | "style" | "layout" | "data" | "responsive" | "motion",
-    ) => {
-      const normalized =
-        tab === "responsive" ? "layout" : tab;
-      setInspectorDockOpenState((open) => {
-        if (open && inspectorActiveTabRef.current === normalized) {
-          setInspectorRailDocked(false);
-          return false;
-        }
-        setInspectorActiveTab(normalized);
-        setInspectorTabRequest({
-          tab: normalized,
-          nonce: Date.now(),
-        });
-        return true;
-      });
-    },
-    [setInspectorActiveTab],
-  );
-
-  // revisions drawer state (Phase 4)
-  const [revisionsOpen, setRevisionsOpen] = useState(false);
-
-  // theme drawer state (Phase 5)
-  const [themeOpen, setThemeOpen] = useState(false);
-
-  // assets drawer state (Phase 7)
-  const [assetsOpen, setAssetsOpen] = useState(false);
-  const [collectionsOpen, setCollectionsOpen] = useState(false);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  // comments drawer state (Phase 11)
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentsFocusSectionId, setCommentsFocusSectionId] = useState<
-    string | null
-  >(null);
-
-  /** Full-screen library / gallery / popover — hide right rails so focus + Escape stack stay sane. */
-  const closeAllRightRailDrawers = useCallback(() => {
-    setPublishOpen(false);
-    setPageSettingsOpen(false);
-    setRevisionsOpen(false);
-    setThemeOpen(false);
-    setAssetsOpen(false);
-    setCollectionsOpen(false);
-    setScheduleOpen(false);
-    setCommentsOpen(false);
-    setCommentsFocusSectionId(null);
-  }, []);
-
-  // command palette state (Phase 8) — centred modal; `openStarterTemplateGallery`
-  // calls `dismissCentredModals` only; right-rail drawers use
-  // `dismissCompetingEditorChrome` (includes gallery + library teardown).
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const openPalette = useCallback(() => setPaletteOpen(true), []);
-  const closePalette = useCallback(() => setPaletteOpen(false), []);
-  const togglePalette = useCallback(
-    () => setPaletteOpen((prev) => !prev),
-    [],
-  );
-
-  // keyboard-shortcuts overlay state (Phase 10) — declared before template
-  // gallery open handler so both modals can be cleared together.
-  const [shortcutOverlayOpen, setShortcutOverlayOpen] = useState(false);
-  const openShortcutOverlay = useCallback(
-    () => setShortcutOverlayOpen(true),
-    [],
-  );
-  const closeShortcutOverlay = useCallback(
-    () => setShortcutOverlayOpen(false),
-    [],
-  );
-  const toggleShortcutOverlay = useCallback(
-    () => setShortcutOverlayOpen((prev) => !prev),
-    [],
-  );
-
-  /** ⌘K palette + ? overlay — hide when opening drawer-scale surfaces. */
-  const dismissCentredModals = useCallback(() => {
-    setPaletteOpen(false);
-    setShortcutOverlayOpen(false);
-  }, []);
-
-  const [starterTemplateGalleryOpen, setStarterTemplateGalleryOpen] =
-    useState(false);
-  const [
+  // ── Editor chrome (drawers / panels / modals / navigator / inspector) ──
+  // Peeled to use-editor-chrome (W4-F2); state shape, mutex choreography and
+  // callback identities are IDENTICAL — the provider re-composes them onto
+  // the context value below.
+  const {
+    libraryTarget,
+    openLibrary,
+    closeLibrary,
+    pickerPopover,
+    openPickerPopover,
+    closePickerPopover,
+    publishOpen,
+    openPublish,
+    closePublish,
+    pageSettingsOpen,
+    openPageSettings,
+    closePageSettings,
+    pagesPickerOpenNonce,
+    requestPagesPickerOpen,
+    searchPanelOpen,
+    toggleSearchPanel,
+    closeSearchPanel,
+    addMenuOpen,
+    toggleAddMenu,
+    closeAddMenu,
+    allPagesPanelOpen,
+    openAllPagesPanel,
+    closeAllPagesPanel,
+    toggleAllPagesPanel,
+    brandPanelOpen,
+    toggleBrandPanel,
+    closeBrandPanel,
+    inspectorTabRequest,
+    requestInspectorTab,
+    toggleInspectorTab,
+    inspectorActiveTab,
+    setInspectorActiveTab,
+    inspectorRailDocked,
+    setInspectorRailDocked,
+    commandDockDocked,
+    setCommandDockDocked,
+    inspectorDockOpen,
+    setInspectorDockOpen,
+    toggleInspectorDock,
+    revisionsOpen,
+    openRevisions,
+    closeRevisions,
+    themeOpen,
+    openTheme,
+    closeTheme,
+    assetsOpen,
+    openAssets,
+    closeAssets,
+    collectionsOpen,
+    openCollections,
+    closeCollections,
+    scheduleOpen,
+    openSchedule,
+    closeSchedule,
+    commentsOpen,
+    commentsFocusSectionId,
+    openComments,
+    openCommentsForSection,
+    closeComments,
+    paletteOpen,
+    openPalette,
+    closePalette,
+    togglePalette,
+    dismissCentredModals,
+    dismissCompetingEditorChrome,
+    starterTemplateGalleryOpen,
     starterTemplateGalleryHighlightedSlug,
-    setStarterTemplateGalleryHighlightedSlug,
-  ] = useState<string | null>(null);
-  const openStarterTemplateGallery = useCallback(
-    (highlightedSlug?: string | null) => {
-      dismissCentredModals();
-      closeAllRightRailDrawers();
-      setLibraryTarget(null);
-      setPickerPopover(null);
-      setStarterTemplateGalleryHighlightedSlug(highlightedSlug ?? null);
-      setStarterTemplateGalleryOpen(true);
-    },
-    [dismissCentredModals, closeAllRightRailDrawers],
-  );
-  const closeStarterTemplateGallery = useCallback(() => {
-    setStarterTemplateGalleryOpen(false);
-    setStarterTemplateGalleryHighlightedSlug(null);
-  }, []);
-
-  /** Right-rail drawer opens — tear down overlapping chrome (execution-plan mutex). */
-  const dismissCompetingEditorChrome = useCallback(() => {
-    dismissCentredModals();
-    closeStarterTemplateGallery();
-    setLibraryTarget(null);
-    setPickerPopover(null);
-  }, [dismissCentredModals, closeStarterTemplateGallery]);
-
-  // structure navigator (Page Structure panel) — CLOSED by default in the
-  // canvas-first model (2026-06 redesign): the slim CommandDock owns the left
-  // edge and launches this panel on click. ⌘\ still toggles it, and inserting
-  // a section still force-opens it via `markNavigatorAddition`.
-  const [navigatorOpen, setNavigatorOpen] = useState(false);
-  const [navigatorWidth, setNavigatorWidthState] = useState(
-    NAVIGATOR_WIDTH_DEFAULT,
-  );
-  const [recentNavigatorAdditions, setRecentNavigatorAdditions] = useState<
-    NavigatorRecentAddition[]
-  >([]);
-  // W3-T1 — most-recently inserted block (id + monotonic nonce), drives the
-  // canvas highlight pulse. A nonce (not a bare id) so re-inserting the same id
-  // still re-fires, and so the pulse effect keys on a fresh value each insert.
-  const [lastInsertedNodeId, setLastInsertedNodeId] = useState<{
-    id: string;
-    nonce: number;
-  } | null>(null);
-  const markNodeInserted = useCallback((nodeId: string) => {
-    setLastInsertedNodeId({ id: nodeId, nonce: Date.now() });
-  }, []);
-  const markNavigatorAddition = useCallback(
-    (
-      sectionId: string,
-      builderNodeId: string | null = null,
-      kind: NavigatorRecentAddition["kind"] = "section",
-    ) => {
-      setNavigatorOpen(true);
-      const nextAddition: NavigatorRecentAddition = {
-        sectionId,
-        builderNodeId,
-        kind,
-        nonce: Date.now(),
-      };
-      setRecentNavigatorAdditions((current) => {
-        const withoutDuplicate = current.filter(
-          (item) =>
-            item.sectionId !== nextAddition.sectionId ||
-            item.builderNodeId !== nextAddition.builderNodeId,
-        );
-        return [nextAddition, ...withoutDuplicate].slice(0, 3);
-      });
-    },
-    [],
-  );
-  const clearNavigatorRecentAdditions = useCallback(() => {
-    setRecentNavigatorAdditions((current) =>
-      current.length === 0 ? current : [],
-    );
-  }, []);
-
-  // W3-T1 — highlight pulse on the just-inserted block. Self-contained (Web
-  // Animations API on the element's own box-shadow — no shared keyframe sheet to
-  // depend on, so it fires whether or not the Layers panel is mounted). Honors
-  // `prefers-reduced-motion` (the new block already appears + is selected; only
-  // the pulse is suppressed). Retries a few frames because the canvas DOM node
-  // can lag the insert by one bridge re-render.
-  useEffect(() => {
-    if (lastInsertedNodeId === null) return;
-    if (typeof document === "undefined" || typeof window === "undefined") return;
-    if (
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return;
-    }
-    const targetId = lastInsertedNodeId.id;
-    let cancelled = false;
-    let attempts = 0;
-    const run = () => {
-      if (cancelled) return;
-      const el = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          `[data-builder-node-id="${CSS.escape(targetId)}"]`,
-        ),
-      ).find(
-        (candidate) =>
-          !candidate.closest(
-            "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
-          ),
-      );
-      if (!el) {
-        if (attempts < 8) {
-          attempts += 1;
-          requestAnimationFrame(run);
-        }
-        return;
-      }
-      if (typeof el.animate !== "function") return;
-      el.animate(
-        [
-          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
-          { boxShadow: "0 0 0 3px rgba(61,79,124,0.55)" },
-          { boxShadow: "0 0 0 0 rgba(61,79,124,0)" },
-        ],
-        { duration: 720, easing: "ease-out", fill: "none" },
-      );
-    };
-    requestAnimationFrame(run);
-    return () => {
-      cancelled = true;
-    };
-  }, [lastInsertedNodeId]);
-
-  const setNavigatorWidth = useCallback((width: number) => {
-    if (!Number.isFinite(width)) return;
-    const rounded = Math.round(width);
-    const clamped = Math.min(
-      NAVIGATOR_WIDTH_MAX,
-      Math.max(NAVIGATOR_WIDTH_MIN, rounded),
-    );
-    setNavigatorWidthState(clamped);
-  }, []);
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(NAVIGATOR_WIDTH_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = Number.parseInt(raw, 10);
-      if (!Number.isFinite(parsed)) return;
-      setNavigatorWidth(parsed);
-    } catch {
-      // Local preference is best-effort only.
-    }
-  }, [setNavigatorWidth]);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        NAVIGATOR_WIDTH_STORAGE_KEY,
-        String(navigatorWidth),
-      );
-    } catch {
-      // Ignore localStorage failures.
-    }
-  }, [navigatorWidth]);
-  const toggleNavigator = useCallback(() => {
-    setNavigatorOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        setSearchPanelOpen(false);
-        setAddMenuOpen(false);
-        setAllPagesPanelOpen(false);
-        setBrandPanelOpen(false);
-      }
-      return next;
-    });
-  }, []);
-
-  const closeSearchPanel = useCallback(() => setSearchPanelOpen(false), []);
-  const toggleSearchPanel = useCallback(() => {
-    setSearchPanelOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        dismissCompetingEditorChrome();
-        closeAllRightRailDrawers();
-        setAddMenuOpen(false);
-        setAllPagesPanelOpen(false);
-        setBrandPanelOpen(false);
-        setNavigatorOpen(false);
-      }
-      return next;
-    });
-  }, [
-    closeAllRightRailDrawers,
-    dismissCompetingEditorChrome,
+    openStarterTemplateGallery,
+    closeStarterTemplateGallery,
+    shortcutOverlayOpen,
+    openShortcutOverlay,
+    closeShortcutOverlay,
+    toggleShortcutOverlay,
+    navigatorOpen,
     setNavigatorOpen,
-  ]);
+    toggleNavigator,
+    navigatorWidth,
+    setNavigatorWidth,
+    recentNavigatorAdditions,
+    clearNavigatorRecentAdditions,
+    markNavigatorAddition,
+    lastInsertedNodeId,
+    markNodeInserted,
+  } = useEditorChrome({ canEditTheme });
 
-  const closeAddMenu = useCallback(() => setAddMenuOpen(false), []);
-  const toggleAddMenu = useCallback(() => {
-    setAddMenuOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        dismissCompetingEditorChrome();
-        closeAllRightRailDrawers();
-        setSearchPanelOpen(false);
-        setAllPagesPanelOpen(false);
-        setBrandPanelOpen(false);
-        setNavigatorOpen(false);
-      }
-      return next;
-    });
-  }, [
-    closeAllRightRailDrawers,
-    dismissCompetingEditorChrome,
-    setNavigatorOpen,
-  ]);
+  // ── Photoshop-style dockable workspace (floating-panel layout) ──────────
+  // Peeled to use-workspace-panels (W4-F2); behavior identical.
+  const {
+    hasSavedWorkspaceLayout,
+    workspaceResetNonce,
+    pinWorkspaceLayout,
+    resetWorkspaceLayout,
+    getSavedPanelOffset,
+    registerWorkspacePanel,
+    getOtherWorkspacePanelRects,
+    registerWorkspacePanelOffset,
+    applyWorkspacePanelOffsetDelta,
+    setWorkspacePanelOffset,
+    getWorkspacePanelOffset,
+    getWorkspacePanelRect,
+  } = useWorkspacePanels();
 
-  const closeAllPagesPanel = useCallback(() => setAllPagesPanelOpen(false), []);
-  const openAllPagesPanel = useCallback(() => {
-    dismissCompetingEditorChrome();
-    closeAllRightRailDrawers();
-    setSearchPanelOpen(false);
-    setAddMenuOpen(false);
-    setBrandPanelOpen(false);
-    setNavigatorOpen(false);
-    setAllPagesPanelOpen(true);
-  }, [
-    closeAllRightRailDrawers,
-    dismissCompetingEditorChrome,
-    setNavigatorOpen,
-  ]);
-  const toggleAllPagesPanel = useCallback(() => {
-    setAllPagesPanelOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        dismissCompetingEditorChrome();
-        closeAllRightRailDrawers();
-        setSearchPanelOpen(false);
-        setAddMenuOpen(false);
-        setBrandPanelOpen(false);
-        setNavigatorOpen(false);
-      }
-      return next;
-    });
-  }, [
-    closeAllRightRailDrawers,
-    dismissCompetingEditorChrome,
-    setNavigatorOpen,
-  ]);
-
-  const closeBrandPanel = useCallback(() => setBrandPanelOpen(false), []);
-  const toggleBrandPanel = useCallback(() => {
-    setBrandPanelOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        dismissCompetingEditorChrome();
-        closeAllRightRailDrawers();
-        setSearchPanelOpen(false);
-        setAddMenuOpen(false);
-        setAllPagesPanelOpen(false);
-        setNavigatorOpen(false);
-      }
-      return next;
-    });
-  }, [
-    closeAllRightRailDrawers,
-    dismissCompetingEditorChrome,
-    setNavigatorOpen,
-  ]);
-
-  // ── Photoshop-style dockable workspace ─────────────────────────────────
-  // The pinned layout is read ONCE on mount (so panels can seed their initial
-  // offset synchronously via getSavedPanelOffset) and held in a ref. Pin
-  // rewrites it from the live panel offsets; Reset clears it + bumps a nonce
-  // the panels watch to snap home. Each floating panel registers a pair of
-  // getters (live offset + live rect) so Pin can snapshot every panel and the
-  // magnet can edge-align against the others.
-  const layoutStorage = useMemo<LayoutStorage | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      // Touch it once so a SecurityError (disabled storage) degrades to null
-      // here rather than throwing on every save.
-      return window.localStorage;
-    } catch {
-      return null;
-    }
-  }, []);
-  // The pinned layout is read ONCE via a lazy useState initializer so the
-  // panels' own initial `useState(seed)` reads it through getSavedPanelOffset
-  // on their first render (before paint) — no flash of the home position, and
-  // no ref-access-during-render. Pin rewrites it; Reset clears it + bumps a
-  // nonce the panels watch to snap home.
-  const [savedWorkspaceLayout, setSavedWorkspaceLayout] =
-    useState<WorkspaceLayoutV1 | null>(() => loadWorkspaceLayout(layoutStorage));
-  const hasSavedWorkspaceLayout = savedWorkspaceLayout != null;
-  const [workspaceResetNonce, setWorkspaceResetNonce] = useState(0);
-  // Live panel registry (getOffset + getRect per panel). A ref because it is
-  // only ever read/written from event handlers (Pin) + the magnet move loop,
-  // never during render.
-  const workspacePanelsRef = useRef<
-    Map<
-      string,
-      {
-        getOffset: () => PanelOffset;
-        getRect: () => { left: number; top: number; width: number; height: number } | null;
-      }
-    >
-  >(new Map());
-  const workspacePanelOffsetSettersRef = useRef<
-    Map<
-      string,
-      (next: PanelOffset | ((prev: PanelOffset) => PanelOffset)) => void
-    >
-  >(new Map());
-
-  const registerWorkspacePanelOffset = useCallback<
-    EditContextValue["registerWorkspacePanelOffset"]
-  >((panelId, setOffset) => {
-    workspacePanelOffsetSettersRef.current.set(panelId, setOffset);
-    return () => {
-      if (workspacePanelOffsetSettersRef.current.get(panelId) === setOffset) {
-        workspacePanelOffsetSettersRef.current.delete(panelId);
-      }
-    };
-  }, []);
-
-  const getWorkspacePanelOffset = useCallback<
-    EditContextValue["getWorkspacePanelOffset"]
-  >((panelId) => {
-    return workspacePanelsRef.current.get(panelId)?.getOffset() ?? null;
-  }, []);
-
-  const getWorkspacePanelRect = useCallback<
-    EditContextValue["getWorkspacePanelRect"]
-  >((panelId) => {
-    return workspacePanelsRef.current.get(panelId)?.getRect() ?? null;
-  }, []);
-
-  const setWorkspacePanelOffset = useCallback<
-    EditContextValue["setWorkspacePanelOffset"]
-  >((panelId, offset) => {
-    const setter = workspacePanelOffsetSettersRef.current.get(panelId);
-    setter?.(offset);
-  }, []);
-
-  const applyWorkspacePanelOffsetDelta = useCallback<
-    EditContextValue["applyWorkspacePanelOffsetDelta"]
-  >((panelId, delta) => {
-    const setter = workspacePanelOffsetSettersRef.current.get(panelId);
-    if (!setter) return;
-    setter((prev) => ({
-      x: prev.x + delta.x,
-      y: prev.y + delta.y,
-    }));
-  }, []);
-
-  const getSavedPanelOffset = useCallback<
-    EditContextValue["getSavedPanelOffset"]
-  >(
-    (panelId) => savedOffsetForPanel(savedWorkspaceLayout, panelId),
-    [savedWorkspaceLayout],
-  );
-
-  const registerWorkspacePanel = useCallback<
-    EditContextValue["registerWorkspacePanel"]
-  >((panelId, handles) => {
-    workspacePanelsRef.current.set(panelId, handles);
-    return () => {
-      // Only delete if this exact registration is still current (a remount can
-      // register the replacement before the old cleanup runs).
-      if (workspacePanelsRef.current.get(panelId) === handles) {
-        workspacePanelsRef.current.delete(panelId);
-      }
-    };
-  }, []);
-
-  const getOtherWorkspacePanelRects = useCallback<
-    EditContextValue["getOtherWorkspacePanelRects"]
-  >((panelId) => {
-    const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
-    for (const [id, handles] of workspacePanelsRef.current) {
-      if (id === panelId) continue;
-      const rect = handles.getRect();
-      if (rect) rects.push(rect);
-    }
-    return rects;
-  }, []);
-
-  const pinWorkspaceLayout = useCallback<
-    EditContextValue["pinWorkspaceLayout"]
-  >(() => {
-    const panels: Record<string, PanelOffset> = {};
-    for (const [id, handles] of workspacePanelsRef.current) {
-      panels[id] = handles.getOffset();
-    }
-    const saved = saveWorkspaceLayout(layoutStorage, panels);
-    if (saved) {
-      setSavedWorkspaceLayout({ version: 1, panels });
-    }
-  }, [layoutStorage]);
-
-  const resetWorkspaceLayout = useCallback<
-    EditContextValue["resetWorkspaceLayout"]
-  >(() => {
-    clearWorkspaceLayout(layoutStorage);
-    setSavedWorkspaceLayout(null);
-    // Bump the nonce so every floating panel snaps its session offset home.
-    setWorkspaceResetNonce((n) => n + 1);
-  }, [layoutStorage]);
-
-  // Most recent mutation error. Auto-clears after 5s — the operator
-  // probably already undid or retried, and we'd rather err toward quiet
-  // than keep a stale error chip up.
-  const [mutationError, setMutationError] = useState<EditMutationError | null>(
-    null,
-  );
-  const lastMutationErrorRef = useRef<{
-    fingerprint: string;
-    at: number;
-  } | null>(null);
-  // W3-T2(c/d) — the operator's tree that lost a CAS race, parked so the
-  // conflict toast can re-apply it on the reloaded base ("Keep my version").
+  // W3-T2(c/d) / W1-L2 — the operator's tree that lost a genuine CAS race,
+  // parked while the conflict toast offers "Reload latest" / "Keep editing
+  // this copy" (the local tree stays applied; nothing auto-reloads).
   // A ref holds the (large) tree; a boolean state drives the toast affordance.
   const conflictRecoveryTreeRef = useRef<BuilderNodeTree | null>(null);
   const [hasConflictRecovery, setHasConflictRecovery] = useState(false);
-  const reportMutationError = useCallback(
-    (message: string | EditMutationError) => {
-      const normalized = normalizeMutationError(message);
-      // Benign no-op edits (re-applying identical props, or a UI gesture that
-      // re-sends current values) are NOT failures — never surface a toast.
-      if (
-        normalized.code === "NO_CHANGE" ||
-        /no changes to apply/i.test(normalized.message ?? "")
-      ) {
-        return;
-      }
-      const fingerprint = mutationErrorFingerprint(normalized);
-      const now = Date.now();
-      const previous = lastMutationErrorRef.current;
-      // De-noise repeated failures fired in the same user gesture cycle
-      // (e.g. keyboard-repeat at layout boundaries). Keep the first toast
-      // visible and avoid replacing it with identical copies.
-      if (
-        previous &&
-        previous.fingerprint === fingerprint &&
-        now - previous.at < 1200
-      ) {
-        return;
-      }
-      lastMutationErrorRef.current = { fingerprint, at: now };
-      setMutationError(normalized);
-    },
-    [],
-  );
-  const clearMutationError = useCallback(() => {
-    setMutationError(null);
-    // W3-T2 — dismissing the conflict toast means "go with the reloaded
-    // (latest) version", so drop the parked recovery tree too.
+  // W3-T2 — dismissing the mutation-error toast while a conflict is parked
+  // means "go with the reloaded (latest) version" → drop the recovery tree.
+  const dropConflictRecoveryOnErrorDismiss = useCallback(() => {
     if (conflictRecoveryTreeRef.current !== null) {
       conflictRecoveryTreeRef.current = null;
       setHasConflictRecovery(false);
     }
   }, []);
-  useEffect(() => {
-    if (!mutationError) return;
-    // W3-T2(b) — recoverable, decision-bearing failures (a co-editor's save
-    // wins → VERSION_CONFLICT; the draft didn't persist → SAVE_FAILED) must NOT
-    // auto-dismiss. They offer a real choice (reload latest / keep my version)
-    // and disappearing on a 5s timer would silently swallow that choice. Every
-    // other (advisory) code keeps the existing 5s ttl so transient gesture
-    // errors don't squat the layout.
-    if (
-      mutationError.code === "VERSION_CONFLICT" ||
-      mutationError.code === "SAVE_FAILED"
-    ) {
-      return;
-    }
-    const t = setTimeout(() => setMutationError(null), 5000);
-    return () => clearTimeout(t);
-  }, [mutationError]);
-
-  // Most recent successful Save draft press. Auto-clears after 4s so the
-  // chip doesn't squat the layout — the operator has already moved on.
-  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<string | null>(null);
-  const clearDraftSavedToast = useCallback(() => setLastDraftSavedAt(null), []);
-  useEffect(() => {
-    if (!lastDraftSavedAt) return;
-    const t = setTimeout(() => setLastDraftSavedAt(null), 4000);
-    return () => clearTimeout(t);
-  }, [lastDraftSavedAt]);
-
-  // CANVAS-4 — the shared "Template applied — Undo?" toast. Set by
-  // applyTemplateWithUndo on every surface; auto-clears after 8s (longer than
-  // the 4s Saved chip so the operator has a real window to reconsider a
-  // whole-page replace). The Undo button in the toast calls undo().
-  const [templateAppliedToast, setTemplateAppliedToast] = useState<
-    { label: string } | null
-  >(null);
-  const clearTemplateAppliedToast = useCallback(
-    () => setTemplateAppliedToast(null),
-    [],
-  );
-  const notifyTemplateApplied = useCallback(
-    (label: string) => setTemplateAppliedToast({ label }),
-    [],
-  );
-  useEffect(() => {
-    if (!templateAppliedToast) return;
-    const t = setTimeout(() => setTemplateAppliedToast(null), 8000);
-    return () => clearTimeout(t);
-  }, [templateAppliedToast]);
-
-  // CANVAS-7 — the shared clipboard-success toast. Raised by the copy/cut/
-  // paste/duplicate chokepoints below via `notifyClipboardAction`. The `nonce`
-  // bump makes a copy→paste burst coalesce into ONE chip whose auto-hide timer
-  // re-arms on each gesture (the effect re-runs on the nonce change), so a
-  // rapid sequence never stacks multiple toasts. 3.2s window — long enough to
-  // read, short enough to stay out of the way.
-  const [clipboardActionToast, setClipboardActionToast] =
-    useState<BuilderClipboardActionToast | null>(null);
-  const clipboardActionNonceRef = useRef(0);
-  const clearClipboardActionToast = useCallback(
-    () => setClipboardActionToast(null),
-    [],
-  );
-  const notifyClipboardAction = useCallback(
-    (action: BuilderClipboardAction, count: number) => {
-      clipboardActionNonceRef.current += 1;
-      setClipboardActionToast({
-        action,
-        count: Math.max(1, count),
-        nonce: clipboardActionNonceRef.current,
-      });
-    },
-    [],
-  );
-  useEffect(() => {
-    if (!clipboardActionToast) return;
-    const t = setTimeout(() => setClipboardActionToast(null), 3200);
-    return () => clearTimeout(t);
-  }, [clipboardActionToast]);
+  // Transient feedback (mutation-error / saved-draft / template-applied /
+  // clipboard toasts) — peeled to use-editor-toasts (W4-F2). The four bespoke
+  // setTimeout auto-hides are now ONE useTransientState primitive there;
+  // ttls, re-arm semantics and the sticky-conflict exemption are identical.
+  const {
+    mutationError,
+    reportMutationError,
+    clearMutationError,
+    lastDraftSavedAt,
+    setLastDraftSavedAt,
+    clearDraftSavedToast,
+    templateAppliedToast,
+    setTemplateAppliedToast,
+    clearTemplateAppliedToast,
+    notifyTemplateApplied,
+    clipboardActionToast,
+    clearClipboardActionToast,
+    notifyClipboardAction,
+  } = useEditorToasts({
+    onDismissMutationError: dropConflictRecoveryOnErrorDismiss,
+  });
 
   // beforeunload guard. When the inspector has un-persisted section edits
   // (`dirty`) or a save is in flight (`saving`), nudge the operator with
@@ -4050,39 +1642,50 @@ export function EditProvider({
     setCompositionError(null);
   }, []);
 
-  const refreshComposition = useCallback(async () => {
-    setCompositionLoading(true);
-    try {
-      const res = await surfaceAdapter.load({ locale, pageSlug, pageId });
-      if (res.ok) {
-        applyComposition(res.data);
-        // Reloading authoritative state also clears history — the stack
-        // captures only session-local mutations and stale snapshots would
-        // confuse undo after a concurrent edit.
-        //
-        // W1-T5(b) — when this wipe actually DISCARDS undo/redo work (the
-        // page changed elsewhere and we reloaded), it used to be silent: the
-        // operator's ⌘Z stack vanished with no explanation. Surface a toast so
-        // the reset is understood, not mysterious. (The wipe itself stays — a
-        // stale stack is dangerous to replay; W0-T4 pins this behavior.)
-        if (historyDepthRef.current > 0) {
-          reportMutationError(
-            "Undo history was reset because this page changed in another tab or session.",
-          );
+  const refreshComposition = useCallback(
+    async (opts?: { undoResetReason?: "conflict" | "reload" }) => {
+      setCompositionLoading(true);
+      try {
+        const res = await surfaceAdapter.load({ locale, pageSlug, pageId });
+        if (res.ok) {
+          applyComposition(res.data);
+          // Reloading authoritative state also clears history — the stack
+          // captures only session-local mutations and stale snapshots would
+          // confuse undo after a concurrent edit.
+          //
+          // W1-T5(b) — when this wipe actually DISCARDS undo/redo work, it used
+          // to be silent: the operator's ⌘Z stack vanished with no explanation.
+          // Surface a toast so the reset is understood, not mysterious. (The
+          // wipe itself stays — a stale stack is dangerous to replay; W0-T4
+          // pins this behavior.)
+          //
+          // W1-L2 — the explanation is now HONEST about why: only a genuine
+          // cross-session conflict says "changed in another tab or session";
+          // every other reload (publish, restore, locale switch, explicit
+          // refresh) says the editor reloaded the page. The old copy blamed a
+          // phantom second tab for the editor's own reloads.
+          if (historyDepthRef.current > 0) {
+            reportMutationError(
+              opts?.undoResetReason === "conflict"
+                ? "Undo history was reset because this page changed in another tab or session."
+                : "Undo history was reset because the editor reloaded this page.",
+            );
+          }
+          setPast([]);
+          setFuture([]);
+        } else {
+          setCompositionError(res.error);
         }
-        setPast([]);
-        setFuture([]);
-      } else {
-        setCompositionError(res.error);
+      } catch (err) {
+        setCompositionError(
+          err instanceof Error ? err.message : "Couldn't load the page. Try again.",
+        );
+      } finally {
+        setCompositionLoading(false);
       }
-    } catch (err) {
-      setCompositionError(
-        err instanceof Error ? err.message : "Couldn't load the page — try again.",
-      );
-    } finally {
-      setCompositionLoading(false);
-    }
-  }, [locale, pageSlug, pageId, surfaceAdapter, applyComposition, reportMutationError]);
+    },
+    [locale, pageSlug, pageId, surfaceAdapter, applyComposition, reportMutationError],
+  );
 
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
@@ -4116,38 +1719,15 @@ export function EditProvider({
     void refreshComposition();
   }, [locale, refreshComposition]);
 
-  // Empty-canvas starter bridge:
-  // the starter card is rendered in the storefront tree (not inside
-  // EditProvider), so after it applies a starter we listen for its window
-  // event and refresh both composition state and server-rendered canvas here.
-  // Saved workspace templates cannot mount on that card (no context); CTAs
-  // dispatch IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT so we open the shell modal here.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    // QA 2026-05-13 — unmount guard. The IIFE could resolve AFTER the
-    // EditProvider unmounted (operator navigated away mid-starter-apply),
-    // firing `queueRouterRefresh` against a detached router and
-    // dispatching `impronta:starter-sync-complete` into a dead tree.
-    let unmounted = false;
-    const onStarterApplied = () => {
-      void (async () => {
-        await refreshComposition();
-        if (unmounted) return;
-        void queueRouterRefresh();
-        window.dispatchEvent(new CustomEvent("impronta:starter-sync-complete"));
-      })();
-    };
-    const onOpenTemplateGallery = () => {
-      openStarterTemplateGallery(null);
-    };
-    window.addEventListener("impronta:starter-applied", onStarterApplied);
-    window.addEventListener(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, onOpenTemplateGallery);
-    return () => {
-      unmounted = true;
-      window.removeEventListener("impronta:starter-applied", onStarterApplied);
-      window.removeEventListener(IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT, onOpenTemplateGallery);
-    };
-  }, [openStarterTemplateGallery, refreshComposition, queueRouterRefresh]);
+  // Empty-canvas starter bridge — the `impronta:starter-*` window CustomEvent
+  // bus (the starter card mounts in the STOREFRONT tree, outside this
+  // provider, so context callbacks cannot reach it). Peeled to
+  // use-starter-sync (W4-F2); listeners, timing and deps are identical.
+  useStarterSyncBridge({
+    refreshComposition,
+    queueRouterRefresh,
+    openStarterTemplateGallery,
+  });
 
   // ── mutation helper ─────────────────────────────────────────────────
   const currentSnapshot = useCallback<() => CompositionSnapshot>(() => {
@@ -4534,7 +2114,7 @@ export function EditProvider({
           // the previous bespoke removeSection).
           const targetId = mutation.sectionId;
           const dm = dispatchMutationRef.current;
-          if (!dm) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!dm) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await dm((prev) => {
             const nextSlots: Record<string, CompositionSectionRef[]> = {};
             let removed = false;
@@ -4552,14 +2132,14 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't remove this section — try again.",
+            error: result.error ?? "Couldn't remove this section. Try again.",
           };
         }
 
         case "composition.metadata": {
           const { metadata } = mutation;
           const dm = dispatchMutationRef.current;
-          if (!dm) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!dm) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await dm((prev) => ({
             ...prev,
             // Mutation type uses `Record<string, unknown>` to keep the
@@ -4574,7 +2154,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't save your changes — try again.",
+            error: result.error ?? "Couldn't save your changes. Try again.",
           };
         }
 
@@ -4584,7 +2164,7 @@ export function EditProvider({
           // breaks the temporal-dead-zone (moveSectionTo declared
           // below dispatch in the file).
           const fn = moveSectionToRef.current;
-          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!fn) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await fn(
             mutation.sectionId,
             mutation.targetSlotKey,
@@ -4596,7 +2176,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't move this section — try again.",
+            error: result.error ?? "Couldn't move this section. Try again.",
           };
         }
 
@@ -4606,7 +2186,7 @@ export function EditProvider({
           // newSectionId on the unified DispatchResult envelope so the
           // chip / picker can promote the new section to selection.
           const fn = insertSectionRef.current;
-          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!fn) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await fn(mutation.target, mutation.sectionTypeKey);
           if (result.ok) {
             recordDispatchAudit(result.newSectionId ?? null);
@@ -4614,7 +2194,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't add this section — try again.",
+            error: result.error ?? "Couldn't add this section. Try again.",
           };
         }
 
@@ -4623,7 +2203,7 @@ export function EditProvider({
           // (server-generated id, splice into slots, surface
           // newSectionId).
           const fn = duplicateSectionRef.current;
-          if (!fn) return { ok: false, error: "The editor is still starting — try again in a second." };
+          if (!fn) return { ok: false, error: "The editor is still starting. Try again in a second." };
           const result = await fn(mutation.sectionId);
           if (result.ok) {
             recordDispatchAudit(result.newSectionId ?? mutation.sectionId);
@@ -4631,7 +2211,7 @@ export function EditProvider({
           }
           return {
             ok: false,
-            error: result.error ?? "Couldn't duplicate this section — try again.",
+            error: result.error ?? "Couldn't duplicate this section. Try again.",
           };
         }
 
@@ -4639,7 +2219,7 @@ export function EditProvider({
           return {
             ok: false,
             error:
-              "This edit is not available yet — reload the page and try again.",
+              "This edit is not available yet. Reload the page and try again.",
             code: "NOT_ROUTED",
           };
       }
@@ -4673,11 +2253,11 @@ export function EditProvider({
       compute: (prev: CompositionSnapshot) => CompositionSnapshot | null,
     ): Promise<{ ok: boolean; error?: string }> => {
       if (pageVersionRef.current === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
       const nextRaw = compute(snap);
-      if (!nextRaw) return { ok: false, error: "Nothing changed — try again if that was unexpected." };
+      if (!nextRaw) return { ok: false, error: "Nothing changed. Try again if that was unexpected." };
       const normalizedSlots = normalizeCompositionSlots(nextRaw.slots);
       const next = { ...nextRaw, slots: normalizedSlots };
 
@@ -4708,7 +2288,7 @@ export function EditProvider({
         setSlotsAndBuilderTree(snap.slots);
         setPageMetadata(snap.metadata);
         setPast((p) => p.slice(0, -1));
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
 
       const save = await safeAction(
@@ -4723,6 +2303,9 @@ export function EditProvider({
               builderTree: builderTreeForSave,
               styleClasses: styleClassesForSave(pageId),
               stylePresets: stylePresetsForSave(pageId),
+              // WS1-D / W1-L2 — stamp the write with this tab's session token
+              // + seq so structural section ops keep the LWW/adoption lane.
+              editSession: nextEditSession(),
             },
           ),
         {
@@ -4731,7 +2314,7 @@ export function EditProvider({
           fallback: {
             ok: false as const,
             error:
-              "Network error — your draft could not be saved. Refresh and try again.",
+              "Network error. Your draft could not be saved. Refresh and try again.",
             code: "network",
           },
         },
@@ -4743,7 +2326,7 @@ export function EditProvider({
         setPageMetadata(snap.metadata);
         setPast((p) => p.slice(0, -1));
         if (save.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(save.error);
         return { ok: false, error: save.error };
@@ -4765,6 +2348,8 @@ export function EditProvider({
       setSlotsAndBuilderTree,
       reportMutationError,
       captureHistorySelection,
+      // WS1-D / W1-L2 — session stamp for structural composition writes.
+      nextEditSession,
     ],
   );
 
@@ -4780,7 +2365,7 @@ export function EditProvider({
     async (target, sectionTypeKey, options) => {
       const activePageVersion = pageVersionRef.current;
       if (activePageVersion === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
       // capture history + clear future BEFORE the round-trip so if the
@@ -4814,6 +2399,8 @@ export function EditProvider({
             sectionTemplateStarterId: options?.sectionTemplateStarterId ?? null,
             sectionTemplateStarterStylePresetId:
               options?.sectionTemplateStarterStylePresetId ?? null,
+            // WS1-D / W1-L2 — stamp the write with this tab's session token + seq.
+            editSession: nextEditSession(),
           }),
         {
           name: "createAndInsertSectionAction",
@@ -4831,7 +2418,7 @@ export function EditProvider({
       if (!res.ok) {
         setPast((p) => p.slice(0, -1));
         if (res.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(res.error);
         return { ok: false, error: res.error };
@@ -4886,6 +2473,8 @@ export function EditProvider({
       setSelectedSectionId,
       markNavigatorAddition,
       captureHistorySelection,
+      // WS1-D / W1-L2 — session stamp for the insert write.
+      nextEditSession,
     ],
   );
 
@@ -4909,7 +2498,7 @@ export function EditProvider({
   const duplicateSection = useCallback<EditContextValue["duplicateSection"]>(
     async (sectionId) => {
       if (pageVersion === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       const snap = currentSnapshot();
       setPast((p) =>
@@ -4936,13 +2525,15 @@ export function EditProvider({
         // this callback (and rebuild the value memo via its 1 call-site).
         builderTree: builderTreeRef.current,
         sourceSectionId: sectionId,
+        // WS1-D / W1-L2 — stamp the write with this tab's session token + seq.
+        editSession: nextEditSession(),
       });
       setSaving(false);
 
       if (!res.ok) {
         setPast((p) => p.slice(0, -1));
         if (res.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(res.error);
         return { ok: false, error: res.error };
@@ -5005,6 +2596,8 @@ export function EditProvider({
       setSelectedSectionId,
       markNavigatorAddition,
       captureHistorySelection,
+      // WS1-D / W1-L2 — session stamp for the duplicate write.
+      nextEditSession,
     ],
   );
 
@@ -5169,7 +2762,7 @@ export function EditProvider({
         return {
           ok: false as const,
           code: "SAVE_FAILED" as const,
-          error: "This page is still loading — try again in a moment.",
+          error: "This page is still loading. Try again in a moment.",
         };
       }
       const prevTree = rollbackTarget ?? builderTreeRef.current;
@@ -5201,7 +2794,7 @@ export function EditProvider({
           fallback: {
             ok: false as const,
             error:
-              "Network error — your block changes could not be saved. Refresh and try again.",
+              "Network error. Your block changes could not be saved. Refresh and try again.",
             code: "network",
           },
         },
@@ -5230,17 +2823,27 @@ export function EditProvider({
       }
       setSaving(false);
       if (!save.ok) {
-        builderTreeRef.current = prevTree;
-        setBuilderTree(prevTree);
         if (save.code === "VERSION_CONFLICT") {
-          // W3-T2(c/d) — park the operator's rejected tree BEFORE the reload
-          // overwrites local state, so "Keep my version" can re-apply it on the
-          // fresh base. The reload pulls in the co-editor's authoritative state
-          // (so "Reload latest" is just dismiss); the toast then offers the
-          // choice instead of silently winning for the other tab.
+          // W3-T2 — CONFLICT RECOVERY. A genuine cross-session conflict (the
+          // server's same-session adoption lane already absorbs the editor's own
+          // reload/beacon case) rolls the local optimistic tree BACK to the
+          // authoritative server state and wipes undo/redo: a stack that branched
+          // off a tree the server never accepted is dangerous to replay, and the
+          // operator must see what actually landed. `refreshComposition` does all
+          // three — reloads the server composition (reverting the tree), advances
+          // the CAS version to the server's, and resets both history stacks with
+          // an honest "changed in another tab or session" toast.
+          //
+          // Before rolling back we PARK the rejected tree so the conflict is
+          // recoverable, not silently discarded: the toast offers "Keep editing
+          // this copy" (keepMyVersionAfterConflict re-applies the parked tree on
+          // the fresh base and re-issues the save at the reloaded version) or
+          // "Reload latest" (accept the server state, drop the park). The sticky
+          // VERSION_CONFLICT toast keeps the publish drawer blocked until the
+          // operator chooses.
           conflictRecoveryTreeRef.current = nextTree;
           setHasConflictRecovery(true);
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
           const error = formatBuilderNodeMutationError({
             operation: "patch",
             code: "VERSION_CONFLICT",
@@ -5257,6 +2860,8 @@ export function EditProvider({
             error,
           };
         }
+        builderTreeRef.current = prevTree;
+        setBuilderTree(prevTree);
         const error = formatBuilderNodeMutationError({
           operation: "patch",
           code: "SAVE_FAILED",
@@ -5339,9 +2944,10 @@ export function EditProvider({
       pageSlug,
       pageId,
       surfaceAdapter,
-      refreshComposition,
       queueRouterRefresh,
       reportMutationError,
+      // W3-T2 — conflict branch reloads authoritative state + wipes undo.
+      refreshComposition,
       // WS1-D — stamps each save with the per-tab session token + next seq.
       nextEditSession,
       // W1-T5(a) — synchronous undo-stack re-stamp on save success.
@@ -5349,17 +2955,40 @@ export function EditProvider({
     ],
   );
 
-  // W3-T2(c/d) — "Keep my version": re-apply the conflict-rejected tree on top
-  // of the now-reloaded base version. `persistBuilderTree` reads the current
-  // (fresh) `pageVersionRef`, so the CAS re-issue succeeds and the operator's
-  // work survives the race. Clears the recovery on the success path inside
-  // `persistBuilderTree`; on a second conflict it re-parks the latest attempt.
+  // W3-T2(c/d) — "Keep editing this copy": resolve a genuine conflict
+  // in the operator's favour. The conflict branch already rolled the live tree
+  // back to the server state, wiped undo, and advanced the CAS version to the
+  // server's, so here we simply RE-APPLY the parked (rejected) tree on top of
+  // that fresh base and re-issue the save — persistBuilderTree publishes the
+  // parked tree to the canvas and CAS-saves it at the reloaded version. The
+  // overwritten foreign change remains recoverable via Revisions. The recovery
+  // is cleared on the success path inside `persistBuilderTree`; a second
+  // conflict re-parks the latest attempt.
   const keepMyVersionAfterConflict = useCallback(async () => {
-    const parked = conflictRecoveryTreeRef.current;
-    if (parked === null) return;
+    const mine = conflictRecoveryTreeRef.current;
+    if (mine === null) return;
     clearMutationError();
-    await persistBuilderTree(parked);
+    const saved = await persistBuilderTree(mine);
+    if (saved.ok && pendingTreeRef.current === null) {
+      setDirty(false);
+    }
   }, [persistBuilderTree, clearMutationError]);
+
+  // W1-L2 — "Reload latest": resolve a genuine conflict by taking the other
+  // session's state. Discards the local unsaved tree (cancelling any pending
+  // debounced save so it cannot re-save the stale tree after the reload) and
+  // resets undo — refreshComposition explains the reset with a toast.
+  const reloadLatestAfterConflict = useCallback(async () => {
+    if (builderSaveTimerRef.current !== null) {
+      clearTimeout(builderSaveTimerRef.current);
+      builderSaveTimerRef.current = null;
+    }
+    pendingTreeRef.current = null;
+    pendingHistoryCountRef.current = 0;
+    clearMutationError();
+    await refreshComposition({ undoResetReason: "conflict" });
+    setDirty(false);
+  }, [clearMutationError, refreshComposition]);
 
   // ── flush: persist the coalesced pending builder tree NOW ──────────────
   // Cancels any scheduled debounce and enqueues a single `persistBuilderTree`
@@ -5410,6 +3039,17 @@ export function EditProvider({
       // burst's edits, the spinner, and the eventual dirty=false. Touching
       // history/dirty here would double-count or flicker, so bail early.
       if (result && !result.ok && result.code === "ABORTED") {
+        return;
+      }
+      // W3-T2 — a VERSION_CONFLICT is fully handled inside persistBuilderTree:
+      // it rolls the live tree back to the reloaded server state, wipes both
+      // history stacks, parks the rejected tree for recovery, and advances the
+      // CAS version. Nothing is left for the burst handler to undo — the generic
+      // failure rollback below (which pops burstHistoryCount off `past`) would
+      // double-touch the already-wiped stack, so bail early. `dirty` stays TRUE:
+      // the parked edit is unsaved until the operator resolves the conflict, and
+      // the publish drawer + beforeunload guard must both know that.
+      if (result && !result.ok && result.code === "VERSION_CONFLICT") {
         return;
       }
       // persistBuilderTree clears `saving`; mirror dirty so the unsaved-changes
@@ -5538,7 +3178,7 @@ export function EditProvider({
         return {
           ok: false,
           code: "SAVE_FAILED",
-          error: "This page is still loading — try again in a moment.",
+          error: "This page is still loading. Try again in a moment.",
         };
       }
 
@@ -5644,7 +3284,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (targetIndex < 0 || targetIndex >= location.siblingCount) {
@@ -5685,7 +3325,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (targetIndex < 0) {
@@ -5834,7 +3474,7 @@ export function EditProvider({
       if (pageVersionRef.current === null) {
         return {
           ok: false,
-          error: "This page is still loading — try again in a moment.",
+          error: "This page is still loading. Try again in a moment.",
         };
       }
       // Snapshot the pre-apply tree BEFORE the write so Undo restores it intact.
@@ -5900,7 +3540,7 @@ export function EditProvider({
                   ok: false,
                   error:
                     saved.error ??
-                    "Could not apply the design — try again.",
+                    "Could not apply the design. Try again.",
                 };
               }
               return { ok: true, tree: baked.builderTree };
@@ -5930,7 +3570,7 @@ export function EditProvider({
         if (!saved.ok) {
           return {
             ok: false,
-            error: saved.error ?? "Could not apply the page — try again.",
+            error: saved.error ?? "Could not apply the page. Try again.",
           };
         }
         return { ok: true, tree };
@@ -6385,7 +4025,7 @@ export function EditProvider({
       }
       const duplicatedNodeId = duplicated.nodeId ?? null;
       if (!duplicatedNodeId) {
-        return { ok: false, error: "Duplicate did not finish — refresh the page and try again." };
+        return { ok: false, error: "Duplicate did not finish. Refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         duplicated.tree,
@@ -6418,13 +4058,13 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (location.node.kind === "section") {
         return {
           ok: false,
-          error: "To duplicate a whole section, use Duplicate section from the section menu — not Copy block.",
+          error: "To duplicate a whole section, use Duplicate section from the section menu, not Copy block.",
         };
       }
       const copiedNode = cloneBuilderNode(location.node);
@@ -6544,7 +4184,7 @@ export function EditProvider({
       }
       const pastedNodeId = pasted.nodeId ?? null;
       if (!pastedNodeId) {
-        return { ok: false, error: "Paste did not finish — refresh the page and try again." };
+        return { ok: false, error: "Paste did not finish. Refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
@@ -6607,7 +4247,7 @@ export function EditProvider({
       }
       const pastedNodeId = pasted.nodeId ?? null;
       if (!pastedNodeId) {
-        return { ok: false, error: "Paste did not finish — refresh the page and try again." };
+        return { ok: false, error: "Paste did not finish. Refresh the page and try again." };
       }
       const ownerSectionId = findOwnerSectionIdForBuilderNode(
         pasted.tree,
@@ -6700,7 +4340,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       const currentStyle =
@@ -6759,6 +4399,43 @@ export function EditProvider({
     [executeBuilderNodeOperation, runBuilderNodeOp],
   );
 
+  // W3-M3 — one-click "Fix mobile issues". Collect every fixable mobile issue
+  // (the fix resolver consumes the W3-M1 detection contract, it does NOT
+  // re-detect), fold ALL of them into a single next tree, then commit ONCE so
+  // the whole batch is one undoable transaction. `applyMobileFixes` runs each
+  // fix through the real `patch` op (tree validation + copy-on-write spine), so
+  // the committed tree is guaranteed valid; only `responsive.mobile` is written,
+  // the desktop/base style is untouched.
+  const fixAllMobileIssues = useCallback<
+    EditContextValue["fixAllMobileIssues"]
+  >(async () => {
+    const tree = builderTreeRef.current;
+    const fixes = collectMobileFixes(tree);
+    if (fixes.length === 0) {
+      return { ok: true, fixedCount: 0 };
+    }
+    let fixedCount = 0;
+    const applied = await executeBuilderNodeOperation({
+      operation: "patch",
+      run: (currentTree) => {
+        const result = applyMobileFixes(currentTree, fixes);
+        if (!result.ok) {
+          return {
+            ok: false,
+            code: "VALIDATION_FAILED",
+            error: result.error,
+          };
+        }
+        fixedCount = result.appliedCount;
+        return { ok: true, tree: result.tree };
+      },
+    });
+    if (!applied.ok) {
+      return { ok: false, fixedCount: 0, error: applied.error };
+    }
+    return { ok: true, fixedCount };
+  }, [executeBuilderNodeOperation]);
+
   const moveBuilderNodeWithinParent = useCallback<
     EditContextValue["moveBuilderNodeWithinParent"]
   >(
@@ -6768,7 +4445,7 @@ export function EditProvider({
         return {
           ok: false,
           error:
-            "That block was not found on the page — select it on the canvas and try again.",
+            "That block was not found on the page. Select it on the canvas and try again.",
         };
       }
       if (direction === "up" && location.index <= 0) {
@@ -7135,6 +4812,8 @@ export function EditProvider({
               builderTree: builderTreeForSave,
               styleClasses: styleClassesForSave(pageId),
               stylePresets: stylePresetsForSave(pageId),
+              // WS1-D / W1-L2 — stamp the write with this tab's session token + seq.
+              editSession: nextEditSession(),
             },
           ),
         {
@@ -7143,7 +4822,7 @@ export function EditProvider({
           fallback: {
             ok: false as const,
             error:
-              "Network error — undo/redo couldn't reach the server. Refresh and try again.",
+              "Network error. Undo/redo couldn't reach the server. Refresh and try again.",
             code: "network" as const,
           },
         },
@@ -7153,7 +4832,7 @@ export function EditProvider({
         if (save.code === "VERSION_CONFLICT") {
           // Server-driven recovery: refreshComposition replaces local
           // state with authoritative server state.
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         } else {
           // Network / unexpected — revert the optimistic apply so the
           // canvas matches the server's state.
@@ -7166,7 +4845,7 @@ export function EditProvider({
       void queueRouterRefresh();
       return true;
     },
-    [locale, pageSlug, pageId, surfaceAdapter, refreshComposition, queueRouterRefresh, setSlotsAndBuilderTree],
+    [locale, pageSlug, pageId, surfaceAdapter, refreshComposition, queueRouterRefresh, setSlotsAndBuilderTree, nextEditSession],
   );
 
   /**
@@ -7487,122 +5166,6 @@ export function EditProvider({
     [capHistory, captureHistorySelection],
   );
 
-  const openLibrary = useCallback(
-    (target: LibraryTarget) => {
-      dismissCompetingEditorChrome();
-      closeAllRightRailDrawers();
-      setLibraryTarget(target);
-    },
-    [dismissCompetingEditorChrome, closeAllRightRailDrawers],
-  );
-  const closeLibrary = useCallback(() => setLibraryTarget(null), []);
-
-  // Sprint 3 — inline picker popover. The popover is the default
-  // affordance for inline `+` clicks; opening it always closes the full
-  // modal library (so the operator never sees both at once).
-  const openPickerPopover = useCallback(
-    (target: LibraryTarget, x: number, y: number) => {
-      dismissCompetingEditorChrome();
-      closeAllRightRailDrawers();
-      setPickerPopover({ target, x, y });
-    },
-    [dismissCompetingEditorChrome, closeAllRightRailDrawers],
-  );
-  const closePickerPopover = useCallback(() => setPickerPopover(null), []);
-
-  // The right-side drawers all anchor to the same `right: 0` slot. Exactly
-  // one `*Open` flag is true after `showExclusiveRightRailDrawer` — keeps
-  // mutex logic in one place (step toward execution-plan root cause 1).
-  // `dismissCompetingEditorChrome` clears palette / gallery / library first.
-  // The InspectorDock stays selection-driven underneath (higher z-index drawer).
-  const showExclusiveRightRailDrawer = useCallback(
-    (
-      active:
-        | "publish"
-        | "pageSettings"
-        | "revisions"
-        | "theme"
-        | "assets"
-        | "collections"
-        | "schedule"
-        | "comments",
-      commentsSectionFocus?: string | null,
-    ) => {
-      dismissCompetingEditorChrome();
-      setPublishOpen(active === "publish");
-      setPageSettingsOpen(active === "pageSettings");
-      setRevisionsOpen(active === "revisions");
-      setThemeOpen(active === "theme");
-      setAssetsOpen(active === "assets");
-      setCollectionsOpen(active === "collections");
-      setScheduleOpen(active === "schedule");
-      setCommentsOpen(active === "comments");
-      setCommentsFocusSectionId(
-        active === "comments" ? (commentsSectionFocus ?? null) : null,
-      );
-    },
-    [dismissCompetingEditorChrome],
-  );
-
-  const openPublish = useCallback(() => {
-    showExclusiveRightRailDrawer("publish");
-  }, [showExclusiveRightRailDrawer]);
-  const closePublish = useCallback(() => setPublishOpen(false), []);
-
-  const openPageSettings = useCallback(() => {
-    showExclusiveRightRailDrawer("pageSettings");
-  }, [showExclusiveRightRailDrawer]);
-  const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
-
-  const requestPagesPickerOpen = useCallback(() => {
-    openAllPagesPanel();
-    setPagesPickerOpenNonce((n) => n + 1);
-  }, [openAllPagesPanel]);
-
-  const openRevisions = useCallback(() => {
-    showExclusiveRightRailDrawer("revisions");
-  }, [showExclusiveRightRailDrawer]);
-  const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
-
-  const openTheme = useCallback(() => {
-    // Gated on `canEditTheme` (= capabilities.themeTokens || canEditSiteShell).
-    // Talent Max surfaces get themeTokens; the drawer routes to the talent-scoped
-    // backend (talent_pages.theme) via theme-action-scope, so it no longer 401s.
-    if (!canEditTheme) return;
-    showExclusiveRightRailDrawer("theme");
-  }, [canEditTheme, showExclusiveRightRailDrawer]);
-  const closeTheme = useCallback(() => setThemeOpen(false), []);
-
-  const openAssets = useCallback(() => {
-    showExclusiveRightRailDrawer("assets");
-  }, [showExclusiveRightRailDrawer]);
-  const closeAssets = useCallback(() => setAssetsOpen(false), []);
-
-  const openCollections = useCallback(() => {
-    showExclusiveRightRailDrawer("collections");
-  }, [showExclusiveRightRailDrawer]);
-  const closeCollections = useCallback(() => setCollectionsOpen(false), []);
-
-  const openSchedule = useCallback(() => {
-    showExclusiveRightRailDrawer("schedule");
-  }, [showExclusiveRightRailDrawer]);
-  const closeSchedule = useCallback(() => setScheduleOpen(false), []);
-
-  // Comments drawer (Phase 11) — `commentsSectionFocus` null = all threads.
-  const openComments = useCallback(() => {
-    showExclusiveRightRailDrawer("comments", null);
-  }, [showExclusiveRightRailDrawer]);
-  const openCommentsForSection = useCallback(
-    (sectionId: string) => {
-      showExclusiveRightRailDrawer("comments", sectionId);
-    },
-    [showExclusiveRightRailDrawer],
-  );
-  const closeComments = useCallback(() => {
-    setCommentsOpen(false);
-    setCommentsFocusSectionId(null);
-  }, []);
-
   /**
    * Roll the draft back to the chosen revision. Reads `pageVersion` from
    * provider state for CAS — every successful mutation already ratchets
@@ -7613,7 +5176,7 @@ export function EditProvider({
   const restoreRevision = useCallback<EditContextValue["restoreRevision"]>(
     async (revisionId) => {
       if (pageVersion === null) {
-        return { ok: false, error: "This page is still loading — try again in a moment." };
+        return { ok: false, error: "This page is still loading. Try again in a moment." };
       }
       setSaving(true);
       // T4.5: Branch on homepage vs non-homepage page. The homepage is keyed
@@ -7627,7 +5190,7 @@ export function EditProvider({
       // guard on its presence.
       if (!surfaceAdapter.restoreRevision) {
         setSaving(false);
-        const message = "This surface does not support restoring revisions.";
+        const message = "This page doesn't support restoring revisions.";
         reportMutationError(message);
         return { ok: false, error: message };
       }
@@ -7638,7 +5201,7 @@ export function EditProvider({
       setSaving(false);
       if (!res.ok) {
         if (res.code === "VERSION_CONFLICT") {
-          await refreshComposition();
+          await refreshComposition({ undoResetReason: "conflict" });
         }
         reportMutationError(res.error);
         return { ok: false, error: res.error };
@@ -7706,7 +5269,7 @@ export function EditProvider({
         : {
             ok: false,
             error:
-              result.error ?? "Couldn't save your changes — try again.",
+              result.error ?? "Couldn't save your changes. Try again.",
           };
     },
     [dispatch],
@@ -7726,7 +5289,7 @@ export function EditProvider({
     }
     const casVersion = pageVersionRef.current;
     if (casVersion === null) {
-      return { ok: false, error: "This page is still loading — try again in a moment." };
+      return { ok: false, error: "This page is still loading. Try again in a moment." };
     }
     const snap = currentSnapshot();
     setSaving(true);
@@ -7745,6 +5308,9 @@ export function EditProvider({
             ),
             styleClasses: styleClassesForSave(pageId),
             stylePresets: stylePresetsForSave(pageId),
+            // WS1-D / W1-L2 — stamp the explicit Save draft press too, so the
+            // beacon LWW lane + same-session adoption keep working after it.
+            editSession: nextEditSession(),
           },
         ),
       {
@@ -7753,7 +5319,7 @@ export function EditProvider({
         fallback: {
           ok: false as const,
           error:
-            "Network error — your draft could not be saved. Refresh and try again.",
+            "Network error. Your draft could not be saved. Refresh and try again.",
           code: "network",
         },
       },
@@ -7761,7 +5327,18 @@ export function EditProvider({
     setSaving(false);
     if (!res.ok) {
       if (res.code === "VERSION_CONFLICT") {
-        await refreshComposition();
+        // W1-L2 — honest conflict protocol (same as the autosave path): keep
+        // the operator's local state + undo, park the tree, and let the toast
+        // offer "Reload latest" / "Keep editing this copy" instead of the old
+        // silent reload + undo wipe.
+        conflictRecoveryTreeRef.current = builderTreeRef.current;
+        setHasConflictRecovery(true);
+        reportMutationError({
+          message: res.error,
+          operation: "patch",
+          code: "VERSION_CONFLICT",
+        });
+        return { ok: false, error: res.error };
       }
       reportMutationError(res.error);
       return { ok: false, error: res.error };
@@ -7775,8 +5352,8 @@ export function EditProvider({
     pageSlug,
     pageId,
     surfaceAdapter,
-    refreshComposition,
     reportMutationError,
+    nextEditSession,
   ]);
 
   /**
@@ -7902,6 +5479,7 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
+      fixAllMobileIssues,
       // W2-T4 — `dirty` VALUE removed from `value` (lives in dirty-bridge; the 4
       // readers use useDirty()). Setter kept so the public API is unchanged.
       setDirty,
@@ -8092,6 +5670,8 @@ export function EditProvider({
       reportMutationError,
       hasConflictRecovery,
       keepMyVersionAfterConflict,
+      reloadLatestAfterConflict,
+      nextEditSession,
     }),
     [
       tenantId,
@@ -8148,6 +5728,7 @@ export function EditProvider({
       mobileEditMode,
       setMobileEditMode,
       setBuilderNodeMobileStructure,
+      fixAllMobileIssues,
       // W2-T4 — `dirty` removed from the value-memo deps: a dirty flip no longer
       // rebuilds `value`, so non-dirty consumers don't re-render on it.
       saving,
@@ -8327,6 +5908,8 @@ export function EditProvider({
       reportMutationError,
       hasConflictRecovery,
       keepMyVersionAfterConflict,
+      reloadLatestAfterConflict,
+      nextEditSession,
     ],
   );
 

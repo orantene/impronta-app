@@ -1668,6 +1668,18 @@ test("bridge cascade: nodePresentation px-int spacing renders as px CSS through 
   assert.match(html, /padding-bottom:8px/);
 });
 
+test("AIQ-7: paddingY 'xl' renders 6rem (96px); 'l' stays 3rem (byte-stable)", () => {
+  const xl = render([
+    { id: "c1", kind: "container", props: { layout: "stack", style: { paddingY: "xl" } }, children: [] } as BuilderNode,
+  ]);
+  assert.match(xl, /padding-top:6rem/);
+  assert.match(xl, /padding-bottom:6rem/);
+  const l = render([
+    { id: "c2", kind: "container", props: { layout: "stack", style: { paddingY: "l" } }, children: [] } as BuilderNode,
+  ]);
+  assert.match(l, /padding-top:3rem/);
+});
+
 test("bridge cascade: a free fontSize (from fontSizePx) WINS over the size token", () => {
   // size:"sm" is a token preset; fontSizePx:48 is the free escape. The renderer
   // applies the free escape last (documented), so the rendered font-size is 48px.

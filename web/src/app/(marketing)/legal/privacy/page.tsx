@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "Privacy",
-  description: `How ${PLATFORM_BRAND.name} collects, stores, and protects data — in plain language.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, { en: "Privacy", es: "Privacidad" }),
+    description: pickLocale(locale, {
+      en: `How ${PLATFORM_BRAND.name} collects, stores, and protects data, in plain language.`,
+      es: `Cómo ${PLATFORM_BRAND.name} recopila, guarda y protege los datos, explicado en lenguaje claro.`,
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/legal/privacy"),
+  };
+}
 
 export default function PrivacyPage() {
   return (
@@ -15,7 +25,7 @@ export default function PrivacyPage() {
       lastUpdated="2026-04-01"
       intro={
         <p>
-          {PLATFORM_BRAND.name} is a platform for roster-based businesses — coordinators,
+          {PLATFORM_BRAND.name} is a platform for roster-based businesses, coordinators,
           agencies, staffing, casting, and placement organizations. This policy explains the
           data we collect, why we collect it, how we store it, and the controls you have. We
           write these pages in plain language on purpose.
@@ -27,15 +37,15 @@ export default function PrivacyPage() {
           body: (
             <>
               <p>
-                <strong>Account data</strong> — the name, email, and organization details
+                <strong>Account data</strong>, the name, email, and organization details
                 you give us to create an account.
               </p>
               <p>
-                <strong>Content you add</strong> — people profiles, media, inquiries, and
+                <strong>Content you add</strong>, people profiles, media, inquiries, and
                 site configuration. This is yours; we store and render it on your behalf.
               </p>
               <p>
-                <strong>Usage analytics</strong> — aggregate events (page views, CTA clicks,
+                <strong>Usage analytics</strong>, aggregate events (page views, CTA clicks,
                 inquiry funnel steps) that help us improve the product. You can opt out via
                 the consent banner.
               </p>

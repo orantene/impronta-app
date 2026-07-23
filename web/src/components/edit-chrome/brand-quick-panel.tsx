@@ -128,7 +128,17 @@ function LogoQuickField({
   );
 }
 
-export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
+/**
+ * BrandQuickPanelBody — the brand form (logo / name / colors / contact),
+ * decoupled from the floating-panel chrome so it can be hosted either as a
+ * standalone dock panel (legacy {@link BrandQuickPanel}) or as the "Brand"
+ * section of the unified Design panel.
+ *
+ * `active` gates the load effect: the body only fetches header config when it
+ * is the visible surface. All reads/writes go through the SAME governed
+ * site-header actions — this refactor is UI re-home only, no data change.
+ */
+export function BrandQuickPanelBody({ active }: { active: boolean }) {
   const { queueRouterRefresh, tenantId } = useEditContext();
   const [config, setConfig] = useState<SiteHeaderConfig | null>(null);
   const [loading, setLoading] = useState(false);
@@ -137,7 +147,7 @@ export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!active) return;
     setLoading(true);
     setLoadErr(null);
     void loadHeaderConfigAction().then((res) => {
@@ -149,7 +159,7 @@ export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
       }
       setLoading(false);
     });
-  }, [open]);
+  }, [active]);
 
   const scheduleIdentity = useCallback(
     (patch: Omit<Parameters<typeof saveHeaderIdentityAction>[0], "expectedVersion">) => {
@@ -229,18 +239,10 @@ export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
     [config, queueRouterRefresh],
   );
 
-  if (!open) return null;
+  if (!active) return null;
 
   return (
-    <DockFloatingPanel
-      panelId="brand"
-      title="Brand"
-      open={open}
-      onClose={onClose}
-      width={340}
-      testId="brand-quick-panel"
-    >
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[14px] py-[12px]">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[14px] py-[12px]">
         <div className="mb-[10px] flex items-center justify-between gap-[8px]">
           <p className="m-0 text-[11px] leading-snug" style={{ color: CHROME.muted }}>
             Quick brand controls for name, logo, and colors.
@@ -340,7 +342,27 @@ export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
             </Field>
           </div>
         ) : null}
-      </div>
+    </div>
+  );
+}
+
+/**
+ * BrandQuickPanel — legacy standalone dock panel wrapper around
+ * {@link BrandQuickPanelBody}. Retained for back-compat; the unified Design
+ * panel hosts {@link BrandQuickPanelBody} directly.
+ */
+export function BrandQuickPanel({ open, onClose }: BrandQuickPanelProps) {
+  if (!open) return null;
+  return (
+    <DockFloatingPanel
+      panelId="brand"
+      title="Brand"
+      open={open}
+      onClose={onClose}
+      width={340}
+      testId="brand-quick-panel"
+    >
+      <BrandQuickPanelBody active={open} />
     </DockFloatingPanel>
   );
 }

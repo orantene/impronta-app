@@ -8,6 +8,8 @@
 import { loadPlatformCatalogFieldDetail } from "../../../../catalog-field-detail-data";
 import { FieldDrawer } from "../../field-drawer";
 import { FieldDetailView } from "../../[fieldKey]/field-detail-view";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,7 @@ export default async function InterceptedFieldDrawer({
   const { saved, error } = await searchParams;
   const decoded = decodeURIComponent(fieldKey);
   const detail = await loadPlatformCatalogFieldDetail(decoded);
+  const t = createTranslator(await getRequestLocale());
 
   return (
     <FieldDrawer>
@@ -31,6 +34,7 @@ export default async function InterceptedFieldDrawer({
         saved={saved}
         error={error}
         variant="drawer"
+        t={t}
       />
     </FieldDrawer>
   );

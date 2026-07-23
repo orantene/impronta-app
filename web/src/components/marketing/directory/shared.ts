@@ -45,6 +45,12 @@ export type DirectoryCardData = Pick<
   | "headshotUrl"
   | "trustTier"
   | "availableDaysInNext30"
+  // STANDING v3 (item 9): verified review aggregates from the discover matview.
+  // The marketing global directory is the platform marketplace host, so standing
+  // is not tenant-gated here (mirrors fetch-directory-page's platform-host rule);
+  // the row renders a chip only past the credibility floor.
+  | "ratingAvg"
+  | "ratingCount"
 >;
 
 /**

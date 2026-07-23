@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { Icon, SecondaryButton } from "../../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../../state";
 import { type CalendarEvent, type CalendarEventKind } from "./calendar-1";
@@ -58,13 +59,14 @@ export function FilterChipStrip({
   onChange: (f: "booked" | "pending" | "inquiry" | "past" | "cancelled" | "all") => void;
   counts: { booked: number; pending: number; inquiry: number; past: number; cancelled: number; all: number };
 }) {
+  const copy = useDashboardText();
   const chips: { key: typeof filter; label: string; count: number; tone: string }[] = [
-    { key: "booked", label: "Booked", count: counts.booked, tone: COLORS.green },
-    { key: "pending", label: "Pending", count: counts.pending, tone: COLORS.coral },
-    { key: "inquiry", label: "Inquiry", count: counts.inquiry, tone: COLORS.indigo },
-    { key: "cancelled", label: "Cancelled", count: counts.cancelled, tone: COLORS.critical },
-    { key: "past", label: "Past", count: counts.past, tone: COLORS.inkDim },
-    { key: "all", label: "All", count: counts.all, tone: COLORS.ink },
+    { key: "booked", label: copy.t("Booked"), count: counts.booked, tone: COLORS.green },
+    { key: "pending", label: copy.t("Pending"), count: counts.pending, tone: COLORS.coral },
+    { key: "inquiry", label: copy.t("Inquiry"), count: counts.inquiry, tone: COLORS.indigo },
+    { key: "cancelled", label: copy.t("Cancelled"), count: counts.cancelled, tone: COLORS.critical },
+    { key: "past", label: copy.t("Past"), count: counts.past, tone: COLORS.inkDim },
+    { key: "all", label: copy.t("All"), count: counts.all, tone: COLORS.ink },
   ];
   return (
     <div
@@ -135,6 +137,7 @@ export function ConflictBanner({
   onResolve: (action: "decline" | "talk" | "reschedule", target: CalendarEvent) => void;
 }) {
   const { openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   // Severity escalates with conflict count: 1–2 is warning, 3+ is critical.
   const severe = conflicts.length >= 3;
   return (
@@ -164,8 +167,8 @@ export function ConflictBanner({
       >
         <Icon name="bolt" size={13} stroke={1.7} />
         {conflicts.length === 1
-          ? "1 date conflict needs your attention"
-          : `${conflicts.length} date conflicts need your attention`}
+          ? copy.t("1 date conflict needs your attention")
+          : `${conflicts.length} ${copy.t("date conflicts need your attention")}`}
       </div>
       {conflicts.map((c, i) => {
         // The "pending" or "inquiry" side is the resolvable one — you can
@@ -194,30 +197,30 @@ export function ConflictBanner({
               <strong className="font-semibold">
                 {c.a.client} {c.a.dateLabel}
               </strong>
-              {" "}({kindToLabel(c.a.kind)}) overlaps with{" "}
+              {" "}({copy.t(kindToLabel(c.a.kind))}) {copy.t("overlaps with")}{" "}
               <strong className="font-semibold">
                 {c.b.client} {c.b.dateLabel}
               </strong>
-              {" "}({kindToLabel(c.b.kind)}).
+              {" "}({copy.t(kindToLabel(c.b.kind))}).
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               <ConflictActionChip
-                label="✨ Smart resolve"
+                label={`✨ ${copy.t("Smart resolve")}`}
                 onClick={() => openDrawer("talent-conflict-resolve")}
                 severe={severe}
               />
               <ConflictActionChip
-                label={`Decline ${resolvable.client}`}
+                label={`${copy.t("Decline")} ${resolvable.client}`}
                 onClick={() => onResolve("decline", resolvable)}
                 severe={severe}
               />
               <ConflictActionChip
-                label="Talk to coordinator"
+                label={copy.t("Talk to coordinator")}
                 onClick={() => onResolve("talk", resolvable)}
                 severe={severe}
               />
               <ConflictActionChip
-                label="Ask to reschedule"
+                label={copy.t("Ask to reschedule")}
                 onClick={() => onResolve("reschedule", resolvable)}
                 severe={severe}
               />
@@ -284,6 +287,7 @@ export function CalendarEventRow({
   onOpen: () => void;
   first: boolean;
 }) {
+  const copy = useDashboardText();
   const kindToTone: Record<CalendarEventKind, "success" | "coral" | "indigo" | "amber"> = {
     booked: "success",
     pending: "coral",
@@ -295,7 +299,7 @@ export function CalendarEventRow({
     booked: "Booked",
     pending: "Pending",
     inquiry: "Inquiry",
-    past: event.status.startsWith("Paid") ? "Paid" : "Wrapped",
+    past: event.status.startsWith("Paid") || event.status.startsWith("Pagad") ? "Paid" : "Wrapped",
     cancelled: "Cancelled",
   }[event.kind];
   return (
@@ -339,7 +343,7 @@ export function CalendarEventRow({
 
       {/* Shared date block — same primitive used on Today's Earning rows
           and Calendar peek section. One row pattern across surfaces. */}
-      <DateBlock day={event.startDay ?? "—"} month="May" />
+      <DateBlock day={event.startDay ?? "—"} month={copy.t("May")} />
 
       {/* Title + status */}
       <div className="flex-1 min-w-0">
@@ -356,8 +360,8 @@ export function CalendarEventRow({
             fontSize: 11.5,
           }}
         >
-          <KindChip label={kindLabel} tone={kindToTone[event.kind]} />
-          {conflicted && <KindChip label="Conflict" tone="coral" />}
+          <KindChip label={copy.t(kindLabel)} tone={kindToTone[event.kind]} />
+          {conflicted && <KindChip label={copy.t("Conflict")} tone="coral" />}
           <span className="text-admin-ink-muted">{event.status}</span>
         </div>
       </div>
@@ -394,6 +398,7 @@ export function ModalConfirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const copy = useDashboardText();
   return (
     <>
       <div
@@ -430,7 +435,7 @@ export function ModalConfirm({
           {body}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={onCancel}>{copy.t("Cancel")}</SecondaryButton>
           <button
             type="button"
             onClick={onConfirm}

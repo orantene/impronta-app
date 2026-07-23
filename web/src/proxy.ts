@@ -41,8 +41,10 @@ import {
 } from "@/lib/saas/scope";
 import {
   isPathAllowedForHostKind,
-  resolvePathBasedTenantPublicPath,
+  resolveWorkspacePathTenantPublicPath,
+  WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
+import { workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import {
   loadTenantLocaleSettings,
@@ -127,16 +129,12 @@ export async function proxy(request: NextRequest) {
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
-  // The Stripe webhook + cron + analytics-events endpoints must reach their
-  // route handlers regardless of host. Stripe sends webhooks to the public
-  // endpoint we register; the originating Host header is whatever Stripe
-  // resolves and may not match any seeded `agency_domains` row, especially
-  // if we ever point Stripe at a `*.vercel.app` preview. Each of these
-  // endpoints has its own auth (signature, bearer token, allow-list) so
-  // tenant-host gating is unnecessary and actively harmful here.
-  //
-  // Also short-circuit the branded unregistered-host page itself so the
-  // internal rewrite below doesn't recurse back through host resolution.
+  // Stripe webhook + cron + analytics-events must reach their route handlers
+  // regardless of host: the inbound Host header may match no seeded
+  // `agency_domains` row. Each has its own auth (signature, bearer, allow-list)
+  // so tenant-host gating is unnecessary and actively harmful here. Also
+  // short-circuits the branded unregistered-host page so the rewrite below
+  // doesn't recurse through host resolution.
   if (
     pathname.startsWith("/api/stripe/") ||
     // Legacy webhook alias — /api/webhooks/stripe delegates to the same
@@ -221,13 +219,10 @@ export async function proxy(request: NextRequest) {
   const hostContext = await resolveTenantContext(request, hostHeader);
 
   if (hostContext.kind === "not_found") {
-    // Fail-hard (Plan L37): an unregistered hostname does NOT fall back
-    // to tenant #1 or the hub. A 404 tells the operator the domain needs
-    // seeding in `agency_domains`.
-    //
-    // Rewrite to the branded 404 page instead of returning plain text.
-    // The rewrite target `/_host-unregistered` is whitelisted in the
-    // short-circuit block above so this does not recurse.
+    // Fail-hard (Plan L37): an unregistered hostname does NOT fall back to
+    // tenant #1 or the hub — a 404 tells the operator the domain needs seeding
+    // in `agency_domains`. Rewrite to the branded 404 page rather than plain
+    // text; `/_host-unregistered` is whitelisted above so this cannot recurse.
     return NextResponse.rewrite(
       new URL("/_host-unregistered", request.url),
       { status: 404 },
@@ -411,9 +406,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // SaaS P2 — surface allow-list. Reject paths that do not belong on this
-  // host kind BEFORE rate limits, CMS redirects, or auth run. Checked
-  // against the locale-stripped path so `/es/admin` is treated as `/admin`.
+  // SaaS P2 — surface allow-list. Reject paths that do not belong on this host
+  // kind BEFORE rate limits, CMS redirects, or auth run. Checked against the
+  // locale-stripped path so `/es/admin` is treated as `/admin`.
   const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, hostLangSettings)
     ? stripNonDefaultLocalePrefix(pathname, hostLangSettings)
     : pathname;
@@ -422,8 +417,15 @@ export async function proxy(request: NextRequest) {
     hostContext.kind === "hub" ||
     hostContext.kind === "marketing" ||
     (hostContext.kind === "app" && isLocalhostHost(hostHeader));
+
+  // `/w` parent + legacy-flat 301s — see workspace-path-redirects.ts.
+  const workspaceRedirect = canResolvePathBasedTenant
+    ? await workspacePathRedirect({ request, pathname, canonicalPath, hostHeader })
+    : null;
+  if (workspaceRedirect) return workspaceRedirect;
+
   const pathBasedTenant = canResolvePathBasedTenant
-    ? resolvePathBasedTenantPublicPath(canonicalPath)
+    ? resolveWorkspacePathTenantPublicPath(canonicalPath)
     : null;
   const pathBasedTenantContext = pathBasedTenant
     ? await resolveTenantContextFromPathSlug(
@@ -446,15 +448,11 @@ export async function proxy(request: NextRequest) {
       ? pathBasedTenant.pathnameWithoutTenant
       : canonicalPath;
 
-  // CMS clean-URL rewrite (agency storefronts only). Any single-segment
-  // path on an agency host that is NOT in the explicit allow-list gets
-  // rewritten internally to /p/{slug}. The CMS page catch-all at
-  // (public)/p/[[...slug]]/page.tsx renders it with the standard
-  // storefront shell (PublicHeader, footer). This gives CMS pages
-  // created in the editor clean root URLs (/contact, /about, /faq)
-  // without maintaining an explicit prefix entry for every slug. Paths
-  // that don't correspond to a published CMS page will 404 from the
-  // catch-all route, not from the middleware.
+  // CMS clean-URL rewrite (agency storefronts only): a single-segment path not
+  // in the allow-list is rewritten to /p/{slug}, rendered by the catch-all at
+  // (public)/p/[[...slug]]/page.tsx with the standard storefront shell. Gives
+  // editor-created CMS pages clean root URLs (/contact, /about) with no
+  // per-slug prefix entry. Unpublished slugs 404 from the catch-all, not here.
   let cmsSlugRewrite: string | null = null;
   if (
     effectiveHostContext.kind === "agency" &&
@@ -628,9 +626,8 @@ export async function proxy(request: NextRequest) {
     requestHeaders.delete(TENANT_HEADER_NAME);
   }
 
-  // Phase 4 — propagate tenant slug for agency hosts.
-  // Used by layouts for branded-shortcut redirect (/admin → /<slug>/admin)
-  // without an extra DB roundtrip. Only set for agency kind; cleared otherwise.
+  // Phase 4 — propagate tenant slug for agency hosts, for the branded-shortcut
+  // redirect (/admin → /<slug>/admin) without an extra DB roundtrip.
   if (effectiveHostContext.kind === "agency" && effectiveHostContext.tenantSlug) {
     requestHeaders.set(HOST_TENANT_SLUG_HEADER, effectiveHostContext.tenantSlug);
   } else {
@@ -638,7 +635,9 @@ export async function proxy(request: NextRequest) {
   }
 
   if (effectiveHostContext.kind === "agency" && effectiveHostContext.domainKind === "path") {
-    requestHeaders.set(PUBLIC_PATH_PREFIX_HEADER, `/${effectiveHostContext.tenantSlug}`);
+    // MUST be the canonical public prefix (/w/<slug>): downstream strips it to
+    // derive the page slug, and a stale `/<slug>` left "w" as the slug.
+    requestHeaders.set(PUBLIC_PATH_PREFIX_HEADER, `/${WORKSPACE_PATH_SEGMENT}/${effectiveHostContext.tenantSlug}`);
   } else {
     requestHeaders.delete(PUBLIC_PATH_PREFIX_HEADER);
   }
@@ -733,10 +732,13 @@ export async function proxy(request: NextRequest) {
     method: request.method,
   });
 
-  const sessionRes = await updateSession(innerRequest, {
-    pathnameForAuth,
-    languageSettings: effectiveLangSettings,
-  });
+  // `forwardedRequestHeaders` carries the guest/actor/locale headers updateSession
+  // injected; the rewrite below MUST forward them (see UpdateSessionResult).
+  const { response: sessionRes, requestHeaders: forwardedRequestHeaders } =
+    await updateSession(innerRequest, {
+      pathnameForAuth,
+      languageSettings: effectiveLangSettings,
+    });
 
   if (sessionRes.headers.get("location")) {
     syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
@@ -753,8 +755,10 @@ export async function proxy(request: NextRequest) {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = pathnameForAuth;
 
+    // Forward updateSession's headers (with `x-impronta-guest`), NOT the
+    // pre-session `requestHeaders` which lacks it — see the destructure above.
     const res = NextResponse.rewrite(rewriteUrl, {
-      request: { headers: requestHeaders },
+      request: { headers: forwardedRequestHeaders },
     });
 
     for (const cookie of sessionRes.cookies.getAll()) {

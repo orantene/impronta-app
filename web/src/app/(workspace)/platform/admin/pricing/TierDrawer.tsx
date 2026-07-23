@@ -14,6 +14,8 @@ import type {
   PricingTierRow,
   PricingPackageRow,
 } from "@/lib/pricing/pricing-types";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD, FAMILY_COLORS } from "./_tokens";
 import { PricingTab } from "./drawer/PricingTab";
 import { FeaturesTab } from "./drawer/FeaturesTab";
@@ -37,11 +39,15 @@ export function TierDrawer({
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>("pricing");
   const accent = FAMILY_COLORS[pkg.family] ?? HQ.ink;
+  const t = useT();
 
   return (
     <div
       role="dialog"
-      aria-label={`${tier.name} pricing settings`}
+      aria-label={interpolate(
+        t("dashboard.platform.pricing.drawer.settingsLabel"),
+        { tier: tier.name },
+      )}
       style={{
         position: "fixed",
         inset: 0,
@@ -111,7 +117,7 @@ export function TierDrawer({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close drawer"
+            aria-label={t("dashboard.platform.pricing.drawer.closeLabel")}
             style={{
               background: "transparent",
               border: `1px solid ${HQ.borderHover}`,
@@ -138,23 +144,23 @@ export function TierDrawer({
           }}
         >
           <DrawerTab
-            label="Pricing"
+            label={t("dashboard.platform.pricing.drawer.tabPricing")}
             active={activeTab === "pricing"}
             onClick={() => setActiveTab("pricing")}
           />
           <DrawerTab
-            label="Features"
+            label={t("dashboard.platform.pricing.drawer.tabFeatures")}
             active={activeTab === "features"}
             onClick={() => setActiveTab("features")}
             badge={`${tier.features.length}`}
           />
           <DrawerTab
-            label="Display"
+            label={t("dashboard.platform.pricing.drawer.tabDisplay")}
             active={activeTab === "display"}
             onClick={() => setActiveTab("display")}
           />
           <DrawerTab
-            label="Stripe"
+            label={t("dashboard.platform.pricing.drawer.tabStripe")}
             active={activeTab === "stripe"}
             onClick={() => setActiveTab("stripe")}
           />

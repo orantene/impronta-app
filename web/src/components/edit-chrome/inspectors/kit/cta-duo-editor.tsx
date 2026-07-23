@@ -98,7 +98,7 @@ export function CtaDuoEditor({
         data-hero-node-role={primaryNodeRole}
       >
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#3d4f7c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
             Primary
           </span>
           <button
@@ -112,7 +112,7 @@ export function CtaDuoEditor({
         <input
           type="text"
           className={KIT.input}
-          placeholder="Button label — e.g. Start a booking"
+          placeholder="Button label, e.g. Start a booking"
           value={primary?.label ?? ""}
           maxLength={60}
           onChange={(e) => patchPrimary({ label: e.target.value })}
@@ -160,7 +160,7 @@ export function CtaDuoEditor({
           <input
             type="text"
             className={KIT.input}
-            placeholder="Button label — e.g. Explore services"
+            placeholder="Button label, e.g. Explore services"
             value={secondary?.label ?? ""}
             maxLength={60}
             onChange={(e) => patchSecondary({ label: e.target.value })}

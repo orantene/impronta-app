@@ -10,20 +10,28 @@
  * same mechanism used by the Wave-1 layers-tree bidirectional highlight
  * (freeform-layer-row.tsx, `locateCanvasNode`).
  *
- * Advisory only — never counts toward `preflightBlockingErrors`; publish
- * is never blocked. The panel collapses to a single summary line when all
- * checks pass.
+ * Mostly advisory. The one exception (W3-M1) is **definite** horizontal
+ * overflow (a block whose fixed width/min-width on mobile exceeds the narrowest
+ * viewport): those rows are marked `blocking` and are ALSO surfaced as blocking
+ * `mobile_overflow` errors by the publish preflight, which disables Publish now.
+ * This panel badges them "Blocks publish" so the two surfaces agree; the softer
+ * heuristics stay advisory. The panel collapses to a single summary line when
+ * all checks pass.
  */
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import {
   runMobileHealthCheck,
   type MobileHealthCheckKind,
   type MobileHealthIssue,
 } from "@/lib/site-admin/builder-node/mobile-health";
+import { collectMobileFixes } from "@/lib/site-admin/builder-node/mobile-fix";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { locateCanvasNode } from "./freeform-layer-row";
+import { useMaybeEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
+import { Button } from "./kit";
 import { CHROME } from "./kit";
 
 // ── Icon helpers ─────────────────────────────────────────────────────────────
@@ -97,7 +105,7 @@ const KIND_LABEL: Record<MobileHealthCheckKind, string> = {
 };
 
 const KIND_COLOR: Record<MobileHealthCheckKind, string> = {
-  tiny_text: "#b45309", // amber-700
+  tiny_text: "#2c5fdb", // cool attention blue (no gold/rust in admin chrome)
   tap_target: "#c2410c", // orange-700
   overflow: "#1d4ed8",   // blue-700
 };
@@ -130,6 +138,10 @@ export function MobileHealthPanel({ builderTree }: Props) {
 
   const total = issues.length;
   const allClear = total === 0;
+  const blockingCount = useMemo(
+    () => issues.filter((issue) => issue.blocking).length,
+    [issues],
+  );
 
   return (
     <div
@@ -186,6 +198,18 @@ export function MobileHealthPanel({ builderTree }: Props) {
           >
             All clear
           </span>
+        ) : blockingCount > 0 ? (
+          <span
+            style={{
+              fontSize: 11,
+              color: "#b91c1c",
+              fontWeight: 600,
+              marginRight: 4,
+            }}
+          >
+            {blockingCount} block{blockingCount === 1 ? "s" : ""} publish
+            {total > blockingCount ? ` · ${total - blockingCount} advisory` : ""}
+          </span>
         ) : (
           <span
             style={{
@@ -194,7 +218,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
               marginRight: 4,
             }}
           >
-            {total} advisory{total === 1 ? "" : "s"}
+            {total} advisor{total === 1 ? "y" : "ies"}
           </span>
         )}
         <span style={{ color: CHROME.muted2 }}>
@@ -233,9 +257,22 @@ export function MobileHealthPanel({ builderTree }: Props) {
                   color: CHROME.muted,
                 }}
               >
-                Advisory only — these do not block publish. Review them before going
-                live on mobile devices.
+                {blockingCount > 0 ? (
+                  <>
+                    <strong style={{ color: "#b91c1c" }}>
+                      Rows marked “Blocks publish” force horizontal scrolling on
+                      phones and must be fixed before you can publish.
+                    </strong>{" "}
+                    The rest are advisory, review them before going live.
+                  </>
+                ) : (
+                  <>
+                    Advisory only, these do not block publish. Review them before
+                    going live on mobile devices.
+                  </>
+                )}
               </p>
+              <FixMobileIssuesAction builderTree={builderTree} />
               {(["tiny_text", "tap_target", "overflow"] as const)
                 .filter((kind) => (grouped[kind]?.length ?? 0) > 0)
                 .map((kind) => (
@@ -250,6 +287,173 @@ export function MobileHealthPanel({ builderTree }: Props) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+// ── Fix mobile issues (W3-M3) ─────────────────────────────────────────────────
+
+function WandIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M15 4V2" />
+      <path d="M15 16v-2" />
+      <path d="M8 9h2" />
+      <path d="M20 9h2" />
+      <path d="M17.8 11.8 19 13" />
+      <path d="M15 9h.01" />
+      <path d="M17.8 6.2 19 5" />
+      <path d="m3 21 9-9" />
+      <path d="M12.2 6.2 11 5" />
+    </svg>
+  );
+}
+
+type FixApplyState = "idle" | "applying" | "done" | "error";
+
+/**
+ * The one-click "Fix mobile issues" action. Turns every fixable mobile problem
+ * (fixed-width overflow that blocks publish + the soft multi-column / split
+ * advisories) into an APPLIED, undoable responsive override via the context's
+ * `fixAllMobileIssues` (one Cmd+Z reverts the whole batch). Every state is
+ * explicit: idle → applying → done ("Fixed N issues") → error. Detection re-runs
+ * automatically because the committed tree flows back through `builderTree`, so
+ * the panel reflects the (hopefully clean) new state.
+ *
+ * Renders nothing when there is no edit context or nothing fixable — the softer
+ * tiny-text / tap-target advisories stay advisory-only (their correct value is a
+ * judgement call, so they are never auto-fixed).
+ */
+function FixMobileIssuesAction({ builderTree }: { builderTree: BuilderNodeTree }) {
+  const ctx = useMaybeEditContext();
+  const { t } = useEditorLocale();
+  const [state, setState] = useState<FixApplyState>("idle");
+  const [fixedCount, setFixedCount] = useState(0);
+
+  const fixableCount = useMemo(
+    () => collectMobileFixes(builderTree).length,
+    [builderTree],
+  );
+
+  // Re-detection reset: once the tree changes and there are fixable issues
+  // again, drop any prior "done" summary back to an actionable button.
+  useEffect(() => {
+    if (state === "done" && fixableCount > 0) setState("idle");
+  }, [state, fixableCount]);
+
+  if (!ctx?.fixAllMobileIssues) return null;
+
+  // Success summary (persists until the tree changes / new fixables appear).
+  if (state === "done") {
+    const label =
+      fixedCount === 1
+        ? t("Fixed {count} mobile issue").replace("{count}", String(fixedCount))
+        : t("Fixed {count} mobile issues").replace("{count}", String(fixedCount));
+    return (
+      <div
+        role="status"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 10,
+          padding: "8px 10px",
+          borderRadius: 7,
+          border: "1px solid rgba(34,197,94,0.30)",
+          background: "rgba(34,197,94,0.08)",
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: "#15803d",
+        }}
+      >
+        <CheckIcon />
+        {label}
+      </div>
+    );
+  }
+
+  if (fixableCount === 0) return null;
+
+  async function onFix() {
+    if (!ctx?.fixAllMobileIssues || state === "applying") return;
+    setState("applying");
+    try {
+      const result = await ctx.fixAllMobileIssues();
+      if (result.ok) {
+        setFixedCount(result.fixedCount);
+        setState("done");
+      } else {
+        setState("error");
+      }
+    } catch {
+      setState("error");
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <Button
+        variant="primary"
+        size="sm"
+        leadingIcon={<WandIcon />}
+        loading={state === "applying"}
+        onClick={() => void onFix()}
+        style={{ width: "100%" }}
+      >
+        {state === "applying" ? t("Fixing…") : t("Fix mobile issues")}
+      </Button>
+      {state === "error" ? (
+        <p
+          role="alert"
+          style={{
+            margin: "6px 2px 0",
+            fontSize: 11,
+            lineHeight: 1.45,
+            color: "#b91c1c",
+          }}
+        >
+          {t("Could not fix mobile issues. Please try again.")}
+        </p>
+      ) : (
+        <p
+          style={{
+            margin: "5px 2px 0",
+            fontSize: 10.5,
+            lineHeight: 1.4,
+            color: CHROME.muted,
+          }}
+        >
+          {t("One click applies mobile-safe overrides.")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   );
 }
 
@@ -346,10 +550,13 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Node kind badge */}
+        {/* Node kind badge + blocking pill */}
         <div
           style={{
             marginBottom: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             fontSize: 9.5,
             fontWeight: 700,
             letterSpacing: "0.06em",
@@ -357,7 +564,21 @@ function IssueRow({ issue }: { issue: MobileHealthIssue }) {
             color: CHROME.muted2,
           }}
         >
-          {issue.nodeKind.replace(/_/g, " ")}
+          <span>{issue.nodeKind.replace(/_/g, " ")}</span>
+          {issue.blocking ? (
+            <span
+              style={{
+                borderRadius: 4,
+                border: "1px solid rgba(185,28,28,0.4)",
+                background: "rgba(185,28,28,0.08)",
+                color: "#b91c1c",
+                padding: "1px 5px",
+                letterSpacing: "0.04em",
+              }}
+            >
+              Blocks publish
+            </span>
+          ) : null}
         </div>
         {/* Message */}
         <p

@@ -49,8 +49,25 @@ export type GuestInquirySummary = {
   /** @deprecated Phase 5 — see `lineup`. First lineup member's portrait, or null. */
   talentPortraitUrl: string | null;
   agencyName: string;
+  /**
+   * DOCK v2 card meta — pre-localized icon-row labels so the Inquiries cards
+   * read as a quick summary (date, place, money) without the client needing
+   * locale/currency logic. Absent/null values simply don't render a chip.
+   */
+  eventDateLabel?: string | null;
+  locationLabel?: string | null;
+  budgetLabel?: string | null;
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
+  /**
+   * W2-A dock — the newest private-thread message's author side, so the
+   * Projects view can honestly distinguish "Sent · awaiting {agency}" from
+   * "{agency} replied". "guest" = the guest's own message, "agency" = a
+   * signed-in sender (coordinator/staff), null = no message or a system note.
+   * Optional for back-compat with older summaries; consumers must degrade a
+   * missing value to "awaiting", never to "replied".
+   */
+  lastMessageAuthor?: "guest" | "agency" | null;
   unreadHint: boolean;
   threadStatus: GuestThreadStatus;
   typicalReplyLabel: string | null;
@@ -86,6 +103,16 @@ export type EnsureGuestInquiryInput = {
   talentProfileId?: string | null;
   talentProfileCode?: string | null;
   sourcePage: string;
+  /**
+   * Park-flow ONLY (W0-B). ensureGuestChatInquiry normally reuses an existing
+   * live DRAFT rather than minting a duplicate (W0-A idempotency). The project
+   * park's "start a SEPARATE inquiry with just {name}" step needs a genuinely
+   * FRESH row even though the just-parked draft is still live, so it passes
+   * `forceNew: true` to skip the existing-draft reuse and always insert. Every
+   * other guard (tenant scope, roster check, ownership) is unchanged. Default
+   * false/omitted keeps the idempotent reuse for all other callers.
+   */
+  forceNew?: boolean;
 };
 
 export type EnsureGuestInquiryResult =

@@ -9,6 +9,8 @@ import { useState, useTransition } from "react";
 import { HQ, HQ_F, HQ_FM, SectionLabel } from "../tenants/hq-kit";
 import { getPlatformUserAuditLog } from "./actions";
 import type { AuditEntry } from "./actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { PlatformUserRow } from "../../platform-data";
 
 function formatActionLabel(action: string): string {
@@ -17,18 +19,19 @@ function formatActionLabel(action: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, t: (key: string) => string): string {
   const d = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays === 0) return "today";
-  if (diffDays === 1) return "yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (diffDays === 0) return t("dashboard.platform.users.audit.relToday");
+  if (diffDays === 1) return t("dashboard.platform.users.audit.relYesterday");
+  if (diffDays < 7) return interpolate(t("dashboard.platform.users.audit.relDaysAgo"), { count: diffDays });
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 function AuditRow({ entry }: { entry: AuditEntry }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const hasDetail = entry.beforeJsonb || entry.afterJsonb || entry.contextJsonb;
 
@@ -63,7 +66,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
             {formatActionLabel(entry.action)}
           </div>
           <div style={{ fontSize: 11, color: HQ.inkDim, marginTop: 2 }}>
-            Platform admin · {formatDate(entry.createdAt)}
+            {t("dashboard.platform.users.audit.byPlatformAdmin")} · {formatDate(entry.createdAt, t)}
           </div>
         </div>
         {hasDetail && (
@@ -81,7 +84,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
               flexShrink: 0,
             }}
           >
-            {expanded ? "▲ hide" : "▸ detail"}
+            {expanded ? t("dashboard.platform.users.audit.hide") : t("dashboard.platform.users.audit.detail")}
           </button>
         )}
       </div>
@@ -95,7 +98,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
         >
           {entry.beforeJsonb && (
             <div style={{ marginBottom: 6 }}>
-              <div style={{ fontSize: 10, color: HQ.inkDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Before</div>
+              <div style={{ fontSize: 10, color: HQ.inkDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>{t("dashboard.platform.users.audit.before")}</div>
               <pre
                 style={{
                   fontSize: 10.5,
@@ -112,7 +115,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
           )}
           {entry.afterJsonb && (
             <div style={{ marginBottom: entry.contextJsonb ? 6 : 0 }}>
-              <div style={{ fontSize: 10, color: HQ.inkDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>After</div>
+              <div style={{ fontSize: 10, color: HQ.inkDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>{t("dashboard.platform.users.audit.after")}</div>
               <pre
                 style={{
                   fontSize: 10.5,
@@ -129,7 +132,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
           )}
           {entry.contextJsonb && (
             <div>
-              <div style={{ fontSize: 10, color: HQ.inkDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>Context</div>
+              <div style={{ fontSize: 10, color: HQ.inkDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 3 }}>{t("dashboard.platform.users.audit.context")}</div>
               <pre
                 style={{
                   fontSize: 10.5,
@@ -151,6 +154,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
 }
 
 export function AuditHistorySection({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -190,7 +194,7 @@ export function AuditHistorySection({ user }: { user: PlatformUserRow }) {
         }}
       >
         <span style={{ fontSize: 11 }}>{isOpen ? "▼" : "▶"}</span>
-        Audit History
+        {t("dashboard.platform.users.audit.title")}
       </div>
 
       {isOpen && (
@@ -208,7 +212,7 @@ export function AuditHistorySection({ user }: { user: PlatformUserRow }) {
                 fontFamily: HQ_F,
               }}
             >
-              Loading…
+              {t("dashboard.platform.users.audit.loading")}
             </div>
           ) : entries.length === 0 ? (
             <div
@@ -223,7 +227,7 @@ export function AuditHistorySection({ user }: { user: PlatformUserRow }) {
                 fontFamily: HQ_F,
               }}
             >
-              No admin actions recorded yet.
+              {t("dashboard.platform.users.audit.empty")}
             </div>
           ) : (
             <ul style={{ padding: 0, listStyle: "none", display: "grid", gap: 6 }}>

@@ -3,12 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { cancelPitchAction } from "@/app/(workspace)/[tenantSlug]/admin/pitches/actions";
 import type { PitchStatus } from "@/lib/pitch/pitch-types";
 import type { WorkspacePitchRow } from "../data-bridge";
+import { useDashboardText } from "../dashboard-i18n";
 import { PitchComposeDrawer } from "../pitch-compose";
-import { Card, H3, PrimaryButton, StatusPill } from "../primitives";
+import { Card, GhostButton, H3, PrimaryButton, StatusPill } from "../primitives";
 import { COLORS, meetsRole, useAdminShell } from "../state";
+import { downloadCsv } from "../wave2";
 import { PitchDetailDrawerInline } from "./PitchesPage-2";
 import { PageHeader } from "./pages-shared";
 
@@ -47,6 +51,21 @@ export const PITCH_STATUS_TONE: Record<PitchStatus, { tone: "ink" | "amber" | "g
   expired:   { tone: "dim",   label: "Expired" },
 };
 
+// i18n sibling of PITCH_STATUS_TONE (additive enum-label pattern): maps each
+// status to its catalog key so localized consumers render t(PITCH_STATUS_LABEL_KEYS[status]).
+// The English `label` above stays for any non-localized consumer.
+export const PITCH_STATUS_LABEL_KEYS: Record<PitchStatus, string> = {
+  draft:     "dashboard.adminPitches.statusDraft",
+  sent:      "dashboard.adminPitches.statusSent",
+  viewed:    "dashboard.adminPitches.statusViewed",
+  edited:    "dashboard.adminPitches.statusEdited",
+  approved:  "dashboard.adminPitches.statusApproved",
+  converted: "dashboard.adminPitches.statusConverted",
+  declined:  "dashboard.adminPitches.statusDeclined",
+  cancelled: "dashboard.adminPitches.statusCancelled",
+  expired:   "dashboard.adminPitches.statusExpired",
+};
+
 // `approved` counts as still-active for admin "in flight" filters —
 // the pitch hasn't terminated; recipient might still convert.
 export const PITCH_ACTIVE: ReadonlyArray<PitchStatus> = ["draft", "sent", "viewed", "edited", "approved"];
@@ -59,11 +78,11 @@ export function fmtPitchDate(iso: string | null): string {
   return new Intl.DateTimeFormat("en-GB", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) }).format(d);
 }
 
-function fmtPitchRelative(iso: string | null): string {
+function fmtPitchRelative(iso: string | null, justNowLabel: string): string {
   if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
+  if (m < 1) return justNowLabel;
   if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h`;
@@ -77,10 +96,76 @@ export function PitchesPage() {
   // already adapts the bridge rows to the Client shape), replacing the
   // per-plan getClients() mock.
   const { state, effectivePitches, effectiveRoster, effectiveClients, tenantSlug, toast, effectiveTenant } = useAdminShell();
+  const t = useT();
+  const copy = useDashboardText();
   const router = useRouter();
   const canEdit = meetsRole(state.role, "manager");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
   const [composeOpen, setComposeOpen] = useState(false);
+
+  // Bulk select — mirrors the Messages-inbox pattern (explicit Select mode,
+  // checkbox lane, sticky bottom bar). The only bulk mutation with a real
+  // backend today is CANCEL (loops the existing cancelPitchAction), so only
+  // still-active, non-converted pitches are selectable — no dead CTAs.
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkPending, setBulkPending] = useState(false);
+  const cancellableIds = new Set(
+    effectivePitches
+      .filter((p) => PITCH_ACTIVE.includes(p.status) && !p.convertedInquiryId)
+      .map((p) => p.id),
+  );
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const exitBulk = () => {
+    setBulkMode(false);
+    setSelectedIds(new Set());
+    setBulkConfirm(false);
+  };
+  const runBulkCancel = async () => {
+    if (bulkPending || selectedIds.size === 0 || !tenantSlug) return;
+    setBulkPending(true);
+    const ids = Array.from(selectedIds);
+    const results = await Promise.allSettled(ids.map((id) => cancelPitchAction(tenantSlug, id)));
+    const ok = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
+    const failed = ids.length - ok;
+    setBulkPending(false);
+    exitBulk();
+    toast(
+      copy.isSpanish
+        ? `${ok} pitch${ok === 1 ? "" : "es"} cancelado${ok === 1 ? "" : "s"}${failed > 0 ? ` (${failed} fallaron)` : ""}`
+        : `Cancelled ${ok} pitch${ok === 1 ? "" : "es"}${failed > 0 ? ` (${failed} failed)` : ""}`,
+    );
+    router.refresh();
+  };
+
+  const exportPitchesCsv = () => {
+    downloadCsv(
+      `pitches-${new Date().toISOString().slice(0, 10)}.csv`,
+      effectivePitches.map((p) => ({
+        recipient: p.recipientName,
+        company: p.recipientCompany ?? "",
+        status: p.status,
+        talents: p.talentCount,
+        sentAt: p.sentAt ?? "",
+        lastViewedAt: p.lastViewedAt ?? "",
+        views: p.viewCount,
+        convertedInquiryId: p.convertedInquiryId ?? "",
+      })),
+    );
+    toast(
+      copy.isSpanish
+        ? `${effectivePitches.length} filas exportadas`
+        : `Exported ${effectivePitches.length} rows`,
+    );
+  };
 
   const counts = effectivePitches.reduce(
     (acc, p) => {
@@ -96,18 +181,36 @@ export function PitchesPage() {
   return (
     <>
       <PageHeader
-        title="Pitches"
+        title={t("dashboard.adminPitches.title")}
         subtitle={
           counts.total === 0
-            ? "Curated talent suggestions you've sent to clients."
-            : `${counts.total} sent · ${counts.active} active · ${counts.converted} converted into bookings`
+            ? t("dashboard.adminPitches.subtitleEmpty")
+            : interpolate(t("dashboard.adminPitches.subtitleCount"), {
+                total: counts.total,
+                active: counts.active,
+                converted: counts.converted,
+              })
         }
         actions={
-          canEdit ? (
-            <PrimaryButton size="sm" onClick={() => setComposeOpen(true)}>
-              + New pitch
-            </PrimaryButton>
-          ) : null
+          <>
+            {effectivePitches.length > 0 && (
+              <GhostButton size="sm" onClick={exportPitchesCsv}>
+                {copy.isSpanish ? "Exportar CSV" : "Export CSV"}
+              </GhostButton>
+            )}
+            {canEdit && cancellableIds.size > 0 && (
+              <GhostButton size="sm" onClick={() => (bulkMode ? exitBulk() : setBulkMode(true))}>
+                {bulkMode
+                  ? copy.isSpanish ? "Listo" : "Done"
+                  : copy.isSpanish ? "Seleccionar" : "Select"}
+              </GhostButton>
+            )}
+            {canEdit ? (
+              <PrimaryButton size="sm" onClick={() => setComposeOpen(true)}>
+                {t("dashboard.adminPitches.newPitch")}
+              </PrimaryButton>
+            ) : null}
+          </>
         }
       />
 
@@ -115,15 +218,14 @@ export function PitchesPage() {
         <Card>
           <div style={{ padding: "44px 24px", textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>📨</div>
-            <H3>No pitches yet</H3>
+            <H3>{t("dashboard.adminPitches.emptyTitle")}</H3>
             <p style={{ marginTop: 8, fontSize: 13.5, lineHeight: 1.5, maxWidth: 380, marginInline: "auto" }} className="text-admin-ink-muted">
-              Curate a talent suggestion, attach a brief, and send a mobile-friendly
-              link your client can review and convert into a booking inquiry.
+              {t("dashboard.adminPitches.emptyBody")}
             </p>
             {canEdit ? (
               <div style={{ marginTop: 18, display: "inline-flex", gap: 8 }}>
                 <PrimaryButton size="sm" onClick={() => setComposeOpen(true)}>
-                  + Compose your first pitch
+                  {t("dashboard.adminPitches.composeFirst")}
                 </PrimaryButton>
               </div>
             ) : null}
@@ -140,10 +242,10 @@ export function PitchesPage() {
               marginBottom: 16,
             }}
           >
-            <StatTile label="Active"     value={counts.active} />
-            <StatTile label="Converted"  value={counts.converted} accent />
-            <StatTile label="Closed"     value={counts.closed} />
-            <StatTile label="Total"      value={counts.total} />
+            <StatTile label={t("dashboard.adminPitches.statActive")}     value={counts.active} />
+            <StatTile label={t("dashboard.adminPitches.statConverted")}  value={counts.converted} accent />
+            <StatTile label={t("dashboard.adminPitches.statClosed")}     value={counts.closed} />
+            <StatTile label={t("dashboard.adminPitches.statTotal")}      value={counts.total} />
           </div>
 
           {/* List */}
@@ -166,29 +268,100 @@ export function PitchesPage() {
                   background: COLORS.fill,
                 }}
               >
-                <div>Recipient</div>
-                <div>Status</div>
-                <div>Talents</div>
-                <div>Sent</div>
-                <div>Last view</div>
-                <div className="text-right">Action</div>
+                <div>{t("dashboard.adminPitches.colRecipient")}</div>
+                <div>{t("dashboard.adminPitches.colStatus")}</div>
+                <div>{t("dashboard.adminPitches.colTalents")}</div>
+                <div>{t("dashboard.adminPitches.colSent")}</div>
+                <div>{t("dashboard.adminPitches.colLastView")}</div>
+                <div className="text-right">{t("dashboard.adminPitches.colAction")}</div>
               </div>
-              {effectivePitches.map((p, idx) => (
-                <PitchRow
-                  key={p.id}
-                  row={p}
-                  isLast={idx === effectivePitches.length - 1}
-                  onOpen={() => setOpenDetailId(p.id)}
-                  tenantSlug={tenantSlug ?? "impronta"}
-                  canEdit={canEdit}
-                  onCancelled={() => {
-                    toast("Pitch cancelled. Share link revoked.");
-                    router.refresh();
-                  }}
-                />
-              ))}
+              {effectivePitches.map((p, idx) => {
+                const row = (
+                  <PitchRow
+                    key={`pitch-${p.id}`}
+                    row={p}
+                    isLast={idx === effectivePitches.length - 1}
+                    onOpen={() => (bulkMode ? toggleSelect(p.id) : setOpenDetailId(p.id))}
+                    tenantSlug={tenantSlug ?? "impronta"}
+                    canEdit={canEdit && !bulkMode}
+                    t={t}
+                    onCancelled={() => {
+                      toast(t("dashboard.adminPitches.toastCancelled"));
+                      router.refresh();
+                    }}
+                  />
+                );
+                if (!bulkMode) return row;
+                const selectable = cancellableIds.has(p.id);
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center gap-[6px] pl-[10px] ${
+                      selectedIds.has(p.id) ? "bg-admin-brand-soft" : ""
+                    } ${selectable ? "" : "opacity-45"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      disabled={!selectable}
+                      onChange={() => toggleSelect(p.id)}
+                      aria-label={`${copy.isSpanish ? "Seleccionar" : "Select"} ${p.recipientName}`}
+                      className="h-[14px] w-[14px] shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <div className="min-w-0 flex-1">{row}</div>
+                  </div>
+                );
+              })}
             </div>
           </Card>
+
+          {/* Bulk action bar — sticky bottom strip while rows are selected.
+              Cancel is the only real backend bulk op (loops the existing
+              cancelPitchAction); it uses a two-step confirm since cancelling
+              retracts the client-facing share link. */}
+          {bulkMode && selectedIds.size > 0 && (
+            <div className="sticky bottom-[16px] z-30 mt-[10px] flex items-center gap-[10px] rounded-[10px] bg-admin-fill px-[14px] py-[10px] font-admin-body text-[12px] text-white shadow-admin-hover">
+              <span className="font-bold">
+                {selectedIds.size} {copy.isSpanish ? "seleccionados" : "selected"}
+              </span>
+              <span className="flex-1" />
+              {bulkConfirm ? (
+                <>
+                  <span className="text-white/80">
+                    {copy.isSpanish
+                      ? "¿Cancelar estos pitches? Los enlaces dejan de funcionar."
+                      : "Cancel these pitches? Their share links stop working."}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBulkConfirm(false)}
+                    disabled={bulkPending}
+                    className="cursor-pointer rounded-full border border-white/25 bg-transparent px-[10px] py-[5px] text-[11.5px] font-semibold text-white"
+                  >
+                    {copy.isSpanish ? "Mantener" : "Keep"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={runBulkCancel}
+                    disabled={bulkPending}
+                    className="cursor-pointer rounded-full border-none bg-white px-[12px] py-[5px] text-[11.5px] font-bold text-admin-critical disabled:opacity-60"
+                  >
+                    {bulkPending
+                      ? copy.isSpanish ? "Cancelando…" : "Cancelling…"
+                      : copy.isSpanish ? "Sí, cancelar" : "Yes, cancel"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setBulkConfirm(true)}
+                  className="cursor-pointer rounded-full border-none bg-white px-[12px] py-[5px] text-[11.5px] font-bold text-admin-fill"
+                >
+                  {copy.isSpanish ? "Cancelar pitches" : "Cancel pitches"}
+                </button>
+              )}
+            </div>
+          )}
         </>
       )}
 
@@ -198,7 +371,7 @@ export function PitchesPage() {
           pitchId={openDetailId}
           onClose={() => setOpenDetailId(null)}
           onCancelled={() => {
-            toast("Pitch cancelled. Share link revoked.");
+            toast(t("dashboard.adminPitches.toastCancelled"));
             router.refresh();
           }}
         />
@@ -213,7 +386,7 @@ export function PitchesPage() {
           tenantSlug={tenantSlug ?? "impronta"}
           agencyName={effectiveTenant.name}
           onPitchSent={() => {
-            toast("Pitch sent!");
+            toast(t("dashboard.adminPitches.toastSent"));
             router.refresh();
           }}
         />
@@ -249,6 +422,7 @@ function PitchRow({
   tenantSlug,
   canEdit,
   onCancelled,
+  t,
 }: {
   row: WorkspacePitchRow;
   isLast: boolean;
@@ -256,13 +430,14 @@ function PitchRow({
   tenantSlug: string;
   canEdit: boolean;
   onCancelled: () => void;
+  t: ReturnType<typeof useT>;
 }) {
   const palette = PITCH_STATUS_TONE[row.status];
   const sentLabel = row.sentAt ? fmtPitchDate(row.sentAt) : row.status === "draft" ? "—" : fmtPitchDate(row.createdAt);
   const lastViewLabel = row.lastViewedAt
-    ? `${fmtPitchRelative(row.lastViewedAt)}${row.viewCount > 1 ? ` · ${row.viewCount}×` : ""}`
+    ? `${fmtPitchRelative(row.lastViewedAt, t("dashboard.adminPitches.relativeJustNow"))}${row.viewCount > 1 ? ` · ${row.viewCount}×` : ""}`
     : row.status === "sent"
-      ? "Not yet"
+      ? t("dashboard.adminPitches.notYet")
       : "—";
   const isActive = PITCH_ACTIVE.includes(row.status);
 
@@ -301,12 +476,12 @@ function PitchRow({
         ) : null}
       </div>
       <div>
-        <StatusPill tone={palette.tone} label={palette.label} capitalize />
+        <StatusPill tone={palette.tone} label={t(PITCH_STATUS_LABEL_KEYS[row.status])} capitalize />
       </div>
       <div style={{ fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">
         {row.talentCount}
         {row.removedCount > 0 ? (
-          <span style={{ fontSize: 12, marginLeft: 4 }} title="Removed by client">
+          <span style={{ fontSize: 12, marginLeft: 4 }} title={t("dashboard.adminPitches.removedByClient")}>
             (−{row.removedCount})
           </span>
         ) : null}
@@ -328,10 +503,10 @@ function PitchRow({
               background: "rgba(15,79,62,0.06)",
             }}
           >
-            Inquiry →
+            {t("dashboard.adminPitches.inquiryLink")}
           </Link>
         ) : isActive && canEdit ? (
-          <PitchRowCancel tenantSlug={tenantSlug} pitchId={row.id} onCancelled={onCancelled} />
+          <PitchRowCancel tenantSlug={tenantSlug} pitchId={row.id} onCancelled={onCancelled} t={t} />
         ) : null}
       </div>
     </div>
@@ -342,10 +517,12 @@ function PitchRowCancel({
   tenantSlug,
   pitchId,
   onCancelled,
+  t,
 }: {
   tenantSlug: string;
   pitchId: string;
   onCancelled: () => void;
+  t: ReturnType<typeof useT>;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
@@ -377,7 +554,7 @@ function PitchRowCancel({
             opacity: pending ? 0.6 : 1,
           }}
         >
-          {pending ? "…" : "Yes, cancel"}
+          {pending ? "…" : t("dashboard.adminPitches.confirmYesCancel")}
         </button>
         <button
           type="button"
@@ -394,7 +571,7 @@ function PitchRowCancel({
             cursor: "pointer",
           }}
         >
-          No
+          {t("dashboard.adminPitches.confirmNo")}
         </button>
       </div>
     );
@@ -415,7 +592,7 @@ function PitchRowCancel({
         cursor: "pointer",
       }}
     >
-      Cancel
+      {t("dashboard.adminPitches.cancel")}
     </button>
   );
 }

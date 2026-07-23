@@ -2,6 +2,13 @@ import type { CSSProperties, ElementType, KeyboardEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { StaticStars } from "@/components/reviews/star-rating";
+import {
+  computeStandingTier,
+  meetsCredibilityFloor,
+  standingTierLabel,
+} from "@/lib/reviews/craft-standing";
+
 import {
   TALENT_CARD_ASPECT_RATIO,
   TALENT_CARD_CLASS,
@@ -69,6 +76,80 @@ function OwnershipBadge({ data }: { data: CanonicalTalentCardData }) {
   );
 }
 
+/**
+ * Craft standing chip — the same credibility-gated signal the directory
+ * list-row renders (`talent-directory-list-row.tsx`), reused here so the
+ * grid card carries it too. Rendered only past `meetsCredibilityFloor`; the
+ * `directory.card.show-standing` / `directory.card.standing-style` tokens
+ * gate visibility via the `data-card-standing*` hooks (token-presets.css),
+ * so absence-by-token-off stays a pure CSS toggle, not a JS branch here.
+ *
+ * `onScrim` swaps the tone for the portrait style's white-over-photo caption
+ * (matches the name/type/availability lines already on that scrim); the
+ * editorial style renders on the card's plain surface, so it uses the
+ * muted-foreground token like its other caption lines.
+ */
+function StandingChip({
+  data,
+  onScrim,
+  showStanding = "auto",
+}: {
+  data: CanonicalTalentCardData;
+  onScrim: boolean;
+  showStanding?: "auto" | "always";
+}) {
+  if (data.ratingAvg == null || !meetsCredibilityFloor(data.ratingCount)) {
+    return null;
+  }
+  const ratingCount = data.ratingCount ?? 0;
+  const tier = computeStandingTier({
+    ratingCount,
+    ratingAvg: data.ratingAvg,
+    wouldBookAgainPct: data.wouldBookAgainPct ?? null,
+  });
+  const textClass = onScrim ? "text-white/80" : "";
+  const textStyle = onScrim ? undefined : { color: TALENT_CARD_VARS.muted };
+  // `gated` (default) keeps the `data-card-standing` hook the CSS token gate
+  // matches against; `showStanding="always"` swaps to a different attribute
+  // so `html:not([data-token-card-standing]) [data-card-standing]{display:none}`
+  // in token-presets.css doesn't hide it on surfaces (like Discover) that
+  // resolve the reviews entitlement themselves and have no tenant token on
+  // `<html>` to opt into.
+  const gated = showStanding !== "always";
+  const wrapperAttrs = gated
+    ? { "data-card-standing": true }
+    : { "data-card-standing-shown": true };
+  return (
+    <div
+      {...wrapperAttrs}
+      className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1"
+    >
+      <span
+        data-card-standing-tier
+        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] ${
+          onScrim
+            ? "border border-white/[0.25] bg-white/[0.08] text-white/90"
+            : "border border-border bg-background/60 text-foreground/90"
+        }`}
+      >
+        {standingTierLabel(tier)}
+      </span>
+      <span
+        data-card-standing-signal
+        className={`inline-flex items-center gap-1.5 text-[11px] ${textClass}`}
+        style={textStyle}
+      >
+        <StaticStars rating={data.ratingAvg} size={11} />
+        <span className="tabular-nums">{data.ratingAvg.toFixed(1)}</span>
+        <span aria-hidden className="text-[var(--dir-accent)]">
+          ·
+        </span>
+        <span className="tabular-nums">{ratingCount}</span>
+      </span>
+    </div>
+  );
+}
+
 function AvailabilityLine({ data }: { data: CanonicalTalentCardData }) {
   return (
     <span
@@ -114,16 +195,26 @@ function Photo({
           priority={priority}
         />
       ) : (
-        // Editorial monogram fallback — the talent's name set in the display
-        // face, never initials-in-a-box (product rule: imagery, never a
-        // placeholder block).
+        // No-photo fallback — a quiet, letter-free line-art silhouette on the
+        // card surface. Never the name-as-text and never initials-in-a-box
+        // (product rule: imagery, never a placeholder block).
         <div
           aria-hidden
           data-card-monogram
-          className="flex h-full items-center justify-center px-4 text-center font-display text-sm tracking-[0.18em]"
-          style={{ color: TALENT_CARD_VARS.muted }}
+          className="flex h-full items-center justify-center"
         >
-          {data.name}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-2/5 w-2/5"
+            style={{ color: TALENT_CARD_VARS.muted, opacity: 0.5 }}
+          >
+            <circle cx="12" cy="8.2" r="3.6" fill="currentColor" />
+            <path
+              d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z"
+              fill="currentColor"
+            />
+          </svg>
         </div>
       )}
     </div>
@@ -187,16 +278,19 @@ export function TalentCard({
   aspect,
   priority,
   index,
+  density = "comfortable",
   rootMode = "link",
   onActivate,
   cssVars,
   availabilitySlot,
   secondaryActionSlot,
   badgeSlot,
+  showStanding = "auto",
 }: TalentCardProps) {
   const displayName = resolveName(data.name, show.showName, nameFallback);
   const href = data.profileHref || "#";
   const aspectRatio = TALENT_CARD_ASPECT_RATIO[aspect];
+  const compact = density === "compact";
   // Inline per-tenant card palette (cross-tenant surfaces) merged onto the
   // root style. Undefined → no inline vars, card inherits the theme cascade.
   const rootStyle: CSSProperties | undefined = cssVars as
@@ -247,7 +341,9 @@ export function TalentCard({
           />
         )}
         <div
-          className="flex flex-col gap-1 border-t border-border pt-3"
+          className={`flex flex-col gap-1 border-t border-border ${
+            compact ? "pt-2.5" : "pt-3"
+          }`}
           data-card-body
         >
           <div className="flex items-baseline gap-3">
@@ -262,7 +358,9 @@ export function TalentCard({
             {displayName ? (
               <h3
                 data-card-name
-                className="font-display text-lg font-medium leading-tight tracking-wide"
+                className={`font-display font-medium leading-tight tracking-wide ${
+                  compact ? "text-base" : "text-lg"
+                }`}
                 style={{ color: TALENT_CARD_VARS.name }}
               >
                 {displayName}
@@ -287,6 +385,7 @@ export function TalentCard({
               {data.location}
             </p>
           ) : null}
+          <StandingChip data={data} onScrim={false} showStanding={showStanding} />
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
             {show.showBadges ? <OwnershipBadge data={data} /> : <span />}
             {/* availabilitySlot overrides the built-in line so a richer surface
@@ -342,13 +441,17 @@ export function TalentCard({
       ) : null}
 
       <div
-        className="absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1 px-3.5 pb-3.5"
+        className={`absolute inset-x-0 bottom-0 z-[1] flex flex-col gap-1 ${
+          compact ? "px-3 pb-2.5" : "px-3.5 pb-3.5"
+        }`}
         data-card-body
       >
         {displayName ? (
           <h3
             data-card-name
-            className="font-display text-base font-medium leading-tight tracking-wide text-white drop-shadow-sm sm:text-lg"
+            className={`font-display font-medium leading-tight tracking-wide text-white drop-shadow-sm ${
+              compact ? "text-sm sm:text-base" : "text-base sm:text-lg"
+            }`}
           >
             {displayName}
           </h3>
@@ -359,7 +462,9 @@ export function TalentCard({
           <span
             aria-hidden
             data-card-name-rule
-            className="mt-0.5 mb-0.5 block h-px w-7 bg-[var(--dir-accent)]"
+            className={`mt-0.5 block h-px w-7 bg-[var(--dir-accent)] ${
+              compact ? "mb-0" : "mb-0.5"
+            }`}
           />
         ) : null}
         {(show.showTalentType && data.primaryType) ||
@@ -375,6 +480,7 @@ export function TalentCard({
             {show.showLocation ? data.location : null}
           </p>
         ) : null}
+        <StandingChip data={data} onScrim showStanding={showStanding} />
         {/* availabilitySlot overrides the built-in line (e.g. the Discover
             14-day strip). Falls back to the default white-over-scrim line. */}
         {availabilitySlot ??

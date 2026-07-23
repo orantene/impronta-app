@@ -69,8 +69,11 @@ export function deriveTalentPickState(args: {
     cartIsEmpty &&
     selectedCount === 0 &&
     !recommendChosen;
-  const railOpenToSection: "talent" | null =
-    args.openToTalentSection || talentPickFirst ? "talent" : null;
+  // DOCK v2: talentPickFirst tailors the GREETING only — it must NOT fling the
+  // details sheet open on every Chat entry (live-QA: the sheet re-opened each
+  // time the tab was visited, burying the conversation the redesign is built
+  // around). Only an explicit deep-link (+N chip / rail avatar) auto-opens.
+  const railOpenToSection: "talent" | null = args.openToTalentSection ? "talent" : null;
   return { talentPickFirst, railOpenToSection };
 }
 

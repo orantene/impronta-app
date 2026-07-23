@@ -48,6 +48,8 @@ import {
 } from "@/lib/bookings/transactions";
 import { parseTalentBookingTerms, parseTenantCommercialTerms } from "@/lib/billing/commercial-terms";
 import { normalizeServicesMenu, findInstantBookService } from "@/lib/talent/services-menu-types";
+import { rowToOffering, offeringIsDirectlyBookable, type TalentOfferingRow } from "@/lib/talent/offerings-types";
+import { QUANTITY_UNITS } from "@/lib/talent/offerings-offer";
 
 export type InstantBookInput = {
   tenantId: string;
@@ -62,6 +64,34 @@ export type InstantBookInput = {
   sourcePage?: string | null;
   sourceWorkspaceId?: string | null;
   currencyCode?: string;
+  /**
+   * Storefront direct booking: book THIS offering (talent_offerings.id) instead
+   * of the legacy single instant-book menu item / fixed rate. The offering must
+   * pass offeringIsDirectlyBookable (booking_mode=instant, published, exact
+   * price) — a quote/custom offering is uncharge-able by construction.
+   */
+  offeringId?: string | null;
+  /**
+   * Client chose "pay at the appointment" (honored ONLY when the offering has
+   * allow_pay_in_person). The booking + transaction are still created; the
+   * card payment request is skipped — staff/talent collect in person and mark
+   * paid (payment_method cash) from the Messages shell.
+   */
+  payInPerson?: boolean;
+  /**
+   * D4 — the chosen option (talent_offering_variants.id). Loaded + validated
+   * server-side (must belong to the offering); its amount_cents overrides the
+   * base price (null = base applies). A variantId that doesn't belong refuses.
+   */
+  variantId?: string | null;
+  /** D4 — chosen extras (talent_offering_addons.id[]); each becomes its own offer line. */
+  addOnIds?: string[];
+  /**
+   * D5 — client-picked quantity. Applies only to per-unit price types
+   * (QUANTITY_UNITS) and products; clamped 1..999 (products further capped by
+   * atomic stock reserve). Everything else books as 1.
+   */
+  quantity?: number;
 };
 
 export type InstantBookReason =
@@ -190,17 +220,110 @@ export async function createInstantBooking(
     const menuItem = findInstantBookService(
       normalizeServicesMenu((tp as { services_menu?: unknown } | null)?.services_menu),
     );
-    const optIn = talentTerms?.instantBookOptIn === true || menuItem != null;
-    if (!optIn || tenantTerms?.instantBookEnabled !== true) {
+    // ── Storefront direct booking (offering-driven) ─────────────────────────
+    // A talent_offerings row with booking_mode='instant' IS the talent's
+    // per-service opt-in; the tenant gate stays respected when EXPLICITLY
+    // disabled (instantBookEnabled === false blocks; unset allows — the
+    // per-service choice is the sharper signal).
+    let offering: ReturnType<typeof rowToOffering> | null = null;
+    if (input.offeringId) {
+      const { data: offRow } = await admin
+        .from("talent_offerings")
+        .select("*")
+        .eq("id", input.offeringId)
+        .eq("talent_profile_id", input.talentProfileId)
+        .maybeSingle();
+      if (!offRow) return { ok: false, reason: "no_fixed_rate" };
+      offering = rowToOffering(offRow as TalentOfferingRow);
+      if (!offeringIsDirectlyBookable(offering)) {
+        return { ok: false, reason: "instant_book_not_enabled" };
+      }
+      if (tenantTerms?.instantBookEnabled === false) {
+        return { ok: false, reason: "instant_book_not_enabled" };
+      }
+    }
+
+    // D4 — resolve the chosen variant + add-ons SERVER-SIDE (never trust client
+    // cents). A submitted id that doesn't belong to this offering refuses.
+    type ChosenVariant = { id: string; label: string; amount_cents: number | null };
+    let variant: ChosenVariant | null = null;
+    let chosenAddOns: { id: string; label: string; amount_cents: number }[] = [];
+    if (offering && input.variantId) {
+      const { data: vRow } = await admin
+        .from("talent_offering_variants")
+        .select("id, label, amount_cents")
+        .eq("id", input.variantId)
+        .eq("offering_id", offering.id)
+        .maybeSingle();
+      if (!vRow) return { ok: false, reason: "no_fixed_rate", error: "unknown_variant" };
+      variant = vRow as ChosenVariant;
+    }
+    if (offering && (input.addOnIds?.length ?? 0) > 0) {
+      const ids = [...new Set(input.addOnIds!)].slice(0, 30);
+      const { data: aRows } = await admin
+        .from("talent_offering_addons")
+        .select("id, label, amount_cents")
+        .in("id", ids)
+        .eq("offering_id", offering.id);
+      chosenAddOns = ((aRows ?? []) as typeof chosenAddOns).filter(
+        (a) => typeof a.amount_cents === "number" && a.amount_cents >= 0,
+      );
+      if (chosenAddOns.length !== ids.length) {
+        return { ok: false, reason: "no_fixed_rate", error: "unknown_addon" };
+      }
+    }
+
+    // D5 — quantity: per-unit price types and products only; everything else 1.
+    const qtyEligible =
+      offering != null &&
+      ((QUANTITY_UNITS as readonly string[]).includes(offering.priceType) || offering.kind === "product");
+    const quantity = qtyEligible
+      ? Math.max(1, Math.min(999, Math.round(input.quantity ?? 1)))
+      : 1;
+
+    // W3-8 — PRODUCT stock: atomically reserve the units before any money step;
+    // a sold-out product refuses cleanly (no inquiry/offer/charge is created).
+    // Compensation: released on any later engine failure in this call.
+    let stockReserved = false;
+    if (offering && offering.kind === "product" && offering.inventoryQty != null) {
+      const { data: got } = await admin.rpc("reserve_offering_stock", {
+        p_offering_id: offering.id,
+        p_qty: quantity,
+      });
+      if (got !== true) return { ok: false, reason: "no_fixed_rate", error: "sold_out" };
+      stockReserved = true;
+    }
+    const releaseStock = async () => {
+      if (stockReserved && offering) {
+        await admin.rpc("release_offering_stock", { p_offering_id: offering.id, p_qty: quantity });
+      }
+    };
+
+    const optIn = offering != null || talentTerms?.instantBookOptIn === true || menuItem != null;
+    if (!optIn || (offering == null && tenantTerms?.instantBookEnabled !== true)) {
       return { ok: false, reason: "instant_book_not_enabled" };
     }
-    const fixedRateCents = menuItem?.amountCents ?? talentTerms?.fixedRateCents ?? null;
-    if (fixedRateCents == null || fixedRateCents <= 0) {
+    // D4/D5 price resolution: the chosen variant's price (when set) overrides
+    // the offering's base; quantity multiplies the unit; extras stack on top.
+    // Legacy menu/fixed-rate paths keep booking exactly one unit at base.
+    const unitCents =
+      variant?.amount_cents ?? offering?.amountCents ?? menuItem?.amountCents ?? talentTerms?.fixedRateCents ?? null;
+    if (unitCents == null || unitCents <= 0) {
       return { ok: false, reason: "no_fixed_rate" };
     }
-    const fixedRateDollars = fixedRateCents / 100;
-    const currency = (input.currencyCode ?? "USD").toUpperCase();
+    const addOnTotalCents = chosenAddOns.reduce((s, a) => s + a.amount_cents, 0);
+    const orderTotalCents = unitCents * quantity + addOnTotalCents;
+    const unitDollars = unitCents / 100;
+    const orderTotalDollars = orderTotalCents / 100;
+    const currency = (offering?.currency ?? input.currencyCode ?? "USD").toUpperCase();
     const talentName = (tp?.display_name as string | null)?.trim() || "Talent";
+    const payInPerson = input.payInPerson === true && offering?.allowPayInPerson === true;
+    // Reserve mode (W2-A): free = confirm the reservation without a card
+    // request (staff collect later); deposit = bill offering.depositPct now via
+    // the existing deposit/balance rail (offer terms drive Step 8's split).
+    const freeReserve = offering?.reserveMode === "free";
+    const offeringDepositPct =
+      offering?.reserveMode === "deposit" && offering.depositPct ? offering.depositPct : null;
 
     const staffActor = await resolveTenantStaffActor(admin, input.tenantId);
     if (!staffActor) return { ok: false, reason: "engine_error", error: "No staff actor for tenant." };
@@ -214,16 +337,43 @@ export async function createInstantBooking(
       event_location: input.eventLocation ?? null,
       source_page: input.sourcePage ?? null,
       source_channel: "instant_book",
+      source_context: offering
+        ? {
+            offering: {
+              offering_id: offering.id,
+              title: offering.title,
+              amount_cents: offering.amountCents,
+              currency: offering.currency,
+              price_type: offering.priceType,
+              kind: offering.kind,
+              pay_in_person: payInPerson,
+              reserve: offering.reserveMode,
+              // Precise release signal: only a product whose stock was actually
+              // decremented here carries this flag, so cancel/expiry paths never
+              // over-release a request-mode product that never reserved.
+              stock_reserved: stockReserved,
+              // D5 — how many units were reserved (release paths mirror this).
+              stock_reserved_qty: stockReserved ? quantity : 0,
+              // D4/D5 — the client's selection, for the coordinator/composer.
+              quantity,
+              variant_id: variant?.id ?? null,
+              variant_label: variant?.label ?? null,
+              add_ons: chosenAddOns.map((a) => ({ id: a.id, label: a.label, amount_cents: a.amount_cents })),
+              order_total_cents: orderTotalCents,
+            },
+          }
+        : undefined,
       client_user_id: input.clientUserId,
       talent_profile_ids: [input.talentProfileId],
       actorUserId: input.clientUserId,
       initiator_role: "client",
       tenant_id: input.tenantId,
       source_workspace_id: input.sourceWorkspaceId ?? input.tenantId,
-      quantity: 1,
-      message: "Instant booking",
+      quantity,
+      message: offering ? `Direct booking: ${offering.title}` : "Instant booking",
     });
     if (!(inq as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "submit:" + JSON.stringify(inq) };
     }
     const inquiryId = (inq as { data: { inquiryId: string } }).data.inquiryId;
@@ -241,6 +391,7 @@ export async function createInstantBooking(
       currencyCode: currency,
     });
     if (!(off as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "createOffer:" + JSON.stringify(off) };
     }
     const offerId = (off as { data: { offerId: string } }).data.offerId;
@@ -255,28 +406,58 @@ export async function createInstantBooking(
       actorUserId: staffActor,
       inquiryExpectedVersion: Number((inqV2.data as { version: number } | null)?.version ?? 1),
       offerExpectedVersion: Number((offV1.data as { version: number } | null)?.version ?? 1),
-      total_client_price: fixedRateDollars,
+      total_client_price: orderTotalDollars,
       coordinator_fee: 0,
       currency_code: currency,
       notes: null,
       lineItems: [
         {
           talent_profile_id: input.talentProfileId,
-          // S16 — name the line after the booked service when menu-driven.
-          label: menuItem?.name ?? talentName,
-          pricing_unit: "event",
-          units: 1,
-          unit_price: fixedRateDollars,
-          total_price: fixedRateDollars,
-          talent_cost: fixedRateDollars,
+          // Name the line after the booked offering/service when driven by one;
+          // a chosen variant rides in the label so the thread reads the order.
+          label:
+            (offering?.title ?? menuItem?.name ?? talentName) + (variant ? ` (${variant.label})` : ""),
+          pricing_unit: offering?.priceType ?? "event",
+          units: quantity,
+          unit_price: unitDollars,
+          total_price: Math.round(unitCents * quantity) / 100,
+          // PER-UNIT (the resolver computes talent_full = Σ units × talent_cost
+          // and refuses talent_cost > unit_price) — never the line total.
+          talent_cost: unitDollars,
           notes: null,
           sort_order: 0,
-          source_service_id: menuItem?.id ?? null, // S18 — audit stamp
+          source_service_id: offering?.id ?? menuItem?.id ?? null, // S18 — audit stamp
         },
+        // D4 — each chosen extra is its own line (full provenance in the offer).
+        ...chosenAddOns.map((a, i) => ({
+          talent_profile_id: input.talentProfileId,
+          label: a.label,
+          pricing_unit: "flat_package" as const,
+          units: 1,
+          unit_price: a.amount_cents / 100,
+          total_price: a.amount_cents / 100,
+          talent_cost: a.amount_cents / 100,
+          notes: null,
+          sort_order: i + 1,
+          source_service_id: offering?.id ?? null,
+        })),
       ],
     });
     if (!(upd as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "updateOffer:" + JSON.stringify(upd) };
+    }
+
+    // Offering-chosen deposit: stamp the offer terms BEFORE send/convert so the
+    // existing Step-8 deposit derivation (readOfferTermsFromRow) bills exactly
+    // the talent's configured reserve percentage.
+    if (offeringDepositPct != null) {
+      const { error: depTermErr } = await admin
+        .from("inquiry_offers")
+        .update({ deposit_pct: offeringDepositPct })
+        .eq("id", offerId)
+        .eq("tenant_id", input.tenantId);
+      if (depTermErr) logServerError("instantBook.offering_deposit_terms", depTermErr);
     }
 
     // ── Step 4 — send the offer (seeds approvals; staff) ────────────────────
@@ -291,6 +472,7 @@ export async function createInstantBooking(
       offerExpectedVersion: Number((offV2.data as { version: number } | null)?.version ?? 1),
     });
     if (!(sent as { success?: boolean }).success) {
+      await releaseStock();
       return { ok: false, reason: "engine_error", error: "sendOffer:" + JSON.stringify(sent) };
     }
 
@@ -343,18 +525,43 @@ export async function createInstantBooking(
     const bookingId = bookingIdData as string;
     // Re-stamp owner/creator to the tenant staff actor (the convert ran as the
     // client for the auth.uid() gate; the booking belongs to the agency staff).
+    // Also stamp booking_sub_type='product' so the payout gate defers this
+    // booking's transfer until the item ships (see transfers.ts / fulfillment.ts).
     await admin
       .from("agency_bookings")
-      .update({ owner_staff_id: staffActor, created_by_staff_id: staffActor })
+      .update({
+        owner_staff_id: staffActor,
+        created_by_staff_id: staffActor,
+        ...(offering?.kind === "product" ? { booking_sub_type: "product" } : {}),
+      })
       .eq("id", bookingId);
 
     // Persist the commission snapshot — convertToBooking's TS wrapper does this
     // after the RPC, but we call the RPC directly (client session), so it's our
-    // job. Without it the talent is never paid (executeBookingTransfers skips a
-    // booking with no snapshot). Non-fatal: a failure is logged for backfill.
-    const snap = await persistBookingCommissionSnapshot(admin, bookingId);
+    // job. FATAL (matches the coordinator path's P1 money-hardening): a booking
+    // with no snapshot can never pay the talent AND the payment fallback would
+    // bill the raw rate (no surcharge). Compensate: return the reserved stock,
+    // delete the orphan booking (cascades its children), and fail the call —
+    // the client can retry or use the inquiry path; the inquiry itself stays
+    // for coordinator follow-up.
+    // A pay-in-person booking settles OFF-PLATFORM (cash/efectivo): stamp the
+    // snapshot payment_method='cash' at creation. Defaulting to 'card' (the prior
+    // behavior) mis-ledgered every efectivo booking as an on-platform card charge
+    // — the settlement logic then waited on a Stripe charge that never comes
+    // (transaction stuck draft, payment_status unpaid), and the Messages-shell
+    // "mark as cash" couldn't reclassify an existing card snapshot. Stamping cash
+    // up front makes the off-platform balance accrue correctly.
+    const snap = await persistBookingCommissionSnapshot(
+      admin,
+      bookingId,
+      payInPerson ? "cash" : "card",
+      payInPerson ? "pay_in_person" : null,
+    );
     if (!snap.ok) {
       logServerError("instantBook.commission_snapshot", new Error(`booking ${bookingId}: ${snap.reason ?? "persist_failed"}`));
+      await releaseStock();
+      await admin.from("agency_bookings").delete().eq("id", bookingId);
+      return { ok: false, reason: "engine_error", error: `commission_snapshot:${snap.reason ?? "persist_failed"}` };
     }
 
     // ── Step 8 — create + request the payment ───────────────────────────────
@@ -371,7 +578,7 @@ export async function createInstantBooking(
     // back via these snapshot sums. Falls back to the bare fixed rate only when no
     // snapshot exists (rare — the snapshot persist above failed).
     const grossChargedCents = await sumBookingGrossChargedCents(admin, bookingId);
-    const fullGrossCents = grossChargedCents > 0 ? grossChargedCents : fixedRateCents;
+    const fullGrossCents = grossChargedCents > 0 ? grossChargedCents : orderTotalCents;
     const snapshotPlatformFeeCents = await sumBookingPlatformFeeCents(admin, bookingId);
 
     // A2 — apply a deposit when the offer's resolved terms specify one. The offer
@@ -449,14 +656,26 @@ export async function createInstantBooking(
       bookingId,
       supabase: admin,
     });
-    const talentCand = candidates.find((c) => c.receiverKind === "talent");
+    // Prefer the talent's own payout account; fall back to any other candidate
+    // (the workspace is the seller-of-record — Connect transfers fan out from
+    // it), so a card "Book now" still produces a payment request when the
+    // talent hasn't connected Stripe yet. No candidate at all → the txn stays
+    // draft and staff request payment from the Messages Offer tab.
+    const talentCand =
+      candidates.find((c) => c.receiverKind === "talent") ?? candidates[0] ?? null;
     if (talentCand) {
       await setTransactionPayoutReceiver({
         transactionId: txn.data.id,
         payoutAccountId: talentCand.payoutAccountId,
         sourceTenantId: input.tenantId,
       });
-      await requestPayment(txn.data.id);
+      // Pay-in-person: the reservation stands (booking confirmed, transaction
+      // drafted with the surcharge-inclusive gross) but NO card request is
+      // emitted — staff/talent collect at the appointment and mark it paid
+      // (payment_method cash) from the Messages shell.
+      if (!payInPerson && !freeReserve) {
+        await requestPayment(txn.data.id);
+      }
     }
 
     return { ok: true, inquiryId, bookingId, transactionId: txn.data.id };

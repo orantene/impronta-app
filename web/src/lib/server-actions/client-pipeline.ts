@@ -16,6 +16,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
+import { isCrossChannelRehomedInquiry } from "@/lib/inquiry/inquiry-rehome";
 import { loadActiveBookingTransaction } from "@/lib/bookings/transactions";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
 import { createPaymentIntentForTransaction } from "@/lib/payments/stripe-payment-intent";
@@ -41,6 +42,7 @@ async function loadClientInquiryContext(inquiryId: string): Promise<
       supabase: import("@supabase/supabase-js").SupabaseClient;
       userId: string;
       tenantId: string;
+      sourceWorkspaceId: string | null;
       version: number;
       currentOfferId: string | null;
     }
@@ -52,7 +54,12 @@ async function loadClientInquiryContext(inquiryId: string): Promise<
 
   const { data: inq } = await supabase
     .from("inquiries")
-    .select("tenant_id, version, current_offer_id, client_user_id")
+    // source_workspace_id (the originating channel/host) is loaded alongside
+    // tenant_id so checkout routing can detect a cross-channel re-home — an
+    // inquiry filed under a tenant that is NOT the channel it came in through
+    // (see startInquiryCheckout). For a native storefront inquiry the two are
+    // equal, so the re-home branch there is a strict no-op.
+    .select("tenant_id, source_workspace_id, version, current_offer_id, client_user_id")
     .eq("id", inquiryId)
     .maybeSingle();
   if (!inq) return { ok: false, error: "Inquiry not found." };
@@ -69,6 +76,7 @@ async function loadClientInquiryContext(inquiryId: string): Promise<
     supabase,
     userId: user.id,
     tenantId: inq.tenant_id as string,
+    sourceWorkspaceId: (inq.source_workspace_id as string | null) ?? null,
     version: (inq.version as number | null) ?? 1,
     currentOfferId: (inq.current_offer_id as string | null) ?? null,
   };
@@ -239,11 +247,23 @@ export async function startInquiryCheckout(
     const successUrl = `${origin}/checkout/success`;
     const cancelUrl = `${origin}/checkout/cancel`;
 
+    // Charge/payout coherence guard (cross-channel re-home): when the inquiry
+    // was re-homed onto a tenant that is NOT its originating channel (hub /
+    // Discover), a Direct Charge on that tenant's Connect account would strand
+    // the platform-funded payout fan-out (markPaid → executeBookingTransfers
+    // pays talent + workspace from the PLATFORM balance). Force the charge onto
+    // the platform account so the fan-out stays funded — the same well-tested
+    // embedded-PayNow model (createInquiryPaymentIntent). For a NATIVE agency
+    // inquiry (source_workspace_id == tenant_id) this is FALSE and Direct Charge
+    // routing is unchanged.
+    const rehomed = isCrossChannelRehomedInquiry(ctx.tenantId, ctx.sourceWorkspaceId);
+
     // Connect routing: if the agency has connected Stripe and the account is
     // fully enabled, run a Direct Charge against their account. Otherwise
     // fall back to the platform's single-account flow (legacy / pre-launch).
     const connectSnap = await getConnectedAccountSnapshotById(ctx.tenantId);
-    const useConnect = connectSnap.ok && canRouteCheckoutsToAgency(connectSnap.data);
+    const useConnect =
+      !rehomed && connectSnap.ok && canRouteCheckoutsToAgency(connectSnap.data);
     const connectedAccountId = useConnect ? connectSnap.data.stripeAccountId : null;
     // Phase B PR 3 — pull the actual platform fee from the persisted
     // commission snapshot, not the legacy flat-0 helper. When the booking

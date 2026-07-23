@@ -77,6 +77,14 @@ export type UseUnifiedInquiryResult = {
    * true after a successful contact patch. Drives the send-gate (finding #1).
    */
   contactPromoted: boolean;
+  /**
+   * Mark the contact real from OUTSIDE the hook's own flows. The fresh-create
+   * send path (startGuestChatInquiry via useMiniChatSend) creates + promotes
+   * server-side without ever calling promoteContact/ensure here, so the panel
+   * calls this on a successful send — otherwise the header keeps showing
+   * "Private draft" on an inquiry that was just sent.
+   */
+  markContactPromoted: () => void;
   /** The reconciled live draft (optimistic local edits merged with server data). */
   intent: InquiryIntent;
   /** Debounced ~350ms; ensures the early row exists first, then writes the field. */
@@ -120,6 +128,15 @@ export type UseUnifiedInquiryArgs = {
    * component). When present, patches skip the ensure step and target it.
    */
   existingInquiryId?: string | null;
+
+  /**
+   * Server-resolved truth for whether the resumed inquiry's contact is REAL
+   * (getActiveGuestInquiry → ActiveGuestInquiry.contactPromoted). Without it a
+   * resumed DRAFT was assumed promoted (ensure() never runs again for an
+   * existing id to correct the guess), which erased the draft banner + the
+   * "Send to agency" flow after a reload. Null/omitted = legacy assume-promoted.
+   */
+  existingContactPromoted?: boolean | null;
 
   /**
    * The latest server-loaded details for this inquiry, in InquiryIntent shape.
@@ -284,6 +301,7 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
     talentProfileCode,
     sourcePage,
     existingInquiryId,
+    existingContactPromoted = null,
     serverIntent,
     ensureInquiry,
     onCaptureChip,
@@ -295,11 +313,14 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
   const [localIntent, setLocalIntent] = useState<InquiryIntent>(serverIntent ?? EMPTY_INTENT);
   const [syncState, setSyncState] = useState<UnifiedSyncState>("idle");
   const [fieldState, setFieldState] = useState<Record<string, UnifiedSyncState>>({});
-  // Real-contact flag (see UseUnifiedInquiryResult.contactPromoted). A returning
-  // guest resumed with an existing id may already be promoted; ensureGuestChatInquiry
-  // reports the true state, so we treat an injected existingInquiryId as promoted
-  // (it was created through the real start path) and let ensure() correct it.
-  const [contactPromoted, setContactPromoted] = useState<boolean>(Boolean(existingInquiryId));
+  // Real-contact flag (see UseUnifiedInquiryResult.contactPromoted). For a
+  // resumed id the SERVER's answer (existingContactPromoted, from
+  // getActiveGuestInquiry) is authoritative — ensure() short-circuits for
+  // existing ids and never corrects a wrong guess. Only when the mount didn't
+  // supply it (legacy callers) do we fall back to assuming promoted.
+  const [contactPromoted, setContactPromoted] = useState<boolean>(
+    existingInquiryId ? (existingContactPromoted ?? true) : false,
+  );
 
   // Subscribe to the tenant-wide realtime channels so remote edits drive a
   // refresh. Gated: the guest chat surface leaves this OFF and relies on the
@@ -576,5 +597,14 @@ export function useUnifiedInquiry(args: UseUnifiedInquiryArgs): UseUnifiedInquir
 
   const intent = useMemo(() => localIntent, [localIntent]);
 
-  return { inquiryId, contactPromoted, intent, patch, promoteContact, syncState, fieldState };
+  return {
+    inquiryId,
+    contactPromoted,
+    markContactPromoted: () => setContactPromoted(true),
+    intent,
+    patch,
+    promoteContact,
+    syncState,
+    fieldState,
+  };
 }

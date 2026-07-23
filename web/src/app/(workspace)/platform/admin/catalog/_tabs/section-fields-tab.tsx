@@ -10,21 +10,26 @@ import { SaveNotice } from "../[fieldKey]/field-detail-editor-parts";
 import { loadEditorLayoutAdmin } from "./editor-layout-admin-data";
 import { SectionFieldOrderPanel } from "./section-field-order-panel";
 import { FieldLink, monoStyle, UnmappedCard } from "./section-editor-shared";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
+const K = "dashboard.platform.catalog";
 
 export async function SectionFieldsTab({
   sp,
+  t,
 }: {
   sp: Record<string, string | undefined>;
+  t: Translate;
 }) {
   const data = await loadEditorLayoutAdmin();
 
   if (!data.ok) {
     return (
-      <HqCard title="Section Fields">
+      <HqCard title={t(`${K}.tabSectionFields`)}>
         <SaveNotice saved={sp.saved} error={sp.error} />
         <div style={{ fontSize: 13, color: HQ.inkMuted }}>
-          Could not load the profile-editor layout. The service client may be
-          unavailable, or the layout tables are empty.
+          {t(`${K}.sectionEditorUnavailableBody`)}
         </div>
       </HqCard>
     );
@@ -49,13 +54,13 @@ export async function SectionFieldsTab({
       <div
         style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
       >
-        <Stat label="Mapped fields" value={totalMapped} />
+        <Stat label={t(`${K}.sfStatMapped`)} value={totalMapped} />
         <Stat
-          label="Unmapped fields"
+          label={t(`${K}.sfStatUnmapped`)}
           value={totalUnmapped}
           tone={totalUnmapped > 0 ? HQ.amber : undefined}
         />
-        <Stat label="Sections" value={data.counts.sections} />
+        <Stat label={t(`${K}.sfStatSections`)} value={data.counts.sections} />
       </div>
 
       {/* Per-group + per-section accordions */}
@@ -96,7 +101,7 @@ export async function SectionFieldsTab({
                 marginLeft: "auto",
               }}
             >
-              {group.is_active ? "active" : "inactive"}
+              {group.is_active ? t(`${K}.badgeActive`) : t(`${K}.badgeInactive`)}
             </span>
           </div>
 
@@ -108,7 +113,7 @@ export async function SectionFieldsTab({
                 padding: "4px 0 10px",
               }}
             >
-              No sections in this group.
+              {t(`${K}.sfNoSectionsInGroup`)}
             </div>
           ) : (
             group.sections.map((section) => {
@@ -117,11 +122,11 @@ export async function SectionFieldsTab({
                 <HqAccordion
                   key={section.id}
                   title={`${section.emoji ? `${section.emoji} ` : ""}${section.label_en}`}
-                  meta={`${fieldCount} field${fieldCount === 1 ? "" : "s"}`}
+                  meta={interpolate(t(`${K}.${fieldCount === 1 ? "sfSectionMetaOne" : "sfSectionMetaMany"}`), { count: fieldCount })}
                   badge={
                     !section.is_active || !!section.archived_at
                       ? {
-                          text: section.archived_at ? "archived" : "inactive",
+                          text: section.archived_at ? t(`${K}.badgeArchived`) : t(`${K}.badgeInactive`),
                           tone: HQ.red,
                         }
                       : undefined
@@ -135,7 +140,7 @@ export async function SectionFieldsTab({
                         padding: "4px 0",
                       }}
                     >
-                      No catalog fields mapped to this section.
+                      {t(`${K}.sfNoCatalogFields`)}
                     </div>
                   ) : (
                     /* Two columns: field links (left) + drag reorder (right) */
@@ -153,7 +158,7 @@ export async function SectionFieldsTab({
                       {/* LEFT — clickable field link rows */}
                       <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
                         {section.fields.map((field) => (
-                          <FieldLink key={field.field_key} field={field} />
+                          <FieldLink key={field.field_key} field={field} t={t} />
                         ))}
                       </div>
 
@@ -192,7 +197,7 @@ export async function SectionFieldsTab({
               borderBottom: `1px solid ${HQ.borderSoft}`,
             }}
           >
-            Ungrouped sections
+            {t(`${K}.sfUngroupedTitle`)}
           </div>
           {data.orphanSections.map((section) => {
             const fieldCount = section.fields.length;
@@ -200,12 +205,12 @@ export async function SectionFieldsTab({
               <HqAccordion
                 key={section.id}
                 title={`${section.emoji ? `${section.emoji} ` : ""}${section.label_en}`}
-                meta={`${fieldCount} field${fieldCount === 1 ? "" : "s"} · no group`}
-                badge={{ text: "ungrouped", tone: HQ.amber }}
+                meta={interpolate(t(`${K}.${fieldCount === 1 ? "sfUngroupedMetaOne" : "sfUngroupedMetaMany"}`), { count: fieldCount })}
+                badge={{ text: t(`${K}.badgeUngrouped`), tone: HQ.amber }}
               >
                 {fieldCount === 0 ? (
                   <div style={{ fontSize: 11, color: HQ.inkDim }}>
-                    No catalog fields mapped to this section.
+                    {t(`${K}.sfNoCatalogFields`)}
                   </div>
                 ) : (
                   <div
@@ -221,7 +226,7 @@ export async function SectionFieldsTab({
                   >
                     <div style={{ display: "grid", gap: 4, minWidth: 0 }}>
                       {section.fields.map((field) => (
-                        <FieldLink key={field.field_key} field={field} />
+                        <FieldLink key={field.field_key} field={field} t={t} />
                       ))}
                     </div>
                     {fieldCount >= 2 && (
@@ -245,7 +250,7 @@ export async function SectionFieldsTab({
       )}
 
       {/* Unmapped DB field-section values */}
-      <UnmappedCard unmappedSections={data.unmappedSections} />
+      <UnmappedCard unmappedSections={data.unmappedSections} t={t} />
     </div>
   );
 }

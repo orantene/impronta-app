@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
@@ -15,12 +16,15 @@ export async function FinalCtaSection() {
           className="relative overflow-hidden rounded-[32px] px-6 py-16 text-center sm:rounded-[36px] sm:px-16 sm:py-24 md:py-28"
           style={{ background: "#0a1d16", color: "var(--plt-on-inverse)" }}
         >
-          {/* The signature image — every kind of talent, one platform */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {/* The signature image: every kind of talent, one platform. Served
+              through next/image so this full-bleed local JPEG ships as AVIF at
+              the viewport width instead of its 303 KB source. */}
+          <Image
             src={MARKETING_PHOTOS.heroServices.url()}
             alt={MARKETING_PHOTOS.heroServices.alt}
-            className="absolute inset-0 h-full w-full object-cover"
+            fill
+            sizes="(min-width: 1024px) 1024px, 100vw"
+            className="object-cover"
             style={{ objectPosition: "50% 42%" }}
           />
           {/* Forest wash — keeps the image alive but the text readable */}
@@ -108,6 +112,16 @@ export async function FinalCtaSection() {
                 </li>
               ))}
             </ul>
+
+            {/* Brand vision signature, small and closing. The hero carries the
+                value message, the logo lockup the category. /about is the only
+                page that also states this line at display scale. */}
+            <p
+              className="plt-display mx-auto mt-14 max-w-lg text-[1.0625rem] font-medium leading-[1.5] tracking-[-0.01em] sm:text-[1.1875rem]"
+              style={{ color: "rgba(241,237,227,0.56)" }}
+            >
+              {copy.vision}
+            </p>
           </div>
         </div>
       </MarketingContainer>

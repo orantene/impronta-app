@@ -58,6 +58,11 @@ import {
   type CanvasDropResult,
 } from "@/lib/site-admin/builder-node/canvas-node-drop";
 import {
+  classifyCanvasBlockPointerGesture,
+  pointerMovedPastThreshold,
+  resolveCanvasNodeMoveIndex,
+} from "@/lib/site-admin/builder-node/canvas-block-move-gesture";
+import {
   ArrowDown,
   ArrowUp,
   ClipboardPaste,
@@ -129,9 +134,14 @@ import {
 } from "./page-block-dom";
 import { performAddGalleryInsertById } from "@/lib/site-admin/add-gallery/perform-insert";
 import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery/registry";
+import { AiReviseModal } from "./ai-revise/ai-revise-modal";
+import {
+  replaceBuilderNodeInTree,
+  findBuilderNodeParentIndex,
+} from "@/lib/site-admin/builder-node/replace-in-tree";
 import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
-import { resolveLayerDisplayName } from "./freeform-layer-name";
+import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { SectionTypeIcon } from "./kit/section-type-icon";
@@ -142,13 +152,15 @@ import {
   CANVAS_GESTURE_COACHMARK_SEQUENCE,
   nextUndismissedCoachmark,
 } from "./builder-coachmarks";
-
-interface Rect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
+import {
+  DRAG_THRESHOLD,
+  autoscrollDeltaForY,
+  filterMarqueeHits,
+  marqueeRectFromPoints,
+  resolveSectionDropTarget,
+  type Rect,
+  type SectionDropItem,
+} from "./selection-layer-geometry";
 
 // #21 — the layout-container kinds whose gap is set through the `style.gap`
 // escape (→ `--bn-gap`). Mirrors the Style panel's Gap-field gate so the canvas
@@ -479,10 +491,6 @@ function collectCanvasDropCandidates(
   return candidates;
 }
 
-const DRAG_THRESHOLD = 4; // px before an armed drag actually begins
-const AUTOSCROLL_BAND = 80; // px edge band that triggers auto-scroll
-const AUTOSCROLL_MAX = 14; // px per frame at the edge
-
 interface NodeInsertTarget {
   nodeId: string;
   allowedKinds: ReadonlyArray<BuilderNodeKind>;
@@ -681,6 +689,7 @@ export function SelectionLayer() {
     insertBuilderNode,
     insertBuilderSectionEmbed,
     insertBuilderComponent,
+    applyComposedTreeWithUndo,
     moveBuilderNodeWithinParent,
     moveBuilderNodeToParentIndex,
     removeBuilderNode,
@@ -738,6 +747,40 @@ export function SelectionLayer() {
   const [selectionAnnounce, setSelectionAnnounce] = useState("");
   const [selectionFocused, setSelectionFocused] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  // AI "revise this block" — the node id whose revise modal is open (null = closed).
+  const [aiReviseNodeId, setAiReviseNodeId] = useState<string | null>(null);
+  const aiReviseNode = useMemo(
+    () => (aiReviseNodeId ? findBuilderNodeById(builderTree, aiReviseNodeId) : null),
+    [aiReviseNodeId, builderTree],
+  );
+  // Replace the selected block's whole subtree with the AI candidate — one
+  // undoable, autosaved apply (the same chokepoint the "Design with AI" apply
+  // uses), so the change is snapshotted and reversible.
+  const handleAiReplace = useCallback(
+    async (candidate: BuilderNode): Promise<{ ok: boolean; error?: string }> => {
+      if (!aiReviseNodeId) return { ok: false, error: "No block selected." };
+      const { tree, replaced } = replaceBuilderNodeInTree(builderTree, aiReviseNodeId, candidate);
+      if (!replaced) return { ok: false, error: "That block is no longer on the page." };
+      return applyComposedTreeWithUndo({ tree, label: "Revised block with AI" });
+    },
+    [aiReviseNodeId, builderTree, applyComposedTreeWithUndo],
+  );
+  // Insert the AI candidate as a sibling directly after the selected block
+  // (undoable via the shared insert path). Section roots insert at page root.
+  const handleAiInsertBelow = useCallback(
+    async (candidate: BuilderNode): Promise<{ ok: boolean; error?: string }> => {
+      if (!aiReviseNodeId) return { ok: false, error: "No block selected." };
+      const loc = findBuilderNodeParentIndex(builderTree, aiReviseNodeId);
+      if (!loc) return { ok: false, error: "That block is no longer on the page." };
+      const res = await insertBuilderComponent(
+        loc.parentId,
+        JSON.stringify(candidate),
+        loc.index + 1,
+      );
+      return { ok: res.ok, error: res.error };
+    },
+    [aiReviseNodeId, builderTree, insertBuilderComponent],
+  );
   const [chipInspectorTab, setChipInspectorTab] = useState<"content" | "style">(
     "content",
   );
@@ -759,6 +802,33 @@ export function SelectionLayer() {
   });
   const [marquee, setMarquee] = useState<MarqueeState>({ phase: "idle" });
   const suppressNextClickRef = useRef(false);
+  // W1-L7 — pointer-driven block move-drag. `blockMoveDepsRef` mirrors the
+  // selection facts the pointerdown classifier needs (kept current every render
+  // by an effect below); `blockMovePointerRef` tracks a live gesture (null when
+  // idle, `armed` once past the click-vs-drag threshold).
+  const blockMoveDepsRef = useRef<{
+    selectedCanvasNodeId: string | null;
+    selectedNodeKind: BuilderNodeKind | null;
+    selectedNodeIsEditableBlock: boolean;
+    selectedNodeIsLocked: boolean;
+    label: string;
+  }>({
+    selectedCanvasNodeId: null,
+    selectedNodeKind: null,
+    selectedNodeIsEditableBlock: false,
+    selectedNodeIsLocked: false,
+    label: "",
+  });
+  const blockMovePointerRef = useRef<{
+    pointerId: number;
+    nodeId: string;
+    draggedKind: BuilderNodeKind;
+    label: string;
+    sourceParentNodeId: string | null;
+    startX: number;
+    startY: number;
+    armed: boolean;
+  } | null>(null);
   const autoscrollRafRef = useRef<number | null>(null);
   const selectionScrollRetryRef = useRef<number | null>(null);
 
@@ -839,7 +909,7 @@ export function SelectionLayer() {
     };
   }, [drag.phase]);
 
-  const scheduleRectRecompute = () => {
+  const scheduleRectRecompute = useCallback(() => {
     // Always cancel any pending frame and queue a fresh one. If we only bail
     // out when a ref is set, a cancelled-but-not-cleared ref (from strict
     // mode's effect double-run, or a missed cleanup path) will deadlock the
@@ -904,26 +974,42 @@ export function SelectionLayer() {
         setNodeHoverRect(null);
       }
     });
-  };
-  // Latest-value ref so observers can call the freshest recompute without
-  // listing the unstable inline fn in their deps (which would re-subscribe
-  // every render) — and without a frozen hook-deps eslint-disable.
-  const scheduleRectRecomputeRef = useRef(scheduleRectRecompute);
-  scheduleRectRecomputeRef.current = scheduleRectRecompute;
-
-  useEffect(() => {
-    scheduleRectRecompute();
-    // selection/hover changes → recompute immediately
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn that reads live refs; adding it would require wrapping in useCallback with the full dep chain
   }, [
+    getSelectedBuilderNodeEl,
+    getSelectedSectionEl,
     selectedSectionId,
     selectedBuilderNodeId,
     hoveredSectionId,
     hoveredBuilderNodeId,
-    pageVersion,
-    getSelectedSectionEl,
-    getSelectedBuilderNodeEl,
   ]);
+  // Latest-value ref so observers (ResizeObserver / MutationObserver, the
+  // scroll/resize listeners) can call the freshest recompute without listing
+  // the callback in their deps and re-subscribing.
+  const scheduleRectRecomputeRef = useRef(scheduleRectRecompute);
+  scheduleRectRecomputeRef.current = scheduleRectRecompute;
+
+  // Latest-value ref for the live builder tree, so the document-level click
+  // listener can read the freshest lock state without re-subscribing on every
+  // tree edit (the old effect captured `builderTree` and only refreshed it when
+  // hover/context-menu deps changed — a latent stale-tree read). Mirrored in an
+  // effect (not during render) like `callbacksRef` below.
+  const builderTreeRef = useRef(builderTree);
+  useEffect(() => {
+    builderTreeRef.current = builderTree;
+  }, [builderTree]);
+
+  // Recompute immediately when the selection/hover target changes (folded into
+  // scheduleRectRecompute's identity) and when the device preset or page
+  // version bumps — both reflow the canvas, moving the tracked rects, so a fresh
+  // measurement is required even though the pure geometry doesn't read them.
+  useEffect(() => {
+    // Read device + pageVersion so they are honest, satisfiable deps (a change
+    // in either is a re-measure trigger, not an input to the math).
+    if (device || pageVersion) {
+      /* trigger-only: fall through to the recompute below */
+    }
+    scheduleRectRecompute();
+  }, [scheduleRectRecompute, device, pageVersion]);
 
   // W3-T3 — canvas selection focus + a11y. When the selection changes, move
   // keyboard focus to the selected block element (made programmatically
@@ -1166,10 +1252,7 @@ export function SelectionLayer() {
     getSelectedBuilderNodeEl,
   ]);
 
-  useEffect(() => {
-    scheduleRectRecompute();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- scheduleRectRecompute is a stable inline fn; device change re-triggers rect recompute, no other deps needed
-  }, [device]);
+  // (device-change re-measure is folded into the merged recompute effect above.)
 
   // QA 2026-05-13 — the document-level event listener effect at this
   // useEffect intentionally omits the EditContext callbacks
@@ -1279,7 +1362,7 @@ export function SelectionLayer() {
       // become the primary selection, so the inspector won't show stale controls
       // for a locked element. The click is still stopped so navigation links
       // inside the locked node don't fire.
-      if (builderNodeId && isBuilderNodeLocked(builderTree, builderNodeId)) {
+      if (builderNodeId && isBuilderNodeLocked(builderTreeRef.current, builderNodeId)) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -1358,7 +1441,7 @@ export function SelectionLayer() {
       // W2-T6(c) — scroll/resize moves the selected element's viewport rect →
       // wake the rAF overlay loop for the next frame(s).
       geometryDirtyRef.current = true;
-      scheduleRectRecompute();
+      scheduleRectRecomputeRef.current();
     }
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
@@ -1400,7 +1483,11 @@ export function SelectionLayer() {
         rafRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- EditContext callbacks are mirrored into callbacksRef above; re-registering on every selection change would thrash listeners
+    // EditContext callbacks are read through callbacksRef, the live tree through
+    // builderTreeRef, and the recompute through scheduleRectRecomputeRef — so
+    // none of them need to be deps and the listeners are NOT re-subscribed on
+    // every selection/tree change. The remaining deps are the only reactive
+    // values the handlers read directly.
 	  }, [contextMenu, hoveredSectionId, hoveredBuilderNodeId]);
 
   useEffect(() => {
@@ -1415,15 +1502,6 @@ export function SelectionLayer() {
         return true;
       }
       return Boolean(source.closest("[data-builder-node-id]"));
-    }
-
-    function rectsIntersect(a: Rect, b: Rect) {
-      return (
-        a.left < b.left + b.width &&
-        a.left + a.width > b.left &&
-        a.top < b.top + b.height &&
-        a.top + a.height > b.top
-      );
     }
 
     // P3-PERF: cached marquee candidate index, built once at marquee-start and
@@ -1451,19 +1529,13 @@ export function SelectionLayer() {
 
     function selectedNodeIdsForRect(rect: Rect) {
       // Reuse the gesture's cached index when warm; fall back to a fresh scan
-      // (byte-identical) if the cache was never seeded for this gesture.
+      // (byte-identical) if the cache was never seeded for this gesture. The
+      // hit-test + innermost-node containment filter is the pure
+      // `filterMarqueeHits`; DOM containment is injected here.
       const index = marqueeIndexRef.current ?? buildMarqueeIndex();
-      const candidates = index.filter((candidate) =>
-        rectsIntersect(rect, candidate.box),
-      );
-      return candidates
-        .filter(
-          (candidate) =>
-            !candidates.some(
-              (other) => other !== candidate && candidate.el.contains(other.el),
-            ),
-        )
-        .map((candidate) => candidate.id);
+      return filterMarqueeHits(rect, index, (ancestor, descendant) =>
+        ancestor.el.contains(descendant.el),
+      ).map((candidate) => candidate.id);
     }
 
     function flushMarqueePoint() {
@@ -1524,12 +1596,12 @@ export function SelectionLayer() {
         }
         const endX = point?.x ?? current.currentX;
         const endY = point?.y ?? current.currentY;
-        const rect = {
-          left: Math.min(current.startX, endX),
-          top: Math.min(current.startY, endY),
-          width: Math.abs(endX - current.startX),
-          height: Math.abs(endY - current.startY),
-        };
+        const rect = marqueeRectFromPoints(
+          current.startX,
+          current.startY,
+          endX,
+          endY,
+        );
         if (rect.width >= 8 && rect.height >= 8) {
           suppressNextClickRef.current = true;
           const ids = selectedNodeIdsForRect(rect);
@@ -1933,23 +2005,15 @@ export function SelectionLayer() {
           deps.builderTree,
           state.nodeId,
         );
-        const sameParent = location?.parentNodeId === drop.parentNodeId;
-        const resolvedIndex = sameParent
-          ? (() => {
-              const gap = siblingDropGapToMoveIndex({
-                dropGapIndex:
-                  // Re-expand the gap to the FULL sibling list: the resolver
-                  // measured against siblings WITHOUT the dragged node, so any
-                  // gap at/after the source slot is shifted up by one.
-                  location && drop.index >= location.sourceSiblingIndex
-                    ? drop.index + 1
-                    : drop.index,
-                sourceSiblingIndex: location?.sourceSiblingIndex ?? 0,
-                sameParent: true,
-              });
-              return gap.kind === "noop" ? null : gap.targetSiblingIndex;
-            })()
-          : drop.index;
+        // W1-L7 — shared with the pointer-driven block move (same drop math so
+        // both paths land a block identically). Re-expands the resolver's
+        // excluded-node gap to the full sibling list and applies the −1 removal
+        // shift; a same-slot drop returns null (no-op).
+        const resolvedIndex = resolveCanvasNodeMoveIndex({
+          location,
+          dropParentNodeId: drop.parentNodeId,
+          dropIndex: drop.index,
+        });
         if (resolvedIndex === null) return;
         void deps
           .moveBuilderNodeToParentIndex(
@@ -2082,6 +2146,210 @@ export function SelectionLayer() {
     });
   }, [computeCanvasNodeDrop]);
 
+  // ── W1-L7: pointer-driven MOVE-DRAG of the selected block on the canvas ─────
+  //
+  // Defect (P1): dragging a selected text/block on the canvas did NOT move it —
+  // the block body had no drag handler, so the gesture fell through to the
+  // browser's native text-range selection (and the transient selection stacked a
+  // second "1 selected" toolbar over the block toolbar). The universal builder
+  // gesture — drag = move/reorder — did the wrong thing.
+  //
+  // The chip grip already arms an EXISTING-block move via native HTML5 drag; a
+  // block element itself can't be made `draggable` (it's server-rendered
+  // content), so we drive an equivalent POINTER move here and reuse the SAME
+  // drop-policy resolver (`computeCanvasNodeDrop`) + commit path
+  // (`moveBuilderNodeToParentIndex`, via the shared `resolveCanvasNodeMoveIndex`
+  // math). Setting `canvasNodeDrag` to phase "move" lights up the existing
+  // drop-indicator + labeled ghost for free.
+  //
+  // Gesture discipline (see `classifyCanvasBlockPointerGesture`): only a primary
+  // drag directly on the SELECTED, editable, unlocked block starts a move; a
+  // pointerdown inside an inline text editor (contenteditable) or on edit chrome
+  // is left to native behavior, so double-click → text editing still selects
+  // text normally. Native selection is suppressed for the whole gesture
+  // (preventDefault on the arming pointerdown + a `selectstart` guard) so a drag
+  // never paints a text range.
+  useEffect(() => {
+    const CHROME_SELECTOR =
+      "[data-edit-topbar],[data-edit-drawer],[data-edit-overlay],[data-selection-chip],[data-selection-chip-grip]";
+    const INLINE_EDIT_SELECTOR =
+      "[contenteditable='true'],[data-edit-overlay='canvas-edit']";
+
+    const overChromeAtPoint = (x: number, y: number): boolean => {
+      const el = document.elementFromPoint(x, y);
+      return Boolean(el instanceof Element && el.closest(CHROME_SELECTOR));
+    };
+
+    const endGesture = () => {
+      blockMovePointerRef.current = null;
+      document.body.style.userSelect = "";
+    };
+
+    function onPointerDown(event: PointerEvent) {
+      if (blockMovePointerRef.current) return;
+      const deps = blockMoveDepsRef.current;
+      const target = event.target instanceof Element ? event.target : null;
+      const selectedId = deps.selectedCanvasNodeId;
+      const nearestNodeId =
+        target?.closest("[data-builder-node-id]")?.getAttribute(
+          "data-builder-node-id",
+        ) ?? null;
+      const gesture = classifyCanvasBlockPointerGesture({
+        button: event.button,
+        previewing: document.body.dataset.editPreview === "1",
+        selectedNodeIsEditableBlock: deps.selectedNodeIsEditableBlock,
+        selectedNodeIsLocked: deps.selectedNodeIsLocked,
+        pointerOnSelectedBlock:
+          !!selectedId && nearestNodeId === selectedId,
+        targetInEditChrome: !!target && !!target.closest(CHROME_SELECTOR),
+        targetInInlineEdit: !!target && !!target.closest(INLINE_EDIT_SELECTOR),
+      });
+      if (gesture !== "move-drag" || !selectedId || !deps.selectedNodeKind) {
+        return;
+      }
+      // Suppress the native text-range selection this drag would otherwise start.
+      event.preventDefault();
+      const sourceParentNodeId =
+        findCanvasNodeParentContext(
+          canvasDropDepsRef.current.builderTree,
+          selectedId,
+        )?.parentNodeId ?? null;
+      blockMovePointerRef.current = {
+        pointerId: event.pointerId,
+        nodeId: selectedId,
+        draggedKind: deps.selectedNodeKind,
+        label: deps.label,
+        sourceParentNodeId,
+        startX: event.clientX,
+        startY: event.clientY,
+        armed: false,
+      };
+    }
+
+    function onPointerMove(event: PointerEvent) {
+      const gesture = blockMovePointerRef.current;
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+      if (!gesture.armed) {
+        if (
+          !pointerMovedPastThreshold(
+            event.clientX - gesture.startX,
+            event.clientY - gesture.startY,
+          )
+        ) {
+          return;
+        }
+        gesture.armed = true;
+        // Seed the drop-candidate index once at drag-start (kept warm on
+        // scroll/resize by the canvasDragGestureKey effect below).
+        rebuildCanvasDropIndex();
+        document.body.style.userSelect = "none";
+      }
+      event.preventDefault();
+      const drop = overChromeAtPoint(event.clientX, event.clientY)
+        ? null
+        : computeCanvasNodeDrop(
+            event.clientX,
+            event.clientY,
+            gesture.draggedKind,
+            gesture.nodeId,
+            null,
+          );
+      setCanvasNodeDrag({
+        phase: "move",
+        nodeId: gesture.nodeId,
+        draggedKind: gesture.draggedKind,
+        drop,
+        label: gesture.label,
+        sourceParentNodeId: gesture.sourceParentNodeId,
+        cursorX: event.clientX,
+        cursorY: event.clientY,
+      });
+    }
+
+    function onPointerUp(event: PointerEvent) {
+      const gesture = blockMovePointerRef.current;
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+      const wasArmed = gesture.armed;
+      endGesture();
+      // A press without movement is a plain click — leave the selection intact.
+      if (!wasArmed) return;
+      const deps = canvasDropDepsRef.current;
+      const drop = overChromeAtPoint(event.clientX, event.clientY)
+        ? null
+        : computeCanvasNodeDrop(
+            event.clientX,
+            event.clientY,
+            gesture.draggedKind,
+            gesture.nodeId,
+            null,
+          );
+      setCanvasNodeDrag({ phase: "idle" });
+      // Invalid drop (disallowed by policy, over chrome, off-canvas) → no-op.
+      if (!drop || !drop.allowed) return;
+      const location = findCanvasNodeParentContext(
+        deps.builderTree,
+        gesture.nodeId,
+      );
+      const resolvedIndex = resolveCanvasNodeMoveIndex({
+        location,
+        dropParentNodeId: drop.parentNodeId,
+        dropIndex: drop.index,
+      });
+      if (resolvedIndex === null) return;
+      void deps
+        .moveBuilderNodeToParentIndex(
+          gesture.nodeId,
+          drop.parentNodeId,
+          resolvedIndex,
+        )
+        .then((result) => {
+          if (!result.ok && result.error) deps.reportMutationError(result.error);
+          else deps.selectBuilderNode(gesture.nodeId);
+        });
+    }
+
+    function onPointerCancel(event: PointerEvent) {
+      const gesture = blockMovePointerRef.current;
+      if (!gesture || event.pointerId !== gesture.pointerId) return;
+      const wasArmed = gesture.armed;
+      endGesture();
+      if (wasArmed) setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      const gesture = blockMovePointerRef.current;
+      if (!gesture) return;
+      const wasArmed = gesture.armed;
+      endGesture();
+      if (wasArmed) setCanvasNodeDrag({ phase: "idle" });
+    }
+
+    function onSelectStart(event: Event) {
+      // Kill any text selection the browser tries to start while a block-move
+      // gesture is live (covers the pre-threshold window before user-select:none).
+      if (blockMovePointerRef.current) event.preventDefault();
+    }
+
+    // Capture phase so this runs before the marquee's document listener and can
+    // preventDefault the native selection at source.
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerCancel);
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("selectstart", onSelectStart);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerCancel);
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("selectstart", onSelectStart);
+      if (blockMovePointerRef.current) endGesture();
+    };
+  }, [computeCanvasNodeDrop, rebuildCanvasDropIndex]);
+
   // ── P3-PERF: maintain the cached drop-candidate index for the active drag ───
   //
   // Seed the index the moment a canvas drag becomes active (palette or move),
@@ -2136,15 +2404,6 @@ export function SelectionLayer() {
   // decision is identical to scanning every frame. An empty cache (a drop event
   // before the seed) falls back to a fresh scan, so correctness never depends on
   // the cache being warm.
-  type SectionDropItem = {
-    id: string;
-    slotKey: string;
-    order: number;
-    top: number;
-    bottom: number;
-    left: number;
-    width: number;
-  };
   const sectionDropIndexRef = useRef<SectionDropItem[] | null>(null);
   const scanSectionDropItems = useCallback((): SectionDropItem[] => {
     const nodes = Array.from(
@@ -2169,55 +2428,35 @@ export function SelectionLayer() {
     sectionDropIndexRef.current = scanSectionDropItems();
   }, [scanSectionDropItems]);
 
-  // Drop target under the cursor given the current section layout.
-  const computeDrop = (
-    cursorX: number,
-    cursorY: number,
-    sourceSlot: string | null,
-    sourceTypeKey: string | null,
-  ): DropTarget | null => {
-    // W2-T5 — read the cache seeded at drag-start (refreshed on scroll/resize);
-    // fall back to a fresh scan if the cache isn't warm.
-    const items = sectionDropIndexRef.current ?? scanSectionDropItems();
-    if (items.length === 0) return null;
-    // Find the item whose vertical midpoint is closest to the cursor; cursor
-    // in top half → insert before it, bottom half → insert after it.
-    let best: (typeof items)[number] | null = null;
-    let bestDist = Infinity;
-    for (const it of items) {
-      const mid = (it.top + it.bottom) / 2;
-      const d = Math.abs(cursorY - mid);
-      if (d < bestDist) {
-        bestDist = d;
-        best = it;
-      }
-    }
-    if (!best) return null;
-    const mid = (best.top + best.bottom) / 2;
-    const insertBefore = cursorY < mid;
-    const targetSlot = best.slotKey;
-    const siblings = items.filter((it) => it.slotKey === targetSlot);
-    const bestSibIdx = siblings.findIndex((s) => s.id === best!.id);
-    const sortOrder = insertBefore ? bestSibIdx : bestSibIdx + 1;
-    // allowedSectionTypes gating. Same slot as source is always allowed.
-    const allowed =
-      sourceSlot === targetSlot
-        ? true
-        : checkSlotTypeCompatibility({
+  // Drop target under the cursor given the current section layout. Memoized so
+  // its identity is stable across renders (it only changes when `slotDefs` or
+  // the scan fn change) — that lets the drag pointer-listener + autoscroll rAF
+  // effects list it as a real dependency instead of suppressing exhaustive-deps.
+  // The midpoint / insert math is the pure `resolveSectionDropTarget`; this
+  // wrapper only supplies the live cache + the slot-compat predicate.
+  const computeDrop = useCallback(
+    (
+      cursorY: number,
+      sourceSlot: string | null,
+      sourceTypeKey: string | null,
+    ): DropTarget | null => {
+      // W2-T5 — read the cache seeded at drag-start (refreshed on scroll/resize);
+      // fall back to a fresh scan if the cache isn't warm.
+      const items = sectionDropIndexRef.current ?? scanSectionDropItems();
+      return resolveSectionDropTarget(
+        items,
+        cursorY,
+        sourceSlot,
+        (targetSlotKey) =>
+          checkSlotTypeCompatibility({
             slotDefs,
-            targetSlotKey: targetSlot,
+            targetSlotKey,
             sectionTypeKey: sourceTypeKey,
-          }).ok;
-    const indicatorY = insertBefore ? best.top : best.bottom;
-    return {
-      slotKey: targetSlot,
-      sortOrder,
-      allowed,
-      indicatorY,
-      indicatorLeft: best.left,
-      indicatorWidth: best.width,
-    };
-  };
+          }).ok,
+      );
+    },
+    [scanSectionDropItems, slotDefs],
+  );
 
   // W2-T5 — seed + maintain the section drop-index cache for the lifetime of a
   // section reorder gesture (armed OR dragging). Refresh only on scroll/resize
@@ -2255,12 +2494,7 @@ export function SelectionLayer() {
         const dx = e.clientX - drag.startX;
         const dy = e.clientY - drag.startY;
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-        const drop = computeDrop(
-          e.clientX,
-          e.clientY,
-          drag.slot,
-          drag.typeKey,
-        );
+        const drop = computeDrop(e.clientY, drag.slot, drag.typeKey);
         setDrag({
           phase: "dragging",
           id: drag.id,
@@ -2277,12 +2511,7 @@ export function SelectionLayer() {
         return;
       }
       if (drag.phase === "dragging" && e.pointerId === drag.pointerId) {
-        const drop = computeDrop(
-          e.clientX,
-          e.clientY,
-          drag.slot,
-          drag.typeKey,
-        );
+        const drop = computeDrop(e.clientY, drag.slot, drag.typeKey);
         setDrag({
           ...drag,
           pointerX: e.clientX,
@@ -2336,11 +2565,10 @@ export function SelectionLayer() {
       document.removeEventListener("pointercancel", onUp);
       window.removeEventListener("keydown", onKey);
     };
-    // computeDrop is recreated every render but closes over the current
-    // slotDefs/DOM. Re-running this effect on drag/moveSectionTo/slotDefs
-    // is sufficient; dropping it in deps would churn listeners every paint.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- computeDrop reads live DOM + slotDefs at call time; re-registering every paint would tear/re-queue listeners unnecessarily
-  }, [drag, moveSectionTo, slotDefs]);
+    // `computeDrop` is now a useCallback whose identity only changes with
+    // `slotDefs` / the scan fn (not every render), so listing it no longer churns
+    // the listeners — the drop math still reads the live cache + DOM at call time.
+  }, [drag, moveSectionTo, computeDrop]);
 
   // Auto-scroll rAF loop: when actively dragging and cursor is in an edge
   // band, scroll the window so the operator can reach any destination
@@ -2351,26 +2579,13 @@ export function SelectionLayer() {
     let cancelled = false;
     function tick() {
       if (cancelled || drag.phase !== "dragging") return;
-      const y = drag.pointerY;
-      const vh = window.innerHeight;
-      let delta = 0;
-      if (y < AUTOSCROLL_BAND) {
-        delta = -((AUTOSCROLL_BAND - y) / AUTOSCROLL_BAND) * AUTOSCROLL_MAX;
-      } else if (y > vh - AUTOSCROLL_BAND) {
-        delta =
-          ((y - (vh - AUTOSCROLL_BAND)) / AUTOSCROLL_BAND) * AUTOSCROLL_MAX;
-      }
+      const delta = autoscrollDeltaForY(drag.pointerY, window.innerHeight);
       if (delta !== 0) {
         window.scrollBy(0, delta);
         // Recompute drop under the NEW scroll position even though the
         // cursor hasn't moved — otherwise the drop line freezes on the
         // section that was under the cursor before the page scrolled.
-        const fresh = computeDrop(
-          drag.pointerX,
-          drag.pointerY,
-          drag.slot,
-          drag.typeKey,
-        );
+        const fresh = computeDrop(drag.pointerY, drag.slot, drag.typeKey);
         if (
           fresh?.slotKey !== drag.drop?.slotKey ||
           fresh?.sortOrder !== drag.drop?.sortOrder ||
@@ -2389,12 +2604,11 @@ export function SelectionLayer() {
         autoscrollRafRef.current = null;
       }
     };
-    // computeDrop is recreated every render but only reads live DOM +
-    // slotDefs; re-running this rAF loop on every paint would tear down +
-    // re-queue the frame and risk auto-scroll jitter. Depending on `drag`
-    // is enough.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- computeDrop reads live DOM at call time; restarting the rAF loop on every render would cause autoscroll jitter
-  }, [drag]);
+    // `computeDrop` is a useCallback whose identity is stable during a drag
+    // (`slotDefs` doesn't change mid-gesture), so listing it no longer restarts
+    // the rAF loop each paint — the jitter the old suppression guarded against
+    // came from computeDrop being a fresh inline fn every render.
+  }, [drag, computeDrop]);
 
   /**
    * Sprint 3.1 — drag start now accepts an optional explicit section
@@ -2460,6 +2674,12 @@ export function SelectionLayer() {
 
   const isDragging =
     drag.phase === "dragging" && drag.id === selectedSectionId;
+  // W1-L7 — a canvas block move is in flight (pointer-driven body drag OR the
+  // chip grip's native drag). While it is, suppress ALL selection toolbars so
+  // exactly one z-band of chrome exists at a time — no bar stacks over the drag
+  // ghost/indicator; they reappear on drop.
+  const canvasBlockMoveActive = canvasNodeDrag.phase === "move";
+  const dragChromeSuppressed = isDragging || canvasBlockMoveActive;
 
   // Derived display values for the chip / ghost.
   //
@@ -2883,6 +3103,29 @@ export function SelectionLayer() {
   // patch flow, so undo/redo and persistence come for free.
   // P3-LOCK: locked nodes suppress all direct-manipulation handles.
   const selectedNodeIsLocked = selectedBuilderNode?.locked === true;
+  // W1-L7 — publish the current selection facts to the pointerdown classifier so
+  // the mount-time move-drag listener reads today's selection without
+  // re-subscribing. A move only starts on a single, editable, unlocked block.
+  useEffect(() => {
+    blockMoveDepsRef.current = {
+      selectedCanvasNodeId: selectedCanvasNodeId ?? null,
+      selectedNodeKind:
+        selectedBuilderNode && selectedBuilderNode.kind !== "section"
+          ? selectedBuilderNode.kind
+          : null,
+      selectedNodeIsEditableBlock:
+        selectedNodeIsEditableBlock && !multiNodeSelectionActive,
+      selectedNodeIsLocked,
+      label: chipPrimaryLabel,
+    };
+  }, [
+    selectedCanvasNodeId,
+    selectedBuilderNode,
+    selectedNodeIsEditableBlock,
+    multiNodeSelectionActive,
+    selectedNodeIsLocked,
+    chipPrimaryLabel,
+  ]);
   const canResizeSelectedNode =
     selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
   // #21 — gap handles apply only to the layout-container kinds that honour the
@@ -3337,7 +3580,8 @@ export function SelectionLayer() {
     selectedBuilderNode.kind === "container" &&
     selectedNodeIsEditableBlock;
   const showMultiSelectionToolbar =
-    multiNodeSelectionActive || canUngroupSelectedNode;
+    (multiNodeSelectionActive || canUngroupSelectedNode) &&
+    !dragChromeSuppressed;
   const canManageSelectedNodeChildren =
     drag.phase === "idle" &&
     !multiNodeSelectionActive &&
@@ -4267,7 +4511,7 @@ export function SelectionLayer() {
               panel. One bar is clearer. */}
 
           {/* Direct manipulation — drag the right edge to set width. */}
-          {canResizeSelectedNode && !isDragging ? (
+          {canResizeSelectedNode && !dragChromeSuppressed ? (
             <CanvasResizeHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
@@ -4278,7 +4522,7 @@ export function SelectionLayer() {
 
           {/* Direct manipulation — devtools box-model: drag the inner bars to
               set padding, the outer bars to set margin (#25). */}
-          {canResizeSelectedNode && !isDragging ? (
+          {canResizeSelectedNode && !dragChromeSuppressed ? (
             <CanvasSpacingHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
@@ -4290,7 +4534,7 @@ export function SelectionLayer() {
 
           {/* #21 — visual auto-layout: drag the pill in a gap between children
               to set the container's gap (flex/grid containers only). */}
-          {isSelectedLayoutContainer && !isDragging ? (
+          {isSelectedLayoutContainer && !dragChromeSuppressed ? (
             <CanvasGapHandles
               rect={renderSelectedRect}
               liveEl={getSelectedBuilderNodeEl()}
@@ -4300,7 +4544,7 @@ export function SelectionLayer() {
           ) : null}
 
           {/* Direct manipulation — drag the centre grip to move (translate). */}
-	          {canResizeSelectedNode && !isDragging ? (
+	          {canResizeSelectedNode && !dragChromeSuppressed ? (
 	            <CanvasMoveHandle
 	              rect={renderSelectedRect}
 	              liveEl={getSelectedBuilderNodeEl()}
@@ -4309,7 +4553,7 @@ export function SelectionLayer() {
 	            />
 	          ) : null}
 
-	          {multiNodeSelectionActive && !isDragging ? (
+	          {multiNodeSelectionActive && !dragChromeSuppressed ? (
 	            <MultiSelectionMoveHandle
 	              rect={renderSelectedRect}
 	              nodeIds={selectedBuilderNodeRects.map((rect) => rect.id)}
@@ -4751,6 +4995,7 @@ export function SelectionLayer() {
 	          ) : null}
 	          {/* Text layers — bottom-docked formatting bar (decoupled from element). */}
 	          {!multiNodeSelectionActive &&
+	          !dragChromeSuppressed &&
 	          selectedBuilderNode &&
 	          isCanvasTextToolbarKind(selectedBuilderNode) ? (
 	            <CanvasTextToolbar
@@ -4793,6 +5038,11 @@ export function SelectionLayer() {
 	              onRequestInlineEdit={() => {
 	                if (selectedBuilderNodeId) requestInlineEdit(selectedBuilderNodeId);
 	              }}
+	              onReviseWithAi={
+	                selectedBuilderNodeId
+	                  ? () => setAiReviseNodeId(selectedBuilderNodeId)
+	                  : undefined
+	              }
 	              repositionKey={Math.round(renderSelectedRect.top + renderSelectedRect.left)}
 	              onCopyStyle={() => {
 	                if (!selectedBuilderNode?.props.style) return;
@@ -4878,8 +5128,10 @@ export function SelectionLayer() {
               fontFamily:
                 'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
               whiteSpace: "nowrap",
-              pointerEvents: "auto",
-              opacity: isDragging ? 0 : 1,
+              // Hidden AND click-through while a block move is in flight so it
+              // never stacks over the drag ghost/indicator (W1-L7).
+              pointerEvents: dragChromeSuppressed ? "none" : "auto",
+              opacity: dragChromeSuppressed ? 0 : 1,
               transition: "opacity 120ms linear",
               userSelect: "none",
             }}
@@ -5090,6 +5342,11 @@ export function SelectionLayer() {
                 onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
                 onEditContent={() => requestInspectorTab("content")}
                 onDesign={() => requestInspectorTab("style")}
+                onReviseWithAi={
+                  selectedBuilderNodeId
+                    ? () => setAiReviseNodeId(selectedBuilderNodeId)
+                    : null
+                }
                 onEdit={() => requestInlineEdit(selectedBuilderNodeId)}
                 onMoveUp={
                   selectedSiblingContext?.canMoveUp && selectedBuilderNodeId
@@ -5164,6 +5421,11 @@ export function SelectionLayer() {
                   setChipInspectorTab("style");
                   requestInspectorTab("style");
                 }}
+                onReviseWithAi={
+                  selectedSectionNodeId
+                    ? () => setAiReviseNodeId(selectedSectionNodeId)
+                    : null
+                }
                 onMoveUp={() => {
                   if (!selectedSectionId) return;
                   void moveSection(selectedSectionId, "up");
@@ -5705,6 +5967,19 @@ export function SelectionLayer() {
         onInsert={commitBetweenBlocksInsert}
         onInsertSectionEmbed={commitBetweenBlocksSectionEmbed}
       />
+
+      {/* AI "revise this block" modal — opened from the block chip's sparkle
+          action. Reads the selected block's content, previews a revised
+          candidate (desktop + mobile), and commits via undoable replace /
+          insert-below. It portals to <body>, so its position here is moot. */}
+      {aiReviseNode ? (
+        <AiReviseModal
+          node={aiReviseNode}
+          onClose={() => setAiReviseNodeId(null)}
+          onReplace={handleAiReplace}
+          onInsertBelow={handleAiInsertBelow}
+        />
+      ) : null}
     </div>,
     portalEl,
   );
@@ -6807,6 +7082,7 @@ function ChipToolBar({
   activeInspectorTab = "content",
   onEditContent,
   onDesign,
+  onReviseWithAi,
   onMoveUp,
   onMoveDown,
   onToggleHide,
@@ -6827,6 +7103,12 @@ function ChipToolBar({
   activeInspectorTab?: "content" | "style";
   onEditContent: () => void;
   onDesign: () => void;
+  // W3-AI1 — opens the "revise this section with AI" modal for the selected
+  // section node (the SAME modal + undoable replace/insert as the block chip).
+  // Null when the section isn't a freeform builder node (legacy section with no
+  // `data-builder-node-id`), so the sparkle stays out entirely — never a dead
+  // button, consistent with the block/text entry points.
+  onReviseWithAi?: (() => void) | null;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleHide: () => void;
@@ -6915,6 +7197,21 @@ function ChipToolBar({
         light={light}
         active={activeInspectorTab === "style"}
       />
+      {/* W3-AI1 — revise this whole section with AI. Same sparkle entry point as
+          the block chip + text toolbar, wired here so a section chip is not the
+          one selection level without it. */}
+      {onReviseWithAi ? (
+        <ChipBtn
+          style={{ ...btnStyle, color: CHROME.accent }}
+          disabled={disabled}
+          onClick={onReviseWithAi}
+          aria-label="Revise this section with AI"
+          data-selection-section-action="ai"
+          title="Revise with AI"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
+        </ChipBtn>
+      ) : null}
       <ChipBtn
         style={btnStyle}
         disabled={disabled}
@@ -6982,6 +7279,7 @@ function BlockChipToolBar({
   onResetPosition,
   onEditContent,
   onDesign,
+  onReviseWithAi,
   onEdit,
   onMoveUp,
   onMoveDown,
@@ -7005,6 +7303,9 @@ function BlockChipToolBar({
   onResetPosition: () => void;
   onEditContent: () => void;
   onDesign: () => void;
+  // Opens the "revise this block with AI" modal for the selected node. Null when
+  // the surface has no AI revise handler wired (keeps the button out entirely).
+  onReviseWithAi: (() => void) | null;
   onEdit: () => void;
   onMoveUp: (() => void) | null;
   onMoveDown: (() => void) | null;
@@ -7091,6 +7392,20 @@ function BlockChipToolBar({
         onClick={onEditContent}
       />
       <ChipTextAction label="Design" disabled={disabled} onClick={onDesign} />
+      {/* Revise this block with AI — reads the block's existing content and
+          rewrites it from a plain-language ask, previewed before it commits. */}
+      {onReviseWithAi ? (
+        <ChipBtn
+          style={{ ...btnStyle, color: "#c4b5fd" }}
+          disabled={disabled}
+          onClick={onReviseWithAi}
+          aria-label="Revise this block with AI"
+          data-selection-block-action="ai"
+          title="Revise with AI"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
+        </ChipBtn>
+      ) : null}
       {/* Inline pencil edit remains for text blocks; inspector tabs above. */}
       {canEditText ? (
         <ChipBtn

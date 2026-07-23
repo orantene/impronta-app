@@ -34,10 +34,16 @@ import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { evaluateGuestConversationGate } from "@/lib/inquiry/guest-trust-gate";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { captureGuestMessageDetails } from "@/lib/inquiry/guest-message-extract";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { promoteEarlyInquiryToSubmitted } from "@/lib/inquiry/promote-early-inquiry";
+import { isSeedContact, shouldRefuseGuestSend } from "@/lib/inquiry/guest-send-gate";
+import {
+  pickGuestEnsureTargetOrForceNew,
+  pickGuestResumeTarget,
+} from "@/lib/inquiry/guest-draft-resume";
 import {
   checkGuestInquiryAbuse,
   checkGuestMessageAbuse,
@@ -50,6 +56,7 @@ import {
 import { isBlocked } from "@/lib/inquiry/recipient-safety";
 import { resolveInquiryRecipients } from "@/lib/notifications/recipients";
 import { emitGuestAutoAck } from "@/lib/inquiry/guest-auto-ack";
+import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 import { sendGuestClaimEmail } from "@/lib/inquiry/guest-claim-link";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
 import {
@@ -73,6 +80,7 @@ import type {
   GuestIdentityTier,
   GuestMessageAuthorRole,
   GuestMessageKind,
+  GuestOfferCardLine,
   GuestThreadMessage,
   GuestThreadStatus,
   InquiryReceiptData,
@@ -85,25 +93,13 @@ import type {
 const GUEST_HEADER = "x-impronta-guest";
 const MAX_BODY = 10_000;
 
-// The synthetic early-row contact seed (see ensureGuestChatInquiry). A row is
-// "contact promoted" once it no longer carries this placeholder, i.e. the guest
-// has supplied real contact details via the ContactCard gate. Centralized here
-// so the seed shape is asserted in exactly ONE place; the client never
-// string-matches the placeholder (it reads the contactPromoted flag instead).
-const SEED_CONTACT_NAME = "Guest";
-function isSeedContact(
-  contactName: string | null | undefined,
-  contactEmail: string | null | undefined,
-): boolean {
-  const email = (contactEmail ?? "").trim().toLowerCase();
-  const name = (contactName ?? "").trim();
-  const looksLikePendingEmail =
-    email.startsWith("pending-") && email.endsWith("@guest.impronta");
-  // The email is the load-bearing signal (always rewritten on promotion); the
-  // name check guards the rare case a real guest is literally named "Guest" yet
-  // already has a real email.
-  return looksLikePendingEmail || (name === SEED_CONTACT_NAME && email.length === 0);
-}
+// isSeedContact — the synthetic early-row contact seed detector (see
+// ensureGuestChatInquiry below). A row is "contact promoted" once it no longer
+// carries this placeholder, i.e. the guest has supplied real contact details
+// via the ContactCard gate. Lives in guest-send-gate.ts (pure, DB-free) so the
+// seed shape is asserted in exactly ONE place and is unit-testable alongside
+// shouldRefuseGuestSend (P0-6 / W0-D); the client never string-matches the
+// placeholder itself (it reads the contactPromoted flag instead).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small failure helper.
@@ -473,6 +469,11 @@ async function loadParticipantIdentities(
 /** Map inquiries.status → the coarse popup header status. */
 function toThreadStatus(status: string): GuestThreadStatus {
   switch (status) {
+    case "draft":
+      // Early-partial row: built but NOT yet sent. Must surface as a DRAFT so
+      // the launcher pill reads its working state ("Your lineup · N") and never
+      // "Inquiry sent" (P0-2 / W0-B). Drafts stay out of every agency inbox.
+      return "draft";
     case "offer_pending":
       return "offer_pending";
     case "approved":
@@ -511,6 +512,89 @@ async function loadAgencyName(admin: SupabaseClient, tenantId: string): Promise<
 // same thread the talent's Client tab and a registered client read/write. The
 // GROUP thread is the talent-coordination channel and must NOT reach the guest.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Read the offer_id off an offer_event card's (opaque) payload. Returns null for
+ * any non-offer / malformed row.
+ */
+function offerIdOfCard(m: GuestThreadMessage): string | null {
+  if (m.kind !== "offer_event") return null;
+  const p = m.cardPayload;
+  const offerId = p && typeof p === "object" ? (p as { offer_id?: unknown }).offer_id : null;
+  return typeof offerId === "string" && offerId ? offerId : null;
+}
+
+/**
+ * Enrich `offer_event` cards with a client-safe per-line breakdown (label + note
+ * + client-facing line price) so the guest offer card shows the honest, "travel
+ * baked in" detail W2 made editable — not just a bare total. The guest IS the
+ * client, so label / note / client line price are theirs to see; talent cost /
+ * margin is NEVER read here. Two batched queries per thread read, and a no-op
+ * (zero queries) when the thread carries no offer cards. Best-effort: any query
+ * failure falls back to the bare card rather than dropping the message.
+ */
+async function enrichOfferCardsWithLines(
+  admin: SupabaseClient,
+  tenantId: string,
+  messages: GuestThreadMessage[],
+): Promise<GuestThreadMessage[]> {
+  const offerIds = new Set<string>();
+  for (const m of messages) {
+    const id = offerIdOfCard(m);
+    if (id) offerIds.add(id);
+  }
+  if (offerIds.size === 0) return messages;
+
+  const ids = Array.from(offerIds);
+  const [lineRes, offerRes] = await Promise.all([
+    admin
+      .from("inquiry_offer_line_items")
+      .select("offer_id, label, notes, total_price, sort_order")
+      .in("offer_id", ids)
+      .order("sort_order", { ascending: true }),
+    admin
+      .from("inquiry_offers")
+      .select("id, currency_code")
+      .eq("tenant_id", tenantId)
+      .in("id", ids),
+  ]);
+  if (lineRes.error) {
+    logServerError("guest-chat-actions.enrichOfferCards", lineRes.error);
+    return messages;
+  }
+
+  const currencyByOffer = new Map<string, string>();
+  for (const o of (offerRes.data ?? []) as Array<{ id: string; currency_code: string | null }>) {
+    currencyByOffer.set(o.id, o.currency_code ?? "");
+  }
+
+  const linesByOffer = new Map<string, GuestOfferCardLine[]>();
+  for (const row of (lineRes.data ?? []) as Array<{
+    offer_id: string;
+    label: string | null;
+    notes: string | null;
+    total_price: number | null;
+  }>) {
+    const currency = currencyByOffer.get(row.offer_id) ?? "";
+    const price = typeof row.total_price === "number" ? row.total_price : null;
+    const line: GuestOfferCardLine = {
+      label: (row.label ?? "").trim(),
+      note: row.notes && row.notes.trim() ? row.notes.trim() : null,
+      feeLabel: price != null ? `${price.toFixed(2)}${currency ? ` ${currency}` : ""}` : null,
+    };
+    const bucket = linesByOffer.get(row.offer_id);
+    if (bucket) bucket.push(line);
+    else linesByOffer.set(row.offer_id, [line]);
+  }
+
+  return messages.map((m) => {
+    const id = offerIdOfCard(m);
+    if (!id) return m;
+    const lines = linesByOffer.get(id);
+    if (!lines || lines.length === 0) return m;
+    return { ...m, cardPayload: { ...(m.cardPayload as Record<string, unknown>), lines } };
+  });
+}
 
 async function readGuestVisibleMessages(
   admin: SupabaseClient,
@@ -552,7 +636,7 @@ async function readGuestVisibleMessages(
   // load-bearing signal; we never string-match the body copy.
   const suppressAutoAck = isReceiptVisibleStatus(inquiry.status);
 
-  return (data ?? [])
+  const mapped = (data ?? [])
     .filter((raw) => {
       if (!suppressAutoAck) return true;
       const meta = (raw as { metadata?: unknown }).metadata;
@@ -567,6 +651,10 @@ async function readGuestVisibleMessages(
       const role = deriveAuthorRole(row, guestSessionId, identityByUserId);
       return toGuestThreadMessage(row, role, identityByUserId);
     });
+
+  // W2-3 — graduate the offer card from its MVP fallback: attach the client-safe
+  // per-line label + note + price so the guest sees the honest breakdown.
+  return enrichOfferCardsWithLines(admin, inquiry.tenantId, mapped);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -588,7 +676,19 @@ export async function startGuestChatInquiry(
     input.contactName?.trim() ||
     [contactFirstName, contactLastName].filter(Boolean).join(" ");
   const contactEmail = input.contactEmail?.trim() ?? "";
-  const firstMessage = input.firstMessage?.trim() ?? "";
+  // Storefront carry: when the guest clicked a specific offering, make the
+  // request VISIBLE in the thread (coordinator + guest both see exactly what
+  // was asked for) and persist the structured payload in source_context below.
+  const offering = input.offering ?? null;
+  const offeringPrefix = offering
+    ? `Requesting: ${offering.title}${
+        offering.amount_cents != null
+          ? ` (${offering.currency} ${(offering.amount_cents / 100).toLocaleString()})`
+          : ""
+      }\n\n`
+    : "";
+  const rawFirstMessage = input.firstMessage?.trim() ?? "";
+  const firstMessage = rawFirstMessage ? `${offeringPrefix}${rawFirstMessage}` : rawFirstMessage;
 
   const missing: string[] = [];
   if (!contactFirstName) missing.push("requester.first_name");
@@ -769,6 +869,7 @@ export async function startGuestChatInquiry(
       referrer_page: input.sourcePage,
       tenant_id: tenantId,
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
+      ...(offering ? { offering } : {}),
     },
     requester: {
       name: contactName,
@@ -787,11 +888,24 @@ export async function startGuestChatInquiry(
     },
   };
 
+  // Channel attribution (Phase A invariant): stamp the HOST tenant the guest
+  // entered through as source_workspace_id, and the exact hostname as
+  // origin_domain. `tenantId` here is resolved from the storefront/hub slug the
+  // profile page was served under, so it IS the originating host. Without this
+  // the engine defaults source_workspace_id from tenant_id — which, once
+  // XTENANT_REHOME re-homes the inquiry onto the managing agency, would record
+  // the AGENCY as the channel (breaking hub channel-performance + the referral
+  // lane) and would violate the invariant that a re-homed inquiry always has
+  // source_workspace_id != tenant_id. Mirrors contact/actions.ts +
+  // api/discover/inquiry/route.ts. No-op with the flag off (source == tenant).
+  const hostCtx = await getPublicHostContext();
   const created = await createInquiryFromIntent(admin, intent, {
     tenant_id: tenantId,
     actor_user_id: null,
     client_user_id: provisioned.clientUserId,
     guest_session_id: guestSessionId,
+    source_workspace_id: tenantId,
+    origin_domain: hostCtx.hostname ?? null,
   });
 
   if (!created.ok) {
@@ -950,6 +1064,57 @@ function synthOpeningMessage(inquiryId: string, messageId: string, body: string)
 // 3b. sendGuestMessageAction
 // ═════════════════════════════════════════════════════════════════════════════
 
+/**
+ * W3-5 — attach a tapped service to a LIVE guest thread as STRUCTURED data
+ * (inquiries.source_context.offerings[]), not just visible text. Guest-cookie
+ * ownership gated exactly like sendGuestMessageAction. Best-effort UX: the
+ * chip tap also prefills the composer, so a failure here only loses analytics
+ * provenance, never the conversation.
+ */
+export async function attachOfferingToGuestInquiry(input: {
+  inquiryId: string;
+  offering: {
+    offering_id: string;
+    title: string;
+    amount_cents: number | null;
+    currency: string;
+    price_type: string;
+    kind: string;
+  };
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!input?.inquiryId || !input.offering?.offering_id) {
+    return { ok: false, error: "Missing conversation or service." };
+  }
+  const guest = await resolveGuestContext();
+  if (!guest.ok) return { ok: false, error: "Not your conversation." };
+  const { admin, guestSessionId } = guest.ctx;
+  const owned = await loadOwnedInquiry(admin, input.inquiryId, guestSessionId);
+  if (!owned.ok) return { ok: false, error: "Not your conversation." };
+
+  const { data: row } = await admin
+    .from("inquiries")
+    .select("source_context")
+    .eq("id", input.inquiryId)
+    .maybeSingle();
+  const ctx = (row?.source_context ?? {}) as Record<string, unknown>;
+  const existing = Array.isArray(ctx.offerings) ? (ctx.offerings as Record<string, unknown>[]) : [];
+  if (existing.some((o) => o.offering_id === input.offering.offering_id)) return { ok: true };
+  const next = {
+    ...ctx,
+    ...(ctx.offering ? {} : { offering: input.offering }),
+    offerings: [...existing, { ...input.offering, attached_at: new Date().toISOString() }].slice(0, 10),
+  };
+  const { error } = await admin
+    .from("inquiries")
+    .update({ source_context: next })
+    .eq("id", input.inquiryId);
+  if (error) {
+    logServerError("guestChat.attachOffering", error);
+    return { ok: false, error: "Could not attach the service." };
+  }
+  return { ok: true };
+}
+
 export async function sendGuestMessageAction(
   input: SendGuestMessageInput,
 ): Promise<SendGuestMessageResult> {
@@ -1014,6 +1179,73 @@ export async function sendGuestMessageAction(
     return fail("blocked", "This conversation can't continue.");
   }
 
+  // ── Placeholder-contact gate (P0-6 / W0-D) — BEFORE the insert. Refuse
+  // (write nothing) when the target inquiry is STILL a pre-send DRAFT and its
+  // contact is STILL the synthetic seed placeholder. Previously this same
+  // check ran only AFTER the message was already inserted (gating just the
+  // submitted-promotion), so a call that skipped the client's promote-then-send
+  // flow (a replayed/direct call to this action) could durably write a message
+  // into inquiry_messages while the inquiry stayed a hidden draft with an
+  // UNREACHABLE contact. The legitimate first-send flow (continueEarlyInquiry /
+  // sendToAgency in use-mini-chat-send.ts) always awaits promoteContact —
+  // which durably writes the REAL contact via captureGuestChip(kind:"contact")
+  // — BEFORE calling this action, so a legitimate send's contact row is already
+  // real by the time we read it here and this never trips for a real guest. A
+  // non-draft inquiry (already promoted, or any other lifecycle status) skips
+  // this read entirely and proceeds exactly as before. Pure predicate +
+  // isRealContact reused below so the post-send promotion doesn't re-query.
+  // See guest-send-gate.ts for the decision logic + its unit tests.
+  let isRealContact = true;
+  if (owned.inquiry.status === "draft") {
+    const { data: contactRow, error: contactErr } = await admin
+      .from("inquiries")
+      .select("contact_name, contact_email")
+      .eq("id", owned.inquiry.id)
+      .eq("tenant_id", owned.inquiry.tenantId)
+      .maybeSingle();
+    if (contactErr) {
+      logServerError("guest-chat-actions.sendGuestMessageAction/contactRead", contactErr);
+      return fail("engine_error", "Could not send your message.");
+    }
+    if (!contactRow) {
+      // The inquiry vanished between the ownership check above and this read
+      // (contact_name/contact_email are NOT NULL columns, so a row that exists
+      // always has a value in both — the only way to get here is no row at
+      // all). Treat as not-found rather than silently sending into an
+      // unverifiable draft.
+      return fail("not_found", "This conversation no longer exists.");
+    }
+    const contactName = contactRow.contact_name as string | null;
+    const contactEmail = contactRow.contact_email as string | null;
+    if (
+      shouldRefuseGuestSend({
+        status: owned.inquiry.status,
+        contactName,
+        contactEmail,
+      })
+    ) {
+      return fail("forbidden", "You don't have access to this conversation.");
+    }
+    isRealContact = !isSeedContact(contactName, contactEmail);
+  }
+
+  // ── W2-I auto-scan: on the FIRST real send (still a draft, contact already
+  // real) run the AI conversation scan over the OUTGOING body BEFORE the
+  // insert + promotion freeze the inquiry — the only window where empty-field
+  // fills are still legal. The scan is prefiltered (no model call unless the
+  // text looks like event details), EMPTY-ONLY, and best-effort: any failure
+  // or timeout never blocks the send.
+  if (owned.inquiry.status === "draft" && isRealContact) {
+    try {
+      await scanGuestConversationForDetails({
+        inquiryId: owned.inquiry.id,
+        draftText: body,
+      });
+    } catch (scanErr) {
+      logServerError("guest-chat-actions.sendGuestMessageAction/autoScan", scanErr);
+    }
+  }
+
   // Send the follow-up onto the PRIVATE/client thread — the guest IS the
   // client, so this is the same client↔coordinator thread the talent's Client
   // tab and a registered client read/write.
@@ -1039,37 +1271,23 @@ export async function sendGuestMessageAction(
   }
 
   // Promote a pre-send DRAFT early-row to `submitted` + coordinator on this, its
-  // FIRST real send — mirroring the fresh-create path (submitInquiry). Gated so a
-  // row whose contact is still the synthetic placeholder is NEVER promoted: the
-  // client send-gate already requires a promoted contact, but we re-verify
-  // server-side (the placeholder email is the load-bearing signal, same as
-  // isSeedContact). Idempotent: promoteEarlyInquiryToSubmitted no-ops once the
-  // status is no longer `draft`, so later messages don't re-promote. Best-effort:
-  // a promotion failure must not fail the (already persisted) send.
-  if (owned.inquiry.status === "draft") {
-    const { data: contactRow } = await admin
-      .from("inquiries")
-      .select("contact_name, contact_email")
-      .eq("id", owned.inquiry.id)
-      .eq("tenant_id", owned.inquiry.tenantId)
-      .maybeSingle();
-    const isRealContact =
-      contactRow != null &&
-      !isSeedContact(
-        contactRow.contact_name as string | null,
-        contactRow.contact_email as string | null,
+  // FIRST real send — mirroring the fresh-create path (submitInquiry). The
+  // placeholder-contact case was already refused above (before the insert), so
+  // isRealContact is always true here when status was 'draft' — this branch is
+  // now just the (unchanged) idempotent promotion, not a contact re-check.
+  // Idempotent: promoteEarlyInquiryToSubmitted no-ops once the status is no
+  // longer `draft`, so later messages don't re-promote. Best-effort: a
+  // promotion failure must not fail the (already persisted) send.
+  if (owned.inquiry.status === "draft" && isRealContact) {
+    const promoted = await promoteEarlyInquiryToSubmitted(admin, {
+      inquiryId: owned.inquiry.id,
+      tenantId: owned.inquiry.tenantId,
+    });
+    if (!promoted.success) {
+      logServerError(
+        "guest-chat-actions.sendGuestMessageAction/promote",
+        new Error(promoted.error ?? promoted.reason ?? "promote_failed"),
       );
-    if (isRealContact) {
-      const promoted = await promoteEarlyInquiryToSubmitted(admin, {
-        inquiryId: owned.inquiry.id,
-        tenantId: owned.inquiry.tenantId,
-      });
-      if (!promoted.success) {
-        logServerError(
-          "guest-chat-actions.sendGuestMessageAction/promote",
-          new Error(promoted.error ?? promoted.reason ?? "promote_failed"),
-        );
-      }
     }
   }
 
@@ -1478,10 +1696,14 @@ export async function getGuestThreadMessages(
 // only an inquiry the cookie OWNS (guest_session_id match) is ever returned.
 // Cross-device / cleared-cookie recovery stays the emailed magic link.
 //
-// Scope: the newest NON-terminal inquiry owned by this guest session on this
-// tenant where THIS talent participates (so a guest who messaged several talents
-// reopens the conversation for the page they're on). Returns { active: null } —
-// NOT an error — when there's nothing to resume.
+// Scope: resume keys primarily on guest session + tenant. On a talent page the
+// preference order is: newest live DRAFT whose lineup contains this talent >
+// any live draft (returned with containsTalent:false so the chip-add flow can
+// append the talent) > newest sent/live thread whose lineup contains the talent.
+// The talent match reads interpreted_query.talent.selected_ids — NOT
+// inquiry_participants: early drafts deliberately carry no participant rows
+// (P0-1; see guest-draft-resume.ts). Returns { active: null } — NOT an error —
+// when there's nothing to resume.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getActiveGuestInquiry(input: {
@@ -1506,7 +1728,9 @@ export async function getActiveGuestInquiry(input: {
     // own inquiries. Keep the set small — the guest funnel never makes many.
     const { data: rows, error } = await admin
       .from("inquiries")
-      .select("id, contact_name, contact_email, contact_phone, status, created_at")
+      .select(
+        "id, contact_name, contact_email, contact_phone, status, created_at, interpreted_query",
+      )
       .eq("guest_session_id", guestSessionId)
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
@@ -1525,31 +1749,35 @@ export async function getActiveGuestInquiry(input: {
     });
     if (live.length === 0) return { ok: true, active: null };
 
-    let chosen = live[0];
-    // On a specific talent's page, prefer the newest live thread where THIS
-    // talent participates, so we never reopen a different talent's conversation
-    // here. No match ⇒ fresh start for this talent (the other thread is still
-    // recoverable via the switcher / magic link).
-    if (talentProfileId) {
-      const ids = live.map((r) => r.id as string);
-      const { data: parts } = await admin
-        .from("inquiry_participants")
-        .select("inquiry_id")
-        .in("inquiry_id", ids)
-        .eq("talent_profile_id", talentProfileId);
-      const withTalent = new Set((parts ?? []).map((p) => p.inquiry_id as string));
-      const match = live.find((r) => withTalent.has(r.id as string));
-      if (!match) return { ok: true, active: null };
-      chosen = match;
-    }
+    // P0-1 fix — pick the resume target off the lineup spine
+    // (interpreted_query.talent.selected_ids), NOT inquiry_participants: early
+    // drafts deliberately carry no participant rows, so the old participants
+    // gate could never find them and every panel open minted a duplicate. The
+    // preference order (draft-with-talent > any draft > sent-with-talent) lives
+    // in the pure, unit-tested picker.
+    const picked = pickGuestResumeTarget(live, talentProfileId);
+    if (!picked) return { ok: true, active: null };
+    const chosen = picked.row;
 
+    // W0 follow-up (found by the lifecycle E2E): report whether the resumed
+    // row's contact is REAL. The panel's client state used to assume any
+    // resumed id was already promoted, which erased the draft banner + the
+    // "Send to agency" affordance on a reloaded draft — and the server send
+    // gate (W0-D) would then refuse the send with no gate shown to fix it.
+    // Seed placeholder values are also kept out of the gate prefill.
+    const contactPromoted = !isSeedContact(
+      chosen.contact_name as string | null,
+      chosen.contact_email as string | null,
+    );
     return {
       ok: true,
       active: {
         inquiryId: chosen.id as string,
+        containsTalent: picked.containsTalent,
+        contactPromoted,
         prefill: {
-          name: (chosen.contact_name as string | null)?.trim() || null,
-          email: (chosen.contact_email as string | null)?.trim() || null,
+          name: contactPromoted ? (chosen.contact_name as string | null)?.trim() || null : null,
+          email: contactPromoted ? (chosen.contact_email as string | null)?.trim() || null : null,
           phone: (chosen.contact_phone as string | null)?.trim() || null,
         },
       },
@@ -1573,9 +1801,14 @@ export async function getActiveGuestInquiry(input: {
 // is the x-impronta-guest cookie, resolved SERVER-SIDE; it is NEVER a client
 // argument, and the row is written under guest_session_id ownership.
 //
-// IDEMPOTENCY: if an owned, non-terminal inquiry already exists for this guest +
-// tenant (+ this talent, when one is supplied), its id is returned instead of
-// creating a duplicate — mirrors getActiveGuestInquiry's resume scope.
+// IDEMPOTENCY (P0-1): if an owned, live DRAFT already exists for this guest +
+// tenant, its id is returned instead of creating a duplicate — a session never
+// holds more than one working draft per tenant. The talent match reads the
+// lineup spine (interpreted_query.talent.selected_ids), NOT inquiry_participants
+// (early drafts deliberately carry no participant rows); a draft that does not
+// contain the requested talent is STILL returned (the chip-add flow appends the
+// talent). Only drafts are ever the write target — a sent inquiry is never
+// silently chosen (read-resume of sent threads is getActiveGuestInquiry's job).
 //
 // SCHEMA HONESTY: inquiries.contact_name / contact_email are NOT NULL, so a truly
 // empty skeleton cannot be inserted. We seed clearly-synthetic placeholders that
@@ -1627,7 +1860,7 @@ export async function ensureGuestChatInquiry(
     // placeholder.
     const { data: existingRows, error: existingErr } = await admin
       .from("inquiries")
-      .select("id, status, created_at, contact_name, contact_email")
+      .select("id, status, created_at, contact_name, contact_email, interpreted_query")
       .eq("guest_session_id", guestSessionId)
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
@@ -1642,41 +1875,29 @@ export async function ensureGuestChatInquiry(
       return s !== "cancelled" && toThreadStatus(s) !== "closed";
     });
 
-    if (live.length > 0) {
-      if (talentProfileId) {
-        // On a specific talent's page, prefer the newest live inquiry where THIS
-        // talent participates, so we never resurface a different talent's
-        // partial. No match falls through to creating a fresh partial for this
-        // talent (the other thread stays recoverable via the switcher).
-        const ids = live.map((r) => r.id as string);
-        const { data: parts } = await admin
-          .from("inquiry_participants")
-          .select("inquiry_id")
-          .in("inquiry_id", ids)
-          .eq("talent_profile_id", talentProfileId);
-        const withTalent = new Set((parts ?? []).map((p) => p.inquiry_id as string));
-        const match = live.find((r) => withTalent.has(r.id as string));
-        if (match) {
-          return {
-            ok: true,
-            inquiryId: match.id as string,
-            contactPromoted: !isSeedContact(
-              match.contact_name as string | null,
-              match.contact_email as string | null,
-            ),
-          };
-        }
-      } else {
-        // Agency-level partial (no talent): any live owned inquiry is reusable.
-        return {
-          ok: true,
-          inquiryId: live[0].id as string,
-          contactPromoted: !isSeedContact(
-            live[0].contact_name as string | null,
-            live[0].contact_email as string | null,
-          ),
-        };
-      }
+    // P0-1 fix — reuse the newest live DRAFT (prefer one whose lineup spine
+    // already contains this talent). NEVER insert while the session holds ANY
+    // live draft for this tenant, and NEVER pick a sent row as the write
+    // target. Selection logic is the pure, unit-tested picker.
+    //
+    // W0-B — the project-park's "start a SEPARATE inquiry" step passes
+    // forceNew:true to bypass the reuse and always mint a distinct project row
+    // (otherwise it would get the just-parked draft back and later chip writes
+    // could overwrite the parked lineup). All other callers keep the reuse.
+    const picked = pickGuestEnsureTargetOrForceNew(
+      live,
+      talentProfileId,
+      input.forceNew === true,
+    );
+    if (picked) {
+      return {
+        ok: true,
+        inquiryId: picked.row.id as string,
+        contactPromoted: !isSeedContact(
+          picked.row.contact_name as string | null,
+          picked.row.contact_email as string | null,
+        ),
+      };
     }
 
     // No reusable partial — create the minimal early row. Placeholder contact

@@ -214,6 +214,38 @@ async function ensureOfferTalentsOnLineup(
         .filter((x): x is string => !!x),
     ),
   ];
+  if (talentIds.length === 0) return;
+
+  // M5.6 flipped inquiry_participants.requirement_group_id to NOT NULL. Resolve
+  // the inquiry's default group (first by sort_order, then created_at) and, if
+  // none exists (guest/legacy inquiries that never seeded a group), create one
+  // inline — mirroring addTalentToRoster. Without this the participant insert
+  // below trips the NOT NULL and priced talents silently never reach the lineup,
+  // so the offer can never convert to a booking.
+  let requirementGroupId: string | null = null;
+  const { data: defaultGroup } = await supabase
+    .from("inquiry_requirement_groups")
+    .select("id")
+    .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  requirementGroupId = (defaultGroup?.id as string | undefined) ?? null;
+  if (!requirementGroupId) {
+    const { data: created, error: createErr } = await supabase
+      .from("inquiry_requirement_groups")
+      .insert({ inquiry_id: inquiryId, tenant_id: tenantId, role_key: "talent", quantity_required: 1, sort_order: 0 })
+      .select("id")
+      .single();
+    if (createErr || !created) {
+      logServerError("inquiry-engine-offers.ensureOfferTalentsOnLineup.group", createErr);
+      return;
+    }
+    requirementGroupId = created.id as string;
+  }
+
   for (const talentProfileId of talentIds) {
     const { data: existing } = await supabase
       .from("inquiry_participants")
@@ -248,6 +280,7 @@ async function ensureOfferTalentsOnLineup(
       status: "active",
       sort_order: nextSort,
       added_by_user_id: actorUserId,
+      requirement_group_id: requirementGroupId,
     });
     if (error) logServerError("inquiry-engine-offers.ensureOfferTalentsOnLineup", error);
   }
@@ -1265,11 +1298,11 @@ export async function submitTalentRate(
       if (line.talent_profile_id) {
         const { data: tp } = await supabase
           .from("talent_profiles")
-          .select("display_name, full_name")
+          .select("display_name")
           .eq("id", line.talent_profile_id as string)
           .maybeSingle();
-        const tpRow = tp as { display_name?: string | null; full_name?: string | null } | null;
-        talentName = tpRow?.display_name?.trim() || tpRow?.full_name?.trim() || "Talent";
+        const tpRow = tp as { display_name?: string | null } | null;
+        talentName = tpRow?.display_name?.trim() || "Talent";
       }
       const currency = (offer as { currency_code?: string | null } | null)?.currency_code ?? "";
       const rateLabel = `${ctx.talentCost.toFixed(2)}${currency ? ` ${currency}` : ""}`;

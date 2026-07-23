@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDashboardText } from "../../../dashboard-i18n";
 import { Icon, scrollBehavior } from "../../../primitives";
 import { COLORS, FONTS, TRANSITION } from "../../../state";
 import { SendButtonWithSchedule } from "./Bubbles";
@@ -19,6 +20,7 @@ export function Composer({
   onSendMessage?: (body: string) => void;
   onAfterSend?: () => void;
 }) {
+  const copy = useDashboardText();
   const [text, setText] = useState("");
   const [attachOpen, setAttachOpen] = useState(false);
   // @mention (#33) — show a small autocomplete popup when the user
@@ -34,10 +36,10 @@ export function Composer({
 
   // Smart-reply chips — context-aware (mock)
   const smartReplies = isLocked
-    ? ["Confirmed", "On my way 🚖", "Running 5 min late"]
+    ? [copy.t("Confirmed"), copy.t("On my way 🚖"), copy.t("Running 5 min late")]
     : conv.stage === "inquiry"
-      ? ["Yes, available", "Need more info", "Send rate via 💸 above"]
-      : ["Holding 👍", "Sounds good", "Will confirm later today"];
+      ? [copy.t("Yes, available"), copy.t("Need more info"), copy.t("Send rate via 💸 above")]
+      : [copy.t("Holding 👍"), copy.t("Sounds good"), copy.t("Will confirm later today")];
 
   // Quick-quote chips — when on inquiry/hold stages, prefilled rate
   // suggestions from the talent's recent history. The chip inserts a
@@ -46,9 +48,9 @@ export function Composer({
   // pattern without wiring a real rates API.
   const quickQuotes = (conv.stage === "inquiry" || conv.stage === "hold")
     ? [
-        { rate: "€1,200/day", note: `Last with ${conv.client}` },
-        { rate: "€950/day", note: "Last editorial" },
-        { rate: "€1,800/day", note: "Top this month" },
+        { rate: "€1,200/day", note: `${copy.t("Last with")} ${conv.client}` },
+        { rate: "€950/day", note: copy.t("Last editorial") },
+        { rate: "€1,800/day", note: copy.t("Top this month") },
       ]
     : [];
   const sendNow = () => {
@@ -86,12 +88,12 @@ export function Composer({
           <style>{`@keyframes tulala-smart-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
           {quickQuotes.length > 0 && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, alignSelf: "center", marginRight: 2 }} className="text-admin-ink-muted">Quick quote</span>
+              <span style={{ fontSize: 10, fontWeight: 700, alignSelf: "center", marginRight: 2 }} className="text-admin-ink-muted">{copy.t("Quick quote")}</span>
               {quickQuotes.map((q) => (
                 <button
                   key={q.rate}
                   type="button"
-                  onClick={() => { setText(`My rate is ${q.rate}, full usage included.`); setSmartOpen(false); }}
+                  onClick={() => { setText(copy.isSpanish ? `Mi tarifa es ${q.rate}, con uso completo incluido.` : `My rate is ${q.rate}, full usage included.`); setSmartOpen(false); }}
                   title={q.note}
                   style={{
                     background: "rgba(15,79,62,0.06)",
@@ -114,7 +116,7 @@ export function Composer({
             </div>
           )}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, alignSelf: "center", marginRight: 2 }} className="text-admin-ink-muted">Quick reply</span>
+            <span style={{ fontSize: 10, fontWeight: 700, alignSelf: "center", marginRight: 2 }} className="text-admin-ink-muted">{copy.t("Quick reply")}</span>
           {smartReplies.map((r) => (
             <button
               key={r}
@@ -209,7 +211,7 @@ export function Composer({
         <button
           type="button"
           onClick={() => setAttachOpen((v) => !v)}
-          aria-label="Attach"
+          aria-label={copy.t("Attach")}
           style={{
             width: 32,
             height: 32,
@@ -229,9 +231,9 @@ export function Composer({
         <button
           type="button"
           onClick={() => setSmartOpen((v) => !v)}
-          aria-label={smartOpen ? "Hide smart replies" : "Show smart replies"}
+          aria-label={smartOpen ? copy.t("Hide smart replies") : copy.t("Show smart replies")}
           aria-pressed={smartOpen}
-          title="Smart replies (AI suggestions)"
+          title={copy.t("Smart replies (AI suggestions)")}
           style={{
             width: 30,
             height: 30,
@@ -249,7 +251,7 @@ export function Composer({
         </button>
         <textarea
           rows={1}
-          placeholder={isLocked ? "Locked thread — only chat allowed" : "Message…"}
+          placeholder={isLocked ? copy.t("Locked thread — only chat allowed") : copy.t("Message…")}
           value={text}
           onChange={(e) => {
             const v = e.target.value;
@@ -300,8 +302,8 @@ export function Composer({
         {/* Voice + send */}
         <button
           type="button"
-          aria-label="Voice note"
-          title="Voice notes coming soon"
+          aria-label={copy.t("Voice note")}
+          title={copy.t("Voice notes coming soon")}
           disabled
           style={{
             width: 32,
@@ -350,12 +352,12 @@ export function Composer({
           }}
         >
           {[
-            { icon: "📷", label: "Photo" },
-            { icon: "📄", label: "File" },
-            { icon: "📍", label: "Location" },
-            { icon: "🎙️", label: "Voice" },
-            { icon: "📅", label: "Calendar" },
-            { icon: "💸", label: "Quote rate" },
+            { icon: "📷", label: copy.t("Photo") },
+            { icon: "📄", label: copy.t("File") },
+            { icon: "📍", label: copy.t("Location") },
+            { icon: "🎙️", label: copy.t("Voice") },
+            { icon: "📅", label: copy.t("Calendar") },
+            { icon: "💸", label: copy.t("Quote rate") },
           ].map((a) => (
             <button
               key={a.label}

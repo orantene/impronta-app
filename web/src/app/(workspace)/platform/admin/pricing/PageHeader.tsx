@@ -15,6 +15,8 @@ import {
   ECB_UNCOVERED_CURRENCIES,
 } from "@/lib/pricing/pricing-types";
 import { verifyStripeAccount } from "@/lib/server-actions/admin-product-pricing";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { HQ, F, FD } from "./_tokens";
 import { Pill } from "./_primitives";
 
@@ -26,6 +28,7 @@ export function PageHeader({
   fx: FxPreview;
 }) {
   const [verifying, startVerify] = useTransition();
+  const t = useT();
   return (
     <header style={{ marginBottom: 22 }}>
       <p
@@ -39,7 +42,7 @@ export function PageHeader({
           margin: "0 0 4px",
         }}
       >
-        Tulala HQ
+        {t("dashboard.platform.pricing.eyebrow")}
       </p>
       <div
         style={{
@@ -61,7 +64,7 @@ export function PageHeader({
             lineHeight: 1.1,
           }}
         >
-          Product Pricing
+          {t("dashboard.platform.pricing.title")}
         </h1>
         <p
           style={{
@@ -74,8 +77,7 @@ export function PageHeader({
             minWidth: 220,
           }}
         >
-          Source of truth for tier prices, products, features, and discounts.
-          Marketing reads from here in Phase 2.
+          {t("dashboard.platform.pricing.subtitle")}
         </p>
       </div>
 
@@ -111,6 +113,7 @@ function StripeAccountChip({
   onVerify: () => void;
   verifying: boolean;
 }) {
+  const t = useT();
   const ok = info.ok;
   const accent = ok
     ? info.chargesEnabled
@@ -160,7 +163,7 @@ function StripeAccountChip({
             color: HQ.inkMuted,
           }}
         >
-          Stripe account
+          {t("dashboard.platform.pricing.stripeAccount.label")}
         </span>
         <span style={{ flex: 1 }} />
         <button
@@ -179,14 +182,18 @@ function StripeAccountChip({
             letterSpacing: 0.3,
           }}
         >
-          {verifying ? "Verifying…" : "Re-verify"}
+          {verifying
+            ? t("dashboard.platform.pricing.stripeAccount.verifying")
+            : t("dashboard.platform.pricing.stripeAccount.reverify")}
         </button>
       </div>
 
       {ok ? (
         <>
           <div style={{ fontSize: 14, color: HQ.ink, fontWeight: 500 }}>
-            {info.displayName ?? info.businessName ?? "(no display name)"}
+            {info.displayName ??
+              info.businessName ??
+              t("dashboard.platform.pricing.stripeAccount.noDisplayName")}
           </div>
           <div
             style={{
@@ -208,7 +215,9 @@ function StripeAccountChip({
               {info.accountId}
             </code>
             <Pill color={info.testMode ? HQ.amber : HQ.green}>
-              {info.testMode ? "Test mode" : "Live mode"}
+              {info.testMode
+                ? t("dashboard.platform.pricing.stripeAccount.testMode")
+                : t("dashboard.platform.pricing.stripeAccount.liveMode")}
             </Pill>
             {info.country && (
               <span style={{ fontSize: 11.5, color: HQ.inkMuted }}>
@@ -216,7 +225,9 @@ function StripeAccountChip({
               </span>
             )}
             <Pill color={info.chargesEnabled ? HQ.green : HQ.red}>
-              {info.chargesEnabled ? "Charges OK" : "Charges off"}
+              {info.chargesEnabled
+                ? t("dashboard.platform.pricing.stripeAccount.chargesOk")
+                : t("dashboard.platform.pricing.stripeAccount.chargesOff")}
             </Pill>
           </div>
           {looksMisnamed && (
@@ -228,10 +239,11 @@ function StripeAccountChip({
                 marginTop: 2,
               }}
             >
-              ⚠ Display name doesn&rsquo;t look like a Tulala account. Edits
-              here write Prices into <strong>{info.accountId}</strong>. If
-              that&rsquo;s wrong, rotate <code>STRIPE_SECRET_KEY</code> in
-              Vercel env and redeploy.
+              ⚠{" "}
+              {interpolate(
+                t("dashboard.platform.pricing.stripeAccount.misnamed"),
+                { accountId: info.accountId },
+              )}
             </div>
           )}
         </>
@@ -239,12 +251,11 @@ function StripeAccountChip({
         <>
           <div style={{ fontSize: 13.5, color: HQ.red }}>
             {info.reason === "no-key"
-              ? "STRIPE_SECRET_KEY not set."
+              ? t("dashboard.platform.pricing.stripeAccount.noKey")
               : info.error}
           </div>
           <div style={{ fontSize: 11.5, color: HQ.inkDim, lineHeight: 1.4 }}>
-            Price edits will save in DB only until Stripe is connected. Set{" "}
-            <code>STRIPE_SECRET_KEY</code> in Vercel env vars.
+            {t("dashboard.platform.pricing.stripeAccount.dbOnlyHint")}
           </div>
         </>
       )}
@@ -253,6 +264,7 @@ function StripeAccountChip({
 }
 
 function FxStrip({ fx }: { fx: FxPreview }) {
+  const t = useT();
   const headlineUsd = 49; // visual reference — Studio monthly
   return (
     <div
@@ -277,12 +289,16 @@ function FxStrip({ fx }: { fx: FxPreview }) {
             color: HQ.inkMuted,
           }}
         >
-          FX preview · ${headlineUsd} USD = …
+          {interpolate(t("dashboard.platform.pricing.fx.header"), {
+            amount: headlineUsd,
+          })}
         </span>
         <span style={{ flex: 1 }} />
         {fx.ok && (
           <span style={{ fontSize: 10.5, color: HQ.inkDim }}>
-            ECB rates · {fx.rateDate}
+            {interpolate(t("dashboard.platform.pricing.fx.ratesSource"), {
+              date: fx.rateDate,
+            })}
           </span>
         )}
       </div>
@@ -304,13 +320,15 @@ function FxStrip({ fx }: { fx: FxPreview }) {
               key={code}
               code={code}
               amount="—"
-              tooltip="ECB doesn’t quote this currency. Set manually per tier."
+              tooltip={t("dashboard.platform.pricing.fx.uncoveredTooltip")}
             />
           ))}
         </div>
       ) : (
         <div style={{ fontSize: 12, color: HQ.red }}>
-          Couldn&rsquo;t reach Frankfurter: {fx.error}
+          {interpolate(t("dashboard.platform.pricing.fx.unreachable"), {
+            error: fx.error,
+          })}
         </div>
       )}
     </div>

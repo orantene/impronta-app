@@ -298,7 +298,7 @@ function MessengerVisual() {
           </div>
         </div>
 
-        <Bubble side="in">Done — deposit sent. See you in June! 🎉</Bubble>
+        <Bubble side="in">Done, deposit sent. See you in June! 🎉</Bubble>
       </div>
 
       {/* Pipeline status track */}

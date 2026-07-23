@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   isPathAllowedForHostKind,
+  resolveAnyTenantPublicPath,
   resolvePathBasedTenantPublicPath,
+  resolveWorkspacePathTenantPublicPath,
 } from "./surface-allow-list";
 
 test("agency host: storefront + workspace + auth + root + static allowed", () => {
@@ -165,6 +167,19 @@ test("read-only deploy diagnostics: /api/health/* allowed on every host kind", (
   }
 });
 
+test("QA guest-session reset: /api/dev/reset-guest allowed on every host kind (W0-H)", () => {
+  // Unlike the rest of /api/dev/* (bypassed in proxy.ts for dev + preview
+  // only), this single route must also reach its handler on PRODUCTION hosts
+  // so a logged-in staff member can reset a guest cookie while QA-ing the live
+  // guest chat panel. The route's own gate (dev/preview OR staff session)
+  // is what actually restricts it; this allow-list entry only lets the
+  // request past host resolution. Host-agnostic like /api/health.
+  const p = "/api/dev/reset-guest";
+  for (const kind of ["app", "agency", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, p), true, `${kind} should allow ${p}`);
+  }
+});
+
 test("hub host: auth + workspace slug paths + shared routes allowed", () => {
   const allowed = [
     "/",
@@ -257,11 +272,56 @@ test("path-based tenant public routes do not swallow workspace or reserved route
   }
 });
 
+test("canonical /w/<slug> resolves the same shapes as the legacy flat form", () => {
+  const cases = [
+    ["/w/impronta", "/"],
+    ["/w/impronta/directory", "/directory"],
+    ["/w/impronta/t/jane-doe", "/t/jane-doe"],
+    ["/w/impronta/p/about", "/p/about"],
+    ["/w/impronta/contact", "/contact"],
+    ["/w/impronta/join", "/join"],
+  ] as const;
+
+  for (const [path, stripped] of cases) {
+    assert.deepEqual(
+      resolveWorkspacePathTenantPublicPath(path),
+      { tenantSlug: "impronta", pathnameWithoutTenant: stripped },
+      `${path} should strip to ${stripped}`,
+    );
+  }
+});
+
+test("/w resolver only matches the canonical prefix, and never eats reserved routes", () => {
+  // Flat form is NOT canonical — middleware 301s it instead of serving it.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/impronta"), null);
+  // Bare parent is not a tenant.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w"), null);
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w/"), null);
+  // Workspace surfaces stay out of the public path-based shape.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w/impronta/admin"), null);
+  // "w" itself is reserved, so it can never resolve as a tenant slug.
+  assert.equal(resolvePathBasedTenantPublicPath("/w"), null);
+});
+
+test("resolveAnyTenantPublicPath accepts canonical and legacy during migration", () => {
+  const expected = { tenantSlug: "impronta", pathnameWithoutTenant: "/directory" };
+  assert.deepEqual(resolveAnyTenantPublicPath("/w/impronta/directory"), expected);
+  assert.deepEqual(resolveAnyTenantPublicPath("/impronta/directory"), expected);
+  assert.equal(resolveAnyTenantPublicPath("/pricing"), null);
+});
+
 test("marketing host: public marketing pages + root + static + bearer-gated shared api allowed", () => {
   const allowed = [
     "/",
     "/sitemap.xml",
     "/robots.txt",
+    "/opengraph-image",
+    "/twitter-image",
+    "/for/models",
+    "/for/musicians",
+    "/resources",
+    "/resources/glossary",
+    "/resources/booking-deposits",
     "/api/cron/inquiry-engine",
     "/api/analytics/events",
     "/t/jane-doe",
@@ -280,6 +340,8 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/legal/terms",
     // Global Talent Directory — public cross-tenant browse on the marketing host.
     "/directory",
+    "/agencia-de-talento",
+    "/about",
     // Auth surfaces are reachable on the marketing apex (tulala.digital): OAuth
     // callbacks use window.location.origin as the redirectTo base, and the
     // branded sign-in / registration entry points live on the apex too. The
@@ -402,4 +464,31 @@ test("api segment boundaries: /api/directoryz ≠ /api/directory, /api/admins �
   assert.equal(isPathAllowedForHostKind("app", "/api/location-citiesz"), false);
   // And `/api/location` prefix alone must not leak to the hyphenated routes.
   assert.equal(isPathAllowedForHostKind("app", "/api/location"), false);
+});
+
+test("post-checkout landing is reachable on every host kind (Stripe redirects to request origin)", () => {
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, "/checkout/success"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/checkout/cancel"), true, kind);
+  }
+  // Segment-safe: `/checkoutz` must not match the `/checkout` prefix.
+  assert.equal(isPathAllowedForHostKind("app", "/checkoutz"), false);
+});
+
+test("public embed loader + roster widget reachable on every host kind (partner iframes)", () => {
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, "/embed"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/embed.js"), true, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/embed/roster/impronta"), true, kind);
+  }
+  // `/embedz` must not match the `/embed` prefix; `/embed.jsz` is not the exact loader.
+  assert.equal(isPathAllowedForHostKind("marketing", "/embedz"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/embed.jsz"), false);
+});
+
+test("team-invite + template-preview reachable on agency + app workspace hosts", () => {
+  assert.equal(isPathAllowedForHostKind("agency", "/team-invite/abc123"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/team-invite/abc123"), true);
+  assert.equal(isPathAllowedForHostKind("agency", "/template-preview/editorial-lux"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/template-preview/editorial-lux"), true);
 });

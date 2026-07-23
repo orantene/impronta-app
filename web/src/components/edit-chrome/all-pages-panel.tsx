@@ -28,6 +28,8 @@ import {
   quickDeletePageAction,
   quickRenamePageAction,
 } from "@/lib/server-actions/admin-site-pages-inline";
+import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
+import { aiCreatePageHref } from "./empty-canvas-ai-front-door";
 import {
   convertLegacyHomepageToPageAction,
   readPageRolesAction,
@@ -42,6 +44,7 @@ import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { flushThenNavigate } from "./page-switch-flush";
 import { CHROME } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
 
 interface AllPagesPanelProps {
   open: boolean;
@@ -72,6 +75,7 @@ interface InlineRenameProps {
 }
 
 function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
+  const { t: tt } = useEditorLocale();
   const [title, setTitle] = useState(page.title);
   const [slugDraft, setSlugDraft] = useState(page.slug);
   const [slugEdited, setSlugEdited] = useState(false);
@@ -127,7 +131,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={saving}
-        placeholder="Page title"
+        placeholder={tt("Page title")}
         className="mb-[6px] w-full rounded-[6px] border px-[8px] py-[6px] text-[13px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/35"
         style={{ borderColor: CHROME.line, background: CHROME.surface, color: CHROME.ink }}
       />
@@ -144,7 +148,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
               onChange={(e) => { setSlugDraft(e.target.value); setSlugEdited(true); }}
               onKeyDown={handleKeyDown}
               disabled={saving}
-              placeholder="page-slug"
+              placeholder={tt("page-slug")}
               className="min-w-0 flex-1 border-none bg-transparent text-[11px] focus:outline-none"
               style={{ color: CHROME.ink }}
             />
@@ -162,7 +166,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
           className="rounded-[6px] px-[10px] py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-50"
           style={{ background: CHROME.accent, color: "#fff" }}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? tt("Saving…") : tt("Save")}
         </button>
         <button
           type="button"
@@ -171,7 +175,7 @@ function InlineRenameForm({ page, onDone, onError }: InlineRenameProps) {
           className="rounded-[6px] px-[8px] py-[5px] text-[11px] transition-colors"
           style={{ color: CHROME.muted }}
         >
-          Cancel
+          {tt("Cancel")}
         </button>
       </div>
     </div>
@@ -187,6 +191,7 @@ interface InlineDeleteProps {
 }
 
 function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
+  const { t } = useEditorLocale();
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
@@ -203,7 +208,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
       style={{ borderColor: CHROME.rose, background: "rgba(190,18,60,0.04)" }}
     >
       <p className="mb-[8px] text-[12px]" style={{ color: CHROME.ink }}>
-        Delete <strong>{page.title}</strong>? This can&rsquo;t be undone.
+        {t("Delete")} <strong>{page.title}</strong>? {t("This can’t be undone.")}
       </p>
       <div className="flex items-center gap-[6px]">
         <button
@@ -213,7 +218,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
           className="rounded-[6px] px-[10px] py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-50"
           style={{ background: CHROME.rose, color: "#fff" }}
         >
-          {deleting ? "Deleting…" : "Delete page"}
+          {deleting ? t("Deleting…") : t("Delete page")}
         </button>
         <button
           type="button"
@@ -222,7 +227,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
           className="rounded-[6px] px-[8px] py-[5px] text-[11px] transition-colors"
           style={{ color: CHROME.muted }}
         >
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     </div>
@@ -232,6 +237,7 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
+  const { t } = useEditorLocale();
   const router = useRouter();
   const dirty = useDirty();
   const { pageId, pageSlug, openRevisions, flushBuilderTreeSave } =
@@ -241,6 +247,10 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // W3-AI1 — the "Describe with AI" create path shares the plan gate + draft
+  // mint with "Add page"; it just lands on the new page with the AI front door
+  // primed (`?ai=1`) instead of a blank canvas.
+  const [creatingAi, setCreatingAi] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [moreOpenId, setMoreOpenId] = useState<string | null>(null);
@@ -252,6 +262,11 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const [roleBusyId, setRoleBusyId] = useState<string | null>(null);
 
   const workspaceWebsiteHref = "/admin/website/pages";
+  const workspaceBillingHref = "/admin/account";
+  // W1-L6 — pure mapping from the picker's plan-gate availability to the
+  // copy shown inline; null means creation is allowed (or availability
+  // hasn't loaded yet), so nothing renders.
+  const addPageDenialMessage = resolveAddPageDenialMessage(availability);
 
   const loadPages = useCallback(() => {
     setLoading(true);
@@ -270,7 +285,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         }
       })
       .catch(() => {
-        setFetchErr("Couldn't load pages — try again.");
+        setFetchErr("Couldn't load pages. Try again.");
         setPages([]);
       })
       .finally(() => setLoading(false));
@@ -287,7 +302,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         if (!res.ok) setFetchErr(res.error);
         else loadPages();
       } catch {
-        setFetchErr("Couldn't update the page role — try again.");
+        setFetchErr("Couldn't update the page role. Try again.");
       } finally {
         setRoleBusyId(null);
       }
@@ -306,7 +321,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       if (!res.ok) setFetchErr(res.error);
       else loadPages();
     } catch {
-      setFetchErr("Couldn't convert the homepage — try again.");
+      setFetchErr("Couldn't convert the homepage. Try again.");
     } finally {
       setConverting(false);
     }
@@ -346,12 +361,12 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   }
 
   async function handleCreatePage() {
-    if (availability && !availability.canCreatePages) {
-      setFetchErr(
-        availability.createPageHint ?? "Upgrade your plan to create additional pages.",
-      );
-      return;
-    }
+    // The plan-gate reason is always visible inline (see addPageDenialMessage
+    // below), never gated behind a click — but the button still has to
+    // ANSWER a click rather than silently doing nothing, so a click while
+    // denied just re-confirms nothing changed instead of hitting the server
+    // for a request we already know will be denied.
+    if (addPageDenialMessage) return;
     setCreating(true);
     setFetchErr(null);
     try {
@@ -370,16 +385,48 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       } else {
         setFetchErr(result.error);
       }
+    } catch {
+      // Unexpected server-action failure (network blip, uncaught throw
+      // upstream of upsertPage's own try/catch) — surface it instead of
+      // leaving the button silently reset with no explanation.
+      setFetchErr("Couldn't create the page. Try again.");
     } finally {
       setCreating(false);
     }
   }
 
+  // W3-AI1 — "Describe with AI": mint a fresh draft page (same server action +
+  // plan gate as Add page) and navigate to it with the AI front door primed, so
+  // the operator describes the page and the shared generator builds it on the
+  // new page (generate → preview → Insert, all undoable there).
+  async function handleCreatePageWithAi() {
+    if (addPageDenialMessage) return;
+    setCreatingAi(true);
+    setFetchErr(null);
+    try {
+      const result = await createDraftPageAction();
+      if (result.ok) {
+        await flushThenNavigate({
+          dirty,
+          flush: flushBuilderTreeSave,
+          navigate: () => {
+            onClose();
+            router.push(aiCreatePageHref(result.slug));
+          },
+        });
+      } else {
+        setFetchErr(result.error);
+      }
+    } catch {
+      setFetchErr("Couldn't create the page. Try again.");
+    } finally {
+      setCreatingAi(false);
+    }
+  }
+
   async function handleDuplicate(sourceId: string) {
-    if (availability && !availability.canCreatePages) {
-      setFetchErr(
-        availability.createPageHint ?? "Upgrade your plan to create additional pages.",
-      );
+    if (addPageDenialMessage) {
+      setFetchErr(addPageDenialMessage);
       return;
     }
     setDuplicatingId(sourceId);
@@ -396,6 +443,8 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         setFetchErr(result.error);
         loadPages();
       }
+    } catch {
+      setFetchErr("Couldn't duplicate the page. Try again.");
     } finally {
       setDuplicatingId(null);
     }
@@ -418,7 +467,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   return (
     <DockFloatingPanel
       panelId="all-pages"
-      title="All pages"
+      title={t("All pages")}
       open={open}
       onClose={onClose}
       width={320}
@@ -427,7 +476,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[10px] py-[10px]">
         <button
           type="button"
-          disabled={creating || (availability != null && !availability.canCreatePages)}
+          disabled={creating}
           onClick={() => void handleCreatePage()}
           className="mb-[8px] flex w-full cursor-pointer items-center gap-[8px] rounded-[10px] border-none px-[10px] py-[9px] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           style={{ background: CHROME.paper2, color: CHROME.ink }}
@@ -436,9 +485,51 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             +
           </span>
           <span className="text-[13px] font-semibold">
-            {creating ? "Creating…" : "Add page"}
+            {creating ? t("Creating…") : t("Add page")}
           </span>
         </button>
+
+        {/* W3-AI1 — first-class AI create path: describe the new page and the
+            shared generator builds it. Disabled when the plan gate denies extra
+            pages (the reason renders below), so it never dead-ends. */}
+        <button
+          type="button"
+          disabled={creatingAi || Boolean(addPageDenialMessage)}
+          onClick={() => void handleCreatePageWithAi()}
+          className="mb-[8px] flex w-full cursor-pointer items-center gap-[8px] rounded-[10px] border px-[10px] py-[9px] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ borderColor: CHROME.accent, background: "rgba(124,58,237,0.06)", color: CHROME.ink }}
+        >
+          <span aria-hidden className="inline-flex" style={{ color: CHROME.accent }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3l1.9 4.8L19 9.7l-4.1 2.9L16 18l-4-2.8L8 18l1.1-5.4L5 9.7l5.1-1.9z" />
+            </svg>
+          </span>
+          <span className="text-[13px] font-semibold">
+            {creatingAi ? t("Creating…") : t("Describe with AI")}
+          </span>
+        </button>
+
+        {/* W1-L6 — the plan gate denies additional pages on Free (server-side,
+            cmsAdditionalPageDeniedReason); shown proactively so the button
+            above is never a silent dead end, plus a real path to fix it. */}
+        {addPageDenialMessage ? (
+          <div
+            className="mb-[8px] rounded-[10px] border px-[10px] py-[9px]"
+            style={{ borderColor: CHROME.blueLine, background: CHROME.blueBg }}
+          >
+            <p className="mb-[6px] text-[12px] leading-[1.4]" style={{ color: CHROME.ink }}>
+              {addPageDenialMessage}
+            </p>
+            <Link
+              href={workspaceBillingHref}
+              target="_blank"
+              className="text-[12px] font-semibold no-underline"
+              style={{ color: CHROME.blue }}
+            >
+              {t("Upgrade plan")}
+            </Link>
+          </div>
+        ) : null}
 
         <button
           type="button"
@@ -457,12 +548,12 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             e.currentTarget.style.color = CHROME.muted;
           }}
         >
-          Page history & revisions
+          {t("Page history & revisions")}
         </button>
 
         {loading ? (
           <p className="px-[6px] text-[12px]" style={{ color: CHROME.muted }}>
-            Loading…
+            {t("Loading…")}
           </p>
         ) : null}
         {fetchErr ? (
@@ -515,7 +606,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             <div
               key={page.id}
               className="group mb-[4px] flex items-center gap-[4px] rounded-[10px] px-[4px] py-[3px]"
-              style={{ background: isCurrent ? "rgba(61,79,124,0.08)" : "transparent" }}
+              style={{ background: isCurrent ? "rgba(124,58,237,0.08)" : "transparent" }}
             >
               <button
                 type="button"
@@ -527,11 +618,11 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                   {page.title}
                   {isRoleHome ? (
                     <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
-                      Home
+                      {t("Home")}
                     </span>
                   ) : isRoleDir ? (
                     <span className="ml-[6px] text-[10px] font-semibold uppercase tracking-wide" style={{ color: CHROME.muted }}>
-                      Directory
+                      {t("Directory")}
                     </span>
                   ) : null}
                   {/* Locale chip disambiguates per-locale rows (the homepage exists
@@ -548,15 +639,15 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                     className="shrink-0 rounded-[4px] px-[5px] py-[1px] text-[9px] font-semibold uppercase"
                     style={{ background: CHROME.amberBg, color: CHROME.amber }}
                   >
-                    Draft
+                    {t("Draft")}
                   </span>
                 ) : null}
               </button>
               <div className="relative shrink-0">
                 <button
                   type="button"
-                  title="More page actions"
-                  aria-label="More page actions"
+                  title={t("More page actions")}
+                  aria-label={t("More page actions")}
                   aria-expanded={moreOpenId === page.id}
                   onClick={() =>
                     setMoreOpenId((id) => (id === page.id ? null : page.id))
@@ -588,7 +679,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                       onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                     >
-                      Rename
+                      {t("Rename")}
                     </button>
                     <button
                       type="button"
@@ -599,7 +690,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                       onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                     >
-                      {duplicatingId === page.id ? "Duplicating…" : "Duplicate"}
+                      {duplicatingId === page.id ? t("Duplicating…") : t("Duplicate")}
                     </button>
                     {/* PAGE ROLES — assign this page as the site's home / directory.
                         Only real (non-system) pages can take a role. */}
@@ -613,7 +704,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        {roleBusyId === page.slug + ":home" ? "Setting…" : "Set as homepage"}
+                        {roleBusyId === page.slug + ":home" ? t("Setting…") : t("Set as homepage")}
                       </button>
                     ) : null}
                     {assignable && !isRoleDir ? (
@@ -626,7 +717,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        {roleBusyId === page.slug + ":directory" ? "Setting…" : "Set as directory"}
+                        {roleBusyId === page.slug + ":directory" ? t("Setting…") : t("Set as directory")}
                       </button>
                     ) : null}
                     {/* PAGE ROLES — the legacy system homepage (no home role yet)
@@ -641,7 +732,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = CHROME.paper2; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        {converting ? "Converting…" : "Convert to editable page"}
+                        {converting ? t("Converting…") : t("Convert to editable page")}
                       </button>
                     ) : null}
                     {/* ONB-4 — styled inline delete instead of window.confirm */}
@@ -657,7 +748,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(190,18,60,0.06)"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                       >
-                        Delete
+                        {t("Delete")}
                       </button>
                     ) : null}
                     {!isHome ? (
@@ -668,7 +759,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
                         style={{ color: CHROME.muted }}
                         onClick={() => setMoreOpenId(null)}
                       >
-                        Manage in admin
+                        {t("Manage in admin")}
                       </Link>
                     ) : null}
                   </div>
@@ -680,7 +771,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
 
         {pages && pages.length === 0 && !loading ? (
           <p className="px-[6px] text-[12px]" style={{ color: CHROME.muted }}>
-            No pages yet.
+            {t("No pages yet.")}
           </p>
         ) : null}
       </div>

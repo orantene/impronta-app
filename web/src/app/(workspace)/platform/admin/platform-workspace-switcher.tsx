@@ -16,6 +16,7 @@ import {
   actionLoadUserWorkspaces,
   type UserWorkspace,
 } from "@/lib/server-actions/admin-user-workspaces";
+import { useT } from "@/i18n/use-t";
 
 const HQ = {
   card: "#16161A",
@@ -31,19 +32,34 @@ const HQ = {
 
 const FONT_BODY = '"Inter", system-ui, sans-serif';
 
-const TIER_LABEL: Record<string, string> = {
-  free: "Free",
-  studio: "Studio",
-  agency: "Agency",
-  network: "Network",
+/** Plan tier → catalog key. Additive key-map (mirrors the dashboard.enums pattern). */
+const TIER_LABEL_KEY: Record<string, string> = {
+  free: "dashboard.platform.tier.free",
+  studio: "dashboard.platform.tier.studio",
+  agency: "dashboard.platform.tier.agency",
+  network: "dashboard.platform.tier.network",
 };
 
-/** Capitalise the lowercase DB role for display ("owner" → "Owner"). */
-function displayRole(role: string): string {
-  return role ? role.charAt(0).toUpperCase() + role.slice(1) : "Member";
+/** Lowercase DB workspace role → catalog key. */
+const ROLE_LABEL_KEY: Record<string, string> = {
+  owner: "dashboard.platform.role.owner",
+  admin: "dashboard.platform.role.admin",
+  coordinator: "dashboard.platform.role.coordinator",
+  editor: "dashboard.platform.role.editor",
+  talent: "dashboard.platform.role.talent",
+  member: "dashboard.platform.role.member",
+};
+
+type Translate = (key: string) => string;
+
+/** Localised label for the lowercase DB role, falling back to "Member". */
+function displayRole(role: string, t: Translate): string {
+  const key = ROLE_LABEL_KEY[role] ?? ROLE_LABEL_KEY.member;
+  return t(key);
 }
 
 export function PlatformWorkspaceSwitcher() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [workspaces, setWorkspaces] = useState<UserWorkspace[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -104,7 +120,7 @@ export function PlatformWorkspaceSwitcher() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Switch to a workspace"
+        title={t("dashboard.platform.switcher.switchTo")}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -127,7 +143,7 @@ export function PlatformWorkspaceSwitcher() {
           <rect x="1.5" y="8" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
           <rect x="8" y="8" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
         </svg>
-        Workspaces
+        {t("dashboard.platform.switcher.workspaces")}
         <svg
           width="9"
           height="9"
@@ -167,18 +183,18 @@ export function PlatformWorkspaceSwitcher() {
               color: HQ.inkDim,
             }}
           >
-            Switch to a workspace
+            {t("dashboard.platform.switcher.switchTo")}
           </div>
 
           {loading && (
             <div style={{ padding: "14px 8px", fontSize: 12.5, color: HQ.inkMuted }}>
-              Loading workspaces…
+              {t("dashboard.platform.switcher.loading")}
             </div>
           )}
 
           {!loading && workspaces && workspaces.length === 0 && (
             <div style={{ padding: "14px 8px", fontSize: 12.5, color: HQ.inkMuted, lineHeight: 1.5 }}>
-              You&apos;re not a member of any workspace.
+              {t("dashboard.platform.switcher.empty")}
             </div>
           )}
 
@@ -243,7 +259,7 @@ export function PlatformWorkspaceSwitcher() {
                     {w.name}
                   </span>
                   <span style={{ display: "block", marginTop: 1, fontSize: 11, color: HQ.inkMuted }}>
-                    {displayRole(w.role)} · {TIER_LABEL[w.tier] ?? "Free"}
+                    {displayRole(w.role, t)} · {t(TIER_LABEL_KEY[w.tier] ?? TIER_LABEL_KEY.free)}
                   </span>
                 </span>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden style={{ flexShrink: 0, color: HQ.inkDim }}>

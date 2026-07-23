@@ -408,7 +408,7 @@ export function ColorPickerPopover({
           <button
             type="button"
             onClick={() => commit(normalised)}
-            title="Unbind — keep this color as an editable value"
+            title="Unbind, keep this color as an editable value"
             style={{
               flexShrink: 0,
               fontSize: 10,
@@ -557,7 +557,7 @@ export function ColorPickerPopover({
                   key={token.tokenKey ?? token.cssVar}
                   color={swatchHex}
                   size={20}
-                  title={`${token.label} — bind to the theme token (updates with the theme)`}
+                  title={`${token.label}: use this brand color (updates with the theme)`}
                   active={isActive}
                   onClick={() => onChange(emitted)}
                 />

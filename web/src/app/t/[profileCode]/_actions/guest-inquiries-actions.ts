@@ -35,6 +35,7 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { deriveProjectLabel, shortDateFragment } from "@/lib/inquiry/project-label";
+import { readSelectedIds } from "@/lib/inquiry/guest-draft-resume";
 
 import type { AvatarStackItem } from "@/lib/inquiry/guest-chat-unified-contract";
 import type {
@@ -96,6 +97,11 @@ async function resolveGuestSessionIdLocal(
 
 function toThreadStatus(status: string): GuestThreadStatus {
   switch (status) {
+    case "draft":
+      // Mirror guest-chat-actions: a draft reads as a DRAFT, not "open". The
+      // switcher already keys its draft pill on the dedicated `isDraft` field;
+      // this keeps threadStatus honest for any status-based consumer (W0-B).
+      return "draft";
     case "offer_pending":
       return "offer_pending";
     case "approved":
@@ -128,19 +134,12 @@ function isTerminal(status: string): boolean {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Private: read the Phase 5 PROJECT spine off an inquiry's interpreted_query.
-// The lineup is interpreted_query.talent.selected_ids (replace-semantics set the
-// chip writer maintains); the project name is interpreted_query.client.job_name.
-// Tolerant of any legacy/partial shape — never throws, always returns arrays.
+// The lineup read (interpreted_query.talent.selected_ids) is the shared
+// readSelectedIds helper from guest-draft-resume.ts — the SAME spine the P0-1
+// resume/ensure pickers key on; the project name is
+// interpreted_query.client.job_name. Tolerant of any legacy/partial shape —
+// never throws, always returns arrays.
 // ─────────────────────────────────────────────────────────────────────────────
-
-function readSelectedIds(interpretedQuery: unknown): string[] {
-  if (!interpretedQuery || typeof interpretedQuery !== "object") return [];
-  const talent = (interpretedQuery as Record<string, unknown>).talent;
-  if (!talent || typeof talent !== "object") return [];
-  const raw = (talent as Record<string, unknown>).selected_ids;
-  if (!Array.isArray(raw)) return [];
-  return [...new Set(raw.filter((x): x is string => typeof x === "string" && x.length > 0))];
-}
 
 function readJobName(interpretedQuery: unknown): string | null {
   if (!interpretedQuery || typeof interpretedQuery !== "object") return null;
@@ -325,9 +324,13 @@ export async function listGuestInquiries(input: {
     guest_session_id: string | null;
   };
 
-  // Reduce to newest message per inquiry.
+  // Reduce to newest HUMAN-readable message per inquiry. System/card rows used
+  // to win this slot and render as a raw "[system event]" placeholder in the
+  // dock's inquiry cards — skip them so the preview is always a real sentence
+  // (or absent, which the cards handle).
   const lastMsgByInquiry = new Map<string, MsgRow>();
   for (const m of ((msgRows ?? []) as MsgRow[])) {
+    if (m.message_kind !== "text") continue;
     if (!lastMsgByInquiry.has(m.inquiry_id)) {
       lastMsgByInquiry.set(m.inquiry_id, m);
     }
@@ -369,10 +372,25 @@ export async function listGuestInquiries(input: {
 
     // Derived project label: job_name when set, else "{lineup word} · {date}".
     const jobName = readJobName(row.interpreted_query);
+    // Prefer the HUMAN name of the project: the AI-captured event type
+    // ("Wedding · Aug 14") reads like something Mike would call it. Fall back
+    // to the lineup wording — and never render "Lineup of 0"; an empty-lineup,
+    // untyped inquiry is just a generic inquiry.
+    const eventTypeRaw = String(
+      ((row.interpreted_query as Record<string, unknown> | null)?.source_context as
+        | Record<string, unknown>
+        | undefined)?.ai_event_type ?? "",
+    ).trim();
+    const eventWord = eventTypeRaw
+      ? eventTypeRaw.charAt(0).toUpperCase() + eventTypeRaw.slice(1)
+      : null;
     const lineupWord =
-      lineupCount === 1
+      eventWord ??
+      (lineupCount === 1
         ? t("public.guestChat.projectLineupOne")
-        : interpolate(t("public.guestChat.projectLineupOther"), { count: lineupCount });
+        : lineupCount > 1
+          ? interpolate(t("public.guestChat.projectLineupOther"), { count: lineupCount })
+          : t("public.guestChat.projectUntitled"));
     const projectLabel = deriveProjectLabel(jobName, {
       lineupWord,
       shortDate: shortDateFragment(row.event_date, locale),
@@ -391,10 +409,55 @@ export async function listGuestInquiries(input: {
         : `[${lastMsg.message_kind.replace(/_/g, " ")}]`
       : null;
     const lastMessageAt = lastMsg?.created_at ?? null;
+    // W2-A dock — author side of the newest private-thread message, from the
+    // columns this query already selects. guest_session_id set = the guest's
+    // own message; sender_user_id set = a signed-in (agency-side) sender;
+    // neither = a system note (null, treated as awaiting downstream).
+    const lastMessageAuthor: "guest" | "agency" | null = lastMsg
+      ? lastMsg.guest_session_id
+        ? "guest"
+        : lastMsg.sender_user_id
+          ? "agency"
+          : null
+      : null;
 
     const typicalReplyLabel = talentProfileId
       ? (typicalLabelByTalent.get(talentProfileId) ?? null)
       : null;
+
+    // DOCK v2 card meta — pre-localized quick-summary labels (date, place,
+    // money) so the Inquiries cards read like a mini receipt. All optional;
+    // the card renders only what exists.
+    const iq = (row.interpreted_query as Record<string, unknown> | null) ?? {};
+    const iqLoc = (iq.location as Record<string, unknown> | undefined) ?? {};
+    const iqBudget = (iq.budget as Record<string, unknown> | undefined) ?? {};
+    const locationLabel =
+      iqLoc.is_online === true
+        ? t("public.guestChat.locationOnline")
+        : typeof iqLoc.city === "string" && iqLoc.city.trim()
+          ? iqLoc.city.trim()
+          : null;
+    const budgetAmount =
+      typeof iqBudget.amount === "number" && iqBudget.amount > 0 ? iqBudget.amount : null;
+    const budgetCurrency =
+      typeof iqBudget.currency === "string" && /^[A-Z]{3}$/.test(iqBudget.currency)
+        ? iqBudget.currency
+        : null;
+    let budgetLabel: string | null = null;
+    if (budgetAmount !== null) {
+      try {
+        budgetLabel = budgetCurrency
+          ? new Intl.NumberFormat(locale, {
+              style: "currency",
+              currency: budgetCurrency,
+              maximumFractionDigits: 0,
+            }).format(budgetAmount)
+          : budgetAmount.toLocaleString(locale);
+      } catch {
+        budgetLabel = `${budgetCurrency ?? ""} ${budgetAmount}`.trim();
+      }
+    }
+    const eventDateLabel = shortDateFragment(row.event_date, locale);
 
     return {
       inquiryId: row.id,
@@ -405,8 +468,12 @@ export async function listGuestInquiries(input: {
       talentName,
       talentPortraitUrl,
       agencyName,
+      eventDateLabel,
+      locationLabel,
+      budgetLabel,
       lastMessagePreview,
       lastMessageAt,
+      lastMessageAuthor,
       unreadHint: false, // panel computes this client-side
       threadStatus: toThreadStatus(row.status),
       typicalReplyLabel,

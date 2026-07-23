@@ -167,7 +167,7 @@ function PreviewBanner() {
           height: 6,
           borderRadius: 999,
           background: CHROME.amber,
-          boxShadow: "0 0 0 3px rgba(180, 83, 9, 0.18)",
+          boxShadow: "0 0 0 3px rgba(58, 123, 255, 0.18)",
         }}
       />
       <span>Previewing as visitor</span>
@@ -389,7 +389,7 @@ function ShareButton({
       }
     } catch (err) {
       onError(
-        err instanceof Error ? err.message : "Couldn't create the share link — try again.",
+        err instanceof Error ? err.message : "Couldn't create the share link. Try again.",
       );
     } finally {
       setBusy(false);

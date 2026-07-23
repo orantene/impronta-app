@@ -95,7 +95,7 @@ export function CatalogActivityFeed() {
     >
       <LabViewHeader
         title="Activity"
-        blurb="Every super-admin governance write in the Lab — overlay changes and template lifecycle — newest first, with a before/after diff. Read-only audit trail."
+        blurb="Every super-admin governance write in the Lab (overlay changes and template lifecycle), newest first, with a before/after diff. Read-only audit trail."
       />
 
       {loading ? (

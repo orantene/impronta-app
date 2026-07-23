@@ -185,8 +185,8 @@ export function PublishNotePanel({
     if (!treeDiff.changed) {
       return {
         text: vLabel
-          ? `No changes since ${vLabel} — re-publishing only bumps the version.`
-          : "No changes since last publish — re-publishing only bumps the version.",
+          ? `No changes since ${vLabel}, re-publishing only bumps the version.`
+          : "No changes since last publish, re-publishing only bumps the version.",
         tone: LAB.accent,
       };
     }
@@ -268,7 +268,7 @@ export function PublishNotePanel({
             </div>
           ) : checklist.hasWarnings ? (
             <div style={{ fontSize: 11, color: LAB.inkMuted, marginTop: 2 }}>
-              Optional items are missing — you can still publish.
+              Optional items are missing, you can still publish.
             </div>
           ) : null}
         </div>

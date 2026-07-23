@@ -21,20 +21,23 @@ type PageParams = Promise<{ tenantSlug: string }>;
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
+// Design tokens — values resolve to the canonical admin token set
+// (src/styles/admin-color-bridge.css) instead of page-local hex, so this
+// page can never drift from the shell palette again.
 const C = {
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
-  border:     "rgba(24,24,27,0.08)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  cardBg:     "#ffffff",
-  surface:    "rgba(11,11,13,0.02)",
-  accent:     "#0F4F3E",
-  green:      "#2E7D5B",
-  greenSoft:  "rgba(46,125,91,0.10)",
+  ink:        "var(--color-admin-ink)",
+  inkMuted:   "var(--color-admin-ink-muted)",
+  inkDim:     "var(--color-admin-ink-dim)",
+  border:     "var(--color-admin-border)",
+  borderSoft: "var(--color-admin-border-soft)",
+  cardBg:     "var(--color-admin-card)",
+  surface:    "var(--color-admin-surface)",
+  accent:     "var(--color-admin-brand)",
+  green:      "var(--color-admin-green)",
+  greenSoft:  "var(--color-admin-success-soft)",
 } as const;
 
-const FONT = '"Inter", system-ui, sans-serif';
+const FONT = 'var(--font-admin-body, "Inter", system-ui, sans-serif)';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

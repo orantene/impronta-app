@@ -25,12 +25,12 @@ export async function updateAutoAckPolicy(formData: FormData): Promise<void> {
 
   // requireStaffTenantAction only confirms staff-on-this-tenant; we want
   // a tighter gate (owner/admin) for policy edits. Membership role lives
-  // on agency_memberships keyed by (tenant_id, user_id).
+  // on agency_memberships keyed by (tenant_id, profile_id).
   const { data: membership } = await auth.supabase
     .from("agency_memberships")
     .select("role")
     .eq("tenant_id", auth.tenantId)
-    .eq("user_id", auth.user.id)
+    .eq("profile_id", auth.user.id)
     .maybeSingle();
   const role = (membership as { role: string } | null)?.role ?? null;
   if (role !== "owner" && role !== "admin") {

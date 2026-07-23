@@ -18,6 +18,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Toaster } from "sonner";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import {
@@ -35,6 +36,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { loadMyNotifications } from "@/lib/server-actions/notifications-self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import { TULALA_BRAND } from "@/lib/brand/tulala";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
@@ -177,13 +180,29 @@ export default async function ClientLayout({
   // D1 — seed initial notifications for the bell (zero client waterfalls).
   // Locale settings are also pre-fetched here so the DashboardLocaleToggle
   // inside ClientAccountMenu knows the tenant's supported languages.
-  const [favoriteIds, savedIds, initialNotifications, tenantLocaleSettings] =
-    await Promise.all([
-      getFavoriteTalentIds(),
-      getSavedTalentIds(),
-      loadMyNotifications(50),
-      loadTenantLocaleSettings(scope.tenantId),
-    ]);
+  // Reviews are a PREMIUM capability gated on the surface tenant's entitlement.
+  // Resolved here (server component) so the nav can hide the "reviews" entry on
+  // a non-entitled workspace. Fails closed via tenantReviewsEnabled.
+  const [
+    favoriteIds,
+    savedIds,
+    initialNotifications,
+    tenantLocaleSettings,
+    reviewsEnabled,
+    whitelabel,
+  ] = await Promise.all([
+    getFavoriteTalentIds(),
+    getSavedTalentIds(),
+    loadMyNotifications(50),
+    loadTenantLocaleSettings(scope.tenantId),
+    tenantReviewsEnabled(scope.tenantId),
+    loadTenantWhitelabel(scope.tenantId),
+  ]);
+
+  // Whitelabel branding: the client portal carries the agency's name only when
+  // the agency is on a whitelabel tier; otherwise it reads as the Tulala
+  // platform (everyone is a Tulala client by default).
+  const clientBrandLabel = whitelabel ? clientProfile.agencyName : TULALA_BRAND.name;
 
   const userInitials = initials(clientProfile.displayName);
 
@@ -289,7 +308,7 @@ export default async function ClientLayout({
                 userSelect: "none",
               }}
             >
-              {clientProfile.agencyName}
+              {clientBrandLabel}
             </div>
 
             <div className="client-hd-divider" style={{ width: 1, height: 22, background: C.borderSoft, margin: "0 4px", flexShrink: 0 }} />
@@ -374,7 +393,11 @@ export default async function ClientLayout({
         </header>
 
         {/* ── Bar 2: Client nav topbar ── */}
-        <ClientTopbar tenantSlug={tenantSlug} locale={locale} />
+        <ClientTopbar
+          tenantSlug={tenantSlug}
+          locale={locale}
+          reviewsEnabled={reviewsEnabled}
+        />
 
         {/* D9 polish — global keyboard shortcuts (renders null unless help open) */}
         <ClientKeyboardShortcuts tenantSlug={tenantSlug} labels={keyboardLabels} />

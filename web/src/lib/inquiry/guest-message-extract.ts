@@ -127,13 +127,13 @@ Rules:
 - Extract ONLY what the message clearly states or strongly implies. Never invent a city, date, headcount, or budget that is not present.
 - city / area / country: the event/shoot location if mentioned, else "".
 - is_online: true only if the event is explicitly virtual/remote/online.
-- event_date: a concrete calendar date as YYYY-MM-DD if one is stated or unambiguous (resolve relative dates like "next Friday" only when a reference date is obvious; otherwise leave ""). Use "" if no exact date.
+- event_date: a concrete calendar date as YYYY-MM-DD if one is stated or unambiguous. A "Today is YYYY-MM-DD" line precedes the message — use it to resolve relative or year-less dates ("next Friday", "August 14") to the NEXT future occurrence. Use "" if no resolvable date.
 - date_signal: "exact" if a specific date is given, "flexible" if they mention a rough window or say they are flexible, else "".
 - duration: free-form length if stated ("2 hours", "full day"), else "".
 - event_type: a short label for the occasion ("wedding", "corporate gala", "brand shoot"), else "".
-- headcount: integer count of talent/performers/people requested; 0 if not stated.
+- headcount: integer count of TALENT/performers the client wants to book. Event attendance ("80 guests", "200 attendees") is NOT headcount — leave 0 unless a talent count is stated.
 - service_hints: short role/service phrases requested ("photographer", "DJ", "host"); [] if none.
-- budget_amount: numeric budget if stated; 0 if not. budget_currency: ISO 4217 (USD, EUR, MXN, GBP) if the currency or symbol is clear, else "".
+- budget_amount: numeric budget if stated; 0 if not. IMPORTANT: a line beginning "Requesting:" names a SERVICE and its listed price (machine-generated) — the price of a requested service is NEVER the client budget. Only capture budget when the client explicitly says what they want to spend ("budget is", "around $X total", "up to $X"). budget_currency: ISO 4217 (USD, EUR, MXN, GBP) if the currency or symbol is clear, else "".
 - When unsure, prefer the empty/zero value over a guess.`;
 
 function extractJsonPayload(content: string): string {
@@ -267,6 +267,7 @@ function timeoutNull<T>(ms: number): Promise<T | null> {
 export async function captureGuestMessageDetails(
   firstMessage: string,
   tenantId?: string,
+  options?: { model?: string },
 ): Promise<GuestMessageCapture> {
   const message = (firstMessage ?? "").trim().slice(0, MAX_MESSAGE_CHARS);
   if (!message) return {};
@@ -289,9 +290,15 @@ export async function captureGuestMessageDetails(
     const adapter = await resolveAiChatAdapter();
     const completion = adapter.chatCompletion({
       systemPrompt: SYSTEM_PROMPT,
-      userMessage: message,
+      // Prefix today's date so the model can resolve relative/year-less dates
+      // ("next Friday", "August 14") to the next future occurrence.
+      userMessage: `Today is ${new Date().toISOString().slice(0, 10)}.\n\n${message}`,
       temperature: 0.1,
       maxTokens: 400,
+      // Per-call model override (W2-I): the conversation scan pins the cheap
+      // Haiku tier for high-volume auto-fill. Unset (the single-message
+      // fresh-create path) falls back to the adapter's configured default.
+      ...(options?.model ? { model: options.model } : {}),
       jsonSchema: {
         name: CAPTURE_JSON_SCHEMA.name,
         strict: CAPTURE_JSON_SCHEMA.strict,

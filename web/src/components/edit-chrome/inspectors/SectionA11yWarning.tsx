@@ -86,7 +86,7 @@ function humanizeAltMessage(urlProp: string, altProp: string): string {
   };
   const label = imageLabel[urlProp] ?? "image";
   void altProp; // included via the image label
-  return `The ${label} has no alt text — add a short description for screen readers.`;
+  return `The ${label} has no alt text. Add a short description for screen readers.`;
 }
 
 function evaluate(
@@ -102,12 +102,12 @@ function evaluate(
     if (!text && sectionTypeKey === "hero") {
       issues.push({
         severity: "error",
-        message: "This hero has no headline — the page will be missing its main H1 heading, which hurts SEO and accessibility.",
+        message: "This hero has no headline. The page will be missing its main H1 heading, which hurts SEO and accessibility.",
       });
     } else if (!text) {
       issues.push({
         severity: "warn",
-        message: "This section has no headline — it will render without a title, which can confuse screen readers.",
+        message: "This section has no headline. It will render without a title, which can confuse screen readers.",
       });
     }
   }
@@ -137,7 +137,7 @@ function evaluate(
     if (missing > 0) {
       issues.push({
         severity: "warn",
-        message: `${missing} item image${missing > 1 ? "s are" : " is"} missing alt text — add image descriptions so screen readers can describe them.`,
+        message: `${missing} item image${missing > 1 ? "s are" : " is"} missing alt text. Add image descriptions so screen readers can describe them.`,
       });
     }
   }
@@ -153,7 +153,7 @@ function evaluate(
     if (missing > 0) {
       issues.push({
         severity: "warn",
-        message: `${missing} portrait${missing > 1 ? "s are" : " is"} missing alt text — add names or descriptions.`,
+        message: `${missing} portrait${missing > 1 ? "s are" : " is"} missing alt text. Add names or descriptions.`,
       });
     }
   }

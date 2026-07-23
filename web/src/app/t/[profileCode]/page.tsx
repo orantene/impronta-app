@@ -28,6 +28,7 @@ import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
 import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
+import { loadAccountMenuModel } from "@/lib/identity/account-menu-model";
 import { signOut } from "@/app/auth/actions";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
@@ -84,6 +85,7 @@ import {
   loadPublicIdentity,
   loadPublicBranding,
 } from "@/lib/site-admin/server/reads";
+import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { designTokensToCssVars } from "@/lib/site-admin/tokens/resolve";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import { buildTalentProfileJsonLd, jsonLdToString } from "@/lib/seo/talent-json-ld";
@@ -101,8 +103,10 @@ import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { loadInstantBookEligibility } from "@/lib/inquiry/instant-book-engine";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
+import { OfferingInstantMount } from "./_shared/OfferingInstantMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
@@ -113,7 +117,15 @@ import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
 import {
   loadTalentReviews,
   loadTalentRatingSummary,
+  loadPublishedTestimonials,
 } from "@/lib/reviews/load-reviews";
+import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import type {
+  TalentRatingSummary,
+  TalentReview,
+  Testimonial,
+} from "@/lib/reviews/review-types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1640,6 +1652,33 @@ export default async function PublicTalentProfilePage({
     instantBook.currencyCode || "USD",
   ).filter((it) => it.isActive && it.visibility !== "agency_only");
 
+  // Storefront — the offerings catalog (talent_offerings). When present it
+  // REPLACES the legacy services menu on the layouts; when empty the legacy
+  // ServiceMenuBlock keeps rendering (zero-regression fallback).
+  const storefrontOfferings = await loadPublicOfferingsForProfile(profile.id, locale);
+
+  // W3-7 — schema.org Offer JSON-LD for the storefront (SEO). Only published,
+  // exactly-priced offerings are emitted; quote/on-request carry no price.
+  const offerJsonLd =
+    storefrontOfferings.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: storefrontOfferings
+            .filter((o) => o.amountCents != null && o.priceDisplay === "exact")
+            .slice(0, 20)
+            .map((o, i) => ({
+              "@type": "Offer",
+              position: i + 1,
+              name: o.title,
+              ...(o.description ? { description: o.description } : {}),
+              price: (o.amountCents! / 100).toFixed(2),
+              priceCurrency: o.currency,
+              availability: "https://schema.org/InStock",
+            })),
+        }
+      : null;
+
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
   for (const term of flattenTaxonomy(profile.talent_profile_taxonomy ?? [])) {
@@ -1810,10 +1849,23 @@ export default async function PublicTalentProfilePage({
 
   // W7 — client→talent reviews. Published-only via public RLS; renders
   // nothing when the talent has no reviews. Safe on every surface.
-  const [ratingSummary, talentReviews] = await Promise.all([
-    loadTalentRatingSummary(profile.id),
-    loadTalentReviews(profile.id, 12),
-  ]);
+  //
+  // Testimonials are loaded alongside but kept SEPARATE — they are invited
+  // quotes, never blended into ratingSummary or any STANDING signal.
+  // Reviews are a PREMIUM capability, gated on the SURFACE tenant's entitlement
+  // (a hub controls its own surfaces independently). On the platform host there
+  // is no tenant to gate, so reviews show on Tulala's own marketplace surface.
+  const reviewsEnabled =
+    hostCtx.kind === "agency"
+      ? await tenantReviewsEnabled(hostCtx.tenantId)
+      : true;
+  const [ratingSummary, talentReviews, testimonials] = reviewsEnabled
+    ? await Promise.all([
+        loadTalentRatingSummary(profile.id),
+        loadTalentReviews(profile.id, 12),
+        loadPublishedTestimonials(profile.id, 12),
+      ])
+    : [{ average: 0, count: 0 } as TalentRatingSummary, [] as TalentReview[], [] as Testimonial[]];
 
   // Languages come solely from the canonical talent_languages table now —
   // the legacy taxonomy `grouped["language"]` fallback was retired when the
@@ -1967,16 +2019,38 @@ export default async function PublicTalentProfilePage({
     const actor = await getCachedActorSession();
     if (actor.user) {
       const link = resolveAccountHref(true, actor.profile);
-      marketingAccount = {
-        displayName:
-          actor.profile?.display_name?.trim() ||
-          actor.user.email?.split("@")[0] ||
-          "Account",
-        email: actor.user.email ?? "",
-        dashboardHref: link.href.startsWith("http")
-          ? link.href
-          : `${getAppUrl()}${link.href}`,
-      };
+      const appUrl = getAppUrl();
+      const displayName =
+        actor.profile?.display_name?.trim() ||
+        actor.user.email?.split("@")[0] ||
+        "Account";
+      const email = actor.user.email ?? "";
+      const fallbackDashboardHref = link.href.startsWith("http")
+        ? link.href
+        : `${appUrl}${link.href}`;
+      marketingAccount = actor.supabase
+        ? await loadAccountMenuModel(actor.supabase, actor.user.id, {
+            appUrl,
+            displayName,
+            email,
+            appRole: actor.profile?.app_role,
+            fallbackDashboardHref,
+          })
+        : {
+            displayName,
+            email,
+            dashboardHref: fallbackDashboardHref,
+            accountHref: fallbackDashboardHref,
+            workspaces: [],
+            talentPages: [],
+            isTalent: false,
+            globalHidden: false,
+            talentLinks: null,
+            talentUpgradeHref: null,
+            isClient: false,
+            clientTenants: [],
+            clientLinks: null,
+          };
     }
   }
 
@@ -2054,6 +2128,13 @@ export default async function PublicTalentProfilePage({
     ? "dark"
     : "light";
 
+  // Whitelabel (Agency/Network tier) hides the "Powered by Tulala" footer mark
+  // so the profile page reads as fully the hosting agency's own. Only meaningful
+  // on an agency-hosted profile; the platform directory keeps the mark.
+  const profileWhitelabel = currentTenantId
+    ? await loadTenantWhitelabel(currentTenantId)
+    : false;
+
   const profileBody = (
     <>
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
@@ -2074,6 +2155,7 @@ export default async function PublicTalentProfilePage({
         languages={languages}
         locale={locale}
         talentPlanKey={profile.talent_plan_key ?? "talent_basic"}
+        whitelabel={profileWhitelabel}
         maxSiteUrl={maxSiteUrl}
         galleryItems={galleryItems}
         watermarkPreset={watermarkPreset}
@@ -2098,6 +2180,7 @@ export default async function PublicTalentProfilePage({
         startingFrom={profile.starting_from ?? null}
         bookingNote={profile.booking_note ?? null}
         serviceMenuItems={serviceMenuItems}
+        storefrontOfferings={storefrontOfferings}
         disciplineLabels={disciplineLabels}
         fitLabels={fitLabels}
         skills={skills}
@@ -2109,6 +2192,12 @@ export default async function PublicTalentProfilePage({
         otherDetailRows={otherDetailRows}
         ratingSummary={ratingSummary}
         talentReviews={talentReviews}
+        testimonials={testimonials}
+        heroRating={
+          reviewsEnabled && meetsCredibilityFloor(ratingSummary.count)
+            ? { ratingAvg: ratingSummary.average, ratingCount: ratingSummary.count }
+            : undefined
+        }
         agencyName={tenantBrand}
         agencyDisplayName={tenantBrand}
         similarTalent={similarTalent}
@@ -2140,6 +2229,7 @@ export default async function PublicTalentProfilePage({
                 sourcePage={profileSourcePage}
                 fixedRateDollars={instantBook.fixedRateDollars}
                 currencyCode={instantBook.currencyCode}
+                locale={locale}
                 className={inquireBtnClass}
               />
             ) : null}
@@ -2151,6 +2241,7 @@ export default async function PublicTalentProfilePage({
               tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
               agencyName={tenantBrand ?? "the agency"}
               sourcePage={profileSourcePage}
+              locale={locale}
               className={inquireBtnClass}
             />
           </>
@@ -2165,6 +2256,7 @@ export default async function PublicTalentProfilePage({
                 sourcePage={profileSourcePage}
                 fixedRateDollars={instantBook.fixedRateDollars}
                 currencyCode={instantBook.currencyCode}
+                locale={locale}
                 className={inquireBtnClassFull}
               />
             ) : null}
@@ -2176,6 +2268,7 @@ export default async function PublicTalentProfilePage({
               tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
               agencyName={tenantBrand ?? "the agency"}
               sourcePage={profileSourcePage}
+              locale={locale}
               className={inquireBtnClassFull}
             />
           </>
@@ -2190,6 +2283,7 @@ export default async function PublicTalentProfilePage({
                 sourcePage={profileSourcePage}
                 fixedRateDollars={instantBook.fixedRateDollars}
                 currencyCode={instantBook.currencyCode}
+                locale={locale}
                 className={inquireBtnClass}
               />
             ) : null}
@@ -2201,6 +2295,7 @@ export default async function PublicTalentProfilePage({
               tenantSlug={hostCtx.kind === "agency" ? hostCtx.tenantSlug : ""}
               agencyName={tenantBrand ?? "the agency"}
               sourcePage={profileSourcePage}
+              locale={locale}
               className={inquireBtnClass}
             />
           </>
@@ -2261,12 +2356,29 @@ export default async function PublicTalentProfilePage({
           CTA; renders only on the agency surface AND when the tenant has guest
           chat enabled + shown on talent profiles (tenant_guest_chat_settings).
           Self-positions fixed bottom-right, so DOM placement here is logical. */}
+      {offerJsonLd && offerJsonLd.itemListElement.length > 0 ? (
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(offerJsonLd) }}
+        />
+      ) : null}
+      {/* Storefront direct booking — consumes "tulala:offering-instant" from a
+          card's Book now / Buy click; agency surface only (needs a tenant). */}
+      {hostCtx.kind === "agency" && (
+        <OfferingInstantMount
+          tenantId={hostCtx.tenantId}
+          sourcePage={`/t/${profile.profile_code}`}
+          locale={locale}
+        />
+      )}
       {guestChatSettings.enabled && guestChatSettings.showOnTalent && (
         <TalentProfileChatLauncherMount
           talentProfileId={profile.id}
           talentProfileCode={profile.profile_code}
           talentDisplayName={name}
           tenantSlug={chatTenantSlug}
+          tenantId={chatTenantId}
           agencyName={chatBrandName}
           accentColor={chatAccentColor}
           logoUrl={watermarkLogoUrl}

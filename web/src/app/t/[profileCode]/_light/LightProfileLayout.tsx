@@ -25,6 +25,8 @@ import { ProfileCover } from "./ProfileCover";
 import { ProfileHeader } from "./ProfileHeader";
 import { ServicesBlock } from "./ServicesBlock";
 import { ServiceMenuBlock } from "./ServiceMenuBlock";
+import { TalentStorefront } from "../_shared/TalentStorefront";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "./SkillsExperienceBlock";
 import { BookingCard } from "./BookingCard";
 import { AvailabilityWidget } from "./AvailabilityWidget";
@@ -40,7 +42,14 @@ import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
 import type { TalentServiceAreaRow } from "../page";
-import type { TalentRatingSummary, TalentReview } from "@/lib/reviews/review-types";
+import type {
+  TalentRatingSummary,
+  TalentReview,
+  Testimonial,
+} from "@/lib/reviews/review-types";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 // ─── WatermarkPreset (mirrors the type from PortfolioGalleryLightbox) ────────
@@ -96,6 +105,13 @@ export type LightProfileLayoutProps = {
   talentPlanKey: string;
 
   /**
+   * True when the hosting agency is on a whitelabel plan tier (Agency /
+   * Network). When set, the "Powered by Tulala" footer mark is hidden so the
+   * page reads as fully the agency's own. Undefined/false → the mark shows.
+   */
+  whitelabel?: boolean;
+
+  /**
    * Max site URL. Non-null ONLY when the talent is on the Max plan AND has a
    * published site. Passed through to ProfileHeader for the VIP badge + CTA.
    */
@@ -121,6 +137,7 @@ export type LightProfileLayoutProps = {
   bookingNote: string | null;
   /** S12 — talent-configured services menu (public/on-request items). */
   serviceMenuItems: ServiceMenuItem[];
+  storefrontOfferings: TalentOffering[];
   /** S6 — discipline term id → label, for per-service scoping chips. */
   disciplineLabels: Record<string, string>;
 
@@ -146,6 +163,19 @@ export type LightProfileLayoutProps = {
   // ── Reviews ──────────────────────────────────────────────────────────────
   ratingSummary: TalentRatingSummary;
   talentReviews: TalentReview[];
+  /**
+   * Hero rating chip signal. Present ONLY when the surface tenant is
+   * reviews-entitled AND the talent clears the credibility floor. When set,
+   * each layout renders a small "★ 5.0 · N reviews" chip in the hero that
+   * anchors to the #reviews section. Absent → no hero reputation chip.
+   */
+  heroRating?: { ratingAvg: number; ratingCount: number };
+  /**
+   * Invited testimonials — WALLED OFF from verified reviews. Optional so all
+   * callers (and the Noir/Lumen/Atelier layouts that reuse this prop type)
+   * degrade safely to an empty block. Never blended into ratingSummary.
+   */
+  testimonials?: Testimonial[];
 
   // ── Agency overlay ───────────────────────────────────────────────────────
   agencyName: string | null;
@@ -186,6 +216,26 @@ export type LightProfileLayoutProps = {
   discoveryCta2: React.ReactNode;
   discoveryCta3: React.ReactNode;
 };
+
+/**
+ * Hero rating chip copy — "★ 5.0 · 5 reviews". Shared by all four layouts.
+ * Average is fixed to one decimal; the count pluralizes review/reviews.
+ */
+export function heroRatingChipLabel(
+  ratingAvg: number,
+  ratingCount: number,
+  locale: string,
+): string {
+  const noun =
+    locale === "es"
+      ? ratingCount === 1
+        ? "reseña"
+        : "reseñas"
+      : ratingCount === 1
+        ? "review"
+        : "reviews";
+  return `★ ${ratingAvg.toFixed(1)} · ${ratingCount} ${noun}`;
+}
 
 /** Group detail rows by their resolved group label, preserving first-seen order. */
 function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: DetailRow[] }> {
@@ -265,6 +315,7 @@ export function LightProfileLayout({
   startingFrom,
   bookingNote,
   serviceMenuItems,
+  storefrontOfferings,
   disciplineLabels,
   fitLabels,
   skills,
@@ -276,6 +327,8 @@ export function LightProfileLayout({
   otherDetailRows,
   ratingSummary,
   talentReviews,
+  testimonials = [],
+  heroRating,
   agencyName,
   agencyDisplayName,
   similarTalent,
@@ -320,6 +373,11 @@ export function LightProfileLayout({
       data-profile-shell
       data-profile-theme="light"
     >
+      {/* Smooth-scroll for the hero rating chip → #reviews anchor. */}
+      {heroRating ? (
+        <style dangerouslySetInnerHTML={{ __html: "html{scroll-behavior:smooth}" }} />
+      ) : null}
+
       {/* Preview mode banner */}
       {resolvedPreview ? (
         <div
@@ -361,6 +419,24 @@ export function LightProfileLayout({
         hubsIndicator={hubsIndicator}
         maxSiteUrl={maxSiteUrl}
       />
+
+      {/* ── 2b. HERO RATING CHIP — quiet reputation signal near the name ── */}
+      {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
+        <div className="relative z-10 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto mt-3 max-w-5xl">
+            <ReviewsAnchorLink
+              className="plt-mono inline-flex items-center rounded-full border px-3 py-1 text-[0.625rem] font-medium uppercase tracking-[0.14em] transition-opacity hover:opacity-80"
+              style={{
+                borderColor: "var(--plt-hairline-strong)",
+                background: "var(--plt-bg-raised)",
+                color: "var(--plt-ink-soft)",
+              }}
+            >
+              {heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}
+            </ReviewsAnchorLink>
+          </div>
+        </div>
+      ) : null}
 
       {/* ── 3 + 4. PORTFOLIO + BODY (70/30) ─────────────────────────────── */}
       <div className="mx-auto max-w-5xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
@@ -443,13 +519,22 @@ export function LightProfileLayout({
               bookingDetailsLabel={t("public.profile.editorial.bookingDetails")}
             />
 
-            {/* Services menu — talent-configured services & pricing (S12) */}
-            <ServiceMenuBlock
-              items={isFreePlan ? [] : serviceMenuItems}
-              locale={locale}
-              heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
-              disciplineLabels={disciplineLabels}
-            />
+            {/* Storefront (offerings) takes precedence; legacy services menu
+                is the zero-regression fallback for talents without offerings. */}
+            {!isFreePlan && storefrontOfferings.length > 0 ? (
+              <TalentStorefront
+                offerings={storefrontOfferings}
+                locale={locale}
+                heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+              />
+            ) : (
+              <ServiceMenuBlock
+                items={isFreePlan ? [] : serviceMenuItems}
+                locale={locale}
+                heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                disciplineLabels={disciplineLabels}
+              />
+            )}
 
             {/* Skills & specialties */}
             <SkillsExperienceBlock
@@ -484,7 +569,12 @@ export function LightProfileLayout({
 
             {/* Reviews */}
             {ratingSummary.count > 0 ? (
-              <section aria-label="Client reviews" data-profile-section="reviews">
+              <section
+                id="reviews"
+                className="scroll-mt-24"
+                aria-label="Client reviews"
+                data-profile-section="reviews"
+              >
                 <LightSectionLabel>Reviews</LightSectionLabel>
                 <div className="mt-5">
                   <TalentReviewsSection
@@ -492,9 +582,18 @@ export function LightProfileLayout({
                     reviews={talentReviews}
                     theme="light"
                     heading={pickLocale(locale, { en: "Reviews", es: "Reseñas" })}
+                    talentName={name}
                   />
                 </div>
               </section>
+            ) : null}
+
+            {/* Invited testimonials — separate from verified reviews. Renders
+                nothing when empty. */}
+            {testimonials.length > 0 ? (
+              <div className="mt-8">
+                <TestimonialsSection testimonials={testimonials} theme="light" />
+              </div>
             ) : null}
           </div>
 

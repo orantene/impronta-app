@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/marketing/legal-page";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "Terms",
-  description: `The terms that govern use of ${PLATFORM_BRAND.name}, explained like humans wrote them.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, { en: "Terms", es: "Términos" }),
+    description: pickLocale(locale, {
+      en: `The terms that govern use of ${PLATFORM_BRAND.name}, explained like humans wrote them.`,
+      es: `Los términos que rigen el uso de ${PLATFORM_BRAND.name}, explicados como los escribiría una persona.`,
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/legal/terms"),
+  };
+}
 
 export default function TermsPage() {
   return (
@@ -16,7 +26,7 @@ export default function TermsPage() {
       intro={
         <p>
           By using {PLATFORM_BRAND.name}{" "}you agree to these terms. We&rsquo;ve kept them short
-          and clear — no fine print tricks. If anything&rsquo;s ambiguous, the plain-language
+          and clear, no fine print tricks. If anything&rsquo;s ambiguous, the plain-language
           reading wins.
         </p>
       }
@@ -38,7 +48,7 @@ export default function TermsPage() {
           body: (
             <>
               <p>
-                You keep full ownership of everything you upload — people profiles, media,
+                You keep full ownership of everything you upload, people profiles, media,
                 site copy, inquiries. You grant {PLATFORM_BRAND.name} a limited license to
                 host, render, and distribute that content as directed by you (public roster
                 site, shared network, etc.).

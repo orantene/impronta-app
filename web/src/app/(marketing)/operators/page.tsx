@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TalentCategoryLinks } from "@/components/marketing/category-landing";
 import { ContrastSection } from "@/components/marketing/contrast-section";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
@@ -13,11 +14,22 @@ import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "For independent operators",
-  description: `You ARE the business. ${PLATFORM_BRAND.name} gives independent coordinators and operators the structure of a real agency — without the overhead of building one.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, {
+      en: "For independent operators",
+      es: "Para operadores independientes",
+    }),
+    description: pickLocale(locale, {
+      en: `You ARE the business. ${PLATFORM_BRAND.name} gives independent coordinators and operators the structure of a real agency, without the overhead of building one.`,
+      es: `El negocio eres tú. ${PLATFORM_BRAND.name} da a coordinadores y operadores independientes la estructura de una agencia real, sin el costo de montar una.`,
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/operators"),
+  };
+}
 
 type PainPoint = {
   id: string;
@@ -33,7 +45,7 @@ function getPainPoints(locale: string): PainPoint[] {
         id: "bottleneck",
         number: "01",
         title: "You ARE the business.",
-        body: "Every inquiry, every booking, every response \u2014 it\u2019s all you. The phone doesn\u2019t stop, and there\u2019s no coordinator to delegate to.",
+        body: "Every inquiry, every booking, every response: it\u2019s all you. The phone doesn\u2019t stop, and there\u2019s no coordinator to delegate to.",
       },
       {
         id: "tools",
@@ -53,7 +65,7 @@ function getPainPoints(locale: string): PainPoint[] {
         id: "bottleneck",
         number: "01",
         title: "El negocio eres tú.",
-        body: "Cada consulta, cada reserva, cada respuesta \u2014 todo recae en ti. El teléfono no para, y no hay un coordinador a quien delegarle.",
+        body: "Cada consulta, cada reserva, cada respuesta: todo recae en ti. El teléfono no para, y no hay un coordinador a quien delegarle.",
       },
       {
         id: "tools",
@@ -85,7 +97,7 @@ function getShifts(locale: string): Shift[] {
       },
       {
         before: "Inquiries buried in WhatsApp.",
-        after: "Inquiries land structured \u2014 brief, dates, budget.",
+        after: "Inquiries land structured: brief, dates, budget.",
       },
       {
         before: "Rates quoted from memory.",
@@ -111,7 +123,7 @@ function getShifts(locale: string): Shift[] {
       },
       {
         before: "Consultas enterradas en WhatsApp.",
-        after: "Las consultas llegan estructuradas \u2014 brief, fechas, presupuesto.",
+        after: "Las consultas llegan estructuradas: brief, fechas, presupuesto.",
       },
       {
         before: "Tarifas cotizadas de memoria.",
@@ -142,7 +154,7 @@ export default async function OperatorsPage() {
       heroEyebrow: "For independent operators",
       heroTitleA: "You\u2019re already running",
       heroTitleB: "a real business.",
-      heroSubtitle: `${PLATFORM_BRAND.name} is the talent business platform for coordinators, freelance scouts, managers, and one-person agencies. Get a polished storefront, a structured inquiry inbox, and exposure on a shared discovery network \u2014 free to start.`,
+      heroSubtitle: `${PLATFORM_BRAND.name} gives coordinators, freelance scouts, managers, and one-person agencies a polished storefront, a structured inquiry inbox, and exposure on a shared discovery network, free to start.`,
       startFree: "Start free",
       seeHow: "See how it works",
       bottleneckEyebrow: "The one-person bottleneck",
@@ -158,7 +170,7 @@ export default async function OperatorsPage() {
       heroEyebrow: "Para operadores independientes",
       heroTitleA: "Ya est\u00e1s llevando",
       heroTitleB: "un negocio de verdad.",
-      heroSubtitle: `${PLATFORM_BRAND.name} es la plataforma de negocio de talento para coordinadores, scouts independientes, m\u00e1nagers y agencias de una sola persona. Ten un escaparate pulido, un buz\u00f3n de consultas estructurado y presencia en una red de descubrimiento compartida \u2014 gratis para empezar.`,
+      heroSubtitle: `${PLATFORM_BRAND.name} da a coordinadores, scouts independientes, m\u00e1nagers y agencias de una sola persona un escaparate pulido, un buz\u00f3n de consultas estructurado y presencia en una red de descubrimiento compartida, gratis para empezar.`,
       startFree: "Empieza gratis",
       seeHow: "Mira c\u00f3mo funciona",
       bottleneckEyebrow: "El cuello de botella de una sola persona",
@@ -324,6 +336,7 @@ export default async function OperatorsPage() {
       <ContrastSection />
       <HowItWorksSection />
       <NetworkSection />
+      <TalentCategoryLinks locale={locale} />
       <FinalCtaSection />
     </>
   );

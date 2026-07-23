@@ -8,25 +8,28 @@
  * and, for GUESTS, submitted it immediately. That dropped any lineup the visitor
  * had built and spawned a competing inquiry alongside the chat launcher.
  *
- * Locked owner decision 2: remove ONLY the guest instant-submit path. The chat
- * launcher (TalentProfileChatLauncher) is the ONE canonical inquiry surface, so
- * the guest CTA now ADDS this talent to the shared lineup and opens the chat
- * (resolver-driven), never a parallel composer. The InquiryDrawer is KEPT as the
- * synced expanded form-view for LOGGED-IN CLIENTS only (draft autosave, not an
- * instant submit) — reachable as a quiet secondary, the same inquiry expanded.
+ * W2-E (front-door collapse): the floating chat launcher
+ * (TalentProfileChatLauncher) is the ONE canonical inquiry surface for BOTH
+ * guests AND signed-in clients. This CTA adds the talent to the shared lineup
+ * and asks the launcher to open (resolver-driven), never a parallel composer and
+ * never an instant submit. The InquiryDrawer sheet is gone from this surface
+ * (D6: the drawer survives ONLY as the workspace-dashboard form).
  */
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Mail } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
+import { Mail, MessageCirclePlus, UserPlus } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { getTalentProfileInquireData } from "./talent-profile-inquire-data";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { registerCartTalent } from "@/app/t/[profileCode]/_chat/cart-talent-registry";
+import { useFocusTrap } from "@/app/t/[profileCode]/_chat/use-focus-trap";
+import { FONT } from "@/app/t/[profileCode]/_chat/mini-chat-styles";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,27 +39,20 @@ type TalentProfileInquireButtonProps = {
   talentId: string;
   talentProfileCode: string;
   displayName: string;
-  /** tenantId for analytics events (from getPublicHostContext). */
-  tenantId: string;
-  /** tenantSlug for routing the submit through createInquiryFromIntent. */
-  tenantSlug: string;
-  /** Agency display name shown in the drawer header copy. */
+  /** tenantId — retained for caller compatibility (analytics/provenance). */
+  tenantId?: string;
+  /** tenantSlug — retained for caller compatibility. */
+  tenantSlug?: string;
+  /** Agency display name — retained for caller compatibility. */
   agencyName?: string;
   /** Source page for analytics + source attribution (e.g. /t/TA-12345). */
   sourcePage: string;
   /** Optional portrait for the lineup avatar fly/registry. */
   portraitUrl?: string | null;
+  /** Resolved page locale (from getRequestLocale on the profile page). */
+  locale: string;
   /** Button className override — caller controls placement context. */
   className?: string;
-};
-
-type InquireData = {
-  pov: "client" | "guest";
-  defaultEmail?: string;
-  defaultName?: string;
-  defaultPhone?: string;
-  defaultCompany?: string;
-  userId?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -67,124 +63,155 @@ export function TalentProfileInquireButton({
   talentId,
   talentProfileCode,
   displayName,
-  tenantId,
-  tenantSlug,
-  agencyName,
   sourcePage,
   portraitUrl = null,
+  locale,
   className,
 }: TalentProfileInquireButtonProps) {
-  const [open, setOpen] = useState(false);
-  const [data, setData] = useState<InquireData | null>(null);
-  const [, startTransition] = useTransition();
+  const t = createTranslator(locale);
   const cart = useInquiryCart();
   const inquiryModal = useOptionalDirectoryInquiryModal();
 
-  const loadData = useCallback(() => {
-    startTransition(async () => {
-      const result = await getTalentProfileInquireData();
-      setData({
-        pov: result.pov,
-        defaultEmail: result.defaultEmail,
-        defaultName: result.defaultName,
-        defaultPhone: result.defaultPhone,
-        defaultCompany: result.defaultCompany,
-        userId: result.userId,
-      });
-    });
-  }, []);
-
-  // Pre-load on mount so we know guest-vs-client before the first click (the
-  // guest path never opens the drawer, the client path opens it instantly).
-  useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only prefetch: loadData is a stable useCallback with [] deps
-  }, []);
-
   const firstName = displayName.split(" ")[0] ?? displayName;
-  const isLoggedIn = data?.pov === "client";
 
-  const handleClick = () => {
+  // DOCK v2.1 — the chooser: when the visitor already has OTHER talent in
+  // their lineup, one tap should not silently mutate the in-progress inquiry.
+  // Offer the two honest paths ("add to current" / "separate inquiry about
+  // {name}"). With an empty (or her-only) lineup there is nothing to decide.
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const menuTrapRef = useFocusTrap<HTMLDivElement>(chooserOpen);
+  useEffect(() => {
+    if (!chooserOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setChooserOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setChooserOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, [chooserOpen]);
+
+  const othersInLineup = cart.cartIds.filter((id) => id !== talentId).length;
+
+  const addToCurrent = (path: "direct" | "add_to_current" = "direct") => {
+    setChooserOpen(false);
     trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
       talent_id: talentId,
       source_page: sourcePage,
+      cta_path: path,
     });
-
-    // GUEST (or pov still resolving): the canonical surface is the chat launcher.
-    // Add this talent to the shared lineup (so the chat opens preloaded + the
-    // rail avatar appears) and ask the launcher to open. NO parallel composer,
-    // NO instant submit, the lineup is preserved.
-    if (!isLoggedIn) {
-      registerCartTalent(talentId, { displayName, portraitUrl });
-      if (!cart.isInCart(talentId)) {
-        cart.setInCart(
-          { talentProfileId: talentId, profileCode: talentProfileCode, displayName },
-          true,
-          sourcePage,
-        );
-      }
-      inquiryModal?.requestOpenChat();
-      return;
+    // W2-E — one canonical inquiry surface for guests AND signed-in clients:
+    // the chat launcher. Add this talent to the shared lineup (so the chat opens
+    // preloaded + the rail avatar appears) and ask the launcher to open. NO
+    // parallel composer, NO instant submit, the lineup is preserved. When no
+    // launcher is mounted, requestOpenChat falls back to the synced sheet.
+    registerCartTalent(talentId, { displayName, portraitUrl });
+    if (!cart.isInCart(talentId)) {
+      cart.setInCart(
+        { talentProfileId: talentId, profileCode: talentProfileCode, displayName },
+        true,
+        sourcePage,
+      );
     }
-
-    // LOGGED-IN CLIENT: the InquiryDrawer is the synced form-view (draft
-    // autosave, never an instant submit). Open it as the expanded form.
-    if (!data) loadData();
-    setOpen(true);
+    inquiryModal?.requestOpenChat();
   };
 
-  // Roster passed to the drawer's talent picker (client form-view only).
-  const oneTalentRoster = [{ id: talentId, name: displayName }];
+  const startSeparate = () => {
+    setChooserOpen(false);
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
+      talent_id: talentId,
+      source_page: sourcePage,
+      cta_path: "separate",
+    });
+    inquiryModal?.requestSeparateInquiry({
+      talentProfileId: talentId,
+      profileCode: talentProfileCode,
+      displayName,
+      portraitUrl,
+    });
+  };
+
+  const handleClick = () => {
+    // Fire the conversion event on the ACTUAL chosen path (below), not here:
+    // an empty/her-only lineup goes straight through addToCurrent("direct"); a
+    // lineup with others opens the chooser and the event fires on the choice.
+    if (othersInLineup > 0 && inquiryModal) {
+      setChooserOpen((v) => !v);
+      return;
+    }
+    addToCurrent("direct");
+  };
+
+  // Modern-sans CTA type (owner: the serif/tracked site button read badly in
+  // this context) — the same FONT stack the chat panel uses, so the inquiry
+  // journey is typographically one thing from CTA to conversation.
+  const ctaTypeStyle = { fontFamily: FONT, fontWeight: 600, letterSpacing: 0 } as const;
+
+  const optionStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "none",
+    background: "transparent",
+    color: "#1c2230",
+    cursor: "pointer",
+    fontFamily: FONT,
+    fontSize: 13,
+    fontWeight: 600,
+    textAlign: "left" as const,
+  };
 
   return (
-    <>
-      <Button type="button" onClick={handleClick} className={className}>
+    <div ref={wrapRef} style={{ position: "relative", display: "inline-block" }}>
+      <Button type="button" onClick={handleClick} className={className} style={ctaTypeStyle}>
         <Mail className="size-4" />
-        Inquire about {firstName}
+        {interpolate(t("public.profileCta.inquireAbout"), { name: firstName })}
       </Button>
-
-      {/* Client-only synced form-view of the SAME inquiry. Guests never reach
-          this — they use the chat launcher (the one canonical surface). */}
-      {isLoggedIn && open && data && (
-        <InquiryDrawer
-          source="public_talent_profile"
-          initialIntent={{
-            requester: {
-              name: data.defaultName ?? "",
-              email: data.defaultEmail ?? "",
-              phone: data.defaultPhone ?? "",
-              user_id: data.userId ?? null,
-              trust_level: "verified",
-            },
-            client: {
-              company: data.defaultCompany ?? "",
-              same_as_requester: true,
-            },
-            talent: {
-              selected_ids: [talentId],
-              selection_mode: "i_know_who",
-            },
-            source_context: {
-              referrer_page: sourcePage,
-              public_profile_code: talentProfileCode,
-              tenant_id: tenantId,
-            },
+      {chooserOpen && (
+        <div
+          ref={menuTrapRef}
+          role="menu"
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            right: 0,
+            zIndex: 60,
+            minWidth: 250,
+            padding: 5,
+            borderRadius: 12,
+            border: "1px solid rgba(28,34,48,0.14)",
+            background: "#ffffff",
+            boxShadow: "0 16px 40px -14px rgba(16,18,29,0.45)",
           }}
-          tenantSlug={tenantSlug}
-          agencyName={agencyName ?? "the agency"}
-          client={{
-            user_id: data.userId ?? null,
-            displayName: data.defaultName,
-            email: data.defaultEmail,
-            phone: data.defaultPhone,
-            company: data.defaultCompany,
-            trust_level: "verified",
-          }}
-          roster={oneTalentRoster}
-          enableDraftAutosave
-          onClose={() => setOpen(false)}
-        />
+        >
+          <button type="button" role="menuitem" onClick={() => addToCurrent("add_to_current")} style={optionStyle}>
+            <UserPlus size={15} strokeWidth={2.1} aria-hidden style={{ flexShrink: 0, opacity: 0.65 }} />
+            <span style={{ minWidth: 0 }}>
+              {interpolate(t("public.profileCta.addToCurrent"), {
+                name: firstName,
+                count: othersInLineup,
+              })}
+            </span>
+          </button>
+          <button type="button" role="menuitem" onClick={startSeparate} style={optionStyle}>
+            <MessageCirclePlus size={15} strokeWidth={2.1} aria-hidden style={{ flexShrink: 0, opacity: 0.65 }} />
+            <span style={{ minWidth: 0 }}>
+              {interpolate(t("public.profileCta.separateInquiry"), { name: firstName })}
+            </span>
+          </button>
+        </div>
       )}
-    </>
+    </div>
   );
 }

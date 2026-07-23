@@ -9,9 +9,11 @@ import { useEffect, useState } from "react";
 import { HQ, HQ_F, HQ_FD, SectionLabel } from "../tenants/hq-kit";
 import { getPlatformUserActivity } from "./actions";
 import type { UserActivitySnapshot } from "./actions";
+import { useT } from "@/i18n/use-t";
 import type { PlatformUserRow } from "../../platform-data";
 
 export function ActivitySection({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [snapshot, setSnapshot] = useState<UserActivitySnapshot | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,7 +52,7 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
           padding: 0,
         }}
       >
-        <SectionLabel>Activity &amp; Support Context</SectionLabel>
+        <SectionLabel>{t("dashboard.platform.users.activity.title")}</SectionLabel>
         <span
           style={{
             color: HQ.inkMuted,
@@ -78,7 +80,7 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
                 textAlign: "center",
               }}
             >
-              Loading activity…
+              {t("dashboard.platform.users.activity.loading")}
             </div>
           ) : snapshot ? (
             <div
@@ -111,7 +113,7 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
                       color: HQ.inkDim,
                     }}
                   >
-                    Inquiries
+                    {t("dashboard.platform.users.activity.inquiries")}
                   </div>
                   <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
                     <span
@@ -142,7 +144,7 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
                       color: HQ.inkDim,
                     }}
                   >
-                    Bookings
+                    {t("dashboard.platform.users.activity.bookings")}
                   </div>
                   <div
                     style={{
@@ -162,7 +164,7 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
               {/* Recent inquiries */}
               {snapshot.inquiryCount === 0 ? (
                 <div style={{ fontSize: 12.5, color: HQ.inkDim, textAlign: "center", padding: "8px 0" }}>
-                  No inquiries on record.
+                  {t("dashboard.platform.users.activity.noInquiries")}
                 </div>
               ) : (
                 <div>
@@ -176,7 +178,7 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
                       marginBottom: 8,
                     }}
                   >
-                    Recent inquiries (last 5)
+                    {t("dashboard.platform.users.activity.recentInquiries")}
                   </div>
                   <ul style={{ padding: 0, margin: 0, listStyle: "none", display: "grid", gap: 6 }}>
                     {snapshot.lastFiveInquiries.map((inq) => (
@@ -191,12 +193,12 @@ export function ActivitySection({ user }: { user: PlatformUserRow }) {
                         }}
                       >
                         <div style={{ color: HQ.ink, marginBottom: 4 }}>
-                          <strong>{inq.title || "Untitled"}</strong>
+                          <strong>{inq.title || t("dashboard.platform.users.activity.untitled")}</strong>
                         </div>
                         <div style={{ display: "grid", gridTemplateColumns: "auto auto 1fr", gap: 10, alignItems: "center" }}>
                           <StatusBadge status={inq.status} />
                           <span style={{ fontSize: 10, color: HQ.inkMuted }}>
-                            {formatActivityDate(inq.createdAt)}
+                            {formatActivityDate(inq.createdAt, t)}
                           </span>
                           {inq.workspaceName && (
                             <span
@@ -239,14 +241,14 @@ function StatusBadge({ status }: { status: string | null }) {
   );
 }
 
-function formatActivityDate(isoString: string): string {
+function formatActivityDate(isoString: string, t: (key: string) => string): string {
   try {
     const date = new Date(isoString);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    if (date.toDateString() === today.toDateString()) return t("dashboard.platform.users.activity.relToday");
+    if (date.toDateString() === yesterday.toDateString()) return t("dashboard.platform.users.activity.relYesterday");
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch { return "—"; }
 }

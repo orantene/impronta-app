@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { MarketingPhoto } from "@/lib/marketing/photography";
 
@@ -104,18 +105,36 @@ export function EditorialFrame({
         background: "var(--plt-bg-deep)",
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={imageUrl}
-        srcSet={remoteSrcSet}
-        sizes="(min-width: 1024px) 40vw, 90vw"
-        alt={photo.alt}
-        loading={priority ? "eager" : "lazy"}
-        decoding={priority ? "sync" : "async"}
-        fetchPriority={priority ? "high" : "auto"}
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{ objectPosition: FOCAL_MAP[photo.focal ?? "center"] }}
-      />
+      {imageUrl.startsWith("/") ? (
+        // Local photography is bundled under /public and `local()` ignores its
+        // width/quality args, so a raw <img> ships the full-resolution source
+        // (300-900 KB) to every phone, and `remoteSrcSet` above is undefined for
+        // these. next/image serves responsive AVIF instead. Remote photos keep
+        // the plain <img> path: their host builds its own resized URL and may
+        // not be in `images.remotePatterns`.
+        <Image
+          src={imageUrl}
+          alt={photo.alt}
+          fill
+          sizes="(min-width: 1024px) 40vw, 90vw"
+          priority={priority}
+          className="object-cover"
+          style={{ objectPosition: FOCAL_MAP[photo.focal ?? "center"] }}
+        />
+      ) : (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={imageUrl}
+          srcSet={remoteSrcSet}
+          sizes="(min-width: 1024px) 40vw, 90vw"
+          alt={photo.alt}
+          loading={priority ? "eager" : "lazy"}
+          decoding={priority ? "sync" : "async"}
+          fetchPriority={priority ? "high" : "auto"}
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectPosition: FOCAL_MAP[photo.focal ?? "center"] }}
+        />
+      )}
 
       {/* Brand grade — unifies disparate photos under the palette */}
       <div

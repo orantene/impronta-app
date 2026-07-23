@@ -285,7 +285,7 @@ export function RevisionsDrawer(): ReactElement | null {
       } else {
         setError(
           res.error ??
-            "Couldn't load revision history — try closing and reopening Revisions.",
+            "Couldn't load revision history. Try closing and reopening Revisions.",
         );
       }
     });
@@ -381,7 +381,7 @@ export function RevisionsDrawer(): ReactElement | null {
               <strong style={{ color: CHROME.text }}>Undo / Redo</strong> (⌘Z /
               ⌘⇧Z) depth is preserved across reloads (up to 10 steps).{" "}
               <strong style={{ color: CHROME.text }}>Restore</strong> replaces
-              your draft with a saved snapshot — review the canvas, then
+              your draft with a saved snapshot, review the canvas, then
               publish when ready.{" "}
               {revisions && revisions.length >= 2 && (
                 <>
@@ -428,7 +428,7 @@ export function RevisionsDrawer(): ReactElement | null {
                 role="status"
                 aria-live="polite"
               >
-                v{diffAnchor.version} selected — click a second revision to
+                v{diffAnchor.version} selected. Click a second revision to
                 compare, or click it again to cancel.
               </div>
             )}

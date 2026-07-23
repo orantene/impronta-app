@@ -1,36 +1,47 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { bulkNudgeInquiries, bulkSetInquiryArchived, bulkReassignInquiriesToMe, convertInquiryToBookingAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { useDashboardText } from "../dashboard-i18n";
+import { useKeyboardListNav } from "../primitives";
 import { useAdminShell, COLORS, FONTS, type RichInquiry } from "../state";
 import { AdminInquiryDetail } from "./admin-2";
 import { AdminInquiryRow } from "./AdminOperationsShell";
 import type { AdminFilter } from "./AdminOperationsShell";
 import { __convFlags, archiveInquiry, getIncomingHandoffs, sortPinnedFirst, useFlagsSubscription, useHandoffSubscription } from "./conversation-stash";
-import { renderWithDateGroups } from "./messages-shared";
+import { FOCUS_COMPOSER_EVENT, renderWithDateGroups } from "./messages-shared";
 import { HoverActionsCss, SearchPill } from "./shared/inbox-identity-1";
 import { FilterChip } from "./shared/inbox-identity-2";
 import type { Offer } from "./shared/machinery-9";
 
 
 export function AdminInboxList({
-  inquiries, activeId, onSelect, search, onSearchChange, filter, onFilterChange, totalUnread, needsMe,
+  inquiries, allInquiries, activeId, onSelect, search, onSearchChange, filter, onFilterChange, totalUnread, needsMe,
 }: {
   inquiries: RichInquiry[];
+  /**
+   * UNFILTERED inquiry set for the chip counts. `inquiries` is already
+   * view-filtered by the parent, so counting archived/coordinating/triage
+   * over it undercounts — worst case the Archived chip read 0 the moment
+   * you archived from any other view, making archived threads unreachable.
+   */
+  allInquiries?: RichInquiry[];
   activeId: string;
   onSelect: (id: string) => void;
   search: string; onSearchChange: (s: string) => void;
   filter: AdminFilter; onFilterChange: (f: AdminFilter) => void;
   totalUnread: number; needsMe: number;
 }) {
-  const { toast: toastBulk, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const countBase = allInquiries ?? inquiries;
+  const { state, toast: toastBulk, effectiveTenant, tenantSlug, bridgeSessionIdentity } = useAdminShell();
+  const copy = useDashboardText();
   const currentUserId = bridgeSessionIdentity?.userId ?? null;
   // "Coordinating" surfaces inquiries the CURRENT signed-in user coordinates,
   // matched by the real coordinator user-id (inquiries.coordinator_id). Pinned
   // as a saved view.
-  const coordCount = inquiries.filter(i =>
+  const coordCount = countBase.filter(i =>
     !!currentUserId && i.coordinator?.id === currentUserId,
   ).length;
   // Subscribe to handoff store + count the user's incoming handoffs.
@@ -47,7 +58,7 @@ export function AdminInboxList({
   // and pin their own (filter + search + sort). They appear at the
   // start of the chip row with a star pin so they read as
   // first-class user-curated entry points, not just filters.
-  const archivedCount = inquiries.filter(i => !!__convFlags[i.id]?.archived).length;
+  const archivedCount = countBase.filter(i => !!__convFlags[i.id]?.archived).length;
   // A7 — triage queue count: open-funnel inquiries owing coordinator action.
   // Same predicate as the triage filter; precomputed here for the chip label.
   // Inline the bucket helper since it's not in this function's scope.
@@ -60,7 +71,7 @@ export function AdminInboxList({
     if (s === "booked") return "booked";
     return "past";
   };
-  const triageCount = inquiries.filter(i => {
+  const triageCount = countBase.filter(i => {
     const isArchived = !!__convFlags[i.id]?.archived;
     if (isArchived) return false;
     if (i.nextActionBy !== "coordinator") return false;
@@ -68,20 +79,20 @@ export function AdminInboxList({
     return bucket === "inquiry" || bucket === "hold";
   }).length;
   const chips: { id: AdminFilter; label: string; count?: number; pin?: boolean }[] = [
-    { id: "all", label: "All" },
-    { id: "needs-me", label: `Needs me${needsMe > 0 ? ` (${needsMe})` : ""}` },
+    { id: "all", label: copy.t("All") },
+    { id: "needs-me", label: `${copy.t("Needs me")}${needsMe > 0 ? ` (${needsMe})` : ""}` },
     // Triage chip — only appears when there's something to triage so it
     // doesn't add visual noise on an empty backlog.
-    ...(triageCount > 0 ? [{ id: "triage" as const, label: `Triage${triageCount > 0 ? ` (${triageCount})` : ""}`, pin: true }] : []),
-    { id: "unread", label: `Unread${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
-    ...(handoffCount > 0 ? [{ id: "handoffs" as const, label: "Handoffs", count: handoffCount, pin: true }] : []),
-    ...(coordCount > 0 ? [{ id: "coordinating" as const, label: "Coordinating", count: coordCount, pin: true }] : []),
-    { id: "inquiry", label: "Inquiry" },
-    { id: "hold", label: "Offer pending" },
-    { id: "approved", label: "Approved" },
-    { id: "booked", label: "Booked" },
-    { id: "past", label: "Past" },
-    ...(archivedCount > 0 ? [{ id: "archived" as const, label: `Archived${archivedCount > 0 ? ` (${archivedCount})` : ""}` }] : []),
+    ...(triageCount > 0 ? [{ id: "triage" as const, label: `${copy.t("Triage")}${triageCount > 0 ? ` (${triageCount})` : ""}`, pin: true }] : []),
+    { id: "unread", label: `${copy.t("Unread")}${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
+    ...(handoffCount > 0 ? [{ id: "handoffs" as const, label: copy.t("Handoffs"), count: handoffCount, pin: true }] : []),
+    ...(coordCount > 0 ? [{ id: "coordinating" as const, label: copy.t("Coordinating"), count: coordCount, pin: true }] : []),
+    { id: "inquiry", label: copy.t("Inquiry") },
+    { id: "hold", label: copy.t("Offer pending") },
+    { id: "approved", label: copy.t("Approved") },
+    { id: "booked", label: copy.t("Booked") },
+    { id: "past", label: copy.t("Past") },
+    ...(archivedCount > 0 ? [{ id: "archived" as const, label: `${copy.t("Archived")}${archivedCount > 0 ? ` (${archivedCount})` : ""}` }] : []),
   ];
 
   // Bulk-select state — flipping into bulk mode reveals row checkboxes
@@ -102,6 +113,73 @@ export function AdminInboxList({
   };
   const exitBulk = () => { setBulkMode(false); setSelectedIds(new Set()); };
 
+  // J/K list navigation (WS-7.5 "List navigation" shortcuts, now live).
+  // j/k (or arrows) move focus through the rows; Enter then activates the
+  // focused row natively (the row root is a <button>), so no synthetic
+  // onActivate is needed — and Enter keeps working normally everywhere
+  // else. Suppressed in bulk mode and while any drawer owns the keyboard.
+  // Stale slots left behind when the list shrinks are nulled by React's
+  // ref cleanup on unmount, and the hook filters nulls — no render-time
+  // truncation needed.
+  const sortedRows = sortPinnedFirst(inquiries);
+  const rowRefs = useRef<(HTMLElement | null)[]>([]);
+  useKeyboardListNav({
+    rowsRef: rowRefs,
+    disabled: bulkMode || !!state.drawer.drawerId,
+  });
+
+  // E = archive/restore the FOCUSED thread (focus a row with j/k first —
+  // no focus, no action, so a stray "e" can never archive silently).
+  // R = jump to the open thread's reply composer (FOCUS_COMPOSER_EVENT).
+  // Both suppressed while typing, in bulk mode, or while a drawer owns
+  // the keyboard — same guards as j/k.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (bulkMode || !!state.drawer.drawerId) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "r") {
+        e.preventDefault();
+        window.dispatchEvent(new Event(FOCUS_COMPOSER_EVENT));
+        return;
+      }
+      if (e.key !== "e") return;
+      const focused = document.activeElement;
+      const idx = rowRefs.current.findIndex((el) => el !== null && el === focused);
+      if (idx < 0) return;
+      const row = sortedRows[idx];
+      if (!row) return;
+      e.preventDefault();
+      const restoring = filter === "archived";
+      // Local flag first so the list re-orders immediately; persist real
+      // UUIDs in the background — same pattern as the bulk Archive button.
+      archiveInquiry(row.id);
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(row.id)) {
+        void bulkSetInquiryArchived(effectiveTenant.slug, [row.id], !restoring).then((r) => {
+          if (!r.ok) {
+            toastBulk(
+              copy.isSpanish
+                ? `${restoring ? "Error al restaurar" : "Error al archivar"}: ${r.error}`
+                : `${restoring ? "Restore" : "Archive"} failed: ${r.error}`,
+            );
+          }
+        });
+      }
+      toastBulk(
+        copy.isSpanish
+          ? `${restoring ? "Restaurado" : "Archivado"}: ${row.clientName}`
+          : `${restoring ? "Restored" : "Archived"} ${row.clientName}`,
+      );
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [bulkMode, state.drawer.drawerId, sortedRows, filter, effectiveTenant.slug, toastBulk, copy]);
+
   return (
     <aside data-tulala-list-pane style={{
       display: "flex", flexDirection: "column",
@@ -115,17 +193,21 @@ export function AdminInboxList({
         minWidth: 0, maxWidth: "100%",
       }}>
         <div data-tulala-list-header style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
-          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">Inbox</h3>
+          <h3 style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, margin: 0 }} className="text-admin-ink">{copy.t("Inbox")}</h3>
           <div className="flex items-center gap-2">
             <span className="text-admin-ink-muted text-admin-11">
-              {inquiries.length === 0 ? "0 pending" : `${inquiries.length} thread${inquiries.length === 1 ? "" : "s"}`}
+              {inquiries.length === 0
+                ? (copy.isSpanish ? "0 pendientes" : "0 pending")
+                : copy.isSpanish
+                  ? `${inquiries.length} conversación${inquiries.length === 1 ? "" : "es"}`
+                  : `${inquiries.length} thread${inquiries.length === 1 ? "" : "s"}`}
             </span>
             {/* Bulk-select toggle — admin+ only. Visible chevron pill
                 so the affordance reads as "switch into bulk mode" not
                 some hidden gesture. */}
             <button type="button"
               onClick={() => setBulkMode(b => !b)}
-              title={bulkMode ? "Exit bulk select" : "Select multiple threads"}
+              title={bulkMode ? copy.t("Exit bulk select") : copy.t("Select multiple threads")}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "3px 9px", borderRadius: 999,
@@ -141,7 +223,7 @@ export function AdminInboxList({
                 <rect x="1.5" y="7" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
                 <rect x="7" y="7" width="3.5" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
               </svg>
-              {bulkMode ? "Done" : "Select"}
+              {bulkMode ? copy.t("Done") : copy.t("Select")}
             </button>
           </div>
         </div>
@@ -164,7 +246,7 @@ export function AdminInboxList({
           }
         `}</style>
         <div data-tulala-inbox-search style={{ marginBottom: 10 }}>
-          <SearchPill value={search} onChange={onSearchChange} placeholder="Search clients, briefs…" />
+          <SearchPill value={search} onChange={onSearchChange} placeholder={copy.t("Search clients, briefs…")} />
         </div>
         <div data-tulala-inbox-chips style={{ display: "flex", gap: 5, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
           {chips.map(c => (
@@ -203,12 +285,20 @@ export function AdminInboxList({
               </svg>
             </div>
             <div className="text-admin-ink text-admin-13 font-semibold">
-              {search.trim() ? <>No matches for &ldquo;{search}&rdquo;</> : "No messages yet"}
+              {search.trim()
+                ? <>{copy.isSpanish ? "Sin coincidencias para" : "No matches for"} &ldquo;{search}&rdquo;</>
+                : filter === "archived"
+                  ? (copy.isSpanish ? "No hay conversaciones archivadas" : "No archived threads")
+                  : copy.t("No messages yet")}
             </div>
             <div style={{ fontSize: 11.5, lineHeight: 1.4, maxWidth: 240 }} className="text-admin-ink-muted">
               {search.trim()
-                ? "Try a different keyword, or clear the search."
-                : "They’ll appear here as clients reach out via your storefront."}
+                ? copy.t("Try a different keyword, or clear the search.")
+                : filter === "archived"
+                  ? (copy.isSpanish
+                      ? "Las conversaciones archivadas aparecen aquí. Pulsa E en una fila enfocada para archivar o restaurar."
+                      : "Threads you archive land here. Press E on a focused row to archive or restore it.")
+                  : copy.t("They’ll appear here as clients reach out via your storefront.")}
             </div>
             {!search.trim() && (tenantSlug || effectiveTenant?.domain) && (
               <a
@@ -234,11 +324,11 @@ export function AdminInboxList({
                 border: `1px solid ${COLORS.border}`, background: "transparent",
                 color: COLORS.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
                 fontFamily: FONTS.body,
-              }}>Clear search</button>
+              }}>{copy.t("Clear search")}</button>
             )}
           </div>
         ) : renderWithDateGroups(
-            sortPinnedFirst(inquiries),
+            sortedRows,
             i => i.lastActivityHrs,
             i => (
               // In bulk mode, wrap each row with a checkbox lane on the
@@ -262,9 +352,25 @@ export function AdminInboxList({
                   </div>
                 </div>
               ) : (
-                <AdminInquiryRow key={i.id} inquiry={i} active={i.id === activeId} onClick={() => onSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
+                // display:contents wrapper carries the j/k row ref without
+                // adding a layout box; the focus target is the row's own
+                // <button> root (firstElementChild).
+                <div
+                  key={i.id}
+                  className="contents"
+                  ref={(el) => {
+                    const idx = sortedRows.findIndex((s) => s.id === i.id);
+                    if (idx >= 0) {
+                      rowRefs.current[idx] =
+                        (el?.firstElementChild as HTMLElement | null) ?? null;
+                    }
+                  }}
+                >
+                  <AdminInquiryRow inquiry={i} active={i.id === activeId} onClick={() => onSelect(i.id)} hideNeedsYouChip={filter === "needs-me"} />
+                </div>
               )
             ),
+            copy.t,
           )}
       </div>
       {/* Bulk action bar — sticky bottom strip when one+ rows selected.
@@ -275,7 +381,9 @@ export function AdminInboxList({
       {bulkMode && selectedIds.size > 0 && (
         <div style={{ flexShrink: 0, padding: "10px 14px", color: "#fff", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-fill">
           <span className="font-bold">
-            {selectedIds.size} selected
+            {copy.isSpanish
+              ? `${selectedIds.size} seleccionada${selectedIds.size === 1 ? "" : "s"}`
+              : `${selectedIds.size} selected`}
           </span>
           <span style={{ flex: 1 }} />
           <button type="button"
@@ -287,11 +395,13 @@ export function AdminInboxList({
               );
               if (realIds.length > 0) {
                 void bulkNudgeInquiries(effectiveTenant.slug, realIds).then((r) => {
-                  if (!r.ok) toastBulk(`Bulk nudge failed: ${r.error}`);
-                  else if (r.data?.failed) toastBulk(`Nudged ${r.data.ok} (${r.data.failed} failed)`);
+                  if (!r.ok) toastBulk(copy.isSpanish ? `Error al recordar: ${r.error}` : `Bulk nudge failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(copy.isSpanish ? `${r.data.ok} recordadas (${r.data.failed} fallaron)` : `Nudged ${r.data.ok} (${r.data.failed} failed)`);
                 });
               }
-              toastBulk(`Nudged ${count} thread${count === 1 ? "" : "s"}`);
+              toastBulk(copy.isSpanish
+                ? `${count} conversación${count === 1 ? "" : "es"} recordada${count === 1 ? "" : "s"}`
+                : `Nudged ${count} thread${count === 1 ? "" : "s"}`);
               exitBulk();
             }}
             style={{
@@ -301,7 +411,7 @@ export function AdminInboxList({
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            Nudge
+            {copy.t("Nudge")}
           </button>
           <button type="button"
             onClick={() => {
@@ -318,10 +428,14 @@ export function AdminInboxList({
               );
               if (realIds.length > 0) {
                 void bulkSetInquiryArchived(effectiveTenant.slug, realIds, !restoring).then((r) => {
-                  if (!r.ok) toastBulk(`Bulk ${restoring ? "restore" : "archive"} failed: ${r.error}`);
+                  if (!r.ok) toastBulk(copy.isSpanish
+                    ? `Error al ${restoring ? "restaurar" : "archivar"}: ${r.error}`
+                    : `Bulk ${restoring ? "restore" : "archive"} failed: ${r.error}`);
                 });
               }
-              toastBulk(`${restoring ? "Restored" : "Archived"} ${count} thread${count === 1 ? "" : "s"}`);
+              toastBulk(copy.isSpanish
+                ? `${count} conversación${count === 1 ? "" : "es"} ${restoring ? "restaurada" : "archivada"}${count === 1 ? "" : "s"}`
+                : `${restoring ? "Restored" : "Archived"} ${count} thread${count === 1 ? "" : "s"}`);
               exitBulk();
             }}
             style={{
@@ -331,7 +445,7 @@ export function AdminInboxList({
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            {filter === "archived" ? "Restore" : "Archive"}
+            {filter === "archived" ? copy.t("Restore") : copy.t("Archive")}
           </button>
           <button type="button"
             onClick={() => {
@@ -342,11 +456,13 @@ export function AdminInboxList({
               );
               if (realIds.length > 0) {
                 void bulkReassignInquiriesToMe(effectiveTenant.slug, realIds).then((r) => {
-                  if (!r.ok) toastBulk(`Bulk reassign failed: ${r.error}`);
-                  else if (r.data?.failed) toastBulk(`Reassigned ${r.data.ok} (${r.data.failed} failed)`);
+                  if (!r.ok) toastBulk(copy.isSpanish ? `Error al reasignar: ${r.error}` : `Bulk reassign failed: ${r.error}`);
+                  else if (r.data?.failed) toastBulk(copy.isSpanish ? `${r.data.ok} reasignadas (${r.data.failed} fallaron)` : `Reassigned ${r.data.ok} (${r.data.failed} failed)`);
                 });
               }
-              toastBulk(`Reassigned ${count} thread${count === 1 ? "" : "s"} to you`);
+              toastBulk(copy.isSpanish
+                ? `${count} conversación${count === 1 ? "" : "es"} reasignada${count === 1 ? "" : "s"} a ti`
+                : `Reassigned ${count} thread${count === 1 ? "" : "s"} to you`);
               exitBulk();
             }}
             style={{
@@ -356,7 +472,7 @@ export function AdminInboxList({
               fontSize: 11.5, fontWeight: 700, cursor: "pointer",
               fontFamily: FONTS.body,
             }}>
-            Reassign
+            {copy.t("Reassign")}
           </button>
         </div>
       )}
@@ -393,6 +509,7 @@ export const NEXT_STAGES: Record<string, { label: string; value: string }[]> = {
 
 export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; stage: InquiryStage }) {
   const { toast, effectiveTenant } = useAdminShell();
+  const copy = useDashboardText();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -443,7 +560,7 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
           opacity: pending ? 0.7 : 1,
         }}
       >
-        {pending ? "Moving…" : "Move to"}
+        {pending ? copy.t("Moving…") : copy.t("Move to")}
         <svg width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden>
           <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
@@ -470,7 +587,7 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
             >
-              {opt.label}
+              {copy.t(opt.label)}
             </button>
           ))}
         </div>

@@ -184,7 +184,7 @@ function MockSite() {
             className="mt-3 text-[0.75rem] leading-[1.5]"
             style={{ color: "var(--plt-muted)" }}
           >
-            A curated roster built for editorial, brand, and campaign work —
+            A curated roster built for editorial, brand, and campaign work,
             available across CDMX, LATAM, and remote.
           </div>
         </div>

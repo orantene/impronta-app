@@ -12,9 +12,11 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HQ, HQ_F, HQ_FD, HQ_FM, PlanChip, SectionLabel } from "../tenants/hq-kit";
-import { MembershipRoleChip, TypeChip } from "./user-chips";
+import { HQ, HQ_F, HQ_FD, HQ_FM, PlanChip, PLAN_TIER_LABEL_KEY, SectionLabel } from "../tenants/hq-kit";
+import { MembershipRoleChip, TypeChip, TYPE_LABEL_KEY, MEMBERSHIP_ROLE_LABEL_KEY } from "./user-chips";
 import { confirmPlatformUserEmail } from "./actions";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { ActivitySection } from "./UserActivitySection";
 import { AdminNotesSection } from "./AdminNotesSection";
 import { AuditHistorySection } from "./AuditHistorySection";
@@ -39,6 +41,7 @@ export function UserDrawer({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const t = useT();
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -52,7 +55,7 @@ export function UserDrawer({
 
   if (!user) return null;
 
-  const t = classifyType(user.appRole);
+  const typeKey = classifyType(user.appRole);
 
   return (
     <div
@@ -119,13 +122,13 @@ export function UserDrawer({
               >
                 {user.kind === "human"
                   ? user.email
-                  : "No login — unclaimed talent profile"}
+                  : t("dashboard.platform.users.drawer.noLoginSubtitle")}
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t("dashboard.platform.users.drawer.close")}
               style={{
                 width: 30,
                 height: 30,
@@ -151,7 +154,7 @@ export function UserDrawer({
               alignItems: "center",
             }}
           >
-            <TypeChip type={t} />
+            <TypeChip type={typeKey} label={t(TYPE_LABEL_KEY[typeKey] ?? TYPE_LABEL_KEY.client)} />
             {user.workspaceAdminCount > 0 && (
               <span
                 style={{
@@ -161,9 +164,9 @@ export function UserDrawer({
                   letterSpacing: 0.4,
                   textTransform: "uppercase",
                 }}
-                title="Owns or administers at least one workspace"
+                title={t("dashboard.platform.users.drawer.workspaceOperatorTitle")}
               >
-                ● Workspace operator
+                ● {t("dashboard.platform.users.drawer.workspaceOperator")}
               </span>
             )}
             {user.kind === "human" && !user.emailConfirmed && (
@@ -176,7 +179,7 @@ export function UserDrawer({
                   textTransform: "uppercase",
                 }}
               >
-                ● Email unconfirmed
+                ● {t("dashboard.platform.users.drawer.emailUnconfirmed")}
               </span>
             )}
             {user.kind === "unclaimed_talent" && (
@@ -188,9 +191,9 @@ export function UserDrawer({
                   letterSpacing: 0.4,
                   textTransform: "uppercase",
                 }}
-                title="Talent profile not yet claimed by a logged-in user"
+                title={t("dashboard.platform.users.drawer.unclaimedTitle")}
               >
-                ● Unclaimed
+                ● {t("dashboard.platform.users.drawer.unclaimed")}
               </span>
             )}
           </div>
@@ -207,14 +210,14 @@ export function UserDrawer({
               marginBottom: 16,
             }}
           >
-            <StatTile label="Workspaces" value={user.workspaceCount} hint={user.workspaceAdminCount > 0 ? `${user.workspaceAdminCount} admin` : undefined} />
-            <StatTile label="Hubs" value={user.hubCount} />
-            <StatTile label="Total sites" value={user.tenantCount} />
+            <StatTile label={t("dashboard.platform.users.drawer.statWorkspaces")} value={user.workspaceCount} hint={user.workspaceAdminCount > 0 ? interpolate(t("dashboard.platform.users.drawer.statAdminSuffix"), { count: user.workspaceAdminCount }) : undefined} />
+            <StatTile label={t("dashboard.platform.users.drawer.statHubs")} value={user.hubCount} />
+            <StatTile label={t("dashboard.platform.users.drawer.statTotalSites")} value={user.tenantCount} />
           </div>
 
           {/* Identity */}
           <section style={{ marginBottom: 18 }}>
-            <SectionLabel>Identity</SectionLabel>
+            <SectionLabel>{t("dashboard.platform.users.drawer.identity")}</SectionLabel>
             <div
               style={{
                 marginTop: 8,
@@ -229,25 +232,25 @@ export function UserDrawer({
                 gap: "6px 12px",
               }}
             >
-              <span style={{ color: HQ.inkDim }}>App role</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.appRole")}</span>
               <span style={{ color: HQ.ink, fontFamily: HQ_FM, fontSize: 11.5 }}>
                 {user.appRole ?? "—"}
               </span>
-              <span style={{ color: HQ.inkDim }}>Status</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.status")}</span>
               <span style={{ color: HQ.ink }}>
-                {user.kind === "human" ? (user.accountStatus ?? "—") : "unclaimed"}
+                {user.kind === "human" ? (user.accountStatus ?? "—") : t("dashboard.platform.users.drawer.statusUnclaimed")}
               </span>
-              <span style={{ color: HQ.inkDim }}>Joined</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.joined")}</span>
               <span style={{ color: HQ.ink }}>{user.createdAt}</span>
               <span style={{ color: HQ.inkDim }}>
-                {user.kind === "human" ? "User ID" : "Talent ID"}
+                {user.kind === "human" ? t("dashboard.platform.users.drawer.userId") : t("dashboard.platform.users.drawer.talentId")}
               </span>
               <span style={{ color: HQ.inkMuted, fontFamily: HQ_FM, fontSize: 11 }}>
                 {user.id}
               </span>
               {user.kind === "human" && (
                 <>
-                  <span style={{ color: HQ.inkDim }}>Last seen</span>
+                  <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.lastSeen")}</span>
                   <span
                     style={{ color: HQ.ink }}
                     title={user.lastSignInAtIso ?? undefined}
@@ -258,7 +261,7 @@ export function UserDrawer({
               )}
               {user.kind === "human" && (
                 <>
-                  <span style={{ color: HQ.inkDim }}>Email</span>
+                  <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.email")}</span>
                   <span style={{ color: HQ.ink, fontFamily: HQ_FM, fontSize: 11 }}>
                     {user.email}
                   </span>
@@ -266,42 +269,42 @@ export function UserDrawer({
               )}
               {user.kind === "human" && (
                 <>
-                  <span style={{ color: HQ.inkDim }}>Email confirmed</span>
+                  <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.emailConfirmedLabel")}</span>
                   <span
                     style={{
                       color: user.emailConfirmed ? HQ.green : HQ.amber,
                       fontWeight: 600,
                     }}
                   >
-                    {user.emailConfirmed ? "Yes" : "No ← unconfirmed"}
+                    {user.emailConfirmed ? t("dashboard.platform.users.drawer.yes") : t("dashboard.platform.users.drawer.noUnconfirmed")}
                   </span>
                 </>
               )}
-              <span style={{ color: HQ.inkDim }}>Test account</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.testAccount")}</span>
               <span
                 style={{
                   color: user.isTestAccount ? HQ.amber : HQ.ink,
                   fontWeight: user.isTestAccount ? 600 : undefined,
                 }}
               >
-                {user.isTestAccount ? "Yes" : "No"}
+                {user.isTestAccount ? t("dashboard.platform.users.drawer.yes") : t("dashboard.platform.users.drawer.no")}
               </span>
               {user.publishedGlobally !== null && (
                 <>
-                  <span style={{ color: HQ.inkDim }}>Profile published</span>
+                  <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.profilePublished")}</span>
                   <span
                     style={{
                       color: user.publishedGlobally ? HQ.green : HQ.inkDim,
                       fontWeight: user.publishedGlobally ? 600 : undefined,
                     }}
                   >
-                    {user.publishedGlobally ? "Yes" : "No"}
+                    {user.publishedGlobally ? t("dashboard.platform.users.drawer.yes") : t("dashboard.platform.users.drawer.no")}
                   </span>
                 </>
               )}
               {user.talentProfileId && (
                 <>
-                  <span style={{ color: HQ.inkDim }}>Talent profile ID</span>
+                  <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.talentProfileId")}</span>
                   <span style={{ color: HQ.ink, fontFamily: HQ_FM, fontSize: 11 }}>
                     {user.talentProfileId}
                   </span>
@@ -332,7 +335,7 @@ export function UserDrawer({
                   opacity: pending ? 0.6 : 1,
                 }}
               >
-                {pending ? "Confirming…" : "Confirm email"}
+                {pending ? t("dashboard.platform.users.drawer.confirmingEmail") : t("dashboard.platform.users.drawer.confirmEmail")}
               </button>
             )}
           </section>
@@ -432,6 +435,7 @@ function MembershipList({
   items: PlatformUserRow["memberships"];
   empty: string;
 }) {
+  const t = useT();
   if (items.length === 0) {
     return (
       <div
@@ -481,26 +485,29 @@ function MembershipList({
               {m.slug}
             </div>
           </div>
-          <PlanChip plan={m.plan} />
-          <MembershipRoleChip role={m.role} />
+          <PlanChip plan={m.plan} label={PLAN_TIER_LABEL_KEY[m.plan] ? t(PLAN_TIER_LABEL_KEY[m.plan]) : undefined} />
+          <MembershipRoleChip role={m.role} label={MEMBERSHIP_ROLE_LABEL_KEY[m.role] ? t(MEMBERSHIP_ROLE_LABEL_KEY[m.role]) : undefined} />
         </li>
       ))}
     </ul>
   );
 }
 
+const ORIGIN_LABEL_KEY: Record<string, string> = {
+  agency_signup: "dashboard.platform.users.origin.agency",
+  studio_signup: "dashboard.platform.users.origin.studio",
+  platform_admin_signup: "dashboard.platform.users.origin.platform",
+  self_signup: "dashboard.platform.users.origin.self",
+  claim_invite: "dashboard.platform.users.origin.claim_invite",
+};
+
 function OriginSection({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
 
   const originLabel = user.originKind
-    ? {
-        agency_signup: "Agency-added",
-        studio_signup: "Studio-added",
-        platform_admin_signup: "Platform",
-        self_signup: "Self-signup",
-        claim_invite: "Claim invite",
-      }[user.originKind] ?? "Unknown"
-    : "Unknown";
+    ? t(ORIGIN_LABEL_KEY[user.originKind] ?? "dashboard.platform.users.origin.unknown")
+    : t("dashboard.platform.users.origin.unknown");
 
   const originColor = user.originKind
     ? {
@@ -535,7 +542,7 @@ function OriginSection({ user }: { user: PlatformUserRow }) {
         }}
       >
         <span style={{ fontSize: 11 }}>{isOpen ? "▼" : "▶"}</span>
-        Origin & Provenance
+        {t("dashboard.platform.users.drawer.originTitle")}
       </div>
 
       {isOpen && (
@@ -561,11 +568,11 @@ function OriginSection({ user }: { user: PlatformUserRow }) {
                 padding: "6px 0",
               }}
             >
-              Origin data not available
+              {t("dashboard.platform.users.drawer.originNoData")}
             </span>
           ) : (
             <>
-              <span style={{ color: HQ.inkDim }}>Origin</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.origin")}</span>
               <div>
                 <span
                   style={{
@@ -584,7 +591,7 @@ function OriginSection({ user }: { user: PlatformUserRow }) {
                 </span>
               </div>
 
-              <span style={{ color: HQ.inkDim }}>Created by</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.createdBy")}</span>
               <span
                 style={{
                   color: HQ.ink,
@@ -597,7 +604,7 @@ function OriginSection({ user }: { user: PlatformUserRow }) {
                 {user.originCreatedByUserId ?? "—"}
               </span>
 
-              <span style={{ color: HQ.inkDim }}>Via workspace</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.viaWorkspace")}</span>
               <span
                 style={{
                   color: HQ.ink,
@@ -610,12 +617,12 @@ function OriginSection({ user }: { user: PlatformUserRow }) {
                 {user.originWorkspaceId ?? "—"}
               </span>
 
-              <span style={{ color: HQ.inkDim }}>Created at</span>
+              <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.drawer.createdAt")}</span>
               <span style={{ color: HQ.ink }}>
                 {user.createdAtIso
                   ? (() => {
                       const d = new Date(user.createdAtIso);
-                      const abs = d.toLocaleDateString("en-US", {
+                      const abs = d.toLocaleDateString(undefined, {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
@@ -623,12 +630,14 @@ function OriginSection({ user }: { user: PlatformUserRow }) {
                       const now = new Date();
                       const diffMs = now.getTime() - d.getTime();
                       const diffDays = Math.floor(diffMs / 86400000);
-                      let rel = "today";
-                      if (diffDays === 1) rel = "yesterday";
-                      else if (diffDays > 1 && diffDays < 7) rel = `${diffDays}d ago`;
+                      let rel = t("dashboard.platform.users.drawer.relToday");
+                      if (diffDays === 1) rel = t("dashboard.platform.users.drawer.relYesterday");
+                      else if (diffDays > 1 && diffDays < 7)
+                        rel = interpolate(t("dashboard.platform.users.drawer.relDaysAgo"), { count: diffDays });
                       else if (diffDays >= 7 && diffDays < 30)
-                        rel = `${Math.floor(diffDays / 7)}w ago`;
-                      else if (diffDays >= 30) rel = `${Math.floor(diffDays / 30)}mo ago`;
+                        rel = interpolate(t("dashboard.platform.users.drawer.relWeeksAgo"), { count: Math.floor(diffDays / 7) });
+                      else if (diffDays >= 30)
+                        rel = interpolate(t("dashboard.platform.users.drawer.relMonthsAgo"), { count: Math.floor(diffDays / 30) });
                       return `${abs} (${rel})`;
                     })()
                   : "—"}

@@ -28,11 +28,12 @@ import {
   updateTenantCommercialTerms,
 } from "@/lib/server-actions/commercial-terms-tenant";
 import {
-  REFUND_POLICY_DESCRIPTIONS,
-  REFUND_POLICY_LABELS,
+  REFUND_POLICY_DESCRIPTION_KEYS,
+  REFUND_POLICY_LABEL_KEYS,
   type RefundPolicyKey,
   type TenantCommercialTerms,
 } from "@/lib/billing/commercial-terms-types";
+import { useT } from "@/i18n/use-t";
 
 const C = {
   ink:        "#0B0B0D",
@@ -62,6 +63,7 @@ const FALLBACK_TERMS: TenantCommercialTerms = {
 };
 
 export function CommercialTermsSettingsCard({ tenantSlug }: { tenantSlug: string }) {
+  const t = useT();
   const [terms, setTerms] = useState<TenantCommercialTerms>(FALLBACK_TERMS);
   // Local string mirror for the deposit input so a half-typed / cleared value
   // doesn't fight the controlled number state.
@@ -222,7 +224,7 @@ export function CommercialTermsSettingsCard({ tenantSlug }: { tenantSlug: string
           <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Refund policy</div>
           <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
             {terms.refundPolicy
-              ? REFUND_POLICY_DESCRIPTIONS[terms.refundPolicy]
+              ? t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])
               : "Use the platform default policy."}
           </div>
         </div>
@@ -245,7 +247,7 @@ export function CommercialTermsSettingsCard({ tenantSlug }: { tenantSlug: string
           <option value="">Platform default</option>
           {REFUND_POLICY_OPTIONS.map((key) => (
             <option key={key} value={key}>
-              {REFUND_POLICY_LABELS[key]}
+              {t(REFUND_POLICY_LABEL_KEYS[key])}
             </option>
           ))}
         </select>

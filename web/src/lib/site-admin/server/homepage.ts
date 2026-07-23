@@ -57,7 +57,7 @@
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { randomUUID } from "node:crypto";
-import { revalidateTag } from "next/cache";
+import { safeRevalidateTag } from "./render-safe-cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
@@ -76,7 +76,8 @@ import type {
   HomepageRestoreRevisionValues,
   HomepageSaveDraftValues,
 } from "@/lib/site-admin/forms/homepage";
-import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import { cloneBuilderTreeWithFreshIds } from "@/lib/site-admin/builder-node/page-designs/expand-repeaters";
 import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import {
   resolveSnapshotBuilderTree,
@@ -92,7 +93,11 @@ import {
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
 import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
-import { decideBeaconLastWriteWins } from "./beacon-last-write-wins";
+import {
+  decideBeaconLastWriteWins,
+  decideSameSessionSaveAdoption,
+  isSameSessionNewerWrite,
+} from "./beacon-last-write-wins";
 
 // ---- row shapes -----------------------------------------------------------
 
@@ -238,9 +243,11 @@ function bustHomepageTags(tenantId: string, pageId: string, locale: Locale): voi
   // actions, page-composer-action, site-shell-backfill-action all use
   // it); switching to "max" would change semantics and split the
   // convention.
-  revalidateTag(tagFor(tenantId, "homepage", { locale }), "default");
-  revalidateTag(tagFor(tenantId, "pages", { id: pageId }), "default");
-  revalidateTag(tagFor(tenantId, "pages-all"), "default");
+  // safeRevalidateTag: publishHomepage runs during render in the provisioning
+  // trampoline (onboardStarterContent). See render-safe-cache.ts.
+  safeRevalidateTag(tagFor(tenantId, "homepage", { locale }), "default");
+  safeRevalidateTag(tagFor(tenantId, "pages", { id: pageId }), "default");
+  safeRevalidateTag(tagFor(tenantId, "pages-all"), "default");
 }
 
 async function insertHomepageRevision(
@@ -417,6 +424,81 @@ function resolveBuilderTreeForComposition(input: {
     builderTree: input.preferredBuilderTree,
   });
   return resolved.tree;
+}
+
+/** Pull-from-live merge modes. `replace` overwrites the draft; `above`/`below`
+ *  splice the published sections onto the current draft. */
+export type PullFromLiveMode = "replace" | "above" | "below";
+
+/**
+ * A home tree is (almost always) a SINGLE root container whose `children` are
+ * the page sections. Returns that container + its children when the tree has
+ * exactly that shape, else `null` (multi-root / non-container fallback).
+ */
+function asSingleRootContainer(
+  tree: BuilderNodeTree,
+): { root: BuilderNode; children: BuilderNode[] } | null {
+  if (tree.length !== 1) return null;
+  const root = tree[0]!;
+  if (root.kind !== "container") return null;
+  const children = (root as { children?: unknown }).children;
+  if (!Array.isArray(children)) return null;
+  return { root, children: children as BuilderNode[] };
+}
+
+/**
+ * Merge the PUBLISHED tree into the current DRAFT tree for Pull-from-live's
+ * `above` / `below` modes (pure; no I/O).
+ *
+ * - `replace` → the published tree verbatim (id-remint is a no-op passthrough
+ *   because a replace discards the draft entirely; ids stay as published).
+ * - `above` / `below` → the published subtree's node ids are RE-MINTED first
+ *   (via `cloneBuilderTreeWithFreshIds` — the tree-level id-remint helper the AI
+ *   generate-nodes insert path uses; the sibling of Add Gallery's per-node
+ *   `cloneNodeWithFreshIds`) so merging never introduces duplicate ids. Then:
+ *     - If BOTH sides are a single root container, the published container's
+ *       CHILDREN are spliced into the draft container's children — `above`
+ *       puts published children first, `below` puts them last. The draft's own
+ *       root container (and its page-level style) is preserved.
+ *     - Otherwise (either side is multi-root or not a single container) fall
+ *       back to concatenating the top-level node arrays in the same order.
+ *
+ * The published tree is treated as read-only; `draftTree` is never mutated.
+ */
+export function mergeBuilderTrees(
+  draftTree: BuilderNodeTree,
+  publishedTree: BuilderNodeTree,
+  mode: PullFromLiveMode,
+): BuilderNodeTree {
+  if (mode === "replace") return publishedTree;
+
+  // Re-mint the incoming (published) subtree so it can never collide with the
+  // draft's existing node ids. cloneBuilderTreeWithFreshIds also remaps the
+  // few id-referential props (defaultOpenItemIds / defaultTabId).
+  const incoming = cloneBuilderTreeWithFreshIds(publishedTree);
+
+  const draftRoot = asSingleRootContainer(draftTree);
+  const incomingRoot = asSingleRootContainer(incoming);
+
+  // Both sides are the canonical single-root-container home shape → merge at the
+  // root container's children level, keeping the DRAFT's own root container.
+  if (draftRoot && incomingRoot) {
+    const mergedChildren =
+      mode === "above"
+        ? [...incomingRoot.children, ...draftRoot.children]
+        : [...draftRoot.children, ...incomingRoot.children];
+    return [
+      {
+        ...draftRoot.root,
+        children: mergedChildren,
+      } as BuilderNode,
+    ];
+  }
+
+  // Fallback: concatenate the top-level node arrays in the requested order.
+  return mode === "above"
+    ? [...incoming, ...draftTree]
+    : [...draftTree, ...incoming];
 }
 
 // ---- ensureHomepageRow ---------------------------------------------------
@@ -679,7 +761,28 @@ export async function saveHomepageDraftComposition(
   }
 
   if (beforeRow.version !== values.expectedVersion) {
-    return versionConflict(beforeRow.version);
+    // W1-L2 — SESSION ADOPTION. The editor's own full-page reload (exiting
+    // mobile edit mode, F5) fires the pagehide beacon, which applies the
+    // pending draft under LWW and bumps `version` — so the reloaded editor's
+    // first save carries a stale `expectedVersion` for ITS OWN prior write.
+    // When the stored stamp shows the SAME per-tab session token and the
+    // incoming seq is strictly newer (and the incoming tree is not an empty
+    // tree over good content), adopt the save at the CURRENT version instead
+    // of returning a false conflict. A genuine second tab / co-editor has a
+    // different token and still hard-fails here.
+    const adopted = params.editSession
+      ? await maybeAdoptSameSessionSave(supabase, {
+          tenantId,
+          pageId: beforeRow.id,
+          pageVersion: beforeRow.version,
+          editSession: params.editSession,
+          incomingHasContent: homepageSaveValuesHaveContent(values),
+          correlationId,
+        })
+      : false;
+    if (!adopted) {
+      return versionConflict(beforeRow.version);
+    }
   }
 
   // --- gates 4+5+6: resolve sections + enforce tenant + slot rules ---
@@ -791,12 +894,16 @@ export async function saveHomepageDraftComposition(
       updated_by: actorProfileId,
       // WS1-D — stamp the writer's edit-session token + draft seq so the pagehide
       // beacon can later compare against the stored draft for last-write-wins.
+      // W1-L2 — an UNSTAMPED save (composer, internal seeds) must CLEAR the
+      // stamps: leaving a stale stamp behind would let a later same-session
+      // save/beacon LWW past this write and silently overwrite it (#310-class
+      // hazard). NULL stamps mean "last writer unknown → hard CAS only".
       ...(params.editSession
         ? {
             edit_session_id: params.editSession.id,
             draft_seq: params.editSession.seq,
           }
-        : {}),
+        : { edit_session_id: null, draft_seq: null }),
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -1078,6 +1185,71 @@ async function homepageDraftHasContent(
   return Array.isArray(recovered) && recovered.length > 0;
 }
 
+/** W1-L2 — does an incoming draft-save envelope carry real content? (Any
+ *  builder nodes OR any slot entries.) Mirror of the beacon's payload check. */
+function homepageSaveValuesHaveContent(values: HomepageSaveDraftValues): boolean {
+  if (Array.isArray(values.builderTree) && values.builderTree.length > 0) {
+    return true;
+  }
+  return Object.values(values.slots).some(
+    (entries) => Array.isArray(entries) && entries.length > 0,
+  );
+}
+
+/**
+ * W1-L2 — SESSION ADOPTION check for a CAS-losing draft save. Reads the WS1-D
+ * stamps on the page row and grants the save the same three-gate LWW decision
+ * the pagehide beacon uses (same session token + strictly newer seq + never an
+ * empty tree over good content). Defensive: any read error refuses adoption so
+ * the caller falls back to the hard version conflict.
+ */
+async function maybeAdoptSameSessionSave(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    pageId: string;
+    pageVersion: number;
+    editSession: { id: string; seq: number };
+    incomingHasContent: boolean;
+    correlationId: string;
+  },
+): Promise<boolean> {
+  const { data: stampRow, error: stampErr } = await supabase
+    .from("cms_pages")
+    .select("edit_session_id, draft_seq")
+    .eq("id", params.pageId)
+    .eq("tenant_id", params.tenantId)
+    .maybeSingle<{ edit_session_id: string | null; draft_seq: number | null }>();
+  if (stampErr || !stampRow) return false;
+
+  const storedHasContent = await homepageDraftHasContent(supabase, {
+    tenantId: params.tenantId,
+    pageId: params.pageId,
+    pageVersion: params.pageVersion,
+  });
+  const decision = decideSameSessionSaveAdoption(
+    {
+      editSessionId: stampRow.edit_session_id,
+      draftSeq: stampRow.draft_seq,
+      storedHasContent,
+    },
+    {
+      editSessionId: params.editSession.id,
+      draftSeq: params.editSession.seq,
+      incomingHasContent: params.incomingHasContent,
+    },
+  );
+  void improntaLog("site_admin_homepage.info", {
+    message: decision.apply
+      ? "[site-admin/homepage] stale-version save ADOPTED (same edit session continuing after its own reload)"
+      : `[site-admin/homepage] stale-version save NOT adopted (${decision.apply === false ? decision.reason : ""}) — hard version conflict`,
+    tenantId: params.tenantId,
+    pageId: params.pageId,
+    correlationId: params.correlationId,
+  });
+  return decision.apply;
+}
+
 // ---- publishHomepage -----------------------------------------------------
 
 /**
@@ -1135,6 +1307,15 @@ export async function publishHomepage(
     /** STYLE-1 — site-scoped presets + clipboard baked into the published
      *  snapshot alongside styleClasses (same client-supplied envelope). */
     stylePresets?: BuilderStylePresetRegistry;
+    /**
+     * W1-L2 — the publisher's per-tab edit-session token + monotonic draft
+     * seq. When the CAS `expectedVersion` is stale but the stored stamp shows
+     * the SAME session with an older seq (the editor's own pagehide beacon
+     * bumped the version during its reload), the publish is adopted at the
+     * current version instead of failing with a false conflict. Optional:
+     * legacy callers omit it and keep the hard CAS.
+     */
+    editSession?: { id: string; seq: number };
   },
 ): Promise<
   Phase5Result<{ id: string; version: number; publishedAt: string }>
@@ -1166,7 +1347,40 @@ export async function publishHomepage(
   if (!beforeRow) return fail("NOT_FOUND", "Homepage row not found");
 
   if (beforeRow.version !== values.expectedVersion) {
-    return versionConflict(beforeRow.version);
+    // W1-L2 — SESSION ADOPTION (see saveHomepageDraftComposition). A stale
+    // expectedVersion caused by this same session's own beacon bump publishes
+    // the CURRENT stored draft — exactly what the operator sees and intends.
+    // A different/unknown session still hard-fails the CAS.
+    const stamps = await supabase
+      .from("cms_pages")
+      .select("edit_session_id, draft_seq")
+      .eq("id", beforeRow.id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle<{ edit_session_id: string | null; draft_seq: number | null }>();
+    const adopted =
+      params.editSession &&
+      !stamps.error &&
+      stamps.data &&
+      isSameSessionNewerWrite(
+        {
+          editSessionId: stamps.data.edit_session_id,
+          draftSeq: stamps.data.draft_seq,
+        },
+        {
+          editSessionId: params.editSession.id,
+          draftSeq: params.editSession.seq,
+        },
+      );
+    if (!adopted) {
+      return versionConflict(beforeRow.version);
+    }
+    void improntaLog("site_admin_homepage.info", {
+      message:
+        "[site-admin/homepage] stale-version publish ADOPTED (same edit session continuing after its own reload)",
+      tenantId,
+      pageId: beforeRow.id,
+      correlationId,
+    });
   }
 
   // --- gate 4: template schema parse ---
@@ -1384,6 +1598,15 @@ export async function publishHomepage(
       template_schema_version: homepageTemplate.currentVersion,
       version: nextVersion,
       updated_by: actorProfileId,
+      // W1-L2 — a stamped publish keeps the session's LWW lane alive for the
+      // pagehide beacon; an unstamped publish clears the stamps so a stale
+      // stamp can never grant adoption past a foreign write.
+      ...(params.editSession
+        ? {
+            edit_session_id: params.editSession.id,
+            draft_seq: params.editSession.seq,
+          }
+        : { edit_session_id: null, draft_seq: null }),
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -1505,12 +1728,27 @@ export async function restoreHomepageRevision(
     values: HomepageRestoreRevisionValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * Internal dependency-injection seam (default-bound to the real impls).
+     * Lets the unit test drive the op without the auth/`after()` request-scope
+     * coupling that `requirePhase5Capability` + `scheduleAuditEvent` carry —
+     * IDENTICAL in shape to `copyPublishedToDraft`'s seam (the sibling rollback
+     * op). Production call sites never pass this, so the capability check runs
+     * exactly as before and runtime behavior is unchanged.
+     */
+    __hooks?: {
+      requireCapability?: typeof requirePhase5Capability;
+      scheduleAudit?: typeof scheduleAuditEvent;
+    };
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, values, actorProfileId } = params;
   const correlationId = params.correlationId ?? randomUUID();
+  const requireCapabilityFn =
+    params.__hooks?.requireCapability ?? requirePhase5Capability;
+  const scheduleAuditFn = params.__hooks?.scheduleAudit ?? scheduleAuditEvent;
 
-  await requirePhase5Capability("agency.site_admin.homepage.compose", tenantId);
+  await requireCapabilityFn("agency.site_admin.homepage.compose", tenantId);
 
   if (values.tenantId !== tenantId) {
     return fail("FORBIDDEN", "tenantId mismatch");
@@ -1599,6 +1837,11 @@ export async function restoreHomepageRevision(
       hero,
       version: nextVersion,
       updated_by: actorProfileId,
+      // W1-L2 — restore / copy-from-live rewrite the draft outside any edit
+      // session; clear the WS1-D stamps so a stale stamp can never grant a
+      // later beacon/save LWW adoption past this write.
+      edit_session_id: null,
+      draft_seq: null,
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -1663,7 +1906,7 @@ export async function restoreHomepageRevision(
 
   const diffSuffix =
     dropped.length > 0 ? ` (${dropped.length} dropped: ${dropped.join(", ")})` : "";
-  scheduleAuditEvent(supabase, {
+  scheduleAuditFn(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
@@ -1718,6 +1961,15 @@ export async function copyPublishedToDraft(
     actorProfileId: string | null;
     correlationId?: string;
     /**
+     * Pull-from-live merge mode (default `"replace"`, back-compat):
+     *   - `"replace"`: overwrite the draft with the published snapshot (the
+     *     original behavior).
+     *   - `"above"` / `"below"`: keep the current draft and splice the published
+     *     sections above / below it (ids re-minted so no duplicate-id
+     *     corruption). Still DRAFT-ONLY — the live site is never touched.
+     */
+    mode?: PullFromLiveMode;
+    /**
      * Internal dependency-injection seam (default-bound to the real impls).
      * Lets the unit test drive the op without the auth/`after()` request-scope
      * coupling that `requirePhase5Capability` + `scheduleAuditEvent` carry —
@@ -1731,6 +1983,7 @@ export async function copyPublishedToDraft(
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, locale, actorProfileId } = params;
+  const mode: PullFromLiveMode = params.mode ?? "replace";
   const correlationId = params.correlationId ?? randomUUID();
   const requireCapabilityFn =
     params.__hooks?.requireCapability ?? requirePhase5Capability;
@@ -1809,11 +2062,54 @@ export async function copyPublishedToDraft(
   }
   // CRITICAL — freeform (builderTree-only) homepages: prefer the snapshot's
   // builderTree so the reset draft keeps all freeform content even when there
-  // are zero curated slots.
-  const copiedBuilderTree = resolveBuilderTreeForComposition({
+  // are zero curated slots. This is the PUBLISHED tree (what "replace" writes).
+  const publishedBuilderTree = resolveBuilderTreeForComposition({
     composition: keptComposition,
     preferredBuilderTree: snapBuilderTree,
   });
+
+  // For `above` / `below` we keep the CURRENT DRAFT and splice the published
+  // sections onto it. Read the draft's builderTree the same way the editor +
+  // publish path do: the `cms_page_revisions` row whose `version` matches
+  // `cms_pages.version`, guarded by `recoverBuilderTreeIfEmpty` so a drifted
+  // version pointer onto an empty revision doesn't wipe a still-good draft.
+  // `replace` skips this read entirely (draft is discarded).
+  let copiedBuilderTree = publishedBuilderTree;
+  if (mode !== "replace") {
+    const { data: draftRevisionRow } = await supabase
+      .from("cms_page_revisions")
+      .select("snapshot")
+      .eq("tenant_id", tenantId)
+      .eq("page_id", beforeRow.id)
+      .eq("version", beforeRow.version)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
+    const versionMatchedDraftTree =
+      draftRevisionRow?.snapshot &&
+      typeof draftRevisionRow.snapshot === "object" &&
+      "builderTree" in draftRevisionRow.snapshot
+        ? draftRevisionRow.snapshot.builderTree
+        : undefined;
+    const recoveredDraftTree = await recoverBuilderTreeIfEmpty(
+      supabase,
+      {
+        tenantId,
+        pageId: beforeRow.id,
+        pageVersion: beforeRow.version,
+        hasSlots: false,
+      },
+      versionMatchedDraftTree,
+    );
+    const draftTree = (
+      Array.isArray(recoveredDraftTree) ? recoveredDraftTree : []
+    ) as BuilderNodeTree;
+    copiedBuilderTree = mergeBuilderTrees(
+      draftTree,
+      publishedBuilderTree,
+      mode,
+    );
+  }
 
   // Apply page-field copy + CAS-bump version.
   const nextVersion = beforeRow.version + 1;
@@ -1825,6 +2121,11 @@ export async function copyPublishedToDraft(
       hero,
       version: nextVersion,
       updated_by: actorProfileId,
+      // W1-L2 — restore / copy-from-live rewrite the draft outside any edit
+      // session; clear the WS1-D stamps so a stale stamp can never grant a
+      // later beacon/save LWW adoption past this write.
+      edit_session_id: null,
+      draft_seq: null,
     })
     .eq("id", beforeRow.id)
     .eq("tenant_id", tenantId)
@@ -1834,41 +2135,90 @@ export async function copyPublishedToDraft(
   if (updErr) return mapTriggerError(updErr);
   if (!updatedPage) return versionConflict(beforeRow.version + 1);
 
-  // Replace draft rows with the copied (published) composition.
-  const { error: delErr } = await supabase
-    .from("cms_page_sections")
-    .delete()
-    .eq("tenant_id", tenantId)
-    .eq("page_id", beforeRow.id)
-    .eq("is_draft", true);
-  if (delErr) {
-    void improntaLog("site_admin_homepage.warn", {
-      message: "[site-admin/homepage] copy-from-live draft clear failed",
-      tenantId,
-      pageId: beforeRow.id,
-      error: delErr.message,
-    });
-  }
-  if (keptComposition.length > 0) {
-    const rows = keptComposition.map((entry) => ({
-      tenant_id: tenantId,
-      page_id: beforeRow.id,
-      section_id: entry.sectionId,
-      slot_key: entry.slotKey,
-      sort_order: entry.sortOrder,
-      is_draft: true,
-    }));
-    const { error: insErr } = await supabase
+  // `replace` overwrites the draft's curated section rows with the published
+  // composition. `above` / `below` merge at the builderTree level and MUST NOT
+  // touch the existing draft section rows (a `section_id` is unique per page,
+  // so re-inserting published slots alongside the draft's would collide). The
+  // revision `composition` we snapshot follows the same rule.
+  let revisionComposition: HomepageSnapshotSection[] = keptComposition;
+  if (mode === "replace") {
+    const { error: delErr } = await supabase
       .from("cms_page_sections")
-      .insert(rows);
-    if (insErr) {
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("page_id", beforeRow.id)
+      .eq("is_draft", true);
+    if (delErr) {
       void improntaLog("site_admin_homepage.warn", {
-        message: "[site-admin/homepage] copy-from-live draft insert failed",
+        message: "[site-admin/homepage] copy-from-live draft clear failed",
         tenantId,
         pageId: beforeRow.id,
-        count: rows.length,
-        error: insErr.message,
+        error: delErr.message,
       });
+    }
+    if (keptComposition.length > 0) {
+      const rows = keptComposition.map((entry) => ({
+        tenant_id: tenantId,
+        page_id: beforeRow.id,
+        section_id: entry.sectionId,
+        slot_key: entry.slotKey,
+        sort_order: entry.sortOrder,
+        is_draft: true,
+      }));
+      const { error: insErr } = await supabase
+        .from("cms_page_sections")
+        .insert(rows);
+      if (insErr) {
+        void improntaLog("site_admin_homepage.warn", {
+          message: "[site-admin/homepage] copy-from-live draft insert failed",
+          tenantId,
+          pageId: beforeRow.id,
+          count: rows.length,
+          error: insErr.message,
+        });
+      }
+    }
+  } else {
+    // Merge modes keep the draft's own section rows; snapshot them (not the
+    // published slots) into the revision composition so it mirrors what's on
+    // the page after the merge.
+    const { data: draftSectionRows } = await supabase
+      .from("cms_page_sections")
+      .select("section_id, slot_key, sort_order")
+      .eq("tenant_id", tenantId)
+      .eq("page_id", beforeRow.id)
+      .eq("is_draft", true);
+    if (Array.isArray(draftSectionRows) && draftSectionRows.length > 0) {
+      const draftSectionIds = draftSectionRows.map(
+        (r) => (r as { section_id: string }).section_id,
+      );
+      const draftFacts = await loadSectionFactsBulk(
+        supabase,
+        tenantId,
+        draftSectionIds,
+      );
+      revisionComposition = draftSectionRows.flatMap((raw) => {
+        const r = raw as {
+          section_id: string;
+          slot_key: string;
+          sort_order: number;
+        };
+        const f = draftFacts.get(r.section_id);
+        if (!f || f.status === "archived") return [];
+        return [
+          {
+            slotKey: r.slot_key,
+            sortOrder: r.sort_order,
+            sectionId: r.section_id,
+            sectionTypeKey: f.section_type_key,
+            schemaVersion: f.schema_version,
+            name: f.name,
+            props: f.props_jsonb,
+          } as HomepageSnapshotSection,
+        ];
+      });
+    } else {
+      revisionComposition = [];
     }
   }
 
@@ -1880,7 +2230,7 @@ export async function copyPublishedToDraft(
     templateSchemaVersion: updatedPage.template_schema_version,
     snapshot: buildRevisionSnapshot({
       page: updatedPage,
-      composition: keptComposition,
+      composition: revisionComposition,
       builderTree: copiedBuilderTree,
       kind: "rollback",
     }),
@@ -1891,13 +2241,17 @@ export async function copyPublishedToDraft(
     dropped.length > 0
       ? ` (${dropped.length} dropped: ${dropped.join(", ")})`
       : "";
+  const diffAction =
+    mode === "replace"
+      ? "homepage draft reset from published snapshot"
+      : `homepage draft merged with published snapshot (${mode})`;
   scheduleAuditFn(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
     entityType: "cms_pages",
     entityId: updatedPage.id,
-    diffSummary: `homepage draft reset from published snapshot${diffSuffix}`,
+    diffSummary: `${diffAction}${diffSuffix}`,
     beforeSnapshot: beforeRow,
     afterSnapshot: updatedPage,
     correlationId,

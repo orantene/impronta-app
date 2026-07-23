@@ -38,6 +38,14 @@ export type SendToAgencyBarProps = {
   accentInk: string;
   /** Guest-locale translator (resolved from brand.locale). */
   t: Translator;
+  /**
+   * P0-5 / W0-F — hub host (platform/network hub or marketing apex). When true
+   * the CTA + notes use the hub copy: send button "Send", a route-not-book
+   * subline, and a sent note that names the platform instead of "the agency".
+   */
+  isHub?: boolean;
+  /** Display name of the receiving brand (the hub, e.g. "Tulala"). Used in the hub sent note. */
+  brandName?: string;
   /** Disable while a send is in flight or during cooldown. */
   disabled?: boolean;
   /** Whether to show the post-send success confirmation note. */
@@ -68,13 +76,24 @@ export function SendToAgencyBar({
   accent,
   accentInk,
   t,
+  isHub = false,
+  brandName,
   disabled = false,
   sent,
-  typicalReply = null,
   surfaceMode = "light",
   onSend,
 }: SendToAgencyBarProps) {
   const C = paletteFor(surfaceMode);
+  // Hub hosts (Tulala) are not agencies — the CTA + notes must not say "agency".
+  const ctaLabel = isHub
+    ? t("public.guestChat.sendHub")
+    : t("public.guestChat.sendToAgency");
+  const noPaymentLine = isHub
+    ? t("public.guestChat.sendHubNoPayment")
+    : t("public.guestChat.sendNoPayment");
+  const sentLine = isHub
+    ? interpolate(t("public.guestChat.sendHubSent"), { brand: brandName ?? "" })
+    : t("public.guestChat.sendToAgencySent");
   if (sent) {
     return (
       <div style={wrapStyle(C)}>
@@ -89,7 +108,7 @@ export function SendToAgencyBar({
             textAlign: "center",
           }}
         >
-          {t("public.guestChat.sendToAgencySent")}
+          {sentLine}
         </p>
       </div>
     );
@@ -108,10 +127,11 @@ export function SendToAgencyBar({
           cursor: disabled ? "default" : "pointer",
         }}
       >
-        {t("public.guestChat.sendToAgency")}
+        {ctaLabel}
       </button>
 
-      {/* Jon 360 Phase 1: trust pre-frame under the Send button. */}
+      {/* DOCK v2: a single, quiet reassurance line under the button (no stacked
+          sublines). "No payment now" is the one thing that matters here. */}
       <p
         style={{
           margin: 0,
@@ -122,22 +142,8 @@ export function SendToAgencyBar({
           lineHeight: 1.4,
         }}
       >
-        {t("public.guestChat.sendNoPayment")}
+        {noPaymentLine}
       </p>
-      {typicalReply ? (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 11,
-            fontWeight: 500,
-            color: C.inkDim,
-            textAlign: "center",
-            lineHeight: 1.4,
-          }}
-        >
-          {interpolate(t("public.guestChat.sendTypicalReply"), { when: typicalReply })}
-        </p>
-      ) : null}
     </div>
   );
 }

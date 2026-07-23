@@ -1,0 +1,54 @@
+-- STANDING v2 P6 — verified_paid Stripe hardening. **NOT APPLIED — APPLY WHEN STRIPE IS LIVE.**
+--
+-- Filename ends in `.pending` and lives in `_pending_stripe/` so `supabase db push`
+-- does NOT pick it up. Reason: today all payments are `provider='manual'`
+-- (Stripe not wired). `review_is_arms_length_paid` currently accepts a manual
+-- paid transaction, which means a colluding tenant could mint a paid booking and
+-- a review that counts. The real fix is to require a settled EXTERNAL charge —
+-- but applying that now would set `verified_paid=false` for EVERY current review
+-- (all manual) and zero out every public rating. So this waits for Stripe.
+--
+-- WHEN STRIPE IS LIVE:
+--   1. Move this file to `supabase/migrations/` (drop the `.pending` suffix),
+--      renaming with a fresh timestamp so it sorts last.
+--   2. `npm run db:push`.
+--   3. Backfill: any pre-Stripe review that should stay verified must be
+--      grandfathered explicitly (e.g. a one-time UPDATE flag) BEFORE this runs,
+--      or accept that historic manual reviews drop out of the public signal.
+--   4. Re-run `talent_reviews_recompute_summary` for every talent_profile_id.
+--
+-- The ONLY change vs the live function (20261110040000) is the added
+-- `provider <> 'manual' AND provider_reference IS NOT NULL` requirement on the
+-- settled transaction, plus an optional distinct-funding-instrument check hook.
+
+CREATE OR REPLACE FUNCTION public.review_is_arms_length_paid(
+  p_booking_id UUID, p_talent_profile_id UUID, p_client_user_id UUID
+) RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_talent_user UUID; v_ok BOOLEAN;
+BEGIN
+  IF p_booking_id IS NULL OR p_client_user_id IS NULL THEN RETURN FALSE; END IF;
+
+  SELECT user_id INTO v_talent_user FROM public.talent_profiles WHERE id = p_talent_profile_id;
+  IF v_talent_user IS NOT NULL AND v_talent_user = p_client_user_id THEN RETURN FALSE; END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.booking_talent bt
+    WHERE bt.booking_id = p_booking_id AND bt.talent_profile_id = p_talent_profile_id
+  ) THEN RETURN FALSE; END IF;
+
+  -- A SETTLED EXTERNAL charge on this booking, paid BY the reviewing client.
+  SELECT EXISTS (
+    SELECT 1 FROM public.booking_transactions tx
+    WHERE tx.booking_id = p_booking_id
+      AND tx.status = 'paid'
+      AND tx.paid_at IS NOT NULL
+      AND tx.payer_user_id = p_client_user_id
+      AND tx.provider <> 'manual'              -- NEW: real processor only
+      AND tx.provider_reference IS NOT NULL     -- NEW: a settled charge reference
+    -- FUTURE: AND the payer's payment_method fingerprint is not shared with the
+    --   payout receiver's accounts (defeats a real card used across sockpuppets).
+  ) INTO v_ok;
+
+  RETURN COALESCE(v_ok, FALSE);
+END;
+$$;

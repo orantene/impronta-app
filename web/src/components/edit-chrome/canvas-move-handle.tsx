@@ -440,10 +440,10 @@ export function CanvasMoveHandle({
           width: 26,
           height: 26,
           borderRadius: 7,
-          background: dragging ? accent : "rgba(61,79,124,0.55)",
+          background: dragging ? accent : "rgba(124,58,237,0.55)",
           border: "2px solid #ffffff",
           boxShadow: dragging
-            ? "0 0 0 3px rgba(61,79,124,0.25), 0 2px 6px rgba(0,0,0,0.35)"
+            ? "0 0 0 3px rgba(124,58,237,0.25), 0 2px 6px rgba(0,0,0,0.35)"
             : "0 1px 4px rgba(0,0,0,0.30)",
           cursor: "move",
           pointerEvents: "auto",

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { DirectoryCardRow } from "./shared";
 import { agencyLine, locationLine, FOCUS_RING } from "./shared";
 import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 
 /**
  * Compact list row for the directory's list view. Same browse-only contract
@@ -12,6 +13,11 @@ import { TalentAvatar, TrustBadge, AvailabilityLine } from "./DirectoryAtoms";
 export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
   const loc = locationLine(talent.homeCity, talent.homeCountry);
   const href = talent.profileCode ? `/t/${talent.profileCode}` : null;
+  // STANDING chip — verified review aggregate off the discover matview, shown
+  // only past the credibility floor (>= 3 verified reviews) so a thin record is
+  // never oversold. Absence is neutral (no chip).
+  const showStanding =
+    talent.ratingAvg != null && meetsCredibilityFloor(talent.ratingCount);
 
   const inner = (
     <>
@@ -29,6 +35,25 @@ export function DirectoryTalentRow({ talent }: { talent: DirectoryCardRow }) {
             {talent.displayName}
           </h3>
           <TrustBadge tier={talent.trustTier} />
+          {showStanding ? (
+            <span
+              data-directory-standing
+              className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold leading-none"
+              style={{
+                background: "var(--plt-bg-elevated)",
+                border: "1px solid var(--plt-hairline)",
+                color: "var(--plt-ink-soft)",
+              }}
+              title={`Verified standing from ${talent.ratingCount} completed bookings`}
+            >
+              <span aria-hidden style={{ color: "var(--plt-forest, #4a6b52)" }}>
+                ★
+              </span>
+              <span className="tabular-nums">{talent.ratingAvg!.toFixed(1)}</span>
+              <span className="opacity-60">·</span>
+              <span className="tabular-nums">{talent.ratingCount}</span>
+            </span>
+          ) : null}
         </div>
         <p className="truncate text-[0.8125rem] leading-snug" style={{ color: "var(--plt-muted)" }}>
           {[talent.primaryTypeLabel, loc].filter(Boolean).join(" · ") || "—"}

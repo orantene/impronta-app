@@ -13,7 +13,7 @@ export {
   FACE_OBJECT_POSITION,
   AVATAR_GROUND,
   AVATAR_DIAMETER_DESKTOP,
-  initialsOf,
+  PERSON_SILHOUETTE_SVG,
   prefersReducedMotion,
 } from "./launcher-avatar-styles";
 

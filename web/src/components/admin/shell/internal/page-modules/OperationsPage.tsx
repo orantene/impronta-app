@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Image from "next/image";
+import { useT } from "@/i18n/use-t";
 import { Icon, SecondaryCard } from "../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../state";
 import { Grid, PageHeader } from "./pages-shared";
@@ -116,52 +117,61 @@ const TI = {
   scale:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5v11M3 5l-2 4h4l-2-4zM11 5l-2 4h4l-2-4zM2 12.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   guard:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="5" r="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="9.5" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M2 11.5c0-2 1-3 3-3s3 1 3 3M9.5 11.5c0-1.5 1-2 2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
   approve:  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 7L6 8.5l3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  image:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2.5" width="11" height="9" rx="1.2" stroke="currentColor" strokeWidth="1.4"/><circle cx="5" cy="5.5" r="1" stroke="currentColor" strokeWidth="1.3"/><path d="M2 10l3-2.5 2.5 2 2-1.5L12 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 };
 
 export function OperationsPage() {
+  const t = useT();
   const { openDrawer, tenantSlug } = useAdminShell();
   const goFinancials = () => {
     if (typeof window !== "undefined" && tenantSlug) {
       window.location.href = `/${tenantSlug}/admin/financials`;
     }
   };
+  const goReviewPhotos = () => {
+    if (typeof window !== "undefined" && tenantSlug) {
+      window.location.href = `/${tenantSlug}/admin/reviews/media`;
+    }
+  };
 
   return (
     <>
       <PageHeader
-        title="Operations"
-        subtitle="Analytics, queues, SLAs & automations."
+        title={t("dashboard.adminOperations.title")}
+        subtitle={t("dashboard.adminOperations.subtitle")}
       />
 
       <div style={{ maxWidth: 760 }}>
-        <PageSection tone={COLORS.indigo} title="Analytics" desc="Revenue, conversion, and team performance.">
-          <ToolRow tone={COLORS.indigo} icon={TI.chart}    title="Revenue"           desc="Monthly revenue, top clients, and trend. Opens the live Business financials page." onClick={goFinancials} />
-          <ToolRow tone={COLORS.indigo} icon={TI.funnel}   title="Conversion funnel" desc="Inquiry → offer → booking conversion."                onClick={() => openDrawer("conversion-funnel")} />
-          <ToolRow tone={COLORS.indigo} icon={TI.star}     title="Top performers"    desc="Most-booked talent and best clients."                 onClick={() => openDrawer("top-performers")} />
-          <ToolRow tone={COLORS.indigo} icon={TI.team}     title="Team workload"     desc="Per-coordinator queue depth and SLA risk."            onClick={() => openDrawer("coordinator-workload")} />
+        <PageSection tone={COLORS.indigo} title={t("dashboard.adminOperations.analyticsTitle")} desc={t("dashboard.adminOperations.analyticsDesc")}>
+          <ToolRow tone={COLORS.indigo} icon={TI.chart}    title={t("dashboard.adminOperations.revenue")}           desc={t("dashboard.adminOperations.revenueDesc")} onClick={goFinancials} />
+          <ToolRow tone={COLORS.indigo} icon={TI.funnel}   title={t("dashboard.adminOperations.conversionFunnel")} desc={t("dashboard.adminOperations.conversionFunnelDesc")}                onClick={() => openDrawer("conversion-funnel")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.star}     title={t("dashboard.adminOperations.topPerformers")}    desc={t("dashboard.adminOperations.topPerformersDesc")}                 onClick={() => openDrawer("top-performers")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.team}     title={t("dashboard.adminOperations.teamWorkload")}     desc={t("dashboard.adminOperations.teamWorkloadDesc")}            onClick={() => openDrawer("coordinator-workload")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.star}     title={t("dashboard.adminOperations.reportedReviews")}  desc={t("dashboard.adminOperations.reportedReviewsDesc")}         onClick={() => openDrawer("reviews-moderation")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.image}    title={t("dashboard.adminOperations.reviewPhotos")}     desc={t("dashboard.adminOperations.reviewPhotosDesc")}            onClick={goReviewPhotos} />
         </PageSection>
 
-        <PageSection tone={COLORS.accent} title="Workflow" desc="Coordinator queue, response timers, and automation rules.">
-          <ToolRow tone={COLORS.accent} icon={TI.list}     title="My queue"          desc="Items assigned to you, sorted by priority."           onClick={() => openDrawer("my-queue")} />
-          <ToolRow tone={COLORS.accent} icon={TI.clock}    title="SLA timers"        desc="Response-time clocks and escalation paths."           onClick={() => openDrawer("sla-timers")} />
-          <ToolRow tone={COLORS.accent} icon={TI.bolt}     title="Automation rules"  desc="Trigger actions on status, deadlines, or fields."     onClick={() => openDrawer("rules-builder")} />
-          <ToolRow tone={COLORS.accent} icon={TI.reply}    title="Saved replies"     desc="Canned response library for inbox threads."           onClick={() => openDrawer("saved-replies")} />
-          <ToolRow tone={COLORS.accent} icon={TI.airplane} title="Vacation handover" desc="Delegate your queue while you're away."               onClick={() => openDrawer("vacation-handover")} />
-          <ToolRow tone={COLORS.accent} icon={TI.rotate}   title="On-call rotation"  desc="Weekly schedule and escalation ladder."               onClick={() => openDrawer("on-call-rotation")} />
+        <PageSection tone={COLORS.accent} title={t("dashboard.adminOperations.workflowTitle")} desc={t("dashboard.adminOperations.workflowDesc")}>
+          <ToolRow tone={COLORS.accent} icon={TI.list}     title={t("dashboard.adminOperations.myQueue")}          desc={t("dashboard.adminOperations.myQueueDesc")}           onClick={() => openDrawer("my-queue")} />
+          <ToolRow tone={COLORS.accent} icon={TI.clock}    title={t("dashboard.adminOperations.slaTimers")}        desc={t("dashboard.adminOperations.slaTimersDesc")}           onClick={() => openDrawer("sla-timers")} />
+          <ToolRow tone={COLORS.accent} icon={TI.bolt}     title={t("dashboard.adminOperations.automationRules")}  desc={t("dashboard.adminOperations.automationRulesDesc")}     onClick={() => openDrawer("rules-builder")} />
+          <ToolRow tone={COLORS.accent} icon={TI.reply}    title={t("dashboard.adminOperations.savedReplies")}     desc={t("dashboard.adminOperations.savedRepliesDesc")}           onClick={() => openDrawer("saved-replies")} />
+          <ToolRow tone={COLORS.accent} icon={TI.airplane} title={t("dashboard.adminOperations.vacationHandover")} desc={t("dashboard.adminOperations.vacationHandoverDesc")}               onClick={() => openDrawer("vacation-handover")} />
+          <ToolRow tone={COLORS.accent} icon={TI.rotate}   title={t("dashboard.adminOperations.onCallRotation")}  desc={t("dashboard.adminOperations.onCallRotationDesc")}               onClick={() => openDrawer("on-call-rotation")} />
         </PageSection>
 
-        <PageSection tone={COLORS.amber} title="Comms & growth" desc="Outbound email, sequences, and the referral programme.">
-          <ToolRow tone={COLORS.amber}  icon={TI.mail}     title="Email templates"   desc="Outbound templates with merge fields."                onClick={() => openDrawer("email-templates")} />
-          <ToolRow tone={COLORS.amber}  icon={TI.flow}     title="Email sequences"   desc="Multi-step automated follow-ups."                     onClick={() => openDrawer("email-sequences")} />
-          <ToolRow tone={COLORS.amber}  icon={TI.send}     title="Invite flow"       desc="Send pre-filled talent invite links."                 onClick={() => openDrawer("invite-flow")} />
-          <ToolRow tone={COLORS.amber}  icon={TI.gift}     title="Referrals"         desc="Track referrals, conversions, and credits."           onClick={() => openDrawer("referral-dashboard")} />
+        <PageSection tone={COLORS.amber} title={t("dashboard.adminOperations.commsGrowthTitle")} desc={t("dashboard.adminOperations.commsGrowthDesc")}>
+          <ToolRow tone={COLORS.amber}  icon={TI.mail}     title={t("dashboard.adminOperations.emailTemplates")}   desc={t("dashboard.adminOperations.emailTemplatesDesc")}                onClick={() => openDrawer("email-templates")} />
+          <ToolRow tone={COLORS.amber}  icon={TI.flow}     title={t("dashboard.adminOperations.emailSequences")}   desc={t("dashboard.adminOperations.emailSequencesDesc")}                     onClick={() => openDrawer("email-sequences")} />
+          <ToolRow tone={COLORS.amber}  icon={TI.send}     title={t("dashboard.adminOperations.inviteFlow")}       desc={t("dashboard.adminOperations.inviteFlowDesc")}                 onClick={() => openDrawer("invite-flow")} />
+          <ToolRow tone={COLORS.amber}  icon={TI.gift}     title={t("dashboard.adminOperations.referrals")}         desc={t("dashboard.adminOperations.referralsDesc")}           onClick={() => openDrawer("referral-dashboard")} />
         </PageSection>
 
-        <PageSection tone={COLORS.royal} title="Admin tools" desc="Bulk operations, AI workspace, telemetry, and feature controls.">
-          <ToolRow tone={COLORS.royal}  icon={TI.upload}   title="CSV import"          desc="Bulk import talent, clients, or bookings."          onClick={() => openDrawer("csv-import", { type: "talent" })} />
-          <ToolRow tone={COLORS.royal}  icon={TI.swap}     title="Migration assistant" desc="Move data from your current platform."              onClick={() => openDrawer("migration-assistant")} />
-          <ToolRow tone={COLORS.royal}  icon={TI.sparkle}  title="AI workspace"        desc="Providers, usage controls, and console."            onClick={() => openDrawer("ai-workspace")} />
-          <ToolRow tone={COLORS.royal}  icon={TI.toggle}   title="Feature controls"    desc="Turn platform features on or off per workspace."    onClick={() => openDrawer("feature-controls")} />
+        <PageSection tone={COLORS.royal} title={t("dashboard.adminOperations.adminToolsTitle")} desc={t("dashboard.adminOperations.adminToolsDesc")}>
+          <ToolRow tone={COLORS.royal}  icon={TI.upload}   title={t("dashboard.adminOperations.csvImport")}          desc={t("dashboard.adminOperations.csvImportDesc")}          onClick={() => openDrawer("csv-import", { type: "talent" })} />
+          <ToolRow tone={COLORS.royal}  icon={TI.swap}     title={t("dashboard.adminOperations.migrationAssistant")} desc={t("dashboard.adminOperations.migrationAssistantDesc")}              onClick={() => openDrawer("migration-assistant")} />
+          <ToolRow tone={COLORS.royal}  icon={TI.sparkle}  title={t("dashboard.adminOperations.aiWorkspace")}        desc={t("dashboard.adminOperations.aiWorkspaceDesc")}            onClick={() => openDrawer("ai-workspace")} />
+          <ToolRow tone={COLORS.royal}  icon={TI.toggle}   title={t("dashboard.adminOperations.featureControls")}    desc={t("dashboard.adminOperations.featureControlsDesc")}    onClick={() => openDrawer("feature-controls")} />
         </PageSection>
       </div>
     </>
@@ -173,54 +183,55 @@ export function OperationsPage() {
 // ════════════════════════════════════════════════════════════════════
 
 export function ProductionPage() {
+  const t = useT();
   const { openDrawer } = useAdminShell();
 
   return (
     <>
       <PageHeader
-        title="Production"
-        subtitle="Casting, crew, shoot day, rights & safety."
+        title={t("dashboard.adminOperations.productionTitle")}
+        subtitle={t("dashboard.adminOperations.productionSubtitle")}
       />
 
-      <PageSection tone={COLORS.coral} label="01" title="Casting" desc="Open or closed casting flows and round-by-round callbacks.">
+      <PageSection tone={COLORS.coral} label="01" title={t("dashboard.adminOperations.castingTitle")} desc={t("dashboard.adminOperations.castingDesc")}>
         <Grid cols="4">
-          <SecondaryCard title="Casting flow" description="Configure open/closed casting and rounds." affordance="Open" onClick={() => openDrawer("casting-flow")} />
-          <SecondaryCard title="Callback tracker" description="Per-round talent status with feedback." affordance="Open" onClick={() => openDrawer("callback-tracker")} />
-          <SecondaryCard title="Discovery feed" description="Trending talent and editorial picks." affordance="Open" onClick={() => openDrawer("discovery-feed")} />
-          <SecondaryCard title="Availability search" description="Find talent for a date range and location." affordance="Open" onClick={() => openDrawer("avail-search")} />
+          <SecondaryCard title={t("dashboard.adminOperations.castingFlow")} description={t("dashboard.adminOperations.castingFlowDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("casting-flow")} />
+          <SecondaryCard title={t("dashboard.adminOperations.callbackTracker")} description={t("dashboard.adminOperations.callbackTrackerDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("callback-tracker")} />
+          <SecondaryCard title={t("dashboard.adminOperations.discoveryFeed")} description={t("dashboard.adminOperations.discoveryFeedDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("discovery-feed")} />
+          <SecondaryCard title={t("dashboard.adminOperations.availabilitySearch")} description={t("dashboard.adminOperations.availabilitySearchDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("avail-search")} />
         </Grid>
       </PageSection>
 
-      <PageSection tone={COLORS.accent} label="02" title="Crew & shoot day" desc="Multi-discipline bookings, call sheets, and live on-set check-in.">
+      <PageSection tone={COLORS.accent} label="02" title={t("dashboard.adminOperations.crewShootTitle")} desc={t("dashboard.adminOperations.crewShootDesc")}>
         <Grid cols="4">
-          <SecondaryCard title="Crew booking" description="Book talent, photographer, HMU, studio." affordance="Open" onClick={() => openDrawer("crew-booking")} />
-          <SecondaryCard title="Production timeline" description="Call-sheet order of events." affordance="Open" onClick={() => openDrawer("production-timeline")} />
-          <SecondaryCard title="Call sheet" description="Live production roster with status." affordance="Open" onClick={() => openDrawer("call-sheet")} />
-          <SecondaryCard title="On-set check-in" description="Mark talent and crew as arrived." affordance="Open" onClick={() => openDrawer("onset-checkin")} />
+          <SecondaryCard title={t("dashboard.adminOperations.crewBooking")} description={t("dashboard.adminOperations.crewBookingDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("crew-booking")} />
+          <SecondaryCard title={t("dashboard.adminOperations.productionTimeline")} description={t("dashboard.adminOperations.productionTimelineDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("production-timeline")} />
+          <SecondaryCard title={t("dashboard.adminOperations.callSheet")} description={t("dashboard.adminOperations.callSheetDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("call-sheet")} />
+          <SecondaryCard title={t("dashboard.adminOperations.onsetCheckin")} description={t("dashboard.adminOperations.onsetCheckinDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("onset-checkin")} />
         </Grid>
         <div className="mt-2">
           <Grid cols="3">
-            <SecondaryCard title="Locations" description="Studios, venues, and outdoor locations." affordance="Open" onClick={() => openDrawer("locations-drawer")} />
-            <SecondaryCard title="Brief builder" description="Author shot lists and creative briefs." affordance="Open" onClick={() => openDrawer("brief-builder")} />
-            <SecondaryCard title="Brand assets" description="Logos, fonts, and reusable assets." affordance="Open" onClick={() => openDrawer("brand-assets")} />
+            <SecondaryCard title={t("dashboard.adminOperations.locations")} description={t("dashboard.adminOperations.locationsDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("locations-drawer")} />
+            <SecondaryCard title={t("dashboard.adminOperations.briefBuilder")} description={t("dashboard.adminOperations.briefBuilderDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("brief-builder")} />
+            <SecondaryCard title={t("dashboard.adminOperations.brandAssets")} description={t("dashboard.adminOperations.brandAssetsDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("brand-assets")} />
           </Grid>
         </div>
       </PageSection>
 
-      <PageSection tone={COLORS.amber} label="03" title="Rights & safety" desc="Image-rights tracking, incident reporting, and dispute resolution.">
+      <PageSection tone={COLORS.amber} label="03" title={t("dashboard.adminOperations.rightsSafetyTitle")} desc={t("dashboard.adminOperations.rightsSafetyDesc")}>
         <Grid cols="4">
-          <SecondaryCard title="Usage tracker" description="Monitor licence expiry per booking." affordance="Open" onClick={() => openDrawer("usage-tracker")} />
-          <SecondaryCard title="Relicence" description="Extend or expand usage rights." affordance="Open" onClick={() => openDrawer("relicense-flow")} />
-          <SecondaryCard title="Incident reports" description="On-set safety and conduct reports." affordance="Open" onClick={() => openDrawer("incident-report")} />
-          <SecondaryCard title="Disputes" description="Filed → Mediation → Decision." affordance="Open" onClick={() => openDrawer("dispute-resolution")} />
+          <SecondaryCard title={t("dashboard.adminOperations.usageTracker")} description={t("dashboard.adminOperations.usageTrackerDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("usage-tracker")} />
+          <SecondaryCard title={t("dashboard.adminOperations.relicence")} description={t("dashboard.adminOperations.relicenceDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("relicense-flow")} />
+          <SecondaryCard title={t("dashboard.adminOperations.incidentReports")} description={t("dashboard.adminOperations.incidentReportsDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("incident-report")} />
+          <SecondaryCard title={t("dashboard.adminOperations.disputes")} description={t("dashboard.adminOperations.disputesDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("dispute-resolution")} />
         </Grid>
       </PageSection>
 
-      <PageSection tone={COLORS.indigo} label="04" title="Account lifecycle" desc="Workspace ownership and minor-account guardian setup.">
+      <PageSection tone={COLORS.indigo} label="04" title={t("dashboard.adminOperations.accountLifecycleTitle")} desc={t("dashboard.adminOperations.accountLifecycleDesc")}>
         <Grid cols="3">
-          <SecondaryCard title="Ownership transfer" description="Transfer workspace to a new owner." affordance="Open" onClick={() => openDrawer("ownership-transfer")} />
-          <SecondaryCard title="Minor account" description="Attach guardian co-pilot for under-18 talent." affordance="Open" onClick={() => openDrawer("minor-account")} />
-          <SecondaryCard title="Approval flow" description="Multi-stage sign-off for sensitive items." affordance="Open" onClick={() => openDrawer("approval-flow")} />
+          <SecondaryCard title={t("dashboard.adminOperations.ownershipTransfer")} description={t("dashboard.adminOperations.ownershipTransferDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("ownership-transfer")} />
+          <SecondaryCard title={t("dashboard.adminOperations.minorAccount")} description={t("dashboard.adminOperations.minorAccountDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("minor-account")} />
+          <SecondaryCard title={t("dashboard.adminOperations.approvalFlow")} description={t("dashboard.adminOperations.approvalFlowDesc")} affordance={t("dashboard.adminOperations.affordanceOpen")} onClick={() => openDrawer("approval-flow")} />
         </Grid>
       </PageSection>
     </>

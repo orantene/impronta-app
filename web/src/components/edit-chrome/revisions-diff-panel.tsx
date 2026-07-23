@@ -266,7 +266,7 @@ export function RevisionsDiffPanel({
               color: CHROME.muted,
             }}
           >
-            Side-by-side structural diff — shows which top-level sections or
+            Side-by-side structural diff, shows which top-level sections or
             blocks were added or removed between the two snapshots. Content
             edits within a block are not shown here. Click{" "}
             <strong style={{ color: CHROME.text }}>Back</strong> then{" "}

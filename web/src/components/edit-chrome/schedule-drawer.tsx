@@ -169,7 +169,7 @@ export function ScheduleDrawer() {
         if (cancelled) return;
         setState({
           kind: "error",
-          message: err instanceof Error ? err.message : "Couldn't load the schedule — try again.",
+          message: err instanceof Error ? err.message : "Couldn't load the schedule. Try again.",
         });
       });
     return () => {
@@ -191,7 +191,7 @@ export function ScheduleDrawer() {
       () => schedulePublishAction({ locale, publishAt: iso }),
       {
         name: "schedulePublishAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     if (!res.ok) {
@@ -208,7 +208,7 @@ export function ScheduleDrawer() {
       () => cancelScheduledPublishAction({ locale }),
       {
         name: "cancelScheduledPublishAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     if (!res.ok) {

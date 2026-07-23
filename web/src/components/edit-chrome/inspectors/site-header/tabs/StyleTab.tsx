@@ -81,7 +81,7 @@ export function StyleTab({ config, patch }: Props) {
         <div className="h-2" />
         <ColorRow
           label="Accent"
-          hint="Secondary highlight — small chips, gold-line dividers, link underlines."
+          hint="Secondary highlight: small chips, gold-line dividers, link underlines."
           value={accent}
           onChange={(hex) => patch.patchBranding({ accentColor: hex || null })}
         />
@@ -125,7 +125,7 @@ export function StyleTab({ config, patch }: Props) {
                 key={opt.value}
                 type="button"
                 onClick={() => patch.patchToken("background.mode", opt.value)}
-                title={`${opt.label} — ${opt.helper}`}
+                title={`${opt.label}: ${opt.helper}`}
                 aria-label={opt.label}
                 className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
                   active
@@ -239,7 +239,7 @@ function ColorRow({
         <input
           type="text"
           className="flex-1 bg-transparent font-mono text-[12px] text-stone-800 placeholder:text-stone-500 focus:outline-none"
-          placeholder="#— or rgba()"
+          placeholder="e.g. #111111 or rgba()"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => {

@@ -161,7 +161,20 @@ export function resolveAuthRoutingDecision({
     };
   }
 
-  if (pathname.startsWith("/talent") && pathRole !== "talent") {
+  // Hybrid access: a workspace owner / super-admin can ALSO be a talent on a
+  // roster (they own an agency AND have their own talent profile). Their
+  // `app_role` is a staff role, not "talent", so the plain `pathRole !==
+  // "talent"` gate bounced every `/talent/*` request back to `/admin` — which
+  // made the Talent toggle inert and sent the welcome-panel quick links
+  // (Messages/Bookings/Edit profile/…) to the workspace dashboard. Let staff
+  // through; the talent layout is the real gate (it `notFound()`s anyone
+  // without a talent profile), so a staff user with no talent profile still
+  // can't see a talent surface, while a genuine hybrid finally can.
+  if (
+    pathname.startsWith("/talent") &&
+    pathRole !== "talent" &&
+    !isStaffRole(pathRole)
+  ) {
     return {
       redirectTo: dashboardPathForRole(pathRole),
       loginNext: null,

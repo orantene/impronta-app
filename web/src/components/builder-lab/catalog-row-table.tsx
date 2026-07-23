@@ -151,7 +151,7 @@ const STATUS_ORDER: ReadonlyArray<LabStatus> = [
 ];
 
 const CODE_DISABLED_TOOLTIP =
-  "Code components ship live — only Published / Archived apply.";
+  "Code components ship live, only Published / Archived apply.";
 
 /**
  * The four-status menu for one row, with `disabled` + `tooltip` set per the row
@@ -687,7 +687,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
       tabIndex={0}
       role="grid"
       data-testid="lab-catalog-row-grid"
-      aria-label="Catalog components — keyboard: j/k move, t/w toggle surfaces, e edit, p preview, slash search, Esc collapse"
+      aria-label="Catalog components. Keyboard: j/k move, t/w toggle surfaces, e edit, p preview, slash search, Esc collapse"
       onFocus={() => {
         // First Tab into the grid auto-focuses the top row so j/k have an anchor.
         if (focusedId === null && visibleIds.length > 0) {
@@ -886,7 +886,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                 <Th center help="The talent's freeform profile page builder gallery (talent_profile_enabled).">
                   Talent profile
                 </Th>
-                <Th center help="The talent Max-SITE header/footer shell gallery — now its OWN toggle (talent_shell_enabled), no longer chained to Workspace.">
+                <Th center help="The talent Max-SITE header/footer shell gallery, now its OWN toggle (talent_shell_enabled), no longer chained to Workspace.">
                   Talent shell
                 </Th>
                 <Th center help="The agency storefront freeform page gallery (workspace_page_enabled).">
@@ -899,7 +899,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                     Lab itself (lab_enabled). Orthogonal to the four tenant
                     surfaces + to target_context, so it has NO surface lock — a
                     component can be Lab-only, tenant-only, both, or neither. */}
-                <Th center help="Visibility in the Builder Lab's own gallery (lab_enabled) — independent of the four tenant surfaces and never gated by target_context.">
+                <Th center help="Visibility in the Builder Lab's own gallery (lab_enabled), independent of the four tenant surfaces and never gated by target_context.">
                   Builder Lab
                 </Th>
                 {/* D1 — how many tenant trees reference this component TYPE
@@ -1553,7 +1553,7 @@ function EditAccordionRow({
                   onChange={(e) => setEditPlan(e.target.value)}
                   style={{ ...inputStyle, width: 150 }}
                 >
-                  <option value="">— default —</option>
+                  <option value="">(default)</option>
                   <option value="free">free</option>
                   <option value="studio">studio</option>
                   <option value="agency">agency</option>
@@ -1575,7 +1575,7 @@ function EditAccordionRow({
                   onChange={(e) => setEditDefaultVariant(e.target.value)}
                   style={{ ...inputStyle, width: 170 }}
                 >
-                  <option value="">— default —</option>
+                  <option value="">(default)</option>
                   {DEFAULT_VARIANT_OPTIONS.map((v) => (
                     <option key={v} value={v}>
                       {v}
@@ -1639,11 +1639,11 @@ function EditAccordionRow({
             </div>
             <span style={{ fontSize: 11, color: T.inkDim, lineHeight: 1.5 }}>
               Plan only tightens (never widens). <strong>Locked props</strong> are dot-paths
-              (comma-separated) the tenant can&apos;t change once inserted — the look stays
+              (comma-separated) the tenant can&apos;t change once inserted. The look stays
               on-brand, they still edit the copy. <strong>Default variant</strong> picks the
               native preset applied at insert (when the item has no built-in variant).{" "}
               <strong>Default props</strong> (a JSON object) are deep-merged over the
-              component&apos;s defaults at insert (arrays replaced) — the admin&apos;s
+              component&apos;s defaults at insert (arrays replaced): the admin&apos;s
               canonical starting content. <strong>Data-source defaults</strong> (a JSON
               object, e.g. <code>{"{ \"maxItems\": 6 }"}</code>) are merged into a connected
               component&apos;s <code>dataBinding</code> at insert. Reflected in both
@@ -1962,8 +1962,8 @@ function ToggleCell({
   const title = locked
     ? (lockedTooltip ?? "Not targeted to this surface")
     : on
-      ? "Visible — click to hide"
-      : "Hidden — click to show";
+      ? "Visible, click to hide"
+      : "Hidden, click to show";
   return (
     <td style={{ padding: "9px 16px", textAlign: "center" }}>
       <button

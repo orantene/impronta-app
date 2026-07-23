@@ -5,6 +5,9 @@
 import { redirect, notFound } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPlatformRole } from "@/lib/access/platform-role";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { loadPlatformCommissionConfig } from "./actions";
 import { CommissionConfigShell } from "./CommissionConfigShell";
 
@@ -30,6 +33,9 @@ export default async function PlatformCommissionPage() {
   const config = result.ok ? result.data : null;
   const loadError = result.ok ? null : result.error;
 
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: F, color: HQ.ink }}>
       {/* Header */}
@@ -44,7 +50,7 @@ export default async function PlatformCommissionPage() {
             marginBottom: 6,
           }}
         >
-          Tulala HQ · Billing
+          {t("dashboard.platform.billing.commission.eyebrow")}
         </div>
         <h1
           style={{
@@ -56,7 +62,7 @@ export default async function PlatformCommissionPage() {
             lineHeight: 1.1,
           }}
         >
-          Commission config
+          {t("dashboard.platform.billing.commission.title")}
         </h1>
         <p
           style={{
@@ -67,10 +73,7 @@ export default async function PlatformCommissionPage() {
             lineHeight: 1.5,
           }}
         >
-          Edit the platform-wide commission rates. Default take applies to every
-          booking where no plan-tier override or per-tenant override is active.
-          Per-tenant overrides are set from the Tenants drawer. All writes are
-          audited to <code>platform_audit_log</code>.
+          {t("dashboard.platform.billing.commission.subtitle")}
         </p>
       </div>
 
@@ -85,7 +88,10 @@ export default async function PlatformCommissionPage() {
             fontSize: 13,
           }}
         >
-          Failed to load config: {loadError}
+          {interpolate(
+            t("dashboard.platform.billing.commission.loadFailed"),
+            { error: loadError },
+          )}
         </div>
       )}
 

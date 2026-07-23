@@ -12,10 +12,14 @@
  */
 
 import { useMemo, useState } from "react";
-import { HQ, HQ_F, HQ_FM, Chip, PlanChip } from "../tenants/hq-kit";
+import { HQ, HQ_F, HQ_FM, Chip, PlanChip, PLAN_TIER_LABEL_KEY } from "../tenants/hq-kit";
 import { UserDrawer } from "./UserDrawer";
-import { TypeChip } from "./user-chips";
+import { TypeChip, TYPE_LABEL_KEY } from "./user-chips";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { PlatformUserRow } from "../../platform-data";
+
+type Translate = (key: string) => string;
 
 type SortKey = "joined" | "name" | "type" | "status" | "workspaces" | "sites" | "lastSeen";
 type TypeFilter = "all" | "talent" | "client" | "staff" | "super_admin";
@@ -36,6 +40,23 @@ const selectStyle: React.CSSProperties = {
   outline: "none",
 };
 
+function planTierLabel(plan: string, t: Translate): string {
+  const key = PLAN_TIER_LABEL_KEY[plan];
+  return key ? t(key) : plan.charAt(0).toUpperCase() + plan.slice(1);
+}
+
+function pluralCount(one: string, many: string, count: number, t: Translate): string {
+  return interpolate(t(count === 1 ? one : many), { count });
+}
+
+function tenantCountTitle(r: PlatformUserRow, t: Translate): string {
+  if (r.tenantCount === 0) return t("dashboard.platform.users.table.tenantTitleNone");
+  return interpolate(t("dashboard.platform.users.table.tenantTitle"), {
+    workspaces: pluralCount("dashboard.platform.users.table.workspacesOne", "dashboard.platform.users.table.workspacesMany", r.workspaceCount, t),
+    hubs: pluralCount("dashboard.platform.users.table.hubsOne", "dashboard.platform.users.table.hubsMany", r.hubCount, t),
+  });
+}
+
 function classifyType(appRole: string | null): TypeFilter {
   if (appRole === "super_admin") return "super_admin";
   if (appRole === "talent") return "talent";
@@ -45,44 +66,54 @@ function classifyType(appRole: string | null): TypeFilter {
 }
 
 type StatusChipInfo = {
-  label: string;
+  labelKey: string;
   bg: string;
   color: string;
 };
 
+const STATUS_LABEL_KEY: Record<string, string> = {
+  test: "dashboard.platform.users.status.test",
+  suspended: "dashboard.platform.users.status.suspended",
+  claimed: "dashboard.platform.users.status.claimed",
+  unclaimedAgency: "dashboard.platform.users.status.unclaimedAgency",
+  unclaimedStudio: "dashboard.platform.users.status.unclaimedStudio",
+  unclaimed: "dashboard.platform.users.status.unclaimed",
+  active: "dashboard.platform.users.status.active",
+};
+
 function deriveStatus(r: PlatformUserRow): StatusChipInfo {
   if (r.isTestAccount) {
-    return { label: "Test", bg: "rgba(229,181,103,0.12)", color: HQ.amber };
+    return { labelKey: STATUS_LABEL_KEY.test, bg: "rgba(229,181,103,0.12)", color: HQ.amber };
   }
   if (r.kind === "human" && r.accountStatus === "suspended") {
-    return { label: "Suspended", bg: "rgba(243,103,114,0.12)", color: HQ.red };
+    return { labelKey: STATUS_LABEL_KEY.suspended, bg: "rgba(243,103,114,0.12)", color: HQ.red };
   }
   if (r.kind === "human" && r.talentProfileId) {
-    return { label: "Claimed", bg: "rgba(93,211,160,0.12)", color: HQ.green };
+    return { labelKey: STATUS_LABEL_KEY.claimed, bg: "rgba(93,211,160,0.12)", color: HQ.green };
   }
   if (r.kind === "unclaimed_talent" && r.originKind === "agency_signup") {
     return {
-      label: "Unclaimed · Agency",
+      labelKey: STATUS_LABEL_KEY.unclaimedAgency,
       bg: "rgba(245,242,235,0.08)",
       color: "rgba(245,242,235,0.62)",
     };
   }
   if (r.kind === "unclaimed_talent" && r.originKind === "studio_signup") {
     return {
-      label: "Unclaimed · Studio",
+      labelKey: STATUS_LABEL_KEY.unclaimedStudio,
       bg: "rgba(245,242,235,0.08)",
       color: "rgba(245,242,235,0.62)",
     };
   }
   if (r.kind === "unclaimed_talent") {
     return {
-      label: "Unclaimed",
+      labelKey: STATUS_LABEL_KEY.unclaimed,
       bg: "rgba(245,242,235,0.08)",
       color: "rgba(245,242,235,0.62)",
     };
   }
   // kind === "human" (default)
-  return { label: "Active", bg: "rgba(255,255,255,0.04)", color: HQ.inkMuted };
+  return { labelKey: STATUS_LABEL_KEY.active, bg: "rgba(255,255,255,0.04)", color: HQ.inkMuted };
 }
 
 function derivePlan(r: PlatformUserRow): string | null {
@@ -151,6 +182,7 @@ function Th({
 }
 
 export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
+  const t = useT();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter | "all">("all");
   const [power, setPower] = useState<PowerFilter>("any");
@@ -374,103 +406,27 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
           marginBottom: 8,
         }}
       >
-        <button
-          onClick={() => applyChip("unclaimed")}
-          style={{
-            ...chipButtonStyle,
-            ...(isChipActive("unclaimed")
-              ? {
-                  background: HQ.cardSoft,
-                  border: `1px solid ${HQ.green}`,
-                  color: HQ.ink,
-                }
-              : {}),
-          }}
-        >
-          Unclaimed talents
-        </button>
-        <button
-          onClick={() => applyChip("suspended")}
-          style={{
-            ...chipButtonStyle,
-            ...(isChipActive("suspended")
-              ? {
-                  background: HQ.cardSoft,
-                  border: `1px solid ${HQ.green}`,
-                  color: HQ.ink,
-                }
-              : {}),
-          }}
-        >
-          Suspended
-        </button>
-        <button
-          onClick={() => applyChip(undefined, "unconfirmed")}
-          style={{
-            ...chipButtonStyle,
-            ...(isChipActive(undefined, "unconfirmed")
-              ? {
-                  background: HQ.cardSoft,
-                  border: `1px solid ${HQ.green}`,
-                  color: HQ.ink,
-                }
-              : {}),
-          }}
-        >
-          Unconfirmed email
-        </button>
-        <button
-          onClick={() => applyChip("test")}
-          style={{
-            ...chipButtonStyle,
-            ...(isChipActive("test")
-              ? {
-                  background: HQ.cardSoft,
-                  border: `1px solid ${HQ.green}`,
-                  color: HQ.ink,
-                }
-              : {}),
-          }}
-        >
-          Test accounts
-        </button>
-        <button
-          onClick={() => applyChip(undefined, undefined, "admin")}
-          style={{
-            ...chipButtonStyle,
-            ...(isChipActive(undefined, undefined, "admin")
-              ? {
-                  background: HQ.cardSoft,
-                  border: `1px solid ${HQ.green}`,
-                  color: HQ.ink,
-                }
-              : {}),
-          }}
-        >
-          Workspace operators
-        </button>
-        <button
-          onClick={() => applyChip(undefined, undefined, "admin", "talent")}
-          style={{
-            ...chipButtonStyle,
-            ...(isChipActive(undefined, undefined, "admin", "talent")
-              ? {
-                  background: HQ.cardSoft,
-                  border: `1px solid ${HQ.blue}`,
-                  color: HQ.ink,
-                }
-              : {}),
-          }}
-        >
-          Talent admins
-        </button>
-        <button
-          title="Stripe data coming soon"
-          style={{
-            ...chipButtonStyle,
-          }}
-        >
-          Stripe connected
+        {([
+          { key: "unclaimedTalents", active: isChipActive("unclaimed"), onClick: () => applyChip("unclaimed"), accent: HQ.green },
+          { key: "suspended", active: isChipActive("suspended"), onClick: () => applyChip("suspended"), accent: HQ.green },
+          { key: "unconfirmedEmail", active: isChipActive(undefined, "unconfirmed"), onClick: () => applyChip(undefined, "unconfirmed"), accent: HQ.green },
+          { key: "testAccounts", active: isChipActive("test"), onClick: () => applyChip("test"), accent: HQ.green },
+          { key: "workspaceOperators", active: isChipActive(undefined, undefined, "admin"), onClick: () => applyChip(undefined, undefined, "admin"), accent: HQ.green },
+          { key: "talentAdmins", active: isChipActive(undefined, undefined, "admin", "talent"), onClick: () => applyChip(undefined, undefined, "admin", "talent"), accent: HQ.blue },
+        ] as const).map((chip) => (
+          <button
+            key={chip.key}
+            onClick={chip.onClick}
+            style={{
+              ...chipButtonStyle,
+              ...(chip.active ? { background: HQ.cardSoft, border: `1px solid ${chip.accent}`, color: HQ.ink } : {}),
+            }}
+          >
+            {t(`dashboard.platform.users.chips.${chip.key}`)}
+          </button>
+        ))}
+        <button title={t("dashboard.platform.users.chips.stripeSoon")} style={{ ...chipButtonStyle }}>
+          {t("dashboard.platform.users.chips.stripeConnected")}
         </button>
       </div>
 
@@ -486,7 +442,7 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
       >
         <input
           type="search"
-          placeholder="Search name, email, workspace…"
+          placeholder={t("dashboard.platform.users.filters.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
@@ -500,67 +456,67 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
           onChange={(e) => setTypeFilter(e.target.value as TypeFilter | "all")}
           style={selectStyle}
         >
-          <option value="all">All types</option>
-          <option value="talent">Talent</option>
-          <option value="client">Client</option>
-          <option value="staff">Staff</option>
-          <option value="super_admin">Super-admin</option>
+          <option value="all">{t("dashboard.platform.users.filters.allTypes")}</option>
+          <option value="talent">{t("dashboard.platform.role.talent")}</option>
+          <option value="client">{t("dashboard.platform.users.type.client")}</option>
+          <option value="staff">{t("dashboard.platform.users.type.staff")}</option>
+          <option value="super_admin">{t("dashboard.platform.users.type.super_admin")}</option>
         </select>
         <select
           value={power}
           onChange={(e) => setPower(e.target.value as PowerFilter)}
           style={selectStyle}
         >
-          <option value="any">Workspace power: any</option>
-          <option value="admin">Owner / admin somewhere</option>
-          <option value="member">Member only</option>
-          <option value="none">No workspace</option>
+          <option value="any">{t("dashboard.platform.users.filters.powerAny")}</option>
+          <option value="admin">{t("dashboard.platform.users.filters.powerAdmin")}</option>
+          <option value="member">{t("dashboard.platform.users.filters.powerMember")}</option>
+          <option value="none">{t("dashboard.platform.users.filters.powerNone")}</option>
         </select>
         <select
           value={emailFilter}
           onChange={(e) => setEmailFilter(e.target.value as EmailFilter)}
           style={selectStyle}
         >
-          <option value="all">Email: any</option>
-          <option value="unconfirmed">Email: unconfirmed</option>
+          <option value="all">{t("dashboard.platform.users.filters.emailAny")}</option>
+          <option value="unconfirmed">{t("dashboard.platform.users.filters.emailUnconfirmed")}</option>
         </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
           style={selectStyle}
         >
-          <option value="any">Any status</option>
-          <option value="claimed">Claimed</option>
-          <option value="unclaimed">Unclaimed</option>
-          <option value="suspended">Suspended</option>
-          <option value="test">Test</option>
+          <option value="any">{t("dashboard.platform.users.filters.statusAny")}</option>
+          <option value="claimed">{t("dashboard.platform.users.filters.statusClaimed")}</option>
+          <option value="unclaimed">{t("dashboard.platform.users.filters.statusUnclaimed")}</option>
+          <option value="suspended">{t("dashboard.platform.users.filters.statusSuspended")}</option>
+          <option value="test">{t("dashboard.platform.users.filters.statusTest")}</option>
         </select>
         <select
           value={originFilter}
           onChange={(e) => setOriginFilter(e.target.value as OriginFilter)}
           style={selectStyle}
         >
-          <option value="any">Any origin</option>
-          <option value="agency">Agency-added</option>
-          <option value="studio">Studio-added</option>
-          <option value="platform">Platform-added</option>
-          <option value="self">Self-signup</option>
-          <option value="claim_invite">Claim invite</option>
+          <option value="any">{t("dashboard.platform.users.filters.originAny")}</option>
+          <option value="agency">{t("dashboard.platform.users.filters.originAgency")}</option>
+          <option value="studio">{t("dashboard.platform.users.filters.originStudio")}</option>
+          <option value="platform">{t("dashboard.platform.users.filters.originPlatform")}</option>
+          <option value="self">{t("dashboard.platform.users.filters.originSelf")}</option>
+          <option value="claim_invite">{t("dashboard.platform.users.filters.originClaimInvite")}</option>
         </select>
         <select
           value={planFilter}
           onChange={(e) => setPlanFilter(e.target.value as PlanFilter)}
           style={selectStyle}
         >
-          <option value="any">Any plan</option>
-          <option value="free">Free</option>
-          <option value="studio">Studio</option>
-          <option value="agency">Agency / Network</option>
+          <option value="any">{t("dashboard.platform.users.filters.planAny")}</option>
+          <option value="free">{t("dashboard.platform.users.filters.planFree")}</option>
+          <option value="studio">{t("dashboard.platform.users.filters.planStudio")}</option>
+          <option value="agency">{t("dashboard.platform.users.filters.planAgencyNetwork")}</option>
         </select>
       </div>
 
       <div style={{ fontSize: 11.5, color: HQ.inkDim, marginBottom: 8, fontFamily: HQ_F }}>
-        {filtered.length} of {rows.length} user{rows.length === 1 ? "" : "s"}
+        {interpolate(t(rows.length === 1 ? "dashboard.platform.users.table.countOne" : "dashboard.platform.users.table.countMany"), { filtered: filtered.length, total: rows.length })}
       </div>
 
       {/* Table */}
@@ -585,15 +541,15 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
           >
             <thead>
               <tr style={{ borderBottom: `1px solid ${HQ.border}` }}>
-                <Th label="Name" column="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Email" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Status" column="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Plan" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Type" column="type" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Workspaces" column="workspaces" align="right" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Sites" column="sites" align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Last seen" column="lastSeen" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
-                <Th label="Joined" column="joined" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colName")} column="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colEmail")} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colStatus")} column="status" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colPlan")} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colType")} column="type" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colWorkspaces")} column="workspaces" align="right" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colSites")} column="sites" align="right" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colLastSeen")} column="lastSeen" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                <Th label={t("dashboard.platform.users.table.colJoined")} column="joined" lo sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody>
@@ -609,13 +565,13 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                     }}
                   >
                     {rows.length === 0
-                      ? "No users found."
-                      : "No users match these filters."}
+                      ? t("dashboard.platform.users.table.emptyNoUsers")
+                      : t("dashboard.platform.users.table.emptyNoMatch")}
                   </td>
                 </tr>
               ) : (
                 filtered.map((r) => {
-                  const t = classifyType(r.appRole);
+                  const typeKey = classifyType(r.appRole);
                   return (
                     <tr
                       key={r.id}
@@ -650,9 +606,9 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                                 textTransform: "uppercase",
                                 borderRadius: 999,
                               }}
-                              title="Talent profile not yet claimed by a logged-in user"
+                              title={t("dashboard.platform.users.table.unclaimedTitle")}
                             >
-                              unclaimed
+                              {t("dashboard.platform.users.table.unclaimedBadge")}
                             </span>
                           )}
                         </div>
@@ -684,13 +640,13 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                                   borderRadius: 999,
                                 }}
                               >
-                                unconfirmed
+                                {t("dashboard.platform.users.table.unconfirmedBadge")}
                               </span>
                             )}
                           </>
                         ) : (
                           <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
-                            no login
+                            {t("dashboard.platform.users.table.noLogin")}
                           </span>
                         )}
                       </td>
@@ -699,7 +655,7 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                           const status = deriveStatus(r);
                           return (
                             <Chip bg={status.bg} color={status.color}>
-                              {status.label}
+                              {t(status.labelKey)}
                             </Chip>
                           );
                         })()}
@@ -708,14 +664,14 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                         {(() => {
                           const plan = derivePlan(r);
                           return plan ? (
-                            <PlanChip plan={plan} />
+                            <PlanChip plan={plan} label={planTierLabel(plan, t)} />
                           ) : (
                             <span style={{ color: HQ.inkDim }}>—</span>
                           );
                         })()}
                       </td>
                       <td style={{ padding: "10px 12px" }}>
-                        <TypeChip type={t} />
+                        <TypeChip type={typeKey} label={t(TYPE_LABEL_KEY[typeKey] ?? TYPE_LABEL_KEY.client)} />
                       </td>
                       <td
                         style={{
@@ -740,9 +696,9 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                                   letterSpacing: 0.4,
                                   textTransform: "uppercase",
                                 }}
-                                title={`${r.workspaceAdminCount} as owner/admin`}
+                                title={interpolate(t("dashboard.platform.users.table.adminTitle"), { count: r.workspaceAdminCount })}
                               >
-                                {r.workspaceAdminCount} admin
+                                {interpolate(t("dashboard.platform.users.table.adminSuffix"), { count: r.workspaceAdminCount })}
                               </span>
                             )}
                           </>
@@ -756,11 +712,7 @@ export function UsersClient({ rows }: { rows: PlatformUserRow[] }) {
                           color: HQ.inkMuted,
                           fontVariantNumeric: "tabular-nums",
                         }}
-                        title={
-                          r.tenantCount === 0
-                            ? "Not a member of any workspace or hub"
-                            : `${r.workspaceCount} workspace${r.workspaceCount === 1 ? "" : "s"} · ${r.hubCount} hub${r.hubCount === 1 ? "" : "s"}`
-                        }
+                        title={tenantCountTitle(r, t)}
                       >
                         {r.tenantCount === 0 ? (
                           <span style={{ color: HQ.inkDim }}>—</span>

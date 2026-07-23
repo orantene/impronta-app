@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -38,7 +39,7 @@ function OnboardingTopBar() {
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:h-[72px] sm:px-8">
         <Link
           href="/"
-          aria-label="Tulala — home"
+          aria-label="Tulala home"
           className="inline-flex items-baseline leading-none"
           style={{ color: "var(--plt-ink)" }}
         >
@@ -80,7 +81,9 @@ function OnboardingFooter() {
           className="text-[0.75rem]"
           style={{ color: "var(--plt-muted)" }}
         >
-          © {new Date().getFullYear()} Tulala. The talent business platform.
+          {/* Same copyright line as the marketing footer's bottom rail; the
+              category message lives in the logo lockup only. */}
+          © {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {PLATFORM_BRAND.positioning}
         </p>
         <div className="flex items-center gap-5 text-[0.75rem]">
           <Link

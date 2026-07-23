@@ -18,8 +18,9 @@
  *   - Reads slots from EditContext, flattens them in slot-def order.
  *   - Selecting a row → `setSelectedSectionId` (matches canvas selection).
  *   - Drag-reorder → `moveSectionTo` (existing CAS-safe action).
- *   - Footer "Page setup" → `openPageSettings` (SEO / URL / social — not workspace settings).
- *   - Footer Theme button → `openTheme` (Phase 5 ThemeDrawer).
+ *   - Footer Theme button → `openTheme` (Phase 5 ThemeDrawer). Page Settings is
+ *     no longer launched from here (W2-C3) — its single home is the topbar
+ *     publish menu.
  *
  * Visibility toggle:
  *   Wires through `setSectionVisibility(sectionId, "hidden" | "always")`
@@ -277,7 +278,6 @@ export function NavigatorPanel() {
     getCopiedBuilderNodePastePreview,
     removeBuilderNode,
     duplicateSection,
-    openPageSettings,
     openTheme,
     canEditSiteShell,
     surfaceKind,
@@ -1324,7 +1324,7 @@ export function NavigatorPanel() {
             "Performance issues detected:\n" +
             builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
           }
-          aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected — hover for details`}
+          aria-label={`${builderPerformanceIssues.length} performance ${builderPerformanceIssues.length === 1 ? "issue" : "issues"} detected, hover for details`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -1351,7 +1351,7 @@ export function NavigatorPanel() {
             "Performance hints:\n" +
             builderPerformanceIssues.map((issue) => `• ${issue.message}`).join("\n")
           }
-          aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"} — hover for details`}
+          aria-label={`${builderPerformanceIssues.length} builder ${builderPerformanceIssues.length === 1 ? "hint" : "hints"}, hover for details`}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -1370,7 +1370,7 @@ export function NavigatorPanel() {
   const navigatorResizeHandle = (
     <div
       role="separator"
-      aria-label="Resize navigator"
+      aria-label={t("Resize navigator")}
       aria-orientation="vertical"
       aria-valuemin={NAVIGATOR_MIN_WIDTH}
       aria-valuemax={NAVIGATOR_MAX_WIDTH}
@@ -1461,7 +1461,7 @@ export function NavigatorPanel() {
   const navigatorTabs = (
     <div
       role="radiogroup"
-      aria-label="Layers view mode"
+      aria-label={t("Layers view mode")}
       style={{
         display: "inline-flex",
         alignSelf: "stretch",
@@ -1474,18 +1474,18 @@ export function NavigatorPanel() {
         const active = viewMode === mode;
         const isPrimary = mode === "sections";
         const displayLabel =
-          mode === "sections" ? "Layers" : mode === "outline" ? "Outline" : "Classes";
+          mode === "sections" ? t("Layers") : mode === "outline" ? t("Outline") : t("Classes");
         const description =
           mode === "sections"
-            ? "Every block on the page, in order"
+            ? t("Every block on the page, in order")
             : mode === "outline"
-              ? "Just the headings, as a document outline"
-              : "Reusable style classes you can apply across blocks";
+              ? t("Just the headings, as a document outline")
+              : t("Reusable style classes you can apply across blocks");
         return mode === "outline" ? (
           <BuilderCoachmarkTip
             key={mode}
             id="outline-tab"
-            message="Outline shows just the headings — jump through long pages faster."
+            message={t("Outline shows just the headings. Jump through long pages faster.")}
             placement="below"
             wrapperStyle={{ flex: isPrimary ? 1.25 : 1, display: "inline-flex" }}
           >
@@ -1493,7 +1493,7 @@ export function NavigatorPanel() {
               type="button"
               role="radio"
               aria-checked={active}
-              aria-label={`${displayLabel} — ${description}`}
+              aria-label={`${displayLabel}: ${description}`}
               title={description}
               onClick={() => setViewMode(mode)}
               style={{
@@ -1524,7 +1524,7 @@ export function NavigatorPanel() {
             type="button"
             role="radio"
             aria-checked={active}
-            aria-label={`${displayLabel} — ${description}`}
+            aria-label={`${displayLabel}: ${description}`}
             title={description}
             onClick={() => setViewMode(mode)}
             style={{
@@ -1552,7 +1552,11 @@ export function NavigatorPanel() {
     </div>
   );
 
-  const navigatorFooter = (
+  // W2-C3: the footer "Page setup" shortcut was one of three Page Settings
+  // entry points — it is removed here so Page Settings has a single home in the
+  // topbar publish menu. Only the shell-surface Theme shortcut remains, so the
+  // whole footer collapses away on non-shell surfaces.
+  const navigatorFooter = canEditSiteShell ? (
     <div
       style={{
         borderTop: `1px solid ${CHROME.line}`,
@@ -1570,32 +1574,24 @@ export function NavigatorPanel() {
           marginBottom: 6,
         }}
       >
-        Page
+        Design
       </div>
       <div className="flex gap-1.5">
-        <FooterShortcut
-          onClick={openPageSettings}
-          title="Page setup — title, SEO, social preview, URL"
-        >
-          Page setup
+        <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
+          Theme
         </FooterShortcut>
-        {canEditSiteShell ? (
-          <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
-            Theme
-          </FooterShortcut>
-        ) : null}
       </div>
     </div>
-  );
+  ) : null;
 
   return (
     <DockFloatingPanel
       panelId="navigator"
-      title="Page Structure"
+      title={t("Structure")}
       titleId="structure-navigator-label"
       open={navigatorOpen}
       onClose={toggleNavigator}
-      closeAriaLabel="Close Page Structure"
+      closeAriaLabel={t("Close Structure")}
       width={navigatorWidth}
       testId="navigator-panel"
       dataEditOverlay="navigator-panel"
@@ -1642,10 +1638,10 @@ export function NavigatorPanel() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder={
               viewMode === "outline"
-                ? "Search headings…"
+                ? t("Search headings…")
                 : viewMode === "classes"
-                  ? "Search classes…"
-                  : "Search layers…"
+                  ? t("Search classes…")
+                  : t("Search layers…")
             }
             style={{
               width: "100%",
@@ -1901,8 +1897,8 @@ export function NavigatorPanel() {
             >
               <button
                 type="button"
-                title="Expand all nested blocks"
-                aria-label="Expand all nested blocks"
+                title={t("Expand all nested blocks")}
+                aria-label={t("Expand all nested blocks")}
                 disabled={allLayeredSectionsExpanded}
                 data-navigator-expand-all=""
                 onClick={expandAllLayeredSections}
@@ -1954,8 +1950,8 @@ export function NavigatorPanel() {
               </button>
               <button
                 type="button"
-                title="Collapse all nested blocks"
-                aria-label="Collapse all nested blocks"
+                title={t("Collapse all nested blocks")}
+                aria-label={t("Collapse all nested blocks")}
                 disabled={!hasExpandedLayeredSection}
                 data-navigator-collapse-all=""
                 onClick={collapseAllLayeredSections}
@@ -2009,8 +2005,8 @@ export function NavigatorPanel() {
           ) : null}
           <button
             type="button"
-            title="Add a section"
-            aria-label="Add a section"
+            title={t("Add a section")}
+            aria-label={t("Add a section")}
             onClick={() => toggleAddMenu()}
             style={{
               marginLeft: hasLayeredSections ? 0 : "auto",
@@ -2135,7 +2131,7 @@ export function NavigatorPanel() {
                   lineHeight: 1.45,
                 }}
               >
-                No sections on this page yet. Open Add gallery — new blocks appear here and on the canvas.
+                No sections on this page yet. Open Add gallery, new blocks appear here and on the canvas.
               </div>
               <button
                 type="button"
@@ -3368,10 +3364,10 @@ function VisibilityEye({
   const partial =
     visibility === "desktop-only" || visibility === "mobile-only";
   const titleText = hidden
-    ? "Hidden on every breakpoint — click to show"
+    ? "Hidden on every breakpoint, click to show"
     : partial
       ? `Visible on ${visibility === "desktop-only" ? "desktop" : "mobile"} only`
-      : "Visible everywhere — click to hide";
+      : "Visible everywhere, click to hide";
   // Match NodeInlineActionButton exactly so the eye reads as the same kind of
   // button as its neighbours. (Earlier bug: a white icon for `selected` rows —
   // invisible now that the eye sits in a light action chip. Never white.)
@@ -3646,6 +3642,7 @@ function NodeInsertMenu({
   onInsertSectionEmbed: (sectionTypeKey: string) => Promise<void>;
   onDismiss: () => void;
 }) {
+  const { t } = useEditorLocale();
   if (!targetKey || !target || target.key !== targetKey) {
     return null;
   }
@@ -3701,7 +3698,7 @@ function NodeInsertMenu({
         </div>
         <button
           type="button"
-          aria-label="Close add block menu"
+          aria-label={t("Close add block menu")}
           onClick={onDismiss}
           style={{
             width: 18,
@@ -3934,7 +3931,7 @@ function OutlineTree({
                 background: selected
                   ? "rgba(255,255,255,0.18)"
                   : node.level === 1
-                    ? "rgba(180, 83, 9, 0.10)" // amber tint for the page H1
+                    ? "rgba(58, 123, 255, 0.10)" // cool attention tint for the page H1 (no gold/rust)
                     : CHROME.paper2,
                 color: selected
                   ? "rgba(255,255,255,0.92)"
@@ -4073,6 +4070,7 @@ function ClassManagerPanel({
   /** Jump the canvas selection to block(s) linked to this class. */
   onFocusClass: (classId: string) => void;
 }) {
+  const { t } = useEditorLocale();
   const [classes, setClasses] = useState<ReadonlyArray<BuilderStyleClass>>([]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -4232,7 +4230,7 @@ function ClassManagerPanel({
             data-builder-class-row={klass.id}
             role="button"
             tabIndex={isRenaming ? -1 : 0}
-            aria-label={`${klass.name} — ${count} block${count === 1 ? "" : "s"}. Click to select on canvas.`}
+            aria-label={`${klass.name}: ${count} block${count === 1 ? "" : "s"}. Click to select on canvas.`}
             onClick={() => {
               if (isRenaming) return;
               onFocusClass(klass.id);
@@ -4373,8 +4371,8 @@ function ClassManagerPanel({
             {isRenaming ? (
               <button
                 type="button"
-                title="Cancel rename"
-                aria-label="Cancel rename"
+                title={t("Cancel rename")}
+                aria-label={t("Cancel rename")}
                 onClick={cancelRename}
                 style={{
                   flexShrink: 0,

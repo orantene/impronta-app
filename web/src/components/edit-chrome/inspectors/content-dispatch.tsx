@@ -24,6 +24,7 @@ import { useMemo, type ComponentType } from "react";
 
 import { useEditContext } from "../edit-context";
 import { useBuilderTree } from "../builder-tree-bridge";
+import { useEditorLocale } from "../use-editor-locale";
 import { InspectorNotice } from "./kit";
 import { BuilderNodeContentInspector } from "./builder-node-content";
 import { resolveStandaloneBuilderNodeForContent } from "./builder-node-content-utils";
@@ -73,6 +74,7 @@ export function ContentTab({
   onChange,
 }: ContentTabProps) {
   const { device } = useEditContext();
+  const { t } = useEditorLocale();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
   const selectedStandaloneBuilderNode = useMemo(
@@ -98,8 +100,9 @@ export function ContentTab({
       <>
         {device !== "desktop" ? (
           <InspectorNotice tone="info">
-            Content fields without breakpoint overrides show desktop values on{" "}
-            {device === "tablet" ? "Tablet" : "Mobile"}. Use the viewport rail to hide this section on a device.
+            {t("Content fields without breakpoint overrides show desktop values on")}{" "}
+            {device === "tablet" ? t("Tablet") : t("Mobile")}.{" "}
+            {t("Use the viewport rail to hide this section on a device.")}
           </InspectorNotice>
         ) : null}
         <Curated

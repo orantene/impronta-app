@@ -55,7 +55,7 @@ type BenefitMatrix = {
 const TIER_BENEFITS: Record<PlanTier, BenefitMatrix> = {
   free: {
     enrollment:     "Talent opt-in (default off)",
-    placement:      "Basic — sorted by trust + activity",
+    placement:      "Basic · sorted by trust + activity",
     analyticsWindow: "7-day rolling window",
     bulkTools:      "Not included",
     priority:       "No priority placement",
@@ -63,7 +63,7 @@ const TIER_BENEFITS: Record<PlanTier, BenefitMatrix> = {
   },
   studio: {
     enrollment:     "Default-enroll option for new roster talent",
-    placement:      "Standard — sorted by trust + activity",
+    placement:      "Standard · sorted by trust + activity",
     analyticsWindow: "30-day rolling window",
     bulkTools:      "Bulk enroll / pause / boost",
     priority:       "No priority placement",
@@ -71,7 +71,7 @@ const TIER_BENEFITS: Record<PlanTier, BenefitMatrix> = {
   },
   agency: {
     enrollment:     "Default-enroll for new roster talent",
-    placement:      "Priority — featured placement slots in regional results",
+    placement:      "Priority · featured placement slots in regional results",
     analyticsWindow: "90-day rolling window + saved cohorts",
     bulkTools:      "Bulk enroll / pause / boost / saved searches",
     priority:       "Priority placement",
@@ -172,7 +172,7 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
           Discover settings
         </h1>
         <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 6, lineHeight: 1.5, maxWidth: 600 }}>
-          Tulala Discover is the buyer-side power tool for clients —
+          Tulala Discover is the client-side power tool for clients:
           cross-tenant catalog, shortlists, compare view, and direct
           inquiries. Your talent appears here when they opt in (and your
           plan supports the enrollment shape below).

@@ -55,6 +55,7 @@ import {
 import {
   collectFreePlanPublishNestedViolations,
 } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
+import { collectMobileOverflowPreflightIssues } from "./publish-preflight-mobile-overflow";
 import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder-node/element-library-policy";
 import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
@@ -80,9 +81,16 @@ export interface PreflightIssue {
     | "link_integrity"
     | "seo"
     | "layout"
+    | "mobile_overflow"
     | "performance";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
+  /**
+   * Optional builder node id for node-level click-to-locate in the drawer
+   * (W3-M1 mobile overflow blockers point at the exact offending block via
+   * `locateCanvasNode`, more precise than the section-level focus).
+   */
+  nodeId?: string;
   message: string;
 }
 
@@ -472,6 +480,21 @@ export async function runPublishPreflight(input?: {
               ? `${finding.nodeKind} ${finding.nodeId}: ${finding.message} Resolve this layout issue before publish.`
               : `${finding.nodeKind} ${finding.nodeId}: ${finding.message}`,
           });
+        }
+
+        // W3-M1 — mobile horizontal overflow is a publish-BLOCKING error, not a
+        // shipped advisory. A block whose resolved fixed width/min-width on the
+        // mobile breakpoint exceeds the narrowest viewport (e.g. a
+        // `width: 1120px` container inside a ~390px frame) forces a horizontal
+        // scrollbar on phones — that page cannot go live until it's fixed. The
+        // offending node id rides along so the drawer can point straight at it
+        // (and the W3-M3 AI fixer can target it). The softer "likely overflow"
+        // heuristics (multi-column grids, non-collapsing splits) stay advisory
+        // in MobileHealthPanel and are intentionally NOT promoted here.
+        for (const overflowIssue of collectMobileOverflowPreflightIssues(
+          validation.tree,
+        )) {
+          issues.push(overflowIssue);
         }
 
         if (

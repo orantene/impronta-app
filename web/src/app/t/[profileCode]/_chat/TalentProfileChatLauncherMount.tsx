@@ -28,14 +28,18 @@
  */
 
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import { surfaceModeFromBackgroundMode } from "./mini-chat-styles";
 import { createTranslator } from "@/i18n/messages";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
   resolveLauncherLifecycleInputs,
 } from "./launcher-lifecycle-inputs";
 // Real Lane A server actions (the build stub was removed at integration). These
 // match the contract callbacks 1:1, so they pass straight into the launcher.
 import {
+  attachOfferingToGuestInquiry,
   getActiveGuestInquiry,
   getGuestThreadMessages,
   sendGuestClaimToEmail,
@@ -55,6 +59,7 @@ import {
   resolveGuestCartPortraits,
 } from "@/app/t/[profileCode]/_actions/guest-roster-actions";
 import { ensureGuestChatInquiry } from "@/app/t/[profileCode]/_actions/guest-chat-actions";
+import { scanGuestConversationForDetails } from "@/app/t/[profileCode]/_actions/guest-conversation-scan-action";
 
 type TalentProfileChatLauncherMountProps = {
   /** talent_profiles.id — the single talent the guest is messaging (MVP). */
@@ -111,6 +116,14 @@ export async function TalentProfileChatLauncherMount({
   // Guest chat only makes sense on an agency surface (the thread is tenant-owned).
   if (!tenantSlug) return null;
 
+  // P2 chrome hygiene — defense-in-depth mirror of AgencyChatLauncherMount's
+  // edit-mode gate. EditChromeMount currently never mounts on `/t/` profile
+  // paths (see NON_STOREFRONT_PREFIXES in edit-chrome-mount.tsx), so this is
+  // a no-op today, but the launcher shouldn't rely on that exclusion staying
+  // true forever — the tenant-scoped edit cookie is the single source of
+  // truth for "the builder canvas is active", so check it here too.
+  if (tenantId && (await isEditModeActiveForTenant(tenantId))) return null;
+
   const t = createTranslator(locale ?? "en");
 
   // Returning-guest resume (B1): reopen the live thread from the cookie instead
@@ -125,6 +138,43 @@ export async function TalentProfileChatLauncherMount({
     tenantSlug,
     activeInquiryId: active?.inquiryId ?? null,
   });
+
+  // W2-B — the talent's published services as in-chat request chips. Talents
+  // with none get a single "Custom quote" default so EVERY talent is
+  // requestable from the chat.
+  const publicOfferings = await loadPublicOfferingsForProfile(talentProfileId, locale ?? "en");
+  const chatOfferings: GuestChatOffering[] =
+    publicOfferings.length > 0
+      ? publicOfferings.slice(0, 8).map((o) => ({
+          offeringId: o.id,
+          talentProfileId: o.talentProfileId,
+          title: o.title,
+          kind: o.kind,
+          priceType: o.priceType,
+          amountCents: o.visibility === "on_request" ? null : o.amountCents,
+          currency: o.currency,
+          durationMinutes: o.durationMinutes,
+          allowPayInPerson: o.allowPayInPerson,
+          reserveMode: o.reserveMode,
+          depositPct: o.depositPct,
+          imageUrl: o.imageUrls[0] ?? null,
+        }))
+      : [
+          {
+            offeringId: "default-custom-quote",
+            talentProfileId,
+            title: t("public.guestChat.customQuoteChip"),
+            kind: "service",
+            priceType: "custom",
+            amountCents: null,
+            currency: "USD",
+            durationMinutes: null,
+            allowPayInPerson: false,
+            reserveMode: "full",
+            depositPct: null,
+            imageUrl: null,
+          },
+        ];
 
   return (
     <TalentProfileChatLauncher
@@ -144,7 +194,10 @@ export async function TalentProfileChatLauncherMount({
       label={t("public.guestChat.bookNow")}
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
       existingInquiryId={active?.inquiryId ?? null}
+      existingContactPromoted={active?.contactPromoted ?? null}
       prefill={active?.prefill ?? null}
+      offerings={chatOfferings}
+      onAttachOffering={attachOfferingToGuestInquiry}
       onStartInquiry={startGuestChatInquiry}
       onSendMessage={sendGuestMessageAction}
       fetchMessages={getGuestThreadMessages}
@@ -156,6 +209,7 @@ export async function TalentProfileChatLauncherMount({
       onLoadDetails={getGuestInquiryDetails}
       onListRoster={listGuestTenantRoster}
       onResolveCartPortraits={resolveGuestCartPortraits}
+      onScanConversation={scanGuestConversationForDetails}
       soundOnReply
       openFullHref={openFullHref}
       surfaceMode={surfaceModeFromBackgroundMode(backgroundMode)}

@@ -37,12 +37,15 @@ import {
   useQueuedRouterRefresh,
   useSaveAndClose
 } from "./drawer-shared";
+import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 5 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
 
 export function InquiryPeekDrawer() {
   const { state, closeDrawer, effectiveMessagesInquiries } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const id = state.drawer.payload?.id as string | undefined;
   // Bridge path: adapt RichInquiry → old Inquiry shape used by this drawer.
   const richSource = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
@@ -65,7 +68,7 @@ export function InquiryPeekDrawer() {
       }
     : (getInquiries(state.plan).find((i) => i.id === id) ?? getInquiries(state.plan)[0]);
   const canEdit = meetsRole(state.role, "manager");
-  const onSend = useSaveAndClose("Offer sent to client");
+  const onSend = useSaveAndClose(tt("Offer sent to client"));
 
   return (
     <DrawerShell
@@ -77,27 +80,27 @@ export function InquiryPeekDrawer() {
       footer={
         canEdit ? (
           <>
-            <SecondaryButton onClick={closeDrawer}>Save draft</SecondaryButton>
-            <PrimaryButton onClick={onSend}>Send offer</PrimaryButton>
+            <SecondaryButton onClick={closeDrawer}>{tt("Save draft")}</SecondaryButton>
+            <PrimaryButton onClick={onSend}>{tt("Send offer")}</PrimaryButton>
           </>
         ) : (
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Close")}</SecondaryButton>
         )
       }
     >
-      <Section title="At a glance">
+      <Section title={tt("At a glance")}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <SummaryTile label="Stage" value={<StageBadgeMini stage={inquiry.stage} />} />
-          <SummaryTile label="Amount" value={inquiry.amount ?? "—"} />
-          <SummaryTile label="Date" value={inquiry.date ?? "TBD"} />
-          <SummaryTile label="Age" value={`${inquiry.ageDays}d`} />
+          <SummaryTile label={tt("Stage")} value={<StageBadgeMini stage={inquiry.stage} />} />
+          <SummaryTile label={tt("Amount")} value={inquiry.amount ?? "—"} />
+          <SummaryTile label={tt("Date")} value={inquiry.date ?? tt("TBD")} />
+          <SummaryTile label={tt("Age")} value={`${inquiry.ageDays}d`} />
         </div>
       </Section>
 
       {/* Trust panel — coordinator sees both sides */}
       <InquiryTrustPanel clientName={inquiry.client} talentNames={inquiry.talent} />
 
-      <Section title="Talent on this inquiry">
+      <Section title={tt("Talent on this inquiry")}>
         <div className="flex flex-wrap gap-1.5">
           {inquiry.talent.map((t) => (
             <span
@@ -119,14 +122,14 @@ export function InquiryPeekDrawer() {
         </div>
       </Section>
 
-      <Section title="Brief">
+      <Section title={tt("Brief")}>
         <TextArea
           rows={4}
           defaultValue={`${inquiry.brief}\n\nUsage: digital + print, 6 months, EU territory. Half-day shoot.`}
         />
       </Section>
 
-      <Section title="Conversation">
+      <Section title={tt("Conversation")}>
         <div className="flex flex-col gap-2.5">
           <ConversationBubble who="Client" name={inquiry.client} when="2d ago" body={`Looking for a model for our ${inquiry.brief.toLowerCase()}. Open to suggestions.`} />
           <ConversationBubble who="You" name="Sara Bianchi" when="1d ago" body={`Sending you ${inquiry.talent[0]} — fits the brief. Rate quote attached.`} mine />
@@ -145,12 +148,14 @@ export function InquiryPeekDrawer() {
 
 export function NewInquiryDrawer() {
   const { closeDrawer } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="New inquiry"
-      description="Capture a lead from a client. Send an offer when ready."
+      title={tt("New inquiry")}
+      description={tt("Capture a lead from a client. Send an offer when ready.")}
       width={560}
     >
       <InquiryComposerLazyD
@@ -170,15 +175,17 @@ export function NewInquiryDrawer() {
 
 export function DayDetailDrawer() {
   const { state, closeDrawer, openDrawer, effectiveCalendarEvents, effectiveMessagesInquiries } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const dateStr: string = (state.drawer.payload as { date?: string })?.date ?? "";
 
   // Parse "YYYY-MM-DD" → human-readable label and month index
   const parts = dateStr.split("-");
   const displayLabel = dateStr
     ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])).toLocaleDateString(
-        "en-US", { weekday: "long", month: "long", day: "numeric" }
+        copy.isSpanish ? "es-ES" : "en-US", { weekday: "long", month: "long", day: "numeric" }
       )
-    : "Selected day";
+    : tt("Selected day");
 
   const displayMonth = dateStr ? parseInt(parts[1]) - 1 : -1;
   const displayDay   = dateStr ? parseInt(parts[2]) : -1;
@@ -240,22 +247,24 @@ export function DayDetailDrawer() {
       title={displayLabel}
       description={
         dayInquiries.length === 0
-          ? "Nothing scheduled — add a booking below."
-          : `${dayInquiries.length} ${dayInquiries.length === 1 ? "inquiry" : "inquiries"} scheduled.`
+          ? tt("Nothing scheduled. Add a booking below.")
+          : (copy.isSpanish
+              ? `${dayInquiries.length} ${dayInquiries.length === 1 ? "consulta programada" : "consultas programadas"}.`
+              : `${dayInquiries.length} ${dayInquiries.length === 1 ? "inquiry" : "inquiries"} scheduled.`)
       }
       footer={
         <>
-          <SecondaryButton onClick={() => openDrawer("new-booking")}>New booking</SecondaryButton>
-          <GhostButton onClick={closeDrawer}>Close</GhostButton>
+          <SecondaryButton onClick={() => openDrawer("new-booking")}>{tt("New booking")}</SecondaryButton>
+          <GhostButton onClick={closeDrawer}>{tt("Close")}</GhostButton>
         </>
       }
     >
       {dayInquiries.length === 0 ? (
         <EmptyState
           icon="calendar"
-          title="Nothing scheduled for this day"
-          body="Log a booking or block time using the buttons below."
-          primaryLabel="Log a booking"
+          title={tt("Nothing scheduled for this day")}
+          body={tt("Log a booking or block time using the buttons below.")}
+          primaryLabel={tt("Log a booking")}
           onPrimary={() => openDrawer("new-booking")}
           compact
         />
@@ -350,6 +359,8 @@ export function DayDetailDrawer() {
 
 export function NewBookingDrawer() {
   const { closeDrawer, toast } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const [title, setTitle] = useState("");
   const [clientName, setClientName] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -383,20 +394,20 @@ export function NewBookingDrawer() {
         await createManualBooking(fd);
         // If we got here without throwing, the action neither redirected
         // nor errored — treat as success. (Default codepath returns void.)
-        toast("Booking created");
+        toast(tt("Booking created"));
         closeDrawer();
       } catch (err) {
         const digest = (err as { digest?: unknown } | null)?.digest;
         const isNextRedirect =
           typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
         if (isNextRedirect) {
-          toast("Booking created");
+          toast(tt("Booking created"));
           closeDrawer();
           throw err; // Re-throw so Next.js can perform the redirect.
         }
         const message =
-          err instanceof Error && err.message ? err.message : "Could not create booking.";
-        toast(`Create failed: ${message}`);
+          err instanceof Error && err.message ? err.message : tt("Could not create booking.");
+        toast(`${tt("Create failed:")} ${message}`);
       }
     });
   };
@@ -405,48 +416,48 @@ export function NewBookingDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="New booking"
-      description="Skip the inquiry — log a confirmed job."
+      title={tt("New booking")}
+      description={tt("Skip the inquiry. Log a confirmed job.")}
       footer={
         <StandardFooter
           onSave={handleSubmit}
-          saveLabel={pending ? "Creating…" : "Create booking"}
+          saveLabel={pending ? tt("Creating…") : tt("Create booking")}
           disabled={!canSave || pending}
         />
       }
     >
-      <Section title="Details" framed>
-        <FieldRow label="Job title">
+      <Section title={tt("Details")} framed>
+        <FieldRow label={tt("Job title")}>
           <TextInput
-            placeholder="Vogue Italia — editorial"
+            placeholder={tt("Vogue Italia · editorial")}
             value={title}
             onChange={(e) => setTitle((e.target as HTMLInputElement).value)}
           />
         </FieldRow>
-        <FieldRow label="Client" optional>
+        <FieldRow label={tt("Client")} optional>
           <TextInput
             placeholder="Vogue Italia"
             value={clientName}
             onChange={(e) => setClientName((e.target as HTMLInputElement).value)}
           />
         </FieldRow>
-        <FieldRow label="Notes" optional>
+        <FieldRow label={tt("Notes")} optional>
           <TextInput
-            placeholder="Any internal notes…"
+            placeholder={tt("Any internal notes…")}
             value={notes}
             onChange={(e) => setNotes((e.target as HTMLInputElement).value)}
           />
         </FieldRow>
       </Section>
-      <Section title="When & where" framed>
-        <FieldRow label="Date" optional>
+      <Section title={tt("When & where")} framed>
+        <FieldRow label={tt("Date")} optional>
           <TextInput
             type="date"
             value={eventDate}
             onChange={(e) => setEventDate((e.target as HTMLInputElement).value)}
           />
         </FieldRow>
-        <FieldRow label="Location" optional>
+        <FieldRow label={tt("Location")} optional>
           <TextInput
             placeholder="Madrid · Studio 5"
             value={location}
@@ -462,11 +473,13 @@ export function NewBookingDrawer() {
 export function ClientProfileDrawer() {
   const queueRouterRefresh = useQueuedRouterRefresh();
   const { state, closeDrawer, toast, effectiveClients } = useAdminShell();
+  const copy = useDashboardText();
+  const tt = copy.t;
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
   const clientPool = effectiveClients.length > 0 ? effectiveClients : getClients(state.plan);
   const client = isNew ? null : clientPool.find((c) => c.id === id) ?? null;
-  const fallbackToast = useSaveAndClose(isNew ? "Client created" : "Client saved");
+  const fallbackToast = useSaveAndClose(isNew ? tt("Client created") : tt("Client saved"));
   const trust = client?.trust ?? "basic";
   const [pending, startTransition] = useTransition();
 
@@ -496,7 +509,7 @@ export function ClientProfileDrawer() {
 
   const onSave = () => {
     if (!name.trim()) {
-      toast("Add a name");
+      toast(tt("Add a name"));
       return;
     }
     startTransition(async () => {
@@ -517,9 +530,9 @@ export function ClientProfileDrawer() {
         fd.set("longitude", "");
         const result = await createClientAccount({}, fd);
         if (result && "error" in result && result.error) {
-          toast(`Save failed: ${result.error}`);
+          toast(`${tt("Save failed:")} ${result.error}`);
         } else {
-          toast("Client created");
+          toast(tt("Client created"));
           queueRouterRefresh();
           closeDrawer();
         }
@@ -542,9 +555,9 @@ export function ClientProfileDrawer() {
       fd.set("notes", [homeBase.trim(), notes.trim()].filter(Boolean).join(" · "));
       const result = await updateAdminClientProfile(undefined, fd);
       if (result && "error" in result && result.error) {
-        toast(`Save failed: ${result.error}`);
+        toast(`${tt("Save failed:")} ${result.error}`);
       } else {
-        toast("Client saved");
+        toast(tt("Client saved"));
         queueRouterRefresh();
         closeDrawer();
       }
@@ -554,57 +567,57 @@ export function ClientProfileDrawer() {
   // Industry options — the client equivalent of Talent Type. Drives
   // Discover matching ("hotels need …", "beach clubs need…").
   const INDUSTRIES = [
-    { id: "hotel",       label: "Hotel",         emoji: "🏨" },
-    { id: "beach_club",  label: "Beach club",    emoji: "🏖" },
-    { id: "restaurant",  label: "Restaurant",    emoji: "🍽" },
-    { id: "brand",       label: "Brand",         emoji: "🏷" },
-    { id: "agency",      label: "Agency",        emoji: "🎬" },
-    { id: "publication", label: "Publication",   emoji: "📰" },
-    { id: "venue",       label: "Venue · event", emoji: "🎉" },
-    { id: "personal",    label: "Personal",      emoji: "✨" },
+    { id: "hotel",       label: tt("Hotel"),         emoji: "🏨" },
+    { id: "beach_club",  label: tt("Beach club"),    emoji: "🏖" },
+    { id: "restaurant",  label: tt("Restaurant"),    emoji: "🍽" },
+    { id: "brand",       label: tt("Brand"),         emoji: "🏷" },
+    { id: "agency",      label: tt("Agency"),        emoji: "🎬" },
+    { id: "publication", label: tt("Publication"),   emoji: "📰" },
+    { id: "venue",       label: tt("Venue · event"), emoji: "🎉" },
+    { id: "personal",    label: tt("Personal"),      emoji: "✨" },
   ];
 
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title={isNew ? "Add client" : client?.name ?? "Client"}
+      title={isNew ? tt("Add client") : client?.name ?? tt("Client")}
       description={isNew
-        ? "Industry + home base first. Full profile builder opens after this step."
-        : `${client?.contact ?? ""} · ${client?.bookingsYTD ?? 0} bookings YTD`}
+        ? tt("Industry and home base first. Full profile builder opens after this step.")
+        : `${client?.contact ?? ""} · ${client?.bookingsYTD ?? 0} ${tt("bookings YTD")}`}
       toolbar={!isNew ? <ClientTrustChip level={trust} /> : undefined}
       footer={isNew ? (
         <>
-          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>{tt("Cancel")}</SecondaryButton>
           <PrimaryButton
             onClick={() => {
               if (!name.trim() || !industry) {
-                toast("Add at least a name + industry");
+                toast(tt("Add at least a name and industry"));
                 return;
               }
               onSave();
             }}
           >
-            Create client
+            {tt("Create client")}
           </PrimaryButton>
         </>
-      ) : <StandardFooter onSave={onSave} saveLabel="Save" />}
+      ) : <StandardFooter onSave={onSave} saveLabel={tt("Save")} />}
     >
       {/* New-client guided flow */}
       {isNew && (
         <>
-          <Section title="Display name" framed>
-            <FieldRow label="Client / brand name">
-              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Bvlgari · Mango · Martina Beach Club" />
+          <Section title={tt("Display name")} framed>
+            <FieldRow label={tt("Client / brand name")}>
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={tt("e.g. Bvlgari · Mango · Martina Beach Club")} />
             </FieldRow>
-            <FieldRow label="Primary contact" optional>
-              <TextInput value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Name · email" />
+            <FieldRow label={tt("Primary contact")} optional>
+              <TextInput value={contact} onChange={(e) => setContact(e.target.value)} placeholder={tt("Name · email")} />
             </FieldRow>
           </Section>
 
-          <Section title="Industry" framed>
+          <Section title={tt("Industry")} framed>
             <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Drives Discover matching, brief templates, and which talent gets recommended.
+              {tt("Drives Discover matching, brief templates, and which talent gets recommended.")}
             </div>
             <div className="flex flex-wrap gap-1.5">
               {INDUSTRIES.map((it) => {
@@ -637,21 +650,21 @@ export function ClientProfileDrawer() {
             </div>
           </Section>
 
-          <Section title="Home base" framed>
-            <FieldRow label="Where do they operate?">
-              <TextInput value={homeBase} onChange={(e) => setHomeBase(e.target.value)} placeholder="e.g. Tulum · Madrid · Global" />
+          <Section title={tt("Home base")} framed>
+            <FieldRow label={tt("Where do they operate?")}>
+              <TextInput value={homeBase} onChange={(e) => setHomeBase(e.target.value)} placeholder={tt("e.g. Tulum · Madrid · Global")} />
             </FieldRow>
             <div style={{ fontSize: 11.5, marginTop: -2, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Multiple regions can be set in the full profile builder.
+              {tt("Multiple regions can be set in the full profile builder.")}
             </div>
           </Section>
 
-          <Section title="How did this client come to you?">
+          <Section title={tt("How did this client come to you?")}>
             <div className="flex flex-col gap-2">
               {([
-                { id: "direct" as const,   title: "Direct inquiry",        desc: "Found you through your storefront or directory." },
-                { id: "referral" as const, title: "Referral / partner",     desc: "Recommended by another agency, talent, or peer." },
-                { id: "import" as const,   title: "Imported relationship",  desc: "Existing client moved over from another tool." },
+                { id: "direct" as const,   title: tt("Direct inquiry"),        desc: tt("Found you through your storefront or directory.") },
+                { id: "referral" as const, title: tt("Referral / partner"),     desc: tt("Recommended by another agency, talent, or peer.") },
+                { id: "import" as const,   title: tt("Imported relationship"),  desc: tt("Existing client moved over from another tool.") },
               ]).map((o) => {
                 const active = method === o.id;
                 return (
@@ -698,12 +711,12 @@ export function ClientProfileDrawer() {
             </div>
           </Section>
 
-          <Section title="Internal notes" framed>
+          <Section title={tt("Internal notes")} framed>
             <TextArea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Preferences, do-not-book talent, special pricing — visible to your team only."
+              placeholder={tt("Preferences, do-not-book talent, special pricing. Visible to your team only.")}
             />
           </Section>
         </>
@@ -711,19 +724,19 @@ export function ClientProfileDrawer() {
 
       {/* Existing-client edit view (unchanged behavior) */}
       {!isNew && (
-        <Section title="Identity">
-          <FieldRow label="Client name">
-            <TextInput defaultValue={client?.name ?? ""} placeholder="Brand or company" />
+        <Section title={tt("Identity")}>
+          <FieldRow label={tt("Client name")}>
+            <TextInput defaultValue={client?.name ?? ""} placeholder={tt("Brand or company")} />
           </FieldRow>
-          <FieldRow label="Primary contact">
-            <TextInput defaultValue={client?.contact ?? ""} placeholder="Name · email" />
+          <FieldRow label={tt("Primary contact")}>
+            <TextInput defaultValue={client?.contact ?? ""} placeholder={tt("Name · email")} />
           </FieldRow>
         </Section>
       )}
       {!isNew && (
         <Section
-          title="Trust level"
-          description="Driven by verification + funded-account events. Not editable by hand."
+          title={tt("Trust level")}
+          description={tt("Driven by verification and funded-account events. Not editable by hand.")}
         >
           <div
             style={{
@@ -747,22 +760,22 @@ export function ClientProfileDrawer() {
               {CLIENT_TRUST_META[trust].rationale}
             </p>
             <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-dim">
-              Tiers reflect real verification + funded-balance events on the
-              client side. Talent decide which tiers can reach them in their
-              contact preferences.
+              {tt("Tiers reflect real verification and funded-balance events on the client side. Talent decide which tiers can reach them in their contact preferences.")}
             </p>
           </div>
         </Section>
       )}
       {!isNew && (
-        <Section title="Recent bookings">
+        <Section title={tt("Recent bookings")}>
           <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, padding: 12, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink-muted">
-            {client?.bookingsYTD ? `${client.bookingsYTD} confirmed bookings this year.` : "No recent bookings."}
+            {client?.bookingsYTD
+              ? (copy.isSpanish ? `${client.bookingsYTD} reservas confirmadas este año.` : `${client.bookingsYTD} confirmed bookings this year.`)
+              : tt("No recent bookings.")}
           </div>
         </Section>
       )}
-      <Section title="Notes">
-        <TextArea rows={3} placeholder="Internal notes — preferences, do-not-book talent, special pricing." />
+      <Section title={tt("Notes")}>
+        <TextArea rows={3} placeholder={tt("Internal notes. Preferences, do-not-book talent, special pricing.")} />
       </Section>
     </DrawerShell>
   );

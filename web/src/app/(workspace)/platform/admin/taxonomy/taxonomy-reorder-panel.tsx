@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useT } from "@/i18n/use-t";
 import { reorderPlatformTaxonomySiblingsAction } from "./actions";
 
 type ReorderTerm = {
@@ -42,6 +43,7 @@ export function TaxonomyReorderPanel({
   selectedId: string;
   returnTerm: string;
 }) {
+  const t = useT();
   const [items, setItems] = useState(siblings);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const orderedIds = useMemo(() => JSON.stringify(items.map((item) => item.id)), [items]);
@@ -50,7 +52,7 @@ export function TaxonomyReorderPanel({
   if (siblings.length < 2) {
     return (
       <div style={{ color: colors.dim, fontSize: 12 }}>
-        This term has no sibling order to edit.
+        {t("dashboard.platform.taxonomy.reorderNoSiblings")}
       </div>
     );
   }
@@ -117,7 +119,7 @@ export function TaxonomyReorderPanel({
                   textTransform: "uppercase",
                 }}
               >
-                {inactive ? "inactive" : `#${term.sort_order}`}
+                {inactive ? t("dashboard.platform.taxonomy.reorderInactive") : `#${term.sort_order}`}
               </span>
             </div>
           );
@@ -138,7 +140,7 @@ export function TaxonomyReorderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Save order
+          {t("dashboard.platform.taxonomy.reorderSaveOrder")}
         </button>
         <button
           type="button"
@@ -155,10 +157,10 @@ export function TaxonomyReorderPanel({
             cursor: changed ? "pointer" : "not-allowed",
           }}
         >
-          Reset
+          {t("dashboard.platform.taxonomy.reorderReset")}
         </button>
         <span style={{ color: colors.dim, fontSize: 11.5 }}>
-          Drag a sibling, then save. Order writes to the canonical taxonomy tree.
+          {t("dashboard.platform.taxonomy.reorderHint")}
         </span>
       </div>
     </form>

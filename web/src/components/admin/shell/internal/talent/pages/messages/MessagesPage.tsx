@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useDashboardText } from "../../../dashboard-i18n";
 import { Avatar, ClientTrustBadge, EmptyState, Icon } from "../../../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell } from "../../../state";
 import { Virtuoso } from "react-virtuoso";
@@ -158,13 +159,14 @@ function ConversationList({
   onFilterChange: (f: "all" | "unread" | "inquiry" | "hold" | "booked" | "past") => void;
   totalUnread: number;
 }) {
+  const copy = useDashboardText();
   const filterChips: { id: typeof filter; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "unread", label: `Unread${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
-    { id: "inquiry", label: "Inquiry" },
-    { id: "hold", label: "Hold" },
-    { id: "booked", label: "Booked" },
-    { id: "past", label: "Past" },
+    { id: "all", label: copy.t("All") },
+    { id: "unread", label: `${copy.t("Unread")}${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
+    { id: "inquiry", label: copy.t("Inquiry") },
+    { id: "hold", label: copy.t("Hold") },
+    { id: "booked", label: copy.t("Booked") },
+    { id: "past", label: copy.t("Past") },
   ];
   return (
     <aside
@@ -181,10 +183,10 @@ function ConversationList({
       <div style={{ padding: "14px 14px 10px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
           <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0 }} className="text-admin-ink">
-            Messages
+            {copy.t("Messages")}
           </h2>
           <span className="text-admin-ink-muted text-admin-11h">
-            {conversations.length} thread{conversations.length === 1 ? "" : "s"}
+            {conversations.length} {conversations.length === 1 ? copy.t("thread") : copy.t("threads")}
           </span>
         </div>
         {/* Search */}
@@ -202,7 +204,7 @@ function ConversationList({
           <input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search clients, briefs…"
+            placeholder={copy.t("Search clients, briefs…")}
             style={{
               flex: 1,
               border: "none",
@@ -247,27 +249,27 @@ function ConversationList({
           {filter === "unread" ? (
             <EmptyState
               icon="sparkle"
-              title="Inbox zero ✨"
-              body="Everything's been answered. Nothing waiting on you right now."
-              primaryLabel="Show all threads"
+              title={copy.t("Inbox zero ✨")}
+              body={copy.t("Everything's been answered. Nothing waiting on you right now.")}
+              primaryLabel={copy.t("Show all threads")}
               onPrimary={() => onFilterChange("all")}
               compact
             />
           ) : search.trim() ? (
             <EmptyState
               icon="search"
-              title="No matches"
-              body={`Nothing for "${search.trim()}". Try fewer words.`}
-              primaryLabel="Clear search"
+              title={copy.t("No matches")}
+              body={`${copy.t("Nothing for")} "${search.trim()}". ${copy.t("Try fewer words.")}`}
+              primaryLabel={copy.t("Clear search")}
               onPrimary={() => onSearchChange("")}
               compact
             />
           ) : (
             <EmptyState
               icon="mail"
-              title="No threads here yet"
-              body="When clients reach out, conversations land here."
-              primaryLabel="Show all"
+              title={copy.t("No threads here yet")}
+              body={copy.t("When clients reach out, conversations land here.")}
+              primaryLabel={copy.t("Show all")}
               onPrimary={() => onFilterChange("all")}
               compact
             />
@@ -304,9 +306,10 @@ function ConversationListRow({
   active: boolean;
   onClick: () => void;
 }) {
+  const copy = useDashboardText();
   const stage = STAGE_META[conv.stage];
   const ageLabel = conv.lastMessage.ageHrs < 1
-    ? "now"
+    ? copy.t("now")
     : conv.lastMessage.ageHrs < 24
       ? `${conv.lastMessage.ageHrs}h`
       : `${Math.floor(conv.lastMessage.ageHrs / 24)}d`;
@@ -447,12 +450,12 @@ function ConversationListRow({
               flex: 1,
               minWidth: 0,
             }}>
-              <span style={{ fontStyle: "normal", fontWeight: 600, marginRight: 4 }}>Draft:</span>
+              <span style={{ fontStyle: "normal", fontWeight: 600, marginRight: 4 }}>{copy.t("Draft:")}</span>
               {MOCK_DRAFTS[conv.id]}
             </span>
           ) : (
             <span data-tulala-conv-row-preview style={{ fontSize: 11, color: COLORS.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>
-              {conv.lastMessage.sender === "you" ? "You: " : ""}
+              {conv.lastMessage.sender === "you" ? `${copy.t("You")}: ` : ""}
               {conv.lastMessage.preview}
             </span>
           )}
@@ -490,12 +493,12 @@ function ConversationListRow({
             animation: "tulala-bubble-action-in .14s ease",
           }}
         >
-          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">Quick actions coming soon</div>
+          <div style={{ fontSize: 10, fontWeight: 700, padding: "6px 10px 4px" }} className="text-admin-ink-muted">{copy.t("Quick actions coming soon")}</div>
           <div style={{ padding: "4px 10px 8px", fontSize: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">
-            Snooze, pin, mark read, and archive need a real inbox mutation path before they appear here.
+            {copy.t("Snooze, pin, mark read, and archive need a real inbox mutation path before they appear here.")}
           </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
-          <BubbleMenuItem icon="×" label="Close menu" onClick={() => setMenuOpen(false)} />
+          <BubbleMenuItem icon="×" label={copy.t("Close menu")} onClick={() => setMenuOpen(false)} />
         </div>
       )}
     </button>

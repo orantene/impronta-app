@@ -12,8 +12,10 @@
 // No behavior change. See remediation-plan §4 Phase 1d.
 // ════════════════════════════════════════════════════════════════════
 
+import { useEffect } from "react";
 import { DrawerShell } from "./primitives";
 import { useAdminShell, type DrawerId } from "./state";
+import { OPEN_DRAWER_EVENT, type OpenDrawerEventDetail } from "./open-drawer-bridge";
 import { InquiryWorkspaceDrawer } from "./workspace";
 import { InboxSnippetsDrawer, NotificationsPrefsDrawer, DataExportDrawer, AuditLogDrawer, TenantSwitcherDrawer, TalentAgencySwitcherDrawer, WorkspaceProfileDrawer, TalentShareCardDrawer, InquiryTemplatesPicker, DoubleBookingWarning, WhatsNewDrawer, HelpDrawer, TalentNotificationsDrawer, downloadCsv } from "./wave2";
 import { TalentTodayPulseDrawer, TalentOfferDetailDrawer, TalentAddEventDrawer, TalentBookingDetailDrawer, TalentClosedBookingDrawer, TalentHubDetailDrawer, TalentProfileSectionDrawer, TalentAvailabilityDrawer, TalentBlockDatesDrawer, TalentPortfolioDrawer, TalentAgencyRelationshipDrawer, TalentLeaveAgencyDrawer, TalentPrivacyDrawer, TalentPayoutsDrawer, TalentContactPreferencesDrawer, TalentEarningsDetailDrawer, TalentPhotoEditDrawer, TalentPolaroidsDrawer, TalentCreditsDrawer, TalentSkillsDrawer, TalentLimitsDrawer, TalentRateCardDrawer, TalentTravelDrawer, TalentLinksDrawer, TalentReviewsDrawer, TalentShowreelDrawer, TalentMeasurementsDrawer, TalentDocumentsDrawer, TalentEmergencyContactDrawer, TalentPublicPreviewDrawer, TalentTierCompareDrawer, TalentPersonalPageDrawer, TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer, TalentMediaKitDrawer, TalentCustomDomainDrawer, TalentConnectionsDrawer, TalentVerificationDrawer, TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer, TalentConflictResolveDrawer, TalentNetworkDrawer, TalentVoiceReplyDrawer, TalentMultiAgencyPickerDrawer, TalentChatArchiveDrawer, ReplyTemplatesDrawer, TalentCareerAnalyticsDrawer, TalentReceiveReviewDrawer, TalentAgencyAnalyticsDrawer, RepresentationDrawer } from "./talent-drawers";
@@ -21,6 +23,7 @@ import { ClientTodayPulseDrawer, ClientTalentCardDrawer, ClientShortlistDetailDr
 import { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImpersonateDrawer, PlatformTenantSuspendDrawer, PlatformTenantPlanOverrideDrawer, PlatformUserDetailDrawer, PlatformUserMergeDrawer, PlatformUserResetDrawer, PlatformHubSubmissionDrawer, PlatformHubRulesDrawer, PlatformBillingInvoiceDrawer, PlatformRefundDrawer, PlatformDunningDrawer, PlatformFeatureFlagDrawer, PlatformModerationItemDrawer, PlatformSystemJobDrawer, PlatformIncidentDrawer, PlatformSupportTicketDrawer, PlatformAuditExportDrawer, PlatformHqTeamDrawer, PlatformRegionConfigDrawer } from "./platform";
 import { PaymentDetailDrawer, PaymentsSetupDrawer, PayoutReceiverPickerDrawer } from "./drawers/drawer-shared";
 import { TalentProfileShellDrawer, NewTalentDrawer } from "./drawers/profile-shell";
+import { ReviewModerationQueue } from "./drawers/profile-shell/profile-shell-modules/review-moderation-queue";
 import { TenantSummaryDrawer, SiteSetupDrawer, PlanBillingDrawer } from "./drawers/light-01";
 import { TeamDrawer, TalentTypesDrawer } from "./drawers/light-02";
 import { TalentRegistrationDrawer } from "./drawers/light-03";
@@ -56,7 +59,22 @@ import { FeatureControlsDrawer, CircleManageDrawer, CircleRecommendDrawer } from
 // closed shell so the slide-out animation can play in both directions.
 
 export function DrawerRoot() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, openDrawer } = useAdminShell();
+
+  // Bridge listener: lets components that render OUTSIDE this provider
+  // (e.g. the top-bar notification bell, which self-loads and has no
+  // useAdminShell() access) ask the shell to open a specific drawer via a
+  // window CustomEvent. See open-drawer-bridge.ts.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<OpenDrawerEventDetail>).detail;
+      if (!detail?.drawerId) return;
+      openDrawer(detail.drawerId, detail.payload);
+    };
+    window.addEventListener(OPEN_DRAWER_EVENT, handler);
+    return () => window.removeEventListener(OPEN_DRAWER_EVENT, handler);
+  }, [openDrawer]);
+
   const id = state.drawer.drawerId;
   if (!id) {
     // still render the shell closed so backdrop animates out
@@ -612,9 +630,41 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
     case "circle-recommend":
       return <CircleRecommendDrawer />;
 
+    // ── Reviews moderation (STANDING) ─────────────────────────────────
+    case "reviews-moderation":
+      return <ReviewModerationQueueDrawer />;
+
     default:
       return <SimpleStubDrawer title="Coming up next" description="This drawer's full design lands in the next iteration." sections={[]} />;
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Reviews moderation drawer (STANDING) — thin wrapper so ReviewModerationQueue
+// can be reached from the shell. The report notification
+// (review-actions.ts notifyStaffOfReport → targetDrawer: "reviews-moderation")
+// opens this. Tenant id comes from the admin-shell identity bridge; the queue
+// self-loads (staff-gated at the server-action boundary) and shows empty lists
+// for a non-staff or tenant-less session rather than erroring.
+// ════════════════════════════════════════════════════════════════════
+
+function ReviewModerationQueueDrawer() {
+  const { state, closeDrawer, bridgeTenantIdentity } = useAdminShell();
+  const open = state.drawer.drawerId === "reviews-moderation";
+  const tenantId = bridgeTenantIdentity?.tenantId ?? "";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Reported reviews"
+      description="Flagged reviews and rating-integrity signals for this workspace."
+      defaultSize="half"
+    >
+      <div className="p-[16px]">
+        <ReviewModerationQueue tenantId={tenantId} />
+      </div>
+    </DrawerShell>
+  );
 }
 
 // ════════════════════════════════════════════════════════════════════

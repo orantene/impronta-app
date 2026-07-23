@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { DemoBadge as FixtureBadge } from "@/components/demo-badge";
 import { isFixtureInquiryId } from "@/lib/fixtures/is-fixture-id";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { pinNextConversation as pinNextConversationP } from "../messages";
 import { Avatar, Bullet, ClientTrustChip, EmptyState, FloatingFab, GhostButton, Icon, SwipeableRow, useKeyboardListNav } from "../primitives";
-import { COLORS, FONTS, INQUIRY_STAGE_META, RADIUS, RICH_INQUIRIES, Z, useAdminShell } from "../state";
+import { COLORS, FONTS, INQUIRY_STAGE_LABEL_KEYS, INQUIRY_STAGE_META, RADIUS, RICH_INQUIRIES, useAdminShell } from "../state";
 import type { RichInquiry } from "../state";
 import { LoadMore, QuickReplyButtons, SavedViewsBar, downloadCsv } from "../wave2";
 import { useQuickCreateActionsFiltered } from "./WorkspaceTopbar";
@@ -38,6 +40,7 @@ export function WorkspaceMessagesPage() {
 }
 
 export function UnifiedInboxPage() {
+  const t = useT();
   const { openDrawer, setPage, toast } = useAdminShell();
   // Route inquiry clicks through the new MessagesShell instead of the
   // legacy drawer.
@@ -115,17 +118,17 @@ export function UnifiedInboxPage() {
         ageHours: i.lastActivityHrs,
       })),
     );
-    toast(`Exported ${matched.length} rows to CSV`);
+    toast(interpolate(t("dashboard.adminInbox.exportedRows"), { count: matched.length }));
   };
 
   return (
     <>
       <PageHeader
-        title="Inbox"
-        subtitle="Threads, mentions & notifications — sorted by what needs you."
+        title={t("dashboard.adminInbox.title")}
+        subtitle={t("dashboard.adminInbox.subtitle")}
         actions={
           <GhostButton size="sm" onClick={exportCsv}>
-            Export CSV
+            {t("dashboard.adminInbox.exportCsv")}
           </GhostButton>
         }
       />
@@ -144,10 +147,10 @@ export function UnifiedInboxPage() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <input
             type="text"
-            aria-label="Search inbox by client or brief"
+            aria-label={t("dashboard.adminInbox.searchAria")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by client or brief…"
+            placeholder={t("dashboard.adminInbox.searchPlaceholder")}
             style={{
               width: "100%",
               padding: "9px 12px",
@@ -164,7 +167,7 @@ export function UnifiedInboxPage() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as typeof sort)}
-          aria-label="Sort"
+          aria-label={t("dashboard.adminInbox.sortAria")}
           style={{
             padding: "9px 12px",
             fontFamily: FONTS.body,
@@ -176,9 +179,9 @@ export function UnifiedInboxPage() {
             cursor: "pointer",
           }}
         >
-          <option value="recent">Most recent</option>
-          <option value="oldest">Oldest</option>
-          <option value="client">Client name</option>
+          <option value="recent">{t("dashboard.adminInbox.sortRecent")}</option>
+          <option value="oldest">{t("dashboard.adminInbox.sortOldest")}</option>
+          <option value="client">{t("dashboard.adminInbox.sortClient")}</option>
         </select>
       </div>
       <div
@@ -191,10 +194,10 @@ export function UnifiedInboxPage() {
       >
         {(
           [
-            { id: "needs-me", label: `Needs me · ${inquiries.filter((i) => i.nextActionBy === "coordinator").length}` },
-            { id: "all",      label: `All · ${inquiries.filter((i) => isOpen(i.stage)).length}` },
-            { id: "unread",   label: `Unread · ${inquiries.filter((i) => isOpen(i.stage) && i.unreadGroup > 0).length}` },
-            { id: "by-stage", label: "By stage" },
+            { id: "needs-me", label: interpolate(t("dashboard.adminInbox.filterNeedsMe"), { count: inquiries.filter((i) => i.nextActionBy === "coordinator").length }) },
+            { id: "all",      label: interpolate(t("dashboard.adminInbox.filterAll"), { count: inquiries.filter((i) => isOpen(i.stage)).length }) },
+            { id: "unread",   label: interpolate(t("dashboard.adminInbox.filterUnread"), { count: inquiries.filter((i) => isOpen(i.stage) && i.unreadGroup > 0).length }) },
+            { id: "by-stage", label: t("dashboard.adminInbox.filterByStage") },
           ] as const
         ).map((f) => {
           const active = filter === f.id;
@@ -221,8 +224,8 @@ export function UnifiedInboxPage() {
         })}
         {/* Saved searches (#31) — quick-access saved query chips */}
         {[
-          { label: "Awaiting client reply", q: () => { setFilter("needs-me"); } },
-          { label: "Unread threads", q: () => { setFilter("unread"); } },
+          { label: t("dashboard.adminInbox.savedAwaitingClient"), q: () => { setFilter("needs-me"); } },
+          { label: t("dashboard.adminInbox.savedUnreadThreads"), q: () => { setFilter("unread"); } },
         ].map(({ label, q }) => (
           <button
             key={label}
@@ -268,15 +271,15 @@ export function UnifiedInboxPage() {
               gap: 4,
             }}
           >
-            <span aria-hidden>×</span> Clear
+            <span aria-hidden>×</span> {t("dashboard.adminInbox.clear")}
           </button>
         )}
       </div>
 
       {matched.length > 0 && (filter !== "needs-me" || search.trim() || sort !== "recent") && (
         <div style={{ fontFamily: FONTS.body, fontSize: 12, marginBottom: 8 }} className="text-admin-ink-muted">
-          Showing {matched.length} {matched.length === 1 ? "thread" : "threads"}
-          {search.trim() && ` matching "${search.trim()}"`}
+          {interpolate(t(matched.length === 1 ? "dashboard.adminInbox.showingThreadOne" : "dashboard.adminInbox.showingThreadOther"), { count: matched.length })}
+          {search.trim() && ` ${interpolate(t("dashboard.adminInbox.matchingQuery"), { query: search.trim() })}`}
         </div>
       )}
 
@@ -289,9 +292,9 @@ export function UnifiedInboxPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           icon="mail"
-          title={search.trim() ? `No results for "${search.trim()}"` : "Inbox zero"}
-          body={search.trim() ? "Try a different search term or clear the query." : "Nothing waiting on you in this filter. Switch to All to see everything moving."}
-          primaryLabel={search.trim() ? "Clear search" : "Show all threads"}
+          title={search.trim() ? interpolate(t("dashboard.adminInbox.emptySearchTitle"), { query: search.trim() }) : t("dashboard.adminInbox.emptyTitle")}
+          body={search.trim() ? t("dashboard.adminInbox.emptySearchBody") : t("dashboard.adminInbox.emptyBody")}
+          primaryLabel={search.trim() ? t("dashboard.adminInbox.clearSearch") : t("dashboard.adminInbox.showAll")}
           onPrimary={() => { if (search.trim()) setSearch(""); else setFilter("all"); }}
         />
       ) : (
@@ -343,7 +346,7 @@ export function UnifiedInboxPage() {
                       {isFixtureInquiryId(inq.id) && <FixtureBadge />}
                       {inq.unreadPrivate > 0 && (
                         <span
-                          title="Unread in private thread"
+                          title={t("dashboard.adminInbox.unreadPrivateTip")}
                           style={{
                             fontSize: 10,
                             fontWeight: 700,
@@ -353,12 +356,12 @@ export function UnifiedInboxPage() {
                             borderRadius: 999,
                           }}
                         >
-                          {inq.unreadPrivate} private
+                          {interpolate(t("dashboard.adminInbox.unreadPrivate"), { count: inq.unreadPrivate })}
                         </span>
                       )}
                       {inq.unreadGroup > 0 && (
                         <span
-                          title="Unread in group thread"
+                          title={t("dashboard.adminInbox.unreadGroupTip")}
                           style={{
                             fontSize: 10,
                             fontWeight: 700,
@@ -368,7 +371,7 @@ export function UnifiedInboxPage() {
                             borderRadius: 999,
                           }}
                         >
-                          {inq.unreadGroup} group
+                          {interpolate(t("dashboard.adminInbox.unreadGroup"), { count: inq.unreadGroup })}
                         </span>
                       )}
                     </div>
@@ -376,14 +379,14 @@ export function UnifiedInboxPage() {
                       {inq.brief}
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 6, fontSize: 11, alignItems: "center" }} className="text-admin-ink-dim">
-                      <span>{INQUIRY_STAGE_META[inq.stage].label}</span>
+                      <span>{t(INQUIRY_STAGE_LABEL_KEYS[inq.stage])}</span>
                       <Bullet />
                       <span>
                         {inq.lastActivityHrs < 1
-                          ? "just now"
+                          ? t("dashboard.adminInbox.justNow")
                           : inq.lastActivityHrs < 24
-                            ? `${Math.round(inq.lastActivityHrs)}h ago`
-                            : `${Math.round(inq.lastActivityHrs / 24)}d ago`}
+                            ? interpolate(t("dashboard.adminInbox.hoursAgo"), { count: Math.round(inq.lastActivityHrs) })
+                            : interpolate(t("dashboard.adminInbox.daysAgo"), { count: Math.round(inq.lastActivityHrs / 24) })}
                       </span>
                       {inq.nextActionBy && (
                         <>
@@ -408,10 +411,10 @@ export function UnifiedInboxPage() {
                                     : COLORS.ink,
                             }}
                           >
-                            {inq.nextActionBy === "coordinator" ? "Needs you"
-                              : inq.nextActionBy === "client"    ? "Awaiting client"
-                              : inq.nextActionBy === "talent"    ? "Awaiting talent"
-                              : `Awaiting ${inq.nextActionBy}`}
+                            {inq.nextActionBy === "coordinator" ? t("dashboard.adminInbox.needsYou")
+                              : inq.nextActionBy === "client"    ? t("dashboard.adminInbox.awaitingClient")
+                              : inq.nextActionBy === "talent"    ? t("dashboard.adminInbox.awaitingTalent")
+                              : interpolate(t("dashboard.adminInbox.awaitingOther"), { role: inq.nextActionBy })}
                           </span>
                         </>
                       )}
@@ -425,11 +428,11 @@ export function UnifiedInboxPage() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <QuickReplyButtons
-                          onAccept={() => toast("Offer accepted")}
+                          onAccept={() => toast(t("dashboard.adminInbox.offerAccepted"))}
                           onCounter={() => {
                             goToInquiryMessages(inq.id);
                           }}
-                          onDecline={() => toast("Offer declined")}
+                          onDecline={() => toast(t("dashboard.adminInbox.offerDeclined"))}
                         />
                       </div>
                     )}
@@ -449,7 +452,7 @@ export function UnifiedInboxPage() {
         />
       )}
       {/* FAB — full quick-create menu (mobile only) */}
-      <FabWithQuickCreate label="Create new" />
+      <FabWithQuickCreate />
     </>
   );
 }
@@ -459,20 +462,21 @@ export function UnifiedInboxPage() {
  * instead of <FloatingFab onClick={...}> on any page that wants the
  * full "+ New" experience on small screens.
  */
-export function FabWithQuickCreate({ label = "Create new" }: { label?: string }) {
+export function FabWithQuickCreate({ label }: { label?: string }) {
+  const t = useT();
   const actions = useQuickCreateActionsFiltered();
   if (actions.length === 0) return null;
-  return <FloatingFab label={label} actions={actions} />;
+  return <FloatingFab label={label ?? t("dashboard.adminInbox.createNew")} actions={actions} />;
 }
 
 // ─── WS-3.3 InboxPipelineView ────────────────────────────────────────────────
 
-const PIPELINE_STAGES: Array<{ id: RichInquiry["stage"]; label: string; color: string }> = [
-  { id: "submitted",     label: "Submitted",     color: "#6366F1" },
-  { id: "coordination",  label: "Coordinating",  color: "#3B82F6" },
-  { id: "offer_pending", label: "Offer pending",  color: "#F59E0B" },
-  { id: "approved",      label: "Approved",      color: "#10B981" },
-  { id: "booked",        label: "Booked",        color: "#059669" },
+const PIPELINE_STAGES: Array<{ id: RichInquiry["stage"]; labelKey: string; color: string }> = [
+  { id: "submitted",     labelKey: "dashboard.adminInbox.pipeSubmitted",    color: "#6366F1" },
+  { id: "coordination",  labelKey: "dashboard.adminInbox.pipeCoordinating", color: "#3B82F6" },
+  { id: "offer_pending", labelKey: "dashboard.adminInbox.pipeOfferPending", color: "#F59E0B" },
+  { id: "approved",      labelKey: "dashboard.adminInbox.pipeApproved",     color: "#10B981" },
+  { id: "booked",        labelKey: "dashboard.adminInbox.pipeBooked",       color: "#059669" },
 ];
 
 function InboxPipelineView({
@@ -482,6 +486,7 @@ function InboxPipelineView({
   inquiries: RichInquiry[];
   onOpen: (id: string) => void;
 }) {
+  const t = useT();
   return (
     <div
       style={{
@@ -510,7 +515,7 @@ function InboxPipelineView({
               background: "#fff",
             }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">{col.label}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, fontFamily: FONTS.body }} className="text-admin-ink">{t(col.labelKey)}</span>
               <span style={{
                 marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#fff",
                 background: col.color, borderRadius: 999,
@@ -522,7 +527,7 @@ function InboxPipelineView({
             <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8 }}>
               {colInqs.length === 0 ? (
                 <div style={{ padding: "12px 8px", textAlign: "center", fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                  All clear
+                  {t("dashboard.adminInbox.allClear")}
                 </div>
               ) : (
                 colInqs.map((inq) => (
@@ -551,7 +556,7 @@ function InboxPipelineView({
                     </div>
                     {inq.unreadGroup > 0 && (
                       <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", borderRadius: 999, padding: "1px 5px" }} className="bg-admin-accent">
-                        {inq.unreadGroup} new
+                        {interpolate(t("dashboard.adminInbox.countNew"), { count: inq.unreadGroup })}
                       </span>
                     )}
                   </button>

@@ -11,7 +11,9 @@ const logoSchema = z.object({
 export const logoCloudSchemaV1 = z.object({
   eyebrow: z.string().max(60).optional(),
   headline: z.string().max(200).optional(),
-  logos: z.array(logoSchema).min(2).max(40),
+  // min(0): a fresh logo-cloud ships with no logos and renders nothing until
+  // the operator adds real ones (no placeholder/placehold.co filler default).
+  logos: z.array(logoSchema).max(40),
   columnsDesktop: z.number().int().min(3).max(8).default(6),
   variant: z.enum(["mono", "color", "muted"]).default("muted"),
   nodePresentation: z

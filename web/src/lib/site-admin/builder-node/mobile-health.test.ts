@@ -5,7 +5,9 @@ import {
   MOBILE_FONT_SIZE_MIN_PX,
   MOBILE_VIEWPORT_MAX_PX,
   TAP_TARGET_MIN_PX,
+  collectMobileOverflowOffenders,
   parseLengthToPx,
+  resolveMobileOverflow,
   runMobileHealthCheck,
 } from "./mobile-health";
 import type {
@@ -405,4 +407,193 @@ test("all emitted issues are advisory (severity=warn)", () => {
 
 test("returns empty array for empty tree", () => {
   assert.deepEqual(runMobileHealthCheck([]), []);
+});
+
+// ── W3-M1: definite overflow is blocking ───────────────────────────────────
+
+test("fixed-width overflow issue is marked blocking", () => {
+  const container: BuilderContainerNode = {
+    id: "wide-blk",
+    kind: "container",
+    props: { layout: "stack", style: { width: "1120px" } },
+    children: [],
+  };
+  const issues = runMobileHealthCheck([container]);
+  const overflow = issues.find((i) => i.kind === "overflow" && i.nodeId === "wide-blk");
+  assert.ok(overflow, "expected an overflow issue");
+  assert.equal(overflow!.blocking, true);
+  // severity stays "warn" — blocking is a separate promotion signal.
+  assert.equal(overflow!.severity, "warn");
+});
+
+test("soft overflow heuristics are NOT marked blocking", () => {
+  const grid: BuilderContainerNode = {
+    id: "grid-soft",
+    kind: "container",
+    props: { layout: "grid", columns: 3 },
+    children: [],
+  };
+  const split: BuilderSplitNode = {
+    id: "split-soft",
+    kind: "split",
+    props: { collapseOnMobile: false },
+    children: [],
+  };
+  const issues = runMobileHealthCheck([grid, split]);
+  const soft = issues.filter(
+    (i) => i.kind === "overflow" && (i.nodeId === "grid-soft" || i.nodeId === "split-soft"),
+  );
+  assert.ok(soft.length >= 2);
+  assert.ok(soft.every((i) => !i.blocking));
+});
+
+// ── W3-M1: resolveMobileOverflow ───────────────────────────────────────────
+
+test("resolveMobileOverflow returns px + dimension for a fixed 1120px width", () => {
+  const container: BuilderContainerNode = {
+    id: "w",
+    kind: "container",
+    props: { layout: "stack", style: { width: "1120px" } },
+    children: [],
+  };
+  assert.deepEqual(resolveMobileOverflow(container), {
+    widthPx: 1120,
+    dimension: "width",
+  });
+});
+
+test("resolveMobileOverflow treats minWidth over the viewport as overflow (precedence)", () => {
+  const container: BuilderContainerNode = {
+    id: "mw",
+    kind: "container",
+    props: { layout: "stack", style: { minWidth: "900px", width: "100%" } },
+    children: [],
+  };
+  assert.deepEqual(resolveMobileOverflow(container), {
+    widthPx: 900,
+    dimension: "minWidth",
+  });
+});
+
+test("resolveMobileOverflow prefers the mobile-override width", () => {
+  const container: BuilderContainerNode = {
+    id: "ov",
+    kind: "container",
+    props: {
+      layout: "stack",
+      style: { width: "100%", responsive: { mobile: { width: "800px" } } },
+    },
+    children: [],
+  };
+  assert.deepEqual(resolveMobileOverflow(container), {
+    widthPx: 800,
+    dimension: "width",
+  });
+});
+
+test("resolveMobileOverflow returns null for relative + within-viewport widths", () => {
+  const relative: BuilderContainerNode = {
+    id: "rel",
+    kind: "container",
+    props: { layout: "stack", style: { width: "100%" } },
+    children: [],
+  };
+  const withinViewport: BuilderContainerNode = {
+    id: "narrow",
+    kind: "container",
+    props: { layout: "stack", style: { width: "320px" } },
+    children: [],
+  };
+  assert.equal(resolveMobileOverflow(relative), null);
+  assert.equal(resolveMobileOverflow(withinViewport), null);
+});
+
+// ── W3-M1: collectMobileOverflowOffenders (the M3-consumable list) ─────────
+
+test("collectMobileOverflowOffenders returns the offending block for a fixed 1120px container", () => {
+  const sectionId = "sec-overflow";
+  const offenders = collectMobileOverflowOffenders([
+    {
+      id: "sec",
+      kind: "section",
+      props: { sectionId, sectionTypeKey: "hero" },
+      children: [
+        {
+          id: "wide",
+          kind: "container",
+          props: { layout: "stack", style: { width: "1120px" } },
+          children: [],
+        },
+      ],
+    },
+  ]);
+  assert.equal(offenders.length, 1);
+  const [offender] = offenders;
+  assert.equal(offender!.nodeId, "wide");
+  assert.equal(offender!.nodeKind, "container");
+  assert.equal(offender!.ownerSectionId, sectionId);
+  assert.equal(offender!.widthPx, 1120);
+  assert.equal(offender!.dimension, "width");
+  assert.equal(offender!.viewportPx, MOBILE_VIEWPORT_MAX_PX);
+  assert.ok(offender!.issue.includes("1120px"));
+});
+
+test("collectMobileOverflowOffenders ignores responsive/within-viewport blocks", () => {
+  const offenders = collectMobileOverflowOffenders([
+    {
+      id: "fluid",
+      kind: "container",
+      props: { layout: "stack", style: { width: "100%" } },
+      children: [
+        {
+          id: "narrow",
+          kind: "container",
+          props: { layout: "stack", style: { width: "360px" } },
+          children: [],
+        },
+      ],
+    },
+  ]);
+  assert.deepEqual(offenders, []);
+});
+
+test("collectMobileOverflowOffenders finds multiple offenders across the tree", () => {
+  const offenders = collectMobileOverflowOffenders([
+    {
+      id: "a",
+      kind: "container",
+      props: { layout: "stack", style: { width: "1200px" } },
+      children: [
+        {
+          id: "b",
+          kind: "container",
+          props: { layout: "stack", style: { minWidth: "500px" } },
+          children: [],
+        },
+      ],
+    },
+  ]);
+  assert.equal(offenders.length, 2);
+  assert.deepEqual(
+    offenders.map((o) => o.nodeId).sort(),
+    ["a", "b"],
+  );
+});
+
+test("collectMobileOverflowOffenders returns empty for a clean responsive tree", () => {
+  const offenders = collectMobileOverflowOffenders([
+    {
+      id: "root",
+      kind: "container",
+      props: {
+        layout: "stack",
+        style: { width: "100%", maxWidthFree: "1120px" },
+      },
+      children: [
+        { id: "h", kind: "heading", props: { text: "Hi", level: 2 } },
+        { id: "p", kind: "paragraph", props: { text: "Body" } },
+      ],
+    },
+  ]);
+  assert.deepEqual(offenders, []);
 });

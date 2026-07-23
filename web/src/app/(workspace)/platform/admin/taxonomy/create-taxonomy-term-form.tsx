@@ -1,5 +1,7 @@
 import { createPlatformTaxonomyTermAction } from "./actions";
 
+type Translate = (key: string) => string;
+
 type TaxonomyTermOption = {
   id: string;
   name_en: string;
@@ -40,7 +42,7 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 650,
 };
 
-export function CreateTaxonomyTermForm({ allTerms }: { allTerms: TaxonomyTermOption[] }) {
+export function CreateTaxonomyTermForm({ allTerms, t }: { allTerms: TaxonomyTermOption[]; t: Translate }) {
   const parentOptions = allTerms.filter((term) =>
     ["parent_category", "category_group", "skill_group", "context_group"].includes(term.term_type)
       && term.is_active
@@ -50,18 +52,18 @@ export function CreateTaxonomyTermForm({ allTerms }: { allTerms: TaxonomyTermOpt
   return (
     <form action={createPlatformTaxonomyTermAction} style={{ display: "grid", gap: 12 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
-        <Input label="Slug" name="slug" />
-        <Input label="Name EN" name="name_en" />
-        <Input label="Name ES" name="name_es" />
-        <Input label="Plural name" name="plural_name" />
-        <Select label="Term type" name="term_type" defaultValue="talent_type" options={["parent_category", "category_group", "talent_type", "specialty", "skill_group", "skill", "context_group", "context", "credential", "attribute"]} />
-        <Input label="Level" name="level" type="number" />
-        <Input label="Sort order" name="sort_order" type="number" defaultValue="100" />
-        <Input label="Icon" name="icon" />
+        <Input label={t("dashboard.platform.taxonomy.fieldSlug")} name="slug" />
+        <Input label={t("dashboard.platform.taxonomy.fieldNameEn")} name="name_en" />
+        <Input label={t("dashboard.platform.taxonomy.fieldNameEs")} name="name_es" />
+        <Input label={t("dashboard.platform.taxonomy.fieldPluralName")} name="plural_name" />
+        <Select label={t("dashboard.platform.taxonomy.fieldTermType")} name="term_type" defaultValue="talent_type" options={["parent_category", "category_group", "talent_type", "specialty", "skill_group", "skill", "context_group", "context", "credential", "attribute"]} />
+        <Input label={t("dashboard.platform.taxonomy.fieldLevel")} name="level" type="number" />
+        <Input label={t("dashboard.platform.taxonomy.fieldSortOrder")} name="sort_order" type="number" defaultValue="100" />
+        <Input label={t("dashboard.platform.taxonomy.fieldIcon")} name="icon" />
         <label style={{ ...labelStyle, gridColumn: "span 2" }}>
-          Parent
+          {t("dashboard.platform.taxonomy.fieldParent")}
           <select name="parent_id" defaultValue="" style={inputStyle}>
-            <option value="">No parent</option>
+            <option value="">{t("dashboard.platform.taxonomy.fieldNoParent")}</option>
             {parentOptions.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
                 {"  ".repeat(Math.max(0, candidate.level - 1))}
@@ -71,24 +73,24 @@ export function CreateTaxonomyTermForm({ allTerms }: { allTerms: TaxonomyTermOpt
           </select>
         </label>
         <div style={{ gridColumn: "span 2", display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", padding: 12, border: `1px solid ${HQ.borderSoft}`, borderRadius: 10, background: HQ.cardSoft }}>
-          <Check name="is_visible_by_default" label="Visible by default" defaultChecked />
-          <Check name="is_profile_badge" label="Profile badge" defaultChecked />
-          <Check name="is_public_filter" label="Public filter" />
-          <Check name="is_restricted" label="Restricted/internal" danger />
+          <Check name="is_visible_by_default" label={t("dashboard.platform.taxonomy.checkVisibleDefault")} defaultChecked />
+          <Check name="is_profile_badge" label={t("dashboard.platform.taxonomy.checkProfileBadge")} defaultChecked />
+          <Check name="is_public_filter" label={t("dashboard.platform.taxonomy.checkPublicFilter")} />
+          <Check name="is_restricted" label={t("dashboard.platform.taxonomy.checkRestricted")} danger />
         </div>
       </div>
-      <Textarea label="Description" name="description" rows={2} />
+      <Textarea label={t("dashboard.platform.taxonomy.fieldDescription")} name="description" rows={2} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-        <Textarea label="Aliases" name="aliases" rows={3} />
-        <Textarea label="Search synonyms" name="search_synonyms" rows={3} />
-        <Textarea label="AI keywords" name="ai_keywords" rows={3} />
+        <Textarea label={t("dashboard.platform.taxonomy.fieldAliases")} name="aliases" rows={3} />
+        <Textarea label={t("dashboard.platform.taxonomy.fieldSearchSynonyms")} name="search_synonyms" rows={3} />
+        <Textarea label={t("dashboard.platform.taxonomy.fieldAiKeywords")} name="ai_keywords" rows={3} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button type="submit" style={{ border: "1px solid rgba(93,211,160,0.35)", background: "rgba(93,211,160,0.12)", color: HQ.green, borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 700, fontFamily: F, cursor: "pointer" }}>
-          Create taxonomy term
+          {t("dashboard.platform.taxonomy.createBtn")}
         </button>
         <span style={{ color: HQ.inkDim, fontSize: 11.5 }}>
-          New active terms flow through tenant settings, services, field mappings, and public/talent surfaces through the resolver.
+          {t("dashboard.platform.taxonomy.createHint")}
         </span>
       </div>
     </form>

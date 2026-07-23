@@ -97,6 +97,7 @@ export function DiscoverShell({
   activeFilters,
   cardDesign,
   locale = "en",
+  reviewsEnabled = false,
 }: {
   initialItems: DiscoverTalentListItem[];
   initialTotal: number;
@@ -115,6 +116,15 @@ export function DiscoverShell({
    * theme defaults through the `var(--token-card-*, …)` fallback chain.
    */
   cardDesign?: CardDesign;
+  /**
+   * Reviews entitlement for the DASHBOARD tenant (resolved server-side by the
+   * page via `tenantReviewsEnabled(scope.tenantId)`). Discover is cross-tenant
+   * so there's no single `<html data-token-card-standing>` to opt the STANDING
+   * chip into visibility the way tenant storefronts do — this flag drives it
+   * explicitly instead. Undefined/false → no rating fields are mapped onto the
+   * card data, so the chip never renders (fails closed for non-entitled tenants).
+   */
+  reviewsEnabled?: boolean;
 }) {
   // Inline card-token vars from the resolved design (memoized — only the set
   // colors are emitted; an all-default design yields an empty object so the
@@ -391,6 +401,7 @@ export function DiscoverShell({
                 availability={availabilityByTalent.get(t.id)}
                 cardCssVars={cardCssVars}
                 locale={locale}
+                reviewsEnabled={reviewsEnabled}
                 onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
                 onAddToShortlist={() => { setAutoOpenPicker(true); setOpenTalentId(t.id); }}
               />
@@ -545,7 +556,10 @@ function FacetChip({
  * suppressed; `availabilityLabel`/`availableDaysInNext30` are still carried for
  * completeness.
  */
-function toDiscoverCardData(item: DiscoverTalentListItem): CanonicalTalentCardData {
+function toDiscoverCardData(
+  item: DiscoverTalentListItem,
+  reviewsEnabled: boolean,
+): CanonicalTalentCardData {
   const known =
     typeof item.availableDaysInNext30 === "number" &&
     item.availableDaysInNext30 > 0;
@@ -564,6 +578,17 @@ function toDiscoverCardData(item: DiscoverTalentListItem): CanonicalTalentCardDa
       : "Availability on request",
     availabilityKnown: known,
     availableDaysInNext30: item.availableDaysInNext30,
+    // Rating fields are only mapped when the dashboard tenant is entitled to
+    // reviews — omitted (stays undefined) otherwise so <TalentCard>'s
+    // credibility-floor check (`data.ratingAvg == null`) fails closed and the
+    // STANDING chip never renders for a non-entitled tenant.
+    ...(reviewsEnabled
+      ? {
+          ratingAvg: item.ratingAvg,
+          ratingCount: item.ratingCount,
+          wouldBookAgainPct: item.wouldBookAgainPct,
+        }
+      : {}),
   };
 }
 
@@ -572,6 +597,7 @@ function DiscoverCard({
   availability,
   cardCssVars,
   locale = "en",
+  reviewsEnabled = false,
   onAddToShortlist,
   onOpen,
 }: {
@@ -580,6 +606,8 @@ function DiscoverCard({
   cardCssVars: Record<string, string> | undefined;
   /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
   locale?: string;
+  /** See `DiscoverShell`'s `reviewsEnabled` prop doc. */
+  reviewsEnabled?: boolean;
   onAddToShortlist: () => void;
   onOpen: () => void;
 }) {
@@ -593,13 +621,14 @@ function DiscoverCard({
   //   - availabilitySlot:    the 14-day AvailabilityStrip + footer labels
   return (
     <TalentCard
-      data={toDiscoverCardData(item)}
+      data={toDiscoverCardData(item, reviewsEnabled)}
       style="editorial"
       rootMode="button"
       onActivate={onOpen}
       cssVars={cardCssVars}
       aspect="4:5"
       nameFallback="first_name"
+      showStanding={reviewsEnabled ? "always" : "auto"}
       show={{
         showName: true,
         showTalentType: true,

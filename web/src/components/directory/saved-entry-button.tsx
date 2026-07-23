@@ -38,7 +38,7 @@ export function SavedEntryButton({
       <Link href={href} aria-label={ariaLabel}>
         <Bookmark className="size-5" />
         {count > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--impronta-gold-border)] bg-black px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--impronta-gold)]">
+          <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--dir-accent-line)] bg-background px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--dir-accent)]">
             {count > 99 ? "99+" : String(count)}
           </span>
         ) : null}

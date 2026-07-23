@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { logServerError } from "@/lib/server/safe-error";
+import { useDashboardText } from "../../dashboard-i18n";
 import { computePaidThisMonth } from "@/lib/talent/paid-this-month";
 import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT } from "../../messages";
 import { EmptyState, Icon, PrimaryButton } from "../../primitives";
@@ -15,11 +17,22 @@ import { ConversationCalendarRow, NeedsReplySection } from "../shared/today-3";
 import { WeekRhythmStrip } from "../shared/week-rhythm-1";
 import { TalentAgencyFilterChips } from "../shared/TalentAgencyFilterChips";
 import { TalentReviewsCard } from "../shared/reviews-card-1";
+import { TalentServicesNudge } from "@/components/talent/services/TalentServicesNudge";
 
 const CURRENCY_SYMBOL: Record<string, string> = { EUR: "€", USD: "$", GBP: "£", MXN: "MX$" };
 
 export function TalentTodayPage() {
-  const { openDrawer, setTalentPage, bridgeTalentSelfProfile, bridgeTalentEarnings, state } = useAdminShell();
+  const copy = useDashboardText();
+  const {
+    openDrawer,
+    setTalentPage,
+    bridgeTalentSelfProfile,
+    bridgeTalentEarnings,
+    bridgeTalentPayoutSnapshot,
+    bridgeTalentRepresentation,
+    bridgeTalentChecklistDismissed,
+    state,
+  } = useAdminShell();
   // "Start a workspace" tile is for talents who don't already own one.
   // `state.alsoTalent` flips to true once a workspace is provisioned for
   // this user (the hybrid identity), so we hide the tile in that case.
@@ -36,9 +49,24 @@ export function TalentTodayPage() {
   // Use real talentId from bridge when available; fall back to mock "t1".
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   const openSection = (section: string) => openDrawer("talent-profile-shell", { mode: "edit-self", talentId: selfTalentId, section });
-  // First-session checklist persists dismiss only for the session in the
-  // prototype. Production wires this to a per-user kv pair.
-  const [firstSessionDismissed, setFirstSessionDismissed] = useState(false);
+  // W14 — real Day-1 checklist inputs, so a talent who already uploaded
+  // photos or finished Stripe onboarding sees those rows ticked.
+  const portfolioCount = bridgeTalentSelfProfile?.portfolioCount ?? 0;
+  const payoutSet =
+    bridgeTalentPayoutSnapshot?.ok === true
+      ? bridgeTalentPayoutSnapshot.data.payoutsEnabled
+      : false;
+  // "Channels" = agency relationships actually representing this talent
+  // publicly (the talent's global hide switch turns them all off).
+  const channelsLive = bridgeTalentRepresentation
+    ? bridgeTalentRepresentation.globalHidden
+      ? 0
+      : bridgeTalentRepresentation.entries.filter((e) => e.effective === "live").length
+    : 0;
+  // Dismissal persists per user (user_prefs.talent_checklist_dismissed).
+  // Seeded from the bridge, then optimistic on click.
+  const [dismissedLocal, setFirstSessionDismissed] = useState(false);
+  const firstSessionDismissed = dismissedLocal || bridgeTalentChecklistDismissed === true;
 
   // ── Today's data is derived from conversations (bridge-aware) — the
   //    same source the messages shell reads. One source, one truth.
@@ -240,10 +268,10 @@ export function TalentTodayPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">
-                Finish setting up your profile
+                {copy.t("Finish setting up your profile")}
               </div>
               <div className="text-admin-ink-muted text-admin-12h">
-                {onboardingCompleteness.missing.length} field{onboardingCompleteness.missing.length === 1 ? "" : "s"} left before you can publish + take bookings.
+                {onboardingCompleteness.missing.length} {onboardingCompleteness.missing.length === 1 ? copy.t("field") : copy.t("fields")} {copy.t("left before you can publish + take bookings.")}
               </div>
             </div>
             <div className="flex flex-col items-end gap-1.5">
@@ -254,7 +282,7 @@ export function TalentTodayPage() {
                   openSection(first ? onboardingSectionForLabel(first.label) : "identity");
                 }}
               >
-                Continue setup →
+                {copy.t("Continue setup →")}
               </PrimaryButton>
               {/* Additive alternate path: the guided step-by-step wizard. The
                   drawer-based "Continue setup" above stays the default. */}
@@ -262,7 +290,7 @@ export function TalentTodayPage() {
                 href="/talent/onboarding"
                 className="text-admin-11h font-semibold text-admin-accent-deep underline underline-offset-2 hover:opacity-80"
               >
-                Guided setup
+                {copy.t("Guided setup")}
               </Link>
             </div>
           </div>
@@ -285,7 +313,7 @@ export function TalentTodayPage() {
                     cursor: "pointer",
                   }}
                 >
-                  + {m.label}
+                  + {copy.t(m.label)}
                 </button>
               ))}
             </div>
@@ -296,25 +324,33 @@ export function TalentTodayPage() {
       {/* First-session checklist — shows ONCE on Day-1 and routes the
           new talent through the 4 onboarding wins that unlock inquiries.
           Sits above the hero so it's the first thing they see.
-          polaroidCount/channelsLive/payoutSet are stubbed; production
-          derives them from the profile object. */}
+          W14: every row now reflects real bridge state (photo count, live
+          agency channels, payouts-enabled), so a talent who already did a
+          step sees it ticked instead of a permanently-empty checklist. */}
       {isDay1 && !firstSessionDismissed && !onboardingCompleteness && (
         <FirstSessionChecklist
           completeness={profile.completeness}
-          polaroidCount={0}
-          channelsLive={0}
-          payoutSet={false}
+          polaroidCount={portfolioCount}
+          channelsLive={channelsLive}
+          payoutSet={payoutSet}
           onProfile={() => openSection("identity")}
           onPolaroids={() => openSection("polaroids")}
           onReach={() => setTalentPage("money")}
           onPayouts={() => setTalentPage("payouts")}
-          onDismiss={() => setFirstSessionDismissed(true)}
+          onDismiss={() => {
+            setFirstSessionDismissed(true);
+            import("@/lib/server-actions/user-prefs")
+              .then(({ markTalentChecklistDismissed }) => markTalentChecklistDismissed())
+              .catch((err: unknown) => logServerError("talentchecklistdismiss", err));
+          }}
         />
       )}
 
       {/* WS-9.2 — modern first-run banner for returning-but-incomplete users
-          (after Day-1 so it doesn't clash with FirstSessionChecklist). */}
-      {!isDay1 && profile.completeness < 40 && (
+          (after Day-1 so it doesn't clash with FirstSessionChecklist).
+          Also hidden while the fresh-talent setup band above is showing —
+          ONE card owns onboarding at a time; they used to stack. */}
+      {!isDay1 && profile.completeness < 40 && !onboardingCompleteness && (
         <TalentFirstRunBanner />
       )}
 
@@ -322,11 +358,21 @@ export function TalentTodayPage() {
           threshold. Indigo soft (info, not urgent) with a clear CTA.
           Auto-disappears at >= 80% so it never becomes wallpaper. Hidden
           on Day-1 since the FirstSessionChecklist owns that moment. */}
-      {!isDay1 && profile.completeness >= 40 && profile.completeness < 80 && (
+      {!isDay1 && profile.completeness >= 40 && profile.completeness < 80 && !onboardingCompleteness && (
         <ProfileCompletenessBanner
           percent={profile.completeness}
           missing={profile.missing}
           onFinish={() => openSection("identity")}
+        />
+      )}
+
+      {/* Lane E — "add your first service" nudge. Renders only for a real
+          (bridge-backed) talent with ZERO offerings; the component hides
+          itself otherwise, so this never fires for mock/prototype sessions. */}
+      {bridgeTalentSelfProfile && (
+        <TalentServicesNudge
+          talentId={bridgeTalentSelfProfile.id}
+          onAddService={() => setTalentPage("services")}
         />
       )}
 
@@ -409,20 +455,20 @@ export function TalentTodayPage() {
         }}
       >
         <SectionHeader
-          title="Next on the calendar"
+          title={copy.t("Next on the calendar")}
           subtitle={
             upcoming.length === 0
               ? undefined
-              : `${upcoming.length} upcoming · next ${upcoming[0]?.date}`
+              : `${upcoming.length} ${copy.t("upcoming")} · ${copy.t("next")} ${upcoming[0]?.date}`
           }
-          actionLabel="See calendar →"
+          actionLabel={copy.t("See calendar →")}
           onAction={() => setTalentPage("calendar")}
         />
         {upcoming.length === 0 ? (
           <EmptyState
             icon="calendar"
-            title="Calendar's clear"
-            body="No confirmed bookings yet. The first one always lands faster than you think."
+            title={copy.t("Calendar's clear")}
+            body={copy.t("No confirmed bookings yet. The first one always lands faster than you think.")}
             compact
           />
         ) : (
@@ -452,7 +498,9 @@ export function TalentTodayPage() {
         currency={paidThisMonthCurrency}
         monthTotal={paidThisMonthTotal}
         earnings={bridgeTalentEarnings}
-        onSeeAll={() => openDrawer("talent-career-analytics")}
+        // "See all earnings" belongs on the Money page (real ledger + payouts),
+        // not the career-analytics drawer it used to open.
+        onSeeAll={() => setTalentPage("money")}
       />
 
       {/* W8 — two-sided reviews. The talent's received (client→talent) rating
@@ -468,7 +516,7 @@ export function TalentTodayPage() {
           style={{
             flex: 1, padding: "9px 0", border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }} className="bg-admin-surface-alt rounded-admin-md text-admin-ink-muted">
           <Icon name="sparkle" size={12} color={COLORS.inkMuted} />
-          Career analytics
+          {copy.t("Career analytics")}
         </button>
         <button
           type="button"
@@ -482,7 +530,7 @@ export function TalentTodayPage() {
           }}
         >
           <Icon name="team" size={12} color={COLORS.inkMuted} />
-          Agency analytics
+          {copy.t("Agency analytics")}
         </button>
       </div>
     </>
@@ -500,6 +548,7 @@ export function TalentTodayPage() {
  * shell — so it reads as opportunity, not a system notice.
  */
 function StartWorkspaceTile() {
+  const copy = useDashboardText();
   return (
     <div
       data-platform-surface="marketing"
@@ -550,7 +599,7 @@ function StartWorkspaceTile() {
             letterSpacing: "-0.005em",
           }}
         >
-          Run your own talent business?
+          {copy.t("Run your own talent business?")}
         </div>
         <div
           style={{
@@ -560,7 +609,7 @@ function StartWorkspaceTile() {
             color: "var(--plt-muted)",
           }}
         >
-          Start a free workspace — invite roster, send pitches, take bookings end-to-end. 1 minute, no card.
+          {copy.t("Start a free workspace — invite roster, send pitches, take bookings end-to-end. 1 minute, no card.")}
         </div>
       </div>
 
@@ -594,7 +643,7 @@ function StartWorkspaceTile() {
           e.currentTarget.style.background = "var(--plt-forest)";
         }}
       >
-        Start a workspace
+        {copy.t("Start a workspace")}
         <svg width="11" height="9" viewBox="0 0 14 10" fill="none" aria-hidden>
           <path
             d="M1 5H13M13 5L9 1M13 5L9 9"

@@ -33,6 +33,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  Button,
   Card,
   CardBody,
   CardHead,
@@ -68,6 +69,7 @@ import {
   organizationJsonLdStub,
   parsePageJsonLd,
 } from "@/lib/site-admin/cms-seo";
+import { useEditorLocale } from "./use-editor-locale";
 
 // Phase 0 sweep (2026-04-26) — convergence-plan §1:
 // - "Code" tab said "Coming soon"; product debt removed until per-page custom
@@ -217,6 +219,7 @@ function overLimitStyle(active: boolean): React.CSSProperties | undefined {
 // ── PageSettingsDrawer ───────────────────────────────────────────────────────
 
 export function PageSettingsDrawer() {
+  const { t } = useEditorLocale();
   const {
     pageSettingsOpen,
     closePageSettings,
@@ -306,7 +309,7 @@ export function PageSettingsDrawer() {
     const res = await savePageMetadata(draft);
     setSubmitting(false);
     if (!res.ok) {
-      setErrorMsg(res.error ?? "Couldn't save page settings — try again.");
+      setErrorMsg(res.error ?? "Couldn't save page settings. Try again.");
       return;
     }
     closePageSettings();
@@ -349,7 +352,7 @@ export function PageSettingsDrawer() {
         savingRef.current = false;
         setSubmitting(false);
         if (!res.ok) {
-          setErrorMsg(res.error ?? "Couldn't save page settings — try again.");
+          setErrorMsg(res.error ?? "Couldn't save page settings. Try again.");
         }
       });
     }, 800);
@@ -384,7 +387,7 @@ export function PageSettingsDrawer() {
     >
       <DrawerHead
         titleId="page-settings-drawer-title"
-        title="Page settings"
+        title={t("Page settings")}
         icon={<CogIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={<>{host || "—"} <span style={{ color: CHROME.muted2 }}>·</span> /</>}
@@ -392,13 +395,13 @@ export function PageSettingsDrawer() {
       />
 
       <DrawerTabs>
-        {TABS.map((t) => (
+        {TABS.map((tabDef) => (
           <DrawerTab
-            key={t.key}
-            active={tab === t.key}
-            onClick={() => setTab(t.key)}
+            key={tabDef.key}
+            active={tab === tabDef.key}
+            onClick={() => setTab(tabDef.key)}
           >
-            {t.label}
+            {t(tabDef.label)}
           </DrawerTab>
         ))}
       </DrawerTabs>
@@ -429,7 +432,7 @@ export function PageSettingsDrawer() {
 
         {draft && (tab === "basics" || tab === "seo") ? (
           <Card>
-            <CardHead icon={<FileIcon />} title="Basics" />
+            <CardHead icon={<FileIcon />} title={t("Basics")} />
             <CardBody>
               <Field>
                 <FieldLabel
@@ -471,7 +474,7 @@ export function PageSettingsDrawer() {
                     )
                   }
                   style={inputStyle()}
-                  placeholder="Optional — defaults to page title when empty"
+                  placeholder="Optional, defaults to page title when empty"
                 />
                 <Helper>
                   <span>Shown in browser tabs and search when set.</span>
@@ -525,7 +528,7 @@ export function PageSettingsDrawer() {
 
         {draft && tab === "seo" ? (
           <Card>
-            <CardHead icon={<GlobeIcon />} title="Search preview" />
+            <CardHead icon={<GlobeIcon />} title={t("Search preview")} />
             <CardBody>
               <SearchPreview
                 host={host}
@@ -541,7 +544,7 @@ export function PageSettingsDrawer() {
             <Card>
               <CardHead
                 icon={<ShareIcon />}
-                title="Social card preview"
+                title={t("Social card preview")}
                 sub="OpenGraph + Twitter"
               />
               <CardBody>
@@ -563,7 +566,7 @@ export function PageSettingsDrawer() {
             <Card>
               <CardHead
                 icon={<ShareIcon />}
-                title="OpenGraph overrides"
+                title={t("OpenGraph overrides")}
                 sub="Falls back to title / description when blank"
               />
               <CardBody>
@@ -863,34 +866,6 @@ function SocialPreview({
 
 // ── small button helpers (match the footer button language) ──────────────────
 
-function primaryButtonStyle(disabled: boolean): React.CSSProperties {
-  return {
-    height: 28,
-    padding: "0 12px",
-    fontSize: 11.5,
-    fontWeight: 600,
-    color: "#fff",
-    background: disabled ? CHROME.muted2 : CHROME.accent,
-    border: "none",
-    borderRadius: 7,
-    cursor: disabled ? "not-allowed" : "pointer",
-  };
-}
-
-function ghostButtonStyle(disabled?: boolean): React.CSSProperties {
-  return {
-    height: 28,
-    padding: "0 10px",
-    fontSize: 11.5,
-    fontWeight: 500,
-    color: CHROME.text2,
-    background: CHROME.surface,
-    border: `1px solid ${CHROME.lineMid}`,
-    borderRadius: 7,
-    cursor: disabled ? "not-allowed" : "pointer",
-  };
-}
-
 function FieldError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
@@ -936,6 +911,7 @@ interface UrlRobotsTabProps {
 }
 
 function UrlRobotsTab(props: UrlRobotsTabProps) {
+  const { t } = useEditorLocale();
   const {
     host,
     pageId,
@@ -1017,7 +993,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       () => savePageSlugAction({ pageId, slug: slugDraft.trim() }),
       {
         name: "savePageSlugAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     setSlugBusy(false);
@@ -1039,7 +1015,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
         () => savePageSeoFlagsAction({ pageId, includeInSitemap: next }),
         {
           name: "savePageSeoFlagsAction.sitemap",
-          fallback: { ok: false as const, error: "Network error — try again." },
+          fallback: { ok: false as const, error: "Network error. Try again." },
         },
       );
       setSitemapBusy(false);
@@ -1061,7 +1037,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       () => savePageSeoFlagsAction({ pageId, jsonLdRaw: jsonLdDraft }),
       {
         name: "savePageSeoFlagsAction.jsonLd",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     setJsonLdBusy(false);
@@ -1080,7 +1056,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
   return (
     <>
       <Card>
-        <CardHead icon={<LinkIcon />} title="URL slug" />
+        <CardHead icon={<LinkIcon />} title={t("URL slug")} />
         <CardBody>
           <div className="flex items-center gap-1.5">
             <span style={{ fontFamily: monoFont, fontSize: 12, color: CHROME.muted }}>
@@ -1107,14 +1083,14 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
               }}
             />
             {!slugLocked ? (
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={saveSlug}
                 disabled={!slugDirty || slugBusy || !seoLoaded}
-                style={primaryButtonStyle(!slugDirty || slugBusy || !seoLoaded)}
               >
                 {slugBusy ? "Saving…" : "Save"}
-              </button>
+              </Button>
             ) : null}
           </div>
           <div style={{ marginTop: 8 }}>
@@ -1139,7 +1115,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       <Card>
         <CardHead
           icon={<GlobeIcon />}
-          title="Structured data"
+          title={t("Structured data")}
           sub="schema.org JSON-LD"
         />
         <CardBody>
@@ -1192,19 +1168,18 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
                 alignItems: "center",
               }}
             >
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={saveJsonLd}
                 disabled={!jsonLdDirty || jsonLdBusy || !seoLoaded || Boolean(jsonLdLiveError)}
-                style={primaryButtonStyle(
-                  !jsonLdDirty || jsonLdBusy || !seoLoaded || Boolean(jsonLdLiveError),
-                )}
               >
                 {jsonLdBusy ? "Saving…" : "Save structured data"}
-              </button>
+              </Button>
               {jsonLdDraft.trim().length === 0 ? (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() =>
                     setJsonLdDraft(
                       organizationJsonLdStub({
@@ -1214,10 +1189,9 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
                     )
                   }
                   disabled={!seoLoaded}
-                  style={ghostButtonStyle(!seoLoaded)}
                 >
                   Insert Organization stub
-                </button>
+                </Button>
               ) : null}
             </div>
           </Field>
@@ -1225,7 +1199,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       </Card>
 
       <Card>
-        <CardHead icon={<LinkIcon />} title="Canonical URL" />
+        <CardHead icon={<LinkIcon />} title={t("Canonical URL")} />
         <CardBody>
           <Field flush>
             <FieldLabel htmlFor="ps-canonical" meta="Optional override">
@@ -1251,7 +1225,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
       </Card>
 
       <Card>
-        <CardHead icon={<GlobeIcon />} title="Search engines" />
+        <CardHead icon={<GlobeIcon />} title={t("Search engines")} />
         <CardBody padding="tight">
           <div style={{ padding: "8px 4px" }}>
             <Toggle
@@ -1281,6 +1255,7 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
 // ── RedirectsCard — list / add / enable / delete cms_redirects ───────────────
 
 function RedirectsCard({ open, host }: { open: boolean; host: string }) {
+  const { t } = useEditorLocale();
   const [loaded, setLoaded] = useState(false);
   const [rows, setRows] = useState<ReadonlyArray<CmsRedirectRow>>([]);
   const [fromPath, setFromPath] = useState("");
@@ -1325,7 +1300,7 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
         }),
       {
         name: "createRedirectAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     setBusy(false);
@@ -1347,7 +1322,7 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
       () => setRedirectActiveAction({ id: row.id, active: next }),
       {
         name: "setRedirectActiveAction",
-        fallback: { ok: false as const, error: "Network error — try again." },
+        fallback: { ok: false as const, error: "Network error. Try again." },
       },
     );
     if (!res.ok) {
@@ -1364,7 +1339,7 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
     setRows((prev) => prev.filter((r) => r.id !== snapshot));
     const res = await safeAction(() => deleteRedirectAction({ id }), {
       name: "deleteRedirectAction",
-      fallback: { ok: false as const, error: "Network error — try again." },
+      fallback: { ok: false as const, error: "Network error. Try again." },
     });
     if (!res.ok) setError(res.error);
   }, []);
@@ -1375,8 +1350,8 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
     <Card>
       <CardHead
         icon={<LinkIcon />}
-        title="Redirects"
-        sub="301 / 302 path forwarding"
+        title={t("Redirects")}
+        sub={t("301 / 302 path forwarding")}
       />
       <CardBody>
         <div className="flex flex-col gap-1.5">
@@ -1402,16 +1377,14 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
               onChange={setPermanent}
               label={permanent ? "Permanent (301)" : "Temporary (302)"}
             />
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               onClick={addRedirect}
               disabled={busy || fromPath.trim() === "" || toPath.trim() === ""}
-              style={primaryButtonStyle(
-                busy || fromPath.trim() === "" || toPath.trim() === "",
-              )}
             >
               {busy ? "Adding…" : "Add redirect"}
-            </button>
+            </Button>
           </div>
           <FieldError message={error} />
         </div>
@@ -1459,26 +1432,22 @@ function RedirectsCard({ open, host }: { open: boolean; host: string }) {
                       {row.statusCode} · {row.active ? "active" : "disabled"}
                     </div>
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => void toggleActive(row)}
-                    style={ghostButtonStyle()}
                     title={row.active ? "Disable" : "Enable"}
                   >
                     {row.active ? "Disable" : "Enable"}
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={() => void removeRedirect(row.id)}
-                    style={{
-                      ...ghostButtonStyle(),
-                      color: CHROME.rose,
-                      borderColor: CHROME.roseLine,
-                    }}
                     title="Delete"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>

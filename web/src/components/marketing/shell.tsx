@@ -4,6 +4,7 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
+import { loadAccountMenuModel } from "@/lib/identity/account-menu-model";
 import { signOut } from "@/app/auth/actions";
 import { MarketingHeader } from "./header";
 import type { MarketingAccount } from "./marketing-account-menu";
@@ -36,16 +37,41 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
   let account: MarketingAccount | undefined;
   if (actor.user) {
     const link = resolveAccountHref(true, actor.profile);
-    account = {
-      displayName:
-        actor.profile?.display_name?.trim() ||
-        actor.user.email?.split("@")[0] ||
-        "Account",
-      email: actor.user.email ?? "",
-      dashboardHref: link.href.startsWith("http")
-        ? link.href
-        : `${getAppUrl()}${link.href}`,
-    };
+    const appUrl = getAppUrl();
+    const displayName =
+      actor.profile?.display_name?.trim() ||
+      actor.user.email?.split("@")[0] ||
+      "Account";
+    const email = actor.user.email ?? "";
+    const fallbackDashboardHref = link.href.startsWith("http")
+      ? link.href
+      : `${appUrl}${link.href}`;
+
+    // Identity-aware menu: workspace memberships AND (for talents) their public
+    // pages with visibility + tier badge. Composed from existing loaders.
+    account = actor.supabase
+      ? await loadAccountMenuModel(actor.supabase, actor.user.id, {
+          appUrl,
+          displayName,
+          email,
+          appRole: actor.profile?.app_role,
+          fallbackDashboardHref,
+        })
+      : {
+          displayName,
+          email,
+          dashboardHref: fallbackDashboardHref,
+          accountHref: fallbackDashboardHref,
+          workspaces: [],
+          talentPages: [],
+          isTalent: false,
+          globalHidden: false,
+          talentLinks: null,
+          talentUpgradeHref: null,
+          isClient: false,
+          clientTenants: [],
+          clientLinks: null,
+        };
   }
 
   return (
@@ -62,7 +88,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       />
       <main className="flex-1 pt-[var(--plt-header-h,64px)] sm:pt-[72px]">{children}</main>
       <MarketingFooter />
-      <MarketingModalHost />
+      <MarketingModalHost locale={locale} />
     </div>
   );
 }

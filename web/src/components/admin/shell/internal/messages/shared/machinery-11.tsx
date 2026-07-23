@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { loadInquiryLineup, removeInquiryLineupParticipant, addInquiryLineupTalent, reorderInquiryLineup, saveOfferDraft, loadOfferDraft, createOfferAction, type InquiryParticipant, type OfferDraftSnapshot } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import type { SendGateResult } from "./offer-save-state";
+import { OfferSaveBanner, OfferStatusChip } from "./offer-save-banner";
+import { useOfferSave } from "./use-offer-save";
 import { useAdminShell, FONTS, COLORS, RADIUS } from "../../state";
 import { Avatar } from "../../primitives";
 import { initialsOf } from "./inbox-identity-1";
@@ -32,6 +37,25 @@ export function LiveLineupPanel({
   defaultExpanded?: boolean;
 }) {
   const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
+  const t = useT();
+  // Latest-`t` ref so async callbacks (reload) can resolve the current-locale
+  // translator without listing `t` (a fresh closure each render) as an effect
+  // dep — which would re-run the effect on every render.
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
+  // Discriminant->label map: keep switching on the raw participant status
+  // union elsewhere; resolve the human label here via t(). Falls back to
+  // the raw value for any unmapped status.
+  const statusLabel = (status: string): string => {
+    const keys: Record<string, string> = {
+      active: "dashboard.adminTabs.lineup.statusActive",
+      invited: "dashboard.adminTabs.lineup.statusInvited",
+      declined: "dashboard.adminTabs.lineup.statusDeclined",
+      removed: "dashboard.adminTabs.lineup.statusRemoved",
+    };
+    const key = keys[status];
+    return key ? t(key) : status;
+  };
   const [lineup, setLineup] = useState<InquiryParticipant[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
@@ -54,7 +78,7 @@ export function LiveLineupPanel({
     loadInquiryLineup(effectiveTenant.slug, inquiryId)
       .then((r) => {
         if (r.ok) setLineup(r.data ?? []);
-        else toast(`Couldn't load lineup: ${r.error}`);
+        else toast(interpolate(tRef.current("dashboard.adminTabs.lineup.loadFailed"), { error: r.error }));
       })
       .finally(() => setLoading(false));
   }, [inquiryId, isUuid, effectiveTenant.slug, toast]);
@@ -85,20 +109,20 @@ export function LiveLineupPanel({
   });
 
   const remove = (participantId: string, name: string | null) => {
-    if (!confirm(`Remove ${name ?? "this talent"} from the lineup?`)) return;
+    if (!confirm(interpolate(t("dashboard.adminTabs.lineup.removeConfirm"), { name: name ?? t("dashboard.adminTabs.lineup.thisTalent") }))) return;
     startTransition(async () => {
       const r = await removeInquiryLineupParticipant(effectiveTenant.slug, inquiryId, participantId);
-      if (!r.ok) toast(`Remove failed: ${r.error}`);
-      else { toast("Removed from lineup"); reload(); }
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.lineup.removeFailed"), { error: r.error }));
+      else { toast(t("dashboard.adminTabs.lineup.removedFromLineup")); reload(); }
     });
   };
 
   const add = (talentProfileId: string, name: string) => {
     startTransition(async () => {
       const r = await addInquiryLineupTalent(effectiveTenant.slug, inquiryId, talentProfileId);
-      if (!r.ok) toast(`Add failed: ${r.error}`);
+      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.lineup.addFailed"), { error: r.error }));
       else {
-        toast(`${name} added to lineup`);
+        toast(interpolate(t("dashboard.adminTabs.lineup.addedToLineup"), { name }));
         setPickerOpen(false);
         setPickerSearch("");
         reload();
@@ -140,12 +164,12 @@ export function LiveLineupPanel({
         }}
       >
         <span style={{ fontWeight: 700, whiteSpace: "nowrap" }} className="text-admin-ink">
-          Lineup
+          {t("dashboard.adminTabs.lineup.title")}
         </span>
         {/* Overlapping avatar stack */}
         {lineup.length === 0 ? (
           <span style={{ fontSize: 11, fontStyle: "italic" }} className="text-admin-ink-muted">
-            empty — add talent to start
+            {t("dashboard.adminTabs.lineup.emptyStrip")}
           </span>
         ) : (
           <span
@@ -165,7 +189,7 @@ export function LiveLineupPanel({
                   // Subtle dim on declined/removed so the user sees state at a glance.
                   opacity: p.status === "declined" || p.status === "removed" ? 0.4 : 1,
                 }}
-                title={`${p.talentDisplayName ?? "Unnamed"} · ${p.status}`}
+                title={`${p.talentDisplayName ?? t("dashboard.adminTabs.lineup.unnamed")} · ${statusLabel(p.status)}`}
               >
                 <Avatar
                   size={22}
@@ -183,14 +207,16 @@ export function LiveLineupPanel({
             )}
             <span style={{
               marginLeft: 8, fontSize: 11, color: COLORS.inkMuted, fontWeight: 600, }} className="bg-admin-surface-alt text-admin-ink-muted">
-              {lineup.length} talent{lineup.length === 1 ? "" : "s"}
+              {interpolate(t(lineup.length === 1 ? "dashboard.adminTabs.lineup.talentCountOne" : "dashboard.adminTabs.lineup.talentCountMany"), { count: lineup.length })}
             </span>
           </span>
         )}
         <span style={{ flex: 1 }} />
         {lineup.length > 0 && (
           <span className="text-admin-ink-muted text-admin-11">
-            {activeCount} active · {invitedCount} invited{declinedCount > 0 ? ` · ${declinedCount} declined` : ""}
+            {declinedCount > 0
+              ? interpolate(t("dashboard.adminTabs.lineup.statusSummaryDeclined"), { active: activeCount, invited: invitedCount, declined: declinedCount })
+              : interpolate(t("dashboard.adminTabs.lineup.statusSummary"), { active: activeCount, invited: invitedCount })}
           </span>
         )}
         <span
@@ -203,7 +229,7 @@ export function LiveLineupPanel({
           }}
         >▸</span>
         <span className="text-admin-ink-muted text-admin-11">
-          {expanded ? "Hide" : "Manage"}
+          {expanded ? t("dashboard.adminTabs.lineup.hide") : t("dashboard.adminTabs.lineup.manage")}
         </span>
       </button>
 
@@ -213,7 +239,7 @@ export function LiveLineupPanel({
         <div id={`lineup-panel-${inquiryId}`} style={{ marginTop: 10 }}>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-admin-ink-muted text-admin-11">
-              Drag to prioritize. Invited talent see this inquiry in Messages.
+              {t("dashboard.adminTabs.lineup.dragHint")}
             </span>
             <span style={{ flex: 1 }} />
             <button
@@ -222,7 +248,7 @@ export function LiveLineupPanel({
               onClick={() => setPickerOpen((o) => !o)}
               style={primaryBtn(COLORS.accent)}
             >
-              {pickerOpen ? "Close picker" : "Add talent"}
+              {pickerOpen ? t("dashboard.adminTabs.lineup.closePicker") : t("dashboard.adminTabs.lineup.addTalent")}
             </button>
           </div>
           {lineup.length > 0 && (
@@ -249,7 +275,7 @@ export function LiveLineupPanel({
                 setLineup(next);
                 startTransition(async () => {
                   const r = await reorderInquiryLineup(effectiveTenant.slug, inquiryId, next.map((x) => x.id));
-                  if (!r.ok) { toast(`Reorder failed: ${r.error}`); reload(); }
+                  if (!r.ok) { toast(interpolate(t("dashboard.adminTabs.lineup.reorderFailed"), { error: r.error })); reload(); }
                 });
               }}
               style={{
@@ -272,7 +298,7 @@ export function LiveLineupPanel({
               />
               <div className="flex-1 min-w-0">
                 <div style={{ fontWeight: 600 }} className="text-admin-ink">
-                  {p.talentDisplayName ?? "(unnamed talent)"}
+                  {p.talentDisplayName ?? t("dashboard.adminTabs.lineup.unnamedTalent")}
                 </div>
                 {p.talentHeadline && (
                   <div className="text-admin-ink-muted text-admin-11">
@@ -300,9 +326,9 @@ export function LiveLineupPanel({
                         : COLORS.amberDeep,
                     }}
                   >
-                    {p.status === "active" ? "Active" : p.status === "declined" ? "Declined" : "Invited"}
+                    {p.status === "active" ? t("dashboard.adminTabs.lineup.statusActive") : p.status === "declined" ? t("dashboard.adminTabs.lineup.statusDeclined") : t("dashboard.adminTabs.lineup.statusInvited")}
                   </span>
-                  {p.invitedAt ? `Invited ${new Date(p.invitedAt).toLocaleDateString()}` : "Added to inquiry"}
+                  {p.invitedAt ? interpolate(t("dashboard.adminTabs.lineup.invitedOn"), { date: new Date(p.invitedAt).toLocaleDateString() }) : t("dashboard.adminTabs.lineup.addedToInquiry")}
                 </div>
               </div>
               <button
@@ -315,7 +341,7 @@ export function LiveLineupPanel({
                   color: COLORS.coralDeep, cursor: pending ? "wait" : "pointer",
                   fontSize: 11, fontWeight: 600,
                 }}
-              >Remove</button>
+              >{t("dashboard.adminTabs.lineup.remove")}</button>
             </div>
           ))}
         </div>
@@ -330,7 +356,7 @@ export function LiveLineupPanel({
             type="text"
             value={pickerSearch}
             onChange={(e) => setPickerSearch(e.target.value)}
-            placeholder="Search roster…"
+            placeholder={t("dashboard.adminTabs.lineup.searchRoster")}
             autoFocus
             style={{
               padding: "6px 10px",
@@ -341,7 +367,7 @@ export function LiveLineupPanel({
           <div style={{ maxHeight: 220, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
             {pickerCandidates.length === 0 && (
               <div style={{ fontSize: 11, padding: "6px 4px" }} className="text-admin-ink-muted">
-                {pickerSearch.trim() ? "No matches in roster." : "All roster talent are already on this lineup."}
+                {pickerSearch.trim() ? t("dashboard.adminTabs.lineup.noMatches") : t("dashboard.adminTabs.lineup.allOnLineup")}
               </div>
             )}
             {pickerCandidates.slice(0, 50).map((cand) => (
@@ -385,12 +411,20 @@ export function LiveLineupPanel({
  * `updateOfferDraft`. Each save replaces the line items wholesale —
  * matches the engine contract.
  */
-export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: string; offerId: string; canEdit: boolean }) {
+export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange }: { inquiryId: string; offerId: string; canEdit: boolean; onSendGateChange?: (gate: SendGateResult) => void }) {
   const { toast, effectiveRoster, effectiveTenant } = useAdminShell();
+  const t = useT();
+  // Latest-`t` ref for async callbacks (see LiveLineupPanel note).
+  const tRef = useRef(t);
+  useEffect(() => { tRef.current = t; }, [t]);
   const [snapshot, setSnapshot] = useState<OfferDraftSnapshot | null>(null);
+  const snapshotRef = useRef<OfferDraftSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pending, startTransition] = useTransition();
+  const [pending] = useTransition();
   const [collapsed, setCollapsed] = useState(true);
+  // W2-2 — line ids with a hand-edited label, so a talent/service pick won't
+  // clobber a custom label (e.g. "Full-day + travel CDMX").
+  const [labelTouched, setLabelTouched] = useState<Set<string>>(new Set());
   // Item #11 wiring: which talent_profile_ids on this inquiry are
   // ALSO coordinators? Drives the inline "+coord" badge in the offer
   // line-item rows. Loaded once on mount; falls back to empty Set so
@@ -402,7 +436,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
     loadOfferDraft(effectiveTenant.slug, offerId)
       .then((r) => {
         if (r.ok && r.data) setSnapshot(r.data);
-        else if (!r.ok) toast(`Couldn't load offer draft: ${r.error}`);
+        else if (!r.ok) toast(interpolate(tRef.current("dashboard.adminTabs.lineup.loadDraftFailed"), { error: r.error }));
       })
       .finally(() => setLoading(false));
   }, [offerId, effectiveTenant.slug, toast]);
@@ -424,7 +458,20 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
     return () => { cancelled = true; };
   }, [inquiryId, effectiveTenant.slug]);
 
+  useEffect(() => { snapshotRef.current = snapshot; }, [snapshot]);
   useEffect(() => { reload(); }, [reload]);
+  // W0 — save orchestration (state machine + auth recovery + local snapshot)
+  // lives in useOfferSave so this file stays under the admin-shell line cap.
+  const { saveState, save, pending: savePending } = useOfferSave({
+    tenantSlug: effectiveTenant.slug,
+    offerId,
+    snapshotRef,
+    reload,
+    editorLineCount: snapshot?.lineItems.length ?? 0,
+    editorTotal: snapshot?.lineItems.reduce((sum, li) => sum + (Number(li.totalPrice) || 0), 0) ?? 0,
+    loaded: !loading && !!snapshot,
+    onSendGateChange,
+  });
 
   if (!canEdit) return null;
   // C9 — loading skeleton (was a blank flash before).
@@ -490,34 +537,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
     setSnapshot((s) => s == null ? s : { ...s, lineItems: s.lineItems.filter((li) => li.id !== id) });
   };
 
-  const save = () => {
-    if (!snapshot) return;
-    startTransition(async () => {
-      const lineItems = snapshot.lineItems.map((li, idx) => ({
-        talent_profile_id: li.talentProfileId,
-        label: li.label,
-        pricing_unit: li.pricingUnit,
-        units: li.units,
-        unit_price: li.unitPrice,
-        total_price: li.totalPrice,
-        talent_cost: li.talentCost,
-        notes: li.notes,
-        sort_order: idx,
-        source_service_id: li.sourceServiceId,
-      }));
-      const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
-        inquiryExpectedVersion: snapshot.inquiryVersion,
-        offerExpectedVersion: snapshot.offerVersion,
-        totalClientPrice: computedTotal,
-        coordinatorFee: snapshot.coordinatorFee,
-        currencyCode: snapshot.currencyCode,
-        notes: snapshot.notes,
-        lineItems,
-      });
-      if (!r.ok) toast(`Save failed: ${r.error}`);
-      else { toast("Offer draft saved"); reload(); }
-    });
-  };
+
 
   // Roster talent options for the per-line dropdown — only real UUIDs
   // (synthetic mock roster won't resolve at the DB).
@@ -529,14 +549,14 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
   if (collapsed) {
     return (
       <div style={{ border: `1px solid ${COLORS.borderSoft}`, padding: "8px 12px", display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body, fontSize: 12 }} className="bg-admin-surface-alt rounded-admin-md">
-        <span style={{ fontWeight: 700 }} className="text-admin-ink">Draft editor</span>
+        <span style={{ fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.lineup.draftEditor")}</span>
         <span className="text-admin-ink-muted">
-          {snapshot.lineItems.length} line item{snapshot.lineItems.length === 1 ? "" : "s"}
+          {interpolate(t(snapshot.lineItems.length === 1 ? "dashboard.adminTabs.lineup.lineItemCountOne" : "dashboard.adminTabs.lineup.lineItemCountMany"), { count: snapshot.lineItems.length })}
           {" · "}
-          total {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(computedTotal)}
+          {interpolate(t("dashboard.adminTabs.lineup.totalPrefix"), { amount: new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(computedTotal) })}
         </span>
         <span style={{ flex: 1 }} />
-        <button type="button" onClick={() => setCollapsed(false)} style={ghostBtn()}>Edit</button>
+        <button type="button" onClick={() => setCollapsed(false)} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.edit")}</button>
       </div>
     );
   }
@@ -549,11 +569,16 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
       fontFamily: FONTS.body, fontSize: 12,
     }}>
       <div className="flex items-center gap-2">
-        <span style={{ fontWeight: 700 }} className="text-admin-ink">Draft editor</span>
+        <span style={{ fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.lineup.draftEditor")}</span>
+        {/* W0-4 — live save-state chip, companion to OfferSaveBanner. */}
+        <OfferStatusChip state={saveState} />
         <span className="text-admin-ink-muted text-admin-11">inquiry_offer_line_items</span>
         <span style={{ flex: 1 }} />
-        <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>Collapse</button>
+        <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.collapse")}</button>
       </div>
+      {/* W0-1 — sticky save-state banner: quiet tick on success, persistent
+          danger banner (with human reason + Retry) while a save is failing. */}
+      <OfferSaveBanner state={saveState} onRetry={save} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
           <div key={li.id} style={{
@@ -570,11 +595,11 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
                   const match = rosterOptions.find((p) => p.id === id);
                   // Changing the talent invalidates any prior service prefill
                   // (the service belonged to the previous talent) — clear the stamp.
-                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: match?.name ?? li.label, sourceServiceId: null });
+                  updateLine(li.id, { talentProfileId: id, talentDisplayName: match?.name ?? null, label: labelTouched.has(li.id) ? li.label : (match?.name ?? li.label), sourceServiceId: null });
                 }}
                 style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4, flex: 1, minWidth: 0 }}
               >
-                <option value="">— choose talent —</option>
+                <option value="">{t("dashboard.adminTabs.lineup.chooseTalent")}</option>
                 {rosterOptions.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -586,7 +611,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
                   coordinator_pct, plan §7.4). */}
               {li.talentProfileId && coordTalentIds.has(li.talentProfileId) && (
                 <span
-                  title="Also coordinates — earns both talent payout + coord commission"
+                  title={t("dashboard.adminTabs.lineup.coordBadgeTitle")}
                   style={{
                     padding: "1px 6px",
                     borderRadius: 999,
@@ -599,7 +624,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
                     flexShrink: 0,
                   }}
                 >
-                  +coord
+                  {t("dashboard.adminTabs.lineup.coordBadge")}
                 </span>
               )}
             </div>
@@ -608,44 +633,43 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
               onChange={(e) => updateLine(li.id, { pricingUnit: e.target.value as ServicePricingType })}
               style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
             >
-              <option value="hour">/hr</option>
-              <option value="day">/day</option>
-              <option value="week">/wk</option>
-              <option value="half_day">/half-day</option>
-              <option value="event">/event</option>
-              <option value="per_person">/person</option>
-              <option value="per_contact">/session</option>
-              <option value="flat_package">flat</option>
-              <option value="custom">custom</option>
+              <option value="hour">{t("dashboard.adminTabs.lineup.unitHour")}</option>
+              <option value="day">{t("dashboard.adminTabs.lineup.unitDay")}</option>
+              <option value="week">{t("dashboard.adminTabs.lineup.unitWeek")}</option>
+              <option value="half_day">{t("dashboard.adminTabs.lineup.unitHalfDay")}</option>
+              <option value="event">{t("dashboard.adminTabs.lineup.unitEvent")}</option>
+              <option value="per_person">{t("dashboard.adminTabs.lineup.unitPerson")}</option>
+              <option value="per_contact">{t("dashboard.adminTabs.lineup.unitSession")}</option>
+              <option value="flat_package">{t("dashboard.adminTabs.lineup.unitFlat")}</option>
+              <option value="custom">{t("dashboard.adminTabs.lineup.unitCustom")}</option>
             </select>
             <input type="number" min={0} step="0.5" value={li.units}
               onChange={(e) => updateLine(li.id, { units: parseFloat(e.target.value) || 0 })}
               style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-              placeholder="units"
+              placeholder={t("dashboard.adminTabs.lineup.unitsPlaceholder")}
             />
             <input type="number" min={0} step="100" value={li.unitPrice}
               onChange={(e) => updateLine(li.id, { unitPrice: parseFloat(e.target.value) || 0 })}
               style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-              placeholder="rate"
+              placeholder={t("dashboard.adminTabs.lineup.ratePlaceholder")}
             />
             <input type="number" min={0} step="100" value={li.talentCost}
               onChange={(e) => updateLine(li.id, { talentCost: parseFloat(e.target.value) || 0 })}
               style={{ padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-              placeholder="talent cost"
+              placeholder={t("dashboard.adminTabs.lineup.talentCostPlaceholder")}
             />
             <button type="button" onClick={() => removeLine(li.id)} style={{
               background: "transparent", border: "none",
               color: COLORS.coralDeep, cursor: "pointer", fontSize: 14, lineHeight: 1,
             }}>×</button>
-            {/* S14/S15 — prefill this line from the talent's services menu.
-                col-span-full keeps it off the no-new-inline-style ratchet. */}
+            {/* S14/S15 — prefill this line from the talent's services (W2-1). */}
             {li.talentProfileId ? (
               <div className="col-span-full">
                 <LineServicePicker
                   talentProfileId={li.talentProfileId}
                   onPick={(svc) =>
                     updateLine(li.id, {
-                      label: svc.name,
+                      label: labelTouched.has(li.id) ? li.label : svc.name,
                       pricingUnit: svc.pricingType,
                       unitPrice: svc.amountCents != null ? svc.amountCents / 100 : li.unitPrice,
                       sourceServiceId: svc.id, // S18 — audit stamp
@@ -654,27 +678,48 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
                 />
               </div>
             ) : null}
+            {/* W2-2 — editable line label + "what's included" note: a
+                travel-inclusive rate reads honestly (baked in, no expense line). */}
+            <div className="col-span-full flex gap-1.5">
+              <input
+                type="text"
+                value={li.label ?? ""}
+                onChange={(e) => {
+                  setLabelTouched((prev) => new Set(prev).add(li.id));
+                  updateLine(li.id, { label: e.target.value });
+                }}
+                placeholder={t("dashboard.adminTabs.lineup.lineLabelPlaceholder")}
+                className="min-w-0 flex-[1.4] rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink"
+              />
+              <input
+                type="text"
+                value={li.notes ?? ""}
+                onChange={(e) => updateLine(li.id, { notes: e.target.value || null })}
+                placeholder={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
+                className="min-w-0 flex-1 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink-muted"
+              />
+            </div>
           </div>
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>+ Add line item</button>
+        <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.addLineItem")}</button>
         <span style={{ flex: 1 }} />
-        <label className="text-admin-ink-muted text-admin-11">Total</label>
+        <label className="text-admin-ink-muted text-admin-11">{t("dashboard.adminTabs.lineup.total")}</label>
         <span
-          title="Auto-summed from the line items above — this is exactly what the client sees on the offer and is charged at booking."
+          title={t("dashboard.adminTabs.lineup.totalTitle")}
           style={{ minWidth: 90, padding: "5px 6px", fontSize: 13, fontWeight: 700, textAlign: "right", whiteSpace: "nowrap", fontFamily: FONTS.body }}
           className="text-admin-ink"
         >
           {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(computedTotal)}
         </span>
-        <label className="text-admin-ink-muted text-admin-11">Fee</label>
+        <label className="text-admin-ink-muted text-admin-11">{t("dashboard.adminTabs.lineup.fee")}</label>
         <input type="number" min={0} step="100" value={snapshot.coordinatorFee}
           onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
           style={{ width: 80, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
         />
-        <button type="button" disabled={pending} onClick={save} style={primaryBtn(COLORS.accent)}>
-          {pending ? "Saving…" : "Save draft"}
+        <button type="button" disabled={savePending} onClick={save} style={primaryBtn(COLORS.accent)}>
+          {savePending ? t("dashboard.adminTabs.lineup.saving") : t("dashboard.adminTabs.lineup.saveDraft")}
         </button>
       </div>
 
@@ -727,6 +772,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit }: { inquiryId: s
  */
 export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
   const { toast, effectiveTenant } = useAdminShell();
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
@@ -736,12 +782,12 @@ export function CreateOfferButton({ inquiryId }: { inquiryId: string }) {
         disabled={pending}
         onClick={() => startTransition(async () => {
           const r = await createOfferAction(effectiveTenant.slug, inquiryId);
-          if (!r.ok) toast(`Couldn't start offer: ${r.error}`);
-          else { toast("Offer draft created"); router.refresh(); }
+          if (!r.ok) toast(interpolate(t("dashboard.adminTabs.lineup.startOfferFailed"), { error: r.error }));
+          else { toast(t("dashboard.adminTabs.lineup.offerCreated")); router.refresh(); }
         })}
         style={primaryBtn(COLORS.accent)}
       >
-        {pending ? "Starting…" : "Start drafting offer"}
+        {pending ? t("dashboard.adminTabs.lineup.starting") : t("dashboard.adminTabs.lineup.startDrafting")}
       </button>
     </div>
   );

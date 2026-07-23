@@ -3,14 +3,12 @@
 /**
  * MiniChatPanel — the talent-profile conversational-inquiry popup (Lane D / F2).
  *
- * THE UX-CRITICAL surface of the guest-chat MVP. A guest on a talent profile
- * opens this floating panel, types a first message freely (never blocked),
- * fills a one-line name+email gate, and a real inquiry is created. The thread
- * then renders live (initial load + ~4s poll) and the guest keeps chatting.
+ * THE UX-CRITICAL surface of the guest-chat MVP: floating panel, free first
+ * message, one-line name+email gate, then a live thread (initial load + ~4s
+ * poll) backed by a real inquiry.
  *
- * F4 (Lane C): the panel can be expanded in-place into a 2-pane layout via the
- * `expanded` + `onToggleExpand` local props; ExpandedChatLayout wraps
- * MiniChatPanelColumn as the right pane and adds a left conversation-list pane.
+ * F4 (Lane C): `expanded` + `onToggleExpand` switch to the 2-pane
+ * ExpandedChatLayout (conversation list left, MiniChatPanelColumn right).
  *
  * Design constraints (strategy §10 + deep-dives Part C): async-first honest
  * presence (NO fake "online now"); first message NEVER blocked (gate at send
@@ -25,7 +23,6 @@ import type {
   GuestChipKind,
   GuestChipValue,
   GuestIdentityTier,
-  GuestInquirySummary,
   GuestThreadMessage,
   GuestThreadStatus,
   InquiryReceiptData,
@@ -48,14 +45,12 @@ import {
   NOOP_ENSURE_INQUIRY,
   deriveTalentPickState,
   makeRemoteNoteRows,
-  reconcileCartRemovals,
 } from "./mini-chat-panel-helpers";
 import { useGuestDetailReconcile } from "./use-guest-detail-reconcile";
-import { chipValueToPatch, chipValuesToServerIntent } from "./unified-inquiry-bridge";
+import { chipValuesToServerIntent } from "./unified-inquiry-bridge";
 import type { StreamRow } from "./MiniChatMessageBubble";
 import {
   DEFAULT_ACCENT,
-  EMAIL_RE,
   firstNameOf,
   paletteFor,
   readableOn,
@@ -64,8 +59,56 @@ import {
 import { miniPanelContainerStyle } from "./mini-chat-panel-geometry";
 import { useCompactViewport } from "./use-compact-viewport";
 import type { MiniChatPanelLocalProps } from "./mini-chat-panel-props";
+import { offeringDraftPrefix, type ChatOffering } from "./OfferingQuickPicker";
+import { setPendingOffering } from "./pending-offering-store";
+import { useGateEmailCheck } from "./use-gate-email-check";
+import { useGuestInquiriesList } from "./use-guest-inquiries-list";
+import { createApplyFailure } from "./mini-chat-panel-apply-failure";
+import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
+import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
+import type { GuestDockView } from "./guest-dock-view";
 
 type Stage = "intro" | "gate" | "thread";
+
+const DOCK_VIEW_STORAGE_KEY = "impronta.dockView";
+const DOCK_VIEWS: readonly GuestDockView[] = ["home", "chat", "lineup", "projects"];
+
+function readStoredDockView(): GuestDockView | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.sessionStorage.getItem(DOCK_VIEW_STORAGE_KEY);
+    if (stored && (DOCK_VIEWS as readonly string[]).includes(stored)) {
+      return stored as GuestDockView;
+    }
+  } catch {
+    /* sessionStorage unavailable (private mode) */
+  }
+  return null;
+}
+
+/**
+ * The view the dock opens into. A remembered session view wins; otherwise an
+ * active conversation (a resumed inquiry or a seeded lineup) lands on Chat, and a
+ * truly fresh visitor lands on the Home hub.
+ */
+function resolveInitialDockView(
+  existingInquiryId: string | null,
+  cartTalentIds: readonly string[] | undefined,
+): GuestDockView {
+  const stored = readStoredDockView();
+  if (stored) return stored;
+  if (existingInquiryId || (cartTalentIds?.length ?? 0) > 0) return "chat";
+  return "home";
+}
+
+function persistDockView(view: GuestDockView): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(DOCK_VIEW_STORAGE_KEY, view);
+  } catch {
+    /* best-effort */
+  }
+}
 
 // ───────────────────────────────────────────────────────────────────────────
 // Component
@@ -81,7 +124,10 @@ export function MiniChatPanel({
   sourcePage,
   brand,
   existingInquiryId = null,
+  existingContactPromoted = null,
   prefill = null,
+  offerings = [],
+  onAttachOffering = null,
   onStartInquiry,
   onSendMessage,
   onAddClaimEmail = null,
@@ -97,6 +143,7 @@ export function MiniChatPanel({
   soundOnReply = true,
   identity = "guest",
   surfaceMode = "light",
+  isHub = false,
   expanded = false,
   onToggleExpand,
   cartTalentIds,
@@ -106,6 +153,8 @@ export function MiniChatPanel({
   onRemoveCartTalent,
   onRegisterRemoveTalent,
   onInquiryIdChange,
+  onScanConversation = null,
+  onStartFresh = null,
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
   const accentInk = readableOn(brand.accentColor);
@@ -139,8 +188,13 @@ export function MiniChatPanel({
   const [threadMeta, setThreadMeta] = useState<{ typicalReply: string | null; receipt: InquiryReceiptData | null }>({ typicalReply: null, receipt: null });
   const [threadStatus, setThreadStatus] = useState<GuestThreadStatus>("open");
   const [emailedTo, setEmailedTo] = useState<string | null>(null);
-  const [gateEmailNotice, setGateEmailNotice] = useState<string | null>(null);
-  const [gateEmailBlocksSubmit, setGateEmailBlocksSubmit] = useState(false);
+  // Debounced claim-email check at the gate — extracted to useGateEmailCheck
+  // (W1-A decomposition pre-pass).
+  const { gateEmailNotice, gateEmailBlocksSubmit } = useGateEmailCheck({
+    stage,
+    email,
+    onCheckClaimEmail,
+  });
 
   const [pulseActive, setPulseActive] = useState(false);
   const [seenAtByInquiry, setSeenAtByInquiry] = useState<Record<string, string>>({});
@@ -164,8 +218,44 @@ export function MiniChatPanel({
   // hook below.
   const [serverIntent, setServerIntent] = useState<InquiryIntent | null>(null);
 
-  // F4: inquiries list for the expanded left pane.
-  const [inquiries, setInquiries] = useState<GuestInquirySummary[]>([]);
+  // DOCK v2: the active dock view (Home / Chat / Lineup / Projects). Home is the
+  // friendly landing for a fresh visitor; an active conversation (a resumed
+  // inquiry or a seeded lineup) lands on Chat. The last view is remembered per
+  // session so re-opening the dock returns where the guest left off.
+  const [dockView, setDockViewState] = useState<GuestDockView>(() =>
+    resolveInitialDockView(existingInquiryId, cartTalentIds),
+  );
+  const setDockView = (view: GuestDockView) => {
+    setDockViewState(view);
+    persistDockView(view);
+  };
+  // The panel mounts (closed) before any talent is added, so the lazy initializer
+  // above can only see the empty cart. Re-resolve the landing view on each fresh
+  // OPEN: a remembered session view wins, else an active conversation (resumed id
+  // or a seeded lineup) lands on Chat and a truly fresh visitor lands on Home.
+  const wasOpenRef = useRef(false);
+  const hasActiveContext = Boolean(existingInquiryId) || (cartTalentIds?.length ?? 0) > 0;
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      const stored = readStoredDockView();
+      setDockViewState(stored ?? (hasActiveContext ? "chat" : "home"));
+    }
+    wasOpenRef.current = open;
+  }, [open, hasActiveContext]);
+
+  // useGuestInquiriesList (W1-A decomposition pre-pass). W2-A: also feeds the
+  // Projects dock view (compact + expanded). The refreshKey flips only when the
+  // guest ENTERS the Projects view (not on every Chat<->Lineup switch), forcing
+  // exactly one refetch so an inquiry created earlier in this open session shows
+  // up without reopening the panel.
+  const inquiries = useGuestInquiriesList({
+    open,
+    expanded,
+    onListGuestInquiries,
+    tenantSlug,
+    refreshKey: dockView === "projects",
+    activeInquiryId: inquiryId,
+  });
 
   // Finding #2: post-"Send to agency" success note (one-shot confirmation).
   const [sentNote, setSentNote] = useState(false);
@@ -191,6 +281,7 @@ export function MiniChatPanel({
     talentProfileCode: talentProfileCode || null,
     sourcePage,
     existingInquiryId: inquiryId,
+    existingContactPromoted,
     serverIntent,
     ensureInquiry: onEnsureInquiry ?? NOOP_ENSURE_INQUIRY,
     onCaptureChip: onCaptureChip ?? NOOP_CAPTURE_CHIP,
@@ -226,67 +317,33 @@ export function MiniChatPanel({
     patch: unified.patch,
   });
 
-  // Named switch handler — shared by mini-mode dropdown + expanded left pane.
-  function handleSwitchInquiry(id: string) {
-    if (id === inquiryId) return;
-    setInquiryId(id);
-    setRows([]);
-    lastSeenIsoRef.current = null;
-    setStage("thread");
-    setCapturedChipKinds([]);
-  }
-
-  // F4: load the inquiries list when open (for both mini switcher + expanded pane).
-  useEffect(() => {
-    if (!open || !onListGuestInquiries || !tenantSlug) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await onListGuestInquiries({ tenantSlug });
-        if (!cancelled && res.ok) setInquiries(res.inquiries);
-      } catch {
-        /* transient */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, expanded, onListGuestInquiries, tenantSlug]);
-
-  useEffect(() => {
-    if (stage !== "gate" || !onCheckClaimEmail) {
-      setGateEmailNotice(null);
-      setGateEmailBlocksSubmit(false);
-      return;
-    }
-
-    const addr = email.trim();
-    if (!EMAIL_RE.test(addr)) {
-      setGateEmailNotice(null);
-      setGateEmailBlocksSubmit(false);
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        const res = await onCheckClaimEmail({ email: addr, replacePrimary: false });
-        if (cancelled) return;
-        if (!res.ok) {
-          setGateEmailNotice(null);
-          setGateEmailBlocksSubmit(false);
-          return;
-        }
-        setGateEmailNotice(res.message ?? null);
-        setGateEmailBlocksSubmit(Boolean(res.blocksSubmit));
-      })();
-    }, 350);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [email, onCheckClaimEmail, stage]);
+  // Thread-switch + chip/talent/brief/contact/retry-sync handlers — extracted
+  // to useDetailHandlers (W1-A decomposition pre-pass). Named as a hook since
+  // it closes over refs (lastSeenIsoRef, lastPatchRef); see that file's header.
+  const {
+    handleSwitchInquiry,
+    handleRetrySync,
+    handleChipPatch,
+    handleTalentChange,
+    handleBriefChange,
+    handleContactChange,
+  } = useDetailHandlers({
+    inquiryId,
+    setInquiryId,
+    setRows,
+    lastSeenIsoRef,
+    setStage,
+    setCapturedChipKinds,
+    setCapturedChipValues,
+    lastPatchRef,
+    patch: unified.patch,
+    promoteContact: unified.promoteContact,
+    cartTalentIds,
+    onRemoveCartTalent,
+    setFirstName,
+    setLastName,
+    setEmail,
+  });
 
   function mergeServer(incoming: GuestThreadMessage[]) {
     if (incoming.length === 0) return;
@@ -433,51 +490,19 @@ export function MiniChatPanel({
     };
   }, [open, onClose]);
 
-  function applyFailure(
-    code: string,
-    message: string,
-    retryAfterMs?: number,
-    extra?: { gateTier?: GuestIdentityTier; activeCount?: number; limit?: number },
-  ) {
-    if (code === "rate_limited") {
-      setCooldownSecs(Math.max(1, Math.ceil((retryAfterMs ?? 30_000) / 1000)));
-      setError(message || t("public.guestChat.errRateLimited"));
-      return;
-    }
-    if (code === "captcha_required") {
-      setCaptchaRequired(true);
-      setError(message || "Quick check to confirm you're human.");
-      return;
-    }
-    if (code === "disposable_email") {
-      setError(message || "Please use a non-disposable email so we can reach you.");
-      return;
-    }
-    if (code === "blocked") {
-      setError(message || "This conversation can't continue.");
-      return;
-    }
-    if (code === "limit_reached") {
-      const tier: GuestIdentityTier =
-        extra?.gateTier ??
-        (identity === "account"
-          ? "account"
-          : identity === "email_verified"
-            ? "email_verified"
-            : identity === "identified" ||
-                (Boolean(firstName.trim()) && EMAIL_RE.test(email.trim()))
-              ? "identified"
-              : "guest");
-      setLimitNudge({
-        tier,
-        activeCount: extra?.activeCount ?? 0,
-        limit: extra?.limit ?? 0,
-      });
-      setError(message);
-      return;
-    }
-    setError(message || "Something went wrong. Please try again.");
-  }
+  // applyFailure — rate-limit / captcha / disposable-email / blocked /
+  // limit-reached error routing. Extracted to createApplyFailure (W1-A
+  // decomposition pre-pass). A plain closure factory (not a hook).
+  const applyFailure = createApplyFailure({
+    identity,
+    firstName,
+    email,
+    t,
+    setCooldownSecs,
+    setError,
+    setCaptchaRequired,
+    setLimitNudge,
+  });
 
   // Send state machine (handleFirstSend / handleReply / submit) extracted to keep
   // this orchestrator under its line cap. submit() routes on contactPromoted so an
@@ -514,6 +539,10 @@ export function MiniChatPanel({
     onSent: () => {
       // Phase 0c CRO — send_clicked + contact_promoted (the PRIMARY conversion).
       jon360.trackSend();
+      // A successful send implies a REAL contact — the fresh-create path never
+      // touches promoteContact, so mark it here or the header's "Private
+      // draft" chip survives the send.
+      unified.markContactPromoted();
       setSentNote(true);
       triggerSentAirlock();
       // Force one full re-load so the receipt card + sent status mount: the send
@@ -522,97 +551,18 @@ export function MiniChatPanel({
     },
   });
 
-  // Finding #3: re-run the exact last failed patch when the draft banner's retry
-  // is tapped (no-op when nothing has been patched yet).
-  function handleRetrySync() {
-    const last = lastPatchRef.current;
-    if (last) void unified.patch(last);
-  }
-
-  // P1-T1/T2: a chip edit routes through the unified hook (optimistic local
-  // display, then patch() the single record; micro-status via unified.fieldState).
-  async function handleChipPatch(kind: GuestChipKind, value: GuestChipValue) {
-    setCapturedChipValues((prev) => ({ ...prev, [kind]: value }));
-    setCapturedChipKinds((k) => (k.includes(kind) ? k : [...k, kind]));
-    const patch = chipValueToPatch(kind, value);
-    if (!patch) return;
-    lastPatchRef.current = patch;
-    await unified.patch(patch);
-  }
-
-  // Phase 2 / Addendum A: Talent / Brief / Contact editors route through the SAME
-  // useUnifiedInquiry.patch path as the chips (one record, synced thread note).
-  async function handleTalentChange(
-    selectedIds: string[],
-    selectionMode: "i_know_who" | "agency_recommends",
-    selectedNames: string[],
-  ) {
-    // Keep the launcher cart (the rail's single source) in sync: a cart talent
-    // dropped in-chat is also removed from the cart, so rail + form + record agree.
-    reconcileCartRemovals(selectedIds, cartTalentIds, onRemoveCartTalent);
-    lastPatchRef.current = { kind: "talent", selectedIds, selectionMode, selectedNames };
-    await unified.patch({ kind: "talent", selectedIds, selectionMode, selectedNames });
-  }
-
   // B6: register the unified talent-patch runner up to the launcher so the rail
   // X-remove routes the RECORD write through the SAME useUnifiedInquiry.patch path
   // as the in-chat change above (same saving state + grace window + retry). The
   // launcher owns the local cart op, so this runner does only the record write (no
   // reconcileCartRemovals re-mirror — that would recurse into the launcher's own
   // cart removal). Add and remove patch { kind:"talent" } with the full id set.
-  const unifiedPatch = unified.patch;
-  useEffect(() => {
-    if (!onRegisterRemoveTalent) return;
-    onRegisterRemoveTalent(
-      (
-        selectedIds: string[],
-        selectionMode: "i_know_who" | "agency_recommends",
-        selectedNames: string[],
-      ) => {
-        lastPatchRef.current = { kind: "talent", selectedIds, selectionMode, selectedNames };
-        void unifiedPatch({ kind: "talent", selectedIds, selectionMode, selectedNames });
-      },
-    );
-    return () => onRegisterRemoveTalent(null);
-  }, [onRegisterRemoveTalent, unifiedPatch]);
-
-  async function handleBriefChange(summary: string) {
-    lastPatchRef.current = { kind: "brief", summary };
-    await unified.patch({ kind: "brief", summary });
-  }
-
-  async function handleContactChange(value: {
-    name: string;
-    email: string;
-    phone: string;
-  }) {
-    // Mirror into the gate state so a later first-message send is pre-satisfied.
-    if (value.name) {
-      const parts = splitGuestFullName(value.name);
-      setFirstName(parts.firstName);
-      setLastName(parts.lastName);
-    }
-    if (value.email) setEmail(value.email);
-    // When the editor supplies a complete, valid contact, PROMOTE the early row
-    // (flips contactPromoted) so a later send continues the thread instead of
-    // re-forcing the gate. Partial edits fall back to a debounced patch.
-    if (value.name.trim() && EMAIL_RE.test(value.email.trim())) {
-      await unified.promoteContact({
-        name: value.name.trim(),
-        email: value.email.trim(),
-        phone: value.phone.trim() || null,
-      });
-      return;
-    }
-    const contactPatch: UnifiedInquiryPatch = {
-      kind: "contact",
-      name: value.name || null,
-      email: value.email || null,
-      phone: value.phone || null,
-    };
-    lastPatchRef.current = contactPatch;
-    await unified.patch(contactPatch);
-  }
+  // Extracted to useRegisterRemoveTalentRunner (W1-A decomposition pre-pass).
+  useRegisterRemoveTalentRunner({
+    onRegisterRemoveTalent,
+    patch: unified.patch,
+    lastPatchRef,
+  });
 
   const selectedTalentIds = unified.intent.talent?.selected_ids ?? [];
   // Phase 3: empty-state talent-pick-first lead + Talent-section deep-link (§B.1/§B.2).
@@ -636,12 +586,47 @@ export function MiniChatPanel({
 
   const sendDisabled = !draft.trim() || sending || inCooldown;
 
+  // W1-G: pick a service from the in-column OfferingQuickPicker — prefill the
+  // composer draft + attach the offering to the live inquiry. Moved off the outer
+  // container (where the strip was clipped by the rounded footer) into the column.
+  const handlePickOffering = (o: ChatOffering) => {
+    setPendingOffering({ ...o, intent: "request" });
+    if (sentNote) setSentNote(false);
+    const prefix = offeringDraftPrefix(o, brand.locale ?? "en");
+    setDraft(prefix);
+    // W1-3 — after prefilling the "Requesting: …" prefix, put the caret at the
+    // END and focus so a follow-up tap can't land the caret mid-prefix and
+    // interleave the user's words into the service name (2026-07-11 audit).
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(prefix.length, prefix.length);
+      }
+    });
+    // Live thread → also attach as structured provenance (best-effort).
+    if (inquiryId && onAttachOffering) {
+      void onAttachOffering({
+        inquiryId,
+        offering: {
+          offering_id: o.offeringId,
+          title: o.title,
+          amount_cents: o.amountCents,
+          currency: o.currency,
+          price_type: o.priceType,
+          kind: o.kind,
+        },
+      });
+    }
+  };
+
   // Shared column props passed to MiniChatPanelColumn (avoids duplication).
   const columnProps = {
     brand,
     accent,
     accentInk,
     surfaceMode,
+    isHub,
     talentFirst,
     tenantSlug,
     talentProfileId,
@@ -734,7 +719,22 @@ export function MiniChatPanel({
     openFullHref,
     onListGuestInquiries,
     onToggleExpand,
-    identity, textareaRef,
+    identity,
+    // W1-G: the services strip now lives inside the column (above the composer).
+    offerings: offerings as ChatOffering[],
+    onPickOffering: handlePickOffering,
+    textareaRef,
+    // W2-A: the 3-view dock (switcher + Lineup/Projects bodies).
+    dockView,
+    onDockViewChange: setDockView,
+    inquiries,
+    sourcePage,
+    onRemoveCartTalent,
+    // DOCK v2: the AI scan (Add-details sheet) + the signed-in client dashboard
+    // link for the Home hub's Account card.
+    onScanConversation,
+    onStartFresh,
+    dashboardHref: `/${tenantSlug}/client/messages`,
   };
 
   // ── Expanded 2-pane mode (F4) ─────────────────────────────────────────────

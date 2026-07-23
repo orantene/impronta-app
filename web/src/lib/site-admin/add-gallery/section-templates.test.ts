@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveLayerDisplayName } from "@/components/edit-chrome/freeform-layer-name";
+import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 
 import {

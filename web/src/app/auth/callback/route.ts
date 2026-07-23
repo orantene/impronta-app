@@ -12,6 +12,10 @@ import { redeemInvitePayload } from "@/lib/invites/redeem";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  cookieDomainForHost,
+  isSupabaseAuthCookie,
+} from "@/lib/supabase/cookie-domain";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -29,6 +33,18 @@ export async function GET(request: Request) {
 
   if (code) {
     const cookieStore = await cookies();
+    // Scope Supabase auth cookies to the shared parent domain
+    // (".tulala.digital"), matching server.ts / client.ts / middleware.ts and
+    // the /auth/google initiator. The exchange below reads the PKCE
+    // `-code-verifier` by name (domain is irrelevant to reads), but the SESSION
+    // cookies written on success must be parent-domain scoped so the freshly
+    // authenticated session is visible across app / marketing / tenant
+    // subdomains — otherwise the post-OAuth redirect to the app host lands
+    // logged-out. `undefined` (localhost / custom domains) stays host-only.
+    const authCookieDomain = cookieDomainForHost(
+      request.headers.get("x-impronta-host-name") ??
+        request.headers.get("host"),
+    );
     const response = popup
       ? createPopupResponse(origin, { success: false, error: "Authentication failed." })
       : NextResponse.redirect(`${origin}/login?error=auth`);
@@ -39,8 +55,12 @@ export async function GET(request: Request) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-            response.cookies.set(name, value, options);
+            const scoped =
+              authCookieDomain && isSupabaseAuthCookie(name)
+                ? { ...options, domain: authCookieDomain }
+                : options;
+            cookieStore.set(name, value, scoped);
+            response.cookies.set(name, value, scoped);
           });
         },
       },

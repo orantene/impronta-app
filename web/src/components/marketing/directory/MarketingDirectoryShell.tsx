@@ -258,7 +258,7 @@ export function MarketingDirectoryShell({
                 </button>
                 {loadMoreError ? (
                   <p className="text-[0.8125rem]" style={{ color: "var(--plt-muted)" }} role="alert">
-                    Couldn&apos;t load more — tap to try again.
+                    Couldn&apos;t load more. Tap to try again.
                   </p>
                 ) : null}
               </div>
@@ -419,7 +419,7 @@ function DirectoryEmpty({ hasFilters, onClear }: { hasFilters: boolean; onClear:
       </h3>
       <p className="max-w-md text-[0.9375rem] leading-relaxed" style={{ color: "var(--plt-muted)" }}>
         {hasFilters
-          ? "Try widening your filters — fewer constraints surface more of the network."
+          ? "Try widening your filters. Fewer constraints surface more of the network."
           : "The directory is still filling in. Talent control their own visibility, so new profiles appear here as they opt in."}
       </p>
       {hasFilters ? (

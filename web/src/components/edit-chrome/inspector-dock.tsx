@@ -65,6 +65,8 @@ import { MultiSelectionStylePanel } from "./inspectors/multi-selection-style-pan
 import { DataPanel } from "./inspectors/data-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
 import { NodeMotionPanel } from "./inspectors/node-motion-panel";
+import { useAdvancedMode } from "./advanced-mode";
+import { filterInspectorTabsByAdvanced } from "./advanced-mode-visibility";
 import {
   InspectorDraftStatus,
   InspectorViewportRail,
@@ -89,6 +91,7 @@ import {
   Home,
 } from "lucide-react";
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { useEditorLocale } from "./use-editor-locale";
 import {
   BUILDER_NODE_REGISTRY,
   builderNodeSupportsFieldBindings,
@@ -601,7 +604,7 @@ export function InspectorDock() {
         // for ~3.5s after the refresh lands so the operator sees what
         // happened — silently overwriting their working copy is the
         // single biggest "did the editor eat my work?" trust break.
-        setSaveError("Section was edited elsewhere — your view has been refreshed with the latest version.");
+        setSaveError("Section was edited elsewhere. Your view has been refreshed with the latest version.");
         const fresh = await loadSectionForEditAction(loaded.id);
         if (fresh.ok) {
           setLoadedSection(fresh.section);
@@ -611,7 +614,7 @@ export function InspectorDock() {
             // Only clear if no new error has arrived in the meantime.
             setSaveError((cur) =>
               cur ===
-              "Section was edited elsewhere — your view has been refreshed with the latest version."
+              "Section was edited elsewhere. Your view has been refreshed with the latest version."
                 ? null
                 : cur,
             );
@@ -983,12 +986,16 @@ export function InspectorDock() {
       : selectedSectionId && loadingId
         ? "Loading…"
         : "Select a block";
+  // W2-C5: a single small kind label under the header. The block/section
+  // NAME itself renders once, via DrawerHead's own `title` (sectionTitle
+  // below); this line only says what KIND of block it is, so the header
+  // never repeats "Carousel" three times.
   const sectionMeta = isSiteHeaderSelected
-    ? "SITE SHELL"
+    ? "Site header"
     : selectedStandaloneBuilderNode
-      ? `BUILDER BLOCK · ${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label.toUpperCase()}`
+      ? `${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label} block`
       : sectionTypeKey
-        ? `BUILDER BLOCK · ${inspectorBlockTitle(sectionTypeKey).toUpperCase()}`
+        ? `${inspectorBlockTitle(sectionTypeKey)} section`
         : undefined;
   const inspectorBreadcrumbCrumbs = useMemo<
     ReadonlyArray<InspectorBreadcrumbCrumb>
@@ -1054,20 +1061,16 @@ export function InspectorDock() {
     }
     return (
       <div className="flex min-w-0 flex-col gap-1">
+        {/* W2-C5: the block/section NAME (sectionTitle) already renders once
+            via DrawerHead's own `title`. This sub-line only adds the kind
+            label, so the header never repeats the name a second (or third)
+            time. */}
         {sectionMeta ? (
           <span
             className="truncate text-[11px] font-semibold uppercase tracking-[0.06em]"
             style={{ color: CHROME.muted }}
           >
             {sectionMeta}
-          </span>
-        ) : null}
-        {sectionTitle && sectionTitle !== "Select a block" ? (
-          <span
-            className="truncate text-[16px] font-semibold tracking-[-0.02em]"
-            style={{ color: CHROME.ink }}
-          >
-            {sectionTitle}
           </span>
         ) : null}
         {inspectorBreadcrumbCrumbs.length > 0 ? (
@@ -1154,7 +1157,9 @@ export function InspectorDock() {
   // DEFAULT_TABS (Content + Style + Layout). Falls back to all 5 only
   // while the section row is still loading, so the strip doesn't jump
   // size at hand-off.
+  const { advanced } = useAdvancedMode();
   const visibleTabs = useMemo<ReadonlyArray<TabKey>>(() => {
+    let resolved: TabKey[];
     if (selectedStandaloneBuilderNode) {
       const tabs: TabKey[] = ["content", "style"];
       if (nodeUsesLayoutInspector(selectedStandaloneBuilderNode)) {
@@ -1166,17 +1171,21 @@ export function InspectorDock() {
         tabs.push("data");
       }
       tabs.push("motion");
-      return tabs;
+      resolved = tabs;
+    } else {
+      const allowed = currentLoadedSection
+        ? tabsForSection(currentLoadedSection.sectionTypeKey)
+        : skeletonHint
+          ? tabsForSection(skeletonHint.typeKey)
+          : DEFAULT_TABS;
+      const set = new Set(allowed);
+      // Preserve the canonical TABS order.
+      resolved = TABS.filter((t) => set.has(t.key)).map((t) => t.key);
     }
-    const allowed = currentLoadedSection
-      ? tabsForSection(currentLoadedSection.sectionTypeKey)
-      : skeletonHint
-        ? tabsForSection(skeletonHint.typeKey)
-        : DEFAULT_TABS;
-    const set = new Set(allowed);
-    // Preserve the canonical TABS order.
-    return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
-  }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint]);
+    // W2-C4 — Advanced OFF hides Data + Motion tabs (data model untouched; the
+    // fallback effect below resets an orphaned active tab to Content).
+    return filterInspectorTabsByAdvanced(resolved, advanced);
+  }, [currentLoadedSection, selectedStandaloneBuilderNode, skeletonHint, advanced]);
 
   // Vertical icon-rail items removed — tab strip lives on InspectorCommandRail.
 
@@ -1475,6 +1484,7 @@ export function InspectorDock() {
 }
 
 function EmptyState() {
+  const { t } = useEditorLocale();
   return (
     <div className="flex min-h-[340px] flex-1 flex-col p-5">
       <div
@@ -1516,15 +1526,16 @@ function EmptyState() {
           className="text-[15px] font-semibold tracking-tight"
           style={{ color: CHROME.ink }}
         >
-          Nothing selected
+          {t("Nothing selected")}
         </p>
         <p
           id="inspector-empty-desc"
           className="mt-2.5 max-w-[260px] text-[13px] leading-[1.55]"
           style={{ color: CHROME.muted2 }}
         >
-          Click a section on the canvas or a row in the left Layers panel. Your
-          draft edits stay private until you publish.
+          {t(
+            "Click a section on the canvas or a row in the left Layers panel. Your draft edits stay private until you publish.",
+          )}
         </p>
       </div>
     </div>
@@ -1532,6 +1543,7 @@ function EmptyState() {
 }
 
 function ShellLockedState() {
+  const { t } = useEditorLocale();
   return (
     <div
       className="flex h-full flex-1 items-center justify-center px-6 text-center"
@@ -1539,10 +1551,12 @@ function ShellLockedState() {
     >
       <div className="max-w-[260px]">
         <p className="text-[13px] font-semibold" style={{ color: CHROME.ink }}>
-          Site shell editing is locked on Free
+          {t("Site shell editing is locked on Free")}
         </p>
         <p className="mt-2 text-[12px] leading-5">
-          Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.
+          {t(
+            "Body sections stay editable. Upgrade to Studio to edit header and footer shell controls.",
+          )}
         </p>
       </div>
     </div>

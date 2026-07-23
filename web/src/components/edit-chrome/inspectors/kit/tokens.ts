@@ -10,13 +10,23 @@
  *     focus rings (`ring-indigo-400/20`), `border-[#e5e0d5]` (warm line).
  *   - Labels: warm stone palette (`text-stone-600`) instead of cold zinc.
  *   - Group titles: warm stone-500, refined tracking.
- *   - Primary buttons: indigo accent (`#3d4f7c`) — reads as "premium
- *     editorial tool", not "black internal button."
+ *   - Primary buttons: violet accent (`bg-violet-600`, aligned with
+ *     CHROME.accent) — reads as "premium editorial tool", not
+ *     "black internal button." (Historical note: an earlier pass used a
+ *     stale navy accent; the code below is now on the one violet accent.)
  *   - Enum chips: active state uses soft indigo tint, not white-on-dark.
  *   - Ghost/subtle buttons: warmer borders and hover states.
  *
  * Tokens only. No layout. Layout is the individual panel's job.
+ *
+ * ONE-KIT DERIVATION (W2-C1): the shared primitives below (accent, the radius
+ * scale, the panel/toolbar shadow, muted/strong text) are NOT re-hardcoded
+ * here — they reference the single chrome source in `../../kit/tokens`
+ * (`CHROME` / `CHROME_RADII` / `CHROME_SHADOWS`). Only inspector-specific values
+ * (success-chip tints, control-well fills, cool panel borders) stay local.
  */
+
+import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../../kit/tokens";
 
 /**
  * 2026-04-30 Phase 1 "premium restraint" pass:
@@ -88,17 +98,25 @@ export const KIT = {
  * DESIGN TOKEN RULE — import BUILDER_VISUAL instead of ad-hoc hex/radius values.
  */
 export const BUILDER_VISUAL = {
-  panelRadius: 12,
-  panelShadow:
-    "0 8px 28px -8px rgba(0,0,0,0.14), 0 0 0 1px rgba(24,24,27,0.08)",
+  // Radii derive from the one CHROME_RADII scale. panelRadius was a bespoke 12
+  // (off the 4/6/8/10/14 scale) → snapped to lg (10), a −2px shift documented in
+  // the W2-C1 PR; toolbarRadius 14 maps exactly onto xl; fieldRadius 10 = lg.
+  panelRadius: CHROME_RADII.lg,
+  // Panel + toolbar share ONE shadow, now sourced from CHROME_SHADOWS.panel
+  // instead of two byte-identical literals here.
+  panelShadow: CHROME_SHADOWS.panel,
   panelBorder: "#e5e7eb",
   panelPaddingX: 20,
   panelPaddingY: 18,
-  fieldRadius: 10,
+  fieldRadius: CHROME_RADII.lg,
   inputHeight: 36,
-  textMuted: "#71717a",
-  textStrong: "#18181b",
-  accent: "#7c3aed",
+  // Muted / strong text derive from the chrome text ramp. textStrong = CHROME.text
+  // exactly; textMuted snaps onto CHROME.muted2 (a hair darker than the old
+  // #71717a — documented in the PR).
+  textMuted: CHROME.muted2,
+  textStrong: CHROME.text,
+  // The one violet editor accent, from the single chrome source.
+  accent: CHROME.accent,
   accentBg: "rgba(124, 58, 237, 0.08)",
   accentBorder: "rgba(124, 58, 237, 0.35)",
   successChipBg: "#ecfdf5",
@@ -107,7 +125,6 @@ export const BUILDER_VISUAL = {
   controlWellBg: "#f8f7f2",
   controlWellBorder: "#e8e4dc",
   divider: "#e5e7eb",
-  toolbarShadow:
-    "0 8px 28px -8px rgba(0,0,0,0.14), 0 0 0 1px rgba(24,24,27,0.08)",
-  toolbarRadius: 14,
+  toolbarShadow: CHROME_SHADOWS.panel,
+  toolbarRadius: CHROME_RADII.xl,
 } as const;

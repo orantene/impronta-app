@@ -15,9 +15,14 @@ import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
+
+type Translate = (key: string) => string;
 
 const C = {
   ink:        "#0B0B0D",
@@ -39,20 +44,20 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
-function statusTone(status: string) {
+function statusTone(status: string, t: Translate) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    booked:        { bg: C.successSoft,  color: C.successDeep, label: "Booked" },
-    converted:     { bg: C.successSoft,  color: C.successDeep, label: "Booked" },
-    approved:      { bg: C.accentSoft,   color: C.accent,      label: "Approved" },
-    offer_pending: { bg: C.amberSoft,    color: C.amberDeep,   label: "Offer pending" },
-    submitted:     { bg: C.accentSoft,   color: C.blueDeep,    label: "Submitted" },
-    coordination:  { bg: C.accentSoft,   color: C.blueDeep,    label: "In review" },
-    rejected:      { bg: C.surface,      color: C.inkDim,      label: "Declined" },
-    expired:       { bg: C.surface,      color: C.inkDim,      label: "Expired" },
-    draft:         { bg: C.surface,      color: C.inkDim,      label: "Draft" },
-    closed:        { bg: C.surface,      color: C.inkDim,      label: "Closed" },
-    closed_lost:   { bg: C.surface,      color: C.inkDim,      label: "Closed" },
-    archived:      { bg: C.surface,      color: C.inkDim,      label: "Archived" },
+    booked:        { bg: C.successSoft,  color: C.successDeep, label: t("dashboard.clientInquiries.statusBooked") },
+    converted:     { bg: C.successSoft,  color: C.successDeep, label: t("dashboard.clientInquiries.statusBooked") },
+    approved:      { bg: C.accentSoft,   color: C.accent,      label: t("dashboard.clientInquiries.statusApproved") },
+    offer_pending: { bg: C.amberSoft,    color: C.amberDeep,   label: t("dashboard.clientInquiries.statusOfferPending") },
+    submitted:     { bg: C.accentSoft,   color: C.blueDeep,    label: t("dashboard.clientInquiries.statusSubmitted") },
+    coordination:  { bg: C.accentSoft,   color: C.blueDeep,    label: t("dashboard.clientInquiries.statusInReview") },
+    rejected:      { bg: C.surface,      color: C.inkDim,      label: t("dashboard.clientInquiries.statusDeclined") },
+    expired:       { bg: C.surface,      color: C.inkDim,      label: t("dashboard.clientInquiries.statusExpired") },
+    draft:         { bg: C.surface,      color: C.inkDim,      label: t("dashboard.clientInquiries.statusDraft") },
+    closed:        { bg: C.surface,      color: C.inkDim,      label: t("dashboard.clientInquiries.statusClosed") },
+    closed_lost:   { bg: C.surface,      color: C.inkDim,      label: t("dashboard.clientInquiries.statusClosed") },
+    archived:      { bg: C.surface,      color: C.inkDim,      label: t("dashboard.clientInquiries.statusArchived") },
   };
   return map[status] ?? {
     bg: C.surface,
@@ -65,16 +70,16 @@ function fmtDate(iso: string | null): string {
   return formatClientDate(iso, "-");
 }
 
-function relativeDate(iso: string): string {
+function relativeDate(iso: string, t: Translate): string {
   const now = Date.now();
   const then = clientDateMs(iso);
   if (then === null) return "-";
   const diffMs = now - then;
   const diffH = diffMs / (1000 * 60 * 60);
-  if (diffH < 1) return "just now";
-  if (diffH < 24) return `${Math.floor(diffH)}h ago`;
+  if (diffH < 1) return t("dashboard.clientInquiries.justNow");
+  if (diffH < 24) return interpolate(t("dashboard.clientInquiries.hoursAgo"), { count: Math.floor(diffH) });
   const diffD = diffH / 24;
-  if (diffD < 7) return `${Math.floor(diffD)}d ago`;
+  if (diffD < 7) return interpolate(t("dashboard.clientInquiries.daysAgo"), { count: Math.floor(diffD) });
   return fmtDate(iso);
 }
 
@@ -88,10 +93,12 @@ function InquiryTable({
   rows,
   label,
   tenantSlug,
+  t,
 }: {
   rows: InquiryRow[];
   label: string;
   tenantSlug: string;
+  t: Translate;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -111,7 +118,7 @@ function InquiryTable({
       </div>
       <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {rows.map((inq, idx) => {
-          const s = statusTone(inq.status);
+          const s = statusTone(inq.status, t);
           const needsAction = inq.next_action_by === "client";
           const hasUnread = inq.unreadCount > 0;
           return (
@@ -170,7 +177,7 @@ function InquiryTable({
                       }}
                     >
                       <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.blueDeep, display: "inline-block" }} />
-                      Your turn
+                      {t("dashboard.clientInquiries.yourTurn")}
                     </span>
                   )}
                   {hasUnread && (
@@ -188,12 +195,12 @@ function InquiryTable({
                         fontFamily: FONT,
                       }}
                     >
-                      {inq.unreadCount} new
+                      {interpolate(t("dashboard.clientInquiries.newCount"), { count: inq.unreadCount })}
                     </span>
                   )}
                   {inq.source_pitch_id && (
                     <span
-                      title="Originated from a curated pitch sent by your agency"
+                      title={t("dashboard.clientInquiries.fromPitchTitle")}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
@@ -212,7 +219,7 @@ function InquiryTable({
                         <line x1="22" y1="2" x2="11" y2="13" />
                         <polygon points="22 2 15 22 11 13 2 9 22 2" />
                       </svg>
-                      From a pitch
+                      {t("dashboard.clientInquiries.fromPitch")}
                     </span>
                   )}
                   {(inq.source_channel === "discover_single_talent" ||
@@ -220,8 +227,8 @@ function InquiryTable({
                     <span
                       title={
                         inq.source_channel === "discover_shortlist"
-                          ? "You sent this inquiry to multiple talents from a Discover shortlist"
-                          : "You sent this inquiry from Discover"
+                          ? t("dashboard.clientInquiries.shortlistTitle")
+                          : t("dashboard.clientInquiries.discoverTitle")
                       }
                       style={{
                         display: "inline-flex",
@@ -241,7 +248,7 @@ function InquiryTable({
                         <circle cx="11" cy="11" r="8" />
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                       </svg>
-                      {inq.source_channel === "discover_shortlist" ? "Shortlist" : "Discover"}
+                      {inq.source_channel === "discover_shortlist" ? t("dashboard.clientInquiries.shortlist") : t("dashboard.clientInquiries.discover")}
                     </span>
                   )}
                 </div>
@@ -258,7 +265,7 @@ function InquiryTable({
                     letterSpacing: -0.1,
                   }}
                 >
-                  {inq.company ?? "Booking inquiry"}
+                  {inq.company ?? t("dashboard.clientInquiries.bookingInquiry")}
                   {inq.event_location && (
                     <span style={{ fontWeight: 400, color: C.inkMuted, marginLeft: 8 }}>
                       · {inq.event_location}
@@ -275,7 +282,7 @@ function InquiryTable({
                   )}
                   {inq.quantity && (
                     <span style={{ fontSize: 12, color: C.inkMuted }}>
-                      {inq.quantity} talent
+                      {interpolate(t("dashboard.clientInquiries.talentCount"), { count: inq.quantity })}
                     </span>
                   )}
                 </div>
@@ -294,7 +301,7 @@ function InquiryTable({
                   gap: 8,
                 }}
               >
-                <span>{relativeDate(inq.created_at)}</span>
+                <span>{relativeDate(inq.created_at, t)}</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.inkDim} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M9 5l7 7-7 7" />
                 </svg>
@@ -309,6 +316,8 @@ function InquiryTable({
 
 export default async function ClientInquiriesPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -336,25 +345,25 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
-        eyebrow="Inquiries"
-        title="Your inquiries"
+        eyebrow={t("dashboard.clientInquiries.eyebrow")}
+        title={t("dashboard.clientInquiries.title")}
         subtitle={
           inquiries.length === 0
-            ? "Every brief you've sent the workspace will appear here."
-            : `${inquiries.length} total · ${open.length} open · ${closed.length} closed`
+            ? t("dashboard.clientInquiries.subtitleEmpty")
+            : interpolate(t("dashboard.clientInquiries.subtitleCounts"), { total: inquiries.length, open: open.length, closed: closed.length })
         }
-        badge={needsClient > 0 ? <HeaderBadge tone="accent">{needsClient} need you</HeaderBadge> : undefined}
+        badge={needsClient > 0 ? <HeaderBadge tone="accent">{interpolate(t("dashboard.clientInquiries.needYouBadge"), { count: needsClient })}</HeaderBadge> : undefined}
         actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} />}
       />
 
       {inquiries.length === 0 ? (
         <EmptyState
           icon="📋"
-          title="No inquiries yet"
-          body="Send a booking inquiry now, or browse Discover first if you want to pick a specific talent."
+          title={t("dashboard.clientInquiries.emptyTitle")}
+          body={t("dashboard.clientInquiries.emptyBody")}
           actions={
             <>
-              <NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} label="Start inquiry" />
+              <NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} label={t("dashboard.clientInquiries.startInquiry")} />
               <Link
                 href={`/${tenantSlug}/client/discover`}
                 style={{
@@ -372,15 +381,15 @@ export default async function ClientInquiriesPage({ params }: { params: PagePara
                   fontFamily: FONT,
                 }}
               >
-                Browse roster
+                {t("dashboard.clientInquiries.browseRoster")}
               </Link>
             </>
           }
         />
       ) : (
         <div className="flex flex-col gap-7">
-          <InquiryTable rows={open} label="Open" tenantSlug={tenantSlug} />
-          <InquiryTable rows={closed} label="Closed" tenantSlug={tenantSlug} />
+          <InquiryTable rows={open} label={t("dashboard.clientInquiries.sectionOpen")} tenantSlug={tenantSlug} t={t} />
+          <InquiryTable rows={closed} label={t("dashboard.clientInquiries.sectionClosed")} tenantSlug={tenantSlug} t={t} />
         </div>
       )}
     </div>

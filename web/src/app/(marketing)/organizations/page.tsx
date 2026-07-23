@@ -10,12 +10,22 @@ import {
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
-export const metadata: Metadata = {
-  title: "For staffing, casting & placement",
-  description:
-    "A taxonomy-driven people directory that actually works — for staffing, casting, placement, and large representation operations.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale();
+  return {
+    title: pickLocale(locale, {
+      en: "For staffing, casting & placement",
+      es: "Para staffing, casting y colocación",
+    }),
+    description: pickLocale(locale, {
+      en: "A taxonomy-driven people directory that actually works, for staffing, casting, placement, and large representation operations.",
+      es: "Un directorio de personas basado en taxonomía que de verdad funciona, para operaciones de staffing, casting, colocación y representación a gran escala.",
+    }),
+    ...buildMarketingLocaleAlternates(locale, "/organizations"),
+  };
+}
 
 type UseCase = {
   id: string;
@@ -42,7 +52,7 @@ function getUseCases(locale: string): UseCase[] {
         id: "staffing",
         tag: "Staffing",
         title: "Staffing & specialized recruiters",
-        body: "Whether you place performers, crew, coordinators, or domain specialists \u2014 organize people by skill, location, and availability, and surface the right match fast.",
+        body: "Whether you place performers, crew, coordinators, or domain specialists, organize people by skill, location, and availability, and surface the right match fast.",
         metrics: [
           { label: "Skill taxonomy", value: "Custom" },
           { label: "Availability", value: "Live" },
@@ -84,7 +94,7 @@ function getUseCases(locale: string): UseCase[] {
         id: "staffing",
         tag: "Staffing",
         title: "Staffing y reclutadores especializados",
-        body: "Ya coloques performers, crew, coordinadores o especialistas \u2014 organiza a tu gente por habilidad, ubicaci\u00f3n y disponibilidad, y encuentra al indicado en segundos.",
+        body: "Ya coloques performers, crew, coordinadores o especialistas, organiza a tu gente por habilidad, ubicaci\u00f3n y disponibilidad, y encuentra al indicado en segundos.",
         metrics: [
           { label: "Taxonom\u00eda de skills", value: "A medida" },
           { label: "Disponibilidad", value: "En vivo" },
@@ -117,7 +127,7 @@ function getUseCases(locale: string): UseCase[] {
 function getScaleFeatures(locale: string): string[] {
   return pickLocale(locale, {
     en: [
-      "SSO (Google Workspace, Okta) \u2014 on request",
+      "SSO (Google Workspace, Okta), on request",
       "Granular role-scoped permissions",
       "API access (roadmap) for integrations",
       "White-label / private hub configuration",
@@ -125,7 +135,7 @@ function getScaleFeatures(locale: string): string[] {
       "Data residency guidance for regulated markets",
     ],
     es: [
-      "SSO (Google Workspace, Okta) \u2014 bajo solicitud",
+      "SSO (Google Workspace, Okta), bajo solicitud",
       "Permisos granulares por rol",
       "Acceso a API (en el roadmap) para integraciones",
       "Configuraci\u00f3n white-label / hub privado",
@@ -145,7 +155,7 @@ export default async function OrganizationsPage() {
       heroEyebrow: "For staffing, casting & placement",
       heroTitleA: "A directory",
       heroTitleB: "that works.",
-      heroSubtitle: `Your product is the people you place. ${PLATFORM_BRAND.name} makes that product browsable, filterable, and bookable \u2014 with the role-scoped access a real team needs. Talent agencies are one example; the same infrastructure runs casting, staffing, speaker bureaus, performer rosters, and specialized placement ops.`,
+      heroSubtitle: `Your product is the people you place. ${PLATFORM_BRAND.name} makes that product browsable, filterable, and bookable, with the role-scoped access a real team needs. Talent agencies are one example; the same infrastructure runs casting, staffing, speaker bureaus, performer rosters, and specialized placement ops.`,
       heroPrimary: "Book a walkthrough",
       heroSecondary: "See pricing",
       fitEyebrow: "Where it fits",
@@ -163,7 +173,7 @@ export default async function OrganizationsPage() {
       heroEyebrow: "Para staffing, casting y colocaci\u00f3n",
       heroTitleA: "Un directorio",
       heroTitleB: "que s\u00ed funciona.",
-      heroSubtitle: `Tu producto es la gente que colocas. ${PLATFORM_BRAND.name} vuelve ese producto navegable, filtrable y reservable \u2014 con los accesos por rol que un equipo de verdad necesita. Las agencias de talento son solo un ejemplo; la misma infraestructura mueve casting, staffing, speaker bureaus, rosters de performers y operaciones de colocaci\u00f3n especializadas.`,
+      heroSubtitle: `Tu producto es la gente que colocas. ${PLATFORM_BRAND.name} vuelve ese producto navegable, filtrable y reservable, con los accesos por rol que un equipo de verdad necesita. Las agencias de talento son solo un ejemplo; la misma infraestructura mueve casting, staffing, speaker bureaus, rosters de performers y operaciones de colocaci\u00f3n especializadas.`,
       heroPrimary: "Agenda una demo",
       heroSecondary: "Ver precios",
       fitEyebrow: "D\u00f3nde encaja",

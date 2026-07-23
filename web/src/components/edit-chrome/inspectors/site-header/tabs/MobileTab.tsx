@@ -150,7 +150,7 @@ function ChipGrid({
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            title={`${opt.label} — ${opt.helper}`}
+            title={`${opt.label}: ${opt.helper}`}
             aria-label={opt.label}
             className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
               active

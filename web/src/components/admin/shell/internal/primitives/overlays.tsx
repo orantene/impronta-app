@@ -6,6 +6,7 @@
 // Extracted from primitives.tsx — Phase 1f decomposition.
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useDashboardText } from "../dashboard-i18n";
 import { COLORS, FONTS, RADIUS } from "../state";
 
 // ─── Popover ─────────────────────────────────────────────────────────
@@ -135,6 +136,7 @@ export function Popover({
 // Detects browser offline/online events and shows a sticky banner.
 
 export function OfflineBanner() {
+  const copy = useDashboardText();
   // Always start `false` so the server-rendered HTML and the client's first
   // paint agree. We sync the real `navigator.onLine` state in the effect
   // below — matters because on the client this component mounts BEFORE
@@ -181,7 +183,7 @@ export function OfflineBanner() {
       }}
     >
       <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
-      Connection lost · retrying…
+      {copy.t("Connection lost · retrying…")}
       <button
         type="button"
         onClick={() => { setRetrying(true); setTimeout(() => setRetrying(false), 1500); }}
@@ -198,7 +200,7 @@ export function OfflineBanner() {
           cursor: "pointer",
         }}
       >
-        {retrying ? "Retrying…" : "Retry now"}
+        {retrying ? copy.t("Retrying…") : copy.t("Retry now")}
       </button>
     </div>
   );
@@ -316,19 +318,22 @@ export function ConfirmModal({
 // ─── ShortcutsModal (#18) ────────────────────────────────────────────
 // ⌘? keyboard cheatsheet. Triggered by pressing ? anywhere in the app.
 
+// Every entry here must be a WORKING shortcut — this panel previously
+// advertised ⌘N / ⌘F / ⌘/ / E / R with no handlers behind them, and
+// "G R" for a binding that is actually G T (workspace.tsx keyboard
+// layer). Re-add an entry only together with its implementation.
 const SHORTCUTS = [
   { keys: ["⌘", "K"], label: "Command palette" },
-  { keys: ["⌘", "N"], label: "New inquiry" },
-  { keys: ["⌘", "F"], label: "Global search" },
-  { keys: ["⌘", "/"], label: "Toggle sidebar" },
+  { keys: ["C"], label: "New inquiry (compose)" },
   { keys: ["G", "O"], label: "Go to Overview" },
-  { keys: ["G", "I"], label: "Go to Inbox" },
+  { keys: ["G", "I"], label: "Go to Messages" },
   { keys: ["G", "C"], label: "Go to Calendar" },
-  { keys: ["G", "R"], label: "Go to Roster" },
-  { keys: ["J"], label: "Next item in list" },
-  { keys: ["K"], label: "Previous item in list" },
-  { keys: ["E"], label: "Mark as read / done" },
-  { keys: ["R"], label: "Reply" },
+  { keys: ["G", "T"], label: "Go to Roster" },
+  { keys: ["J"], label: "Focus next thread (Messages)" },
+  { keys: ["K"], label: "Focus previous thread (Messages)" },
+  { keys: ["⏎"], label: "Open focused thread" },
+  { keys: ["E"], label: "Archive focused thread (Messages)" },
+  { keys: ["R"], label: "Reply: focus the composer (Messages)" },
   { keys: ["Esc"], label: "Close drawer / modal" },
   { keys: ["?"], label: "This shortcuts panel" },
 ];
@@ -340,6 +345,7 @@ export function ShortcutsModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const copy = useDashboardText();
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -368,7 +374,7 @@ export function ShortcutsModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Keyboard shortcuts"
+        aria-label={copy.t("Keyboard shortcuts")}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#fff",
@@ -383,7 +389,7 @@ export function ShortcutsModal({
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0 }} className="text-admin-ink">
-            Keyboard shortcuts
+            {copy.t("Keyboard shortcuts")}
           </h2>
           <button
             type="button"
@@ -409,7 +415,7 @@ export function ShortcutsModal({
                 borderRadius: 8,
               }}
             >
-              <span className="text-admin-ink text-admin-13">{label}</span>
+              <span className="text-admin-ink text-admin-13">{copy.t(label)}</span>
               <span className="inline-flex gap-1">
                 {keys.map((k) => (
                   <kbd

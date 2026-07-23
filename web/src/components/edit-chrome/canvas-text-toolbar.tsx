@@ -24,6 +24,7 @@ import {
   MoreHorizontal,
   MoveHorizontal,
   SlidersHorizontal,
+  Sparkles,
   Type,
 } from "lucide-react";
 
@@ -57,7 +58,7 @@ import {
   INSPECTOR_RAIL_WIDTH_PX,
   Z_INDEX,
 } from "./kit/tokens";
-import { resolveLayerDisplayName } from "./freeform-layer-name";
+import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import type { BuilderNode } from "@/lib/site-admin/builder-node";
 import {
   BUILDER_TEXT_ROLE_OPTIONS,
@@ -92,6 +93,8 @@ export interface CanvasTextToolbarProps {
   locked?: boolean;
   onPatchStyle?: (patch: Record<string, unknown>) => void;
   onRequestInlineEdit?: () => void;
+  /** Opens the "revise this element with AI" modal for the selected text node. */
+  onReviseWithAi?: () => void;
   /** Bump when canvas scroll/zoom changes so fixed position recomputes. */
   repositionKey?: number;
   onCopyStyle?: () => void;
@@ -377,6 +380,7 @@ export function CanvasTextToolbar({
   locked = false,
   onPatchStyle,
   onRequestInlineEdit,
+  onReviseWithAi,
   repositionKey = 0,
   onCopyStyle,
   onPasteStyle,
@@ -441,7 +445,7 @@ export function CanvasTextToolbar({
   const usesThemeFontSize = !storedFontSizePx;
   const fontSizeTitle =
     usesThemeFontSize && activeTextRole
-      ? `Theme size — ${readThemeTypographySize(activeTextRole)}. Adjust to override.`
+      ? `Theme size: ${readThemeTypographySize(activeTextRole)}. Adjust to override.`
       : "Custom font size on this block";
   const fontFamily = (style.fontFamily as string | undefined) ?? "";
   const selectedFontLabel =
@@ -609,7 +613,7 @@ export function CanvasTextToolbar({
           type="button"
           onClick={onOpenInspector}
           title={label}
-          aria-label={`${label} — open in inspector`}
+          aria-label={`${label}, open in inspector`}
           className="inline-flex cursor-pointer items-center justify-center border-none bg-transparent p-0"
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -628,6 +632,36 @@ export function CanvasTextToolbar({
             <Type size={13} strokeWidth={2.25} aria-hidden />
           </span>
         </button>
+        {onReviseWithAi ? (
+          <button
+            type="button"
+            title="Revise with AI"
+            aria-label="Revise this block with AI"
+            data-canvas-text-action="ai"
+            disabled={disabled}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onReviseWithAi();
+            }}
+            className="inline-flex cursor-pointer items-center justify-center border-none bg-transparent p-0 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 8,
+                background: "rgba(124, 58, 237, 0.1)",
+                color: "#7c3aed",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Sparkles size={13} strokeWidth={2.25} aria-hidden />
+            </span>
+          </button>
+        ) : null}
       </span>
 
       <Divider />
@@ -959,7 +993,7 @@ export function CanvasTextToolbar({
       <Divider />
 
       <ToolbarBtn
-        title="Advanced — open inspector"
+        title="Advanced, open inspector"
         disabled={disabled}
         onClick={onOpenInspector}
       >

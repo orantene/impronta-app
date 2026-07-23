@@ -8,7 +8,7 @@
  * the active item is highlighted, and clicking the active item again closes it.
  */
 
-import { useRef, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { commandDockRailDockStyle } from "./command-dock-rail-dock";
@@ -16,26 +16,23 @@ import { useEditContext } from "./edit-context";
 import { useFloatingDrag } from "./floating-panel";
 import {
   CHROME,
+  CHROME_RADII,
+  CHROME_SHADOWS,
   COMMAND_DOCK_CHROME_TOP_PX,
-  COMMAND_DOCK_COLLAPSED_STORAGE_KEY,
   COMMAND_DOCK_LEFT_PX,
   COMMAND_DOCK_PANEL_GAP_PX,
-  COMMAND_DOCK_PINNED_STORAGE_KEY,
   COMMAND_DOCK_WIDTH_PX,
-  PinnableRailItem,
-  RailHandle,
-  useRailCollapsed,
-  useRailPinned,
   Z_INDEX,
+  ensureButtonStyles,
 } from "./kit";
 import { useCommandDockCoupling } from "./use-command-dock-coupling";
+import { useEditorLocale } from "./use-editor-locale";
 
 const DOCK_LEFT = COMMAND_DOCK_LEFT_PX;
 const DOCK_TOP = COMMAND_DOCK_CHROME_TOP_PX;
 const DOCK_WIDTH = COMMAND_DOCK_WIDTH_PX;
-const DOCK_RADIUS_PX = 20;
-const DOCK_SHADOW =
-  "0 1px 2px rgba(0,0,0,0.04), 0 10px 28px -12px rgba(0,0,0,0.14)";
+const DOCK_RADIUS_PX = CHROME_RADII.xxl;
+const DOCK_SHADOW = CHROME_SHADOWS.railCard;
 
 /** Left inset for dock-launched floating panels (dock + gap). */
 export const COMMAND_DOCK_PANEL_INSET_PX =
@@ -58,6 +55,7 @@ interface DockItem {
 }
 
 function DockButton({ item }: { item: DockItem }) {
+  ensureButtonStyles();
   const { active, disabled } = item;
   const reduceMotion = useReducedMotion();
   const isAdd = item.id === "add";
@@ -129,21 +127,8 @@ function DockButton({ item }: { item: DockItem }) {
       aria-pressed={active}
       data-dock-item={item.id}
       data-dock-active={active ? "true" : undefined}
-      className="group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-[transform,background-color,color] motion-safe:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
-      style={{
-        background: active ? "rgba(124, 58, 237, 0.10)" : "transparent",
-        color: active ? CHROME.accent : CHROME.muted,
-      }}
-      onMouseEnter={(e) => {
-        if (disabled || active) return;
-        e.currentTarget.style.background = "rgba(124, 58, 237, 0.06)";
-        e.currentTarget.style.color = CHROME.ink2;
-      }}
-      onMouseLeave={(e) => {
-        if (disabled || active) return;
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = CHROME.muted;
-      }}
+      data-active={active ? "true" : undefined}
+      className="ec-rail-item group relative flex w-full shrink-0 cursor-pointer flex-col items-center gap-[6px] rounded-[14px] border-none px-[4px] py-[11px] transition-[transform,background-color,color] motion-safe:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
     >
       {active ? (
         <motion.span
@@ -199,24 +184,16 @@ const ICON_PROPS = {
 
 export function CommandDock() {
   const ctx = useEditContext();
+  const { t } = useEditorLocale();
   const {
-    searchPanelOpen,
-    toggleSearchPanel,
     addMenuOpen,
     toggleAddMenu,
     allPagesPanelOpen,
     toggleAllPagesPanel,
     navigatorOpen,
     toggleNavigator,
-    pageSettingsOpen,
-    openPageSettings,
-    closePageSettings,
     brandPanelOpen,
     toggleBrandPanel,
-    canEditTheme,
-    themeOpen,
-    openTheme,
-    closeTheme,
     shortcutOverlayOpen,
     openShortcutOverlay,
     closeShortcutOverlay,
@@ -225,24 +202,16 @@ export function CommandDock() {
     closeAssets,
   } = ctx;
 
+  // Six-item dock (W2-C3): Add · Pages · Structure · Design · Assets · Help.
+  // Search collapsed into the ⌘K command palette; Page Settings has a single
+  // home in the topbar publish menu; Brand + Theme merged into "Design" (which
+  // reuses the former brand-panel open state). Each surviving item keeps a
+  // DISTINCT icon — the old Page Settings + Brand gear-glyph collision is gone.
   const primaryItems: DockItem[] = [
     {
-      id: "search",
-      label: "Search",
-      title: "Search (⌘K also opens command palette)",
-      active: searchPanelOpen,
-      onClick: () => toggleSearchPanel(),
-      icon: (
-        <svg {...ICON_PROPS}>
-          <circle cx="11" cy="11" r="7" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-      ),
-    },
-    {
       id: "add",
-      label: "Add",
-      title: "Add gallery",
+      label: t("Add"),
+      title: t("Add gallery"),
       active: addMenuOpen,
       onClick: () => toggleAddMenu(),
       icon: (
@@ -254,8 +223,8 @@ export function CommandDock() {
     },
     {
       id: "pages",
-      label: "All Pages",
-      title: "All pages",
+      label: t("Pages"),
+      title: t("All pages"),
       active: allPagesPanelOpen,
       onClick: () => toggleAllPagesPanel(),
       icon: (
@@ -267,8 +236,8 @@ export function CommandDock() {
     },
     {
       id: "structure",
-      label: "Page Structure",
-      title: "Page structure (⌘\\)",
+      label: t("Structure"),
+      title: t("Structure (⌘\\)"),
       active: navigatorOpen,
       onClick: () => toggleNavigator(),
       icon: (
@@ -281,22 +250,25 @@ export function CommandDock() {
       ),
     },
     {
-      id: "pageSettings",
-      label: "Page Settings",
-      title: "Page settings",
-      active: pageSettingsOpen,
-      onClick: () => (pageSettingsOpen ? closePageSettings() : openPageSettings()),
+      id: "design",
+      label: t("Design"),
+      title: t("Design (brand + theme)"),
+      active: brandPanelOpen,
+      onClick: () => toggleBrandPanel(),
       icon: (
         <svg {...ICON_PROPS}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
+          <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" stroke="none" />
+          <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
+          <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
+          <path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 2.5-2.5c0-.55-.22-1.05-.59-1.41a2 2 0 0 1 1.41-3.42H17a5 5 0 0 0 5-5A10 10 0 0 0 12 2z" />
         </svg>
       ),
     },
     {
       id: "assets",
-      label: "Assets",
-      title: "Asset library",
+      label: t("Assets"),
+      title: t("Asset library"),
       active: assetsOpen,
       onClick: () => (assetsOpen ? closeAssets() : openAssets()),
       icon: (
@@ -307,49 +279,12 @@ export function CommandDock() {
         </svg>
       ),
     },
-    {
-      id: "brand",
-      label: "Brand",
-      title: "Brand",
-      active: brandPanelOpen,
-      onClick: () => toggleBrandPanel(),
-      icon: (
-        <svg {...ICON_PROPS}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      ),
-    },
   ];
-
-  // Theme is offered when the surface's `themeTokens` capability is on (Max
-  // talents) OR the operator may edit the site shell (homepage / workspace).
-  // `canEditTheme = capabilities.themeTokens || canEditSiteShell`. The talent
-  // path now has a backend (talent_pages.theme via the surface-aware drawer),
-  // so the drawer no longer 401s for a Max talent.
-  if (canEditTheme) {
-    primaryItems.push({
-      id: "theme",
-      label: "Theme",
-      title: "Theme",
-      active: themeOpen,
-      onClick: () => (themeOpen ? closeTheme() : openTheme()),
-      icon: (
-        <svg {...ICON_PROPS}>
-          <circle cx="13.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
-          <circle cx="17.5" cy="10.5" r="1.5" fill="currentColor" stroke="none" />
-          <circle cx="8.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
-          <circle cx="6.5" cy="12.5" r="1.5" fill="currentColor" stroke="none" />
-          <path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 2.5-2.5c0-.55-.22-1.05-.59-1.41a2 2 0 0 1 1.41-3.42H17a5 5 0 0 0 5-5A10 10 0 0 0 12 2z" />
-        </svg>
-      ),
-    });
-  }
 
   const helpItem: DockItem = {
     id: "help",
-    label: "Help",
-    title: "Keyboard shortcuts (?)",
+    label: t("Help"),
+    title: t("Keyboard shortcuts (?)"),
     active: shortcutOverlayOpen,
     onClick: () =>
       shortcutOverlayOpen ? closeShortcutOverlay() : openShortcutOverlay(),
@@ -362,34 +297,18 @@ export function CommandDock() {
     ),
   };
 
-  const { dragOptions, commandDockDocked } =
-    useCommandDockCoupling("command-dock");
-  const {
-    setPanelNode,
-    onHandlePointerDown,
-    transform,
-    dragging,
-    offset,
-  } = useFloatingDrag(dragOptions);
-  const moved = offset.x !== 0 || offset.y !== 0;
-  const dragMovedRef = useRef(false);
-  const [collapsed, toggleCollapsed] = useRailCollapsed(
-    COMMAND_DOCK_COLLAPSED_STORAGE_KEY,
-  );
-  const { isPinned, togglePinned } = useRailPinned(
-    COMMAND_DOCK_PINNED_STORAGE_KEY,
-  );
-  // Items kept visible while the rail is collapsed (in their natural order).
-  const collapsedPinnedItems = [...primaryItems, helpItem].filter((item) =>
-    isPinned(item.id),
-  );
-  // While collapsed the rail is a standalone handle pill — drop the docked
-  // "merge" styling (borderless + squared edge) so it renders as a clean
-  // rounded card instead of a short stub mating against a tall docked panel.
-  const dockedToPanel = commandDockDocked && !collapsed;
+  // The dock is FIXED (W2-C3 removed the drag handle + collapse + pin
+  // meta-chrome). We still register the dock node via `setPanelNode` and read
+  // its `transform` so floating panels can magnet-dock against it, but there is
+  // no user affordance to move, pin, or collapse the rail itself.
+  const { commandDockDocked } = useCommandDockCoupling("command-dock");
+  const { setPanelNode, transform } = useFloatingDrag({
+    panelId: "command-dock",
+  });
+  const dockedToPanel = commandDockDocked;
   const dockStyle = commandDockRailDockStyle(
     dockedToPanel,
-    dragging,
+    false,
     DOCK_RADIUS_PX,
     DOCK_SHADOW,
   );
@@ -400,7 +319,7 @@ export function CommandDock() {
       ref={setPanelNode}
       data-command-dock
       data-command-dock-docked={dockedToPanel ? "true" : "false"}
-      aria-label="Builder tools"
+      aria-label={t("Builder tools")}
       className="fixed flex flex-col"
       style={{
         left: DOCK_LEFT,
@@ -415,71 +334,21 @@ export function CommandDock() {
         borderRight: dockedToPanel ? "none" : dockBorder,
         padding: "14px 8px 12px",
         transform,
-        userSelect: dragging ? "none" : undefined,
         ...dockStyle,
       }}
     >
-      <RailHandle
-        collapsed={collapsed}
-        onToggleCollapsed={toggleCollapsed}
-        onHandlePointerDown={onHandlePointerDown}
-        dragMovedRef={dragMovedRef}
-        collapseLabel="tools"
+      <div className="flex flex-col gap-1" style={{ borderRadius: 12 }}>
+        {primaryItems.map((item) => (
+          <DockButton key={item.id} item={item} />
+        ))}
+      </div>
+      <span aria-hidden className="flex-1" />
+      <span
+        aria-hidden
+        className="my-[6px] h-px w-full shrink-0"
+        style={{ background: CHROME.line }}
       />
-
-      {collapsed
-        ? collapsedPinnedItems.length > 0 && (
-            <div className="flex flex-col gap-1" style={{ borderRadius: 12 }}>
-              {collapsedPinnedItems.map((item) => (
-                <PinnableRailItem
-                  key={item.id}
-                  pinned
-                  onTogglePinned={() => togglePinned(item.id)}
-                  label={item.label}
-                  showPinnedIndicator={false}
-                >
-                  <DockButton item={item} />
-                </PinnableRailItem>
-              ))}
-            </div>
-          )
-        : (
-          <>
-            <div
-              className="flex flex-col gap-1"
-              style={{
-                background: moved ? "rgba(124, 58, 237, 0.03)" : undefined,
-                borderRadius: 12,
-              }}
-            >
-              {primaryItems.map((item) => (
-                <PinnableRailItem
-                  key={item.id}
-                  pinned={isPinned(item.id)}
-                  onTogglePinned={() => togglePinned(item.id)}
-                  label={item.label}
-                  showPinnedIndicator
-                >
-                  <DockButton item={item} />
-                </PinnableRailItem>
-              ))}
-            </div>
-            <span aria-hidden className="flex-1" />
-            <span
-              aria-hidden
-              className="my-[6px] h-px w-full shrink-0"
-              style={{ background: CHROME.line }}
-            />
-            <PinnableRailItem
-              pinned={isPinned(helpItem.id)}
-              onTogglePinned={() => togglePinned(helpItem.id)}
-              label={helpItem.label}
-              showPinnedIndicator
-            >
-              <DockButton item={helpItem} />
-            </PinnableRailItem>
-          </>
-        )}
+      <DockButton item={helpItem} />
     </nav>
   );
 }

@@ -155,7 +155,7 @@ export function StateStyleFields({
             type="text"
             className="flex-1 px-2"
             style={{ ...inputStyle, width: undefined }}
-            placeholder="var(--token-color-primary) / #111"
+            placeholder="e.g. #111111, or use the swatch"
             value={stateStyle?.backgroundColor ?? ""}
             onChange={(e) => onPatch({ backgroundColor: e.target.value.trim() || undefined })}
           />
@@ -192,7 +192,7 @@ export function StateStyleFields({
             type="text"
             className="flex-1 px-2"
             style={{ ...inputStyle, width: undefined }}
-            placeholder="var(--token-color-surface) / #fff"
+            placeholder="e.g. #ffffff, or use the swatch"
             value={stateStyle?.color ?? ""}
             onChange={(e) => onPatch({ color: e.target.value.trim() || undefined })}
           />
@@ -229,7 +229,7 @@ export function StateStyleFields({
             type="text"
             className="flex-1 px-2"
             style={{ ...inputStyle, width: undefined }}
-            placeholder="var(--token-color-primary) / #111"
+            placeholder="e.g. #111111, or use the swatch"
             value={stateStyle?.borderColor ?? ""}
             onChange={(e) => onPatch({ borderColor: e.target.value.trim() || undefined })}
           />

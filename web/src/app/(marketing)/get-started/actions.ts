@@ -30,6 +30,17 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 const SignupSchema = z.object({
   audience: z.enum(["operator", "agency", "organization"]),
+  businessName: z
+    .string()
+    .trim()
+    .min(2, "Business name is too short.")
+    .max(120, "Business name is too long."),
+  businessDescription: z
+    .string()
+    .trim()
+    .max(500, "Description is too long.")
+    .optional()
+    .or(z.literal("")),
   name: z.string().trim().min(2, "Name is too short.").max(120, "Name is too long."),
   email: z.string().trim().toLowerCase().email("Enter a valid email."),
   subdomain: z
@@ -51,7 +62,10 @@ const SignupSchema = z.object({
 });
 
 export type GetStartedFieldErrors = Partial<
-  Record<"name" | "email" | "subdomain" | "audience" | "rosterSize" | "form", string>
+  Record<
+    "businessName" | "name" | "email" | "subdomain" | "audience" | "rosterSize" | "form",
+    string
+  >
 >;
 
 export type GetStartedActionResult =
@@ -70,15 +84,15 @@ export type GetStartedActionResult =
 /**
  * Why the verdict has three states instead of two:
  *
- * - `taken`    — a real conflict with an existing tenant (agencies.slug or
+ * - `taken`: a real conflict with an existing tenant (agencies.slug or
  *                agency_domains.hostname). Permanent until the tenant is
  *                deleted. UI shows "already taken" with suggestions.
- * - `pending`  — a still-active subdomain reservation held by another lead
+ * - `pending`: a still-active subdomain reservation held by another lead
  *                that hasn't finished provisioning yet (15-min TTL).
  *                Resolves itself if that lead abandons signup. UI explains
  *                this is a temporary hold so the user understands they can
  *                retry shortly.
- * - `available`— the slug is free to claim.
+ * - `available`: the slug is free to claim.
  *
  * The `excludeLeadId` parameter lets callers ignore reservations held by
  * the lead currently being processed (so re-submitting the form with the
@@ -135,7 +149,7 @@ async function suggestAlternativeSlugs(
     if (!WORKSPACE_SLUG_REGEX.test(candidate)) continue;
     if (isReservedWorkspaceSlug(candidate)) continue;
     const check = await isRequestedLinkTaken(supabase, candidate);
-    // Suggestions exclude both hard-taken and currently-held-pending slugs —
+    // Suggestions exclude both hard-taken and currently-held-pending slugs;
     // we don't want to recommend something the user will hit a conflict on.
     if (!check.error && !check.taken && !check.pending) {
       available.push(candidate);
@@ -175,6 +189,8 @@ export async function submitGetStartedSignup(
 
   const raw = {
     audience: String(formData.get("audience") ?? ""),
+    businessName: String(formData.get("businessName") ?? ""),
+    businessDescription: String(formData.get("businessDescription") ?? ""),
     name: String(formData.get("name") ?? ""),
     email: String(formData.get("email") ?? ""),
     subdomain: String(formData.get("subdomain") ?? ""),
@@ -193,7 +209,12 @@ export async function submitGetStartedSignup(
     const errors: GetStartedFieldErrors = {};
     for (const issue of parsed.error.issues) {
       const field = issue.path[0];
-      if (field === "name" || field === "email" || field === "subdomain") {
+      if (
+        field === "businessName" ||
+        field === "name" ||
+        field === "email" ||
+        field === "subdomain"
+      ) {
         errors[field] = issue.message;
       } else {
         errors.form = issue.message;
@@ -216,7 +237,7 @@ export async function submitGetStartedSignup(
       };
     }
     if (isReservedWorkspaceSlug(subdomain)) {
-      return { ok: false, errors: { subdomain: "That one's reserved — try another." } };
+      return { ok: false, errors: { subdomain: "That one's already taken. Try another." } };
     }
   }
 
@@ -278,6 +299,11 @@ export async function submitGetStartedSignup(
     .insert({
       email: input.email,
       name: input.name.trim(),
+      business_name: input.businessName.trim(),
+      business_description:
+        input.businessDescription && input.businessDescription.trim().length > 0
+          ? input.businessDescription.trim()
+          : null,
       audience: input.audience,
       roster_size: input.rosterSize,
       tier_interest: input.tierInterest ?? null,
@@ -305,7 +331,7 @@ export async function submitGetStartedSignup(
 
   // Reserve the subdomain for this lead so a parallel signup can't race
   // them to the same slug. Best-effort: a failed reservation does NOT block
-  // signup — the lead still has subdomain_wanted set, and the provisioner
+  // signup; the lead still has subdomain_wanted set, and the provisioner
   // will surface a real conflict at workspace-creation time if it occurs.
   if (subdomain) {
     const { error: reservationError } = await supabase
@@ -336,6 +362,8 @@ export async function submitGetStartedSignup(
     try {
       await sendFounderDigest({
         leadId,
+        businessName: input.businessName.trim(),
+        businessDescription: input.businessDescription?.trim() || null,
         name: input.name.trim(),
         email: input.email,
         audience: input.audience,
@@ -364,7 +392,7 @@ export async function submitGetStartedSignup(
     await Promise.all([
       sendEmail({
         to: input.email,
-        subject: `You're on the list — ${PLATFORM_BRAND.name}`,
+        subject: `You're on the list at ${PLATFORM_BRAND.name}`,
         html: renderLeadConfirmationEmail({
           name: input.name.trim(),
           subdomain,
@@ -374,6 +402,8 @@ export async function submitGetStartedSignup(
       }),
       sendFounderDigest({
         leadId,
+        businessName: input.businessName.trim(),
+        businessDescription: input.businessDescription?.trim() || null,
         name: input.name.trim(),
         email: input.email,
         audience: input.audience,
@@ -401,6 +431,8 @@ export async function submitGetStartedSignup(
 
 async function sendFounderDigest(params: {
   leadId: string;
+  businessName: string;
+  businessDescription: string | null;
   name: string;
   email: string;
   audience: "operator" | "agency" | "organization";
@@ -414,7 +446,7 @@ async function sendFounderDigest(params: {
   if (!to) return;
   await sendEmail({
     to,
-    subject: `[${PLATFORM_BRAND.name}] Signup: ${params.name} · ${params.audience}${
+    subject: `[${PLATFORM_BRAND.name}] Signup: ${params.businessName} · ${params.audience}${
       params.subdomain ? ` · ${params.subdomain}.${PLATFORM_BRAND.domain}` : ""
     }`,
     html: renderFounderDigestEmail(params),
@@ -455,13 +487,13 @@ function renderLeadConfirmationEmail(args: {
       }. ${
         args.workspaceSignupUrl
           ? "For Free-plan workspaces, you can finish signup right away."
-          : "We're reviewing signups in the order they arrive and sending setup links within a day — usually within an hour during working hours."
+          : "We're reviewing signups in the order they arrive and sending setup links within a day, usually within an hour during working hours."
       }</p>
       ${subdomainLine}
       ${selfServeBlock}
       <p style="margin:28px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">${followupCopy}</p>
       <hr style="border:none;border-top:1px solid rgba(15,23,20,0.08);margin:32px 0;"/>
-      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">— The ${
+      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">The ${
         PLATFORM_BRAND.name
       } team<br/>${PLATFORM_BRAND.stage} · ${new Date().getFullYear()}</p>
     </td></tr>
@@ -471,6 +503,8 @@ function renderLeadConfirmationEmail(args: {
 
 function renderFounderDigestEmail(params: {
   leadId: string;
+  businessName: string;
+  businessDescription: string | null;
   name: string;
   email: string;
   audience: string;
@@ -489,17 +523,19 @@ function renderFounderDigestEmail(params: {
   return `<!doctype html>
 <html><body style="margin:0;padding:24px;background:#fffdf7;font-family:'Geist',Inter,system-ui,sans-serif;color:#0f1714;">
   <h2 style="font-family:'Geist',Inter,system-ui,sans-serif;margin:0 0 16px;font-weight:500;letter-spacing:-0.02em;">New signup · ${escapeHtml(
-    params.audience,
+    params.businessName,
   )}</h2>
   <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-    ${row("Name", params.name)}
+    ${row("Business", params.businessName)}
+    ${row("Description", params.businessDescription)}
+    ${row("Contact", params.name)}
     ${row("Email", params.email)}
     ${row("Audience", params.audience)}
     ${row("Roster size", params.rosterSize)}
-    ${row("Subdomain", params.subdomain ? `${params.subdomain}.${PLATFORM_BRAND.domain}` : "—")}
-    ${row("Tier interest", params.tierInterest ?? "—")}
-    ${row("UTM source", params.utmSource ?? "—")}
-    ${row("Referrer", params.referrer ?? "—")}
+    ${row("Subdomain", params.subdomain ? `${params.subdomain}.${PLATFORM_BRAND.domain}` : "N/A")}
+    ${row("Tier interest", params.tierInterest ?? "N/A")}
+    ${row("UTM source", params.utmSource ?? "N/A")}
+    ${row("Referrer", params.referrer ?? "N/A")}
     ${row("Lead ID", params.leadId)}
   </table>
 </body></html>`;
@@ -515,7 +551,7 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * Lightweight availability check — called on subdomain input blur so the
+ * Lightweight availability check, called on subdomain input blur so the
  * user sees inline feedback before clicking submit. Returns a narrow,
  * JSON-safe verdict; final enforcement lives in `submitGetStartedSignup`.
  */

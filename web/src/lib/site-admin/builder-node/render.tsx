@@ -248,6 +248,7 @@ const NODE_SPACING = {
   s: "0.75rem",
   m: "1.5rem",
   l: "3rem",
+  xl: "6rem",
 } as const;
 
 const NODE_MAX_WIDTH = {
@@ -763,9 +764,9 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--masonry{width:100%;max-width:1120px;margin:0 auto;column-count:var(--bn-columns,3);column-gap:var(--bn-gap,1.25rem)}
 .site-builder-node--masonry>*{break-inside:avoid;margin-bottom:var(--bn-gap,1.25rem)}
 .site-builder-node--card{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:var(--bn-gap,1.25rem);padding:1.25rem;box-sizing:border-box}
-.site-builder-node--card[data-builder-card-variant="elevated"]{background:rgba(255,255,255,0.96);box-shadow:0 10px 28px rgba(18,18,18,0.08)}
-.site-builder-node--card[data-builder-card-variant="outline"]{background:#fff;border:1px solid rgba(18,18,18,0.14)}
-.site-builder-node--card[data-builder-card-variant="ghost"]{background:rgba(246,241,232,0.55)}
+.site-builder-node--card[data-builder-card-variant="elevated"]{background:var(--token-color-surface-raised,rgba(255,255,255,0.96));color:var(--token-color-ink,#111);box-shadow:0 10px 28px rgba(18,18,18,0.08)}
+.site-builder-node--card[data-builder-card-variant="outline"]{background:var(--token-color-surface-raised,#fff);color:var(--token-color-ink,#111);border:1px solid color-mix(in oklab,var(--token-color-ink,#111) 14%,transparent)}
+.site-builder-node--card[data-builder-card-variant="ghost"]{background:color-mix(in oklab,var(--token-color-surface-raised,#f6f1e8) 55%,transparent);color:var(--token-color-ink,#111)}
 .site-builder-node--cta-group{width:100%;max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:var(--bn-gap,1rem);box-sizing:border-box}
 .site-builder-node--cta-group[data-builder-cta-layout="stack"]{flex-direction:column;align-items:stretch}
 .site-builder-node--section-embed{display:block;width:100%}
@@ -779,11 +780,13 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--live-chip span{color:rgba(18,18,18,0.58);font-size:0.82rem}
 .site-builder-node--live-search-shell{display:flex;width:min(100%,680px);align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(18,18,18,0.16);background:#fff;padding:0.75rem 0.75rem 0.75rem 1rem}
 .site-builder-node--live-search-shell span{color:rgba(18,18,18,0.58)}
-.site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid rgba(18,18,18,0.18);border-radius:999px;padding:0.8rem 1.2rem;font-weight:700;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}
-.site-builder-node--button[data-builder-button-tone="primary"]{background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff)}
-.site-builder-node--button[data-builder-button-tone="secondary"]{background:transparent;color:var(--token-color-primary,#111)}
-.site-builder-node--button[data-builder-button-hover-tone="primary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="primary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="primary"]:active{background:var(--token-color-primary,#111)!important;color:var(--token-color-surface-raised,#fff)!important;border-color:var(--token-color-primary,#111)!important}
-.site-builder-node--button[data-builder-button-hover-tone="secondary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="secondary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="secondary"]:active{background:transparent!important;color:var(--token-color-primary,#111)!important;border-color:rgba(18,18,18,0.28)!important}
+.site-builder-node--button{display:inline-flex;width:fit-content;align-items:center;justify-content:center;border:1px solid color-mix(in oklab,var(--token-color-ink,#111) 18%,transparent);border-radius:999px;padding:0.85rem 1.6rem;font-size:0.82rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;transition:background-color .16s ease,color .16s ease,border-color .16s ease,transform .2s ease}
+.site-builder-node--button:hover{transform:translateY(-2px)}
+@media (prefers-reduced-motion:reduce){.site-builder-node--button{transition:none}.site-builder-node--button:hover{transform:none}}
+.site-builder-node--button[data-builder-button-tone="primary"]{background:var(--token-color-primary,var(--token-color-ink,#111));color:var(--token-color-surface-raised,#fff)}
+.site-builder-node--button[data-builder-button-tone="secondary"]{background:transparent;color:var(--token-color-primary,var(--token-color-ink,#111))}
+.site-builder-node--button[data-builder-button-hover-tone="primary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="primary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="primary"]:active{background:var(--token-color-primary,var(--token-color-ink,#111))!important;color:var(--token-color-surface-raised,#fff)!important;border-color:var(--token-color-primary,var(--token-color-ink,#111))!important}
+.site-builder-node--button[data-builder-button-hover-tone="secondary"]:hover,.site-builder-node--button[data-builder-button-focus-tone="secondary"]:focus-visible,.site-builder-node--button[data-builder-button-active-tone="secondary"]:active{background:transparent!important;color:var(--token-color-primary,var(--token-color-ink,#111))!important;border-color:color-mix(in oklab,var(--token-color-ink,#111) 28%,transparent)!important}
 .site-builder-node--button[data-builder-button-disabled-tone="secondary"][aria-disabled="true"]{background:transparent;color:rgba(18,18,18,0.42);border-color:rgba(18,18,18,0.16);pointer-events:none}
 .site-builder-node--button[data-builder-button-disabled-tone="primary"][aria-disabled="true"]{background:rgba(18,18,18,0.35);color:#fff;border-color:rgba(18,18,18,0.08);pointer-events:none}
 .site-builder-node--heading{align-self:stretch;font-family:var(--site-heading-font,inherit);color:var(--token-color-ink,inherit)}
@@ -793,7 +796,7 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--icon{display:inline-flex;align-items:center;justify-content:center;color:currentColor;line-height:1}
 .site-builder-node--pricing-table{width:100%;max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(var(--bn-pricing-columns,3),minmax(0,1fr));gap:var(--bn-gap,1.25rem);align-items:stretch}
 .site-builder-node--pricing-tier{display:flex;min-width:0;flex-direction:column;gap:1rem;border:1px solid rgba(18,18,18,0.14);background:#fff;padding:1.25rem}
-.site-builder-node--pricing-tier[data-builder-pricing-highlighted="true"]{border-color:var(--token-color-primary,#111);box-shadow:0 14px 36px rgba(18,18,18,0.12)}
+.site-builder-node--pricing-tier[data-builder-pricing-highlighted="true"]{border-color:var(--token-color-primary,var(--token-color-ink,#111));box-shadow:0 14px 36px rgba(18,18,18,0.12)}
 .site-builder-node--pricing-tier-header{display:grid;gap:0.4rem}
 .site-builder-node--pricing-tier-title{margin:0;font-size:1rem;font-weight:800;line-height:1.15;color:var(--token-color-ink,#111)}
 .site-builder-node--pricing-tier-description{margin:0;color:rgba(18,18,18,0.66);font-size:0.92rem;line-height:1.5}
@@ -803,9 +806,9 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--pricing-features{display:grid;gap:0.6rem;margin:0;padding:0;list-style:none}
 .site-builder-node--pricing-feature{display:grid;grid-template-columns:1.2rem minmax(0,1fr);gap:0.55rem;align-items:start;color:rgba(18,18,18,0.78);font-size:0.92rem;line-height:1.45}
 .site-builder-node--pricing-feature[data-builder-feature-included="false"]{color:rgba(18,18,18,0.42)}
-.site-builder-node--pricing-feature-mark{font-weight:800;color:var(--token-color-primary,#111)}
+.site-builder-node--pricing-feature-mark{font-weight:800;color:var(--token-color-primary,var(--token-color-ink,#111))}
 .site-builder-node--pricing-feature[data-builder-feature-included="false"] .site-builder-node--pricing-feature-mark{color:rgba(18,18,18,0.34)}
-.site-builder-node--pricing-cta{margin-top:auto;display:inline-flex;width:100%;align-items:center;justify-content:center;border:1px solid var(--token-color-primary,#111);border-radius:999px;background:var(--token-color-primary,#111);color:var(--token-color-surface-raised,#fff);padding:0.8rem 1rem;font-weight:800;text-align:center;text-decoration:none}
+.site-builder-node--pricing-cta{margin-top:auto;display:inline-flex;width:100%;align-items:center;justify-content:center;border:1px solid var(--token-color-primary,var(--token-color-ink,#111));border-radius:999px;background:var(--token-color-primary,var(--token-color-ink,#111));color:var(--token-color-surface-raised,#fff);padding:0.8rem 1rem;font-weight:800;text-align:center;text-decoration:none}
 .site-builder-node--code{display:block;width:100%;max-width:100%;margin:0 auto;border:0;background:transparent;box-sizing:border-box}
 .site-builder-node--rich-text{width:100%;max-width:100%;font-family:var(--site-body-font,inherit)}
 .site-builder-node--rich-text .site-link{color:inherit;text-decoration:underline;text-underline-offset:0.16em}
@@ -1608,8 +1611,11 @@ export function builderNodeStyleAttrs(style: BuilderNodeStyle | undefined) {
 }
 
 function styleColor(tone: BuilderNodeStyleValue["tone"]): string | undefined {
-  if (tone === "muted") return "rgba(18, 18, 18, 0.62)";
-  if (tone === "strong") return "#111";
+  // Theme-adaptive (AIQ-4): fall back to the old hardcoded values only when the
+  // theme defines no token, so light themes look identical and dark themes stop
+  // rendering muted/strong text near-black-on-dark.
+  if (tone === "muted") return "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
+  if (tone === "strong") return "var(--token-color-ink, #111)";
   return undefined;
 }
 
@@ -1617,8 +1623,15 @@ function styleBackground(
   background: BuilderNodeStyleValue["background"],
 ): string | undefined {
   if (background === "none") return "transparent";
-  if (background === "surface") return "rgba(246, 241, 232, 0.92)";
+  // Theme-paired raised surface (AIQ-1): dark themes now get a dark panel that
+  // their own ink reads on, instead of a fixed cream band.
+  if (background === "surface") return "var(--token-color-surface-raised, rgba(246, 241, 232, 0.92))";
   if (background === "contrast") return "#111";
+  // Theme-paired band ROLES (AIQ-13). Unlike "contrast" these carry a guaranteed
+  // paired foreground (applied in sharedNodeStyle), so they read on any theme.
+  if (background === "accent") return "var(--token-color-primary, var(--token-color-ink, #111))";
+  if (background === "muted")
+    return "color-mix(in oklab, var(--token-color-surface-raised, #f6f1e8) 62%, var(--token-color-ink, #111) 4%)";
   return undefined;
 }
 
@@ -2142,6 +2155,34 @@ export function composeInlineNodeStyle(
 /** Module-level cache: style object identity → computed CSSProperties. */
 const sharedNodeStyleCache = new WeakMap<object, CSSProperties>();
 
+/**
+ * Mobile-safety clamp for a FREE fixed-length `width` / `minWidth` escape.
+ *
+ * A node that hard-codes a desktop-scale pixel width (the classic offender: a
+ * content container baked at `width:1120px` in an older published tree) will
+ * blow past a ~390px phone viewport and force the whole page to scroll
+ * horizontally. Wrapping the value in `min(<value>, 100%)` makes it
+ * self-clamping: on a wide desktop parent `min(1120px,100%)` still computes to
+ * `1120px` (byte-identical desktop render), while on a narrow phone the `100%`
+ * arm wins and the node shrinks to fit its container instead of overflowing.
+ *
+ * Only pure fixed lengths at or above a mobile-unsafe threshold are wrapped, so
+ * small decorative widths (a 30px rule, a 46px disc) and intrinsic/relative
+ * keywords (`100%`, `max-content`, `auto`, `calc(...)`, `min(...)`, `clamp(...)`,
+ * viewport units) are emitted unchanged — the marquee tracks that rely on
+ * `width:max-content` + parent `overflow:hidden` keep working.
+ */
+const MOBILE_UNSAFE_WIDTH_PX = 360;
+function clampFreeWidthForMobile(value: string): string {
+  const match = /^\s*(\d+(?:\.\d+)?)(px|rem|em)\s*$/.exec(value);
+  if (!match) return value; // %, vw, calc(), min(), max-content, auto → leave as-is
+  const n = Number(match[1]);
+  const unit = match[2];
+  const px = unit === "px" ? n : n * 16; // rem/em ≈ 16px root
+  if (px < MOBILE_UNSAFE_WIDTH_PX) return value; // small decorative sizes untouched
+  return `min(${value.trim()}, 100%)`;
+}
+
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
   ...base: Array<CSSProperties | undefined>
@@ -2169,12 +2210,25 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
     out.paddingBottom = NODE_SPACING[style.paddingY];
   }
   if (style.radius) out.borderRadius = NODE_RADIUS[style.radius];
-  if (style.background === "surface") out.background = "rgba(246, 241, 232, 0.92)";
+  if (style.background === "surface") out.background = "var(--token-color-surface-raised, rgba(246, 241, 232, 0.92))";
   if (style.background === "contrast") {
     out.background = "var(--token-color-ink,#111)";
     out.color = "#fff";
   }
-  if (style.tone === "muted") out.color = "rgba(18, 18, 18, 0.62)";
+  // AIQ-13 — theme-paired band roles. Each emits a background AND its guaranteed
+  // paired foreground (like "contrast" does), so a tenant's own brand color paints
+  // the band and the text stays readable on every theme. Kept AFTER surface/
+  // contrast and BEFORE tone so an explicit tone/textColor still wins.
+  if (style.background === "accent") {
+    out.background = "var(--token-color-primary, var(--token-color-ink, #111))";
+    out.color = "var(--token-color-surface-raised, #fff)";
+  }
+  if (style.background === "muted") {
+    out.background =
+      "color-mix(in oklab, var(--token-color-surface-raised, #f6f1e8) 62%, var(--token-color-ink, #111) 4%)";
+    out.color = "var(--token-color-ink, #111)";
+  }
+  if (style.tone === "muted") out.color = "var(--token-color-muted, rgba(18, 18, 18, 0.62))";
   if (style.tone === "strong") out.color = "var(--token-color-ink,#111)";
   // Free-value escapes — applied last so they override the token presets above.
   // fontFamily may be a `token:typography.*-font-family` binding → resolved to
@@ -2219,10 +2273,10 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   // Free dimension escapes — exact width/height + min/max clamps. width coexists
   // with the maxWidth token above; maxWidthFree is applied after it so an exact
   // clamp wins over the preset.
-  if (style.width) out.width = style.width;
+  if (style.width) out.width = clampFreeWidthForMobile(style.width);
   if (style.height) out.height = style.height;
   if (style.minHeight) out.minHeight = style.minHeight;
-  if (style.minWidth) out.minWidth = style.minWidth;
+  if (style.minWidth) out.minWidth = clampFreeWidthForMobile(style.minWidth);
   if (style.maxWidthFree) out.maxWidth = style.maxWidthFree;
   if (style.maxHeight) out.maxHeight = style.maxHeight;
   // Free per-side padding — applied after the paddingX/paddingY token so an
@@ -3869,7 +3923,11 @@ function renderBuilderNodeElement(
           suppressHydrationWarning
           style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
-            color: "rgba(18, 18, 18, 0.72)",
+            // AIQ-4 — theme-adaptive soft body color. On the light theme (ink
+            // #121212) this is byte-equivalent to the old rgba(18,18,18,0.72);
+            // on dark themes it becomes soft LIGHT ink instead of near-black-on-
+            // dark (default paragraphs were rendering invisible on noir).
+            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
             ...cue.style,
           })}
         >
@@ -4172,7 +4230,11 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--rich-text"
           style={inlineNodeStyle(node.props.style, MARGIN_ZERO, {
             lineHeight: 1.65,
-            color: "rgba(18, 18, 18, 0.72)",
+            // AIQ-4 — theme-adaptive soft body color. On the light theme (ink
+            // #121212) this is byte-equivalent to the old rgba(18,18,18,0.72);
+            // on dark themes it becomes soft LIGHT ink instead of near-black-on-
+            // dark (default paragraphs were rendering invisible on noir).
+            color: "color-mix(in oklab, var(--token-color-ink, #121212) 72%, transparent)",
             whiteSpace: "pre-wrap",
             ...cue.style,
           })}

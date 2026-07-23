@@ -14,11 +14,18 @@ import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
-import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
+import {
+  BuilderNodeFontLinks,
+  BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
+} from "@/lib/site-admin/builder-node/render";
+import { renderFreeformPageRootTree } from "@/lib/site-admin/builder-node/freeform-page-blocks";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
+import { requireStaff } from "@/lib/server/action-guards";
+import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   jsonLdDocumentToScript,
   type JsonLdDocument,
@@ -87,16 +94,33 @@ export async function generateMetadata({
   const publicScope = await getPublicTenantScope();
   if (!publicScope) return { title: "Not found" };
 
+  const metaCols =
+    "title,meta_title,meta_description,og_title,og_description,og_image_url,noindex,canonical_url,locale,slug";
   const { data } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
-    .select(
-      "title,meta_title,meta_description,og_title,og_description,og_image_url,noindex,canonical_url,locale,slug",
-    )
+    .select(metaCols)
     .eq("locale", locale)
     .eq("slug", slugPath)
     .maybeSingle();
 
-  const page = data as CmsPagePublic | null;
+  let page = data as CmsPagePublic | null;
+  // Draft metadata for staff/preview viewers — mirrors the page body's
+  // draft-reader gate so an unpublished draft doesn't tab-title as "Not found"
+  // for the person editing it. Anonymous visitors still get "Not found".
+  if (!page) {
+    const draftReader =
+      (await isPreviewActiveForTenant(publicScope.tenantId)) || (await requireStaff()).ok;
+    if (draftReader) {
+      const draft = await supabase
+        .from("cms_pages")
+        .select(metaCols)
+        .eq("tenant_id", publicScope.tenantId)
+        .eq("locale", locale)
+        .eq("slug", slugPath)
+        .maybeSingle();
+      page = (draft.data as CmsPagePublic | null) ?? null;
+    }
+  }
   if (!page) return { title: "Not found" };
 
   const pathnameEn = `/p/${slugPath}`;
@@ -127,12 +151,27 @@ export async function generateMetadata({
 
 export default async function CmsPublicPage({
   params,
+  // Guest-chat launcher mount. Default ON: a generic `/p/<slug>` visit renders
+  // under `(public)/layout.tsx` (which supplies the discovery/inquiry providers)
+  // and should carry the floating "Message {agency}" launcher, gated on the
+  // master `enabled` switch only (a generic CMS page has no per-page flag).
+  // Callers that render CmsPublicPage AS the home or directory surface
+  // (app/page.tsx home role, directory/page.tsx assigned-directory role) pass
+  // `false` and mount the launcher themselves with the correct per-surface
+  // sourcePage ("/" → show_on_home, "/directory" → show_on_directory) — this
+  // prevents a double launcher on those surfaces.
+  mountChatLauncher = true,
 }: {
   params: Promise<{ slug?: string[] }>;
+  mountChatLauncher?: boolean;
 }) {
   const { slug: slugParam } = await params;
   const slugPath = slugPathFromParams(slugParam);
   if (!slugPath) notFound();
+
+  // Generic-page sourcePage — never "/" or "/directory", so AgencyChatLauncherMount
+  // gates on `enabled` alone (no per-page flag for arbitrary CMS pages).
+  const launcherSourcePage = `/p/${slugPath}`;
 
   const locale = await getRequestLocale();
   const supabase = await getCachedServerSupabase();
@@ -186,8 +225,20 @@ export default async function CmsPublicPage({
     let freeformErr = publishedRead.error;
     // Draft preview (staff): the published-only RPC won't surface a draft, so
     // read the row directly — RLS admits it for staff via is_staff_of_tenant
-    // (no tenant GUC needed). Only attempted when a preview JWT is active.
-    if (!freeformErr && !freeformPage && previewActive) {
+    // (no tenant GUC needed). Attempted when a preview JWT is active, OR for an
+    // authenticated staff SESSION (a real server-side auth check — unlike the
+    // untrusted non-HttpOnly edit cookie). Without the session fallback, an
+    // expired preview JWT mid-edit made this route 404 a staff member's OWN
+    // draft: the not-found shell rendered (404 hero + footer) and the
+    // edit-chrome canvas then mounted AFTER the footer, so the draft's blocks
+    // appeared below the site footer (verified live on /p/untitled-* drafts).
+    // The draft read stays tenant-scoped by RLS either way; staff of another
+    // tenant read nothing.
+    let draftReaderActive = previewActive;
+    if (!freeformErr && !freeformPage && !draftReaderActive) {
+      draftReaderActive = (await requireStaff()).ok;
+    }
+    if (!freeformErr && !freeformPage && draftReaderActive) {
       const draftRead = await supabase
         .from("cms_pages")
         .select(freeformCols)
@@ -204,7 +255,7 @@ export default async function CmsPublicPage({
     if (
       !freeformErr &&
       freeformPage?.is_freeform &&
-      (freeformPage.status === "published" || previewActive)
+      (freeformPage.status === "published" || draftReaderActive)
     ) {
       const blocks = (freeformPage.blocks ?? []) as BuilderNode[];
       const publicPathPrefix = await getPublicPathPrefix();
@@ -233,10 +284,22 @@ export default async function CmsPublicPage({
           ) : null}
           <JsonLdScript script={jsonLdScript} />
           <PublicHeader />
+          {/* Renderer styles + fonts once at page level — the root-tree helper
+              below sets includeRendererStyles/includeFontLinks=false per block
+              (same composition as /t/[code]/[pageSlug]). */}
+          <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(blocks)} />
+          <BuilderNodeFontLinks nodes={blocks} />
           <main id="main-content" className="w-full flex-1" data-theme-canvas-root="">
-            {renderBuilderNodes(blocks, {
+            {/* renderFreeformPageRootTree, NOT bare renderBuilderNodes: the
+                generic freeform path renders root `section` nodes as null, so a
+                section-rooted page (every AI-generated page, any Add-Gallery
+                custom section) rendered an EMPTY main here — published AND
+                draft. The root-tree helper wraps each root section and renders
+                its children (the fix the talent pages already use). */}
+            {renderFreeformPageRootTree(blocks, {
               publicPathPrefix,
               mode: "freeform",
+              includeRendererStyles: false,
               componentStyleDefaults,
               ...experimentContext,
               renderSectionEmbed: makeSectionEmbedRenderer({
@@ -248,6 +311,9 @@ export default async function CmsPublicPage({
             })}
           </main>
           <PublicFooter />
+          {mountChatLauncher ? (
+            <AgencyChatLauncherMount sourcePage={launcherSourcePage} />
+          ) : null}
         </>
       );
     }
@@ -278,6 +344,9 @@ export default async function CmsPublicPage({
           />
         </main>
         <PublicFooter />
+        {mountChatLauncher ? (
+          <AgencyChatLauncherMount sourcePage={launcherSourcePage} />
+        ) : null}
       </>
     );
   }
@@ -316,6 +385,9 @@ export default async function CmsPublicPage({
         </article>
       </main>
       <PublicFooter />
+      {mountChatLauncher ? (
+        <AgencyChatLauncherMount sourcePage={launcherSourcePage} />
+      ) : null}
     </>
   );
 }

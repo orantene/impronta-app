@@ -4,10 +4,47 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryButton, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
-import { ACTIVATION_TASKS, COLORS, FONTS, RADIUS, RICH_INQUIRIES, TRANSITION, formatRecentActivity, getInquiries, getRoster, getTeam, meetsRole, pluralize, useAdminShell } from "../state";
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
+import { ActivityFeedItem, Affordance, Bullet, CompactLockedCard, GhostButton, Icon, MoreWithSection, PrimaryButton, PrimaryCard, SecondaryCard, StarterCard, StatDot, StatusCard } from "../primitives";
+import { ACTIVATION_TASKS, COLORS, FONTS, RADIUS, RICH_INQUIRIES, TRANSITION, formatRecentActivity, getInquiries, getRoster, getTeam, meetsRole, useAdminShell } from "../state";
+
+// Time-aware greeting key for the overview header. Mirrors the hour buckets
+// of the shared English greeting helper, but maps them to a localized catalog
+// key so the header greets staff in their chosen language.
+function greetingKey(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "dashboard.adminOverview.greetingMorning";
+  if (h < 17) return "dashboard.adminOverview.greetingAfternoon";
+  return "dashboard.adminOverview.greetingEvening";
+}
+
+// Localized labels for the free-plan activation checklist. The shared
+// ACTIVATION_TASKS fixture keeps its English `label`/`hint`/`est` for
+// non-localized consumers; these maps resolve the same rows to catalog
+// keys, keyed by the stable task id (additive enum-map pattern).
+const ACTIVATION_LABEL_KEY: Record<string, string> = {
+  "add-talent": "dashboard.adminOverview.taskAddTalentLabel",
+  publish: "dashboard.adminOverview.taskPublishLabel",
+  "share-url": "dashboard.adminOverview.taskShareUrlLabel",
+  "try-inquiry": "dashboard.adminOverview.taskTryInquiryLabel",
+  "invite-team": "dashboard.adminOverview.taskInviteTeamLabel",
+};
+const ACTIVATION_HINT_KEY: Record<string, string> = {
+  "add-talent": "dashboard.adminOverview.taskAddTalentHint",
+  publish: "dashboard.adminOverview.taskPublishHint",
+  "share-url": "dashboard.adminOverview.taskShareUrlHint",
+  "try-inquiry": "dashboard.adminOverview.taskTryInquiryHint",
+  "invite-team": "dashboard.adminOverview.taskInviteTeamHint",
+};
+const ACTIVATION_EST_KEY: Record<string, string> = {
+  "add-talent": "dashboard.adminOverview.est2min",
+  publish: "dashboard.adminOverview.est30sec",
+  "share-url": "dashboard.adminOverview.est15sec",
+  "try-inquiry": "dashboard.adminOverview.est3min",
+  "invite-team": "dashboard.adminOverview.est1min",
+};
 import { DemoDataBanner, WorkspaceActivationBanner } from "../wave2";
-import { greeting } from "./ControlBar";
 import { FreeValuePanel } from "./WorkPage";
 import { Grid, PageHeader, WorkspaceStatStrip } from "./pages-shared";
 
@@ -28,6 +65,7 @@ export function OverviewPage() {
     effectiveTenant,
     tenantSlug,
   } = useAdminShell();
+  const t = useT();
   const goFinancials = () => {
     if (typeof window !== "undefined" && tenantSlug) {
       window.location.href = `/${tenantSlug}/admin/financials`;
@@ -79,10 +117,10 @@ export function OverviewPage() {
   const needsYouTotal = unassignedCount + yourReplyCount + readyToBookCount + draftCount;
   const awaitingClientCount = overviewMetrics?.awaitingClientCount ?? awaiting.length;
   const needsYouBuckets = [
-    { key: "unassigned", n: unassignedCount, label: "needs a coordinator" },
-    { key: "reply", n: yourReplyCount, label: "awaiting your reply" },
-    { key: "ready", n: readyToBookCount, label: "ready to book" },
-    { key: "drafts", n: draftCount, label: "to send" },
+    { key: "unassigned", n: unassignedCount, label: t("dashboard.adminOverview.bucketNeedsCoordinator") },
+    { key: "reply", n: yourReplyCount, label: t("dashboard.adminOverview.bucketAwaitingReply") },
+    { key: "ready", n: readyToBookCount, label: t("dashboard.adminOverview.bucketReadyToBook") },
+    { key: "drafts", n: draftCount, label: t("dashboard.adminOverview.bucketToSend") },
   ].filter((b) => b.n > 0);
 
   return (
@@ -99,18 +137,19 @@ export function OverviewPage() {
             if (email) return email.split("@")[0]?.split(/[.\-_]/u)[0] ?? null;
             return null;
           })();
-          return `${greeting()}, ${realFirst ?? "there"}`;
+          return interpolate(t(greetingKey()), { name: realFirst ?? t("dashboard.adminOverview.greetingFallbackName") });
         })()}
-        subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+        subtitle={new Date().toLocaleDateString(t("dashboard.adminOverview.dateLocale"), { weekday: "long", month: "long", day: "numeric" })}
         actions={
           <>
-            {/* Read-only — every workspace role can review the activity log. */}
-            <SecondaryButton onClick={() => openDrawer("team-activity")}>
-              Recent activity
-            </SecondaryButton>
+            {/* De-dup audit: the "Recent activity" header button was the
+                FIRST of three controls on this page opening the same
+                team-activity drawer (card + section "View all" were the
+                others) while the feed itself renders inline below. The
+                section's "View all" is the one entry point now. */}
             {canEdit && (
               <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
-                New inquiry
+                {t("dashboard.adminOverview.newInquiry")}
               </PrimaryButton>
             )}
           </>
@@ -164,9 +203,9 @@ export function OverviewPage() {
       <section
         style={{
           background: needsYouTotal > 0
-            ? `linear-gradient(135deg, ${COLORS.coralSoft} 0%, #fff 60%)`
+            ? `linear-gradient(135deg, ${COLORS.indigoSoft} 0%, #fff 60%)`
             : `linear-gradient(135deg, ${COLORS.accentSoft} 0%, #fff 60%)`,
-          border: `1px solid ${needsYouTotal > 0 ? COLORS.coral : COLORS.accent}`,
+          border: `1px solid ${needsYouTotal > 0 ? COLORS.indigo : COLORS.accent}`,
           borderRadius: 14,
           padding: "16px 20px",
           marginBottom: 16,
@@ -180,21 +219,24 @@ export function OverviewPage() {
           aria-hidden
           style={{
             width: 38, height: 38, borderRadius: 12, background: "#fff",
-            border: `1px solid ${needsYouTotal > 0 ? COLORS.coral : COLORS.accent}`,
-            color: needsYouTotal > 0 ? COLORS.coral : COLORS.accent,
+            border: `1px solid ${needsYouTotal > 0 ? COLORS.indigo : COLORS.accent}`,
+            color: needsYouTotal > 0 ? COLORS.indigo : COLORS.accent,
             display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
           }}
         >
           <Icon name="bolt" size={18} stroke={1.7} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: needsYouTotal > 0 ? COLORS.coralDeep : COLORS.accent }}>
-            Needs you now
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: needsYouTotal > 0 ? COLORS.indigoDeep : COLORS.accent }}>
+            {t("dashboard.adminOverview.needsYouNow")}
           </div>
           <div style={{ fontSize: 16, fontWeight: 600, color: COLORS.ink, marginTop: 2 }}>
             {needsYouTotal === 0
-              ? "You're all caught up."
-              : `${needsYouTotal} ${needsYouTotal === 1 ? "thing needs" : "things need"} your team`}
+              ? t("dashboard.adminOverview.allCaughtUp")
+              : interpolate(
+                  t(needsYouTotal === 1 ? "dashboard.adminOverview.needsYourTeamOne" : "dashboard.adminOverview.needsYourTeamOther"),
+                  { count: needsYouTotal },
+                )}
           </div>
           {needsYouBuckets.length > 0 && (
             <div style={{ marginTop: 7, display: "flex", flexWrap: "wrap", gap: 7 }}>
@@ -206,23 +248,26 @@ export function OverviewPage() {
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "3px 9px 3px 4px", borderRadius: 999, cursor: "pointer",
-                    background: "#fff", border: `1px solid ${COLORS.coral}40`, fontFamily: FONTS.body,
+                    background: "#fff", border: `1px solid ${COLORS.indigo}40`, fontFamily: FONTS.body,
                   }}
                 >
-                  <span style={{ minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: COLORS.coral, color: "#fff", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{b.n}</span>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.coralDeep }}>{b.label}</span>
+                  <span style={{ minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, display: "inline-flex", alignItems: "center", justifyContent: "center", background: COLORS.indigo, color: "#fff", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{b.n}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.indigoDeep }}>{b.label}</span>
                 </button>
               ))}
             </div>
           )}
           {awaitingClientCount > 0 && (
             <div style={{ marginTop: 7, fontSize: 12, color: COLORS.inkMuted }}>
-              {awaitingClientCount} {awaitingClientCount === 1 ? "inquiry is" : "inquiries are"} waiting on the client — their move, not yours.
+              {interpolate(
+                t(awaitingClientCount === 1 ? "dashboard.adminOverview.awaitingClientLineOne" : "dashboard.adminOverview.awaitingClientLineOther"),
+                { count: awaitingClientCount },
+              )}
             </div>
           )}
         </div>
         {needsYouTotal > 0 && (
-          <PrimaryButton onClick={() => openDrawer("today-pulse")}>Review</PrimaryButton>
+          <PrimaryButton onClick={() => openDrawer("today-pulse")}>{t("dashboard.adminOverview.review")}</PrimaryButton>
         )}
       </section>
 
@@ -232,11 +277,11 @@ export function OverviewPage() {
           card-frame chrome around individual values. */}
       <WorkspaceStatStrip
         items={[
-          { label: "Needs you", value: needsYouTotal, tone: COLORS.coral, onClick: () => openDrawer("today-pulse") },
-          { label: "Waiting on client", value: awaitingClientCount, tone: COLORS.indigo, onClick: () => openDrawer("awaiting-client") },
-          { label: "Confirmed", value: overviewMetrics?.confirmedBookingCount ?? confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
+          { label: t("dashboard.adminOverview.statNeedsYou"), value: needsYouTotal, tone: COLORS.fill, onClick: () => openDrawer("today-pulse") },
+          { label: t("dashboard.adminOverview.statWaitingOnClient"), value: awaitingClientCount, tone: COLORS.indigo, onClick: () => openDrawer("awaiting-client") },
+          { label: t("dashboard.adminOverview.statConfirmed"), value: overviewMetrics?.confirmedBookingCount ?? confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
           {
-            label: "Views 7d",
+            label: t("dashboard.adminOverview.statViews7d"),
             value: overviewMetrics?.storefrontViews7d ?? 0,
             tone: COLORS.inkMuted,
             onClick: () => openDrawer("storefront-visibility"),
@@ -249,23 +294,23 @@ export function OverviewPage() {
       {/* Primary row */}
       <Grid cols="2">
         <PrimaryCard
-          title="Waiting on client"
-          description="Offers and approvals sent — the ball is in the client's court. Nudge if one goes cold."
+          title={t("dashboard.adminOverview.waitingCardTitle")}
+          description={t("dashboard.adminOverview.waitingCardDesc")}
           icon={<Icon name="mail" size={14} stroke={1.7} />}
-          affordance="Open list"
-          meta={<>{pluralize(awaitingClientCount, "inquiry", "inquiries", true)}</>}
+          affordance={t("dashboard.adminOverview.openList")}
+          meta={<>{interpolate(t(awaitingClientCount === 1 ? "dashboard.adminOverview.inquiryCountOne" : "dashboard.adminOverview.inquiryCountOther"), { count: awaitingClientCount })}</>}
           onClick={() => openDrawer("awaiting-client")}
         />
         <PrimaryCard
-          title="Workflow"
-          description="Every inquiry, grouped by where it's stuck. See who's waiting on whom from first request to confirmed booking."
+          title={t("dashboard.adminOverview.workflowCardTitle")}
+          description={t("dashboard.adminOverview.workflowCardDesc")}
           icon={<Icon name="arrow-right" size={14} stroke={1.7} />}
-          affordance="Open workflow"
+          affordance={t("dashboard.adminOverview.openWorkflow")}
           meta={
             <>
-              {pluralize(openInquiryCount, "active", "active", true)}
+              {interpolate(t("dashboard.adminOverview.activeCount"), { count: openInquiryCount })}
               <Bullet />
-              {confirmedThisWeek.length} confirmed
+              {interpolate(t("dashboard.adminOverview.confirmedCount"), { count: confirmedThisWeek.length })}
             </>
           }
           onClick={() => openDrawer("pipeline")}
@@ -277,17 +322,11 @@ export function OverviewPage() {
       {/* Secondary row */}
       <Grid cols="3">
         <SecondaryCard
-          title="Drafts"
-          description="Inquiries you started but haven't sent."
-          meta={pluralize(draftCount, "item", "items")}
-          affordance="Review"
+          title={t("dashboard.adminOverview.draftsCardTitle")}
+          description={t("dashboard.adminOverview.draftsCardDesc")}
+          meta={interpolate(t(draftCount === 1 ? "dashboard.adminOverview.itemCountOne" : "dashboard.adminOverview.itemCountOther"), { count: draftCount })}
+          affordance={t("dashboard.adminOverview.review")}
           onClick={() => openDrawer("drafts-holds")}
-        />
-        <SecondaryCard
-          title="Recent activity"
-          description="What teammates and clients did in the last 24h."
-          affordance="See feed"
-          onClick={() => openDrawer("team-activity")}
         />
       </Grid>
 
@@ -297,19 +336,19 @@ export function OverviewPage() {
           display: "flex", alignItems: "center", gap: 8, padding: "0 4px 10px",
         }}>
           <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.indigo }} />
-          <h2 style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">Analytics</h2>
+          <h2 style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, margin: 0, letterSpacing: -0.1 }} className="text-admin-ink">{t("dashboard.adminOverview.analytics")}</h2>
         </div>
         <Grid cols="2">
           <SecondaryCard
-            title="Revenue"
-            description="P&L, per-talent payouts, top clients. Live commission data."
-            affordance="Open"
+            title={t("dashboard.adminOverview.revenueCardTitle")}
+            description={t("dashboard.adminOverview.revenueCardDesc")}
+            affordance={t("dashboard.adminOverview.open")}
             onClick={goFinancials}
           />
           <SecondaryCard
-            title="Conversion funnel"
-            description="Inquiry → offer → booking. Drop-off by stage."
-            affordance="Open"
+            title={t("dashboard.adminOverview.funnelCardTitle")}
+            description={t("dashboard.adminOverview.funnelCardDesc")}
+            affordance={t("dashboard.adminOverview.open")}
             onClick={() => openDrawer("conversion-funnel")}
           />
         </Grid>
@@ -317,40 +356,40 @@ export function OverviewPage() {
 
       {/* Locked strip — what's available higher up */}
       {state.plan === "studio" && (
-        <MoreWithSection plan="agency">
+        <MoreWithSection plan="agency" title={t("dashboard.adminOverview.moreWithAgency")}>
           <CompactLockedCard
-            title="Agency design system"
+            title={t("dashboard.adminOverview.lockAgencyDesignSystem")}
             requiredPlan="agency"
             onClick={() =>
               openUpgrade({
-                feature: "Branded site design",
-                why: "Take full control of your storefront's typography, color and layout.",
+                feature: t("dashboard.adminOverview.upBrandedDesignFeature"),
+                why: t("dashboard.adminOverview.upBrandedDesignWhy"),
                 requiredPlan: "agency",
-                unlocks: ["Custom design tokens", "Theme builder", "Section presets"],
+                unlocks: [t("dashboard.adminOverview.upBrandedDesignUnlock1"), t("dashboard.adminOverview.upBrandedDesignUnlock2"), t("dashboard.adminOverview.upBrandedDesignUnlock3")],
               })
             }
           />
           <CompactLockedCard
-            title="Field catalog"
+            title={t("dashboard.adminOverview.lockFieldCatalog")}
             requiredPlan="agency"
             onClick={() =>
               openUpgrade({
-                feature: "Custom talent fields",
-                why: "Add fields your agency cares about — tags, niches, contracts.",
+                feature: t("dashboard.adminOverview.upCustomFieldsFeature"),
+                why: t("dashboard.adminOverview.upCustomFieldsWhy"),
                 requiredPlan: "agency",
-                unlocks: ["Custom fields", "Per-roster taxonomy", "Filter config"],
+                unlocks: [t("dashboard.adminOverview.upCustomFieldsUnlock1"), t("dashboard.adminOverview.upCustomFieldsUnlock2"), t("dashboard.adminOverview.upCustomFieldsUnlock3")],
               })
             }
           />
           <CompactLockedCard
-            title="Hub distribution"
+            title={t("dashboard.adminOverview.lockHubDistribution")}
             requiredPlan="network"
             onClick={() =>
               openUpgrade({
-                feature: "Multi-brand hub",
-                why: "Run multiple agency identities under one roof and distribute roster across them.",
+                feature: t("dashboard.adminOverview.upMultiBrandFeature"),
+                why: t("dashboard.adminOverview.upMultiBrandWhyDistribute"),
                 requiredPlan: "network",
-                unlocks: ["Sub-tenants", "Cross-roster sharing", "Hub-level analytics"],
+                unlocks: [t("dashboard.adminOverview.upMultiBrandUnlockSubtenants"), t("dashboard.adminOverview.upMultiBrandUnlockCrossRoster"), t("dashboard.adminOverview.upMultiBrandUnlockHubAnalytics")],
               })
             }
           />
@@ -358,26 +397,26 @@ export function OverviewPage() {
       )}
 
       {state.plan === "agency" && (
-        <MoreWithSection plan="network">
+        <MoreWithSection plan="network" title={t("dashboard.adminOverview.moreWithNetwork")}>
           <CompactLockedCard
-            title="Multi-brand workspaces"
+            title={t("dashboard.adminOverview.lockMultiBrandWorkspaces")}
             requiredPlan="network"
             onClick={() =>
               openUpgrade({
-                feature: "Multi-brand hub",
-                why: "Run several agencies as one operation. Move talent across brands without losing history.",
+                feature: t("dashboard.adminOverview.upMultiBrandFeature"),
+                why: t("dashboard.adminOverview.upMultiBrandWhyOperation"),
                 requiredPlan: "network",
-                unlocks: ["Sub-brands", "Cross-roster pool", "Hub-level dashboards"],
+                unlocks: [t("dashboard.adminOverview.upMultiBrandUnlockSubbrands"), t("dashboard.adminOverview.upMultiBrandUnlockPool"), t("dashboard.adminOverview.upMultiBrandUnlockDashboards")],
               })
             }
           />
           <CompactLockedCard
-            title="Hub analytics"
+            title={t("dashboard.adminOverview.lockHubAnalytics")}
             requiredPlan="network"
             onClick={() =>
               openUpgrade({
-                feature: "Hub analytics",
-                why: "See booking velocity and roster utilization across all your brands at once.",
+                feature: t("dashboard.adminOverview.upHubAnalyticsFeature"),
+                why: t("dashboard.adminOverview.upHubAnalyticsWhy"),
                 requiredPlan: "network",
               })
             }
@@ -396,7 +435,7 @@ export function OverviewPage() {
           }}
         >
           <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
-            Recent activity
+            {t("dashboard.adminOverview.recentActivity")}
           </h2>
           <div className="flex items-center gap-1.5">
             <button
@@ -418,9 +457,9 @@ export function OverviewPage() {
               }}
             >
               <Icon name="sparkle" size={11} color={COLORS.royal} stroke={1.8} />
-              Weekly digest
+              {t("dashboard.adminOverview.weeklyDigest")}
             </button>
-            <GhostButton size="sm" onClick={() => openDrawer("team-activity")}>View all</GhostButton>
+            <GhostButton size="sm" onClick={() => openDrawer("team-activity")}>{t("dashboard.adminOverview.viewAll")}</GhostButton>
           </div>
         </div>
         <div
@@ -433,7 +472,7 @@ export function OverviewPage() {
         >
           {realActivity.length === 0 ? (
             <div style={{ padding: "18px 2px", fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              No activity yet. Offers, approvals, roster changes, and bookings show up here as your team works.
+              {t("dashboard.adminOverview.noActivityYet")}
             </div>
           ) : (
             realActivity.slice(0, 6).map((ev, i) => (
@@ -456,6 +495,7 @@ export function OverviewPage() {
 
 function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string; networkRequestedAt: string }) {
   const router = useRouter();
+  const t = useT();
   const storageKey = `tulala-network-banner-dismissed-${tenantId}`;
   const [dismissed, setDismissed] = useState(() => {
     try { return typeof window !== "undefined" && !!window.localStorage.getItem(storageKey); }
@@ -473,7 +513,7 @@ function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string
     router.replace(url.pathname + (url.search || ""), { scroll: false });
   }
 
-  const requestedDate = new Date(networkRequestedAt).toLocaleDateString("en-US", {
+  const requestedDate = new Date(networkRequestedAt).toLocaleDateString(t("dashboard.adminOverview.dateLocale"), {
     month: "short", day: "numeric",
   });
 
@@ -494,11 +534,10 @@ function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string
       <div style={{ fontSize: 18, lineHeight: 1, marginTop: 1 }}>◆</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 4 }}>
-          Network setup in progress
+          {t("dashboard.adminOverview.networkSetupTitle")}
         </div>
         <p style={{ margin: 0, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.55 }}>
-          We'll email you within one business day to begin your Network onboarding
-          (requested {requestedDate}). Need to talk sooner?{" "}
+          {interpolate(t("dashboard.adminOverview.networkSetupBody"), { date: requestedDate })}{" "}
           <a
             href="mailto:hello@impronta.group"
             style={{ color: COLORS.accentDeep, textDecoration: "underline" }}
@@ -511,7 +550,7 @@ function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string
         type="button"
         onClick={dismiss}
         style={{ background: "none", border: "none", cursor: "pointer", padding: 2, color: COLORS.inkMuted, fontSize: 16, lineHeight: 1, flexShrink: 0 }}
-        aria-label="Dismiss Network setup banner"
+        aria-label={t("dashboard.adminOverview.dismissNetworkBanner")}
       >
         ✕
       </button>
@@ -521,6 +560,7 @@ function NetworkSetupBanner({ tenantId, networkRequestedAt }: { tenantId: string
 
 function OverviewFree() {
   const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster, effectiveTeamMembers, effectiveMessagesInquiries, bridgeTenantIdentity, effectiveTenant } = useAdminShell();
+  const t = useT();
   const tenantDomain = bridgeTenantIdentity?.slug
     ? `${bridgeTenantIdentity.slug}.tulala.digital`
     : effectiveTenant.domain;
@@ -555,12 +595,12 @@ function OverviewFree() {
   return (
     <>
       <PageHeader
-        eyebrow="Setup"
-        title="You're already live."
-        subtitle="Five steps to your first booking. About 10 minutes total."
+        eyebrow={t("dashboard.adminOverview.setupEyebrow")}
+        title={t("dashboard.adminOverview.alreadyLiveTitle")}
+        subtitle={t("dashboard.adminOverview.alreadyLiveSubtitle")}
         actions={
           <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">
-            {completedCount} of {totalTasks} steps · ~10 min total
+            {interpolate(t("dashboard.adminOverview.stepsProgress"), { completed: completedCount, total: totalTasks })}
           </span>
         }
       />
@@ -592,10 +632,10 @@ function OverviewFree() {
           }}
         >
           <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" }} className="text-admin-ink">
-            First 10 minutes
+            {t("dashboard.adminOverview.first10Minutes")}
           </span>
           <span className="text-admin-ink-muted text-admin-11h">
-            {progressPct}% complete
+            {interpolate(t("dashboard.adminOverview.percentComplete"), { pct: progressPct })}
           </span>
         </div>
         <div
@@ -612,8 +652,8 @@ function OverviewFree() {
       </div>
 
       <StarterCard
-        title="Your activation arc"
-        subtitle="All five are reversible — skip what you don't need."
+        title={t("dashboard.adminOverview.activationArcTitle")}
+        subtitle={t("dashboard.adminOverview.activationArcSubtitle")}
       >
         <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-fill">
           {ACTIVATION_TASKS.map((task, idx) => {
@@ -633,7 +673,7 @@ function OverviewFree() {
                       }
                     } else {
                       completeTask(task.id);
-                      toast(`"${task.label}" marked done`);
+                      toast(interpolate(t("dashboard.adminOverview.taskMarkedDone"), { label: t(ACTIVATION_LABEL_KEY[task.id] ?? "") || task.label }));
                     }
                   }}
                   style={{
@@ -682,20 +722,20 @@ function OverviewFree() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <div style={{ fontSize: 13.5, fontWeight: 500, textDecoration: done ? "line-through" : "none", opacity: done ? 0.55 : 1 }} className="text-admin-ink">
-                      {task.label}
+                      {t(ACTIVATION_LABEL_KEY[task.id] ?? "") || task.label}
                     </div>
                     <div style={{ fontSize: 11.5, marginTop: 1, opacity: done ? 0.55 : 1 }} className="text-admin-ink-muted">
                       {done && autoComplete[task.id] && !state.completedTasks.has(task.id)
-                        ? "Auto-detected — already done."
-                        : task.hint}
+                        ? t("dashboard.adminOverview.autoDetectedDone")
+                        : (t(ACTIVATION_HINT_KEY[task.id] ?? "") || task.hint)}
                     </div>
                   </div>
                   {!done && (
                     <span style={{ fontSize: 10.5, fontFamily: FONTS.body, letterSpacing: 0.3 }} className="text-admin-ink-dim">
-                      {task.est}
+                      {t(ACTIVATION_EST_KEY[task.id] ?? "") || task.est}
                     </span>
                   )}
-                  <Affordance label={done ? "Done" : "Open"} />
+                  <Affordance label={done ? t("dashboard.adminOverview.done") : t("dashboard.adminOverview.open")} />
                 </button>
               </li>
             );
@@ -712,92 +752,92 @@ function OverviewFree() {
 
       <Grid cols="2">
         <PrimaryCard
-          title="Your public storefront"
-          description={`Live at ${tenantDomain}. Anyone with the link can see your published roster.`}
+          title={t("dashboard.adminOverview.storefrontCardTitle")}
+          description={interpolate(t("dashboard.adminOverview.storefrontCardDesc"), { domain: tenantDomain })}
           icon={<Icon name="globe" size={14} stroke={1.7} />}
-          meta={<><StatDot tone="green" /> Live</>}
-          affordance="Manage visibility"
+          meta={<><StatDot tone="green" /> {t("dashboard.adminOverview.live")}</>}
+          affordance={t("dashboard.adminOverview.manageVisibility")}
           onClick={() => openDrawer("storefront-visibility")}
         />
         <PrimaryCard
-          title="Your roster"
-          description={`${pluralize(liveRoster.length, "talent profile", "talent profiles")}. Add more, invite talent to claim, or publish drafts.`}
+          title={t("dashboard.adminOverview.rosterCardTitle")}
+          description={interpolate(t(liveRoster.length === 1 ? "dashboard.adminOverview.rosterCardDescOne" : "dashboard.adminOverview.rosterCardDescOther"), { count: liveRoster.length })}
           icon={<Icon name="team" size={14} stroke={1.7} />}
-          meta={`${pluralize(liveRoster.length, "profile", "profiles")} · ${livePublished} published`}
-          affordance="Open roster"
+          meta={interpolate(t(liveRoster.length === 1 ? "dashboard.adminOverview.rosterCardMetaOne" : "dashboard.adminOverview.rosterCardMetaOther"), { count: liveRoster.length, published: livePublished })}
+          affordance={t("dashboard.adminOverview.openRoster")}
           onClick={() => setPage("talent")}
         />
       </Grid>
 
-      <MoreWithSection plan="studio" title="More with Studio">
+      <MoreWithSection plan="studio" title={t("dashboard.adminOverview.moreWithStudio")}>
         <CompactLockedCard
-          title="Custom domain"
+          title={t("dashboard.adminOverview.lockCustomDomain")}
           requiredPlan="studio"
           onClick={() =>
             openUpgrade({
-              feature: "Custom domain",
-              why: "Run your storefront at your own brand's domain — not a Tulala subdomain.",
+              feature: t("dashboard.adminOverview.upCustomDomainFeature"),
+              why: t("dashboard.adminOverview.upCustomDomainWhy"),
               requiredPlan: "studio",
-              unlocks: ["Custom domain (e.g. acme-models.com)", "Verified email-from", "SSL automatic"],
+              unlocks: [t("dashboard.adminOverview.upCustomDomainUnlock1"), t("dashboard.adminOverview.upCustomDomainUnlock2"), t("dashboard.adminOverview.upCustomDomainUnlock3")],
             })
           }
         />
         <CompactLockedCard
-          title="Private inquiry inbox"
+          title={t("dashboard.adminOverview.lockPrivateInbox")}
           requiredPlan="studio"
           onClick={() =>
             openUpgrade({
-              feature: "Private inquiries",
-              why: "Take inquiries privately on your domain. Your client list stays your own.",
+              feature: t("dashboard.adminOverview.upPrivateInquiriesFeature"),
+              why: t("dashboard.adminOverview.upPrivateInquiriesWhy"),
               requiredPlan: "studio",
-              unlocks: ["Private inbox", "Owned client list", "Custom email templates"],
+              unlocks: [t("dashboard.adminOverview.upPrivateInquiriesUnlock1"), t("dashboard.adminOverview.upPrivateInquiriesUnlock2"), t("dashboard.adminOverview.upPrivateInquiriesUnlock3")],
             })
           }
         />
         <CompactLockedCard
-          title="Hide from Tulala discovery"
+          title={t("dashboard.adminOverview.lockHideDiscovery")}
           requiredPlan="studio"
           onClick={() =>
             openUpgrade({
-              feature: "Stealth mode",
-              why: "On Free, your roster appears in our directory. Studio takes you private.",
+              feature: t("dashboard.adminOverview.upStealthFeature"),
+              why: t("dashboard.adminOverview.upStealthWhy"),
               requiredPlan: "studio",
             })
           }
         />
       </MoreWithSection>
 
-      <MoreWithSection plan="agency">
+      <MoreWithSection plan="agency" title={t("dashboard.adminOverview.moreWithAgency")}>
         <CompactLockedCard
-          title="Branded design system"
+          title={t("dashboard.adminOverview.lockBrandedDesignSystem")}
           requiredPlan="agency"
           onClick={() =>
             openUpgrade({
-              feature: "Branded site design",
-              why: "Bring your full visual identity to the storefront — typography, color, layout.",
+              feature: t("dashboard.adminOverview.upBrandedSiteDesignFeature"),
+              why: t("dashboard.adminOverview.upBrandedSiteDesignWhy"),
               requiredPlan: "agency",
-              unlocks: ["Theme builder", "Section presets", "Brand tokens"],
+              unlocks: [t("dashboard.adminOverview.upBrandedSiteDesignUnlock1"), t("dashboard.adminOverview.upBrandedSiteDesignUnlock2"), t("dashboard.adminOverview.upBrandedSiteDesignUnlock3")],
             })
           }
         />
         <CompactLockedCard
-          title="Custom talent fields"
+          title={t("dashboard.adminOverview.lockCustomTalentFields")}
           requiredPlan="agency"
           onClick={() =>
             openUpgrade({
-              feature: "Field catalog",
-              why: "Add fields your agency cares about — tags, niches, contracts.",
+              feature: t("dashboard.adminOverview.upFieldCatalogFeature"),
+              why: t("dashboard.adminOverview.upCustomFieldsWhy"),
               requiredPlan: "agency",
             })
           }
         />
         <CompactLockedCard
-          title="Team & roles"
+          title={t("dashboard.adminOverview.lockTeamRoles")}
           requiredPlan="agency"
           onClick={() =>
             openUpgrade({
-              feature: "Team",
-              why: "Invite teammates with viewer / editor / manager / admin roles.",
+              feature: t("dashboard.adminOverview.upTeamFeature"),
+              why: t("dashboard.adminOverview.upTeamWhy"),
               requiredPlan: "agency",
             })
           }

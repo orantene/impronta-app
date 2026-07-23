@@ -35,7 +35,7 @@ import {
   layerIconKeyForKind,
   type LayerIconKey,
   type ResponsiveOverrideSummary,
-} from "./freeform-layer-name";
+} from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { CHROME } from "./kit";
 import type { BuilderNode, BuilderNodeKind } from "@/lib/site-admin/builder-node";
 
@@ -163,15 +163,30 @@ export const LAYERS_FLASH_KEYFRAMES_ID = "freeform-layers-flash-keyframes";
 const LAYERS_FLASH_ANIM = "freeform-layers-flash";
 export const LAYERS_FLASH_KEYFRAMES = `
 @keyframes ${LAYERS_FLASH_ANIM} {
-  0%   { box-shadow: 0 0 0 2px rgba(61,79,124,0.0), 0 0 0 6px rgba(61,79,124,0.0); }
-  18%  { box-shadow: inset 0 0 0 2px rgba(61,79,124,0.9), 0 0 0 4px rgba(61,79,124,0.28); }
-  100% { box-shadow: 0 0 0 2px rgba(61,79,124,0.0), 0 0 0 6px rgba(61,79,124,0.0); }
+  0%   { box-shadow: 0 0 0 2px rgba(124,58,237,0.0), 0 0 0 6px rgba(124,58,237,0.0); }
+  18%  { box-shadow: inset 0 0 0 2px rgba(124,58,237,0.9), 0 0 0 4px rgba(124,58,237,0.28); }
+  100% { box-shadow: 0 0 0 2px rgba(124,58,237,0.0), 0 0 0 6px rgba(124,58,237,0.0); }
 }
 [data-builder-node-flash="1"] {
   animation: ${LAYERS_FLASH_ANIM} 720ms ease-out 1;
   border-radius: 6px;
 }
 `;
+
+/**
+ * Idempotently inject the locate/flash keyframes into <head>. FreeformLayersTree
+ * renders the same `<style>` when it is mounted, but locateCanvasNode is called
+ * from surfaces where that tree isn't present (add-gallery insert, mobile health
+ * panel). The id guard keeps this a no-op when the style already exists.
+ */
+export function ensureLocateFlashKeyframes(): void {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(LAYERS_FLASH_KEYFRAMES_ID)) return;
+  const style = document.createElement("style");
+  style.id = LAYERS_FLASH_KEYFRAMES_ID;
+  style.textContent = LAYERS_FLASH_KEYFRAMES;
+  document.head.appendChild(style);
+}
 
 function prefersReducedMotion(): boolean {
   return (
@@ -217,6 +232,7 @@ export function locateCanvasNode(nodeId: string): void {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     if (prefersReducedMotion()) return;
+    ensureLocateFlashKeyframes();
     el.setAttribute("data-builder-node-flash", "1");
     window.setTimeout(() => {
       el.removeAttribute("data-builder-node-flash");

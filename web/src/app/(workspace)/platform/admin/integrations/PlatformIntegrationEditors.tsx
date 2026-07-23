@@ -10,6 +10,8 @@
 
 import { useState, useTransition } from "react";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type {
   PlatformIntegrationActionResult,
   PlatformIntegrationDefault,
@@ -44,10 +46,23 @@ const F = '"Inter", system-ui, sans-serif';
 // ─── Shared primitives ───────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: PlatformIntegrationDefault["status"] }) {
+  const t = useT();
   const map = {
-    configured: { label: "Set in HQ", color: HQ.green, bg: "rgba(93,211,160,0.12)" },
-    env_fallback: { label: "Using env fallback", color: HQ.amber, bg: "rgba(214,180,90,0.12)" },
-    unset: { label: "Unset", color: HQ.inkDim, bg: HQ.cardSoft },
+    configured: {
+      label: t("dashboard.platform.integrations.statusConfigured"),
+      color: HQ.green,
+      bg: "rgba(93,211,160,0.12)",
+    },
+    env_fallback: {
+      label: t("dashboard.platform.integrations.statusEnvFallback"),
+      color: HQ.amber,
+      bg: "rgba(214,180,90,0.12)",
+    },
+    unset: {
+      label: t("dashboard.platform.integrations.statusUnset"),
+      color: HQ.inkDim,
+      bg: HQ.cardSoft,
+    },
   } as const;
   const m = map[status];
   return (
@@ -108,7 +123,7 @@ function ActionRow({
   onSave,
   onClear,
   showClear,
-  saveLabel = "Save",
+  saveLabel,
 }: {
   pending: boolean;
   result: { ok: boolean; msg: string } | null;
@@ -117,6 +132,8 @@ function ActionRow({
   showClear?: boolean;
   saveLabel?: string;
 }) {
+  const t = useT();
+  const resolvedSaveLabel = saveLabel ?? t("dashboard.platform.integrations.save");
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
       <button
@@ -136,7 +153,7 @@ function ActionRow({
           fontFamily: F,
         }}
       >
-        {pending ? "Saving…" : saveLabel}
+        {pending ? t("dashboard.platform.integrations.saving") : resolvedSaveLabel}
       </button>
       {showClear && onClear && (
         <button
@@ -155,7 +172,7 @@ function ActionRow({
             fontFamily: F,
           }}
         >
-          Clear
+          {t("dashboard.platform.integrations.clear")}
         </button>
       )}
       {result && (
@@ -173,10 +190,11 @@ function ActionRow({
   );
 }
 
-function envNote(note: string) {
+function envNote(note: string, t: (key: string) => string) {
   return (
     <p style={{ margin: "10px 0 0", fontSize: 11, color: HQ.inkDim, fontFamily: F }}>
-      When unset, the runtime falls back to env: <code style={{ color: HQ.inkMuted }}>{note}</code>
+      {t("dashboard.platform.integrations.envNotePrefix")}{" "}
+      <code style={{ color: HQ.inkMuted }}>{note}</code>
     </p>
   );
 }
@@ -200,6 +218,7 @@ function useSaver() {
 // ─── Google Maps (secret) ────────────────────────────────────────────────────
 
 function GoogleMapsEditor({ item }: { item: PlatformIntegrationDefault }) {
+  const t = useT();
   const [key, setKey] = useState("");
   const { pending, result, run } = useSaver();
   const present = item.secret?.present ?? false;
@@ -209,15 +228,16 @@ function GoogleMapsEditor({ item }: { item: PlatformIntegrationDefault }) {
     <div>
       {present && (
         <p style={{ margin: "0 0 10px", fontSize: 12, color: HQ.inkMuted, fontFamily: F }}>
-          Stored key: <code style={{ color: HQ.ink }}>••••{last4 ?? ""}</code> — paste a new value
-          to replace it.
+          {interpolate(t("dashboard.platform.integrations.mapsStoredKey"), {
+            masked: `••••${last4 ?? ""}`,
+          })}
         </p>
       )}
-      <Label>Google Maps browser API key (referer-restricted)</Label>
+      <Label>{t("dashboard.platform.integrations.mapsFieldLabel")}</Label>
       <input
         type="password"
         value={key}
-        placeholder={present ? "Paste a new key to replace" : "AIza…"}
+        placeholder={present ? t("dashboard.platform.integrations.mapsPlaceholderReplace") : "AIza…"}
         onChange={(e) => setKey(e.target.value)}
         style={fieldStyle()}
         autoComplete="off"
@@ -226,10 +246,20 @@ function GoogleMapsEditor({ item }: { item: PlatformIntegrationDefault }) {
         pending={pending}
         result={result}
         showClear={present}
-        onSave={() => run(() => savePlatformGoogleMapsKey(key), "Saved. Tenants now inherit this Maps key.")}
-        onClear={() => run(() => clearPlatformGoogleMapsKey(), "Cleared. Reverted to env fallback.")}
+        onSave={() =>
+          run(
+            () => savePlatformGoogleMapsKey(key),
+            t("dashboard.platform.integrations.mapsSaved"),
+          )
+        }
+        onClear={() =>
+          run(
+            () => clearPlatformGoogleMapsKey(),
+            t("dashboard.platform.integrations.mapsCleared"),
+          )
+        }
       />
-      {envNote(item.envFallbackNote)}
+      {envNote(item.envFallbackNote, t)}
     </div>
   );
 }
@@ -237,13 +267,14 @@ function GoogleMapsEditor({ item }: { item: PlatformIntegrationDefault }) {
 // ─── GA4 (public id) ─────────────────────────────────────────────────────────
 
 function Ga4Editor({ item }: { item: PlatformIntegrationDefault }) {
+  const t = useT();
   const [id, setId] = useState(item.config.measurement_id ?? "");
   const { pending, result, run } = useSaver();
   const present = !!item.config.measurement_id;
 
   return (
     <div>
-      <Label>GA4 Measurement ID</Label>
+      <Label>{t("dashboard.platform.integrations.ga4FieldLabel")}</Label>
       <input
         type="text"
         value={id}
@@ -256,10 +287,10 @@ function Ga4Editor({ item }: { item: PlatformIntegrationDefault }) {
         pending={pending}
         result={result}
         showClear={present}
-        onSave={() => run(() => savePlatformGa4Id(id), "Saved. Tenants without their own GA4 inherit this.")}
-        onClear={() => run(() => clearPlatformGa4Id(), "Cleared. Reverted to env fallback.")}
+        onSave={() => run(() => savePlatformGa4Id(id), t("dashboard.platform.integrations.ga4Saved"))}
+        onClear={() => run(() => clearPlatformGa4Id(), t("dashboard.platform.integrations.ga4Cleared"))}
       />
-      {envNote(item.envFallbackNote)}
+      {envNote(item.envFallbackNote, t)}
     </div>
   );
 }
@@ -267,6 +298,7 @@ function Ga4Editor({ item }: { item: PlatformIntegrationDefault }) {
 // ─── Captcha (provider + site_key public, secret_key secret) ─────────────────
 
 function CaptchaEditor({ item }: { item: PlatformIntegrationDefault }) {
+  const t = useT();
   const [provider, setProvider] = useState<"hcaptcha" | "turnstile">(
     item.config.provider === "turnstile" ? "turnstile" : "hcaptcha",
   );
@@ -280,18 +312,18 @@ function CaptchaEditor({ item }: { item: PlatformIntegrationDefault }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div>
-        <Label>Provider</Label>
+        <Label>{t("dashboard.platform.integrations.captchaProviderLabel")}</Label>
         <select
           value={provider}
           onChange={(e) => setProvider(e.target.value as "hcaptcha" | "turnstile")}
           style={fieldStyle()}
         >
-          <option value="hcaptcha">hCaptcha</option>
-          <option value="turnstile">Cloudflare Turnstile</option>
+          <option value="hcaptcha">{t("dashboard.platform.integrations.captchaProviderHcaptcha")}</option>
+          <option value="turnstile">{t("dashboard.platform.integrations.captchaProviderTurnstile")}</option>
         </select>
       </div>
       <div>
-        <Label>Site key (public)</Label>
+        <Label>{t("dashboard.platform.integrations.captchaSiteKeyLabel")}</Label>
         <input
           type="text"
           value={siteKey}
@@ -301,16 +333,22 @@ function CaptchaEditor({ item }: { item: PlatformIntegrationDefault }) {
         />
       </div>
       <div>
-        <Label>Secret key</Label>
+        <Label>{t("dashboard.platform.integrations.captchaSecretKeyLabel")}</Label>
         {secretPresent && (
           <p style={{ margin: "0 0 5px", fontSize: 11.5, color: HQ.inkMuted, fontFamily: F }}>
-            Stored: <code style={{ color: HQ.ink }}>••••{last4 ?? ""}</code> — leave blank to keep it.
+            {interpolate(t("dashboard.platform.integrations.captchaSecretStored"), {
+              masked: `••••${last4 ?? ""}`,
+            })}
           </p>
         )}
         <input
           type="password"
           value={secretKey}
-          placeholder={secretPresent ? "Leave blank to keep current secret" : "Secret key"}
+          placeholder={
+            secretPresent
+              ? t("dashboard.platform.integrations.captchaSecretPlaceholderKeep")
+              : t("dashboard.platform.integrations.captchaSecretPlaceholder")
+          }
           onChange={(e) => setSecretKey(e.target.value)}
           style={fieldStyle()}
           autoComplete="off"
@@ -323,12 +361,14 @@ function CaptchaEditor({ item }: { item: PlatformIntegrationDefault }) {
         onSave={() =>
           run(
             () => savePlatformCaptcha({ provider, site_key: siteKey, secret_key: secretKey }),
-            "Saved. Tenants without their own captcha inherit this.",
+            t("dashboard.platform.integrations.captchaSaved"),
           )
         }
-        onClear={() => run(() => clearPlatformCaptcha(), "Cleared. Reverted to env fallback.")}
+        onClear={() =>
+          run(() => clearPlatformCaptcha(), t("dashboard.platform.integrations.captchaCleared"))
+        }
       />
-      {envNote(item.envFallbackNote)}
+      {envNote(item.envFallbackNote, t)}
     </div>
   );
 }
@@ -336,6 +376,7 @@ function CaptchaEditor({ item }: { item: PlatformIntegrationDefault }) {
 // ─── Email from-address (public) ─────────────────────────────────────────────
 
 function EmailFromEditor({ item }: { item: PlatformIntegrationDefault }) {
+  const t = useT();
   const [fromAddress, setFromAddress] = useState(item.config.from_address ?? "");
   const [domain, setDomain] = useState(item.config.domain ?? "");
   const { pending, result, run } = useSaver();
@@ -344,7 +385,7 @@ function EmailFromEditor({ item }: { item: PlatformIntegrationDefault }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div>
-        <Label>Default from-address (full)</Label>
+        <Label>{t("dashboard.platform.integrations.emailFromLabel")}</Label>
         <input
           type="text"
           value={fromAddress}
@@ -355,7 +396,7 @@ function EmailFromEditor({ item }: { item: PlatformIntegrationDefault }) {
         />
       </div>
       <div>
-        <Label>…or a default sending domain (→ noreply@domain)</Label>
+        <Label>{t("dashboard.platform.integrations.emailDomainLabel")}</Label>
         <input
           type="text"
           value={domain}
@@ -372,12 +413,14 @@ function EmailFromEditor({ item }: { item: PlatformIntegrationDefault }) {
         onSave={() =>
           run(
             () => savePlatformEmailFrom({ from_address: fromAddress, domain }),
-            "Saved. Outbound mail without a white-label domain uses this.",
+            t("dashboard.platform.integrations.emailSaved"),
           )
         }
-        onClear={() => run(() => clearPlatformEmailFrom(), "Cleared. Reverted to env fallback.")}
+        onClear={() =>
+          run(() => clearPlatformEmailFrom(), t("dashboard.platform.integrations.emailCleared"))
+        }
       />
-      {envNote(item.envFallbackNote)}
+      {envNote(item.envFallbackNote, t)}
     </div>
   );
 }

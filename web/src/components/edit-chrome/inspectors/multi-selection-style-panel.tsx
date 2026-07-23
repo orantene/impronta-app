@@ -96,7 +96,7 @@ export function MultiSelectionStylePanel({
       </div>
       <p className="text-[11.5px] leading-snug" style={{ color: CHROME.muted2 }}>
         Shared styles apply to every selected block. &ldquo;Mixed&rdquo; means the
-        blocks currently differ — set a value to make them match.
+        blocks currently differ. Set a value to make them match.
       </p>
       <div className="flex flex-col gap-2.5">
         {SHARED_FIELDS.map((f) => (

@@ -4,31 +4,32 @@
  * AddGalleryPreviewModal — a "see how it looks" popup for the builder Add
  * Gallery. Clicking the Preview affordance on any gallery card opens this modal,
  * which LIVE-RENDERS the item's real node tree (not a static image) inside a
- * device-width <iframe>:
+ * device-width <iframe> via the shared `DevicePreviewFrame`:
  *
  *   - Desktop frame = 1280px, Mobile frame = 390px.
  *   - Because each frame is a real iframe at the device width, responsive
- *     components reflow to their TRUE mobile/desktop layout (media queries key
- *     off the iframe width), then the frame is scaled to fit the popup.
- *
- * The render path is the same pure `renderBuilderNodes` the canvas + published
- * pages use, portaled into the iframe document so the renderer's <style>/<link>
- * tags are fully isolated from the editor chrome.
+ *     components reflow to their TRUE mobile/desktop layout, then the frame is
+ *     scaled to fit the popup.
  *
  * Live-data blocks (connected sections / section embeds) pull real tenant data
  * and can't be rendered in isolation — those show a friendly explainer instead
  * of a broken frame.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { AddGalleryItem } from "@/lib/site-admin/add-gallery";
 import { resolveAddGalleryInsertAction } from "@/lib/site-admin/add-gallery/insert";
-import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { CHROME, Segmented } from "../kit";
+import {
+  DevicePreviewFrame,
+  DesktopGlyph,
+  MobileGlyph,
+  type PreviewDevice,
+} from "../preview/device-preview-frame";
 
 /**
  * Per-card Preview affordance — a small eye button in the card's top-right
@@ -83,16 +84,6 @@ export function GalleryPreviewTrigger({
   );
 }
 
-type PreviewDevice = "desktop" | "mobile";
-
-const DEVICE_WIDTH: Record<PreviewDevice, number> = {
-  desktop: 1280,
-  mobile: 390,
-};
-
-/** Min screen height the iframe is given before the real content is measured. */
-const INITIAL_CONTENT_HEIGHT = 360;
-
 type ResolvedPreview =
   | { ok: true; node: BuilderNode }
   | { ok: false; reason: string };
@@ -123,160 +114,6 @@ function resolvePreviewNode(item: AddGalleryItem): ResolvedPreview {
   } catch {
     return { ok: false, reason: "This item couldn't be rendered for preview." };
   }
-}
-
-function DesktopGlyph() {
-  return (
-    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <rect x="3" y="4" width="18" height="12" rx="1.5" />
-      <path d="M8 20h8M12 16v4" />
-    </svg>
-  );
-}
-
-function MobileGlyph() {
-  return (
-    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <rect x="7" y="3" width="10" height="18" rx="2" />
-      <path d="M11 18h2" />
-    </svg>
-  );
-}
-
-/**
- * DevicePreviewFrame — renders one node into a device-width iframe, scaled to
- * fit the available width. The iframe's body is the React portal target, so the
- * renderer's styles/fonts live inside the frame and never leak into the editor.
- */
-function DevicePreviewFrame({ node, device }: { node: BuilderNode; device: PreviewDevice }) {
-  const deviceWidth = DEVICE_WIDTH[device];
-  const measureRef = useRef<HTMLDivElement | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [mountEl, setMountEl] = useState<HTMLElement | null>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [contentHeight, setContentHeight] = useState(INITIAL_CONTENT_HEIGHT);
-  // Empty structural primitives (an empty Section / Container) render to nothing
-  // until they hold content — show a hint instead of a blank frame.
-  const [isEmpty, setIsEmpty] = useState(false);
-
-  // Track the available width so we can scale the device frame to fit.
-  useEffect(() => {
-    const el = measureRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width ?? 0;
-      if (w > 0) setContainerWidth(w);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Once the iframe document exists, use its <body> as the portal mount target.
-  function handleIframeLoad() {
-    const doc = iframeRef.current?.contentDocument;
-    if (!doc?.body) return;
-    doc.documentElement.style.background = "#ffffff";
-    doc.body.style.margin = "0";
-    doc.body.style.background = "#ffffff";
-    setMountEl(doc.body);
-  }
-
-  // Measure the rendered content height inside the iframe (re-measures as the
-  // node/device changes and as fonts/images settle) so the frame has no inner
-  // scrollbar and scales proportionally.
-  useEffect(() => {
-    if (!mountEl) return;
-    const doc = mountEl.ownerDocument;
-    const measure = () => {
-      const h = Math.max(
-        doc.body.scrollHeight,
-        doc.documentElement.scrollHeight,
-      );
-      if (h > 0) setContentHeight(h);
-      // "Empty" = nothing rendered besides the renderer's <style>/<link> tags,
-      // or content with no visible height (an empty layout row).
-      const hasVisible = Array.from(doc.body.children).some((el) => {
-        const tag = el.tagName;
-        if (tag === "STYLE" || tag === "LINK" || tag === "SCRIPT") return false;
-        return (el as HTMLElement).offsetHeight > 2;
-      });
-      setIsEmpty(!hasVisible);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(mountEl);
-    const settle = setTimeout(measure, 350);
-    return () => {
-      ro.disconnect();
-      clearTimeout(settle);
-    };
-  }, [mountEl, node, device]);
-
-  const scale = containerWidth > 0 ? Math.min(1, containerWidth / deviceWidth) : 0.5;
-  const scaledWidth = deviceWidth * scale;
-  const scaledHeight = contentHeight * scale;
-
-  return (
-    <div ref={measureRef} style={{ width: "100%" }}>
-      <div
-        style={{
-          width: isEmpty ? "100%" : scaledWidth || undefined,
-          height: isEmpty ? 184 : scaledHeight || undefined,
-          margin: "0 auto",
-          position: "relative",
-          overflow: "hidden",
-          borderRadius: device === "mobile" ? 22 : 12,
-          border: isEmpty ? `1px dashed ${CHROME.lineStrong}` : `1px solid ${CHROME.lineStrong}`,
-          background: "#ffffff",
-          boxShadow: isEmpty ? "none" : "0 18px 48px -24px rgba(15, 23, 42, 0.35)",
-        }}
-      >
-        <iframe
-          ref={iframeRef}
-          onLoad={handleIframeLoad}
-          title="Component preview"
-          srcDoc="<!doctype html><html><head><meta charset='utf-8'></head><body></body></html>"
-          scrolling="no"
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: deviceWidth,
-            height: contentHeight,
-            border: "none",
-            transform: `scale(${scale})`,
-            transformOrigin: "top left",
-            background: "#ffffff",
-            opacity: isEmpty ? 0 : 1,
-          }}
-        />
-        {isEmpty ? (
-          <div
-            className="absolute inset-0 flex flex-col items-center justify-center gap-[8px] px-[24px] text-center"
-            style={{ color: CHROME.muted }}
-          >
-            <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
-              <rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="3 3" />
-              <path d="M12 8v8M8 12h8" />
-            </svg>
-            <span className="text-[12px] leading-snug">
-              This is an empty layout block. Add content to it after you insert it.
-            </span>
-          </div>
-        ) : null}
-        {mountEl
-          ? createPortal(
-              renderBuilderNodes([node], {
-                publicPathPrefix: "",
-                includeRendererStyles: true,
-                includeFontLinks: true,
-              }),
-              mountEl,
-            )
-          : null}
-      </div>
-    </div>
-  );
 }
 
 export function AddGalleryPreviewModal({

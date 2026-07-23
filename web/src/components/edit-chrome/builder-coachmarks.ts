@@ -61,4 +61,33 @@ export function dismissCoachmark(id: CoachmarkId): void {
   } catch {
     // best-effort
   }
+  notifyCoachmarkDismissed(id);
+}
+
+// ── live dismissal pub/sub ───────────────────────────────────────────────
+//
+// `BuilderCoachmarkTip` seeds its `visible` state once on mount from
+// `isCoachmarkDismissed`. That's fine for the tip's OWN "Got it" button, but
+// nothing previously told an already-mounted, already-visible tip to hide
+// when something ELSE dismissed the same id programmatically — e.g. the
+// "double-click any text to edit it inline" tip staying anchored to the
+// canvas selection chip after the operator actually performs that gesture
+// and an inline text-edit overlay opens over the same text. This pub/sub
+// lets any mounted tip re-check its dismissed state the instant a matching
+// `dismissCoachmark(id)` fires from anywhere, so it disappears immediately
+// instead of dangling near the now-edited text until a manual dismiss.
+type CoachmarkListener = (id: CoachmarkId) => void;
+const coachmarkListeners = new Set<CoachmarkListener>();
+
+export function subscribeCoachmarkDismissed(
+  listener: CoachmarkListener,
+): () => void {
+  coachmarkListeners.add(listener);
+  return () => {
+    coachmarkListeners.delete(listener);
+  };
+}
+
+function notifyCoachmarkDismissed(id: CoachmarkId): void {
+  for (const listener of coachmarkListeners) listener(id);
 }

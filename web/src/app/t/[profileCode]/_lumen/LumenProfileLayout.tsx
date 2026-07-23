@@ -40,15 +40,20 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 
 import { ServicesBlock } from "../_light/ServicesBlock";
 import { ServiceMenuBlock } from "../_light/ServiceMenuBlock";
+import { TalentStorefront } from "../_shared/TalentStorefront";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { SkillsExperienceBlock } from "../_light/SkillsExperienceBlock";
 import { AvailabilityWidget } from "../_light/AvailabilityWidget";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicFeaturedMedia } from "@/components/talent/connections/PublicFeaturedMedia";
 import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection";
+import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
-import type { LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
+import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
 type DetailRow = { key: string; label: string; value: string; group: string };
 
@@ -67,11 +72,19 @@ function groupDetailRows(rows: DetailRow[]): Array<{ group: string; rows: Detail
   return order.map((group) => ({ group, rows: byGroup.get(group)! }));
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "·";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+/**
+ * Letter-free person silhouette used as the no-photo portrait/avatar fallback.
+ * Inherits `currentColor` from each `__mono` container so it keeps the theme
+ * accent. `size` is the SVG width/height as a % of the (flex-centered)
+ * container.
+ */
+function Silhouette({ size = "46%" }: { size?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="8.2" r="3.6" />
+      <path d="M4.6 19.4c0-3.7 3.2-6.2 7.4-6.2s7.4 2.5 7.4 6.2c0 .5-.4.8-.9.8H5.5c-.5 0-.9-.3-.9-.8Z" />
+    </svg>
+  );
 }
 
 // Scoped Lumen styles. Every selector is namespaced under [data-profile-theme="lumen"].
@@ -126,6 +139,8 @@ const LUMEN_CSS = `
 [data-profile-theme="lumen"] .lm-chips{ display:flex; gap:9px; flex-wrap:wrap; margin-top:20px; }
 [data-profile-theme="lumen"] .lm-chip{ font-size:11px; letter-spacing:0.04em; font-weight:500; padding:6px 14px; border:1px solid var(--pp-line-strong); border-radius:999px; color:var(--pp-ink-soft); }
 [data-profile-theme="lumen"] .lm-chip--accent{ border-color:var(--pp-accent); color:var(--pp-accent); }
+[data-profile-theme="lumen"] a.lm-chip{ text-decoration:none; transition:opacity .2s ease; } [data-profile-theme="lumen"] a.lm-chip:hover{ opacity:0.78; }
+html:has([data-profile-theme="lumen"]){ scroll-behavior:smooth; } [data-profile-theme="lumen"] #reviews{ scroll-margin-top:96px; }
 [data-profile-theme="lumen"] .lm-bio{ color:var(--pp-ink-soft); margin-top:20px; max-width:54ch; font-size:1.05rem; line-height:1.75; }
 [data-profile-theme="lumen"] .lm-actions{ display:flex; gap:12px; margin-top:28px; flex-wrap:wrap; align-items:center; }
 [data-profile-theme="lumen"] .lm-hero-extra{ margin-top:22px; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
@@ -241,6 +256,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
     startingFrom,
     bookingNote,
     serviceMenuItems,
+    storefrontOfferings,
     disciplineLabels,
     fitLabels,
     skills,
@@ -252,6 +268,8 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
     otherDetailRows,
     ratingSummary,
     talentReviews,
+    testimonials = [],
+    heroRating,
     agencyName,
     agencyDisplayName,
     similarTalent,
@@ -319,7 +337,8 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
       serviceAreas.length > 0 ||
       Boolean(startingFrom) ||
       Boolean(bookingNote));
-  const hasServiceMenu = !isFreePlan && serviceMenuItems.length > 0;
+  const hasStorefront = !isFreePlan && storefrontOfferings.length > 0;
+  const hasServiceMenu = hasStorefront || (!isFreePlan && serviceMenuItems.length > 0);
 
   const hasAvailability =
     availableDaysInNext30 != null ||
@@ -365,6 +384,9 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
   // Reusable hero chips ---------------------------------------------------
   const heroChips = (
     <div className="lm-chips">
+      {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
+        <ReviewsAnchorLink className="lm-chip lm-chip--accent">{heroRatingChipLabel(heroRating.ratingAvg, heroRating.ratingCount, locale)}</ReviewsAnchorLink>
+      ) : null}
       {livesIn ? <span className="lm-chip">{livesIn}</span> : null}
       {agency ? <span className="lm-chip lm-chip--accent">{labels.represented}</span> : null}
       {langShort.length > 0 ? <span className="lm-chip">{langShort.join(" · ")}</span> : null}
@@ -584,12 +606,20 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
               ) : null}
               {hasServiceMenu ? (
                 <div style={{ marginTop: hasServices ? 28 : 0 }}>
-                  <ServiceMenuBlock
-                    items={serviceMenuItems}
-                    locale={locale}
-                    heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
-                    disciplineLabels={disciplineLabels}
-                  />
+                  {hasStorefront ? (
+                    <TalentStorefront
+                      offerings={storefrontOfferings}
+                      locale={locale}
+                      heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                    />
+                  ) : (
+                    <ServiceMenuBlock
+                      items={serviceMenuItems}
+                      locale={locale}
+                      heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
+                      disciplineLabels={disciplineLabels}
+                    />
+                  )}
                 </div>
               ) : null}
             </section>
@@ -608,7 +638,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
 
           {/* Reviews */}
           {ratingSummary.count > 0 ? (
-            <section data-profile-section="reviews" aria-label="Client reviews">
+            <section id="reviews" data-profile-section="reviews" aria-label="Client reviews">
               <div className="lm-sec-head">
                 <span className="lm-eyebrow">{labels.reviewsEyebrow}</span>
                 <h2>{labels.reviewsTitle}</h2>
@@ -618,6 +648,17 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
                 reviews={talentReviews}
                 theme={isDark ? "dark" : "light"}
                 heading=""
+                talentName={name}
+              />
+            </section>
+          ) : null}
+
+          {/* Invited testimonials — separate from verified reviews. */}
+          {testimonials.length > 0 ? (
+            <section data-profile-section="testimonials" aria-label="Invited testimonials">
+              <TestimonialsSection
+                testimonials={testimonials}
+                theme={isDark ? "dark" : "light"}
               />
             </section>
           ) : null}
@@ -687,7 +728,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
                     />
                   ) : (
                     <div className="lm-similar__mono" aria-hidden="true">
-                      {initials(st.displayName)}
+                      <Silhouette />
                     </div>
                   )}
                   <div className="lm-similar__cap">
@@ -733,9 +774,9 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
               <div style={{ color: "var(--pp-muted)", fontSize: 13 }}>
                 <PublicCmsFooterNav locale={locale} />
               </div>
-              <span className="lm-foot__pw">
-                Powered by <em>Tulala</em>
-              </span>
+              {props.whitelabel ? null : (
+                <span className="lm-foot__pw">Powered by <em>Tulala</em></span>
+              )}
             </div>
           </div>
         </footer>

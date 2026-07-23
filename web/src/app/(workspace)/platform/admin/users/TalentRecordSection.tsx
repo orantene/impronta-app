@@ -10,7 +10,10 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { HQ, HQ_F, HQ_FM, SectionLabel } from "../tenants/hq-kit";
 import { sendPlatformClaimInvite } from "./actions";
+import { useT } from "@/i18n/use-t";
 import type { PlatformUserRow } from "../../platform-data";
+
+type Translate = (key: string) => string;
 
 function workflowStatusColor(status: string | null): string {
   if (!status) return HQ.inkDim;
@@ -22,12 +25,25 @@ function workflowStatusColor(status: string | null): string {
   return HQ.inkMuted;
 }
 
-function workflowLabel(status: string | null): string {
+// Localized talent workflow-status labels; unknown values fall back to a
+// humanized form of the raw enum value.
+const WORKFLOW_LABEL_KEY: Record<string, string> = {
+  draft: "dashboard.platform.users.talentRecord.wf.draft",
+  approved: "dashboard.platform.users.talentRecord.wf.approved",
+  published: "dashboard.platform.users.talentRecord.wf.published",
+  hidden: "dashboard.platform.users.talentRecord.wf.hidden",
+  archived: "dashboard.platform.users.talentRecord.wf.archived",
+};
+
+function workflowLabel(status: string | null, t: Translate): string {
   if (!status) return "—";
+  const key = WORKFLOW_LABEL_KEY[status];
+  if (key) return t(key);
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
 }
 
 export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteStatus, setInviteStatus] = useState<
@@ -94,7 +110,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
         }}
       >
         <span style={{ fontSize: 11 }}>{isOpen ? "▼" : "▶"}</span>
-        Talent Record
+        {t("dashboard.platform.users.talentRecord.title")}
         {isUnclaimed && (
           <span
             style={{
@@ -105,7 +121,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
               marginLeft: 4,
             }}
           >
-            · UNCLAIMED
+            · {t("dashboard.platform.users.talentRecord.unclaimedTag")}
           </span>
         )}
       </div>
@@ -121,8 +137,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
             borderRadius: 10,
           }}
         >
-          No talent profile found. This user has app_role=talent but no linked
-          talent_profiles row.
+          {t("dashboard.platform.users.talentRecord.noProfile")}
         </div>
       )}
 
@@ -142,12 +157,12 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
               marginBottom: 10,
             }}
           >
-            <span style={{ color: HQ.inkDim }}>Talent ID</span>
+            <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.talentRecord.talentId")}</span>
             <span style={{ fontFamily: HQ_FM, fontSize: 11, color: HQ.ink }}>
               {talentId}
             </span>
 
-            <span style={{ color: HQ.inkDim }}>Slug</span>
+            <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.talentRecord.slug")}</span>
             <span>
               {slug ? (
                 <Link
@@ -163,7 +178,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
               )}
             </span>
 
-            <span style={{ color: HQ.inkDim }}>Workflow</span>
+            <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.talentRecord.workflow")}</span>
             <span
               style={{
                 color: workflowStatusColor(workflowStatus),
@@ -171,20 +186,20 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
                 fontSize: 12,
               }}
             >
-              {workflowLabel(workflowStatus)}
+              {workflowLabel(workflowStatus, t)}
             </span>
 
-            <span style={{ color: HQ.inkDim }}>Published globally</span>
+            <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.talentRecord.publishedGlobally")}</span>
             <span
               style={{
                 color: publishedGlobally ? HQ.green : HQ.inkDim,
                 fontWeight: publishedGlobally ? 600 : undefined,
               }}
             >
-              {publishedGlobally === null ? "—" : publishedGlobally ? "Yes" : "No"}
+              {publishedGlobally === null ? "—" : publishedGlobally ? t("dashboard.platform.users.talentRecord.yes") : t("dashboard.platform.users.talentRecord.no")}
             </span>
 
-            <span style={{ color: HQ.inkDim }}>Claim status</span>
+            <span style={{ color: HQ.inkDim }}>{t("dashboard.platform.users.talentRecord.claimStatus")}</span>
             <span
               style={{
                 color: isUnclaimed ? HQ.amber : HQ.green,
@@ -192,7 +207,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
                 fontSize: 12,
               }}
             >
-              {isUnclaimed ? "Unclaimed" : "Claimed"}
+              {isUnclaimed ? t("dashboard.platform.users.talentRecord.unclaimed") : t("dashboard.platform.users.talentRecord.claimed")}
             </span>
           </div>
 
@@ -214,7 +229,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
                   marginBottom: 8,
                 }}
               >
-                Send claim invite
+                {t("dashboard.platform.users.talentRecord.sendClaimInvite")}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
@@ -224,7 +239,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
                     setInviteEmail(e.target.value);
                     if (inviteStatus !== "idle") setInviteStatus("idle");
                   }}
-                  placeholder="talent@example.com"
+                  placeholder={t("dashboard.platform.users.talentRecord.emailPlaceholder")}
                   disabled={inviteStatus === "pending"}
                   style={{
                     flex: 1,
@@ -264,7 +279,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
                     flexShrink: 0,
                   }}
                 >
-                  {inviteStatus === "pending" ? "Sending…" : "Send invite"}
+                  {inviteStatus === "pending" ? t("dashboard.platform.users.talentRecord.sending") : t("dashboard.platform.users.talentRecord.sendInvite")}
                 </button>
               </div>
               {inviteStatus === "ok" && (
@@ -276,7 +291,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
                     fontWeight: 600,
                   }}
                 >
-                  ✓ Invite sent successfully.
+                  ✓ {t("dashboard.platform.users.talentRecord.inviteSent")}
                 </div>
               )}
               {inviteStatus === "error" && inviteError && (
@@ -288,7 +303,7 @@ export function TalentRecordSection({ user }: { user: PlatformUserRow }) {
                     fontWeight: 600,
                   }}
                 >
-                  Error: {inviteError}
+                  {t("dashboard.platform.users.talentRecord.errorPrefix")} {inviteError}
                 </div>
               )}
             </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { getMarketingCopy } from "@/lib/marketing/copy";
@@ -8,7 +9,7 @@ import { MarketingContainer } from "./container";
 import { MarketingCta } from "./cta-link";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
 
-/** Full-bleed hero slider — rotates through the breadth of talent the platform serves. */
+/** Full-bleed hero slider: rotates through the breadth of talent the platform serves. */
 const SLIDES: MarketingPhoto[] = [
   MARKETING_PHOTOS.heroServices,
   MARKETING_PHOTOS.modelsRunway,
@@ -22,9 +23,16 @@ const SLIDES: MarketingPhoto[] = [
 export function HeroSection({ locale }: { locale: string }) {
   const copy = getMarketingCopy(locale).hero;
   const [active, setActive] = useState(0);
+  // Slides 2..7 are full-bleed and absolutely positioned, so `loading="lazy"`
+  // does NOT defer them: they are inside the viewport and download immediately,
+  // starving the LCP image (measured 14.6s mobile LCP, 44% of it load delay).
+  // Ship only the first slide in the initial HTML and mount the rest after
+  // hydration; the carousel does not advance for 5.5s, so nothing is lost.
+  const [carouselReady, setCarouselReady] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
+    setCarouselReady(true);
     const t = setInterval(() => setActive((p) => (p + 1) % SLIDES.length), 5500);
     return () => clearInterval(t);
   }, []);
@@ -39,7 +47,7 @@ export function HeroSection({ locale }: { locale: string }) {
     const t = e.changedTouches[0];
     const dx = t.clientX - s.x;
     const dy = t.clientY - s.y;
-    // Horizontal swipe only — don't hijack vertical page scroll.
+    // Horizontal swipe only; don't hijack vertical page scroll.
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
       setActive((p) =>
         dx < 0 ? (p + 1) % SLIDES.length : (p - 1 + SLIDES.length) % SLIDES.length,
@@ -57,18 +65,29 @@ export function HeroSection({ locale }: { locale: string }) {
     >
       {/* Full-bleed background slider */}
       <div aria-hidden className="absolute inset-0">
-        {SLIDES.map((photo, idx) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={photo.key}
-            src={photo.url()}
-            alt=""
-            loading={idx === 0 ? "eager" : "lazy"}
-            fetchPriority={idx === 0 ? "high" : "auto"}
-            className="absolute inset-0 h-full w-full object-cover transition-opacity ease-out"
-            style={{ opacity: idx === active ? 1 : 0, transitionDuration: "1200ms", objectPosition: "50% 36%" }}
-          />
-        ))}
+        {SLIDES.map((photo, idx) =>
+          idx > 0 && !carouselReady ? null : (
+            // next/image, not a raw <img>: these are full-bleed local JPEGs
+            // (the LCP one is 303 KB at source). Through the optimizer the same
+            // frame is ~22 KB of AVIF at mobile width, which is the difference
+            // between a fast hero and a 12s LCP. Quality is left at the default
+            // 75, the only value `images.qualities` allows.
+            <Image
+              key={photo.key}
+              src={photo.url()}
+              alt=""
+              fill
+              sizes="100vw"
+              priority={idx === 0}
+              className="object-cover transition-opacity ease-out"
+              style={{
+                opacity: idx === active ? 1 : 0,
+                transitionDuration: "1200ms",
+                objectPosition: "50% 36%",
+              }}
+            />
+          ),
+        )}
         <div
           className="absolute inset-0"
           style={{
@@ -160,7 +179,7 @@ export function HeroSection({ locale }: { locale: string }) {
         </div>
       </MarketingContainer>
 
-      {/* Floating booking card — synced to the active slide */}
+      {/* Floating booking card, synced to the active slide */}
       <BookingAccent index={active} locale={locale} />
 
       {/* Slide indicators */}
@@ -198,7 +217,7 @@ type BookingCard = {
   when: string;
 };
 
-/** One booking per slide — the card mirrors the talent on screen (same order as SLIDES). */
+/** One booking per slide: the card mirrors the talent on screen (same order as SLIDES). */
 function getBookingCards(locale: string): BookingCard[] {
   return pickLocale(locale, {
     en: [

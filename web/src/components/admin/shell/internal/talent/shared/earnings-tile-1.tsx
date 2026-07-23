@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDashboardText } from "../../dashboard-i18n";
 import { TALENT_RATE_FOR_CONV } from "../../messages";
 import { COLORS, EARNINGS_ROWS, FONTS, RADIUS, TRANSITION } from "../../state";
 import { useTalentConversations } from "./conversation-adapter-1";
@@ -68,6 +69,7 @@ export function EarningsTile({
    *  stub), so callers currently omit this to avoid a dead CTA. */
   onLogWork?: () => void;
 }) {
+  const copy = useDashboardText();
   const realMode = earnings != null;
   const [cycle, setCycle] = useState<"month" | "quarter" | "year">("month");
   const conversations = useTalentConversations();
@@ -127,10 +129,10 @@ export function EarningsTile({
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <div className="flex-1">
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", fontFamily: FONTS.body, marginBottom: 4 }} className="text-admin-ink-dim">
-            Earnings
+            {copy.t("Earnings")}
             {/* Trend bullet — green = above 6-mo avg, amber = below. Demo only:
                 hidden in real mode (we don't fabricate a trend). */}
-            {showTrend && <span aria-label={trendUp ? "Trending up vs 6-month average" : "Trending down vs 6-month average"} style={{
+            {showTrend && <span aria-label={trendUp ? copy.t("Trending up vs 6-month average") : copy.t("Trending down vs 6-month average")} style={{
               display: "inline-flex", alignItems: "center", gap: 3,
               padding: "1px 6px", borderRadius: 999,
               background: trendUp ? COLORS.successSoft : `${COLORS.amber}18`,
@@ -142,14 +144,14 @@ export function EarningsTile({
                   ? <path d="M1 6l3-3 3 3M4 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                   : <path d="M1 2l3 3 3-3M4 5V1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>}
               </svg>
-              {trendUp ? "Up" : "Down"}
+              {trendUp ? copy.t("Up") : copy.t("Down")}
             </span>}
           </div>
           <div style={{ fontSize: 26, fontWeight: 700, fontFamily: FONTS.body, letterSpacing: "-0.5px" }} className="text-admin-ink">
             {tileCurrency}{(data.total).toLocaleString()}
           </div>
           <div style={{ fontSize: 11, fontFamily: FONTS.body, marginTop: 2 }} className="text-admin-ink-muted">
-            {data.count} payout{data.count !== 1 ? "s" : ""} · {data.label}
+            {data.count} {data.count !== 1 ? copy.t("payouts") : copy.t("payout")} · {copy.t(data.label)}
           </div>
         </div>
 
@@ -173,7 +175,7 @@ export function EarningsTile({
                 transition:  `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
               }}
             >
-              {c === "month" ? "Mo" : c === "quarter" ? "Qtr" : "Yr"}
+              {c === "month" ? copy.t("Mo") : c === "quarter" ? copy.t("Qtr") : copy.t("Yr")}
             </button>
           ))}
         </div>
@@ -229,12 +231,12 @@ export function EarningsTile({
           </span>
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", fontFamily: FONTS.body }} className="text-admin-accent-deep">
-              In flight
+              {copy.t("In flight")}
             </div>
             <div style={{ fontSize: 13, fontWeight: 700, fontFamily: FONTS.body, marginTop: 1, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">
               {pendingCurrency}{Math.round(pendingTotal).toLocaleString()}
               <span style={{ fontWeight: 500, marginLeft: 6 }} className="text-admin-ink-muted">
-                · {pendingConvs.length} booked job{pendingConvs.length === 1 ? "" : "s"}
+                · {pendingConvs.length} {pendingConvs.length === 1 ? copy.t("booked job") : copy.t("booked jobs")}
               </span>
             </div>
           </div>
@@ -251,7 +253,7 @@ export function EarningsTile({
             ))
           ) : (
             <p className="text-admin-ink-muted text-admin-12 py-2.5 px-0.5">
-              No paid bookings yet — your earnings will appear here once a client pays.
+              {copy.t("No paid bookings yet — your earnings will appear here once a client pays.")}
             </p>
           )
         ) : (
@@ -270,7 +272,7 @@ export function EarningsTile({
             color: COLORS.ink, fontFamily: FONTS.body,
           }}
         >
-          See all earnings →
+          {copy.t("See all earnings →")}
         </button>
         {onLogWork && (
           <button
@@ -283,7 +285,7 @@ export function EarningsTile({
               color: COLORS.inkMuted, fontFamily: FONTS.body,
             }}
           >
-            + Log work
+            {copy.t("+ Log work")}
           </button>
         )}
       </div>

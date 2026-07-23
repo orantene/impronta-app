@@ -89,6 +89,11 @@ export type GuestThreadMessage = {
    * (e.g. {offer_id, status, total_cents}). null for text. The MVP popup
    * renders text + a generic fallback for non-text kinds; full ChatCard
    * rendering is a fast-follow. Typed as unknown — the UI must narrow.
+   *
+   * For `offer_event` cards the guest-thread reader ENRICHES this with a
+   * client-safe per-line breakdown (see GuestOfferCardPayload) so the guest
+   * sees "Day rate (incl. travel)" + note, not a bare total. Narrow it with
+   * `readGuestOfferCard()`.
    */
   cardPayload: unknown | null;
   /** inquiry_messages.created_at (ISO 8601 string). */
@@ -100,6 +105,55 @@ export type GuestThreadMessage = {
   /** inquiry_messages.reply_to_message_id, or null. */
   replyToMessageId: string | null;
 };
+
+/**
+ * One client-safe line on an offer_event card. The guest IS the client, so they
+ * may see the label, the "what's included" note (W2 — e.g. travel baked in), and
+ * the client-facing line price. NEVER the talent cost / margin.
+ */
+export type GuestOfferCardLine = {
+  label: string;
+  note: string | null;
+  /** Preformatted client-facing line price (e.g. "1200.00 USD"), or null. */
+  feeLabel: string | null;
+};
+
+/**
+ * Narrowed shape of an offer_event card_payload once the guest-thread reader has
+ * enriched it with per-line detail. `cardPayload` is `unknown` on the wire — use
+ * `readGuestOfferCard()` to narrow it safely.
+ */
+export type GuestOfferCardPayload = {
+  status: string | null;
+  totalLabel: string | null;
+  offerId: string | null;
+  lines: GuestOfferCardLine[];
+};
+
+/**
+ * Safely narrow an offer_event card_payload (an `unknown` on the wire) into a
+ * GuestOfferCardPayload. Tolerates the pre-enrichment MVP shape (no `lines`),
+ * returning an empty `lines` array. Returns null for anything not object-shaped.
+ */
+export function readGuestOfferCard(payload: unknown): GuestOfferCardPayload | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  const rawLines = Array.isArray(p.lines) ? p.lines : [];
+  const lines: GuestOfferCardLine[] = rawLines
+    .filter((l): l is Record<string, unknown> => !!l && typeof l === "object")
+    .map((l) => ({
+      label: typeof l.label === "string" ? l.label : "",
+      note: typeof l.note === "string" && l.note.trim() ? l.note : null,
+      feeLabel: typeof l.feeLabel === "string" && l.feeLabel.trim() ? l.feeLabel : null,
+    }))
+    .filter((l) => l.label || l.note || l.feeLabel);
+  return {
+    status: typeof p.status === "string" ? p.status : null,
+    totalLabel: typeof p.total_label === "string" ? p.total_label : null,
+    offerId: typeof p.offer_id === "string" ? p.offer_id : null,
+    lines,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Shared result envelope. All three guest actions return a discriminated
@@ -197,6 +251,19 @@ export type StartGuestChatInput = {
   honeypot?: string | null;
   /** Optional Turnstile token when a velocity challenge was shown (Lane B / L3). */
   captchaToken?: string | null;
+  /**
+   * Storefront provenance — the offering the guest clicked before chatting.
+   * Persisted verbatim onto inquiries.source_context.offering so the
+   * coordinator/composer knows exactly which service was requested.
+   */
+  offering?: {
+    offering_id: string;
+    title: string;
+    amount_cents: number | null;
+    currency: string;
+    price_type: string;
+    kind: string;
+  } | null;
 };
 
 export type StartGuestChatResult =
@@ -354,6 +421,7 @@ export type GetGuestThreadResult =
 
 /** Coarse status for the popup header. Maps from inquiries.status, not 1:1. */
 export type GuestThreadStatus =
+  | "draft"         // early-partial row (status="draft"): built but NOT yet sent; stays out of every agency inbox. Must read as a DRAFT (never "sent") on every launcher pill (P0-2 / W0-B).
   | "open"          // submitted / coordination / active conversation
   | "offer_pending" // an offer card exists awaiting the client
   | "approved"      // all-parties approved, pre-booking
@@ -367,10 +435,43 @@ export type GuestThreadStatus =
 //     cookie (server-resolved); only an inquiry the cookie OWNS is ever returned.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** W2-B — a talent service rendered as an in-chat request chip. */
+export type GuestChatOffering = {
+  offeringId: string;
+  talentProfileId: string;
+  title: string;
+  kind: "service" | "package" | "product";
+  priceType: string;
+  amountCents: number | null;
+  currency: string;
+  durationMinutes: number | null;
+  allowPayInPerson: boolean;
+  reserveMode: "full" | "deposit" | "free";
+  depositPct: number | null;
+  imageUrl: string | null;
+};
+
 /** The resumable thread + prefill for the inline name/email gate. */
 export type ActiveGuestInquiry = {
   /** inquiries.id to reopen — the panel mounts straight into the thread stage. */
   inquiryId: string;
+  /**
+   * P0-1 (W0-A, additive/optional) — whether the resumed row's lineup
+   * (interpreted_query.talent.selected_ids) already contains the talent whose
+   * page initiated the resume. `false` = the session's live working DRAFT was
+   * resumed but this talent is not on its lineup yet; the panel's normal
+   * talent chip-add flow appends them. Omitted/`true` when there is no talent
+   * context (agency launcher) or the lineup already carries the talent.
+   */
+  containsTalent?: boolean;
+  /**
+   * Whether the resumed row already carries a REAL contact (vs the seeded
+   * pending-{session}@guest.impronta placeholder). Drives the panel's
+   * draft-vs-live framing on resume: `false` keeps the draft banner + the
+   * "Send to agency" flow (contact gate included) alive after a reload.
+   * Optional/additive; omitted = treat as promoted (legacy behavior).
+   */
+  contactPromoted?: boolean;
   /** Captured contact fields, so a returning guest never re-types the gate. */
   prefill: {
     name: string | null;
@@ -464,6 +565,37 @@ export type GuestChipResult = { ok: true; appliedSummary: string } | GuestChatFa
 
 export type CaptureGuestChipCallback = (input: GuestChipInput) => Promise<GuestChipResult>;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 4c-bis. W2-I — AI conversation scan. `scanGuestConversationForDetails` reads
+// the recent guest chat, runs a cheap model over it, and auto-fills EMPTY inquiry
+// detail fields (never overwriting a user value; draft-only). The UI lane wires
+// this to a "Scan conversation" button (and, later, an auto path).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ScanGuestConversationResult =
+  | {
+      ok: true;
+      /**
+       * Whether the model was actually invoked. `false` when the pre-filter
+       * found no scannable detail, the inquiry is frozen (non-draft), or there
+       * was nothing to read — the scan short-circuited before any AI call.
+       */
+      scanned: boolean;
+      /** The detail kinds the scan auto-filled (empty before, AI-suggested now). */
+      filledKinds: GuestChipKind[];
+    }
+  | GuestChatFailure;
+
+export type ScanGuestConversationCallback = (input: {
+  inquiryId: string;
+  /**
+   * The guest's UNSENT composer text. Drafts persist no guest messages (the
+   * first send is also the promotion), so pre-send the composer draft is the
+   * only conversation there is — the scan reads it alongside any thread rows.
+   */
+  draftText?: string;
+}) => Promise<ScanGuestConversationResult>;
+
 // 4d/4e. Unified-inquiry-cart contract slice — split to guest-chat-unified-contract.ts; re-exported here.
 export type {
   AvatarStackItem,
@@ -544,9 +676,21 @@ export type MiniChatPanelProps = {
   existingInquiryId?: string | null;
 
   /**
+   * Server-resolved truth for whether the resumed inquiry's contact is REAL
+   * (ActiveGuestInquiry.contactPromoted). Null/omitted with an existing id =
+   * legacy behavior (assume promoted). `false` keeps the resumed row in the
+   * DRAFT framing: privacy banner, contact gate and "Send to agency" stay live.
+   */
+  existingContactPromoted?: boolean | null;
+
+  /**
    * Pre-fill for the inline name/email gate when known (e.g. returning guest
    * whose cookie maps to a prior contact). All optional.
    */
+  /** W2-B — the talent's published services, shown as in-chat request chips. */
+  offerings?: GuestChatOffering[];
+  /** W3-5 — attach a tapped service to a LIVE thread as structured provenance. */
+  onAttachOffering?: ((input: { inquiryId: string; offering: { offering_id: string; title: string; amount_cents: number | null; currency: string; price_type: string; kind: string } }) => Promise<{ ok: boolean; error?: string }>) | null;
   prefill?: {
     name?: string | null;
     firstName?: string | null;
@@ -628,7 +772,13 @@ export type TalentChatLauncherProps = {
   tenantId?: string | null;
   brand: MiniChatBrand;
   existingInquiryId?: string | null;
+  /** Forwarded to the panel — see MiniChatPanelProps.existingContactPromoted. */
+  existingContactPromoted?: boolean | null;
+  /** W3-5 — attach a tapped service to a LIVE thread as structured provenance. */
+  onAttachOffering?: MiniChatPanelProps["onAttachOffering"];
   prefill?: MiniChatPanelProps["prefill"];
+  /** W2-B — the talent's published services, shown as in-chat request chips. */
+  offerings?: GuestChatOffering[];
 
   /** Injected actions, forwarded to the panel. */
   onStartInquiry: OnStartInquiryCallback;
