@@ -555,6 +555,41 @@ for (const type of ["payout.paid", "payout.failed", "payout.created", "payout.ca
   });
 }
 
+// ─── transfer.* settlement (Connect / USDC auto-conversion) ─────────────────────
+
+test("transfer.reversed → transfer_settlement (failed)", () => {
+  const a = classifyStripeEvent(
+    evt("transfer.reversed", { id: "tr_1", amount_reversed: 5000, currency: "usd" }),
+  );
+  const action = expectKind(a, "transfer_settlement");
+  assert.equal(action.eventType, "transfer.reversed");
+  assert.equal(action.transferId, "tr_1");
+  assert.equal(action.failed, true);
+  assert.equal(action.amountReversed, 5000);
+  assert.equal(action.currency, "usd");
+});
+
+test("transfer.updated with amount_reversed>0 → transfer_settlement (failed)", () => {
+  const a = classifyStripeEvent(
+    evt("transfer.updated", { id: "tr_2", amount_reversed: 1200, currency: "usd" }),
+  );
+  const action = expectKind(a, "transfer_settlement");
+  assert.equal(action.eventType, "transfer.updated");
+  assert.equal(action.transferId, "tr_2");
+  assert.equal(action.failed, true);
+  assert.equal(action.amountReversed, 1200);
+});
+
+test("transfer.updated with no reversal → ignore (benign metadata touch)", () => {
+  const a = classifyStripeEvent(evt("transfer.updated", { id: "tr_3", amount_reversed: 0, currency: "usd" }));
+  expectKind(a, "ignore");
+});
+
+test("transfer.reversed missing id → ignore", () => {
+  const a = classifyStripeEvent(evt("transfer.reversed", { amount_reversed: 100 }));
+  expectKind(a, "ignore");
+});
+
 // ─── unhandled ──────────────────────────────────────────────────────────────────
 
 test("unknown event type → ignore", () => {

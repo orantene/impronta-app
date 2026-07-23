@@ -2,10 +2,16 @@
  * lib/payments/payout-rail-policy.ts
  *
  * Decides which payout rail a talent's booking leg settles on:
- *   • "global_payouts"   — v2 OutboundPayment (USDC / worldwide) — ONLY when the
- *     talent opted in, the platform has Global Payouts active, and their country
- *     is stablecoin-eligible.
- *   • "connect_transfer" — the default Connect rail, in every other case.
+ *   • "connect_transfer" — the existing Connect rail (stripe.transfers.create).
+ *     This is the default AND the USDC/stablecoin rail: a talent who self-serves
+ *     a crypto wallet + sets USDC as their Express default currency receives USDC
+ *     because the SAME USD Connect transfer auto-converts at Stripe — no separate
+ *     platform rail or capability is involved (confirmed by Stripe). So a crypto
+ *     opt-in routes here, NOT to v2 OutboundPayments.
+ *   • "global_payouts"   — the v2 OutboundPayment rail (Stripe Money Movement).
+ *     Reserved for NON-USDC local-bank payouts in countries the Connect transfer
+ *     rail can't reach. The resolver below never selects it for the crypto opt-in;
+ *     it stays available for that bank-payout path.
  *
  * The decision is a pure function (unit-testable); the DB-backed resolver reads
  * the opt-in flag first and SHORT-CIRCUITS to Connect before any Stripe API call,
@@ -28,9 +34,19 @@ import type { PayoutRail } from "./disburse";
 export type PayoutRailDecision = { rail: PayoutRail; reason: string };
 
 /**
- * Pure rail decision. The platform master switch wins first: when the platform is
- * on Connect, EVERY leg settles via Connect regardless of a talent's USDC opt-in.
- * Otherwise Global Payouts only when ALL three remaining conditions hold.
+ * Pure rail decision.
+ *
+ * USDC correction (2026-06): a talent's `crypto_payouts_enabled` opt-in routes to
+ * 'connect_transfer', NOT v2 'global_payouts'. USDC rides the existing Connect
+ * Transfers API — the USD transfer auto-converts to USDC at Stripe when the talent
+ * has linked a crypto wallet + set USDC as their Express default currency, so the
+ * crypto opt-in needs no separate rail. The v2 'global_payouts' rail stays reserved
+ * for NON-USDC local-bank payouts (selected elsewhere), never for the crypto opt-in.
+ *
+ * The platform master switch still wins first: when the platform is on Connect,
+ * EVERY leg settles via Connect. The remaining conditions (gpActive / countryEligible)
+ * are kept as inputs for back-compat but no longer steer the crypto opt-in to v2 —
+ * every branch below resolves to 'connect_transfer'.
  */
 export function decidePayoutRail(input: {
   /** Platform master switch. Omitted/`"global_payouts"` keeps the legacy logic. */
@@ -51,7 +67,10 @@ export function decidePayoutRail(input: {
   if (!input.countryEligible) {
     return { rail: "connect_transfer", reason: "opted in, but country not stablecoin-eligible → Connect rail" };
   }
-  return { rail: "global_payouts", reason: "opted in + eligible country + GP active → Global Payouts (USDC)" };
+  // USDC opt-in, eligible country, GP active: still Connect. USDC auto-converts on
+  // the Connect transfer (no v2 OutboundPayment), so the crypto opt-in never routes
+  // to global_payouts. The v2 rail remains available for the non-USDC bank path.
+  return { rail: "connect_transfer", reason: "USDC opt-in → Connect rail (USD transfer auto-converts to USDC)" };
 }
 
 export type RailResolverDeps = {
@@ -68,7 +87,13 @@ export type RailResolverDeps = {
  * is read FIRST and short-circuits to Connect before any DB/Stripe call when the
  * platform is on Connect — so a stale per-talent `crypto_payouts_enabled` can never
  * override it. Otherwise short-circuits to Connect on the common path (no opt-in)
- * before any Stripe call. Test-safe via injected deps.
+ * before any Stripe call.
+ *
+ * USDC correction (2026-06): a `crypto_payouts_enabled` talent now also resolves to
+ * 'connect_transfer' — USDC auto-converts on the Connect transfer, so the crypto
+ * opt-in no longer routes to v2 global_payouts. The `gpActive`/country checks below
+ * are preserved for back-compat but every branch ends at Connect (see decidePayoutRail).
+ * Test-safe via injected deps.
  */
 export async function resolveTalentPayoutRail(
   talentProfileId: string,

@@ -191,6 +191,11 @@ export async function createOrGetTalentConnectedAccount(
     account = await stripe.accounts.create({
       type: "express",
       country,
+      // Talent recipients are individuals / sole-props only — pin business_type so
+      // a talent can't self-select "Company" in Express onboarding (a USDC payout
+      // requirement: stablecoin recipients must be individuals, confirmed by Stripe).
+      // This is the platform-set default; Express still collects the person's KYC.
+      business_type: "individual",
       capabilities: {
         transfers: { requested: true },
         card_payments: { requested: false },

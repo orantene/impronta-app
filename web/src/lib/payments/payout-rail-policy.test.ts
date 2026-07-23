@@ -8,10 +8,12 @@ import { decidePayoutRail, resolveTalentPayoutRail } from "@/lib/payments/payout
 
 const GP = async () => "global_payouts" as const;
 
-test("decidePayoutRail: GP only when opted-in + GP active + eligible country", () => {
+test("decidePayoutRail: USDC opt-in rides Connect (auto-converts), never v2 global_payouts", () => {
+  // USDC correction: a crypto opt-in + eligible country + GP active no longer
+  // routes to v2 global_payouts — the USD Connect transfer auto-converts to USDC.
   assert.equal(
     decidePayoutRail({ talentCryptoOptIn: true, gpActive: true, countryEligible: true }).rail,
-    "global_payouts",
+    "connect_transfer",
   );
   assert.equal(
     decidePayoutRail({ talentCryptoOptIn: true, gpActive: false, countryEligible: true }).rail,
@@ -37,7 +39,7 @@ test("decidePayoutRail: platform switch=connect forces Connect even when opted-i
     }).rail,
     "connect_transfer",
   );
-  // explicit global_payouts keeps the legacy decision
+  // switch=global_payouts + crypto opt-in still rides Connect (USDC auto-converts).
   assert.equal(
     decidePayoutRail({
       activePayoutSystem: "global_payouts",
@@ -45,7 +47,7 @@ test("decidePayoutRail: platform switch=connect forces Connect even when opted-i
       gpActive: true,
       countryEligible: true,
     }).rail,
-    "global_payouts",
+    "connect_transfer",
   );
 });
 
@@ -102,13 +104,16 @@ test("resolver: not opted in → connect_transfer (no GP check)", async () => {
   assert.equal(gpChecked, false, "short-circuits before the GP-active check");
 });
 
-test("resolver: opted in + GP active + MX → global_payouts", async () => {
+test("resolver: opted in (USDC) + GP active + MX → connect_transfer (USDC via Connect)", async () => {
+  // USDC correction: a crypto-opted-in talent in an eligible country with GP active
+  // resolves to connect_transfer — the USD Connect transfer auto-converts to USDC,
+  // so the crypto opt-in does NOT route to v2 global_payouts.
   const rail = await resolveTalentPayoutRail("tp1", {
     sb: fakeSb({ crypto_payouts_enabled: true, residence_country_id: "mx-id" }, "MX"),
     activePayoutSystem: GP,
     gpActive: async () => true,
   });
-  assert.equal(rail, "global_payouts");
+  assert.equal(rail, "connect_transfer");
 });
 
 test("resolver: opted in but GP not active → connect_transfer", async () => {
