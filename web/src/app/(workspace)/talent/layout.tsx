@@ -222,6 +222,10 @@ export default async function PlatformTalentLayout({
         workspaceUnread: workspaceUnread ?? 0,
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
+        // Read from the RAW prefs, not the hybrid-gated `userPrefs`: the
+        // Day-1 checklist is a talent-only surface, so gating it on hybrid
+        // would make the dismissal never stick for pure talents.
+        talentChecklistDismissed: userPrefsRaw?.talentChecklistDismissed ?? false,
         talentCalendarEntries,
         talentEarnings: displayEarnings,
         profileEditorLayout,

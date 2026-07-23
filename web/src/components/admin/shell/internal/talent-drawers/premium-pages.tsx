@@ -21,7 +21,7 @@ import {
   TALENT_TIER_META,
   tierAllows,
   useAdminShell,
-  type TalentMediaEmbed,
+  type TalentMediaKit,
   type TalentSubscriptionTier,
   type TalentTierCell,
   type TalentTierGroup,
@@ -444,6 +444,38 @@ function ReadOnlyStripNotice() {
   );
 }
 
+/**
+ * W14 — the strip drawers (embeds / press / custom domain / media kit) used to
+ * render `MY_TALENT_PROFILE.subscription`, a fixture belonging to a demo talent.
+ * Every real talent saw someone else's embeds, press clippings and domain, none
+ * of it editable. There is no per-talent store for embeds or press yet, and the
+ * one concept that IS wired (custom domain) already has a working manager on the
+ * Public page. So these drawers now explain what lives where and hand the talent
+ * a single real route instead of fake content.
+ */
+function ManageOnPublicPage({ blurb }: { blurb: string }) {
+  const copy = useDashboardText();
+  const { closeDrawer, setTalentPage } = useAdminShell();
+  return (
+    <>
+      <ReadOnlyStripNotice />
+      <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6 }} className="text-admin-ink">
+        {blurb}
+      </p>
+      <div style={{ marginTop: 14 }}>
+        <PrimaryButton
+          onClick={() => {
+            closeDrawer();
+            setTalentPage("public-page");
+          }}
+        >
+          {copy.t("Open My pages")}
+        </PrimaryButton>
+      </div>
+    </>
+  );
+}
+
 // ─── Media embeds ──────────────────────────────────────────────────
 
 
@@ -454,9 +486,9 @@ export function TalentMediaEmbedsDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-media-embeds";
-  const embeds = MY_TALENT_PROFILE.subscription.embeds;
+  const copy = useDashboardText();
 
-  const supported: Array<{ kind: TalentMediaEmbed["kind"]; label: string; thumb: string }> = [
+  const supported: Array<{ kind: string; label: string; thumb: string }> = [
     { kind: "instagram", label: "Instagram", thumb: "📷" },
     { kind: "tiktok", label: "TikTok", thumb: "🎵" },
     { kind: "youtube", label: "YouTube", thumb: "▶️" },
@@ -479,49 +511,11 @@ export function TalentMediaEmbedsDrawer() {
         </>
       }
     >
-      <ReadOnlyStripNotice />
-      <CapsLabel>{t("dashboard.talentDrawers.premiumPages.liveOnPage")}</CapsLabel>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
-        {embeds.map((e) => (
-          <div
-            key={e.id}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "12px 14px",
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-            }}
-          >
-            <span style={{ width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }} className="bg-admin-surface-alt">
-              {e.thumb}
-            </span>
-            <div className="flex-1 min-w-0">
-              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, textTransform: "capitalize" }} className="text-admin-ink">
-                {e.kind} · {e.label}
-              </div>
-              <div style={{ fontFamily: FONTS.mono, fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
-                {e.url}
-              </div>
-            </div>
-            <button
-              onClick={() => undefined}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: COLORS.inkMuted,
-                fontFamily: FONTS.body,
-                fontSize: 11.5,
-                cursor: "pointer",
-              }}
-            >
-              {t("dashboard.talentDrawers.premiumPages.remove")}
-            </button>
-          </div>
-        ))}
-      </div>
+      <ManageOnPublicPage
+        blurb={copy.t(
+          "Embeds live on your public page. Add or remove them from My pages, where the changes are saved and published.",
+        )}
+      />
       <Divider label={t("dashboard.talentDrawers.premiumPages.supportedSources")} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
         {supported.map((s) => (
@@ -559,7 +553,7 @@ export function TalentPressDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-press";
-  const press = MY_TALENT_PROFILE.subscription.press;
+  const copy = useDashboardText();
 
   return (
     <DrawerShell
@@ -575,40 +569,11 @@ export function TalentPressDrawer() {
         </>
       }
     >
-      <ReadOnlyStripNotice />
-      <div className="flex flex-col gap-2.5">
-        {press.map((c) => (
-          <div
-            key={c.id}
-            style={{
-              padding: "14px 16px",
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-accent-deep">
-                {c.outlet}
-              </span>
-              <span style={{ fontFamily: FONTS.body, fontSize: 11, marginLeft: "auto" }} className="text-admin-ink-muted">
-                {c.date}
-              </span>
-            </div>
-            <div style={{ fontFamily: FONTS.display, fontSize: 16, marginTop: 4 }} className="text-admin-ink">
-              {c.headline}
-            </div>
-            {c.quote && (
-              <p style={{ margin: "6px 0 0", fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55, fontStyle: "italic" }} className="text-admin-ink">
-                &quot;{c.quote}&quot;
-              </p>
-            )}
-            <div style={{ marginTop: 6, fontFamily: FONTS.mono, fontSize: 11 }} className="text-admin-ink-muted">
-              {c.url}
-            </div>
-          </div>
-        ))}
-      </div>
+      <ManageOnPublicPage
+        blurb={copy.t(
+          "Press clippings are part of your public page content. Add them from My pages so they publish with the rest of your site.",
+        )}
+      />
     </DrawerShell>
   );
 }
@@ -622,7 +587,6 @@ export function TalentMediaKitDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-media-kit";
-  const kit = MY_TALENT_PROFILE.subscription.mediaKit;
 
   return (
     <DrawerShell
@@ -633,40 +597,16 @@ export function TalentMediaKitDrawer() {
       width={560}
       footer={
         <>
+          {/* EPK generation isn't built yet — the actions stay disabled rather
+              than implying a downloadable kit is on file. */}
           <SecondaryButton disabled>{t("dashboard.talentDrawers.premiumPages.regenerate")}</SecondaryButton>
           <PrimaryButton disabled>{t("dashboard.talentDrawers.premiumPages.downloadPdf")}</PrimaryButton>
         </>
       }
     >
-      {kit ? (
-        <div
-          style={{
-            padding: "14px 16px",
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-          }}
-        >
-          <div style={{ width: 56, height: 70, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, border: `1px solid ${COLORS.borderSoft}`, flexShrink: 0 }} className="bg-admin-surface-alt">
-            {kit.thumb}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500 }} className="text-admin-ink">
-              {kit.filename}
-            </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-              {interpolate(t("dashboard.talentDrawers.premiumPages.kitUpdated"), { size: kit.size, date: kit.updatedAt })}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-          {t("dashboard.talentDrawers.premiumPages.kitEmpty")}
-        </div>
-      )}
+      <div style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
+        {t("dashboard.talentDrawers.premiumPages.kitEmpty")}
+      </div>
       <Divider label={t("dashboard.talentDrawers.premiumPages.kitContents")} />
       <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.7 }} className="text-admin-ink">
         <li>{t("dashboard.talentDrawers.premiumPages.kitContent1")}</li>
@@ -690,7 +630,7 @@ export function TalentCustomDomainDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-custom-domain";
-  const sub = MY_TALENT_PROFILE.subscription;
+  const copy = useDashboardText();
 
   return (
     <DrawerShell
@@ -704,63 +644,11 @@ export function TalentCustomDomainDrawer() {
         <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
       }
     >
-      <ReadOnlyStripNotice />
-      <FieldRow label={t("dashboard.talentDrawers.premiumPages.domainLabel")} hint={t("dashboard.talentDrawers.premiumPages.domainHint")}>
-        <TextInput placeholder="marta-reyes.com" defaultValue={sub.customDomain ?? ""} />
-      </FieldRow>
-      <div style={{ marginTop: 14 }}>
-        <CapsLabel>{t("dashboard.talentDrawers.premiumPages.dnsConfig")}</CapsLabel>
-        <div style={{ marginTop: 8, padding: "12px 14px", border: `1px solid rgba(15,79,62,0.18)`, borderRadius: 10, fontFamily: FONTS.mono, fontSize: 12, lineHeight: 1.7 }} className="bg-admin-surface-alt text-admin-ink">
-          <div>A record &nbsp;@ &nbsp;→ &nbsp;76.76.21.21</div>
-          <div>CNAME &nbsp;www &nbsp;→ &nbsp;cname.tulala.digital</div>
-        </div>
-      </div>
-      <div
-        style={{
-          marginTop: 14,
-          padding: "12px 14px",
-          background: "#fff",
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: 10,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: sub.customDomainStatus === "verified" ? COLORS.green : COLORS.amber, }}
-        />
-        <span style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
-          {t("dashboard.talentDrawers.premiumPages.statusPrefix")}{" "}
-          <strong>
-            {sub.customDomain
-              ? sub.customDomainStatus === "verified"
-                ? t("dashboard.talentDrawers.domainStatus.verified")
-                : sub.customDomainStatus === "pending"
-                  ? t("dashboard.talentDrawers.domainStatus.pending")
-                  : t("dashboard.talentDrawers.domainStatus.failed")
-              : t("dashboard.talentDrawers.domainStatus.notSet")}
-          </strong>
-        </span>
-        <button
-          onClick={() => undefined}
-          style={{
-            marginLeft: "auto",
-            background: "transparent",
-            border: `1px solid ${COLORS.borderSoft}`,
-            color: COLORS.ink,
-            padding: "5px 10px",
-            borderRadius: 6,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            cursor: "pointer",
-          }}
-        >
-          {t("dashboard.talentDrawers.premiumPages.recheck")}
-        </button>
-      </div>
-      <p style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-        {t("dashboard.talentDrawers.premiumPages.sslNote")}
-      </p>
+      <ManageOnPublicPage
+        blurb={copy.t(
+          "Connect a custom domain from My pages. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.",
+        )}
+      />
     </DrawerShell>
   );
 }

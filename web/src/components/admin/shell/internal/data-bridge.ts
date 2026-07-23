@@ -247,6 +247,12 @@ export type BridgeData = {
    */
   firstRunToggleTipSeen?: boolean;
 
+  /**
+   * W14 — whether the talent dismissed the Day-1 first-session checklist.
+   * Persisted in user_prefs so the dismissal survives reloads.
+   */
+  talentChecklistDismissed?: boolean;
+
   // ── Phase 0 (talent-surface launch readiness) — hybrid signal ──────────────
   /**
    * True when the signed-in user has BOTH a talent profile AND a workspace

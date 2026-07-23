@@ -130,7 +130,7 @@ export function TalentTodayPulseDrawer() {
 // ─── Offer detail drawer ──────────────────────────────────────────
 
 export function TalentOfferDetailDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, setTalentPage } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-offer-detail" || state.drawer.drawerId === "talent-request-detail";
   const id = (state.drawer.payload?.id as string) ?? "rq1";
@@ -147,32 +147,17 @@ export function TalentOfferDetailDrawer() {
       footer={
         r.status === "needs-answer" ? (
           <>
-            {/* Decline/Accept are disabled here — this drawer uses prototype mock IDs (no real inquiryId).
-                The real accept/decline flow routes through the Messages shell, which has the live inquiry context.
-                TODO Phase 3+: when offer-detail is rewritten against bridge inquiry data, wire acceptInquiryInvitation /
-                declineInquiryInvitation from talent-pipeline.ts. */}
-            <button
-              disabled
-              title={t("dashboard.talentDrawers.today.openInMessages")}
-              style={{
-                background: "transparent",
-                border: `1px solid ${COLORS.borderSoft}`,
-                color: COLORS.inkDim,
-                padding: "8px 12px",
-                borderRadius: 8,
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                fontWeight: 500,
-                cursor: "not-allowed",
-                marginRight: "auto",
-                opacity: 0.5,
+            {/* W14: accept/decline live in Messages, which holds the real inquiry context.
+                Rather than parking two permanently-disabled buttons here, the footer sends
+                the user to the surface where the decision can actually be made. */}
+            <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
+            <PrimaryButton
+              onClick={() => {
+                closeDrawer();
+                setTalentPage("messages");
               }}
             >
-              {t("dashboard.talentDrawers.today.decline")}
-            </button>
-            <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
-            <PrimaryButton disabled>
-              {t("dashboard.talentDrawers.today.accept")}
+              {t("dashboard.talentDrawers.today.openInMessagesCta")}
             </PrimaryButton>
           </>
         ) : (
