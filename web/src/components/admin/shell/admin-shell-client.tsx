@@ -260,6 +260,12 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   // (no tenant slug — matched against the full segments because the platform
   // talent path starts with "talent").
   (s) => s[0] === "talent" && s[1] === "discover-agencies",
+  // /talent/onboarding — M2 guided profile-completeness wizard. Standalone
+  // server component that surfaces the canonical buildTalentChecklist result as
+  // step-by-step "complete your profile to go live" guidance; renders inside
+  // the talent shell chrome (nav stays), not via the prototype Today SPA.
+  // Talent-scoped (platform path starts with "talent").
+  (s) => s[0] === "talent" && s[1] === "onboarding",
   // NOTE: talent payouts is an IN-SHELL SPA section (TalentPage "payouts" →
   // /talent/payouts), NOT a canonical route — it renders inside the talent
   // dashboard nav (and works on agency hosts, unlike standalone /talent/*
