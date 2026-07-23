@@ -86,6 +86,8 @@ import { useEditorLocale } from "./use-editor-locale";
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
+/** Slack over PublishPreflight's own 30s hard timeout before the gate is force-released. */
+const PREFLIGHT_STUCK_WATCHDOG_MS = 35_000;
 
 function formatPublishedAt(value: string | null): string {
   if (!value) return "—";
@@ -332,6 +334,21 @@ export function PublishDrawer() {
   useEffect(() => {
     if (typeof window !== "undefined") setHost(window.location.host);
   }, []);
+
+  // Watchdog — `preflightLoading` is optimistically set true when the drawer
+  // opens and is cleared by PublishPreflight's status callback. A run that is
+  // cancelled mid-flight (effect re-run) returns WITHOUT reporting back, which
+  // left "Publish now" stuck on "Running publish checks…" forever, making the
+  // page impossible to publish at all. This guarantees the gate always
+  // releases; the checks' own hard timeout is 30s, so allow a little slack.
+  useEffect(() => {
+    if (!publishOpen || !preflightLoading) return;
+    const timer = setTimeout(
+      () => setPreflightLoading(false),
+      PREFLIGHT_STUCK_WATCHDOG_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [publishOpen, preflightLoading]);
 
   // Auto-dismiss the "Draft reset to the published version" success toast.
   useEffect(() => {
