@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
+import { workspacePathHost } from "@/lib/saas/workspace-public-url";
 import { pinNextConversation as pinNextConversationP } from "../messages";
 import { ClientTrustChip, CompactLockedCard, EmptyState, GhostButton, Icon, MoreWithSection, PrimaryButton, ReadOnlyChip, SecondaryButton, StatusPill, StatusStrip } from "../primitives";
 import { COLORS, FONTS, FREE_PLAN_VALUE, TRANSITION, describeSourceChannelKey, describeSourceKeys, meetsRole, useAdminShell } from "../state";
@@ -460,8 +461,17 @@ export function FreeValuePanel() {
       return { ...v, used: { ...v.used, current: effectiveRoster.length } };
     }
     if (v.id === "storefront") {
-      // Live subdomain replaces the fixture detail; localized frame, real host.
-      return { ...v, detailOverride: interpolate(t("dashboard.adminWork.storefrontLivesAt"), { domain: `${effectiveTenant.slug}.tulala.digital` }) };
+      // Real public host replaces the fixture detail; localized frame.
+      // Must NOT synthesize `<slug>.tulala.digital`: branded subdomains are a
+      // paid-tier feature and are provisioned per tenant, so for a Free
+      // workspace that host is never attached and 404s. workspacePathHost is
+      // the canonical Free address (tulala.digital/w/<slug>).
+      return {
+        ...v,
+        detailOverride: interpolate(t("dashboard.adminWork.storefrontLivesAt"), {
+          domain: workspacePathHost(effectiveTenant.slug),
+        }),
+      };
     }
     return v;
   });
