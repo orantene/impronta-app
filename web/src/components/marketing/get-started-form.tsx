@@ -9,6 +9,7 @@ import {
 } from "react";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import type { ProductAnalyticsEventName } from "@/lib/analytics/product-events";
+import { trackEvent } from "@/lib/marketing/ga-events";
 import {
   checkSubdomainAvailability,
   submitGetStartedSignup,
@@ -226,6 +227,14 @@ export function GetStartedForm({
         tier_interest: tier ?? null,
         lead_id: state.leadId,
       });
+      // GA4 key events (Task 3.3). get_started_submit marks the form as
+      // successfully accepted by the server; sign_up marks the flow's true
+      // success state (a fresh account — excludes `needs_signin`, where an
+      // account already exists and the visitor hasn't signed up yet).
+      trackEvent("get_started_submit", {});
+      if (state.kind === "created") {
+        trackEvent("sign_up", { method: "get_started" });
+      }
     } else if (state && !state.ok) {
       // Server-side rejection: fire the failure event so we can see which
       // step the funnel actually breaks on (validation, rate-limit, etc.).

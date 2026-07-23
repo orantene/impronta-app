@@ -1,5 +1,7 @@
 "use client";
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+
 /**
  * TalentServicesNudge — "Add your first service" onboarding card (Lane E).
  *
@@ -32,6 +34,7 @@ export function TalentServicesNudge({
   onAddService: () => void;
 }) {
   const [empty, setEmpty] = useState(false);
+  const copy = useDashboardText();
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -64,11 +67,10 @@ export function TalentServicesNudge({
     >
       <div style={{ minWidth: 0, flex: "1 1 260px" }}>
         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.ink }}>
-          Add your first service
+          {copy.t("Add your first service")}
         </p>
         <p style={{ margin: "3px 0 0", fontSize: 12.5, color: C.inkMuted, lineHeight: 1.45 }}>
-          Put your menu on your page: clients can ask about a service or book it directly. It takes
-          about a minute per service.
+          {copy.t("Put your menu on your page: clients can ask about a service or book it directly. It takes about a minute per service.")}
         </p>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -87,12 +89,12 @@ export function TalentServicesNudge({
             fontFamily: FONT,
           }}
         >
-          Set up services
+          {copy.t("Set up services")}
         </button>
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          aria-label="Dismiss"
+          aria-label={copy.t("Dismiss")}
           style={{
             fontSize: 12,
             fontWeight: 600,
@@ -105,7 +107,7 @@ export function TalentServicesNudge({
             fontFamily: FONT,
           }}
         >
-          Later
+          {copy.t("Later")}
         </button>
       </div>
     </section>

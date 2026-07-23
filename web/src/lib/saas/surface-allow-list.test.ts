@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   isPathAllowedForHostKind,
+  resolveAnyTenantPublicPath,
   resolvePathBasedTenantPublicPath,
+  resolveWorkspacePathTenantPublicPath,
 } from "./surface-allow-list";
 
 test("agency host: storefront + workspace + auth + root + static allowed", () => {
@@ -270,6 +272,44 @@ test("path-based tenant public routes do not swallow workspace or reserved route
   }
 });
 
+test("canonical /w/<slug> resolves the same shapes as the legacy flat form", () => {
+  const cases = [
+    ["/w/impronta", "/"],
+    ["/w/impronta/directory", "/directory"],
+    ["/w/impronta/t/jane-doe", "/t/jane-doe"],
+    ["/w/impronta/p/about", "/p/about"],
+    ["/w/impronta/contact", "/contact"],
+    ["/w/impronta/join", "/join"],
+  ] as const;
+
+  for (const [path, stripped] of cases) {
+    assert.deepEqual(
+      resolveWorkspacePathTenantPublicPath(path),
+      { tenantSlug: "impronta", pathnameWithoutTenant: stripped },
+      `${path} should strip to ${stripped}`,
+    );
+  }
+});
+
+test("/w resolver only matches the canonical prefix, and never eats reserved routes", () => {
+  // Flat form is NOT canonical — middleware 301s it instead of serving it.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/impronta"), null);
+  // Bare parent is not a tenant.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w"), null);
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w/"), null);
+  // Workspace surfaces stay out of the public path-based shape.
+  assert.equal(resolveWorkspacePathTenantPublicPath("/w/impronta/admin"), null);
+  // "w" itself is reserved, so it can never resolve as a tenant slug.
+  assert.equal(resolvePathBasedTenantPublicPath("/w"), null);
+});
+
+test("resolveAnyTenantPublicPath accepts canonical and legacy during migration", () => {
+  const expected = { tenantSlug: "impronta", pathnameWithoutTenant: "/directory" };
+  assert.deepEqual(resolveAnyTenantPublicPath("/w/impronta/directory"), expected);
+  assert.deepEqual(resolveAnyTenantPublicPath("/impronta/directory"), expected);
+  assert.equal(resolveAnyTenantPublicPath("/pricing"), null);
+});
+
 test("marketing host: public marketing pages + root + static + bearer-gated shared api allowed", () => {
   const allowed = [
     "/",
@@ -279,6 +319,9 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/twitter-image",
     "/for/models",
     "/for/musicians",
+    "/resources",
+    "/resources/glossary",
+    "/resources/booking-deposits",
     "/api/cron/inquiry-engine",
     "/api/analytics/events",
     "/t/jane-doe",
@@ -297,6 +340,7 @@ test("marketing host: public marketing pages + root + static + bearer-gated shar
     "/legal/terms",
     // Global Talent Directory — public cross-tenant browse on the marketing host.
     "/directory",
+    "/agencia-de-talento",
     // Auth surfaces are reachable on the marketing apex (tulala.digital): OAuth
     // callbacks use window.location.origin as the redirectTo base, and the
     // branded sign-in / registration entry points live on the apex too. The

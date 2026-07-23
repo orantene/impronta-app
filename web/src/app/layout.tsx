@@ -117,6 +117,12 @@ export const metadata: Metadata = {
     title: PLATFORM_BRAND.name,
     statusBarStyle: "default",
   },
+  // Google Search Console ownership for the https://tulala.digital/ URL-prefix
+  // property. Not a secret: it is served in the public <head> by design, and
+  // Google requires it to stay in place or the property silently un-verifies.
+  verification: {
+    google: "AT_7Nj7SfihEJhb9W1jP4oFW5fyoguijnMpqpIN7x0k",
+  },
   openGraph: {
     siteName: PLATFORM_BRAND.name,
     title: `${PLATFORM_BRAND.name} · ${PLATFORM_BRAND.tagline}`,
@@ -210,6 +216,10 @@ export default async function RootLayout({
           metaPixelId={tenantAnalytics?.metaPixelId}
           tiktokPixelId={tenantAnalytics?.tiktokPixelId}
           linkedInPartnerId={tenantAnalytics?.linkedInPartnerId}
+          // Tenant id → GA4 `tenant_id` custom dimension. Only present on
+          // storefront requests (publicScope non-null); platform/marketing
+          // surface sends no tenant_id.
+          tenantId={publicScope?.tenantId}
         />
         <WebVitalsReporter />
         <CspViolationReporter />

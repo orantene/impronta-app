@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { loadDirectoryWorkspaces } from "@/lib/marketing/directory-workspaces";
 import { MARKETING_PHOTOS, type MarketingPhotoKey } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
@@ -182,8 +183,10 @@ export async function AgencyHubDiscovery({
   filters: DiscoveryFilters;
 }) {
   const locale = await getRequestLocale();
+  const liveWorkspaces = await loadDirectoryWorkspaces();
   const c = {
     eyebrow: pickLocale(locale, { en: "Agencies & hubs", es: "Agencias y redes" }),
+    liveEyebrow: pickLocale(locale, { en: "Live on Tulala", es: "En vivo en Tulala" }),
     h1: pickLocale(locale, {
       en: "Find where your talent can grow next.",
       es: "Encuentra dónde puede crecer tu talento.",
@@ -400,6 +403,36 @@ export async function AgencyHubDiscovery({
               {c.resetFilters}
             </Link>
           </div>
+
+          {/* Live workspaces — the crawl hub for every /w/<slug> page. `/w`
+              301s here, so these are the only internal links those pages get.
+              Strict opt-in (see loadDirectoryWorkspaces); empty until a
+              workspace opts in, which is why it renders conditionally. */}
+          {liveWorkspaces.length > 0 ? (
+            <div className="mt-8">
+              <MarketingEyebrow>{c.liveEyebrow}</MarketingEyebrow>
+              <ul className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {liveWorkspaces.map((workspace) => (
+                  <li key={workspace.id}>
+                    <a
+                      href={workspace.href}
+                      className="flex min-h-14 items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-[0.9375rem] font-medium transition-colors hover:border-[var(--plt-forest)] hover:text-[var(--plt-forest)]"
+                      style={{
+                        borderColor: "var(--plt-hairline-strong)",
+                        color: "var(--plt-ink)",
+                        background: "var(--plt-bg)",
+                      }}
+                    >
+                      <span className="min-w-0 truncate">{workspace.name}</span>
+                      <span aria-hidden style={{ color: "var(--plt-muted)" }}>
+                        →
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {filtered.length > 0 ? (
             <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">

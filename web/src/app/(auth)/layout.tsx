@@ -149,7 +149,9 @@ function AuthFooter({
   // it stays the Tulala platform line.
   const footerLine = isTenant
     ? `© ${new Date().getFullYear()} ${brandLabel}.`
-    : `© ${new Date().getFullYear()} Tulala. The talent business platform.`;
+    : // Same copyright line as the marketing footer's bottom rail: legal name +
+      // positioning. The category message lives in the logo lockup only.
+      `© ${new Date().getFullYear()} ${PLATFORM_BRAND.legalName}. ${PLATFORM_BRAND.positioning}`;
   return (
     <footer
       className="py-8"

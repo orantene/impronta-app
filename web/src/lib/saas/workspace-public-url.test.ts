@@ -17,8 +17,8 @@ import {
 } from "./workspace-public-url";
 
 test("workspace path helpers produce the canonical Tulala path URL", () => {
-  assert.equal(workspacePathHost("impronta"), "tulala.digital/impronta");
-  assert.equal(workspacePathUrl("impronta"), "https://tulala.digital/impronta");
+  assert.equal(workspacePathHost("impronta"), "tulala.digital/w/impronta");
+  assert.equal(workspacePathUrl("impronta"), "https://tulala.digital/w/impronta");
 });
 
 test("whitelabel branding is gated to Agency / Network (and grandfathered legacy)", () => {
@@ -56,7 +56,7 @@ test("free plan resolves to the Tulala path URL even when a subdomain row exists
   assert.equal(brandedSubdomainEligible("free"), false);
   assert.equal(customDomainEligible("free"), false);
   assert.equal(result.primaryKind, "path");
-  assert.equal(result.primaryHost, "tulala.digital/impronta");
+  assert.equal(result.primaryHost, "tulala.digital/w/impronta");
 });
 
 test("studio plan prefers the branded subdomain when present", () => {
@@ -104,7 +104,7 @@ test("customDomainLockedCopy keeps upgrade guidance aligned to plan tier", () =>
 test("workspacePlanPublicModelCopy matches canonical plan model", () => {
   assert.equal(
     workspacePlanPublicModelCopy("free"),
-    "Free · tulala.digital/<slug> + up to 5 public profiles",
+    "Free · tulala.digital/w/<slug> + up to 5 public profiles",
   );
   assert.equal(
     workspacePlanPublicModelCopy("studio"),

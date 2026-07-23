@@ -97,7 +97,7 @@ const en = {
   },
 
   hero: {
-    eyebrow: "The talent business platform",
+    eyebrow: "Sell your work. Run the business.",
     titleLine1: "Your Business. Your Brand. Your Bookings.",
     titleLine2: "All in one place.",
     subhead:
@@ -359,7 +359,7 @@ const en = {
       },
       company: {
         label: "Company",
-        items: ["Pricing", "Start free", "FAQ", "Privacy", "Terms"],
+        items: ["Pricing", "Start free", "FAQ", "Resources", "Privacy", "Terms"],
       },
     },
   },
@@ -451,7 +451,7 @@ const es: MarketingCopy = {
   },
 
   hero: {
-    eyebrow: "La plataforma del negocio del talento",
+    eyebrow: "Vende tu trabajo. Lleva tu negocio.",
     titleLine1: "Tu Negocio. Tu Marca. Tus Reservas.",
     titleLine2: "Todo en un solo lugar.",
     subhead:
@@ -711,7 +711,7 @@ const es: MarketingCopy = {
       },
       company: {
         label: "Empresa",
-        items: ["Precios", "Empieza gratis", "Preguntas frecuentes", "Privacidad", "Términos"],
+        items: ["Precios", "Empieza gratis", "Preguntas frecuentes", "Recursos", "Privacidad", "Términos"],
       },
     },
   },

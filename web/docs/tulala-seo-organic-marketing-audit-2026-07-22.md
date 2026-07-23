@@ -129,3 +129,17 @@ Search Console + sitemap submission, analytics events on CTAs, indexing/rank mon
 ## 6. What will NOT be done
 
 No invented features, no unsupported claims, no misleading/fake schema (reviews, ratings, prices, locations), no hundreds of thin pages, no blind find-replace on copy, no "done" without live verification.
+
+---
+
+## Appendix: measurement stack (added 2026-07-23)
+
+**Google Search Console.** Property `https://tulala.digital/` (URL-prefix), verified via the HTML tag method using Next's `metadata.verification.google` in `app/layout.tsx`. `sitemap.xml` submitted. The domain-wide `sc-domain:` property was not used because it requires a DNS TXT record at the registrar; adding that record later is a free upgrade that also covers subdomains and http.
+
+**Do not remove the verification meta tag.** Google silently un-verifies the property if it disappears.
+
+**Google Analytics 4.** Property "Tulala" (Mexico City reporting time zone), web data stream `Tulala marketing site` → `https://tulala.digital`, Measurement ID `G-0K8WP0YYRE`, enhanced measurement on.
+
+The app already had full GA4 support in `components/analytics/analytics-scripts.tsx` (gtag + Consent Mode v2, plus GTM / Meta / TikTok / LinkedIn); it was dormant only because no Measurement ID was configured. The ID is set as `NEXT_PUBLIC_GA_MEASUREMENT_ID` in Vercel production. Because it is a `NEXT_PUBLIC_` variable it is inlined at build time, so changing it requires a redeploy, not just an env edit.
+
+**Tenants configure their own analytics separately.** `lib/integrations/analytics-resolver.ts` resolves per-tenant GA4, GTM, Meta Pixel, TikTok Pixel and LinkedIn Insight IDs from the tenant integrations catalog, falling back to the platform values above. A tenant setting their own GA4 ID gets their own measurement on their own storefront.

@@ -18,7 +18,6 @@
  */
 
 import { type ReactNode, useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { BuilderLabRestrictedNotice } from "@/components/builder-lab/builder-lab-intro";
 import {
   COLORS,
@@ -94,13 +93,7 @@ const HQ = {
 // the shared editor + builder-core graph only loads when a super_admin opens
 // the Lab, keeping the rest of the HQ console light. Mirrors the
 // `pages-dynamic.ts` pattern used for the Client/Platform surfaces.
-const BuilderLabPage = dynamic(
-  () =>
-    import("./page-modules/BuilderLabPage").then((m) => ({
-      default: m.BuilderLabPage,
-    })),
-  { ssr: false },
-);
+import { BuilderLabPage } from "./page-modules/BuilderLabPage";
 
 function openPlatformSupportEmail(subject: string, body: string) {
   const params = new URLSearchParams({ subject, body });

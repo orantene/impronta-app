@@ -1,7 +1,37 @@
 "use client";
 
-import React from "react";
-import dynamic from "next/dynamic";
+import React, { Suspense, lazy, useEffect, useState } from "react";
+
+/**
+ * clientOnly — React.lazy-based replacement for next/dynamic({ ssr: false }).
+ *
+ * PROD INCIDENT (2026-07-23): next/dynamic with ssr:false inside this client
+ * shell NEVER invoked its loader on hydration — the SSR bailout template sat
+ * unresolved forever, so the Messages shell (talent: blank pane; workspace:
+ * skeleton stuck) and the Client/Platform surfaces hung on every fresh build
+ * and in production. Instrumentation showed modules evaluating and the shell
+ * hydrating, but dynamic()'s loader never firing. React.lazy behind a
+ * mounted gate resolves reliably and preserves the exact ssr:false
+ * semantics: nothing on the server, load-on-mount on the client.
+ */
+export function clientOnly<P extends object>(
+  // The union absorbs TS's ComponentType<never> branch that `import()`
+  // namespace re-exports infer under moduleResolution: bundler.
+  load: () => Promise<{ default: React.ComponentType<P> } | { default: React.ComponentType<never> }>,
+  Fallback?: React.ComponentType,
+): React.ComponentType<P> {
+  const LazyInner = lazy(load as () => Promise<{ default: React.ComponentType<P> }>);
+  return function ClientOnly(props: P) {
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+    if (!mounted) return Fallback ? <Fallback /> : null;
+    return (
+      <Suspense fallback={Fallback ? <Fallback /> : null}>
+        <LazyInner {...props} />
+      </Suspense>
+    );
+  };
+}
 
 // ─── Messages shell skeleton ──────────────────────────────────────────────────
 // Shown while the dynamic MessagesShell bundle is being fetched/hydrated.
@@ -78,10 +108,7 @@ function MessagesShellSkeleton() {
   );
 }
 
-export const TalentSurface = dynamic(() => import("../talent").then((m) => ({ default: m.TalentSurface })), { ssr: false });
-export const ClientSurface = dynamic(() => import("../client").then((m) => ({ default: m.ClientSurface })), { ssr: false });
-export const PlatformSurface = dynamic(() => import("../platform").then((m) => ({ default: m.PlatformSurface })), { ssr: false });
-export const MessagesShell = dynamic(
-  () => import("../messages").then(m => m.MessagesShell),
-  { ssr: false, loading: MessagesShellSkeleton },
-);
+export { TalentSurface } from "../talent";
+export { ClientSurface } from "../client";
+export { PlatformSurface } from "../platform";
+export { MessagesShell } from "../messages";

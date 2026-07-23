@@ -24,6 +24,11 @@
       "count": 1
     }
   },
+  "src/app/(workspace)/[tenantSlug]/_data-bridge/talent.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": {
     "max-lines": {
       "count": 1
@@ -130,6 +135,11 @@
     }
   },
   "src/components/admin/shell/internal/dashboard-i18n.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/components/admin/shell/internal/data-bridge.ts": {
     "max-lines": {
       "count": 1
     }
@@ -726,7 +736,7 @@
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceShell.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 2
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/page-modules/WorkspaceTopbar.tsx": {
@@ -1016,7 +1026,7 @@
   },
   "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 61
+      "count": 39
     }
   },
   "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx": {
@@ -1044,17 +1054,12 @@
   },
   "src/components/admin/shell/internal/talent-drawers/today.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 9
-    }
-  },
-  "src/components/admin/shell/internal/talent.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 11
+      "count": 8
     }
   },
   "src/components/admin/shell/internal/talent/pages/CalendarPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 32
+      "count": 31
     }
   },
   "src/components/admin/shell/internal/talent/pages/MyProfilePage.tsx": {
@@ -1753,7 +1758,7 @@
   },
   "src/lib/server-actions/user-prefs.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 8
+      "count": 9
     }
   },
   "src/lib/server-actions/voice-notes.ts": {

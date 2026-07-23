@@ -4322,6 +4322,26 @@ export function getTeam(plan: Plan): TeamMember[] {
   return plan === "free" ? TEAM_FREE : TEAM_AGENCY;
 }
 
+// Default admin accent — deep forest. Used as the literal fallback inside the
+// `--tulala-accent` custom property, and as the raw hex seed anywhere a real
+// hex value is required (e.g. an <input type="color">, which can't take a var()).
+export const ACCENT_FALLBACK = "#0F4F3E";
+export const ACCENT_DEEP_FALLBACK = "#093328";
+
+/**
+ * Accent tint at a given alpha, whitelabel-aware.
+ *
+ * Sites that used to write `COLORS.accent + "44"` (append an 8-bit alpha hex)
+ * can't do that once `COLORS.accent` is a `var()` — string concatenation would
+ * produce `var(--tulala-accent, #0F4F3E)44`, which is invalid CSS. This returns
+ * a `color-mix()` at the equivalent opacity so the tint still tracks the
+ * tenant's accent. Pass the same 2-digit alpha hex the old code appended.
+ */
+export function accentAlpha(alphaHex: string): string {
+  const pct = Math.round((parseInt(alphaHex, 16) / 255) * 100);
+  return `color-mix(in srgb, var(--tulala-accent, ${ACCENT_FALLBACK}) ${pct}%, transparent)`;
+}
+
 // Visual tokens used by both _primitives and _pages and _drawers
 export const COLORS = {
   // Surfaces
@@ -4345,9 +4365,15 @@ export const COLORS = {
   // "trusted / verified ascendant," not bling), and any "premium / trusted"
   // accent moment. See feedback_admin_aesthetics.md — gold/rust accents were
   // explicitly flagged as a recurring problem.
-  accent: "#0F4F3E",
-  accentDeep: "#093328",
-  accentSoft: "rgba(15,79,62,0.10)",
+  //
+  // Whitelabel: these resolve through `--tulala-accent`, a custom property the
+  // shell root sets only for whitelabel-tier tenants (see admin-shell-client
+  // + _layout-identity.ts). Everywhere else the forest-green fallback wins, so
+  // the default chrome is unchanged. Sites that append an alpha hex to the
+  // accent must use `accentAlpha()` below — a `var()` can't be string-concatenated.
+  accent: `var(--tulala-accent, ${ACCENT_FALLBACK})`,
+  accentDeep: `var(--tulala-accent-deep, ${ACCENT_DEEP_FALLBACK})`,
+  accentSoft: `color-mix(in srgb, var(--tulala-accent, ${ACCENT_FALLBACK}) 10%, transparent)`,
 
   // Status
   green: "#2E7D5B",

@@ -34,6 +34,7 @@ import { actionLoadUserWorkspaces, type UserWorkspace } from "@/lib/server-actio
 import { updateWorkspaceAccount } from "@/lib/server-actions/admin-workspace-settings";
 import {
   COLORS,
+  accentAlpha,
   FONTS,
   RADIUS,
   RICH_INQUIRIES,
@@ -1036,17 +1037,20 @@ export function TenantSwitcherDrawer() {
           const tenants = realWorkspaces
             .filter(w => w.role === roleGroup.toLowerCase())
             .map(w => {
-              // The platform network-hub's public face is the marketing apex
-              // (tulala.digital) — not a `<slug>.tulala.digital` subdomain
-              // (which is never provisioned and 404s). The apex doesn't serve
-              // /admin, so its workspace admin lives on the app host.
+              // Workspace admin ALWAYS lives on the app host
+              // (app.tulala.digital/<slug>/admin), never on the tenant's
+              // public/custom domain. Routing admin through w.domain broke the
+              // switcher whenever that domain was stale or unreachable — e.g. a
+              // tenant whose first-listed subdomain is a dead legacy host
+              // (impronta.studiobooking.io) sent the user to a NXDOMAIN
+              // "site can't be reached". The app host resolves the tenant from
+              // the path and is the same host the current workspace admin uses.
               const isPlatformHub = w.kind === "hub" && w.tier === "network";
+              // `domain` is display-only now: the tenant's public face.
               const domain = isPlatformHub
                 ? "tulala.digital"
                 : (w.domain ?? `${w.slug}.tulala.digital`);
-              const adminUrl = isPlatformHub
-                ? `https://app.tulala.digital/${w.slug}/admin`
-                : `https://${domain}/admin`;
+              const adminUrl = `https://app.tulala.digital/${w.slug}/admin`;
               return {
                 id: w.id,
                 slug: w.slug,
@@ -4473,7 +4477,7 @@ export function TalentFirstRunBanner() {
           <div key={s.step} style={{
             height: 5, borderRadius: 999,
             flex: s.step === currentStep ? 3 : 1,
-            background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? COLORS.accent + "88" : COLORS.border,
+            background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? accentAlpha("88") : COLORS.border,
             transition: "all .25s",
           }} />
         ))}
@@ -4592,7 +4596,7 @@ export function ClientFirstRunBanner() {
             style={{
               height: 5, borderRadius: 999,
               flex: s.step === currentStep ? 3 : 1,
-              background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? COLORS.accent + "88" : COLORS.border,
+              background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? accentAlpha("88") : COLORS.border,
               transition: "all .25s",
             }}
           />
@@ -4692,7 +4696,7 @@ export function DemoDataBanner({ isEstablishedTenant = false }: DemoDataBannerPr
   if (dismissed) return null;
 
   return (
-    <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? COLORS.accent + "0D" : COLORS.surfaceAlt, border:         `1px solid ${enabled ? COLORS.accent + "44" : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
+    <div style={{ display:        "flex", alignItems:     "center", gap:            12, padding:        "10px 14px", background:     enabled ? accentAlpha("0D") : COLORS.surfaceAlt, border:         `1px solid ${enabled ? accentAlpha("44") : COLORS.border}`, fontFamily:     FONTS.body, marginBottom:   16 }} className="rounded-admin-lg">
       <span className="text-lg">🧪</span>
       <div className="flex-1">
         <div className="text-admin-ink text-admin-13 font-semibold">

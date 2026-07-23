@@ -67,6 +67,7 @@ const PLATFORM_TENANT_IDENTITY: TenantIdentityPayload = {
   planTier: "free",
   kind: "app",
   logoUrl: null,
+  accentColor: null,
   verifiedDomain: null,
   defaultCoordinatorUserId: null,
   inquiryCoordinatorTalentIds: [],
@@ -209,7 +210,14 @@ export default async function PlatformTalentLayout({
         // agency is on a whitelabel plan tier; otherwise the surface stays
         // Tulala-canonical.
         tenantIdentity: tenantIdentity
-          ? { ...tenantIdentity, talentExclusive: activeAgency?.isPrimary ?? false }
+          ? {
+              ...tenantIdentity,
+              talentExclusive: activeAgency?.isPrimary ?? false,
+              // Whitelabel accent on the talent dashboard requires EXCLUSIVE
+              // representation, mirroring the whitelabel logo/brand rule. A
+              // talent on multiple rosters keeps Tulala's chrome.
+              accentColor: activeAgency?.isPrimary ? tenantIdentity.accentColor : null,
+            }
           : PLATFORM_TENANT_IDENTITY,
         sessionIdentity,
         talentSelfProfile,
@@ -222,6 +230,10 @@ export default async function PlatformTalentLayout({
         workspaceUnread: workspaceUnread ?? 0,
         preferredSurface: userPrefs?.preferredSurface ?? null,
         firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
+        // Read from the RAW prefs, not the hybrid-gated `userPrefs`: the
+        // Day-1 checklist is a talent-only surface, so gating it on hybrid
+        // would make the dismissal never stick for pure talents.
+        talentChecklistDismissed: userPrefsRaw?.talentChecklistDismissed ?? false,
         talentCalendarEntries,
         talentEarnings: displayEarnings,
         profileEditorLayout,

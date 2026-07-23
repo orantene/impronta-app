@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   BioTone,
   COLORS,
+  ACCENT_FALLBACK,
   DEFAULT_WATERMARK_PRESET,
   DrawerShell,
   FONTS,
@@ -281,7 +282,9 @@ export function BrandingDrawer() {
   const [tagline, setTagline]         = useState("");
   const [description, setDescription] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#0B0B0D");
-  const [accentColor, setAccentColor]   = useState(COLORS.accent);
+  // Seed from the raw hex, never COLORS.accent — that's now a var() and an
+  // <input type="color"> would render black and drop the value on save.
+  const [accentColor, setAccentColor]   = useState(ACCENT_FALLBACK);
 
   const logoFileRef = useRef<HTMLInputElement | null>(null);
   const [logoPreview, setLogoPreview]   = useState<string | null>(null);

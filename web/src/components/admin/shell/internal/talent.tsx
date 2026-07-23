@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useDashboardText } from "./dashboard-i18n";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
-import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGES, TALENT_PAGE_META, TALENT_TIER_META, TRANSITION, useAdminShell } from "./state";
+import { COLORS, FONTS, MY_TALENT_PROFILE, TALENT_PAGE_META, TALENT_TIER_META, useAdminShell, type TalentPage } from "./state";
 import { CalendarPage } from "./talent/pages/CalendarPage";
 import { MyProfilePage } from "./talent/pages/MyProfilePage";
 import { PublicPageEditor } from "./talent/pages/PublicPageEditor";
@@ -33,231 +33,210 @@ export type { ConvOutcome, ConvSource, Conversation, Participant } from "./talen
 // ════════════════════════════════════════════════════════════════════
 
 export function TalentSurface() {
-  const copy = useDashboardText();
   return (
-    <div style={{ minHeight: "calc(100vh - 50px - 56px)" }} className="bg-admin-surface">
-      {/* WS-12.10 — skip link before topbar nav so keyboard users can
-          bypass the talent page navigation */}
-      <a href="#tulala-talent-content" className="skip-to-main">
-        {copy.t("Skip to page content")}
-      </a>
-      <TalentTopbar />
+    <div
+      data-tulala-workspace-grid
+      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-admin-surface"
+    >
+      <TalentSidebar />
       <main
         id="tulala-talent-content"
         tabIndex={-1}
         data-tulala-surface-main
-        style={{
-          // 96px bottom clearance so the last row of content (right-aligned
-          // buttons especially) scrolls clear of the floating quick-actions
-          // FAB instead of parking underneath it.
-          padding: "28px 28px 96px",
-          maxWidth: 1240,
-          margin: "0 auto",
-          outline: "none",
-        }}
+        className="mx-auto w-full max-w-[1240px] px-[28px] pb-[96px] pt-[28px] outline-none"
       >
         <TalentRouter />
       </main>
-      {/* Legacy TalentMessagesFab is superseded by the unified
-          BottomActionFab which now also handles the talent surface
-          (with talent-specific quick-actions: Block dates / Edit
-          profile / Add polaroids / Open messages).
-          Kept dormant for one release in case we need to revert. */}
-      {/* <TalentMessagesFab /> */}
     </div>
   );
 }
 
 
-// ─── Topbar (lighter than workspace admin) ─────────────────────────
+// ─── Sidebar (W11) ─────────────────────────────────────────────────
+// The workspace's grouped left rail, ported to the talent surface so
+// hybrid users get ONE navigation identity across both dashboards.
+// Replaces the horizontal TalentTopbar tab strip. Mobile reuses the
+// shell's existing responsive CSS: [data-tulala-workspace-grid]
+// collapses to one column and [data-tulala-app-sidebar] hides, with
+// MobileBottomNav (which already handles surface="talent") taking over.
 
-function TalentTopbar() {
+const TALENT_SIDEBAR_GROUPS: Array<{ label: string | null; pages: TalentPage[] }> = [
+  { label: null, pages: ["today"] },
+  { label: "Work", pages: ["messages", "calendar", "money"] },
+  { label: "Presence", pages: ["profile", "public-page", "services", "reviews"] },
+];
+
+const TALENT_SIDEBAR_ICON: Record<string, Parameters<typeof Icon>[0]["name"]> = {
+  today: "home",
+  messages: "mail",
+  calendar: "calendar",
+  money: "credit",
+  profile: "user",
+  "public-page": "globe",
+  services: "briefcase",
+  reviews: "star",
+  settings: "settings",
+};
+
+function TalentSidebarNavButton({
+  page,
+  active,
+  badge,
+  badgeTitle,
+  onSelect,
+  label,
+}: {
+  page: TalentPage;
+  active: boolean;
+  badge?: number;
+  badgeTitle?: string;
+  onSelect: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-current={active ? "page" : undefined}
+      className={`flex w-full cursor-pointer items-center gap-[10px] rounded-[8px] border px-[10px] py-[8px] text-left font-admin-body text-[13px] tracking-[0.05px] [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro),box-shadow_var(--transition-admin-micro)] ${
+        active
+          ? "border-admin-border-soft bg-white font-semibold text-admin-ink shadow-admin-rest"
+          : "border-transparent bg-transparent font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink"
+      }`}
+    >
+      <Icon
+        name={TALENT_SIDEBAR_ICON[page] ?? "circle"}
+        size={15}
+        stroke={1.6}
+        color="currentColor"
+      />
+      <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+        {label}
+      </span>
+      {badge != null && badge > 0 && (
+        <span
+          title={badgeTitle}
+          aria-label={badgeTitle ?? `${badge}`}
+          className="inline-flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-admin-brand px-[5px] text-[10px] font-bold leading-none text-white"
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function TalentSidebar() {
   const copy = useDashboardText();
-  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, setTalentPage, openDrawer, bridgeTalentSelfProfile, bridgeTalentUnread } = useAdminShell();
+  // WS-12.6 — roving tabindex on the rail: arrow keys move between pages.
+  const railNavRef = useRef<HTMLElement | null>(null);
+  useRovingTabindex(railNavRef, "button");
+
   // Prefer bridge data so a freshly-provisioned talent sees their own
-  // public URL in the topbar, not Marta's. The bridge supplies a
-  // `profileCode` which we resolve against the canonical /t/<code> path;
-  // fall back to MY_TALENT_PROFILE only in standalone prototype mode.
+  // public URL, not the demo talent's.
   const previewUrl = bridgeTalentSelfProfile?.profileCode
     ? `tulala.digital/t/${bridgeTalentSelfProfile.profileCode}`
     : (bridgeTalentSelfProfile ? null : MY_TALENT_PROFILE.publicUrl);
-  // WS-12.6 — roving tabindex on talent topbar page nav
-  const talentNavRef = useRef<HTMLElement | null>(null);
-  useRovingTabindex(talentNavRef, "button", { orientation: "horizontal" });
 
-  // Current talent plan tier for the "Plan" nav badge — read from shared
-  // shell state so the badge reflects live plan switches.
   const tier = state.talentTier;
   const tierLabel = TALENT_TIER_META[tier].label;
-  const planBadge =
+  const tierChipClass =
     tier === "max"
-      ? { bg: COLORS.fill, fg: "#fff", border: COLORS.fill }
+      ? "bg-admin-ink text-white border border-admin-ink"
       : tier === "pro"
-        ? { bg: COLORS.accentSoft, fg: COLORS.accent, border: "rgba(15,79,62,0.28)" }
-        : { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted, border: "rgba(11,11,13,0.10)" };
+        ? "bg-[rgba(15,79,62,0.10)] text-admin-accent border border-[rgba(15,79,62,0.28)]"
+        : "bg-[rgba(11,11,13,0.05)] text-admin-ink-muted border border-[rgba(11,11,13,0.10)]";
+
+  const unread = bridgeTalentUnread ?? 0;
+
+  const renderItem = (p: TalentPage) => {
+    const active =
+      state.talentPage === p ||
+      (p === "messages" && state.talentPage === "inbox") ||
+      (p === "money" && ["payouts", "agencies", "activity", "reach"].includes(state.talentPage));
+    const badge = p === "messages" ? unread : 0;
+    const badgeTitle =
+      p === "messages"
+        ? copy.isSpanish
+          ? `${unread} sin leer`
+          : `${unread} unread`
+        : undefined;
+    return (
+      <TalentSidebarNavButton
+        key={p}
+        page={p}
+        active={active}
+        badge={badge}
+        badgeTitle={badgeTitle}
+        onSelect={() => setTalentPage(p)}
+        label={copy.t(TALENT_PAGE_META[p].label)}
+      />
+    );
+  };
 
   return (
-    <header
-      data-tulala-app-topbar
-      style={{
-        background: "#fff",
-        borderBottom: `1px solid ${COLORS.borderSoft}`,
-        padding: "0 28px",
-        position: "sticky",
-        top: "calc(var(--proto-cbar, 50px) + 56px)",
-        zIndex: 40,
-      }}
+    <aside
+      data-tulala-app-sidebar
+      className="sticky top-[calc(var(--proto-cbar,50px)+56px)] flex h-[calc(100vh-var(--proto-cbar,50px)-56px)] flex-col gap-[12px] self-start overflow-y-auto border-r border-admin-border-soft bg-admin-surface-alt px-[10px] pb-[12px] pt-[14px] font-admin-body"
     >
-      <div
-        data-tulala-app-topbar-row
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          height: 52,
-        }}
-      >
-        {/* Page nav — the only thing the talent topbar owns now.
-            User identity (Marta), agency-acting-as chip, mode toggle,
-            bell + notifications all moved to the persistent identity
-            bar above. */}
-        <nav ref={talentNavRef} data-tulala-app-topbar-nav aria-label={copy.t("Talent sections")} style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
-          {TALENT_PAGES.map((p) => {
-            const active = state.talentPage === p;
-            return (
-              <button
-                key={p}
-                onClick={() => setTalentPage(p)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "8px 12px",
-                  fontFamily: FONTS.body,
-                  fontSize: 13,
-                  fontWeight: active ? 600 : 500,
-                  color: active ? COLORS.ink : COLORS.inkMuted,
-                  letterSpacing: 0.1,
-                  borderRadius: 7,
-                  position: "relative",
-                  transition: `color ${TRANSITION.micro}, background ${TRANSITION.micro}`,
-                }}
-                onMouseEnter={(e) => {
-                  if (!active) e.currentTarget.style.color = COLORS.ink;
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) e.currentTarget.style.color = COLORS.inkMuted;
-                }}
-              >
-                {copy.t(TALENT_PAGE_META[p].label)}
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    bottom: -14,
-                    left: 8,
-                    right: 8,
-                    height: 3,
-                    background: COLORS.fill,
-                    borderRadius: 2,
-                    opacity: active ? 1 : 0,
-                    transform: active ? "scaleX(1)" : "scaleX(0.4)",
-                    transformOrigin: "center",
-                    transition: `opacity ${TRANSITION.md}, transform ${TRANSITION.drawer}`,
-                    pointerEvents: "none",
-                  }}
-                />
-              </button>
-            );
-          })}
-        </nav>
+      {/* Keyboard users can bypass the rail nav entirely. */}
+      <a href="#tulala-talent-content" className="skip-to-main">
+        {copy.t("Skip to page content")}
+      </a>
 
-        {/* Plan — opens the talent tier-compare drawer. The badge shows
-            the current tier (Free / Pro / Max). Stays visible at every
-            breakpoint — it's a primary affordance, not secondary. */}
+      <nav ref={railNavRef} aria-label={copy.t("Talent sections")} className="flex flex-col gap-[2px]">
+        {TALENT_SIDEBAR_GROUPS.map((group, gi) => (
+          <div key={group.label ?? `group-${gi}`} className="flex flex-col gap-[2px]">
+            {group.label && (
+              <div
+                aria-hidden
+                className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+              >
+                {copy.t(group.label)}
+              </div>
+            )}
+            {group.pages.map(renderItem)}
+          </div>
+        ))}
+      </nav>
+
+      <div className="flex-1" />
+
+      {/* Rail footer — what the old topbar carried: the Plan badge (opens
+          the tier-compare drawer), the public-profile preview link, and
+          Settings pinned Shopify-style. */}
+      <div className="flex flex-col gap-[6px] border-t border-admin-border pt-[6px]">
         <button
           type="button"
           onClick={() => openDrawer("talent-tier-compare")}
           data-tulala-talent-plan-nav
           aria-label={`${copy.t("Plan")}, ${copy.t("currently")} ${tierLabel}. ${copy.t("Open plan comparison.")}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            flexShrink: 0,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            padding: "8px 12px",
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            fontWeight: 500,
-            color: COLORS.inkMuted,
-            letterSpacing: 0.1,
-            borderRadius: 7,
-            transition: `color ${TRANSITION.micro}`,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
+          className="flex w-full cursor-pointer items-center justify-between gap-[8px] rounded-[8px] border border-transparent bg-transparent px-[10px] py-[8px] text-left font-admin-body text-[13px] font-medium text-admin-ink-muted hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
         >
-          {copy.t("Plan")}
+          <span>{copy.t("Plan")}</span>
           <span
             aria-hidden
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 9.5,
-              fontWeight: 700,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              padding: "2px 6px",
-              borderRadius: 999,
-              background: planBadge.bg,
-              color: planBadge.fg,
-              border: `1px solid ${planBadge.border}`,
-            }}
+            className={`rounded-full px-[6px] py-[2px] text-[9.5px] font-bold uppercase tracking-[0.4px] ${tierChipClass}`}
           >
             {tierLabel}
           </span>
         </button>
-
-        {/* Preview public profile — secondary link on desktop only.
-            Hidden on mobile because the topbar gets cramped and this
-            isn't a primary action; talent can still preview from
-            Profile / Public page. Was a chunky pill on a colored bg —
-            now it's an unstyled link, calmer alongside the page nav. */}
         {previewUrl && (
           <a
             data-tulala-talent-preview-link
             href={`https://${previewUrl}`}
             target="_blank"
             rel="noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              fontWeight: 500,
-              color: COLORS.inkMuted,
-              textDecoration: "none",
-              padding: "6px 4px",
-              flexShrink: 0,
-              transition: `color ${TRANSITION.micro}`,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
+            className="flex w-full items-center gap-[8px] rounded-[8px] px-[10px] py-[8px] font-admin-body text-[12.5px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
           >
-            <Icon name="external" size={11} stroke={1.7} />
+            <Icon name="external" size={12} stroke={1.7} color="currentColor" />
             {copy.t("Preview profile")}
           </a>
         )}
-        <style>{`
-          @media (max-width: 720px) {
-            [data-tulala-talent-preview-link] { display: none !important; }
-          }
-        `}</style>
+        {renderItem("settings")}
       </div>
-    </header>
+    </aside>
   );
 }
 
@@ -266,6 +245,18 @@ function TalentTopbar() {
 
 function TalentRouter() {
   const { state } = useAdminShell();
+  // W12 — the entry fade must NOT run on the very first paint: the browser
+  // holds a CSS animation's timeline at frame 0 (from{opacity:0}) until the
+  // JS bundle finishes loading, so animating the initial page left the WHOLE
+  // dashboard invisible for the full hydration window (measured: opacity 0,
+  // animation "running", 8s after navigation). The animation only attaches
+  // once the user has actually SWITCHED pages — a fresh keyed remount plays
+  // it; the SSR'd first page never carries it, so first paint is instant.
+  const [initialPage] = useState(state.talentPage);
+  const navigatedAway = state.talentPage !== initialPage;
+  const [everNavigated, setEverNavigated] = useState(false);
+  useEffect(() => { if (navigatedAway) setEverNavigated(true); }, [navigatedAway]);
+  const animate = everNavigated || navigatedAway;
   let page: ReactNode = null;
   switch (state.talentPage) {
     case "today":
@@ -326,7 +317,7 @@ function TalentRouter() {
     page = <TalentRouterFallback talentPage={state.talentPage} />;
   }
   return (
-    <div key={state.talentPage} data-tulala-talent-page-anim style={{ animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" }}>
+    <div key={state.talentPage} data-tulala-talent-page-anim style={animate ? { animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" } : undefined}>
       <style>{`@keyframes tulala-page-fade { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
       {page}
     </div>

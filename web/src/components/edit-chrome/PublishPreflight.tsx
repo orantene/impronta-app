@@ -8,7 +8,7 @@
  * issues are surfaced back to the Publish drawer so it can block publish.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   runPublishPreflight,
@@ -71,6 +71,15 @@ export function PublishPreflight({
   onFocusSection,
 }: Props) {
   const { reportMutationError } = useEditContext();
+  // Held in a ref and kept OUT of the checks effect's dep list. When it was a
+  // dep, any change to its identity re-ran the effect; the previous run's
+  // `cancelled` guard then returned WITHOUT emitting `loading:false`, so the
+  // parent's optimistic `preflightLoading = true` never cleared and Publish sat
+  // on "Running publish checks…" forever. See the watchdog in publish-drawer.
+  const reportMutationErrorRef = useRef(reportMutationError);
+  useEffect(() => {
+    reportMutationErrorRef.current = reportMutationError;
+  }, [reportMutationError]);
   const [issues, setIssues] = useState<ReadonlyArray<PreflightIssue> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +130,7 @@ export function PublishPreflight({
         onStatusChange?.({ loading: false, blockingErrors, mobileOverflowErrors });
       } else {
         setError(result.error ?? "Publish checks could not load.");
-        reportMutationError(
+        reportMutationErrorRef.current(
           result.error ?? "Publish checks could not load. Try again.",
         );
         onStatusChange?.({ loading: false, blockingErrors: 0, mobileOverflowErrors: 0 });
@@ -130,7 +139,7 @@ export function PublishPreflight({
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshKey, retryNonce, locale, pageId, onStatusChange, reportMutationError]);
+  }, [enabled, refreshKey, retryNonce, locale, pageId, onStatusChange]);
 
   // Tick the elapsed counter once a second while loading.
   useEffect(() => {

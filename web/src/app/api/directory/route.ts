@@ -20,7 +20,7 @@ import {
   getPublicHostContext,
   getTenantPortalScopeBySlug,
 } from "@/lib/saas/scope";
-import { resolvePathBasedTenantPublicPath } from "@/lib/saas/surface-allow-list";
+import { resolveAnyTenantPublicPath } from "@/lib/saas/surface-allow-list";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -36,7 +36,7 @@ async function resolvePathTenantIdFromReferer(
   if (!referer) return null;
   try {
     const url = new URL(referer);
-    const resolved = resolvePathBasedTenantPublicPath(url.pathname);
+    const resolved = resolveAnyTenantPublicPath(url.pathname);
     if (!resolved) return null;
     const scope = await getTenantPortalScopeBySlug(resolved.tenantSlug);
     return scope?.tenantId ?? null;

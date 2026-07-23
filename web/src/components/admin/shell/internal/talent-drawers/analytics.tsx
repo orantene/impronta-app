@@ -14,10 +14,30 @@ import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, RADIUS, useAdminShell } from "../state";
 import {
   DrawerShell,
+  EmptyState,
   Icon,
   PrimaryButton,
   SecondaryButton,
 } from "../primitives";
+import { useDashboardText } from "../dashboard-i18n";
+
+/**
+ * Analytics drawers below run on DEMO fixtures (CAREER_STATS / AGENCY_STATS).
+ * For a REAL bridged talent those numbers would be fabricated (Versace,
+ * €2,150/day, "Acme Models"), so the drawers now render an honest
+ * not-yet-available state instead. The fixture path is kept for the
+ * standalone prototype/demo session.
+ */
+function AnalyticsNotAvailableYet({ body }: { body: string }) {
+  const copy = useDashboardText();
+  return (
+    <EmptyState
+      icon="sparkle"
+      title={copy.t("Analytics are on the way")}
+      body={body}
+    />
+  );
+}
 
 // Review dimensions carry a stable enum key; labels/hints resolve through the
 // catalog (additive i18n pattern, English fixture kept for non-localized use).
@@ -65,10 +85,26 @@ const CAREER_STATS = {
 };
 
 export function TalentCareerAnalyticsDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const t = useT();
+  const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-career-analytics";
   const s = CAREER_STATS;
+  // Real talent → honest empty state (the fixture below is demo-only data).
+  if (bridgeTalentSelfProfile) {
+    return (
+      <DrawerShell
+        open={open}
+        onClose={closeDrawer}
+        title={t("dashboard.talentDrawers.analytics.careerAnalyticsTitle")}
+        description={t("dashboard.talentDrawers.analytics.careerAnalyticsDesc")}
+      >
+        <AnalyticsNotAvailableYet
+          body={copy.t("Your career stats appear here once you have completed bookings. Your earnings and pipeline are live on the Money page today.")}
+        />
+      </DrawerShell>
+    );
+  }
   const inquiryDelta = s.inquiriesQ - s.inquiriesQPrev;
   const deltaTxt = inquiryDelta > 0 ? `+${inquiryDelta}` : `${inquiryDelta}`;
   const deltaColor = inquiryDelta >= 0 ? COLORS.successDeep : "#9B2C2C";
@@ -335,9 +371,25 @@ const AGENCY_STATS = [
 ];
 
 export function TalentAgencyAnalyticsDrawer() {
-  const { state, closeDrawer, openDrawer } = useAdminShell();
+  const { state, closeDrawer, openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const t = useT();
+  const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-agency-analytics";
+  // Real talent → honest empty state; per-agency earnings already live on Money.
+  if (bridgeTalentSelfProfile) {
+    return (
+      <DrawerShell
+        open={open}
+        onClose={closeDrawer}
+        title={t("dashboard.talentDrawers.analytics.agencyAnalyticsTitle")}
+        description={t("dashboard.talentDrawers.analytics.agencyAnalyticsDesc")}
+      >
+        <AnalyticsNotAvailableYet
+          body={copy.t("Per-agency performance appears here as your bookings build up. Your earnings and commission per agency are live on the Money page today.")}
+        />
+      </DrawerShell>
+    );
+  }
   const totalRevenue = AGENCY_STATS.reduce((s, a) => s + a.revenue, 0);
   const totalBookings = AGENCY_STATS.reduce((s, a) => s + a.bookings, 0);
 

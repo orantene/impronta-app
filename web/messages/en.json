@@ -2282,6 +2282,7 @@
         "offerBriefIntro": "The agency briefed this as:",
         "offerBriefOutro": "Tap accept to confirm, your agency will turn this into a confirmed booking with full call sheet and contract once the client locks in. You can also hold open if you want more time.",
         "openInMessages": "Open in Messages to respond",
+        "openInMessagesCta": "Open in Messages",
         "decline": "Decline",
         "accept": "Accept",
         "labelStatus": "Status",

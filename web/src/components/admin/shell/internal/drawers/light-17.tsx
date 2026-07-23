@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useC
 import { useRouter } from "next/navigation";
 import {
   COLORS,
+  accentAlpha,
   CapsLabel,
   DrawerShell,
   EmptyState,
@@ -179,7 +180,7 @@ export function GdprExportDrawer() {
                   display: "flex", alignItems: "center", gap: 12,
                   padding: "12px 14px", width: "100%", textAlign: "left",
                   background: dt.selected ? COLORS.accentSoft : COLORS.surfaceAlt,
-                  border: `1px solid ${dt.selected ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                  border: `1px solid ${dt.selected ? accentAlpha("44") : COLORS.borderSoft}`,
                   borderRadius: RADIUS.md, cursor: "pointer",
                   fontFamily: FONTS.body, transition: TRANSITION.sm,
                 }}

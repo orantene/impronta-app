@@ -2795,6 +2795,29 @@ const ES_TEXT: Record<string, string> = {
   "A client": "Un cliente",
   "See all": "Ver las",
   "Rate your clients": "Califica a tus clientes",
+  // ── W8: services nudge + premium-pages read-only notice ──
+  "Add your first service": "Agrega tu primer servicio",
+  "Put your menu on your page: clients can ask about a service or book it directly. It takes about a minute per service.": "Pon tu menú en tu página: los clientes pueden preguntar por un servicio o reservarlo directamente. Toma alrededor de un minuto por servicio.",
+  "Set up services": "Configurar servicios",
+  "Later": "Más tarde",
+  "Read-only preview. Edit your page content from My pages.": "Vista de solo lectura. Edita el contenido de tu página desde Mis páginas.",
+
+  // ── W9: profile field-catalog chip labels (Today setup band) ──
+  "Contact email": "Correo de contacto",
+  "Contact phone": "Teléfono de contacto",
+  "Home base city": "Ciudad base",
+
+  // ── W10: honest empty states for demo-only analytics + availability ──
+  "Analytics are on the way": "Las estadísticas están en camino",
+  "Your career stats appear here once you have completed bookings. Your earnings and pipeline are live on the Money page today.": "Tus estadísticas aparecen aquí cuando tengas reservas completadas. Tus ingresos y tu pipeline ya están disponibles en la página Dinero.",
+  "Per-agency performance appears here as your bookings build up. Your earnings and commission per agency are live on the Money page today.": "El desempeño por agencia aparece aquí conforme sumes reservas. Tus ingresos y comisión por agencia ya están en la página Dinero.",
+  "Agencies can't pitch you for these dates.": "Las agencias no pueden proponerte trabajos en estas fechas.",
+  "Manage in Calendar": "Gestionar en Calendario",
+
+  // ── W11: talent sidebar group labels ──
+  "Work": "Trabajo",
+  "Presence": "Presencia",
+
 };
 
 export function translateDashboardText(

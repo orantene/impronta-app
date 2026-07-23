@@ -410,6 +410,14 @@ function WorkspaceSidebarShell() {
 }
 
 function PageRouter({ page }: { page: WorkspacePage }) {
+  // W12 — same first-paint guard as TalentRouter: animating the initial page
+  // pins the whole surface at opacity 0 until hydration completes. The fade
+  // only attaches once the user has switched pages in-app.
+  const [initialPage] = useState(page);
+  const navigatedAway = page !== initialPage;
+  const [everNavigated, setEverNavigated] = useState(false);
+  useEffect(() => { if (navigatedAway) setEverNavigated(true); }, [navigatedAway]);
+  const animate = everNavigated || navigatedAway;
   // Canonical routes (financials, discover-performance, triage, work/[id], …)
   // are real Next.js server pages. When AdminShellClient detects a canonical
   // path it publishes the route content here so it renders INSIDE the shell's
@@ -488,7 +496,7 @@ function PageRouter({ page }: { page: WorkspacePage }) {
       break;
   }
   return (
-    <div key={page} data-tulala-workspace-page-anim style={{ animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" }}>
+    <div key={page} data-tulala-workspace-page-anim style={animate ? { animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" } : undefined}>
       {body}
     </div>
   );

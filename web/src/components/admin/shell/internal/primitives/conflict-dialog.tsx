@@ -5,7 +5,7 @@
 // Extracted from primitives.tsx — Phase 1f decomposition.
 
 import { useEffect, type CSSProperties, type ReactNode } from "react";
-import { COLORS, FONTS, RADIUS, TRANSITION, Z } from "../state";
+import { COLORS, accentAlpha, FONTS, RADIUS, TRANSITION, Z } from "../state";
 import { EmptyState } from "./cards";
 
 export function ConflictDialog({
@@ -114,7 +114,7 @@ export function ConflictDialog({
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }} className="text-admin-ink-muted">
               {theirAuthor}&rsquo;s version
             </div>
-            <div style={{ ...SIDE, borderColor: COLORS.accent + "55" }}>{theirValue}</div>
+            <div style={{ ...SIDE, borderColor: accentAlpha("55") }}>{theirValue}</div>
             <button
               type="button"
               onClick={() => { onKeepTheirs(); onClose(); }}

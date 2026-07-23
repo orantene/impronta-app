@@ -247,6 +247,12 @@ export type BridgeData = {
    */
   firstRunToggleTipSeen?: boolean;
 
+  /**
+   * W14 — whether the talent dismissed the Day-1 first-session checklist.
+   * Persisted in user_prefs so the dismissal survives reloads.
+   */
+  talentChecklistDismissed?: boolean;
+
   // ── Phase 0 (talent-surface launch readiness) — hybrid signal ──────────────
   /**
    * True when the signed-in user has BOTH a talent profile AND a workspace
@@ -280,6 +286,10 @@ export type BridgeData = {
     /** Optional brand logo URL — replaces the TULALA wordmark in the
      *  identity bar when set. */
     logoUrl?: string | null;
+    /** Whitelabel accent hex — injected as `--tulala-accent` on the shell
+     *  root so the admin chrome adopts the agency's brand color. Only set
+     *  for whitelabel-tier tenants; null/undefined = Tulala's forest green. */
+    accentColor?: string | null;
     /**
      * Task 0.5 — The tenant's verified custom domain hostname, if any.
      * Populated from `agency_domains` where kind='custom' and

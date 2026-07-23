@@ -328,6 +328,11 @@ const WORKSPACE_SLUG_RESERVED_PREFIXES = new Set([
 
 const PATH_BASED_TENANT_RESERVED_PREFIXES = new Set([
   ...WORKSPACE_SLUG_RESERVED_PREFIXES,
+  // Canonical public parent segment for path-based workspaces
+  // (tulala.digital/w/<slug>). Reserved so no tenant can claim the slug "w"
+  // and shadow the parent, and so the legacy flat resolver never reads
+  // "/w/<slug>" as tenant "w".
+  "w",
   "contact",
   "directory",
   "get-started",
@@ -400,7 +405,51 @@ export function isTenantSlugCandidate(segment: string | undefined): segment is s
 export function resolvePathBasedTenantPublicPath(
   pathname: string,
 ): PathBasedTenantPublicPath | null {
+  return resolveTenantPartsToPublicPath(pathname.split("/").filter(Boolean));
+}
+
+/**
+ * Canonical public parent segment for path-based (free-tier) workspaces:
+ *
+ *     tulala.digital/w/<tenantSlug>/...
+ *
+ * Workspaces used to live flat at the apex root (`/<tenantSlug>`), which put
+ * every tenant slug in the same namespace as every marketing route — the
+ * reason PATH_BASED_TENANT_RESERVED_PREFIXES has to exist at all. Moving them
+ * under `/w` frees the root namespace permanently: no workspace can shadow a
+ * marketing page, and new marketing routes can be added without checking for
+ * slug collisions.
+ */
+export const WORKSPACE_PATH_SEGMENT = "w" as const;
+
+/** Canonical form: `/w/<tenantSlug>/...`. Returns null for anything else. */
+export function resolveWorkspacePathTenantPublicPath(
+  pathname: string,
+): PathBasedTenantPublicPath | null {
   const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] !== WORKSPACE_PATH_SEGMENT) return null;
+  return resolveTenantPartsToPublicPath(parts.slice(1));
+}
+
+/**
+ * Accepts BOTH the canonical `/w/<slug>` and the legacy flat `/<slug>` shape.
+ * Use this anywhere that reads a tenant out of an inbound URL and must keep
+ * working while legacy links are still in the wild (API routes, i18n hrefs).
+ * Middleware deliberately does NOT use this: it resolves the canonical form
+ * and 301s the legacy one instead.
+ */
+export function resolveAnyTenantPublicPath(
+  pathname: string,
+): PathBasedTenantPublicPath | null {
+  return (
+    resolveWorkspacePathTenantPublicPath(pathname) ??
+    resolvePathBasedTenantPublicPath(pathname)
+  );
+}
+
+function resolveTenantPartsToPublicPath(
+  parts: string[],
+): PathBasedTenantPublicPath | null {
   const tenantSlug = parts[0];
   if (!isTenantSlugCandidate(tenantSlug)) return null;
 
@@ -456,11 +505,16 @@ const MARKETING_PAGE_PREFIXES = [
   // Two segments on purpose: a single-segment `/models` would collide with
   // the tenant-slug namespace, `/for/*` never can.
   "/for",
+  // Educational resource articles + glossary (`/resources/*`).
+  "/resources",
   // Global Talent Directory — public, platform-wide cross-tenant browse of
   // the discoverable set (talent_discover_index matview). Reads no per-tenant
   // private data, requires no auth. `/directory` is already reserved in
   // PATH_BASED_TENANT_RESERVED_PREFIXES so it never resolves as a tenant slug.
   "/directory",
+  // "Agencia de talento" landing page — Spanish-first demand keyword page
+  // (100-1K/mo, LOW competition in Mexico). Single page, no sub-routes.
+  "/agencia-de-talento",
 ] as const;
 
 function hasPrefix(pathname: string, prefix: string): boolean {
