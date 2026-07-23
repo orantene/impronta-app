@@ -6,7 +6,7 @@ import {
   getPublicHostContext,
   getTenantPortalScopeBySlug,
 } from "@/lib/saas/scope";
-import { resolvePathBasedTenantPublicPath } from "@/lib/saas/surface-allow-list";
+import { resolveAnyTenantPublicPath } from "@/lib/saas/surface-allow-list";
 import { isTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { isTalentIdWithinTenantPublicDisplayCap } from "@/lib/saas/public-profile-cap";
 import {
@@ -30,7 +30,7 @@ async function resolvePathTenantIdFromReferer(
   if (!referer) return null;
   try {
     const url = new URL(referer);
-    const resolved = resolvePathBasedTenantPublicPath(url.pathname);
+    const resolved = resolveAnyTenantPublicPath(url.pathname);
     if (!resolved) return null;
     const scope = await getTenantPortalScopeBySlug(resolved.tenantSlug);
     return scope?.tenantId ?? null;

@@ -1,7 +1,7 @@
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
-import { resolvePathBasedTenantPublicPath } from "@/lib/saas/surface-allow-list";
+import { resolveAnyTenantPublicPath } from "@/lib/saas/surface-allow-list";
 
 const EXTERNAL_OR_SPECIAL_HREF = /^(?:[a-z][a-z0-9+.-]*:|#|\?)/i;
 
@@ -9,7 +9,7 @@ export function publicPathPrefixFromPathname(pathname: string): string {
   const visiblePathname =
     typeof window === "undefined" ? pathname : window.location.pathname;
   const { pathnameWithoutLocale } = stripLocaleFromPathname(visiblePathname);
-  const resolved = resolvePathBasedTenantPublicPath(pathnameWithoutLocale);
+  const resolved = resolveAnyTenantPublicPath(pathnameWithoutLocale);
   return resolved ? `/${resolved.tenantSlug}` : "";
 }
 
