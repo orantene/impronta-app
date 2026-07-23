@@ -2,161 +2,337 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Builder Audit (main, 3030)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/xenodochial-keller-899255/web && PORT=3030 npm run dev:webpack"
+      ],
+      "port": 3030,
+      "autoPort": false
+    },
+    {
+      "name": "Services prod build (3300)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-services/web && PORT=3300 npx next start"
+      ],
+      "port": 3300,
+      "autoPort": false
+    },
+    {
+      "name": "Services QA proxy (3310)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/marathon-proxy.mjs",
+        "3310",
+        "improntamodels.com",
+        "3300"
+      ],
+      "port": 3310,
+      "autoPort": false
+    },
+    {
+      "name": "Marathon Dev (3200)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-marathon/web && PORT=3200 npm run dev:webpack"
+      ],
+      "port": 3200,
+      "autoPort": false
+    },
+    {
+      "name": "Marathon Impronta proxy (3210)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/marathon-proxy.mjs",
+        "3210",
+        "impronta.lvh.me",
+        "3200"
+      ],
+      "port": 3210,
+      "autoPort": false
+    },
+    {
+      "name": "AI Builder Eval (static, 4455)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-ai-builder2/web/public && python3 -m http.server 4455"
+      ],
+      "port": 4455,
+      "autoPort": false
+    },
+    {
+      "name": "Impronta preview proxy (3116)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3116",
+        "impronta.lvh.me"
+      ],
+      "port": 3116,
+      "autoPort": false
+    },
+    {
       "name": "Checkpoint2 QA (3021)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && PORT=3021 npm run dev"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web && PORT=3021 npm run dev"
+      ],
       "port": 3021,
       "autoPort": false
     },
     {
       "name": "Checkpoint1 QA (3020)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-checkpoint1/web && PORT=3020 npm run dev"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-checkpoint1/web && PORT=3020 npm run dev"
+      ],
       "port": 3020,
       "autoPort": false
     },
     {
       "name": "Worktree Dev Server",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && npm run dev -- -p 3002"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web && npm run dev -- -p 3002"
+      ],
       "port": 3002,
       "autoPort": true
     },
     {
       "name": "QA Dev Server (worktree, 3010)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app-qa/web && npx next dev -p 3010"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app-qa/web && npx next dev -p 3010"
+      ],
       "port": 3010,
       "autoPort": false
     },
     {
       "name": "E3 QA Dev Server (3000)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-e3/web && npm run dev -- -p 3000"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-e3/web && npm run dev -- -p 3000"
+      ],
       "port": 3000,
       "autoPort": false
     },
     {
       "name": "Next.js Dev Server",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && npm run dev"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web && npm run dev"
+      ],
       "port": 3000,
       "autoPort": true
     },
     {
       "name": "Prototype Preview (3001)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && npx next dev -p 3001"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web && npx next dev -p 3001"
+      ],
       "port": 3001,
       "autoPort": true
     },
     {
+      "name": "Apex (tulala.digital)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3120",
+        "tulala.digital"
+      ],
+      "port": 3120
+    },
+    {
+      "name": "App (app.tulala.digital)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3121",
+        "app.tulala.digital"
+      ],
+      "port": 3121
+    },
+    {
       "name": "Marketing (marketing.local)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3101", "marketing.local"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3101",
+        "marketing.local"
+      ],
       "port": 3101
     },
     {
       "name": "App (app.local)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3102", "app.local"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3102",
+        "app.local"
+      ],
       "port": 3102
     },
     {
       "name": "Hub (hub.local)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3103", "hub.local"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3103",
+        "hub.local"
+      ],
       "port": 3103
     },
     {
       "name": "Impronta storefront (impronta.local)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3104", "impronta.local"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3104",
+        "impronta.local"
+      ],
       "port": 3104
     },
     {
       "name": "Impronta storefront (impronta.lvh.me)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3114", "impronta.lvh.me"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3114",
+        "impronta.lvh.me"
+      ],
       "port": 3114
     },
     {
       "name": "App (app.lvh.me)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3112", "app.lvh.me"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3112",
+        "app.lvh.me"
+      ],
       "port": 3112
     },
     {
       "name": "Nova storefront (nova.local)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3105", "nova.local"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3105",
+        "nova.local"
+      ],
       "port": 3105
     },
     {
       "name": "Midnight storefront (midnight.local)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3106", "midnight.local"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3106",
+        "midnight.local"
+      ],
       "port": 3106
     },
     {
       "name": "Luma storefront (luma.local)",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3107", "luma.local"],
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs",
+        "3107",
+        "luma.local"
+      ],
       "port": 3107
     },
     {
       "name": "Mockup Preview",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd '/Users/oranpersonal/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/4bc0f6c3-4301-4328-8d55-c9d3317c7f98/75ead64a-1650-45eb-a4fb-eb877a85ec85/skills/web-artifacts-builder/impronta-directory-mockup' && npx pnpm dev --port 5174"],
+      "runtimeArgs": [
+        "-c",
+        "cd '/Users/oranpersonal/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/4bc0f6c3-4301-4328-8d55-c9d3317c7f98/75ead64a-1650-45eb-a4fb-eb877a85ec85/skills/web-artifacts-builder/impronta-directory-mockup' && npx pnpm dev --port 5174"
+      ],
       "port": 5174,
       "autoPort": true
     },
     {
       "name": "Home Mockup",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app && python3 -m http.server 4444"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app && python3 -m http.server 4444"
+      ],
       "port": 4444,
       "autoPort": true
     },
     {
       "name": "Impronta Design Prototype (8899)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/impronta-design-prototype && python3 -m http.server 8899"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/impronta-design-prototype && python3 -m http.server 8899"
+      ],
       "port": 8899,
       "autoPort": true
     },
     {
       "name": "Impronta Home Prototypes (8901)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/prototypes/impronta-home && python3 -m http.server 8901"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web/prototypes/impronta-home && python3 -m http.server 8901"
+      ],
       "port": 8901,
       "autoPort": true
     },
     {
       "name": "Builder Lab (3000, dev)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && NODE_ENV=development PORT=3000 npm run dev"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web && NODE_ENV=development PORT=3000 npm run dev"
+      ],
       "port": 3000,
       "autoPort": false
     },
     {
       "name": "Impronta Models Mockup (4520)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup && python3 -m http.server 4520"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup && python3 -m http.server 4520"
+      ],
       "port": 4520,
       "autoPort": true
     },
     {
       "name": "Impronta Atelier Blanc (4521)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup-2 && python3 -m http.server 4521"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup-2 && python3 -m http.server 4521"
+      ],
       "port": 4521,
       "autoPort": true
     },
     {
       "name": "Impronta Noir & Or (4522)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup-3 && python3 -m http.server 4522"],
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/web/public/impronta-mockup-3 && python3 -m http.server 4522"
+      ],
       "port": 4522,
       "autoPort": true
     }
