@@ -1,5 +1,5 @@
 /**
- * Tulala — The Talent Business Platform.
+ * Tulala — The Commerce Platform for Talent.
  *
  * Single source of truth for the SaaS brand identity (name, domain, tagline,
  * legal entity). Tenant brands (e.g. Impronta) are resolved per-request and
