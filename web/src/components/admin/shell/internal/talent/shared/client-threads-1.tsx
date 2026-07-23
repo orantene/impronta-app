@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
+import { MessagesShell as MessagesShellStatic } from "../../messages";
 import { Avatar, Icon } from "../../primitives";
 import { COLORS, FONTS, TRANSITION, useAdminShell, type ClientTrustLevel } from "../../state";
 import { IconButton } from "@/lib/ui/a11y-icon-button";
@@ -275,7 +275,12 @@ function useIsPhone(breakpoint = 720) {
 // avoid the import cycle with `_messages.tsx` (which itself imports
 // `Conversation`, `ParticipantsStack`, `MOCK_CONVERSATIONS` from this
 // file). See `_messages.tsx` charter for full design decisions.
-export const TalentMessagesShellLazy = dynamic(() => import("../../messages").then(m => m.MessagesShell), { ssr: false });
+// STATIC import (2026-07-23 prod incident) — see pages-dynamic.tsx note.
+// The old dynamic(ssr:false) edge deadlocked the module graph on fresh
+// builds. Sync ESM cycles resolve fine (usage is inside components).
+export function TalentMessagesShellLazy(props: { pov: "talent" | "client" }) {
+  return <MessagesShellStatic {...props} />;
+}
 
 
 /**
