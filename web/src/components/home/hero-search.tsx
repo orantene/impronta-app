@@ -335,14 +335,14 @@ export function HeroSearch({
   const showTypewriter = typewriterActive;
   const submitLabel = interpreting ? copy.interpreting ?? copy.searchSubmit : copy.searchSubmit;
 
-  // Directory surface uses the tenant brand accent (gold on Impronta) for a
-  // refined, editorial CTA instead of the stark white slab; the home hero
-  // keeps its neutral white button. Keyed off `directoryUrlSync` (directory-only).
-  const accentInput = directoryUrlSync
-    ? "focus:border-[var(--dir-accent)] focus:ring-1 focus:ring-[var(--dir-accent-line)]"
-    : "focus:border-[var(--impronta-foreground)] focus:ring-1 focus:ring-[var(--impronta-foreground)]/30";
+  // Directory surface: modern glassy PILL bar + solid gold pill CTA (reads
+  // premium over the lifestyle banner); the home hero keeps its neutral white
+  // slab. Keyed off `directoryUrlSync` (directory-only).
+  const inputShape = directoryUrlSync
+    ? "rounded-full border-white/10 bg-black/45 backdrop-blur-xl shadow-[0_18px_50px_-22px_rgba(0,0,0,0.9)] focus:border-[var(--dir-accent-line)] focus:bg-black/60 focus:ring-2 focus:ring-[var(--dir-accent-soft)]"
+    : "rounded-[var(--site-radius)] border-white/15 bg-[var(--impronta-surface)] focus:border-[var(--impronta-foreground)] focus:ring-1 focus:ring-[var(--impronta-foreground)]/30";
   const submitClass = directoryUrlSync
-    ? "absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)] border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--impronta-gold-bright)] hover:border-[var(--impronta-gold-bright)] hover:bg-[var(--dir-accent-line)]"
+    ? "absolute right-2 top-1/2 -translate-y-1/2 rounded-full border-0 bg-gradient-to-b from-[var(--impronta-gold-bright,#e0be5f)] to-[var(--impronta-gold,#c8a04a)] font-semibold tracking-wide text-black shadow-[0_8px_24px_-8px_rgba(200,160,74,0.65)] transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"
     : "absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)] bg-white text-black hover:bg-white/90";
 
   return (
@@ -352,7 +352,7 @@ export function HeroSearch({
         <input
           ref={inputRef}
           type="text"
-          className={`h-14 w-full rounded-[var(--site-radius)] border border-white/15 bg-[var(--impronta-surface)] pl-12 pr-28 text-base text-foreground placeholder:text-transparent outline-none transition-colors sm:h-16 sm:pr-48 sm:text-lg ${accentInput}`}
+          className={`h-14 w-full border pl-12 pr-28 text-base text-foreground placeholder:text-transparent outline-none transition-all sm:h-16 sm:pr-48 sm:text-lg ${inputShape}`}
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
           disabled={interpreting}
