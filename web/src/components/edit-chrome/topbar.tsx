@@ -62,7 +62,15 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { flushThenNavigate } from "./page-switch-flush";
-import { CHROME, EDIT_TOPBAR_H, PortaledOverlay, SaveChip } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
+import {
+  CHROME,
+  CHROME_RADII,
+  CHROME_SHADOWS,
+  EDIT_TOPBAR_H,
+  PortaledOverlay,
+  SaveChip,
+} from "./kit";
 import { usePagePresence } from "./presence-provider";
 import { RailPresenceStack } from "./chrome-icon-rail";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
@@ -1606,19 +1614,33 @@ function TbTextBtn({
   disabled,
   title,
   type = "button",
+  buttonRef,
+  "aria-expanded": ariaExpanded,
+  "aria-haspopup": ariaHasPopup,
+  "aria-controls": ariaControls,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   title?: string;
   type?: "button" | "submit" | "reset";
+  /** Anchor ref for a portaled menu (see WorkspaceMenu). */
+  buttonRef?: React.RefObject<HTMLButtonElement | null>;
+  /** Set on a button that toggles a menu (see WorkspaceMenu). */
+  "aria-expanded"?: boolean;
+  "aria-haspopup"?: "menu";
+  "aria-controls"?: string;
 }) {
   return (
     <button
+      ref={buttonRef}
       type={type}
       onClick={onClick}
       disabled={disabled}
       title={title}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
+      aria-controls={ariaControls}
       className="inline-flex shrink-0 cursor-pointer items-center gap-[8px] rounded-[10px] border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed disabled:opacity-50"
       style={{
         height: TB_CONTROL_H,
@@ -2270,6 +2292,213 @@ function BreakpointsPopover() {
   );
 }
 
+/**
+ * Workspace quick links shown beside "Exit to live site".
+ *
+ * The editor used to be a dead end: no route back to the dashboard at all, so
+ * an operator had to hand-edit the URL (admin lives at `/{slug}/admin`, NOT
+ * under the `/w/` public prefix). Every entry here is a real route verified to
+ * exist under app/(workspace)/[tenantSlug]/admin/.
+ */
+const WORKSPACE_QUICK_LINKS: ReadonlyArray<{
+  href: string;
+  label: Parameters<ReturnType<typeof useEditorLocale>["t"]>[0];
+  hint: Parameters<ReturnType<typeof useEditorLocale>["t"]>[0];
+}> = [
+  { href: "", label: "Dashboard", hint: "Overview of what needs you" },
+  { href: "/messages", label: "Messages", hint: "Inquiries and replies" },
+  { href: "/roster", label: "Roster", hint: "Your talent" },
+  { href: "/clients", label: "Clients", hint: "People who book you" },
+  { href: "/calendar", label: "Calendar", hint: "Bookings and holds" },
+  { href: "/media", label: "Media", hint: "Photos and files" },
+  { href: "/site", label: "Website", hint: "Pages and site settings" },
+];
+
+/**
+ * `WorkspaceMenu` — the "go somewhere else in the workspace" half of the exit
+ * cluster. Split from the exit button itself so the primary action (leave edit
+ * mode, see the live site) stays a single click and the navigation options do
+ * not bury it.
+ *
+ * Renders nothing when there is no workspace slug (Builder Lab, platform
+ * surfaces): a menu of links that would all 404 is worse than no menu.
+ */
+function WorkspaceMenu({ slug }: { slug: string }) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const { t } = useEditorLocale();
+  // Fixed-position anchor + portal to <body>, same as the page picker and the
+  // publish-split menu: the topbar is overflow-y-hidden AND its backdrop-filter
+  // makes it the containing block for fixed descendants, so an in-tree menu is
+  // clipped to the 60px bar no matter what position it uses. The portal is
+  // load-bearing.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-workspace-menu]")) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open]);
+
+  return (
+    <div data-workspace-menu="" style={{ position: "relative", flexShrink: 0 }}>
+      <TbTextBtn
+        buttonRef={triggerRef}
+        onClick={() =>
+          setOpen((v) => {
+            const next = !v;
+            if (next && triggerRef.current) {
+              const rect = triggerRef.current.getBoundingClientRect();
+              setMenuPos({ top: rect.bottom + 6, left: rect.left });
+            }
+            return next;
+          })
+        }
+        title={t("Go to your workspace dashboard")}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+      >
+        <svg
+          width={TB_ICON_PX}
+          height={TB_ICON_PX}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        </svg>
+        {t("Workspace")}
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+          style={{
+            transform: open ? "rotate(180deg)" : "none",
+            transition: "transform 140ms ease",
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </TbTextBtn>
+      {open && menuPos ? (
+        <PortaledOverlay>
+        <div
+          id={menuId}
+          role="menu"
+          // The portal mounts to <body>, OUTSIDE both markers the editor relies
+          // on, so BOTH must be re-declared here or the links silently do
+          // nothing:
+          //  - data-workspace-menu: the outside-click handler's closest() match
+          //    (else mousedown unmounts the menu before the click lands).
+          //  - data-edit-chrome: canvas-link-interceptor preventDefault()s every
+          //    a[href] click that is not inside editor chrome.
+          data-workspace-menu=""
+          data-edit-chrome=""
+          aria-label={t("Workspace quick links")}
+          style={{
+            position: "fixed",
+            top: menuPos.top,
+            left: menuPos.left,
+            minWidth: 232,
+            padding: 5,
+            borderRadius: CHROME_RADII.lg,
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            boxShadow: CHROME_SHADOWS.panel,
+            zIndex: 120,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+          }}
+        >
+          {WORKSPACE_QUICK_LINKS.map((item) => (
+            <button
+              key={item.href || "dashboard"}
+              type="button"
+              role="menuitem"
+              // A plain <a> does NOT work here: canvas-link-interceptor
+              // preventDefault()s anchor clicks in edit mode. Leaving the
+              // editor is a full document navigation by design — the edit
+              // shell has to tear down, so router.push would be wrong too.
+              onClick={() => {
+                setOpen(false);
+                window.location.assign(`/${slug}/admin${item.href}`);
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "7px 9px",
+                border: "none",
+                background: "transparent",
+                borderRadius: 8,
+                textAlign: "left",
+                cursor: "pointer",
+                color: CHROME.ink,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = CHROME.paper2;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <span
+                style={{ display: "block", fontSize: 12.5, fontWeight: 600 }}
+              >
+                {t(item.label)}
+              </span>
+              <span
+                style={{
+                  display: "block",
+                  marginTop: 1,
+                  fontSize: 10.5,
+                  color: CHROME.muted,
+                }}
+              >
+                {t(item.hint)}
+              </span>
+            </button>
+          ))}
+        </div>
+        </PortaledOverlay>
+      ) : null}
+    </div>
+  );
+}
+
 function ExitButton() {
   const { pending } = useFormStatus();
   return (
@@ -2794,6 +3023,9 @@ export function TopBar({
   labHeaderActions,
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
+  // Workspace slug for the dashboard quick-links menu. Null on Builder Lab and
+  // platform surfaces, where `/{slug}/admin/*` would not resolve.
+  const workspaceSlug = editCtx?.workspaceMembershipSlug ?? null;
 
   // WS5 — seed the in-session content-locale bridge from the page's resolved
   // locale + tenant default on first paint (and whenever they change). The
@@ -2957,7 +3189,10 @@ export function TopBar({
       {headerVariant === "lab" ? (
         <LabExitButton onExit={onExit} exitLabel={exitLabel} />
       ) : (
-        <ExitForm dirty={dirty} saving={saving} />
+        <>
+          <ExitForm dirty={dirty} saving={saving} />
+          {workspaceSlug ? <WorkspaceMenu slug={workspaceSlug} /> : null}
+        </>
       )}
       <TbDivider />
       <PagePicker
