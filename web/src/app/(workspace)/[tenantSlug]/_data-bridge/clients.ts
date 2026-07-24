@@ -286,6 +286,11 @@ export type ClientInquiryRow = {
   last_message_body: string | null;
   /** True when the newest message was sent by this client themselves. */
   last_message_from_me: boolean;
+  /**
+   * CW2 — client-safe talent lineup (max 4, sort_order). Lets Today/Inquiries
+   * rows show WHO the inquiry is about instead of a bare "Booking inquiry".
+   */
+  talentLineup: { id: string; name: string }[];
 };
 
 /**
@@ -337,7 +342,7 @@ export async function loadClientInquiries(
       return [];
     }
 
-    const rows = (data ?? []) as Omit<ClientInquiryRow, "unreadCount" | "last_message_at" | "last_message_body" | "last_message_from_me">[];
+    const rows = (data ?? []) as Omit<ClientInquiryRow, "unreadCount" | "last_message_at" | "last_message_body" | "last_message_from_me" | "talentLineup">[];
     if (rows.length === 0) return [];
 
     const inquiryIds = rows.map((row) => row.id);
@@ -347,7 +352,7 @@ export async function loadClientInquiries(
     // tenant_id (= its home tenant), so a `.eq('tenant_id', tenantId)` filter
     // here would miss them and the re-homed row would show a stale 0 unread /
     // no preview. RLS keeps these reads scoped to threads the client can see.
-    const [readsRes, messagesRes] = await Promise.all([
+    const [readsRes, messagesRes, participantsRes] = await Promise.all([
       supabase
         .from("inquiry_message_reads")
         .select("inquiry_id, last_read_at")
@@ -360,6 +365,18 @@ export async function loadClientInquiries(
         .eq("thread_type", "private")
         .is("deleted_at", null)
         .in("inquiry_id", inquiryIds),
+      // CW2 — talent lineup per inquiry (client-safe: names only). Same
+      // visibility rule the client inquiry-details loader applies: role
+      // 'talent', not removed. RLS scopes reads to the client's own rows.
+      supabase
+        .from("inquiry_participants")
+        .select(
+          "inquiry_id, sort_order, talent_profiles!talent_profile_id (id, display_name, first_name, last_name)",
+        )
+        .eq("role", "talent")
+        .neq("status", "removed")
+        .in("inquiry_id", inquiryIds)
+        .order("sort_order", { ascending: true }),
     ]);
 
     if (readsRes.error) {
@@ -412,6 +429,31 @@ export async function loadClientInquiries(
       );
     }
 
+    if (participantsRes.error) {
+      logServerError("client.loadInquiries.participants", participantsRes.error);
+    }
+    const lineupByInquiry = new Map<string, { id: string; name: string }[]>();
+    type ParticipantRaw = {
+      inquiry_id: string;
+      talent_profiles:
+        | { id: string; display_name: string | null; first_name: string | null; last_name: string | null }
+        | { id: string; display_name: string | null; first_name: string | null; last_name: string | null }[]
+        | null;
+    };
+    for (const row of (participantsRes.data ?? []) as unknown as ParticipantRaw[]) {
+      const tp = Array.isArray(row.talent_profiles) ? row.talent_profiles[0] : row.talent_profiles;
+      if (!tp) continue;
+      const name =
+        tp.display_name?.trim() ||
+        `${tp.first_name ?? ""} ${tp.last_name ?? ""}`.trim();
+      if (!name) continue;
+      const list = lineupByInquiry.get(row.inquiry_id) ?? [];
+      if (list.length < 4 && !list.some((t) => t.id === tp.id)) {
+        list.push({ id: tp.id, name });
+      }
+      lineupByInquiry.set(row.inquiry_id, list);
+    }
+
     const enriched = rows.map((row) => {
       const last = lastMessageByInquiry.get(row.id) ?? null;
       return {
@@ -420,6 +462,7 @@ export async function loadClientInquiries(
         last_message_at: last?.at ?? null,
         last_message_body: last?.body ?? null,
         last_message_from_me: !!last && last.senderUserId === userId,
+        talentLineup: lineupByInquiry.get(row.id) ?? [],
       };
     });
 
