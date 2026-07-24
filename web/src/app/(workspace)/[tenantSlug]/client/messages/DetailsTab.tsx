@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useTransition } from "react";
+import { formatDateOnly } from "@/lib/date-only";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { cancelInquiryAsClient } from "../_actions/inquiry-cancel-actions";
 import { updateClientInquiryDetailsAction } from "../_actions/inquiry-details-actions";
@@ -958,15 +959,8 @@ function actorRoleLabel(role: string | null): string | null {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+  // Date-only strings parse as LOCAL days (UTC-midnight parsing showed Aug 14 for Aug 15).
+  return formatDateOnly(iso);
 }
 
 function formatRelative(iso: string): string {

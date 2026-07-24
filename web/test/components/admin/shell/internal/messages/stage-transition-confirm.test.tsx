@@ -8,8 +8,8 @@ import { fireEvent, screen } from "@testing-library/dom";
 import { StageTransitionMenu } from "@/components/admin/shell/internal/messages/admin-1";
 import { testRenderWithShell } from "../../../../../helpers/test-render";
 
-const quickPatchInquiryStatus = vi.fn(async () => ({ ok: true }));
-const convertInquiryToBookingAction = vi.fn(async () => ({ ok: true }));
+const quickPatchInquiryStatus = vi.fn<(fd: FormData) => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
+const convertInquiryToBookingAction = vi.fn<(...a: unknown[]) => Promise<{ ok: boolean }>>(async () => ({ ok: true }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, prefetch: () => {}, back: () => {}, forward: () => {}, refresh: () => {} }),
