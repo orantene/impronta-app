@@ -6707,7 +6707,6 @@ function CanvasNodeChildrenPanel({
               alignItems: "center",
               gap: 5,
               maxWidth: "100%",
-              padding: 0,
               border: "none",
               background: "transparent",
               fontSize: 11.5,

@@ -186,7 +186,13 @@ test("More-menu wiring: the chip overflow menu exposes all four clipboard action
   );
   assert.ok(menuStart > -1, "BlockChipOverflowMenu exists");
   // Scope the assertion to the menu body (to its next top-level function).
-  const menuBody = selectionLayerSource.slice(menuStart, menuStart + 4000);
+  // Boundary-scoped, not a fixed byte window: a hard 4000-char slice broke the
+  // moment the menu grew a prop (light-surface threading pushed the items out).
+  const menuEnd = selectionLayerSource.indexOf("\nfunction ", menuStart);
+  const menuBody = selectionLayerSource.slice(
+    menuStart,
+    menuEnd === -1 ? undefined : menuEnd,
+  );
   for (const label of ["Copy", "Cut", "Paste", "Duplicate"]) {
     assert.ok(
       menuBody.includes(`>\n            ${label}\n`),
