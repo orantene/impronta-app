@@ -63,6 +63,7 @@ import {
 } from "./edit-context";
 import { flushThenNavigate } from "./page-switch-flush";
 import { useEditorLocale } from "./use-editor-locale";
+import { resolveWorkspaceAdminBase } from "./workspace-admin-base";
 import {
   CHROME,
   CHROME_RADII,
@@ -2455,7 +2456,9 @@ function WorkspaceMenu({ slug }: { slug: string }) {
               // shell has to tear down, so router.push would be wrong too.
               onClick={() => {
                 setOpen(false);
-                window.location.assign(`/${slug}/admin${item.href}`);
+                window.location.assign(
+                  `${resolveWorkspaceAdminBase(slug, window.location.pathname)}${item.href}`,
+                );
               }}
               style={{
                 display: "block",

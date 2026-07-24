@@ -246,7 +246,7 @@ function detailsGroupHelperText(label: string): string {
 // irreducible — max-lines grandfathered via mandated scoped suppression regen.
 
 export function TalentProfileShellDrawer() {
-  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout, clientFieldSource } = useAdminShell();
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields, tenantSlug, adminBasePath, bridgeTenantIdentity, bridgeTalentSelfProfile, effectiveTenant, profileEditorLayout, clientFieldSource } = useAdminShell();
   const workspaceScopeTenantId =
     bridgeTenantIdentity?.tenantId
     ?? bridgeTenantIdentity?.slug
@@ -2514,7 +2514,7 @@ export function TalentProfileShellDrawer() {
             onOpenFullEditor={
               tenantSlug && payload.talentId
                 ? () => {
-                    window.location.href = `/${tenantSlug}/admin/roster/${payload.talentId}`;
+                    window.location.href = `${adminBasePath}/roster/${payload.talentId}`;
                   }
                 : undefined
             }

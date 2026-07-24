@@ -1109,6 +1109,10 @@ export function TenantSwitcherDrawer() {
                       const isLocalhost = typeof window !== "undefined" &&
                         (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
                       if (isLocalhost) {
+                        // admin-href-allow: cross-tenant switch — `t.slug` is a
+                        // DIFFERENT workspace, so the slug is required. Rewriting
+                        // this to the branded /admin would land on the current
+                        // tenant instead of the one the user picked.
                         window.location.href = `/${t.slug}/admin`;
                       } else {
                         window.location.href = t.adminUrl;

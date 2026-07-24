@@ -435,7 +435,7 @@ function AccountMenuTrigger({
   /** Which edge the dropdown hugs — "right" when the trigger sits at the bar's right end. */
   align?: "left" | "right";
 }) {
-  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale } = useAdminShell();
+  const { state, openDrawer, bridgeTalentSelfProfile, bridgeTenantIdentity, tenantSlug, adminBasePath, bridgeSessionIdentity, supportedLocales, tenantDefaultLocale } = useAdminShell();
   const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   const [createTalentDialogOpen, setCreateTalentDialogOpen] = useState(false);
@@ -566,7 +566,7 @@ function AccountMenuTrigger({
               sub="Seats, invoices, payouts"
               onClick={() => {
                 setOpen(false);
-                window.location.assign(tenantSlug ? `/${tenantSlug}/admin/account` : "/admin/account");
+                window.location.assign(`${adminBasePath}/account`);
               }}
             />
           )}

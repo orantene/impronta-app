@@ -122,15 +122,15 @@ const TI = {
 
 export function OperationsPage() {
   const t = useT();
-  const { openDrawer, tenantSlug } = useAdminShell();
+  const { openDrawer, tenantSlug, adminBasePath } = useAdminShell();
   const goFinancials = () => {
     if (typeof window !== "undefined" && tenantSlug) {
-      window.location.href = `/${tenantSlug}/admin/financials`;
+      window.location.href = `${adminBasePath}/financials`;
     }
   };
   const goReviewPhotos = () => {
     if (typeof window !== "undefined" && tenantSlug) {
-      window.location.href = `/${tenantSlug}/admin/reviews/media`;
+      window.location.href = `${adminBasePath}/reviews/media`;
     }
   };
 

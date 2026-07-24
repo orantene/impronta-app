@@ -64,11 +64,12 @@ export function OverviewPage() {
     bridgeRecentActivity,
     effectiveTenant,
     tenantSlug,
+    adminBasePath,
   } = useAdminShell();
   const t = useT();
   const goFinancials = () => {
     if (typeof window !== "undefined" && tenantSlug) {
-      window.location.href = `/${tenantSlug}/admin/financials`;
+      window.location.href = `${adminBasePath}/financials`;
     }
   };
   const isFree = state.plan === "free";
