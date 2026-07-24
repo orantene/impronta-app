@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getMarketingCopy } from "@/lib/marketing/copy";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -53,7 +54,7 @@ export function FaqSection({ locale = "en" }: { locale?: string }) {
             {copy.stillQuestions}
           </p>
           <MarketingCta
-            href="/faq"
+            href={withLocaleHref("/faq", locale)}
             variant="inline"
             size="md"
             eventSource="home-faq"

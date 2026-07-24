@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 export const metadata: Metadata = {
@@ -8,11 +10,14 @@ export const metadata: Metadata = {
   title: "Account setup",
 };
 
-export default function OnboardingLayout({
+export default async function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // The rest of this surface is English-only today, but the legal line was
+  // the one string a Spanish visitor still hit from /es signup flows.
+  const locale = await getRequestLocale();
   return (
     <div
       className="site-theme-platform flex min-h-full flex-1 flex-col"
@@ -21,7 +26,7 @@ export default function OnboardingLayout({
     >
       <OnboardingTopBar />
       <main className="flex-1">{children}</main>
-      <OnboardingFooter />
+      <OnboardingFooter legalLine={getMarketingCopy(locale).footer.legalLine} />
     </div>
   );
 }
@@ -67,7 +72,7 @@ function OnboardingTopBar() {
   );
 }
 
-function OnboardingFooter() {
+function OnboardingFooter({ legalLine }: { legalLine: string }) {
   return (
     <footer
       className="mt-12 py-8"
@@ -83,7 +88,7 @@ function OnboardingFooter() {
         >
           {/* Same copyright line as the marketing footer's bottom rail; the
               category message lives in the logo lockup only. */}
-          © {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {PLATFORM_BRAND.positioning}
+          © {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {legalLine}
         </p>
         <div className="flex items-center gap-5 text-[0.75rem]">
           <Link

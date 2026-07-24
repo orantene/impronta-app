@@ -23,9 +23,17 @@ export function SignInGlyph() {
 }
 
 export function MenuGlyph() {
+  // Three lines, not two: the 2-line variant read as an "equals" glyph and
+  // users reported the control didn't look pressable. Same 1.7 stroke as the
+  // globe/help icons so the cluster reads as one family.
   return (
-    <svg width="18" height="12" viewBox="0 0 18 12" fill="none" aria-hidden>
-      <path d="M1 1H17M1 11H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <svg width="17" height="14" viewBox="0 0 18 14" fill="none" aria-hidden>
+      <path
+        d="M1 1h16M1 7h16M1 13h16"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
