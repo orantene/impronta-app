@@ -1,6 +1,7 @@
 "use client";
 import { logServerError } from "@/lib/server/safe-error";
 import type { Locale } from "@/lib/site-admin/locales";
+import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { useDashboardText } from "../dashboard-i18n";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
@@ -444,7 +445,7 @@ export function IdentityDrawer() {
 
 
 export function WorkspaceSettingsDrawer() {
-  const { closeDrawer, toast, tenantSlug } = useAdminShell();
+  const { closeDrawer, toast, tenantSlug, supportedLocales, tenantDefaultLocale } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
   const queueRouterRefresh = useQueuedRouterRefresh();
@@ -599,6 +600,30 @@ export function WorkspaceSettingsDrawer() {
       footer={<StandardFooter onSave={onSave} disabled={isSaving || isLoading} saveLabel={isSaving ? tt("Saving…") : isLoading ? tt("Loading…") : tt("Save")} />}
     >
       <Section title={tt("Language & localization")} framed>
+        {/* Dashboard display language — a SECOND home for the control that
+            otherwise lives only in the top-bar account menu (IdentityBar).
+            That single entry point was unreachable whenever anything overlaid
+            the header, and "change the language" is not an obvious thing to
+            look for behind an avatar. It is deliberately the first row here:
+            it's the one setting in this drawer that changes what the person
+            reading it sees, immediately, and it saves nothing (cookie-backed,
+            applied on click) so it must not look like it's waiting on Save. */}
+        <FieldRow
+          label={tt("Dashboard display language")}
+          hint={tt("Applies to your dashboard only, on this device. Does not change your public site.")}
+        >
+          {/* `w-fit` because FieldRow's control column is full-width: the
+              toggle's own `flex` would otherwise stretch the pill across the
+              drawer instead of hugging its two labels. `prototype` matches the
+              account-menu rendering so the same control looks the same in both
+              places a user can reach it. */}
+          <DashboardLocaleToggle
+            className="w-fit"
+            variant="prototype"
+            supportedLocales={supportedLocales}
+            defaultLocale={tenantDefaultLocale}
+          />
+        </FieldRow>
         <FieldRow label={tt("Default public language")}>
           <SelectInput
             options={availableLocales.map((o) => labelFor(o.code))}

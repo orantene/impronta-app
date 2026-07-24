@@ -20,6 +20,7 @@ import { userHasCapability } from "@/lib/access";
 import { getConnectedAccountSnapshot, type ConnectedAccountSnapshot } from "@/lib/payments/stripe-connect";
 import { getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
 import { loadWorkspaceBaseFee, type WorkspaceBaseFeeState } from "./base-fee-actions";
+import { PAYOUTS_OWNER_ONLY_ERROR } from "./payouts-access-copy";
 
 export type PayoutsSurfaceResult =
   | { ok: true; data: PayoutsSurfaceData }
@@ -49,7 +50,11 @@ export async function loadPayoutsSurface(
   if (!scope) return { ok: false, error: "Workspace not found." };
 
   const canEdit = await userHasCapability("agency.payout_account.manage", scope.tenantId);
-  if (!canEdit) return { ok: false, error: "Forbidden — workspace admin only." };
+  // Say OWNER, not "admin". `agency.payout_account.manage` lives in OWNER_CAPS
+  // (lib/access/roles.ts), not ADMIN_CAPS — the old "workspace admin only"
+  // copy told workspace admins they lacked a permission they appeared to hold,
+  // which reads as a bug rather than a role boundary.
+  if (!canEdit) return { ok: false, error: PAYOUTS_OWNER_ONLY_ERROR };
 
   // Both reads gate on the same capability internally; run them together.
   const [connect, baseFee, held] = await Promise.all([

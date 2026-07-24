@@ -865,7 +865,7 @@
   },
   "src/components/admin/shell/internal/primitives/overlays.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 24
+      "count": 21
     }
   },
   "src/components/admin/shell/internal/primitives/page-skeleton.tsx": {
