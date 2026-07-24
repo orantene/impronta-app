@@ -386,3 +386,53 @@ export async function loadClientTransactions(
     return [];
   }
 }
+
+/**
+ * CH2 — bookings the client can pay RIGHT NOW.
+ *
+ * `loadClientTransactions` above is history (paid/refunded). This is the
+ * live payable set: transactions staff have moved to `payment_requested`
+ * (or that are mid-flight `pending`). Keyed by agency_bookings.id so the
+ * bookings page can put a real Pay-now next to the row instead of only a
+ * deep link into the message thread.
+ *
+ * Ownership: explicit `payer_user_id = userId` AND the caller passes only
+ * booking ids that came from this client's own tenant-scoped bookings.
+ */
+export async function loadClientPayableTransactions(
+  userId: string,
+  agencyBookingIds: string[],
+): Promise<Map<string, { transactionId: string; amountCents: number; currency: string; checkoutType: string | null }>> {
+  const out = new Map<string, { transactionId: string; amountCents: number; currency: string; checkoutType: string | null }>();
+  try {
+    if (agencyBookingIds.length === 0) return out;
+    const admin = createServiceRoleClient();
+    if (!admin) return out;
+    const { data, error } = await admin
+      .from("booking_transactions")
+      .select("id, booking_id, gross_amount_cents, currency, status, checkout_type, created_at")
+      .eq("payer_user_id", userId)
+      .in("booking_id", agencyBookingIds)
+      .in("status", ["payment_requested", "pending"])
+      .order("created_at", { ascending: false });
+    if (error) {
+      logServerError("client.loadPayableTransactions", error);
+      return out;
+    }
+    for (const r of (data ?? []) as Record<string, unknown>[]) {
+      const bookingId = r.booking_id as string;
+      // Newest wins — the query is already ordered desc.
+      if (out.has(bookingId)) continue;
+      out.set(bookingId, {
+        transactionId: r.id as string,
+        amountCents: Number(r.gross_amount_cents ?? 0),
+        currency: ((r.currency as string | null) ?? "USD").toUpperCase(),
+        checkoutType: (r.checkout_type as string | null) ?? null,
+      });
+    }
+    return out;
+  } catch (err) {
+    logServerError("client.loadPayableTransactions", err);
+    return out;
+  }
+}

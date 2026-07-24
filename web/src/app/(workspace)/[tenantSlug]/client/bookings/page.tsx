@@ -11,6 +11,7 @@ import {
   loadClientSelfProfile,
   loadClientBookings,
   loadClientTransactions,
+  loadClientPayableTransactions,
   type ClientTransactionRow,
   loadWorkspaceRosterLite,
   type ClientBookingRow,
@@ -24,6 +25,7 @@ import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
 import { ReviewableBookingsSection } from "../_components/ReviewableBookingsSection";
+import { BookingPayNowButton } from "../_components/BookingPayNowButton";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -73,14 +75,24 @@ function BookingRow({
   total,
   tenantSlug,
   reviewPayLabel,
+  payNowLabel,
+  payable,
+  locale,
 }: {
   booking: ClientBookingRow;
   idx: number;
   total: number;
   tenantSlug: string;
   reviewPayLabel: string;
+  payNowLabel: string;
+  payable: PayableMap;
+  locale: string;
 }) {
   const future = !isPast(booking.event_date);
+  // CH2 — a charge the client can settle right now (staff already requested
+  // payment). When present we mount the real payment sheet; when absent we
+  // fall back to the deep link, because there is genuinely nothing to pay yet.
+  const payableTxn = booking.agencyBookingId ? payable.get(booking.agencyBookingId) ?? null : null;
   const dateParts = getClientDateParts(booking.event_date);
   const money = fmtMoney(booking.amountCents, booking.currencyCode);
   const chip = paymentChip(booking.paymentStatus);
@@ -261,24 +273,35 @@ function BookingRow({
           justifyContent: "flex-end",
         }}
       >
-        <Link
-          href={`/${tenantSlug}/client/messages?inquiry=${booking.id}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: "#fff",
-            textDecoration: "none",
-            padding: "5px 12px",
-            borderRadius: 7,
-            background: C.accent,
-            fontFamily: FONT,
-          }}
-        >
-          {reviewPayLabel}
-        </Link>
+        {payableTxn ? (
+          <BookingPayNowButton
+            inquiryId={booking.id}
+            amountLabel={new Intl.NumberFormat(
+              locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US",
+              { style: "currency", currency: payableTxn.currency, maximumFractionDigits: 2 },
+            ).format(payableTxn.amountCents / 100)}
+            label={payNowLabel}
+          />
+        ) : (
+          <Link
+            href={`/${tenantSlug}/client/messages?inquiry=${booking.id}`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11.5,
+              fontWeight: 700,
+              color: "#fff",
+              textDecoration: "none",
+              padding: "5px 12px",
+              borderRadius: 7,
+              background: C.accent,
+              fontFamily: FONT,
+            }}
+          >
+            {reviewPayLabel}
+          </Link>
+        )}
       </div>
     )}
 
@@ -320,7 +343,9 @@ function BookingRow({
   );
 }
 
-function BookingSection({ rows, label, tenantSlug, reviewPayLabel }: { rows: ClientBookingRow[]; label: string; tenantSlug: string; reviewPayLabel: string }) {
+type PayableMap = Map<string, { transactionId: string; amountCents: number; currency: string; checkoutType: string | null }>;
+
+function BookingSection({ rows, label, tenantSlug, reviewPayLabel, payNowLabel, payable, locale }: { rows: ClientBookingRow[]; label: string; tenantSlug: string; reviewPayLabel: string; payNowLabel: string; payable: PayableMap; locale: string }) {
   if (rows.length === 0) return null;
   return (
     <section>
@@ -329,7 +354,7 @@ function BookingSection({ rows, label, tenantSlug, reviewPayLabel }: { rows: Cli
       </div>
       <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {rows.map((b, i) => (
-          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} tenantSlug={tenantSlug} reviewPayLabel={reviewPayLabel} />
+          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} tenantSlug={tenantSlug} reviewPayLabel={reviewPayLabel} payNowLabel={payNowLabel} payable={payable} locale={locale} />
         ))}
       </div>
     </section>
@@ -354,10 +379,12 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
     loadWorkspaceRosterLite(scope.tenantId),
   ]);
   // CW5 — scope payments to THIS tenant via the client's own booking ids.
-  const transactions = await loadClientTransactions(
-    session.user.id,
-    bookings.map((b) => b.agencyBookingId).filter((x): x is string => !!x),
-  );
+  const agencyBookingIds = bookings.map((b) => b.agencyBookingId).filter((x): x is string => !!x);
+  const [transactions, payable] = await Promise.all([
+    loadClientTransactions(session.user.id, agencyBookingIds),
+    // CH2 — which of those bookings the client can pay right now.
+    loadClientPayableTransactions(session.user.id, agencyBookingIds),
+  ]);
 
   // CW3 — every booking lives in exactly ONE bucket. Undated rows used to
   // appear under BOTH Upcoming (TBC box) and Past (!event_date), so 8
@@ -395,9 +422,9 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
         />
       ) : (
         <div className="flex flex-col gap-7">
-          <BookingSection rows={upcoming} label={t("dashboard.clientBookings.upcoming")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} />
-          <BookingSection rows={dateTbc} label={t("dashboard.clientBookings.dateTbc")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} />
-          <BookingSection rows={past}     label={t("dashboard.clientBookings.past")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} />
+          <BookingSection rows={upcoming} label={t("dashboard.clientBookings.upcoming")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} />
+          <BookingSection rows={dateTbc} label={t("dashboard.clientBookings.dateTbc")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} />
+          <BookingSection rows={past}     label={t("dashboard.clientBookings.past")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} />
           {/* W7 — client→talent reviews. Self-hides when nothing is eligible. */}
           <ReviewableBookingsSection tenantSlug={tenantSlug} />
           {/* CW5 — payment history: every payment + refund, with receipts. */}

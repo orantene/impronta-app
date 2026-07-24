@@ -552,7 +552,8 @@
       "payment": "Paiement",
       "receipt": "Reçu",
       "paymentDue": "Paiement dû",
-      "viewAll": "Tout voir"
+      "viewAll": "Tout voir",
+      "payNow": "Payer maintenant"
     },
     "clientHub": {
       "back": "Retour au tableau de bord",
