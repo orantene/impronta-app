@@ -553,6 +553,36 @@
       "receipt": "Reçu",
       "paymentDue": "Paiement dû",
       "viewAll": "Tout voir"
+    },
+    "clientHub": {
+      "back": "Retour au tableau de bord",
+      "eyebrow": "Toutes les agences",
+      "title": "Votre hub",
+      "subtitle": "Toutes les agences avec lesquelles vous travaillez, au même endroit.",
+      "emptyTitle": "Aucune agence pour le moment",
+      "emptyBody": "Dès que vous envoyez une demande à une agence, elle apparaîtra ici.",
+      "agencies": "Agences",
+      "openInquiries": "Demandes ouvertes",
+      "needsYou": "Vous attendent",
+      "moreCurrencies": "autres devises",
+      "yourAgencies": "Vos agences",
+      "open": "ouvertes",
+      "booked": "réservées",
+      "needsYouShort": "vous attendent",
+      "needsYouTitle": "Votre décision est attendue",
+      "upcomingTitle": "À venir",
+      "inquiry": "Demande de réservation",
+      "booking": "Réservation confirmée",
+      "review": "Examiner",
+      "proBadge": "Pro",
+      "wallTitle": "Le hub fait partie de Pro",
+      "wallBody": "Vous réservez auprès de plusieurs agences. Pro rassemble tout dans une seule vue.",
+      "sell1": "Toutes vos agences sur un seul écran",
+      "sell2": "Une liste unique des demandes qui attendent votre décision",
+      "sell3": "Toutes les réservations à venir par date",
+      "sell4": "Ce que vous devez, par agence et par devise",
+      "seePlans": "Voir les forfaits",
+      "navHub": "Toutes les agences"
     }
   }
 }

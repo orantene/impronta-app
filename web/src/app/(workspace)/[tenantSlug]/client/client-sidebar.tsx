@@ -52,6 +52,8 @@ function NavIcon({ name }: { name: string }) {
       return <svg {...common}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" /></svg>;
     case "star":
       return <svg {...common}><path d="m12 3 2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.9 6.4 20l1.3-6.2L3 9.5l6.3-.7z" /></svg>;
+    case "hub":
+      return <svg {...common}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
     case "settings":
       return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" /></svg>;
     default:
@@ -114,12 +116,18 @@ export function ClientSidebar({
   reviewsEnabled = true,
   subscriptionTier = "standard",
   trustLevel = "basic",
+  showHub = false,
 }: {
   tenantSlug: string;
   locale?: string;
   reviewsEnabled?: boolean;
   subscriptionTier?: ClientSubscriptionTier;
   trustLevel?: ClientTrustLevel;
+  /**
+   * CH1 — cross-agency hub entry. Hidden on whitelabel-branded surfaces: an
+   * agency's own dashboard must not advertise a client's other agencies.
+   */
+  showHub?: boolean;
 }) {
   const pathname = usePathname();
   const t = createTranslator(locale);
@@ -246,6 +254,31 @@ export function ClientSidebar({
           );
         })}
       </nav>
+
+      {showHub && (
+        <>
+          <div
+            aria-hidden
+            className="px-[10px] pb-[4px] pt-[10px] text-[10px] font-bold uppercase tracking-[0.14em] text-admin-ink-dim"
+          >
+            {t("dashboard.clientHub.eyebrow") === "dashboard.clientHub.eyebrow"
+              ? "All agencies"
+              : t("dashboard.clientHub.eyebrow")}
+          </div>
+          <Link
+            href="/client/hub"
+            data-tulala-client-hub-nav
+            className="flex w-full items-center gap-[10px] rounded-[8px] border border-transparent bg-transparent px-[10px] py-[8px] font-admin-body text-[13px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_120ms,color_120ms]"
+          >
+            <NavIcon name="hub" />
+            <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
+              {t("dashboard.clientHub.navHub") === "dashboard.clientHub.navHub"
+                ? "All agencies"
+                : t("dashboard.clientHub.navHub")}
+            </span>
+          </Link>
+        </>
+      )}
 
       <div className="flex-1" />
 

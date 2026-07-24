@@ -436,6 +436,7 @@ export default async function ClientLayout({
             reviewsEnabled={reviewsEnabled}
             subscriptionTier={clientSubscription.tier}
             trustLevel={clientTrust.trustLevel}
+            showHub={!whitelabel}
           />
           <main
             className="client-main"
