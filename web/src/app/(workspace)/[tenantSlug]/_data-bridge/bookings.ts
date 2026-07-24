@@ -313,3 +313,76 @@ export async function loadClientBookings(
     return [];
   }
 }
+
+// ─── CW5 — client payment history ────────────────────────────────────────────
+
+export type ClientTransactionRow = {
+  id: string;
+  /** agency_bookings.id — also the receipt route key. */
+  bookingId: string;
+  /** GROSS the client paid, cents. Never the platform/agency/talent split. */
+  grossAmountCents: number;
+  currency: string;
+  /** paid | refunded | requested | … (booking_transactions.status). */
+  status: string;
+  /** deposit | balance | full */
+  checkoutType: string | null;
+  paidAt: string | null;
+  refundedAt: string | null;
+  createdAt: string;
+  /** Set when this row is a refund of an earlier payment. */
+  refundOfTransactionId: string | null;
+};
+
+/**
+ * Payments THIS client made in THIS workspace, newest first. Reads
+ * booking_transactions by payer_user_id — client-safe columns only (gross,
+ * never fee/net splits). Refund rows come back with refund_of set so the UI
+ * can label them. Service-role read with an explicit payer filter (same
+ * trust model as the receipt route, which auth-checks the same ownership).
+ */
+export async function loadClientTransactions(
+  userId: string,
+  /**
+   * Tenant scoping happens through the client's OWN agency_bookings ids
+   * (loaded by loadClientBookings for this tenant). booking_transactions'
+   * source_tenant_id carries a platform sentinel on hub-routed payments, so
+   * filtering on it silently dropped real rows.
+   */
+  agencyBookingIds: string[],
+): Promise<ClientTransactionRow[]> {
+  try {
+    if (agencyBookingIds.length === 0) return [];
+    const admin = createServiceRoleClient();
+    if (!admin) return [];
+    const { data, error } = await admin
+      .from("booking_transactions")
+      .select(
+        "id, booking_id, gross_amount_cents, currency, status, checkout_type, paid_at, refunded_at, created_at, refund_of_transaction_id",
+      )
+      .eq("payer_user_id", userId)
+      .in("booking_id", agencyBookingIds)
+      .in("status", ["paid", "refunded", "payout_pending", "payout_sent", "payout"])
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      logServerError("client.loadTransactions", error);
+      return [];
+    }
+    return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+      id: r.id as string,
+      bookingId: r.booking_id as string,
+      grossAmountCents: Number(r.gross_amount_cents ?? 0),
+      currency: ((r.currency as string | null) ?? "USD").toUpperCase(),
+      status: (r.status as string) ?? "paid",
+      checkoutType: (r.checkout_type as string | null) ?? null,
+      paidAt: (r.paid_at as string | null) ?? null,
+      refundedAt: (r.refunded_at as string | null) ?? null,
+      createdAt: r.created_at as string,
+      refundOfTransactionId: (r.refund_of_transaction_id as string | null) ?? null,
+    }));
+  } catch (err) {
+    logServerError("client.loadTransactions", err);
+    return [];
+  }
+}

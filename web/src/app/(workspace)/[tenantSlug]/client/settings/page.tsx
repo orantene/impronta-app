@@ -244,7 +244,9 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
           />
         </Card>
 
-        {/* Phase 8.3 — Trust badge + verification + balance top-up */}
+        {/* Phase 8.3 — Trust badge + verification + balance top-up.
+            CW4 — id anchors the sidebar's Trust badge deep-link. */}
+        <div id="trust" style={{ scrollMarginTop: 72 }}>
         <ClientTrustShell
           tenantSlug={tenantSlug}
           trustLevel={trustState.trustLevel}
@@ -252,6 +254,7 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
           fundedBalanceCents={trustState.fundedBalanceCents}
           stripeEnabled={stripeEnabled}
         />
+        </div>
 
         <Card
           title={t("dashboard.clientSettings.socialTitle")}

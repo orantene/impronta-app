@@ -79,6 +79,8 @@ export {
   loadWorkspaceBookings,
   type ClientBookingRow,
   loadClientBookings,
+  type ClientTransactionRow,
+  loadClientTransactions,
 } from "./_data-bridge/bookings";
 
 // ─── Pitches — Phase 9, ./_data-bridge/pitches.ts (rev 14)
