@@ -42,7 +42,9 @@ export function TalentRegistrationDrawer() {
   const copy = useDashboardText();
   const tt = copy.t;
   const open = state.drawer.drawerId === "talent-registration";
-  const liveTaxonomy = useLiveTaxonomy();
+  // Real tenant UUID → drop admin-disabled categories from the picker; falls
+  // back to unfiltered when there's no tenant (prototype).
+  const liveTaxonomy = useLiveTaxonomy({ tenantId: bridgeTenantIdentity?.tenantId ?? null });
   const [step, setStep] = useState(0);
   const [stageName, setStageName] = useState("");
   const [parents, setParents] = useState<Set<TaxonomyParentId>>(new Set());

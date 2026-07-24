@@ -14,7 +14,7 @@ import { PersonalPageBand } from "../shared/profile-sections-2";
 
 export function MyProfilePage() {
   const t = useT();
-  const { openDrawer, toast, bridgeTalentSelfProfile, tenantSlug } = useAdminShell();
+  const { openDrawer, toast, bridgeTalentSelfProfile, tenantSlug, bridgeTenantIdentity } = useAdminShell();
   // Use the real profile id from the bridge when available; fall back to mock.
   const selfTalentId = bridgeTalentSelfProfile?.id ?? "t1";
   // Subscribe to override store + read the MERGED profile. Edits in
@@ -269,6 +269,7 @@ export function MyProfilePage() {
                 missing={catalogCompleteness.missing}
                 primaryType={baseProfile.primaryType}
                 secondaryTypes={baseProfile.secondaryTypes}
+                tenantId={bridgeTenantIdentity?.tenantId ?? null}
               />
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
                 {missingFieldRoutes.map((r) => (

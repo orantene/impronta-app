@@ -142,7 +142,9 @@ export function NewTalentDrawer() {
   const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live taxonomy (PR-A) — picker source.
-  const live = useLiveTaxonomy();
+  // Real tenant UUID → drop admin-disabled categories from the picker; falls
+  // back to unfiltered when there's no tenant (prototype).
+  const live = useLiveTaxonomy({ tenantId: bridgeTenantIdentity?.tenantId ?? null });
   const fallbackAllowedParentIds = useMemo(
     () => new Set(
       WORKSPACE_TAXONOMY_DEFAULT
