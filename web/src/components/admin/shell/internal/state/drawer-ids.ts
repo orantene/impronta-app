@@ -262,8 +262,6 @@ export type DrawerId =
   // ── Talent circle ────────────────────────────────────────────────────
   | "circle-manage"       // talent's personal circle of trusted collaborators
   | "circle-recommend"    // recommend a circle member into a booking
-  // ── Phase E workspace field settings ─────────────────────────────────
-  | "workspace-field-settings"  // per-tenant field catalog customisation
   // ── Phase B workspace profile shell ──────────────────────────────────
   | "workspace-profile"         // workspace own identity / branding summary
   // ── Media Gallery + Watermark ────────────────────────────────────────

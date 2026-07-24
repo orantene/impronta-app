@@ -364,7 +364,7 @@ export function WorkspacePlanBadge() {
 
   const goToPlanSettings = () => {
     setOpen(false);
-    requestSettingsSection({ tab: "billing", section: "plan" });
+    requestSettingsSection({ section: "plan" });
     setPage("settings");
   };
 

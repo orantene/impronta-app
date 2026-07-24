@@ -28,6 +28,9 @@ const GLYPH: Record<string, ReactElement> = {
   team: <g {...S}><circle cx="9" cy="9" r="3" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" /><path d="M16 6.5a3 3 0 0 1 0 5.6M16.5 14.2c2.6.4 4 2.3 4 4.8" /></g>,
   compliance: <g {...S}><path d="M12 3 5 5.5v5C5 15 8 18.6 12 20c4-1.4 7-5 7-9.5v-5L12 3Z" /><path d="m9 11.5 2 2 3.5-4" /></g>,
   "talent-types": <g {...S}><path d="M11.5 3.5 4 11a2 2 0 0 0 0 2.8l5.2 5.2a2 2 0 0 0 2.8 0l7.5-7.5V3.5h-8Z" /><circle cx="16" cy="8" r="1.4" /></g>,
+  // Settings nav — merged "Roster & profile fields" group (2026-07-24 flat
+  // redesign): same tag glyph as talent-types, the group's anchor row.
+  "roster-fields": <g {...S}><path d="M11.5 3.5 4 11a2 2 0 0 0 0 2.8l5.2 5.2a2 2 0 0 0 2.8 0l7.5-7.5V3.5h-8Z" /><circle cx="16" cy="8" r="1.4" /></g>,
   "roster-review": <g {...S}><rect x="5.5" y="4" width="13" height="17" rx="2" /><path d="M9 4V2.8h6V4" /><path d="m8.5 12 2 2 4-4.5" /></g>,
   registration: <g {...S}><circle cx="9.5" cy="8" r="3" /><path d="M4 19c0-3 2.4-5 5.5-5 1 0 2 .2 2.8.7" /><path d="M17 13.5v6M14 16.5h6" /></g>,
   discover: <g {...S}><circle cx="12" cy="12" r="8.4" /><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z" /></g>,
@@ -37,6 +40,8 @@ const GLYPH: Record<string, ReactElement> = {
   email: <g {...S}><rect x="3.2" y="5.4" width="17.6" height="13.2" rx="2.2" /><path d="m4 7 8 6 8-6" /></g>,
   features: <g {...S}><circle cx="8" cy="8" r="2.6" /><path d="M3 8h2.4M10.6 8H21" /><circle cx="16" cy="16" r="2.6" /><path d="M3 16h10.4M18.6 16H21" /></g>,
   danger: <g {...S}><path d="M12 3.5 21 19H3L12 3.5Z" /><path d="M12 10v4M12 16.6h0" /></g>,
+  // Settings nav — "Advanced" (feature toggles, data tools, workspace deletion).
+  advanced: <g {...S}><circle cx="12" cy="12" r="2.6" /><path d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.6 6.4l-1.7 1.7M8.1 15.9l-1.7 1.7M17.6 17.6l-1.7-1.7M8.1 8.1 6.4 6.4" /></g>,
   // Talent settings — "My Circle" (a tight ring of trusted collaborators).
   circle: <g {...S}><circle cx="12" cy="9" r="2.6" /><path d="M7 19c0-2.6 2.2-4.4 5-4.4s5 1.8 5 4.4" /><circle cx="5.2" cy="11.2" r="1.6" /><circle cx="18.8" cy="11.2" r="1.6" /><path d="M2.6 18c0-1.8 1.3-3 3-3M21.4 18c0-1.8-1.3-3-3-3" /></g>,
   // Talent settings — "Agencies" (the studios/agencies a talent belongs to).

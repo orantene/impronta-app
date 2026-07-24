@@ -4189,6 +4189,15 @@
       "emailFromAddress": "Email-from address",
       "emailFromFeature": "Email-from",
       "emailFromWhy": "Send client offers from your own verified email.",
+      "searchPlaceholder": "Search settings",
+      "noSearchResults": "No settings match your search.",
+      "jumpToSection": "Jump to section",
+      "rosterFieldsLabel": "Roster & profile fields",
+      "rosterFieldsDesc": "Talent categories, custom fields, privacy, and roster review in one place.",
+      "brandingMediaLabel": "Branding & media",
+      "brandingMediaDesc": "Logo, colors, watermark, photo library, and brand assets.",
+      "advancedLabel": "Advanced",
+      "advancedDesc": "Feature toggles, data tools, and workspace deletion.",
       "defaultCurrency": {
         "desc": "Which currency tab opens first on Business Financials when multiple are present. Display-only, no FX conversion."
       },
