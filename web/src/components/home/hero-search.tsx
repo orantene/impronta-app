@@ -352,11 +352,7 @@ export function HeroSearch({
         <input
           ref={inputRef}
           type="text"
-<<<<<<< HEAD
           className={`h-14 w-full border pl-12 pr-28 text-base text-foreground placeholder:text-transparent outline-none transition-all sm:h-16 sm:pr-48 sm:text-lg ${inputShape}`}
-=======
-          className={`h-14 w-full rounded-[var(--site-radius)] border border-white/15 bg-[var(--impronta-surface)] pl-12 pr-28 text-base text-foreground placeholder:text-transparent outline-none transition-colors sm:h-16 sm:pr-48 sm:text-lg ${accentInput}`}
->>>>>>> origin/main
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
           disabled={interpreting}
