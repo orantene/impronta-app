@@ -26,6 +26,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { residenceCityPatchFromText } from "@/lib/residence-city-sync";
 import {
   assignTaxonomyTermToProfile,
   resolveTenantTalentTypeTermId,
@@ -133,6 +134,7 @@ export async function addTalentToRoster(
       phone:             d.phone || null,
       invitation_email:  d.email || null,
       home_city_text:    d.homeBase || null,
+      ...(await residenceCityPatchFromText(admin, d.homeBase)),
       pronunciation:     d.pronunciation || null,
       workflow_status:   workflowStatus,
       visibility:        "hidden",
@@ -345,7 +347,7 @@ export async function patchTalentDraft(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Draft not found in this workspace." };
 
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, unknown> = {};
   if (d.firstName !== undefined)   patch.first_name = d.firstName || null;
   if (d.lastName !== undefined)    patch.last_name = d.lastName || null;
   if (d.displayName !== undefined || d.firstName !== undefined || d.lastName !== undefined) {
@@ -354,7 +356,11 @@ export async function patchTalentDraft(
   }
   if (d.email !== undefined)         patch.invitation_email = d.email || null;
   if (d.phone !== undefined)         patch.phone = d.phone || null;
-  if (d.homeBase !== undefined)      patch.home_city_text = d.homeBase || null;
+  if (d.homeBase !== undefined) {
+    patch.home_city_text = d.homeBase || null;
+    // Sync structured residence refs (directory cards/map read the join).
+    Object.assign(patch, await residenceCityPatchFromText(admin, d.homeBase));
+  }
   if (d.pronunciation !== undefined) patch.pronunciation = d.pronunciation || null;
 
   if (Object.keys(patch).length > 0) {

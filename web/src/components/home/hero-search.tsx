@@ -122,8 +122,14 @@ export function HeroSearch({
     };
   }, []);
 
+  // Animated example prompts run on BOTH surfaces: the home hero and the
+  // directory band. On the directory the input is controlled, so the loop
+  // additionally pauses whenever a draft or committed query is present.
+  const typewriterActive =
+    !focused && (!directoryUrlSync || (draft.trim() === "" && urlQ === ""));
+
   useEffect(() => {
-    if (directoryUrlSync || focused) return;
+    if (!typewriterActive) return;
     const example = examples[exampleIdx % examples.length];
     let charIdx = 0;
     setTyped("");
@@ -141,7 +147,7 @@ export function HeroSearch({
     }, 38);
 
     return () => clearInterval(typeInterval);
-  }, [exampleIdx, focused, examples, directoryUrlSync]);
+  }, [exampleIdx, examples, typewriterActive]);
 
   const flushDebouncedUrl = useCallback(() => {
     if (debounceRef.current) {
@@ -153,6 +159,10 @@ export function HeroSearch({
   const scheduleUrlCommit = useCallback(
     (raw: string) => {
       if (!directoryUrlSync) return;
+      // With smart search on, the query only commits on submit (interpret →
+      // structured filters). Debounce-committing raw keystrokes would run the
+      // plain keyword match mid-typing and flash empty results.
+      if (aiSearchEnabled && raw.trim()) return;
       flushDebouncedUrl();
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
@@ -165,7 +175,7 @@ export function HeroSearch({
         });
       }, DIRECTORY_QUERY_DEBOUNCE_MS);
     },
-    [directoryUrlSync, flushDebouncedUrl, router, pathname, startTransition],
+    [directoryUrlSync, aiSearchEnabled, flushDebouncedUrl, router, pathname, startTransition],
   );
 
   const applyPlainDirectoryQuery = useCallback(
@@ -322,7 +332,7 @@ export function HeroSearch({
     router.push(clientDirectoryHref(pathname, `?q=${encodeURIComponent(q)}`));
   }
 
-  const showTypewriter = !directoryUrlSync && !focused;
+  const showTypewriter = typewriterActive;
   const submitLabel = interpreting ? copy.interpreting ?? copy.searchSubmit : copy.searchSubmit;
 
   // Directory surface uses the tenant brand accent (gold on Impronta) for a
@@ -342,7 +352,7 @@ export function HeroSearch({
         <input
           ref={inputRef}
           type="text"
-          className={`h-14 w-full rounded-[var(--site-radius)] border border-white/15 bg-[var(--impronta-surface)] pl-12 pr-14 text-base text-foreground placeholder:text-transparent outline-none transition-colors sm:h-16 sm:pr-28 sm:text-lg ${accentInput}`}
+          className={`h-14 w-full rounded-[var(--site-radius)] border border-white/15 bg-[var(--impronta-surface)] pl-12 pr-28 text-base text-foreground placeholder:text-transparent outline-none transition-colors sm:h-16 sm:pr-48 sm:text-lg ${accentInput}`}
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
           disabled={interpreting}
@@ -363,7 +373,7 @@ export function HeroSearch({
         {showTypewriter && (
           <span
             aria-hidden
-            className="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2 text-base text-[var(--impronta-muted)] sm:text-lg"
+            className="pointer-events-none absolute left-12 right-28 top-1/2 -translate-y-1/2 overflow-hidden whitespace-nowrap text-base text-[var(--impronta-muted)] sm:right-48 sm:text-lg"
           >
             {typed}
             <motion.span

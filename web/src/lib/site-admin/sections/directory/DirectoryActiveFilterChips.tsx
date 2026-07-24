@@ -80,6 +80,10 @@ export function DirectoryActiveFilterChips({
 
     // — Taxonomy terms (talent type, etc.) —
     for (const termId of taxonomyTermIds) {
+      // AI-interpreted terms outside the sidebar/pill catalogs have no label
+      // here — showing the raw UUID as a chip is worse than no chip (the AI
+      // summary chip + "Clear all" still cover them).
+      if (!labelById[termId] && /^[0-9a-f-]{32,}$/i.test(termId)) continue;
       list.push({
         id: `tax:${termId}`,
         label: humanizeEnumLabel(labelById[termId] ?? termId),

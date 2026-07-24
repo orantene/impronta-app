@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, List, Map as MapIcon } from "lucide-react";
+import { LayoutGrid, List, Map as MapIcon, SlidersHorizontal } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import type { DirectorySortValue } from "@/lib/directory/types";
@@ -18,12 +18,20 @@ export function DirectoryResultsToolbar({
   ui,
   isFetching = false,
   reviewsEnabled,
+  filtersOpen,
+  onToggleFilters,
+  activeFilterCount = 0,
 }: {
   totalCount: number;
   sort: DirectorySortValue;
   view: DirectoryViewMode;
   ui: DirectoryUiCopy;
   isFetching?: boolean;
+  /** Desktop filter-panel toggle (undefined = no panel on this surface). */
+  filtersOpen?: boolean;
+  onToggleFilters?: () => void;
+  /** Number of active filter facets — shown as a badge on the toggle. */
+  activeFilterCount?: number;
   /**
    * Tenant reviews entitlement (DirectoryPageResponse.reviewsEnabled). When
    * explicitly false the "Top rated" sort option is hidden — rating can never
@@ -52,6 +60,28 @@ export function DirectoryResultsToolbar({
     <div className="mb-4 space-y-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
+          {onToggleFilters ? (
+            <button
+              type="button"
+              onClick={onToggleFilters}
+              aria-pressed={filtersOpen}
+              aria-expanded={filtersOpen}
+              className={cn(
+                "hidden items-center gap-2 rounded-lg border px-3 py-2 text-[13px] font-medium transition-colors md:inline-flex",
+                filtersOpen
+                  ? "border-[var(--dir-accent-line)] bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
+                  : "border-border bg-muted/40 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <SlidersHorizontal className="size-4" />
+              <span>{filtersOpen ? ui.toolbar.filtersHide : ui.toolbar.filtersShow}</span>
+              {activeFilterCount > 0 ? (
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--dir-accent)] px-1.5 text-[11px] font-bold tabular-nums text-black">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </button>
+          ) : null}
           <span
             className={cn(
               "text-sm tabular-nums transition-opacity duration-150",

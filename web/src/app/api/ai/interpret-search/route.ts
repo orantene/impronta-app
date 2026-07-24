@@ -8,13 +8,32 @@ import {
   type RawModelIntent,
 } from "@/lib/ai/validate-interpret-intent";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { pruneInterpretTermsToTenantRoster } from "@/lib/ai/prune-interpret-terms";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { logServerError } from "@/lib/server/safe-error";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { resolveAnyTenantPublicPath } from "@/lib/saas/surface-allow-list";
 
 const MAX_QUERY_LEN = 800;
+
+async function resolvePathTenantIdFromReferer(
+  request: Request,
+): Promise<string | null> {
+  const referer = request.headers.get("referer");
+  if (!referer) return null;
+  try {
+    const url = new URL(referer);
+    const resolved = resolveAnyTenantPublicPath(url.pathname);
+    if (!resolved) return null;
+    const scope = await getTenantPortalScopeBySlug(resolved.tenantSlug);
+    return scope?.tenantId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   const publicSettings = await getPublicSettings();
@@ -33,7 +52,14 @@ export async function POST(request: Request) {
   }
 
   const hostContext = await getPublicHostContext();
-  const tenantId = hostContext.kind === "agency" ? hostContext.tenantId : null;
+  // Tenant for roster-aware pruning + logging. The host context only carries a
+  // tenant on real agency hosts; path-based tenancy (`/w/<slug>` on the apex /
+  // localhost) reaches this API with no tenant header — resolve it from the
+  // Referer path exactly like `/api/directory` does.
+  const tenantId =
+    hostContext.kind === "agency"
+      ? hostContext.tenantId
+      : await resolvePathTenantIdFromReferer(request);
 
   let body: unknown;
   try {
@@ -112,11 +138,34 @@ export async function POST(request: Request) {
       locale,
     );
 
+    // Tenant-roster pruning: keep only interpreted terms an active roster
+    // profile actually carries (unused terms climb to a populated ancestor,
+    // else drop). Without this, one platform-catalog term nobody is tagged
+    // with ANDs the whole directory result to zero. Service role: roster +
+    // taxonomy assignment tables aren't on the public RLS allowlist.
+    const svc = createServiceRoleClient();
+    const prunedTermIds = svc
+      ? await pruneInterpretTermsToTenantRoster(svc, tenantId, mapped.taxonomyTermIds)
+      : mapped.taxonomyTermIds;
+    // If pruning emptied the ENTIRE structured intent (no terms, no location,
+    // no ranges), fall back to the raw text so hybrid keyword search still has
+    // something to chew on instead of silently listing everyone.
+    const prunedQuery =
+      mapped.query ||
+      (prunedTermIds.length === 0 &&
+      !mapped.locationSlug &&
+      mapped.heightMinCm == null &&
+      mapped.heightMaxCm == null &&
+      mapped.ageMin == null &&
+      mapped.ageMax == null
+        ? q
+        : mapped.query);
+
     insertAiSearchLog({
       tenantId,
       rawQuery: q,
       normalizedSummary: mapped.normalizedSummary,
-      taxonomyTermIds: mapped.taxonomyTermIds,
+      taxonomyTermIds: prunedTermIds,
       locationSlug: mapped.locationSlug,
       heightMinCm: mapped.heightMinCm,
       heightMaxCm: mapped.heightMaxCm,
@@ -131,9 +180,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      taxonomyTermIds: mapped.taxonomyTermIds,
+      taxonomyTermIds: prunedTermIds,
       locationSlug: mapped.locationSlug,
-      query: mapped.query,
+      query: prunedQuery,
       normalizedSummary: mapped.normalizedSummary,
       heightMinCm: mapped.heightMinCm,
       heightMaxCm: mapped.heightMaxCm,

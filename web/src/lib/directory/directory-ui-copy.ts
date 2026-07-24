@@ -13,6 +13,22 @@ export type DirectoryUiCopy = {
     mapViewAria: string;
     resultsOne: string;
     resultsMany: string;
+    filtersShow: string;
+    filtersHide: string;
+  };
+  map: {
+    onMapOne: string;
+    onMapMany: string;
+    withoutLocation: string;
+    tapPinHint: string;
+    loading: string;
+    unavailableTitle: string;
+    unavailableBody: string;
+    loadErrorTitle: string;
+    noMappableTitle: string;
+    noMappableFreeText: string;
+    noMappableNone: string;
+    backToGrid: string;
   };
   refine: {
     suggestionsTitle: string;
@@ -258,7 +274,7 @@ export type DirectoryUiCopy = {
 
 type T = (key: string) => string;
 
-function replaceCount(template: string, count: number): string {
+export function replaceCount(template: string, count: number): string {
   return template.replace(/\{count\}/g, String(count));
 }
 
@@ -288,6 +304,22 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       mapViewAria: t("public.directory.ui.toolbar.mapViewAria"),
       resultsOne: t("public.directory.ui.toolbar.resultsOne"),
       resultsMany: t("public.directory.ui.toolbar.resultsMany"),
+      filtersShow: t("public.directory.ui.toolbar.filtersShow"),
+      filtersHide: t("public.directory.ui.toolbar.filtersHide"),
+    },
+    map: {
+      onMapOne: t("public.directory.ui.map.onMapOne"),
+      onMapMany: t("public.directory.ui.map.onMapMany"),
+      withoutLocation: t("public.directory.ui.map.withoutLocation"),
+      tapPinHint: t("public.directory.ui.map.tapPinHint"),
+      loading: t("public.directory.ui.map.loading"),
+      unavailableTitle: t("public.directory.ui.map.unavailableTitle"),
+      unavailableBody: t("public.directory.ui.map.unavailableBody"),
+      loadErrorTitle: t("public.directory.ui.map.loadErrorTitle"),
+      noMappableTitle: t("public.directory.ui.map.noMappableTitle"),
+      noMappableFreeText: t("public.directory.ui.map.noMappableFreeText"),
+      noMappableNone: t("public.directory.ui.map.noMappableNone"),
+      backToGrid: t("public.directory.ui.map.backToGrid"),
     },
     refine: {
       suggestionsTitle: t("public.directory.ui.refine.suggestionsTitle"),

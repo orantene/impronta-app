@@ -19,7 +19,7 @@ import type {
   DirectorySortValue,
 } from "@/lib/directory/types";
 import { DIRECTORY_PAGE_SIZE_MAX } from "@/lib/directory/types";
-import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import { replaceCount, type DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 import { DirectoryCardAdapter } from "./DirectoryCardAdapter";
 import type { DirectoryV1 } from "./schema";
@@ -196,8 +196,9 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   if (!apiKey) {
     return (
       <MapNotice
-        title="Map view is unavailable"
-        body="The map needs a Google Maps key that isn't configured here. Showing the grid is still available."
+        title={ui.map.unavailableTitle}
+        body={ui.map.unavailableBody}
+        backLabel={ui.map.backToGrid}
         onBackToGrid={goBackToGrid}
       />
     );
@@ -206,10 +207,10 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   if (isLoading) {
     return (
       <div
-        className="flex h-[clamp(260px,42vh,460px)] w-full items-center justify-center rounded-[22px] border border-border bg-muted/20"
+        className="flex h-[clamp(260px,42vh,460px)] w-full animate-pulse items-center justify-center rounded-[22px] border border-border bg-muted/20"
         aria-busy
       >
-        <span className="text-sm text-muted-foreground">Loading map…</span>
+        <span className="text-sm text-muted-foreground">{ui.map.loading}</span>
       </div>
     );
   }
@@ -217,8 +218,9 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   if (isError) {
     return (
       <MapNotice
-        title="Couldn’t load the map"
+        title={ui.map.loadErrorTitle}
         body={ui.loadResultsError}
+        backLabel={ui.map.backToGrid}
         onBackToGrid={goBackToGrid}
       />
     );
@@ -227,28 +229,41 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   if (clusters.length === 0) {
     return (
       <MapNotice
-        title="No mappable talent yet"
+        title={ui.map.noMappableTitle}
         body={
           unmappedCount > 0
-            ? `Profiles need a structured home city to appear on the map. ${unmappedCount} ${
-                unmappedCount === 1 ? "profile has" : "profiles have"
-              } only a free-text location.`
-            : "No talent in this filter has a mapped city yet."
+            ? replaceCount(ui.map.noMappableFreeText, unmappedCount)
+            : ui.map.noMappableNone
         }
+        backLabel={ui.map.backToGrid}
         onBackToGrid={goBackToGrid}
       />
     );
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* Summary line + selected-city chip */}
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <p className="text-[0.8125rem] text-muted-foreground">
-          <strong className="text-foreground">{mappableCount}</strong>{" "}
-          {mappableCount === 1 ? "profile" : "profiles"} on the map
+          {mappableCount === 1 ? (
+            ui.map.onMapOne
+          ) : (
+            (() => {
+              const [before, after] = ui.map.onMapMany.split("{count}");
+              return (
+                <>
+                  {before}
+                  <strong className="font-semibold text-foreground">{mappableCount}</strong>
+                  {after}
+                </>
+              );
+            })()
+          )}
           {unmappedCount > 0 ? (
-            <span className="text-muted-foreground/50"> · {unmappedCount} without a map location</span>
+            <span className="text-muted-foreground/50">
+              {" "}· {replaceCount(ui.map.withoutLocation, unmappedCount)}
+            </span>
           ) : null}
         </p>
         {selectedCluster ? (
@@ -257,48 +272,70 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
             onClick={() => setSelectedKey(null)}
             className="rounded-full border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--dir-accent)] transition-colors hover:bg-[var(--dir-accent-line)]"
           >
-            {selectedCluster.label || "Selected"} · {selectedCluster.items.length} ✕
+            {selectedCluster.label || "•"} · {selectedCluster.items.length} ✕
           </button>
         ) : (
-          <span className="text-[0.6875rem] text-muted-foreground/50">Tap a pin to filter by city</span>
+          <span className="text-[0.6875rem] text-muted-foreground/50">{ui.map.tapPinHint}</span>
         )}
       </div>
 
-      {/* Sticky dark map with gold count pins */}
-      <div
-        className="sticky top-20 z-[2] overflow-hidden rounded-[22px] border border-border"
-        style={{ height: "clamp(260px, 42vh, 460px)" }}
-      >
-        <APIProvider apiKey={apiKey}>
-          <DirectoryMapCanvas
-            clusters={clusters}
-            selectedKey={selectedKey}
-            onSelect={(k) => setSelectedKey((cur) => (cur === k ? null : k))}
-          />
-        </APIProvider>
-      </div>
+      {/*
+       * Split canvas: on mobile the map sits ABOVE the cards in normal flow
+       * (no sticky — the old sticky band scrolled over the header and card
+       * chrome). On lg+ it becomes a right-hand column pinned below the
+       * header while the cards scroll on the left (Airbnb-style split).
+       * `isolate` fences the map tiles' stacking context so nothing inside
+       * the Maps canvas can paint over the site chrome.
+       */}
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_clamp(340px,38vw,560px)] lg:items-start lg:gap-6">
+        <div
+          className="isolate z-0 h-[clamp(240px,38vh,400px)] overflow-hidden rounded-[22px] border border-border shadow-[0_24px_60px_-38px_rgba(0,0,0,0.85)] lg:sticky lg:top-[9rem] lg:order-2 lg:h-[calc(100vh-10.5rem)]"
+        >
+          <APIProvider apiKey={apiKey}>
+            <DirectoryMapCanvas
+              clusters={clusters}
+              selectedKey={selectedKey}
+              onSelect={(k) => setSelectedKey((cur) => (cur === k ? null : k))}
+            />
+          </APIProvider>
+        </div>
 
-      {/* Cards for the current selection (or all mapped talent). */}
-      <div className={gridClassFor(props.columnsMobile, props.columnsTablet, props.columnsDesktop)}>
-        {visibleCards.map((card, index) => (
-          <DirectoryCardAdapter
-            key={card.id}
-            card={card}
-            cardStyle={props.card.cardStyle}
-            cardAspect={props.card.cardAspect}
-            show={props.card.show}
-            showSave={props.card.showSave}
-            showAddToInquiry={props.card.showAddToInquiry}
-            cardFieldKeys={props.card.cardFieldKeys}
-            maxFieldLines={props.card.maxFieldLines}
-            nameFallback={props.card.nameFallback}
-            priority={index < 4}
-            index={index}
-          />
-        ))}
+        {/* Cards for the current selection (or all mapped talent). */}
+        <div className="min-w-0 lg:order-1">
+          <div className={mapCardsGridClass(props.columnsMobile)}>
+            {visibleCards.map((card, index) => (
+              <DirectoryCardAdapter
+                key={card.id}
+                card={card}
+                cardStyle={props.card.cardStyle}
+                cardAspect={props.card.cardAspect}
+                show={props.card.show}
+                showSave={props.card.showSave}
+                showAddToInquiry={props.card.showAddToInquiry}
+                cardFieldKeys={props.card.cardFieldKeys}
+                maxFieldLines={props.card.maxFieldLines}
+                nameFallback={props.card.nameFallback}
+                priority={index < 4}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
+}
+
+/**
+ * Card grid inside the split map layout: the cards column is roughly 60%
+ * of the section on lg+, so cap at 2 columns there (the configured desktop
+ * column count is tuned for the full-width grid and would crush the cards).
+ */
+function mapCardsGridClass(mobile: number) {
+  const m = clamp(mobile, 1, 2);
+  return ["grid gap-3 sm:gap-4", GRID_COLS_MOBILE[m], "sm:grid-cols-2", "lg:grid-cols-2"]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /** Dark, low-chrome Google Maps style for the editorial-noir canvas. */
@@ -415,10 +452,12 @@ function CityMarkers({
 function MapNotice({
   title,
   body,
+  backLabel,
   onBackToGrid,
 }: {
   title: string;
   body: string;
+  backLabel: string;
   onBackToGrid: () => void;
 }) {
   return (
@@ -435,40 +474,18 @@ function MapNotice({
         onClick={onBackToGrid}
         className="mt-2 text-[13px] font-semibold text-[var(--dir-accent)] transition-opacity hover:opacity-80"
       >
-        Back to grid →
+        {backLabel} →
       </button>
     </div>
   );
 }
 
-// --- Grid class (mirrors DirectoryReactiveGrid) ---
+// --- Grid class (map split layout) ---
 
-function gridClassFor(mobile: number, tablet: number, desktop: number) {
-  const m = clamp(mobile, 1, 2);
-  const t = clamp(tablet, 1, 4);
-  const d = clamp(desktop, 1, 6);
-  return ["grid gap-3 sm:gap-4", GRID_COLS_MOBILE[m], GRID_COLS_TABLET[t], GRID_COLS_DESKTOP[d]]
-    .filter(Boolean)
-    .join(" ");
-}
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 const GRID_COLS_MOBILE: Record<number, string> = { 1: "grid-cols-1", 2: "grid-cols-2" };
-const GRID_COLS_TABLET: Record<number, string> = {
-  1: "sm:grid-cols-1",
-  2: "sm:grid-cols-2",
-  3: "sm:grid-cols-3",
-  4: "sm:grid-cols-4",
-};
-const GRID_COLS_DESKTOP: Record<number, string> = {
-  1: "lg:grid-cols-1",
-  2: "lg:grid-cols-2",
-  3: "lg:grid-cols-3",
-  4: "lg:grid-cols-4",
-  5: "lg:grid-cols-5",
-  6: "lg:grid-cols-6",
-};
 
 // --- Paginating fetch: gathers the full filtered set for the map ---
 

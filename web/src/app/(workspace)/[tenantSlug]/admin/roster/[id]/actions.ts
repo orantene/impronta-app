@@ -20,6 +20,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { residenceCityPatchFromText } from "@/lib/residence-city-sync";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -291,6 +292,9 @@ export async function updateRosterTalentProfile(
     phone:            d.phone || null,
     invitation_email: d.invitation_email || null,
     home_city_text:   d.home_city_text || null,
+    // Free-text city syncs the structured residence refs when it resolves to
+    // exactly one canonical city (directory cards + map read the structured join).
+    ...(await residenceCityPatchFromText(admin, d.home_city_text)),
     ...(d.gender !== undefined ? { gender: d.gender } : {}),
     ...(d.date_of_birth !== undefined ? { date_of_birth: d.date_of_birth } : {}),
     ...(d.height_cm !== undefined ? { height_cm: d.height_cm } : {}),
