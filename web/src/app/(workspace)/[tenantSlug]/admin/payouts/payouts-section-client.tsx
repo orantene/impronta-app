@@ -18,10 +18,13 @@
  *
  * i18n: the original standalone server page used the server `createTranslator`.
  * A client component can't read the server request locale the same way, so the
- * copy here is plain English matching the `admin.payouts.*` message catalog.
+ * shell's own dictionary hook (`useDashboardText`) supplies the translation —
+ * it reads the same dashboard-locale cookie the rest of the SPA does. Before
+ * this, the surface rendered hard-coded English inside a Spanish workspace.
  * The embedded `PayoutsActionsClient` keeps its own translator (defaults "en").
  */
 
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { PayoutsActionsClient } from "./payouts-actions-client";
 import { BaseFeeClient } from "./base-fee-client";
@@ -127,13 +130,20 @@ export function PayoutsSectionClient({
   tenantSlug: string;
   surface: PayoutsSurfaceResult | null;
 }) {
+  // This surface renders inside the Spanish admin shell but was hard-coded
+  // English, so a Spanish workspace saw an English page fronting an English
+  // permission error. Route the chrome + the access-denied string through the
+  // shell dictionary; server-side error strings that have no translation fall
+  // through unchanged (`copy.t` is identity on a miss).
+  const copy = useDashboardText();
   return (
     <div style={{ fontFamily: FONT, maxWidth: 720, margin: "0 auto", color: C.ink }}>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px" }}>Payouts</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px" }}>{copy.t("Payouts")}</h1>
         <p style={{ fontSize: 13, color: C.inkMuted, margin: 0, lineHeight: 1.5 }}>
-          Connect a Stripe account to receive payments from clients directly. Funds settle to your
-          bank account; the platform takes a small fee per transaction.
+          {copy.t(
+            "Connect a Stripe account to receive payments from clients directly. Funds settle to your bank account; the platform takes a small fee per transaction.",
+          )}
         </p>
       </header>
 
@@ -145,7 +155,9 @@ export function PayoutsSectionClient({
           padding: 20,
         }}>
           <p style={{ color: C.coral, fontSize: 13, margin: 0 }}>
-            {surface && surface.ok === false ? surface.error : "Couldn't load payout settings."}
+            {surface && surface.ok === false
+              ? copy.t(surface.error)
+              : copy.t("Couldn't load payout settings.")}
           </p>
         </div>
       ) : (

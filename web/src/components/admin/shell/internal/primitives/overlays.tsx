@@ -133,79 +133,12 @@ export function Popover({
 
 
 // ─── OfflineBanner (#23) ─────────────────────────────────────────────
-// Detects browser offline/online events and shows a sticky banner.
-
-export function OfflineBanner() {
-  const copy = useDashboardText();
-  // Always start `false` so the server-rendered HTML and the client's first
-  // paint agree. We sync the real `navigator.onLine` state in the effect
-  // below — matters because on the client this component mounts BEFORE
-  // hydration commits, and reading navigator at construction time produced
-  // SSR/CSR mismatches whenever the browser was momentarily offline.
-  const [offline, setOffline] = useState(false);
-  const [retrying, setRetrying] = useState(false);
-
-  useEffect(() => {
-    // Sync to current state on mount (covers the "loaded while offline" case).
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setOffline(true);
-    }
-    const go = () => { setOffline(false); setRetrying(false); };
-    const gone = () => setOffline(true);
-    window.addEventListener("online", go);
-    window.addEventListener("offline", gone);
-    return () => { window.removeEventListener("online", go); window.removeEventListener("offline", gone); };
-  }, []);
-
-  if (!offline) return null;
-
-  return (
-    <div
-      role="status"
-      aria-live="assertive"
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        background: COLORS.fill,
-        color: "#fff",
-        fontFamily: FONTS.body,
-        fontSize: 13,
-        fontWeight: 500,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        padding: "9px 16px",
-        zIndex: 9999,
-        animation: "tulala-page-fade .2s ease",
-      }}
-    >
-      <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
-      {copy.t("Connection lost · retrying…")}
-      <button
-        type="button"
-        onClick={() => { setRetrying(true); setTimeout(() => setRetrying(false), 1500); }}
-        style={{
-          marginLeft: 4,
-          background: "rgba(255,255,255,0.14)",
-          border: "none",
-          borderRadius: 6,
-          color: "#fff",
-          fontFamily: FONTS.body,
-          fontSize: 12,
-          fontWeight: 600,
-          padding: "3px 10px",
-          cursor: "pointer",
-        }}
-      >
-        {retrying ? copy.t("Retrying…") : copy.t("Retry now")}
-      </button>
-    </div>
-  );
-}
-
+//
+// Moved to `components/admin/offline-banner.tsx` — it is a cross-cutting
+// connectivity primitive, not shell chrome, and it now verifies against
+// `/api/health` instead of trusting `navigator.onLine`. Re-exported here so
+// the `primitives` barrel and every existing import keep working unchanged.
+export { OfflineBanner } from "@/components/admin/offline-banner";
 
 // ─── ConfirmModal (#8) ────────────────────────────────────────────────
 // Lightweight "Are you sure?" overlay for destructive actions.

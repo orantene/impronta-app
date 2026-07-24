@@ -20,6 +20,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
+import { PAYOUTS_OWNER_ONLY_ERROR } from "./payouts-access-copy";
 
 export type BaseFeeResult<T = void> =
   | { ok: true; data: T }
@@ -40,7 +41,9 @@ async function requireWorkspaceEditor(tenantSlug: string) {
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) return { ok: false as const, error: "Workspace not found." };
   const canEdit = await userHasCapability("agency.payout_account.manage", scope.tenantId);
-  if (!canEdit) return { ok: false as const, error: "Forbidden — workspace admin only." };
+  // Owner-level, not admin — see payouts-access-copy.ts for why the wording
+  // is explicit about that.
+  if (!canEdit) return { ok: false as const, error: PAYOUTS_OWNER_ONLY_ERROR };
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false as const, error: "You must be signed in." };
   const sb = createServiceRoleClient();

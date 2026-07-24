@@ -141,6 +141,14 @@ const ES_TEXT: Record<string, string> = {
   "Connection lost · retrying…": "Conexión perdida · reintentando…",
   "Retrying…": "Reintentando…",
   "Retry now": "Reintentar ahora",
+  // Payouts surface — rendered by payouts-section-client.tsx inside the shell.
+  // ("Payouts" itself is already keyed above with the nav labels.)
+  "Connect a Stripe account to receive payments from clients directly. Funds settle to your bank account; the platform takes a small fee per transaction.":
+    "Conecta una cuenta de Stripe para recibir pagos de clientes directamente. Los fondos llegan a tu cuenta bancaria y la plataforma cobra una comisión pequeña por transacción.",
+  "Couldn't load payout settings.": "No se pudo cargar la configuración de pagos.",
+  // Keyed on the exact server string in payouts-access-copy.ts — keep in sync.
+  "Only the workspace owner can manage payouts. Ask your owner to connect the payout account.":
+    "Solo la persona propietaria del espacio puede gestionar los pagos. Pídele que conecte la cuenta de pagos.",
   // Inbox date-group headers + stage transition menu
   "Today": "Hoy",
   "Yesterday": "Ayer",
@@ -203,6 +211,8 @@ const ES_TEXT: Record<string, string> = {
   "Email, push, digest preferences": "Preferencias de correo, push y resumen",
   "Language": "Idioma",
   "Dashboard display language": "Idioma del dashboard",
+  "Applies to your dashboard only, on this device. Does not change your public site.":
+    "Aplica solo a tu dashboard, en este dispositivo. No cambia tu sitio público.",
   "Keyboard shortcuts": "Atajos de teclado",
   "Press ? anywhere": "Presiona ? en cualquier lugar",
   "Create your talent page": "Crear tu página de talento",
