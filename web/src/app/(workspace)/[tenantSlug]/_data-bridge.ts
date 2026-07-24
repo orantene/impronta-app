@@ -81,6 +81,7 @@ export {
   loadClientBookings,
   type ClientTransactionRow,
   loadClientTransactions,
+  loadClientPayableTransactions,
 } from "./_data-bridge/bookings";
 
 // ─── Pitches — Phase 9, ./_data-bridge/pitches.ts (rev 14)

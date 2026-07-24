@@ -7408,7 +7408,8 @@
       "payment": "Payment",
       "receipt": "Receipt",
       "paymentDue": "Payment due",
-      "viewAll": "View all"
+      "viewAll": "View all",
+      "payNow": "Pay now"
     },
     "clientHub": {
       "back": "Back to dashboard",
