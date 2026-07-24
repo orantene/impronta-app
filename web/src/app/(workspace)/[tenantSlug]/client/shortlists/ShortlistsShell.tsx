@@ -24,6 +24,8 @@ import {
   cardDesignToCssVars,
   type CardDesign,
 } from "@/lib/site-admin/server/card-design-shape";
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization, type Translator } from "@/i18n/interpolate";
 
 const C = {
   ink:        "#0B0B0D",
@@ -63,6 +65,7 @@ export function ShortlistsShell({
    */
   cardDesign?: CardDesign;
 }) {
+  const t = useT();
   const cardCssVars = useMemo(
     () => (cardDesign ? cardDesignToCssVars(cardDesign) : undefined),
     [cardDesign],
@@ -85,7 +88,7 @@ export function ShortlistsShell({
         background: C.surface, border: `1px dashed ${C.borderSoft}`,
         textAlign: "center", color: C.inkMuted, fontSize: 12.5,
       }}>
-        Need more shortlists? Open <Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>Discover</Link>, save talent into a new list, and they&apos;ll show up here.
+        {t("client.shortlists.needMorePrefix")}<Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>{t("dashboard.clientNav.discover")}</Link>{t("client.shortlists.needMoreSuffix")}
       </div>
     </div>
   );
@@ -126,6 +129,7 @@ function ProUpsellBanner({
   tier: "standard" | "pro" | "enterprise";
   tenantSlug: string;
 }) {
+  const t = useT();
   if (tier !== "standard") return null;
   return (
     <div
@@ -144,13 +148,13 @@ function ProUpsellBanner({
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
           textTransform: "uppercase", color: C.accent, marginBottom: 4,
         }}>
-          Upgrade to Pro
+          {t("client.shortlists.upgradeTitle")}
         </div>
         <div style={{ fontSize: 13, color: C.ink, fontWeight: 500 }}>
-          Compare talent side-by-side and send one inquiry that fans out to every agency in your shortlist.
+          {t("client.shortlists.upgradeBody")}
         </div>
         <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 4 }}>
-          Trust gates and contact controls still apply — Pro unlocks tools, not access.
+          {t("client.shortlists.upgradeNote")}
         </div>
       </div>
       <button
@@ -164,7 +168,7 @@ function ProUpsellBanner({
           flexShrink: 0,
         }}
       >
-        Upgrade to Pro →
+        {t("client.shortlists.upgradeCta")} →
       </button>
     </div>
   );
@@ -183,6 +187,8 @@ function ShortlistCard({
   cardCssVars: Record<string, string> | undefined;
   locale?: string;
 }) {
+  const t = useT();
+  const tp = useMemo(() => withPluralization(t), [t]);
   const [inquireOpen, setInquireOpen] = useState(false);
   const [eventDate, setEventDate] = useState("");
   const [eventLocation, setEventLocation] = useState("");
@@ -207,7 +213,7 @@ function ShortlistCard({
       if (!res.ok || typeof json.url !== "string") {
         setShareState({
           kind: "err",
-          message: json.error === "forbidden" ? "Only the owner can share this list." : "Couldn't generate a share link.",
+          message: json.error === "forbidden" ? t("client.shortlists.shareForbidden") : t("client.shortlists.shareFailed"),
         });
         return;
       }
@@ -218,7 +224,7 @@ function ShortlistCard({
       }
       setShareState({ kind: "ok", url: json.url });
     } catch {
-      setShareState({ kind: "err", message: "Network error — try again." });
+      setShareState({ kind: "err", message: t("client.shortlists.shareNetworkError") });
     }
   }
 
@@ -258,17 +264,17 @@ function ShortlistCard({
             {shortlist.name}
           </div>
           <div style={{ fontSize: 12, color: C.inkMuted }}>
-            {shortlist.talents.length} {shortlist.talents.length === 1 ? "talent" : "talents"}
+            {tp("client.discover.talentCount", shortlist.talents.length)}
             {tenantBuckets.size > 0 && (
               <span>
                 {" · "}
-                Routes to {tenantBuckets.size} {tenantBuckets.size === 1 ? "workspace" : "workspaces"}
+                {tp("client.shortlists.routesTo", tenantBuckets.size)}
               </span>
             )}
             {noRosterCount > 0 && (
               <span style={{ color: C.inkDim }}>
                 {" · "}
-                {noRosterCount} need direct outreach
+                {interpolate(t("client.shortlists.needDirectOutreach"), { count: noRosterCount })}
               </span>
             )}
           </div>
@@ -278,7 +284,7 @@ function ShortlistCard({
             type="button"
             onClick={handleShare}
             disabled={shortlist.talents.length === 0 || shareState.kind === "pending"}
-            title="Generate a public link to share this shortlist (read-only)"
+            title={t("client.shortlists.shareTitle")}
             style={{
               height: 36, padding: "0 12px", borderRadius: 8,
               background: "transparent",
@@ -290,10 +296,10 @@ function ShortlistCard({
             }}
           >
             {shareState.kind === "pending"
-              ? "Generating…"
+              ? t("client.shortlists.shareGenerating")
               : shareState.kind === "ok"
-                ? "✓ Link copied"
-                : "↗ Share"}
+                ? `✓ ${t("client.shortlists.shareCopied")}`
+                : `↗ ${t("client.shortlists.share")}`}
           </button>
           <button
             type="button"
@@ -310,10 +316,10 @@ function ShortlistCard({
             disabled={shortlist.talents.length < 2}
             title={
               !hasPro
-                ? "Pro tier unlocks side-by-side compare"
+                ? t("client.shortlists.compareProTitle")
                 : shortlist.talents.length < 2
-                  ? "Need at least 2 talents to compare"
-                  : "Open side-by-side comparison"
+                  ? t("client.shortlists.compareNeedTwoTitle")
+                  : t("client.shortlists.compareOpenTitle")
             }
             style={{
               height: 36, padding: "0 12px", borderRadius: 8,
@@ -325,7 +331,7 @@ function ShortlistCard({
               display: "inline-flex", alignItems: "center", gap: 6,
             }}
           >
-            ⇄ Compare
+            ⇄ {t("client.shortlists.compare")}
             {!hasPro && <ProTierPill />}
           </button>
           <button
@@ -353,7 +359,9 @@ function ShortlistCard({
             }}
           >
             <span className="inline-flex items-center gap-1.5">
-              {inquireOpen ? "Cancel" : `Send inquiry${routableCount > 0 ? "" : " (no agencies)"}`}
+              {inquireOpen
+                ? t("client.shortlists.cancel")
+                : `${t("client.discover.inquiryForm.sendInquiry")}${routableCount > 0 ? "" : ` ${t("client.shortlists.noAgenciesSuffix")}`}`}
               {!hasPro && (shortlist.talents.length > 1 || routableCount > 1) && <ProTierPill />}
             </span>
           </button>
@@ -374,7 +382,7 @@ function ShortlistCard({
           gap: 8,
           flexWrap: "wrap",
         }}>
-          <span className="font-semibold">Public link copied to clipboard.</span>
+          <span className="font-semibold">{t("client.shortlists.sharePublicLinkCopied")}</span>
           <code style={{
             fontSize: 10.5,
             background: "rgba(11,11,13,0.04)",
@@ -385,7 +393,7 @@ function ShortlistCard({
           }}>
             {shareState.url}
           </code>
-          <span style={{ color: C.inkMuted }}>Read-only · expires in 7 days.</span>
+          <span style={{ color: C.inkMuted }}>{t("client.shortlists.shareReadOnlyExpiry")}</span>
         </div>
       )}
       {shareState.kind === "err" && (
@@ -423,13 +431,13 @@ function ShortlistCard({
           display: "flex", flexDirection: "column", gap: 10,
         }}>
           <div style={{ fontSize: 11.5, color: C.inkMuted }}>
-            One inquiry per workspace. {Array.from(tenantBuckets.values())
+            {t("client.shortlists.oneInquiryPerWorkspace")} {Array.from(tenantBuckets.values())
               .map((b) => `${b.name} (${b.count})`)
               .join(" · ")}
-            {noRosterCount > 0 && ` · ${noRosterCount} talent${noRosterCount === 1 ? "" : "s"} not on any roster — reach via public profile.`}
+            {noRosterCount > 0 && ` · ${tp("client.shortlists.notOnRoster", noRosterCount)}`}
           </div>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
-            Event date (optional)
+            {t("client.discover.inquiryForm.eventDate")}
             <input
               type="date"
               value={eventDate}
@@ -442,10 +450,10 @@ function ShortlistCard({
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
-            Event location (optional)
+            {t("client.discover.inquiryForm.eventLocation")}
             <input
               type="text"
-              placeholder="e.g. Milan, Italy"
+              placeholder={t("client.discover.inquiryForm.locationPlaceholder")}
               value={eventLocation}
               onChange={(e) => setEventLocation(e.target.value)}
               style={{
@@ -456,9 +464,9 @@ function ShortlistCard({
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
-            Brief
+            {t("client.discover.inquiryForm.brief")}
             <textarea
-              placeholder="Quick context: brand, role, scope, dates if known."
+              placeholder={t("client.discover.inquiryForm.briefPlaceholder")}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
@@ -502,7 +510,7 @@ function ShortlistCard({
                 if (res.status === 402 || j.error === "pro_required") {
                   setResult({
                     ok: false,
-                    text: "Multi-talent send is a Pro feature. Upgrade to send one inquiry across your whole shortlist.",
+                    text: t("client.shortlists.proRequired"),
                   });
                   return;
                 }
@@ -511,7 +519,7 @@ function ShortlistCard({
                   const skipped = j.skipped?.length ?? 0;
                   setResult({
                     ok: true,
-                    text: `Sent ${created} ${created === 1 ? "inquiry" : "inquiries"} to ${created === 1 ? "the workspace" : `${created} workspaces`}.${skipped > 0 ? ` ${skipped} talent${skipped === 1 ? " was" : "s were"} skipped (not on any roster) — reach them directly.` : ""}`,
+                    text: `${tp("client.shortlists.sentInquiries", created)}${skipped > 0 ? ` ${tp("client.shortlists.skippedNotOnRoster", skipped)}` : ""}`,
                   });
                   setEventDate("");
                   setEventLocation("");
@@ -520,12 +528,12 @@ function ShortlistCard({
                   setResult({
                     ok: false,
                     text: j.error === "no_routable_talents"
-                      ? "No agencies to route to — every talent on this shortlist is independent."
-                      : "Couldn't send — try again in a moment.",
+                      ? t("client.shortlists.noAgenciesToRoute")
+                      : t("client.discover.inquiryForm.sendFailed"),
                   });
                 }
               } catch {
-                setResult({ ok: false, text: "Network issue — try again." });
+                setResult({ ok: false, text: t("client.discover.inquiryForm.networkIssue") });
               } finally {
                 setSubmitting(false);
               }
@@ -539,8 +547,8 @@ function ShortlistCard({
             }}
           >
             {submitting
-              ? "Sending…"
-              : `Send ${tenantBuckets.size} ${tenantBuckets.size === 1 ? "inquiry" : "inquiries"}`}
+              ? t("client.discover.inquiryForm.sending")
+              : tp("client.shortlists.sendNInquiries", tenantBuckets.size)}
           </button>
         </div>
       )}
@@ -559,7 +567,7 @@ function ShortlistCard({
 /** Map a shortlist talent to the canonical `<TalentCard>` data shape. The
  *  tile links to the public profile (a heart still lives in badgeSlot). No
  *  availability snapshot on this surface → the line is suppressed. */
-function toShortlistTileData(t: DiscoverShortlistTalent): CanonicalTalentCardData {
+function toShortlistTileData(t: DiscoverShortlistTalent, tr: Translator): CanonicalTalentCardData {
   return {
     id: t.talentId,
     name: t.displayName,
@@ -570,7 +578,7 @@ function toShortlistTileData(t: DiscoverShortlistTalent): CanonicalTalentCardDat
     photoUrl: t.headshotUrl,
     agencyName: t.agencyName,
     isExclusive: t.isExclusive,
-    availabilityLabel: "Availability on request",
+    availabilityLabel: tr("dashboard.clientFavorites.availabilityOnRequest"),
     availabilityKnown: false,
     availableDaysInNext30: null,
   };
@@ -594,11 +602,12 @@ function ShortlistTalentTile({
   cardCssVars: Record<string, string> | undefined;
   locale?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const profileHref = talent.profileCode ? `/t/${talent.profileCode}` : "";
   return (
     <TalentCard
-      data={toShortlistTileData(talent)}
+      data={toShortlistTileData(talent, t)}
       style="editorial"
       aspect="1:1"
       cssVars={cardCssVars}

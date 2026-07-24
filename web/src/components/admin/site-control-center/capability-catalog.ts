@@ -63,13 +63,24 @@ export const PLAN_BADGE_COLOR: Record<Plan, { bg: string; fg: string }> = {
   network: { bg: "rgba(20,107,58,0.12)", fg: "#0e4a26" },
 };
 
+/**
+ * i18n contract for this catalog (mirrors `lib/access/registration-modes.ts`
+ * and `lib/admin/plan-tiers.ts`): the English strings stay as the non-UI
+ * fallback (docs, tests, server logs), and every UI surface renders the
+ * matching `*Key` through `t()`. `catalogCopy(t, key, english)` below is the
+ * one helper every renderer should use.
+ */
 export type Capability = {
   id: string;
   /** Plan tier that unlocks this capability. */
   tier: Plan;
   label: string;
+  /** Catalog key for {@link Capability.label}. */
+  labelKey: string;
   /** Stat / status line shown when unlocked (e.g. "12 pages · 3 drafts"). */
   stat: string;
+  /** Catalog key for {@link Capability.stat}. */
+  statKey: string;
   /** Conversion-hook copy shown when locked (italic, tier-tinted). */
   lockedCopy: string;
   /** Existing admin route. If null, capability ships as a stub page. */
@@ -83,21 +94,46 @@ export type TierBand = {
   tier: Plan;
   /** Headline shown in the divider above the grid. */
   headline: string;
+  /** Catalog key for {@link TierBand.headline}. */
+  headlineKey: string;
   /** One-sentence description. */
   helper: string;
+  /** Catalog key for {@link TierBand.helper}. */
+  helperKey: string;
   /** "Every plan" / "Studio" / "Agency" / "Network" badge label. */
   badgeLabel: string;
+  /** Catalog key for {@link TierBand.badgeLabel}. */
+  badgeLabelKey: string;
   /** Upgrade button copy — "Upgrade" for paid, "Contact" for Network. */
   ctaLabel: string;
+  /** Catalog key for {@link TierBand.ctaLabel}. Empty when there is no CTA. */
+  ctaLabelKey: string;
   cards: Capability[];
 };
+
+/**
+ * Resolve a catalog key, falling back to the module-level English constant
+ * when the key has no catalog entry (unknown id, or a value we deliberately
+ * never translate such as a hostname).
+ */
+export function catalogCopy(
+  t: (key: string) => string,
+  key: string,
+  english: string,
+): string {
+  if (!key) return english;
+  const resolved = t(key);
+  return resolved === key ? english : resolved;
+}
 
 const FREE_CARDS: Capability[] = [
   {
     id: "roster",
     tier: "free",
     label: "Roster",
+    labelKey: "dashboard.adminCapability.card.roster.label",
     stat: "Talents · drafts · approvals",
+    statKey: "dashboard.adminCapability.card.roster.stat",
     lockedCopy: "Manage every talent on your roster",
     href: "/admin/talent",
     icon: Users,
@@ -106,7 +142,9 @@ const FREE_CARDS: Capability[] = [
     id: "directory",
     tier: "free",
     label: "Directory Settings",
+    labelKey: "dashboard.adminCapability.card.directory.label",
     stat: "Grid · Dedicated pages · 34 fields",
+    statKey: "dashboard.adminCapability.card.directory.stat",
     lockedCopy: "Configure how your talents are discovered",
     href: "/admin/directory/filters",
     icon: LayoutGrid,
@@ -116,7 +154,9 @@ const FREE_CARDS: Capability[] = [
     id: "inquiries",
     tier: "free",
     label: "Inquiries",
+    labelKey: "dashboard.adminCapability.card.inquiries.label",
     stat: "Open · in progress · won",
+    statKey: "dashboard.adminCapability.card.inquiries.stat",
     lockedCopy: "Receive booking requests through your site",
     href: "/admin/inquiries",
     icon: Inbox,
@@ -125,7 +165,9 @@ const FREE_CARDS: Capability[] = [
     id: "branding",
     tier: "free",
     label: "Branding",
+    labelKey: "dashboard.adminCapability.card.branding.label",
     stat: "Logo · Cormorant / Inter · #B8860B",
+    statKey: "dashboard.adminCapability.card.branding.stat",
     lockedCopy: "Set your logo, colors, and typography",
     href: "/admin/site-settings/branding",
     icon: Sparkles,
@@ -134,7 +176,9 @@ const FREE_CARDS: Capability[] = [
     id: "activity",
     tier: "free",
     label: "Activity",
+    labelKey: "dashboard.adminCapability.card.activity.label",
     stat: "Recent edits, publishes, and bookings",
+    statKey: "dashboard.adminCapability.card.activity.stat",
     lockedCopy: "See what's changed across your workspace",
     href: "/admin/site-settings/audit",
     icon: Activity,
@@ -146,7 +190,9 @@ const STUDIO_CARDS: Capability[] = [
     id: "widgets",
     tier: "studio",
     label: "Widgets",
+    labelKey: "dashboard.adminCapability.card.widgets.label",
     stat: "Active embeds · views",
+    statKey: "dashboard.adminCapability.card.widgets.stat",
     lockedCopy: "Embed your roster anywhere",
     href: "/admin/site/widgets",
     icon: LayoutDashboard,
@@ -155,7 +201,9 @@ const STUDIO_CARDS: Capability[] = [
     id: "api",
     tier: "studio",
     label: "API keys",
+    labelKey: "dashboard.adminCapability.card.api.label",
     stat: "Active keys · last used",
+    statKey: "dashboard.adminCapability.card.api.stat",
     lockedCopy: "Read-only JSON for partners",
     href: "/admin/site/api-keys",
     icon: Key,
@@ -164,7 +212,9 @@ const STUDIO_CARDS: Capability[] = [
     id: "domain",
     tier: "studio",
     label: "Domain & Home",
+    labelKey: "dashboard.adminCapability.card.domain.label",
     stat: "Subdomain · public home",
+    statKey: "dashboard.adminCapability.card.domain.stat",
     lockedCopy: "Your subdomain for deep links",
     href: "/admin/site/domain",
     icon: Globe2,
@@ -176,7 +226,9 @@ const AGENCY_CARDS: Capability[] = [
     id: "homepage",
     tier: "agency",
     label: "Homepage",
+    labelKey: "dashboard.adminCapability.card.homepage.label",
     stat: "Draft pending",
+    statKey: "dashboard.adminCapability.card.homepage.stat",
     lockedCopy: "Your branded homepage",
     href: "/",
     icon: Star,
@@ -186,7 +238,9 @@ const AGENCY_CARDS: Capability[] = [
     id: "pages",
     tier: "agency",
     label: "Pages",
+    labelKey: "dashboard.adminCapability.card.pages.label",
     stat: "12 pages · 3 drafts",
+    statKey: "dashboard.adminCapability.card.pages.stat",
     lockedCopy: "Any page, any layout",
     href: "/admin/site-settings/content/pages",
     icon: FileText,
@@ -196,7 +250,9 @@ const AGENCY_CARDS: Capability[] = [
     id: "posts",
     tier: "agency",
     label: "Posts",
+    labelKey: "dashboard.adminCapability.card.posts.label",
     stat: "4 published · 1 draft",
+    statKey: "dashboard.adminCapability.card.posts.stat",
     lockedCopy: "Your editorial voice",
     href: "/admin/site-settings/content/posts",
     icon: Newspaper,
@@ -205,7 +261,9 @@ const AGENCY_CARDS: Capability[] = [
     id: "navigation",
     tier: "agency",
     label: "Navigation & Footer",
+    labelKey: "dashboard.adminCapability.card.navigation.label",
     stat: "Header 5 · Footer 3 cols",
+    statKey: "dashboard.adminCapability.card.navigation.stat",
     lockedCopy: "Drag-and-drop in canvas",
     href: "/admin/site-settings/content/navigation",
     icon: Menu,
@@ -214,7 +272,9 @@ const AGENCY_CARDS: Capability[] = [
     id: "theme",
     tier: "agency",
     label: "Theme & foundations",
+    labelKey: "dashboard.adminCapability.card.theme.label",
     stat: "Editorial Noir",
+    statKey: "dashboard.adminCapability.card.theme.stat",
     lockedCopy: "A library of designer kits",
     href: "/admin/site-settings/design",
     icon: Palette,
@@ -223,7 +283,9 @@ const AGENCY_CARDS: Capability[] = [
     id: "seo",
     tier: "agency",
     label: "SEO & defaults",
+    labelKey: "dashboard.adminCapability.card.seo.label",
     stat: "Meta · Sitemap · 2 redirects",
+    statKey: "dashboard.adminCapability.card.seo.stat",
     lockedCopy: "Full SEO stack on your domain",
     href: "/admin/site-settings/seo",
     icon: Search,
@@ -235,7 +297,9 @@ const NETWORK_CARDS: Capability[] = [
     id: "hub",
     tier: "network",
     label: "Hub publishing",
+    labelKey: "dashboard.adminCapability.card.hub.label",
     stat: "0 talents promoted",
+    statKey: "dashboard.adminCapability.card.hub.stat",
     lockedCopy: "Cross-agency discovery",
     href: "/admin/site/hub",
     icon: Network,
@@ -244,7 +308,9 @@ const NETWORK_CARDS: Capability[] = [
     id: "multiagency",
     tier: "network",
     label: "Multi-agency manager",
+    labelKey: "dashboard.adminCapability.card.multiagency.label",
     stat: "1 agency · 3 managers",
+    statKey: "dashboard.adminCapability.card.multiagency.stat",
     lockedCopy: "Operate multiple brands",
     href: "/admin/site/multi-agency",
     icon: Code2,
@@ -255,34 +321,51 @@ export const TIER_BANDS: TierBand[] = [
   {
     tier: "free",
     headline: "Your core workspace",
-    helper: "Free, Studio, Agency, Network — all plans share this.",
+    headlineKey: "dashboard.adminCapability.band.free.headline",
+    helper: "Free, Studio, Agency, Network. All plans share this.",
+    helperKey: "dashboard.adminCapability.band.free.helper",
     badgeLabel: "Every plan",
+    badgeLabelKey: "dashboard.adminCapability.band.free.badgeLabel",
+    // No CTA on the every-plan band, so no key either.
     ctaLabel: "",
+    ctaLabelKey: "",
     cards: FREE_CARDS,
   },
   {
     tier: "studio",
     headline: "Embed anywhere",
+    headlineKey: "dashboard.adminCapability.band.studio.headline",
     helper:
       "Drop your roster into WordPress, Webflow, Shopify, or your custom site.",
+    helperKey: "dashboard.adminCapability.band.studio.helper",
     badgeLabel: "Studio",
+    badgeLabelKey: "dashboard.adminCapability.band.studio.badgeLabel",
     ctaLabel: "Upgrade",
+    ctaLabelKey: "dashboard.adminCapability.band.studio.ctaLabel",
     cards: STUDIO_CARDS,
   },
   {
     tier: "agency",
     headline: "Full branded site",
+    headlineKey: "dashboard.adminCapability.band.agency.headline",
     helper: "Your site, your domain, your brand. Pages, posts, nav, theme, SEO.",
+    helperKey: "dashboard.adminCapability.band.agency.helper",
     badgeLabel: "Agency",
+    badgeLabelKey: "dashboard.adminCapability.band.agency.badgeLabel",
     ctaLabel: "Upgrade",
+    ctaLabelKey: "dashboard.adminCapability.band.agency.ctaLabel",
     cards: AGENCY_CARDS,
   },
   {
     tier: "network",
     headline: "Multi-agency + hub",
+    headlineKey: "dashboard.adminCapability.band.network.headline",
     helper: "Operate multiple agencies and push talent to cross-agency discovery.",
+    helperKey: "dashboard.adminCapability.band.network.helper",
     badgeLabel: "Network",
+    badgeLabelKey: "dashboard.adminCapability.band.network.badgeLabel",
     ctaLabel: "Contact",
+    ctaLabelKey: "dashboard.adminCapability.band.network.ctaLabel",
     cards: NETWORK_CARDS,
   },
 ];

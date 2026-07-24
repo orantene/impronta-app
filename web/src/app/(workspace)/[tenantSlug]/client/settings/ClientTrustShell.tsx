@@ -12,6 +12,8 @@
  */
 
 import * as React from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { startClientVerification, startClientBalanceTopup } from "./stripe-client-trust-actions";
 import type { ClientTrustLevel } from "@/lib/client-trust/evaluator";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
@@ -41,33 +43,51 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 // ─── Tier metadata ────────────────────────────────────────────────────────────
 
+// Tier NAMES stay as the spec's proper nouns (Basic / Verified / Silver / Gold)
+// in both locales, matching how es.json already renders them elsewhere. Only the
+// description + perk copy is localized; the English strings below remain the
+// non-UI fallback.
 const TIER_META: Record<ClientTrustLevel, {
   label: string;
   color: string;
   bg: string;
   description: string;
+  descriptionKey: string;
   perks: string[];
+  perkKeys: string[];
 }> = {
   basic: {
     label: "Basic",
     color: C.inkMuted,
     bg: "rgba(11,11,13,0.06)",
-    description: "Free account — standard access.",
+    description: "Free account, standard access.",
+    descriptionKey: "client.settings.trust.basicDescription",
     perks: [
       "Browse talent profiles",
       "Send inquiries to talents that accept Basic",
       "View booking history",
+    ],
+    perkKeys: [
+      "client.settings.trust.basicPerk1",
+      "client.settings.trust.basicPerk2",
+      "client.settings.trust.basicPerk3",
     ],
   },
   verified: {
     label: "Verified",
     color: C.blue,
     bg: C.blueSoft,
-    description: "Identity verified — trusted by most talents.",
+    description: "Identity verified, trusted by most talents.",
+    descriptionKey: "client.settings.trust.verifiedDescription",
     perks: [
       "Everything in Basic",
       "Default-allowed by most talents",
       "Verified badge visible on your inquiries",
+    ],
+    perkKeys: [
+      "client.settings.trust.verifiedPerk1",
+      "client.settings.trust.verifiedPerk2",
+      "client.settings.trust.verifiedPerk3",
     ],
   },
   silver: {
@@ -75,21 +95,33 @@ const TIER_META: Record<ClientTrustLevel, {
     color: C.silver,
     bg: C.silverSoft,
     description: "Verified + funded account.",
+    descriptionKey: "client.settings.trust.silverDescription",
     perks: [
       "Everything in Verified",
       "Silver badge surfaced in talent inboxes",
       "Access to talents that require Silver+",
+    ],
+    perkKeys: [
+      "client.settings.trust.silverPerk1",
+      "client.settings.trust.silverPerk2",
+      "client.settings.trust.silverPerk3",
     ],
   },
   gold: {
     label: "Gold",
     color: C.gold,
     bg: C.goldSoft,
-    description: "Highest trust — maximum talent access.",
+    description: "Highest trust, maximum talent access.",
+    descriptionKey: "client.settings.trust.goldDescription",
     perks: [
       "Everything in Silver",
-      "Gold badge — highest inbox priority",
+      "Gold badge, highest inbox priority",
       "Access to talents that require Gold only",
+    ],
+    perkKeys: [
+      "client.settings.trust.goldPerk1",
+      "client.settings.trust.goldPerk2",
+      "client.settings.trust.goldPerk3",
     ],
   },
 };
@@ -137,6 +169,7 @@ function ActionButton({
   pending: boolean;
   variant?: "primary" | "secondary";
 }) {
+  const t = useT();
   const isPrimary = variant === "primary";
   return (
     <button
@@ -164,7 +197,7 @@ function ActionButton({
         whiteSpace: "nowrap",
       }}
     >
-      {pending ? "Redirecting…" : label}
+      {pending ? t("client.settings.trust.redirecting") : label}
     </button>
   );
 }
@@ -172,6 +205,7 @@ function ActionButton({
 // ─── Verify button ────────────────────────────────────────────────────────────
 
 function VerifyButton({ tenantSlug }: { tenantSlug: string }) {
+  const t = useT();
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
 
@@ -190,7 +224,7 @@ function VerifyButton({ tenantSlug }: { tenantSlug: string }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-start" }}>
-      <ActionButton label="Verify account — $5" onClick={handleClick} pending={pending} />
+      <ActionButton label={t("client.settings.trust.verifyCta")} onClick={handleClick} pending={pending} />
       {error && <span style={{ fontSize: 11, color: "#c0392b", fontFamily: FONT }}>{error}</span>}
     </div>
   );
@@ -199,6 +233,7 @@ function VerifyButton({ tenantSlug }: { tenantSlug: string }) {
 // ─── Top-up buttons ───────────────────────────────────────────────────────────
 
 function TopupButtons({ tenantSlug }: { tenantSlug: string }) {
+  const t = useT();
   const [pendingAmount, setPendingAmount] = React.useState<number | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [, startTransition] = React.useTransition();
@@ -221,13 +256,13 @@ function TopupButtons({ tenantSlug }: { tenantSlug: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-start" }}>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: C.inkDim, fontFamily: FONT, letterSpacing: 0.2 }}>
-        Add balance
+        {t("client.settings.trust.addBalance")}
       </div>
       <div className="flex gap-2 flex-wrap">
         {TOPUP_PRESETS.map((p) => (
           <ActionButton
             key={p.amountCents}
-            label={pendingAmount === p.amountCents ? "Redirecting…" : p.label}
+            label={pendingAmount === p.amountCents ? t("client.settings.trust.redirecting") : p.label}
             onClick={() => handleTopup(p.amountCents)}
             pending={pendingAmount !== null}
             variant="secondary"
@@ -235,7 +270,7 @@ function TopupButtons({ tenantSlug }: { tenantSlug: string }) {
         ))}
       </div>
       <p style={{ fontSize: 11.5, color: C.inkMuted, margin: 0, fontFamily: FONT, lineHeight: 1.4 }}>
-        $100 = Silver tier · $500 = Gold tier
+        {t("client.settings.trust.thresholdNote")}
       </p>
       {error && <span style={{ fontSize: 11, color: "#c0392b", fontFamily: FONT }}>{error}</span>}
     </div>
@@ -257,6 +292,7 @@ export function ClientTrustShell({
   fundedBalanceCents: number;
   stripeEnabled: boolean;
 }) {
+  const t = useT();
   const meta = TIER_META[trustLevel];
   const isVerified = !!verifiedAt;
   const balanceDollars = (fundedBalanceCents / 100).toFixed(0);
@@ -276,7 +312,7 @@ export function ClientTrustShell({
             fontFamily: FONT,
           }}
         >
-          Trust level
+          {t("client.settings.trust.sectionTitle")}
         </div>
       </div>
 
@@ -303,20 +339,22 @@ export function ClientTrustShell({
           <TierChip tier={trustLevel} />
           <div className="flex-1">
             <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, letterSpacing: -0.1 }}>
-              {meta.label} trust
+              {interpolate(t("client.settings.trust.tierHeading"), { tier: meta.label })}
             </div>
-            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>{meta.description}</div>
+            <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>{t(meta.descriptionKey)}</div>
           </div>
         </div>
 
         {/* What's included */}
         <div style={{ padding: "12px 16px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: C.inkDim, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8, fontFamily: FONT }}>
-            Access
+            {t("client.settings.trust.accessLabel")}
           </div>
           <ul style={{ margin: 0, padding: "0 0 0 16px", display: "flex", flexDirection: "column", gap: 4 }}>
-            {meta.perks.map((p) => (
-              <li key={p} style={{ fontSize: 12.5, color: C.inkMuted, fontFamily: FONT }}>{p}</li>
+            {meta.perkKeys.map((key, i) => (
+              <li key={key} style={{ fontSize: 12.5, color: C.inkMuted, fontFamily: FONT }}>
+                {t(key) === key ? meta.perks[i] : t(key)}
+              </li>
             ))}
           </ul>
         </div>
@@ -334,19 +372,19 @@ export function ClientTrustShell({
             }}
           >
             <span style={{ fontSize: 12.5, color: C.inkMuted }}>
-              Account balance:
+              {t("client.settings.trust.accountBalance")}
             </span>
             <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>
               ${balanceDollars}
             </span>
             {trustLevel === "silver" && (
               <span style={{ fontSize: 11, color: C.silver, fontWeight: 600 }}>
-                Silver active
+                {t("client.settings.trust.silverActive")}
               </span>
             )}
             {trustLevel === "gold" && (
               <span style={{ fontSize: 11, color: C.amber, fontWeight: 600 }}>
-                Gold active
+                {t("client.settings.trust.goldActive")}
               </span>
             )}
           </div>
@@ -370,10 +408,10 @@ export function ClientTrustShell({
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, fontFamily: FONT }}>
-                Verify your account
+                {t("client.settings.trust.verifyTitle")}
               </div>
               <p style={{ fontSize: 12.5, color: C.inkMuted, margin: 0, fontFamily: FONT, lineHeight: 1.4 }}>
-                A one-time $5 verification fee confirms your account and upgrades your trust badge to Verified. Most talents accept Verified contacts by default.
+                {t("client.settings.trust.verifyBody")}
               </p>
               <VerifyButton tenantSlug={tenantSlug} />
             </div>
@@ -394,10 +432,10 @@ export function ClientTrustShell({
             >
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, fontFamily: FONT }}>
-                  Fund your account
+                  {t("client.settings.trust.fundTitle")}
                 </div>
                 <p style={{ fontSize: 12, color: C.inkMuted, margin: "4px 0 0", fontFamily: FONT, lineHeight: 1.4 }}>
-                  A funded balance raises your trust tier — Silver at $100, Gold at $500. Higher tiers give you access to talents that restrict to verified, funded clients.
+                  {t("client.settings.trust.fundBody")}
                 </p>
               </div>
               <TopupButtons tenantSlug={tenantSlug} />

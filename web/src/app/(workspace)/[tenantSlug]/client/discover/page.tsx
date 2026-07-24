@@ -12,6 +12,8 @@
 
 import { notFound } from "next/navigation";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
@@ -44,6 +46,7 @@ export default async function ClientDiscoverPage({
   const { tenantSlug } = await params;
   const sp = await searchParams;
   const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -78,10 +81,10 @@ export default async function ClientDiscoverPage({
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
-        eyebrow="Discover"
-        title="Discover talent"
-        subtitle="Find talent across every Tulala hub and independent profile. Save favorites, build shortlists, send one inquiry that routes to the right agency for each talent."
-        badge={total > 0 ? <HeaderBadge>{total} on Discover</HeaderBadge> : undefined}
+        eyebrow={t("dashboard.clientNav.discover")}
+        title={t("client.discover.title")}
+        subtitle={t("client.discover.subtitle")}
+        badge={total > 0 ? <HeaderBadge>{interpolate(t("client.discover.badgeOnDiscover"), { count: total })}</HeaderBadge> : undefined}
       />
 
       {!hasPro && (
@@ -95,9 +98,11 @@ export default async function ClientDiscoverPage({
             fontFamily: '"Inter", system-ui, sans-serif',
           }}
         >
-          <strong style={{ color: "#0F4F3E", fontWeight: 700, letterSpacing: 0.3, fontSize: 10.5, textTransform: "uppercase" }}>Standard tier</strong>
-          {" — Browse + heart + 1 shortlist + single-talent inquiry are free. "}
-          <strong>Compare</strong>, <strong>multi-talent fan-out</strong>, and rate visibility unlock with Pro.
+          <strong style={{ color: "#0F4F3E", fontWeight: 700, letterSpacing: 0.3, fontSize: 10.5, textTransform: "uppercase" }}>{t("client.discover.tierStandardBadge")}</strong>
+          {` · ${t("client.discover.tierFreeIntro")} `}
+          <strong>{t("client.discover.tierCompare")}</strong>{", "}
+          <strong>{t("client.discover.tierFanOut")}</strong>
+          {t("client.discover.tierProSuffix")}
         </div>
       )}
 
@@ -121,8 +126,8 @@ export default async function ClientDiscoverPage({
       ) : (
         <EmptyState
           icon="🪐"
-          title="Discover is warming up"
-          body="No talents have enabled Discover yet. Talents control their own visibility — once they toggle on, they'll appear here. Check back soon, or browse your agency's roster directly."
+          title={t("client.discover.emptyTitle")}
+          body={t("client.discover.emptyBody")}
         />
       )}
     </div>

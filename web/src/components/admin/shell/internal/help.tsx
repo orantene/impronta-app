@@ -34,7 +34,49 @@
 
 import { Fragment, useEffect, useState } from "react";
 
+import { interpolate } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
+
 import { COLORS, FONTS, useAdminShell, type DrawerId } from "./state";
+
+// ─── i18n plumbing ───────────────────────────────────────────────────
+//
+// The registry below keeps its English copy inline: it is the fallback
+// for non-UI consumers (DRAWERS.md generation, the free-text search in
+// the chatbot, tests) and the source of truth reviewers read. Every
+// rendered string additionally resolves through the message catalog
+// under `dashboard.adminHelp.*`, keyed by drawer id, so a Spanish
+// dashboard shows Spanish help.
+//
+// Catalog keys are derived from the drawer id rather than stored as
+// per-entry `*Key` fields: with 150+ entries and ~630 strings, derived
+// keys keep the registry readable and make it impossible for a key
+// field to drift out of sync with the entry it belongs to.
+
+const HELP_NS = "dashboard.adminHelp";
+
+type T = (key: string) => string;
+
+/**
+ * `createTranslator` returns the key itself when a catalog entry is
+ * missing, which would render a raw dot-path. Fall back to the English
+ * copy carried by the registry instead.
+ */
+function tOr(t: T, key: string, fallback: string): string {
+  const resolved = t(key);
+  return resolved === key ? fallback : resolved;
+}
+
+/** "Public site & domains" → "publicSiteDomains". Stable catalog segment. */
+function catalogSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(" ")
+    .map((word, i) => (i === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .join("");
+}
 
 // ─── Type definitions ────────────────────────────────────────────────
 
@@ -91,13 +133,13 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Operations",
     purpose:
-      "Single sheet for one inquiry. Clients ask questions, you negotiate, talent confirms — all in one place.",
+      "Single sheet for one inquiry. Clients ask questions, you negotiate, talent confirms, all in one place.",
     youCanHere: [
       "Reply in the client thread (visible to client + talent)",
       "Coordinate privately with talent (the client never sees this)",
       "Send offers and watch for client approval",
       "Track funded escrow and convert to a confirmed booking",
-      "See the full event timeline — every reply, offer, status change",
+      "See the full event timeline: every reply, offer, status change",
     ],
     relatedDrawers: ["pipeline", "new-inquiry", "today-pulse"],
     ticketCategory: "Bookings & inquiries",
@@ -130,11 +172,11 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Operations",
     purpose:
-      "Manually create an inquiry — usually for clients who reached out via WhatsApp or email and you want them tracked inside Tulala.",
+      "Manually create an inquiry, usually for clients who reached out via WhatsApp or email and you want them tracked inside Tulala.",
     youCanHere: [
       "Add the client (existing or new) and the talent involved",
       "Set the date(s), shoot type, and budget range",
-      "Choose initial status — usually Draft if you're still negotiating",
+      "Choose initial status, usually Draft if you're still negotiating",
       "Email the client a Tulala link so they can take over from there",
     ],
     relatedDrawers: ["pipeline", "inquiry-workspace", "client-list"],
@@ -145,7 +187,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Operations",
     purpose:
-      "Read-only summary of one confirmed booking — call-time, talent, contracts, payment status — without leaving the page you're on.",
+      "Read-only summary of one confirmed booking (call-time, talent, contracts, payment status) without leaving the page you're on.",
     youCanHere: [
       "See the booking at a glance",
       "Jump to the full booking detail to act",
@@ -173,7 +215,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Operations",
     purpose:
-      "What needs your attention right now — overdue replies, expiring offers, today's call-times, unresolved holds.",
+      "What needs your attention right now: overdue replies, expiring offers, today's call-times, unresolved holds.",
     youCanHere: [
       "Tap any line to jump straight into the inquiry that needs action",
       "Dismiss items you'll handle later (they reappear next morning)",
@@ -239,7 +281,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Operations",
     purpose:
-      "Cancelled, expired, and completed work — your historical record.",
+      "Cancelled, expired, and completed work, your historical record.",
     youCanHere: [
       "Search past bookings by client or talent",
       "Reopen a cancelled inquiry if a client comes back",
@@ -252,7 +294,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Operations",
     purpose:
-      "Everything happening on a single calendar day — bookings, holds, blockouts, talent availability.",
+      "Everything happening on a single calendar day: bookings, holds, blockouts, talent availability.",
     youCanHere: [
       "See who's working, who's holding the date, who's free",
       "Tap a booking to open its full sheet",
@@ -265,7 +307,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Operations",
     purpose:
-      "Talent requesting to join your roster — claims to existing profiles or fresh sign-ups.",
+      "Talent requesting to join your roster, claims to existing profiles or fresh sign-ups.",
     youCanHere: [
       "Approve or reject each request with a reason",
       "Send the talent a sign-on contract before approving",
@@ -282,7 +324,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD, W_EDIT],
     category: "Roster",
     purpose:
-      "The agency-side view of one talent — measurements, rates, availability, internal notes the talent never sees.",
+      "The agency-side view of one talent: measurements, rates, availability, internal notes the talent never sees.",
     youCanHere: [
       "Edit measurements, polaroids, and credits",
       "Set rate cards and territory restrictions",
@@ -306,7 +348,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     faqs: [
       {
         q: "Will adding a talent automatically make them exclusive to my agency?",
-        a: "On Studio and Agency plans, yes — adding a talent auto-assigns exclusivity. On Free plan, talents stay non-exclusive (the friend-link case). You can always change this later from the talent's profile.",
+        a: "On Studio and Agency plans, yes: adding a talent auto-assigns exclusivity. On Free plan, talents stay non-exclusive (the friend-link case). You can always change this later from the talent's profile.",
       },
     ],
   },
@@ -332,7 +374,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "Read-only snapshot of your workspace's plan, usage, and settings — for sharing with finance or legal.",
+      "Read-only snapshot of your workspace's plan, usage, and settings, for sharing with finance or legal.",
     youCanHere: [
       "Copy a permalink to send to your accountant",
       "See current plan, billing date, and seat count",
@@ -345,7 +387,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "First-time setup wizard for your public storefront — domain, branding, and the talent who'll show up first.",
+      "First-time setup wizard for your public storefront: domain, branding, and the talent who'll show up first.",
     youCanHere: [
       "Pick a tulala.app subdomain or connect a custom one",
       "Upload logo and pick brand colors",
@@ -373,7 +415,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "Managers, editors, and other admins on your workspace — and what each can do.",
+      "Managers, editors, and other admins on your workspace, and what each can do.",
     youCanHere: [
       "Invite teammates by email",
       "Assign roles (admin, manager, editor)",
@@ -415,7 +457,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "Legal entity, billing address, and tax info — used on invoices and contracts.",
+      "Legal entity, billing address, and tax info, used on invoices and contracts.",
     youCanHere: [
       "Update your registered business name and address",
       "Add a VAT or tax ID",
@@ -429,7 +471,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "Workspace-wide defaults — currency, locale, weekly schedule, notification rules.",
+      "Workspace-wide defaults: currency, locale, weekly schedule, notification rules.",
     youCanHere: [
       "Set the default currency for new bookings",
       "Pick which weekday your dashboard week starts on",
@@ -442,7 +484,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "Irreversible workspace operations — exporting everything, transferring ownership, deleting the workspace.",
+      "Irreversible workspace operations: exporting everything, transferring ownership, deleting the workspace.",
     youCanHere: [
       "Export a full archive (clients, bookings, files) before leaving",
       "Transfer the workspace to another admin",
@@ -458,7 +500,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Settings",
     purpose:
-      "Your onboarding progress — the steps that turn a fresh workspace into a live, bookable storefront.",
+      "Your onboarding progress: the steps that turn a fresh workspace into a live, bookable storefront.",
     youCanHere: [
       "See which setup steps are still incomplete",
       "Tap any step to jump straight into it",
@@ -507,7 +549,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_EDIT],
     category: "Public site",
     purpose:
-      "Edit your public storefront homepage — the first thing visitors see at yoursite.tulala.app.",
+      "Edit your public storefront homepage, the first thing visitors see at yoursite.tulala.app.",
     youCanHere: [
       "Reorder hero, talent grid, and any custom sections",
       "Drop in widgets (booking form, featured talent, press logos)",
@@ -520,7 +562,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_EDIT],
     category: "Public site",
     purpose:
-      "Static pages on your storefront — About, Press, Contact, Terms, etc.",
+      "Static pages on your storefront: About, Press, Contact, Terms, etc.",
     youCanHere: [
       "Create a new page from a template or blank canvas",
       "Set the URL slug, SEO title, and OG image per page",
@@ -533,7 +575,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_EDIT],
     category: "Public site",
     purpose:
-      "Editorial posts — campaign roundups, talent spotlights, agency news.",
+      "Editorial posts: campaign roundups, talent spotlights, agency news.",
     youCanHere: [
       "Draft a post with rich text, images, and embeds",
       "Tag posts so they appear on the right index pages",
@@ -559,7 +601,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_EDIT],
     category: "Public site",
     purpose:
-      "Every image, video, and file uploaded across your workspace — central library.",
+      "Every image, video, and file uploaded across your workspace, central library.",
     youCanHere: [
       "Upload new media (drag-and-drop, bulk OK)",
       "Search and tag assets so others on the team can find them",
@@ -572,7 +614,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_EDIT],
     category: "Public site",
     purpose:
-      "Multilingual storefront — translate your pages, posts, and UI strings.",
+      "Multilingual storefront: translate your pages, posts, and UI strings.",
     youCanHere: [
       "Add a language and pick a default fallback",
       "Edit translations side-by-side with the source",
@@ -585,7 +627,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_EDIT],
     category: "Public site",
     purpose:
-      "SEO defaults and per-page overrides — meta title, description, OG image, robots.",
+      "SEO defaults and per-page overrides: meta title, description, OG image, robots.",
     youCanHere: [
       "Set sitewide defaults (title template, default OG image)",
       "Override SEO on any page or post",
@@ -613,7 +655,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Public site",
     purpose:
-      "The categorization system — talent specialties, client industries, inquiry types — used for filtering across the app.",
+      "The categorization system (talent specialties, client industries, inquiry types) used for filtering across the app.",
     youCanHere: [
       "Add or rename a category",
       "Reorder how categories appear in filter menus",
@@ -626,7 +668,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_EDIT],
     category: "Public site",
     purpose:
-      "Embeddable Tulala blocks — booking forms, talent grids, hub directories — that you can drop into pages.",
+      "Embeddable Tulala blocks (booking forms, talent grids, hub directories) that you can drop into pages.",
     youCanHere: [
       "Browse available widgets",
       "Configure a widget (which talent, which filters)",
@@ -653,7 +695,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Public site",
     purpose:
-      "Storefront-side checks — broken links, missing meta tags, slow pages, indexability.",
+      "Storefront-side checks: broken links, missing meta tags, slow pages, indexability.",
     youCanHere: [
       "See a prioritized list of issues to fix",
       "Re-run a single check after fixing it",
@@ -666,7 +708,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Public site",
     purpose:
-      "Who can see your storefront — public, link-only, password-protected, or hidden from Tulala discovery.",
+      "Who can see your storefront: public, link-only, password-protected, or hidden from Tulala discovery.",
     youCanHere: [
       "Toggle public discovery on or off",
       "Set a password gate for unfinished sites",
@@ -679,7 +721,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Public site",
     purpose:
-      "Submit your roster to industry hubs — curated talent directories that send you inbound clients.",
+      "Submit your roster to industry hubs, curated talent directories that send you inbound clients.",
     youCanHere: [
       "Apply to a hub (each has its own review process)",
       "Choose which talent are eligible for hub listing",
@@ -711,7 +753,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Clients",
     purpose:
-      "Every client your workspace has worked with — past, present, and prospective.",
+      "Every client your workspace has worked with: past, present, and prospective.",
     youCanHere: [
       "Filter by trust tier, last booking, or industry",
       "Open a client's profile to see their full history",
@@ -724,7 +766,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Clients",
     purpose:
-      "The client's full record — contacts, brands, past bookings, payment history.",
+      "The client's full record: contacts, brands, past bookings, payment history.",
     youCanHere: [
       "Update contact details and brand affiliations",
       "See every past inquiry and booking",
@@ -738,7 +780,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Clients",
     purpose:
-      "Chronological log of every interaction with one client — bookings, messages, contracts, payments.",
+      "Chronological log of every interaction with one client: bookings, messages, contracts, payments.",
     youCanHere: [
       "Scroll through a unified timeline",
       "Filter to a specific event type",
@@ -751,7 +793,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Clients",
     purpose:
-      "Client info that's locked to admins only — internal credit ratings, do-not-book flags, sensitive notes.",
+      "Client info that's locked to admins only: internal credit ratings, do-not-book flags, sensitive notes.",
     youCanHere: [
       "Mark a client as do-not-book with a reason",
       "Set an internal credit limit",
@@ -769,7 +811,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Notifications",
     purpose:
-      "Every alert your workspace has generated — replies, offers, payments, system events.",
+      "Every alert your workspace has generated: replies, offers, payments, system events.",
     youCanHere: [
       "Filter by 'needs action' to see what's actually blocking you",
       "Mark items read or jump straight to the relevant inquiry",
@@ -782,7 +824,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Notifications",
     purpose:
-      "What your teammates have been doing — replies sent, bookings closed, talents added.",
+      "What your teammates have been doing: replies sent, bookings closed, talents added.",
     youCanHere: [
       "Filter by team member or by event type",
       "Spot coordinators who are overloaded or underused",
@@ -795,7 +837,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Notifications",
     purpose:
-      "Talent-side actions visible to you — accepted offers, updated availability, new portfolio uploads.",
+      "Talent-side actions visible to you: accepted offers, updated availability, new portfolio uploads.",
     youCanHere: [
       "See which talent recently went unavailable",
       "Spot stale profiles (no portfolio updates in months)",
@@ -821,7 +863,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Notifications",
     purpose:
-      "Saved reply templates — for common questions, follow-ups, polite-no's.",
+      "Saved reply templates: for common questions, follow-ups, polite-no's.",
     youCanHere: [
       "Create a new snippet with merge tags (client name, date, etc.)",
       "Edit existing snippets and see usage counts",
@@ -851,7 +893,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "Your day at a glance — call-times, requests waiting on you, offers about to expire.",
+      "Your day at a glance: call-times, requests waiting on you, offers about to expire.",
     youCanHere: [
       "Tap any line to jump straight into the request",
       "See your next confirmed booking and its details",
@@ -864,7 +906,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "An offer from your agency or a direct client — rate, dates, scope, terms.",
+      "An offer from your agency or a direct client: rate, dates, scope, terms.",
     youCanHere: [
       "Accept the offer and the booking confirms automatically",
       "Counter-propose a different rate or date",
@@ -879,7 +921,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "A request that's not yet a formal offer — agency is sounding you out before sending terms.",
+      "A request that's not yet a formal offer, agency is sounding you out before sending terms.",
     youCanHere: [
       "Confirm interest so the agency can build the offer",
       "Decline early if you can't make the dates",
@@ -892,7 +934,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "A confirmed booking — call-time, location, contacts, payment status.",
+      "A confirmed booking: call-time, location, contacts, payment status.",
     youCanHere: [
       "See the call sheet and any attached files",
       "Message the agency or client team",
@@ -906,7 +948,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "A finished booking — final payout status, receipt, and review window.",
+      "A finished booking: final payout status, receipt, and review window.",
     youCanHere: [
       "Confirm receipt of payment",
       "Leave feedback on the client (private to the agency)",
@@ -932,7 +974,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "Detail on a hub directory — what it is, what they pay, how to apply, who else is listed.",
+      "Detail on a hub directory: what it is, what they pay, how to apply, who else is listed.",
     youCanHere: [
       "Apply to be listed (agency approval required)",
       "Read past success stories from other talent",
@@ -962,7 +1004,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Edit your full talent profile — bio, photos, measurements, credits, rates.",
+      "Edit your full talent profile: bio, photos, measurements, credits, rates.",
     youCanHere: [
       "Update any section without affecting the others",
       "Preview how your public page looks before saving",
@@ -975,7 +1017,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Edit a single section of your profile — focused mode for one piece at a time.",
+      "Edit a single section of your profile, focused mode for one piece at a time.",
     youCanHere: [
       "Make changes without scrolling through the whole profile",
       "Save just this section",
@@ -991,7 +1033,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Your master availability calendar. Agencies see this when they're trying to offer you work.",
     youCanHere: [
       "Mark days as available, tentative, or blocked",
-      "Add travel windows (will be in Lisbon Mar 1–15)",
+      "Add travel windows (will be in Lisbon Mar 1-15)",
       "Choose which agencies can see which blocks",
     ],
     relatedDrawers: ["talent-add-event", "talent-block-dates"],
@@ -1001,7 +1043,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Quickly block a range of dates — vacation, family event, maternity leave.",
+      "Quickly block a range of dates: vacation, family event, maternity leave.",
     youCanHere: [
       "Pick a date range and a reason",
       "Choose visibility (just agencies, also clients)",
@@ -1027,7 +1069,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Casting polaroids — natural, no-makeup digitals shot against a plain wall.",
+      "Casting polaroids: natural, no-makeup digitals shot against a plain wall.",
     youCanHere: [
       "Upload a fresh set (most agencies want them under 90 days old)",
       "Add date and location to each shot",
@@ -1053,7 +1095,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Your campaign and editorial credits — the brands and publications you've worked with.",
+      "Your campaign and editorial credits, the brands and publications you've worked with.",
     youCanHere: [
       "Add a new credit with year, brand, and role",
       "Link credits to specific portfolio photos",
@@ -1066,7 +1108,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Skills that affect what you get cast for — languages, sports, dance, accents, instruments.",
+      "Skills that affect what you get cast for: languages, sports, dance, accents, instruments.",
     youCanHere: [
       "Add a skill with a self-rated proficiency level",
       "Upload demo video for skill verification",
@@ -1079,7 +1121,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "What you will and won't do — nudity, fur, alcohol/tobacco, conflicting brands.",
+      "What you will and won't do: nudity, fur, alcohol/tobacco, conflicting brands.",
     youCanHere: [
       "Set hard nos that block any inquiry mentioning them",
       "Set soft preferences (will consider if right)",
@@ -1105,7 +1147,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Travel preferences and constraints — passport details, comfort with red-eyes, dietary needs.",
+      "Travel preferences and constraints: passport details, comfort with red-eyes, dietary needs.",
     youCanHere: [
       "Add passport (encrypted) so contracts pre-fill correctly",
       "List airlines you have status with",
@@ -1118,7 +1160,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "External links shown on your profile — Instagram, agency page, personal site, IMDB.",
+      "External links shown on your profile: Instagram, agency page, personal site, IMDB.",
     youCanHere: [
       "Add a link with a label and icon",
       "Choose which links are public vs agency-only",
@@ -1131,7 +1173,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Feedback from past clients and agencies — visible to clients considering booking you.",
+      "Feedback from past clients and agencies, visible to clients considering booking you.",
     youCanHere: [
       "See your aggregate rating and breakdown",
       "Read individual reviews and respond publicly",
@@ -1144,7 +1186,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Video reel — runway clips, commercial spots, behind-the-scenes.",
+      "Video reel: runway clips, commercial spots, behind-the-scenes.",
     youCanHere: [
       "Upload or link from Vimeo/YouTube",
       "Pick a thumbnail frame",
@@ -1157,7 +1199,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Your measurements as they appear on every casting brief — height, bust/chest, waist, hips, shoe, hair, eyes.",
+      "Your measurements as they appear on every casting brief: height, bust/chest, waist, hips, shoe, hair, eyes.",
     youCanHere: [
       "Update measurements with the date taken",
       "Choose imperial or metric per region",
@@ -1170,7 +1212,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Identity, work-permit, and tax documents — encrypted and shared only with verified agencies.",
+      "Identity, work-permit, and tax documents, encrypted and shared only with verified agencies.",
     youCanHere: [
       "Upload passport, visa, or work-permit scans",
       "Set expiry reminders so you re-up before they lapse",
@@ -1183,7 +1225,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "My profile",
     purpose:
-      "Who agencies should call if something goes wrong on set — only revealed in emergencies.",
+      "Who agencies should call if something goes wrong on set, only revealed in emergencies.",
     youCanHere: [
       "Add up to 3 contacts with relationship and phone number",
       "Pick a primary contact",
@@ -1213,7 +1255,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Premium",
     purpose:
-      "Compare Basic (free), Pro, and Portfolio tiers — what each unlocks for your personal page.",
+      "Compare Basic (free), Pro, and Portfolio tiers, what each unlocks for your personal page.",
     youCanHere: [
       "See feature differences side by side",
       "Start a Pro or Portfolio upgrade",
@@ -1232,7 +1274,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Premium",
     purpose:
-      "Your premium personal page — independent of any agency, owned by you, lives at tulala.digital/t/<your-slug>.",
+      "Your premium personal page: independent of any agency, owned by you, lives at tulala.digital/t/<your-slug>.",
     youCanHere: [
       "Pick a layout template",
       "Choose which credits, photos, and links to feature",
@@ -1258,7 +1300,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Premium",
     purpose:
-      "Drop external media — Vimeo reels, Spotify playlists, Instagram posts — into your personal page.",
+      "Drop external media (Vimeo reels, Spotify playlists, Instagram posts) into your personal page.",
     youCanHere: [
       "Paste a URL and the embed renders automatically",
       "Reorder embeds within a section",
@@ -1271,7 +1313,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Premium",
     purpose:
-      "Press mentions and editorial features — articles where you've appeared.",
+      "Press mentions and editorial features, articles where you've appeared.",
     youCanHere: [
       "Add a press item with publication, date, and URL",
       "Upload a screenshot for offline preservation",
@@ -1284,7 +1326,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Premium",
     purpose:
-      "Downloadable PDF media kit — bio, photos, rate card, contact — for press and brand pitches.",
+      "Downloadable PDF media kit (bio, photos, rate card, contact) for press and brand pitches.",
     youCanHere: [
       "Auto-generate from your profile data",
       "Customize layout and which sections appear",
@@ -1297,7 +1339,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Premium",
     purpose:
-      "Connect your own domain (yourname.com) to your personal page — Portfolio tier only.",
+      "Connect your own domain (yourname.com) to your personal page, Portfolio tier only.",
     youCanHere: [
       "Add a domain and see the DNS records",
       "Verify the domain and switch your page to it",
@@ -1315,7 +1357,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Agencies",
     purpose:
-      "Your relationship with one agency — exclusivity status, commission, contract terms.",
+      "Your relationship with one agency: exclusivity status, commission, contract terms.",
     youCanHere: [
       "See contract start/end dates and renewal terms",
       "View commission percentages by job type",
@@ -1328,7 +1370,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Agencies",
     purpose:
-      "Initiate the process of leaving an agency — review notice periods, transfer rules, and final settlements.",
+      "Initiate the process of leaving an agency: review notice periods, transfer rules, and final settlements.",
     youCanHere: [
       "See the contractual notice period",
       "Send formal notice to the agency",
@@ -1357,7 +1399,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Agencies",
     purpose:
-      "Handle a conflict — two agencies offering competing dates, an agency missing a previously-set blockout, etc.",
+      "Handle a conflict: two agencies offering competing dates, an agency missing a previously-set blockout, etc.",
     youCanHere: [
       "See the two requests side by side",
       "Pick one and notify the other with a reason",
@@ -1370,7 +1412,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Agencies",
     purpose:
-      "Other talent you collaborate with — a private network for swapping castings you can't take, recommendations, and shared bookings.",
+      "Other talent you collaborate with: a private network for swapping castings you can't take, recommendations, and shared bookings.",
     youCanHere: [
       "Invite other talent to your network",
       "Refer a casting you can't take to a peer (with optional referral fee)",
@@ -1383,7 +1425,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Agencies",
     purpose:
-      "Your referral history and earnings — talent and brands you've sent to others, and what they've sent back.",
+      "Your referral history and earnings: talent and brands you've sent to others, and what they've sent back.",
     youCanHere: [
       "Track open referrals and their status",
       "See referral earnings (paid and pending)",
@@ -1400,7 +1442,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Your notification preferences as a talent — what you get pinged about and how.",
+      "Your notification preferences as a talent, what you get pinged about and how.",
     youCanHere: [
       "Mute event types you don't care about",
       "Set quiet hours",
@@ -1413,7 +1455,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Who sees what — measurements, contact, social handles, agency-private info.",
+      "Who sees what: measurements, contact, social handles, agency-private info.",
     youCanHere: [
       "Set per-field visibility (public, agency only, private)",
       "Hide your profile from Tulala discovery",
@@ -1426,7 +1468,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Who can contact you directly — by trust tier, agency relationship, or specific brand.",
+      "Who can contact you directly: by trust tier, agency relationship, or specific brand.",
     youCanHere: [
       "Allow direct contact only from Verified clients and up",
       "Whitelist specific agencies for direct outreach",
@@ -1434,14 +1476,14 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     ],
     relatedDrawers: ["talent-privacy"],
     devNotes:
-      "Defaults are open-ish — talent must opt INTO restrictions. See client-trust-badges memory for how this maps to the trust ladder.",
+      "Defaults are open-ish, talent must opt INTO restrictions. See client-trust-badges memory for how this maps to the trust ladder.",
   },
 
   "talent-payouts": {
     audience: TALENT,
     category: "Money",
     purpose:
-      "Where your money goes — bank accounts, payment processors, payout schedule.",
+      "Where your money goes: bank accounts, payment processors, payout schedule.",
     youCanHere: [
       "Add or remove a payout method",
       "Pick payout schedule (weekly, biweekly, on-demand)",
@@ -1455,7 +1497,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Money",
     purpose:
-      "Detailed earnings — every booking, what came in, what was deducted (commission, taxes, fees).",
+      "Detailed earnings: every booking, what came in, what was deducted (commission, taxes, fees).",
     youCanHere: [
       "Filter by year, agency, or job type",
       "Export to CSV for your accountant",
@@ -1468,7 +1510,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Money",
     purpose:
-      "Year-end tax documents — 1099, W-9, equivalents per region. Download once your earnings are finalized.",
+      "Year-end tax documents: 1099, W-9, equivalents per region. Download once your earnings are finalized.",
     youCanHere: [
       "Download forms for the current and past tax years",
       "Update your tax info (W-9, equivalent)",
@@ -1482,7 +1524,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Legacy entry — superseded by `talent-trust-detail` (the talent-side trust dashboard) and the per-method drawers (`talent-phone-verify`, `talent-id-verify`, etc.). Kept for backward compatibility with old deep links.",
+      "Legacy entry: superseded by `talent-trust-detail` (the talent-side trust dashboard) and the per-method drawers (`talent-phone-verify`, `talent-id-verify`, etc.). Kept for backward compatibility with old deep links.",
     youCanHere: [
       "(Routes to `talent-trust-detail`)",
     ],
@@ -1494,7 +1536,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "Record a quick voice reply instead of typing — useful when you're on the move.",
+      "Record a quick voice reply instead of typing, useful when you're on the move.",
     youCanHere: [
       "Record up to 60 seconds of voice",
       "Auto-transcribe and edit before sending",
@@ -1507,7 +1549,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Today",
     purpose:
-      "Archived conversations — closed bookings, declined requests, dormant agency relationships.",
+      "Archived conversations: closed bookings, declined requests, dormant agency relationships.",
     youCanHere: [
       "Search past conversations by client, agency, or keyword",
       "Restore an archived chat back to active",
@@ -1544,7 +1586,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, TALENT, CLIENT],
     category: "Account",
     purpose:
-      "Download an archive of your data — for backups, portability, or before you delete the account.",
+      "Download an archive of your data: for backups, portability, or before you delete the account.",
     youCanHere: [
       "Pick a date range or export everything",
       "Choose which data types (bookings, messages, files)",
@@ -1558,7 +1600,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, TALENT, HQ],
     category: "Security",
     purpose:
-      "Every consequential action on this account or workspace — who did what, when, from where.",
+      "Every consequential action on this account or workspace: who did what, when, from where.",
     youCanHere: [
       "Filter by user, action type, or IP",
       "Export a date-range slice for compliance",
@@ -1597,7 +1639,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD, TALENT, CLIENT],
     category: "Help",
     purpose:
-      "The help hub — search articles, browse by topic, contact support, submit a ticket.",
+      "The help hub: search articles, browse by topic, contact support, submit a ticket.",
     youCanHere: [
       "Search the documentation",
       "Browse articles by surface (admin, talent, client)",
@@ -1616,7 +1658,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Money",
     purpose:
-      "Connect your workspace to a payments processor — Stripe, Wise, Mercury — so you can receive client payments.",
+      "Connect your workspace to a payments processor (Stripe, Wise, Mercury) so you can receive client payments.",
     youCanHere: [
       "Connect a processor",
       "Set default fees and processing rules",
@@ -1630,7 +1672,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: W_ADMIN,
     category: "Money",
     purpose:
-      "Pick who receives payment for a booking — agency, talent direct, or split.",
+      "Pick who receives payment for a booking: agency, talent direct, or split.",
     youCanHere: [
       "Set the default receiver per talent",
       "Override on a per-booking basis",
@@ -1643,7 +1685,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, TALENT, CLIENT],
     category: "Money",
     purpose:
-      "Detail of a single payment — amount, fees, tax, receiver, status.",
+      "Detail of a single payment: amount, fees, tax, receiver, status.",
     youCanHere: [
       "See line-items and fee breakdown",
       "Download the receipt or invoice",
@@ -1661,7 +1703,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Cross-tenant pulse — incidents open, tickets in queue, billing failures, today's high-impact tenants.",
+      "Cross-tenant pulse: incidents open, tickets in queue, billing failures, today's high-impact tenants.",
     youCanHere: [
       "Triage incidents by severity",
       "Jump into any tenant from a row",
@@ -1674,7 +1716,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "One tenant's full record — plan, MRR, usage, key staff, recent activity.",
+      "One tenant's full record: plan, MRR, usage, key staff, recent activity.",
     youCanHere: [
       "Impersonate to see what they see",
       "Override the plan or extend a trial",
@@ -1702,7 +1744,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Suspend a tenant — billing failure, terms violation, security incident.",
+      "Suspend a tenant: billing failure, terms violation, security incident.",
     youCanHere: [
       "Pick a reason and severity (read-only, full lockout, deletion)",
       "Set an auto-unsuspend date if appropriate",
@@ -1715,7 +1757,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Manually override a tenant's plan — bumps, comps, custom enterprise terms.",
+      "Manually override a tenant's plan: bumps, comps, custom enterprise terms.",
     youCanHere: [
       "Bump to a higher tier with custom pricing",
       "Apply a discount or credit",
@@ -1728,7 +1770,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "One end-user's record — across tenants, surfaces, devices, sessions.",
+      "One end-user's record: across tenants, surfaces, devices, sessions.",
     youCanHere: [
       "See every workspace they're in",
       "Force a password reset",
@@ -1741,11 +1783,11 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Merge two user records — same person signed up twice with different emails.",
+      "Merge two user records, same person signed up twice with different emails.",
     youCanHere: [
       "Pick the surviving record",
       "Preview what gets transferred (memberships, history)",
-      "Run the merge (irreversible — confirm twice)",
+      "Run the merge (irreversible, confirm twice)",
     ],
     relatedDrawers: ["platform-user-detail"],
   },
@@ -1767,7 +1809,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Tenant has applied to a hub — review their roster fit before approving.",
+      "Tenant has applied to a hub, review their roster fit before approving.",
     youCanHere: [
       "See applicant tenant's profile and sample talent",
       "Approve, reject, or request changes",
@@ -1780,7 +1822,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Curation rules per hub — minimum bar, eligibility filters, exclusivity terms.",
+      "Curation rules per hub: minimum bar, eligibility filters, exclusivity terms.",
     youCanHere: [
       "Tune eligibility filters",
       "Update the application form questions",
@@ -1793,7 +1835,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "One invoice across the platform — tenant, line items, payment status.",
+      "One invoice across the platform: tenant, line items, payment status.",
     youCanHere: [
       "Issue a refund (full or partial)",
       "Mark as paid manually if processed offline",
@@ -1806,7 +1848,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Refund a charge — partial or full — with required reason and audit trail.",
+      "Refund a charge (partial or full) with required reason and audit trail.",
     youCanHere: [
       "Pick the charge and refund amount",
       "Choose a reason category (used for finance reporting)",
@@ -1819,7 +1861,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Tenants in dunning — failed charges, retry schedules, suspension countdowns.",
+      "Tenants in dunning: failed charges, retry schedules, suspension countdowns.",
     youCanHere: [
       "See the retry schedule for each failure",
       "Manually retry a charge",
@@ -1832,7 +1874,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Toggle features per tenant or globally — staged rollouts, beta access, kill switches.",
+      "Toggle features per tenant or globally: staged rollouts, beta access, kill switches.",
     youCanHere: [
       "Flip a flag for one tenant or a percentage rollout",
       "See who's currently in/out of each flag",
@@ -1845,7 +1887,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Content flagged for moderation — inappropriate photos, suspicious profiles, abusive messages.",
+      "Content flagged for moderation: inappropriate photos, suspicious profiles, abusive messages.",
     youCanHere: [
       "Approve, reject, or request changes",
       "Take down content with a reason sent to the user",
@@ -1858,7 +1900,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Background jobs — exports, migrations, daily aggregations. See progress and retry failures.",
+      "Background jobs: exports, migrations, daily aggregations. See progress and retry failures.",
     youCanHere: [
       "Filter by job type or status",
       "Retry a failed job",
@@ -1871,7 +1913,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "A live or past incident — what broke, when, how it was resolved.",
+      "A live or past incident: what broke, when, how it was resolved.",
     youCanHere: [
       "Update status (investigating, identified, monitoring, resolved)",
       "Post updates that go to the public status page",
@@ -1884,7 +1926,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "A support ticket from a tenant or end-user — the queue HQ works through daily.",
+      "A support ticket from a tenant or end-user, the queue HQ works through daily.",
     youCanHere: [
       "Assign the ticket to a teammate",
       "Reply to the user (template or freeform)",
@@ -1898,7 +1940,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Generate a compliance-grade audit export — for legal, security reviews, or tenant requests.",
+      "Generate a compliance-grade audit export: for legal, security reviews, or tenant requests.",
     youCanHere: [
       "Pick a tenant or scope to all platform",
       "Select a date range and event types",
@@ -1924,7 +1966,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: HQ,
     category: "HQ",
     purpose:
-      "Per-region settings — currencies, tax rules, available payment processors, content moderation rules.",
+      "Per-region settings: currencies, tax rules, available payment processors, content moderation rules.",
     youCanHere: [
       "Add or edit a region",
       "Set legal text per region",
@@ -1941,7 +1983,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Money",
     purpose:
-      "Client trust tier — Basic through Gold — based on identity verification and funded-account signals.",
+      "Client trust tier (Basic through Gold) based on identity verification and funded-account signals.",
     youCanHere: [
       "See which tier the client is on and what each tier unlocks",
       "Understand what verification steps are still outstanding",
@@ -1955,7 +1997,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD, CLIENT],
     category: "Money",
     purpose:
-      "Escrow hold for a booking — Authorized → Held → Released lifecycle view.",
+      "Escrow hold for a booking, Authorized → Held → Released lifecycle view.",
     youCanHere: [
       "See the current escrow state and unlock conditions",
       "Review the funds release schedule",
@@ -1969,7 +2011,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, CLIENT],
     category: "Money",
     purpose:
-      "Issue a refund for a booking payment — full or partial — with a required reason.",
+      "Issue a refund for a booking payment (full or partial) with a required reason.",
     youCanHere: [
       "Select a refund reason for finance reporting",
       "Choose full refund or enter a partial amount",
@@ -1983,7 +2025,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, CLIENT, TALENT],
     category: "Money",
     purpose:
-      "Open a formal dispute for a payment or delivery issue — structured wizard with evidence upload.",
+      "Open a formal dispute for a payment or delivery issue, structured wizard with evidence upload.",
     youCanHere: [
       "Pick the dispute type (non-delivery, quality, unauthorised charge, other)",
       "Attach evidence (messages, photos, documents)",
@@ -1997,7 +2039,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, CLIENT, TALENT],
     category: "Money",
     purpose:
-      "Identity verification — photo ID + selfie — required to unlock higher trust tiers and payment limits.",
+      "Identity verification (photo ID + selfie) required to unlock higher trust tiers and payment limits.",
     youCanHere: [
       "Start the verification flow",
       "See which step is pending (ID, selfie, review)",
@@ -2011,7 +2053,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, CLIENT],
     category: "Money",
     purpose:
-      "Verify a funded account — bank link or wire — to reach Silver or Gold trust tier.",
+      "Verify a funded account (bank link or wire) to reach Silver or Gold trust tier.",
     youCanHere: [
       "Link a bank account via Plaid for instant verification",
       "Alternatively upload a bank statement for manual review",
@@ -2025,7 +2067,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, TALENT],
     category: "Money",
     purpose:
-      "Your payout method failed — see the reason and follow guided recovery steps.",
+      "Your payout method failed, see the reason and follow guided recovery steps.",
     youCanHere: [
       "Read the specific failure reason code",
       "Update or replace the payout method",
@@ -2043,7 +2085,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, TALENT],
     category: "Money",
     purpose:
-      "Full subscription lifecycle — trial, active, paused, grace period, and cancelled states.",
+      "Full subscription lifecycle: trial, active, paused, grace period, and cancelled states.",
     youCanHere: [
       "See the current phase and what changes next",
       "Pause or cancel an active subscription",
@@ -2061,7 +2103,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD, TALENT, CLIENT],
     category: "Notifications",
     purpose:
-      "Full detail of a single notification — what happened, who triggered it, and what action is needed.",
+      "Full detail of a single notification: what happened, who triggered it, and what action is needed.",
     youCanHere: [
       "Read the full notification body",
       "Jump to the related booking, inquiry, or thread",
@@ -2078,7 +2120,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "AI",
     purpose:
-      "AI-generated message drafts — describe what you want to say and get a polished draft.",
+      "AI-generated message drafts, describe what you want to say and get a polished draft.",
     youCanHere: [
       "Enter a prompt and generate a draft",
       "Edit the draft inline before using it",
@@ -2116,7 +2158,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: [W_ADMIN, W_COORD],
     category: "Settings",
     purpose:
-      "Review every Instagram + Tulala + ID + business + domain + payment verification submitted by talent. Approve, reject, or ask for more info — talent gets notified.",
+      "Review every Instagram + Tulala + ID + business + domain + payment verification submitted by talent. Approve, reject, or ask for more info, talent gets notified.",
     youCanHere: [
       "Filter by status (Pending / In review / Needs info / Approved / Rejected)",
       "Filter by method (only enabled methods are shown)",
@@ -2150,7 +2192,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     purpose:
       "Source-of-truth registry for which verification methods exist on Tulala. Platform admins enable / disable methods, change review mode, set tier-gating, evidence requirements, and expiry.",
     youCanHere: [
-      "Toggle a method on or off platform-wide (warns if active badges exist — they stay valid until expiry, but disappear from public storefronts immediately)",
+      "Toggle a method on or off platform-wide (warns if active badges exist: they stay valid until expiry, but disappear from public storefronts immediately)",
       "Set review mode (automated / manual / hybrid)",
       "Set visibility (public_profile / admin_only / internal)",
       "Restrict who can use it by talent tier (Basic / Pro / Portfolio / All)",
@@ -2168,7 +2210,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     purpose:
       "Your trust dashboard. See your trust-health score, the badges you've earned, and what verifications would lift your score the most. Also where you set who can contact you.",
     youCanHere: [
-      "See your trust-health score (0–100, internal heuristic)",
+      "See your trust-health score (0-100, internal heuristic)",
       "Open suggestions like 'Verify your phone (+5)' that route to the right flow",
       "Start the Instagram DM flow (handle + code + optional evidence URL)",
       "Request Tulala manual review",
@@ -2185,7 +2227,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     purpose:
       "Accept (or dispute) a profile that an agency created in your name. Three actions: claim it (becomes yours), say 'not me' (admin reviews), or report it.",
     youCanHere: [
-      "Review the profile the agency built — photos, fields, agency name",
+      "Review the profile the agency built: photos, fields, agency name",
       "Claim ownership (verifies your email + flips claim status to 'claimed')",
       "Dispute the invite if the profile isn't actually yours (lands in the admin disputed-claims queue)",
       "Report the invite as suspicious (takes profile offline pending admin review)",
@@ -2198,7 +2240,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Confirm a working phone number via SMS OTP. Internal-only signal — never shown publicly. Speeds up account-recovery and lifts your trust-health score.",
+      "Confirm a working phone number via SMS OTP. Internal-only signal, never shown publicly. Speeds up account-recovery and lifts your trust-health score.",
     youCanHere: [
       "Enter your phone with country code",
       "Receive a 6-digit code (prototype shows it inline; production sends real SMS)",
@@ -2213,12 +2255,12 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Upload a government-issued ID for manual admin review. Internal-only — used to confirm name + age + identity uniqueness. Never shared with clients or agencies.",
+      "Upload a government-issued ID for manual admin review. Internal-only, used to confirm name + age + identity uniqueness. Never shared with clients or agencies.",
     youCanHere: [
       "Pick your document type (passport / driver's license / national ID)",
       "Provide a secure URL to the document (in production this is a direct upload)",
       "Add a reviewer note explaining anything the document needs context for",
-      "Submit — admin reviews within 48h",
+      "Submit, admin reviews within 48h",
     ],
     relatedDrawers: ["talent-trust-detail", "talent-phone-verify"],
     ticketCategory: "Account & access",
@@ -2228,7 +2270,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Confirm the registered legal entity behind your work — VAT / company-house / DIC / equivalent. Public badge for talent who run their work as a business.",
+      "Confirm the registered legal entity behind your work, VAT / company-house / DIC / equivalent. Public badge for talent who run their work as a business.",
     youCanHere: [
       "Enter your legal entity name + VAT/registration number",
       "Optionally (or required by platform policy) attach a public registry URL",
@@ -2242,12 +2284,12 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Prove you control a domain (e.g. martareyes.com) by adding a DNS TXT record. Public badge — adds credibility to talent who maintain their own websites.",
+      "Prove you control a domain (e.g. martareyes.com) by adding a DNS TXT record. Public badge, adds credibility to talent who maintain their own websites.",
     youCanHere: [
       "Enter the domain you want to verify",
       "Copy the generated TXT record value",
       "Add it via your DNS provider (GoDaddy / Namecheap / Cloudflare / etc.)",
-      "Click 'check now' to run the lookup — auto-approves on match",
+      "Click 'check now' to run the lookup, auto-approves on match",
     ],
     relatedDrawers: ["talent-trust-detail", "talent-custom-domain"],
     ticketCategory: "Account & access",
@@ -2257,9 +2299,9 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     audience: TALENT,
     category: "Settings",
     purpose:
-      "Confirm a working payout method via a small Stripe authorization-then-refund. Internal-only — improves your trust score for clients who care about payment reliability.",
+      "Confirm a working payout method via a small Stripe authorization-then-refund. Internal-only, improves your trust score for clients who care about payment reliability.",
     youCanHere: [
-      "Run the verification (€1 hold + immediate refund — no money actually moves)",
+      "Run the verification (€1 hold + immediate refund, no money actually moves)",
       "See the result inline; auto-approves on success",
     ],
     relatedDrawers: ["talent-trust-detail", "talent-payouts"],
@@ -2428,6 +2470,7 @@ export function HelpPanel({
   /** DOM id used by the toolbar ⓘ button's aria-controls. */
   panelId: string;
 }) {
+  const t = useT();
   const entry = getHelp(drawerId);
 
   // Mount/unmount nicely — keep panel in DOM during open=true so the
@@ -2449,6 +2492,9 @@ export function HelpPanel({
   // entry slips in with [], fall back to a workspace tint.
   const audienceColor = audiences.length > 0 ? audienceTint(audiences[0]!) : audienceTint("Workspace admin");
 
+  // Catalog root for this entry's own copy (purpose + bullets).
+  const topicBase = `${HELP_NS}.topics.${drawerId ?? ""}`;
+
   // Honor prefers-reduced-motion: snap-toggle the panel instead of
   // animating, and disable the pulse keyframe (handled in the icon
   // button via a media query inside its <style>).
@@ -2466,7 +2512,7 @@ export function HelpPanel({
       // include it.)
       inert={!open ? true : undefined}
       role="region"
-      aria-label="About this view"
+      aria-label={tOr(t, `${HELP_NS}.ui.aboutThisView`, "About this view")}
       aria-hidden={!open}
       data-tulala-drawer-help-panel="true"
       style={{
@@ -2522,17 +2568,17 @@ export function HelpPanel({
                 color: audienceTint(a).fg,
               }}
             >
-              {a}
+              {tOr(t, `${HELP_NS}.audiences.${catalogSlug(a)}`, a)}
             </span>
           ))}
           <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: 0.3 }} className="text-admin-ink-muted">
-            · {entry.category}
+            · {tOr(t, `${HELP_NS}.categories.${catalogSlug(entry.category)}`, entry.category)}
           </span>
         </div>
 
         {/* Purpose */}
         <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, fontWeight: 450 }} className="text-admin-ink">
-          {entry.purpose}
+          {tOr(t, `${topicBase}.purpose`, entry.purpose)}
         </p>
 
         {/* What you can do here — gated on at least one bullet so a
@@ -2540,7 +2586,7 @@ export function HelpPanel({
         {entry.youCanHere.length > 0 && (
         <div style={{ marginTop: 14 }}>
           <h4 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
-            What you can do here
+            {tOr(t, `${HELP_NS}.ui.youCanHere`, "What you can do here")}
           </h4>
           <ul
             style={{
@@ -2575,7 +2621,7 @@ export function HelpPanel({
                     background: audienceColor.fg,
                   }}
                 />
-                {line}
+                {tOr(t, `${topicBase}.b${i}`, line)}
               </li>
             ))}
           </ul>
@@ -2586,7 +2632,7 @@ export function HelpPanel({
         {entry.relatedDrawers && entry.relatedDrawers.length > 0 && (
           <div className="mt-4">
             <h4 style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">
-              Related views
+              {tOr(t, `${HELP_NS}.ui.relatedViews`, "Related views")}
             </h4>
             <div className="flex flex-wrap gap-1.5">
               {entry.relatedDrawers.map((rel) => (
@@ -2615,7 +2661,7 @@ export function HelpPanel({
                     e.currentTarget.style.background = "#fff";
                   }}
                 >
-                  {drawerLabel(rel)}
+                  {tOr(t, `${HELP_NS}.drawerLabels.${rel}`, drawerLabel(rel))}
                 </button>
               ))}
             </div>
@@ -2642,6 +2688,7 @@ export function HelpPanel({
 // fat-finger.
 function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
   const proto = useAdminShell();
+  const t = useT();
   const [vote, setVote] = useState<HelpFeedback | null>(() =>
     getHelpFeedback(drawerId),
   );
@@ -2661,10 +2708,12 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
     setHelpFeedback(drawerId, v);
     setVote(v);
     proto.toast(
-      v === "up" ? "Thanks — glad this helped." : "Thanks — we'll improve this view.",
+      v === "up"
+        ? tOr(t, `${HELP_NS}.ui.toastThanksUp`, "Thanks, glad this helped.")
+        : tOr(t, `${HELP_NS}.ui.toastThanksDown`, "Thanks, we'll improve this view."),
       {
         action: {
-          label: "Undo",
+          label: tOr(t, "public.guestChat.removedToastUndo", "Undo"),
           onClick: () => {
             // Clear the entry so the row re-prompts.
             const map = getFeedbackMap();
@@ -2707,8 +2756,8 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
         </span>
         <span>
           {vote === "up"
-            ? "Thanks — feedback saved."
-            : "Thanks — we'll revisit this view's help."}
+            ? tOr(t, `${HELP_NS}.ui.feedbackSavedUp`, "Thanks, feedback saved.")
+            : tOr(t, `${HELP_NS}.ui.feedbackSavedDown`, "Thanks, we'll revisit this view's help.")}
         </span>
       </div>
     );
@@ -2716,11 +2765,11 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
 
   return (
     <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px dashed ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-      <span>Was this helpful?</span>
+      <span>{tOr(t, `${HELP_NS}.ui.wasThisHelpful`, "Was this helpful?")}</span>
       <div className="inline-flex gap-1.5">
         <button
           type="button"
-          aria-label="Yes, this was helpful"
+          aria-label={tOr(t, `${HELP_NS}.ui.voteUpAria`, "Yes, this was helpful")}
           onClick={() => submit("up")}
           style={sharedBtn}
           onMouseEnter={(e) => {
@@ -2741,7 +2790,7 @@ function FeedbackRow({ drawerId }: { drawerId: DrawerId | null }) {
         </button>
         <button
           type="button"
-          aria-label="No, this could be better"
+          aria-label={tOr(t, `${HELP_NS}.ui.voteDownAria`, "No, this could be better")}
           onClick={() => submit("down")}
           style={sharedBtn}
           onMouseEnter={(e) => {
@@ -2774,8 +2823,10 @@ function FooterActions({
   drawerId: DrawerId | null;
 }) {
   const proto = useAdminShell();
+  const t = useT();
   if (!drawerId) return null;
   const slug = entry.supportSlug ?? drawerId;
+  const openHelpDrawerLabel = tOr(t, `${HELP_NS}.ui.openHelpDrawer`, "Open help drawer");
 
   const linkBtnStyle = {
     background: "transparent",
@@ -2797,7 +2848,16 @@ function FooterActions({
       <button
         type="button"
         onClick={() =>
-          proto.toast(`Support article "/support/${slug}" — coming soon.`)
+          proto.toast(
+            interpolate(
+              tOr(
+                t,
+                `${HELP_NS}.ui.toastSupportArticle`,
+                'Support article "/support/{slug}" is coming soon.',
+              ),
+              { slug },
+            ),
+          )
         }
         style={linkBtnStyle}
         onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
@@ -2806,8 +2866,10 @@ function FooterActions({
         {/* No ↗ until the actual /support/<slug> route exists. The
             arrow on a button that just toasts felt like a 404 every
             time you clicked it. Add ↗ back when wired live. */}
-        Full guide
-        <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 10.5 }}>(soon)</span>
+        {tOr(t, `${HELP_NS}.ui.fullGuide`, "Full guide")}
+        <span style={{ marginLeft: 4, opacity: 0.55, fontSize: 10.5 }}>
+          {tOr(t, `${HELP_NS}.ui.soon`, "(soon)")}
+        </span>
       </button>
       <Fragment>
         <span aria-hidden style={{ opacity: 0.4 }}>·</span>
@@ -2815,10 +2877,17 @@ function FooterActions({
           type="button"
           onClick={() =>
             proto.toast(
-              `Chat with support — coming soon. We'll pre-load context for "${drawerId}".`,
+              interpolate(
+                tOr(
+                  t,
+                  `${HELP_NS}.ui.toastChatSupport`,
+                  'Chat with support is coming soon. We\'ll pre-load context for "{drawer}".',
+                ),
+                { drawer: drawerId },
+              ),
               {
                 action: {
-                  label: "Open help drawer",
+                  label: openHelpDrawerLabel,
                   onClick: () => proto.openDrawer("help"),
                 },
               },
@@ -2828,7 +2897,7 @@ function FooterActions({
           onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
           onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
         >
-          Ask a question
+          {tOr(t, "dashboard.clientOffer.askQuestion", "Ask a question")}
         </button>
       </Fragment>
       {entry.ticketCategory && (
@@ -2838,10 +2907,23 @@ function FooterActions({
             type="button"
             onClick={() =>
               proto.toast(
-                `Ticket form — coming soon. We'll pre-fill category "${entry.ticketCategory}".`,
+                interpolate(
+                  tOr(
+                    t,
+                    `${HELP_NS}.ui.toastTicketForm`,
+                    'Ticket form is coming soon. We\'ll pre-fill category "{category}".',
+                  ),
+                  {
+                    category: tOr(
+                      t,
+                      `${HELP_NS}.ticketCategories.${catalogSlug(entry.ticketCategory!)}`,
+                      entry.ticketCategory!,
+                    ),
+                  },
+                ),
                 {
                   action: {
-                    label: "Open help drawer",
+                    label: openHelpDrawerLabel,
                     onClick: () => proto.openDrawer("help"),
                   },
                 },
@@ -2851,7 +2933,7 @@ function FooterActions({
             onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
             onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
           >
-            Submit a ticket
+            {tOr(t, `${HELP_NS}.ui.submitATicket`, "Submit a ticket")}
           </button>
         </Fragment>
       )}

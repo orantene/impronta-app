@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
@@ -26,6 +27,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 export default async function ClientFavoritesPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
   const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -43,9 +45,9 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
-        eyebrow="Favorites"
-        title="Your favorites"
-        subtitle="Talent you ♥ saved on Discover. Quick reference list — open a talent's drawer to inquire or add to a shortlist."
+        eyebrow={t("dashboard.clientNav.favorites")}
+        title={t("client.favorites.title")}
+        subtitle={t("client.favorites.subtitle")}
         badge={favorites.length > 0 ? <HeaderBadge>{favorites.length}</HeaderBadge> : undefined}
       />
 
@@ -54,8 +56,8 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
       ) : (
         <EmptyState
           icon="♡"
-          title="No favorites yet"
-          body="Browse Discover and tap the ♥ on any talent to save them here."
+          title={t("client.favorites.emptyTitle")}
+          body={t("client.favorites.emptyBody")}
           actions={
             <Link
               href={`/${tenantSlug}/client/discover`}
@@ -73,7 +75,7 @@ export default async function ClientFavoritesPage({ params }: { params: PagePara
                 letterSpacing: -0.1,
               }}
             >
-              Browse Discover →
+              {t("dashboard.clientConfirm.favoritesEmptyCta")} →
             </Link>
           }
         />

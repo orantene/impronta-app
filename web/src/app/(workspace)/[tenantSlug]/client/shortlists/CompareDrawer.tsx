@@ -7,8 +7,10 @@
 // renders a fixed row set (photo / name / category / location / agency /
 // languages / response / bio) as a table-like grid. Esc + backdrop close.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DiscoverShortlistTalent } from "../../_data-bridge/discover";
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 
 const C = {
   ink:        "#0B0B0D",
@@ -47,6 +49,8 @@ export function CompareDrawer({
   talents: DiscoverShortlistTalent[];
   onClose: () => void;
 }) {
+  const t = useT();
+  const tp = useMemo(() => withPluralization(t), [t]);
   const [details, setDetails] = useState<Map<string, CompareDetail>>(() => new Map());
   const [loading, setLoading] = useState(true);
 
@@ -81,11 +85,11 @@ export function CompareDrawer({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const ROWS: Array<{ label: string; render: (d: CompareDetail | undefined, t: DiscoverShortlistTalent) => React.ReactNode }> = [
+  const ROWS: Array<{ label: string; render: (d: CompareDetail | undefined, row: DiscoverShortlistTalent) => React.ReactNode }> = [
     {
       label: "",
-      render: (d, t) => {
-        const url = d?.headshotUrl ?? t.headshotUrl;
+      render: (d, row) => {
+        const url = d?.headshotUrl ?? row.headshotUrl;
         if (url) {
           return (
             <div style={{
@@ -101,16 +105,16 @@ export function CompareDrawer({
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 28, fontWeight: 700,
           }}>
-            {t.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
+            {row.displayName.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")}
           </div>
         );
       },
     },
-    { label: "Name", render: (_d, t) => <strong>{t.displayName}</strong> },
+    { label: t("client.shortlists.compareName"), render: (_d, row) => <strong>{row.displayName}</strong> },
     {
-      label: "Category",
-      render: (d, t) => {
-        const primary = d?.primaryTypeLabel ?? t.primaryTypeLabel ?? "—";
+      label: t("client.shortlists.compareCategory"),
+      render: (d, row) => {
+        const primary = d?.primaryTypeLabel ?? row.primaryTypeLabel ?? "—";
         const secondary = d?.secondaryTypeLabels ?? [];
         return (
           <span>
@@ -125,33 +129,33 @@ export function CompareDrawer({
       },
     },
     {
-      label: "Location",
-      render: (_d, t) =>
-        t.homeCity || t.homeCountry
-          ? [t.homeCity, t.homeCountry].filter(Boolean).join(" · ")
+      label: t("client.shortlists.compareLocation"),
+      render: (_d, row) =>
+        row.homeCity || row.homeCountry
+          ? [row.homeCity, row.homeCountry].filter(Boolean).join(" · ")
           : <span style={{ color: C.inkDim }}>—</span>,
     },
     {
-      label: "Agency",
-      render: (_d, t) => t.agencyName
-        ? <span>{t.agencyName}{t.isExclusive && <span style={{ color: C.inkDim, fontSize: 11 }}> · exclusive</span>}</span>
-        : <span style={{ color: C.inkDim }}>Independent</span>,
+      label: t("client.shortlists.compareAgency"),
+      render: (_d, row) => row.agencyName
+        ? <span>{row.agencyName}{row.isExclusive && <span style={{ color: C.inkDim, fontSize: 11 }}> · {t("client.discover.exclusive")}</span>}</span>
+        : <span style={{ color: C.inkDim }}>{t("client.discover.independent")}</span>,
     },
     {
-      label: "Languages",
+      label: t("client.shortlists.compareLanguages"),
       render: (d) =>
         (d?.languages?.length ?? 0) > 0
           ? d!.languages.join(" · ")
           : <span style={{ color: C.inkDim }}>—</span>,
     },
     {
-      label: "Response",
+      label: t("client.shortlists.compareResponse"),
       render: (d) => d?.responseTime
-        ? `within ${d.responseTime}`
+        ? interpolate(t("client.shortlists.compareWithin"), { time: d.responseTime })
         : <span style={{ color: C.inkDim }}>—</span>,
     },
     {
-      label: "Bio",
+      label: t("client.shortlists.compareBio"),
       render: (d) => d?.bio
         ? <span style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>{d.bio}</span>
         : <span style={{ color: C.inkDim }}>—</span>,
@@ -162,7 +166,7 @@ export function CompareDrawer({
     <div
       role="dialog"
       aria-modal
-      aria-label={`Compare talents on ${shortlistName}`}
+      aria-label={interpolate(t("client.shortlists.compareAria"), { name: shortlistName })}
       style={{
         position: "fixed", inset: 0, zIndex: 60,
         background: "rgba(11,11,13,0.55)",
@@ -189,12 +193,12 @@ export function CompareDrawer({
           borderBottom: `1px solid ${C.borderSoft}`,
         }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>
-            ⇄ Compare · {shortlistName} · {talents.length} talents
+            ⇄ {t("client.shortlists.compare")} · {shortlistName} · {tp("client.discover.talentCount", talents.length)}
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close compare"
+            aria-label={t("client.shortlists.compareClose")}
             style={{
               width: 32, height: 32, borderRadius: "50%",
               border: `1px solid ${C.borderSoft}`,
@@ -211,7 +215,7 @@ export function CompareDrawer({
           padding: 18,
         }}>
           {loading ? (
-            <div style={{ padding: 24, color: C.inkMuted }}>Loading talent details…</div>
+            <div style={{ padding: 24, color: C.inkMuted }}>{t("client.shortlists.compareLoading")}</div>
           ) : (
             <div
               style={{

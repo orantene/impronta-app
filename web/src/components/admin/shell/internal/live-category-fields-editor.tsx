@@ -34,6 +34,8 @@ import {
   setTalentFieldValue,
   setTalentFieldVisibility,
 } from "@/lib/server-actions/admin-talent-field-values";
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { LiveCategoryFieldsHistoryModal } from "./live-category-fields-history";
 import {
   FieldEditor,
@@ -222,13 +224,39 @@ const NAMESPACE_LABEL: Record<string, string> = {
   emergency:    "Emergency",
 };
 
+/** Catalog keys mirroring NAMESPACE_LABEL. English above stays the fallback. */
+const NAMESPACE_LABEL_KEY: Record<string, string> = {
+  model:        "dashboard.adminFieldsEditor.ns.model",
+  chef:         "dashboard.adminFieldsEditor.ns.chef",
+  performer:    "dashboard.adminFieldsEditor.ns.performer",
+  music:        "dashboard.adminFieldsEditor.ns.music",
+  creator:      "dashboard.adminFieldsEditor.ns.creator",
+  security:     "dashboard.adminFieldsEditor.ns.security",
+  transport:    "dashboard.adminFieldsEditor.ns.transport",
+  photo:        "dashboard.adminFieldsEditor.ns.photo",
+  event:        "dashboard.adminFieldsEditor.ns.event",
+  hosp:         "dashboard.adminFieldsEditor.ns.hosp",
+  wellness:     "dashboard.adminFieldsEditor.ns.wellness",
+  host:         "dashboard.adminFieldsEditor.ns.host",
+  singer:       "dashboard.adminFieldsEditor.ns.singer",
+  equipment:    "dashboard.adminFieldsEditor.ns.equipment",
+  ops:          "dashboard.adminFieldsEditor.ns.ops",
+  travel:       "dashboard.adminFieldsEditor.ns.travel",
+  service:      "dashboard.adminFieldsEditor.ns.service",
+  serviceArea:  "dashboard.adminFieldsEditor.ns.serviceArea",
+  availability: "dashboard.adminFieldsEditor.ns.availability",
+  consent:      "dashboard.adminFieldsEditor.ns.consent",
+  emergency:    "dashboard.adminFieldsEditor.ns.emergency",
+};
+
 function namespaceFor(fieldKey: string): string {
   const i = fieldKey.indexOf(".");
   return i === -1 ? "_misc" : fieldKey.slice(0, i);
 }
 
-function namespaceLabel(ns: string): string {
-  if (ns === "_misc") return "Other";
+function namespaceLabel(ns: string, t?: (key: string) => string): string {
+  if (ns === "_misc") return t ? t("dashboard.adminFieldsEditor.ns.other") : "Other";
+  if (NAMESPACE_LABEL_KEY[ns] && t) return t(NAMESPACE_LABEL_KEY[ns]);
   if (NAMESPACE_LABEL[ns]) return NAMESPACE_LABEL[ns];
   // Fallback: split camelCase, capitalize first word.
   const words = ns
@@ -315,6 +343,7 @@ function GroupBlock({
   title, weight, fields, valuesByDefId, visibilityByDefId,
   onSave, onSaveVisibility, open, onToggle, chromeless,
 }: GroupBlockProps) {
+  const t = useT();
   const filled = fields.reduce((n, f) => {
     return isValueFilled(valuesByDefId.get(f.field_definition_id)) ? n + 1 : n;
   }, 0);
@@ -392,10 +421,16 @@ function GroupBlock({
             {title}
           </div>
           <div style={{ fontSize: 11, color: T.inkMuted, marginTop: 2 }}>
-            {filled} of {fields.length} filled
+            {interpolate(t("dashboard.adminFieldsEditor.nOfMFilled"), {
+              filled,
+              total: fields.length,
+            })}
             {missingRequired > 0 && (
               <span style={{ color: T.red, fontWeight: 600 }}>
-                {" · "}{missingRequired} required missing
+                {" · "}
+                {interpolate(t("dashboard.adminFieldsEditor.nRequiredMissing"), {
+                  count: missingRequired,
+                })}
               </span>
             )}
             {weight !== "default" && ` · ${weight}`}
@@ -496,12 +531,18 @@ function fieldIsHalfEligible(field: ResolvedField, v: unknown): boolean {
 function detailsValueSummary(
   field: ResolvedField,
   v: unknown,
+  t: (key: string) => string,
 ): { text: string; empty: boolean } {
-  if (!isValueFilled(v)) return { text: "Add", empty: true };
-  if (typeof v === "boolean") return { text: v ? "Yes" : "No", empty: false };
+  if (!isValueFilled(v)) return { text: t("dashboard.adminFieldsEditor.add"), empty: true };
+  if (typeof v === "boolean") {
+    return {
+      text: t(v ? "dashboard.adminFieldsEditor.yes" : "dashboard.adminFieldsEditor.no"),
+      empty: false,
+    };
+  }
   if (Array.isArray(v)) {
     const arr = v.filter(Boolean).map((x) => String(x));
-    if (arr.length === 0) return { text: "Add", empty: true };
+    if (arr.length === 0) return { text: t("dashboard.adminFieldsEditor.add"), empty: true };
     return {
       text: arr.length > 1 ? `${arr[0]} +${arr.length - 1}` : arr[0],
       empty: false,
@@ -512,7 +553,7 @@ function detailsValueSummary(
   // Agency / private free-text or long values stay opaque ("Added") so a
   // sensitive snippet isn't exposed at a glance in the collapsed tile.
   if (isAgencyOnly && (field.kind === "textarea" || s.length > 14)) {
-    return { text: "Added", empty: false };
+    return { text: t("dashboard.adminFieldsEditor.added"), empty: false };
   }
   // Non-sensitive long / textarea: show a short SNIPPET of the actual
   // text instead of a bare "Added", so the user sees what's there. The
@@ -534,6 +575,7 @@ function detailsValueSummary(
 function DetailsFieldGroup({
   fields, valuesByDefId, visibilityByDefId, onSave, onSaveVisibility,
 }: DetailsFieldGroupProps) {
+  const t = useT();
   const { ref, wide } = useDrawerWidth();
 
   // One open field at a time per group. Seed to the first required-but-
@@ -598,7 +640,7 @@ function DetailsFieldGroup({
           fontSize: 11, fontWeight: 600, color: T.inkDim,
           padding: "0 2px 9px",
         }}>
-          All fields in this category complete ✓
+          {t("dashboard.adminFieldsEditor.allComplete")} ✓
         </div>
       ) : (
         <div style={{
@@ -606,7 +648,7 @@ function DetailsFieldGroup({
           justifyContent: "space-between", gap: 8, padding: "0 2px 9px",
         }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: T.inkMuted }}>
-            {emptyIds.length} field{emptyIds.length > 1 ? "s" : ""} still empty
+            {withPluralization(t)("dashboard.adminFieldsEditor.nFieldsStillEmpty", emptyIds.length)}
           </span>
           <button
             type="button"
@@ -619,7 +661,7 @@ function DetailsFieldGroup({
               letterSpacing: 0.2, flexShrink: 0,
             }}
           >
-            Jump to next empty →
+            {t("dashboard.adminFieldsEditor.jumpToNextEmpty")} →
           </button>
         </div>
       )}
@@ -690,12 +732,13 @@ function DetailsFieldGroup({
 function CollapsibleField({
   field, initialValue, initialVisibility, open, onToggle, onSave, onSaveVisibility,
 }: FieldEditorProps & { open: boolean; onToggle: () => void }) {
+  const t = useT();
   const [hover, setHover] = useState(false);
   const locale = readLocale();
   const label = fieldLabel(field, locale);
   const filled = isValueFilled(initialValue);
   const requiredMissing = field.required_before_publish && !filled;
-  const summary = detailsValueSummary(field, initialValue);
+  const summary = detailsValueSummary(field, initialValue, t);
   const isAgencyOnly = !(field.default_visibility ?? []).includes("public");
   // Empty optional fields recede a touch (faint fill) so they don't
   // out-shout filled cards; required-missing keeps its red prominence
@@ -758,14 +801,14 @@ function CollapsibleField({
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {/* "Agency" only when the value is intentionally hidden
                   ("Added"), so it isn't a repetitive chip down the list. */}
-              {isAgencyOnly && summary.text === "Added" && (
+              {isAgencyOnly && summary.text === t("dashboard.adminFieldsEditor.added") && (
                 <span style={{
                   flexShrink: 0, fontSize: 8.5, fontWeight: 700,
                   letterSpacing: 0.4, textTransform: "uppercase",
                   color: T.inkMuted, background: "rgba(24,24,27,0.06)",
                   padding: "1px 5px", borderRadius: 3,
                 }}>
-                  Agency
+                  {t("dashboard.adminFieldsEditor.agencyChip")}
                 </span>
               )}
               <span style={{
@@ -792,7 +835,7 @@ function CollapsibleField({
         }}>
           {!open && hover && (
             <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }}>
-              Edit
+              {t("dashboard.adminFieldsEditor.edit")}
             </span>
           )}
           <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 600 }}>
@@ -987,6 +1030,7 @@ export function LiveCategoryFieldsEditor({
     ?? ((input) => getFieldsForTalent(input));
   const getValuesAction = serverActions?.getValues
     ?? ((input) => getTalentFieldValues(input));
+  const t = useT();
   const [allFields, setAllFields] = useState<ResolvedField[] | null>(null);
   const [groups, setGroups] = useState<ResolvedFieldGroup[]>([]);
   const [valuesByDefId, setValuesByDefId] = useState<Map<string, unknown>>(new Map());
@@ -1083,7 +1127,7 @@ export function LiveCategoryFieldsEditor({
       } catch (err) {
         if (cancelled) return;
         logServerError("livecategoryfieldseditor", err);
-        setError(err instanceof Error ? err.message : "Failed to load.");
+        setError(err instanceof Error ? err.message : t("dashboard.adminFieldsEditor.failedToLoad"));
         setAllFields([]);
       }
     };
@@ -1099,7 +1143,10 @@ export function LiveCategoryFieldsEditor({
       timer = setTimeout(() => { void load(); }, 150);
     }
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [talentProfileId, refreshKey]);
+    // `t` is referentially stable per locale, so listing it cannot re-fire the
+    // fetch; it joins the action getters in this effect's pre-existing
+    // intentionally-narrow dep list (behaviour unchanged).
+  }, [talentProfileId, refreshKey, t]);
 
   useEffect(() => {
     if (allFields === null) return;
@@ -1133,7 +1180,12 @@ export function LiveCategoryFieldsEditor({
       // Look up the field label for a more useful toast (e.g. "Saved
       // Years of experience" instead of "Saved").
       const def = (allFields ?? []).find((f) => f.field_definition_id === fieldDefId);
-      showToast(`Saved ${def?.label ?? "field"}`, "saved");
+      showToast(
+        interpolate(t("dashboard.adminFieldsEditor.toastSavedField"), {
+          label: def?.label ?? t("dashboard.adminFieldsEditor.fieldFallback"),
+        }),
+        "saved",
+      );
       return { ok: true };
     }
     showToast(res.error, "error");
@@ -1154,7 +1206,12 @@ export function LiveCategoryFieldsEditor({
         return m;
       });
       const def = (allFields ?? []).find((f) => f.field_definition_id === fieldDefId);
-      showToast(`Visibility updated · ${def?.label ?? "field"}`, "saved");
+      showToast(
+        interpolate(t("dashboard.adminFieldsEditor.toastVisibilityUpdated"), {
+          label: def?.label ?? t("dashboard.adminFieldsEditor.fieldFallback"),
+        }),
+        "saved",
+      );
       return { ok: true };
     }
     showToast(res.error, "error");
@@ -1196,21 +1253,21 @@ export function LiveCategoryFieldsEditor({
         const targetNs = Array.from(byNs.keys())
           .filter((n) => n !== "_misc")
           .sort((a, b) => (byNs.get(b)?.length ?? 0) - (byNs.get(a)?.length ?? 0)
-            || namespaceLabel(a).localeCompare(namespaceLabel(b)))[0];
+            || namespaceLabel(a, t).localeCompare(namespaceLabel(b, t)))[0];
         if (targetNs) { byNs.set(targetNs, [...(byNs.get(targetNs) ?? []), ...misc]); byNs.delete("_misc"); }
       }
       const sortedNs = Array.from(byNs.keys()).sort((a, b) => {
         if (a === "_misc") return 1;
         if (b === "_misc") return -1;
-        return namespaceLabel(a).localeCompare(namespaceLabel(b));
+        return namespaceLabel(a, t).localeCompare(namespaceLabel(b, t));
       });
       for (const ns of sortedNs) {
-        nextTabs.push({ key: `_other:${ns}`, label: namespaceLabel(ns), fields: byNs.get(ns) ?? [] });
+        nextTabs.push({ key: `_other:${ns}`, label: namespaceLabel(ns, t), fields: byNs.get(ns) ?? [] });
       }
     }
 
     return nextTabs;
-  }, [groups, grouped]);
+  }, [groups, grouped, t]);
 
   const activeKey = (activeGroupKey && tabs.some((t) => t.key === activeGroupKey))
     ? activeGroupKey
@@ -1269,7 +1326,7 @@ export function LiveCategoryFieldsEditor({
   if (allFields === null) {
     return (
       <div style={{ padding: 12, fontFamily: F, fontSize: 12, color: T.inkMuted }}>
-        Loading category fields…
+        {t("dashboard.adminFieldsEditor.loadingCategoryFields")}
       </div>
     );
   }
@@ -1280,7 +1337,7 @@ export function LiveCategoryFieldsEditor({
         padding: 12, borderRadius: 8, background: "rgba(200,40,40,0.08)",
         border: `1px solid ${T.red}`, color: T.red, fontFamily: F, fontSize: 12,
       }}>
-        Couldn&apos;t load category fields: {error}
+        {interpolate(t("dashboard.adminFieldsEditor.couldNotLoadCategoryFields"), { error })}
       </div>
     );
   }
@@ -1289,9 +1346,11 @@ export function LiveCategoryFieldsEditor({
     if (scope === "general") return null;
     return (
       <div style={{ padding: 12, fontFamily: F, fontSize: 12, color: T.inkMuted }}>
-        {hasSelectedTalentType
-          ? "No extra fields are configured for this type."
-          : "Select a talent type in Services to see relevant fields."}
+        {t(
+          hasSelectedTalentType
+            ? "dashboard.adminFieldsEditor.noExtraFields"
+            : "dashboard.adminFieldsEditor.selectTalentType",
+        )}
       </div>
     );
   }
@@ -1347,7 +1406,11 @@ export function LiveCategoryFieldsEditor({
           fontSize: 10.5, color: T.inkMuted, letterSpacing: 0.4,
           textTransform: "uppercase", fontWeight: 600, lineHeight: 1.35,
         }}>
-          {scope === "general" ? "General · " : ""}{progressFilled}/{progressTotal} complete · auto-saved
+          {scope === "general" ? `${t("dashboard.adminFieldsEditor.generalPrefix")} · ` : ""}
+          {interpolate(t("dashboard.adminFieldsEditor.progressComplete"), {
+            filled: progressFilled,
+            total: progressTotal,
+          })}
         </div>
         <div className="flex gap-1.5">
           {requiredMissing > 0 && (
@@ -1362,7 +1425,9 @@ export function LiveCategoryFieldsEditor({
                 cursor: "pointer", letterSpacing: 0.3,
               }}
             >
-              Fill {requiredMissing} required
+              {interpolate(t("dashboard.adminFieldsEditor.fillNRequired"), {
+                count: requiredMissing,
+              })}
             </button>
           )}
           {viewMode === "admin" && (
@@ -1376,7 +1441,7 @@ export function LiveCategoryFieldsEditor({
                 cursor: "pointer", letterSpacing: 0.3,
               }}
             >
-              History
+              {t("dashboard.adminFieldsEditor.history")}
             </button>
           )}
         </div>
@@ -1406,11 +1471,11 @@ export function LiveCategoryFieldsEditor({
             textTransform: "uppercase", color: T.inkMuted,
             padding: "0 2px 6px",
           }}>
-            Categories
+            {t("dashboard.adminFieldsEditor.categories")}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <select
-              aria-label="Select category"
+              aria-label={t("dashboard.adminFieldsEditor.selectCategoryAria")}
               value={activeKey}
               onChange={(event) => selectTab(event.target.value)}
               style={{

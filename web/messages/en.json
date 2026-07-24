@@ -1876,7 +1876,10 @@
       "shortlistTitle": "You sent this inquiry to multiple talents from a Discover shortlist",
       "discoverTitle": "You sent this inquiry from Discover",
       "bookingInquiry": "Booking inquiry",
-      "talentCount": "{count} talent",
+      "talentCount": {
+        "one": "{count} talent",
+        "other": "{count} talent"
+      },
       "justNow": "just now",
       "hoursAgo": "{count}h ago",
       "daysAgo": "{count}d ago"
@@ -4849,8 +4852,8 @@
       "svcLoading": "Loading services…",
       "svcLoadError": "Couldn't load services",
       "fromMenu": "From menu",
-      "svcPrefill": "— prefill from a service —",
-      "svcNoneUseTemplate": "No published services — use a template",
+      "svcPrefill": "Prefill from a service",
+      "svcNoneUseTemplate": "No published services, use a template",
       "svcThisTalent": "This talent's services",
       "svcGenericTemplates": "Generic templates",
       "lineLabelPlaceholder": "Line label (e.g. Full-day + travel)",
@@ -8017,6 +8020,11 @@
         "tabOps": "Ops",
         "tabTalent": "Talent",
         "tabMore": "More"
+      },
+      "autosave": {
+        "justNow": "Saved just now",
+        "secondsAgo": "Saved {count}s ago",
+        "minutesAgo": "Saved {count}m ago"
       }
     },
     "adminAccount": {
@@ -8526,6 +8534,1958 @@
           "hub": "Cross-agency discovery",
           "multiagency": "Operate multiple brands"
         }
+      }
+    },
+    "adminIntegrationsCatalog": {
+      "status": {
+        "connected": "Connected",
+        "inherited": "Using platform default",
+        "actionNeeded": "Action needed",
+        "error": "Needs attention",
+        "locked": "Upgrade to unlock"
+      },
+      "items": {
+        "google_maps": {
+          "label": "Google Maps",
+          "description": "Powers the location / orbit map and city autocomplete (Maps JavaScript + Places). Supply your own referer-restricted key to use the map on your own custom domain; otherwise the platform key is used.",
+          "steps": {
+            "s1": "In Google Cloud Console, create (or pick) a project with billing enabled.",
+            "s2": "Enable the \"Maps JavaScript API\" and the \"Places API\" for that project.",
+            "s3": "Create an API key under APIs & Services → Credentials, then restrict it: Application restrictions → \"HTTP referrers\" → add your custom domain (e.g. https://your-domain.com/*).",
+            "s4": "Under API restrictions, limit the key to \"Maps JavaScript API\" and \"Places API\", then paste the key here."
+          },
+          "fields": {
+            "api_key": "Google Maps API key"
+          }
+        },
+        "ga4": {
+          "label": "Google Analytics 4",
+          "description": "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront (consent-gated).",
+          "steps": {
+            "s1": "Open Google Analytics → Admin (gear, bottom-left).",
+            "s2": "Under the Property column choose \"Data streams\", then select (or create) your Web stream.",
+            "s3": "Copy the \"Measurement ID\" at the top right of the stream details. It starts with \"G-\".",
+            "s4": "Paste the Measurement ID (e.g. G-XXXXXXXXXX) here."
+          },
+          "fields": {
+            "measurement_id": "GA4 Measurement ID"
+          }
+        },
+        "meta_pixel": {
+          "label": "Meta Pixel",
+          "description": "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront (consent-gated).",
+          "steps": {
+            "s1": "Open Meta Events Manager (business.facebook.com/events_manager).",
+            "s2": "Select your pixel / dataset in the Data Sources list on the left.",
+            "s3": "Find the \"Dataset ID\" (Pixel ID) near the top. It is a long number.",
+            "s4": "Paste the numeric Pixel ID here."
+          },
+          "fields": {
+            "pixel_id": "Meta Pixel ID"
+          }
+        },
+        "tiktok_pixel": {
+          "label": "TikTok Pixel",
+          "description": "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront (consent-gated).",
+          "steps": {
+            "s1": "Open TikTok Ads Manager → Assets → Events.",
+            "s2": "Under \"Web Events\", open (or create) your pixel.",
+            "s3": "Copy the \"Pixel ID\" shown in the pixel's details, an alphanumeric code.",
+            "s4": "Paste the Pixel ID here."
+          },
+          "fields": {
+            "pixel_id": "TikTok Pixel ID"
+          }
+        },
+        "linkedin_insight": {
+          "label": "LinkedIn Insight Tag",
+          "description": "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront (consent-gated).",
+          "steps": {
+            "s1": "Open LinkedIn Campaign Manager → Analyze → Insight Tag.",
+            "s2": "Choose \"Install my Insight Tag\" / \"Manage Insight Tag\".",
+            "s3": "Copy your \"Partner ID\", a short numeric value.",
+            "s4": "Paste the numeric Partner ID here."
+          },
+          "fields": {
+            "partner_id": "LinkedIn Partner ID"
+          }
+        },
+        "gtm": {
+          "label": "Google Tag Manager",
+          "description": "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront (consent-gated).",
+          "steps": {
+            "s1": "Open Google Tag Manager (tagmanager.google.com).",
+            "s2": "Select your account and the container for this website.",
+            "s3": "Copy the Container ID shown near the top. It starts with \"GTM-\".",
+            "s4": "Paste the Container ID (e.g. GTM-XXXXXXX) here."
+          },
+          "fields": {
+            "container_id": "GTM Container ID"
+          }
+        },
+        "custom_code": {
+          "label": "Custom code",
+          "description": "Inject your own HTML / <script> into your public storefront: add a chat widget, a font, a verification meta tag, or any third-party snippet. Runs on your storefront only, never the admin.",
+          "steps": {
+            "s1": "Paste markup destined for the page <head> (meta tags, <link> stylesheets, analytics loaders) into the Head field.",
+            "s2": "Paste markup destined for the end of <body> (chat widgets, deferred <script> tags) into the Body field.",
+            "s3": "Only add code you trust. It runs on every page of your public storefront with full access to the page.",
+            "s4": "Save. Your storefront re-renders with the snippets injected; the admin and other tenants are never affected."
+          },
+          "fields": {
+            "head_html": "Head HTML",
+            "body_html": "Body HTML"
+          }
+        },
+        "captcha": {
+          "label": "Captcha",
+          "description": "Protect your storefront contact forms from spam with hCaptcha or Cloudflare Turnstile. Bring your own keys; the widget renders on your forms and submissions are verified server-side.",
+          "steps": {
+            "s1": "Pick a provider: hCaptcha (hcaptcha.com) or Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
+            "s2": "Create a site for your storefront domain and copy the Site key (public) and Secret key (private).",
+            "s3": "Paste the Site key and Secret key below and choose the matching provider.",
+            "s4": "Save. Your contact forms render the widget and reject submissions that fail verification."
+          },
+          "fields": {
+            "provider": "Provider",
+            "site_key": "Site key",
+            "secret_key": "Secret key"
+          }
+        },
+        "email_domain": {
+          "label": "Email domain",
+          "description": "Send client emails from your own domain (e.g. noreply@yourbrand.com) instead of the platform default. Add your domain, drop the DNS records we generate, and verify.",
+          "steps": {
+            "s1": "Enter the sending domain you want email to come from (e.g. mail.yourbrand.com) and Save.",
+            "s2": "We register it with our email provider and show you the DNS records to add.",
+            "s3": "Add each record (SPF / DKIM / DMARC) at your DNS host exactly as shown.",
+            "s4": "Click Verify. Once DNS propagates the status flips to Verified and your email sends from your domain."
+          },
+          "fields": {
+            "domain": "Sending domain"
+          }
+        },
+        "youtube": {
+          "label": "YouTube",
+          "description": "Connect the workspace YouTube channel, verify ownership with Google, and show the verified channel on the public site header and footer.",
+          "steps": {
+            "s1": "Use one-click connect to sign in with the Google account that owns the channel.",
+            "s2": "Tulala stores the public channel label and encrypted OAuth tokens so the connection can stay verified.",
+            "s3": "Manual fallback is available: paste a YouTube channel URL or @handle if one-click OAuth is not configured yet."
+          },
+          "fields": {
+            "profile_url": "YouTube channel URL or @handle"
+          }
+        },
+        "stripe_connect": {
+          "label": "Stripe payouts",
+          "description": "Connect Stripe to receive booking payments and pay out your roster. Managed in Payouts."
+        },
+        "custom_domain": {
+          "label": "Custom domain",
+          "description": "Run your storefront at your own domain. Managed in Settings → Domain."
+        },
+        "ai_provider": {
+          "label": "AI provider",
+          "description": "Bring your own AI provider key for assisted imports and copy. Managed in Settings."
+        }
+      }
+    },
+    "adminPlanLive": {
+      "cadenceMonth": "month",
+      "cadenceYear": "year",
+      "cadenceOneTime": "one-time",
+      "priceLine": "{price} / {cadence}."
+    },
+    "adminSummaryDrawer": {
+      "workspaceFallback": "Workspace",
+      "subtitle": "{plan} plan · {renew}",
+      "atAGlance": "At a glance",
+      "roster": "Roster",
+      "jumpTo": "Jump to",
+      "managePlan": "Manage plan",
+      "comparePlans": "Compare plans",
+      "usageUnavailable": "Roster usage unavailable",
+      "seatsTight": "You're within 10% of the cap. Bumping the plan unlocks more seats immediately.",
+      "planBilling": "Plan & billing",
+      "recentInvoices": "Recent invoices"
+    },
+    "adminCapability": {
+      "card": {
+        "roster": {
+          "label": "Roster",
+          "stat": "Talents · drafts · approvals"
+        },
+        "directory": {
+          "label": "Directory Settings",
+          "stat": "Grid · Dedicated pages · 34 fields"
+        },
+        "inquiries": {
+          "label": "Inquiries",
+          "stat": "Open · in progress · won"
+        },
+        "branding": {
+          "label": "Branding",
+          "stat": "Logo · Cormorant / Inter · #B8860B"
+        },
+        "activity": {
+          "label": "Activity",
+          "stat": "Recent edits, publishes, and bookings"
+        },
+        "widgets": {
+          "label": "Widgets",
+          "stat": "Active embeds · views"
+        },
+        "api": {
+          "label": "API keys",
+          "stat": "Active keys · last used"
+        },
+        "domain": {
+          "label": "Domain & Home",
+          "stat": "Subdomain · public home"
+        },
+        "homepage": {
+          "label": "Homepage",
+          "stat": "Draft pending"
+        },
+        "pages": {
+          "label": "Pages",
+          "stat": "12 pages · 3 drafts"
+        },
+        "posts": {
+          "label": "Posts",
+          "stat": "4 published · 1 draft"
+        },
+        "navigation": {
+          "label": "Navigation & Footer",
+          "stat": "Header 5 · Footer 3 cols"
+        },
+        "theme": {
+          "label": "Theme & foundations",
+          "stat": "Editorial Noir"
+        },
+        "seo": {
+          "label": "SEO & defaults",
+          "stat": "Meta · Sitemap · 2 redirects"
+        },
+        "hub": {
+          "label": "Hub publishing",
+          "stat": "0 talents promoted"
+        },
+        "multiagency": {
+          "label": "Multi-agency manager",
+          "stat": "1 agency · 3 managers"
+        }
+      },
+      "band": {
+        "free": {
+          "headline": "Your core workspace",
+          "helper": "Free, Studio, Agency, Network. All plans share this.",
+          "badgeLabel": "Every plan"
+        },
+        "studio": {
+          "headline": "Embed anywhere",
+          "helper": "Drop your roster into WordPress, Webflow, Shopify, or your custom site.",
+          "badgeLabel": "Studio",
+          "ctaLabel": "Upgrade"
+        },
+        "agency": {
+          "headline": "Full branded site",
+          "helper": "Your site, your domain, your brand. Pages, posts, nav, theme, SEO.",
+          "badgeLabel": "Agency",
+          "ctaLabel": "Upgrade"
+        },
+        "network": {
+          "headline": "Multi-agency + hub",
+          "helper": "Operate multiple agencies and push talent to cross-agency discovery.",
+          "badgeLabel": "Network",
+          "ctaLabel": "Contact"
+        }
+      }
+    },
+    "adminSiteDrawers": {
+      "noQuickEdit": "This capability does not have a quick-edit drawer yet.",
+      "roster": {
+        "title": "Roster",
+        "subtitle": "Talents · drafts · approvals"
+      },
+      "directory": {
+        "title": "Directory Settings",
+        "subtitle": "Render · templates · fields"
+      },
+      "inquiries": {
+        "title": "Inquiries",
+        "subtitle": "1 open · 3 in progress"
+      },
+      "branding": {
+        "title": "Branding",
+        "subtitle": "Logo · fonts · colors"
+      },
+      "activity": {
+        "title": "Activity",
+        "subtitle": "Recent workspace events"
+      },
+      "widgets": {
+        "title": "Widgets",
+        "subtitle": "2 active · 4 embeds",
+        "body": "Create roster grid / featured shelf / inquiry form widgets, configure filters, and copy the embed snippet."
+      },
+      "api": {
+        "title": "API keys",
+        "subtitle": "1 key · last used 3h ago",
+        "body": "Create keys, scope domains, rotate, and view usage / rate limits."
+      },
+      "domain": {
+        "title": "Domain & Home",
+        "body": "Subdomain config, custom domain (Agency), homepage assignment, blog index assignment."
+      },
+      "homepage": {
+        "title": "Homepage",
+        "subtitle": "Draft pending · 2h ago",
+        "body": "Open the live homepage in edit mode: composition, inline text, image replace, publish."
+      },
+      "pages": {
+        "title": "Pages",
+        "subtitle": "12 pages · 3 drafts",
+        "body": "Marketing, legal, and editorial pages served at /p/…. Setup wraps the list in premium chrome with quick filters."
+      },
+      "posts": {
+        "title": "Posts",
+        "subtitle": "5 posts · 1 draft",
+        "body": "Editorial articles served at /posts/…. Setup walks through writing, scheduling, and publishing the first one."
+      },
+      "navigation": {
+        "title": "Navigation & Footer",
+        "subtitle": "Header 5 · Footer 3 cols",
+        "body": "Drag-and-drop directly on the live site. Edit nav, reorder, add custom links, build footer columns."
+      },
+      "theme": {
+        "title": "Theme & foundations",
+        "subtitle": "Editorial Noir",
+        "body": "Pick a designer kit: colors, typography, motion, density, layout, all in one click. Token-level overrides still possible."
+      },
+      "seo": {
+        "title": "SEO & defaults",
+        "subtitle": "Meta · sitemap · redirects",
+        "body": "Site-wide meta template · sitemap · robots · redirect rules · per-page overrides."
+      },
+      "hub": {
+        "title": "Hub publishing",
+        "subtitle": "Network only",
+        "body": "Promote approved talent · cross-agency discovery · hub inquiry routing."
+      },
+      "multiagency": {
+        "title": "Multi-agency manager",
+        "subtitle": "Network only",
+        "body": "Switch agencies · invite managers · scope roles · consolidated billing."
+      }
+    },
+    "adminHelp": {
+      "topics": {
+        "inquiry-workspace": {
+          "purpose": "Single sheet for one inquiry. Clients ask questions, you negotiate, talent confirms, all in one place.",
+          "b0": "Reply in the client thread (visible to client + talent)",
+          "b1": "Coordinate privately with talent (the client never sees this)",
+          "b2": "Send offers and watch for client approval",
+          "b3": "Track funded escrow and convert to a confirmed booking",
+          "b4": "See the full event timeline: every reply, offer, status change"
+        },
+        "inquiry-peek": {
+          "purpose": "Quick read-only summary of an inquiry. Use this when you just need to glance at status without opening the full workspace.",
+          "b0": "See the request, dates, and the client's name",
+          "b1": "Check current stage and who's waiting on whom",
+          "b2": "Jump to the full inquiry workspace if you need to act"
+        },
+        "new-inquiry": {
+          "purpose": "Manually create an inquiry, usually for clients who reached out via WhatsApp or email and you want them tracked inside Tulala.",
+          "b0": "Add the client (existing or new) and the talent involved",
+          "b1": "Set the date(s), shoot type, and budget range",
+          "b2": "Choose initial status, usually Draft if you're still negotiating",
+          "b3": "Email the client a Tulala link so they can take over from there"
+        },
+        "booking-peek": {
+          "purpose": "Read-only summary of one confirmed booking (call-time, talent, contracts, payment status) without leaving the page you're on.",
+          "b0": "See the booking at a glance",
+          "b1": "Jump to the full booking detail to act",
+          "b2": "Open the linked inquiry to see how it was negotiated"
+        },
+        "new-booking": {
+          "purpose": "Skip the inquiry phase and create a booking directly. Use this for already-negotiated deals, repeat clients, or back-office records.",
+          "b0": "Pick the client and talent",
+          "b1": "Enter the date, rate, and any commission terms",
+          "b2": "Mark the booking as funded if escrow is already in place",
+          "b3": "Generate the invoice on confirmation"
+        },
+        "today-pulse": {
+          "purpose": "What needs your attention right now: overdue replies, expiring offers, today's call-times, unresolved holds.",
+          "b0": "Tap any line to jump straight into the inquiry that needs action",
+          "b1": "Dismiss items you'll handle later (they reappear next morning)",
+          "b2": "See which talent has a confirmed booking starting today"
+        },
+        "pipeline": {
+          "purpose": "Every inquiry from first request to booked, grouped by what's blocking forward motion.",
+          "b0": "Filter by stage (drafts, awaiting client, confirmed, archived)",
+          "b1": "Open any inquiry to see its full workspace",
+          "b2": "Spot stalled requests and nudge the right side",
+          "b3": "Reassign coordinators to rebalance load"
+        },
+        "drafts-holds": {
+          "purpose": "Inquiries you started but haven't sent, plus tentative date holds that haven't been confirmed.",
+          "b0": "Pick up where you left off on a draft",
+          "b1": "Convert a hold into a sent offer or release the date back",
+          "b2": "Clear out abandoned drafts in bulk"
+        },
+        "awaiting-client": {
+          "purpose": "Offers waiting on a client decision. Sorted by how long they've been sitting.",
+          "b0": "Send a polite nudge if the client has been silent",
+          "b1": "Withdraw or revise an offer that's gone stale",
+          "b2": "Open the inquiry to add context or attachments"
+        },
+        "confirmed-bookings": {
+          "purpose": "Every booking that's been approved and funded. Source of truth for upcoming work.",
+          "b0": "See call-time, location, talent, and contract status at a glance",
+          "b1": "Open a booking to send updates to talent or client",
+          "b2": "Mark a booking as completed once the shoot wraps"
+        },
+        "archived-work": {
+          "purpose": "Cancelled, expired, and completed work, your historical record.",
+          "b0": "Search past bookings by client or talent",
+          "b1": "Reopen a cancelled inquiry if a client comes back",
+          "b2": "Export a date-range report for accounting"
+        },
+        "day-detail": {
+          "purpose": "Everything happening on a single calendar day: bookings, holds, blockouts, talent availability.",
+          "b0": "See who's working, who's holding the date, who's free",
+          "b1": "Tap a booking to open its full sheet",
+          "b2": "Block out a date for personal time, travel, or studio days"
+        },
+        "representation-requests": {
+          "purpose": "Talent requesting to join your roster, claims to existing profiles or fresh sign-ups.",
+          "b0": "Approve or reject each request with a reason",
+          "b1": "Send the talent a sign-on contract before approving",
+          "b2": "Flag suspicious requests for the platform team"
+        },
+        "talent-profile": {
+          "purpose": "The agency-side view of one talent: measurements, rates, availability, internal notes the talent never sees.",
+          "b0": "Edit measurements, polaroids, and credits",
+          "b1": "Set rate cards and territory restrictions",
+          "b2": "Leave private internal notes for your team",
+          "b3": "See the agency's commission split with this talent"
+        },
+        "new-talent": {
+          "purpose": "Add a talent to your roster. Choose between a draft profile (you fill in everything) or invite the talent to claim and finish their own profile.",
+          "b0": "Create an unclaimed draft profile to start booking immediately",
+          "b1": "Send the talent a claim-link so they manage their own page",
+          "b2": "Pre-fill measurements, polaroids, and rates"
+        },
+        "my-profile": {
+          "purpose": "Your own talent profile, if you also work as talent. Editing it here is identical to the talent surface.",
+          "b0": "Update your measurements, photos, and credits",
+          "b1": "Manage your availability calendar",
+          "b2": "Switch to the dedicated talent dashboard for the full experience"
+        },
+        "tenant-summary": {
+          "purpose": "Read-only snapshot of your workspace's plan, usage, and settings, for sharing with finance or legal.",
+          "b0": "Copy a permalink to send to your accountant",
+          "b1": "See current plan, billing date, and seat count",
+          "b2": "Jump to the relevant settings tab to change anything"
+        },
+        "site-setup": {
+          "purpose": "First-time setup wizard for your public storefront: domain, branding, and the talent who'll show up first.",
+          "b0": "Pick a tulala.app subdomain or connect a custom one",
+          "b1": "Upload logo and pick brand colors",
+          "b2": "Choose which talent appear on the public roster"
+        },
+        "plan-billing": {
+          "purpose": "Your subscription, payment method, invoices, and seat count.",
+          "b0": "Upgrade or downgrade your plan",
+          "b1": "Update the card on file",
+          "b2": "Download past invoices",
+          "b3": "Add or remove seats for team members"
+        },
+        "team": {
+          "purpose": "Managers, editors, and other admins on your workspace, and what each can do.",
+          "b0": "Invite teammates by email",
+          "b1": "Assign roles (admin, manager, editor)",
+          "b2": "Revoke access when someone leaves",
+          "b3": "See last-active timestamps for each member"
+        },
+        "branding": {
+          "purpose": "Logo, favicon, and brand assets used across your storefront, emails, and shareable links.",
+          "b0": "Upload your logo (light + dark variants)",
+          "b1": "Set the favicon shown in browser tabs",
+          "b2": "Upload a default OG image for social shares"
+        },
+        "domain": {
+          "purpose": "Connect a custom domain (yours.com) instead of the default tulala.app subdomain.",
+          "b0": "Add a new domain and see the DNS records to set",
+          "b1": "Verify and switch your storefront to the new domain",
+          "b2": "Set up a redirect from your old subdomain"
+        },
+        "identity": {
+          "purpose": "Legal entity, billing address, and tax info, used on invoices and contracts.",
+          "b0": "Update your registered business name and address",
+          "b1": "Add a VAT or tax ID",
+          "b2": "Choose what appears on outgoing invoices"
+        },
+        "workspace-settings": {
+          "purpose": "Workspace-wide defaults: currency, locale, weekly schedule, notification rules.",
+          "b0": "Set the default currency for new bookings",
+          "b1": "Pick which weekday your dashboard week starts on",
+          "b2": "Define default reply windows and SLA targets"
+        },
+        "danger-zone": {
+          "purpose": "Irreversible workspace operations: exporting everything, transferring ownership, deleting the workspace.",
+          "b0": "Export a full archive (clients, bookings, files) before leaving",
+          "b1": "Transfer the workspace to another admin",
+          "b2": "Delete the workspace permanently (90-day grace period)"
+        },
+        "activation-checklist": {
+          "purpose": "Your onboarding progress: the steps that turn a fresh workspace into a live, bookable storefront.",
+          "b0": "See which setup steps are still incomplete",
+          "b1": "Tap any step to jump straight into it",
+          "b2": "Mark steps as done manually if you skipped the in-app flow"
+        },
+        "tenant-switcher": {
+          "purpose": "If you belong to multiple workspaces (eg you run both a studio and an agency), switch between them here.",
+          "b0": "See all workspaces you have access to",
+          "b1": "Switch to another workspace without signing out",
+          "b2": "Set a default workspace for new sessions"
+        },
+        "plan-compare": {
+          "purpose": "Side-by-side comparison of every plan tier so you can pick (or upgrade) the one that fits.",
+          "b0": "See feature parity across Free, Studio, Agency, and Network",
+          "b1": "Toggle monthly vs annual pricing",
+          "b2": "Start an upgrade flow from any tier card"
+        },
+        "homepage": {
+          "purpose": "Edit your public storefront homepage, the first thing visitors see at yoursite.tulala.app.",
+          "b0": "Reorder hero, talent grid, and any custom sections",
+          "b1": "Drop in widgets (booking form, featured talent, press logos)",
+          "b2": "Preview on desktop, tablet, and mobile before publishing"
+        },
+        "pages": {
+          "purpose": "Static pages on your storefront: About, Press, Contact, Terms, etc.",
+          "b0": "Create a new page from a template or blank canvas",
+          "b1": "Set the URL slug, SEO title, and OG image per page",
+          "b2": "Publish, unpublish, or schedule a page for later"
+        },
+        "posts": {
+          "purpose": "Editorial posts: campaign roundups, talent spotlights, agency news.",
+          "b0": "Draft a post with rich text, images, and embeds",
+          "b1": "Tag posts so they appear on the right index pages",
+          "b2": "Schedule a publish time or push it live now"
+        },
+        "navigation": {
+          "purpose": "The header and footer menus on your public storefront.",
+          "b0": "Add, reorder, or remove menu items",
+          "b1": "Link to internal pages or external URLs",
+          "b2": "Set different menus for desktop and mobile"
+        },
+        "media": {
+          "purpose": "Every image, video, and file uploaded across your workspace, central library.",
+          "b0": "Upload new media (drag-and-drop, bulk OK)",
+          "b1": "Search and tag assets so others on the team can find them",
+          "b2": "Replace an image everywhere it's used in one move"
+        },
+        "translations": {
+          "purpose": "Multilingual storefront: translate your pages, posts, and UI strings.",
+          "b0": "Add a language and pick a default fallback",
+          "b1": "Edit translations side-by-side with the source",
+          "b2": "Mark a translation as 'needs review' for an editor"
+        },
+        "seo": {
+          "purpose": "SEO defaults and per-page overrides: meta title, description, OG image, robots.",
+          "b0": "Set sitewide defaults (title template, default OG image)",
+          "b1": "Override SEO on any page or post",
+          "b2": "Submit your sitemap to Google Search Console"
+        },
+        "field-catalog": {
+          "purpose": "Custom fields on talent profiles, clients, and inquiries. Define your own data model on top of the defaults.",
+          "b0": "Add a custom field (text, number, select, file)",
+          "b1": "Choose where it appears (talent profile, inquiry form, etc.)",
+          "b2": "Mark a field as required or admin-only"
+        },
+        "taxonomy": {
+          "purpose": "The categorization system (talent specialties, client industries, inquiry types) used for filtering across the app.",
+          "b0": "Add or rename a category",
+          "b1": "Reorder how categories appear in filter menus",
+          "b2": "Merge two categories that should be one"
+        },
+        "widgets": {
+          "purpose": "Embeddable Tulala blocks (booking forms, talent grids, hub directories) that you can drop into pages.",
+          "b0": "Browse available widgets",
+          "b1": "Configure a widget (which talent, which filters)",
+          "b2": "Get the embed code for an external site"
+        },
+        "api-keys": {
+          "purpose": "API keys for pulling your roster data into external sites or third-party tools.",
+          "b0": "Generate a new key with scoped permissions",
+          "b1": "Revoke a leaked or unused key",
+          "b2": "See the last call timestamp for each key"
+        },
+        "site-health": {
+          "purpose": "Storefront-side checks: broken links, missing meta tags, slow pages, indexability.",
+          "b0": "See a prioritized list of issues to fix",
+          "b1": "Re-run a single check after fixing it",
+          "b2": "Schedule weekly health emails"
+        },
+        "storefront-visibility": {
+          "purpose": "Who can see your storefront: public, link-only, password-protected, or hidden from Tulala discovery.",
+          "b0": "Toggle public discovery on or off",
+          "b1": "Set a password gate for unfinished sites",
+          "b2": "Hide individual talent from public search"
+        },
+        "hub-distribution": {
+          "purpose": "Submit your roster to industry hubs, curated talent directories that send you inbound clients.",
+          "b0": "Apply to a hub (each has its own review process)",
+          "b1": "Choose which talent are eligible for hub listing",
+          "b2": "See which hubs are sending you the most inquiries"
+        },
+        "filter-config": {
+          "purpose": "Which filters appear on your public roster page (height, location, specialty, etc).",
+          "b0": "Reorder filters by importance",
+          "b1": "Hide filters that don't apply to your roster",
+          "b2": "Set default filter values for first-time visitors"
+        },
+        "client-list": {
+          "purpose": "Every client your workspace has worked with: past, present, and prospective.",
+          "b0": "Filter by trust tier, last booking, or industry",
+          "b1": "Open a client's profile to see their full history",
+          "b2": "Tag VIP clients or flag ones to deprioritize"
+        },
+        "client-profile": {
+          "purpose": "The client's full record: contacts, brands, past bookings, payment history.",
+          "b0": "Update contact details and brand affiliations",
+          "b1": "See every past inquiry and booking",
+          "b2": "Set client-specific rates or commission overrides",
+          "b3": "Add internal notes the client never sees"
+        },
+        "relationship-history": {
+          "purpose": "Chronological log of every interaction with one client: bookings, messages, contracts, payments.",
+          "b0": "Scroll through a unified timeline",
+          "b1": "Filter to a specific event type",
+          "b2": "Export the history for legal or audit purposes"
+        },
+        "private-client-data": {
+          "purpose": "Client info that's locked to admins only: internal credit ratings, do-not-book flags, sensitive notes.",
+          "b0": "Mark a client as do-not-book with a reason",
+          "b1": "Set an internal credit limit",
+          "b2": "Leave private notes other admins can read"
+        },
+        "notifications": {
+          "purpose": "Every alert your workspace has generated: replies, offers, payments, system events.",
+          "b0": "Filter by 'needs action' to see what's actually blocking you",
+          "b1": "Mark items read or jump straight to the relevant inquiry",
+          "b2": "Tune which events trigger notifications in Preferences"
+        },
+        "team-activity": {
+          "purpose": "What your teammates have been doing: replies sent, bookings closed, talents added.",
+          "b0": "Filter by team member or by event type",
+          "b1": "Spot coordinators who are overloaded or underused",
+          "b2": "Identify training opportunities from common mistakes"
+        },
+        "talent-activity": {
+          "purpose": "Talent-side actions visible to you: accepted offers, updated availability, new portfolio uploads.",
+          "b0": "See which talent recently went unavailable",
+          "b1": "Spot stale profiles (no portfolio updates in months)",
+          "b2": "Open any talent's profile from a row"
+        },
+        "notifications-prefs": {
+          "purpose": "Which notifications you receive (in-app, email, push), and at what frequency.",
+          "b0": "Mute event types you don't care about",
+          "b1": "Set quiet hours so you stop getting pinged at 2am",
+          "b2": "Pick instant, daily digest, or weekly digest delivery"
+        },
+        "inbox-snippets": {
+          "purpose": "Saved reply templates: for common questions, follow-ups, polite-no's.",
+          "b0": "Create a new snippet with merge tags (client name, date, etc.)",
+          "b1": "Edit existing snippets and see usage counts",
+          "b2": "Share snippets across your team"
+        },
+        "reply-templates": {
+          "purpose": "Reusable canned replies for inquiries, offers, and rejections.",
+          "b0": "Pick from a starter library (decline politely, request more info, etc.)",
+          "b1": "Customize with your own voice",
+          "b2": "Insert any template into a thread with one click"
+        },
+        "talent-today-pulse": {
+          "purpose": "Your day at a glance: call-times, requests waiting on you, offers about to expire.",
+          "b0": "Tap any line to jump straight into the request",
+          "b1": "See your next confirmed booking and its details",
+          "b2": "Block out the day if you're sick or travelling"
+        },
+        "talent-offer-detail": {
+          "purpose": "An offer from your agency or a direct client: rate, dates, scope, terms.",
+          "b0": "Accept the offer and the booking confirms automatically",
+          "b1": "Counter-propose a different rate or date",
+          "b2": "Decline with a reason the agency can see",
+          "b3": "Ask a question privately before deciding"
+        },
+        "talent-request-detail": {
+          "purpose": "A request that's not yet a formal offer, agency is sounding you out before sending terms.",
+          "b0": "Confirm interest so the agency can build the offer",
+          "b1": "Decline early if you can't make the dates",
+          "b2": "Ask clarifying questions in the thread"
+        },
+        "talent-booking-detail": {
+          "purpose": "A confirmed booking: call-time, location, contacts, payment status.",
+          "b0": "See the call sheet and any attached files",
+          "b1": "Message the agency or client team",
+          "b2": "Add the booking to your phone calendar",
+          "b3": "Mark the booking as completed once you wrap"
+        },
+        "talent-closed-booking": {
+          "purpose": "A finished booking: final payout status, receipt, and review window.",
+          "b0": "Confirm receipt of payment",
+          "b1": "Leave feedback on the client (private to the agency)",
+          "b2": "Download the invoice or contract for your records"
+        },
+        "talent-add-event": {
+          "purpose": "Add a personal event, travel, or block-out to your calendar so agencies stop offering you those dates.",
+          "b0": "Mark dates as unavailable with an optional reason",
+          "b1": "Set a recurring blockout (eg every Sunday)",
+          "b2": "Make events visible to all your agencies or just one"
+        },
+        "talent-hub-detail": {
+          "purpose": "Detail on a hub directory: what it is, what they pay, how to apply, who else is listed.",
+          "b0": "Apply to be listed (agency approval required)",
+          "b1": "Read past success stories from other talent",
+          "b2": "Compare hubs side by side"
+        },
+        "talent-hub-compare": {
+          "purpose": "Side-by-side comparison of every hub you're eligible for.",
+          "b0": "See payout rates, exclusivity terms, and review timelines",
+          "b1": "Apply to multiple hubs in one go",
+          "b2": "Bookmark hubs to apply later"
+        },
+        "talent-profile-edit": {
+          "purpose": "Edit your full talent profile: bio, photos, measurements, credits, rates.",
+          "b0": "Update any section without affecting the others",
+          "b1": "Preview how your public page looks before saving",
+          "b2": "Submit changes to the agency for review (if exclusive)"
+        },
+        "talent-profile-section": {
+          "purpose": "Edit a single section of your profile, focused mode for one piece at a time.",
+          "b0": "Make changes without scrolling through the whole profile",
+          "b1": "Save just this section",
+          "b2": "See validation errors specific to this part"
+        },
+        "talent-availability": {
+          "purpose": "Your master availability calendar. Agencies see this when they're trying to offer you work.",
+          "b0": "Mark days as available, tentative, or blocked",
+          "b1": "Add travel windows (will be in Lisbon Mar 1-15)",
+          "b2": "Choose which agencies can see which blocks"
+        },
+        "talent-block-dates": {
+          "purpose": "Quickly block a range of dates: vacation, family event, maternity leave.",
+          "b0": "Pick a date range and a reason",
+          "b1": "Choose visibility (just agencies, also clients)",
+          "b2": "Lift the block early if plans change"
+        },
+        "talent-portfolio": {
+          "purpose": "Your portfolio images, organized into albums (editorial, commercial, runway, etc).",
+          "b0": "Upload new photos in bulk",
+          "b1": "Reorder by drag-and-drop",
+          "b2": "Mark a few as cover images shown on your public page"
+        },
+        "talent-polaroids": {
+          "purpose": "Casting polaroids: natural, no-makeup digitals shot against a plain wall.",
+          "b0": "Upload a fresh set (most agencies want them under 90 days old)",
+          "b1": "Add date and location to each shot",
+          "b2": "Set which polaroids are visible to which clients"
+        },
+        "talent-photo-edit": {
+          "purpose": "Crop, retouch, and tag a single photo from your portfolio.",
+          "b0": "Crop and rotate",
+          "b1": "Add credits (photographer, stylist, hair, makeup)",
+          "b2": "Tag which campaign or editorial it's from"
+        },
+        "talent-credits": {
+          "purpose": "Your campaign and editorial credits, the brands and publications you've worked with.",
+          "b0": "Add a new credit with year, brand, and role",
+          "b1": "Link credits to specific portfolio photos",
+          "b2": "Mark some credits as verified by the agency"
+        },
+        "talent-skills": {
+          "purpose": "Skills that affect what you get cast for: languages, sports, dance, accents, instruments.",
+          "b0": "Add a skill with a self-rated proficiency level",
+          "b1": "Upload demo video for skill verification",
+          "b2": "See which skills are most asked for in your market"
+        },
+        "talent-limits": {
+          "purpose": "What you will and won't do: nudity, fur, alcohol/tobacco, conflicting brands.",
+          "b0": "Set hard nos that block any inquiry mentioning them",
+          "b1": "Set soft preferences (will consider if right)",
+          "b2": "List conflicting brands you're already exclusive with"
+        },
+        "talent-rate-card": {
+          "purpose": "Your standard rates by job type, market, and usage tier.",
+          "b0": "Set a base day rate and weekly rate",
+          "b1": "Add usage tiers (regional, national, global)",
+          "b2": "Override rates for specific clients or markets"
+        },
+        "talent-travel": {
+          "purpose": "Travel preferences and constraints: passport details, comfort with red-eyes, dietary needs.",
+          "b0": "Add passport (encrypted) so contracts pre-fill correctly",
+          "b1": "List airlines you have status with",
+          "b2": "Set travel windows where you're flexible to relocate"
+        },
+        "talent-links": {
+          "purpose": "External links shown on your profile: Instagram, agency page, personal site, IMDB.",
+          "b0": "Add a link with a label and icon",
+          "b1": "Choose which links are public vs agency-only",
+          "b2": "Reorder how links appear on your public page"
+        },
+        "talent-reviews": {
+          "purpose": "Feedback from past clients and agencies, visible to clients considering booking you.",
+          "b0": "See your aggregate rating and breakdown",
+          "b1": "Read individual reviews and respond publicly",
+          "b2": "Flag a review you believe is unfair"
+        },
+        "talent-showreel": {
+          "purpose": "Video reel: runway clips, commercial spots, behind-the-scenes.",
+          "b0": "Upload or link from Vimeo/YouTube",
+          "b1": "Pick a thumbnail frame",
+          "b2": "Trim to a 60-second highlight cut"
+        },
+        "talent-measurements": {
+          "purpose": "Your measurements as they appear on every casting brief: height, bust/chest, waist, hips, shoe, hair, eyes.",
+          "b0": "Update measurements with the date taken",
+          "b1": "Choose imperial or metric per region",
+          "b2": "See which agencies have synced your latest set"
+        },
+        "talent-documents": {
+          "purpose": "Identity, work-permit, and tax documents, encrypted and shared only with verified agencies.",
+          "b0": "Upload passport, visa, or work-permit scans",
+          "b1": "Set expiry reminders so you re-up before they lapse",
+          "b2": "See which agencies have accessed which documents"
+        },
+        "talent-emergency-contact": {
+          "purpose": "Who agencies should call if something goes wrong on set, only revealed in emergencies.",
+          "b0": "Add up to 3 contacts with relationship and phone number",
+          "b1": "Pick a primary contact",
+          "b2": "See who has accessed this in the audit log"
+        },
+        "talent-public-preview": {
+          "purpose": "Preview exactly what clients see when they land on your public profile.",
+          "b0": "Toggle between client view and casting director view",
+          "b1": "See it on desktop, tablet, and phone",
+          "b2": "Share a private preview link before going live"
+        },
+        "talent-tier-compare": {
+          "purpose": "Compare Basic (free), Pro, and Portfolio tiers, what each unlocks for your personal page.",
+          "b0": "See feature differences side by side",
+          "b1": "Start a Pro or Portfolio upgrade",
+          "b2": "Read what other talent built with Portfolio"
+        },
+        "talent-personal-page": {
+          "purpose": "Your premium personal page: independent of any agency, owned by you, lives at tulala.digital/t/<your-slug>.",
+          "b0": "Pick a layout template",
+          "b1": "Choose which credits, photos, and links to feature",
+          "b2": "Connect a custom domain (Portfolio tier)"
+        },
+        "talent-page-template": {
+          "purpose": "Pick or customize the layout template for your personal page.",
+          "b0": "Browse 6+ template variants",
+          "b1": "Tune typography, colors, and section order",
+          "b2": "Save as a draft and preview before publishing"
+        },
+        "talent-media-embeds": {
+          "purpose": "Drop external media (Vimeo reels, Spotify playlists, Instagram posts) into your personal page.",
+          "b0": "Paste a URL and the embed renders automatically",
+          "b1": "Reorder embeds within a section",
+          "b2": "Hide embeds on mobile if they hurt performance"
+        },
+        "talent-press": {
+          "purpose": "Press mentions and editorial features, articles where you've appeared.",
+          "b0": "Add a press item with publication, date, and URL",
+          "b1": "Upload a screenshot for offline preservation",
+          "b2": "Mark which press is shown on your public page"
+        },
+        "talent-media-kit": {
+          "purpose": "Downloadable PDF media kit (bio, photos, rate card, contact) for press and brand pitches.",
+          "b0": "Auto-generate from your profile data",
+          "b1": "Customize layout and which sections appear",
+          "b2": "Get a shareable link or password-protected PDF"
+        },
+        "talent-custom-domain": {
+          "purpose": "Connect your own domain (yourname.com) to your personal page, Portfolio tier only.",
+          "b0": "Add a domain and see the DNS records",
+          "b1": "Verify the domain and switch your page to it",
+          "b2": "Configure SSL (auto-renewing)"
+        },
+        "talent-agency-relationship": {
+          "purpose": "Your relationship with one agency: exclusivity status, commission, contract terms.",
+          "b0": "See contract start/end dates and renewal terms",
+          "b1": "View commission percentages by job type",
+          "b2": "Initiate a leave-agency flow if you want out"
+        },
+        "talent-leave-agency": {
+          "purpose": "Initiate the process of leaving an agency: review notice periods, transfer rules, and final settlements.",
+          "b0": "See the contractual notice period",
+          "b1": "Send formal notice to the agency",
+          "b2": "Choose what happens to in-flight bookings"
+        },
+        "talent-multi-agency-picker": {
+          "purpose": "If you work with multiple agencies, pick which one acts on a given inquiry or booking.",
+          "b0": "Set a default agency by job type or region",
+          "b1": "Override on a single inquiry",
+          "b2": "See which agency is currently default"
+        },
+        "talent-conflict-resolve": {
+          "purpose": "Handle a conflict: two agencies offering competing dates, an agency missing a previously-set blockout, etc.",
+          "b0": "See the two requests side by side",
+          "b1": "Pick one and notify the other with a reason",
+          "b2": "Escalate to Tulala HQ if you need a mediator"
+        },
+        "talent-network": {
+          "purpose": "Other talent you collaborate with: a private network for swapping castings you can't take, recommendations, and shared bookings.",
+          "b0": "Invite other talent to your network",
+          "b1": "Refer a casting you can't take to a peer (with optional referral fee)",
+          "b2": "See bookings other talent have referred to you"
+        },
+        "talent-referrals": {
+          "purpose": "Your referral history and earnings: talent and brands you've sent to others, and what they've sent back.",
+          "b0": "Track open referrals and their status",
+          "b1": "See referral earnings (paid and pending)",
+          "b2": "Generate a personal referral link to share"
+        },
+        "talent-notifications": {
+          "purpose": "Your notification preferences as a talent, what you get pinged about and how.",
+          "b0": "Mute event types you don't care about",
+          "b1": "Set quiet hours",
+          "b2": "Pick instant, daily, or weekly delivery"
+        },
+        "talent-privacy": {
+          "purpose": "Who sees what: measurements, contact, social handles, agency-private info.",
+          "b0": "Set per-field visibility (public, agency only, private)",
+          "b1": "Hide your profile from Tulala discovery",
+          "b2": "Audit who has accessed sensitive data"
+        },
+        "talent-contact-preferences": {
+          "purpose": "Who can contact you directly: by trust tier, agency relationship, or specific brand.",
+          "b0": "Allow direct contact only from Verified clients and up",
+          "b1": "Whitelist specific agencies for direct outreach",
+          "b2": "Block specific brands or competitors"
+        },
+        "talent-payouts": {
+          "purpose": "Where your money goes: bank accounts, payment processors, payout schedule.",
+          "b0": "Add or remove a payout method",
+          "b1": "Pick payout schedule (weekly, biweekly, on-demand)",
+          "b2": "See pending and paid amounts"
+        },
+        "talent-earnings-detail": {
+          "purpose": "Detailed earnings: every booking, what came in, what was deducted (commission, taxes, fees).",
+          "b0": "Filter by year, agency, or job type",
+          "b1": "Export to CSV for your accountant",
+          "b2": "See projected earnings from confirmed-but-unpaid bookings"
+        },
+        "talent-tax-docs": {
+          "purpose": "Year-end tax documents: 1099, W-9, equivalents per region. Download once your earnings are finalized.",
+          "b0": "Download forms for the current and past tax years",
+          "b1": "Update your tax info (W-9, equivalent)",
+          "b2": "See which agencies have already submitted forms for you"
+        },
+        "talent-verification": {
+          "purpose": "Legacy entry: superseded by `talent-trust-detail` (the talent-side trust dashboard) and the per-method drawers (`talent-phone-verify`, `talent-id-verify`, etc.). Kept for backward compatibility with old deep links.",
+          "b0": "(Routes to `talent-trust-detail`)"
+        },
+        "talent-voice-reply": {
+          "purpose": "Record a quick voice reply instead of typing, useful when you're on the move.",
+          "b0": "Record up to 60 seconds of voice",
+          "b1": "Auto-transcribe and edit before sending",
+          "b2": "Pin frequently-used replies as voice templates"
+        },
+        "talent-chat-archive": {
+          "purpose": "Archived conversations: closed bookings, declined requests, dormant agency relationships.",
+          "b0": "Search past conversations by client, agency, or keyword",
+          "b1": "Restore an archived chat back to active",
+          "b2": "Export an archive thread for legal records"
+        },
+        "data-export": {
+          "purpose": "Download an archive of your data: for backups, portability, or before you delete the account.",
+          "b0": "Pick a date range or export everything",
+          "b1": "Choose which data types (bookings, messages, files)",
+          "b2": "Get a download link by email when ready"
+        },
+        "audit-log": {
+          "purpose": "Every consequential action on this account or workspace: who did what, when, from where.",
+          "b0": "Filter by user, action type, or IP",
+          "b1": "Export a date-range slice for compliance",
+          "b2": "Spot suspicious activity"
+        },
+        "talent-share-card": {
+          "purpose": "Share your talent profile via a clean link, embed code, or downloadable card.",
+          "b0": "Get a shareable link",
+          "b1": "Generate a QR code for print",
+          "b2": "Download a vCard for contacts"
+        },
+        "whats-new": {
+          "purpose": "Recent product updates, feature launches, and changes you should know about.",
+          "b0": "Read the changelog with screenshots",
+          "b1": "Watch demo clips for new features",
+          "b2": "Follow links to deep-dive articles"
+        },
+        "help": {
+          "purpose": "The help hub: search articles, browse by topic, contact support, submit a ticket.",
+          "b0": "Search the documentation",
+          "b1": "Browse articles by surface (admin, talent, client)",
+          "b2": "Open a chat with support",
+          "b3": "Submit a ticket for issues that need a human"
+        },
+        "payments-setup": {
+          "purpose": "Connect your workspace to a payments processor (Stripe, Wise, Mercury) so you can receive client payments.",
+          "b0": "Connect a processor",
+          "b1": "Set default fees and processing rules",
+          "b2": "Test the flow with a sandbox transaction"
+        },
+        "payout-receiver-picker": {
+          "purpose": "Pick who receives payment for a booking: agency, talent direct, or split.",
+          "b0": "Set the default receiver per talent",
+          "b1": "Override on a per-booking basis",
+          "b2": "Configure splits (eg 80/20 with a partner agency)"
+        },
+        "payment-detail": {
+          "purpose": "Detail of a single payment: amount, fees, tax, receiver, status.",
+          "b0": "See line-items and fee breakdown",
+          "b1": "Download the receipt or invoice",
+          "b2": "Open a dispute if something is wrong"
+        },
+        "platform-today-pulse": {
+          "purpose": "Cross-tenant pulse: incidents open, tickets in queue, billing failures, today's high-impact tenants.",
+          "b0": "Triage incidents by severity",
+          "b1": "Jump into any tenant from a row",
+          "b2": "See which platform jobs are running or stuck"
+        },
+        "platform-tenant-detail": {
+          "purpose": "One tenant's full record: plan, MRR, usage, key staff, recent activity.",
+          "b0": "Impersonate to see what they see",
+          "b1": "Override the plan or extend a trial",
+          "b2": "Suspend the tenant for billing or abuse"
+        },
+        "platform-tenant-impersonate": {
+          "purpose": "Sign in as a tenant admin (with their consent) to debug an issue.",
+          "b0": "Start an impersonation session (logged + time-boxed)",
+          "b1": "End the session manually or wait for auto-expiry",
+          "b2": "See what actions HQ took during the session"
+        },
+        "platform-tenant-suspend": {
+          "purpose": "Suspend a tenant: billing failure, terms violation, security incident.",
+          "b0": "Pick a reason and severity (read-only, full lockout, deletion)",
+          "b1": "Set an auto-unsuspend date if appropriate",
+          "b2": "Notify the tenant or stay silent (security cases)"
+        },
+        "platform-tenant-plan-override": {
+          "purpose": "Manually override a tenant's plan: bumps, comps, custom enterprise terms.",
+          "b0": "Bump to a higher tier with custom pricing",
+          "b1": "Apply a discount or credit",
+          "b2": "Set an override expiry so it auto-reverts"
+        },
+        "platform-user-detail": {
+          "purpose": "One end-user's record: across tenants, surfaces, devices, sessions.",
+          "b0": "See every workspace they're in",
+          "b1": "Force a password reset",
+          "b2": "Merge with a duplicate account"
+        },
+        "platform-user-merge": {
+          "purpose": "Merge two user records, same person signed up twice with different emails.",
+          "b0": "Pick the surviving record",
+          "b1": "Preview what gets transferred (memberships, history)",
+          "b2": "Run the merge (irreversible, confirm twice)"
+        },
+        "platform-user-reset": {
+          "purpose": "Force-reset a user's password or 2FA.",
+          "b0": "Send a password reset email",
+          "b1": "Clear 2FA if they lost their device",
+          "b2": "Flag the account for re-verification"
+        },
+        "platform-hub-submission": {
+          "purpose": "Tenant has applied to a hub, review their roster fit before approving.",
+          "b0": "See applicant tenant's profile and sample talent",
+          "b1": "Approve, reject, or request changes",
+          "b2": "Leave HQ-internal notes on the decision"
+        },
+        "platform-hub-rules": {
+          "purpose": "Curation rules per hub: minimum bar, eligibility filters, exclusivity terms.",
+          "b0": "Tune eligibility filters",
+          "b1": "Update the application form questions",
+          "b2": "Pause new applications during a backlog"
+        },
+        "platform-billing-invoice": {
+          "purpose": "One invoice across the platform: tenant, line items, payment status.",
+          "b0": "Issue a refund (full or partial)",
+          "b1": "Mark as paid manually if processed offline",
+          "b2": "Resend the invoice email"
+        },
+        "platform-refund": {
+          "purpose": "Refund a charge (partial or full) with required reason and audit trail.",
+          "b0": "Pick the charge and refund amount",
+          "b1": "Choose a reason category (used for finance reporting)",
+          "b2": "Notify the tenant or refund silently"
+        },
+        "platform-dunning": {
+          "purpose": "Tenants in dunning: failed charges, retry schedules, suspension countdowns.",
+          "b0": "See the retry schedule for each failure",
+          "b1": "Manually retry a charge",
+          "b2": "Comp a tenant for a stuck failure"
+        },
+        "platform-feature-flag": {
+          "purpose": "Toggle features per tenant or globally: staged rollouts, beta access, kill switches.",
+          "b0": "Flip a flag for one tenant or a percentage rollout",
+          "b1": "See who's currently in/out of each flag",
+          "b2": "Schedule a flag to flip on a future date"
+        },
+        "platform-moderation-item": {
+          "purpose": "Content flagged for moderation: inappropriate photos, suspicious profiles, abusive messages.",
+          "b0": "Approve, reject, or request changes",
+          "b1": "Take down content with a reason sent to the user",
+          "b2": "Escalate to legal for serious cases"
+        },
+        "platform-system-job": {
+          "purpose": "Background jobs: exports, migrations, daily aggregations. See progress and retry failures.",
+          "b0": "Filter by job type or status",
+          "b1": "Retry a failed job",
+          "b2": "Cancel a stuck job"
+        },
+        "platform-incident": {
+          "purpose": "A live or past incident: what broke, when, how it was resolved.",
+          "b0": "Update status (investigating, identified, monitoring, resolved)",
+          "b1": "Post updates that go to the public status page",
+          "b2": "Link the postmortem doc"
+        },
+        "platform-support-ticket": {
+          "purpose": "A support ticket from a tenant or end-user, the queue HQ works through daily.",
+          "b0": "Assign the ticket to a teammate",
+          "b1": "Reply to the user (template or freeform)",
+          "b2": "Link related tickets or known incidents",
+          "b3": "Close with a resolution category"
+        },
+        "platform-audit-export": {
+          "purpose": "Generate a compliance-grade audit export: for legal, security reviews, or tenant requests.",
+          "b0": "Pick a tenant or scope to all platform",
+          "b1": "Select a date range and event types",
+          "b2": "Download a signed, hashed archive"
+        },
+        "platform-hq-team": {
+          "purpose": "Tulala HQ staff and their roles, permissions, and on-call schedules.",
+          "b0": "Add or remove HQ staff",
+          "b1": "Set roles (engineering, support, ops, finance)",
+          "b2": "Manage on-call rotation"
+        },
+        "platform-region-config": {
+          "purpose": "Per-region settings: currencies, tax rules, available payment processors, content moderation rules.",
+          "b0": "Add or edit a region",
+          "b1": "Set legal text per region",
+          "b2": "Toggle features region-by-region"
+        },
+        "client-trust-detail": {
+          "purpose": "Client trust tier (Basic through Gold) based on identity verification and funded-account signals.",
+          "b0": "See which tier the client is on and what each tier unlocks",
+          "b1": "Understand what verification steps are still outstanding",
+          "b2": "Trigger a manual review or override for edge cases"
+        },
+        "escrow-detail": {
+          "purpose": "Escrow hold for a booking, Authorized → Held → Released lifecycle view.",
+          "b0": "See the current escrow state and unlock conditions",
+          "b1": "Review the funds release schedule",
+          "b2": "Raise a dispute before release if something is wrong"
+        },
+        "refund-flow": {
+          "purpose": "Issue a refund for a booking payment (full or partial) with a required reason.",
+          "b0": "Select a refund reason for finance reporting",
+          "b1": "Choose full refund or enter a partial amount",
+          "b2": "See how long the credit takes to appear"
+        },
+        "dispute-flow": {
+          "purpose": "Open a formal dispute for a payment or delivery issue, structured wizard with evidence upload.",
+          "b0": "Pick the dispute type (non-delivery, quality, unauthorised charge, other)",
+          "b1": "Attach evidence (messages, photos, documents)",
+          "b2": "Review your submission before final confirm"
+        },
+        "kyc-verification": {
+          "purpose": "Identity verification (photo ID + selfie) required to unlock higher trust tiers and payment limits.",
+          "b0": "Start the verification flow",
+          "b1": "See which step is pending (ID, selfie, review)",
+          "b2": "Check verification status after submission"
+        },
+        "proof-of-funds": {
+          "purpose": "Verify a funded account (bank link or wire) to reach Silver or Gold trust tier.",
+          "b0": "Link a bank account via Plaid for instant verification",
+          "b1": "Alternatively upload a bank statement for manual review",
+          "b2": "See verification status and expected timeline"
+        },
+        "payout-method-failure": {
+          "purpose": "Your payout method failed, see the reason and follow guided recovery steps.",
+          "b0": "Read the specific failure reason code",
+          "b1": "Update or replace the payout method",
+          "b2": "Retry the failed payout once the method is fixed"
+        },
+        "subscription-lifecycle": {
+          "purpose": "Full subscription lifecycle: trial, active, paused, grace period, and cancelled states.",
+          "b0": "See the current phase and what changes next",
+          "b1": "Pause or cancel an active subscription",
+          "b2": "Reactivate from grace-period or cancelled state"
+        },
+        "notification-detail": {
+          "purpose": "Full detail of a single notification: what happened, who triggered it, and what action is needed.",
+          "b0": "Read the full notification body",
+          "b1": "Jump to the related booking, inquiry, or thread",
+          "b2": "Mark as read or dismiss"
+        },
+        "ai-draft-assist": {
+          "purpose": "AI-generated message drafts, describe what you want to say and get a polished draft.",
+          "b0": "Enter a prompt and generate a draft",
+          "b1": "Edit the draft inline before using it",
+          "b2": "Insert directly into the active message composer"
+        },
+        "ai-search-explain": {
+          "purpose": "See how the AI interpreted your search query and which filters were applied.",
+          "b0": "Review extracted keywords and inferred criteria",
+          "b1": "See total result count from this interpretation",
+          "b2": "Understand why certain results appeared (or didn't)"
+        },
+        "trust-verification-queue": {
+          "purpose": "Review every Instagram + Tulala + ID + business + domain + payment verification submitted by talent. Approve, reject, or ask for more info, talent gets notified.",
+          "b0": "Filter by status (Pending / In review / Needs info / Approved / Rejected)",
+          "b1": "Filter by method (only enabled methods are shown)",
+          "b2": "Search by talent name, IG handle, code, or method",
+          "b3": "Bulk-approve via the row checkboxes",
+          "b4": "Open a request to see evidence URL, talent's note, full activity timeline, and risk-health score",
+          "b5": "Approve / reject (with reason) / mark in review / request more info"
+        },
+        "trust-disputed-claims": {
+          "purpose": "Resolve agency-created profiles that the claimed talent flagged as not theirs. Three outcomes: release (talent wins), uphold (agency wins, re-issue invite), or remove (take profile down).",
+          "b0": "Review the talent's dispute reason and the original invite metadata",
+          "b1": "See the talent's risk-health score (claim disputes drop it −25)",
+          "b2": "Add admin-only notes recording the rationale for the decision",
+          "b3": "Pick one of three resolutions; UI fans out to update claim status, profile state, and audit log"
+        },
+        "platform-verification-methods": {
+          "purpose": "Source-of-truth registry for which verification methods exist on Tulala. Platform admins enable / disable methods, change review mode, set tier-gating, evidence requirements, and expiry.",
+          "b0": "Toggle a method on or off platform-wide (warns if active badges exist: they stay valid until expiry, but disappear from public storefronts immediately)",
+          "b1": "Set review mode (automated / manual / hybrid)",
+          "b2": "Set visibility (public_profile / admin_only / internal)",
+          "b3": "Restrict who can use it by talent tier (Basic / Pro / Portfolio / All)",
+          "b4": "Toggle whether evidence is required to submit",
+          "b5": "Set badge expiry in days (blank = never)",
+          "b6": "Inspect the audit log of every change made to the registry"
+        },
+        "talent-trust-detail": {
+          "purpose": "Your trust dashboard. See your trust-health score, the badges you've earned, and what verifications would lift your score the most. Also where you set who can contact you.",
+          "b0": "See your trust-health score (0-100, internal heuristic)",
+          "b1": "Open suggestions like 'Verify your phone (+5)' that route to the right flow",
+          "b2": "Start the Instagram DM flow (handle + code + optional evidence URL)",
+          "b3": "Request Tulala manual review",
+          "b4": "Open Phone / ID / Business / Domain / Payment flows when enabled platform-wide",
+          "b5": "Set your contact gate: Anyone / Verified clients only / Trusted clients only"
+        },
+        "talent-claim-invite": {
+          "purpose": "Accept (or dispute) a profile that an agency created in your name. Three actions: claim it (becomes yours), say 'not me' (admin reviews), or report it.",
+          "b0": "Review the profile the agency built: photos, fields, agency name",
+          "b1": "Claim ownership (verifies your email + flips claim status to 'claimed')",
+          "b2": "Dispute the invite if the profile isn't actually yours (lands in the admin disputed-claims queue)",
+          "b3": "Report the invite as suspicious (takes profile offline pending admin review)"
+        },
+        "talent-phone-verify": {
+          "purpose": "Confirm a working phone number via SMS OTP. Internal-only signal, never shown publicly. Speeds up account-recovery and lifts your trust-health score.",
+          "b0": "Enter your phone with country code",
+          "b1": "Receive a 6-digit code (prototype shows it inline; production sends real SMS)",
+          "b2": "Type the code to auto-verify",
+          "b3": "Re-run the flow if your number changes"
+        },
+        "talent-id-verify": {
+          "purpose": "Upload a government-issued ID for manual admin review. Internal-only, used to confirm name + age + identity uniqueness. Never shared with clients or agencies.",
+          "b0": "Pick your document type (passport / driver's license / national ID)",
+          "b1": "Provide a secure URL to the document (in production this is a direct upload)",
+          "b2": "Add a reviewer note explaining anything the document needs context for",
+          "b3": "Submit, admin reviews within 48h"
+        },
+        "talent-business-verify": {
+          "purpose": "Confirm the registered legal entity behind your work, VAT / company-house / DIC / equivalent. Public badge for talent who run their work as a business.",
+          "b0": "Enter your legal entity name + VAT/registration number",
+          "b1": "Optionally (or required by platform policy) attach a public registry URL",
+          "b2": "Submit for manual admin review (3 business days)"
+        },
+        "talent-domain-verify": {
+          "purpose": "Prove you control a domain (e.g. martareyes.com) by adding a DNS TXT record. Public badge, adds credibility to talent who maintain their own websites.",
+          "b0": "Enter the domain you want to verify",
+          "b1": "Copy the generated TXT record value",
+          "b2": "Add it via your DNS provider (GoDaddy / Namecheap / Cloudflare / etc.)",
+          "b3": "Click 'check now' to run the lookup, auto-approves on match"
+        },
+        "talent-payment-verify": {
+          "purpose": "Confirm a working payout method via a small Stripe authorization-then-refund. Internal-only, improves your trust score for clients who care about payment reliability.",
+          "b0": "Run the verification (€1 hold + immediate refund, no money actually moves)",
+          "b1": "See the result inline; auto-approves on success"
+        }
+      },
+      "drawerLabels": {
+        "api-keys": "API keys",
+        "audit-log": "Audit log",
+        "booking-peek": "Booking summary",
+        "branding": "Branding",
+        "client-list": "Client list",
+        "client-profile": "Client profile",
+        "client-trust-detail": "Client trust tier",
+        "confirmed-bookings": "Confirmed bookings",
+        "danger-zone": "Danger zone",
+        "data-export": "Data export",
+        "dispute-flow": "Open a dispute",
+        "domain": "Custom domain",
+        "drafts-holds": "Drafts and holds",
+        "escrow-detail": "Funds in escrow",
+        "field-catalog": "Custom fields",
+        "filter-config": "Filter setup",
+        "help": "Help",
+        "homepage": "Homepage",
+        "hub-distribution": "Hub distribution",
+        "inbox-snippets": "Saved snippets",
+        "inquiry-peek": "Inquiry summary",
+        "inquiry-workspace": "Inquiry workspace",
+        "kyc-verification": "Identity verification",
+        "media": "Media library",
+        "navigation": "Navigation",
+        "new-booking": "New booking",
+        "new-inquiry": "New inquiry",
+        "new-talent": "Add talent",
+        "notifications": "Notifications",
+        "notifications-prefs": "Notification preferences",
+        "pages": "Pages",
+        "payment-detail": "Payment detail",
+        "payments-setup": "Payments setup",
+        "payout-receiver-picker": "Payout receiver",
+        "pipeline": "Pipeline",
+        "plan-billing": "Plan and billing",
+        "plan-compare": "Compare plans",
+        "platform-billing-invoice": "Platform invoice",
+        "platform-feature-flag": "Feature flags",
+        "platform-hub-rules": "Hub rules",
+        "platform-hub-submission": "Hub application",
+        "platform-incident": "Incident",
+        "platform-refund": "Platform refund",
+        "platform-support-ticket": "Support ticket",
+        "platform-system-job": "System job",
+        "platform-tenant-detail": "Tenant detail",
+        "platform-tenant-impersonate": "Impersonate tenant",
+        "platform-tenant-plan-override": "Plan override",
+        "platform-tenant-suspend": "Suspend tenant",
+        "platform-user-detail": "User detail",
+        "platform-user-merge": "Merge users",
+        "platform-user-reset": "Reset user access",
+        "platform-verification-methods": "Verification methods",
+        "posts": "Posts",
+        "private-client-data": "Private client data",
+        "proof-of-funds": "Proof of funds",
+        "refund-flow": "Issue a refund",
+        "relationship-history": "Relationship history",
+        "reply-templates": "Reply templates",
+        "representation-requests": "Representation requests",
+        "seo": "SEO",
+        "site-health": "Site health",
+        "site-setup": "Site setup",
+        "talent-add-event": "Add calendar event",
+        "talent-agency-relationship": "Agency relationship",
+        "talent-availability": "Availability",
+        "talent-block-dates": "Block dates",
+        "talent-business-verify": "Business verification",
+        "talent-claim-invite": "Claim your profile",
+        "talent-closed-booking": "Closed booking",
+        "talent-conflict-resolve": "Resolve a conflict",
+        "talent-contact-preferences": "Contact preferences",
+        "talent-credits": "Credits",
+        "talent-custom-domain": "Custom domain",
+        "talent-domain-verify": "Domain verification",
+        "talent-earnings-detail": "Earnings detail",
+        "talent-emergency-contact": "Emergency contact",
+        "talent-hub-compare": "Compare hubs",
+        "talent-hub-detail": "Hub detail",
+        "talent-id-verify": "ID verification",
+        "talent-leave-agency": "Leave the agency",
+        "talent-measurements": "Measurements",
+        "talent-media-embeds": "Media embeds",
+        "talent-multi-agency-picker": "Choose an agency",
+        "talent-network": "Talent network",
+        "talent-offer-detail": "Offer detail",
+        "talent-page-template": "Page template",
+        "talent-payment-verify": "Payout verification",
+        "talent-payouts": "Payouts",
+        "talent-personal-page": "Personal page",
+        "talent-phone-verify": "Phone verification",
+        "talent-photo-edit": "Edit photo",
+        "talent-polaroids": "Polaroids",
+        "talent-portfolio": "Portfolio",
+        "talent-press": "Press",
+        "talent-privacy": "Privacy",
+        "talent-profile": "Talent profile",
+        "talent-profile-edit": "Edit profile",
+        "talent-profile-section": "Edit a section",
+        "talent-public-preview": "Public preview",
+        "talent-rate-card": "Rate card",
+        "talent-referrals": "Referrals",
+        "talent-request-detail": "Request detail",
+        "talent-showreel": "Showreel",
+        "talent-skills": "Skills",
+        "talent-tax-docs": "Tax documents",
+        "talent-tier-compare": "Compare tiers",
+        "talent-trust-detail": "Trust dashboard",
+        "taxonomy": "Taxonomy",
+        "team": "Team",
+        "team-activity": "Team activity",
+        "today-pulse": "Today",
+        "trust-disputed-claims": "Disputed claims",
+        "trust-verification-queue": "Verification queue",
+        "whats-new": "What's new",
+        "widgets": "Widgets",
+        "workspace-settings": "Workspace settings"
+      },
+      "categories": {
+        "ai": "AI",
+        "account": "Account",
+        "agencies": "Agencies",
+        "clients": "Clients",
+        "hq": "HQ",
+        "help": "Help",
+        "money": "Money",
+        "myProfile": "My profile",
+        "notifications": "Notifications",
+        "operations": "Operations",
+        "premium": "Premium",
+        "publicSite": "Public site",
+        "roster": "Roster",
+        "security": "Security",
+        "settings": "Settings",
+        "today": "Today"
+      },
+      "audiences": {
+        "workspaceAdmin": "Workspace admin",
+        "workspaceCoordinator": "Workspace coordinator",
+        "workspaceEditor": "Workspace editor",
+        "talent": "Talent",
+        "client": "Client",
+        "tulalaHq": "Tulala HQ"
+      },
+      "ticketCategories": {
+        "accountAccess": "Account & access",
+        "billing": "Billing",
+        "bookingsInquiries": "Bookings & inquiries",
+        "developerApi": "Developer & API",
+        "general": "General",
+        "publicSiteDomains": "Public site & domains",
+        "trustSafety": "Trust & Safety"
+      },
+      "ui": {
+        "aboutThisView": "About this view",
+        "youCanHere": "What you can do here",
+        "relatedViews": "Related views",
+        "wasThisHelpful": "Was this helpful?",
+        "voteUpAria": "Yes, this was helpful",
+        "voteDownAria": "No, this could be better",
+        "toastThanksUp": "Thanks, glad this helped.",
+        "toastThanksDown": "Thanks, we'll improve this view.",
+        "feedbackSavedUp": "Thanks, feedback saved.",
+        "feedbackSavedDown": "Thanks, we'll revisit this view's help.",
+        "fullGuide": "Full guide",
+        "soon": "(soon)",
+        "submitATicket": "Submit a ticket",
+        "openHelpDrawer": "Open help drawer",
+        "toastSupportArticle": "Support article \"/support/{slug}\" is coming soon.",
+        "toastChatSupport": "Chat with support is coming soon. We'll pre-load context for \"{drawer}\".",
+        "toastTicketForm": "Ticket form is coming soon. We'll pre-fill category \"{category}\"."
+      }
+    },
+    "adminMedia": {
+      "title": "Media",
+      "subtitle": "Your workspace photo library, every photo across every talent, with watermark control and usage tracking.",
+      "navAll": "All ({count})",
+      "navPendingReview": "Pending review",
+      "navByTalent": "By talent",
+      "navByKind": "By kind",
+      "navAnalytics": "Analytics",
+      "navigate": "Navigate",
+      "sectionFolders": "Folders",
+      "sectionGroupBy": "Group by",
+      "sectionMore": "More",
+      "newFolder": "New folder",
+      "editFolder": "Edit folder",
+      "createFolder": "Create folder",
+      "folderName": "Folder name",
+      "folderNamePlaceholder": "e.g. Press kit, Runway 2026…",
+      "color": "Color",
+      "shareLink": "Share link",
+      "copy": "Copy",
+      "revoke": "Revoke",
+      "creating": "Creating…",
+      "createShareLink30": "Create share link (30 days)",
+      "delete": "Delete",
+      "deleting": "Deleting…",
+      "deleteN": "Delete {count}",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "clear": "Clear",
+      "clearSelection": "Clear selection",
+      "selectAll": "Select all",
+      "assign": "Assign",
+      "open": "Open",
+      "on": "On",
+      "off": "Off",
+      "details": "Details",
+      "tags": "Tags",
+      "note": "Note",
+      "notePlaceholder": "Add a note about this photo…",
+      "saveNote": "Save note",
+      "activity": "Activity",
+      "addTagPlaceholder": "Add tag and press Enter…",
+      "removeTagAria": "Remove {tag}",
+      "watermarkPreview": "Watermark preview",
+      "watermarkOn": "Watermark on",
+      "customWatermark": "Custom watermark",
+      "configureWatermark": "Configure watermark",
+      "metaStatus": "Status",
+      "metaUploaded": "Uploaded",
+      "metaDimensions": "Dimensions",
+      "metaSize": "Size",
+      "metaFilename": "Filename",
+      "metaType": "Type",
+      "approve": "Approve",
+      "reject": "Reject",
+      "savingCrop": "Saving crop…",
+      "useAsProfile": "Use as profile",
+      "useAsCover": "Use as cover",
+      "setAsProfile": "Set as profile",
+      "moveToTalent": "Move to talent",
+      "reassignHint": "Photos will be re-assigned and appear under the new talent.",
+      "bulkWatermark": "Watermark…",
+      "bulkMoveToTalent": "Move to talent…",
+      "bulkAddToFolder": "Add to folder…",
+      "nSelected": "{count} selected",
+      "nPending": "{count} pending",
+      "focusedOf": "Focused: {index} / {total}",
+      "nUploaded": "{done}/{total} uploaded…",
+      "nFailed": "{count} failed",
+      "nReady": "{count} ready",
+      "nPhotos": {
+        "one": "{count} photo",
+        "other": "{count} photos"
+      },
+      "nFolders": {
+        "one": "{count} folder",
+        "other": "{count} folders"
+      },
+      "uploadNPhotos": {
+        "one": "Upload {count} photo",
+        "other": "Upload {count} photos"
+      },
+      "moveNPhotosToTalent": {
+        "one": "Move {count} photo to talent",
+        "other": "Move {count} photos to talent"
+      },
+      "saveNPhotos": {
+        "one": "Save {count} photo",
+        "other": "Save {count} photos"
+      },
+      "confirmDeletePhotos": {
+        "one": "Delete {count} photo? This cannot be undone.",
+        "other": "Delete {count} photos? This cannot be undone."
+      },
+      "confirmRejectPhotos": {
+        "one": "Reject {count} photo?",
+        "other": "Reject {count} photos?"
+      },
+      "confirmDeleteFolder": "Delete \"{name}\"? Photos stay, only the folder is removed.",
+      "searchPlaceholder": "Search name, tag, filename…",
+      "filterAllTalent": "All talent",
+      "filterAllStatuses": "All statuses",
+      "statusApproved": "Approved",
+      "statusPending": "Pending",
+      "sortNewest": "Newest",
+      "sortOldest": "Oldest",
+      "sortTalentAZ": "Talent A to Z",
+      "showLess": "Show less ↑",
+      "seeNMore": "See {count} more →",
+      "emptyFolder": "No photos in this folder yet. Select photos and use '+ Folder…' to add them.",
+      "emptyPending": "No photos pending review.",
+      "emptyNoMatch": "No photos match. Try clearing filters or uploading.",
+      "emptyNoPhotos": "No photos yet, drop images or click Upload.",
+      "dropPhotosHere": "Drop photos here",
+      "bridgeLoadError": "We couldn't load your media library. Try refreshing, and if it keeps failing the bridge query is broken.",
+      "showingNofM": "Showing {shown} of {total} photos. Use filters or folders to narrow what you see.",
+      "settings": "Settings",
+      "mediaFeatures": "Media features",
+      "groupByTalent": "Group by talent",
+      "groupByKind": "Group by kind",
+      "driveImport": "Drive import",
+      "uploadMenuButton": "+ Upload ▾",
+      "fromComputer": "From computer",
+      "dragAndDrop": "Drag & drop",
+      "dragAndDropSub": "Drop anywhere on this page",
+      "driveSub": "Import from a shared folder",
+      "toastDropAnywhere": "Drop images anywhere on the page",
+      "drivePastePlaceholder": "Paste Drive file or folder link…",
+      "check": "Check",
+      "checking": "Checking…",
+      "foundNPhotosInFolder": {
+        "one": "Found {count} photo in that folder",
+        "other": "Found {count} photos in that folder"
+      },
+      "importNPhotos": {
+        "one": "Import {count} photo",
+        "other": "Import {count} photos"
+      },
+      "nPhotosImported": {
+        "one": "{count} photo imported.",
+        "other": "{count} photos imported."
+      },
+      "driveFolderTruncated": "This folder is very large, only the first {total} images are listed. Move the rest into a sub-folder and run it again.",
+      "importingProgress": "Importing… {done} / {total} photos",
+      "safeToLeave": "Safe to leave, the import continues server-side",
+      "loadingRoster": "Loading roster…",
+      "driveAnyoneWithLink": "Works with any file or folder shared as \"Anyone with the link\"",
+      "keyboardShortcuts": "Keyboard shortcuts",
+      "shortcutsGeneral": "General",
+      "shortcutsWhenOpen": "When a photo is open",
+      "keyClick": "Click",
+      "shortcutOpenPhoto": "Open photo (preview + edit)",
+      "shortcutClearClose": "Clear selection / close",
+      "shortcutSelectAllVisible": "Select all visible",
+      "shortcutToggleHelp": "Toggle this help",
+      "shortcutApproveFocused": "Approve focused photo",
+      "shortcutRejectFocused": "Reject focused photo",
+      "shortcutNavigateBetween": "Navigate between photos",
+      "shortcutPrevNext": "Previous / next photo",
+      "shortcutApproveRejectIfPending": "Approve / Reject (if pending)",
+      "shortcutClose": "Close",
+      "pressQuestionPrefix": "Press",
+      "pressQuestionSuffix": "again to close",
+      "statTotalPhotos": "Total photos",
+      "statTotalStorage": "Total storage",
+      "byVariantKind": "By variant kind",
+      "selectPhotoAria": "Select photo",
+      "deselectPhotoAria": "Deselect photo",
+      "upgradeTitle": "Branded media gallery, Agency plan",
+      "upgradeBody": "Every photo your agency controls: folders, tags, watermarks, bulk actions, and analytics.",
+      "upgradeBullet1": "Workspace-wide photo inventory",
+      "upgradeBullet2": "Folders + tags for organisation",
+      "upgradeBullet3": "Logo watermark, position and opacity",
+      "upgradeBullet4": "Bulk approve / reject / reassign",
+      "upgradeBullet5": "Usage analytics per talent",
+      "upgradeFeature": "Branded media gallery",
+      "upgradeWhy": "See every photo your agency controls.",
+      "upgradeToAgency": "Upgrade to Agency",
+      "unlockFoldersTags": "Folders + tags",
+      "unlockLogoWatermark": "Logo watermark",
+      "unlockBulkActions": "Bulk actions",
+      "toastSetAsProfile": "Set as {name}'s profile photo",
+      "toastSetAsCover": "Set as {name}'s cover photo",
+      "toastSetAsCardPhoto": "Set as {name}'s card photo",
+      "toastNewProfileSaved": "New profile photo saved",
+      "toastNewCoverSaved": "New cover photo saved",
+      "toastNewCropSaved": "New cropped photo saved",
+      "toastRevertedToOriginal": "Reverted to original",
+      "errNameRequired": "Name is required.",
+      "errCouldNotSetProfile": "Could not set as profile.",
+      "errCouldNotSetCover": "Could not set as cover.",
+      "errCropUploadFailed": "Crop upload failed.",
+      "errRevertFailed": "Revert failed.",
+      "errCouldNotReadFolder": "Could not read folder.",
+      "errImportFailed": "Import failed.",
+      "errSvgSkipped": {
+        "one": "SVG files aren't supported for security reasons. Skipping {count} file.",
+        "other": "SVG files aren't supported for security reasons. Skipping {count} files."
+      },
+      "errZipTooLarge": "ZIP must be under 500 MB.",
+      "errZipTruncated": "The ZIPs contained more than {cap} images, only the first {cap} were extracted. Split them into several ZIPs and upload again for the rest.",
+      "errCouldNotReadZip": "Could not read ZIP file.",
+      "errMaxBatch": "Max 200 images per batch.",
+      "errNoTalentToAssign": "No talent on roster to assign to.",
+      "errNoTalentOnRoster": "No talent on roster.",
+      "errUploadFailed": "Upload failed",
+      "variant": {
+        "card": "Profile",
+        "hero": "Cover",
+        "gallery": "Gallery",
+        "lightbox": "Lightbox",
+        "polaroid": "Polaroid",
+        "reel": "Reel",
+        "publicWatermarked": "Public WM",
+        "watermarked": "Watermarked"
+      },
+      "pill": {
+        "rejected": "Rejected",
+        "review": "Review",
+        "profile": "Profile",
+        "cover": "Cover"
+      }
+    },
+    "adminPitchCompose": {
+      "drawerTitle": "Send pitch",
+      "drawerDescSent": "Your pitch is live, share the link with your client",
+      "drawerDescCompose": {
+        "one": "{count} talent selected · craft the message and send",
+        "other": "{count} talents selected · craft the message and send"
+      },
+      "cancel": "Cancel",
+      "sending": "Sending…",
+      "sendPitch": "Send pitch →",
+      "whoIsThisFor": "Who is this for?",
+      "searchClients": "Search existing clients",
+      "searchClientsPlaceholder": "Start typing a client name…",
+      "contactName": "Contact name *",
+      "company": "Company",
+      "phone": "Phone",
+      "email": "Email",
+      "shortNote": "A short note from you",
+      "shortNoteHint": "Sets the tone, it is the first thing the recipient reads.",
+      "messagePlaceholder": "Hi Sara, here's a curated selection for your upcoming campaign…",
+      "talentSectionTitle": "Talent ({count})",
+      "dragToReorder": "Drag to reorder",
+      "dragToReorderAria": "Drag to reorder",
+      "removeAria": "Remove {name}",
+      "talentNotePlaceholder": "Add a note about this talent… (optional)",
+      "noTalentsSelected": "No talents selected.",
+      "noTalentsSelectedHint": "Close, then pick some from the roster to start a pitch.",
+      "setExpiry": "Set an expiry",
+      "setExpiryHint": "The link auto-expires; the recipient sees a friendly notice instead of stale data.",
+      "expiresIn": "Expires in",
+      "days": "days",
+      "attachments": "Attachments",
+      "attachmentsHint": "Lookbook, casting brief, mood board. Optional.",
+      "addFiles": "Add files",
+      "addFilesHint": "Images, PDFs, Word docs. The upload goes live when you hit Send.",
+      "pitchSentJustNow": "Pitch sent · just now",
+      "recipient": "Recipient",
+      "talentCount": {
+        "one": "{count} talent",
+        "other": "{count} talents"
+      },
+      "talentNamesPlusMore": "{names} + {count} more",
+      "expiresToday": "Expires today",
+      "expiresInDays": {
+        "one": "Expires in {count} day",
+        "other": "Expires in {count} days"
+      },
+      "previewLink": "Preview ↗",
+      "shareLink": "Share link",
+      "copy": "Copy",
+      "copied": "✓ Copied",
+      "sendDirectly": "Send directly to client",
+      "noPhoneOrEmail": "No phone or email on file, copy the link above to share it manually.",
+      "newPitch": "+ New pitch",
+      "done": "Done",
+      "errRecipientRequired": "Recipient name is required.",
+      "errAddOneTalent": "Add at least one talent to the pitch.",
+      "errForbidden": "You don't have permission to send pitches.",
+      "errNotAuthenticated": "Sign in again, then retry.",
+      "errTenantNotFound": "Workspace not found.",
+      "errNoPublishableTalents": "Add at least one publishable talent (must be approved + public).",
+      "errPlanNotEligibleDraft": "Pitches are a Studio + Agency feature. Upgrade your workspace plan in Settings → Plan to send curated talent suggestions to clients.",
+      "errCouldNotSaveDraft": "Could not save draft. Try again.",
+      "errTalentsNoLongerPublishable": "All selected talents are no longer publishable.",
+      "errDraftRequired": "This pitch is no longer in draft state.",
+      "errPlanNotEligibleSend": "Pitches are a Studio + Agency feature. Upgrade in Settings → Plan to send this pitch.",
+      "errCouldNotSend": "Could not send. Try again.",
+      "errUnexpected": "Unexpected error. Please try again."
+    },
+    "adminCardStudio2": {
+      "offHere": "Off here",
+      "surfaces": {
+        "directoryLabel": "Directory",
+        "directoryTag": "Public",
+        "directoryNote": "Public discovery grid. Clients can save a favorite and start an inquiry, both actions are on.",
+        "pitchLabel": "Pitch",
+        "pitchTag": "Sent link",
+        "pitchNote": "You already curated and sent this shortlist, so a favorite is redundant. The card keeps a direct inquiry / reply action instead.",
+        "rosterLabel": "Roster",
+        "rosterTag": "Internal",
+        "rosterNote": "Your internal team grid. No client-facing favorite or inquiry, these cards are for managing talent, not selling them.",
+        "embeddedLabel": "Embedded",
+        "embeddedTag": "Public",
+        "embeddedNote": "Cards embedded on an external site behave like the Directory, both favorite and inquiry are available to the public."
+      },
+      "hover": {
+        "revealTraits": "Reveal traits",
+        "zoom": "Zoom image",
+        "swap": "Swap photo",
+        "none": "None"
+      },
+      "knobs": {
+        "surfaceLabel": "Card surface",
+        "surfaceHint": "Media / panel ground",
+        "nameLabel": "Name color",
+        "nameHint": "Talent name",
+        "mutedLabel": "Secondary text",
+        "mutedHint": "Type · location · availability"
+      },
+      "knobInheritsTheme": "{hint} · inherits theme",
+      "clear": "Clear",
+      "kitActive": "Active",
+      "kitApplying": "Applying",
+      "savingDraft": "Saving draft…",
+      "draftSavedVersion": "Draft saved · v{version}",
+      "sampleTalentType": "Fashion Model",
+      "previewAvailable": "Available",
+      "previewVerified": "Verified",
+      "previewInquire": "Inquire",
+      "previewAdded": "Added",
+      "previewRating": "{rating} · {count} bookings",
+      "previewPriceFrom": "From {price} / day",
+      "previewNoClientActions": "No client actions on this surface.",
+      "previewSaveFavoriteAria": "Save {name} to favorites",
+      "previewRemoveFavoriteAria": "Remove {name} from favorites",
+      "publish": "Publish",
+      "publishing": "Publishing…",
+      "publishedVersionLive": "Published v{version} · live everywhere",
+      "publishNeedsAccess": "You can edit the draft; publishing needs publish access.",
+      "unpublishedChanges": "Unpublished changes in the draft.",
+      "liveLastPublished": "Live · last published {date}",
+      "nothingPublishedYet": "Nothing published yet.",
+      "lookTitle": "Look",
+      "lookHint": "A one-click kit repaints every card. You can fine-tune the colors after. Saved to a draft as you edit; Publish makes it live everywhere.",
+      "loadingCardDesign": "Loading the current card design…",
+      "couldNotLoadCardDesign": "Couldn't load the card design: {error}",
+      "colorsTitle": "Colors",
+      "colorsHint": "Leave a swatch empty to inherit that color from your theme.",
+      "surfacePreview": "{surface} preview",
+      "rosterPreviewHint": "Toggle a badge to see it appear or disappear here, exactly how the overlay stacks on your live roster cards.",
+      "livePreviewHint": "This is how your talent card renders on the live site. Look and color edits show here instantly; Publish makes them live everywhere.",
+      "actionsPreviewHint": "Favorite and inquiry here are interactive so you can see both states. On the live surface they connect to the client's real favorites and inquiry list.",
+      "rosterVisibilityEyeTitle": "Visibility eye, the live show / hide control for the agency site",
+      "rosterDiscoverBadge": "Discover",
+      "rosterTulalaVerifiedTitle": "Tulala Verified",
+      "rosterAvailableBadge": "available",
+      "cardSurfaceTablistAria": "Card surface",
+      "reviewsOnCardsTitle": "Reviews on cards",
+      "showStandingLabel": "Show talent standing",
+      "showStandingHint": "Ratings / standing on directory cards. Saves to the design draft; Publish syncs every surface.",
+      "standingStyleLabel": "Standing style",
+      "standingTier": "Tier",
+      "standingSignal": "Signal",
+      "standingBoth": "Both",
+      "reviewsOnProfilesLabel": "Reviews on profile pages",
+      "reviewsOnProfilesHint": "Show or hide the whole reviews section on talent profiles."
+    },
+    "adminFieldsEditor": {
+      "add": "Add",
+      "added": "Added",
+      "yes": "Yes",
+      "no": "No",
+      "edit": "Edit",
+      "agencyChip": "Agency",
+      "allComplete": "All fields in this category complete",
+      "jumpToNextEmpty": "Jump to next empty",
+      "nFieldsStillEmpty": {
+        "one": "{count} field still empty",
+        "other": "{count} fields still empty"
+      },
+      "nOfMFilled": "{filled} of {total} filled",
+      "nRequiredMissing": "{count} required missing",
+      "progressComplete": "{filled}/{total} complete · auto-saved",
+      "generalPrefix": "General",
+      "fillNRequired": "Fill {count} required",
+      "history": "History",
+      "categories": "Categories",
+      "selectCategoryAria": "Select category",
+      "loadingCategoryFields": "Loading category fields…",
+      "couldNotLoadCategoryFields": "Couldn't load category fields: {error}",
+      "failedToLoad": "Failed to load.",
+      "noExtraFields": "No extra fields are configured for this type.",
+      "selectTalentType": "Select a talent type in Services to see relevant fields.",
+      "toastSavedField": "Saved {label}",
+      "toastVisibilityUpdated": "Visibility updated · {label}",
+      "fieldFallback": "field",
+      "ns": {
+        "other": "Other",
+        "model": "Model details",
+        "chef": "Chef details",
+        "performer": "Performer details",
+        "music": "Music details",
+        "creator": "Creator extras",
+        "security": "Security details",
+        "transport": "Transportation details",
+        "photo": "Photo / Video details",
+        "event": "Event staff details",
+        "hosp": "Hospitality details",
+        "wellness": "Wellness details",
+        "host": "Host details",
+        "singer": "Singer details",
+        "equipment": "Equipment",
+        "ops": "Operational",
+        "travel": "Travel preferences",
+        "service": "Service preferences",
+        "serviceArea": "Service area",
+        "availability": "Availability extras",
+        "consent": "Consent",
+        "emergency": "Emergency"
+      }
+    },
+    "adminPhase7Drawers": {
+      "consentTitle": "{agencyName} wants to add you to their roster",
+      "consentBody": "They'd like access to the data below to represent you to their clients. You can approve all, approve a subset, or deny entirely.",
+      "denyRequest": "Deny request",
+      "saving": "Saving…",
+      "approveNOfM": "Approve {count} of {total}",
+      "loading": "Loading…",
+      "confirmRemoveFromLayer": "Remove this from your agency's photo layer?",
+      "agencyPhotoLayerFor": "Agency photo layer for {talentName}",
+      "agencyPhotoLayerBody": "Photos here appear ONLY on your agency-branded site, in addition to (or replacing) the talent's master photos. Talent-owned photos remain unchanged on Tulala.",
+      "noAgencyPhotos": "No agency photos yet. Click \"+ Add agency photo\" to upload your first.",
+      "rowOverride": "Override",
+      "rowAgencyOriginal": "Agency-original",
+      "hidden": "HIDDEN",
+      "remove": "Remove",
+      "uploadShipsNextSlice": "The upload and drag-reorder UI ships in the next slice. For now this panel reads and removes; uploads happen via the existing media manager with ownership_kind='agency'.",
+      "trustBadgesTitle": "Trust badges",
+      "trustBadgesHint": "Verified talent get more visibility and higher-quality inquiries. Each badge requires supporting evidence.",
+      "rejectionReasonPrompt": "Rejection reason (optional):",
+      "badgeSubmittedPending": "Submitted {source} · pending review",
+      "badgeSourcePlatform": "by Tulala",
+      "badgeSourceAgency": "by your agency",
+      "badgeVerifiedOn": " · verified {date}",
+      "badgeExpiresOn": " · expires {date}",
+      "notStarted": "Not started",
+      "verify": "Verify",
+      "reject": "Reject",
+      "startBadge": "+ Start",
+      "cancel": "Cancel",
+      "sending": "Sending…",
+      "sendRequestNScopes": "Send request ({count} scopes)",
+      "requestAccessTo": "Request access to {talentName}",
+      "requestAccessToData": "Request access to {talentName}'s data",
+      "requestAccessHint": "Pick the data you need to represent this talent. They'll review and approve / deny per scope. They can revoke at any time.",
+      "optionalMessagePlaceholder": "Optional message: why you'd like to represent them",
+      "scopes": {
+        "identityLabel": "Identity",
+        "identityDesc": "Name, photo, pronouns, bio, age. The basics.",
+        "mediaLabel": "Media & Portfolio",
+        "mediaDesc": "Headshot, gallery, showreel, social links.",
+        "ratesLabel": "Rates & Booking Terms",
+        "ratesDesc": "Pricing, deposit, cancellation policy. Sensitive, agencies often markup.",
+        "serviceAreasLabel": "Service Areas",
+        "serviceAreasDesc": "Cities you serve, travel radius, willingness to travel.",
+        "availabilityLabel": "Availability",
+        "availabilityDesc": "Days, hours, blackout dates, response time.",
+        "documentsLabel": "Documents",
+        "documentsDesc": "Government ID, licenses, insurance. Highly sensitive.",
+        "physicalLabel": "Physical / Casting",
+        "physicalDesc": "Height, measurements, hair/eye color, sizes.",
+        "experienceLabel": "Experience & Credits",
+        "experienceDesc": "Years, past clients, references, credentials."
+      },
+      "badges": {
+        "identity": "Identity verified",
+        "backgroundCheck": "Background check",
+        "license": "License verified",
+        "insurance": "Insurance verified",
+        "socialAccount": "Social account verified",
+        "mediaAuthentic": "Media authentic",
+        "agencyApproved": "Agency approved"
+      },
+      "badgeStatus": {
+        "pending": "Pending",
+        "verified": "Verified",
+        "rejected": "Rejected",
+        "expired": "Expired"
       }
     }
   },
@@ -9256,6 +11216,656 @@
           "noteAdded": "Note added",
           "messageSent": "Message sent"
         }
+      }
+    }
+  },
+  "client": {
+    "discover": {
+      "title": "Discover talent",
+      "subtitle": "Find talent across every Tulala hub and independent profile. Save favorites, build shortlists, send one inquiry that routes to the right agency for each talent.",
+      "badgeOnDiscover": "{count} on Discover",
+      "tierStandardBadge": "Standard tier",
+      "tierFreeIntro": "Browsing, favorites, 1 shortlist and single-talent inquiries are free.",
+      "tierCompare": "Compare",
+      "tierFanOut": "multi-talent fan-out",
+      "tierProSuffix": ", and rate visibility unlock with Pro.",
+      "emptyTitle": "Discover is warming up",
+      "emptyBody": "No talents have enabled Discover yet. Talents control their own visibility, so once they toggle it on they will appear here. Check back soon, or browse your agency's roster directly.",
+      "errorTitle": "Could not load results",
+      "errorBody": "The Discover catalog failed to load. Retry to try again, your favorites and shortlists are unaffected.",
+      "errorRefLabel": "Ref:",
+      "errorRetry": "Retry",
+      "errorReload": "Reload page",
+      "searchPlaceholder": "Search talent by name…",
+      "clearFilters": "Clear filters",
+      "mapLink": "Map",
+      "mapLinkTitle": "See every talent on a world map",
+      "facetCountry": "Country",
+      "facetHub": "Hub",
+      "facetCategory": "Category",
+      "facetAll": "All",
+      "resultsAria": "Discover results",
+      "countOf": {
+        "one": "{shown} of {count} talent",
+        "other": "{shown} of {count} talents"
+      },
+      "matchingFilters": "· matching your filters",
+      "noMatchesTitle": "No matches",
+      "noMatchesBody": "Try a broader country or category, or clear your filters to see everyone.",
+      "loading": "Loading…",
+      "loadMore": "Load more · {count} remaining",
+      "daysOpenNext14": "{count} of next 14 days open",
+      "daysOpenNext30": "{count} of next 30 days open",
+      "fullyBookedNext14": "Fully booked next 14 days",
+      "fullyBookedNext30": "Fully booked next 30 days",
+      "nextFree": "Next free {month} {day}",
+      "availability": "Availability",
+      "tulalaVerified": "Profile reviewed and approved by Tulala",
+      "exclusive": "exclusive",
+      "independent": "Independent",
+      "addToShortlist": "Add to shortlist",
+      "talentCount": {
+        "one": "{count} talent",
+        "other": "{count} talents"
+      },
+      "detailAria": "Talent detail",
+      "closeDetailDrawer": "Close detail drawer",
+      "loadingTalent": "Loading talent…",
+      "detailGone": "Talent is no longer on Discover.",
+      "detailLoadFailed": "Could not load this talent, try again.",
+      "close": "Close",
+      "gallery": "Gallery",
+      "galleryAlt": "{name} gallery {index}",
+      "repliesWithin": "Replies within {time}",
+      "cancelInquiry": "Cancel inquiry",
+      "inquireAbout": "Inquire about {name}",
+      "inquirySentAgency": "Inquiry sent. {agency} will get back to you within their stated SLA.",
+      "theTalentsAgency": "the talent's agency",
+      "noRosterHint": "This talent is not on any agency roster yet. Use 'View full profile' to reach them directly.",
+      "noRoutableWorkspace": "No routable workspace for this talent, try 'View full profile' instead.",
+      "viewFullProfile": "View full profile",
+      "noShortlistsYet": "No shortlists yet, create your first below.",
+      "newShortlistPlaceholder": "New shortlist name…",
+      "create": "Create",
+      "inquiryForm": {
+        "eventDate": "Event date (optional)",
+        "eventLocation": "Event location (optional)",
+        "locationPlaceholder": "e.g. Milan, Italy",
+        "brief": "Brief",
+        "briefPlaceholder": "Quick context: brand, role, scope, dates if known.",
+        "sending": "Sending…",
+        "sendInquiry": "Send inquiry",
+        "sendFailed": "Could not send, try again in a moment.",
+        "networkIssue": "Network issue, try again."
+      },
+      "map": {
+        "eyebrow": "Client · Discover",
+        "title": "Map view",
+        "subtitle": "Every discoverable talent geocoded by their home city. Click a marker to see who they are and open their profile.",
+        "backToGrid": "Back to grid",
+        "noKey": "Map is unavailable, the Google Maps API key is not configured. Browse the grid instead at",
+        "emptyTitle": "No mappable talent yet",
+        "emptyBody": "Talents need a structured city (Google Places) to show on the map.",
+        "freeTextOnly": {
+          "one": "{count} talent has only free-text locations.",
+          "other": "{count} talents have only free-text locations."
+        },
+        "emptyBrowsePrefix": "Browse them all in the grid view at",
+        "countryWord": {
+          "one": "country",
+          "other": "countries"
+        },
+        "talentsTotal": {
+          "one": "{count} talent total",
+          "other": "{count} talents total"
+        },
+        "onMapSuffix": {
+          "one": "talent on map",
+          "other": "talents on map"
+        },
+        "hiddenNoGeocode": "{count} hidden (no geocoded city)",
+        "viewModeAria": "Map view mode",
+        "modeTalents": "Talents",
+        "modeCountries": "Countries",
+        "unknownCountry": "Unknown",
+        "openProfile": "Open"
+      }
+    },
+    "favorites": {
+      "title": "Your favorites",
+      "subtitle": "Talent you ♥ saved on Discover. A quick reference list: open a talent's drawer to inquire or add them to a shortlist.",
+      "emptyTitle": "No favorites yet",
+      "emptyBody": "Browse Discover and tap the ♥ on any talent to save them here."
+    },
+    "shortlists": {
+      "eyebrow": "Shortlists",
+      "title": "Your shortlists",
+      "subtitle": "Named groups of talent you saved on Discover. Send one inquiry from a shortlist and it routes to the right agency for each talent.",
+      "emptyTitle": "No shortlists yet",
+      "emptyBody": "Build a shortlist by browsing Discover and adding talent. Then send one inquiry that fans out to the right agency for each talent.",
+      "needMorePrefix": "Need more shortlists? Open ",
+      "needMoreSuffix": ", save talent into a new list, and they will show up here.",
+      "upgradeTitle": "Upgrade to Pro",
+      "upgradeBody": "Compare talent side by side and send one inquiry that fans out to every agency in your shortlist.",
+      "upgradeNote": "Trust gates and contact controls still apply. Pro unlocks tools, not access.",
+      "upgradeCta": "Upgrade to Pro",
+      "shareTitle": "Generate a public link to share this shortlist (read-only)",
+      "shareGenerating": "Generating…",
+      "shareCopied": "Link copied",
+      "share": "Share",
+      "shareForbidden": "Only the owner can share this list.",
+      "shareFailed": "Could not generate a share link.",
+      "shareNetworkError": "Network error, try again.",
+      "sharePublicLinkCopied": "Public link copied to clipboard.",
+      "shareReadOnlyExpiry": "Read-only · expires in 7 days.",
+      "routesTo": {
+        "one": "Routes to {count} workspace",
+        "other": "Routes to {count} workspaces"
+      },
+      "needDirectOutreach": "{count} need direct outreach",
+      "compare": "Compare",
+      "compareProTitle": "Pro tier unlocks side-by-side compare",
+      "compareNeedTwoTitle": "Need at least 2 talents to compare",
+      "compareOpenTitle": "Open side-by-side comparison",
+      "cancel": "Cancel",
+      "noAgenciesSuffix": "(no agencies)",
+      "oneInquiryPerWorkspace": "One inquiry per workspace.",
+      "notOnRoster": {
+        "one": "{count} talent not on any roster, reach them via their public profile.",
+        "other": "{count} talents not on any roster, reach them via their public profile."
+      },
+      "proRequired": "Multi-talent send is a Pro feature. Upgrade to send one inquiry across your whole shortlist.",
+      "sentInquiries": {
+        "one": "Sent {count} inquiry to the workspace.",
+        "other": "Sent {count} inquiries to {count} workspaces."
+      },
+      "skippedNotOnRoster": {
+        "one": "{count} talent was skipped (not on any roster), reach them directly.",
+        "other": "{count} talents were skipped (not on any roster), reach them directly."
+      },
+      "noAgenciesToRoute": "No agencies to route to, every talent on this shortlist is independent.",
+      "sendNInquiries": {
+        "one": "Send {count} inquiry",
+        "other": "Send {count} inquiries"
+      },
+      "compareName": "Name",
+      "compareCategory": "Category",
+      "compareLocation": "Location",
+      "compareAgency": "Agency",
+      "compareLanguages": "Languages",
+      "compareResponse": "Response",
+      "compareBio": "Bio",
+      "compareWithin": "within {time}",
+      "compareAria": "Compare talents on {name}",
+      "compareClose": "Close compare",
+      "compareLoading": "Loading talent details…"
+    },
+    "pitches": {
+      "title": "Pitches",
+      "subtitle": "Talent suggestions sent to you. Open one to approve, decline, or submit it as an inquiry.",
+      "filterAll": "All",
+      "filterOpen": "Open",
+      "filterApproved": "Approved",
+      "filterDone": "Done",
+      "filterClosed": "Closed",
+      "statusDraft": "Draft",
+      "statusSent": "Sent",
+      "statusViewed": "Viewed",
+      "statusEdited": "Edited",
+      "statusApproved": "Approved",
+      "statusConverted": "Converted",
+      "statusDeclined": "Declined",
+      "statusCancelled": "Cancelled",
+      "statusExpired": "Expired",
+      "actionOpen": "Open",
+      "actionContinue": "Continue",
+      "actionView": "View",
+      "emptyTitle": "No pitches yet",
+      "emptyBody": "When an agency sends you a pitch, it will show up here so you can track and revisit it any time.",
+      "emptyFilteredTitle": "Nothing in this view",
+      "emptyFilteredBody": "No pitches match this filter. Switch to another tab above to see the rest.",
+      "nextStepReady": "Next step ready",
+      "talentCount": {
+        "one": "{count} talent",
+        "other": "{count} talent"
+      },
+      "sentOn": "Sent {date}",
+      "expiresOn": "Expires {date}"
+    },
+    "bookings": {
+      "eyebrow": "Bookings",
+      "title": "Your bookings",
+      "subtitleEmpty": "Confirmed bookings will appear here once your offers are accepted.",
+      "subtitleCounts": "{total} confirmed · {upcoming} upcoming",
+      "upcomingBadge": "{count} upcoming",
+      "emptyTitle": "No bookings yet",
+      "emptyBody": "Once your inquiries are confirmed, they will appear here as bookings.",
+      "tbc": "TBC",
+      "confirmed": "Confirmed",
+      "confirmedBooking": "Confirmed booking",
+      "partiallyPaid": "Partially paid",
+      "cancelled": "Cancelled",
+      "downloadReceipt": "Download receipt",
+      "talentCount": {
+        "one": "{count} talent",
+        "other": "{count} talent"
+      }
+    },
+    "messages": {
+      "lineupSuggestTalent": "Suggest talent",
+      "lineupAllOnLineup": "Everyone on the roster is already on this lineup.",
+      "lineupAdding": "Adding…",
+      "lineupAdd": "+ Add",
+      "errorTitle": "Could not load messages",
+      "errorBody": "Your messages failed to load. Retry to reload this view, your inquiry data is safe.",
+      "errorRef": "Ref: {digest}",
+      "errorRetry": "Retry",
+      "errorReload": "Reload page",
+      "searchSenderYou": "You",
+      "unknownSender": "Unknown",
+      "detailsSaved": "Changes saved.",
+      "detailsSaveFailed": "Save failed.",
+      "detailsSaving": "Saving…",
+      "detailsEdit": "Edit",
+      "detailsCancel": "Cancel",
+      "detailsProject": "Project",
+      "detailsProjectBrief": "Project brief",
+      "detailsBriefLabel": "Brief / message",
+      "detailsBriefPlaceholder": "Describe the project, event, and what you need…",
+      "detailsSaveBrief": "Save brief",
+      "detailsAddBrief": "Add a brief",
+      "detailsAddBriefHint": "Help the coordinator triage and match the right talent.",
+      "detailsSchedule": "Schedule",
+      "detailsEventDate": "Event date",
+      "detailsTalentNeeded": "Talent needed (qty)",
+      "detailsQuantityPlaceholder": "e.g. 2",
+      "detailsSaveSchedule": "Save schedule",
+      "detailsDate": "Date",
+      "detailsNotSet": "Not set",
+      "detailsTime": "Time",
+      "detailsDuration": "Duration",
+      "detailsStatus": "Status",
+      "detailsLocation": "Location",
+      "detailsCityVenue": "City / venue",
+      "detailsCityPlaceholder": "e.g. Mexico City, MX",
+      "detailsSaveLocation": "Save location",
+      "detailsVenue": "Venue",
+      "detailsCity": "City",
+      "detailsCountry": "Country",
+      "detailsNotes": "Notes",
+      "detailsYourCoordinator": "Your coordinator",
+      "detailsCoordinatingSince": "Coordinating since {date}",
+      "detailsCoordinatingBooking": "Coordinating your booking",
+      "detailsNoCoordinator": "No coordinator yet",
+      "detailsNoCoordinatorHint": "The workspace will assign one shortly.",
+      "detailsTalentLineup": "Talent lineup",
+      "detailsAgencyRecommends": "Agency to recommend",
+      "detailsTalentNeededHint": "{count} talent needed, the coordinator will propose options.",
+      "detailsAgencyRecommendsHint": "The coordinator will propose talent based on your brief.",
+      "detailsNoTalent": "No talent yet",
+      "detailsNoTalentHint": "Pick talent or let the agency recommend.",
+      "detailsBudget": "Budget",
+      "detailsPricing": "Pricing",
+      "detailsAmount": "Amount",
+      "detailsLogistics": "Logistics",
+      "detailsRoleExpectations": "What talent should do",
+      "detailsWardrobe": "Wardrobe",
+      "detailsEquipment": "Equipment",
+      "detailsTravel": "Travel / parking",
+      "detailsMediaUsage": "Media usage",
+      "detailsSpecialRequirements": "Special requirements",
+      "detailsContact": "Contact",
+      "detailsName": "Name",
+      "detailsEmail": "Email",
+      "detailsPhone": "Phone",
+      "detailsCompany": "Company",
+      "detailsBookingFor": "Booking for",
+      "detailsFiles": "Files & references",
+      "detailsNoFiles": "No files yet",
+      "detailsNoFilesHint": "Moodboards, briefs, and references shared on this booking will appear here.",
+      "detailsActivity": "Activity",
+      "detailsNoActivity": "No activity yet",
+      "detailsNoActivityHint": "Coordinator actions will show up here.",
+      "detailsActorSystem": "System",
+      "detailsActorYou": "You",
+      "detailsActorCoordinator": "Coordinator",
+      "detailsCancelInquiry": "Cancel inquiry",
+      "detailsCancelInquiryBody": "If your plans changed, cancel this inquiry. Your coordinator will be notified.",
+      "detailsCancelling": "Cancelling…",
+      "detailsSubmittedOn": "Submitted {date}",
+      "detailsOfferStatusLine": "Offer {status}",
+      "detailsStatusOfferSent": "Offer sent",
+      "detailsStatusCancelled": "Cancelled",
+      "detailsTbd": "TBD",
+      "detailsMinutesAgo": "{count}m ago",
+      "detailsOfferStatus": {
+        "draft": "drafted",
+        "sent": "sent",
+        "withdrawn": "withdrawn",
+        "superseded": "updated",
+        "accepted": "accepted",
+        "rejected": "declined",
+        "expired": "expired"
+      },
+      "detailsEvent": {
+        "inquirySubmitted": "submitted this inquiry",
+        "movedToCoordination": "started coordination",
+        "coordinatorAssigned": "assigned a coordinator",
+        "coordinatorAccepted": "took over coordination",
+        "talentInvited": "invited a talent",
+        "talentAccepted": "confirmed",
+        "talentDeclined": "declined",
+        "offerCreated": "drafted an offer",
+        "offerSent": "sent you an offer",
+        "offerRejected": "rejected the offer",
+        "offerAccepted": "accepted the offer",
+        "approvalSubmitted": "submitted an approval",
+        "approvalsCompleted": "completed all approvals",
+        "convertedToBooking": "converted this to a booking",
+        "bookingConfirmed": "confirmed the booking",
+        "frozen": "froze this inquiry",
+        "unfrozen": "unfroze this inquiry",
+        "archived": "archived this inquiry"
+      }
+    },
+    "ui": {
+      "search": {
+        "placeholder": "Search…",
+        "ariaLabel": "Search",
+        "searching": "Searching…",
+        "noMatches": "No matches"
+      },
+      "notifications": {
+        "bellAria": "Notifications · {count} unread",
+        "markAllRead": "Mark all read",
+        "allCaughtUp": "All caught up.",
+        "footer": "Showing recent notifications"
+      },
+      "time": {
+        "justNow": "just now",
+        "minutesAgo": "{count}m ago",
+        "hoursAgo": "{count}h ago",
+        "daysAgo": "{count}d ago"
+      }
+    },
+    "reviews": {
+      "authorFallback": "A talent",
+      "talentFallback": "a talent",
+      "thisTalent": "this talent",
+      "reportError": "Could not report this review. Please try again.",
+      "reportedNotice": "Reported, our team will review it",
+      "youReviewed": "You reviewed",
+      "aboutYouHeading": "Reviews about you ({count})",
+      "writtenHeading": "Reviews you've written ({count})",
+      "countLabel": {
+        "one": "{count} review",
+        "other": "{count} reviews"
+      },
+      "aboutYouEmpty": "No reviews about you yet. After a completed booking, the talent you worked with can leave you a review.",
+      "writtenEmptyPrefix": "You haven't written any reviews yet. Rate the talent you've worked with from your",
+      "writtenEmptySuffix": " page.",
+      "yourReview": "Your review",
+      "editYourReview": "Edit your review",
+      "rateTalent": "Rate {name}",
+      "rateYourTalentHeading": "Rate your talent ({count})",
+      "photoPrompt": "Add photos (optional). Share a shot from the work.",
+      "photoCap": "You can attach up to {count} photos.",
+      "photoAddError": "Could not add that photo.",
+      "photoRemoveError": "Could not remove that photo.",
+      "photoAlt": "Review photo",
+      "photoRemove": "Remove photo",
+      "photoUploading": "Uploading…",
+      "photoAddAnother": "Add another photo",
+      "photoAdd": "Add a photo",
+      "notEnabled": "Reviews are not enabled on this workspace.",
+      "pageEmptySubtitle": "Reviews about you and the reviews you've written will appear here.",
+      "pageCountsSubtitle": "{received} about you · {written} written",
+      "avgBadge": "{value} avg"
+    },
+    "settings": {
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "done": "Done",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your full name",
+      "companyLabel": "Company",
+      "companyHint": "Used on inquiries and bookings.",
+      "companyPlaceholder": "Company or production name",
+      "companyEmpty": "Add company",
+      "editsVisibleTo": "Edits are visible to {agency} on your inquiries and bookings.",
+      "emailLabel": "Email",
+      "emailHint": "Used for sign-in and notifications.",
+      "emailPendingHint": "Pending. Confirm the link sent to {email} to finish the change.",
+      "passwordLabel": "Password",
+      "signInMethod": "Sign-in method: {method}",
+      "changePassword": "Change password",
+      "newPasswordPlaceholder": "New password (min 8 characters)",
+      "confirmPasswordPlaceholder": "Confirm new password",
+      "updatePassword": "Update password",
+      "updating": "Updating…",
+      "passwordUpdated": "Password updated. Use it next time you sign in.",
+      "channelEmail": "Email",
+      "channelInApp": "In-app",
+      "prefsSaved": "Preferences saved.",
+      "prefsAutoSave": "Changes auto-save.",
+      "alwaysOn": "Always on",
+      "alwaysOnTitle": "Required for your account, always sent.",
+      "trust": {
+        "sectionTitle": "Trust level",
+        "tierHeading": "{tier} trust",
+        "accessLabel": "Access",
+        "accountBalance": "Account balance:",
+        "silverActive": "Silver active",
+        "goldActive": "Gold active",
+        "redirecting": "Redirecting…",
+        "verifyCta": "Verify account, $5",
+        "verifyTitle": "Verify your account",
+        "verifyBody": "A one-time $5 verification fee confirms your account and upgrades your trust badge to Verified. Most talents accept Verified contacts by default.",
+        "fundTitle": "Fund your account",
+        "fundBody": "A funded balance raises your trust tier: Silver at $100, Gold at $500. Higher tiers give you access to talents that restrict to verified, funded clients.",
+        "addBalance": "Add balance",
+        "thresholdNote": "$100 = Silver tier · $500 = Gold tier",
+        "basicDescription": "Free account, standard access.",
+        "basicPerk1": "Browse talent profiles",
+        "basicPerk2": "Send inquiries to talents that accept Basic",
+        "basicPerk3": "View booking history",
+        "verifiedDescription": "Identity verified, trusted by most talents.",
+        "verifiedPerk1": "Everything in Basic",
+        "verifiedPerk2": "Default-allowed by most talents",
+        "verifiedPerk3": "Verified badge visible on your inquiries",
+        "silverDescription": "Verified + funded account.",
+        "silverPerk1": "Everything in Verified",
+        "silverPerk2": "Silver badge surfaced in talent inboxes",
+        "silverPerk3": "Access to talents that require Silver+",
+        "goldDescription": "Highest trust, maximum talent access.",
+        "goldPerk1": "Everything in Silver",
+        "goldPerk2": "Gold badge, highest inbox priority",
+        "goldPerk3": "Access to talents that require Gold only"
+      },
+      "social": {
+        "explainerTitle": "What Tulala does with connected accounts",
+        "explainerBody": "We store the public account label, connection status, your sharing switches, and encrypted OAuth tokens only when a one-click provider is enabled. Manual links can help agencies and talent recognize you, but only verified provider ownership can become a trust signal.",
+        "trustSignalLabel": "Use for trust verification",
+        "trustSignalDescription": "Only OAuth-verified account ownership can affect trust. Manual links stay unverified.",
+        "agencyVisibleLabel": "Share with agencies",
+        "agencyVisibleDescription": "Tenant staff can see connection status and account label for trust review.",
+        "talentVisibleLabel": "Share with talent on inquiries",
+        "talentVisibleDescription": "Talent can see approved trust proof, not private content or tokens.",
+        "publicProfileLabel": "Show on public client profile",
+        "publicProfileDescription": "Reserved for future client/company profiles. Keep off unless you want this public later.",
+        "autoRefreshLabel": "Auto-refresh proof",
+        "autoRefreshDescription": "Refreshes account metadata after OAuth is available.",
+        "statusVerified": "Verified",
+        "statusLinked": "Linked",
+        "statusPending": "Pending",
+        "statusReconnect": "Reconnect",
+        "statusError": "Needs attention",
+        "statusOff": "Off",
+        "statusNotConnected": "Not connected",
+        "toggleOn": "On",
+        "toggleOff": "Off",
+        "savedNotice": "Connection saved. Manual links are shared context, not verified trust proof.",
+        "turnedOffNotice": "Connection turned off for agency and talent trust views.",
+        "connectYoutube": "Connect with YouTube",
+        "youtubeConsent": "You will approve read-only channel access with Google. Tulala stores encrypted tokens and marks channel ownership as verified.",
+        "displayLabelPlaceholder": "Display label (optional)",
+        "saveLink": "Save link",
+        "turnOff": "Turn off",
+        "oauthComingSoon": "One-click OAuth is the next provider-specific step. This consent and storage foundation is ready for it.",
+        "providerNotes": "Provider notes"
+      }
+    },
+    "subscription": {
+      "title": "Subscription",
+      "subtitle": "Power tools for Discover. Browsing is always free, upgrading unlocks shortlists, compare, and multi-inquiry.",
+      "orthogonalTitle": "Subscription unlocks tools, not access.",
+      "orthogonalBody": "Talent contact controls and trust tier are a separate axis, a Pro plan never lets you bypass a talent's contact preferences. Verification lives in",
+      "settingsTrustLink": "Settings → Trust",
+      "priceFree": "Free",
+      "priceCustom": "Custom",
+      "currentBadge": "Current",
+      "yourCurrentPlan": "Your current plan",
+      "alwaysAvailable": "Always available",
+      "upgradeToPro": "Upgrade to Pro",
+      "contactSales": "Contact sales",
+      "standardPriceNote": "Always free",
+      "standardTagline": "Browse the catalog and send single inquiries.",
+      "standardFeature1": "Browse the full Discover catalog",
+      "standardFeature2": "View any talent profile",
+      "standardFeature3": "Favorite talents",
+      "standardFeature4": "1 saved shortlist (max 5 talents)",
+      "standardFeature5": "Single-talent inquiries",
+      "standardFeature6": "14-day availability per talent",
+      "proPriceNote": "Placeholder, pricing TBD",
+      "proTagline": "Power tools for teams booking at volume.",
+      "proFeature1": "Everything in Standard",
+      "proFeature2": "Unlimited shortlists",
+      "proFeature3": "Side-by-side compare view (up to 6)",
+      "proFeature4": "Multi-talent inquiry send",
+      "proFeature5": "Rate band visibility",
+      "proFeature6": "30-day availability calendar",
+      "proFeature7": "Send-to-client shareable shortlists",
+      "proFeature8": "Advanced filters (rate, language, response-time sort)",
+      "enterprisePriceNote": "Placeholder, contact sales",
+      "enterpriseTagline": "Scale, API, and white-label.",
+      "enterpriseFeature1": "Everything in Pro",
+      "enterpriseFeature2": "API access",
+      "enterpriseFeature3": "Dedicated account rep",
+      "enterpriseFeature4": "Bulk RFPs",
+      "enterpriseFeature5": "White-label shortlist sharing (own domain)",
+      "enterpriseFeature6": "Saved-search alerts and market reports",
+      "enterpriseFeature7": "Multi-seat",
+      "enterpriseFeature8": "Priority support",
+      "pricingNoteTitle": "Pricing is being finalized.",
+      "pricingNoteBody": "The numbers above are placeholders. Self-serve checkout lands once pricing is set, until then upgrades are sales-assisted. Email",
+      "planRenews": "and we'll set you up. Your current plan renews {date}.",
+      "planFreeNoRenewal": "and we'll set you up. Your current plan is free with no renewal.",
+      "startingCheckout": "Starting checkout…",
+      "checkoutNotConfigured": "Self-serve checkout isn't live yet. Email sales@tulala.digital and we'll set you up.",
+      "checkoutFailed": "Couldn't start checkout. Please try again, or email sales@tulala.digital.",
+      "checkoutNetworkError": "Network issue starting checkout. Please try again."
+    },
+    "today": {
+      "welcomeHeadline": "Welcome, {name}.",
+      "welcomeSubline": "You're all set. Send a booking inquiry when you have a brief ready.",
+      "needsAttentionHeadline": {
+        "one": "1 inquiry needs your attention.",
+        "other": "{count} inquiries need your attention."
+      },
+      "needsAttentionSubline": "Review and respond to keep the process moving.",
+      "inProgressHeadline": {
+        "one": "1 active inquiry in progress.",
+        "other": "{count} active inquiries in progress."
+      },
+      "inProgressSubline": "{agency} is coordinating, you'll hear back soon.",
+      "calmHeadline": "Hi {name}, nothing urgent right now.",
+      "calmSublineConfirmed": {
+        "one": "1 confirmed booking on your record.",
+        "other": "{count} confirmed bookings on your record."
+      },
+      "calmSublineEmpty": "Browse the roster or send a new inquiry when you have a brief ready.",
+      "statActive": "Active",
+      "statActiveSub": "in progress",
+      "statNeedsReply": "Needs your reply",
+      "statNeedsReplySub": "awaiting your decision",
+      "statUpToDateSub": "you're up to date",
+      "statConfirmed": "Confirmed",
+      "statConfirmedSub": "confirmed bookings",
+      "statTotal": "Total",
+      "statTotalSub": "all time",
+      "dueMoreCurrencies": {
+        "one": "+ 1 more currency · open bookings",
+        "other": "+ {count} more currencies · open bookings"
+      },
+      "dueAwaitingPayment": {
+        "one": "1 booking awaiting payment",
+        "other": "{count} bookings awaiting payment"
+      },
+      "emptyBody": "Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent.",
+      "bucketDecisionTitle": "Needs your decision",
+      "bucketDecisionDesc": "The agency has sent something, review and respond to keep things moving.",
+      "bucketCoordinatingTitle": "Agency is coordinating",
+      "bucketCoordinatingDesc": "These are in progress, no action from you right now.",
+      "bucketComingUpTitle": "Coming up",
+      "bucketComingUpDesc": "Confirmed and fully booked events.",
+      "viewAllInquiries": "View all inquiries →",
+      "actionNeeded": "Action needed",
+      "talentCount": {
+        "one": "{count} talent",
+        "other": "{count} talents"
+      }
+    },
+    "notificationCategories": {
+      "accountSecurity": {
+        "label": "Account & security",
+        "description": "Sign-in links, email confirmation, password resets. Always on."
+      },
+      "billing": {
+        "label": "Billing & receipts",
+        "description": "Invoices, plan changes, payment confirmations. Always on."
+      },
+      "messages": {
+        "label": "Messages",
+        "description": "New replies in your conversations."
+      },
+      "inquiryUpdates": {
+        "label": "Inquiry updates",
+        "description": "Status changes on inquiries you're part of."
+      },
+      "offers": {
+        "label": "Offers",
+        "description": "When an offer is ready, accepted, or declined."
+      },
+      "bookings": {
+        "label": "Bookings",
+        "description": "Confirmations, day-of reminders, and cancellations."
+      },
+      "payments": {
+        "label": "Payments",
+        "description": "Payments received, settled, or refunded."
+      },
+      "rosterActivity": {
+        "label": "Roster activity",
+        "description": "Talent invitations, responses, and roster changes."
+      },
+      "workspaceActivity": {
+        "label": "Workspace activity",
+        "description": "Team invitations, coordinator assignments, approvals."
+      },
+      "reviews": {
+        "label": "Reviews",
+        "description": "Review invitations, reminders, and reviews you receive."
+      },
+      "platformAlerts": {
+        "label": "Platform alerts",
+        "description": "Operational alerts for platform administrators."
+      },
+      "marketing": {
+        "label": "Product & tips",
+        "description": "Occasional product updates and best-practice tips."
       }
     }
   }

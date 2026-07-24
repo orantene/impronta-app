@@ -14,9 +14,14 @@
 
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile, loadClientPitches } from "../../_data-bridge";
 import { formatClientDate as fmtClientDate } from "../date-format";
+
+type Translator = (key: string) => string;
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -28,12 +33,14 @@ type PageSearchParams = Promise<{ status?: string }>;
  * island, no hydration cost). Picks the bucket that matches the
  * `?status=` query, defaulting to "all".
  */
+// `label` stays English as the non-UI fallback / documentation value; UI
+// surfaces MUST render `t(f.labelKey)` so the chips follow the dashboard locale.
 const STATUS_FILTERS = [
-  { key: "all",      label: "All",       matches: () => true },
-  { key: "open",     label: "Open",      matches: (s: string) => s === "sent" || s === "viewed" || s === "edited" },
-  { key: "approved", label: "Approved",  matches: (s: string) => s === "approved" },
-  { key: "done",     label: "Done",      matches: (s: string) => s === "converted" },
-  { key: "closed",   label: "Closed",    matches: (s: string) => s === "declined" || s === "expired" || s === "cancelled" },
+  { key: "all",      label: "All",       labelKey: "client.pitches.filterAll",      matches: () => true },
+  { key: "open",     label: "Open",      labelKey: "client.pitches.filterOpen",     matches: (s: string) => s === "sent" || s === "viewed" || s === "edited" },
+  { key: "approved", label: "Approved",  labelKey: "client.pitches.filterApproved", matches: (s: string) => s === "approved" },
+  { key: "done",     label: "Done",      labelKey: "client.pitches.filterDone",     matches: (s: string) => s === "converted" },
+  { key: "closed",   label: "Closed",    labelKey: "client.pitches.filterClosed",   matches: (s: string) => s === "declined" || s === "expired" || s === "cancelled" },
 ] as const;
 type FilterKey = (typeof STATUS_FILTERS)[number]["key"];
 
@@ -68,20 +75,20 @@ type PitchStatus =
   | "cancelled"
   | "expired";
 
-function statusTone(status: PitchStatus) {
+function statusTone(status: PitchStatus, t: Translator) {
   // 4-family palette mirroring the inquiries page so the client sees
   // consistent semantics across surfaces (positive=green, in-progress=blue,
   // attention=amber, terminal-neutral=dim).
   const map: Record<PitchStatus, { bg: string; color: string; label: string }> = {
-    draft:     { bg: C.surface,     color: C.inkDim,     label: "Draft" },
-    sent:      { bg: C.accentSoft,  color: C.blueDeep,   label: "Sent" },
-    viewed:    { bg: C.accentSoft,  color: C.blueDeep,   label: "Viewed" },
-    edited:    { bg: C.amberSoft,   color: C.amberDeep,  label: "Edited" },
-    approved:  { bg: C.successSoft, color: C.successDeep, label: "Approved" },
-    converted: { bg: C.successSoft, color: C.successDeep, label: "Converted" },
-    declined:  { bg: C.surface,     color: C.inkDim,     label: "Declined" },
-    cancelled: { bg: C.surface,     color: C.inkDim,     label: "Cancelled" },
-    expired:   { bg: C.surface,     color: C.inkDim,     label: "Expired" },
+    draft:     { bg: C.surface,     color: C.inkDim,     label: t("client.pitches.statusDraft") },
+    sent:      { bg: C.accentSoft,  color: C.blueDeep,   label: t("client.pitches.statusSent") },
+    viewed:    { bg: C.accentSoft,  color: C.blueDeep,   label: t("client.pitches.statusViewed") },
+    edited:    { bg: C.amberSoft,   color: C.amberDeep,  label: t("client.pitches.statusEdited") },
+    approved:  { bg: C.successSoft, color: C.successDeep, label: t("client.pitches.statusApproved") },
+    converted: { bg: C.successSoft, color: C.successDeep, label: t("client.pitches.statusConverted") },
+    declined:  { bg: C.surface,     color: C.inkDim,     label: t("client.pitches.statusDeclined") },
+    cancelled: { bg: C.surface,     color: C.inkDim,     label: t("client.pitches.statusCancelled") },
+    expired:   { bg: C.surface,     color: C.inkDim,     label: t("client.pitches.statusExpired") },
   };
   return map[status];
 }
@@ -93,10 +100,10 @@ function statusTone(status: PitchStatus) {
  *   converted             → "View" (terminal — pitch is done)
  *   declined | expired | cancelled → "View" (read-only)
  */
-function actionLabel(status: PitchStatus): string {
-  if (status === "sent" || status === "viewed" || status === "edited") return "Open";
-  if (status === "approved") return "Continue";
-  return "View";
+function actionLabel(status: PitchStatus, t: Translator): string {
+  if (status === "sent" || status === "viewed" || status === "edited") return t("client.pitches.actionOpen");
+  if (status === "approved") return t("client.pitches.actionContinue");
+  return t("client.pitches.actionView");
 }
 
 export default async function ClientPitchesPage({
@@ -108,6 +115,9 @@ export default async function ClientPitchesPage({
 }) {
   const { tenantSlug } = await params;
   const { status: rawStatus } = await searchParams;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+  const tPlural = withPluralization(t);
 
   const session = await getCachedActorSession();
   if (!session.user) notFound();
@@ -147,11 +157,10 @@ export default async function ClientPitchesPage({
             color: C.ink,
           }}
         >
-          Pitches
+          {t("client.pitches.title")}
         </h1>
         <p style={{ fontSize: 14, color: C.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
-          Talent suggestions sent to you. Open one to approve, decline, or submit it
-          as an inquiry.
+          {t("client.pitches.subtitle")}
         </p>
       </header>
 
@@ -193,7 +202,7 @@ export default async function ClientPitchesPage({
                   whiteSpace: "nowrap",
                 }}
               >
-                {f.label}
+                {t(f.labelKey)}
                 <span
                   style={{
                     fontSize: 10.5,
@@ -224,12 +233,12 @@ export default async function ClientPitchesPage({
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
-            {allPitches.length === 0 ? "No pitches yet" : "Nothing in this view"}
+            {allPitches.length === 0 ? t("client.pitches.emptyTitle") : t("client.pitches.emptyFilteredTitle")}
           </div>
           <p style={{ margin: 0 }}>
             {allPitches.length === 0
-              ? "When an agency sends you a pitch, it'll show up here so you can track and revisit it any time."
-              : "No pitches match this filter. Switch to another tab above to see the rest."}
+              ? t("client.pitches.emptyBody")
+              : t("client.pitches.emptyFilteredBody")}
           </p>
         </div>
       ) : (
@@ -242,7 +251,7 @@ export default async function ClientPitchesPage({
           }}
         >
           {pitches.map((pitch, idx) => {
-            const s = statusTone(pitch.status);
+            const s = statusTone(pitch.status, t);
             const sentDate = pitch.sentAt ?? pitch.createdAt;
             // Approved pitches that haven't converted yet are the
             // "needs me" rows — surface them with a soft tint, matching
@@ -298,7 +307,7 @@ export default async function ClientPitchesPage({
                           color: C.successDeep,
                         }}
                       >
-                        Next step ready
+                        {t("client.pitches.nextStepReady")}
                       </span>
                     )}
                   </div>
@@ -331,15 +340,14 @@ export default async function ClientPitchesPage({
                     }}
                   >
                     <span>
-                      {pitch.talentCount} talent
-                      {pitch.talentCount === 1 ? "" : "s"}
+                      {tPlural("client.pitches.talentCount", pitch.talentCount)}
                     </span>
                     <span aria-hidden style={{ color: C.inkDim }}>·</span>
-                    <span>Sent {fmtClientDate(sentDate)}</span>
+                    <span>{interpolate(t("client.pitches.sentOn"), { date: fmtClientDate(sentDate) })}</span>
                     {pitch.expiresAt && pitch.status !== "converted" && (
                       <>
                         <span aria-hidden style={{ color: C.inkDim }}>·</span>
-                        <span>Expires {fmtClientDate(pitch.expiresAt)}</span>
+                        <span>{interpolate(t("client.pitches.expiresOn"), { date: fmtClientDate(pitch.expiresAt) })}</span>
                       </>
                     )}
                   </div>
@@ -374,7 +382,7 @@ export default async function ClientPitchesPage({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {actionLabel(pitch.status)} <span aria-hidden>→</span>
+                  {actionLabel(pitch.status, t)} <span aria-hidden>→</span>
                 </div>
               </a>
             );

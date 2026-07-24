@@ -17,6 +17,8 @@
 import { useState } from "react";
 import { Bookmark, Check, Heart, Send } from "lucide-react";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "../primitives";
 import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
 import type { DirectoryCardData } from "@/components/talent-cards/talent-card-shape";
@@ -29,44 +31,45 @@ import type { DirectoryCardData } from "@/components/talent-cards/talent-card-sh
 export type CardSurface = "directory" | "pitch" | "roster" | "embedded";
 
 type SurfaceRule = {
+  /** English fallback for non-UI consumers; UI renders `t(labelKey)`. */
   label: string;
   tag: string;
+  labelKey: string;
+  tagKey: string;
   /** Whether the favorite (save) affordance is available on this surface. */
   favorite: boolean;
   /** Whether the client inquiry CTA is available on this surface. */
   inquiry: boolean;
   /** One-line rationale shown when the surface is active. */
   note: string;
+  noteKey: string;
 };
 
+const SURFACE_NS = "dashboard.adminCardStudio2.surfaces";
 export const SURFACE_RULES: Record<CardSurface, SurfaceRule> = {
   directory: {
-    label: "Directory",
-    tag: "Public",
-    favorite: true,
-    inquiry: true,
-    note: "Public discovery grid. Clients can save a favorite and start an inquiry — both actions are on.",
+    label: "Directory", tag: "Public", favorite: true, inquiry: true,
+    labelKey: `${SURFACE_NS}.directoryLabel`, tagKey: `${SURFACE_NS}.directoryTag`,
+    noteKey: `${SURFACE_NS}.directoryNote`,
+    note: "Public discovery grid. Clients can save a favorite and start an inquiry, both actions are on.",
   },
   pitch: {
-    label: "Pitch",
-    tag: "Sent link",
-    favorite: false,
-    inquiry: true,
+    label: "Pitch", tag: "Sent link", favorite: false, inquiry: true,
+    labelKey: `${SURFACE_NS}.pitchLabel`, tagKey: `${SURFACE_NS}.pitchTag`,
+    noteKey: `${SURFACE_NS}.pitchNote`,
     note: "You already curated and sent this shortlist, so a favorite is redundant. The card keeps a direct inquiry / reply action instead.",
   },
   roster: {
-    label: "Roster",
-    tag: "Internal",
-    favorite: false,
-    inquiry: false,
-    note: "Your internal team grid. No client-facing favorite or inquiry — these cards are for managing talent, not selling them.",
+    label: "Roster", tag: "Internal", favorite: false, inquiry: false,
+    labelKey: `${SURFACE_NS}.rosterLabel`, tagKey: `${SURFACE_NS}.rosterTag`,
+    noteKey: `${SURFACE_NS}.rosterNote`,
+    note: "Your internal team grid. No client-facing favorite or inquiry, these cards are for managing talent, not selling them.",
   },
   embedded: {
-    label: "Embedded",
-    tag: "Public",
-    favorite: true,
-    inquiry: true,
-    note: "Cards embedded on an external site behave like the Directory — both favorite and inquiry are available to the public.",
+    label: "Embedded", tag: "Public", favorite: true, inquiry: true,
+    labelKey: `${SURFACE_NS}.embeddedLabel`, tagKey: `${SURFACE_NS}.embeddedTag`,
+    noteKey: `${SURFACE_NS}.embeddedNote`,
+    note: "Cards embedded on an external site behave like the Directory, both favorite and inquiry are available to the public.",
   },
 };
 
@@ -114,6 +117,14 @@ export const HOVER_LABEL: Record<HoverBehavior, string> = {
   zoom: "Zoom image",
   swap: "Swap photo",
   none: "None",
+};
+
+/** Catalog keys for HOVER_LABEL. UI renders `t(HOVER_LABEL_KEY[h])`. */
+export const HOVER_LABEL_KEY: Record<HoverBehavior, string> = {
+  reveal_traits: "dashboard.adminCardStudio2.hover.revealTraits",
+  zoom: "dashboard.adminCardStudio2.hover.zoom",
+  swap: "dashboard.adminCardStudio2.hover.swap",
+  none: "dashboard.adminCardStudio2.hover.none",
 };
 
 export type FieldSaveState = "saving" | "saved" | "error";
@@ -170,9 +181,11 @@ export function PreviewCard({
   favoriteIcon: "heart" | "bookmark";
   fieldChips: string[];
 }) {
+  const t = useT();
   const rule = SURFACE_RULES[surface];
   const [demoFav, setDemoFav] = useState(false);
   const [demoInquiry, setDemoInquiry] = useState(false);
+  const sampleName = "Tina Rossi";
 
   const showFavorite = rule.favorite && appearance.showSave;
   const showInquiry = rule.inquiry && appearance.showAddToInquiry;
@@ -192,7 +205,7 @@ export function PreviewCard({
             lineHeight: 1.2,
           }}
         >
-          Tina Rossi
+          {sampleName}
         </div>
       ) : null}
       {appearance.showTalentType ? (
@@ -204,7 +217,7 @@ export function PreviewCard({
             marginTop: 2,
           }}
         >
-          Fashion Model
+          {t("dashboard.adminCardStudio2.sampleTalentType")}
         </div>
       ) : null}
     </>
@@ -266,7 +279,7 @@ export function PreviewCard({
             }}
           >
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success }} />
-            Available
+            {t("dashboard.adminCardStudio2.previewAvailable")}
           </span>
         ) : null}
 
@@ -275,7 +288,14 @@ export function PreviewCard({
           <button
             type="button"
             aria-pressed={demoFav}
-            aria-label={demoFav ? "Remove Tina Rossi from favorites" : "Save Tina Rossi to favorites"}
+            aria-label={interpolate(
+              t(
+                demoFav
+                  ? "dashboard.adminCardStudio2.previewRemoveFavoriteAria"
+                  : "dashboard.adminCardStudio2.previewSaveFavoriteAria",
+              ),
+              { name: sampleName },
+            )}
             onClick={() => setDemoFav((v) => !v)}
             style={{
               position: "absolute",
@@ -339,13 +359,13 @@ export function PreviewCard({
         {appearance.showRating ? (
           <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, fontSize: 12, color: COLORS.inkMuted }}>
             <Icon name="star" size={12} color={COLORS.amber} />
-            4.9 · 32 bookings
+            {interpolate(t("dashboard.adminCardStudio2.previewRating"), { rating: "4.9", count: 32 })}
           </div>
         ) : null}
 
         {appearance.showPriceFrom ? (
           <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: COLORS.ink }}>
-            From €850 / day
+            {interpolate(t("dashboard.adminCardStudio2.previewPriceFrom"), { price: "€850" })}
           </div>
         ) : null}
 
@@ -387,7 +407,7 @@ export function PreviewCard({
               }}
             >
               <Icon name="check" size={11} color={COLORS.accent} />
-              Verified
+              {t("dashboard.adminCardStudio2.previewVerified")}
             </span>
           </div>
         ) : null}
@@ -419,7 +439,11 @@ export function PreviewCard({
             }}
           >
             {demoInquiry ? <Check size={14} aria-hidden /> : <Send size={14} aria-hidden />}
-            {demoInquiry ? "Added" : "Inquire"}
+            {t(
+              demoInquiry
+                ? "dashboard.adminCardStudio2.previewAdded"
+                : "dashboard.adminCardStudio2.previewInquire",
+            )}
           </button>
         ) : null}
 
@@ -432,7 +456,7 @@ export function PreviewCard({
               fontStyle: "italic",
             }}
           >
-            No client actions on this surface.
+            {t("dashboard.adminCardStudio2.previewNoClientActions")}
           </div>
         ) : null}
       </div>
@@ -463,10 +487,18 @@ export type CardKitOption = {
 export const CARD_FAMILY_TOKEN_KEY = "template.directory-card-family";
 
 /** The three color knobs the studio exposes, in display order. */
-export const CARD_COLOR_KNOBS: Array<{ key: string; label: string; hint: string }> = [
-  { key: "card.surface", label: "Card surface", hint: "Media / panel ground" },
-  { key: "card.name-color", label: "Name color", hint: "Talent name" },
-  { key: "card.muted", label: "Secondary text", hint: "Type · location · availability" },
+// English `label` / `hint` remain the non-UI fallback; the studio renders
+// `t(knob.labelKey)` / `t(knob.hintKey)`.
+const KNOB_NS = "dashboard.adminCardStudio2.knobs";
+export const CARD_COLOR_KNOBS: Array<{
+  key: string; label: string; hint: string; labelKey: string; hintKey: string;
+}> = [
+  { key: "card.surface", label: "Card surface", hint: "Media / panel ground",
+    labelKey: `${KNOB_NS}.surfaceLabel`, hintKey: `${KNOB_NS}.surfaceHint` },
+  { key: "card.name-color", label: "Name color", hint: "Talent name",
+    labelKey: `${KNOB_NS}.nameLabel`, hintKey: `${KNOB_NS}.nameHint` },
+  { key: "card.muted", label: "Secondary text", hint: "Type · location · availability",
+    labelKey: `${KNOB_NS}.mutedLabel`, hintKey: `${KNOB_NS}.mutedHint` },
 ];
 
 /** Every card-family token key the studio touches (kit + knobs). */
@@ -568,6 +600,7 @@ export function CardKitChooser({
   canEdit: boolean;
   onApply: (kit: CardKitOption) => void;
 }) {
+  const t = useT();
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
       {kits.map((kit) => {
@@ -597,7 +630,11 @@ export function CardKitChooser({
               <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{kit.label}</span>
               {selected ? (
                 <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.accent }}>
-                  {busy ? "Applying" : "Active"}
+                  {t(
+                    busy
+                      ? "dashboard.adminCardStudio2.kitApplying"
+                      : "dashboard.adminCardStudio2.kitActive",
+                  )}
                 </span>
               ) : null}
             </div>
@@ -631,6 +668,7 @@ export function ColorKnob({
   onChange: (v: string) => void;
   onClear: () => void;
 }) {
+  const t = useT();
   const hasValue = isHex(value);
   // The native color input needs a concrete hex; show a neutral when inherited.
   const swatchValue = hasValue ? value : "#cccccc";
@@ -647,7 +685,9 @@ export function ColorKnob({
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{label}</div>
         <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>
-          {hasValue ? hint : `${hint} · inherits theme`}
+          {hasValue
+            ? hint
+            : interpolate(t("dashboard.adminCardStudio2.knobInheritsTheme"), { hint })}
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -684,7 +724,7 @@ export function ColorKnob({
               cursor: "pointer",
             }}
           >
-            Clear
+            {t("dashboard.adminCardStudio2.clear")}
           </button>
         ) : null}
       </div>
@@ -698,16 +738,19 @@ export function ColorKnob({
 
 /** Explicit, persistent draft-save status. Never a toast-and-vanish. */
 export function DesignSaveStatus({ state }: { state: DesignSaveState }) {
+  const t = useT();
   if (state.kind === "idle") return null;
   let label: string;
   let color: string;
   let bg: string;
   if (state.kind === "saving") {
-    label = "Saving draft…";
+    label = t("dashboard.adminCardStudio2.savingDraft");
     color = COLORS.inkMuted;
     bg = COLORS.surfaceAlt;
   } else if (state.kind === "saved") {
-    label = `Draft saved · v${state.version}`;
+    label = interpolate(t("dashboard.adminCardStudio2.draftSavedVersion"), {
+      version: state.version,
+    });
     color = COLORS.successDeep;
     bg = COLORS.successSoft;
   } else {

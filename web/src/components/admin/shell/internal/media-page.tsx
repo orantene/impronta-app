@@ -4,6 +4,8 @@ import {
   useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,
 } from "react";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 import {
   COLORS, FONTS, meetsPlan, useAdminShell,
 } from "./state";
@@ -100,20 +102,38 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+// English values are the non-UI fallback; UI renders `t(VARIANT_LABEL_KEYS[k])`.
 const VARIANT_LABELS: Record<string, string> = {
   card: "Profile", hero: "Cover", gallery: "Gallery",
   lightbox: "Lightbox", polaroid: "Polaroid", reel: "Reel",
   public_watermarked: "Public WM", watermarked: "Watermarked",
 };
 
+const VARIANT_LABEL_KEYS: Record<string, string> = {
+  card: "dashboard.adminMedia.variant.card",
+  hero: "dashboard.adminMedia.variant.hero",
+  gallery: "dashboard.adminMedia.variant.gallery",
+  lightbox: "dashboard.adminMedia.variant.lightbox",
+  polaroid: "dashboard.adminMedia.variant.polaroid",
+  reel: "dashboard.adminMedia.variant.reel",
+  public_watermarked: "dashboard.adminMedia.variant.publicWatermarked",
+  watermarked: "dashboard.adminMedia.variant.watermarked",
+};
+
+/** Localized variant label; falls back to the English map, then the raw key. */
+function variantLabel(t: (key: string) => string, kind: string): string {
+  const key = VARIANT_LABEL_KEYS[kind];
+  return key ? t(key) : (VARIANT_LABELS[kind] ?? kind);
+}
+
 // Card pill colors per variant/status — single slot, priority order.
 // "Profile" = 1:1 headshot (variantKind=card)
 // "Cover"   = 16:9 banner  (variantKind=hero)
 const PILL_STYLES = {
-  rejected: { bg: "rgba(192,57,43,0.94)", fg: "#fff", label: "Rejected" },
-  pending:  { bg: "rgba(212,151,12,0.94)", fg: "#fff", label: "Review" },
-  profile:  { bg: "rgba(15,79,62,0.94)",  fg: "#fff", label: "Profile" },
-  cover:    { bg: "rgba(78,52,114,0.94)", fg: "#fff", label: "Cover" },
+  rejected: { bg: "rgba(192,57,43,0.94)", fg: "#fff", label: "Rejected", labelKey: "dashboard.adminMedia.pill.rejected" },
+  pending:  { bg: "rgba(212,151,12,0.94)", fg: "#fff", label: "Review", labelKey: "dashboard.adminMedia.pill.review" },
+  profile:  { bg: "rgba(15,79,62,0.94)",  fg: "#fff", label: "Profile", labelKey: "dashboard.adminMedia.pill.profile" },
+  cover:    { bg: "rgba(78,52,114,0.94)", fg: "#fff", label: "Cover", labelKey: "dashboard.adminMedia.pill.cover" },
 } as const;
 
 const FOLDER_PALETTE = [
@@ -221,6 +241,7 @@ function MediaSidebar({
   onNewFolder: () => void;
   settings: { showFolders: boolean; showPending: boolean; showAnalytics: boolean; showByTalent: boolean; showByKind: boolean };
 }) {
+  const t = useT();
   const pendingCount = photos.filter((p) => p.approvalState === "pending").length;
 
   const isActive = (v: ActiveView) => {
@@ -235,12 +256,12 @@ function MediaSidebar({
       padding: "14px 7px 24px", display: "flex", flexDirection: "column",
       overflowY: "auto", gap: 1,
     }}>
-      <NavRow label={`All (${photos.length})`} active={isActive({ kind: "all" })} onClick={() => setView({ kind: "all" })} />
-      {settings.showPending && <NavRow label="Pending review" active={isActive({ kind: "pending" })} onClick={() => setView({ kind: "pending" })} badge={pendingCount} />}
+      <NavRow label={interpolate(t("dashboard.adminMedia.navAll"), { count: photos.length })} active={isActive({ kind: "all" })} onClick={() => setView({ kind: "all" })} />
+      {settings.showPending && <NavRow label={t("dashboard.adminMedia.navPendingReview")} active={isActive({ kind: "pending" })} onClick={() => setView({ kind: "pending" })} badge={pendingCount} />}
 
       {settings.showFolders && (
         <>
-          <SectionLabel text="Folders" />
+          <SectionLabel text={t("dashboard.adminMedia.sectionFolders")} />
           {folders.map((f) => (
             <NavRow
               key={f.id}
@@ -257,19 +278,19 @@ function MediaSidebar({
             fontFamily: FONTS.body, fontSize: 12, cursor: "pointer", textAlign: "left",
           }}>
             <span style={{ fontSize: 15, lineHeight: 1 }}>+</span>
-            New folder
+            {t("dashboard.adminMedia.newFolder")}
           </button>
         </>
       )}
 
-      {(settings.showByTalent || settings.showByKind) && <SectionLabel text="Group by" />}
-      {settings.showByTalent && <NavRow label="By talent" active={isActive({ kind: "by-talent" })} onClick={() => setView({ kind: "by-talent" })} />}
-      {settings.showByKind && <NavRow label="By kind" active={isActive({ kind: "by-kind" })} onClick={() => setView({ kind: "by-kind" })} />}
+      {(settings.showByTalent || settings.showByKind) && <SectionLabel text={t("dashboard.adminMedia.sectionGroupBy")} />}
+      {settings.showByTalent && <NavRow label={t("dashboard.adminMedia.navByTalent")} active={isActive({ kind: "by-talent" })} onClick={() => setView({ kind: "by-talent" })} />}
+      {settings.showByKind && <NavRow label={t("dashboard.adminMedia.navByKind")} active={isActive({ kind: "by-kind" })} onClick={() => setView({ kind: "by-kind" })} />}
 
       {settings.showAnalytics && (
         <>
-          <SectionLabel text="More" />
-          <NavRow label="Analytics" active={isActive({ kind: "analytics" })} onClick={() => setView({ kind: "analytics" })} />
+          <SectionLabel text={t("dashboard.adminMedia.sectionMore")} />
+          <NavRow label={t("dashboard.adminMedia.navAnalytics")} active={isActive({ kind: "analytics" })} onClick={() => setView({ kind: "analytics" })} />
         </>
       )}
     </div>
@@ -285,6 +306,7 @@ function FolderModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const [name, setName] = useState(folder?.name ?? "");
   const [color, setColor] = useState(folder?.color ?? FOLDER_PALETTE[0]!);
@@ -295,7 +317,7 @@ function FolderModal({
 
   const save = async () => {
     setErr(null);
-    if (!name.trim()) { setErr("Name is required."); return; }
+    if (!name.trim()) { setErr(t("dashboard.adminMedia.errNameRequired")); return; }
     setBusy(true);
     if (folder) {
       const r = await actionRenameMediaFolder(folder.id, name, color);
@@ -339,7 +361,7 @@ function FolderModal({
 
   const deleteFolder = async () => {
     if (!folder) return;
-    if (!confirm(`Delete "${folder.name}"? Photos stay, only the folder is removed.`)) return;
+    if (!confirm(interpolate(t("dashboard.adminMedia.confirmDeleteFolder"), { name: folder.name }))) return;
     setBusy(true);
     const r = await actionDeleteMediaFolder(folder.id);
     setBusy(false);
@@ -361,7 +383,7 @@ function FolderModal({
       }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "20px 22px 16px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
           <div className="text-admin-ink text-admin-15 font-bold">
-            {folder ? "Edit folder" : "New folder"}
+            {t(folder ? "dashboard.adminMedia.editFolder" : "dashboard.adminMedia.newFolder")}
           </div>
         </div>
 
@@ -373,13 +395,13 @@ function FolderModal({
           )}
 
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink">Folder name</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink">{t("dashboard.adminMedia.folderName")}</div>
             <input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
-              placeholder="e.g. Press kit, Runway 2026…"
+              placeholder={t("dashboard.adminMedia.folderNamePlaceholder")}
               maxLength={80}
               style={{
                 width: "100%", boxSizing: "border-box", padding: "8px 12px",
@@ -390,7 +412,7 @@ function FolderModal({
           </div>
 
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">Color</div>
+            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">{t("dashboard.adminMedia.color")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
               {FOLDER_PALETTE.map((c) => (
                 <button key={c} type="button" onClick={() => setColor(c)} style={{
@@ -405,7 +427,7 @@ function FolderModal({
           {/* Share link section (edit mode only) */}
           {folder && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">Share link</div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }} className="text-admin-ink">{t("dashboard.adminMedia.shareLink")}</div>
               {shareUrl ? (
                 <div className="flex flex-col gap-1.5">
                   <input readOnly value={shareUrl} onClick={(e) => (e.target as HTMLInputElement).select()}
@@ -418,11 +440,11 @@ function FolderModal({
                     <button type="button"
                       onClick={() => void navigator.clipboard.writeText(shareUrl)}
                       style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: `1px solid ${COLORS.border}`, background: "transparent", color: COLORS.ink, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                      Copy
+                      {t("dashboard.adminMedia.copy")}
                     </button>
                     <button type="button" disabled={shareLoading} onClick={() => void revokeShareLink()}
                       style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: "1px solid rgba(192,57,43,0.3)", background: "transparent", color: "#c0392b", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                      Revoke
+                      {t("dashboard.adminMedia.revoke")}
                     </button>
                   </div>
                 </div>
@@ -433,7 +455,11 @@ function FolderModal({
                     background: "transparent", color: COLORS.ink, fontFamily: FONTS.body,
                     fontSize: 12.5, fontWeight: 600, cursor: "pointer",
                   }}>
-                  {shareLoading ? "Creating…" : "Create share link (30 days)"}
+                  {t(
+                    shareLoading
+                      ? "dashboard.adminMedia.creating"
+                      : "dashboard.adminMedia.createShareLink30",
+                  )}
                 </button>
               )}
             </div>
@@ -446,19 +472,25 @@ function FolderModal({
               padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(192,57,43,0.3)",
               background: "transparent", color: "#c0392b", fontFamily: FONTS.body,
               fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-            }}>Delete</button>
+            }}>{t("dashboard.adminMedia.delete")}</button>
           )}
           <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
             <button type="button" disabled={busy} onClick={onClose} style={{
               padding: "7px 18px", borderRadius: 8, border: `1px solid ${COLORS.border}`,
               background: "transparent", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer",
-            }}>Cancel</button>
+            }}>{t("dashboard.adminMedia.cancel")}</button>
             <button type="button" disabled={busy || !name.trim()} onClick={() => void save()} style={{
               padding: "7px 18px", borderRadius: 8, border: "none",
               background: COLORS.fill, color: "#fff", fontFamily: FONTS.body,
               fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: busy ? 0.7 : 1,
             }}>
-              {busy ? "Saving…" : folder ? "Save" : "Create folder"}
+              {t(
+                busy
+                  ? "dashboard.adminMedia.saving"
+                  : folder
+                    ? "dashboard.adminMedia.save"
+                    : "dashboard.adminMedia.createFolder",
+              )}
             </button>
           </div>
         </div>
@@ -486,6 +518,7 @@ function MediaLightbox({
   onRefresh: () => void;
   toast: (msg: string) => void;
 }) {
+  const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const initialIdx = allPhotos.findIndex((p) => p.id === photo.id);
   const [currentIdx, setCurrentIdx] = useState(Math.max(0, initialIdx));
@@ -633,8 +666,8 @@ function MediaLightbox({
     setSetCardBusy(true);
     const r = await actionSetAsCardPhoto(current.id, current.talentProfileId);
     setSetCardBusy(false);
-    if (!r.ok) { toast(r.error || "Could not set as profile."); return; }
-    toast(`Set as ${current.talentName}'s profile photo`);
+    if (!r.ok) { toast(r.error || t("dashboard.adminMedia.errCouldNotSetProfile")); return; }
+    toast(interpolate(t("dashboard.adminMedia.toastSetAsProfile"), { name: current.talentName }));
     queueRouterRefresh();
     onRefresh();
   };
@@ -644,8 +677,8 @@ function MediaLightbox({
     setSetHeroBusy(true);
     const r = await actionSetAsHeroPhoto(current.id, current.talentProfileId);
     setSetHeroBusy(false);
-    if (!r.ok) { toast(r.error || "Could not set as cover."); return; }
-    toast(`Set as ${current.talentName}'s cover photo`);
+    if (!r.ok) { toast(r.error || t("dashboard.adminMedia.errCouldNotSetCover")); return; }
+    toast(interpolate(t("dashboard.adminMedia.toastSetAsCover"), { name: current.talentName }));
     queueRouterRefresh();
     onRefresh();
   };
@@ -676,9 +709,16 @@ function MediaLightbox({
       current.id,
     );
     setCropBusy(false);
-    if (!res.ok) { toast(res.error || "Crop upload failed."); return; }
-    const label = cropMode === "profile" ? "profile photo" : cropMode === "cover" ? "cover photo" : "cropped photo";
-    toast(`New ${label} saved`);
+    if (!res.ok) { toast(res.error || t("dashboard.adminMedia.errCropUploadFailed")); return; }
+    toast(
+      t(
+        cropMode === "profile"
+          ? "dashboard.adminMedia.toastNewProfileSaved"
+          : cropMode === "cover"
+            ? "dashboard.adminMedia.toastNewCoverSaved"
+            : "dashboard.adminMedia.toastNewCropSaved",
+      ),
+    );
     queueRouterRefresh();
     onRefresh();
   };
@@ -692,8 +732,8 @@ function MediaLightbox({
     setRevertBusy(true);
     const r = await actionRevertCropToSource(current.id);
     setRevertBusy(false);
-    if (!r.ok) { toast(r.error || "Revert failed."); return; }
-    toast("Reverted to original");
+    if (!r.ok) { toast(r.error || t("dashboard.adminMedia.errRevertFailed")); return; }
+    toast(t("dashboard.adminMedia.toastRevertedToOriginal"));
     queueRouterRefresh();
     onRefresh();
   };
@@ -756,9 +796,9 @@ function MediaLightbox({
       <div style={{
         fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 2,
       }}>
-        {VARIANT_LABELS[current.variantKind] ?? current.variantKind}
-        {current.approvalState === "pending" && <span style={{ marginLeft: 6, color: "#f0b350" }}>· Review</span>}
-        {current.approvalState === "rejected" && <span style={{ marginLeft: 6, color: "#e07566" }}>· Rejected</span>}
+        {variantLabel(t, current.variantKind)}
+        {current.approvalState === "pending" && <span style={{ marginLeft: 6, color: "#f0b350" }}>{" · "}{t("dashboard.adminMedia.pill.review")}</span>}
+        {current.approvalState === "rejected" && <span style={{ marginLeft: 6, color: "#e07566" }}>{" · "}{t("dashboard.adminMedia.pill.rejected")}</span>}
       </div>
     </div>
   );
@@ -784,7 +824,7 @@ function MediaLightbox({
           fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
           opacity: approvalBusy ? 0.6 : 1,
         }}>
-        ✓  Approve <span style={{ opacity: 0.5, fontWeight: 500 }}>Y</span>
+        ✓  {t("dashboard.adminMedia.approve")} <span style={{ opacity: 0.5, fontWeight: 500 }}>Y</span>
       </button>
       <button type="button" disabled={approvalBusy} onClick={() => void setApproval("rejected")}
         style={{
@@ -793,7 +833,7 @@ function MediaLightbox({
           fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 700, cursor: "pointer",
           opacity: approvalBusy ? 0.6 : 1,
         }}>
-        ✕  Reject <span style={{ opacity: 0.5, fontWeight: 500 }}>N</span>
+        ✕  {t("dashboard.adminMedia.reject")} <span style={{ opacity: 0.5, fontWeight: 500 }}>N</span>
       </button>
     </div>
   ) : null;
@@ -808,25 +848,27 @@ function MediaLightbox({
           parent surface confirms the save here too). */}
       {cropBusy && (
         <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.55)", textAlign: "center" }}>
-          Saving crop…
+          {t("dashboard.adminMedia.savingCrop")}
         </div>
       )}
 
       {/* Watermark preview toggle */}
       {wsWatermarkEnabled && wsLogoUrl && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div style={sectionLabel as CSSProperties}>Watermark preview</div>
+          <div style={sectionLabel as CSSProperties}>{t("dashboard.adminMedia.watermarkPreview")}</div>
           <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: "1px solid rgba(255,255,255,0.16)" }}>
-            {(["Off", "On"] as const).map((label) => {
-              const active = label === "On" ? showWm : !showWm;
+            {(["off", "on"] as const).map((value) => {
+              const active = value === "on" ? showWm : !showWm;
               return (
-                <button key={label} type="button" onClick={() => setShowWm(label === "On")}
+                <button key={value} type="button" onClick={() => setShowWm(value === "on")}
                   style={{
                     padding: "4px 10px", border: "none", fontFamily: FONTS.body,
                     fontSize: 11, fontWeight: 600, cursor: "pointer",
                     background: active ? "rgba(255,255,255,0.18)" : "transparent",
                     color: active ? "#fff" : "rgba(255,255,255,0.45)",
-                  }}>{label}</button>
+                  }}>
+                  {t(value === "on" ? "dashboard.adminMedia.on" : "dashboard.adminMedia.off")}
+                </button>
               );
             })}
           </div>
@@ -835,20 +877,20 @@ function MediaLightbox({
 
       {/* Metadata */}
       <div>
-        <div style={sectionLabel as CSSProperties}>Details</div>
+        <div style={sectionLabel as CSSProperties}>{t("dashboard.adminMedia.details")}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-          <MetaRow label="Status" value={current.approvalState} />
-          <MetaRow label="Uploaded" value={fmtDate(current.createdAt)} />
-          <MetaRow label="Dimensions" value={formatDim(current.width, current.height)} />
-          <MetaRow label="Size" value={formatBytes(current.fileSizeBytes)} />
-          {current.originalFilename && <MetaRow label="Filename" value={current.originalFilename} />}
-          {current.mimeType && <MetaRow label="Type" value={current.mimeType} />}
+          <MetaRow label={t("dashboard.adminMedia.metaStatus")} value={current.approvalState} />
+          <MetaRow label={t("dashboard.adminMedia.metaUploaded")} value={fmtDate(current.createdAt)} />
+          <MetaRow label={t("dashboard.adminMedia.metaDimensions")} value={formatDim(current.width, current.height)} />
+          <MetaRow label={t("dashboard.adminMedia.metaSize")} value={formatBytes(current.fileSizeBytes)} />
+          {current.originalFilename && <MetaRow label={t("dashboard.adminMedia.metaFilename")} value={current.originalFilename} />}
+          {current.mimeType && <MetaRow label={t("dashboard.adminMedia.metaType")} value={current.mimeType} />}
         </div>
       </div>
 
       {/* Tags */}
       <div>
-        <div style={sectionLabel as CSSProperties}>Tags</div>
+        <div style={sectionLabel as CSSProperties}>{t("dashboard.adminMedia.tags")}</div>
         {tags.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
             {tags.map((tag) => (
@@ -859,7 +901,7 @@ function MediaLightbox({
                 fontFamily: FONTS.body, fontSize: 11.5, color: "rgba(255,255,255,0.9)",
               }}>
                 {tag}
-                <button type="button" onClick={() => removeTag(tag)} aria-label={`Remove ${tag}`} style={{
+                <button type="button" onClick={() => removeTag(tag)} aria-label={interpolate(t("dashboard.adminMedia.removeTagAria"), { tag })} style={{
                   background: "none", border: "none", color: "rgba(255,255,255,0.55)",
                   cursor: "pointer", fontSize: 12, lineHeight: 1, padding: 0,
                 }}>×</button>
@@ -870,15 +912,15 @@ function MediaLightbox({
         <input value={tagInput}
           onChange={(e) => setTagInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-          placeholder="Add tag and press Enter…"
+          placeholder={t("dashboard.adminMedia.addTagPlaceholder")}
           style={railInput} />
-        {savingTags && <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>Saving…</div>}
+        {savingTags && <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>{t("dashboard.adminMedia.saving")}</div>}
       </div>
 
       {/* Folders */}
       {folders.length > 0 && (
         <div>
-          <div style={sectionLabel as CSSProperties}>Folders</div>
+          <div style={sectionLabel as CSSProperties}>{t("dashboard.adminMedia.sectionFolders")}</div>
           <div className="flex flex-col gap-1.5">
             {folders.map((f) => {
               const checked = inFolder(f.id);
@@ -898,23 +940,23 @@ function MediaLightbox({
 
       {/* Note */}
       <div>
-        <div style={sectionLabel as CSSProperties}>Note</div>
+        <div style={sectionLabel as CSSProperties}>{t("dashboard.adminMedia.note")}</div>
         <textarea value={note} onChange={(e) => setNote(e.target.value)}
-          placeholder="Add a note about this photo…" rows={3}
+          placeholder={t("dashboard.adminMedia.notePlaceholder")} rows={3}
           style={{ ...railInput, resize: "vertical", lineHeight: 1.5 }} />
         <button type="button" onClick={() => void saveNote()} disabled={savingNote || note === (current.note ?? "")}
           style={{
             ...railBtn, marginTop: 6,
             opacity: (savingNote || note === (current.note ?? "")) ? 0.5 : 1,
           }}>
-          {savingNote ? "Saving…" : "Save note"}
+          {t(savingNote ? "dashboard.adminMedia.saving" : "dashboard.adminMedia.saveNote")}
         </button>
       </div>
 
       {/* Activity */}
       {activityLoaded && activity.length > 0 && (
         <div>
-          <div style={sectionLabel as CSSProperties}>Activity</div>
+          <div style={sectionLabel as CSSProperties}>{t("dashboard.adminMedia.activity")}</div>
           <div className="flex flex-col gap-2">
             {activity.slice(0, 8).map((a) => (
               <div key={a.id} style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
@@ -964,8 +1006,8 @@ function MediaLightbox({
         onDelete={deletePhoto}
         onRevertCrop={current.sourceMediaAssetId ? revertToOriginal : undefined}
         labels={{
-          setAsProfile: "Use as profile",
-          setAsCover: "Use as cover",
+          setAsProfile: t("dashboard.adminMedia.useAsProfile"),
+          setAsCover: t("dashboard.adminMedia.useAsCover"),
         }}
         headerContent={adminHeaderContent}
         imageOverlay={adminImageOverlay}
@@ -1019,6 +1061,7 @@ function UploadModal({
   onReassign: () => void;
   onAssignTalentChange: (id: string) => void;
 }) {
+  const t = useT();
   const inFlight = stagingItems.filter((it) => it.status === "uploading" || it.status === "queued" || it.status === "compressing").length;
   const ready = stagingItems.filter((it) => it.status === "ready").length;
   const errors = stagingItems.filter((it) => it.status === "error").length;
@@ -1046,8 +1089,8 @@ function UploadModal({
         <div style={{ padding: "18px 22px 14px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: mode === "upload" ? 8 : 0 }} className="text-admin-ink">
             {mode === "upload"
-              ? `Upload ${stagingItems.length} photo${stagingItems.length !== 1 ? "s" : ""}`
-              : `Move ${selCount} photo${selCount !== 1 ? "s" : ""} to talent`}
+              ? withPluralization(t)("dashboard.adminMedia.uploadNPhotos", stagingItems.length)
+              : withPluralization(t)("dashboard.adminMedia.moveNPhotosToTalent", selCount)}
           </div>
           {mode === "upload" && (
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -1055,7 +1098,11 @@ function UploadModal({
                 <div style={{ '--progress-w': `${stagingItems.length > 0 ? (ready / stagingItems.length) * 100 : 0}%` }} className="w-[var(--progress-w)] h-full rounded-full [transition:width_300ms]" />
               </div>
               <div style={{ fontSize: 11.5, whiteSpace: "nowrap" }} className="bg-admin-fill text-admin-ink-muted">
-                {inFlight > 0 ? `${ready}/${stagingItems.length} uploaded…` : errors > 0 ? `${errors} failed` : `${ready} ready`}
+                {inFlight > 0
+                  ? interpolate(t("dashboard.adminMedia.nUploaded"), { done: ready, total: stagingItems.length })
+                  : errors > 0
+                    ? interpolate(t("dashboard.adminMedia.nFailed"), { count: errors })
+                    : interpolate(t("dashboard.adminMedia.nReady"), { count: ready })}
               </div>
             </div>
           )}
@@ -1065,7 +1112,7 @@ function UploadModal({
         {mode === "reassign" && (
           <div style={{ padding: "18px 22px" }}>
             <div style={{ fontSize: 12.5, marginBottom: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-              Photos will be re-assigned and appear under the new talent.
+              {t("dashboard.adminMedia.reassignHint")}
             </div>
             <select value={assignTalentId} onChange={(e) => onAssignTalentChange(e.target.value)}
               disabled={assignBusy} size={Math.min(assignTalents.length, 6)}
@@ -1080,13 +1127,13 @@ function UploadModal({
           <div style={{ padding: "8px 22px", borderBottom: `1px solid ${COLORS.borderSoft}`, display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" onClick={onSelectAll}
               style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: FONTS.body }}>
-              Select all
+              {t("dashboard.adminMedia.selectAll")}
             </button>
             {stagingSelected.size > 0 && (
               <>
                 <button type="button" onClick={onClearSel}
                   style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontFamily: FONTS.body }}>
-                  Clear
+                  {t("dashboard.adminMedia.clear")}
                 </button>
                 <span className="text-admin-ink-muted text-admin-11h">{stagingSelected.size} →</span>
                 <select value={stagingBulkTalentId} onChange={(e) => onBulkTalentChange(e.target.value)} style={{ ...fsel }}>
@@ -1094,7 +1141,7 @@ function UploadModal({
                 </select>
                 <button type="button" onClick={onBulkAssign}
                   style={{ fontSize: 12, fontWeight: 600, color: "#fff", background: COLORS.fill, border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontFamily: FONTS.body }}>
-                  Assign
+                  {t("dashboard.adminMedia.assign")}
                 </button>
               </>
             )}
@@ -1151,7 +1198,7 @@ function UploadModal({
         <div style={{ padding: "12px 22px 16px", borderTop: `1px solid ${COLORS.borderSoft}`, display: "flex", gap: 9, justifyContent: "flex-end", alignItems: "center" }}>
           <button type="button" disabled={assignBusy} onClick={onCancel}
             style={{ padding: "7px 18px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, background: "transparent", color: COLORS.inkMuted, cursor: "pointer" }}>
-            Cancel
+            {t("dashboard.adminMedia.cancel")}
           </button>
           <button type="button"
             disabled={assignBusy || (mode === "upload"
@@ -1159,10 +1206,11 @@ function UploadModal({
               : !assignTalentId)}
             onClick={() => mode === "upload" ? onConfirm() : onReassign()}
             style={{ padding: "7px 18px", borderRadius: 8, border: "none", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, background: COLORS.fill, color: "#fff", cursor: "pointer", opacity: assignBusy ? 0.7 : 1 }}>
-            {assignBusy ? "Saving…"
+            {assignBusy
+              ? t("dashboard.adminMedia.saving")
               : mode === "upload"
-                ? `Save ${ready} photo${ready !== 1 ? "s" : ""}`
-                : "Move to talent"}
+                ? withPluralization(t)("dashboard.adminMedia.saveNPhotos", ready)
+                : t("dashboard.adminMedia.moveToTalent")}
           </button>
         </div>
       </div>
@@ -1173,6 +1221,7 @@ function UploadModal({
 // ─── Analytics View ───────────────────────────────────────────────────────────
 
 function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: MediaFolder[] }) {
+  const t = useT();
   // Q5: previously two separate useMemo calls (byTalent + byKind) with the
   // same `[photos]` dep, plus an unmemoized `totalBytes` reduce. React
   // Compiler bailed on preserving the second useMemo
@@ -1202,18 +1251,18 @@ function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: Med
 
   return (
     <div style={{ padding: "24px 28px", overflowY: "auto", flex: 1 }}>
-      <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700, marginBottom: 20 }} className="text-admin-ink">Analytics</div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700, marginBottom: 20 }} className="text-admin-ink">{t("dashboard.adminMedia.navAnalytics")}</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 28 }}>
-        <StatCard label="Total photos" value={photos.length} />
-        <StatCard label="Total storage" value={formatBytes(totalBytes)} />
-        <StatCard label="Folders" value={folders.length} />
-        <StatCard label="Pending review" value={photos.filter((p) => p.approvalState === "pending").length} />
+        <StatCard label={t("dashboard.adminMedia.statTotalPhotos")} value={photos.length} />
+        <StatCard label={t("dashboard.adminMedia.statTotalStorage")} value={formatBytes(totalBytes)} />
+        <StatCard label={t("dashboard.adminMedia.sectionFolders")} value={folders.length} />
+        <StatCard label={t("dashboard.adminMedia.navPendingReview")} value={photos.filter((p) => p.approvalState === "pending").length} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">By talent</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">{t("dashboard.adminMedia.navByTalent")}</div>
           <div className="flex flex-col gap-1.5">
             {byTalent.slice(0, 10).map(([name, stats]) => (
               <div key={name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1225,11 +1274,11 @@ function AnalyticsView({ photos, folders }: { photos: MediaPhoto[]; folders: Med
           </div>
         </div>
         <div>
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">By variant kind</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700, marginBottom: 12 }} className="text-admin-ink">{t("dashboard.adminMedia.byVariantKind")}</div>
           <div className="flex flex-col gap-1.5">
             {byKind.map(([kind, count]) => (
               <div key={kind} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">{VARIANT_LABELS[kind] ?? kind}</div>
+                <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">{variantLabel(t, kind)}</div>
                 <div style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">{count}</div>
               </div>
             ))}
@@ -1254,6 +1303,7 @@ function PhotoCard({
   onToggle: () => void;
   onOpen: () => void;
 }) {
+  const t = useT();
   const showWm = wsWatermarkEnabled && wsLogoUrl && !photo.hasOverride;
   const showWmOverride = photo.hasOverride && wsLogoUrl;
 
@@ -1298,12 +1348,12 @@ function PhotoCard({
             fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 700,
             padding: "2px 7px", letterSpacing: 0.3,
             boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
-          }}>{pill.label}</div>
+          }}>{t(pill.labelKey)}</div>
         )}
 
         {/* Per-image watermark override dot — subtle indicator next to pill */}
         {showWmOverride && (
-          <div title="Custom watermark" style={{
+          <div title={t("dashboard.adminMedia.customWatermark")} style={{
             position: "absolute", top: pill ? 11 : 8, left: pill ? 78 : 8,
             width: 8, height: 8, borderRadius: "50%",
             background: "rgba(46,107,82,0.96)",
@@ -1336,13 +1386,13 @@ function PhotoCard({
           fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 600,
           padding: "2px 6px", opacity: 0, transition: "opacity 0.12s",
           pointerEvents: "none",
-        }}>⤢ Open</div>
+        }}>⤢ {t("dashboard.adminMedia.open")}</div>
 
         {/* Checkbox — always visible, isolated click target */}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          aria-label={selected ? "Deselect photo" : "Select photo"}
+          aria-label={t(selected ? "dashboard.adminMedia.deselectPhotoAria" : "dashboard.adminMedia.selectPhotoAria")}
           style={{
             position: "absolute", top: 6, right: 6,
             width: 22, height: 22, borderRadius: 6,
@@ -1394,6 +1444,7 @@ export function WorkspaceMediaPage() {
     bridgeMediaErrored, bridgeMediaTotalCount,
     tenantSlug, toast,
   } = useAdminShell();
+  const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const isAgency = meetsPlan(state.plan, "agency");
 
@@ -1552,9 +1603,9 @@ export function WorkspaceMediaPage() {
     if (!drivePanelUrl.trim() || !drivePanelTalentId) return;
     setDrivePanelStatus({ kind: "listing" });
     const res = await actionListDriveFolder(drivePanelUrl.trim());
-    if (!res.ok) { setDrivePanelStatus({ kind: "error", message: res.error ?? "Could not read folder." }); return; }
+    if (!res.ok) { setDrivePanelStatus({ kind: "error", message: res.error ?? t("dashboard.adminMedia.errCouldNotReadFolder") }); return; }
     setDrivePanelStatus({ kind: "confirmed", fileIds: res.data.fileIds, total: res.data.count, truncated: res.data.truncated });
-  }, [drivePanelUrl, drivePanelTalentId]);
+  }, [drivePanelUrl, drivePanelTalentId, t]);
 
   // Phase 2 — download + upload with live polling. Threads the fileIds
   // resolved at Check straight into Import so the two never disagree.
@@ -1586,11 +1637,11 @@ export function WorkspaceMediaPage() {
     const res = await importPromise;
     clearInterval(interval);
 
-    if (!res.ok) { setDrivePanelStatus({ kind: "error", message: res.error ?? "Import failed." }); return; }
+    if (!res.ok) { setDrivePanelStatus({ kind: "error", message: res.error ?? t("dashboard.adminMedia.errImportFailed") }); return; }
     setDrivePanelStatus({ kind: "ok", count: res.data.assets.length });
     setDrivePanelUrl("");
     setTimeout(() => { setShowDrivePanel(false); setDrivePanelStatus({ kind: "idle" }); queueRouterRefresh(); }, 2500);
-  }, [drivePanelUrl, drivePanelTalentId, queueRouterRefresh]);
+  }, [drivePanelUrl, drivePanelTalentId, queueRouterRefresh, t]);
 
   // ── Folder modal ─────────────────────────────────────────────────
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -1734,7 +1785,9 @@ export function WorkspaceMediaPage() {
       && (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg")),
     );
     if (blocked.length > 0) {
-      setUploadError(`SVG files aren’t supported for security reasons. Skipping ${blocked.length} file${blocked.length === 1 ? "" : "s"}.`);
+      setUploadError(
+        withPluralization(t)("dashboard.adminMedia.errSvgSkipped", blocked.length),
+      );
     }
 
     if (zips.length > 0) {
@@ -1743,7 +1796,7 @@ export function WorkspaceMediaPage() {
         const JSZip = (await import("jszip")).default;
         let anyTruncated = false;
         for (const zip of zips) {
-          if (zip.size > 500 * 1024 * 1024) { setUploadError("ZIP must be under 500 MB."); return; }
+          if (zip.size > 500 * 1024 * 1024) { setUploadError(t("dashboard.adminMedia.errZipTooLarge")); return; }
           const z = await JSZip.loadAsync(zip);
           // Allow common raster formats only. SVG deliberately excluded.
           const IMAGE_EXTS = /\.(jpe?g|png|webp|gif|heic|avif)$/i;
@@ -1761,16 +1814,18 @@ export function WorkspaceMediaPage() {
           imageFiles = [...imageFiles, ...extracted];
         }
         if (anyTruncated) {
-          setUploadError(`ZIPs contained more than ${ZIP_IMAGE_CAP} images — only the first ${ZIP_IMAGE_CAP} were extracted. Split into multiple ZIPs and upload again for the rest.`);
+          setUploadError(
+            interpolate(t("dashboard.adminMedia.errZipTruncated"), { cap: ZIP_IMAGE_CAP }),
+          );
         }
-      } catch { setUploadError("Could not read ZIP file."); return; }
+      } catch { setUploadError(t("dashboard.adminMedia.errCouldNotReadZip")); return; }
     }
 
     if (imageFiles.length === 0) return;
-    if (imageFiles.length > 200) { setUploadError("Max 200 images per batch."); return; }
+    if (imageFiles.length > 200) { setUploadError(t("dashboard.adminMedia.errMaxBatch")); return; }
 
     const result = await actionLoadRosterTalents();
-    if (!result.ok || result.data.length === 0) { setUploadError("No talent on roster to assign to."); return; }
+    if (!result.ok || result.data.length === 0) { setUploadError(t("dashboard.adminMedia.errNoTalentToAssign")); return; }
     const talents = result.data;
     setAssignTalents(talents);
     const defaultTalentId = talents[0]?.id ?? "";
@@ -1865,7 +1920,7 @@ export function WorkspaceMediaPage() {
       } catch {
         setStagingItems((prev) =>
           prev.map((it) =>
-            it.id === item.id ? { ...it, status: "error", errorMsg: "Upload failed" } : it,
+            it.id === item.id ? { ...it, status: "error", errorMsg: t("dashboard.adminMedia.errUploadFailed") } : it,
           ),
         );
       }
@@ -1888,7 +1943,7 @@ export function WorkspaceMediaPage() {
       };
       tryNext();
     });
-  }, []);
+  }, [t]);
 
   const confirmStaging = async () => {
     const ready = stagingItems.filter((it) => it.status === "ready" && it.storagePath);
@@ -1936,7 +1991,7 @@ export function WorkspaceMediaPage() {
   const openReassignModal = async () => {
     if (selected.size === 0) return;
     const result = await actionLoadRosterTalents();
-    if (!result.ok || result.data.length === 0) { setUploadError("No talent on roster."); return; }
+    if (!result.ok || result.data.length === 0) { setUploadError(t("dashboard.adminMedia.errNoTalentOnRoster")); return; }
     setAssignTalents(result.data);
     setAssignTalentId(result.data[0]?.id ?? "");
     setAssignMode("reassign");
@@ -1945,7 +2000,7 @@ export function WorkspaceMediaPage() {
 
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} photo${selected.size > 1 ? "s" : ""}? This cannot be undone.`)) return;
+    if (!confirm(withPluralization(t)("dashboard.adminMedia.confirmDeletePhotos", selected.size))) return;
     setIsDeleting(true);
     const res = await actionDeleteMediaAssets(Array.from(selected));
     setIsDeleting(false);
@@ -1965,7 +2020,7 @@ export function WorkspaceMediaPage() {
 
   const handleRejectSelected = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`Reject ${selected.size} photo${selected.size > 1 ? "s" : ""}?`)) return;
+    if (!confirm(withPluralization(t)("dashboard.adminMedia.confirmRejectPhotos", selected.size))) return;
     setIsApproving(true);
     await actionSetApprovalState(Array.from(selected), "rejected");
     setIsApproving(false);
@@ -1983,7 +2038,7 @@ export function WorkspaceMediaPage() {
   const setSelectedAsCardPhoto = async (photo: MediaPhoto) => {
     const res = await actionSetAsCardPhoto(photo.id, photo.talentProfileId);
     if (!res.ok) { setUploadError(res.error); return; }
-    toast(`Set as ${photo.talentName}’s card photo`);
+    toast(interpolate(t("dashboard.adminMedia.toastSetAsCardPhoto"), { name: photo.talentName }));
     setSelected(new Set());
     queueRouterRefresh();
   };
@@ -1998,26 +2053,32 @@ export function WorkspaceMediaPage() {
     return (
       <div style={{ padding: "48px 28px", maxWidth: 560, margin: "0 auto" }}>
         <div className="mb-2">
-          <h1 style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700, margin: 0 }} className="text-admin-ink">Media</h1>
-          <p style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 4, marginBottom: 0 }} className="text-admin-ink-muted">Your workspace photo library — every photo across every talent, with watermark control and usage tracking.</p>
+          <h1 style={{ fontFamily: FONTS.body, fontSize: 22, fontWeight: 700, margin: 0 }} className="text-admin-ink">{t("dashboard.adminMedia.title")}</h1>
+          <p style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 4, marginBottom: 0 }} className="text-admin-ink-muted">{t("dashboard.adminMedia.subtitle")}</p>
         </div>
         <div style={{ marginTop: 32, padding: 28, borderRadius: 16, border: `1px solid ${COLORS.borderSoft}`, background: "#fff", display: "flex", flexDirection: "column", gap: 18 }}>
           <div className="text-4xl">🖼️</div>
           <div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 16, fontWeight: 700, marginBottom: 6 }} className="text-admin-ink">Branded media gallery — Agency plan</div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 16, fontWeight: 700, marginBottom: 6 }} className="text-admin-ink">{t("dashboard.adminMedia.upgradeTitle")}</div>
             <div style={{ fontFamily: FONTS.body, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }} className="text-admin-ink-muted">
-              Every photo your agency controls — folders, tags, watermarks, bulk actions, and analytics.
+              {t("dashboard.adminMedia.upgradeBody")}
             </div>
             <ul style={{ padding: 0, margin: "0 0 20px 0", listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-              {["Workspace-wide photo inventory", "Folders + tags for organisation", "Logo watermark — position · opacity", "Bulk approve / reject / reassign", "Usage analytics per talent"].map((item) => (
+              {[
+                t("dashboard.adminMedia.upgradeBullet1"),
+                t("dashboard.adminMedia.upgradeBullet2"),
+                t("dashboard.adminMedia.upgradeBullet3"),
+                t("dashboard.adminMedia.upgradeBullet4"),
+                t("dashboard.adminMedia.upgradeBullet5"),
+              ].map((item) => (
                 <li key={item} style={{ display: "flex", gap: 8, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>
                   <span className="text-admin-success">✓</span>{item}
                 </li>
               ))}
             </ul>
           </div>
-          <PrimaryButton onClick={() => openUpgrade({ feature: "Branded media gallery", why: "See every photo your agency controls.", requiredPlan: "agency", unlocks: ["Workspace-wide photo inventory", "Folders + tags", "Logo watermark", "Bulk actions", "Analytics"] })}>
-            Upgrade to Agency
+          <PrimaryButton onClick={() => openUpgrade({ feature: t("dashboard.adminMedia.upgradeFeature"), why: t("dashboard.adminMedia.upgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminMedia.upgradeBullet1"), t("dashboard.adminMedia.unlockFoldersTags"), t("dashboard.adminMedia.unlockLogoWatermark"), t("dashboard.adminMedia.unlockBulkActions"), t("dashboard.adminMedia.navAnalytics")] })}>
+            {t("dashboard.adminMedia.upgradeToAgency")}
           </PrimaryButton>
         </div>
       </div>
@@ -2037,7 +2098,7 @@ export function WorkspaceMediaPage() {
     const showGroupedByTalent = view.kind === "by-talent";
     const showGroupedByKind = view.kind === "by-kind";
     const useGrouped = showGroupedByTalent || showGroupedByKind;
-    const groups = showGroupedByTalent ? groupedByTalent : showGroupedByKind ? groupedByKind.map(([kind, ph]) => [VARIANT_LABELS[kind] ?? kind, ph] as [string, MediaPhoto[]]) : [];
+    const groups = showGroupedByTalent ? groupedByTalent : showGroupedByKind ? groupedByKind.map(([kind, ph]) => [variantLabel(t, kind), ph] as [string, MediaPhoto[]]) : [];
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -2046,31 +2107,31 @@ export function WorkspaceMediaPage() {
           <div style={{ padding: "12px 20px 10px", borderBottom: `1px solid ${COLORS.borderSoft}`, display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
             <input type="search" value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setSelected(new Set()); }}
-              placeholder="Search name, tag, filename…"
+              placeholder={t("dashboard.adminMedia.searchPlaceholder")}
               style={{ ...filterSel, minWidth: 160 }} />
             {view.kind !== "by-talent" && (
               <select value={filterTalent} onChange={(e) => { setFilterTalent(e.target.value); setSelected(new Set()); }} style={filterSel}>
-                <option value="all">All talent</option>
+                <option value="all">{t("dashboard.adminMedia.filterAllTalent")}</option>
                 {allTalentNames.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             )}
             {view.kind !== "pending" && (
               <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value as typeof filterStatus); setSelected(new Set()); }} style={filterSel}>
-                <option value="all">All statuses</option>
-                <option value="approved">Approved</option>
-                <option value="pending">Pending</option>
-                <option value="rejected">Rejected</option>
+                <option value="all">{t("dashboard.adminMedia.filterAllStatuses")}</option>
+                <option value="approved">{t("dashboard.adminMedia.statusApproved")}</option>
+                <option value="pending">{t("dashboard.adminMedia.statusPending")}</option>
+                <option value="rejected">{t("dashboard.adminMedia.pill.rejected")}</option>
               </select>
             )}
             <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)} style={filterSel}>
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="talent">Talent A–Z</option>
+              <option value="newest">{t("dashboard.adminMedia.sortNewest")}</option>
+              <option value="oldest">{t("dashboard.adminMedia.sortOldest")}</option>
+              <option value="talent">{t("dashboard.adminMedia.sortTalentAZ")}</option>
             </select>
             {(filterTalent !== "all" || filterStatus !== "all" || searchQuery) && (
               <button type="button" onClick={() => { setFilterTalent("all"); setFilterStatus("all"); setSearchQuery(""); setSelected(new Set()); }}
                 style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, background: "none", border: "none", cursor: "pointer" }}>
-                × Clear
+                × {t("dashboard.adminMedia.clear")}
               </button>
             )}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
@@ -2083,7 +2144,7 @@ export function WorkspaceMediaPage() {
               )}
               <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ accentColor: COLORS.fill, cursor: "pointer" }} />
-                <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">All ({filtered.length})</span>
+                <span style={{ fontFamily: FONTS.body, fontSize: 12 }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminMedia.navAll"), { count: filtered.length })}</span>
               </label>
             </div>
           </div>
@@ -2092,13 +2153,13 @@ export function WorkspaceMediaPage() {
         {/* Pending review: keyboard hint bar */}
         {view.kind === "pending" && filtered.length > 0 && selCount === 0 && (
           <div style={{ padding: "7px 20px", background: "rgba(255,193,7,0.08)", borderBottom: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
-            <span style={{ fontWeight: 700 }} className="text-admin-amber">{filtered.length} pending</span>
+            <span style={{ fontWeight: 700 }} className="text-admin-amber">{interpolate(t("dashboard.adminMedia.nPending"), { count: filtered.length })}</span>
             <span>·</span>
-            <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>Y</kbd> Approve</span>
-            <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>N</kbd> Reject</span>
-            <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>←→</kbd> Navigate</span>
+            <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>Y</kbd> {t("dashboard.adminMedia.approve")}</span>
+            <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>N</kbd> {t("dashboard.adminMedia.reject")}</span>
+            <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>←→</kbd> {t("dashboard.adminMedia.navigate")}</span>
             <span style={{ marginLeft: "auto" }}>
-              Focused: {focusedPendingIdx + 1} / {filtered.length}
+              {interpolate(t("dashboard.adminMedia.focusedOf"), { index: focusedPendingIdx + 1, total: filtered.length })}
             </span>
           </div>
         )}
@@ -2116,7 +2177,7 @@ export function WorkspaceMediaPage() {
             }}>
               {/* Count */}
               <span style={{ fontWeight: 700, fontSize: 13, marginRight: 4, whiteSpace: "nowrap" }}>
-                {selCount} selected
+                {interpolate(t("dashboard.adminMedia.nSelected"), { count: selCount })}
               </span>
               <BulkBarSep />
 
@@ -2125,7 +2186,7 @@ export function WorkspaceMediaPage() {
                   bulk-mode users can edit details without losing selection). */}
               <BulkBtn
                 icon="⭐"
-                label="Set as profile"
+                label={t("dashboard.adminMedia.setAsProfile")}
                 disabled={!isSingle || !firstSelected || firstSelected.variantKind === "card"}
                 onClick={() => { if (firstSelected) void setSelectedAsCardPhoto(firstSelected); }}
               />
@@ -2134,11 +2195,11 @@ export function WorkspaceMediaPage() {
               {/* Organise — Watermark is gated on configuration, not on the
                   preview-visibility toggle, so the user can still apply
                   watermarks when they've hidden the on-page overlay. */}
-              {wsWatermarkConfigured && <BulkBtn icon="🔖" label="Watermark…" onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
-              <BulkBtn icon="📂" label="Move to talent…" onClick={() => void openReassignModal()} />
+              {wsWatermarkConfigured && <BulkBtn icon="🔖" label={t("dashboard.adminMedia.bulkWatermark")} onClick={() => openDrawer("watermark-editor", { selectedIds: Array.from(selected) })} />}
+              <BulkBtn icon="📂" label={t("dashboard.adminMedia.bulkMoveToTalent")} onClick={() => void openReassignModal()} />
               {folders.length > 0 && (
                 <div className="relative">
-                  <BulkBtn icon="🗂" label="Add to folder…" onClick={() => setFolderMenuOpen((v) => !v)} />
+                  <BulkBtn icon="🗂" label={t("dashboard.adminMedia.bulkAddToFolder")} onClick={() => setFolderMenuOpen((v) => !v)} />
                   {folderMenuOpen && (
                     <>
                       <div onClick={() => setFolderMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 89 }} />
@@ -2177,20 +2238,20 @@ export function WorkspaceMediaPage() {
               {/* Review */}
               {selHasPending && (
                 <>
-                  <BulkBtn icon="✅" label={isApproving ? "…" : "Approve"} disabled={isApproving} onClick={() => void handleApproveSelected()} />
-                  <BulkBtn icon="🚫" label="Reject" disabled={isApproving} onClick={() => void handleRejectSelected()} />
+                  <BulkBtn icon="✅" label={isApproving ? "…" : t("dashboard.adminMedia.approve")} disabled={isApproving} onClick={() => void handleApproveSelected()} />
+                  <BulkBtn icon="🚫" label={t("dashboard.adminMedia.reject")} disabled={isApproving} onClick={() => void handleRejectSelected()} />
                   <BulkBarSep />
                 </>
               )}
 
               {/* Destructive */}
-              <BulkBtn icon="🗑" label={isDeleting ? "Deleting…" : `Delete ${selCount}`} danger disabled={isDeleting} onClick={() => void handleDeleteSelected()} />
+              <BulkBtn icon="🗑" label={isDeleting ? t("dashboard.adminMedia.deleting") : interpolate(t("dashboard.adminMedia.deleteN"), { count: selCount })} danger disabled={isDeleting} onClick={() => void handleDeleteSelected()} />
 
               {/* Dismiss */}
               <button
                 type="button"
                 onClick={() => setSelected(new Set())}
-                title="Clear selection"
+                title={t("dashboard.adminMedia.clearSelection")}
                 style={{ marginLeft: "auto", background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "0 2px" }}
               >×</button>
             </div>
@@ -2210,7 +2271,7 @@ export function WorkspaceMediaPage() {
                 <div key={groupName} style={{ marginBottom: 28 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                     <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 700 }} className="text-admin-ink">{groupName}</div>
-                    <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">{groupPhotos.length} photo{groupPhotos.length !== 1 ? "s" : ""}</div>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">{withPluralization(t)("dashboard.adminMedia.nPhotos", groupPhotos.length)}</div>
                     <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
                     {isByTalent && groupPhotos.length > ROW_SIZE && (
                       <button
@@ -2226,7 +2287,9 @@ export function WorkspaceMediaPage() {
                           cursor: "pointer", padding: "0 2px", whiteSpace: "nowrap",
                         }}
                       >
-                        {isExpanded ? "Show less ↑" : `See ${hiddenCount} more →`}
+                        {isExpanded
+                          ? t("dashboard.adminMedia.showLess")
+                          : interpolate(t("dashboard.adminMedia.seeNMore"), { count: hiddenCount })}
                       </button>
                     )}
                   </div>
@@ -2248,13 +2311,15 @@ export function WorkspaceMediaPage() {
             })
           ) : filtered.length === 0 ? (
             <div style={{ padding: 56, textAlign: "center", fontFamily: FONTS.body, fontSize: 13, border: `1px dashed ${COLORS.border}`, borderRadius: 12 }} className="text-admin-ink-muted">
-              {view.kind === "folder"
-                ? "No photos in this folder yet. Select photos and use '+ Folder…' to add them."
-                : view.kind === "pending"
-                  ? "No photos pending review."
-                  : isLiveMode
-                    ? "No photos match. Try clearing filters or uploading."
-                    : "No photos yet — drop images or click Upload."}
+              {t(
+                view.kind === "folder"
+                  ? "dashboard.adminMedia.emptyFolder"
+                  : view.kind === "pending"
+                    ? "dashboard.adminMedia.emptyPending"
+                    : isLiveMode
+                      ? "dashboard.adminMedia.emptyNoMatch"
+                      : "dashboard.adminMedia.emptyNoPhotos",
+              )}
             </div>
           ) : (
             <>
@@ -2301,7 +2366,7 @@ export function WorkspaceMediaPage() {
           background: `${COLORS.fill}12`, border: `3px dashed ${COLORS.fill}`,
           borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none",
         }}>
-          <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700 }} className="text-admin-fill">Drop photos here</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700 }} className="text-admin-fill">{t("dashboard.adminMedia.dropPhotosHere")}</div>
         </div>
       )}
 
@@ -2309,14 +2374,17 @@ export function WorkspaceMediaPage() {
       <div style={{ padding: "20px 20px 0 20px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
         {bridgeMediaErrored && (
           <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(192,57,43,0.06)", border: "1px solid rgba(192,57,43,0.18)", fontFamily: FONTS.body, fontSize: 12.5, color: "#c0392b" }}>
-            We couldn’t load your media library. Try refreshing — if it keeps failing the bridge query is broken.
+            {t("dashboard.adminMedia.bridgeLoadError")}
           </div>
         )}
         {/* Bridge cap banner — totalCount now comes from a dedicated post-
             join count query, so this comparison is finally honest. */}
         {bridgeMediaTotalCount != null && bridgeMediaTotalCount > photos.length && (
           <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(255,193,7,0.08)", border: "1px solid rgba(255,193,7,0.22)", fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
-            Showing <strong>{photos.length.toLocaleString()}</strong> of <strong>{bridgeMediaTotalCount.toLocaleString()}</strong> photos. Use filters or folders to narrow what you see.
+            {interpolate(t("dashboard.adminMedia.showingNofM"), {
+              shown: photos.length.toLocaleString(),
+              total: bridgeMediaTotalCount.toLocaleString(),
+            })}
           </div>
         )}
         {uploadError && (
@@ -2327,16 +2395,18 @@ export function WorkspaceMediaPage() {
         )}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", paddingBottom: 14 }}>
           <div>
-            <h1 style={{ fontFamily: FONTS.body, fontSize: 20, fontWeight: 700, margin: 0 }} className="text-admin-ink">Media</h1>
+            <h1 style={{ fontFamily: FONTS.body, fontSize: 20, fontWeight: 700, margin: 0 }} className="text-admin-ink">{t("dashboard.adminMedia.title")}</h1>
             <p style={{ fontFamily: FONTS.body, fontSize: 12.5, marginTop: 2, marginBottom: 0 }} className="text-admin-ink-muted">
-              {photos.length} photo{photos.length !== 1 ? "s" : ""} · {folders.length} folder{folders.length !== 1 ? "s" : ""}
-              {mediaSettings.showWatermark && wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8 }} className="text-admin-success">· Watermark on</span>}
+              {withPluralization(t)("dashboard.adminMedia.nPhotos", photos.length)}
+              {" · "}
+              {withPluralization(t)("dashboard.adminMedia.nFolders", folders.length)}
+              {mediaSettings.showWatermark && wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8 }} className="text-admin-success">{" · "}{t("dashboard.adminMedia.watermarkOn")}</span>}
             </p>
           </div>
           <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", position: "relative" }}>
             {/* Settings gear */}
             <div className="relative">
-              <SecondaryButton size="sm" onClick={() => setShowSettings((v) => !v)}>⚙ Settings</SecondaryButton>
+              <SecondaryButton size="sm" onClick={() => setShowSettings((v) => !v)}>⚙ {t("dashboard.adminMedia.settings")}</SecondaryButton>
               {showSettings && (
                 <>
                   {/* backdrop */}
@@ -2350,16 +2420,16 @@ export function WorkspaceMediaPage() {
                     fontFamily: FONTS.body,
                   }}>
                     <div style={{ padding: "6px 14px 8px", fontSize: 10.5, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }} className="text-admin-ink-dim">
-                      Media features
+                      {t("dashboard.adminMedia.mediaFeatures")}
                     </div>
                     {([
-                      ["showFolders",    "Folders"],
+                      ["showFolders",    t("dashboard.adminMedia.sectionFolders")],
                       // Watermark toggle parked — see MEDIA_SETTINGS_DEFAULT.
-                      ["showPending",    "Pending review"],
-                      ["showAnalytics",  "Analytics"],
-                      ["showByTalent",   "Group by talent"],
-                      ["showByKind",     "Group by kind"],
-                      ["showDriveImport","Drive import"],
+                      ["showPending",    t("dashboard.adminMedia.navPendingReview")],
+                      ["showAnalytics",  t("dashboard.adminMedia.navAnalytics")],
+                      ["showByTalent",   t("dashboard.adminMedia.groupByTalent")],
+                      ["showByKind",     t("dashboard.adminMedia.groupByKind")],
+                      ["showDriveImport",t("dashboard.adminMedia.driveImport")],
                     ] as [keyof typeof mediaSettings, string][]).map(([key, label]) => (
                       <button
                         key={key}
@@ -2406,7 +2476,7 @@ export function WorkspaceMediaPage() {
                           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = COLORS.surfaceAlt; }}
                           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
                         >
-                          <span>↗</span> Configure watermark
+                          <span>↗</span> {t("dashboard.adminMedia.configureWatermark")}
                         </button>
                       </>
                     )}
@@ -2417,7 +2487,7 @@ export function WorkspaceMediaPage() {
             {/* Upload dropdown */}
             <div className="relative">
               <PrimaryButton size="sm" onClick={() => setShowUploadMenu((v) => !v)} disabled={assignBusy}>
-                + Upload ▾
+                {t("dashboard.adminMedia.uploadMenuButton")}
               </PrimaryButton>
               {showUploadMenu && (
                 <>
@@ -2429,9 +2499,9 @@ export function WorkspaceMediaPage() {
                     width: 220, padding: "6px 0", fontFamily: FONTS.body,
                   }}>
                     {([
-                      { icon: "📁", label: "From computer", sub: "JPG, PNG, WEBP, ZIP", action: () => { setShowUploadMenu(false); uploadFileRef.current?.click(); } },
-                      { icon: "⬛", label: "Drag & drop", sub: "Drop anywhere on this page", action: () => { setShowUploadMenu(false); toast("Drop images anywhere on the page"); } },
-                      ...(mediaSettings.showDriveImport ? [{ icon: "🟢", label: "Google Drive", sub: "Import from a shared folder", action: () => { setShowUploadMenu(false); void openDrivePanel(); } }] : []),
+                      { icon: "📁", label: t("dashboard.adminMedia.fromComputer"), sub: "JPG, PNG, WEBP, ZIP", action: () => { setShowUploadMenu(false); uploadFileRef.current?.click(); } },
+                      { icon: "⬛", label: t("dashboard.adminMedia.dragAndDrop"), sub: t("dashboard.adminMedia.dragAndDropSub"), action: () => { setShowUploadMenu(false); toast(t("dashboard.adminMedia.toastDropAnywhere")); } },
+                      ...(mediaSettings.showDriveImport ? [{ icon: "🟢", label: "Google Drive", sub: t("dashboard.adminMedia.driveSub"), action: () => { setShowUploadMenu(false); void openDrivePanel(); } }] : []),
                     ] as { icon: string; label: string; sub: string; action: () => void }[]).map((item) => (
                       <button
                         key={item.label}
@@ -2470,7 +2540,7 @@ export function WorkspaceMediaPage() {
                   value={drivePanelUrl}
                   onChange={(e) => setDrivePanelUrl(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") void handleDriveCheck(); }}
-                  placeholder="Paste Drive file or folder link…"
+                  placeholder={t("dashboard.adminMedia.drivePastePlaceholder")}
                   autoFocus
                   style={{ flex: 1, minWidth: 200, fontFamily: FONTS.body, fontSize: 12, padding: "6px 10px", borderRadius: 7, border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink, outline: "none" }}
                 />
@@ -2484,7 +2554,11 @@ export function WorkspaceMediaPage() {
                   disabled={drivePanelStatus.kind === "listing" || !drivePanelUrl.trim() || !drivePanelTalentId}
                   style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 7, background: COLORS.fill, color: "#fff", border: "none", cursor: "pointer",
                     opacity: (drivePanelStatus.kind === "listing" || !drivePanelUrl.trim() || !drivePanelTalentId) ? 0.5 : 1 }}>
-                  {drivePanelStatus.kind === "listing" ? "Checking…" : "Check"}
+                  {t(
+                    drivePanelStatus.kind === "listing"
+                      ? "dashboard.adminMedia.checking"
+                      : "dashboard.adminMedia.check",
+                  )}
                 </button>
                 <button type="button" onClick={() => setShowDrivePanel(false)}
                   style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.inkMuted, fontSize: 18, lineHeight: 1, padding: "2px 4px" }}>×</button>
@@ -2496,19 +2570,19 @@ export function WorkspaceMediaPage() {
               <div className="flex flex-col gap-1.5">
                 <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <div style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
-                    Found <strong>{drivePanelStatus.total}</strong> photo{drivePanelStatus.total !== 1 ? "s" : ""} in that folder
+                    {withPluralization(t)("dashboard.adminMedia.foundNPhotosInFolder", drivePanelStatus.total)}
                   </div>
                   <button type="button"
                     onClick={() => void handleDriveImport(drivePanelStatus.fileIds, drivePanelStatus.total)}
                     style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 7, background: COLORS.fill, color: "#fff", border: "none", cursor: "pointer" }}>
-                    Import {drivePanelStatus.total} photo{drivePanelStatus.total !== 1 ? "s" : ""}
+                    {withPluralization(t)("dashboard.adminMedia.importNPhotos", drivePanelStatus.total)}
                   </button>
                   <button type="button" onClick={() => setDrivePanelStatus({ kind: "idle" })}
-                    style={{ background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>Cancel</button>
+                    style={{ background: "none", border: "none", cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>{t("dashboard.adminMedia.cancel")}</button>
                 </div>
                 {drivePanelStatus.truncated && (
                   <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-amber">
-                    Folder is very large — only the first {drivePanelStatus.total} images are listed. Move excess into a sub-folder and re-run.
+                    {interpolate(t("dashboard.adminMedia.driveFolderTruncated"), { total: drivePanelStatus.total })}
                   </div>
                 )}
               </div>
@@ -2519,9 +2593,9 @@ export function WorkspaceMediaPage() {
               <div className="flex flex-col gap-1.5">
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <div style={{ fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
-                    Importing… <strong>{drivePanelStatus.done}</strong> / {drivePanelStatus.total} photos
+                    {interpolate(t("dashboard.adminMedia.importingProgress"), { done: drivePanelStatus.done, total: drivePanelStatus.total })}
                   </div>
-                  <div style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">Safe to leave — import continues server-side</div>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">{t("dashboard.adminMedia.safeToLeave")}</div>
                 </div>
                 <div style={{ height: 4, borderRadius: 4, background: COLORS.borderSoft, overflow: "hidden" }}>
                   <div style={{ '--progress-w': `${drivePanelStatus.total > 0 ? Math.round((drivePanelStatus.done / drivePanelStatus.total) * 100) : 0}%` }} className="w-[var(--progress-w)] h-full rounded-[4px] [transition:width_0.4s_ease]" />
@@ -2530,7 +2604,7 @@ export function WorkspaceMediaPage() {
             )}
 
             {drivePanelStatus.kind === "loading-talents" && (
-              <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="bg-admin-fill text-admin-ink-muted">Loading roster…</div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="bg-admin-fill text-admin-ink-muted">{t("dashboard.adminMedia.loadingRoster")}</div>
             )}
             {drivePanelStatus.kind === "error" && (
               <div style={{ fontFamily: FONTS.body, fontSize: 12, color: "#c0392b", padding: "5px 10px", background: "rgba(192,57,43,0.07)", borderRadius: 6, border: "1px solid rgba(192,57,43,0.2)" }}>
@@ -2539,12 +2613,12 @@ export function WorkspaceMediaPage() {
             )}
             {drivePanelStatus.kind === "ok" && (
               <div style={{ fontFamily: FONTS.body, fontSize: 12, padding: "5px 10px", background: "rgba(46,125,91,0.07)", borderRadius: 6, border: "1px solid rgba(46,125,91,0.2)" }} className="text-admin-success">
-                {drivePanelStatus.count} photo{drivePanelStatus.count !== 1 ? "s" : ""} imported.
+                {withPluralization(t)("dashboard.adminMedia.nPhotosImported", drivePanelStatus.count)}
               </div>
             )}
             {(drivePanelStatus.kind === "idle" || drivePanelStatus.kind === "error") && (
               <div style={{ fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
-                Works with any file or folder shared as &quot;Anyone with the link&quot;
+                {t("dashboard.adminMedia.driveAnyoneWithLink")}
               </div>
             )}
           </div>
@@ -2627,26 +2701,26 @@ export function WorkspaceMediaPage() {
             padding: "24px 28px 28px",
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <div className="text-admin-ink text-admin-15 font-bold">Keyboard shortcuts</div>
+              <div className="text-admin-ink text-admin-15 font-bold">{t("dashboard.adminMedia.keyboardShortcuts")}</div>
               <button type="button" onClick={() => setShowShortcutHelp(false)}
                 style={{ background: "none", border: "none", color: COLORS.inkMuted, cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
             </div>
             {[
-              { label: "General", rows: [
-                ["Click", "Open photo (preview + edit)"],
-                ["Esc", "Clear selection / close"],
-                ["⌘A", "Select all visible"],
-                ["?", "Toggle this help"],
+              { label: t("dashboard.adminMedia.shortcutsGeneral"), rows: [
+                [t("dashboard.adminMedia.keyClick"), t("dashboard.adminMedia.shortcutOpenPhoto")],
+                ["Esc", t("dashboard.adminMedia.shortcutClearClose")],
+                ["⌘A", t("dashboard.adminMedia.shortcutSelectAllVisible")],
+                ["?", t("dashboard.adminMedia.shortcutToggleHelp")],
               ]},
-              { label: "Pending review", rows: [
-                ["Y", "Approve focused photo"],
-                ["N", "Reject focused photo"],
-                ["← →", "Navigate between photos"],
+              { label: t("dashboard.adminMedia.navPendingReview"), rows: [
+                ["Y", t("dashboard.adminMedia.shortcutApproveFocused")],
+                ["N", t("dashboard.adminMedia.shortcutRejectFocused")],
+                ["← →", t("dashboard.adminMedia.shortcutNavigateBetween")],
               ]},
-              { label: "When a photo is open", rows: [
-                ["← →", "Previous / next photo"],
-                ["Y / N", "Approve / Reject (if pending)"],
-                ["Esc", "Close"],
+              { label: t("dashboard.adminMedia.shortcutsWhenOpen"), rows: [
+                ["← →", t("dashboard.adminMedia.shortcutPrevNext")],
+                ["Y / N", t("dashboard.adminMedia.shortcutApproveRejectIfPending")],
+                ["Esc", t("dashboard.adminMedia.shortcutClose")],
               ]},
             ].map(({ label, rows }) => (
               <div key={label} style={{ marginBottom: 18 }}>
@@ -2666,7 +2740,9 @@ export function WorkspaceMediaPage() {
               </div>
             ))}
             <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 11 }} className="text-admin-ink-muted">
-              Press <kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10 }}>?</kbd> again to close
+              {t("dashboard.adminMedia.pressQuestionPrefix")}{" "}
+              <kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10 }}>?</kbd>{" "}
+              {t("dashboard.adminMedia.pressQuestionSuffix")}
             </div>
           </div>
         </div>
