@@ -151,6 +151,9 @@ const ES_TEXT: Record<string, string> = {
   "Move to Offer": "Mover a Oferta",
   "Move to Booked": "Mover a Reservada",
   "Close as lost": "Cerrar como perdida",
+  "Close this inquiry as lost?": "¿Cerrar esta consulta como perdida?",
+  "The client thread moves to Past and leaves the active pipeline. You can still find it under the Past filter.":
+    "La conversación del cliente pasa a Pasadas y sale del pipeline activo. Aún puedes encontrarla en el filtro Pasadas.",
   "pending approval": "aprobación pendiente",
   "Booking confirmed": "Reserva confirmada",
   "payment cleared.": "pago confirmado.",
