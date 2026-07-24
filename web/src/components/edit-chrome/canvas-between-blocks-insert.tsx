@@ -270,8 +270,20 @@ export function CanvasBetweenBlocksInsert({
                 fontFamily:
                   'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
               }}
+              // Open on CLICK, not mousedown. Opening on mousedown tore the
+              // button out from under the cursor mid-gesture — clearing
+              // `hoveredGap` unmounts this very button, and the picker's
+              // full-viewport backdrop mounts in the same tick — so the
+              // mouseup landed on whatever was underneath and the canvas
+              // handled the tail of the gesture instead (it could end up
+              // reordering blocks). mousedown now ONLY stops the canvas from
+              // arming a drag; activation happens on click, which also makes
+              // the control keyboard-operable.
               onMouseDown={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
                 e.stopPropagation();
                 setHoveredGap(null);
                 setPickerTarget({ gap, pointerX: e.clientX });
