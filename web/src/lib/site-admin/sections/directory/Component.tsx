@@ -1,4 +1,5 @@
 import { Suspense, cache, type CSSProperties } from "react";
+import Image from "next/image";
 
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -22,6 +23,7 @@ import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { DirectoryV1 } from "./schema";
 import { normalizeDirectoryProps } from "./normalize";
+import { DirectoryBannerTopBar } from "./DirectoryBannerTopBar";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
 import { resolveDirectoryScopeSeed } from "./scope-seed";
 
@@ -276,6 +278,11 @@ export async function DirectoryComponent({
         )
       : [];
 
+  // Full-bleed lifestyle banner: the heading, AI search band and the category
+  // quick-link bar all live INSIDE the photo. Empty → the plain header path.
+  const heroImage = (props.heroImage ?? "").trim();
+  const hasBanner = Boolean(heroImage);
+
   return (
     <section
       data-section="directory"
@@ -284,16 +291,123 @@ export async function DirectoryComponent({
       data-density={props.density}
       data-hover={props.hoverBehavior}
       className={
-        props.background === "cool_ground"
-          ? "w-full bg-[var(--token-color-surface-raised,var(--impronta-surface))]/25 px-4 py-14 sm:px-6 sm:py-20"
-          : props.background === "subtle"
-            ? "w-full bg-foreground/[0.015] px-4 py-14 sm:px-6 sm:py-20"
-            : "w-full px-4 py-14 sm:px-6 sm:py-20"
+        hasBanner
+          ? "w-full pb-14 sm:pb-20"
+          : props.background === "cool_ground"
+            ? "w-full bg-[var(--token-color-surface-raised,var(--impronta-surface))]/25 px-4 py-14 sm:px-6 sm:py-20"
+            : props.background === "subtle"
+              ? "w-full bg-foreground/[0.015] px-4 py-14 sm:px-6 sm:py-20"
+              : "w-full px-4 py-14 sm:px-6 sm:py-20"
       }
       style={sectionStyle}
     >
-      <div className={boxed ? "mx-auto w-full max-w-7xl" : "w-full"}>
-        {props.showHeading &&
+      {hasBanner ? (
+        <div className="relative isolate w-full overflow-hidden">
+          <Image
+            src={heroImage}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition: "50% 62%" }}
+          />
+          {/* Noir wash + a bottom fade into the page canvas so the banner
+              melts into the results instead of ending on a hard line. */}
+          <div aria-hidden className="absolute inset-0 bg-black/35" />
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.5),rgba(0,0,0,0.12)_42%,var(--background)_98%)]"
+          />
+          <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center px-4 pb-10 pt-20 text-center sm:px-6 sm:pb-12 sm:pt-28">
+            {props.showHeading &&
+            (props.eyebrow || props.headline || props.copy) ? (
+              <header className="flex max-w-2xl flex-col items-center gap-4">
+                {props.eyebrow ? (
+                  <span
+                    className="text-[0.7rem] font-medium uppercase text-white/65"
+                    data-builder-node-id={nodeIdsByRole?.subheadline}
+                    style={{
+                      letterSpacing: "var(--site-label-tracking, 0.22em)",
+                      ...nodePresentationInlineStyle(
+                        props.nodePresentation?.subheadline,
+                        eyebrowSize,
+                      ),
+                    }}
+                  >
+                    {renderInlineRich(props.eyebrow)}
+                  </span>
+                ) : null}
+                {props.headline ? (
+                  <h2
+                    className="font-display text-3xl font-medium tracking-wide text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] sm:text-5xl"
+                    data-builder-node-id={nodeIdsByRole?.headline}
+                    style={{
+                      fontFamily: "var(--site-heading-font, inherit)",
+                      ...nodePresentationInlineStyle(
+                        props.nodePresentation?.headline,
+                        headingSize,
+                      ),
+                    }}
+                  >
+                    {renderInlineRich(props.headline)}
+                  </h2>
+                ) : null}
+                {props.copy ? (
+                  <p
+                    className="text-[15px] leading-relaxed text-white/80"
+                    data-builder-node-id={nodeIdsByRole?.copy}
+                    style={nodePresentationInlineStyle(
+                      props.nodePresentation?.copy,
+                      paragraphSize,
+                    )}
+                  >
+                    {renderInlineRich(props.copy)}
+                  </p>
+                ) : null}
+              </header>
+            ) : null}
+
+            {props.aiMode !== "off" ? (
+              <div className="mt-8 w-full max-w-2xl">
+                <Suspense
+                  fallback={
+                    <div className="h-14 w-full rounded-xl border border-white/15 bg-black/40 sm:h-16" />
+                  }
+                >
+                  <HeroSearch
+                    copy={heroCopy}
+                    directoryUrlSync
+                    initialDirectoryQuery=""
+                    aiSearchEnabled={aiEnabled}
+                    locale={pickLocale(loc, { en: "en", es: "es" } as const)}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
+
+            {props.topBarMode !== "none" && topBarFacet ? (
+              <div className="mt-7 w-full">
+                <DirectoryBannerTopBar
+                  options={topBarFacet.options}
+                  categoryTree={categoryTree}
+                  allLabel={ui.topBarPills.all}
+                  barAriaLabel={topBarFacet.label}
+                  overflowCopy={ui.topBarPills}
+                />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        className={`${boxed ? "mx-auto w-full max-w-7xl" : "w-full"}${
+          hasBanner ? " mt-8 px-4 sm:px-6" : ""
+        }`}
+      >
+        {!hasBanner &&
+        props.showHeading &&
         (props.eyebrow || props.headline || props.copy) ? (
           <header
             className={`mb-10 flex max-w-2xl flex-col gap-4 border-b border-[var(--token-color-line,rgba(120,120,120,0.18))] pb-7 ${headAlign}`}
@@ -343,7 +457,7 @@ export async function DirectoryComponent({
           </header>
         ) : null}
 
-        {props.aiMode !== "off" ? (
+        {!hasBanner && props.aiMode !== "off" ? (
           <div
             className={`mb-10 w-full max-w-2xl ${
               props.aiPlacement === "above_left" ? "" : "mx-auto"
@@ -396,7 +510,7 @@ export async function DirectoryComponent({
             categoryTree={categoryTree}
             sidebarBlocks={sidebar.blocks}
             defaultSort={props.defaultSort}
-            showTopBar={props.topBarMode !== "none"}
+            showTopBar={props.topBarMode !== "none" && !hasBanner}
             showSidebar={props.sidebarShow}
             showSort={props.sortControlShow}
             showResultCount={props.showResultCount}
