@@ -12,19 +12,18 @@ import { buildNav, isActive, type NavNode } from "./marketing-header-nav";
 import { MarketingCta } from "./cta-link";
 import { LOGIN_MODAL_EVENT } from "./login-modal";
 import { MarketingLanguageMenu } from "./marketing-language-menu";
-import { MarketingLanguageToggle } from "./marketing-language-toggle";
-import { DesktopSupport, SUPPORT_EMAIL } from "./marketing-support-menu";
+import { DesktopSupport } from "./marketing-support-menu";
 import {
   ArrowTiny,
   ChevronDownGlyph,
   ChevronGlyph,
   CloseGlyph,
   MenuGlyph,
+  SearchGlyph,
   SignInGlyph,
 } from "./marketing-header-glyphs";
 import {
   DesktopAccount,
-  AccountAvatar,
   type MarketingAccount,
 } from "./marketing-account-menu";
 
@@ -127,7 +126,7 @@ export function MarketingHeader({
           : "0 1px 0 rgba(15,23,20,0.02)",
       }}
     >
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:h-[72px] sm:px-8">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:h-[72px] sm:gap-6 sm:px-8">
         <Link
           href={L("/")}
           className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
@@ -160,7 +159,11 @@ export function MarketingHeader({
           )}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
+        {/* Utility cluster — visible at EVERY width. On mobile these three
+            icons (language / support / account) carry what the old hamburger
+            menu buried: the bar stops feeling empty and the menu can go back
+            to being pure navigation. */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <MarketingLanguageMenu
             activeLocale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
@@ -181,13 +184,14 @@ export function MarketingHeader({
                   window.dispatchEvent(new CustomEvent(LOGIN_MODAL_EVENT))
                 }
                 /* Colours as classes, not inline `style` — inline wins over
-                   stylesheet rules and would nullify the `hover:` variants. */
-                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
+                   stylesheet rules and would nullify the `hover:` variants.
+                   Desktop-only: on mobile Sign in lives in the menu footer. */
+                className="hidden h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
               >
                 <SignInGlyph />
                 {copy.nav.signIn}
               </button>
-              <span className="relative inline-flex">
+              <span className="relative hidden lg:inline-flex">
                 <MarketingCta
                   href={L("/get-started")}
                   variant="primary"
@@ -212,22 +216,22 @@ export function MarketingHeader({
               </span>
             </>
           )}
-        </div>
 
-        <button
-          type="button"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors lg:hidden"
-          style={{
-            borderColor: "var(--plt-hairline-strong)",
-            color: "var(--plt-ink)",
-            background: condensed ? "var(--plt-bg-raised)" : "transparent",
-          }}
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((o) => !o)}
-        >
-          {menuOpen ? <CloseGlyph /> : <MenuGlyph />}
-        </button>
+          <button
+            type="button"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border transition-colors lg:hidden"
+            style={{
+              borderColor: "var(--plt-hairline-strong)",
+              color: "var(--plt-ink)",
+              background: condensed ? "var(--plt-bg-raised)" : "transparent",
+            }}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {menuOpen ? <CloseGlyph /> : <MenuGlyph />}
+          </button>
+        </div>
       </div>
 
       {menuOpen ? (
@@ -238,7 +242,31 @@ export function MarketingHeader({
             borderTop: "1px solid var(--plt-hairline)",
           }}
         >
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-5 py-5 sm:px-8">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-1 px-4 py-4 pb-6 sm:px-8">
+            {/* Real search, not decoration: the directory supports free-text
+                `?q=`. A GET form keeps it zero-JS — submitting navigates to
+                the (locale-aware) directory with the query applied. */}
+            <form action={L("/directory")} method="get" role="search" className="pb-2">
+              <div
+                className="flex items-center gap-2.5 rounded-2xl border px-4 py-3"
+                style={{
+                  borderColor: "var(--plt-hairline-strong)",
+                  background: "var(--plt-bg-raised)",
+                }}
+              >
+                <SearchGlyph />
+                <input
+                  type="search"
+                  name="q"
+                  enterKeyHint="search"
+                  aria-label={copy.nav.searchTalent}
+                  placeholder={copy.nav.searchTalent}
+                  className="w-full bg-transparent text-[1rem] outline-none placeholder:text-[var(--plt-muted)]"
+                  style={{ color: "var(--plt-ink)" }}
+                />
+              </div>
+            </form>
+
             {NAV.map((node) =>
               node.kind === "link" ? (
                 <Link
@@ -263,205 +291,24 @@ export function MarketingHeader({
                 />
               ),
             )}
+            {/* The old menu also carried the language pill, a support
+                section and the signed-in account's full workspace/page
+                list — three screens of chrome before the CTA. All of that
+                now lives behind the header's own globe / ? / avatar
+                controls; the menu keeps navigation plus one clear action. */}
             <div
               className="mt-3 flex flex-col gap-2 border-t pt-4"
               style={{ borderColor: "var(--plt-hairline)" }}
             >
-              <div className="flex justify-center pb-1">
-                <MarketingLanguageToggle
-                  activeLocale={locale}
-                  pathnameWithoutLocale={pathnameWithoutLocale}
-                />
-              </div>
               {account ? (
-                <>
-                  <a
-                    href={account.accountHref}
-                    className="flex items-center gap-3 rounded-2xl px-4 py-3"
-                    style={{ background: "var(--plt-bg-raised)" }}
-                  >
-                    <AccountAvatar size="lg" />
-                    <div className="min-w-0">
-                      <p
-                        className="truncate text-[0.9375rem] font-semibold"
-                        style={{ color: "var(--plt-ink)" }}
-                      >
-                        {account.displayName}
-                      </p>
-                      <p
-                        className="truncate text-[0.8125rem]"
-                        style={{ color: "var(--plt-muted)" }}
-                      >
-                        {account.email}
-                      </p>
-                    </div>
-                  </a>
-
-                  {account.workspaces.length > 0 ? (
-                    <>
-                      {account.isTalent ? (
-                        <p className="px-4 pt-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
-                          {copy.nav.workspaces}
-                        </p>
-                      ) : null}
-                      {account.workspaces.map((w) => (
-                        <a
-                          key={`${w.slug}:${w.role}`}
-                          href={w.href}
-                          className="flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                          style={{ color: "var(--plt-ink)" }}
-                        >
-                          <span className="min-w-0 flex-1 truncate">{w.name}</span>
-                          <span className="shrink-0 text-[0.75rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
-                            {w.role}
-                          </span>
-                          <ChevronGlyph />
-                        </a>
-                      ))}
-                    </>
-                  ) : null}
-
-                  {account.isTalent ? (
-                    <>
-                      {account.workspaces.length > 0 ? (
-                        <p className="px-4 pt-3 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
-                          {copy.nav.myPages}
-                        </p>
-                      ) : null}
-                      {account.globalHidden ? (
-                        <p className="px-4 py-2 text-[0.8125rem]" style={{ color: "var(--plt-muted)" }}>
-                          {copy.nav.hiddenEverywhere}
-                        </p>
-                      ) : null}
-                      {account.talentPages.map((p) => (
-                        <div
-                          key={p.key}
-                          className="flex items-center justify-between gap-3 rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                        >
-                          <a
-                            href={p.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex min-w-0 flex-1 items-center gap-3"
-                            style={{ color: "var(--plt-ink)" }}
-                          >
-                            <span className="min-w-0 flex-1 truncate">
-                              {p.kind === "self_page" ? copy.nav.yourTulalaPage : p.name}
-                            </span>
-                          </a>
-                          {p.planBadge ? (
-                            <span className="shrink-0 text-[0.75rem] font-semibold uppercase tracking-wide" style={{ color: "var(--plt-forest)" }}>
-                              {p.planBadge}
-                            </span>
-                          ) : p.kind === "self_page" && account.talentUpgradeHref ? (
-                            <a
-                              href={account.talentUpgradeHref}
-                              className="shrink-0 rounded-lg px-2.5 py-1 text-[0.8125rem] font-semibold"
-                              style={{ background: "var(--plt-forest)", color: "var(--plt-forest-on)" }}
-                            >
-                              Upgrade
-                            </a>
-                          ) : null}
-                          <span className="shrink-0 text-[0.75rem] font-medium" style={{ color: p.status === "live" ? "#3f9b6b" : "var(--plt-muted)" }}>
-                            {p.status === "live"
-                              ? copy.nav.statusLive
-                              : p.status === "hidden"
-                                ? copy.nav.statusHidden
-                                : p.status === "pending"
-                                  ? copy.nav.statusPending
-                                  : copy.nav.statusWindingDown}
-                          </span>
-                        </div>
-                      ))}
-                      {account.talentLinks ? (
-                        <>
-                          {[
-                            { href: account.talentLinks.dashboard, label: copy.nav.talentDashboard },
-                            { href: account.talentLinks.editProfile, label: copy.nav.editProfile },
-                            { href: account.talentLinks.bookings, label: copy.nav.bookings },
-                            { href: account.talentLinks.messages, label: copy.nav.messages },
-                          ].map((l) => (
-                            <a
-                              key={l.href}
-                              href={l.href}
-                              className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                              style={{ color: "var(--plt-ink)" }}
-                            >
-                              {l.label}
-                              <ChevronGlyph />
-                            </a>
-                          ))}
-                        </>
-                      ) : null}
-                    </>
-                  ) : null}
-
-                  {account.isClient ? (
-                    <>
-                      {(account.clientTenants.length > 0
-                        ? account.clientTenants.map((t) => ({ href: t.href, label: t.name }))
-                        : [{ href: account.dashboardHref, label: copy.nav.dashboard }]
-                      ).map((row) => (
-                        <a
-                          key={row.href}
-                          href={row.href}
-                          className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                          style={{ color: "var(--plt-ink)" }}
-                        >
-                          <span className="min-w-0 flex-1 truncate">{row.label}</span>
-                          <ChevronGlyph />
-                        </a>
-                      ))}
-                      {account.clientLinks
-                        ? [
-                            { href: account.clientLinks.messages, label: copy.nav.messages },
-                            { href: account.clientLinks.saved, label: copy.nav.savedTalent },
-                            { href: account.clientLinks.account, label: copy.nav.accountSettings },
-                          ].map((l) => (
-                            <a
-                              key={l.href}
-                              href={l.href}
-                              className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                              style={{ color: "var(--plt-ink)" }}
-                            >
-                              {l.label}
-                              <ChevronGlyph />
-                            </a>
-                          ))
-                        : null}
-                    </>
-                  ) : account.workspaces.length === 0 && !account.isTalent ? (
-                    <a
-                      href={account.dashboardHref}
-                      className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                      style={{ color: "var(--plt-ink)" }}
-                    >
-                      {copy.nav.dashboard}
-                      <ChevronGlyph />
-                    </a>
-                  ) : null}
-
-                  <Link
-                    href={L("/get-started")}
-                    className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                    style={{ color: "var(--plt-ink-soft)" }}
-                  >
-                    {account.isTalent && account.workspaces.length === 0 ? copy.nav.openWorkspace : copy.nav.newWorkspace}
-                    <ChevronGlyph />
-                  </Link>
-                  {signOutAction ? (
-                    <form action={signOutAction}>
-                      <button
-                        type="submit"
-                        className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
-                        style={{ color: "var(--plt-ink-soft)" }}
-                      >
-                        {copy.nav.signOut}
-                        <ChevronGlyph />
-                      </button>
-                    </form>
-                  ) : null}
-                </>
+                <a
+                  href={account.dashboardHref}
+                  className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium transition-colors hover:bg-[var(--plt-bg-deep)]"
+                  style={{ color: "var(--plt-ink)" }}
+                >
+                  {copy.nav.dashboard}
+                  <ChevronGlyph />
+                </a>
               ) : (
                 <>
                   <button
@@ -508,27 +355,6 @@ export function MarketingHeader({
                   </p>
                 </>
               )}
-
-              <div className="my-2 h-px" style={{ background: "var(--plt-hairline)" }} aria-hidden />
-              <p className="px-4 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide" style={{ color: "var(--plt-muted)" }}>
-                {copy.nav.support}
-              </p>
-              <Link
-                href={L("/help")}
-                className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                style={{ color: "var(--plt-ink)" }}
-              >
-                {copy.nav.helpCenter}
-                <ChevronGlyph />
-              </Link>
-              <a
-                href={`mailto:${SUPPORT_EMAIL}`}
-                className="flex items-center justify-between rounded-2xl px-4 py-4 text-[1rem] font-medium"
-                style={{ color: "var(--plt-ink)" }}
-              >
-                {copy.nav.contactSupport}
-                <ChevronGlyph />
-              </a>
             </div>
           </div>
         </div>

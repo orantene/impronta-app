@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { withLocalePath } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
+import { HeaderPopover } from "./marketing-header-popover";
 
 /**
  * Language control for the marketing header: a globe icon button that opens a
@@ -110,50 +111,40 @@ export function MarketingLanguageMenu({
       </button>
 
       {open ? (
-        <div className="mkt-rise absolute right-0 top-full w-[12rem] pt-2" role="menu">
-          <div
-            className="overflow-hidden rounded-[18px] p-2"
-            style={{
-              background: "var(--plt-bg-elevated)",
-              border: "1px solid var(--plt-hairline-strong)",
-              boxShadow:
-                "0 28px 64px -28px rgba(15,23,20,0.4), 0 2px 6px -2px rgba(15,23,20,0.08)",
-            }}
+        <HeaderPopover label={label} widthClass="lg:w-[12rem]" onClose={() => setOpen(false)}>
+          <p
+            className="px-3 pb-1 pt-1 text-[0.6875rem] font-medium uppercase tracking-wide"
+            style={{ color: "var(--plt-muted)" }}
           >
-            <p
-              className="px-3 pb-1 pt-1 text-[0.6875rem] font-medium uppercase tracking-wide"
-              style={{ color: "var(--plt-muted)" }}
-            >
-              {label}
-            </p>
-            {locales.map((code) => {
-              const active = activeLocale === code;
-              return (
-                <a
-                  key={code}
-                  href={withLocalePath(pathnameWithoutLocale, code, settings)}
-                  role="menuitem"
-                  aria-current={active ? "true" : undefined}
-                  className={ROW}
-                  style={{
-                    color: active ? "var(--plt-ink-strong)" : "var(--plt-ink)",
-                    background: active ? "var(--plt-bg-raised)" : undefined,
-                  }}
-                >
-                  <span className="flex items-center gap-2.5">
-                    {LOCALE_FLAGS[code] ? (
-                      <span aria-hidden className="text-[1.0625rem] leading-none">
-                        {LOCALE_FLAGS[code]}
-                      </span>
-                    ) : null}
-                    {LOCALE_LABELS[code] ?? code.toUpperCase()}
-                  </span>
-                  {active ? <CheckGlyph /> : null}
-                </a>
-              );
-            })}
-          </div>
-        </div>
+            {label}
+          </p>
+          {locales.map((code) => {
+            const active = activeLocale === code;
+            return (
+              <a
+                key={code}
+                href={withLocalePath(pathnameWithoutLocale, code, settings)}
+                role="menuitem"
+                aria-current={active ? "true" : undefined}
+                className={ROW}
+                style={{
+                  color: active ? "var(--plt-ink-strong)" : "var(--plt-ink)",
+                  background: active ? "var(--plt-bg-raised)" : undefined,
+                }}
+              >
+                <span className="flex items-center gap-2.5">
+                  {LOCALE_FLAGS[code] ? (
+                    <span aria-hidden className="text-[1.0625rem] leading-none">
+                      {LOCALE_FLAGS[code]}
+                    </span>
+                  ) : null}
+                  {LOCALE_LABELS[code] ?? code.toUpperCase()}
+                </span>
+                {active ? <CheckGlyph /> : null}
+              </a>
+            );
+          })}
+        </HeaderPopover>
       ) : null}
     </div>
   );
