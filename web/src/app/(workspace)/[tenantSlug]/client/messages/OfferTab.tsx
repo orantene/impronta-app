@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
+import { formatDateOnly } from "@/lib/date-only";
 import { useActionState } from "react";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import {
@@ -1325,15 +1326,8 @@ function formatDateTime(iso: string): string {
 }
 
 function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+  // Date-only strings parse as LOCAL days (UTC-midnight parsing showed Aug 14 for Aug 15).
+  return formatDateOnly(iso);
 }
 
 function isExpired(iso: string | null): boolean {

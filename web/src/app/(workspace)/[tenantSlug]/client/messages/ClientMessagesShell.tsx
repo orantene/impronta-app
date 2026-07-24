@@ -14,6 +14,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback, useTransition } from "react";
+import { formatDateOnly } from "@/lib/date-only";
 import { createClient } from "@/lib/supabase/client";
 import { ThreadSearch, type ThreadSearchMessage, type JumpTarget } from "@/components/thread-search/ThreadSearch";
 import { StatusSheet, type StatusSheetData, type StageStatus, type OfferStatus, type PaymentStatus, type TalentParticipationRow } from "@/components/messages-status-sheet/StatusSheet";
@@ -3658,12 +3659,10 @@ function InquiryUnavailableDetail() {
 }
 
 function formatDate(d: string): string {
-  try {
-    const dt = new Date(d);
-    return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return d;
-  }
+  // DATE-only values (event_date) must parse as LOCAL calendar days —
+  // new Date("YYYY-MM-DD") is UTC midnight and renders the previous day
+  // in negative-offset zones (verified live: Aug 15 showed as Aug 14).
+  return formatDateOnly(d);
 }
 
 /**
