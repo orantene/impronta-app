@@ -3392,7 +3392,14 @@
         "unnamed": "Unnamed",
         "reorderFailed": "Reorder failed: {error}",
         "lineLabelPlaceholder": "Line label (e.g. Full-day + travel)",
-        "lineNotePlaceholder": "What's included (optional)"
+        "lineNotePlaceholder": "What's included (optional)",
+        "svcLoading": "Loading services…",
+        "svcLoadError": "Couldn't load services.",
+        "fromMenu": "From menu",
+        "svcPrefill": "Prefill from services…",
+        "svcNoneUseTemplate": "No services yet, use a template…",
+        "svcThisTalent": "This talent's services",
+        "svcGenericTemplates": "Generic templates"
       },
       "files": {
         "fileOver100": "File exceeds 100 MB cap",
