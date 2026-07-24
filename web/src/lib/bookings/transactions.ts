@@ -357,6 +357,65 @@ export async function createBookingTransaction(opts: {
       }
       // Snapshot is authoritative — charge exactly the snapshotted deposit.
       grossAmountCents = snapshotDepositCents;
+
+      // One deposit per booking: a PAID deposit txn is no longer "active", so
+      // without this check a second mark-deposit-paid call happily drafts and
+      // charges a duplicate (reproduced 2026-07-24: two paid $180 deposits on
+      // one booking). The UI hides the button after collection; this is the
+      // money-layer backstop.
+      const { data: paidDeposits, error: paidDepositsErr } = await sb
+        .from("booking_transactions")
+        .select("id")
+        .eq("booking_id", opts.bookingId)
+        .eq("checkout_type", "deposit")
+        .eq("status", "paid")
+        .limit(1);
+      if (paidDepositsErr) {
+        logServerError("transactions.create.depositDupLookup", paidDepositsErr);
+        return { ok: false, error: "Failed to verify deposit state." };
+      }
+      if (paidDeposits && paidDeposits.length > 0) {
+        return { ok: false, error: "The deposit is already collected for this booking." };
+      }
+    }
+
+    // A booking with a configured deposit must COLLECT it before the balance.
+    // A paid 'balance' txn flips the booking to fully PAID via payment-sync,
+    // so accepting balance-first would under-collect the deposit while the
+    // booking reports paid (reproduced live 2026-07-24: $420 balance settled
+    // on a $618 booking with the $180 deposit never taken, status showed
+    // paid). The UI already sequences the buttons; this is the money-layer
+    // backstop for direct action calls.
+    if ((opts.checkoutType ?? "full") === "balance") {
+      const { data: bookingDeposit, error: depositErr } = await sb
+        .from("agency_bookings")
+        .select("deposit_amount_cents")
+        .eq("id", opts.bookingId)
+        .maybeSingle();
+      if (depositErr) {
+        logServerError("transactions.create.balanceDepositLookup", depositErr);
+        return { ok: false, error: "Failed to verify deposit state." };
+      }
+      const configuredDepositCents =
+        bookingDeposit?.deposit_amount_cents != null
+          ? Math.round(Number(bookingDeposit.deposit_amount_cents))
+          : 0;
+      if (configuredDepositCents > 0) {
+        const { data: paidDeposit, error: paidDepositErr } = await sb
+          .from("booking_transactions")
+          .select("id")
+          .eq("booking_id", opts.bookingId)
+          .eq("checkout_type", "deposit")
+          .eq("status", "paid")
+          .limit(1);
+        if (paidDepositErr) {
+          logServerError("transactions.create.balanceDepositPaidLookup", paidDepositErr);
+          return { ok: false, error: "Failed to verify deposit state." };
+        }
+        if (!paidDeposit || paidDeposit.length === 0) {
+          return { ok: false, error: "Collect the deposit first, or settle the full amount instead." };
+        }
+      }
     }
 
     // #4: prefer the commission-snapshot platform fee (the true split) over the
