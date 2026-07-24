@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
 import { bulkNudgeInquiries, bulkSetInquiryArchived, bulkReassignInquiriesToMe, convertInquiryToBookingAction } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useDashboardText } from "../dashboard-i18n";
-import { useKeyboardListNav } from "../primitives";
+import { ConfirmDialog, useKeyboardListNav } from "../primitives";
 import { useAdminShell, COLORS, FONTS, type RichInquiry } from "../state";
 import { AdminInquiryDetail } from "./admin-2";
 import { AdminInquiryRow } from "./AdminOperationsShell";
@@ -512,6 +512,10 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
   const copy = useDashboardText();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // "Close as lost" is destructive (thread leaves the inbox for Past) and used
+  // to fire on a single menu click — a stray click during live QA (2026-07-23)
+  // closed a brand-new client inquiry. Gate it behind the shell's ConfirmDialog.
+  const [confirmClose, setConfirmClose] = useState(false);
   const [pending, startTransition] = useTransition();
   const options = NEXT_STAGES[stage as string] ?? [];
   if (options.length === 0) return null;
@@ -577,7 +581,14 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
             <button
               key={opt.value}
               type="button"
-              onClick={() => move(opt.value)}
+              onClick={() => {
+                if (opt.value === "closed_lost") {
+                  setOpen(false);
+                  setConfirmClose(true);
+                  return;
+                }
+                move(opt.value);
+              }}
               style={{
                 display: "block", width: "100%", textAlign: "left",
                 padding: "9px 14px",
@@ -592,6 +603,19 @@ export function StageTransitionMenu({ inquiryId, stage }: { inquiryId: string; s
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        onConfirm={() => {
+          setConfirmClose(false);
+          move("closed_lost");
+        }}
+        title={copy.t("Close this inquiry as lost?")}
+        body={copy.t("The client thread moves to Past and leaves the active pipeline. You can still find it under the Past filter.")}
+        confirmLabel={copy.t("Close as lost")}
+        cancelLabel={copy.t("Cancel")}
+        destructive
+      />
     </div>
   );
 }
