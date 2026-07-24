@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useDashboardText } from "../../dashboard-i18n";
-import { COLORS, FONTS, fieldsForType, parseVideoUrl, type TaxonomyParentId } from "../../state";
+import { COLORS, FONTS, fieldsForType, applyWorkspaceFieldOverride, parseVideoUrl, type TaxonomyParentId } from "../../state";
 
 
 
@@ -203,15 +203,24 @@ export function TierBreakdown({
   missing,
   primaryType,
   secondaryTypes,
+  tenantId,
 }: {
   missing: ReadonlyArray<{ id: string; label: string; section: string }>;
   primaryType: TaxonomyParentId;
   secondaryTypes?: ReadonlyArray<TaxonomyParentId>;
+  /** Real tenant UUID. When set, fields the workspace DISABLED are excluded
+   *  from the count so the completeness meter matches what the talent can
+   *  actually edit. Absent (prototype / no tenant) = every catalog field
+   *  counts, exactly as before (`applyWorkspaceFieldOverride` is a no-op). */
+  tenantId?: string | null;
 }) {
   const types = [primaryType, ...(secondaryTypes ?? [])];
-  const applicable = fieldsForType(types).filter(f =>
-    !f.id.startsWith("dyn.") && f.id !== "consent.terms" && f.id !== "media.headshot"
-  );
+  const applicable = fieldsForType(types)
+    .map(f => applyWorkspaceFieldOverride(f, tenantId))
+    .filter(f => f.enabled)
+    .filter(f =>
+      !f.id.startsWith("dyn.") && f.id !== "consent.terms" && f.id !== "media.headshot"
+    );
   const copy = useDashboardText();
   const missingIds = new Set(missing.map(m => m.id));
   const tiers = (["universal", "global", "type-specific"] as const).map(tier => {

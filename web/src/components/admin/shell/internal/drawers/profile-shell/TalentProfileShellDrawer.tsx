@@ -1532,7 +1532,11 @@ export function TalentProfileShellDrawer() {
   // ── Plan filter + live taxonomy ───────────────────────────────────
   // PR-A — picker source comes from taxonomy_terms (parent_category +
   // talent_type). Workspace-enabled subset + plan tier still apply.
-  const liveTax = useLiveTaxonomy();
+  // Pass the real tenant UUID so the taxonomy hook drops categories the admin
+  // disabled in workspace settings. `bridgeTenantIdentity.tenantId` is the
+  // UUID (not the slug), matching `agency_taxonomy_settings.tenant_id`; when
+  // absent (prototype / no tenant) the hook keeps its unfiltered behaviour.
+  const liveTax = useLiveTaxonomy({ tenantId: bridgeTenantIdentity?.tenantId ?? null });
   const [showMoreParents, setShowMoreParents] = useState(false);
   const planRank = (p: "free" | "studio" | "agency" | "network") =>
     ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
@@ -3607,7 +3611,15 @@ export function TalentProfileShellDrawer() {
                 editing experience matches the surface's grid layout
                 and feels like a coherent measurement block, not a
                 vertical text-input list. */}
-            {dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical")) && (
+            {/* Gate on `!newEngineActive` to MATCH the rail's `visible()`
+                helper (which hides physical/wardrobe/details when the DB
+                engine is mounted). Without this gate the accordion BODY still
+                mounted for a real tenant and rendered the static per-type
+                field set — including fields the admin DISABLED via workspace
+                field settings — even though the rail correctly hid the entry.
+                One engine per tenant: the DB `LiveCategoryFieldsEditor` above
+                is the single source of truth. */}
+            {!newEngineActive && dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical")) && (
               <ProfileAccordionSection
                 id="physical" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Physical & measurements"
                 sub="Height, body sizes, features."
@@ -3651,7 +3663,7 @@ export function TalentProfileShellDrawer() {
             {/* WARDROBE SIZES — separated from physical so a model who
                 only wants to fill body data isn't asked about shoes/
                 dress in the same breath. Same grid layout. */}
-            {dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe")) && (
+            {!newEngineActive && dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe")) && (
               <ProfileAccordionSection
                 id="wardrobe" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Wardrobe sizes"
                 sub="Shoe, dress, suit sizes."
@@ -3688,7 +3700,7 @@ export function TalentProfileShellDrawer() {
 
             {/* DETAILS — leftover catch-all for non-physical, non-wardrobe
                 type-specific fields (e.g. years modeling, allergies). */}
-            {(dynamicGroups.some(g => g.fields.some(f => !f.subsection)) || workspaceCustomTalentFields.length > 0) && (
+            {!newEngineActive && (dynamicGroups.some(g => g.fields.some(f => !f.subsection)) || workspaceCustomTalentFields.length > 0) && (
               <ProfileAccordionSection
                 id="details" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Profile details"
                 sub="Fields specific to this kind of work."

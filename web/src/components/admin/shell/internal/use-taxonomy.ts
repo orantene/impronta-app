@@ -174,8 +174,19 @@ function toDisplay(parent: LiveTaxonomyTerm, talentTypes: LiveTaxonomyTerm[]): T
  * Fetches the live taxonomy. Returns a memoized result with
  * { visibleParents (is_public_filter=TRUE, ≈8) } and
  * { restParents (the other ≈11 used for the "More…" expander) }.
+ *
+ * When a real `tenantId` is passed, the catalog is overlaid with that tenant's
+ * `agency_taxonomy_settings`: any term the admin DISABLED (`is_enabled=false`)
+ * is dropped so it stops appearing in the parent/child pickers that consume
+ * `visibleParents` / `restParents` / `allowedParents` directly. This mirrors
+ * the server-side overlay in `getEnabledTaxonomyTree()` (absent overlay row =
+ * enabled by default). RLS scopes the read to the staff user's tenant.
+ *
+ * With NO `tenantId` (prototype / pure-design / callers without tenant
+ * context) the overlay is skipped entirely and behaviour is unchanged.
  */
-export function useLiveTaxonomy(): LiveTaxonomyResult {
+export function useLiveTaxonomy(options?: { tenantId?: string | null }): LiveTaxonomyResult {
+  const tenantId = options?.tenantId ?? null;
   const [state, setState] = useState<{
     source: "live" | "fallback" | null;
     rows: LiveTaxonomyTerm[] | null;
@@ -210,9 +221,30 @@ export function useLiveTaxonomy(): LiveTaxonomyResult {
             .is("archived_at", null),
       );
 
+      // Tenant enablement overlay — only when a real tenant is in context.
+      // Drop any term the tenant explicitly DISABLED so disabled parents /
+      // groups / talent_types never reach the pickers. Missing overlay row =
+      // enabled (same default-true semantics as getEnabledTaxonomyTree). A
+      // failed/empty settings read degrades to "no filtering" (unchanged
+      // catalog) rather than hiding everything.
+      let disabledTermIds: Set<string> | null = null;
+      if (tenantId) {
+        const { data: settings } = await sb
+          .from("agency_taxonomy_settings")
+          .select("taxonomy_term_id, is_enabled")
+          .eq("tenant_id", tenantId)
+          .eq("is_enabled", false);
+        if (settings && settings.length > 0) {
+          disabledTermIds = new Set(settings.map((s) => s.taxonomy_term_id));
+        }
+      }
+
       if (cancelled) return;
 
-      const sorted = data
+      const filtered = disabledTermIds
+        ? data.filter((r) => !disabledTermIds!.has(r.id))
+        : data;
+      const sorted = filtered
         .slice()
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
       setState({ source: "live", rows: sorted.map(rowToTerm), error: null });
@@ -222,7 +254,7 @@ export function useLiveTaxonomy(): LiveTaxonomyResult {
     });
 
     return () => { cancelled = true; };
-  }, []);
+  }, [tenantId]);
 
   return useMemo<LiveTaxonomyResult>(() => {
     if (state.source === null) {
