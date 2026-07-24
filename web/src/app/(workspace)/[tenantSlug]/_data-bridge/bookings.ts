@@ -1,7 +1,9 @@
 import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadTalentCardThumbs } from "./talent-card-thumbs";
 import { loadTransactionsForTenant } from "@/lib/bookings/transactions";
 
 /**
@@ -173,6 +175,11 @@ export type ClientBookingRow = {
    * route (/api/receipt/[bookingId]).  Null if no booking row exists yet.
    */
   agencyBookingId: string | null;
+  /**
+   * CW3 — client-safe talent lineup (max 4): who is booked, with the same
+   * card headshot every other surface shows (null = initials fallback).
+   */
+  talentLineup: { id: string; name: string; thumbUrl: string | null }[];
 };
 
 /**
@@ -228,7 +235,55 @@ export async function loadClientBookings(
         currencyCode: null,
         paymentStatus: null,
         agencyBookingId: null,
+        talentLineup: [],
       }));
+    }
+
+    // CW3 — talent lineup per booked inquiry (names + card headshots).
+    const bookedIds = (data ?? []).map((r: Record<string, unknown>) => r.id as string);
+    const lineupByInquiry = new Map<string, { id: string; name: string; thumbUrl: string | null }[]>();
+    if (bookedIds.length > 0) {
+      const { data: parts, error: partsErr } = await supabase
+        .from("inquiry_participants")
+        .select(
+          "inquiry_id, sort_order, talent_profiles!talent_profile_id (id, display_name, first_name, last_name)",
+        )
+        .eq("role", "talent")
+        .neq("status", "removed")
+        .in("inquiry_id", bookedIds)
+        .order("sort_order", { ascending: true });
+      if (partsErr) {
+        logServerError("client.loadBookings.participants", partsErr);
+      }
+      type PartRaw = {
+        inquiry_id: string;
+        talent_profiles:
+          | { id: string; display_name: string | null; first_name: string | null; last_name: string | null }
+          | { id: string; display_name: string | null; first_name: string | null; last_name: string | null }[]
+          | null;
+      };
+      const talentIds = new Set<string>();
+      const pending: { inquiryId: string; id: string; name: string }[] = [];
+      for (const row of (parts ?? []) as unknown as PartRaw[]) {
+        const tp = Array.isArray(row.talent_profiles) ? row.talent_profiles[0] : row.talent_profiles;
+        if (!tp) continue;
+        const name = tp.display_name?.trim() || `${tp.first_name ?? ""} ${tp.last_name ?? ""}`.trim();
+        if (!name) continue;
+        pending.push({ inquiryId: row.inquiry_id, id: tp.id, name });
+        talentIds.add(tp.id);
+      }
+      // Card headshots via the shared resolver (same crop as every surface).
+      const admin = createServiceRoleClient();
+      const thumbs = talentIds.size > 0
+        ? await loadTalentCardThumbs(admin ?? supabase, [...talentIds])
+        : new Map<string, string>();
+      for (const pRow of pending) {
+        const list = lineupByInquiry.get(pRow.inquiryId) ?? [];
+        if (list.length < 4 && !list.some((t) => t.id === pRow.id)) {
+          list.push({ id: pRow.id, name: pRow.name, thumbUrl: thumbs.get(pRow.id) ?? null });
+        }
+        lineupByInquiry.set(pRow.inquiryId, list);
+      }
     }
 
     return (data ?? []).map((r: Record<string, unknown>) => {
@@ -250,6 +305,7 @@ export async function loadClientBookings(
         currencyCode: (booking?.currency_code as string | null) ?? null,
         paymentStatus: (booking?.payment_status as string | null) ?? null,
         agencyBookingId: (booking?.id as string | null) ?? null,
+        talentLineup: lineupByInquiry.get(r.id as string) ?? [],
       };
     });
   } catch (err) {

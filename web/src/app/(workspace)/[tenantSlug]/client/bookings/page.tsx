@@ -82,6 +82,10 @@ function BookingRow({
   const showReceipt =
     booking.paymentStatus === "paid" &&
     booking.agencyBookingId !== null;
+  // CW3 — a booking that still owes money must carry an action, not a dead
+  // chip. The payment conversation lives in the inquiry thread.
+  const showPayAction =
+    booking.paymentStatus === "unpaid" || booking.paymentStatus === "partial";
   return (
     <div
       style={{
@@ -95,7 +99,7 @@ function BookingRow({
         gridTemplateColumns: "48px 1fr auto",
         gap: 16,
         alignItems: "center",
-        padding: showReceipt ? "16px 18px 8px" : "16px 18px",
+        padding: showReceipt || showPayAction ? "16px 18px 8px" : "16px 18px",
         fontFamily: FONT,
         textDecoration: "none",
       }}
@@ -136,18 +140,53 @@ function BookingRow({
 
       {/* Details */}
       <div className="min-w-0">
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: C.ink,
-            letterSpacing: -0.1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {booking.company ?? "Confirmed booking"}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          {/* CW3 — who is booked: real card headshots, initials fallback. */}
+          {booking.talentLineup.length > 0 && (
+            <span style={{ display: "inline-flex", flexShrink: 0 }} aria-hidden>
+              {booking.talentLineup.slice(0, 3).map((t, ti) => (
+                <span
+                  key={t.id}
+                  title={t.name}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    border: "1.5px solid #fff",
+                    marginLeft: ti === 0 ? 0 : -6,
+                    background: t.thumbUrl
+                      ? `url(${t.thumbUrl}) center/cover`
+                      : `hsl(${(t.name.charCodeAt(0) * 47) % 360} 25% 88%)`,
+                    color: "rgba(11,11,13,0.62)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 10,
+                    fontWeight: 700,
+                  }}
+                >
+                  {!t.thumbUrl && t.name[0]?.toUpperCase()}
+                </span>
+              ))}
+            </span>
+          )}
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: C.ink,
+              letterSpacing: -0.1,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {booking.company
+              ?? (booking.talentLineup.length > 0
+                ? booking.talentLineup.map((t) => t.name).join(", ")
+                : booking.event_location ?? "Confirmed booking")}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
           {booking.event_date && (
@@ -205,6 +244,37 @@ function BookingRow({
         {future ? "Confirmed" : "Past"}
       </div>
     </Link>
+
+    {/* CW3 — Review & pay strip for unpaid/partial bookings. Deep-links to
+        the inquiry thread where the offer + payment settlement live. */}
+    {showPayAction && (
+      <div
+        style={{
+          padding: "0 18px 12px",
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        <Link
+          href={`/${tenantSlug}/client/messages?inquiry=${booking.id}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontSize: 11.5,
+            fontWeight: 700,
+            color: "#fff",
+            textDecoration: "none",
+            padding: "5px 12px",
+            borderRadius: 7,
+            background: C.accent,
+            fontFamily: FONT,
+          }}
+        >
+          Review &amp; pay
+        </Link>
+      </div>
+    )}
 
     {/* D2 — Receipt download strip, shown only when payment_status = paid */}
     {showReceipt && (
@@ -276,8 +346,12 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
     loadWorkspaceRosterLite(scope.tenantId),
   ]);
 
-  const upcoming = bookings.filter((b) => !isPast(b.event_date));
-  const past     = bookings.filter((b) => isPast(b.event_date) || !b.event_date);
+  // CW3 — every booking lives in exactly ONE bucket. Undated rows used to
+  // appear under BOTH Upcoming (TBC box) and Past (!event_date), so 8
+  // bookings rendered as 15 rows.
+  const upcoming = bookings.filter((b) => b.event_date && !isPast(b.event_date));
+  const dateTbc  = bookings.filter((b) => !b.event_date);
+  const past     = bookings.filter((b) => b.event_date && isPast(b.event_date));
 
   const clientForBtn = {
     displayName: clientProfile.displayName,
@@ -293,9 +367,9 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
         subtitle={
           bookings.length === 0
             ? "Confirmed bookings will appear here once your offers are accepted."
-            : `${bookings.length} confirmed · ${upcoming.length} upcoming`
+            : `${bookings.length} confirmed · ${upcoming.length + dateTbc.length} upcoming`
         }
-        badge={upcoming.length > 0 ? <HeaderBadge tone="success">{upcoming.length} upcoming</HeaderBadge> : undefined}
+        badge={upcoming.length + dateTbc.length > 0 ? <HeaderBadge tone="success">{upcoming.length + dateTbc.length} upcoming</HeaderBadge> : undefined}
         actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} />}
       />
 
@@ -309,6 +383,7 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
       ) : (
         <div className="flex flex-col gap-7">
           <BookingSection rows={upcoming} label="Upcoming" tenantSlug={tenantSlug} />
+          <BookingSection rows={dateTbc} label="Date being confirmed" tenantSlug={tenantSlug} />
           <BookingSection rows={past}     label="Past" tenantSlug={tenantSlug} />
           {/* W7 — client→talent reviews. Self-hides when nothing is eligible. */}
           <ReviewableBookingsSection tenantSlug={tenantSlug} />
