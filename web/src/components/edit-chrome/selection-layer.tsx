@@ -67,7 +67,9 @@ import {
   ArrowUp,
   ClipboardPaste,
   Copy,
+  CornerLeftUp,
   Files,
+  FolderTree,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -139,7 +141,14 @@ import {
   replaceBuilderNodeInTree,
   findBuilderNodeParentIndex,
 } from "@/lib/site-admin/builder-node/replace-in-tree";
-import { CHROME, EDIT_TOPBAR_H, Z_INDEX } from "./kit/tokens";
+import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
+import {
+  CANVAS_FLOATING_BAR,
+  CHROME,
+  CHROME_RADII,
+  EDIT_TOPBAR_H,
+  Z_INDEX,
+} from "./kit/tokens";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
@@ -2927,13 +2936,9 @@ export function SelectionLayer() {
         ring.style.width = `${width}px`;
         ring.style.height = `${height}px`;
       }
-      const chip = chipRef.current;
-      if (chip) {
-        // Mirrors the seed math: sit just above the element, clamped under the
-        // top bar.
-        chip.style.top = `${Math.max(top - 38, 58)}px`;
-        chip.style.left = `${left}px`;
-      }
+      // The chip is docked to the bottom control-bar line (see its style block)
+      // rather than tracking the element, so this loop deliberately leaves its
+      // position alone. The ring + handles below still track every frame.
       // Each handle overlay box shares the element's exact viewport rect; its
       // inner controls are positioned relative to the box, so moving the box is
       // enough. Any ref may be null (its handle isn't mounted for this node).
@@ -3582,11 +3587,51 @@ export function SelectionLayer() {
   const showMultiSelectionToolbar =
     (multiNodeSelectionActive || canUngroupSelectedNode) &&
     !dragChromeSuppressed;
+  // Nested-blocks scope. Selecting a CHILD used to empty the panel (a text
+  // block has no children of its own), so the picker vanished the moment you
+  // clicked into it. Fall back to the parent's child list — the operator keeps
+  // the same list and can see where they are inside it.
+  const nestedPanelScope = useMemo(() => {
+    if (!selectedCanvasNodeId) return null;
+    if (selectedNodeChildren.length > 0) {
+      return {
+        parentNodeId: selectedCanvasNodeId,
+        parentLabel: selectedNodeLabel,
+        nodes: selectedNodeChildren,
+        viewingChild: false,
+      };
+    }
+    const parentContext = findCanvasNodeParentContext(builderTree, selectedCanvasNodeId);
+    if (!parentContext) return null;
+    const parentNode = findBuilderNodeById(builderTree, parentContext.parentNodeId);
+    if (!parentNode || !("children" in parentNode)) return null;
+    const siblings = parentNode.children ?? [];
+    if (siblings.length === 0) return null;
+    return {
+      parentNodeId: parentContext.parentNodeId,
+      parentLabel:
+        parentNode.kind === "section"
+          ? chipLabel
+          : BUILDER_NODE_REGISTRY[parentNode.kind].label,
+      nodes: siblings,
+      viewingChild: true,
+    };
+  }, [
+    builderTree,
+    chipLabel,
+    selectedCanvasNodeId,
+    selectedNodeChildren,
+    selectedNodeLabel,
+  ]);
   const canManageSelectedNodeChildren =
-    drag.phase === "idle" &&
-    !multiNodeSelectionActive &&
-    !!selectedCanvasNodeId &&
-    selectedNodeChildren.length > 0;
+    drag.phase === "idle" && !multiNodeSelectionActive && !!nestedPanelScope;
+  // Nested-blocks panel open state — lifted out of the panel so the selection
+  // chip's toggle and the panel's own `×` share one truth. Reopens for each
+  // new selection (the panel is a per-selection picker, not a sticky drawer).
+  const [nestedPanelOpen, setNestedPanelOpen] = useState(true);
+  useEffect(() => {
+    setNestedPanelOpen(true);
+  }, [selectedCanvasNodeId]);
   const commitNodeRemoval = useCallback(async () => {
     if (!selectedCanvasNodeId || !canRemoveSelectedNode) return;
     const removed = await removeBuilderNode(selectedCanvasNodeId);
@@ -4671,7 +4716,7 @@ export function SelectionLayer() {
                     letterSpacing: "0.01em",
                     transition: "background 110ms ease",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(24,24,27,0.06)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <svg
@@ -4744,9 +4789,18 @@ export function SelectionLayer() {
           {canManageSelectedNodeChildren ? (
             <CanvasNodeChildrenPanel
               selectedRect={renderSelectedRect}
-              parentNodeId={selectedCanvasNodeId}
-              parentLabel={selectedNodeLabel}
-              nodes={selectedNodeChildren}
+              open={nestedPanelOpen}
+              onClose={() => setNestedPanelOpen(false)}
+              onOpen={() => setNestedPanelOpen(true)}
+              parentNodeId={nestedPanelScope?.parentNodeId ?? null}
+              parentLabel={nestedPanelScope?.parentLabel ?? selectedNodeLabel}
+              nodes={nestedPanelScope?.nodes ?? []}
+              viewingChild={nestedPanelScope?.viewingChild ?? false}
+              onSelectParent={
+                nestedPanelScope?.viewingChild && nestedPanelScope.parentNodeId
+                  ? () => selectBuilderNode(nestedPanelScope.parentNodeId)
+                  : null
+              }
               selectedNodeId={selectedBuilderNodeId}
               copiedKind={copiedBuilderNodeKind}
               reduceMotion={reduceMotion}
@@ -5105,24 +5159,22 @@ export function SelectionLayer() {
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
               position: "fixed",
-              // Sit just above the element, clamped below the top bar. The old
-              // +28 breadcrumb-clearance is gone now that the breadcrumb bar is
-              // removed, so the toolbar floats closer to the element and covers
-              // less of the content above it.
-              //
-              // The rAF loop below owns top/left every frame for Figma-smooth
-              // tracking; these seed first paint and stay correct on any React
-              // re-render (same live-geometry source), so the two never fight.
-              top: Math.max(renderSelectedRect.top - 38, 58),
-              left: renderSelectedRect.left,
-              height: 34,
+              // Docked to the same bottom line as the canvas text toolbar and
+              // the zoom bar, so every canvas control bar reads as one row
+              // instead of one chip chasing the element while the others sit
+              // still. The rAF loop below no longer writes top/left for the
+              // chip (it still tracks the ring + handles).
+              bottom: CANVAS_FLOATING_BAR.bottom,
+              left: "50%",
+              transform: "translateX(-50%)",
+              maxWidth: "min(96vw, 720px)",
+              height: CANVAS_FLOATING_BAR.height,
               display: "inline-flex",
               alignItems: "stretch",
-              background: selectedNodeIsEditableBlock ? CHIP_BG : LIGHT_CHIP_BG,
-              color: selectedNodeIsEditableBlock ? "white" : CHROME.ink,
-              borderRadius: CANVAS_CHROME_RADIUS,
-              boxShadow: selectedNodeIsEditableBlock ? CHIP_SHADOW : LIGHT_CHIP_SHADOW,
-              backdropFilter: selectedNodeIsEditableBlock ? "blur(12px)" : undefined,
+              background: LIGHT_CHIP_BG,
+              color: CHROME.ink,
+              borderRadius: CHROME_RADII.lg,
+              boxShadow: LIGHT_CHIP_SHADOW,
               overflow: "hidden",
               zIndex: 90,
               fontFamily:
@@ -5336,6 +5388,13 @@ export function SelectionLayer() {
              * Delete fan out cleanly. */}
             {selectedNodeIsEditableBlock ? (
               <BlockChipToolBar
+                light
+                nestedOpen={nestedPanelOpen}
+                onToggleNested={
+                  canManageSelectedNodeChildren
+                    ? () => setNestedPanelOpen((open) => !open)
+                    : null
+                }
                 disabled={saving}
                 confirmRemove={confirmRemove}
                 canEditText={selectedNodeHasInlineTextTarget}
@@ -6263,11 +6322,14 @@ function ContextMenuButton({
   children,
   disabled = false,
   danger = false,
+  light = false,
   onClick,
 }: {
   children: string;
   disabled?: boolean;
   danger?: boolean;
+  /** Light menu surface — matches the docked canvas control bars. */
+  light?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -6285,7 +6347,13 @@ function ContextMenuButton({
         borderRadius: CANVAS_CHROME_RADIUS,
         border: "none",
         background: "transparent",
-        color: danger ? "rgba(255,195,195,0.95)" : "rgba(255,255,255,0.86)",
+        color: danger
+          ? light
+            ? "#b91c1c"
+            : "rgba(255,195,195,0.95)"
+          : light
+            ? CHROME.ink
+            : "rgba(255,255,255,0.86)",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.45 : 1,
         fontSize: 12,
@@ -6294,8 +6362,12 @@ function ContextMenuButton({
       }}
       onMouseEnter={(event) => {
         event.currentTarget.style.background = danger
-          ? "rgba(196,61,61,0.22)"
-          : "rgba(255,255,255,0.09)";
+          ? light
+            ? "rgba(196,61,61,0.10)"
+            : "rgba(196,61,61,0.22)"
+          : light
+            ? "rgba(24,24,27,0.05)"
+            : "rgba(255,255,255,0.09)";
       }}
       onMouseLeave={(event) => {
         event.currentTarget.style.background = "transparent";
@@ -6423,8 +6495,13 @@ function CanvasNodeInsertMenu({
 
 function CanvasNodeChildrenPanel({
   selectedRect,
+  open,
+  onClose,
   parentNodeId,
   parentLabel,
+  viewingChild = false,
+  onSelectParent,
+  onOpen,
   nodes,
   selectedNodeId,
   copiedKind,
@@ -6439,8 +6516,17 @@ function CanvasNodeChildrenPanel({
   onRemove,
 }: {
   selectedRect: Rect;
+  /** Controlled by the selection chip's "Nested blocks" toggle. */
+  open: boolean;
+  onClose: () => void;
   parentNodeId: string | null;
   parentLabel: string;
+  /** True when the SELECTION is one of `nodes`, not the parent holding them. */
+  viewingChild?: boolean;
+  /** Jump up to the parent. Null when the parent is already selected. */
+  onSelectParent?: (() => void) | null;
+  /** Reopen from the collapsed pill. */
+  onOpen: () => void;
   nodes: BuilderNode[];
   selectedNodeId: string | null;
   copiedKind: BuilderNode["kind"] | null;
@@ -6465,21 +6551,53 @@ function CanvasNodeChildrenPanel({
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
-  // Per-selection dismissal — operator can `×` the panel for the active
-  // selection when they don't need the nested-block picker in the way of
-  // the canvas content. Reset when the selection changes so the panel
-  // reappears for the next section. Caught in 2026-05-13 QA: panel sits
-  // on top of the section background with no way to hide.
-  const [dismissed, setDismissed] = useState(false);
-  useEffect(() => {
-    setDismissed(false);
-  }, [parentNodeId]);
+  // Open/closed is owned by the parent so the selection chip's toggle and the
+  // panel's own `×` drive the SAME state (one truth, two entry points).
   const viewportHeight =
     typeof window === "undefined" ? selectedRect.top + selectedRect.height + 220 : window.innerHeight;
   const viewportWidth =
     typeof window === "undefined" ? selectedRect.left + 308 : window.innerWidth;
   if (viewportWidth <= 520) return null;
-  if (dismissed) return null;
+  // Closed → collapse to a pill in the SAME spot rather than disappearing, so
+  // the panel has a visible home to come back from. Sits on the bottom-left
+  // control stack directly above the zoom bar.
+  if (!open) {
+    return (
+      <button
+        type="button"
+        data-builder-node-canvas-children-collapsed=""
+        onClick={onOpen}
+        aria-label={`Show nested blocks (${nodes.length})`}
+        aria-expanded={false}
+        title="Show nested blocks"
+        style={{
+          position: "fixed",
+          bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
+          left: 14,
+          height: 34,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          padding: "0 11px 0 9px",
+          borderRadius: CHROME_RADII.lg,
+          border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
+          background: CHROME.surface,
+          boxShadow: BUILDER_VISUAL.toolbarShadow,
+          color: CHROME.muted,
+          cursor: "pointer",
+          zIndex: 91,
+          pointerEvents: "auto",
+          fontSize: 11.5,
+          fontWeight: 600,
+          fontFamily:
+            'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <FolderTree size={14} strokeWidth={2} aria-hidden />
+        <span>{nodes.length}</span>
+      </button>
+    );
+  }
   const clearDragState = () => {
     setDraggingNode(null);
     setDropIndex(null);
@@ -6530,18 +6648,19 @@ function CanvasNodeChildrenPanel({
       data-builder-node-canvas-children=""
       style={{
         position: "fixed",
-        top: Math.min(selectedRect.top + selectedRect.height + 12, viewportHeight - 220),
-        left: Math.max(Math.min(selectedRect.left, viewportWidth - 340), 8),
+        // Docked above the zoom bar on the left rather than chasing the
+        // selection, so it shares the bottom control-bar stack with the other
+        // floating chrome instead of covering the canvas mid-page.
+        bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
+        left: 14,
         width: 332,
         maxHeight: 208,
         padding: "10px 10px 11px",
-        borderRadius: CANVAS_CHROME_RADIUS,
-        border: "1px solid rgba(255,255,255,0.09)",
-        background: CHIP_BG,
-        color: "white",
-        boxShadow: CHIP_SHADOW,
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        borderRadius: CHROME_RADII.lg,
+        border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
+        background: CHROME.surface,
+        color: CHROME.ink,
+        boxShadow: BUILDER_VISUAL.toolbarShadow,
         zIndex: 91,
         pointerEvents: "auto",
         overflow: "hidden",
@@ -6565,22 +6684,93 @@ function CanvasNodeChildrenPanel({
               fontWeight: 700,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: "rgba(255,255,255,0.55)",
+              color: CHROME.muted3,
             }}
           >
             Nested blocks
           </div>
-          <div
+          {/* Parent row. When a CHILD is selected this is a button that jumps
+              up a level, and it reads muted so the highlighted child row below
+              stays the "you are here" marker. When the parent itself is
+              selected it is violet + not clickable (already there). */}
+          <button
+            type="button"
+            disabled={!onSelectParent}
+            onClick={() => onSelectParent?.()}
+            title={
+              onSelectParent
+                ? `Select the parent (${parentLabel})`
+                : "Parent is selected"
+            }
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              maxWidth: "100%",
+              border: "none",
+              background: "transparent",
               fontSize: 11.5,
               fontWeight: 600,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              textAlign: "left",
+              color: viewingChild ? CHROME.muted : CHROME.accent,
+              cursor: onSelectParent ? "pointer" : "default",
+              // Reads as a control: a hit area with a hover wash, and the
+              // label underlined so "you can click this" survives at 11.5px.
+              margin: "1px 0 0 -5px",
+              padding: "2px 6px",
+              borderRadius: 6,
+              // Longhand only — mixing the `textDecoration` shorthand with
+              // `textDecorationColor` makes React warn and lets the shorthand
+              // clobber the colour on re-render.
+              textDecorationLine: onSelectParent ? "underline" : "none",
+              textDecorationColor: CHROME.muted3,
+              textUnderlineOffset: 2,
+              transition: "background 110ms ease, color 110ms ease",
+            }}
+            onMouseEnter={(e) => {
+              if (!onSelectParent) return;
+              e.currentTarget.style.background = "rgba(24,24,27,0.05)";
+              e.currentTarget.style.color = CHROME.ink;
+            }}
+            onMouseLeave={(e) => {
+              if (!onSelectParent) return;
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = CHROME.muted;
             }}
           >
-            {parentLabel}
-          </div>
+            <CornerLeftUp
+              size={11}
+              strokeWidth={2.4}
+              aria-hidden
+              style={{ flexShrink: 0, opacity: viewingChild ? 1 : 0.35 }}
+            />
+            <span
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {parentLabel}
+            </span>
+            {!viewingChild ? (
+              <span
+                style={{
+                  flexShrink: 0,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: CHROME.accent,
+                  background: BUILDER_VISUAL.accentBg,
+                  borderRadius: 4,
+                  padding: "1px 4px",
+                }}
+              >
+                Selected
+              </span>
+            ) : null}
+          </button>
         </div>
         <div
           style={{
@@ -6594,7 +6784,7 @@ function CanvasNodeChildrenPanel({
             style={{
               fontSize: 10.5,
               fontWeight: 600,
-              color: "rgba(255,255,255,0.62)",
+              color: CHROME.muted,
             }}
           >
             {nodes.length} block{nodes.length === 1 ? "" : "s"}
@@ -6603,7 +6793,7 @@ function CanvasNodeChildrenPanel({
             type="button"
             aria-label="Hide nested blocks panel"
             title="Hide for this selection"
-            onClick={() => setDismissed(true)}
+            onClick={onClose}
             style={{
               width: 18,
               height: 18,
@@ -6613,14 +6803,14 @@ function CanvasNodeChildrenPanel({
               border: "none",
               borderRadius: CANVAS_CHROME_RADIUS,
               background: "transparent",
-              color: "rgba(255,255,255,0.62)",
+              color: CHROME.muted,
               cursor: "pointer",
               padding: 0,
               fontSize: 14,
               lineHeight: 1,
               transition: "background 110ms ease",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(24,24,27,0.06)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
             ×
@@ -6635,12 +6825,19 @@ function CanvasNodeChildrenPanel({
           maxHeight: 168,
           overflowY: "auto",
           paddingRight: 2,
+          // Children sit indented off a hairline that runs down from the parent
+          // row above, so one glance says "these belong to that".
+          marginLeft: 5,
+          paddingLeft: 9,
+          borderLeft: `1px solid ${CHROME.line}`,
         }}
       >
         {nodes.map((node, index) => {
           const isSelected = selectedNodeId === node.id;
-          const showActionRow =
-            isSelected || hoveredNodeId === node.id || focusedNodeId === node.id;
+          // Actions appear only once a row is SELECTED (or keyboard-focused).
+          // Revealing them on hover resized the row under the cursor and left a
+          // half-painted icon strip while the list scrolled.
+          const showActionRow = isSelected || focusedNodeId === node.id;
           const pastePreview = copiedKind ? getPastePreview(node.id) : null;
           return (
             <div key={node.id}>
@@ -6672,12 +6869,17 @@ function CanvasNodeChildrenPanel({
                   padding: "7px 8px",
                   borderRadius: CANVAS_CHROME_RADIUS,
                   opacity: draggingNode?.nodeId === node.id ? 0.62 : 1,
+                  // Hover only TINTS the row now; it no longer reveals the
+                  // action strip, so the row never changes height under the
+                  // cursor.
                   background: isSelected
-                    ? "rgba(255,255,255,0.14)"
-                    : "rgba(255,255,255,0.06)",
+                    ? BUILDER_VISUAL.accentBg
+                    : hoveredNodeId === node.id
+                      ? "rgba(24,24,27,0.06)"
+                      : "rgba(24,24,27,0.03)",
                   border: isSelected
-                    ? "1px solid rgba(255,255,255,0.14)"
-                    : "1px solid rgba(255,255,255,0.05)",
+                    ? `1px solid ${CHROME.accent}`
+                    : `1px solid ${CHROME.line}`,
                 }}
                 onMouseEnter={() => setHoveredNodeId(node.id)}
                 onMouseLeave={() =>
@@ -6703,7 +6905,7 @@ function CanvasNodeChildrenPanel({
                   gap: 8,
                   border: "none",
                   background: "transparent",
-                  color: "white",
+                  color: CHROME.ink,
                   cursor: "pointer",
                   padding: 0,
                   textAlign: "left",
@@ -6714,8 +6916,8 @@ function CanvasNodeChildrenPanel({
                     width: 18,
                     height: 18,
                     borderRadius: CANVAS_CHROME_RADIUS,
-                    background: "rgba(255,255,255,0.08)",
-                    color: "rgba(255,255,255,0.85)",
+                    background: "rgba(24,24,27,0.05)",
+                    color: CHROME.muted,
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -6727,30 +6929,37 @@ function CanvasNodeChildrenPanel({
                   {nodes.length > 1 ? "⋮⋮" : index + 1}
                 </span>
                 <span className="flex-1 min-w-0">
+                  {/* TYPE leads — it is what the operator is scanning for. The
+                      block's own text is the supporting summary underneath,
+                      clamped to two lines so long copy can't push the row. */}
                   <span
                     style={{
                       display: "block",
-                      fontSize: 12.5,
-                      fontWeight: 600,
+                      fontSize: 12,
+                      fontWeight: 700,
                       lineHeight: 1.25,
-                      whiteSpace: "normal",
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {canvasChildPrimaryLabel(node)}
-                  </span>
-                  <span
-                    style={{
-                      display: "block",
-                      marginTop: 1,
-                      fontSize: 10.5,
-                      color: "rgba(255,255,255,0.58)",
+                      color: isSelected ? CHROME.accent : CHROME.ink,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                     }}
                   >
                     {canvasChildSecondaryLabel(node)}
+                  </span>
+                  <span
+                    style={{
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      marginTop: 2,
+                      fontSize: 10.5,
+                      lineHeight: 1.3,
+                      color: CHROME.muted,
+                      overflow: "hidden",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {canvasChildPrimaryLabel(node)}
                   </span>
                 </span>
               </button>
@@ -6762,8 +6971,9 @@ function CanvasNodeChildrenPanel({
                   gap: 4,
                   flexShrink: 0,
                   paddingLeft: 26,
-                  paddingTop: 4,
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                  marginTop: 6,
+                  paddingTop: 6,
+                  borderTop: `1px solid ${CHROME.line}`,
                 }}
               >
                 <CanvasMiniButton
@@ -6886,8 +7096,8 @@ function CanvasMiniButton({
         justifyContent: "center",
         borderRadius: CANVAS_CHROME_RADIUS,
         border: "none",
-        background: "rgba(255,255,255,0.08)",
-        color: "rgba(255,255,255,0.84)",
+        background: "rgba(24,24,27,0.05)",
+        color: CHROME.muted,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.35 : 1,
         padding: 0,
@@ -7276,6 +7486,9 @@ function BlockChipToolBar({
   disabled,
   confirmRemove,
   canEditText,
+  light = false,
+  nestedOpen,
+  onToggleNested,
   onResetPosition,
   onEditContent,
   onDesign,
@@ -7300,6 +7513,12 @@ function BlockChipToolBar({
   // with no text element (image, divider, spacer, embed, empty container, …)
   // is a no-op, so we omit the affordance instead of showing a dead button.
   canEditText: boolean;
+  /** Light floating toolbar — matches the canvas text toolbar surface. */
+  light?: boolean;
+  /** Nested-blocks panel visibility, when the selection has children. */
+  nestedOpen?: boolean;
+  /** Null when the selected block has no children (button stays out). */
+  onToggleNested?: (() => void) | null;
   onResetPosition: () => void;
   onEditContent: () => void;
   onDesign: () => void;
@@ -7339,7 +7558,9 @@ function BlockChipToolBar({
             background: "rgba(196,61,61,0.90)",
             color: "white",
             border: "none",
-            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            borderLeft: light
+              ? `1px solid ${CHROME.line}`
+              : "1px solid rgba(255,255,255,0.10)",
             cursor: "pointer",
           }}
         >
@@ -7355,9 +7576,11 @@ function BlockChipToolBar({
             fontSize: 11,
             fontWeight: 500,
             background: "transparent",
-            color: "rgba(255,255,255,0.72)",
+            color: light ? CHROME.muted : "rgba(255,255,255,0.72)",
             border: "none",
-            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            borderLeft: light
+              ? `1px solid ${CHROME.line}`
+              : "1px solid rgba(255,255,255,0.10)",
             cursor: "pointer",
           }}
         >
@@ -7371,9 +7594,11 @@ function BlockChipToolBar({
     width: 34,
     height: 34,
     background: "transparent",
-    color: "rgba(255,255,255,0.72)",
+    color: light ? CHROME.muted : "rgba(255,255,255,0.72)",
     border: "none",
-    borderLeft: "1px solid rgba(255,255,255,0.10)",
+    borderLeft: light
+      ? `1px solid ${CHROME.line}`
+      : "1px solid rgba(255,255,255,0.10)",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -7389,14 +7614,36 @@ function BlockChipToolBar({
       <ChipTextAction
         label="Edit Content"
         disabled={disabled}
+        light={light}
         onClick={onEditContent}
       />
-      <ChipTextAction label="Design" disabled={disabled} onClick={onDesign} />
+      <ChipTextAction label="Design" disabled={disabled} light={light} onClick={onDesign} />
+      {/* Nested blocks — toggles the child-block picker. Only rendered when
+          the selection actually has children, so it is never a dead button. */}
+      {onToggleNested ? (
+        <ChipBtn
+          light={light}
+          style={{
+            ...btnStyle,
+            background: nestedOpen ? BUILDER_VISUAL.accentBg : "transparent",
+            color: nestedOpen ? CHROME.accent : btnStyle.color,
+          }}
+          disabled={disabled}
+          onClick={onToggleNested}
+          aria-label={nestedOpen ? "Hide nested blocks" : "Show nested blocks"}
+          aria-pressed={nestedOpen}
+          data-selection-block-action="nested"
+          title={nestedOpen ? "Hide nested blocks" : "Show nested blocks"}
+        >
+          <FolderTree size={14} strokeWidth={2} aria-hidden />
+        </ChipBtn>
+      ) : null}
       {/* Revise this block with AI — reads the block's existing content and
           rewrites it from a plain-language ask, previewed before it commits. */}
       {onReviseWithAi ? (
         <ChipBtn
-          style={{ ...btnStyle, color: "#c4b5fd" }}
+          light={light}
+          style={{ ...btnStyle, color: light ? CHROME.accent : "#c4b5fd" }}
           disabled={disabled}
           onClick={onReviseWithAi}
           aria-label="Revise this block with AI"
@@ -7409,6 +7656,7 @@ function BlockChipToolBar({
       {/* Inline pencil edit remains for text blocks; inspector tabs above. */}
       {canEditText ? (
         <ChipBtn
+          light={light}
           style={btnStyle}
           disabled={disabled}
           onClick={onEdit}
@@ -7420,6 +7668,7 @@ function BlockChipToolBar({
         </ChipBtn>
       ) : null}
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled || !onAddAfter}
         onClick={() => onAddAfter?.()}
@@ -7430,6 +7679,7 @@ function BlockChipToolBar({
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 20h10" /></svg>
       </ChipBtn>
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onDuplicate}
@@ -7442,6 +7692,7 @@ function BlockChipToolBar({
       <BlockChipOverflowMenu
         btnStyle={btnStyle}
         disabled={disabled}
+        light={light}
         onResetPosition={onResetPosition}
         onAddBefore={onAddBefore}
         onMoveUp={onMoveUp}
@@ -7460,10 +7711,11 @@ function BlockChipToolBar({
           width: 1,
           height: 18,
           margin: "0 3px",
-          background: "rgba(255,255,255,0.14)",
+          background: light ? CHROME.line : "rgba(255,255,255,0.14)",
         }}
       />
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
@@ -7487,6 +7739,7 @@ function BlockChipToolBar({
 function BlockChipOverflowMenu({
   btnStyle,
   disabled,
+  light = false,
   onResetPosition,
   onAddBefore,
   onMoveUp,
@@ -7498,6 +7751,8 @@ function BlockChipOverflowMenu({
 }: {
   btnStyle: React.CSSProperties;
   disabled: boolean;
+  /** Light floating toolbar — matches the canvas text toolbar surface. */
+  light?: boolean;
   onResetPosition: () => void;
   onAddBefore: (() => void) | null;
   onMoveUp: (() => void) | null;
@@ -7539,6 +7794,7 @@ function BlockChipOverflowMenu({
       style={{ position: "relative", display: "inline-flex", alignItems: "stretch" }}
     >
       <ChipBtn
+        light={light}
         style={btnStyle}
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
@@ -7556,54 +7812,64 @@ function BlockChipOverflowMenu({
           data-selection-block-overflow-menu=""
           style={{
             position: "absolute",
-            top: "calc(100% + 6px)",
+            // The chip is docked at the bottom of the viewport, so the menu
+            // opens UPWARD — anchored below the bar it would fall off-screen.
+            bottom: "calc(100% + 6px)",
             right: 0,
             zIndex: 10,
             minWidth: 168,
             padding: 5,
             borderRadius: CANVAS_CHROME_RADIUS,
-            background: "rgba(24,24,27,0.97)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.42)",
+            background: light ? CHROME.surface : "rgba(24,24,27,0.97)",
+            border: light
+              ? `1px solid ${BUILDER_VISUAL.panelBorder}`
+              : "1px solid rgba(255,255,255,0.12)",
+            boxShadow: light
+              ? BUILDER_VISUAL.toolbarShadow
+              : "0 12px 32px rgba(0,0,0,0.42)",
             display: "flex",
             flexDirection: "column",
             gap: 1,
           }}
         >
-          <ContextMenuButton disabled={disabled} onClick={() => run(onResetPosition)}>
+          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onResetPosition)}>
             Reset position
           </ContextMenuButton>
           <ContextMenuButton
+            light={light}
             disabled={disabled || !onAddBefore}
             onClick={() => onAddBefore && run(onAddBefore)}
           >
             Add before
           </ContextMenuButton>
           <ContextMenuButton
+            light={light}
             disabled={disabled || !onMoveUp}
             onClick={() => onMoveUp && run(onMoveUp)}
           >
             Move up
           </ContextMenuButton>
           <ContextMenuButton
+            light={light}
             disabled={disabled || !onMoveDown}
             onClick={() => onMoveDown && run(onMoveDown)}
           >
             Move down
           </ContextMenuButton>
-          <ContextMenuButton disabled={disabled} onClick={() => run(onCopy)}>
+          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onCopy)}>
             Copy
           </ContextMenuButton>
-          <ContextMenuButton disabled={disabled} onClick={() => run(onCut)}>
+          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onCut)}>
             Cut
           </ContextMenuButton>
           <ContextMenuButton
+            light={light}
             disabled={disabled || !onPaste}
             onClick={() => onPaste && run(onPaste)}
           >
             Paste
           </ContextMenuButton>
-          <ContextMenuButton disabled={disabled} onClick={() => run(onDuplicate)}>
+          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onDuplicate)}>
             Duplicate
           </ContextMenuButton>
         </div>
@@ -7619,11 +7885,22 @@ function ChipBtn({
   disabled,
   onClick,
   danger,
+  light = false,
   ...rest
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   danger?: boolean;
+  /** Light floating toolbar — inverts the idle/hover ink for a white surface. */
+  light?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
+  // NOTE: these win over anything in `style` (spread first), so a light chip
+  // MUST pass `light` — a colour on `style` alone gets overwritten and the
+  // icon renders white-on-white.
+  const idleColor = light ? CHROME.muted : "rgba(255,255,255,0.72)";
+  const hoverColor = light ? CHROME.ink : "white";
+  const dangerColor = light ? "#b91c1c" : "#ff8b8b";
+  const hoverBg = light ? "rgba(24,24,27,0.05)" : "rgba(255,255,255,0.10)";
+  const dangerBg = light ? "rgba(196,61,61,0.10)" : "rgba(196,61,61,0.20)";
   return (
     <button
       type="button"
@@ -7633,16 +7910,8 @@ function ChipBtn({
       onPointerLeave={() => setHovered(false)}
       style={{
         ...style,
-        background: hovered
-          ? danger
-            ? "rgba(196,61,61,0.20)"
-            : "rgba(255,255,255,0.10)"
-          : "transparent",
-        color: hovered
-          ? danger
-            ? "#ff8b8b"
-            : "white"
-          : "rgba(255,255,255,0.72)",
+        background: hovered ? (danger ? dangerBg : hoverBg) : "transparent",
+        color: hovered ? (danger ? dangerColor : hoverColor) : idleColor,
         opacity: disabled ? 0.4 : 1,
       }}
       {...rest}

@@ -56,7 +56,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { CHROME, CHROME_SHADOWS, Z_INDEX } from "./kit/tokens";
+import { CANVAS_FLOATING_BAR, CHROME, CHROME_RADII, Z_INDEX } from "./kit/tokens";
+import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import {
   DEFAULT_WORKSPACE_CANVAS_MODE,
   resolveCanvasAvailableWidth,
@@ -64,6 +65,12 @@ import {
 } from "./workspace-layout";
 
 // ── constants ──────────────────────────────────────────────────────────────
+
+/**
+ * Neutral hover wash for zoom-bar buttons. Violet is reserved for the ACTIVE
+ * state (as on the text toolbar), so hover stays neutral or the two read alike.
+ */
+const ZOOM_BTN_HOVER_BG = "rgba(24, 24, 27, 0.05)";
 
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 2.0;
@@ -568,13 +575,18 @@ export function CanvasZoomControls({
   return (
     <div
       data-edit-overlay="zoom-controls"
-      className="pointer-events-auto fixed flex items-center gap-[3px] rounded-[10px] p-[3px]"
+      className="pointer-events-auto fixed flex items-center"
       style={{
-        bottom: 24,
+        bottom: CANVAS_FLOATING_BAR.bottom,
         left: leftOffset,
         zIndex: Z_INDEX.floatingControls,
-        background: CHROME.chipInk,
-        boxShadow: CHROME_SHADOWS.chip,
+        gap: 4,
+        height: CANVAS_FLOATING_BAR.height,
+        padding: "0 8px",
+        background: CHROME.surface,
+        borderRadius: CHROME_RADII.lg,
+        border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
+        boxShadow: BUILDER_VISUAL.toolbarShadow,
         transition: "left 220ms cubic-bezier(0.32,0.72,0,1)",
         // Hide the HUD on small screens where the inspector rail is also hidden.
         display: "flex",
@@ -583,7 +595,7 @@ export function CanvasZoomControls({
     >
       {/* Zoom out */}
       <ZoomBtn title="Zoom out (⌘−)" onClick={zoomOut} disabled={zoom <= ZOOM_MIN}>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </ZoomBtn>
@@ -593,17 +605,20 @@ export function CanvasZoomControls({
         type="button"
         title="Click to reset to 100%"
         onClick={() => zoomTo(1)}
-        className="inline-flex h-[28px] min-w-[52px] items-center justify-center rounded-[7px] border-none transition-colors"
+        className="inline-flex items-center justify-center border-none transition-colors"
         style={{
-          fontSize: 11.5,
+          height: CANVAS_FLOATING_BAR.buttonSize,
+          minWidth: 52,
+          borderRadius: CANVAS_FLOATING_BAR.buttonRadius,
+          fontSize: 12,
           fontWeight: 600,
           letterSpacing: "-0.01em",
-          color: "rgba(255,255,255,0.92)",
+          color: CHROME.muted,
           background: "transparent",
           cursor: "pointer",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.10)";
+          e.currentTarget.style.background = ZOOM_BTN_HOVER_BG;
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = "transparent";
@@ -614,7 +629,7 @@ export function CanvasZoomControls({
 
       {/* Zoom in */}
       <ZoomBtn title="Zoom in (⌘+)" onClick={zoomIn} disabled={zoom >= ZOOM_MAX}>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
@@ -623,12 +638,12 @@ export function CanvasZoomControls({
       {/* Divider */}
       <span
         aria-hidden
-        style={{ width: 1, height: 18, background: "rgba(255,255,255,0.12)", margin: "0 2px", flexShrink: 0 }}
+        style={{ width: 1, alignSelf: "stretch", background: CHROME.line, margin: "6px 2px", flexShrink: 0 }}
       />
 
       {/* Fit to page */}
       <ZoomBtn title="Fit page (⌘⇧F)" onClick={fitPage}>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
         </svg>
       </ZoomBtn>
@@ -639,7 +654,7 @@ export function CanvasZoomControls({
         onClick={toggleRulers}
         active={showRulers}
       >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M3 3h18v5H3zM3 3v18h5V3" />
           <line x1="8" y1="8" x2="8" y2="10" />
           <line x1="12" y1="8" x2="12" y2="10" />
@@ -675,19 +690,20 @@ function ZoomBtn({
       aria-label={title}
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-[28px] w-[28px] items-center justify-center rounded-[7px] border-none transition-colors disabled:cursor-not-allowed"
+      className="inline-flex items-center justify-center border-none transition-colors disabled:cursor-not-allowed disabled:opacity-40"
       style={{
-        background: active ? "rgba(255,255,255,0.16)" : "transparent",
-        color: disabled
-          ? "rgba(255,255,255,0.25)"
-          : "rgba(255,255,255,0.82)",
+        height: CANVAS_FLOATING_BAR.buttonSize,
+        width: CANVAS_FLOATING_BAR.buttonSize,
+        borderRadius: CANVAS_FLOATING_BAR.buttonRadius,
+        background: active ? BUILDER_VISUAL.accentBg : "transparent",
+        color: active ? CHROME.accent : CHROME.muted,
         cursor: disabled ? "not-allowed" : "pointer",
       }}
       onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = "rgba(255,255,255,0.14)";
+        if (!disabled) e.currentTarget.style.background = ZOOM_BTN_HOVER_BG;
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = active ? "rgba(255,255,255,0.16)" : "transparent";
+        e.currentTarget.style.background = active ? BUILDER_VISUAL.accentBg : "transparent";
       }}
     >
       {children}

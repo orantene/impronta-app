@@ -50,6 +50,7 @@ import {
 import { findBuilderNodeElement } from "./canvas-text-style-preview";
 import { ColorPickerPopover } from "./kit/color-picker";
 import {
+  CANVAS_FLOATING_BAR,
   CHROME,
   CHROME_RADII,
   DRAWER_WIDTHS,
@@ -144,9 +145,10 @@ const FONT_FAMILIES = [
 ];
 
 const TOOLBAR_MAX_WIDTH = 720;
-const TOOLBAR_HEIGHT = 42;
+/** Shared with the zoom bar so the two floating bars sit on one line. */
+const TOOLBAR_HEIGHT = CANVAS_FLOATING_BAR.height;
 /** Distance from the viewport bottom edge. */
-const TOOLBAR_BOTTOM_GUTTER = 70;
+const TOOLBAR_BOTTOM_GUTTER = CANVAS_FLOATING_BAR.bottom;
 /** Keep the bar inside the viewport — flush to the right edge when needed. */
 const VIEWPORT_EDGE_GUTTER = 8;
 const VIEWPORT_LEFT_GUTTER = 8;
