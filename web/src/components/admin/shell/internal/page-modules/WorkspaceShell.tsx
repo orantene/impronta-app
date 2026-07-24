@@ -192,6 +192,7 @@ function WorkspaceSidebarShell() {
     verificationRequests,
     overviewMetrics,
     tenantSlug,
+    adminBasePath,
   } = useAdminShell();
   const copy = useDashboardText();
   const router = useRouter();
@@ -212,7 +213,9 @@ function WorkspaceSidebarShell() {
   // Nested sub-nav (Shopify pattern) — shown under the active section.
   // Website sub-views + the Roster queues (Applications carries the pending
   // count so the parent badge is actionable in one click).
-  const adminBase = tenantSlug ? `/${tenantSlug}/admin` : "/admin";
+  // Host-aware: `/admin` on the tenant's own domain, `/{slug}/admin` on the
+  // shared app host. Resolved once in the provider — see `adminBasePath`.
+  const adminBase = adminBasePath;
   const websiteBase = `${adminBase}/website`;
   const rosterBase = `${adminBase}/roster`;
   const pendingApplications =

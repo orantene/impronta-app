@@ -36,6 +36,11 @@ import {
 } from "@/lib/saas/talent-site-host-routing";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import {
+  brandedAdminRedirectPath,
+  brandedAdminRewritePath,
+  normalizeBrandedNextParam,
+} from "@/lib/saas/branded-admin-url";
+import {
   PUBLIC_PATH_PREFIX_HEADER,
   TENANT_HEADER_NAME,
 } from "@/lib/saas/scope";
@@ -583,6 +588,24 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // Branded-host slug canonicalization — inverse of the shortcut rewrite below.
+  // That rewrite makes `/admin` WORK on a tenant's own host; this makes it the
+  // ONLY URL, so bookmarks and legacy `/<slug>/admin` hrefs stop landing users
+  // on `improntamodels.com/impronta/admin`. `domainKind !== "path"` spares
+  // `/w/<slug>` tenants, whose prefix is load-bearing. See branded-admin-url.ts.
+  if (
+    (request.method === "GET" || request.method === "HEAD") &&
+    hostContext.kind === "agency" &&
+    hostContext.domainKind !== "path"
+  ) {
+    const branded = brandedAdminRedirectPath(originalPathname, hostContext.tenantSlug);
+    if (branded) {
+      const url = request.nextUrl.clone();
+      url.pathname = branded;
+      return NextResponse.redirect(url, 308);
+    }
+  }
+
   const cmsRedirect = await tryCmsRedirectResponse(
     request,
     pathBasedTenantContext && pathBasedTenant
@@ -644,7 +667,9 @@ export async function proxy(request: NextRequest) {
 
   let pathnameForAuth = originalPathname;
   const nextUrl = request.nextUrl.clone();
-  let brandedWorkspaceShortcutRewrite = false;
+  // Set to the host's tenant slug when the branded shortcut rewrite fires,
+  // so the `?next=` normalization below has it without re-narrowing hostContext.
+  let brandedWorkspaceShortcutSlug: string | null = null;
 
   if (shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings)) {
     nextUrl.pathname = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);
@@ -683,48 +708,17 @@ export async function proxy(request: NextRequest) {
     pathnameForAuth = cmsSlugRewrite;
   }
 
-  // Phase 3.12 / 3.13 — branded workspace shortcuts on agency hosts.
-  // Keep the branded URL (`/admin`, `/client`) but route through the
-  // canonical slug handlers (`/<slug>/admin`, etc.) via internal rewrite,
-  // because those surfaces have no standalone (non-slug) route tree.
-  //
-  // `/talent/*` is DELIBERATELY EXCLUDED from this rewrite. The talent
-  // self-surface has its own standalone, host-agnostic tree at
-  // `app/(workspace)/talent/*` that resolves the talent's active agency
-  // from session + cookie, so it renders correctly on ANY host without a
-  // slug prefix (the app host already serves it this way). The tenant-
-  // scoped `app/(workspace)/[tenantSlug]/talent/*` pages, by contrast, are
-  // all *legacy redirectors* that `redirect()` straight back to `/talent/*`.
-  // So rewriting `/talent/foo` → `/<slug>/talent/foo` lands on a redirector
-  // that bounces back to `/talent/foo`, which this middleware rewrites
-  // again — an infinite client-side navigation loop where every hop is an
-  // HTTP 200 carrying a NEXT_REDIRECT directive to the same URL (the page
-  // never settles, the heading never renders). This bit every canonical
-  // platform-talent route — /talent/trust, /talent/discover,
-  // /talent/settings/payouts — on agency custom domains. Letting `/talent/*`
-  // fall through to its own tree is both correct and identical to how the
-  // app host serves it.
-  //
-  // `/client/register` still needs the bypass below: it is an
-  // unauthenticated (auth)-route page, and rewriting it to
-  // `/<slug>/client/register` would hit a non-existent workspace path → 404,
-  // breaking the client-acquisition funnel on the tenant's own host.
-  const isRegistrationEntry = pathnameForAuth === "/client/register";
-  if (
-    hostContext.kind === "agency" &&
-    hostContext.tenantSlug &&
-    !isRegistrationEntry &&
-    !pathnameForAuth.startsWith(`/${hostContext.tenantSlug}/`) &&
-    (
-      pathnameForAuth === "/admin" ||
-      pathnameForAuth.startsWith("/admin/") ||
-      pathnameForAuth === "/client" ||
-      pathnameForAuth.startsWith("/client/")
-    )
-  ) {
-    nextUrl.pathname = `/${hostContext.tenantSlug}${pathnameForAuth}`;
-    pathnameForAuth = nextUrl.pathname;
-    brandedWorkspaceShortcutRewrite = true;
+  // Phase 3.12 / 3.13 — branded workspace shortcuts on agency hosts. Keep the
+  // branded URL (`/admin`, `/client`) but route through the canonical slug
+  // handlers via internal rewrite. Which paths qualify — and why `/talent/*`
+  // and `/client/register` must NOT — is documented in `branded-admin-url.ts`.
+  if (hostContext.kind === "agency") {
+    const shortcut = brandedAdminRewritePath(pathnameForAuth, hostContext.tenantSlug);
+    if (shortcut) {
+      nextUrl.pathname = shortcut;
+      pathnameForAuth = shortcut;
+      brandedWorkspaceShortcutSlug = hostContext.tenantSlug;
+    }
   }
 
   const innerRequest = new NextRequest(nextUrl, {
@@ -741,6 +735,12 @@ export async function proxy(request: NextRequest) {
     });
 
   if (sessionRes.headers.get("location")) {
+    // Auth ran against the post-rewrite slug path, so `?next=` would send a
+    // signed-out `/admin` visitor back to the doubled URL. See
+    // normalizeBrandedNextParam.
+    if (brandedWorkspaceShortcutSlug) {
+      normalizeBrandedNextParam(sessionRes, brandedWorkspaceShortcutSlug);
+    }
     syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
     return sessionRes;
   }
@@ -749,7 +749,7 @@ export async function proxy(request: NextRequest) {
     shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
     cmsSlugRewrite ||
-    brandedWorkspaceShortcutRewrite ||
+    brandedWorkspaceShortcutSlug !== null ||
     marketingDirectoryRewrite
   ) {
     const rewriteUrl = request.nextUrl.clone();
