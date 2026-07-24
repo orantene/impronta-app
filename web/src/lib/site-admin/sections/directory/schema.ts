@@ -148,6 +148,15 @@ export const directorySchemaV1 = z.object({
   aiBehavior: z.enum(["interpret", "rerank"]).default("interpret"),
 
   /**
+   * Full-bleed lifestyle banner behind the heading + AI search band. A public
+   * image path/URL (e.g. `/talent-templates/demo/impronta-2026/lifestyle-3.jpg`
+   * or an https media URL). When set, the section header, the search band and
+   * the category quick-link bar render INSIDE an edge-to-edge photo banner
+   * with a noir gradient; empty/unset keeps the plain editorial header.
+   */
+  heroImage: z.string().max(500).optional(),
+
+  /**
    * Per-instance card kit override (P4). A card-kit slug (e.g.
    * "editorial-noir" / "magazine" / "minimal-portrait", see
    * `lib/site-admin/presets/card-kits.ts`). PLAIN data only — this is the
