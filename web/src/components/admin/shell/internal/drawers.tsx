@@ -32,7 +32,6 @@ import { GuestChatSettingsDrawer } from "./drawers/guest-chat-settings";
 import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, NewBookingDrawer, ClientProfileDrawer } from "./drawers/light-06";
 import { TodayPulseDrawer, PipelineDrawer, PipelineFilterDrawer, NotificationsDrawer, ActivityFeedDrawer, MyActivityDrawer } from "./drawers/light-07";
 import { PagesDrawer, PostsDrawer, NavigationDrawer, MediaDrawer, TranslationsDrawer, SeoDrawer } from "./drawers/light-08";
-import { WorkspaceFieldSettingsDrawer } from "./drawers/light-09";
 import { FieldCatalogDrawer, FieldPrivacyDrawer } from "./drawers/light-10";
 import { TrustVerificationQueueDrawer, DisputedClaimsDrawer } from "./drawers/light-11";
 import { TalentTrustDetailDrawer, TalentClaimInviteDrawer, PlatformVerificationMethodsDrawer } from "./drawers/light-12";
@@ -174,8 +173,6 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <SeoDrawer />;
     case "field-catalog":
       return <FieldCatalogDrawer />;
-    case "workspace-field-settings":
-      return <WorkspaceFieldSettingsDrawer />;
     case "field-privacy":
       return <FieldPrivacyDrawer />;
     case "trust-verification-queue":

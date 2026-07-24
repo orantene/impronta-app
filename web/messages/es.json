@@ -4189,6 +4189,15 @@
       "emailFromAddress": "Dirección de correo remitente",
       "emailFromFeature": "Correo remitente",
       "emailFromWhy": "Envía ofertas a clientes desde tu propio correo verificado.",
+      "searchPlaceholder": "Buscar configuración",
+      "noSearchResults": "Ninguna configuración coincide con tu búsqueda.",
+      "jumpToSection": "Ir a la sección",
+      "rosterFieldsLabel": "Elenco y campos de perfil",
+      "rosterFieldsDesc": "Categorías de talento, campos personalizados, privacidad y revisión del elenco en un solo lugar.",
+      "brandingMediaLabel": "Marca y medios",
+      "brandingMediaDesc": "Logo, colores, marca de agua, galería de fotos y recursos de marca.",
+      "advancedLabel": "Avanzado",
+      "advancedDesc": "Controles de funciones, herramientas de datos y eliminación del espacio de trabajo.",
       "defaultCurrency": {
         "desc": "Qué pestaña de moneda se abre primero en Finanzas del negocio cuando hay varias. Solo para visualización, sin conversión de divisas."
       },
