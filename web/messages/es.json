@@ -7393,6 +7393,22 @@
         "resetToDefault": "Restablecer {locale} al valor por defecto del código",
         "templatesCustomized": "{customized} de {total} plantillas personalizadas · {locales}."
       }
+    },
+    "clientBookings": {
+      "paymentsTitle": "Pagos y recibos",
+      "reviewPay": "Revisar y pagar",
+      "dateTbc": "Fecha por confirmar",
+      "upcoming": "Próximas",
+      "past": "Pasadas",
+      "paid": "Pagado",
+      "refunded": "Reembolsado",
+      "refund": "Reembolso",
+      "deposit": "Depósito",
+      "balance": "Saldo",
+      "payment": "Pago",
+      "receipt": "Recibo",
+      "paymentDue": "Pago pendiente",
+      "viewAll": "Ver todas"
     }
   },
   "admin": {

@@ -4,6 +4,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
@@ -70,11 +72,13 @@ function BookingRow({
   idx,
   total,
   tenantSlug,
+  reviewPayLabel,
 }: {
   booking: ClientBookingRow;
   idx: number;
   total: number;
   tenantSlug: string;
+  reviewPayLabel: string;
 }) {
   const future = !isPast(booking.event_date);
   const dateParts = getClientDateParts(booking.event_date);
@@ -273,7 +277,7 @@ function BookingRow({
             fontFamily: FONT,
           }}
         >
-          Review &amp; pay
+          {reviewPayLabel}
         </Link>
       </div>
     )}
@@ -316,7 +320,7 @@ function BookingRow({
   );
 }
 
-function BookingSection({ rows, label, tenantSlug }: { rows: ClientBookingRow[]; label: string; tenantSlug: string }) {
+function BookingSection({ rows, label, tenantSlug, reviewPayLabel }: { rows: ClientBookingRow[]; label: string; tenantSlug: string; reviewPayLabel: string }) {
   if (rows.length === 0) return null;
   return (
     <section>
@@ -325,7 +329,7 @@ function BookingSection({ rows, label, tenantSlug }: { rows: ClientBookingRow[];
       </div>
       <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {rows.map((b, i) => (
-          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} tenantSlug={tenantSlug} />
+          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} tenantSlug={tenantSlug} reviewPayLabel={reviewPayLabel} />
         ))}
       </div>
     </section>
@@ -334,6 +338,8 @@ function BookingSection({ rows, label, tenantSlug }: { rows: ClientBookingRow[];
 
 export default async function ClientBookingsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -389,13 +395,13 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
         />
       ) : (
         <div className="flex flex-col gap-7">
-          <BookingSection rows={upcoming} label="Upcoming" tenantSlug={tenantSlug} />
-          <BookingSection rows={dateTbc} label="Date being confirmed" tenantSlug={tenantSlug} />
-          <BookingSection rows={past}     label="Past" tenantSlug={tenantSlug} />
+          <BookingSection rows={upcoming} label={t("dashboard.clientBookings.upcoming")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} />
+          <BookingSection rows={dateTbc} label={t("dashboard.clientBookings.dateTbc")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} />
+          <BookingSection rows={past}     label={t("dashboard.clientBookings.past")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} />
           {/* W7 — client→talent reviews. Self-hides when nothing is eligible. */}
           <ReviewableBookingsSection tenantSlug={tenantSlug} />
           {/* CW5 — payment history: every payment + refund, with receipts. */}
-          <PaymentsSection transactions={transactions} />
+          <PaymentsSection transactions={transactions} locale={locale} />
         </div>
       )}
     </div>
@@ -404,19 +410,20 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
 
 // ─── CW5 — Payments & receipts ────────────────────────────────────────────────
 
-function PaymentsSection({ transactions }: { transactions: ClientTransactionRow[] }) {
+function PaymentsSection({ transactions, locale }: { transactions: ClientTransactionRow[]; locale: string }) {
   if (transactions.length === 0) return null;
+  const t = createTranslator(locale);
   const fmt = (cents: number, cur: string) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 2 }).format(cents / 100);
+    new Intl.NumberFormat(locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US", { style: "currency", currency: cur, maximumFractionDigits: 2 }).format(cents / 100);
   const CHECKOUT_LABEL: Record<string, string> = {
-    deposit: "Deposit",
-    balance: "Balance",
-    full: "Payment",
+    deposit: t("dashboard.clientBookings.deposit"),
+    balance: t("dashboard.clientBookings.balance"),
+    full: t("dashboard.clientBookings.payment"),
   };
   return (
     <section>
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: C.inkMuted, marginBottom: 10, fontFamily: FONT }}>
-        Payments &amp; receipts ({transactions.length})
+        {t("dashboard.clientBookings.paymentsTitle")} ({transactions.length})
       </div>
       <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {transactions.map((tx, i) => {
@@ -438,7 +445,7 @@ function PaymentsSection({ transactions }: { transactions: ClientTransactionRow[
             >
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
-                  {isRefundRow ? "Refund" : CHECKOUT_LABEL[tx.checkoutType ?? "full"] ?? "Payment"}
+                  {isRefundRow ? t("dashboard.clientBookings.refund") : CHECKOUT_LABEL[tx.checkoutType ?? "full"] ?? t("dashboard.clientBookings.payment")}
                   <span
                     style={{
                       marginLeft: 8,
@@ -452,7 +459,7 @@ function PaymentsSection({ transactions }: { transactions: ClientTransactionRow[
                       color: refunded ? C.inkMuted : C.greenDeep,
                     }}
                   >
-                    {refunded ? "Refunded" : "Paid"}
+                    {refunded ? t("dashboard.clientBookings.refunded") : t("dashboard.clientBookings.paid")}
                   </span>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
@@ -481,7 +488,7 @@ function PaymentsSection({ transactions }: { transactions: ClientTransactionRow[
                     fontFamily: FONT,
                   }}
                 >
-                  Receipt
+                  {t("dashboard.clientBookings.receipt")}
                 </a>
               ) : (
                 <span />

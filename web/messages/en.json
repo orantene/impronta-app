@@ -7393,6 +7393,22 @@
         "resetToDefault": "Reset {locale} to code default",
         "templatesCustomized": "{customized} of {total} templates customized · {locales}."
       }
+    },
+    "clientBookings": {
+      "paymentsTitle": "Payments & receipts",
+      "reviewPay": "Review & pay",
+      "dateTbc": "Date being confirmed",
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "paid": "Paid",
+      "refunded": "Refunded",
+      "refund": "Refund",
+      "deposit": "Deposit",
+      "balance": "Balance",
+      "payment": "Payment",
+      "receipt": "Receipt",
+      "paymentDue": "Payment due",
+      "viewAll": "View all"
     }
   },
   "admin": {
