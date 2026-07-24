@@ -9,7 +9,7 @@ import type { OfferCommercialTerms } from "@/lib/billing/commercial-terms-types"
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
-export type Surface = "workspace" | "talent" | "client" | "platform";
+export type Surface = "workspace" | "talent" | "platform";
 export type Plan = "free" | "studio" | "agency" | "network";
 export type Role = "viewer" | "editor" | "manager" | "admin" | "owner";
 /**

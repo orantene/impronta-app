@@ -137,26 +137,6 @@ export type DrawerId =
   // — Audit r3: reply templates (#53)
   | "reply-templates"
   // — Client surface drawers ————————————————————————————————————
-  | "client-today-pulse"
-  | "client-talent-card"
-  | "client-saved-search"
-  | "client-shortlist-detail"
-  | "client-new-shortlist"
-  | "client-share-shortlist"
-  | "client-send-inquiry"
-  | "client-inquiry-detail"
-  | "client-counter-offer"
-  | "client-review"
-  | "client-booking-detail"
-  | "client-contracts"
-  | "client-team"
-  | "client-billing"
-  | "client-brand-switcher"
-  | "client-settings"
-  | "client-quick-question"
-  | "client-my-talent"        // WS-8.9  — repeat bookings + quick-rebook
-  | "client-spend-report"     // WS-8.11 — spend by talent / by agency
-  | "client-budget"           // WS-8.12 — budget cap + alert threshold
   // — Cross-cutting upgrade surfaces ————————————————————————————————
   | "plan-compare"
   // — Payments / payouts ——————————————————————————————————

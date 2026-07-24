@@ -1573,11 +1573,7 @@ export function AdminShellProvider({
       params.set("page", page);
     } else if (surface === "talent") {
       params.set("talentPage", talentPage);
-    } else if (surface === "client") {
-      params.set("clientPlan", clientPlan);
-      params.set("clientPage", clientPage);
-      params.set("clientProfile", clientProfile);
-    } else if (surface === "platform") {
+        } else if (surface === "platform") {
       params.set("hqRole", hqRole);
       params.set("platformPage", platformPage);
     }
@@ -1743,7 +1739,6 @@ export function AdminShellProvider({
     setSurface(s);
     if (s === "workspace") setPage("overview");
     if (s === "talent") setTalentPage("today");
-    if (s === "client") setClientPage("today");
     if (s === "platform") setPlatformPage("today");
     setDrawer({ drawerId: null });
   }, []);

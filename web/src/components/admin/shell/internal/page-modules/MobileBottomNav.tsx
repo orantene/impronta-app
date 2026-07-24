@@ -61,20 +61,6 @@ export function MobileBottomNav() {
         badge: TALENT_TAB_BADGE[p as TalentPage],
       }));
     }
-    if (state.surface === "client") {
-      // Client surface badges — unread on Messages (mock 2 for prototype).
-      const CLIENT_TAB_BADGE: Partial<Record<ClientPage, number>> = {
-        messages: 2,
-      };
-      return CLIENT_PAGES.map((p) => ({
-        id: p,
-        label: copy.t(CLIENT_PAGE_META[p].label),
-        active: state.clientPage === p,
-        run: () => setClientPage(p as ClientPage),
-        icon: CLIENT_TAB_ICON[p as ClientPage] ?? "info",
-        badge: CLIENT_TAB_BADGE[p as ClientPage],
-      }));
-    }
     return PLATFORM_PAGES.map((p) => ({
       id: p,
       label: copy.t(PLATFORM_PAGE_META[p].label),

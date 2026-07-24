@@ -6,7 +6,7 @@ import type { Plan, Surface } from "../state";
 import { ControlBar } from "./ControlBar";
 import { HybridShell, WorkspaceShell } from "./WorkspaceShell";
 import { TalentSurface } from "../talent";
-import { ClientSurface, PlatformSurface } from "./pages-dynamic";
+import { PlatformSurface } from "./pages-dynamic";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -32,16 +32,6 @@ export function SurfaceRouter() {
         return (
           <HybridShell>
             <TalentSurface />
-          </HybridShell>
-        );
-      case "client":
-        // Wrap client in HybridShell so it gets the same persistent
-        // identity bar (avatar / brand switcher / Talent↔Workspace mode
-        // toggle / notifications) that talent + workspace have. Mirrors
-        // the talent surface treatment for visual parity.
-        return (
-          <HybridShell>
-            <ClientSurface />
           </HybridShell>
         );
       case "platform":

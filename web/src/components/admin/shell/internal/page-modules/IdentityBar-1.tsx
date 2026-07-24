@@ -61,17 +61,8 @@ export function TulalaIdentityBar() {
   if (surface === "platform") return null;
 
   const inWorkspace = surface === "workspace";
-  const inClient    = surface === "client";
-  const inTalent    = !inWorkspace && !inClient;
+  const inTalent    = !inWorkspace;
   const agencyCount = bridgeTalentAgencies?.length ?? 0;
-  // Resolve client profile from the URL/state-driven id. Two profiles
-  // for QA: Martina Beach Club (business) and The Gringo (personal).
-  // Inline-defined to dodge HMR cache issues with the fresh export.
-  const CP = {
-    martina: { name: "Martina Beach Club", initials: "MB", industry: "Hospitality · beach club", contactName: "Martina González", photoUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80", isBusiness: true },
-    gringo:  { name: "The Gringo",         initials: "TG", industry: "Personal client",          contactName: "The Gringo",        photoUrl: "https://i.pravatar.cc/300?img=33", isBusiness: false },
-  } as const;
-  const activeClientProfile = CP[state.clientProfile] ?? CP.martina;
 
   // Phase 1 — when the workspace admin layout provides bridgeSessionIdentity,
   // use the real signed-in user instead of MY_TALENT_PROFILE (which is the
@@ -102,17 +93,13 @@ export function TulalaIdentityBar() {
     return letters.toUpperCase() || talentBridgeName.slice(0, 2).toUpperCase();
   })();
 
-  const userName = inClient
-    ? activeClientProfile.contactName
-    : (inWorkspace && realUserName)
+  const userName = (inWorkspace && realUserName)
       ? realUserName
       : (talentBridgeName ?? realUserName ?? MY_TALENT_PROFILE.name);
-  const userInitials = inClient
-    ? activeClientProfile.initials
-    : (inWorkspace && realUserInitials)
+  const userInitials = (inWorkspace && realUserInitials)
       ? realUserInitials
       : (talentBridgeInitials ?? realUserInitials ?? MY_TALENT_PROFILE.initials);
-  const userPhotoUrl = inClient ? activeClientProfile.photoUrl : undefined;
+  const userPhotoUrl = undefined;
 
   // Acting-as context flips with surface. For the workspace surface, use
   // effectiveTenant.name (derived from bridge in production, mock in demo).
@@ -120,7 +107,6 @@ export function TulalaIdentityBar() {
   // hosting this rostered talent) over Marta's hardcoded primaryAgency.
   const actingLabel = inWorkspace
     ? effectiveTenant.name
-    : inClient ? activeClientProfile.name
     : agencyCount === 1
       ? (bridgeTalentAgencies?.[0]?.agencyName ?? bridgeTalentSelfProfile?.agencyName?.trim() ?? MY_TALENT_PROFILE.primaryAgency)
       : copy.isSpanish
@@ -131,7 +117,6 @@ export function TulalaIdentityBar() {
   const actingRoleLabel = bridgeSessionIdentity?.role ?? role;
   const actingSubLabel = inWorkspace
     ? `${actingRoleLabel.charAt(0).toUpperCase() + actingRoleLabel.slice(1)} · ${entityType}`
-    : inClient ? (activeClientProfile.isBusiness ? "Business client" : "Personal client")
     : inTalent
       ? (agencyCount === 1 ? "Primary agency" : `${agencyCount} agencies`)
       : "Primary agency";
@@ -185,7 +170,6 @@ export function TulalaIdentityBar() {
       // dash rather than a fabricated euro amount.
       return "—";
     }
-    if (inClient) return activeClientProfile.industry;
     if (inTalent) {
       if (bridgeTalentEarnings != null) {
         // Honor the booking's currency (MXN/ARS/USD/…), never a hardcoded €.
@@ -211,21 +195,17 @@ export function TulalaIdentityBar() {
   // switch context.
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher")
-    : inClient ? openDrawer("client-brand-switcher")
     : inTalent && agencyCount === 0
       ? window.dispatchEvent(new CustomEvent(START_WORKSPACE_EVENT))
       : openDrawer("talent-agency-switcher");
 
   // The notifications + help drawers differ per surface.
-  const notificationsDrawerId = inWorkspace ? "notifications"
-    : inClient ? "client-today-pulse"
-    : "talent-notifications";
+  const notificationsDrawerId = inWorkspace ? "notifications" : "talent-notifications";
   // Phase 3.12 — use live bridge totalUnread for workspace when available.
   // Phase 5 — use bridgeTalentUnread for talent surface; fall back to mock
   // only in standalone prototype mode (bridgeTalentUnread === undefined).
   const notificationsUnread = inWorkspace
     ? (bridgeTotalUnread > 0 ? bridgeTotalUnread : (bridgeWorkspaceUnread ?? 0))
-    : inClient ? 0
     : (bridgeTalentUnread !== undefined ? bridgeTalentUnread : TALENT_UNREAD);
 
   return (
@@ -255,7 +235,6 @@ export function TulalaIdentityBar() {
           const showAgencyLogo =
             agencyLogoUrl != null &&
             (inWorkspace ||
-              (inClient && whitelabel) ||
               (inTalent && whitelabel && bridgeTenantIdentity?.talentExclusive === true));
           if (showAgencyLogo && agencyLogoUrl) {
             return (
@@ -377,7 +356,7 @@ export function TulalaIdentityBar() {
         {/* Mode toggle — only for hybrid users (talent who also have a
             workspace). Hidden on the client surface — clients are
             single-mode and don't have a talent/workspace dual identity. */}
-        {alsoTalent && !inClient && (
+        {alsoTalent && (
           <ModeTogglePill
             surface={surface}
             flipMode={flipMode}
@@ -387,23 +366,9 @@ export function TulalaIdentityBar() {
           />
         )}
 
-        {/* Global utilities — single source for both modes.
-            Workspace + talent surfaces use the new NotificationsBell
-            popover hub. Client keeps its dedicated /notifications page. */}
-        {inClient ? (
-          <IdentityBarIconButton
-            aria-label={copy.isSpanish ? `Notificaciones · ${notificationsUnread} sin leer` : `Notifications · ${notificationsUnread} unread`}
-            onClick={() => setClientPage("notifications")}
-            badge={notificationsUnread}
-          >
-            <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
-              <path d="M10 21a2 2 0 0 0 4 0" />
-            </svg>
-          </IdentityBarIconButton>
-        ) : (
-          <NotificationsBell />
-        )}
+        {/* Global utilities — workspace + talent both use the
+            NotificationsBell popover hub. */}
+        <NotificationsBell />
 
         {/* Preview public site — opens the agency homepage in a new tab */}
         <a
