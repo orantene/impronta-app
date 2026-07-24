@@ -115,7 +115,7 @@ export async function MarketingFooter() {
           style={{ borderColor: "var(--plt-hairline)", color: "var(--plt-muted)" }}
         >
           <span>
-            &copy; {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {PLATFORM_BRAND.positioning}
+            &copy; {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {copy.legalLine}
           </span>
           {/* MUST wrap: language pill + currency picker + stage tag run
               359px wide — an inline-flex here overflowed every mobile page
@@ -133,7 +133,7 @@ export async function MarketingFooter() {
                 style={{ background: "var(--plt-forest-bright)" }}
                 aria-hidden
               />
-              {PLATFORM_BRAND.stage}
+              {copy.stageLine}
             </span>
           </div>
         </div>

@@ -11,6 +11,7 @@ import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { PublicLanguageToggle } from "@/components/public-language-toggle";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 
 /** Auth screens should not be indexed; page titles use the root template. */
@@ -92,7 +93,11 @@ export default async function AuthLayout({
         />
       </main>
 
-      <AuthFooter brandLabel={brand.label} isTenant={brand.isTenant} />
+      <AuthFooter
+        brandLabel={brand.label}
+        isTenant={brand.isTenant}
+        legalLine={getMarketingCopy(locale).footer.legalLine}
+      />
     </div>
   );
 }
@@ -141,9 +146,12 @@ function AuthTopBar({
 function AuthFooter({
   brandLabel,
   isTenant,
+  legalLine,
 }: {
   brandLabel: string;
   isTenant: boolean;
+  /** Localized positioning line — PLATFORM_BRAND.positioning is English-only. */
+  legalLine: string;
 }) {
   // On a whitelabel agency host the footer carries the agency's name; otherwise
   // it stays the Tulala platform line.
@@ -151,7 +159,7 @@ function AuthFooter({
     ? `© ${new Date().getFullYear()} ${brandLabel}.`
     : // Same copyright line as the marketing footer's bottom rail: legal name +
       // positioning. The category message lives in the logo lockup only.
-      `© ${new Date().getFullYear()} ${PLATFORM_BRAND.legalName}. ${PLATFORM_BRAND.positioning}`;
+      `© ${new Date().getFullYear()} ${PLATFORM_BRAND.legalName}. ${legalLine}`;
   return (
     <footer
       className="py-8"
