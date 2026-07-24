@@ -4,6 +4,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
@@ -87,6 +89,8 @@ function StatTile({ label, value, sub, accent = false }: { label: string; value:
 
 export default async function ClientTodayPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -219,7 +223,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
         {dueMain ? (
           <Link href={`/${tenantSlug}/client/bookings`} style={{ textDecoration: "none" }}>
             <StatTile
-              label="Payment due"
+              label={t("dashboard.clientBookings.paymentDue")}
               value={fmtMoney(dueMain[1], dueMain[0])}
               sub={
                 dueEntries.length > 1
@@ -296,6 +300,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
               items={agencyHasIt.slice(0, 5)}
               totalCount={agencyHasIt.length}
               viewAllHref={agencyHasIt.length > 5 ? `/${tenantSlug}/client/inquiries` : undefined}
+              viewAllLabel={t("dashboard.clientBookings.viewAll")}
               tenantSlug={tenantSlug}
             />
           )}
@@ -332,6 +337,7 @@ function BucketSection({
   items,
   totalCount,
   viewAllHref,
+  viewAllLabel = "View all",
   tenantSlug,
 }: {
   title: string;
@@ -342,6 +348,7 @@ function BucketSection({
   totalCount?: number;
   /** CW2 — when set, a "View all" link renders under the capped list. */
   viewAllHref?: string;
+  viewAllLabel?: string;
   tenantSlug: string;
 }) {
   const C2 = {
@@ -503,7 +510,7 @@ function BucketSection({
             href={viewAllHref}
             style={{ fontSize: 12, color: C2.blueDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
           >
-            View all {totalCount} →
+            {viewAllLabel} {totalCount} →
           </Link>
         </div>
       )}

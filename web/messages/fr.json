@@ -537,6 +537,22 @@
       "plan": "Forfait",
       "trust": "Confiance",
       "aria": "Sections client"
+    },
+    "clientBookings": {
+      "paymentsTitle": "Paiements et reçus",
+      "reviewPay": "Vérifier et payer",
+      "dateTbc": "Date à confirmer",
+      "upcoming": "À venir",
+      "past": "Passées",
+      "paid": "Payé",
+      "refunded": "Remboursé",
+      "refund": "Remboursement",
+      "deposit": "Acompte",
+      "balance": "Solde",
+      "payment": "Paiement",
+      "receipt": "Reçu",
+      "paymentDue": "Paiement dû",
+      "viewAll": "Tout voir"
     }
   }
 }
