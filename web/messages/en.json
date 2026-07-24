@@ -393,7 +393,9 @@
           "listViewAria": "List view",
           "mapViewAria": "Map view",
           "resultsOne": "1 talent profile available",
-          "resultsMany": "{count} talent profiles available"
+          "resultsMany": "{count} talent profiles available",
+          "filtersShow": "Filters",
+          "filtersHide": "Hide filters"
         },
         "refine": {
           "suggestionsTitle": "Refine search"
@@ -559,6 +561,20 @@
           "viewProfile": "View profile",
           "selectAria": "Select {name}",
           "deselectAria": "Deselect {name}"
+        },
+        "map": {
+          "onMapOne": "1 profile on the map",
+          "onMapMany": "{count} profiles on the map",
+          "withoutLocation": "{count} without a map location",
+          "tapPinHint": "Tap a pin to filter by city",
+          "loading": "Loading map…",
+          "unavailableTitle": "Map view is unavailable",
+          "unavailableBody": "The map needs a Google Maps key that isn’t configured here. The grid is still available.",
+          "loadErrorTitle": "Couldn’t load the map",
+          "noMappableTitle": "No mappable talent yet",
+          "noMappableFreeText": "Profiles need a structured home city to appear on the map. {count} only have a free-text location.",
+          "noMappableNone": "No talent in this filter has a mapped city yet.",
+          "backToGrid": "Back to grid"
         }
       }
     },

@@ -91,12 +91,15 @@ export function loadPublicPage(
     async (): Promise<PublicPageWithSnapshot | null> => {
       const supabase = createPublicSupabaseClient();
       if (!supabase) return null;
-      const { data, error } = await supabase
+      // Locale fallback mirrors loadDraftCmsPageBySlug: strict locale match
+      // first, else the tenant-default locale, else any published variant. A
+      // tenant that authored `__directory__` only in `en` must still serve it
+      // on `/es` — otherwise the ES surface silently degrades to the preset.
+      const { data: rowsRaw, error } = await supabase
         .rpc("cms_public_pages_for_tenant", { p_tenant_id: tenantId })
         .select(SELECT)
-        .eq("locale", locale)
-        .eq("slug", slug)
-        .maybeSingle<Row>();
+        .eq("slug", slug);
+      const rows = (rowsRaw ?? []) as unknown as Row[];
       if (error) {
         void improntaLog("site_admin_page_reads.warn", {
           message: "[site-admin/page-reads] public page load failed",
@@ -107,8 +110,16 @@ export function loadPublicPage(
         });
         return null;
       }
-      if (!data) return null;
-      if (data.status !== "published") return null;
+      const published = rows.filter((r) => r.status === "published");
+      let page: Row | null = published.find((r) => r.locale === locale) ?? null;
+      if (!page && published.length > 0) {
+        const tenantLocales = await loadTenantLocaleSettings(tenantId);
+        page =
+          published.find((r) => r.locale === tenantLocales.defaultLocale) ??
+          published[0]!;
+      }
+      if (!page) return null;
+      const data = page;
       return {
         pageId: data.id,
         slug: data.slug ?? "",

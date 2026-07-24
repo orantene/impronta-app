@@ -441,6 +441,22 @@ export function resolveWorkspacePathTenantPublicPath(
 export function resolveAnyTenantPublicPath(
   pathname: string,
 ): PathBasedTenantPublicPath | null {
+  // Locale-prefixed shape (`/es/w/<slug>/…`): browsers send the LOCALIZED page
+  // URL as the Referer, and API routes resolve their path tenant from it — so
+  // a Spanish visitor's `/api/directory` calls died with "no tenant" (the flat
+  // legacy resolver happily read `es` as a tenant slug). When a locale-looking
+  // first segment is followed by the unambiguous `/w/` workspace marker, strip
+  // it BEFORE resolving; the flat legacy shape stays untouched.
+  const parts = pathname.split("/").filter(Boolean);
+  if (
+    parts.length > 1 &&
+    /^[a-z]{2}(-[a-zA-Z]{2})?$/.test(parts[0] ?? "") &&
+    parts[1] === WORKSPACE_PATH_SEGMENT
+  ) {
+    const stripped = `/${parts.slice(1).join("/")}`;
+    const viaLocale = resolveWorkspacePathTenantPublicPath(stripped);
+    if (viaLocale) return viaLocale;
+  }
   return (
     resolveWorkspacePathTenantPublicPath(pathname) ??
     resolvePathBasedTenantPublicPath(pathname)

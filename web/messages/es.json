@@ -393,7 +393,9 @@
           "listViewAria": "Vista de lista",
           "mapViewAria": "Vista de mapa",
           "resultsOne": "1 perfil de talento disponible",
-          "resultsMany": "{count} perfiles de talento disponibles"
+          "resultsMany": "{count} perfiles de talento disponibles",
+          "filtersShow": "Filtros",
+          "filtersHide": "Ocultar filtros"
         },
         "refine": {
           "suggestionsTitle": "Afinar búsqueda"
@@ -559,6 +561,20 @@
           "viewProfile": "Ver perfil",
           "selectAria": "Seleccionar a {name}",
           "deselectAria": "Quitar a {name} de la selección"
+        },
+        "map": {
+          "onMapOne": "1 perfil en el mapa",
+          "onMapMany": "{count} perfiles en el mapa",
+          "withoutLocation": "{count} sin ubicación en el mapa",
+          "tapPinHint": "Toca un pin para filtrar por ciudad",
+          "loading": "Cargando mapa…",
+          "unavailableTitle": "El mapa no está disponible",
+          "unavailableBody": "El mapa necesita una clave de Google Maps que no está configurada aquí. La cuadrícula sigue disponible.",
+          "loadErrorTitle": "No se pudo cargar el mapa",
+          "noMappableTitle": "Aún no hay talento en el mapa",
+          "noMappableFreeText": "Los perfiles necesitan una ciudad estructurada para aparecer en el mapa. {count} solo tienen ubicación de texto libre.",
+          "noMappableNone": "Ningún talento de este filtro tiene ciudad asignada todavía.",
+          "backToGrid": "Volver a la cuadrícula"
         }
       }
     },

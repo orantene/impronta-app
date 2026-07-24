@@ -3,11 +3,13 @@
 import {
   Suspense,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type CSSProperties,
 } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 
 import {
   parseTaxonomyParam,
@@ -394,6 +396,37 @@ function DirectoryReactiveResultsInner({
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const handleCountChange = useCallback((c: number) => setLiveCount(c), []);
 
+  // App-like desktop filter panel: toggled from the toolbar, slides open and
+  // closed. Defaults open (matches SSR); the visitor's last choice persists.
+  const hasSidebar = showSidebar && sidebarBlocks.length > 0;
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("directory:filters-open") === "0") {
+        setFiltersOpen(false);
+      }
+    } catch {
+      /* storage unavailable (private mode) — keep default */
+    }
+  }, []);
+  const toggleFilters = useCallback(() => {
+    setFiltersOpen((open) => {
+      try {
+        window.localStorage.setItem("directory:filters-open", open ? "0" : "1");
+      } catch {
+        /* ignore */
+      }
+      return !open;
+    });
+  }, []);
+
+  const activeFilterCount =
+    taxonomyTermIds.length +
+    (locationSlug ? 1 : 0) +
+    (heightMinCm != null || heightMaxCm != null ? 1 : 0) +
+    (ageMin != null || ageMax != null ? 1 : 0) +
+    fieldFacets.reduce((n, f) => n + f.values.length, 0);
+
   // Side-effect-free: the legacy controls below call `usePathname()`
   // themselves and route through `commitDirectoryListingUrl`, which now
   // auto-detects basePath from pathname (`/p/...` stays on that path).
@@ -421,30 +454,45 @@ function DirectoryReactiveResultsInner({
         </p>
       ) : null}
       {aiSummary ? <AIInterpretChip summary={aiSummary} /> : null}
-      <div className="mt-6 flex gap-8">
-        {showSidebar && sidebarBlocks.length > 0 ? (
+      <div className="mt-6 flex">
+        {hasSidebar ? (
           // P4 — `order-last` floats the aside to the right when
           // `sidebarPosition==='right'`; sticky is gated on `sidebarSticky`.
-          <aside
-            className={`hidden w-56 shrink-0 md:block ${
+          // The panel slides open/closed from the toolbar's Filters toggle;
+          // the inner rail keeps a fixed width so content never squishes
+          // mid-animation. The flex gap lives INSIDE the rail (pr/pl) so a
+          // closed panel collapses to a clean 0.
+          <motion.aside
+            initial={false}
+            animate={{
+              width: filtersOpen ? 256 : 0,
+              opacity: filtersOpen ? 1 : 0,
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 34, mass: 0.9 }}
+            className={`hidden shrink-0 overflow-hidden md:block ${
               sidebarPosition === "right" ? "order-last" : ""
             }`}
             data-sidebar-position={sidebarPosition}
+            aria-hidden={!filtersOpen}
           >
-            <div className={sidebarSticky ? "sticky top-20" : undefined}>
-              <DirectoryFiltersSidebar
-                blocks={sidebarBlocks}
-                selectedIds={taxonomyTermIds}
-                locationSlug={locationSlug}
-                heightMinCm={heightMinCm}
-                heightMaxCm={heightMaxCm}
-                ageMin={ageMin}
-                ageMax={ageMax}
-                fieldFacets={fieldFacets}
-                ui={ui}
-              />
+            <div
+              className={`w-64 ${sidebarPosition === "right" ? "pl-8" : "pr-8"}`}
+            >
+              <div className={sidebarSticky ? "sticky top-20" : undefined}>
+                <DirectoryFiltersSidebar
+                  blocks={sidebarBlocks}
+                  selectedIds={taxonomyTermIds}
+                  locationSlug={locationSlug}
+                  heightMinCm={heightMinCm}
+                  heightMaxCm={heightMaxCm}
+                  ageMin={ageMin}
+                  ageMax={ageMax}
+                  fieldFacets={fieldFacets}
+                  ui={ui}
+                />
+              </div>
             </div>
-          </aside>
+          </motion.aside>
         ) : null}
 
         <div
@@ -493,6 +541,9 @@ function DirectoryReactiveResultsInner({
               ui={ui}
               isFetching={isGridFetching}
               reviewsEnabled={initialPage.reviewsEnabled}
+              filtersOpen={hasSidebar ? filtersOpen : undefined}
+              onToggleFilters={hasSidebar ? toggleFilters : undefined}
+              activeFilterCount={activeFilterCount}
             />
           ) : null}
 

@@ -136,7 +136,21 @@ export async function resolveGoogleMapsKey(
     : await platformGoogleMapsKeyForServer();
   if (!tenantId) return env;
   const { getSecret } = await resolveIntegration(tenantId, "google_maps", env);
-  return getSecret();
+  const resolved = await getSecret();
+  if (resolved) return resolved;
+  // DEV-ONLY: a tenant in custom mode stores its key encrypted with the
+  // production AI_CREDENTIALS_ENCRYPTION_KEY, which local checkouts don't
+  // have — decryption fails and the map panel dies on localhost while
+  // working fine in prod. Fall back to the platform env key so the map is
+  // QA-able locally. Never applies in production (tenant isolation holds).
+  if (process.env.NODE_ENV === "development" && env) {
+    // eslint-disable-next-line no-console -- dev-only diagnostic, never runs in prod
+    console.warn(
+      "[integrations/google-maps] tenant custom key unavailable locally — using platform env key (dev only).",
+    );
+    return env;
+  }
+  return null;
 }
 
 /**
