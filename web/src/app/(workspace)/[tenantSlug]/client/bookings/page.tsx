@@ -8,6 +8,8 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
   loadClientBookings,
+  loadClientTransactions,
+  type ClientTransactionRow,
   loadWorkspaceRosterLite,
   type ClientBookingRow,
 } from "../../_data-bridge";
@@ -345,6 +347,11 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
     loadClientBookings(session.user.id, scope.tenantId),
     loadWorkspaceRosterLite(scope.tenantId),
   ]);
+  // CW5 — scope payments to THIS tenant via the client's own booking ids.
+  const transactions = await loadClientTransactions(
+    session.user.id,
+    bookings.map((b) => b.agencyBookingId).filter((x): x is string => !!x),
+  );
 
   // CW3 — every booking lives in exactly ONE bucket. Undated rows used to
   // appear under BOTH Upcoming (TBC box) and Past (!event_date), so 8
@@ -387,8 +394,102 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
           <BookingSection rows={past}     label="Past" tenantSlug={tenantSlug} />
           {/* W7 — client→talent reviews. Self-hides when nothing is eligible. */}
           <ReviewableBookingsSection tenantSlug={tenantSlug} />
+          {/* CW5 — payment history: every payment + refund, with receipts. */}
+          <PaymentsSection transactions={transactions} />
         </div>
       )}
     </div>
+  );
+}
+
+// ─── CW5 — Payments & receipts ────────────────────────────────────────────────
+
+function PaymentsSection({ transactions }: { transactions: ClientTransactionRow[] }) {
+  if (transactions.length === 0) return null;
+  const fmt = (cents: number, cur: string) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 2 }).format(cents / 100);
+  const CHECKOUT_LABEL: Record<string, string> = {
+    deposit: "Deposit",
+    balance: "Balance",
+    full: "Payment",
+  };
+  return (
+    <section>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: C.inkMuted, marginBottom: 10, fontFamily: FONT }}>
+        Payments &amp; receipts ({transactions.length})
+      </div>
+      <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
+        {transactions.map((tx, i) => {
+          const refunded = tx.status === "refunded" || !!tx.refundedAt;
+          const isRefundRow = !!tx.refundOfTransactionId;
+          const when = tx.paidAt ?? tx.createdAt;
+          return (
+            <div
+              key={tx.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto auto",
+                gap: 14,
+                alignItems: "center",
+                padding: "12px 18px",
+                borderBottom: i < transactions.length - 1 ? `1px solid ${C.borderSoft}` : "none",
+                fontFamily: FONT,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
+                  {isRefundRow ? "Refund" : CHECKOUT_LABEL[tx.checkoutType ?? "full"] ?? "Payment"}
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: 0.3,
+                      textTransform: "uppercase",
+                      padding: "2px 7px",
+                      borderRadius: 999,
+                      background: refunded ? "rgba(11,11,13,0.05)" : C.greenSoft,
+                      color: refunded ? C.inkMuted : C.greenDeep,
+                    }}
+                  >
+                    {refunded ? "Refunded" : "Paid"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
+                  {fmtDate(when)}
+                </div>
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: refunded ? C.inkMuted : C.ink, fontVariantNumeric: "tabular-nums", textDecoration: refunded && !isRefundRow ? "line-through" : "none" }}>
+                {isRefundRow ? "-" : ""}{fmt(tx.grossAmountCents, tx.currency)}
+              </div>
+              {!isRefundRow && !refunded ? (
+                <a
+                  href={`/api/receipt/${tx.bookingId}`}
+                  download
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: C.accent,
+                    textDecoration: "none",
+                    padding: "4px 10px",
+                    borderRadius: 7,
+                    border: "1px solid rgba(29,78,216,0.18)",
+                    background: "rgba(29,78,216,0.04)",
+                    fontFamily: FONT,
+                  }}
+                >
+                  Receipt
+                </a>
+              ) : (
+                <span />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
