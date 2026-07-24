@@ -19,7 +19,7 @@ import { COLORS, useAdminShell } from "../state";
  * a pulse with no data is dead chrome.
  */
 export function WorkspacePulseChip() {
-  const { overviewMetrics, totalUnread, bridgeWorkspaceUnread, tenantSlug, setPage } = useAdminShell();
+  const { overviewMetrics, totalUnread, bridgeWorkspaceUnread, tenantSlug, adminBasePath, setPage } = useAdminShell();
   const t = useT();
   const [open, setOpen] = useState(false);
 
@@ -126,7 +126,7 @@ export function WorkspacePulseChip() {
               type="button"
               onClick={() => {
                 setOpen(false);
-                window.location.assign(tenantSlug ? `/${tenantSlug}/admin/financials` : "/admin/financials");
+                window.location.assign(`${adminBasePath}/financials`);
               }}
               className="flex-1 cursor-pointer rounded-[7px] border border-admin-border-soft bg-transparent px-[8px] py-[6px] text-[11.5px] font-semibold text-admin-ink hover:border-admin-border-strong [transition:border-color_var(--transition-admin-micro)]"
             >
