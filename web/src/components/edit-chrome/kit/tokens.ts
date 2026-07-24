@@ -279,3 +279,20 @@ export const Z_INDEX = {
   modalOverlay: 110,
   toast: 120,
 } as const;
+
+/**
+ * Shared geometry for the floating bars that sit over the bottom of the canvas
+ * (zoom controls on the left, text toolbar centered). They read as one row of
+ * controls, so they share a baseline and a button size — change them here, not
+ * per bar, or the row goes ragged.
+ */
+export const CANVAS_FLOATING_BAR = {
+  /** Distance from the viewport bottom to the bar's bottom edge. */
+  bottom: 70,
+  /** Bar height. */
+  height: 42,
+  /** Square button size inside a bar. */
+  buttonSize: 28,
+  /** Button corner radius inside a bar. */
+  buttonRadius: 8,
+} as const;

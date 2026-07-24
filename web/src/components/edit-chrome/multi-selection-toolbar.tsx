@@ -19,6 +19,8 @@ import {
 import { useState, type ReactNode } from "react";
 
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
+import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
+import { CANVAS_FLOATING_BAR, CHROME, CHROME_RADII } from "./kit/tokens";
 import type {
   MultiNodeAlignMode,
   MultiNodeDistributeMode,
@@ -31,9 +33,6 @@ interface Rect {
   height: number;
 }
 
-const TOOLBAR_BG =
-  "linear-gradient(180deg, rgba(36,41,66,0.96) 0%, rgba(26,31,53,0.96) 100%)";
-
 function Divider() {
   return (
     <span
@@ -41,7 +40,7 @@ function Divider() {
       style={{
         width: 1,
         alignSelf: "stretch",
-        background: "rgba(255,255,255,0.10)",
+        background: CHROME.line,
         margin: "5px 0",
         flex: "0 0 auto",
       }}
@@ -84,8 +83,7 @@ function IconButton({
         height: 32,
         border: "none",
         background: "transparent",
-        color:
-          tone === "danger" ? "rgba(255,210,210,0.95)" : "rgba(255,255,255,0.82)",
+        color: tone === "danger" ? "#b91c1c" : CHROME.muted,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -100,7 +98,6 @@ function IconButton({
 }
 
 export function MultiSelectionToolbar({
-  rect,
   count,
   disabled,
   canGroup,
@@ -138,7 +135,11 @@ export function MultiSelectionToolbar({
   // panel's open/closed; every committed change fans out via onBulkStyle.
   const [styleOpen, setStyleOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const toolbarTop = Math.max(rect.top - 38, 58);
+  // Docked to the bottom control-bar stack (row 2, above the selection chip).
+  // Popups open UPWARD from the bar, so they anchor off `bottom`, not `top`.
+  const barBottom =
+    CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8;
+  const popupBottom = barBottom + 32 + 6;
   return (
     <>
     <BuilderCoachmarkTip
@@ -150,8 +151,8 @@ export function MultiSelectionToolbar({
         aria-hidden
         style={{
           position: "fixed",
-          top: toolbarTop + 16,
-          left: rect.left + rect.width / 2,
+          bottom: barBottom + 16,
+          left: "50%",
           width: 1,
           height: 1,
           pointerEvents: "none",
@@ -165,21 +166,23 @@ export function MultiSelectionToolbar({
       aria-label="Selected blocks"
       style={{
         position: "fixed",
-        top: toolbarTop,
-        left: rect.left,
+        // Second row of the bottom control-bar stack: sits directly above the
+        // selection chip so both stay visible and centered instead of one
+        // floating over the canvas at the element's top-left corner.
+        bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
+        left: "50%",
+        transform: "translateX(-50%)",
         height: 32,
         display: "inline-flex",
         alignItems: "stretch",
-        maxWidth: "calc(100vw - 24px)",
+        maxWidth: "min(96vw, 720px)",
         overflowX: "auto",
         overflowY: "hidden",
-        borderRadius: 8,
-        background: TOOLBAR_BG,
-        color: "white",
-        boxShadow:
-          "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        borderRadius: CHROME_RADII.lg,
+        background: CHROME.surface,
+        color: CHROME.ink,
+        boxShadow: BUILDER_VISUAL.toolbarShadow,
+        border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
         zIndex: 100,
         pointerEvents: "auto",
         fontFamily:
@@ -194,7 +197,7 @@ export function MultiSelectionToolbar({
           padding: "0 10px",
           fontSize: 11,
           fontWeight: 700,
-          color: "rgba(255,255,255,0.86)",
+          color: CHROME.muted,
           flex: "0 0 auto",
         }}
       >
@@ -259,14 +262,15 @@ export function MultiSelectionToolbar({
         data-multi-selection-more=""
         style={{
           position: "fixed",
-          top: toolbarTop + 36,
-          left: rect.left,
+          bottom: popupBottom,
+          left: "50%",
+          transform: "translateX(-50%)",
           display: "inline-flex",
           alignItems: "stretch",
-          borderRadius: 8,
-          background: TOOLBAR_BG,
-          boxShadow:
-            "0 12px 32px -8px rgba(0,0,0,0.38), inset 0 0 0 1px rgba(255,255,255,0.08)",
+          borderRadius: CHROME_RADII.lg,
+          background: CHROME.surface,
+          border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
+          boxShadow: BUILDER_VISUAL.toolbarShadow,
           zIndex: 101,
         }}
       >
@@ -360,12 +364,11 @@ export function MultiSelectionToolbar({
       </div>
     ) : null}
     {/* Rendered as a SIBLING of the toolbar (not a child) so the toolbar's
-     *  overflow:hidden scroll-row can't clip it; anchored just below the
-     *  toolbar via the same viewport rect. */}
+     *  overflow:hidden scroll-row can't clip it; opens upward from the docked
+     *  bar. */}
     {canBulkStyle && styleOpen ? (
       <BulkStylePanel
-        top={toolbarTop + 32 + 6}
-        left={rect.left}
+        bottom={popupBottom}
         disabled={disabled}
         onBulkStyle={onBulkStyle}
       />
@@ -388,13 +391,11 @@ export function MultiSelectionToolbar({
  * per-field × clears that prop across the selection.
  */
 function BulkStylePanel({
-  top,
-  left,
+  bottom,
   disabled,
   onBulkStyle,
 }: {
-  top: number;
-  left: number;
+  bottom: number;
   disabled: boolean;
   onBulkStyle: (stylePatchJson: string) => void;
 }) {
@@ -407,17 +408,16 @@ function BulkStylePanel({
       onClick={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
-        top,
-        left: Math.min(left, typeof window === "undefined" ? left : window.innerWidth - 244),
+        bottom,
+        left: "50%",
+        transform: "translateX(-50%)",
         width: 232,
         padding: 10,
-        borderRadius: 8,
-        background: TOOLBAR_BG,
-        color: "white",
-        boxShadow:
-          "0 14px 36px -10px rgba(0,0,0,0.42), 0 2px 6px -2px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.08)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
+        borderRadius: CHROME_RADII.lg,
+        background: CHROME.surface,
+        color: CHROME.ink,
+        border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
+        boxShadow: BUILDER_VISUAL.toolbarShadow,
         zIndex: 101,
         pointerEvents: "auto",
         display: "grid",
