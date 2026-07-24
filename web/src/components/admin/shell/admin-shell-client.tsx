@@ -350,6 +350,7 @@ export function AdminShellClient({
   initialBridgeData = null,
   initialPage,
   tenantSlug,
+  brandedHost = false,
   children,
 }: {
   initialBridgeData?: BridgeData | null;
@@ -357,6 +358,11 @@ export function AdminShellClient({
   initialPage?: import("./internal/state").WorkspacePage;
   /** Cutover mode — slug for Next.js router.push() URL sync. */
   tenantSlug?: string;
+  /**
+   * True when the request host already identifies the tenant (custom domain
+   * or tenant subdomain), so admin URLs are the branded slug-less `/admin/*`.
+   */
+  brandedHost?: boolean;
   /**
    * Cutover mode — slot for PageRouteSyncer. Rendered inside AdminShellProvider
    * so it can call useAdminShell().setPage() to sync the shell's internal page
@@ -371,6 +377,7 @@ export function AdminShellClient({
           initialBridgeData={initialBridgeData}
           initialPage={initialPage}
           tenantSlug={tenantSlug}
+          brandedHost={brandedHost}
         >
           <WorkspaceShellWithCanonicalChildren>
             {children}

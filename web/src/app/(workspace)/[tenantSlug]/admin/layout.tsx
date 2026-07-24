@@ -48,11 +48,19 @@ export const dynamic = "force-dynamic";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
 
-/** Derive the workspace page from the raw request pathname. */
-function deriveInitialPage(pathname: string, tenantSlug: string): WorkspacePage {
-  // Strip leading /{tenantSlug}/admin/ (or /{tenantSlug}/admin) to get segment
-  const prefix = `/${tenantSlug}/admin`;
-  const after = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : "";
+/**
+ * Derive the workspace page from the raw request pathname.
+ *
+ * `adminPrefix` must be the BROWSER-facing admin base, which differs by host:
+ * `/admin` on the tenant's own domain (improntamodels.com), `/{slug}/admin` on
+ * the shared app host. The pathname comes from `x-impronta-original-pathname`,
+ * which middleware sets *before* its branded rewrite — so on a custom domain
+ * it reads `/admin/messages`, never `/impronta/admin/messages`. Matching it
+ * against the slug prefix there silently yielded `""` and opened Overview on
+ * every deep link and hard refresh.
+ */
+function deriveInitialPage(pathname: string, adminPrefix: string): WorkspacePage {
+  const after = pathname.startsWith(adminPrefix) ? pathname.slice(adminPrefix.length) : "";
   // after is "" | "/messages" | "/messages/…" | "/roster" | etc.
   const segment = after.replace(/^\//, "").split("/")[0] ?? "";
   return resolveWorkspaceAdminPage(segment || "overview");
@@ -67,10 +75,22 @@ export default async function WorkspaceAdminLayout({
 }) {
   const { tenantSlug } = await params;
 
+  // ── Host shape ─────────────────────────────────────────────────────────────
+  // The browser-facing path, set by middleware before its branded rewrite. On
+  // a host that already identifies the tenant it carries no slug (`/admin/…`);
+  // on the shared app host it does (`/impronta/admin/…`). Everything URL-shaped
+  // below keys off this so we never hand the user a doubled
+  // `improntamodels.com/impronta/admin`.
+  const hdrs = await headers();
+  const slugPrefix = `/${tenantSlug}`;
+  const pathname = hdrs.get("x-impronta-original-pathname") ?? `${slugPrefix}/admin`;
+  const brandedHost = !(pathname === slugPrefix || pathname.startsWith(`${slugPrefix}/`));
+  const adminPrefix = brandedHost ? "/admin" : `${slugPrefix}/admin`;
+
   // ── Auth ───────────────────────────────────────────────────────────────────
   const session = await getCachedActorSession();
   if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect(`/login?next=/${tenantSlug}/admin`);
+  if (!session.user) redirect(`/login?next=${adminPrefix}`);
 
   // ── Tenant ─────────────────────────────────────────────────────────────────
   const scope = await getTenantScopeBySlug(tenantSlug);
@@ -99,9 +119,7 @@ export default async function WorkspaceAdminLayout({
   if (!canView) notFound();
 
   // ── Derive initialPage from URL (avoids hard-refresh flash) ───────────────
-  const hdrs = await headers();
-  const pathname = hdrs.get("x-impronta-original-pathname") ?? `/${tenantSlug}/admin`;
-  const initialPage = deriveInitialPage(pathname, tenantSlug);
+  const initialPage = deriveInitialPage(pathname, adminPrefix);
 
   // ── Prefetch all surface data in parallel ──────────────────────────────────
   // Errors in any loader return an empty/null value — never crash the layout.
@@ -215,6 +233,7 @@ export default async function WorkspaceAdminLayout({
       )}
       <AdminShellClient
         tenantSlug={tenantSlug}
+        brandedHost={brandedHost}
         initialPage={initialPage}
         initialBridgeData={{
           roster,

@@ -240,6 +240,18 @@ type Ctx = {
   effectiveRoster: TalentProfile[];
   /** Set when running in production (cutover) mode — the real tenant slug from the URL. */
   tenantSlug: string | undefined;
+  /**
+   * Canonical prefix for every admin href on THIS host. `/admin` on a host
+   * that already identifies the tenant (custom domain or tenant subdomain),
+   * `/{tenantSlug}/admin` elsewhere (app host, hub, `/w/<slug>` paths).
+   *
+   * Always build admin links from this, never from `` `/${tenantSlug}/admin` ``
+   * directly: on a branded host the middleware 308s the slug form back to the
+   * branded one, so hardcoding the slug costs a redirect round-trip AND
+   * breaks the "am I already here?" guards that compare against
+   * `window.location.pathname`.
+   */
+  adminBasePath: string;
 
   /**
    * Per-tenant roster-card badge visibility prefs. Seeded from the bridge
@@ -872,6 +884,7 @@ export function AdminShellProvider({
   initialSurface,
   initialTalentPage,
   tenantSlug,
+  brandedHost = false,
   platformTalentRoutes = false,
 }: {
   children: ReactNode;
@@ -904,16 +917,26 @@ export function AdminShellProvider({
    * browser URL stays in sync with the shell's internal page state.
    */
   tenantSlug?: string;
+  /**
+   * True when the host itself identifies the tenant (custom domain such as
+   * improntamodels.com, or a tenant subdomain). Such hosts serve the admin
+   * at the branded `/admin`, so admin hrefs must omit the slug — see
+   * `adminBasePath`.
+   */
+  brandedHost?: boolean;
   /** Platform `/talent/*` routes on app.tulala.digital (no `/{slug}` prefix). */
   platformTalentRoutes?: boolean;
 }) {
   const router = useRouter();
   const tenantSlugRef = useRef(tenantSlug);
   const platformTalentRoutesRef = useRef(platformTalentRoutes);
+  const adminBasePath = !tenantSlug || brandedHost ? "/admin" : `/${tenantSlug}/admin`;
+  const adminBasePathRef = useRef(adminBasePath);
   useEffect(() => {
     tenantSlugRef.current = tenantSlug;
     platformTalentRoutesRef.current = platformTalentRoutes;
-  }, [tenantSlug, platformTalentRoutes]);
+    adminBasePathRef.current = adminBasePath;
+  }, [tenantSlug, platformTalentRoutes, adminBasePath]);
 
   const [locale, setLocale] = useState("en");
   useEffect(() => {
@@ -1015,8 +1038,9 @@ export function AdminShellProvider({
     setPageRaw(p);
     const slug = tenantSlugRef.current;
     if (slug) {
+      const base = adminBasePathRef.current;
       const segment = pageToSegment(p);
-      const targetHref = segment ? `/${slug}/admin/${segment}` : `/${slug}/admin`;
+      const targetHref = segment ? `${base}/${segment}` : base;
       // Guard: skip push if we're already on this URL. This prevents a
       // navigation loop when PageRouteSyncer fires setPage on mount while
       // the browser is already at the correct route.
@@ -1774,8 +1798,9 @@ export function AdminShellProvider({
       if (nextSurface === "workspace") {
         // Preserve the workspace page the user last had (so toggling
         // /talent → workspace returns them to /admin/roster, not /admin).
+        const base = adminBasePathRef.current;
         const segment = pageToSegment(page);
-        nextHref = segment ? `/${slug}/admin/${segment}` : `/${slug}/admin`;
+        nextHref = segment ? `${base}/${segment}` : base;
       } else {
         // Preserve last talent page similarly.
         const segment = talentPageToSegment(talentPage);
@@ -2101,6 +2126,7 @@ export function AdminShellProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      adminBasePath,
       rosterCardBadges,
       setRosterCardBadge,
       // Phase 3.12 — additional surface bridge fields
@@ -2219,6 +2245,7 @@ export function AdminShellProvider({
       bridgeRoster,
       effectiveRoster,
       tenantSlug,
+      adminBasePath,
       rosterCardBadges,
       setRosterCardBadge,
       effectiveMessagesInquiries,
