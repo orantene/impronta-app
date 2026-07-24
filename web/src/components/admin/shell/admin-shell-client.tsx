@@ -652,23 +652,6 @@ function BottomActionFab() {
       }));
       return [...create, ...nav];
     }
-    if (state.surface === "client") {
-      const create: Item[] = [
-        { id: "new-inquiry",    label: copy.t("Send an inquiry"), sub: copy.t("Brief us — we'll reply in <2h"),     icon: "plus",     canDo: true,
-          run: () => openDrawer("client-send-inquiry") },
-        { id: "shortlist",      label: copy.t("Build a shortlist"), sub: copy.t("Save talent + share a brief"),       icon: "team",     canDo: true,
-          run: () => openDrawer("client-new-shortlist") },
-      ];
-      const nav: Item[] = (Object.keys(CLIENT_PAGE_META) as Array<keyof typeof CLIENT_PAGE_META>).map((p) => ({
-        id: `nav-client-${p}`,
-        label: goTo(CLIENT_PAGE_META[p].label),
-        sub: copy.t("Client surface"),
-        icon: "arrow-right",
-        canDo: true,
-        run: () => setClientPage(p),
-      }));
-      return [...create, ...nav];
-    }
     if (state.surface === "platform") {
       const create: Item[] = [
         { id: "new-tenant",     label: copy.t("New tenant"), sub: copy.t("Onboard an agency or hub"),          icon: "plus",     canDo: true,

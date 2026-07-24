@@ -160,25 +160,6 @@ export function ControlBar() {
         />
       )}
 
-      {state.surface === "client" && (
-        <>
-          <SegmentedControl
-            label="Page"
-            value={state.clientPage}
-            options={CLIENT_PAGES.map((p) => ({ value: p, label: CLIENT_PAGE_META[p].label }))}
-            onChange={(v) => setClientPage(v as ClientPage)}
-          />
-          <SegmentedControl
-            label="Profile"
-            value={state.clientProfile}
-            options={[
-              { value: "martina", label: "Martina (business)" },
-              { value: "gringo",  label: "The Gringo (person)" },
-            ]}
-            onChange={(v) => setClientProfile(v as "martina" | "gringo")}
-          />
-        </>
-      )}
 
       {state.surface === "platform" && (
         <SegmentedControl

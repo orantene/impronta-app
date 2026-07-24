@@ -165,7 +165,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Mark the booking as funded if escrow is already in place",
       "Generate the invoice on confirmation",
     ],
-    relatedDrawers: ["confirmed-bookings", "client-billing", "new-inquiry"],
+    relatedDrawers: ["confirmed-bookings", "new-inquiry"],
     ticketCategory: "Bookings & inquiries",
   },
 
@@ -232,7 +232,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Open a booking to send updates to talent or client",
       "Mark a booking as completed once the shoot wraps",
     ],
-    relatedDrawers: ["new-booking", "client-billing", "today-pulse"],
+    relatedDrawers: ["new-booking", "today-pulse"],
   },
 
   "archived-work": {
@@ -731,7 +731,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Set client-specific rates or commission overrides",
       "Add internal notes the client never sees",
     ],
-    relatedDrawers: ["client-list", "private-client-data", "relationship-history", "client-billing"],
+    relatedDrawers: ["client-list", "private-client-data", "relationship-history"],
   },
 
   "relationship-history": {
@@ -1520,215 +1520,21 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
   // Client surface
   // ════════════════════════════════════════════════════════════════
 
-  "client-today-pulse": {
-    audience: CLIENT,
-    category: "Today",
-    purpose:
-      "Your day at a glance as a client — open inquiries, pending offers, upcoming shoots.",
-    youCanHere: [
-      "Tap any item to jump into the inquiry or booking",
-      "See call-times for shoots in the next 7 days",
-      "Approve pending offers from this view",
-    ],
-    relatedDrawers: ["client-inquiry-detail", "client-booking-detail"],
-  },
 
-  "client-talent-card": {
-    audience: CLIENT,
-    category: "Discovery",
-    purpose:
-      "Quick view of one talent — measurements, top photos, availability snapshot.",
-    youCanHere: [
-      "Save the talent to a shortlist",
-      "Send an inquiry directly",
-      "Open the full talent profile",
-    ],
-    relatedDrawers: ["client-shortlist-detail", "client-send-inquiry"],
-  },
 
-  "client-saved-search": {
-    audience: CLIENT,
-    category: "Discovery",
-    purpose:
-      "Saved talent searches — filters you re-run often (eg 'female, 5'10+, US-based, runway').",
-    youCanHere: [
-      "Re-run a saved search with one tap",
-      "Get notified when new talent match a saved search",
-      "Edit or delete searches you no longer need",
-    ],
-    relatedDrawers: ["client-shortlist-detail"],
-  },
 
-  "client-shortlist-detail": {
-    audience: CLIENT,
-    category: "Discovery",
-    purpose:
-      "A curated list of talent for a specific job — share with your team, send group inquiries, narrow down.",
-    youCanHere: [
-      "Add or remove talent",
-      "Share the shortlist with your team or external collaborators",
-      "Send a single inquiry to all talent on the list",
-    ],
-    relatedDrawers: ["client-new-shortlist", "client-share-shortlist", "client-send-inquiry"],
-  },
 
-  "client-new-shortlist": {
-    audience: CLIENT,
-    category: "Discovery",
-    purpose:
-      "Create a new shortlist — usually one per project or casting brief.",
-    youCanHere: [
-      "Name the shortlist and set a brief",
-      "Add talent now or later",
-      "Choose who can see it (just you, your team, external)",
-    ],
-    relatedDrawers: ["client-shortlist-detail"],
-  },
 
-  "client-share-shortlist": {
-    audience: CLIENT,
-    category: "Discovery",
-    purpose:
-      "Share a shortlist with someone outside Tulala — your client, your director, your stylist.",
-    youCanHere: [
-      "Get a shareable link with optional password",
-      "Set an expiry date on the link",
-      "Track who's viewed which talent",
-    ],
-    relatedDrawers: ["client-shortlist-detail"],
-  },
 
-  "client-send-inquiry": {
-    audience: CLIENT,
-    category: "Bookings",
-    purpose:
-      "Send an inquiry to one talent or a whole shortlist — kicks off the booking conversation.",
-    youCanHere: [
-      "Pick the talent (or a shortlist)",
-      "Set dates, scope, usage, and budget",
-      "Attach a creative brief or moodboard",
-    ],
-    relatedDrawers: ["client-shortlist-detail", "client-inquiry-detail"],
-  },
 
-  "client-inquiry-detail": {
-    audience: CLIENT,
-    category: "Bookings",
-    purpose:
-      "Your view of one inquiry — messages, offers, agency replies, status.",
-    youCanHere: [
-      "Reply to the agency in the public thread",
-      "Approve or counter an offer",
-      "Cancel the inquiry if your needs changed",
-    ],
-    relatedDrawers: ["client-counter-offer", "client-booking-detail"],
-  },
 
-  "client-counter-offer": {
-    audience: CLIENT,
-    category: "Bookings",
-    purpose:
-      "Counter the agency's offer with different terms — rate, dates, scope.",
-    youCanHere: [
-      "Edit any term and add a note explaining why",
-      "Send the counter and wait for the agency's response",
-      "Withdraw the counter if you change your mind",
-    ],
-    relatedDrawers: ["client-inquiry-detail"],
-  },
 
-  "client-booking-detail": {
-    audience: CLIENT,
-    category: "Bookings",
-    purpose:
-      "A confirmed booking — call-time, location, talent, contracts, payment.",
-    youCanHere: [
-      "See contracts and sign if needed",
-      "Message the agency or talent team",
-      "Pay the invoice if billing is enabled",
-    ],
-    relatedDrawers: ["client-contracts", "client-billing"],
-  },
 
-  "client-contracts": {
-    audience: CLIENT,
-    category: "Bookings",
-    purpose:
-      "Every contract you have with this agency — past, signed, and pending.",
-    youCanHere: [
-      "Sign a pending contract digitally",
-      "Download a copy for your records",
-      "Request changes before signing",
-    ],
-    relatedDrawers: ["client-booking-detail", "client-billing"],
-    ticketCategory: "Bookings & inquiries",
-  },
 
-  "client-team": {
-    audience: CLIENT,
-    category: "Settings",
-    purpose:
-      "Other people on your client team — co-workers, agencies, freelancers — and what they can see.",
-    youCanHere: [
-      "Invite a teammate by email",
-      "Set their role (admin, viewer, collaborator)",
-      "Revoke access when projects end",
-    ],
-    relatedDrawers: ["client-settings"],
-  },
 
-  "client-billing": {
-    audience: CLIENT,
-    category: "Settings",
-    purpose:
-      "Invoices, payment methods, and payment history.",
-    youCanHere: [
-      "Add or update a payment method",
-      "Pay an open invoice",
-      "Download past invoices for your accounting",
-    ],
-    relatedDrawers: ["client-contracts", "client-booking-detail"],
-    ticketCategory: "Billing",
-  },
 
-  "client-brand-switcher": {
-    audience: CLIENT,
-    category: "Settings",
-    purpose:
-      "If you work for multiple brands or agencies, switch between them without signing out.",
-    youCanHere: [
-      "See all brands you have access to",
-      "Switch between them",
-      "Set a default brand for new sessions",
-    ],
-    relatedDrawers: ["client-team"],
-  },
 
-  "client-settings": {
-    audience: CLIENT,
-    category: "Settings",
-    purpose:
-      "Your client account — name, email, password, notification preferences.",
-    youCanHere: [
-      "Update your contact info",
-      "Change your password and 2FA settings",
-      "Tune what you get notified about",
-    ],
-    relatedDrawers: ["notifications-prefs", "client-team"],
-  },
 
-  "client-quick-question": {
-    audience: CLIENT,
-    category: "Discovery",
-    purpose:
-      "Send a quick, no-strings-attached question to an agency or talent — before committing to a formal inquiry.",
-    youCanHere: [
-      "Ask about availability, fit, or rates",
-      "Get a fast yes/no without filling out a brief",
-      "Convert into a formal inquiry if it's a fit",
-    ],
-    relatedDrawers: ["client-send-inquiry"],
-  },
 
   // ════════════════════════════════════════════════════════════════
   // Cross-cutting / shared
@@ -1843,7 +1649,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Download the receipt or invoice",
       "Open a dispute if something is wrong",
     ],
-    relatedDrawers: ["client-billing", "talent-payouts"],
+    relatedDrawers: ["talent-payouts"],
     ticketCategory: "Billing",
   },
 
@@ -2369,14 +2175,7 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Open Phone / ID / Business / Domain / Payment flows when enabled platform-wide",
       "Set your contact gate: Anyone / Verified clients only / Trusted clients only",
     ],
-    relatedDrawers: [
-      "talent-phone-verify",
-      "talent-id-verify",
-      "talent-business-verify",
-      "talent-domain-verify",
-      "talent-payment-verify",
-      "talent-claim-invite",
-    ],
+    relatedDrawers: ["talent-phone-verify", "talent-id-verify", "talent-business-verify", "talent-domain-verify", "talent-payment-verify", "talent-claim-invite"],
     ticketCategory: "Account & access",
   },
 

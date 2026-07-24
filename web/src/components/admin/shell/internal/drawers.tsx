@@ -19,7 +19,6 @@ import { OPEN_DRAWER_EVENT, type OpenDrawerEventDetail } from "./open-drawer-bri
 import { InquiryWorkspaceDrawer } from "./workspace";
 import { InboxSnippetsDrawer, NotificationsPrefsDrawer, DataExportDrawer, AuditLogDrawer, TenantSwitcherDrawer, TalentAgencySwitcherDrawer, WorkspaceProfileDrawer, TalentShareCardDrawer, InquiryTemplatesPicker, DoubleBookingWarning, WhatsNewDrawer, HelpDrawer, TalentNotificationsDrawer, downloadCsv } from "./wave2";
 import { TalentTodayPulseDrawer, TalentOfferDetailDrawer, TalentAddEventDrawer, TalentBookingDetailDrawer, TalentClosedBookingDrawer, TalentHubDetailDrawer, TalentProfileSectionDrawer, TalentAvailabilityDrawer, TalentBlockDatesDrawer, TalentPortfolioDrawer, TalentAgencyRelationshipDrawer, TalentLeaveAgencyDrawer, TalentPrivacyDrawer, TalentPayoutsDrawer, TalentContactPreferencesDrawer, TalentEarningsDetailDrawer, TalentPhotoEditDrawer, TalentPolaroidsDrawer, TalentCreditsDrawer, TalentSkillsDrawer, TalentLimitsDrawer, TalentRateCardDrawer, TalentTravelDrawer, TalentLinksDrawer, TalentReviewsDrawer, TalentShowreelDrawer, TalentMeasurementsDrawer, TalentDocumentsDrawer, TalentEmergencyContactDrawer, TalentPublicPreviewDrawer, TalentTierCompareDrawer, TalentPersonalPageDrawer, TalentPageTemplateDrawer, TalentMediaEmbedsDrawer, TalentPressDrawer, TalentMediaKitDrawer, TalentCustomDomainDrawer, TalentConnectionsDrawer, TalentVerificationDrawer, TalentReferralsDrawer, TalentHubCompareDrawer, TalentTaxDocsDrawer, TalentConflictResolveDrawer, TalentNetworkDrawer, TalentVoiceReplyDrawer, TalentMultiAgencyPickerDrawer, TalentChatArchiveDrawer, ReplyTemplatesDrawer, TalentCareerAnalyticsDrawer, TalentReceiveReviewDrawer, TalentAgencyAnalyticsDrawer, RepresentationDrawer } from "./talent-drawers";
-import { ClientTodayPulseDrawer, ClientTalentCardDrawer, ClientShortlistDetailDrawer, ClientNewShortlistDrawer, ClientShareShortlistDrawer, ClientSendInquiryDrawer, ClientInquiryDetailDrawer, ClientCounterOfferDrawer, ClientReviewDrawer, ClientBookingDetailDrawer, ClientContractsDrawer, ClientTeamDrawer, ClientBillingDrawer, ClientBrandSwitcherDrawer, ClientSavedSearchDrawer, ClientSettingsDrawer, ClientQuickQuestionDrawer, ClientMyTalentDrawer, ClientSpendReportDrawer, ClientBudgetDrawer } from "./client";
 import { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImpersonateDrawer, PlatformTenantSuspendDrawer, PlatformTenantPlanOverrideDrawer, PlatformUserDetailDrawer, PlatformUserMergeDrawer, PlatformUserResetDrawer, PlatformHubSubmissionDrawer, PlatformHubRulesDrawer, PlatformBillingInvoiceDrawer, PlatformRefundDrawer, PlatformDunningDrawer, PlatformFeatureFlagDrawer, PlatformModerationItemDrawer, PlatformSystemJobDrawer, PlatformIncidentDrawer, PlatformSupportTicketDrawer, PlatformAuditExportDrawer, PlatformHqTeamDrawer, PlatformRegionConfigDrawer } from "./platform";
 import { PaymentDetailDrawer, PaymentsSetupDrawer, PayoutReceiverPickerDrawer } from "./drawers/drawer-shared";
 import { TalentProfileShellDrawer, NewTalentDrawer } from "./drawers/profile-shell";
@@ -353,47 +352,6 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
     case "payment-detail":
       return <PaymentDetailDrawer />;
 
-    // ─── Client surface drawers ─────────────────────────────────────────
-    case "client-today-pulse":
-      return <ClientTodayPulseDrawer />;
-    case "client-talent-card":
-      return <ClientTalentCardDrawer />;
-    case "client-saved-search":
-      return <ClientSavedSearchDrawer />;
-    case "client-shortlist-detail":
-      return <ClientShortlistDetailDrawer />;
-    case "client-new-shortlist":
-      return <ClientNewShortlistDrawer />;
-    case "client-share-shortlist":
-      return <ClientShareShortlistDrawer />;
-    case "client-send-inquiry":
-      return <ClientSendInquiryDrawer />;
-    case "client-inquiry-detail":
-      return <ClientInquiryDetailDrawer />;
-    case "client-counter-offer":
-      return <ClientCounterOfferDrawer />;
-    case "client-review":
-      return <ClientReviewDrawer />;
-    case "client-booking-detail":
-      return <ClientBookingDetailDrawer />;
-    case "client-contracts":
-      return <ClientContractsDrawer />;
-    case "client-team":
-      return <ClientTeamDrawer />;
-    case "client-billing":
-      return <ClientBillingDrawer />;
-    case "client-brand-switcher":
-      return <ClientBrandSwitcherDrawer />;
-    case "client-settings":
-      return <ClientSettingsDrawer />;
-    case "client-quick-question":
-      return <ClientQuickQuestionDrawer />;
-    case "client-my-talent":
-      return <ClientMyTalentDrawer />;
-    case "client-spend-report":
-      return <ClientSpendReportDrawer />;
-    case "client-budget":
-      return <ClientBudgetDrawer />;
 
     // ─── Cross-cutting upgrade surfaces ─────────────────────────────────
     case "plan-compare":

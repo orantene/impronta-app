@@ -110,14 +110,6 @@
       "count": 1
     }
   },
-  "src/components/admin/shell/internal/client.tsx": {
-    "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-new-inline-style": {
-      "count": 303
-    }
-  },
   "src/components/admin/shell/internal/context-add-search.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 17
@@ -1217,7 +1209,7 @@
       "count": 1
     },
     "ratchet/no-new-inline-style": {
-      "count": 279
+      "count": 270
     }
   },
   "src/components/admin/shell/internal/workspace.tsx": {

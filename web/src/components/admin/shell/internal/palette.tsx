@@ -163,20 +163,6 @@ export function CommandPalette() {
           },
         });
       });
-    } else if (state.surface === "client") {
-      CLIENT_PAGES.forEach((p) => {
-        items.push({
-          id: `cp-${p}`,
-          label: `Client · ${CLIENT_PAGE_META[p].label}`,
-          group: "Pages",
-          keywords: `client page ${p} ${CLIENT_PAGE_META[p].label}`.toLowerCase(),
-          current: state.clientPage === p,
-          run: () => {
-            proto.setClientPage(p as ClientPage);
-            close();
-          },
-        });
-      });
     } else if (state.surface === "platform") {
       PLATFORM_PAGES.forEach((p) => {
         items.push({
@@ -241,8 +227,6 @@ export function CommandPalette() {
       { id: "data-export", label: "Export workspace data", surface: "workspace", keywords: "export download data backup gdpr off-boarding" },
       { id: "audit-log", label: "Activity log", surface: "workspace", keywords: "audit log activity history who when changes" },
       { id: "tenant-switcher", label: "Switch workspace", surface: "workspace", keywords: "switch workspace tenant agency multi" },
-      { id: "client-send-inquiry", label: "New inquiry", surface: "client", keywords: "client send inquiry new brief" },
-      { id: "client-quick-question", label: "Quick question", surface: "client", keywords: "client quick question ask" },
       { id: "talent-block-dates", label: "Block dates", surface: "talent", keywords: "talent block unavailable dates" },
       { id: "talent-profile-edit", label: "Edit profile", surface: "talent", keywords: "talent edit profile" },
     ];
