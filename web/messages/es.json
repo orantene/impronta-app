@@ -3392,7 +3392,14 @@
         "unnamed": "Sin nombre",
         "reorderFailed": "Error al reordenar: {error}",
         "lineLabelPlaceholder": "Etiqueta de línea (p. ej. Día completo + viaje)",
-        "lineNotePlaceholder": "Qué incluye (opcional)"
+        "lineNotePlaceholder": "Qué incluye (opcional)",
+        "svcLoading": "Cargando servicios…",
+        "svcLoadError": "No se pudieron cargar los servicios.",
+        "fromMenu": "Del menú",
+        "svcPrefill": "Precargar desde servicios…",
+        "svcNoneUseTemplate": "Sin servicios aún, usa una plantilla…",
+        "svcThisTalent": "Servicios de este talento",
+        "svcGenericTemplates": "Plantillas genéricas"
       },
       "files": {
         "fileOver100": "El archivo supera el limite de 100 MB",
