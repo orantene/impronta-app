@@ -11,6 +11,7 @@ import {
   loadWorkspaceRosterLite,
 } from "../../_data-bridge";
 import { loadClientUpcoming } from "../../_data-bridge/client-upcoming";
+import { loadClientBookings } from "../../_data-bridge/bookings";
 import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
@@ -95,10 +96,11 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   const clientProfile = await loadClientSelfProfile(session.user.id, scope.tenantId);
   if (!clientProfile) notFound();
 
-  const [allInquiries, roster, upcoming] = await Promise.all([
+  const [allInquiries, roster, upcoming, bookings] = await Promise.all([
     loadClientInquiries(session.user.id, scope.tenantId),
     loadWorkspaceRosterLite(scope.tenantId),
     loadClientUpcoming(session.user.id, scope.tenantId),
+    loadClientBookings(session.user.id, scope.tenantId),
   ]);
 
   const todayBooking = upcoming.find((u) => u.bucket === "today") ?? null;
@@ -106,15 +108,21 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
 
   const firstName = clientProfile.displayName.split(" ")[0] ?? clientProfile.displayName;
 
-  // Three buckets matching the prototype
+  // CW2 — statuses that are DONE. An archived/closed inquiry must never sit
+  // under "Needs your decision" (next_action_by can be stale on terminal
+  // rows) nor pad out "Agency is coordinating".
+  const TERMINAL = ["declined", "rejected", "cancelled", "expired", "closed", "closed_lost", "archived", "draft"];
+  const isTerminal = (status: string) => TERMINAL.includes(status);
   const needsDecision  = allInquiries.filter((i) =>
-    i.next_action_by === "client" || i.status === "offer_pending",
+    !isTerminal(i.status) &&
+    !["booked", "converted"].includes(i.status) &&
+    (i.next_action_by === "client" || i.status === "offer_pending"),
   );
   const agencyHasIt    = allInquiries.filter((i) =>
+    !isTerminal(i.status) &&
     !["booked", "converted"].includes(i.status) &&
     i.next_action_by !== "client" &&
-    i.status !== "offer_pending" &&
-    !["declined", "cancelled", "expired"].includes(i.status),
+    i.status !== "offer_pending",
   );
   const confirmed      = allInquiries.filter((i) =>
     ["booked", "converted"].includes(i.status),
@@ -124,6 +132,22 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   const activeCount    = allInquiries.filter((i) =>
     ["submitted", "coordination", "offer_pending", "approved"].includes(i.status),
   ).length;
+
+  // CW2 — money strip: what the client still owes across confirmed bookings.
+  // Gross-only, same as the Bookings page. Mixed currencies are summed per
+  // currency and the dominant one is shown (others noted in the sub line).
+  const dueRows = bookings.filter(
+    (b) => (b.paymentStatus === "unpaid" || b.paymentStatus === "partial") && (b.amountCents ?? 0) > 0,
+  );
+  const dueByCurrency = new Map<string, number>();
+  for (const b of dueRows) {
+    const cur = (b.currencyCode ?? "USD").toUpperCase();
+    dueByCurrency.set(cur, (dueByCurrency.get(cur) ?? 0) + (b.amountCents ?? 0));
+  }
+  const dueEntries = [...dueByCurrency.entries()].sort((a, b2) => b2[1] - a[1]);
+  const dueMain = dueEntries[0] ?? null;
+  const fmtMoney = (cents: number, cur: string) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(cents / 100);
 
   // Context-aware headline
   let headline: string;
@@ -192,7 +216,22 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           accent={needsDecision.length > 0}
         />
         <StatTile label="Confirmed" value={confirmed.length.toString()} sub="confirmed bookings" />
-        <StatTile label="Total" value={allInquiries.length.toString()} sub="all time" />
+        {dueMain ? (
+          <Link href={`/${tenantSlug}/client/bookings`} style={{ textDecoration: "none" }}>
+            <StatTile
+              label="Payment due"
+              value={fmtMoney(dueMain[1], dueMain[0])}
+              sub={
+                dueEntries.length > 1
+                  ? `+ ${dueEntries.length - 1} more ${dueEntries.length - 1 === 1 ? "currency" : "currencies"} · open bookings`
+                  : `${dueRows.length} booking${dueRows.length === 1 ? "" : "s"} awaiting payment`
+              }
+              accent
+            />
+          </Link>
+        ) : (
+          <StatTile label="Total" value={allInquiries.length.toString()} sub="all time" />
+        )}
       </div>
 
       {allInquiries.length === 0 ? (
@@ -254,7 +293,9 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
             <BucketSection
               title="Agency is coordinating"
               description="These are in progress — no action from you right now."
-              items={agencyHasIt}
+              items={agencyHasIt.slice(0, 5)}
+              totalCount={agencyHasIt.length}
+              viewAllHref={agencyHasIt.length > 5 ? `/${tenantSlug}/client/inquiries` : undefined}
               tenantSlug={tenantSlug}
             />
           )}
@@ -278,63 +319,6 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
         </div>
       )}
 
-      {/* Sticky bottom action bar — flex-wraps on narrow widths so the two
-          CTAs always fit; safe-area inset for iOS notch / home-indicator. */}
-      <div
-        style={{
-          position: "sticky",
-          bottom: "calc(12px + env(safe-area-inset-bottom))",
-          display: "flex",
-          justifyContent: "center",
-          gap: 10,
-          flexWrap: "wrap",
-          pointerEvents: "none",
-        }}
-      >
-        <Link
-          href={`/${tenantSlug}/client/inquiries`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: 40,
-            padding: "0 18px",
-            borderRadius: 999,
-            background: "#fff",
-            border: "1px solid rgba(24,24,27,0.12)",
-            boxShadow: "0 4px 16px rgba(11,11,13,0.10)",
-            color: C.ink,
-            fontFamily: FONT,
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: "none",
-            pointerEvents: "all",
-          }}
-        >
-          My inquiries
-        </Link>
-        <Link
-          href={`/${tenantSlug}/client/inquiries/new`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: 40,
-            padding: "0 18px",
-            borderRadius: 999,
-            background: C.accent,
-            color: "#fff",
-            fontFamily: FONT,
-            fontSize: 13,
-            fontWeight: 600,
-            textDecoration: "none",
-            boxShadow: "0 4px 16px rgba(29,78,216,0.25)",
-            pointerEvents: "all",
-          }}
-        >
-          + New inquiry
-        </Link>
-      </div>
     </div>
   );
 }
@@ -346,12 +330,18 @@ function BucketSection({
   description,
   accentBar,
   items,
+  totalCount,
+  viewAllHref,
   tenantSlug,
 }: {
   title: string;
   description: string;
   accentBar?: string;
   items: ClientInquiry[];
+  /** CW2 — real total when the list is capped (badge shows this, not items.length). */
+  totalCount?: number;
+  /** CW2 — when set, a "View all" link renders under the capped list. */
+  viewAllHref?: string;
   tenantSlug: string;
 }) {
   const C2 = {
@@ -392,7 +382,7 @@ function BucketSection({
                 borderRadius: 999,
               }}
             >
-              {items.length}
+              {totalCount ?? items.length}
             </span>
           </div>
           <div style={{ fontSize: 12, color: C2.inkMuted, marginTop: 1, fontFamily: FONT }}>
@@ -418,44 +408,88 @@ function BucketSection({
               color: "inherit",
             }}
           >
-            <div className="min-w-0">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                <StatusChip status={inq.status} />
-                {inq.next_action_by === "client" && (
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: C2.blueDeep,
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-              </div>
-              <div
-                style={{
-                  fontSize: 13.5,
-                  fontWeight: 600,
-                  color: C2.ink,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {inq.company ?? "Booking inquiry"}
-                {inq.event_location && (
-                  <span style={{ color: C2.inkMuted, fontWeight: 400, marginLeft: 6 }}>
-                    · {inq.event_location}
-                  </span>
-                )}
-              </div>
-              {inq.event_date && (
-                <div style={{ fontSize: 11.5, color: C2.inkMuted, marginTop: 2 }}>
-                  {fmtDate(inq.event_date)}
-                  {inq.quantity && ` · ${inq.quantity} talent`}
+            <div className="min-w-0" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {/* CW2 — WHO the inquiry is about, at a glance. Initials chips
+                  (headshot wiring lands with CW3's bookings work). */}
+              {inq.talentLineup.length > 0 && (
+                <div style={{ display: "flex", flexShrink: 0 }} aria-hidden>
+                  {inq.talentLineup.slice(0, 3).map((t2, ti) => (
+                    <span
+                      key={t2.id}
+                      title={t2.name}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: "50%",
+                        background: `hsl(${(t2.name.charCodeAt(0) * 47) % 360} 25% 88%)`,
+                        color: "rgba(11,11,13,0.62)",
+                        border: "1.5px solid #fff",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        marginLeft: ti === 0 ? 0 : -7,
+                      }}
+                    >
+                      {t2.name[0]?.toUpperCase()}
+                    </span>
+                  ))}
                 </div>
               )}
+              <div className="min-w-0">
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                  <StatusChip status={inq.status} />
+                  {inq.next_action_by === "client" && (
+                    <span
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: C2.blueDeep,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: C2.ink,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {/* CW2 — a row must always say WHO/WHAT: company, else the
+                      talent lineup, else the venue. Bare "Booking inquiry"
+                      only when the record genuinely has none of those. */}
+                  {inq.company
+                    ?? (inq.talentLineup.length > 0
+                      ? inq.talentLineup.map((t2) => t2.name).join(", ")
+                      : inq.event_location ?? "Booking inquiry")}
+                  {inq.company && inq.event_location && (
+                    <span style={{ color: C2.inkMuted, fontWeight: 400, marginLeft: 6 }}>
+                      · {inq.event_location}
+                    </span>
+                  )}
+                </div>
+                {(inq.event_date || inq.talentLineup.length > 0) && (
+                  <div style={{ fontSize: 11.5, color: C2.inkMuted, marginTop: 2 }}>
+                    {[
+                      inq.event_date ? fmtDate(inq.event_date) : null,
+                      inq.talentLineup.length > 0 && inq.company
+                        ? inq.talentLineup.map((t2) => t2.name).join(", ")
+                        : inq.quantity
+                          ? `${inq.quantity} talent`
+                          : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                )}
+              </div>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C2.inkDim }}>
               {relativeDate(inq.created_at)}
@@ -463,6 +497,16 @@ function BucketSection({
           </Link>
         ))}
       </div>
+      {viewAllHref && (
+        <div style={{ marginTop: 8, textAlign: "right" }}>
+          <Link
+            href={viewAllHref}
+            style={{ fontSize: 12, color: C2.blueDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
+          >
+            View all {totalCount} →
+          </Link>
+        </div>
+      )}
     </section>
   );
 }
