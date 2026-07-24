@@ -351,7 +351,7 @@ export function MarketingHeader({
                     className="mt-2 text-center text-[0.75rem]"
                     style={{ color: "var(--plt-muted)" }}
                   >
-                    {PLATFORM_BRAND.stage} · founder-led
+                    {copy.nav.stageNote}
                   </p>
                 </>
               )}

@@ -92,6 +92,8 @@ const en = {
     language: "Language",
     /** Placeholder + accessible name for the mobile menu's directory search. */
     searchTalent: "Search talent…",
+    /** Reassurance line under the mobile menu's Get started CTA. */
+    stageNote: "Free workspaces · No card · founder-led",
   },
 
   /** Logo lockup descriptor: header (desktop) + footer (always). Category
@@ -343,6 +345,13 @@ const en = {
   footer: {
     description:
       "Sell your services, run your business, and get paid, all on one platform.",
+    /** Copyright-rail positioning line. Localized here because
+     *  PLATFORM_BRAND.positioning is a single English constant and the
+     *  Spanish footer was rendering it verbatim. */
+    legalLine: "Software for talent businesses.",
+    /** Launch-stage chip beside the copyright (was PLATFORM_BRAND.stage,
+     *  which is a single English constant). */
+    stageLine: "Free workspaces · No card",
     columns: {
       platform: {
         label: "Platform",
@@ -451,6 +460,7 @@ const es: MarketingCopy = {
     accountSettings: "Configuración de cuenta",
     language: "Idioma",
     searchTalent: "Busca talento…",
+    stageNote: "Espacios de trabajo gratis · Sin tarjeta · dirigido por su fundador",
   },
 
   brand: {
@@ -697,6 +707,8 @@ const es: MarketingCopy = {
   footer: {
     description:
       "Vende tus servicios, lleva tu negocio y cobra, todo en una sola plataforma.",
+    legalLine: "Software para negocios de talento.",
+    stageLine: "Espacios de trabajo gratis · Sin tarjeta",
     columns: {
       platform: {
         label: "Plataforma",
