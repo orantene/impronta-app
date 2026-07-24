@@ -1339,7 +1339,13 @@
       "inquiries": "Inquiries",
       "bookings": "Bookings",
       "reviews": "Reviews",
-      "settings": "Settings"
+      "settings": "Settings",
+      "groupWork": "Work",
+      "groupFind": "Find talent",
+      "groupAccount": "Account",
+      "plan": "Plan",
+      "trust": "Trust",
+      "aria": "Client sections"
     },
     "clientOverview": {
       "title": "Overview",

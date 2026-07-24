@@ -530,7 +530,13 @@
       "inquiries": "Demandes",
       "bookings": "Réservations",
       "reviews": "Avis",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "groupWork": "Travail",
+      "groupFind": "Trouver des talents",
+      "groupAccount": "Compte",
+      "plan": "Forfait",
+      "trust": "Confiance",
+      "aria": "Sections client"
     }
   }
 }

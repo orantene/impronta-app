@@ -28,6 +28,9 @@ import {
 import { MergeGuestFavorites } from "@/components/client/merge-guest-favorites";
 import { loadClientSelfProfile } from "../_data-bridge";
 import { ClientTopbar } from "./client-topbar";
+import { ClientSidebar } from "./client-sidebar";
+import { loadClientSubscription } from "@/lib/discover/client-subscription";
+import { loadClientTrustBillingState } from "../_data-bridge";
 import { ClientAccountMenu } from "./_components/ClientAccountMenu";
 import { ClientNotificationBell } from "./_components/ClientNotificationBell";
 import { GlobalSearch } from "./_components/GlobalSearch";
@@ -190,6 +193,8 @@ export default async function ClientLayout({
     tenantLocaleSettings,
     reviewsEnabled,
     whitelabel,
+    clientSubscription,
+    clientTrust,
   ] = await Promise.all([
     getFavoriteTalentIds(),
     getSavedTalentIds(),
@@ -197,6 +202,10 @@ export default async function ClientLayout({
     loadTenantLocaleSettings(scope.tenantId),
     tenantReviewsEnabled(scope.tenantId),
     loadTenantWhitelabel(scope.tenantId),
+    // CW1 — plan + trust standing surface permanently in the sidebar rail
+    // footer. Both loaders degrade to their safe defaults on error.
+    loadClientSubscription(session.user.id),
+    loadClientTrustBillingState(session.user.id, scope.tenantId),
   ]);
 
   // Whitelabel branding: the client portal carries the agency's name only when
@@ -252,6 +261,20 @@ export default async function ClientLayout({
         .client-main { padding: 28px 28px 60px; }
         @media (max-width: 640px) {
           .client-main { padding: 16px 14px 56px; }
+        }
+        /* CW1 — sidebar shell grid. Desktop: 240px rail + content (the
+           workspace/talent design language). Under 900px the rail hides and
+           the legacy topbar strip returns as the mobile nav. */
+        .client-shell-grid {
+          display: grid;
+          grid-template-columns: 240px minmax(0, 1fr);
+          align-items: start;
+        }
+        .client-topbar-mobile { display: none; }
+        @media (max-width: 900px) {
+          .client-shell-grid { grid-template-columns: 1fr; }
+          [data-tulala-client-sidebar] { display: none !important; }
+          .client-topbar-mobile { display: block; }
         }
       `}</style>
 
@@ -392,26 +415,40 @@ export default async function ClientLayout({
           </div>
         </header>
 
-        {/* ── Bar 2: Client nav topbar ── */}
-        <ClientTopbar
-          tenantSlug={tenantSlug}
-          locale={locale}
-          reviewsEnabled={reviewsEnabled}
-        />
+        {/* ── Mobile nav: the legacy horizontal strip, phones/tablets only.
+            Desktop navigation moved into the CW1 sidebar rail below. ── */}
+        <div className="client-topbar-mobile">
+          <ClientTopbar
+            tenantSlug={tenantSlug}
+            locale={locale}
+            reviewsEnabled={reviewsEnabled}
+          />
+        </div>
 
         {/* D9 polish — global keyboard shortcuts (renders null unless help open) */}
         <ClientKeyboardShortcuts tenantSlug={tenantSlug} labels={keyboardLabels} />
 
-        {/* ── Content area ── */}
-        <main
-          className="client-main"
-          style={{
-            maxWidth: 1320,
-            margin: "0 auto",
-          }}
-        >
-          {children}
-        </main>
+        {/* ── CW1 shell grid: sidebar rail + content area ── */}
+        <div className="client-shell-grid">
+          <ClientSidebar
+            tenantSlug={tenantSlug}
+            locale={locale}
+            reviewsEnabled={reviewsEnabled}
+            subscriptionTier={clientSubscription.tier}
+            trustLevel={clientTrust.trustLevel}
+          />
+          <main
+            className="client-main"
+            style={{
+              maxWidth: 1320,
+              margin: "0 auto",
+              width: "100%",
+              minWidth: 0,
+            }}
+          >
+            {children}
+          </main>
+        </div>
        </PublicDiscoveryStateProvider>
       </div>
 

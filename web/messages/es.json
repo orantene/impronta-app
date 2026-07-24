@@ -1339,7 +1339,13 @@
       "inquiries": "Consultas",
       "bookings": "Reservas",
       "reviews": "Reseñas",
-      "settings": "Ajustes"
+      "settings": "Ajustes",
+      "groupWork": "Trabajo",
+      "groupFind": "Buscar talento",
+      "groupAccount": "Cuenta",
+      "plan": "Plan",
+      "trust": "Confianza",
+      "aria": "Secciones de cliente"
     },
     "clientOverview": {
       "title": "Resumen",
