@@ -4,6 +4,8 @@
 //
 // Extracted from primitives.tsx — Phase 1f decomposition.
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS } from "../state";
 import { EmptyState } from "./cards";
 import { Skeleton } from "./interactions";
@@ -20,140 +22,156 @@ type EmptyVariantProps = {
 };
 
 export function InboxEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="mail"
-      title="Your inbox is clear"
-      body="No new messages waiting. Conversations about inquiries and bookings will appear here."
-      primaryLabel={onPrimary ? "Browse talent" : undefined}
+      title={t("dashboard.adminShell.emptyStates.inbox.title")}
+      body={t("dashboard.adminShell.emptyStates.inbox.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.inbox.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function InquiriesEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="search"
-      title="No inquiries yet"
-      body="Send your first inquiry to start the booking process. Responses typically arrive within 24 hours."
-      primaryLabel={onPrimary ? "New inquiry" : undefined}
+      title={t("dashboard.adminShell.emptyStates.inquiries.title")}
+      body={t("dashboard.adminShell.emptyStates.inquiries.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.inquiries.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function BookingsEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="calendar"
-      title="No bookings yet"
-      body="Confirmed bookings appear here. Inquiries convert to bookings once both parties agree on terms."
-      primaryLabel={onPrimary ? "See inquiries" : undefined}
+      title={t("dashboard.adminShell.emptyStates.bookings.title")}
+      body={t("dashboard.adminShell.emptyStates.bookings.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.bookings.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function TalentRosterEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="team"
-      title="Your roster is empty"
-      body="Add talent to your workspace to manage inquiries, bookings, and performance from one place."
-      primaryLabel={onPrimary ? "Add talent" : undefined}
+      title={t("dashboard.adminShell.emptyStates.roster.title")}
+      body={t("dashboard.adminShell.emptyStates.roster.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.roster.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function ClientsEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="user"
-      title="No clients yet"
-      body="Clients who book through your workspace will appear here along with their spend history."
-      primaryLabel={onPrimary ? "Share booking link" : undefined}
+      title={t("dashboard.adminShell.emptyStates.clients.title")}
+      body={t("dashboard.adminShell.emptyStates.clients.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.clients.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function ShortlistsEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="sparkle"
-      title="No shortlists saved"
-      body="Shortlists let you group talent for a project and share them with collaborators for review."
-      primaryLabel={onPrimary ? "Browse talent" : undefined}
+      title={t("dashboard.adminShell.emptyStates.shortlists.title")}
+      body={t("dashboard.adminShell.emptyStates.shortlists.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.shortlists.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function CalendarEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="calendar"
-      title="Nothing scheduled"
-      body="Confirmed bookings and set-call appointments will appear on your calendar automatically."
-      primaryLabel={onPrimary ? "View bookings" : undefined}
+      title={t("dashboard.adminShell.emptyStates.calendar.title")}
+      body={t("dashboard.adminShell.emptyStates.calendar.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.calendar.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function MessagesEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="mail"
-      title="No messages yet"
-      body="Start a conversation by sending an inquiry. All replies and notes will be threaded here."
-      primaryLabel={onPrimary ? "Compose" : undefined}
+      title={t("dashboard.adminShell.emptyStates.messages.title")}
+      body={t("dashboard.adminShell.emptyStates.messages.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.messages.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function FilesEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="info"
-      title="No files attached"
-      body="Upload call sheets, contracts, or mood boards to keep everything linked to this project."
-      primaryLabel={onPrimary ? "Upload file" : undefined}
+      title={t("dashboard.adminShell.emptyStates.files.title")}
+      body={t("dashboard.adminShell.emptyStates.files.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.files.primary") : undefined}
       onPrimary={onPrimary}
     />
   );
 }
 
 export function SearchEmptyState({ query }: { query?: string }) {
+  const t = useT();
   return (
     <EmptyState
       icon="search"
-      title={query ? `No results for "${query}"` : "No results"}
-      body="Try different keywords, or adjust your filters to broaden the search."
+      title={
+        query
+          ? interpolate(t("dashboard.adminShell.emptyStates.search.titleQuery"), { query })
+          : t("dashboard.adminShell.emptyStates.search.title")
+      }
+      body={t("dashboard.adminShell.emptyStates.search.body")}
     />
   );
 }
 
 export function NotificationsEmptyState() {
+  const t = useT();
   return (
     <EmptyState
       icon="sparkle"
-      title="All caught up"
-      body="You're up to date. Notifications about activity across your workspace will appear here."
+      title={t("dashboard.adminShell.emptyStates.notifications.title")}
+      body={t("dashboard.adminShell.emptyStates.notifications.body")}
     />
   );
 }
 
 export function AgenciesEmptyState({ onPrimary }: EmptyVariantProps) {
+  const t = useT();
   return (
     <EmptyState
       icon="team"
-      title="Not represented by any agency"
-      body="When an agency adds you to their roster, they'll appear here. You can also request representation."
-      primaryLabel={onPrimary ? "Request representation" : undefined}
+      title={t("dashboard.adminShell.emptyStates.agencies.title")}
+      body={t("dashboard.adminShell.emptyStates.agencies.body")}
+      primaryLabel={onPrimary ? t("dashboard.adminShell.emptyStates.agencies.primary") : undefined}
       onPrimary={onPrimary}
     />
   );

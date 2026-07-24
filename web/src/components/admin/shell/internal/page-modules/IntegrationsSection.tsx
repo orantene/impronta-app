@@ -17,6 +17,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useT } from "@/i18n/use-t";
+
 import { useAdminShell } from "../state";
 import {
   loadTenantIntegrations,
@@ -28,44 +30,48 @@ import { CustomCodeDrawer } from "@/components/admin/integrations/CustomCodeDraw
 import { CaptchaDrawer } from "@/components/admin/integrations/CaptchaDrawer";
 import { EmailDomainDrawer } from "@/components/admin/integrations/EmailDomainDrawer";
 
-const CATEGORY_GROUPS: { id: IntegrationView["category"]; label: string; blurb: string }[] = [
+const CATEGORY_GROUPS: {
+  id: IntegrationView["category"];
+  labelKey: string;
+  blurbKey: string;
+}[] = [
   {
     id: "website",
-    label: "Website",
-    blurb: "Power your public storefront with your own provider keys and code.",
+    labelKey: "dashboard.adminWorkspace.integrations.groupWebsite",
+    blurbKey: "dashboard.adminWorkspace.integrations.groupWebsiteBlurb",
   },
   {
     id: "analytics",
-    label: "Analytics & marketing",
-    blurb:
-      "Drop your own measurement IDs in — tags are injected on your storefront, gated behind visitor consent.",
+    labelKey: "dashboard.adminWorkspace.integrations.groupAnalytics",
+    blurbKey: "dashboard.adminWorkspace.integrations.groupAnalyticsBlurb",
   },
   {
     id: "social",
-    label: "Social channels",
-    blurb:
-      "Connect verified brand channels and decide what appears on the public site.",
+    labelKey: "dashboard.adminWorkspace.integrations.groupSocial",
+    blurbKey: "dashboard.adminWorkspace.integrations.groupSocialBlurb",
   },
   {
     id: "security",
-    label: "Security",
-    blurb:
-      "Keep bots and spam off your storefront forms with your own captcha keys.",
+    labelKey: "dashboard.adminWorkspace.integrations.groupSecurity",
+    blurbKey: "dashboard.adminWorkspace.integrations.groupSecurityBlurb",
   },
   {
     id: "comms",
-    label: "Email",
-    blurb:
-      "Send client email from your own verified domain instead of the platform default.",
+    labelKey: "dashboard.adminWorkspace.integrations.groupComms",
+    blurbKey: "dashboard.adminWorkspace.integrations.groupCommsBlurb",
   },
   {
     id: "money",
-    label: "Payments",
-    blurb: "Connect the accounts that move money in and out of your workspace.",
+    labelKey: "dashboard.adminWorkspace.integrations.groupMoney",
+    blurbKey: "dashboard.adminWorkspace.integrations.groupMoneyBlurb",
   },
 ];
 
+/** Internal sentinel for "the load threw" — never rendered verbatim. */
+const GENERIC_LOAD_ERROR = "__integrations_load_failed__";
+
 export function IntegrationsSection() {
+  const t = useT();
   const { tenantSlug } = useAdminShell();
   const [integrations, setIntegrations] = useState<IntegrationView[] | null>(null);
   const [canManage, setCanManage] = useState(false);
@@ -86,7 +92,10 @@ export function IntegrationsSection() {
           setLoadError(res.error);
         }
       })
-      .catch(() => setLoadError("Couldn't load integrations."))
+      // Sentinel, not user copy: `reload` must not close over the translator
+      // (a fresh `t` identity every render would re-trigger the load effect).
+      // Resolved to a localized string at render time.
+      .catch(() => setLoadError(GENERIC_LOAD_ERROR))
       .finally(() => setLoading(false));
   }, [tenantSlug]);
 
@@ -99,9 +108,12 @@ export function IntegrationsSection() {
   );
 
   if (!tenantSlug) return null;
-  if (loading && !integrations) return note("Loading…");
-  if (loadError && !integrations) return note(loadError);
-  if (!integrations) return note("Couldn't load integrations.");
+  const genericLoadError = t("dashboard.adminWorkspace.integrations.loadError");
+  if (loading && !integrations) return note(t("dashboard.adminWorkspace.integrations.loading"));
+  if (loadError && !integrations) {
+    return note(loadError === GENERIC_LOAD_ERROR ? genericLoadError : loadError);
+  }
+  if (!integrations) return note(genericLoadError);
 
   const openIntegration = integrations.find((i) => i.key === openKey) ?? null;
 
@@ -114,10 +126,10 @@ export function IntegrationsSection() {
           <div key={group.id} className="flex flex-col gap-2">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.4px] text-admin-ink-dim">
-                {group.label}
+                {t(group.labelKey)}
               </div>
               <div className="mt-0.5 text-[12px] leading-[1.45] text-admin-ink-muted">
-                {group.blurb}
+                {t(group.blurbKey)}
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">

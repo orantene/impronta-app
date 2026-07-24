@@ -43,6 +43,8 @@ import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { AdminWorkspaceProvider } from "@/components/admin/workspace-context";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import type { Locale } from "@/i18n/config";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { TenantMembership } from "@/lib/saas";
 import type { AdminWorkspaceSummary } from "@/lib/dashboard/admin-workspace-summary";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -123,13 +125,14 @@ function persistExpandedGroupIds(ids: Set<string>) {
 function AdminTopShortcutsBar({ shortcutIds }: { shortcutIds: string[] }) {
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
+  const t = useT();
   if (shortcutIds.length === 0) return null;
 
   return (
     <div
       className="sticky top-[9rem] z-30 flex gap-1.5 overflow-x-auto overscroll-x-contain border-b border-[var(--admin-gold-border)]/70 bg-[var(--admin-workspace-bg)]/95 px-4 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/88 sm:top-[6rem] lg:px-6"
       role="navigation"
-      aria-label="Shortcuts"
+      aria-label={t("dashboard.adminShell.shell.shortcutsBar")}
     >
       {shortcutIds.map((id) => {
         const item = ADMIN_NAV_ITEM_MAP.get(id);
@@ -194,6 +197,7 @@ function AdminNavSections({
 }) {
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
+  const t = useT();
   const pinnedSet = useMemo(() => new Set(pinnedIds), [pinnedIds]);
   const shortcutSet = useMemo(() => new Set(shortcutIds), [shortcutIds]);
   const useAccordion = !collapsed && !expandAllGroups;
@@ -278,7 +282,11 @@ function AdminNavSections({
         scroll={false}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        aria-label={badgeCount > 0 ? `${item.label} — ${badgeCount} needs attention` : undefined}
+        aria-label={
+          badgeCount > 0
+            ? interpolate(t("dashboard.adminShell.shell.needsAttention"), { label: item.label, count: badgeCount })
+            : undefined
+        }
         className={cn(
           "group/nav relative flex min-w-0 items-center gap-2.5 py-2 text-[13px] transition-[background-color,color,box-shadow] duration-150 ease-out",
           compact || collapsed ? "justify-center rounded-lg px-2" : "flex-1 overflow-hidden rounded-lg px-2.5",
@@ -332,7 +340,7 @@ function AdminNavSections({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={isPinned ? "Unpin from sidebar top" : "Pin to sidebar top"}
+                aria-label={isPinned ? t("dashboard.adminShell.shell.unpinAria") : t("dashboard.adminShell.shell.pinAria")}
                 aria-pressed={isPinned}
                 className={cn(
                   "flex size-8 items-center justify-center rounded-lg text-[var(--admin-nav-idle)] transition-colors hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-gold-bright)]",
@@ -347,13 +355,13 @@ function AdminNavSections({
                 <Pin className="size-3.5" aria-hidden />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{isPinned ? "Unpin" : "Pin to top"}</TooltipContent>
+            <TooltipContent side="right">{isPinned ? t("dashboard.adminShell.shell.unpin") : t("dashboard.adminShell.shell.pinToTop")}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={isShortcut ? "Remove from top shortcuts" : "Show in top shortcuts bar"}
+                aria-label={isShortcut ? t("dashboard.adminShell.shell.removeShortcutAria") : t("dashboard.adminShell.shell.addShortcutAria")}
                 aria-pressed={isShortcut}
                 className={cn(
                   "flex size-8 items-center justify-center rounded-lg text-[var(--admin-nav-idle)] transition-colors hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-gold-bright)]",
@@ -368,7 +376,7 @@ function AdminNavSections({
                 <Bookmark className="size-3.5" aria-hidden />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{isShortcut ? "Remove shortcut" : "Top shortcut"}</TooltipContent>
+            <TooltipContent side="right">{isShortcut ? t("dashboard.adminShell.shell.removeShortcut") : t("dashboard.adminShell.shell.topShortcut")}</TooltipContent>
           </Tooltip>
         </div>
       ) : null;
@@ -430,7 +438,7 @@ function AdminNavSections({
       >
         {!collapsed ? (
           <p className="px-3 text-[10px] font-medium uppercase tracking-[0.28em] text-[var(--admin-gold-muted)]">
-            Pinned
+            {t("dashboard.adminShell.shell.pinned")}
           </p>
         ) : null}
         <div className="space-y-0.5">{pinnedSortedItems.map((item) => renderNavLink(item, { compact: collapsed }))}</div>
@@ -610,6 +618,7 @@ export function AdminDashboardShell({
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [shortcutIds, setShortcutIds] = useState<string[]>([]);
   const pathname = usePathname() ?? "/";
+  const t = useT();
 
   useLayoutEffect(() => {
     try {
@@ -714,7 +723,7 @@ export function AdminDashboardShell({
               size="icon"
               className="ml-auto size-9 shrink-0 rounded-xl text-[var(--admin-nav-idle)] transition-colors duration-150 hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-gold-bright)]"
               onClick={() => setCollapsed((c) => !c)}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={collapsed ? t("dashboard.adminShell.shell.expandSidebar") : t("dashboard.adminShell.shell.collapseSidebar")}
             >
               {collapsed ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
             </Button>
@@ -755,13 +764,13 @@ export function AdminDashboardShell({
                       variant="outline"
                       size="icon"
                       className="size-10 rounded-xl border-[var(--admin-gold-border)] bg-transparent text-[var(--admin-gold)] hover:bg-[var(--admin-sidebar-hover)]"
-                      aria-label="Sign out"
+                      aria-label={t("dashboard.adminShell.shell.signOut")}
                     >
                       <LogOut className="size-4" aria-hidden />
                     </Button>
                   </form>
                 </TooltipTrigger>
-                <TooltipContent side="right">Sign out</TooltipContent>
+                <TooltipContent side="right">{t("dashboard.adminShell.shell.signOut")}</TooltipContent>
               </Tooltip>
             ) : (
               <form action={signOut} className="flex-1">
@@ -772,7 +781,7 @@ export function AdminDashboardShell({
                   className="w-full gap-2 rounded-lg border-[var(--admin-gold-border)] bg-transparent text-[var(--admin-gold-bright)] hover:bg-[var(--admin-sidebar-hover)]"
                 >
                   <LogOut className="size-4 shrink-0" aria-hidden />
-                  Sign out
+                  {t("dashboard.adminShell.shell.signOut")}
                 </Button>
               </form>
             )}
@@ -781,26 +790,26 @@ export function AdminDashboardShell({
                 <TooltipTrigger asChild>
                   <Link
                     href="/"
-                    aria-label="Exit to site"
+                    aria-label={t("dashboard.adminShell.shell.exitToSite")}
                     className="mx-auto flex size-10 items-center justify-center rounded-xl text-[var(--admin-nav-idle)] transition-colors hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-nav-hover-fg)]"
                   >
                     <Home className="size-4" aria-hidden />
                   </Link>
                 </TooltipTrigger>
-                <TooltipContent side="right">Exit to site</TooltipContent>
+                <TooltipContent side="right">{t("dashboard.adminShell.shell.exitToSite")}</TooltipContent>
               </Tooltip>
             ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
                     href="/"
-                    aria-label="Exit to site"
+                    aria-label={t("dashboard.adminShell.shell.exitToSite")}
                     className="flex size-9 shrink-0 items-center justify-center rounded-lg text-[var(--admin-nav-idle)] transition-colors hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-nav-hover-fg)]"
                   >
                     <Home className="size-4" aria-hidden />
                   </Link>
                 </TooltipTrigger>
-                <TooltipContent side="top">Exit to site</TooltipContent>
+                <TooltipContent side="top">{t("dashboard.adminShell.shell.exitToSite")}</TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -815,7 +824,7 @@ export function AdminDashboardShell({
           >
             <SheetHeader className="border-b border-[var(--admin-gold-border)] px-4 py-4 text-left">
               <SheetTitle className="font-display text-sm uppercase tracking-[0.22em] text-[var(--admin-gold)]">
-                Menu
+                {t("dashboard.adminShell.shell.menu")}
               </SheetTitle>
             </SheetHeader>
             {tenants.length > 0 ? (
@@ -839,7 +848,7 @@ export function AdminDashboardShell({
             </div>
             <div className="border-t border-[var(--admin-gold-border)] px-4 py-3 sm:hidden">
               <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--admin-gold-muted)]">
-                Language
+                {t("dashboard.adminShell.shell.language")}
               </p>
               <DashboardLocaleToggle
                 variant="prototype"
@@ -887,7 +896,7 @@ export function AdminDashboardShell({
         {/* Mobile bottom nav — same gold active treatment */}
         <nav
           className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--admin-gold-border)] bg-[var(--admin-workspace-elevated)] px-2 py-2 text-[var(--admin-workspace-fg)] backdrop-blur-md lg:hidden"
-          aria-label="Primary"
+          aria-label={t("dashboard.adminShell.shell.primaryNav")}
         >
           <Link
             href="/admin"
@@ -902,7 +911,7 @@ export function AdminDashboardShell({
               className={cn("size-5", homeActive ? "text-[var(--admin-gold)]" : "")}
               aria-hidden
             />
-            Home
+            {t("dashboard.adminShell.shell.tabHome")}
           </Link>
           <Link
             href="/admin/inquiries"
@@ -917,7 +926,7 @@ export function AdminDashboardShell({
               className={cn("size-5", opsActive ? "text-[var(--admin-gold)]" : "")}
               aria-hidden
             />
-            Ops
+            {t("dashboard.adminShell.shell.tabOps")}
           </Link>
           <Link
             href="/admin/talent"
@@ -932,7 +941,7 @@ export function AdminDashboardShell({
               className={cn("size-5", talentActive ? "text-[var(--admin-gold)]" : "")}
               aria-hidden
             />
-            Talent
+            {t("dashboard.adminShell.shell.tabTalent")}
           </Link>
           <button
             type="button"
@@ -940,7 +949,7 @@ export function AdminDashboardShell({
             onClick={() => setMobileOpen(true)}
           >
             <Menu className="size-5" aria-hidden />
-            More
+            {t("dashboard.adminShell.shell.tabMore")}
           </button>
         </nav>
       </div>

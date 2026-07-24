@@ -1,3 +1,7 @@
+"use client";
+
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { ProofHealth } from "@/lib/talent-integrations/proof-health";
 
 /**
@@ -37,6 +41,7 @@ function Stat({
 }
 
 export function ProofHealthCard({ health }: { health: ProofHealth }) {
+  const t = useT();
   const nothingConnected =
     health.visibleConnectionCount === 0 &&
     health.selectedPublicMediaCount === 0 &&
@@ -63,7 +68,7 @@ export function ProofHealthCard({ health }: { health: ProofHealth }) {
             letterSpacing: -0.05,
           }}
         >
-          Proof health
+          {t("dashboard.adminWorkspace.integrations.proofTitle")}
         </h3>
         {health.needsAttentionCount > 0 ? (
           <span
@@ -76,19 +81,24 @@ export function ProofHealthCard({ health }: { health: ProofHealth }) {
               color: C.warn,
             }}
           >
-            {health.needsAttentionCount} need
-            {health.needsAttentionCount === 1 ? "s" : ""} re-auth
+            {interpolate(
+              t(
+                health.needsAttentionCount === 1
+                  ? "dashboard.adminWorkspace.integrations.proofNeedsReauthOne"
+                  : "dashboard.adminWorkspace.integrations.proofNeedsReauthOther",
+              ),
+              { count: health.needsAttentionCount },
+            )}
           </span>
         ) : null}
       </div>
       <p style={{ fontSize: 12, color: C.inkMuted, margin: "0 0 14px", lineHeight: 1.5 }}>
-        Connection health and selected proof. &ldquo;Verified&rdquo; counts only
-        OAuth-confirmed account ownership.
+        {t("dashboard.adminWorkspace.integrations.proofBlurb")}
       </p>
 
       {nothingConnected ? (
         <div style={{ fontSize: 12.5, color: C.inkDim }}>
-          No connections or selected proof yet.
+          {t("dashboard.adminWorkspace.integrations.proofEmpty")}
         </div>
       ) : (
         <>
@@ -100,12 +110,21 @@ export function ProofHealthCard({ health }: { health: ProofHealth }) {
               marginBottom: health.connections.length > 0 ? 14 : 0,
             }}
           >
-            <Stat value={health.verifiedConnectionCount} label="Verified connections" />
-            <Stat value={health.visibleConnectionCount} label="Visible to agency" />
-            <Stat value={health.selectedPublicMediaCount} label="Selected public media" />
             <Stat
-              value={health.hasClientTrustProof ? "Yes" : "—"}
-              label="Client trust proof"
+              value={health.verifiedConnectionCount}
+              label={t("dashboard.adminWorkspace.integrations.proofStatVerified")}
+            />
+            <Stat
+              value={health.visibleConnectionCount}
+              label={t("dashboard.adminWorkspace.integrations.proofStatVisible")}
+            />
+            <Stat
+              value={health.selectedPublicMediaCount}
+              label={t("dashboard.adminWorkspace.integrations.proofStatMedia")}
+            />
+            <Stat
+              value={health.hasClientTrustProof ? t("dashboard.adminWorkspace.integrations.proofYes") : "—"}
+              label={t("dashboard.adminWorkspace.integrations.proofStatTrust")}
             />
           </div>
 
@@ -136,7 +155,7 @@ export function ProofHealthCard({ health }: { health: ProofHealth }) {
                 >
                   {c.verified ? <span aria-hidden>✓</span> : null}
                   {c.provider}
-                  {c.needsAttention ? " · re-auth" : ""}
+                  {c.needsAttention ? ` · ${t("dashboard.adminWorkspace.integrations.proofReauthTag")}` : ""}
                 </span>
               ))}
             </div>

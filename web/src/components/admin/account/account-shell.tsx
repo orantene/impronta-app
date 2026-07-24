@@ -13,6 +13,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/use-t";
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 import { useUrlDrawer } from "@/components/admin/drawer/use-url-drawer";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
@@ -117,6 +118,7 @@ export function AccountShell({
   userEmail: string | null;
   securitySlot: React.ReactNode;
 }) {
+  const t = useT();
   const workspace = useAdminWorkspace();
   const planKey = workspace?.plan ?? "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
@@ -128,33 +130,37 @@ export function AccountShell({
 
   const drawers: Record<DrawerId, DrawerEntry> = {
     plan: {
-      title: "Plan & billing",
-      subtitle: `${planLabel} · ${hasPaidInvoices ? "billed monthly" : "no renewal"}`,
+      title: t("dashboard.adminWorkspace.planLabel"),
+      subtitle: `${planLabel} · ${hasPaidInvoices ? t("dashboard.adminAccount.plan.billedMonthly") : t("dashboard.adminAccount.plan.noRenewal")}`,
       icon: Sparkles,
     },
     organization: {
-      title: "Organization",
-      subtitle: "Brand · receipts · address",
+      title: t("dashboard.adminAccount.organization.title"),
+      subtitle: t("dashboard.adminAccount.organization.subtitle"),
       icon: Building2,
     },
     payment: {
-      title: "Payment method",
-      subtitle: hasPaidInvoices ? "Visa ending 4242" : "No card on file",
+      title: t("dashboard.adminAccount.payment.title"),
+      subtitle: hasPaidInvoices
+        ? t("dashboard.adminAccount.payment.cardOnFile")
+        : t("dashboard.adminAccount.payment.noCard"),
       icon: CreditCard,
     },
     invoices: {
-      title: "Invoices",
-      subtitle: hasPaidInvoices ? "PDF receipts · last 3" : "Free plan — no invoices",
+      title: t("dashboard.adminAccount.invoices.title"),
+      subtitle: hasPaidInvoices
+        ? t("dashboard.adminAccount.invoices.subtitlePaid")
+        : t("dashboard.adminAccount.invoices.subtitleFree"),
       icon: FileText,
     },
     security: {
-      title: "Security & session",
-      subtitle: userEmail ?? "Signed in as staff",
+      title: t("dashboard.adminAccount.security.title"),
+      subtitle: userEmail ?? t("dashboard.adminAccount.security.signedInAsStaff"),
       icon: ShieldCheck,
     },
     danger: {
-      title: "Danger zone",
-      subtitle: "Pause or close workspace",
+      title: t("dashboard.adminAccount.danger.title"),
+      subtitle: t("dashboard.adminAccount.danger.subtitle"),
       icon: AlertTriangle,
     },
   };
@@ -192,19 +198,19 @@ export function AccountShell({
         <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(24,24,27,0.06)] px-2.5 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.18em] text-foreground/70">
-              Workspace
+              {t("dashboard.adminAccount.sections.workspaceEyebrow")}
             </span>
             <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-foreground">
-              Billing &amp; identity
+              {t("dashboard.adminAccount.sections.billingIdentityTitle")}
             </h2>
             <span className="text-[12px] text-muted-foreground">
-              Plan · organization · payment · invoices.
+              {t("dashboard.adminAccount.sections.billingIdentityHint")}
             </span>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             <AccountTile
               icon={drawers.plan.icon}
-              label="Plan & billing"
+              label={drawers.plan.title}
               stat={drawers.plan.subtitle}
               badge={
                 <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(24,24,27,0.18)] bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-foreground/70">
@@ -215,19 +221,19 @@ export function AccountShell({
             />
             <AccountTile
               icon={drawers.organization.icon}
-              label="Organization"
+              label={drawers.organization.title}
               stat={workspace?.displayName ?? drawers.organization.subtitle}
               onClick={() => setOpenId("organization")}
             />
             <AccountTile
               icon={drawers.payment.icon}
-              label="Payment method"
+              label={drawers.payment.title}
               stat={drawers.payment.subtitle}
               onClick={() => setOpenId("payment")}
             />
             <AccountTile
               icon={drawers.invoices.icon}
-              label="Invoices"
+              label={drawers.invoices.title}
               stat={drawers.invoices.subtitle}
               onClick={() => setOpenId("invoices")}
             />
@@ -237,25 +243,25 @@ export function AccountShell({
         <section className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[rgba(24,24,27,0.06)] px-2.5 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.18em] text-foreground/70">
-              You
+              {t("dashboard.adminAccount.sections.youEyebrow")}
             </span>
             <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-foreground">
-              Security &amp; session
+              {t("dashboard.adminAccount.security.title")}
             </h2>
             <span className="text-[12px] text-muted-foreground">
-              Sign-out and password for this device.
+              {t("dashboard.adminAccount.sections.securityHint")}
             </span>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             <AccountTile
               icon={drawers.security.icon}
-              label="Security & session"
+              label={drawers.security.title}
               stat={drawers.security.subtitle}
               onClick={() => setOpenId("security")}
             />
             <AccountTile
               icon={drawers.danger.icon}
-              label="Danger zone"
+              label={drawers.danger.title}
               stat={drawers.danger.subtitle}
               onClick={() => setOpenId("danger")}
             />

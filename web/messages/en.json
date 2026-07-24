@@ -4172,7 +4172,138 @@
       "deleteTransferWorkspaceDesc": "Export everything, transfer ownership, or delete this workspace.",
       "emailFromAddress": "Email-from address",
       "emailFromFeature": "Email-from",
-      "emailFromWhy": "Send client offers from your own verified email."
+      "emailFromWhy": "Send client offers from your own verified email.",
+      "defaultCurrency": {
+        "desc": "Which currency tab opens first on Business Financials when multiple are present. Display-only, no FX conversion."
+      },
+      "registration": {
+        "loading": "Loading…",
+        "loadError": "Couldn't load registration settings.",
+        "viewOnly": "You can view this setting, but only a Manager or above can change it.",
+        "masterTitle": "Open for registration",
+        "masterDesc": "Show a join button on your public site and let talent register.",
+        "planLine": "Plan: {plan}",
+        "modesHeading": "How registrations are handled",
+        "upgradeToEnable": "Upgrade to enable",
+        "visibilityLabel": "New joiners appear as",
+        "visibilityRosterOnly": "Roster only (hidden from your public site)",
+        "visibilitySiteVisible": "Visible on your public site",
+        "ctaLabelLabel": "Button label",
+        "ctaLabelPlaceholder": "Join the team",
+        "saving": "Saving…",
+        "save": "Save changes",
+        "saved": "Saved.",
+        "pendingTitle": "Pending requests",
+        "pendingNone": "None right now",
+        "pendingWaiting": "{count} waiting",
+        "pendingEmptyBody": "When someone registers from your site in approval mode, their request shows up here for review.",
+        "requestedOn": "Requested {date}",
+        "decline": "Decline",
+        "approve": "Approve"
+      },
+      "registrationModes": {
+        "closedLabel": "Closed",
+        "closedDesc": "Invite-only. No public join button or registration modal.",
+        "openLabel": "Open · auto-accept",
+        "openDesc": "Anyone can register from your public site and joins your roster immediately.",
+        "approvalLabel": "Approval required",
+        "approvalDesc": "Applicants create a pending request. A Manager or above approves or declines.",
+        "exclusiveLabel": "Exclusive (agency)",
+        "exclusiveDesc": "Joining grants exclusive representation. Always requires approval; subject to the one-exclusive-agency rule."
+      },
+      "integrations": {
+        "loading": "Loading…",
+        "loadError": "Couldn't load integrations.",
+        "groupWebsite": "Website",
+        "groupWebsiteBlurb": "Power your public storefront with your own provider keys and code.",
+        "groupAnalytics": "Analytics & marketing",
+        "groupAnalyticsBlurb": "Drop your own measurement IDs in. Tags are injected on your storefront, gated behind visitor consent.",
+        "groupSocial": "Social channels",
+        "groupSocialBlurb": "Connect verified brand channels and decide what appears on the public site.",
+        "groupSecurity": "Security",
+        "groupSecurityBlurb": "Keep bots and spam off your storefront forms with your own captcha keys.",
+        "groupComms": "Email",
+        "groupCommsBlurb": "Send client email from your own verified domain instead of the platform default.",
+        "groupMoney": "Payments",
+        "groupMoneyBlurb": "Connect the accounts that move money in and out of your workspace.",
+        "noPermission": "You don't have permission to change integrations.",
+        "save": "Save",
+        "savingPending": "Saving…",
+        "disconnect": "Disconnect",
+        "inheritedBanner": "This integration is currently using the platform default. Add your own key below to use it on your custom domain.",
+        "howToSetUp": "How to set this up",
+        "verifyOwnershipTitle": "Verify ownership",
+        "verifyOwnershipDesc": "We store the public channel label and encrypted OAuth tokens. The verified channel is used for workspace trust and public-site social links.",
+        "openingPending": "Opening…",
+        "connectWithGoogle": "Connect with Google",
+        "showOnSiteTitle": "Show on public site",
+        "showOnSiteOnDesc": "Your verified channel link appears in the public site header and footer.",
+        "showOnSiteOffDesc": "Off by default. The connection stays verified; turn this on to display the channel publicly.",
+        "hide": "Hide",
+        "show": "Show",
+        "shown": "Shown",
+        "hidden": "Hidden",
+        "storedMask": "Stored: ····{last4}",
+        "remove": "Remove",
+        "placeholderReplaceKey": "Paste a new key to replace the stored one",
+        "placeholderKey": "Paste your key",
+        "placeholderId": "Paste your ID",
+        "usePlatformDefaultTitle": "Use platform default",
+        "usePlatformDefaultDesc": "Stop using your own key and fall back to Tulala's shared credential.",
+        "switchToDefault": "Switch",
+        "feedbackConnected": "Connected. Format check passed.",
+        "feedbackUsingDefault": "Now using the platform default.",
+        "feedbackRemovedReverted": "Removed. Reverted to the platform default.",
+        "feedbackRemoved": "Removed.",
+        "feedbackDisconnected": "Disconnected.",
+        "feedbackYoutubeShown": "The verified channel now shows on your public site.",
+        "feedbackYoutubeHidden": "Hidden from your public site. The connection stays verified.",
+        "lastCheck": "Last check: {error}",
+        "captchaProvider": "Provider",
+        "captchaSiteKey": "Site key",
+        "captchaSiteKeyHint": "Public, renders the widget on your forms.",
+        "captchaSiteKeyPlaceholder": "Paste your site key",
+        "captchaSecretKey": "Secret key",
+        "captchaSecretPlaceholderReplace": "Paste a new secret to replace the stored one",
+        "captchaSecretPlaceholder": "Paste your secret key",
+        "captchaSaved": "Captcha saved.",
+        "emailUpgradeFooter": "Upgrade your plan to send from your own domain.",
+        "emailVerify": "Verify",
+        "emailChecking": "Checking…",
+        "emailUpdateDomain": "Update domain",
+        "emailAddDomain": "Add domain",
+        "emailLockedBanner": "White-label email is a plan feature. Upgrade to send client email from your own domain.",
+        "emailSendingDomain": "Sending domain",
+        "emailDomainPlaceholder": "mail.yourbrand.com",
+        "emailProviderStatus": "Provider status:",
+        "emailDnsTitle": "DNS records to add",
+        "emailDnsHint": "Add these at your DNS host, then click Verify.",
+        "emailDnsPriority": "(priority {priority})",
+        "emailSavedOk": "Domain registered. Add the DNS records below, then Verify.",
+        "emailVerifiedOk": "Verified, email now sends from your domain.",
+        "emailNotVerified": "Not verified yet (status: {status}). DNS can take a while to propagate.",
+        "codeUpgradeFooter": "Upgrade your plan to add custom code.",
+        "codeWarningPre": "This code runs on your ",
+        "codeWarningStrong": "public storefront",
+        "codeWarningPost": " only, never the admin or other workspaces. Only paste code you trust; it has full access to your storefront pages.",
+        "codeLockedBanner": "Custom code is a plan feature. Upgrade to inject your own head / body HTML on your storefront.",
+        "codeHeadLabel": "Head HTML",
+        "codeHeadHint": "Injected near the top of the page: meta tags, fonts, analytics loaders.",
+        "codeBodyLabel": "Body HTML",
+        "codeBodyHint": "Injected at the end of the page: chat widgets, deferred scripts.",
+        "codeSaved": "Saved. Your storefront now runs this code.",
+        "proofTitle": "Proof health",
+        "proofNeedsReauthOne": "{count} needs re-auth",
+        "proofNeedsReauthOther": "{count} need re-auth",
+        "proofBlurb": "Connection health and selected proof. “Verified” counts only OAuth-confirmed account ownership.",
+        "proofEmpty": "No connections or selected proof yet.",
+        "proofStatVerified": "Verified connections",
+        "proofStatVisible": "Visible to agency",
+        "proofStatMedia": "Selected public media",
+        "proofStatTrust": "Client trust proof",
+        "proofYes": "Yes",
+        "proofReauthTag": "re-auth"
+      }
     },
     "adminOperations": {
       "title": "Operations",
@@ -7440,6 +7571,937 @@
       "sell4": "What you owe across every agency, in every currency",
       "seePlans": "See plans",
       "navHub": "All agencies"
+    },
+    "adminShell": {
+      "topBar": {
+        "openMenu": "Open menu",
+        "admin": "Admin",
+        "breadcrumbAria": "Breadcrumb",
+        "planFallback": "{plan} plan",
+        "rosterFullTitle": "Roster is {percent}% full · open workspace summary",
+        "workspaceSummary": "Open workspace summary",
+        "upgrade": "Upgrade",
+        "useLightWorkspace": "Use light workspace",
+        "useDarkWorkspace": "Use dark workspace",
+        "lightMode": "Light mode",
+        "darkMode": "Dark mode",
+        "preview": "Preview",
+        "previewPublicSite": "Preview public site",
+        "accountMenu": "Account menu",
+        "signedIn": "Signed in",
+        "unknownUser": "Unknown",
+        "accountBilling": "Account & billing",
+        "workspaceSettings": "Workspace settings",
+        "teamPermissions": "Team & permissions",
+        "keyboardShortcuts": "Keyboard shortcuts",
+        "signOut": "Sign out",
+        "quickCreate": {
+          "trigger": "Quick create",
+          "new": "New",
+          "heading": "Quick create",
+          "newRequest": "New request",
+          "newRequestHint": "Capture a lead",
+          "newBooking": "New booking",
+          "newBookingHint": "Confirmed job",
+          "addTalent": "Add talent",
+          "addTalentHint": "Create a roster profile",
+          "addClient": "Add client",
+          "addClientHint": "Open client list"
+        },
+        "segment": {
+          "site-settings": "Site",
+          "card-design": "Card design",
+          "profile-pages": "Profile pages",
+          "structure": "Composer",
+          "design": "Design",
+          "sections": "Sections",
+          "pages": "Pages",
+          "content": "Content",
+          "navigation": "Navigation",
+          "seo": "SEO",
+          "identity": "Brand",
+          "branding": "Brand",
+          "system": "System",
+          "audit": "Audit",
+          "accounts": "Work locations",
+          "media": "Media",
+          "translations": "Translations",
+          "analytics": "Analytics",
+          "fields": "Fields",
+          "directory": "Directory",
+          "taxonomy": "Taxonomy",
+          "locations": "Locations",
+          "search": "Search",
+          "admins": "Admins"
+        }
+      },
+      "palette": {
+        "searchAnything": "Search anything…",
+        "search": "Search…",
+        "srHint": "Opens search. Keyboard shortcut: Command K or Control K.",
+        "dialogTitle": "Admin search",
+        "dialogDescription": "Filter pages or type at least two characters to search records. Results are grouped by category; choose a row to open it.",
+        "inputPlaceholder": "Pages, records, names, codes, or UUID…",
+        "searching": "Searching…",
+        "typeMore": "Type at least 2 characters to search records, or pick a page below.",
+        "noMatches": "No matches. Try another spelling, id fragment, or page name.",
+        "groupPages": "Pages",
+        "groupTalentProfiles": "Talent profiles",
+        "groupAccounts": "Accounts (non-client)",
+        "groupInquiries": "Inquiries",
+        "groupClients": "Clients (logins)",
+        "unnamed": "Unnamed",
+        "talentLabel": "Talent",
+        "inquiryLabel": "Inquiry",
+        "inquiryRef": "Inquiry {id}",
+        "clientLabel": "Client",
+        "loginUser": "Login user",
+        "role": {
+          "superAdmin": "Super admin",
+          "agencyStaff": "Agency staff",
+          "talentLogin": "Talent (login)"
+        },
+        "category": {
+          "dashboard": "Dashboard",
+          "people": "People",
+          "bookings": "Bookings",
+          "media": "Media",
+          "directoryData": "Directory / Talent data",
+          "site": "Site",
+          "siteAi": "Site & AI",
+          "system": "System"
+        },
+        "nav": {
+          "overview": {
+            "label": "Overview",
+            "hint": "Summary and quick links"
+          },
+          "users": {
+            "label": "Users",
+            "hint": "Staff up top plus global search: talent, clients, admins, email, phone, id"
+          },
+          "talents": {
+            "label": "Talents",
+            "hint": "Roster, workflow, profile codes"
+          },
+          "clients": {
+            "label": "Clients",
+            "hint": "Login users on the client portal, not the billing entity (use Work locations for that)"
+          },
+          "workLocations": {
+            "label": "Work locations (billing)",
+            "hint": "Commercial / billing entities: villa, brand, venue (not portal login users)"
+          },
+          "adminsStaff": {
+            "label": "Admins & staff",
+            "hint": "Agency staff and super admins (top of the Users page)"
+          },
+          "inquiries": {
+            "label": "Inquiries",
+            "hint": "Client requests and leads, before they become confirmed bookings"
+          },
+          "bookings": {
+            "label": "Bookings",
+            "hint": "Confirmed commercial jobs: lineup, pricing, payment"
+          },
+          "mediaLibrary": {
+            "label": "Media library",
+            "hint": "Browse recently approved uploads"
+          },
+          "pendingApprovals": {
+            "label": "Pending approvals",
+            "hint": "Moderation queue for new uploads"
+          },
+          "fields": {
+            "label": "Fields",
+            "hint": "Profile field catalog"
+          },
+          "directoryFilters": {
+            "label": "Directory filters",
+            "hint": "Public directory sidebar: order, show/hide, search within filters"
+          },
+          "taxonomy": {
+            "label": "Taxonomy",
+            "hint": "Tags, skills, languages, filters, categories"
+          },
+          "locations": {
+            "label": "Locations",
+            "hint": "Cities and regions"
+          },
+          "openEditor": {
+            "label": "Open editor",
+            "hint": "In-place storefront editor: engage and edit any section live"
+          },
+          "designTokens": {
+            "label": "Design tokens",
+            "hint": "Theme presets, colors, type, spacing"
+          },
+          "sectionsLibrary": {
+            "label": "Sections library",
+            "hint": "Legacy URL redirects to workspace Website; blocks are edited in the storefront builder"
+          },
+          "pages": {
+            "label": "Pages",
+            "hint": "Non-homepage pages: about, services, journal"
+          },
+          "publicSite": {
+            "label": "Public site",
+            "hint": "Site control center: pages, design, navigation, SEO (same destination as legacy Site settings)"
+          },
+          "siteSetup": {
+            "label": "Site setup",
+            "hint": "Six-step walkthrough: homepage, pages, posts, nav, theme, SEO"
+          },
+          "aiWorkspace": {
+            "label": "AI workspace",
+            "hint": "Admin AI tools, logs, and rollout shells"
+          },
+          "settings": {
+            "label": "Settings",
+            "hint": "Agency and product settings"
+          },
+          "account": {
+            "label": "Account",
+            "hint": "Your staff profile"
+          }
+        }
+      },
+      "commandPalette": {
+        "switchToSurface": "Switch to {surface}",
+        "groupSurfaces": "Surfaces",
+        "groupPages": "Pages",
+        "surfaceWorkspace": "Workspace",
+        "surfaceTalent": "Talent",
+        "surfacePlatform": "Platform",
+        "planPrefix": "Plan",
+        "rolePrefix": "Role",
+        "groupWorkspacePlan": "Workspace plan",
+        "groupWorkspaceRole": "Workspace role",
+        "groupHelp": "Help",
+        "groupView": "View",
+        "groupActions": "Actions",
+        "shortcutsAndGestures": "Keyboard shortcuts & gestures",
+        "shortcutsToast": "⌘K palette · ? shortcuts · Esc closes drawers · swipe rows on mobile · drag drawer edge to resize",
+        "restoreChecklists": "Restore setup checklists",
+        "checklistsRestoredToast": "Setup checklists restored. Refresh to see them.",
+        "densityComfortable": "Switch to comfortable density",
+        "densityCompact": "Switch to compact density",
+        "dialogAria": "Command palette",
+        "placeholder": "Type a surface, page, plan, or action…",
+        "searchAria": "Command palette search",
+        "noMatches": "No matches. Try a different word.",
+        "footerNavigate": "navigate",
+        "footerSelect": "select",
+        "footerClose": "close",
+        "current": "Current",
+        "drawer": {
+          "newInquiry": "New inquiry",
+          "addTalent": "Add talent",
+          "comparePlans": "Compare plans",
+          "teamSeats": "Team & seats",
+          "branding": "Branding",
+          "customDomain": "Custom domain",
+          "notifications": "Notifications",
+          "dangerZone": "Danger zone",
+          "whatsNew": "What's new",
+          "helpShortcuts": "Help & shortcuts",
+          "savedSnippets": "Saved snippets",
+          "notificationPrefs": "Notification preferences",
+          "exportData": "Export workspace data",
+          "activityLog": "Activity log",
+          "switchWorkspace": "Switch workspace",
+          "blockDates": "Block dates",
+          "editProfile": "Edit profile"
+        }
+      },
+      "shortcuts": {
+        "title": "Keyboard shortcuts",
+        "subtitle": "Faster way to drive the dashboard",
+        "soon": "soon",
+        "group": {
+          "navigation": "Navigation",
+          "quickCreate": "Quick create",
+          "listActions": "List actions",
+          "utilities": "Utilities"
+        },
+        "rows": {
+          "openPalette": "Open command palette",
+          "goOverview": "Go to Overview",
+          "goRequests": "Go to Requests",
+          "goBookings": "Go to Bookings",
+          "goTalent": "Go to Talent",
+          "goClients": "Go to Clients",
+          "openNewMenu": "Open + New menu",
+          "newRequest": "New request",
+          "newBooking": "New booking",
+          "addTalent": "Add talent",
+          "focusSearch": "Focus search",
+          "nextRow": "Next row",
+          "previousRow": "Previous row",
+          "openSelectedRow": "Open selected row",
+          "toggleRowCheckbox": "Toggle row checkbox",
+          "showCheatsheet": "Show this cheatsheet",
+          "closeDrawer": "Close drawer / popover",
+          "toggleDensity": "Toggle compact density"
+        }
+      },
+      "emptyStates": {
+        "inbox": {
+          "title": "Your inbox is clear",
+          "body": "No new messages waiting. Conversations about inquiries and bookings will appear here.",
+          "primary": "Browse talent"
+        },
+        "inquiries": {
+          "title": "No inquiries yet",
+          "body": "Send your first inquiry to start the booking process. Responses typically arrive within 24 hours.",
+          "primary": "New inquiry"
+        },
+        "bookings": {
+          "title": "No bookings yet",
+          "body": "Confirmed bookings appear here. Inquiries convert to bookings once both parties agree on terms.",
+          "primary": "See inquiries"
+        },
+        "roster": {
+          "title": "Your roster is empty",
+          "body": "Add talent to your workspace to manage inquiries, bookings, and performance from one place.",
+          "primary": "Add talent"
+        },
+        "clients": {
+          "title": "No clients yet",
+          "body": "Clients who book through your workspace will appear here along with their spend history.",
+          "primary": "Share booking link"
+        },
+        "shortlists": {
+          "title": "No shortlists saved",
+          "body": "Shortlists let you group talent for a project and share them with collaborators for review.",
+          "primary": "Browse talent"
+        },
+        "calendar": {
+          "title": "Nothing scheduled",
+          "body": "Confirmed bookings and set-call appointments will appear on your calendar automatically.",
+          "primary": "View bookings"
+        },
+        "messages": {
+          "title": "No messages yet",
+          "body": "Start a conversation by sending an inquiry. All replies and notes will be threaded here.",
+          "primary": "Compose"
+        },
+        "files": {
+          "title": "No files attached",
+          "body": "Upload call sheets, contracts, or mood boards to keep everything linked to this project.",
+          "primary": "Upload file"
+        },
+        "agencies": {
+          "title": "Not represented by any agency",
+          "body": "When an agency adds you to their roster, they'll appear here. You can also request representation.",
+          "primary": "Request representation"
+        },
+        "search": {
+          "title": "No results",
+          "titleQuery": "No results for \"{query}\"",
+          "body": "Try different keywords, or adjust your filters to broaden the search."
+        },
+        "notifications": {
+          "title": "All caught up",
+          "body": "You're up to date. Notifications about activity across your workspace will appear here."
+        }
+      },
+      "pages": {
+        "demoBadgeTitle": "Wire-up pending. Coming soon.",
+        "demoBadge": "demo",
+        "back": "Back",
+        "todaysFocus": {
+          "eyebrow": "Today's focus",
+          "allCaughtUp": "All caught up, nothing urgent today.",
+          "bodyNextUp": "Next up: {booking}. Use the quiet time to refine a draft or prep call sheets.",
+          "bodyQuiet": "Use the next quiet hour to refine a draft or chase a hold.",
+          "pendingTitleOne": "{count} inquiry is waiting for a client decision.",
+          "pendingTitleOther": "{count} inquiries are waiting for a client decision.",
+          "waitHintOld": " Oldest wait: {days}d, follow up before it goes cold.",
+          "waitHintNudge": " Send a nudge or share polaroids to move it forward.",
+          "pendingBody": "The ball is in their court.{hint}",
+          "openPulse": "Open today's pulse",
+          "draftTitleOne": "{count} draft hasn't been sent yet.",
+          "draftTitleOther": "{count} drafts haven't been sent yet.",
+          "draftBody": "Finish the brief and send while the client's still warm.",
+          "openDrafts": "Open drafts"
+        }
+      },
+      "surfaceLandmark": "{surface} surface",
+      "upgradeCelebration": {
+        "welcomeTo": "Welcome to {plan}",
+        "unlockedOne": "{count} thing unlocked.",
+        "unlockedOther": "{count} things unlocked.",
+        "takeMeIn": "Take me in",
+        "dismissHint": "Tap anywhere to dismiss · auto-closes in 6s",
+        "unlocks": {
+          "studio": {
+            "customDomain": "Custom domain",
+            "ownedClientList": "Owned client list",
+            "upTo50Talents": "Up to 50 talents",
+            "privateInquiryInbox": "Private inquiry inbox"
+          },
+          "agency": {
+            "brandedDesignSystem": "Branded design system",
+            "customRosterFields": "Custom roster fields",
+            "teamRoles25": "Team & roles up to 25",
+            "upTo200Talents": "Up to 200 talents"
+          },
+          "network": {
+            "multiBrandWorkspaces": "Multi-brand workspaces",
+            "crossRosterPool": "Cross-roster pool",
+            "hubAnalytics": "Hub-level analytics",
+            "unlimitedEverything": "Unlimited everything"
+          }
+        }
+      },
+      "pulse": {
+        "title": "Business pulse",
+        "breakdownAria": "Business pulse, breakdown",
+        "summaryMoneyOne": "{pending} pending · {count} confirmed",
+        "summaryMoneyOther": "{pending} pending · {count} confirmed",
+        "summaryRoster": "{talent} talent · {inquiries} open inquiries",
+        "pendingPayouts": "Pending payouts",
+        "confirmedBookings": "Confirmed bookings",
+        "openInquiries": "Open inquiries",
+        "unreadMessages": "Unread messages",
+        "rosterApprovals": "Roster approvals waiting",
+        "openFinancials": "Open financials",
+        "openMessages": "Open messages"
+      },
+      "shell": {
+        "shortcutsBar": "Shortcuts",
+        "needsAttention": "{label}, {count} need attention",
+        "unpinAria": "Unpin from sidebar top",
+        "pinAria": "Pin to sidebar top",
+        "unpin": "Unpin",
+        "pinToTop": "Pin to top",
+        "removeShortcutAria": "Remove from top shortcuts",
+        "addShortcutAria": "Show in top shortcuts bar",
+        "removeShortcut": "Remove shortcut",
+        "topShortcut": "Top shortcut",
+        "pinned": "Pinned",
+        "expandSidebar": "Expand sidebar",
+        "collapseSidebar": "Collapse sidebar",
+        "signOut": "Sign out",
+        "exitToSite": "Exit to site",
+        "menu": "Menu",
+        "language": "Language",
+        "primaryNav": "Primary",
+        "tabHome": "Home",
+        "tabOps": "Ops",
+        "tabTalent": "Talent",
+        "tabMore": "More"
+      }
+    },
+    "adminAccount": {
+      "sections": {
+        "workspaceEyebrow": "Workspace",
+        "billingIdentityTitle": "Billing & identity",
+        "billingIdentityHint": "Plan · organization · payment · invoices.",
+        "youEyebrow": "You",
+        "securityHint": "Sign-out and password for this device."
+      },
+      "plan": {
+        "billedMonthly": "billed monthly",
+        "noRenewal": "no renewal",
+        "usage": "{usage} used.",
+        "compare": "Compare plans",
+        "change": "Change plan",
+        "note": "Plans switch on the next billing cycle. VAT calculated at checkout."
+      },
+      "organization": {
+        "title": "Organization",
+        "subtitle": "Brand · receipts · address"
+      },
+      "payment": {
+        "title": "Payment method",
+        "cardOnFile": "Visa ending 4242",
+        "noCard": "No card on file",
+        "cardExpiry": "Expires 04 / 28 · billed monthly",
+        "noneTitle": "No payment method on file",
+        "noneBody": "Add one when you're ready to upgrade, we'll walk you through it.",
+        "replace": "Replace card",
+        "add": "Add card",
+        "stripeNote": "Card details go through Stripe, we never store the number directly."
+      },
+      "invoices": {
+        "title": "Invoices",
+        "subtitlePaid": "PDF receipts · last 3",
+        "subtitleFree": "Free plan · no invoices",
+        "emptyFree": "No invoices yet, you're on the Free plan.",
+        "planRow": "{plan} plan",
+        "sampleDate1": "Apr 1, 2026",
+        "sampleDate2": "Mar 1, 2026",
+        "sampleDate3": "Feb 1, 2026"
+      },
+      "security": {
+        "title": "Security & session",
+        "signedInAsStaff": "Signed in as staff"
+      },
+      "danger": {
+        "title": "Danger zone",
+        "subtitle": "Pause or close workspace",
+        "intro": "Pause or close your workspace. We keep your data on file for 30 days after closure, after that it is purged from our systems.",
+        "pauseTitle": "Pause workspace",
+        "pauseDesc": "Hide your public site and freeze billing. Reversible.",
+        "pauseAction": "Pause",
+        "closeTitle": "Close workspace",
+        "closeDesc": "Permanent after 30 days. Cancels billing immediately.",
+        "closeAction": "Close",
+        "footnote": "Closing emails the workspace owner a confirmation link. Nothing happens without that confirmation."
+      },
+      "org": {
+        "nameLabel": "Organization name",
+        "namePlaceholder": "Your agency name",
+        "legalLabel": "Legal entity",
+        "legalPlaceholder": "As it appears on receipts",
+        "taxIdLabel": "VAT / Tax ID",
+        "taxIdPlaceholder": "Optional, for EU / LatAm",
+        "billingEmailLabel": "Billing email",
+        "address1Label": "Address line 1",
+        "address1Placeholder": "Street address",
+        "cityLabel": "City",
+        "regionLabel": "Region / State",
+        "postalLabel": "Postal code",
+        "countryLabel": "Country",
+        "countryPlaceholder": "Choose country",
+        "countryMexico": "Mexico",
+        "countryUnitedStates": "United States",
+        "countrySpain": "Spain",
+        "countryItaly": "Italy",
+        "countryUnitedKingdom": "United Kingdom",
+        "countryOther": "Other",
+        "save": "Save organization"
+      }
+    },
+    "adminSiteControl": {
+      "common": {
+        "save": "Save",
+        "editInCanvas": "Edit in canvas",
+        "more": "More"
+      },
+      "branding": {
+        "calloutLead": "Branding",
+        "calloutBody": "survives theme changes: your logo, palette, and typography stay even when you swap the underlying theme kit.",
+        "identity": "Identity",
+        "workspaceName": "Workspace name",
+        "tagline": "Tagline",
+        "taglinePlaceholder": "One line for headers and meta tags",
+        "uploadLogo": "Upload logo",
+        "uploadFavicon": "Upload favicon",
+        "palette": "Palette",
+        "colorPrimary": "Primary",
+        "colorForeground": "Foreground",
+        "colorBackground": "Background",
+        "typography": "Typography",
+        "displayFont": "Display font",
+        "bodyFont": "Body font",
+        "systemSans": "System sans",
+        "save": "Save branding"
+      },
+      "roster": {
+        "callout": "Manage every talent on your roster. Add new talents, approve drafts, and drag-reorder how they appear in the directory.",
+        "add": "+ Add talent",
+        "searchPlaceholder": "Search talent…",
+        "empty": "Roster preview not loaded yet. Open the full roster page for drag-reorder, bulk edits, and approvals.",
+        "openFull": "Open full roster"
+      },
+      "directory": {
+        "calloutIntro": "How your talent directory renders publicly. Three areas:",
+        "calloutRendering": "Rendering",
+        "calloutRenderingNote": "(grid vs dedicated pages),",
+        "calloutTemplates": "Templates",
+        "calloutTemplatesNote": "(layout family), and",
+        "calloutFields": "Fields",
+        "calloutFieldsNote": "(which fields show on the card).",
+        "rendering": "Rendering",
+        "profileMode": "Profile mode",
+        "modeDedicated": "Dedicated pages",
+        "modeModal": "Modal overlay",
+        "layout": "Layout",
+        "layoutGrid": "Grid",
+        "layoutList": "List",
+        "layoutMasonry": "Masonry",
+        "cardContent": "Card content",
+        "showName": "Show name",
+        "showProfileType": "Show profile type",
+        "showCity": "Show city",
+        "showExperience": "Show experience",
+        "advanced": "Advanced directory settings"
+      },
+      "inquiries": {
+        "callout": "Pipeline at a glance: open requests, in-progress deals, won bookings. Detailed responses live in the full inbox.",
+        "empty": "Inquiry summary loads in the full inbox view. Open it to triage, assign, and convert to bookings.",
+        "openInbox": "Open inquiry inbox"
+      },
+      "activity": {
+        "callout": "Recent edits, publishes, and approvals across the workspace.",
+        "emptyBefore": "Activity feed not loaded yet. The full chronological feed with surface filters lives at",
+        "emptyAfter": "."
+      },
+      "pages": {
+        "new": "+ New page",
+        "searchPlaceholder": "Search pages…",
+        "tipLead": "Tip.",
+        "tipBody": "New pages default to Draft. Publish from the row and they go live on your domain instantly.",
+        "noMatch": "No pages match “{query}”.",
+        "items": {
+          "home": {
+            "title": "Home",
+            "seo": "Tulala · every story, one home"
+          },
+          "about": {
+            "title": "About",
+            "seo": "About Tulala"
+          },
+          "services": {
+            "title": "Services"
+          },
+          "team": {
+            "title": "Team",
+            "seo": "Our team"
+          },
+          "contact": {
+            "title": "Contact",
+            "seo": "Get in touch"
+          },
+          "press": {
+            "title": "Press kit"
+          }
+        }
+      },
+      "posts": {
+        "write": "+ Write post",
+        "searchPlaceholder": "Search posts…",
+        "seoLead": "SEO boost.",
+        "seoBody": "Posts with a filled-in meta line rank ~3× higher. Takes 20 seconds per post to add.",
+        "noMatch": "No posts match “{query}”.",
+        "items": {
+          "soho": {
+            "title": "Sofia M walks SoHo show",
+            "seo": "Sofia M · runway report"
+          },
+          "fall": {
+            "title": "Fall editorial · preview"
+          },
+          "launch": {
+            "title": "Why we joined Tulala"
+          }
+        }
+      },
+      "quickEdit": {
+        "title": "Title",
+        "url": "URL",
+        "status": "Status",
+        "seoMeta": "SEO meta",
+        "seoPlaceholder": "Title for search engines",
+        "public": "Public",
+        "inSitemap": "In sitemap",
+        "inMainNav": "In main nav",
+        "openInCanvas": "Open in canvas →"
+      },
+      "stub": {
+        "setupBody": "Premium walkthrough: configure this card with full chrome, real status, and one-click apply.",
+        "openLegacy": "Open legacy editor"
+      },
+      "locked": {
+        "calloutIntro": "Every plan runs on the same product, higher tiers unlock more cards.",
+        "youAreOn": "You're on",
+        "contactUs": "Contact us",
+        "comparePlansArrow": "Compare plans →",
+        "upgradeTo": "Upgrade to {tier}"
+      }
+    },
+    "adminInquirySheet": {
+      "channel": {
+        "phone": "Phone call",
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "admin": "Admin (legacy)",
+        "other": "Other",
+        "pitch": "Pitch conversion",
+        "directoryGuest": "Public directory · guest",
+        "directoryClient": "Public directory · client",
+        "directClientDashboard": "Client dashboard",
+        "discoverSingleTalent": "Discover · single talent",
+        "discoverShortlist": "Discover · shortlist fan-out",
+        "savedTalent": "Saved talent (lineup)",
+        "publicTalentProfile": "Public talent profile",
+        "agencySite": "Agency website",
+        "hubSite": "Hub website",
+        "adminCreated": "Admin manual",
+        "bookAgain": "Book again"
+      },
+      "proficiency": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced",
+        "expert": "Expert",
+        "master": "Master"
+      },
+      "panelDescription": "Create a request around the same four anchors used on the inquiry workspace: client, work location, requested talent, and details.",
+      "createdBody": "Inquiry created. Client, location, shortlist, and details were saved in one pass.",
+      "openInquiry": "Open inquiry",
+      "done": "Done",
+      "section1Title": "1. Client",
+      "section1Desc": "The person making the request. Link an existing client login if there is one, then keep the snapshot fields person-focused.",
+      "addNewClient": "Add new client",
+      "findExistingClient": "Find existing client",
+      "clientSearchHelp": "Optional. Search platform clients by name, email, or phone.",
+      "contactForInquiry": "Contact for this inquiry",
+      "useSelectedClient": "Use selected client information",
+      "useSelectedClientHint": "Autofill the inquiry contact snapshot from the linked client.",
+      "useDifferentContact": "Enter a different contact for this inquiry",
+      "useDifferentContactHint": "Keep the linked client as-is, but use a different inquiry contact snapshot.",
+      "contactSnapshotNote": "These fields are saved on the inquiry only. They do not overwrite the linked client record.",
+      "selectClientFirst": "Select a client first to use their information.",
+      "loadingClientInfo": "Loading selected client information…",
+      "fieldName": "Name",
+      "fieldEmail": "Email",
+      "fieldPhone": "Phone",
+      "fieldCompany": "Company (optional)",
+      "section2Title": "2. Work location",
+      "section2Desc": "The place or business the work is for. One client can have many locations.",
+      "addNewLocation": "Add new location",
+      "findLocation": "Find location",
+      "searchLocationPlaceholder": "Search location by name",
+      "workLocation": "Work location",
+      "optionNone": "None",
+      "secondaryContact": "Secondary contact (optional)",
+      "secondaryContactNote": "This stays scoped to the selected work location.",
+      "section3Title": "3. Requested talent",
+      "section3Desc": "Inquiry-owned shortlist. Add the represented talent requested for this lead.",
+      "section4Title": "4. Details",
+      "section4Desc": "Keep this concise so staff can triage and convert quickly.",
+      "requestSummary": "Request summary",
+      "requestSummaryPlaceholder": "e.g. 3 promo models for a beach club launch",
+      "briefNotes": "Brief / notes",
+      "briefNotesPlaceholder": "Timing, dress code, languages, priorities…",
+      "eventLocation": "Event location (optional)",
+      "sourceChannel": "Source channel",
+      "internalNotes": "Internal notes",
+      "internalNotesPlaceholder": "Staff-only context.",
+      "section5Title": "5. Skill needed (optional)",
+      "section5Desc": "Narrow the search to a specific talent type and proficiency floor. Leave blank to keep the inquiry open to any skill.",
+      "category": "Category",
+      "anyCategory": "Any category",
+      "talentType": "Talent type",
+      "anyType": "Any type",
+      "minProficiency": "Minimum proficiency (optional)",
+      "anyProficiency": "Any (no minimum)",
+      "saving": "Saving…",
+      "saveInquiry": "Save inquiry",
+      "cancel": "Cancel"
+    },
+    "adminFinancials": {
+      "pageTitle": "Business financials",
+      "pageIntroBefore": "Revenue, agency commission earned, talent payouts owed. Reads the same snapshot rows as the talent",
+      "pageIntroMoneyView": "Money",
+      "pageIntroAfter": "view, projected through the agency lens.",
+      "viewBookings": "View bookings →",
+      "pnlTitle": "P&L",
+      "pnlSub": "Calendar year-to-date and current month, {currency} bookings only.",
+      "ytdGross": "YTD gross revenue",
+      "confirmedBookings": {
+        "one": "{count} confirmed booking",
+        "other": "{count} confirmed bookings"
+      },
+      "ytdCommission": "YTD agency commission",
+      "ytdCommissionSub": "Workspace lane (your earnings)",
+      "ytdTalentPayouts": "YTD talent payouts",
+      "ytdTalentPayoutsSub": "What talent earned",
+      "ytdPlatformFee": "YTD platform fee",
+      "ytdPlatformFeeSub": "Paid to Tulala",
+      "pendingPayout": "Pending payout (workspace lane)",
+      "pendingPayoutSub": "Owed but not yet marked paid",
+      "mtdGross": "MTD gross",
+      "mtdGrossSub": "This calendar month",
+      "mtdCommission": "MTD commission",
+      "mtdTalentPayouts": "MTD talent payouts",
+      "mtdPlatformFee": "MTD platform fee",
+      "perTalentTitle": "Per-talent payouts",
+      "perTalentSub": "What this agency owes / has paid each rostered talent, year-to-date.",
+      "perTalentEmpty": "No commission snapshots yet for this currency.",
+      "colTalent": "Talent",
+      "colBookings": "Bookings",
+      "colGross": "Gross",
+      "colTalentNet": "Talent net",
+      "colPending": "Pending",
+      "colLastBooking": "Last booking",
+      "colClient": "Client",
+      "topClientsTitle": "Top clients by gross",
+      "topClientsSub": "Largest revenue contributors year-to-date.",
+      "topClientsEmpty": "No client revenue yet for this currency.",
+      "paymentStatusTitle": "Payment status",
+      "paymentStatusSub": "Counts and gross for each lifecycle state.",
+      "statusInvoiced": "Invoiced",
+      "grossAmount": "{amount} gross",
+      "commissionPolicyTitle": "Commission policy",
+      "commissionPolicySub": "Read-only view of the rate this workspace is currently resolved to. Per-tenant overrides are set by platform admin.",
+      "commissionPolicyNote": "To request a different rate, contact platform admin. Per-tenant self-serve commission UI is on the roadmap and tracked separately from this surface.",
+      "planTier": "Plan tier",
+      "platformFee": "Platform fee",
+      "origin": "Origin",
+      "originFree": "Free tier default",
+      "originStudio": "Studio tier default",
+      "originAgency": "Agency tier default",
+      "originNetwork": "Network tier default",
+      "originDefault": "Plan default"
+    },
+    "adminDiscoverSettings": {
+      "backToSettings": "← Back to Settings",
+      "pageTitle": "Discover settings",
+      "pageIntro": "Tulala Discover is the power tool for clients: cross-tenant catalog, shortlists, compare view, and direct inquiries. Your talent appears here when they opt in, and when your plan supports the enrollment shape below.",
+      "currentPlan": "Current plan",
+      "planFree": "Free plan",
+      "planStudio": "Studio plan",
+      "planAgency": "Agency plan",
+      "planNetwork": "Network plan",
+      "enrolledTalent": "Enrolled talent",
+      "enrolledOfTotal": "of {total} ({percent}%)",
+      "benefitsTitle": "Your Discover benefits",
+      "rowEnrollment": "Enrollment",
+      "rowPlacement": "Placement",
+      "rowAnalytics": "Analytics",
+      "rowBulkTools": "Bulk tools",
+      "rowPriority": "Priority",
+      "rowMultiWorkspace": "Multi-workspace",
+      "benefits": {
+        "free": {
+          "enrollment": "Talent opt-in (default off)",
+          "placement": "Basic · sorted by trust + activity",
+          "analyticsWindow": "7-day rolling window",
+          "bulkTools": "Not included",
+          "priority": "No priority placement",
+          "multiWorkspace": "Single workspace only"
+        },
+        "studio": {
+          "enrollment": "Default-enroll option for new roster talent",
+          "placement": "Standard · sorted by trust + activity",
+          "analyticsWindow": "30-day rolling window",
+          "bulkTools": "Bulk enroll / pause / boost",
+          "priority": "No priority placement",
+          "multiWorkspace": "Single workspace only"
+        },
+        "agency": {
+          "enrollment": "Default-enroll for new roster talent",
+          "placement": "Priority · featured placement slots in regional results",
+          "analyticsWindow": "90-day rolling window + saved cohorts",
+          "bulkTools": "Bulk enroll / pause / boost / saved searches",
+          "priority": "Priority placement",
+          "multiWorkspace": "Single workspace (Network plan adds rollup)"
+        },
+        "network": {
+          "enrollment": "Default-enroll across all owned workspaces",
+          "placement": "Priority across the network",
+          "analyticsWindow": "Unlimited history + saved cohorts",
+          "bulkTools": "Cross-workspace bulk tools",
+          "priority": "Priority placement",
+          "multiWorkspace": "Multi-workspace rollup + cross-tenant insights"
+        }
+      },
+      "upsellTitle": "Want priority placement + 90-day analytics?",
+      "upsellBody": "Studio and Agency plans unlock default enrollment, bulk tools, and longer analytics windows. Upgrade in",
+      "upsellLink": "Settings → Plan",
+      "linkPerformance": "View performance dashboard",
+      "linkInquiries": "Discover inquiries",
+      "linkRoster": "Manage roster enrollment"
+    },
+    "adminInquiriesInspector": {
+      "filterStatus": "Status: {status}",
+      "filterSearch": "Search: “{query}”",
+      "filterClientAccount": "Scoped to client account",
+      "filterPlatformClient": "Scoped to platform client",
+      "filterAssignee": "Filtered by assignee",
+      "filterCreatedRange": "Created date range applied",
+      "noFilters": "No filters. Showing the full inquiry queue.",
+      "nextStep": {
+        "new": "Acknowledge, link to client account if known, and assign an owner.",
+        "reviewing": "Confirm brief, shortlist talent, and move toward suggestion or conversion.",
+        "inProgress": "Keep client updated; align on dates, fees, and deliverables.",
+        "waitingForClient": "Follow up on pending client input before advancing.",
+        "talentSuggested": "Collect client feedback on suggested talent or adjust shortlist.",
+        "converted": "Ensure the linked booking is staffed and payment milestones are set.",
+        "closed": "Archive context is final. Use for reference only.",
+        "archived": "Low-touch queue; reopen only if the client returns."
+      },
+      "nextStepFallback": "Advance the inquiry based on client feedback and internal review.",
+      "draftShortcutBefore": "LLM-assisted client message drafting runs on the",
+      "draftShortcutSurface": "inquiry workspace",
+      "draftShortcutAfter": "when OpenAI is configured and inquiry drafting is enabled in feature flags.",
+      "featureFlags": "Feature flags",
+      "loadingInquiry": "Loading inquiry…",
+      "talentCount": {
+        "one": "{count} talent",
+        "other": "{count} talent"
+      },
+      "bookingCount": {
+        "one": "{count} booking",
+        "other": "{count} bookings"
+      },
+      "openWorkspace": "Open workspace",
+      "loadingSummary": "Loading summary…",
+      "labelEvent": "Event",
+      "labelDateQty": "Date / qty",
+      "labelAccount": "Account",
+      "labelShortlist": "Shortlist",
+      "shortlistNoneYet": "None yet",
+      "loadingDraftContext": "Loading draft context…",
+      "polishNeedsText": "Add text to the Brief / notes field before polishing.",
+      "requestFailed": "Request failed",
+      "generating": "Generating…",
+      "generateBrief": "Generate brief",
+      "polishing": "Polishing…",
+      "polishBrief": "Polish brief",
+      "draftEndpointBefore": "Uses",
+      "draftEndpointAfter": ". Paste into Brief / notes on the page when you are happy with the text.",
+      "draftOutput": "Draft output",
+      "backToInquiries": "Back to inquiries",
+      "loading": "Loading…"
+    },
+    "adminShared": {
+      "talentUsage": {
+        "unlimited": "Unlimited talents",
+        "counted": {
+          "one": "{used} / {limit} talent",
+          "other": "{used} / {limit} talents"
+        }
+      },
+      "planRenew": {
+        "free": "No renewal. Free plan.",
+        "studio": "$49 / month.",
+        "agency": "$149 / month.",
+        "network": "Custom contract · contact billing."
+      },
+      "drawer": {
+        "lockNote": {
+          "prefix": "New schema unlocks on",
+          "suffix": ". You can still rename, reorder, and change visibility on any plan."
+        },
+        "error": {
+          "title": "Something went wrong",
+          "retry": "Try again"
+        },
+        "lockedCopy": {
+          "roster": "Manage every talent on your roster",
+          "directory": "Configure how your talents are discovered",
+          "inquiries": "Receive booking requests through your site",
+          "branding": "Set your logo, colors, and typography",
+          "activity": "See what's changed across your workspace",
+          "widgets": "Embed your roster anywhere",
+          "api": "Read-only JSON for partners",
+          "domain": "Your subdomain for deep links",
+          "homepage": "Your branded homepage",
+          "pages": "Any page, any layout",
+          "posts": "Your editorial voice",
+          "navigation": "Drag-and-drop in canvas",
+          "theme": "A library of designer kits",
+          "seo": "Full SEO stack on your domain",
+          "hub": "Cross-agency discovery",
+          "multiagency": "Operate multiple brands"
+        }
+      }
     }
   },
   "admin": {

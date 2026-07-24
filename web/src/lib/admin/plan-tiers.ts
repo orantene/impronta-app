@@ -35,11 +35,25 @@ export const TIER_LABEL: Record<string, string> = {
   network: "Network",
 };
 
+/**
+ * English fallback copy. Kept for non-UI consumers (server logs, tests, and
+ * `resolveTier`'s string contract). UI surfaces MUST render
+ * `t(TIER_RENEW_KEY[plan])` so the line follows the dashboard locale —
+ * otherwise a Spanish drawer shows an English renew line.
+ */
 export const TIER_RENEW: Record<string, string> = {
-  free: "No renewal — Free plan.",
+  free: "No renewal. Free plan.",
   studio: "$49 / month.",
   agency: "$149 / month.",
   network: "Custom contract · contact billing.",
+};
+
+/** Catalog keys mirroring {@link TIER_RENEW}, one per plan slug. */
+export const TIER_RENEW_KEY: Record<string, string> = {
+  free: "dashboard.adminShared.planRenew.free",
+  studio: "dashboard.adminShared.planRenew.studio",
+  agency: "dashboard.adminShared.planRenew.agency",
+  network: "dashboard.adminShared.planRenew.network",
 };
 
 /** Resolve label / color / renew copy for an unknown plan key, falling back

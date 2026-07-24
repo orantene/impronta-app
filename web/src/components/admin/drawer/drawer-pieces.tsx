@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/use-t";
 
 /**
  * Reusable drawer body pieces — match the mockup's `.drawer-callout`,
@@ -34,14 +35,16 @@ export function DrawerLockNote({
   tier?: string;
   children?: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-border/60 bg-[var(--impronta-gold)]/[0.06] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-foreground">
       <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-[var(--impronta-gold)]" />
       <div className="min-w-0">
         {children ?? (
           <>
-            New schema unlocks on <strong>{tier}</strong>. You can still rename,
-            reorder, and change visibility on any plan.
+            {t("dashboard.adminShared.drawer.lockNote.prefix")}{" "}
+            <strong>{tier}</strong>
+            {t("dashboard.adminShared.drawer.lockNote.suffix")}
           </>
         )}
       </div>
@@ -260,22 +263,28 @@ export function DrawerSkeleton({ rows = 4 }: { rows?: number }) {
  * fetch fails or a server action returns an exception.
  */
 export function DrawerError({
-  title = "Something went wrong",
+  title,
   description,
   onRetry,
-  retryLabel = "Try again",
+  retryLabel,
 }: {
   title?: string;
   description?: React.ReactNode;
   onRetry?: () => void;
   retryLabel?: string;
 }) {
+  const t = useT();
+  const resolvedTitle = title ?? t("dashboard.adminShared.drawer.error.title");
+  const resolvedRetryLabel =
+    retryLabel ?? t("dashboard.adminShared.drawer.error.retry");
   return (
     <div className="flex flex-col items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/[0.04] px-4 py-4">
       <div className="flex items-start gap-2.5">
         <AlertCircle aria-hidden className="mt-0.5 size-4 shrink-0 text-red-500" />
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-foreground">{title}</p>
+          <p className="text-[13px] font-semibold text-foreground">
+            {resolvedTitle}
+          </p>
           {description ? (
             <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
               {description}
@@ -290,7 +299,7 @@ export function DrawerError({
           className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-3 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-muted/40"
         >
           <RefreshCw className="size-3" aria-hidden />
-          {retryLabel}
+          {resolvedRetryLabel}
         </button>
       ) : null}
     </div>

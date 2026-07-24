@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { INQUIRY_SOURCE_CHANNEL_VALUES } from "@/lib/admin/validation";
 import { useLiveTaxonomy } from "@/components/admin/shell/internal/use-taxonomy";
+import { useT } from "@/i18n/use-t";
 
 type Contact = { id: string; client_account_id: string; label: string };
 // Optional picker-enrichment fields (exclusivity + availability) are passed
@@ -38,27 +39,28 @@ type TalentOption = {
 // stay listed because they're valid enum values an admin might need
 // to backfill, but their labels are humanized so the dropdown reads
 // naturally.
-const CHANNEL_LABEL_OVERRIDES: Record<string, string> = {
-  phone: "Phone call",
-  whatsapp: "WhatsApp",
-  email: "Email",
-  admin: "Admin (legacy)",
-  other: "Other",
-  pitch: "Pitch conversion",
-  directory_guest: "Public directory · guest",
-  directory_client: "Public directory · client",
-  direct_client_dashboard: "Client dashboard",
-  discover_single_talent: "Discover · single talent",
-  discover_shortlist: "Discover · shortlist fan-out",
-  saved_talent: "Saved talent (lineup)",
-  public_talent_profile: "Public talent profile",
-  agency_site: "Agency website",
-  hub_site: "Hub website",
-  admin_created: "Admin manual",
-  book_again: "Book again",
+const CHANNEL_LABEL_KEYS: Record<string, string> = {
+  phone: "phone",
+  whatsapp: "whatsapp",
+  email: "email",
+  admin: "admin",
+  other: "other",
+  pitch: "pitch",
+  directory_guest: "directoryGuest",
+  directory_client: "directoryClient",
+  direct_client_dashboard: "directClientDashboard",
+  discover_single_talent: "discoverSingleTalent",
+  discover_shortlist: "discoverShortlist",
+  saved_talent: "savedTalent",
+  public_talent_profile: "publicTalentProfile",
+  agency_site: "agencySite",
+  hub_site: "hubSite",
+  admin_created: "adminCreated",
+  book_again: "bookAgain",
 };
-function channelLabel(ch: string) {
-  if (CHANNEL_LABEL_OVERRIDES[ch]) return CHANNEL_LABEL_OVERRIDES[ch];
+function channelLabel(ch: string, t: (key: string) => string) {
+  const key = CHANNEL_LABEL_KEYS[ch];
+  if (key) return t(`dashboard.adminInquirySheet.channel.${key}`);
   const spaced = ch.replace(/_/g, " ");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
@@ -94,6 +96,7 @@ function AdminNewInquirySheetBody({
   contacts: Contact[];
   talents: TalentOption[];
 }) {
+  const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(createManualInquiry, undefined);
@@ -199,12 +202,12 @@ function AdminNewInquirySheetBody({
     return (
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Inquiry created. Client, location, shortlist, and details were saved in one pass.
+          {t("dashboard.adminInquirySheet.createdBody")}
         </p>
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" className="rounded-full" asChild>
             <Link href={`/admin/inquiries/${state.createdInquiryId}`} scroll={false}>
-              Open inquiry
+              {t("dashboard.adminInquirySheet.openInquiry")}
             </Link>
           </Button>
           <Button
@@ -217,7 +220,7 @@ function AdminNewInquirySheetBody({
               onClose();
             }}
           >
-            Done
+            {t("dashboard.adminInquirySheet.done")}
           </Button>
         </div>
       </div>
@@ -232,18 +235,18 @@ function AdminNewInquirySheetBody({
       <input type="hidden" name="requested_proficiency_min" value={selectedProficiencyMin} />
 
       <SectionCard
-        title="1. Client"
-        description="The person making the request. Link an existing client login if there is one, then keep the snapshot fields person-focused."
+        title={t("dashboard.adminInquirySheet.section1Title")}
+        description={t("dashboard.adminInquirySheet.section1Desc")}
       >
         <div className="flex flex-wrap gap-2">
           <AdminNewClientSheet
-            triggerLabel="Add new client"
+            triggerLabel={t("dashboard.adminInquirySheet.addNewClient")}
             triggerVariant="outline"
             onCreatedClient={(client) => setSelectedClient(client)}
           />
         </div>
         <div className="space-y-2">
-          <Label>Find existing client</Label>
+          <Label>{t("dashboard.adminInquirySheet.findExistingClient")}</Label>
           <AdminClientSearchPicker
             selectedClient={selectedClient}
             onSelect={(client) => {
@@ -256,11 +259,11 @@ function AdminNewInquirySheetBody({
                 setContactCompany("");
               }
             }}
-            helpText="Optional. Search platform clients by name, email, or phone."
+            helpText={t("dashboard.adminInquirySheet.clientSearchHelp")}
           />
         </div>
         <div className="space-y-2">
-          <Label>Contact for this inquiry</Label>
+          <Label>{t("dashboard.adminInquirySheet.contactForInquiry")}</Label>
           <div className="space-y-2 rounded-xl border border-border/45 bg-background/70 p-3">
             <label className="flex items-start gap-2 text-sm">
               <input
@@ -281,9 +284,9 @@ function AdminNewInquirySheetBody({
                 className="mt-0.5"
               />
               <span>
-                <span className="font-medium text-foreground">Use selected client information</span>
+                <span className="font-medium text-foreground">{t("dashboard.adminInquirySheet.useSelectedClient")}</span>
                 <span className="block text-xs text-muted-foreground">
-                  Autofill the inquiry contact snapshot from the linked client.
+                  {t("dashboard.adminInquirySheet.useSelectedClientHint")}
                 </span>
               </span>
             </label>
@@ -297,26 +300,26 @@ function AdminNewInquirySheetBody({
                 className="mt-0.5"
               />
               <span>
-                <span className="font-medium text-foreground">Enter a different contact for this inquiry</span>
+                <span className="font-medium text-foreground">{t("dashboard.adminInquirySheet.useDifferentContact")}</span>
                 <span className="block text-xs text-muted-foreground">
-                  Keep the linked Client as-is, but use a different inquiry contact snapshot.
+                  {t("dashboard.adminInquirySheet.useDifferentContactHint")}
                 </span>
               </span>
             </label>
           </div>
           <p className="text-xs text-muted-foreground">
-            These fields are saved on the inquiry only. They do not overwrite the linked Client record.
+            {t("dashboard.adminInquirySheet.contactSnapshotNote")}
           </p>
           {contactMode === "selected_client" && !selectedClient ? (
-            <p className="text-xs text-muted-foreground">Select a client first to use their information.</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.adminInquirySheet.selectClientFirst")}</p>
           ) : null}
           {contactMode === "selected_client" && clientSnapshotLoading ? (
-            <p className="text-xs text-muted-foreground">Loading selected client information…</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.adminInquirySheet.loadingClientInfo")}</p>
           ) : null}
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="ni_contact_name">Name</Label>
+            <Label htmlFor="ni_contact_name">{t("dashboard.adminInquirySheet.fieldName")}</Label>
             <Input
               id="ni_contact_name"
               name="contact_name"
@@ -327,7 +330,7 @@ function AdminNewInquirySheetBody({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ni_contact_email">Email</Label>
+            <Label htmlFor="ni_contact_email">{t("dashboard.adminInquirySheet.fieldEmail")}</Label>
             <Input
               id="ni_contact_email"
               name="contact_email"
@@ -339,7 +342,7 @@ function AdminNewInquirySheetBody({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ni_contact_phone">Phone</Label>
+            <Label htmlFor="ni_contact_phone">{t("dashboard.adminInquirySheet.fieldPhone")}</Label>
             <Input
               id="ni_contact_phone"
               name="contact_phone"
@@ -350,7 +353,7 @@ function AdminNewInquirySheetBody({
             />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="ni_company">Company (optional)</Label>
+            <Label htmlFor="ni_company">{t("dashboard.adminInquirySheet.fieldCompany")}</Label>
             <Input
               id="ni_company"
               name="company"
@@ -363,26 +366,26 @@ function AdminNewInquirySheetBody({
       </SectionCard>
 
       <SectionCard
-        title="2. Work Location"
-        description="The place or business the work is for. One client can have many locations."
+        title={t("dashboard.adminInquirySheet.section2Title")}
+        description={t("dashboard.adminInquirySheet.section2Desc")}
       >
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setLocationOpen(true)}>
-            Add new location
+            {t("dashboard.adminInquirySheet.addNewLocation")}
           </Button>
           <CreateClientAccountSheet open={locationOpen} onOpenChange={setLocationOpen} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="ni_account_search">Find location</Label>
+          <Label htmlFor="ni_account_search">{t("dashboard.adminInquirySheet.findLocation")}</Label>
           <Input
             id="ni_account_search"
             value={accountQuery}
             onChange={(event) => setAccountQuery(event.target.value)}
-            placeholder="Search location by name"
+            placeholder={t("dashboard.adminInquirySheet.searchLocationPlaceholder")}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="ni_account">Work Location</Label>
+          <Label htmlFor="ni_account">{t("dashboard.adminInquirySheet.workLocation")}</Label>
           <select
             id="ni_account"
             name="client_account_id"
@@ -390,7 +393,7 @@ function AdminNewInquirySheetBody({
             onChange={(event) => setAccountId(event.target.value)}
             className={ADMIN_FORM_CONTROL}
           >
-            <option value="">— None —</option>
+            <option value="">{t("dashboard.adminInquirySheet.optionNone")}</option>
             {filteredAccounts.map((account) => (
               <option key={account.id} value={account.id}>
                 {account.name}
@@ -399,67 +402,67 @@ function AdminNewInquirySheetBody({
           </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="ni_contact">Secondary contact (optional)</Label>
+          <Label htmlFor="ni_contact">{t("dashboard.adminInquirySheet.secondaryContact")}</Label>
           <select id="ni_contact" name="client_contact_id" className={ADMIN_FORM_CONTROL} defaultValue="" disabled={!accountId}>
-            <option value="">— None —</option>
+            <option value="">{t("dashboard.adminInquirySheet.optionNone")}</option>
             {filteredContacts.map((contact) => (
               <option key={contact.id} value={contact.id}>
                 {contact.label}
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">This stays scoped to the selected Work Location.</p>
+          <p className="text-xs text-muted-foreground">{t("dashboard.adminInquirySheet.secondaryContactNote")}</p>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="3. Requested Talent"
-        description="Inquiry-owned shortlist. Add the represented talent requested for this lead."
+        title={t("dashboard.adminInquirySheet.section3Title")}
+        description={t("dashboard.adminInquirySheet.section3Desc")}
       >
         <InquiryTalentDraftField talents={talents} />
       </SectionCard>
 
       <SectionCard
-        title="4. Details"
-        description="Keep this concise so staff can triage and convert quickly."
+        title={t("dashboard.adminInquirySheet.section4Title")}
+        description={t("dashboard.adminInquirySheet.section4Desc")}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="ni_raw_ai_query">Request summary</Label>
-            <Input id="ni_raw_ai_query" name="raw_ai_query" placeholder="e.g. 3 promo models for a beach club launch" />
+            <Label htmlFor="ni_raw_ai_query">{t("dashboard.adminInquirySheet.requestSummary")}</Label>
+            <Input id="ni_raw_ai_query" name="raw_ai_query" placeholder={t("dashboard.adminInquirySheet.requestSummaryPlaceholder")} />
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="ni_message">Brief / notes</Label>
-            <Textarea id="ni_message" name="message" rows={3} placeholder="Timing, dress code, languages, priorities…" />
+            <Label htmlFor="ni_message">{t("dashboard.adminInquirySheet.briefNotes")}</Label>
+            <Textarea id="ni_message" name="message" rows={3} placeholder={t("dashboard.adminInquirySheet.briefNotesPlaceholder")} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ni_event_location">Event location (optional)</Label>
+            <Label htmlFor="ni_event_location">{t("dashboard.adminInquirySheet.eventLocation")}</Label>
             <Input id="ni_event_location" name="event_location" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ni_source_channel">Source channel</Label>
+            <Label htmlFor="ni_source_channel">{t("dashboard.adminInquirySheet.sourceChannel")}</Label>
             <select id="ni_source_channel" name="source_channel" defaultValue="phone" className={ADMIN_FORM_CONTROL}>
               {INQUIRY_SOURCE_CHANNEL_VALUES.map((ch) => (
                 <option key={ch} value={ch}>
-                  {channelLabel(ch)}
+                  {channelLabel(ch, t)}
                 </option>
               ))}
             </select>
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="ni_staff_notes">Internal notes</Label>
-            <Textarea id="ni_staff_notes" name="staff_notes" rows={2} placeholder="Staff-only context." />
+            <Label htmlFor="ni_staff_notes">{t("dashboard.adminInquirySheet.internalNotes")}</Label>
+            <Textarea id="ni_staff_notes" name="staff_notes" rows={2} placeholder={t("dashboard.adminInquirySheet.internalNotesPlaceholder")} />
           </div>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="5. Skill needed (optional)"
-        description="Narrow the search to a specific talent type and proficiency floor. Leave blank to keep the inquiry open to any skill."
+        title={t("dashboard.adminInquirySheet.section5Title")}
+        description={t("dashboard.adminInquirySheet.section5Desc")}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="ni_skill_parent">Category</Label>
+            <Label htmlFor="ni_skill_parent">{t("dashboard.adminInquirySheet.category")}</Label>
             <select
               id="ni_skill_parent"
               value={selectedParentId}
@@ -470,7 +473,7 @@ function AdminNewInquirySheetBody({
               className={ADMIN_FORM_CONTROL}
               disabled={taxonomy.loading}
             >
-              <option value="">Any category</option>
+              <option value="">{t("dashboard.adminInquirySheet.anyCategory")}</option>
               {allParents.map((p) => (
                 <option key={p.raw.id} value={p.raw.id}>
                   {p.display.label}
@@ -479,7 +482,7 @@ function AdminNewInquirySheetBody({
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ni_skill_type">Talent type</Label>
+            <Label htmlFor="ni_skill_type">{t("dashboard.adminInquirySheet.talentType")}</Label>
             <select
               id="ni_skill_type"
               value={selectedSkillTermId}
@@ -487,7 +490,7 @@ function AdminNewInquirySheetBody({
               className={ADMIN_FORM_CONTROL}
               disabled={!selectedParentId || talentTypesForParent.length === 0}
             >
-              <option value="">Any type</option>
+              <option value="">{t("dashboard.adminInquirySheet.anyType")}</option>
               {talentTypesForParent.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.label}
@@ -496,19 +499,19 @@ function AdminNewInquirySheetBody({
             </select>
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="ni_proficiency_min">Minimum proficiency (optional)</Label>
+            <Label htmlFor="ni_proficiency_min">{t("dashboard.adminInquirySheet.minProficiency")}</Label>
             <select
               id="ni_proficiency_min"
               value={selectedProficiencyMin}
               onChange={(event) => setSelectedProficiencyMin(event.target.value)}
               className={ADMIN_FORM_CONTROL}
             >
-              <option value="">Any (no minimum)</option>
-              <option value="beginner">Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="advanced">Advanced</option>
-              <option value="expert">Expert</option>
-              <option value="master">Master</option>
+              <option value="">{t("dashboard.adminInquirySheet.anyProficiency")}</option>
+              <option value="beginner">{t("dashboard.adminInquirySheet.proficiency.beginner")}</option>
+              <option value="intermediate">{t("dashboard.adminInquirySheet.proficiency.intermediate")}</option>
+              <option value="advanced">{t("dashboard.adminInquirySheet.proficiency.advanced")}</option>
+              <option value="expert">{t("dashboard.adminInquirySheet.proficiency.expert")}</option>
+              <option value="master">{t("dashboard.adminInquirySheet.proficiency.master")}</option>
             </select>
           </div>
         </div>
@@ -518,10 +521,10 @@ function AdminNewInquirySheetBody({
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" className="rounded-full" disabled={pending}>
-          {pending ? "Saving…" : "Save inquiry"}
+          {pending ? t("dashboard.adminInquirySheet.saving") : t("dashboard.adminInquirySheet.saveInquiry")}
         </Button>
         <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onClose}>
-          Cancel
+          {t("dashboard.adminInquirySheet.cancel")}
         </Button>
       </div>
     </form>
@@ -537,18 +540,19 @@ export function AdminNewInquirySheet({
   contacts: Contact[];
   talents: TalentOption[];
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button type="button" size="sm" className="rounded-full" onClick={() => setOpen(true)}>
-        New inquiry
+        {t("dashboard.adminOverview.newInquiry")}
       </Button>
       <DashboardEditPanel
         open={open}
         onOpenChange={setOpen}
-        title="New inquiry"
-        description="Create a request around the same four anchors used on the inquiry workspace: client, work location, requested talent, and details."
+        title={t("dashboard.adminOverview.newInquiry")}
+        description={t("dashboard.adminInquirySheet.panelDescription")}
         className="max-w-[860px]"
       >
         {open ? (

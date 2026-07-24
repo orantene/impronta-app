@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, PLAN_META, useAdminShell } from "../state";
 import type { Plan, Surface } from "../state";
 import { ControlBar } from "./ControlBar";
@@ -15,6 +17,7 @@ import { PlatformSurface } from "./pages-dynamic";
 
 export function SurfaceRouter() {
   const { state } = useAdminShell();
+  const t = useT();
   // Wrap each surface in a <main> landmark so screen readers can jump
   // directly past the dark prototype ControlBar (which is treated as a
   // toolbar/header in the page composition). Each surface has only one
@@ -39,7 +42,7 @@ export function SurfaceRouter() {
     }
   })();
   return (
-    <main id="tulala-main" tabIndex={-1} aria-label={`${state.surface} surface`} style={{ display: "contents", outline: "none" }}>
+    <main id="tulala-main" tabIndex={-1} aria-label={interpolate(t("dashboard.adminShell.surfaceLandmark"), { surface: state.surface })} style={{ display: "contents", outline: "none" }}>
       {inner}
       <UpgradeCelebration />
     </main>
@@ -53,6 +56,7 @@ export function SurfaceRouter() {
 // ════════════════════════════════════════════════════════════════════
 function UpgradeCelebration() {
   const { state } = useAdminShell();
+  const t = useT();
   const planRanks: Record<Plan, number> = {
     free: 0, studio: 1, agency: 2, network: 3,
   };
@@ -82,11 +86,11 @@ function UpgradeCelebration() {
 
   if (!showing) return null;
 
-  const unlocks: Record<Plan, string[]> = {
+  const unlockKeys: Record<Plan, string[]> = {
     free:    [],
-    studio:  ["Custom domain", "Owned client list", "Up to 50 talents", "Private inquiry inbox"],
-    agency:  ["Branded design system", "Custom roster fields", "Team & roles up to 25", "Up to 200 talents"],
-    network: ["Multi-brand workspaces", "Cross-roster pool", "Hub-level analytics", "Unlimited everything"],
+    studio:  ["customDomain", "ownedClientList", "upTo50Talents", "privateInquiryInbox"],
+    agency:  ["brandedDesignSystem", "customRosterFields", "teamRoles25", "upTo200Talents"],
+    network: ["multiBrandWorkspaces", "crossRosterPool", "hubAnalytics", "unlimitedEverything"],
   };
   const tier = showing;
   const tierMeta: Record<Plan, { color: string; soft: string; emoji: string }> = {
@@ -96,7 +100,9 @@ function UpgradeCelebration() {
     network: { color: COLORS.accentDeep, soft: "rgba(15,79,62,0.12)",   emoji: "◆" },
   };
   const meta = tierMeta[tier];
-  const items = unlocks[tier];
+  const items = (unlockKeys[tier] ?? []).map((k) =>
+    t(`dashboard.adminShell.upgradeCelebration.unlocks.${tier}.${k}`),
+  );
 
   return (
     <div
@@ -165,10 +171,19 @@ function UpgradeCelebration() {
             marginBottom: 6,
           }}
         >
-          Welcome to {PLAN_META[tier].label}
+          {interpolate(t("dashboard.adminShell.upgradeCelebration.welcomeTo"), {
+            plan: PLAN_META[tier].label,
+          })}
         </div>
         <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 600, letterSpacing: -0.3, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
-          {items.length} things unlocked.
+          {interpolate(
+            t(
+              items.length === 1
+                ? "dashboard.adminShell.upgradeCelebration.unlockedOne"
+                : "dashboard.adminShell.upgradeCelebration.unlockedOther",
+            ),
+            { count: items.length },
+          )}
         </h2>
         <div
           style={{
@@ -214,10 +229,10 @@ function UpgradeCelebration() {
             cursor: "pointer",
           }}
         >
-          Take me in
+          {t("dashboard.adminShell.upgradeCelebration.takeMeIn")}
         </button>
         <div style={{ marginTop: 8, fontSize: 10.5 }} className="text-admin-ink-dim">
-          Tap anywhere to dismiss · auto-closes in 6s
+          {t("dashboard.adminShell.upgradeCelebration.dismissHint")}
         </div>
       </div>
     </div>

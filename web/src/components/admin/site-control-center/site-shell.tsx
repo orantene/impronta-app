@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { useT } from "@/i18n/use-t";
+import type { Translator } from "@/i18n/interpolate";
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 
 import { SiteCard } from "./site-card";
@@ -222,7 +224,20 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
 };
 
+/**
+ * Locked-card pitch copy, localized. `Capability.lockedCopy` in the catalog is
+ * a module-level English constant, so the drawer used to show an English pitch
+ * inside an otherwise-Spanish surface. Keys are per capability id; the English
+ * constant stays the fallback for ids that have no catalog entry yet.
+ */
+function lockedCopyFor(t: Translator, capability: Capability): string {
+  const key = `dashboard.adminShared.drawer.lockedCopy.${capability.id}`;
+  const resolved = t(key);
+  return resolved === key ? capability.lockedCopy : resolved;
+}
+
 export function SiteShell({ activePlan }: { activePlan: Plan }) {
+  const t = useT();
   const upgradeModal = useUpgradeModal();
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [openCapability, setOpenCapability] =
@@ -344,7 +359,7 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
           openLocked ? (
             <LockedDrawerBody
               tier={openCapability.tier}
-              copy={openCapability.lockedCopy}
+              copy={lockedCopyFor(t, openCapability)}
               activePlan={activePlan}
               onUpgrade={openUpgrade}
             />

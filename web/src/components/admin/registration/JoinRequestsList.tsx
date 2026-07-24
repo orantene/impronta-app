@@ -12,6 +12,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { decideJoinRequest } from "@/app/(workspace)/[tenantSlug]/admin/roster/registration/actions";
 
 type JoinRequest = { id: string; talentName: string; requestedAt: string };
@@ -56,6 +58,7 @@ export function JoinRequestsList({
    */
   onChanged?: () => void;
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -81,10 +84,14 @@ export function JoinRequestsList({
     <section style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 12, maxWidth: 720 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <h2 style={{ margin: 0, fontSize: 15, fontWeight: 650, color: C.ink }}>
-          Pending requests
+          {t("dashboard.adminWorkspace.registration.pendingTitle")}
         </h2>
         <span style={{ fontSize: 12.5, color: C.inkMuted }}>
-          {requests.length === 0 ? "None right now" : `${requests.length} waiting`}
+          {requests.length === 0
+            ? t("dashboard.adminWorkspace.registration.pendingNone")
+            : interpolate(t("dashboard.adminWorkspace.registration.pendingWaiting"), {
+                count: requests.length,
+              })}
         </span>
       </div>
 
@@ -94,8 +101,7 @@ export function JoinRequestsList({
 
       {requests.length === 0 ? (
         <p style={{ margin: 0, fontSize: 12.5, color: C.inkMuted }}>
-          When someone registers from your site in approval mode, their request
-          shows up here for review.
+          {t("dashboard.adminWorkspace.registration.pendingEmptyBody")}
         </p>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -120,7 +126,9 @@ export function JoinRequestsList({
                     {r.talentName}
                   </span>
                   <span style={{ fontSize: 12, color: C.inkMuted }}>
-                    Requested {formatDate(r.requestedAt)}
+                    {interpolate(t("dashboard.adminWorkspace.registration.requestedOn"), {
+                      date: formatDate(r.requestedAt),
+                    })}
                   </span>
                 </div>
                 {canManage ? (
@@ -141,7 +149,7 @@ export function JoinRequestsList({
                         fontFamily: FONT,
                       }}
                     >
-                      Decline
+                      {t("dashboard.adminWorkspace.registration.decline")}
                     </button>
                     <button
                       type="button"
@@ -159,7 +167,7 @@ export function JoinRequestsList({
                         fontFamily: FONT,
                       }}
                     >
-                      {rowBusy ? "…" : "Approve"}
+                      {rowBusy ? "…" : t("dashboard.adminWorkspace.registration.approve")}
                     </button>
                   </div>
                 ) : null}

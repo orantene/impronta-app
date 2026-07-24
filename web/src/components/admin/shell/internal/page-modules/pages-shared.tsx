@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { CapsLabel, Icon, PrimaryButton, StatusCard } from "../primitives";
 import { COLORS, FONTS } from "../state";
 
@@ -65,9 +67,10 @@ export function WorkspaceStatStrip({ items }: {
  * the dev story forward without making it look broken.
  */
 function DemoBadge() {
+  const t = useT();
   return (
     <span
-      title="Wire-up pending. Coming soon."
+      title={t("dashboard.adminShell.pages.demoBadgeTitle")}
       style={{
         position: "absolute",
         top: 8,
@@ -84,7 +87,7 @@ function DemoBadge() {
         pointerEvents: "auto",
       }}
     >
-      demo
+      {t("dashboard.adminShell.pages.demoBadge")}
     </span>
   );
 }
@@ -103,6 +106,7 @@ export function PageHeader({
   /** Mobile-only back arrow (#1). Pass label for the previous context. */
   onBack?: () => void;
 }) {
+  const t = useT();
   return (
     <>
     <style>{`
@@ -166,7 +170,7 @@ export function PageHeader({
             onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
           >
             <span aria-hidden className="text-sm">←</span>
-            Back
+            {t("dashboard.adminShell.pages.back")}
           </button>
         )}
         {eyebrow && (
@@ -260,21 +264,48 @@ export function TodaysFocusCard({
   /** Routes the draft-branch CTA to the Drafts drawer (falls back to onOpen). */
   onOpenDrafts?: () => void;
 }) {
+  const t = useT();
   // Build a one-line action priority — most urgent thing wins.
-  let title = "All caught up — nothing urgent today.";
+  let title = t("dashboard.adminShell.pages.todaysFocus.allCaughtUp");
   let body = nextBookingLabel
-    ? `Next up: ${nextBookingLabel}. Use the quiet time to refine a draft or prep call sheets.`
-    : "Use the next quiet hour to refine a draft or chase a hold.";
+    ? interpolate(t("dashboard.adminShell.pages.todaysFocus.bodyNextUp"), {
+        booking: nextBookingLabel,
+      })
+    : t("dashboard.adminShell.pages.todaysFocus.bodyQuiet");
   let primary: { label: string; onClick: () => void } | null = null;
   if (pendingClients > 0) {
-    title = `${pendingClients} ${pendingClients === 1 ? "inquiry is" : "inquiries are"} waiting for a client decision.`;
-    const waitHint = oldestWaitDays >= 2 ? ` Oldest wait: ${oldestWaitDays}d — follow up before it goes cold.` : " Send a nudge or share polaroids to move it forward.";
-    body = `The ball is in their court.${waitHint}`;
-    primary = { label: "Open today's pulse", onClick: onOpen };
+    title = interpolate(
+      t(
+        pendingClients === 1
+          ? "dashboard.adminShell.pages.todaysFocus.pendingTitleOne"
+          : "dashboard.adminShell.pages.todaysFocus.pendingTitleOther",
+      ),
+      { count: pendingClients },
+    );
+    const waitHint =
+      oldestWaitDays >= 2
+        ? interpolate(t("dashboard.adminShell.pages.todaysFocus.waitHintOld"), {
+            days: oldestWaitDays,
+          })
+        : t("dashboard.adminShell.pages.todaysFocus.waitHintNudge");
+    body = interpolate(t("dashboard.adminShell.pages.todaysFocus.pendingBody"), {
+      hint: waitHint,
+    });
+    primary = { label: t("dashboard.adminShell.pages.todaysFocus.openPulse"), onClick: onOpen };
   } else if (draftCount > 0) {
-    title = `${draftCount} ${draftCount === 1 ? "draft hasn't" : "drafts haven't"} been sent yet.`;
-    body = "Finish the brief and send while the client's still warm.";
-    primary = { label: "Open drafts", onClick: onOpenDrafts ?? onOpen };
+    title = interpolate(
+      t(
+        draftCount === 1
+          ? "dashboard.adminShell.pages.todaysFocus.draftTitleOne"
+          : "dashboard.adminShell.pages.todaysFocus.draftTitleOther",
+      ),
+      { count: draftCount },
+    );
+    body = t("dashboard.adminShell.pages.todaysFocus.draftBody");
+    primary = {
+      label: t("dashboard.adminShell.pages.todaysFocus.openDrafts"),
+      onClick: onOpenDrafts ?? onOpen,
+    };
   }
   return (
     <section
@@ -311,7 +342,7 @@ export function TodaysFocusCard({
       </div>
       <div className="flex-1 min-w-0">
         <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", marginBottom: 3 }} className="text-admin-accent">
-          Today&apos;s focus
+          {t("dashboard.adminShell.pages.todaysFocus.eyebrow")}
         </div>
         <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.3 }} className="text-admin-ink">
           {title}

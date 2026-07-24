@@ -19,6 +19,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   CLIENT_PAGES,
   CLIENT_PAGE_META,
@@ -68,6 +70,7 @@ const isMac =
 export function CommandPalette() {
   const proto = useAdminShell();
   const { state } = proto;
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
@@ -123,9 +126,11 @@ export function CommandPalette() {
     SURFACES.forEach((s) => {
       items.push({
         id: `surface-${s}`,
-        label: `Switch to ${SURFACE_META[s].short}`,
-        group: "Surfaces",
-        keywords: `surface ${s} ${SURFACE_META[s].short}`.toLowerCase(),
+        label: interpolate(t("dashboard.adminShell.commandPalette.switchToSurface"), {
+          surface: SURFACE_META[s].short,
+        }),
+        group: t("dashboard.adminShell.commandPalette.groupSurfaces"),
+        keywords: `surface ${t("dashboard.adminShell.commandPalette.groupSurfaces")} ${s} ${SURFACE_META[s].short}`.toLowerCase(),
         current: state.surface === s,
         run: () => {
           proto.setSurface(s as Surface);
@@ -139,9 +144,9 @@ export function CommandPalette() {
       WORKSPACE_PAGES.forEach((p) => {
         items.push({
           id: `wp-${p}`,
-          label: `Workspace · ${PAGE_META[p].label}`,
-          group: "Pages",
-          keywords: `workspace page ${p} ${PAGE_META[p].label}`.toLowerCase(),
+          label: `${t("dashboard.adminShell.commandPalette.surfaceWorkspace")} · ${PAGE_META[p].label}`,
+          group: t("dashboard.adminShell.commandPalette.groupPages"),
+          keywords: `workspace page ${t("dashboard.adminShell.commandPalette.groupPages")} ${p} ${PAGE_META[p].label}`.toLowerCase(),
           current: state.page === p,
           run: () => {
             proto.setPage(p as WorkspacePage);
@@ -153,9 +158,9 @@ export function CommandPalette() {
       TALENT_PAGES.forEach((p) => {
         items.push({
           id: `tp-${p}`,
-          label: `Talent · ${TALENT_PAGE_META[p].label}`,
-          group: "Pages",
-          keywords: `talent page ${p} ${TALENT_PAGE_META[p].label}`.toLowerCase(),
+          label: `${t("dashboard.adminShell.commandPalette.surfaceTalent")} · ${TALENT_PAGE_META[p].label}`,
+          group: t("dashboard.adminShell.commandPalette.groupPages"),
+          keywords: `talent page ${t("dashboard.adminShell.commandPalette.groupPages")} ${p} ${TALENT_PAGE_META[p].label}`.toLowerCase(),
           current: state.talentPage === p,
           run: () => {
             proto.setTalentPage(p as TalentPage);
@@ -167,9 +172,9 @@ export function CommandPalette() {
       PLATFORM_PAGES.forEach((p) => {
         items.push({
           id: `pp-${p}`,
-          label: `Platform · ${PLATFORM_PAGE_META[p].label}`,
-          group: "Pages",
-          keywords: `platform page ${p} ${PLATFORM_PAGE_META[p].label}`.toLowerCase(),
+          label: `${t("dashboard.adminShell.commandPalette.surfacePlatform")} · ${PLATFORM_PAGE_META[p].label}`,
+          group: t("dashboard.adminShell.commandPalette.groupPages"),
+          keywords: `platform page ${t("dashboard.adminShell.commandPalette.groupPages")} ${p} ${PLATFORM_PAGE_META[p].label}`.toLowerCase(),
           current: state.platformPage === p,
           run: () => {
             proto.setPlatformPage(p as PlatformPage);
@@ -184,9 +189,9 @@ export function CommandPalette() {
       PLANS.forEach((p) => {
         items.push({
           id: `plan-${p}`,
-          label: `Plan: ${PLAN_META[p].label}`,
-          group: "Workspace plan",
-          keywords: `plan ${p} ${PLAN_META[p].label}`.toLowerCase(),
+          label: `${t("dashboard.adminShell.commandPalette.planPrefix")}: ${PLAN_META[p].label}`,
+          group: t("dashboard.adminShell.commandPalette.groupWorkspacePlan"),
+          keywords: `plan ${t("dashboard.adminShell.commandPalette.planPrefix")} ${p} ${PLAN_META[p].label}`.toLowerCase(),
           current: state.plan === p,
           run: () => {
             proto.setPlan(p as Plan);
@@ -197,9 +202,9 @@ export function CommandPalette() {
       ROLES.forEach((r) => {
         items.push({
           id: `role-${r}`,
-          label: `Role: ${ROLE_META[r].label}`,
-          group: "Workspace role",
-          keywords: `role ${r} ${ROLE_META[r].label}`.toLowerCase(),
+          label: `${t("dashboard.adminShell.commandPalette.rolePrefix")}: ${ROLE_META[r].label}`,
+          group: t("dashboard.adminShell.commandPalette.groupWorkspaceRole"),
+          keywords: `role ${t("dashboard.adminShell.commandPalette.rolePrefix")} ${r} ${ROLE_META[r].label}`.toLowerCase(),
           current: state.role === r,
           run: () => {
             proto.setRole(r as Role);
@@ -211,36 +216,35 @@ export function CommandPalette() {
 
     // Common drawer shortcuts (curated subset — the full list of ~150
     // drawers would overwhelm; users open peripheral ones via UI).
-    const drawerShortcuts: { id: DrawerId; label: string; surface?: Surface; keywords: string }[] = [
-      { id: "new-inquiry", label: "New inquiry", surface: "workspace", keywords: "new inquiry composer brief" },
-      { id: "new-talent", label: "Add talent", surface: "workspace", keywords: "new talent add roster" },
-      { id: "plan-compare", label: "Compare plans", surface: "workspace", keywords: "plan compare upgrade pricing" },
-      { id: "team", label: "Team & seats", surface: "workspace", keywords: "team seats invite member" },
-      { id: "branding", label: "Branding", surface: "workspace", keywords: "branding logo theme" },
-      { id: "domain", label: "Custom domain", surface: "workspace", keywords: "domain custom storefront url" },
-      { id: "notifications", label: "Notifications", keywords: "notifications bell alerts" },
-      { id: "danger-zone", label: "Danger zone", surface: "workspace", keywords: "danger zone pause delete transfer" },
-      { id: "whats-new", label: "What's new", keywords: "changelog whats new release notes recent" },
-      { id: "help", label: "Help & shortcuts", keywords: "help shortcuts keybindings docs support" },
-      { id: "inbox-snippets", label: "Saved snippets", surface: "workspace", keywords: "snippets canned response template reply" },
-      { id: "notifications-prefs", label: "Notification preferences", keywords: "notification preferences settings email digest quiet" },
-      { id: "data-export", label: "Export workspace data", surface: "workspace", keywords: "export download data backup gdpr off-boarding" },
-      { id: "audit-log", label: "Activity log", surface: "workspace", keywords: "audit log activity history who when changes" },
-      { id: "tenant-switcher", label: "Switch workspace", surface: "workspace", keywords: "switch workspace tenant agency multi" },
-      { id: "talent-block-dates", label: "Block dates", surface: "talent", keywords: "talent block unavailable dates" },
-      { id: "talent-profile-edit", label: "Edit profile", surface: "talent", keywords: "talent edit profile" },
+    const drawerShortcuts: { id: DrawerId; labelKey: string; surface?: Surface; keywords: string }[] = [
+      { id: "new-inquiry", labelKey: "newInquiry", surface: "workspace", keywords: "new inquiry composer brief" },
+      { id: "new-talent", labelKey: "addTalent", surface: "workspace", keywords: "new talent add roster" },
+      { id: "plan-compare", labelKey: "comparePlans", surface: "workspace", keywords: "plan compare upgrade pricing" },
+      { id: "team", labelKey: "teamSeats", surface: "workspace", keywords: "team seats invite member" },
+      { id: "branding", labelKey: "branding", surface: "workspace", keywords: "branding logo theme" },
+      { id: "domain", labelKey: "customDomain", surface: "workspace", keywords: "domain custom storefront url" },
+      { id: "notifications", labelKey: "notifications", keywords: "notifications bell alerts" },
+      { id: "danger-zone", labelKey: "dangerZone", surface: "workspace", keywords: "danger zone pause delete transfer" },
+      { id: "whats-new", labelKey: "whatsNew", keywords: "changelog whats new release notes recent" },
+      { id: "help", labelKey: "helpShortcuts", keywords: "help shortcuts keybindings docs support" },
+      { id: "inbox-snippets", labelKey: "savedSnippets", surface: "workspace", keywords: "snippets canned response template reply" },
+      { id: "notifications-prefs", labelKey: "notificationPrefs", keywords: "notification preferences settings email digest quiet" },
+      { id: "data-export", labelKey: "exportData", surface: "workspace", keywords: "export download data backup gdpr off-boarding" },
+      { id: "audit-log", labelKey: "activityLog", surface: "workspace", keywords: "audit log activity history who when changes" },
+      { id: "tenant-switcher", labelKey: "switchWorkspace", surface: "workspace", keywords: "switch workspace tenant agency multi" },
+      { id: "talent-block-dates", labelKey: "blockDates", surface: "talent", keywords: "talent block unavailable dates" },
+      { id: "talent-profile-edit", labelKey: "editProfile", surface: "talent", keywords: "talent edit profile" },
     ];
     // Help / shortcuts — surfaces the gestures + keybindings in a toast
     // so users have a discoverable cheat-sheet from inside the palette.
     items.push({
       id: "help-shortcuts",
-      label: "Keyboard shortcuts & gestures",
-      group: "Help",
-      keywords: "shortcut shortcuts keyboard hotkeys gesture swipe help cheatsheet",
+      label: t("dashboard.adminShell.commandPalette.shortcutsAndGestures"),
+      group: t("dashboard.adminShell.commandPalette.groupHelp"),
+      keywords:
+        `shortcut shortcuts keyboard hotkeys gesture swipe help cheatsheet ${t("dashboard.adminShell.commandPalette.shortcutsAndGestures")}`.toLowerCase(),
       run: () => {
-        proto.toast(
-          "⌘K palette · ? shortcuts · Esc closes drawers · swipe rows on mobile · drag drawer edge to resize",
-        );
+        proto.toast(t("dashboard.adminShell.commandPalette.shortcutsToast"));
         close();
       },
     });
@@ -251,9 +255,10 @@ export function CommandPalette() {
      // users who dismissed by mistake.
     items.push({
       id: "onboarding-restore",
-      label: "Restore setup checklists",
-      group: "View",
-      keywords: "restore reset onboarding setup checklist arc help getting started",
+      label: t("dashboard.adminShell.commandPalette.restoreChecklists"),
+      group: t("dashboard.adminShell.commandPalette.groupView"),
+      keywords:
+        `restore reset onboarding setup checklist arc help getting started ${t("dashboard.adminShell.commandPalette.restoreChecklists")}`.toLowerCase(),
       run: () => {
         try {
           window.localStorage.removeItem("tulala_onboard_client");
@@ -263,7 +268,7 @@ export function CommandPalette() {
         } catch {
           /* ignore */
         }
-        proto.toast("Setup checklists restored — refresh to see them.");
+        proto.toast(t("dashboard.adminShell.commandPalette.checklistsRestoredToast"));
         close();
       },
     });
@@ -271,9 +276,13 @@ export function CommandPalette() {
     // Density toggle — persists to localStorage via setDensity.
     items.push({
       id: "density-toggle",
-      label: state.density === "compact" ? "Switch to comfortable density" : "Switch to compact density",
-      group: "View",
-      keywords: "density compact comfortable rows spacing layout",
+      label:
+        state.density === "compact"
+          ? t("dashboard.adminShell.commandPalette.densityComfortable")
+          : t("dashboard.adminShell.commandPalette.densityCompact"),
+      group: t("dashboard.adminShell.commandPalette.groupView"),
+      keywords:
+        `density compact comfortable rows spacing layout ${t("dashboard.adminShell.commandPalette.densityComfortable")} ${t("dashboard.adminShell.commandPalette.densityCompact")}`.toLowerCase(),
       run: () => {
         proto.setDensity(state.density === "compact" ? "comfortable" : "compact");
         close();
@@ -286,9 +295,10 @@ export function CommandPalette() {
       if (d.surface && state.surface !== d.surface) return;
       items.push({
         id: `drawer-${d.id}`,
-        label: d.label,
-        group: "Actions",
-        keywords: d.keywords.toLowerCase(),
+        label: t(`dashboard.adminShell.commandPalette.drawer.${d.labelKey}`),
+        group: t("dashboard.adminShell.commandPalette.groupActions"),
+        keywords:
+          `${d.keywords} ${t(`dashboard.adminShell.commandPalette.drawer.${d.labelKey}`)}`.toLowerCase(),
         run: () => {
           proto.openDrawer(d.id);
           close();
@@ -297,7 +307,7 @@ export function CommandPalette() {
     });
 
     return items;
-  }, [proto, state]);
+  }, [proto, state, t]);
 
   // Filter by query — substring match against keywords. Empty query
   // returns everything in their natural ordering.
@@ -376,7 +386,7 @@ export function CommandPalette() {
     >
       <div
         role="dialog"
-        aria-label="Command palette"
+        aria-label={t("dashboard.adminShell.commandPalette.dialogAria")}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
         style={{
@@ -406,8 +416,8 @@ export function CommandPalette() {
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Type a surface, page, plan, or action…"
-            aria-label="Command palette search"
+            placeholder={t("dashboard.adminShell.commandPalette.placeholder")}
+            aria-label={t("dashboard.adminShell.commandPalette.searchAria")}
             style={{
               flex: 1,
               border: "none",
@@ -423,7 +433,7 @@ export function CommandPalette() {
         <div ref={listRef} style={{ overflowY: "auto", padding: "6px 0" }}>
           {filtered.length === 0 && (
             <div style={{ padding: "32px 16px", textAlign: "center", fontSize: 13 }} className="text-admin-ink-muted">
-              No matches. Try a different word.
+              {t("dashboard.adminShell.commandPalette.noMatches")}
             </div>
           )}
           {grouped.map(([group, list]) => (
@@ -457,7 +467,7 @@ export function CommandPalette() {
                     }}
                   >
                     <span className="flex-1 min-w-0">{it.label}</span>
-                    {it.current && <CurrentChip />}
+                    {it.current && <CurrentChip label={t("dashboard.adminShell.commandPalette.current")} />}
                     {it.hint && (
                       <span className="text-admin-ink-muted text-admin-11">{it.hint}</span>
                     )}
@@ -469,10 +479,11 @@ export function CommandPalette() {
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 14px", borderTop: `1px solid ${COLORS.borderSoft}`, fontSize: 11 }} className="text-admin-ink-muted bg-admin-surface">
           <span>
-            <Kbd>↑</Kbd> <Kbd>↓</Kbd> navigate · <Kbd>↵</Kbd> select
+            <Kbd>↑</Kbd> <Kbd>↓</Kbd> {t("dashboard.adminShell.commandPalette.footerNavigate")} ·{" "}
+            <Kbd>↵</Kbd> {t("dashboard.adminShell.commandPalette.footerSelect")}
           </span>
           <span>
-            <Kbd>Esc</Kbd> close
+            <Kbd>Esc</Kbd> {t("dashboard.adminShell.commandPalette.footerClose")}
           </span>
         </div>
       </div>
@@ -498,10 +509,10 @@ function Kbd({ children }: { children: ReactNode }) {
   );
 }
 
-function CurrentChip() {
+function CurrentChip({ label }: { label: string }) {
   return (
     <span style={{ fontSize: 9.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", padding: "2px 6px", borderRadius: 999 }} className="bg-admin-accent-soft text-admin-accent-deep">
-      Current
+      {label}
     </span>
   );
 }

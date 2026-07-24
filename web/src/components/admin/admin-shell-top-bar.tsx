@@ -32,6 +32,8 @@ import {
 import { AdminWorkspaceSummaryDrawer } from "@/components/admin/admin-workspace-summary-drawer";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import type { Locale } from "@/i18n/config";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -57,40 +59,48 @@ import { cn } from "@/lib/utils";
 // Sub-route labels for paths that don't have a sidebar entry (composer panels,
 // taxonomy children, analytics tabs). Top-level destinations come from
 // ADMIN_NAV_LABEL_BY_SEGMENT so a sidebar rename auto-updates the breadcrumb.
-const SUBROUTE_LABELS: Record<string, string> = {
-  "site-settings": "Site",
-  "card-design": "Card Design",
-  "profile-pages": "Profile Pages",
-  structure: "Composer",
-  design: "Design",
-  sections: "Sections",
-  pages: "Pages",
-  content: "Content",
-  navigation: "Navigation",
-  seo: "SEO",
-  identity: "Brand",
-  branding: "Brand",
-  system: "System",
-  audit: "Audit",
-  accounts: "Work locations",
-  media: "Media",
-  translations: "Translations",
-  analytics: "Analytics",
-  fields: "Fields",
-  directory: "Directory",
-  taxonomy: "Taxonomy",
-  locations: "Locations",
-  search: "Search",
-  admins: "Admins",
-};
+const SUBROUTE_LABEL_KEYS = [
+  "site-settings",
+  "card-design",
+  "profile-pages",
+  "structure",
+  "design",
+  "sections",
+  "pages",
+  "content",
+  "navigation",
+  "seo",
+  "identity",
+  "branding",
+  "system",
+  "audit",
+  "accounts",
+  "media",
+  "translations",
+  "analytics",
+  "fields",
+  "directory",
+  "taxonomy",
+  "locations",
+  "search",
+  "admins",
+] as const;
 
-const LABELS: Record<string, string> = {
-  ...SUBROUTE_LABELS,
-  ...ADMIN_NAV_LABEL_BY_SEGMENT,
-};
+type Translate = (key: string) => string;
 
-function prettify(segment: string): string {
-  if (LABELS[segment]) return LABELS[segment];
+function buildLabels(t: Translate): Record<string, string> {
+  const subroutes: Record<string, string> = {};
+  for (const segment of SUBROUTE_LABEL_KEYS) {
+    subroutes[segment] = t(`dashboard.adminShell.topBar.segment.${segment}`);
+  }
+  return {
+    ...subroutes,
+    ...ADMIN_NAV_LABEL_BY_SEGMENT,
+  };
+}
+
+function prettify(segment: string, labels: Record<string, string>): string {
+  if (labels[segment]) return labels[segment];
   return segment
     .split("-")
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
@@ -102,7 +112,7 @@ interface Crumb {
   href: string | null;
 }
 
-function buildCrumbs(pathname: string): Crumb[] {
+function buildCrumbs(pathname: string, labels: Record<string, string>): Crumb[] {
   const parts =
     pathname.split("?")[0]?.split("#")[0]?.split("/").filter(Boolean) ?? [];
   const out: Crumb[] = [];
@@ -118,7 +128,7 @@ function buildCrumbs(pathname: string): Crumb[] {
       continue;
     }
     out.push({
-      label: prettify(seg),
+      label: prettify(seg, labels),
       href: i === parts.length - 1 ? null : acc,
     });
   }
@@ -128,29 +138,29 @@ function buildCrumbs(pathname: string): Crumb[] {
 const QUICK_CREATE = [
   {
     href: "/admin/inquiries",
-    label: "New request",
-    hint: "Capture a lead",
+    labelKey: "dashboard.adminShell.topBar.quickCreate.newRequest",
+    hintKey: "dashboard.adminShell.topBar.quickCreate.newRequestHint",
     Icon: Plus,
     keys: ["G", "R"],
   },
   {
     href: "/admin/bookings/new",
-    label: "New booking",
-    hint: "Confirmed job",
+    labelKey: "dashboard.adminShell.topBar.quickCreate.newBooking",
+    hintKey: "dashboard.adminShell.topBar.quickCreate.newBookingHint",
     Icon: CalendarPlus,
     keys: ["G", "B"],
   },
   {
     href: "/admin/talent/new",
-    label: "Add talent",
-    hint: "Create a roster profile",
+    labelKey: "dashboard.adminShell.topBar.quickCreate.addTalent",
+    hintKey: "dashboard.adminShell.topBar.quickCreate.addTalentHint",
     Icon: UserPlus,
     keys: ["G", "T"],
   },
   {
     href: "/admin/clients",
-    label: "Add client",
-    hint: "Open client list",
+    labelKey: "dashboard.adminShell.topBar.quickCreate.addClient",
+    hintKey: "dashboard.adminShell.topBar.quickCreate.addClientHint",
     Icon: Users,
     keys: ["G", "C"],
   },
@@ -180,7 +190,12 @@ export function AdminShellTopBar({
   defaultLocale?: Locale;
 }) {
   const pathname = usePathname() ?? "/admin";
-  const crumbs = React.useMemo(() => buildCrumbs(pathname), [pathname]);
+  const t = useT();
+  const labels = React.useMemo(() => buildLabels(t), [t]);
+  const crumbs = React.useMemo(
+    () => buildCrumbs(pathname, labels),
+    [pathname, labels],
+  );
   const upgradeModal = useUpgradeModal();
   const workspace = useAdminWorkspace();
 
@@ -192,7 +207,10 @@ export function AdminShellTopBar({
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
   const planUsage =
-    formatTalentUsage(workspace) || `${planLabel} plan`;
+    formatTalentUsage(workspace, t) ||
+    interpolate(t("dashboard.adminShell.topBar.planFallback"), {
+      plan: planLabel,
+    });
 
   // Roster fill ratio — tints the chip red-orange when within 90% of the cap
   // so the owner notices before they hit the wall. Network has no cap.
@@ -215,7 +233,7 @@ export function AdminShellTopBar({
         variant="ghost"
         size="icon"
         className="size-9 shrink-0 rounded-lg text-foreground/70 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground lg:hidden"
-        aria-label="Open menu"
+        aria-label={t("dashboard.adminShell.topBar.openMenu")}
         onClick={onOpenMobileMenu}
       >
         <Menu className="size-4" />
@@ -228,17 +246,20 @@ export function AdminShellTopBar({
         className="flex min-w-0 flex-1 items-center gap-1 truncate text-[13px] font-semibold text-foreground sm:hidden"
       >
         {crumbs.length > 0
-          ? (crumbs[crumbs.length - 1]?.label ?? "Admin")
-          : "Admin"}
+          ? (crumbs[crumbs.length - 1]?.label ??
+            t("dashboard.adminShell.topBar.admin"))
+          : t("dashboard.adminShell.topBar.admin")}
       </Link>
 
       {/* Breadcrumb (desktop) */}
       <nav
-        aria-label="Breadcrumb"
+        aria-label={t("dashboard.adminShell.topBar.breadcrumbAria")}
         className="hidden min-w-0 flex-1 items-center gap-1 overflow-hidden text-[12.5px] text-muted-foreground sm:flex"
       >
         {crumbs.length === 0 ? (
-          <span className="font-medium text-foreground">Admin</span>
+          <span className="font-medium text-foreground">
+            {t("dashboard.adminShell.topBar.admin")}
+          </span>
         ) : (
           crumbs.map((c, i) => (
             <span
@@ -285,16 +306,18 @@ export function AdminShellTopBar({
                 "transition-colors hover:border-foreground/30 hover:bg-foreground/[0.08]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-gold)]/50",
               )}
-              aria-label="Quick create"
+              aria-label={t("dashboard.adminShell.topBar.quickCreate.trigger")}
             >
               <Plus className="size-3.5" aria-hidden />
-              <span className="hidden md:inline">New</span>
+              <span className="hidden md:inline">
+                {t("dashboard.adminShell.topBar.quickCreate.new")}
+              </span>
               <ChevronDown className="size-3 text-muted-foreground" aria-hidden />
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-64 p-1.5">
             <div className="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              Quick create
+              {t("dashboard.adminShell.topBar.quickCreate.heading")}
             </div>
             {QUICK_CREATE.map((item) => (
               <Link
@@ -307,10 +330,10 @@ export function AdminShellTopBar({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12.5px] font-semibold text-foreground">
-                    {item.label}
+                    {t(item.labelKey)}
                   </span>
                   <span className="block text-[11.5px] text-muted-foreground">
-                    {item.hint}
+                    {t(item.hintKey)}
                   </span>
                 </span>
                 <span
@@ -363,8 +386,10 @@ export function AdminShellTopBar({
           )}
           title={
             seatsTight
-              ? `Roster is ${Math.round(usageRatio * 100)}% full — open workspace summary`
-              : "Open workspace summary"
+              ? interpolate(t("dashboard.adminShell.topBar.rosterFullTitle"), {
+                  percent: Math.round(usageRatio * 100),
+                })
+              : t("dashboard.adminShell.topBar.workspaceSummary")
           }
           aria-haspopup="dialog"
         >
@@ -404,7 +429,7 @@ export function AdminShellTopBar({
                 "ml-0.5 hidden rounded-full bg-background/15 px-1.5 py-px text-[10px] font-bold uppercase tracking-[0.08em] text-background sm:inline",
               )}
             >
-              Upgrade
+              {t("dashboard.adminShell.topBar.upgrade")}
             </span>
           ) : (
             <ChevronDown
@@ -433,8 +458,8 @@ export function AdminShellTopBar({
               className="size-9 shrink-0 rounded-lg text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground"
               aria-label={
                 chromeTheme === "dark"
-                  ? "Use light workspace"
-                  : "Use dark workspace"
+                  ? t("dashboard.adminShell.topBar.useLightWorkspace")
+                  : t("dashboard.adminShell.topBar.useDarkWorkspace")
               }
               onClick={onToggleTheme}
             >
@@ -446,7 +471,9 @@ export function AdminShellTopBar({
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            {chromeTheme === "dark" ? "Light mode" : "Dark mode"}
+            {chromeTheme === "dark"
+              ? t("dashboard.adminShell.topBar.lightMode")
+              : t("dashboard.adminShell.topBar.darkMode")}
           </TooltipContent>
         </Tooltip>
 
@@ -462,13 +489,17 @@ export function AdminShellTopBar({
                 "transition-colors hover:border-foreground/30 hover:bg-foreground/[0.08]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-gold)]/50",
               )}
-              aria-label="Preview public site"
+              aria-label={t("dashboard.adminShell.topBar.previewPublicSite")}
             >
               <Eye className="size-3.5" aria-hidden />
-              <span className="hidden md:inline">Preview</span>
+              <span className="hidden md:inline">
+                {t("dashboard.adminShell.topBar.preview")}
+              </span>
             </a>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Preview public site</TooltipContent>
+          <TooltipContent side="bottom">
+            {t("dashboard.adminShell.topBar.previewPublicSite")}
+          </TooltipContent>
         </Tooltip>
 
         {/* Avatar / account menu */}
@@ -481,7 +512,7 @@ export function AdminShellTopBar({
                 "transition-colors hover:border-foreground/30 hover:bg-foreground/[0.08]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--admin-gold)]/50",
               )}
-              aria-label="Account menu"
+              aria-label={t("dashboard.adminShell.topBar.accountMenu")}
             >
               {(userEmail?.[0] ?? "?").toUpperCase()}
             </button>
@@ -489,10 +520,10 @@ export function AdminShellTopBar({
           <PopoverContent align="end" className="w-64 p-1.5">
             <div className="border-b border-border/60 px-2 py-2">
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                Signed in
+                {t("dashboard.adminShell.topBar.signedIn")}
               </div>
               <div className="mt-0.5 truncate text-[12.5px] font-semibold text-foreground">
-                {userEmail ?? "Unknown"}
+                {userEmail ?? t("dashboard.adminShell.topBar.unknownUser")}
               </div>
             </div>
             <Link
@@ -500,21 +531,21 @@ export function AdminShellTopBar({
               className="mt-1 flex items-center gap-2.5 rounded-md px-2 py-2 text-[12.5px] text-foreground transition-colors hover:bg-muted/60"
             >
               <Wallet className="size-3.5 text-muted-foreground" aria-hidden />
-              Account &amp; billing
+              {t("dashboard.adminShell.topBar.accountBilling")}
             </Link>
             <Link
               href="/admin/settings"
               className="flex items-center gap-2.5 rounded-md px-2 py-2 text-[12.5px] text-foreground transition-colors hover:bg-muted/60"
             >
               <Settings className="size-3.5 text-muted-foreground" aria-hidden />
-              Workspace settings
+              {t("dashboard.adminShell.topBar.workspaceSettings")}
             </Link>
             <Link
               href="/admin/users"
               className="flex items-center gap-2.5 rounded-md px-2 py-2 text-[12.5px] text-foreground transition-colors hover:bg-muted/60"
             >
               <UserRound className="size-3.5 text-muted-foreground" aria-hidden />
-              Team &amp; permissions
+              {t("dashboard.adminShell.topBar.teamPermissions")}
             </Link>
             <button
               type="button"
@@ -522,7 +553,7 @@ export function AdminShellTopBar({
               className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[12.5px] text-foreground transition-colors hover:bg-muted/60"
             >
               <Keyboard className="size-3.5 text-muted-foreground" aria-hidden />
-              Keyboard shortcuts
+              {t("dashboard.adminShell.topBar.keyboardShortcuts")}
               <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-foreground/15 bg-foreground/[0.04] px-1 font-mono text-[10px] font-semibold text-muted-foreground">
                 ?
               </span>
@@ -533,7 +564,7 @@ export function AdminShellTopBar({
                 className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[12.5px] text-foreground transition-colors hover:bg-muted/60"
               >
                 <LogOut className="size-3.5 text-muted-foreground" aria-hidden />
-                Sign out
+                {t("dashboard.adminShell.topBar.signOut")}
               </button>
             </form>
           </PopoverContent>

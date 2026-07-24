@@ -13,6 +13,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   REGISTRATION_MODE_META,
   type RegistrationMode,
@@ -63,6 +65,7 @@ export function RegistrationSettingsClient({
     ctaLabel: string;
   };
 }) {
+  const t = useT();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -86,7 +89,7 @@ export function RegistrationSettingsClient({
     startTransition(async () => {
       const res = await saveRegistrationSettings(tenantSlug, payload);
       if (res.ok) {
-        setToast({ kind: "ok", text: "Saved." });
+        setToast({ kind: "ok", text: t("dashboard.adminWorkspace.registration.saved") });
         router.refresh();
       } else {
         setToast({ kind: "err", text: res.error });
@@ -109,7 +112,7 @@ export function RegistrationSettingsClient({
             color: C.inkMuted,
           }}
         >
-          You can view this setting, but only a Manager or above can change it.
+          {t("dashboard.adminWorkspace.registration.viewOnly")}
         </div>
       )}
 
@@ -128,11 +131,15 @@ export function RegistrationSettingsClient({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <span style={{ fontSize: 15, fontWeight: 650, color: C.ink }}>
-            Open for registration
+            {t("dashboard.adminWorkspace.registration.masterTitle")}
           </span>
           <span style={{ fontSize: 12.5, color: C.inkMuted }}>
-            Show a join button on your public site and let talent register.{" "}
-            <span style={{ color: C.inkDim }}>Plan: {planLabel}</span>
+            {t("dashboard.adminWorkspace.registration.masterDesc")}{" "}
+            <span style={{ color: C.inkDim }}>
+              {interpolate(t("dashboard.adminWorkspace.registration.planLine"), {
+                plan: planLabel,
+              })}
+            </span>
           </span>
         </div>
         <ToggleSwitch checked={enabled} disabled={disabled} onChange={setEnabled} />
@@ -154,7 +161,7 @@ export function RegistrationSettingsClient({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, letterSpacing: 0.2 }}>
-            How registrations are handled
+            {t("dashboard.adminWorkspace.registration.modesHeading")}
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {SELECTABLE_MODES.map((m) => {
@@ -186,15 +193,15 @@ export function RegistrationSettingsClient({
                   />
                   <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>
-                      {meta.label}
+                      {t(meta.labelKey)}
                       {locked && (
                         <span style={{ marginLeft: 8, fontSize: 11, color: C.rust, fontWeight: 600 }}>
-                          Upgrade to enable
+                          {t("dashboard.adminWorkspace.registration.upgradeToEnable")}
                         </span>
                       )}
                     </span>
                     <span style={{ fontSize: 12.5, color: C.inkMuted, lineHeight: 1.4 }}>
-                      {meta.description}
+                      {t(meta.descriptionKey)}
                     </span>
                   </span>
                 </label>
@@ -206,7 +213,7 @@ export function RegistrationSettingsClient({
         <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
           <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 240, flex: 1 }}>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>
-              New joiners appear as
+              {t("dashboard.adminWorkspace.registration.visibilityLabel")}
             </span>
             <select
               value={visibility}
@@ -222,14 +229,18 @@ export function RegistrationSettingsClient({
                 fontFamily: FONT,
               }}
             >
-              <option value="roster_only">Roster only (hidden from your public site)</option>
-              <option value="site_visible">Visible on your public site</option>
+              <option value="roster_only">
+                {t("dashboard.adminWorkspace.registration.visibilityRosterOnly")}
+              </option>
+              <option value="site_visible">
+                {t("dashboard.adminWorkspace.registration.visibilitySiteVisible")}
+              </option>
             </select>
           </label>
 
           <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 240, flex: 1 }}>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>
-              Button label
+              {t("dashboard.adminWorkspace.registration.ctaLabelLabel")}
             </span>
             <input
               type="text"
@@ -237,7 +248,7 @@ export function RegistrationSettingsClient({
               maxLength={60}
               disabled={!enabled || disabled}
               onChange={(e) => setCtaLabel(e.target.value)}
-              placeholder="Join the team"
+              placeholder={t("dashboard.adminWorkspace.registration.ctaLabelPlaceholder")}
               style={{
                 padding: "9px 11px",
                 borderRadius: 10,
@@ -270,7 +281,9 @@ export function RegistrationSettingsClient({
             fontFamily: FONT,
           }}
         >
-          {pending ? "Saving…" : "Save changes"}
+          {pending
+            ? t("dashboard.adminWorkspace.registration.saving")
+            : t("dashboard.adminWorkspace.registration.save")}
         </button>
         {toast && (
           <span style={{ fontSize: 12.5, color: toast.kind === "ok" ? C.green : C.rust }}>

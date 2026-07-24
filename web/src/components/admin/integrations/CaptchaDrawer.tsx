@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
 import type { IntegrationView } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
@@ -32,6 +34,7 @@ export function CaptchaDrawer({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const t = useT();
   const visual = resolveIntegrationStatus(integration);
   const config = integration.config;
 
@@ -57,7 +60,7 @@ export function CaptchaDrawer({
       setFeedback({ tone: "error", message: res.error });
       throw new Error(res.error);
     }
-    setFeedback({ tone: "success", message: "Captcha saved." });
+    setFeedback({ tone: "success", message: t("dashboard.adminWorkspace.integrations.captchaSaved") });
     setSecretKey("");
     onChanged();
   };
@@ -83,19 +86,21 @@ export function CaptchaDrawer({
       toolbar={<IntegrationStatusPill visual={visual} />}
       footer={
         canManage ? (
-          <AsyncButton onClick={handleSave} pendingLabel="Saving…">
-            Save
+          <AsyncButton onClick={handleSave} pendingLabel={t("dashboard.adminWorkspace.integrations.savingPending")}>
+            {t("dashboard.adminWorkspace.integrations.save")}
           </AsyncButton>
         ) : (
           <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            You don&apos;t have permission to change integrations.
+            {t("dashboard.adminWorkspace.integrations.noPermission")}
           </span>
         )
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>Provider</label>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+            {t("dashboard.adminWorkspace.integrations.captchaProvider")}
+          </label>
           <select
             value={provider}
             disabled={!canManage}
@@ -112,10 +117,10 @@ export function CaptchaDrawer({
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label htmlFor="cap-site" style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
-            Site key
+            {t("dashboard.adminWorkspace.integrations.captchaSiteKey")}
           </label>
           <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            Public — renders the widget on your forms.
+            {t("dashboard.adminWorkspace.integrations.captchaSiteKeyHint")}
           </div>
           <input
             id="cap-site"
@@ -126,7 +131,7 @@ export function CaptchaDrawer({
               setSiteKey(e.target.value);
               setFeedback(null);
             }}
-            placeholder="Paste your site key"
+            placeholder={t("dashboard.adminWorkspace.integrations.captchaSiteKeyPlaceholder")}
             autoComplete="off"
             spellCheck={false}
             style={inputStyle}
@@ -135,11 +140,11 @@ export function CaptchaDrawer({
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label htmlFor="cap-secret" style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
-            Secret key
+            {t("dashboard.adminWorkspace.integrations.captchaSecretKey")}
           </label>
           {secretField?.secretPresent && (
             <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-              Stored: ····{secretField.secretLast4 ?? "????"}
+              {interpolate(t("dashboard.adminWorkspace.integrations.storedMask"), { last4: secretField.secretLast4 ?? "????" })}
             </div>
           )}
           <input
@@ -153,8 +158,8 @@ export function CaptchaDrawer({
             }}
             placeholder={
               secretField?.secretPresent
-                ? "Paste a new secret to replace the stored one"
-                : "Paste your secret key"
+                ? t("dashboard.adminWorkspace.integrations.captchaSecretPlaceholderReplace")
+                : t("dashboard.adminWorkspace.integrations.captchaSecretPlaceholder")
             }
             autoComplete="off"
             spellCheck={false}

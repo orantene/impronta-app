@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { useT } from "@/i18n/use-t";
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 import {
   DrawerActionBar,
@@ -20,7 +21,7 @@ import {
   formatTalentUsage,
   useAdminWorkspace,
 } from "@/components/admin/workspace-context";
-import { TIER_DOT, TIER_LABEL, TIER_RENEW } from "@/lib/admin/plan-tiers";
+import { TIER_DOT, TIER_LABEL, TIER_RENEW_KEY } from "@/lib/admin/plan-tiers";
 
 /**
  * AdminWorkspaceSummaryDrawer — the plan chip in the top-bar opens this
@@ -41,12 +42,13 @@ export function AdminWorkspaceSummaryDrawer({
   onOpenChange: (next: boolean) => void;
   onOpenUpgrade?: () => void;
 }) {
+  const t = useT();
   const ws = useAdminWorkspace();
   const planKey = ws?.plan ?? "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
-  const renewCopy = TIER_RENEW[planKey] ?? TIER_RENEW.free;
-  const usageCopy = formatTalentUsage(ws);
+  const renewCopy = t(TIER_RENEW_KEY[planKey] ?? TIER_RENEW_KEY.free!);
+  const usageCopy = formatTalentUsage(ws, t);
   const usageRatio =
     ws && ws.talentLimit && ws.talentLimit > 0
       ? Math.min(1, ws.talentCount / ws.talentLimit)

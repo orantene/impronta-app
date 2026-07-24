@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { withPluralization, type Translator } from "@/i18n/interpolate";
 import type {
   AdminWorkspaceSummary,
   WorkspacePlan,
@@ -52,11 +53,25 @@ export function useWorkspacePlan(): WorkspacePlan {
 /**
  * Format the talent seat usage as the short label rendered in the
  * tier-chip ("8 / 10 talents", "Unlimited talents").
+ *
+ * i18n: the WHOLE label is translated here rather than returning an English
+ * noun that callers splice into an already-translated sentence (that is how
+ * Spanish users ended up seeing "3 / 10 talents en uso."). `t` is required so
+ * the compiler catches any new caller that would reintroduce the leak; pass
+ * the `useT()` translator from the calling client component.
  */
 export function formatTalentUsage(
   workspace: AdminWorkspaceSummary | null,
+  t: Translator,
 ): string {
   if (!workspace) return "";
-  if (workspace.talentLimit == null) return "Unlimited talents";
-  return `${workspace.talentCount} / ${workspace.talentLimit} talents`;
+  if (workspace.talentLimit == null) {
+    return t("dashboard.adminShared.talentUsage.unlimited");
+  }
+  // Plural agreement follows the cap ("1 / 1 talento", "3 / 10 talentos").
+  return withPluralization(t)(
+    "dashboard.adminShared.talentUsage.counted",
+    workspace.talentLimit,
+    { used: workspace.talentCount, limit: workspace.talentLimit },
+  );
 }
