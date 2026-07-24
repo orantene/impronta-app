@@ -7,6 +7,9 @@ import { z } from "zod";
 
 import { getAppUrl } from "@/lib/auth-flow";
 import { sendEmail } from "@/lib/email";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { pickLocale } from "@/lib/i18n/pick-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { findAuthUserIdByEmail } from "@/lib/saas/find-auth-user-by-email";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
@@ -388,15 +391,19 @@ export async function submitGetStartedSignup(
     };
   }
 
+  // The confirmation email follows the visitor's language; the founder digest
+  // below stays English (internal ops mail to an English-reading operator).
+  const leadLocale = await getRequestLocale();
   try {
     await Promise.all([
       sendEmail({
         to: input.email,
-        subject: `You're on the list at ${PLATFORM_BRAND.name}`,
+        subject: leadEmailCopy(leadLocale).subject(PLATFORM_BRAND.name),
         html: renderLeadConfirmationEmail({
           name: input.name.trim(),
           subdomain,
           workspaceSignupUrl: workspaceOnboardingUrl,
+          locale: leadLocale,
         }),
         replyTo: process.env.EMAIL_REPLY_TO,
       }),
@@ -453,49 +460,92 @@ async function sendFounderDigest(params: {
   });
 }
 
+/**
+ * Lead-confirmation email copy. This email goes to the SIGNUP VISITOR, so it
+ * follows their locale. (The founder digest below is an internal ops email to
+ * an English-reading operator and deliberately stays English.)
+ */
+function leadEmailCopy(locale: string) {
+  return pickLocale(locale, {
+    en: {
+      subject: (brand: string) => `You're on the list at ${brand}`,
+      eyebrow: "You're on the list",
+      welcome: (name: string) => `Welcome, ${name}.`,
+      thanks: (brand: string) => `Thanks for signing up to ${brand}.`,
+      selfServe: "For Free-plan workspaces, you can finish signup right away.",
+      reviewing:
+        "We're reviewing signups in the order they arrive and sending setup links within a day, usually within an hour during working hours.",
+      linkPreference: "Your link preference:",
+      claimBlurb:
+        "Your free workspace is ready to claim. Create your account and we'll open the tenant automatically.",
+      claimCta: "Create my workspace",
+      followupSelfServe:
+        "If you'd rather have us help you shape the setup first, just reply to this email with a little context about your roster.",
+      followupReview:
+        "In the meantime, reply to this email if you'd like to tell us more about your roster or what you're trying to replace. The more context we have, the faster we can tailor your setup.",
+      signoff: (brand: string) => `The ${brand} team`,
+    },
+    es: {
+      subject: (brand: string) => `Ya estás en la lista de ${brand}`,
+      eyebrow: "Ya estás en la lista",
+      welcome: (name: string) => `Hola, ${name}.`,
+      thanks: (brand: string) => `Gracias por registrarte en ${brand}.`,
+      selfServe:
+        "Si eliges el plan gratuito, puedes terminar tu registro ahora mismo.",
+      reviewing:
+        "Estamos revisando los registros en el orden en que llegan y enviamos los enlaces de configuración en menos de un día, normalmente en menos de una hora en horario laboral.",
+      linkPreference: "Tu enlace preferido:",
+      claimBlurb:
+        "Tu espacio de trabajo gratuito está listo. Crea tu cuenta y lo abrimos automáticamente.",
+      claimCta: "Crear mi espacio de trabajo",
+      followupSelfServe:
+        "Si prefieres que te ayudemos a definir la configuración primero, responde a este correo y cuéntanos un poco sobre tu roster.",
+      followupReview:
+        "Mientras tanto, responde a este correo si quieres contarnos más sobre tu roster o sobre lo que buscas reemplazar. Cuanto más contexto tengamos, más rápido podemos adaptar tu configuración.",
+      signoff: (brand: string) => `El equipo de ${brand}`,
+    },
+  });
+}
+
 function renderLeadConfirmationEmail(args: {
   name: string;
   subdomain: string | null;
   workspaceSignupUrl: string | null;
+  locale: string;
 }): string {
+  const c = leadEmailCopy(args.locale);
   const subdomainLine = args.subdomain
-    ? `<p style="margin:20px 0 0;color:#3a4541;">Your link preference: <strong style="color:#0f1714;">${escapeHtml(
+    ? `<p style="margin:20px 0 0;color:#3a4541;">${c.linkPreference} <strong style="color:#0f1714;">${escapeHtml(
         args.subdomain,
       )}.${PLATFORM_BRAND.domain}</strong></p>`
     : "";
   const selfServeBlock = args.workspaceSignupUrl
     ? `<div style="margin:28px 0 0;padding:20px;border-radius:16px;background:#f4f2e8;border:1px solid rgba(15,23,20,0.08);">
-        <p style="margin:0;color:#3a4541;font-size:15px;line-height:1.6;">Your free workspace is ready to claim. Create your account and we&apos;ll open the tenant automatically.</p>
+        <p style="margin:0;color:#3a4541;font-size:15px;line-height:1.6;">${c.claimBlurb}</p>
         <p style="margin:18px 0 0;">
-          <a href="${escapeHtml(args.workspaceSignupUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#1f4a3a;color:#fffdf7;font-size:14px;font-weight:600;text-decoration:none;">Create my workspace</a>
+          <a href="${escapeHtml(args.workspaceSignupUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#1f4a3a;color:#fffdf7;font-size:14px;font-weight:600;text-decoration:none;">${c.claimCta}</a>
         </p>
       </div>`
     : "";
   const followupCopy = args.workspaceSignupUrl
-    ? "If you'd rather have us help you shape the setup first, just reply to this email with a little context about your roster."
-    : "In the meantime, reply to this email if you'd like to tell us more about your roster or what you're trying to replace. The more context we have, the faster we can tailor your setup.";
+    ? c.followupSelfServe
+    : c.followupReview;
   return `<!doctype html>
 <html><body style="margin:0;padding:32px 16px;background:#f1ede3;font-family:'Geist',Inter,system-ui,sans-serif;color:#0f1714;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#fffdf7;border-radius:20px;border:1px solid rgba(15,23,20,0.08);">
     <tr><td style="padding:40px 40px 32px;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.26em;text-transform:uppercase;color:#1f4a3a;">You're on the list</div>
-      <h1 style="font-family:'Geist',Inter,system-ui,sans-serif;font-size:30px;line-height:1.1;font-weight:500;margin:16px 0 0;color:#0f1714;letter-spacing:-0.025em;">Welcome, ${escapeHtml(
-        args.name,
-      )}.</h1>
-      <p style="margin:20px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">Thanks for signing up to ${
-        PLATFORM_BRAND.name
-      }. ${
-        args.workspaceSignupUrl
-          ? "For Free-plan workspaces, you can finish signup right away."
-          : "We're reviewing signups in the order they arrive and sending setup links within a day, usually within an hour during working hours."
-      }</p>
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.26em;text-transform:uppercase;color:#1f4a3a;">${c.eyebrow}</div>
+      <h1 style="font-family:'Geist',Inter,system-ui,sans-serif;font-size:30px;line-height:1.1;font-weight:500;margin:16px 0 0;color:#0f1714;letter-spacing:-0.025em;">${escapeHtml(c.welcome(args.name))}</h1>
+      <p style="margin:20px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">${c.thanks(
+        PLATFORM_BRAND.name,
+      )} ${args.workspaceSignupUrl ? c.selfServe : c.reviewing}</p>
       ${subdomainLine}
       ${selfServeBlock}
       <p style="margin:28px 0 0;color:#3a4541;font-size:15px;line-height:1.6;">${followupCopy}</p>
       <hr style="border:none;border-top:1px solid rgba(15,23,20,0.08);margin:32px 0;"/>
-      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">The ${
-        PLATFORM_BRAND.name
-      } team<br/>${PLATFORM_BRAND.stage} · ${new Date().getFullYear()}</p>
+      <p style="margin:0;color:#6b766f;font-size:13px;line-height:1.6;">${c.signoff(
+        PLATFORM_BRAND.name,
+      )}<br/>${getMarketingCopy(args.locale).footer.stageLine} · ${new Date().getFullYear()}</p>
     </td></tr>
   </table>
 </body></html>`;

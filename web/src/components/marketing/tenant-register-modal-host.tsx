@@ -24,8 +24,11 @@ import {
 
 export function TenantRegisterModalHost({
   tenant,
+  locale = "en",
 }: {
   tenant: TenantRegisterContext;
+  /** Active locale — drives modal copy and the locale stamped on signup. */
+  locale?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -47,7 +50,13 @@ export function TenantRegisterModalHost({
   }, []);
 
   if (!open) return null;
-  return <TalentRegisterModal tenant={tenant} onClose={() => setOpen(false)} />;
+  return (
+    <TalentRegisterModal
+      tenant={tenant}
+      locale={locale}
+      onClose={() => setOpen(false)}
+    />
+  );
 }
 
 /** Client trigger that opens the tenant register modal from any CTA. */
