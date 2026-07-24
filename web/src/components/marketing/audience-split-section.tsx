@@ -1,4 +1,5 @@
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy, type MarketingCopy } from "@/lib/marketing/copy";
 import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
@@ -41,7 +42,8 @@ const AUDIENCE_CONFIG: AudienceConfig[] = [
 type AudienceCopy = MarketingCopy["audience"]["talent"];
 
 export async function AudienceSplitSection() {
-  const copy = getMarketingCopy(await getRequestLocale()).audience;
+  const locale = await getRequestLocale();
+  const copy = getMarketingCopy(locale).audience;
 
   return (
     <MarketingSection id="audiences">
@@ -64,7 +66,7 @@ export async function AudienceSplitSection() {
 
         <div className="mt-14 grid gap-5 md:grid-cols-3 md:gap-6">
           {AUDIENCE_CONFIG.map((config) => (
-            <AudienceCard key={config.key} config={config} copy={copy[config.key]} />
+            <AudienceCard key={config.key} config={config} copy={copy[config.key]} locale={locale} />
           ))}
         </div>
       </MarketingContainer>
@@ -72,7 +74,15 @@ export async function AudienceSplitSection() {
   );
 }
 
-function AudienceCard({ config, copy }: { config: AudienceConfig; copy: AudienceCopy }) {
+function AudienceCard({
+  config,
+  copy,
+  locale,
+}: {
+  config: AudienceConfig;
+  copy: AudienceCopy;
+  locale: string;
+}) {
   return (
     <article
       className="group flex h-full flex-col overflow-hidden rounded-[20px] transition-transform duration-300 hover:-translate-y-1"
@@ -133,7 +143,7 @@ function AudienceCard({ config, copy }: { config: AudienceConfig; copy: Audience
 
         <div className="mt-auto pt-6">
           <MarketingCta
-            href={config.href}
+            href={withLocaleHref(config.href, locale)}
             variant="inline"
             size="md"
             eventSource="home-audience-split"

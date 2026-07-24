@@ -1,4 +1,5 @@
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
@@ -126,7 +127,7 @@ export async function HowItWorksSection() {
 
         <div className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
           <MarketingCta
-            href="/how-it-works"
+            href={withLocaleHref("/how-it-works", locale)}
             variant="secondary"
             size="md"
             eventSource="home-how-it-works"
@@ -135,7 +136,7 @@ export async function HowItWorksSection() {
             {c.ctaWalkthrough}
           </MarketingCta>
           <MarketingCta
-            href="/get-started"
+            href={withLocaleHref("/get-started", locale)}
             variant="inline"
             size="md"
             eventSource="home-how-it-works"

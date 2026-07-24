@@ -1,4 +1,5 @@
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
@@ -44,11 +45,18 @@ export async function PricingTeaserSection({
   const resolvedCurrency =
     currency ?? (await resolveCurrency(null)).currency;
   const rows = await loadMarketingTiers("workspace", resolvedCurrency);
-  const copy = getMarketingCopy(await getRequestLocale()).pricing;
+  const locale = await getRequestLocale();
+  const copy = getMarketingCopy(locale).pricing;
   // Attach CTAs + filter out unknown tiers gracefully.
   const TIERS: Tier[] = rows
     .filter((t) => TIER_CTA[t.key] !== undefined)
-    .map((t) => ({ ...t, cta: TIER_CTA[t.key]! }));
+    .map((t) => ({
+      ...t,
+      cta: {
+        ...TIER_CTA[t.key]!,
+        href: withLocaleHref(TIER_CTA[t.key]!.href, locale),
+      },
+    }));
   return (
     <MarketingSection id="pricing">
       <MarketingContainer size="wide">

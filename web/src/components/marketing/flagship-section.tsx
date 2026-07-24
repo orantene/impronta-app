@@ -1,4 +1,5 @@
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
@@ -12,7 +13,8 @@ import { OpenTalentModalButton } from "./open-talent-modal-button";
  * supporting triptych. This is the "no one else has built this" moment.
  */
 export async function FlagshipSection() {
-  const copy = getMarketingCopy(await getRequestLocale()).flagship;
+  const locale = await getRequestLocale();
+  const copy = getMarketingCopy(locale).flagship;
   return (
     <MarketingSection className="overflow-hidden">
       <MarketingContainer size="wide">
@@ -69,7 +71,7 @@ export async function FlagshipSection() {
               title={copy.messenger.title}
               body={copy.messenger.body}
               bullets={copy.messenger.bullets}
-              cta={<MarketingCta href="/how-it-works" variant="secondary" size="md" eventSource="home-flagship-messenger" eventIntent="how-it-works">
+              cta={<MarketingCta href={withLocaleHref("/how-it-works", locale)} variant="secondary" size="md" eventSource="home-flagship-messenger" eventIntent="how-it-works">
                 {copy.messenger.cta}
               </MarketingCta>}
             />

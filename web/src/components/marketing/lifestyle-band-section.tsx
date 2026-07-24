@@ -1,5 +1,7 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { getAppUrl } from "@/lib/auth-flow";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
@@ -52,7 +54,8 @@ const SLIDES = [
   },
 ] as const;
 
-export function LifestyleBandSection() {
+export async function LifestyleBandSection() {
+  const locale = await getRequestLocale();
   return (
     <MarketingSection spacing="tight" className="relative overflow-hidden">
       <div
@@ -169,8 +172,8 @@ export function LifestyleBandSection() {
             </label>
           </div>
 
-          <SlideContent slide={SLIDES[0]} mode="services" />
-          <SlideContent slide={SLIDES[1]} mode="workspace" />
+          <SlideContent slide={SLIDES[0]} mode="services" locale={locale} />
+          <SlideContent slide={SLIDES[1]} mode="workspace" locale={locale} />
       </div>
     </MarketingSection>
   );
@@ -179,9 +182,11 @@ export function LifestyleBandSection() {
 function SlideContent({
   slide,
   mode,
+  locale,
 }: {
   slide: (typeof SLIDES)[number];
   mode: "services" | "workspace";
+  locale: string;
 }) {
   return (
     <div
@@ -258,7 +263,7 @@ function SlideContent({
             </OpenTalentModalButton>
           ) : (
             <MarketingCta
-              href={slide.primary.href}
+              href={withLocaleHref(slide.primary.href, locale)}
               variant="primary"
               size="lg"
               eventSource="home-pathway-slider"
@@ -269,7 +274,7 @@ function SlideContent({
             </MarketingCta>
           )}
           <MarketingCta
-            href={slide.secondary.href}
+            href={withLocaleHref(slide.secondary.href, locale)}
             variant="secondary"
             size="lg"
             eventSource="home-pathway-slider"

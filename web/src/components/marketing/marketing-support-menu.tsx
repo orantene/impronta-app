@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { HeaderPopover } from "./marketing-header-popover";
 
 /** Support contact — used in the header cluster and the mobile menu alike. */
@@ -14,7 +15,14 @@ const ROW =
 /** Desktop support control — a help icon that opens a small dropdown. Shown
  *  for every visitor (signed in or out); destinations are real (help center +
  *  contact email), never placeholders. */
-export function DesktopSupport({ copy }: { copy: MarketingCopy["nav"] }) {
+export function DesktopSupport({
+  copy,
+  locale = "en",
+}: {
+  copy: MarketingCopy["nav"];
+  /** Active locale — keeps the help link inside the visitor's language tree. */
+  locale?: string;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -59,7 +67,7 @@ export function DesktopSupport({ copy }: { copy: MarketingCopy["nav"] }) {
             {copy.support}
           </p>
           <Link
-            href="/help"
+            href={withLocaleHref("/help", locale)}
             role="menuitem"
             onClick={() => setOpen(false)}
             className={ROW}

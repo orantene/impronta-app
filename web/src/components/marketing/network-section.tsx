@@ -1,11 +1,13 @@
 import { getRequestLocale } from "@/i18n/request-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 
 export async function NetworkSection() {
-  const copy = getMarketingCopy(await getRequestLocale()).network;
+  const locale = await getRequestLocale();
+  const copy = getMarketingCopy(locale).network;
   return (
     <MarketingSection
       id="network"
@@ -50,7 +52,7 @@ export async function NetworkSection() {
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <MarketingCta
-                href="/discover-agencies"
+                href={withLocaleHref("/discover-agencies", locale)}
                 variant="primary"
                 size="md"
                 eventSource="home-network"
@@ -59,7 +61,7 @@ export async function NetworkSection() {
                 {copy.ctaPrimary}
               </MarketingCta>
               <MarketingCta
-                href="/how-it-works#network"
+                href={withLocaleHref("/how-it-works#network", locale)}
                 variant="inline"
                 size="md"
                 eventSource="home-network"

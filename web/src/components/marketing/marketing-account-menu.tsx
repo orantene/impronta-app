@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { HeaderPopover } from "./marketing-header-popover";
 
 /** A tenant the signed-in user belongs to, with a direct link to its dashboard. */
@@ -96,10 +97,13 @@ export function DesktopAccount({
   account,
   copy,
   signOutAction,
+  locale = "en",
 }: {
   account: MarketingAccount;
   copy: MarketingCopy["nav"];
   signOutAction?: () => void | Promise<void>;
+  /** Active locale — keeps the New-workspace link in the visitor's tree. */
+  locale?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -238,7 +242,7 @@ export function DesktopAccount({
             <div className="my-1 h-px" style={{ background: "var(--plt-hairline)" }} aria-hidden />
 
             <Link
-              href="/get-started"
+              href={withLocaleHref("/get-started", locale)}
               role="menuitem"
               onClick={() => setOpen(false)}
               className={ROW}

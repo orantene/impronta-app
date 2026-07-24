@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import { loadDirectoryWorkspaces } from "@/lib/marketing/directory-workspaces";
 import { MARKETING_PHOTOS, type MarketingPhotoKey } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
@@ -392,7 +393,7 @@ export async function AgencyHubDiscovery({
               </p>
             </div>
             <Link
-              href="/discover-agencies"
+              href={withLocaleHref("/discover-agencies", locale)}
               className="rounded-full border px-4 py-2 text-[0.8125rem] font-medium transition-colors hover:border-[var(--plt-forest)] hover:text-[var(--plt-forest)]"
               style={{
                 borderColor: "var(--plt-hairline-strong)",
@@ -415,7 +416,7 @@ export async function AgencyHubDiscovery({
                 {liveWorkspaces.map((workspace) => (
                   <li key={workspace.id}>
                     <a
-                      href={workspace.href}
+                      href={withLocaleHref(workspace.href, locale)}
                       className="flex min-h-14 items-center justify-between gap-3 rounded-[16px] border px-4 py-3 text-[0.9375rem] font-medium transition-colors hover:border-[var(--plt-forest)] hover:text-[var(--plt-forest)]"
                       style={{
                         borderColor: "var(--plt-hairline-strong)",
@@ -662,7 +663,7 @@ function DiscoveryResultCard({
             {pickLocale(locale, { en: "Apply from dashboard", es: "Postularme desde el panel" })}
           </a>
           <a
-            href={card.href}
+            href={withLocaleHref(card.href, locale)}
             className="inline-flex min-h-10 items-center justify-center rounded-full border px-4 text-[0.875rem] font-medium transition-colors hover:border-[var(--plt-forest)] hover:text-[var(--plt-forest)]"
             style={{
               borderColor: "var(--plt-hairline-strong)",

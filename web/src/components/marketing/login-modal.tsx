@@ -30,6 +30,7 @@ import {
 } from "@/app/auth/actions";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import { withLocaleHref } from "@/i18n/pathnames";
 import {
   ArrowGlyph,
   CloseGlyph,
@@ -269,7 +270,7 @@ export function LoginModal({
               >
                 {t.noAccount}{" "}
                 <Link
-                  href="/get-started"
+                  href={withLocaleHref("/get-started", locale)}
                   onClick={onClose}
                   className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                   style={{ color: "var(--plt-ink-soft)" }}
@@ -350,7 +351,7 @@ function LoginModalEmailForm({
         >
           {copy.password}
           <Link
-            href="/forgot-password"
+            href={withLocaleHref("/forgot-password", locale)}
             className="font-normal underline underline-offset-2 transition-colors hover:text-[var(--plt-forest)]"
             style={{ color: "var(--plt-muted)" }}
           >

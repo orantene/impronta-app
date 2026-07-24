@@ -169,12 +169,13 @@ export function MarketingHeader({
             pathnameWithoutLocale={pathnameWithoutLocale}
             label={copy.nav.language}
           />
-          <DesktopSupport copy={copy.nav} />
+          <DesktopSupport copy={copy.nav} locale={locale} />
           {account ? (
             <DesktopAccount
               account={account}
               copy={copy.nav}
               signOutAction={signOutAction}
+              locale={locale}
             />
           ) : (
             <>
@@ -217,14 +218,12 @@ export function MarketingHeader({
             </>
           )}
 
+          {/* Filled chip like its siblings — the transparent-until-scroll
+              variant read as a floating glyph, not a button (and its inline
+              `style` was another instance of inline-kills-hover, see #888). */}
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border transition-colors lg:hidden"
-            style={{
-              borderColor: "var(--plt-hairline-strong)",
-              color: "var(--plt-ink)",
-              background: condensed ? "var(--plt-bg-raised)" : "transparent",
-            }}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] text-[var(--plt-ink)] transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:hidden"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}

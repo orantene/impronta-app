@@ -14,6 +14,7 @@ import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getMarketingCopy } from "@/lib/marketing/copy";
 import {
   reservedBrandedSubdomainHost,
   workspacePathHost,
@@ -365,7 +366,7 @@ function HeroSection({
                   className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.26em]"
                   style={{ color: "var(--plt-forest)" }}
                 >
-                  {PLATFORM_BRAND.stage}
+                  {getMarketingCopy(locale).footer.stageLine}
                 </span>
               </div>
               <p
