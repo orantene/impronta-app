@@ -4172,7 +4172,138 @@
       "deleteTransferWorkspaceDesc": "Exporta todo, transfiere la propiedad o elimina este espacio.",
       "emailFromAddress": "Dirección de correo remitente",
       "emailFromFeature": "Correo remitente",
-      "emailFromWhy": "Envía ofertas a clientes desde tu propio correo verificado."
+      "emailFromWhy": "Envía ofertas a clientes desde tu propio correo verificado.",
+      "defaultCurrency": {
+        "desc": "Qué pestaña de moneda se abre primero en Finanzas del negocio cuando hay varias. Solo para visualización, sin conversión de divisas."
+      },
+      "registration": {
+        "loading": "Cargando…",
+        "loadError": "No se pudieron cargar los ajustes de registro.",
+        "viewOnly": "Puedes ver este ajuste, pero solo un Manager o superior puede cambiarlo.",
+        "masterTitle": "Abierto para registro",
+        "masterDesc": "Muestra un botón para unirse en tu sitio público y deja que el talento se registre.",
+        "planLine": "Plan: {plan}",
+        "modesHeading": "Cómo se gestionan los registros",
+        "upgradeToEnable": "Mejora tu plan para activarlo",
+        "visibilityLabel": "Los nuevos integrantes aparecen como",
+        "visibilityRosterOnly": "Solo en la lista (oculto en tu sitio público)",
+        "visibilitySiteVisible": "Visible en tu sitio público",
+        "ctaLabelLabel": "Texto del botón",
+        "ctaLabelPlaceholder": "Únete al equipo",
+        "saving": "Guardando…",
+        "save": "Guardar cambios",
+        "saved": "Guardado.",
+        "pendingTitle": "Solicitudes pendientes",
+        "pendingNone": "Ninguna por ahora",
+        "pendingWaiting": "{count} en espera",
+        "pendingEmptyBody": "Cuando alguien se registre desde tu sitio en modo de aprobación, su solicitud aparecerá aquí para que la revises.",
+        "requestedOn": "Solicitado el {date}",
+        "decline": "Rechazar",
+        "approve": "Aprobar"
+      },
+      "registrationModes": {
+        "closedLabel": "Cerrado",
+        "closedDesc": "Solo por invitación. Sin botón público para unirse ni ventana de registro.",
+        "openLabel": "Abierto · aceptación automática",
+        "openDesc": "Cualquiera puede registrarse desde tu sitio público y entra a tu lista de inmediato.",
+        "approvalLabel": "Requiere aprobación",
+        "approvalDesc": "Los solicitantes crean una solicitud pendiente. Un Manager o superior la aprueba o la rechaza.",
+        "exclusiveLabel": "Exclusiva (agencia)",
+        "exclusiveDesc": "Unirse otorga representación exclusiva. Siempre requiere aprobación y está sujeta a la regla de una sola agencia exclusiva."
+      },
+      "integrations": {
+        "loading": "Cargando…",
+        "loadError": "No se pudieron cargar las integraciones.",
+        "groupWebsite": "Sitio web",
+        "groupWebsiteBlurb": "Impulsa tu storefront público con tus propias claves de proveedor y tu propio código.",
+        "groupAnalytics": "Analítica y marketing",
+        "groupAnalyticsBlurb": "Agrega tus propios IDs de medición. Las etiquetas se inyectan en tu storefront, siempre sujetas al consentimiento del visitante.",
+        "groupSocial": "Canales sociales",
+        "groupSocialBlurb": "Conecta canales de marca verificados y decide qué aparece en el sitio público.",
+        "groupSecurity": "Seguridad",
+        "groupSecurityBlurb": "Mantén los bots y el spam fuera de los formularios de tu storefront con tus propias claves de captcha.",
+        "groupComms": "Correo",
+        "groupCommsBlurb": "Envía el correo a clientes desde tu propio dominio verificado en lugar del predeterminado de la plataforma.",
+        "groupMoney": "Pagos",
+        "groupMoneyBlurb": "Conecta las cuentas que mueven el dinero dentro y fuera de tu espacio.",
+        "noPermission": "No tienes permiso para cambiar las integraciones.",
+        "save": "Guardar",
+        "savingPending": "Guardando…",
+        "disconnect": "Desconectar",
+        "inheritedBanner": "Esta integración usa actualmente el valor predeterminado de la plataforma. Añade tu propia clave abajo para usarla en tu dominio personalizado.",
+        "howToSetUp": "Cómo configurarlo",
+        "verifyOwnershipTitle": "Verificar la propiedad",
+        "verifyOwnershipDesc": "Guardamos el nombre público del canal y los tokens de OAuth cifrados. El canal verificado se usa para la confianza del espacio y para los enlaces sociales del sitio público.",
+        "openingPending": "Abriendo…",
+        "connectWithGoogle": "Conectar con Google",
+        "showOnSiteTitle": "Mostrar en el sitio público",
+        "showOnSiteOnDesc": "El enlace de tu canal verificado aparece en el encabezado y el pie del sitio público.",
+        "showOnSiteOffDesc": "Desactivado por defecto. La conexión sigue verificada; actívalo para mostrar el canal públicamente.",
+        "hide": "Ocultar",
+        "show": "Mostrar",
+        "shown": "Visible",
+        "hidden": "Oculto",
+        "storedMask": "Guardada: ····{last4}",
+        "remove": "Quitar",
+        "placeholderReplaceKey": "Pega una clave nueva para reemplazar la guardada",
+        "placeholderKey": "Pega tu clave",
+        "placeholderId": "Pega tu ID",
+        "usePlatformDefaultTitle": "Usar el valor predeterminado de la plataforma",
+        "usePlatformDefaultDesc": "Deja de usar tu propia clave y vuelve a la credencial compartida de Tulala.",
+        "switchToDefault": "Cambiar",
+        "feedbackConnected": "Conectado. La comprobación de formato pasó.",
+        "feedbackUsingDefault": "Ahora usas el valor predeterminado de la plataforma.",
+        "feedbackRemovedReverted": "Eliminada. Volviste al valor predeterminado de la plataforma.",
+        "feedbackRemoved": "Eliminada.",
+        "feedbackDisconnected": "Desconectado.",
+        "feedbackYoutubeShown": "El canal verificado ahora aparece en tu sitio público.",
+        "feedbackYoutubeHidden": "Oculto en tu sitio público. La conexión sigue verificada.",
+        "lastCheck": "Última comprobación: {error}",
+        "captchaProvider": "Proveedor",
+        "captchaSiteKey": "Clave del sitio",
+        "captchaSiteKeyHint": "Pública, renderiza el widget en tus formularios.",
+        "captchaSiteKeyPlaceholder": "Pega tu clave del sitio",
+        "captchaSecretKey": "Clave secreta",
+        "captchaSecretPlaceholderReplace": "Pega un secreto nuevo para reemplazar el guardado",
+        "captchaSecretPlaceholder": "Pega tu clave secreta",
+        "captchaSaved": "Captcha guardado.",
+        "emailUpgradeFooter": "Mejora tu plan para enviar desde tu propio dominio.",
+        "emailVerify": "Verificar",
+        "emailChecking": "Comprobando…",
+        "emailUpdateDomain": "Actualizar dominio",
+        "emailAddDomain": "Añadir dominio",
+        "emailLockedBanner": "El correo de marca blanca es una función de plan. Mejora tu plan para enviar el correo a clientes desde tu propio dominio.",
+        "emailSendingDomain": "Dominio de envío",
+        "emailDomainPlaceholder": "correo.tumarca.com",
+        "emailProviderStatus": "Estado del proveedor:",
+        "emailDnsTitle": "Registros DNS por añadir",
+        "emailDnsHint": "Añádelos en tu proveedor de DNS y luego pulsa Verificar.",
+        "emailDnsPriority": "(prioridad {priority})",
+        "emailSavedOk": "Dominio registrado. Añade los registros DNS de abajo y luego verifica.",
+        "emailVerifiedOk": "Verificado, el correo ahora se envía desde tu dominio.",
+        "emailNotVerified": "Aún sin verificar (estado: {status}). El DNS puede tardar un rato en propagarse.",
+        "codeUpgradeFooter": "Mejora tu plan para añadir código personalizado.",
+        "codeWarningPre": "Este código se ejecuta solo en tu ",
+        "codeWarningStrong": "storefront público",
+        "codeWarningPost": ", nunca en el panel de administración ni en otros espacios. Pega solo código en el que confíes; tiene acceso total a las páginas de tu storefront.",
+        "codeLockedBanner": "El código personalizado es una función de plan. Mejora tu plan para inyectar tu propio HTML de head o body en tu storefront.",
+        "codeHeadLabel": "HTML del head",
+        "codeHeadHint": "Se inyecta cerca del inicio de la página: metaetiquetas, fuentes, cargadores de analítica.",
+        "codeBodyLabel": "HTML del body",
+        "codeBodyHint": "Se inyecta al final de la página: widgets de chat, scripts diferidos.",
+        "codeSaved": "Guardado. Tu storefront ya ejecuta este código.",
+        "proofTitle": "Salud de las pruebas",
+        "proofNeedsReauthOne": "{count} necesita reautenticación",
+        "proofNeedsReauthOther": "{count} necesitan reautenticación",
+        "proofBlurb": "Salud de las conexiones y pruebas seleccionadas. “Verificado” cuenta solo la propiedad de la cuenta confirmada por OAuth.",
+        "proofEmpty": "Aún no hay conexiones ni pruebas seleccionadas.",
+        "proofStatVerified": "Conexiones verificadas",
+        "proofStatVisible": "Visible para la agencia",
+        "proofStatMedia": "Medios públicos seleccionados",
+        "proofStatTrust": "Prueba de confianza del cliente",
+        "proofYes": "Sí",
+        "proofReauthTag": "reautenticar"
+      }
     },
     "adminOperations": {
       "title": "Operaciones",
@@ -7440,6 +7571,937 @@
       "sell4": "Lo que debes en cada agencia y en cada moneda",
       "seePlans": "Ver planes",
       "navHub": "Todas las agencias"
+    },
+    "adminShell": {
+      "topBar": {
+        "openMenu": "Abrir menú",
+        "admin": "Administración",
+        "breadcrumbAria": "Ruta de navegación",
+        "planFallback": "Plan {plan}",
+        "rosterFullTitle": "El roster está al {percent}% · abrir resumen del espacio",
+        "workspaceSummary": "Abrir resumen del espacio",
+        "upgrade": "Mejorar",
+        "useLightWorkspace": "Usar el tema claro",
+        "useDarkWorkspace": "Usar el tema oscuro",
+        "lightMode": "Modo claro",
+        "darkMode": "Modo oscuro",
+        "preview": "Vista previa",
+        "previewPublicSite": "Ver el sitio público",
+        "accountMenu": "Menú de cuenta",
+        "signedIn": "Sesión iniciada",
+        "unknownUser": "Desconocido",
+        "accountBilling": "Cuenta y facturación",
+        "workspaceSettings": "Ajustes del espacio",
+        "teamPermissions": "Equipo y permisos",
+        "keyboardShortcuts": "Atajos de teclado",
+        "signOut": "Cerrar sesión",
+        "quickCreate": {
+          "trigger": "Creación rápida",
+          "new": "Nuevo",
+          "heading": "Creación rápida",
+          "newRequest": "Nueva solicitud",
+          "newRequestHint": "Registrar un lead",
+          "newBooking": "Nueva reserva",
+          "newBookingHint": "Trabajo confirmado",
+          "addTalent": "Añadir talento",
+          "addTalentHint": "Crear un perfil del roster",
+          "addClient": "Añadir cliente",
+          "addClientHint": "Abrir la lista de clientes"
+        },
+        "segment": {
+          "site-settings": "Sitio",
+          "card-design": "Diseño de tarjeta",
+          "profile-pages": "Páginas de perfil",
+          "structure": "Compositor",
+          "design": "Diseño",
+          "sections": "Secciones",
+          "pages": "Páginas",
+          "content": "Contenido",
+          "navigation": "Navegación",
+          "seo": "SEO",
+          "identity": "Marca",
+          "branding": "Marca",
+          "system": "Sistema",
+          "audit": "Auditoría",
+          "accounts": "Lugares de trabajo",
+          "media": "Medios",
+          "translations": "Traducciones",
+          "analytics": "Analíticas",
+          "fields": "Campos",
+          "directory": "Directorio",
+          "taxonomy": "Taxonomía",
+          "locations": "Ubicaciones",
+          "search": "Búsqueda",
+          "admins": "Administradores"
+        }
+      },
+      "palette": {
+        "searchAnything": "Busca lo que sea…",
+        "search": "Buscar…",
+        "srHint": "Abre la búsqueda. Atajo de teclado: Comando K o Control K.",
+        "dialogTitle": "Búsqueda del panel",
+        "dialogDescription": "Filtra páginas o escribe al menos dos caracteres para buscar registros. Los resultados se agrupan por categoría; elige una fila para abrirla.",
+        "inputPlaceholder": "Páginas, registros, nombres, códigos o UUID…",
+        "searching": "Buscando…",
+        "typeMore": "Escribe al menos 2 caracteres para buscar registros, o elige una página abajo.",
+        "noMatches": "Sin coincidencias. Prueba con otra ortografía, un fragmento de id o el nombre de la página.",
+        "groupPages": "Páginas",
+        "groupTalentProfiles": "Perfiles de talento",
+        "groupAccounts": "Cuentas (no clientes)",
+        "groupInquiries": "Consultas",
+        "groupClients": "Clientes (accesos)",
+        "unnamed": "Sin nombre",
+        "talentLabel": "Talento",
+        "inquiryLabel": "Consulta",
+        "inquiryRef": "Consulta {id}",
+        "clientLabel": "Cliente",
+        "loginUser": "Usuario con acceso",
+        "role": {
+          "superAdmin": "Súper admin",
+          "agencyStaff": "Staff de la agencia",
+          "talentLogin": "Talento (acceso)"
+        },
+        "category": {
+          "dashboard": "Panel",
+          "people": "Personas",
+          "bookings": "Reservas",
+          "media": "Medios",
+          "directoryData": "Directorio / datos de talento",
+          "site": "Sitio",
+          "siteAi": "Sitio e IA",
+          "system": "Sistema"
+        },
+        "nav": {
+          "overview": {
+            "label": "Resumen",
+            "hint": "Panorama general y accesos rápidos"
+          },
+          "users": {
+            "label": "Usuarios",
+            "hint": "El staff arriba y búsqueda global: talento, clientes, administradores, email, teléfono, id"
+          },
+          "talents": {
+            "label": "Talento",
+            "hint": "Roster, flujo de trabajo, códigos de perfil"
+          },
+          "clients": {
+            "label": "Clientes",
+            "hint": "Usuarios con acceso al portal de clientes, no la entidad de facturación (para eso usa Lugares de trabajo)"
+          },
+          "workLocations": {
+            "label": "Lugares de trabajo (facturación)",
+            "hint": "Entidades comerciales o de facturación: villa, marca, venue (no usuarios del portal)"
+          },
+          "adminsStaff": {
+            "label": "Administradores y staff",
+            "hint": "Staff de la agencia y súper admins (arriba en la página de Usuarios)"
+          },
+          "inquiries": {
+            "label": "Consultas",
+            "hint": "Solicitudes y leads de clientes, antes de convertirse en reservas confirmadas"
+          },
+          "bookings": {
+            "label": "Reservas",
+            "hint": "Trabajos comerciales confirmados: lineup, precios, pago"
+          },
+          "mediaLibrary": {
+            "label": "Biblioteca de medios",
+            "hint": "Explora las subidas aprobadas recientemente"
+          },
+          "pendingApprovals": {
+            "label": "Aprobaciones pendientes",
+            "hint": "Cola de moderación de nuevas subidas"
+          },
+          "fields": {
+            "label": "Campos",
+            "hint": "Catálogo de campos de perfil"
+          },
+          "directoryFilters": {
+            "label": "Filtros del directorio",
+            "hint": "Barra lateral del directorio público: orden, mostrar u ocultar, búsqueda dentro de los filtros"
+          },
+          "taxonomy": {
+            "label": "Taxonomía",
+            "hint": "Etiquetas, habilidades, idiomas, filtros, categorías"
+          },
+          "locations": {
+            "label": "Ubicaciones",
+            "hint": "Ciudades y regiones"
+          },
+          "openEditor": {
+            "label": "Abrir el editor",
+            "hint": "Editor del sitio en vivo: entra y edita cualquier sección al momento"
+          },
+          "designTokens": {
+            "label": "Tokens de diseño",
+            "hint": "Presets de tema, colores, tipografía, espaciado"
+          },
+          "sectionsLibrary": {
+            "label": "Biblioteca de secciones",
+            "hint": "La URL antigua redirige al Sitio web del espacio; los bloques se editan en el constructor"
+          },
+          "pages": {
+            "label": "Páginas",
+            "hint": "Páginas fuera del inicio: nosotros, servicios, blog"
+          },
+          "publicSite": {
+            "label": "Sitio público",
+            "hint": "Centro de control del sitio: páginas, diseño, navegación, SEO (mismo destino que los antiguos Ajustes del sitio)"
+          },
+          "siteSetup": {
+            "label": "Configuración del sitio",
+            "hint": "Guía de seis pasos: inicio, páginas, publicaciones, navegación, tema, SEO"
+          },
+          "aiWorkspace": {
+            "label": "Espacio de IA",
+            "hint": "Herramientas de IA del panel, registros y módulos en despliegue"
+          },
+          "settings": {
+            "label": "Ajustes",
+            "hint": "Ajustes de la agencia y del producto"
+          },
+          "account": {
+            "label": "Cuenta",
+            "hint": "Tu perfil de staff"
+          }
+        }
+      },
+      "commandPalette": {
+        "switchToSurface": "Ir a {surface}",
+        "groupSurfaces": "Vistas",
+        "groupPages": "Páginas",
+        "surfaceWorkspace": "Espacio",
+        "surfaceTalent": "Talento",
+        "surfacePlatform": "Plataforma",
+        "planPrefix": "Plan",
+        "rolePrefix": "Rol",
+        "groupWorkspacePlan": "Plan del espacio",
+        "groupWorkspaceRole": "Rol en el espacio",
+        "groupHelp": "Ayuda",
+        "groupView": "Vista",
+        "groupActions": "Acciones",
+        "shortcutsAndGestures": "Atajos de teclado y gestos",
+        "shortcutsToast": "⌘K abre la paleta · ? muestra los atajos · Esc cierra los paneles · desliza las filas en el móvil · arrastra el borde del panel para redimensionar",
+        "restoreChecklists": "Restaurar las listas de configuración",
+        "checklistsRestoredToast": "Listas de configuración restauradas. Recarga para verlas.",
+        "densityComfortable": "Cambiar a densidad cómoda",
+        "densityCompact": "Cambiar a densidad compacta",
+        "dialogAria": "Paleta de comandos",
+        "placeholder": "Escribe una vista, página, plan o acción…",
+        "searchAria": "Búsqueda en la paleta de comandos",
+        "noMatches": "Sin coincidencias. Prueba con otra palabra.",
+        "footerNavigate": "navegar",
+        "footerSelect": "seleccionar",
+        "footerClose": "cerrar",
+        "current": "Actual",
+        "drawer": {
+          "newInquiry": "Nueva consulta",
+          "addTalent": "Añadir talento",
+          "comparePlans": "Comparar planes",
+          "teamSeats": "Equipo y plazas",
+          "branding": "Marca",
+          "customDomain": "Dominio propio",
+          "notifications": "Notificaciones",
+          "dangerZone": "Zona de riesgo",
+          "whatsNew": "Novedades",
+          "helpShortcuts": "Ayuda y atajos",
+          "savedSnippets": "Respuestas guardadas",
+          "notificationPrefs": "Preferencias de notificaciones",
+          "exportData": "Exportar los datos del espacio",
+          "activityLog": "Registro de actividad",
+          "switchWorkspace": "Cambiar de espacio de trabajo",
+          "blockDates": "Bloquear fechas",
+          "editProfile": "Editar perfil"
+        }
+      },
+      "shortcuts": {
+        "title": "Atajos de teclado",
+        "subtitle": "La forma más rápida de manejar el panel",
+        "soon": "pronto",
+        "group": {
+          "navigation": "Navegación",
+          "quickCreate": "Creación rápida",
+          "listActions": "Acciones de lista",
+          "utilities": "Utilidades"
+        },
+        "rows": {
+          "openPalette": "Abrir la paleta de comandos",
+          "goOverview": "Ir a Resumen",
+          "goRequests": "Ir a Solicitudes",
+          "goBookings": "Ir a Reservas",
+          "goTalent": "Ir a Talento",
+          "goClients": "Ir a Clientes",
+          "openNewMenu": "Abrir el menú + Nuevo",
+          "newRequest": "Nueva solicitud",
+          "newBooking": "Nueva reserva",
+          "addTalent": "Añadir talento",
+          "focusSearch": "Enfocar la búsqueda",
+          "nextRow": "Fila siguiente",
+          "previousRow": "Fila anterior",
+          "openSelectedRow": "Abrir la fila seleccionada",
+          "toggleRowCheckbox": "Marcar o desmarcar la fila",
+          "showCheatsheet": "Mostrar esta guía",
+          "closeDrawer": "Cerrar panel o menú",
+          "toggleDensity": "Alternar la densidad compacta"
+        }
+      },
+      "emptyStates": {
+        "inbox": {
+          "title": "Tu bandeja está al día",
+          "body": "No hay mensajes nuevos. Las conversaciones sobre consultas y reservas aparecerán aquí.",
+          "primary": "Explorar talento"
+        },
+        "inquiries": {
+          "title": "Aún no hay consultas",
+          "body": "Envía tu primera consulta para iniciar el proceso de reserva. Las respuestas suelen llegar en 24 horas.",
+          "primary": "Nueva consulta"
+        },
+        "bookings": {
+          "title": "Aún no hay reservas",
+          "body": "Las reservas confirmadas aparecen aquí. Las consultas se convierten en reservas cuando ambas partes acuerdan los términos.",
+          "primary": "Ver consultas"
+        },
+        "roster": {
+          "title": "Tu roster está vacío",
+          "body": "Añade talento a tu espacio de trabajo para gestionar consultas, reservas y rendimiento desde un solo lugar.",
+          "primary": "Añadir talento"
+        },
+        "clients": {
+          "title": "Aún no hay clientes",
+          "body": "Los clientes que reserven a través de tu espacio aparecerán aquí junto con su historial de gasto.",
+          "primary": "Compartir enlace de reserva"
+        },
+        "shortlists": {
+          "title": "No hay listas guardadas",
+          "body": "Las listas te permiten agrupar talento para un proyecto y compartirlo con colaboradores para su revisión.",
+          "primary": "Explorar talento"
+        },
+        "calendar": {
+          "title": "No hay nada agendado",
+          "body": "Las reservas confirmadas y las citas de casting aparecerán en tu calendario automáticamente.",
+          "primary": "Ver reservas"
+        },
+        "messages": {
+          "title": "Aún no hay mensajes",
+          "body": "Inicia una conversación enviando una consulta. Todas las respuestas y notas quedarán en este hilo.",
+          "primary": "Redactar"
+        },
+        "files": {
+          "title": "No hay archivos adjuntos",
+          "body": "Sube call sheets, contratos o moodboards para mantener todo vinculado a este proyecto.",
+          "primary": "Subir archivo"
+        },
+        "agencies": {
+          "title": "Ninguna agencia te representa",
+          "body": "Cuando una agencia te añada a su roster, aparecerá aquí. También puedes solicitar representación.",
+          "primary": "Solicitar representación"
+        },
+        "search": {
+          "title": "Sin resultados",
+          "titleQuery": "Sin resultados para \"{query}\"",
+          "body": "Prueba con otras palabras clave o ajusta los filtros para ampliar la búsqueda."
+        },
+        "notifications": {
+          "title": "Todo al día",
+          "body": "Estás al corriente. Las notificaciones sobre la actividad de tu espacio aparecerán aquí."
+        }
+      },
+      "pages": {
+        "demoBadgeTitle": "Conexión pendiente. Muy pronto.",
+        "demoBadge": "demo",
+        "back": "Volver",
+        "todaysFocus": {
+          "eyebrow": "Foco de hoy",
+          "allCaughtUp": "Todo al día, nada urgente hoy.",
+          "bodyNextUp": "Lo siguiente: {booking}. Aprovecha la calma para pulir un borrador o preparar call sheets.",
+          "bodyQuiet": "Aprovecha la próxima hora tranquila para pulir un borrador o dar seguimiento a una reserva en espera.",
+          "pendingTitleOne": "{count} consulta espera una decisión del cliente.",
+          "pendingTitleOther": "{count} consultas esperan una decisión del cliente.",
+          "waitHintOld": " La más antigua lleva {days} días, dale seguimiento antes de que se enfríe.",
+          "waitHintNudge": " Manda un recordatorio o comparte polaroids para que avance.",
+          "pendingBody": "La pelota está de su lado.{hint}",
+          "openPulse": "Abrir el pulso de hoy",
+          "draftTitleOne": "{count} borrador aún no se ha enviado.",
+          "draftTitleOther": "{count} borradores aún no se han enviado.",
+          "draftBody": "Termina el brief y envíalo mientras el cliente sigue interesado.",
+          "openDrafts": "Abrir borradores"
+        }
+      },
+      "surfaceLandmark": "Vista {surface}",
+      "upgradeCelebration": {
+        "welcomeTo": "Te damos la bienvenida a {plan}",
+        "unlockedOne": "{count} función desbloqueada.",
+        "unlockedOther": "{count} funciones desbloqueadas.",
+        "takeMeIn": "Entrar",
+        "dismissHint": "Toca donde sea para cerrar · se cierra solo en 6 s",
+        "unlocks": {
+          "studio": {
+            "customDomain": "Dominio propio",
+            "ownedClientList": "Lista de clientes propia",
+            "upTo50Talents": "Hasta 50 talentos",
+            "privateInquiryInbox": "Bandeja de consultas privada"
+          },
+          "agency": {
+            "brandedDesignSystem": "Sistema de diseño con tu marca",
+            "customRosterFields": "Campos personalizados del roster",
+            "teamRoles25": "Equipo y roles hasta 25",
+            "upTo200Talents": "Hasta 200 talentos"
+          },
+          "network": {
+            "multiBrandWorkspaces": "Espacios multimarca",
+            "crossRosterPool": "Pool entre rosters",
+            "hubAnalytics": "Analíticas a nivel de hub",
+            "unlimitedEverything": "Todo ilimitado"
+          }
+        }
+      },
+      "pulse": {
+        "title": "Pulso del negocio",
+        "breakdownAria": "Pulso del negocio, desglose",
+        "summaryMoneyOne": "{pending} pendiente · {count} confirmada",
+        "summaryMoneyOther": "{pending} pendiente · {count} confirmadas",
+        "summaryRoster": "{talent} talentos · {inquiries} consultas abiertas",
+        "pendingPayouts": "Pagos pendientes",
+        "confirmedBookings": "Reservas confirmadas",
+        "openInquiries": "Consultas abiertas",
+        "unreadMessages": "Mensajes sin leer",
+        "rosterApprovals": "Aprobaciones de roster en espera",
+        "openFinancials": "Ver finanzas",
+        "openMessages": "Ver mensajes"
+      },
+      "shell": {
+        "shortcutsBar": "Atajos",
+        "needsAttention": "{label}, {count} requieren atención",
+        "unpinAria": "Quitar de la parte superior de la barra lateral",
+        "pinAria": "Fijar en la parte superior de la barra lateral",
+        "unpin": "Quitar",
+        "pinToTop": "Fijar arriba",
+        "removeShortcutAria": "Quitar de los atajos superiores",
+        "addShortcutAria": "Mostrar en la barra de atajos superior",
+        "removeShortcut": "Quitar atajo",
+        "topShortcut": "Atajo superior",
+        "pinned": "Fijados",
+        "expandSidebar": "Expandir la barra lateral",
+        "collapseSidebar": "Contraer la barra lateral",
+        "signOut": "Cerrar sesión",
+        "exitToSite": "Salir al sitio",
+        "menu": "Menú",
+        "language": "Idioma",
+        "primaryNav": "Principal",
+        "tabHome": "Inicio",
+        "tabOps": "Operación",
+        "tabTalent": "Talento",
+        "tabMore": "Más"
+      }
+    },
+    "adminAccount": {
+      "sections": {
+        "workspaceEyebrow": "Espacio",
+        "billingIdentityTitle": "Facturación e identidad",
+        "billingIdentityHint": "Plan · organización · pago · facturas.",
+        "youEyebrow": "Tú",
+        "securityHint": "Cierre de sesión y contraseña para este dispositivo."
+      },
+      "plan": {
+        "billedMonthly": "facturación mensual",
+        "noRenewal": "sin renovación",
+        "usage": "{usage} en uso.",
+        "compare": "Comparar planes",
+        "change": "Cambiar de plan",
+        "note": "Los cambios de plan se aplican en el siguiente ciclo de facturación. El IVA se calcula al pagar."
+      },
+      "organization": {
+        "title": "Organización",
+        "subtitle": "Marca · recibos · dirección"
+      },
+      "payment": {
+        "title": "Método de pago",
+        "cardOnFile": "Visa terminada en 4242",
+        "noCard": "Sin tarjeta registrada",
+        "cardExpiry": "Vence 04 / 28 · facturación mensual",
+        "noneTitle": "Sin método de pago registrado",
+        "noneBody": "Agrega uno cuando quieras cambiar de plan, te guiamos paso a paso.",
+        "replace": "Cambiar tarjeta",
+        "add": "Agregar tarjeta",
+        "stripeNote": "Los datos de la tarjeta pasan por Stripe, nunca guardamos el número directamente."
+      },
+      "invoices": {
+        "title": "Facturas",
+        "subtitlePaid": "Recibos PDF · últimos 3",
+        "subtitleFree": "Plan Free · sin facturas",
+        "emptyFree": "Aún no hay facturas, estás en el plan Free.",
+        "planRow": "Plan {plan}",
+        "sampleDate1": "1 abr 2026",
+        "sampleDate2": "1 mar 2026",
+        "sampleDate3": "1 feb 2026"
+      },
+      "security": {
+        "title": "Seguridad y sesión",
+        "signedInAsStaff": "Sesión iniciada como personal"
+      },
+      "danger": {
+        "title": "Zona de peligro",
+        "subtitle": "Pausa o cierra el espacio",
+        "intro": "Pausa o cierra tu espacio de trabajo. Conservamos tus datos durante 30 días después del cierre, luego se eliminan de nuestros sistemas.",
+        "pauseTitle": "Pausar el espacio",
+        "pauseDesc": "Oculta tu sitio público y congela la facturación. Es reversible.",
+        "pauseAction": "Pausar",
+        "closeTitle": "Cerrar el espacio",
+        "closeDesc": "Definitivo después de 30 días. Cancela la facturación de inmediato.",
+        "closeAction": "Cerrar",
+        "footnote": "Al cerrar enviamos un enlace de confirmación al propietario del espacio. Nada sucede sin esa confirmación."
+      },
+      "org": {
+        "nameLabel": "Nombre de la organización",
+        "namePlaceholder": "Nombre de tu agencia",
+        "legalLabel": "Entidad legal",
+        "legalPlaceholder": "Como aparece en los recibos",
+        "taxIdLabel": "ID fiscal / IVA",
+        "taxIdPlaceholder": "Opcional, para la UE y Latinoamérica",
+        "billingEmailLabel": "Correo de facturación",
+        "address1Label": "Dirección línea 1",
+        "address1Placeholder": "Calle y número",
+        "cityLabel": "Ciudad",
+        "regionLabel": "Región / Estado",
+        "postalLabel": "Código postal",
+        "countryLabel": "País",
+        "countryPlaceholder": "Elige un país",
+        "countryMexico": "México",
+        "countryUnitedStates": "Estados Unidos",
+        "countrySpain": "España",
+        "countryItaly": "Italia",
+        "countryUnitedKingdom": "Reino Unido",
+        "countryOther": "Otro",
+        "save": "Guardar organización"
+      }
+    },
+    "adminSiteControl": {
+      "common": {
+        "save": "Guardar",
+        "editInCanvas": "Editar en el lienzo",
+        "more": "Más"
+      },
+      "branding": {
+        "calloutLead": "La marca",
+        "calloutBody": "sobrevive a los cambios de tema: tu logo, tu paleta y tu tipografía se mantienen aunque cambies el kit de tema.",
+        "identity": "Identidad",
+        "workspaceName": "Nombre del espacio",
+        "tagline": "Eslogan",
+        "taglinePlaceholder": "Una línea para encabezados y meta etiquetas",
+        "uploadLogo": "Subir logo",
+        "uploadFavicon": "Subir favicon",
+        "palette": "Paleta",
+        "colorPrimary": "Principal",
+        "colorForeground": "Texto",
+        "colorBackground": "Fondo",
+        "typography": "Tipografía",
+        "displayFont": "Fuente de títulos",
+        "bodyFont": "Fuente de texto",
+        "systemSans": "Sans del sistema",
+        "save": "Guardar marca"
+      },
+      "roster": {
+        "callout": "Gestiona todo el talent de tu roster. Agrega nuevos perfiles, aprueba borradores y reordena arrastrando cómo aparecen en el directorio.",
+        "add": "+ Agregar talent",
+        "searchPlaceholder": "Buscar talent…",
+        "empty": "La vista previa del roster aún no se carga. Abre la página completa del roster para reordenar, editar en lote y aprobar.",
+        "openFull": "Abrir roster completo"
+      },
+      "directory": {
+        "calloutIntro": "Cómo se muestra tu directorio de talent al público. Tres áreas:",
+        "calloutRendering": "Renderizado",
+        "calloutRenderingNote": "(cuadrícula o páginas dedicadas),",
+        "calloutTemplates": "Plantillas",
+        "calloutTemplatesNote": "(familia de diseño) y",
+        "calloutFields": "Campos",
+        "calloutFieldsNote": "(qué campos aparecen en la tarjeta).",
+        "rendering": "Renderizado",
+        "profileMode": "Modo de perfil",
+        "modeDedicated": "Páginas dedicadas",
+        "modeModal": "Superposición modal",
+        "layout": "Diseño",
+        "layoutGrid": "Cuadrícula",
+        "layoutList": "Lista",
+        "layoutMasonry": "Mosaico",
+        "cardContent": "Contenido de la tarjeta",
+        "showName": "Mostrar nombre",
+        "showProfileType": "Mostrar tipo de perfil",
+        "showCity": "Mostrar ciudad",
+        "showExperience": "Mostrar experiencia",
+        "advanced": "Ajustes avanzados del directorio"
+      },
+      "inquiries": {
+        "callout": "El pipeline de un vistazo: solicitudes abiertas, negociaciones en curso y reservas ganadas. Las respuestas detalladas están en la bandeja completa.",
+        "empty": "El resumen de solicitudes se carga en la bandeja completa. Ábrela para clasificar, asignar y convertir en reservas.",
+        "openInbox": "Abrir bandeja de solicitudes"
+      },
+      "activity": {
+        "callout": "Ediciones, publicaciones y aprobaciones recientes en todo el espacio de trabajo.",
+        "emptyBefore": "El registro de actividad aún no se carga. El historial cronológico completo con filtros por superficie está en",
+        "emptyAfter": "."
+      },
+      "pages": {
+        "new": "+ Nueva página",
+        "searchPlaceholder": "Buscar páginas…",
+        "tipLead": "Consejo.",
+        "tipBody": "Las páginas nuevas se crean como borrador. Publícalas desde la fila y salen en vivo en tu dominio al instante.",
+        "noMatch": "Ninguna página coincide con «{query}».",
+        "items": {
+          "home": {
+            "title": "Inicio",
+            "seo": "Tulala · cada historia, un solo hogar"
+          },
+          "about": {
+            "title": "Acerca de",
+            "seo": "Acerca de Tulala"
+          },
+          "services": {
+            "title": "Servicios"
+          },
+          "team": {
+            "title": "Equipo",
+            "seo": "Nuestro equipo"
+          },
+          "contact": {
+            "title": "Contacto",
+            "seo": "Ponte en contacto"
+          },
+          "press": {
+            "title": "Kit de prensa"
+          }
+        }
+      },
+      "posts": {
+        "write": "+ Escribir publicación",
+        "searchPlaceholder": "Buscar publicaciones…",
+        "seoLead": "Impulso de SEO.",
+        "seoBody": "Las publicaciones con la meta descripción completa posicionan ~3× mejor. Toma 20 segundos por publicación.",
+        "noMatch": "Ninguna publicación coincide con «{query}».",
+        "items": {
+          "soho": {
+            "title": "Sofia M desfila en el show de SoHo",
+            "seo": "Sofia M · reporte de pasarela"
+          },
+          "fall": {
+            "title": "Editorial de otoño · adelanto"
+          },
+          "launch": {
+            "title": "Por qué nos unimos a Tulala"
+          }
+        }
+      },
+      "quickEdit": {
+        "title": "Título",
+        "url": "URL",
+        "status": "Estado",
+        "seoMeta": "Meta SEO",
+        "seoPlaceholder": "Título para los buscadores",
+        "public": "Pública",
+        "inSitemap": "En el sitemap",
+        "inMainNav": "En el menú principal",
+        "openInCanvas": "Abrir en el lienzo →"
+      },
+      "stub": {
+        "setupBody": "Recorrido premium: configura esta tarjeta con la interfaz completa, estado real y aplicación en un clic.",
+        "openLegacy": "Abrir el editor anterior"
+      },
+      "locked": {
+        "calloutIntro": "Todos los planes usan el mismo producto, los niveles superiores desbloquean más tarjetas.",
+        "youAreOn": "Estás en",
+        "contactUs": "Contáctanos",
+        "comparePlansArrow": "Comparar planes →",
+        "upgradeTo": "Mejorar a {tier}"
+      }
+    },
+    "adminInquirySheet": {
+      "channel": {
+        "phone": "Llamada telefónica",
+        "whatsapp": "WhatsApp",
+        "email": "Correo electrónico",
+        "admin": "Admin (heredado)",
+        "other": "Otro",
+        "pitch": "Conversión de propuesta",
+        "directoryGuest": "Directorio público · invitado",
+        "directoryClient": "Directorio público · cliente",
+        "directClientDashboard": "Panel del cliente",
+        "discoverSingleTalent": "Discover · un solo talento",
+        "discoverShortlist": "Discover · envío a preselección",
+        "savedTalent": "Talento guardado (lista)",
+        "publicTalentProfile": "Perfil público del talento",
+        "agencySite": "Sitio web de la agencia",
+        "hubSite": "Sitio web del hub",
+        "adminCreated": "Alta manual del admin",
+        "bookAgain": "Reservar de nuevo"
+      },
+      "proficiency": {
+        "beginner": "Principiante",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado",
+        "expert": "Experto",
+        "master": "Máster"
+      },
+      "panelDescription": "Crea una solicitud con los mismos cuatro pilares del espacio de consultas: cliente, lugar de trabajo, talento solicitado y detalles.",
+      "createdBody": "Consulta creada. El cliente, la ubicación, la preselección y los detalles se guardaron de una sola vez.",
+      "openInquiry": "Abrir consulta",
+      "done": "Listo",
+      "section1Title": "1. Cliente",
+      "section1Desc": "La persona que hace la solicitud. Vincula una cuenta de cliente existente si la hay, y mantén los datos de contacto centrados en la persona.",
+      "addNewClient": "Añadir cliente nuevo",
+      "findExistingClient": "Buscar un cliente existente",
+      "clientSearchHelp": "Opcional. Busca clientes de la plataforma por nombre, correo o teléfono.",
+      "contactForInquiry": "Contacto para esta consulta",
+      "useSelectedClient": "Usar los datos del cliente seleccionado",
+      "useSelectedClientHint": "Rellena automáticamente el contacto de la consulta con los datos del cliente vinculado.",
+      "useDifferentContact": "Indicar otro contacto para esta consulta",
+      "useDifferentContactHint": "Mantén el cliente vinculado tal cual, pero usa otros datos de contacto en la consulta.",
+      "contactSnapshotNote": "Estos campos se guardan solo en la consulta. No sobrescriben la ficha del cliente vinculado.",
+      "selectClientFirst": "Selecciona primero un cliente para usar sus datos.",
+      "loadingClientInfo": "Cargando los datos del cliente seleccionado…",
+      "fieldName": "Nombre",
+      "fieldEmail": "Correo electrónico",
+      "fieldPhone": "Teléfono",
+      "fieldCompany": "Empresa (opcional)",
+      "section2Title": "2. Lugar de trabajo",
+      "section2Desc": "El lugar o negocio para el que es el trabajo. Un cliente puede tener varias ubicaciones.",
+      "addNewLocation": "Añadir ubicación nueva",
+      "findLocation": "Buscar ubicación",
+      "searchLocationPlaceholder": "Busca la ubicación por nombre",
+      "workLocation": "Lugar de trabajo",
+      "optionNone": "Ninguna",
+      "secondaryContact": "Contacto secundario (opcional)",
+      "secondaryContactNote": "Esto queda limitado al lugar de trabajo seleccionado.",
+      "section3Title": "3. Talento solicitado",
+      "section3Desc": "Preselección propia de la consulta. Añade el talento representado que se pide para este lead.",
+      "section4Title": "4. Detalles",
+      "section4Desc": "Sé conciso para que el equipo pueda clasificar y convertir rápido.",
+      "requestSummary": "Resumen de la solicitud",
+      "requestSummaryPlaceholder": "p. ej. 3 modelos promocionales para la apertura de un beach club",
+      "briefNotes": "Brief / notas",
+      "briefNotesPlaceholder": "Horarios, código de vestimenta, idiomas, prioridades…",
+      "eventLocation": "Lugar del evento (opcional)",
+      "sourceChannel": "Canal de origen",
+      "internalNotes": "Notas internas",
+      "internalNotesPlaceholder": "Contexto solo para el equipo.",
+      "section5Title": "5. Habilidad necesaria (opcional)",
+      "section5Desc": "Acota la búsqueda a un tipo de talento y un nivel mínimo. Déjalo en blanco para dejar la consulta abierta a cualquier habilidad.",
+      "category": "Categoría",
+      "anyCategory": "Cualquier categoría",
+      "talentType": "Tipo de talento",
+      "anyType": "Cualquier tipo",
+      "minProficiency": "Nivel mínimo (opcional)",
+      "anyProficiency": "Cualquiera (sin mínimo)",
+      "saving": "Guardando…",
+      "saveInquiry": "Guardar consulta",
+      "cancel": "Cancelar"
+    },
+    "adminFinancials": {
+      "pageTitle": "Finanzas del negocio",
+      "pageIntroBefore": "Ingresos, comisión ganada por la agencia y pagos pendientes al talento. Lee las mismas filas de snapshot que la vista",
+      "pageIntroMoneyView": "Dinero",
+      "pageIntroAfter": "del talento, proyectadas desde la perspectiva de la agencia.",
+      "viewBookings": "Ver reservas →",
+      "pnlTitle": "Resultados",
+      "pnlSub": "Año en curso y mes actual, solo reservas en {currency}.",
+      "ytdGross": "Ingresos brutos del año",
+      "confirmedBookings": {
+        "one": "{count} reserva confirmada",
+        "other": "{count} reservas confirmadas"
+      },
+      "ytdCommission": "Comisión de la agencia del año",
+      "ytdCommissionSub": "Vía del espacio de trabajo (tus ingresos)",
+      "ytdTalentPayouts": "Pagos al talento del año",
+      "ytdTalentPayoutsSub": "Lo que ganó el talento",
+      "ytdPlatformFee": "Comisión de la plataforma del año",
+      "ytdPlatformFeeSub": "Pagado a Tulala",
+      "pendingPayout": "Pago pendiente (vía del espacio de trabajo)",
+      "pendingPayoutSub": "Adeudado, aún no marcado como pagado",
+      "mtdGross": "Bruto del mes",
+      "mtdGrossSub": "Este mes calendario",
+      "mtdCommission": "Comisión del mes",
+      "mtdTalentPayouts": "Pagos al talento del mes",
+      "mtdPlatformFee": "Comisión de la plataforma del mes",
+      "perTalentTitle": "Pagos por talento",
+      "perTalentSub": "Lo que esta agencia debe o ya pagó a cada talento del roster, en lo que va del año.",
+      "perTalentEmpty": "Aún no hay snapshots de comisión para esta moneda.",
+      "colTalent": "Talento",
+      "colBookings": "Reservas",
+      "colGross": "Bruto",
+      "colTalentNet": "Neto del talento",
+      "colPending": "Pendiente",
+      "colLastBooking": "Última reserva",
+      "colClient": "Cliente",
+      "topClientsTitle": "Clientes con mayor facturación",
+      "topClientsSub": "Los que más ingresos aportaron en lo que va del año.",
+      "topClientsEmpty": "Aún no hay ingresos de clientes para esta moneda.",
+      "paymentStatusTitle": "Estado de pago",
+      "paymentStatusSub": "Cantidad e importe bruto en cada estado del ciclo.",
+      "statusInvoiced": "Facturado",
+      "grossAmount": "{amount} bruto",
+      "commissionPolicyTitle": "Política de comisiones",
+      "commissionPolicySub": "Vista de solo lectura de la tarifa que aplica hoy a este espacio de trabajo. Los ajustes por inquilino los define el admin de la plataforma.",
+      "commissionPolicyNote": "Para pedir otra tarifa, contacta al admin de la plataforma. La configuración de comisiones autogestionada por inquilino está en la hoja de ruta y se sigue por separado de esta pantalla.",
+      "planTier": "Plan",
+      "platformFee": "Comisión de la plataforma",
+      "origin": "Origen",
+      "originFree": "Valor por defecto del plan Free",
+      "originStudio": "Valor por defecto del plan Studio",
+      "originAgency": "Valor por defecto del plan Agency",
+      "originNetwork": "Valor por defecto del plan Network",
+      "originDefault": "Valor por defecto del plan"
+    },
+    "adminDiscoverSettings": {
+      "backToSettings": "← Volver a Ajustes",
+      "pageTitle": "Ajustes de Discover",
+      "pageIntro": "Tulala Discover es la herramienta avanzada para los clientes: catálogo entre espacios, preselecciones, vista comparativa y consultas directas. Tu talento aparece aquí cuando opta por participar y cuando tu plan admite el tipo de inscripción que ves abajo.",
+      "currentPlan": "Plan actual",
+      "planFree": "Plan Free",
+      "planStudio": "Plan Studio",
+      "planAgency": "Plan Agency",
+      "planNetwork": "Plan Network",
+      "enrolledTalent": "Talento inscrito",
+      "enrolledOfTotal": "de {total} ({percent}%)",
+      "benefitsTitle": "Tus beneficios en Discover",
+      "rowEnrollment": "Inscripción",
+      "rowPlacement": "Posicionamiento",
+      "rowAnalytics": "Analíticas",
+      "rowBulkTools": "Herramientas masivas",
+      "rowPriority": "Prioridad",
+      "rowMultiWorkspace": "Varios espacios",
+      "benefits": {
+        "free": {
+          "enrollment": "El talento opta por participar (desactivado por defecto)",
+          "placement": "Básico · ordenado por confianza y actividad",
+          "analyticsWindow": "Ventana móvil de 7 días",
+          "bulkTools": "No incluidas",
+          "priority": "Sin posicionamiento prioritario",
+          "multiWorkspace": "Un solo espacio de trabajo"
+        },
+        "studio": {
+          "enrollment": "Opción de inscribir por defecto al talento nuevo del roster",
+          "placement": "Estándar · ordenado por confianza y actividad",
+          "analyticsWindow": "Ventana móvil de 30 días",
+          "bulkTools": "Inscribir, pausar o impulsar de forma masiva",
+          "priority": "Sin posicionamiento prioritario",
+          "multiWorkspace": "Un solo espacio de trabajo"
+        },
+        "agency": {
+          "enrollment": "Inscripción por defecto del talento nuevo del roster",
+          "placement": "Prioritario · espacios destacados en los resultados regionales",
+          "analyticsWindow": "Ventana móvil de 90 días + cohortes guardadas",
+          "bulkTools": "Inscribir, pausar, impulsar y búsquedas guardadas de forma masiva",
+          "priority": "Posicionamiento prioritario",
+          "multiWorkspace": "Un solo espacio (el plan Network añade la vista consolidada)"
+        },
+        "network": {
+          "enrollment": "Inscripción por defecto en todos los espacios propios",
+          "placement": "Prioritario en toda la red",
+          "analyticsWindow": "Historial ilimitado + cohortes guardadas",
+          "bulkTools": "Herramientas masivas entre espacios",
+          "multiWorkspace": "Vista consolidada de varios espacios + datos entre inquilinos",
+          "priority": "Posicionamiento prioritario"
+        }
+      },
+      "upsellTitle": "¿Quieres posicionamiento prioritario y analíticas de 90 días?",
+      "upsellBody": "Los planes Studio y Agency desbloquean la inscripción por defecto, las herramientas masivas y ventanas de analítica más largas. Mejora tu plan en",
+      "upsellLink": "Ajustes → Plan",
+      "linkPerformance": "Ver panel de rendimiento",
+      "linkInquiries": "Consultas de Discover",
+      "linkRoster": "Gestionar la inscripción del roster"
+    },
+    "adminInquiriesInspector": {
+      "filterStatus": "Estado: {status}",
+      "filterSearch": "Búsqueda: “{query}”",
+      "filterClientAccount": "Limitado a una cuenta de cliente",
+      "filterPlatformClient": "Limitado a un cliente de la plataforma",
+      "filterAssignee": "Filtrado por responsable",
+      "filterCreatedRange": "Rango de fechas de creación aplicado",
+      "noFilters": "Sin filtros. Se muestra toda la cola de consultas.",
+      "nextStep": {
+        "new": "Acusa recibo, vincula la cuenta de cliente si la conoces y asigna un responsable.",
+        "reviewing": "Confirma el brief, arma la preselección de talento y avanza hacia la propuesta o la conversión.",
+        "inProgress": "Mantén al cliente al tanto; acuerden fechas, tarifas y entregables.",
+        "waitingForClient": "Haz seguimiento de lo que falta por parte del cliente antes de avanzar.",
+        "talentSuggested": "Recoge la opinión del cliente sobre el talento propuesto o ajusta la preselección.",
+        "converted": "Asegúrate de que la reserva vinculada tenga equipo asignado y los hitos de pago definidos.",
+        "closed": "El contexto archivado es definitivo. Úsalo solo como referencia.",
+        "archived": "Cola de bajo seguimiento; reábrela solo si el cliente vuelve."
+      },
+      "nextStepFallback": "Avanza la consulta según la respuesta del cliente y la revisión interna.",
+      "draftShortcutBefore": "La redacción de mensajes al cliente asistida por IA se ejecuta en el",
+      "draftShortcutSurface": "espacio de la consulta",
+      "draftShortcutAfter": "cuando OpenAI está configurado y la redacción de consultas está activada en los feature flags.",
+      "featureFlags": "Feature flags",
+      "loadingInquiry": "Cargando la consulta…",
+      "talentCount": {
+        "one": "{count} talento",
+        "other": "{count} talentos"
+      },
+      "bookingCount": {
+        "one": "{count} reserva",
+        "other": "{count} reservas"
+      },
+      "openWorkspace": "Abrir el espacio de trabajo",
+      "loadingSummary": "Cargando el resumen…",
+      "labelEvent": "Evento",
+      "labelDateQty": "Fecha / cantidad",
+      "labelAccount": "Cuenta",
+      "labelShortlist": "Preselección",
+      "shortlistNoneYet": "Aún ninguno",
+      "loadingDraftContext": "Cargando el contexto del borrador…",
+      "polishNeedsText": "Añade texto en el campo Brief / notas antes de pulirlo.",
+      "requestFailed": "La solicitud falló",
+      "generating": "Generando…",
+      "generateBrief": "Generar brief",
+      "polishing": "Puliendo…",
+      "polishBrief": "Pulir brief",
+      "draftEndpointBefore": "Usa",
+      "draftEndpointAfter": ". Pégalo en Brief / notas de la página cuando el texto te convenza.",
+      "draftOutput": "Borrador generado",
+      "backToInquiries": "Volver a consultas",
+      "loading": "Cargando…"
+    },
+    "adminShared": {
+      "talentUsage": {
+        "unlimited": "Talentos ilimitados",
+        "counted": {
+          "one": "{used} / {limit} talento",
+          "other": "{used} / {limit} talentos"
+        }
+      },
+      "planRenew": {
+        "free": "Sin renovación. Plan Free.",
+        "studio": "$49 / mes.",
+        "agency": "$149 / mes.",
+        "network": "Contrato personalizado · contacta a facturación."
+      },
+      "drawer": {
+        "lockNote": {
+          "prefix": "Los esquemas nuevos se desbloquean en",
+          "suffix": ". En cualquier plan puedes renombrar, reordenar y cambiar la visibilidad."
+        },
+        "error": {
+          "title": "Algo salió mal",
+          "retry": "Inténtalo de nuevo"
+        },
+        "lockedCopy": {
+          "roster": "Gestiona todos los talentos de tu lista",
+          "directory": "Configura cómo se descubre a tus talentos",
+          "inquiries": "Recibe solicitudes de reserva desde tu sitio",
+          "branding": "Define tu logo, colores y tipografía",
+          "activity": "Mira qué cambió en todo tu espacio",
+          "widgets": "Incrusta tu lista en cualquier sitio",
+          "api": "JSON de solo lectura para socios",
+          "domain": "Tu subdominio para enlaces directos",
+          "homepage": "Tu página de inicio con tu marca",
+          "pages": "Cualquier página, cualquier diseño",
+          "posts": "Tu voz editorial",
+          "navigation": "Arrastra y suelta en el lienzo",
+          "theme": "Una biblioteca de kits de diseño",
+          "seo": "SEO completo en tu dominio",
+          "hub": "Descubrimiento entre agencias",
+          "multiagency": "Opera varias marcas"
+        }
+      }
     }
   },
   "admin": {

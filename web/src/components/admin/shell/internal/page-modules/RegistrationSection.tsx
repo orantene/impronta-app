@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useT } from "@/i18n/use-t";
+
 import { useAdminShell } from "../state";
 import {
   loadRegistrationManageData,
@@ -21,6 +23,7 @@ import { RegistrationSettingsClient } from "@/components/admin/registration/Regi
 import { JoinRequestsList } from "@/components/admin/registration/JoinRequestsList";
 
 export function RegistrationSection() {
+  const t = useT();
   const { tenantSlug } = useAdminShell();
   const [data, setData] = useState<RegistrationManageData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,9 +45,11 @@ export function RegistrationSection() {
   );
 
   if (!tenantSlug) return null;
-  if (loading && !data) return note("Loading…");
+  if (loading && !data) return note(t("dashboard.adminWorkspace.registration.loading"));
   if (!data || !data.ok) {
-    return note(data && !data.ok ? data.error : "Couldn't load registration settings.");
+    return note(
+      data && !data.ok ? data.error : t("dashboard.adminWorkspace.registration.loadError"),
+    );
   }
 
   return (

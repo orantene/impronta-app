@@ -4,12 +4,14 @@ import * as React from "react";
 import { Calendar, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { useUpgradeModal } from "@/components/admin/site-control-center/upgrade-context";
 import {
   formatTalentUsage,
   useAdminWorkspace,
 } from "@/components/admin/workspace-context";
-import { TIER_DOT, TIER_LABEL, TIER_RENEW } from "@/lib/admin/plan-tiers";
+import { TIER_DOT, TIER_LABEL, TIER_RENEW_KEY } from "@/lib/admin/plan-tiers";
 
 /**
  * Drawer bodies for the Account control center (audit Finding #5).
@@ -74,14 +76,19 @@ function BtnSecondary({
 }
 
 export function PlanDrawerBody() {
+  const t = useT();
   const upgradeModal = useUpgradeModal();
   const workspace = useAdminWorkspace();
 
   const planKey = workspace?.plan ?? "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
-  const planUsage = workspace ? `${formatTalentUsage(workspace)} used.` : "—";
-  const planRenew = TIER_RENEW[planKey] ?? TIER_RENEW.free;
+  const planUsage = workspace
+    ? interpolate(t("dashboard.adminAccount.plan.usage"), {
+        usage: formatTalentUsage(workspace, t),
+      })
+    : "—";
+  const planRenew = t(TIER_RENEW_KEY[planKey] ?? TIER_RENEW_KEY.free!);
 
   return (
     <div className="space-y-5">
@@ -110,50 +117,59 @@ export function PlanDrawerBody() {
       </div>
       <div className="flex flex-wrap gap-2">
         <BtnSecondary onClick={() => upgradeModal.setOpen(true)}>
-          Compare plans
+          {t("dashboard.adminAccount.plan.compare")}
         </BtnSecondary>
         <BtnPrimary onClick={() => upgradeModal.setOpen(true)}>
-          Change plan
+          {t("dashboard.adminAccount.plan.change")}
         </BtnPrimary>
       </div>
       <p className="text-[12px] text-muted-foreground">
-        Plans switch on the next billing cycle. VAT calculated at checkout.
+        {t("dashboard.adminAccount.plan.note")}
       </p>
     </div>
   );
 }
 
 export function OrganizationDrawerBody() {
+  const t = useT();
   const workspace = useAdminWorkspace();
   const orgName = workspace?.displayName ?? "";
   return (
     <div className="space-y-4">
       <div className="grid gap-3.5 sm:grid-cols-2">
         <div>
-          <label className={FORM_LABEL_CLASS}>Organization name</label>
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.nameLabel")}
+          </label>
           <input
             key={orgName}
             className={FORM_INPUT_CLASS}
             defaultValue={orgName}
-            placeholder="Your agency name"
+            placeholder={t("dashboard.adminAccount.org.namePlaceholder")}
           />
         </div>
         <div>
-          <label className={FORM_LABEL_CLASS}>Legal entity</label>
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.legalLabel")}
+          </label>
           <input
             className={FORM_INPUT_CLASS}
-            placeholder="As it appears on receipts"
+            placeholder={t("dashboard.adminAccount.org.legalPlaceholder")}
           />
         </div>
         <div>
-          <label className={FORM_LABEL_CLASS}>VAT / Tax ID</label>
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.taxIdLabel")}
+          </label>
           <input
             className={FORM_INPUT_CLASS}
-            placeholder="Optional — for EU / LatAm"
+            placeholder={t("dashboard.adminAccount.org.taxIdPlaceholder")}
           />
         </div>
         <div>
-          <label className={FORM_LABEL_CLASS}>Billing email</label>
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.billingEmailLabel")}
+          </label>
           <input
             className={FORM_INPUT_CLASS}
             type="email"
@@ -161,44 +177,79 @@ export function OrganizationDrawerBody() {
           />
         </div>
         <div className="sm:col-span-2">
-          <label className={FORM_LABEL_CLASS}>Address line 1</label>
-          <input className={FORM_INPUT_CLASS} placeholder="Street address" />
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.address1Label")}
+          </label>
+          <input
+            className={FORM_INPUT_CLASS}
+            placeholder={t("dashboard.adminAccount.org.address1Placeholder")}
+          />
         </div>
         <div>
-          <label className={FORM_LABEL_CLASS}>City</label>
-          <input className={FORM_INPUT_CLASS} placeholder="City" />
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.cityLabel")}
+          </label>
+          <input
+            className={FORM_INPUT_CLASS}
+            placeholder={t("dashboard.adminAccount.org.cityLabel")}
+          />
         </div>
         <div>
-          <label className={FORM_LABEL_CLASS}>Region / State</label>
-          <input className={FORM_INPUT_CLASS} placeholder="Region / State" />
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.regionLabel")}
+          </label>
+          <input
+            className={FORM_INPUT_CLASS}
+            placeholder={t("dashboard.adminAccount.org.regionLabel")}
+          />
         </div>
         <div>
-          <label className={FORM_LABEL_CLASS}>Postal code</label>
-          <input className={FORM_INPUT_CLASS} placeholder="Postal code" />
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.postalLabel")}
+          </label>
+          <input
+            className={FORM_INPUT_CLASS}
+            placeholder={t("dashboard.adminAccount.org.postalLabel")}
+          />
         </div>
         <div>
-          <label className={FORM_LABEL_CLASS}>Country</label>
+          <label className={FORM_LABEL_CLASS}>
+            {t("dashboard.adminAccount.org.countryLabel")}
+          </label>
           <select className={FORM_INPUT_CLASS} defaultValue="">
             <option value="" disabled>
-              Choose country
+              {t("dashboard.adminAccount.org.countryPlaceholder")}
             </option>
-            <option>Mexico</option>
-            <option>United States</option>
-            <option>Spain</option>
-            <option>Italy</option>
-            <option>United Kingdom</option>
-            <option>Other</option>
+            <option value="Mexico">
+              {t("dashboard.adminAccount.org.countryMexico")}
+            </option>
+            <option value="United States">
+              {t("dashboard.adminAccount.org.countryUnitedStates")}
+            </option>
+            <option value="Spain">
+              {t("dashboard.adminAccount.org.countrySpain")}
+            </option>
+            <option value="Italy">
+              {t("dashboard.adminAccount.org.countryItaly")}
+            </option>
+            <option value="United Kingdom">
+              {t("dashboard.adminAccount.org.countryUnitedKingdom")}
+            </option>
+            <option value="Other">
+              {t("dashboard.adminAccount.org.countryOther")}
+            </option>
           </select>
         </div>
       </div>
       <div className="flex justify-end">
-        <BtnPrimary>Save organization</BtnPrimary>
+        <BtnPrimary>{t("dashboard.adminAccount.org.save")}</BtnPrimary>
       </div>
     </div>
   );
 }
 
 export function PaymentDrawerBody({ hasPaidInvoices }: { hasPaidInvoices: boolean }) {
+  const t = useT();
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 rounded-[10px] border border-[rgba(24,24,27,0.1)] bg-[#fbfaf5] px-3.5 py-3">
@@ -228,58 +279,65 @@ export function PaymentDrawerBody({ hasPaidInvoices }: { hasPaidInvoices: boolea
           {hasPaidInvoices ? (
             <>
               <div className="text-[13px] font-semibold text-foreground">
-                Visa ending 4242
+                {t("dashboard.adminAccount.payment.cardOnFile")}
               </div>
               <div className="text-[12px] text-muted-foreground">
-                Expires 04 / 28 · billed monthly
+                {t("dashboard.adminAccount.payment.cardExpiry")}
               </div>
             </>
           ) : (
             <>
               <div className="text-[13px] font-semibold text-foreground">
-                No payment method on file
+                {t("dashboard.adminAccount.payment.noneTitle")}
               </div>
               <div className="text-[12px] text-muted-foreground">
-                Add one when you&rsquo;re ready to upgrade — we&rsquo;ll walk you
-                through it.
+                {t("dashboard.adminAccount.payment.noneBody")}
               </div>
             </>
           )}
         </div>
       </div>
       <div className="flex justify-end">
-        <BtnSecondary>{hasPaidInvoices ? "Replace card" : "Add card"}</BtnSecondary>
+        <BtnSecondary>
+          {hasPaidInvoices
+            ? t("dashboard.adminAccount.payment.replace")
+            : t("dashboard.adminAccount.payment.add")}
+        </BtnSecondary>
       </div>
       <p className="text-[12px] text-muted-foreground">
-        Card details go through Stripe — we never store the number directly.
+        {t("dashboard.adminAccount.payment.stripeNote")}
       </p>
     </div>
   );
 }
 
 export function DangerZoneDrawerBody() {
+  const t = useT();
   return (
     <div className="space-y-4">
       <p className="text-[12.5px] text-muted-foreground">
-        Pause or close your workspace. We keep your data on file for 30 days
-        after closure — after that it&rsquo;s purged from our systems.
+        {t("dashboard.adminAccount.danger.intro")}
       </p>
       <div className="space-y-2.5 rounded-[10px] border border-[rgba(24,24,27,0.1)] bg-white p-3.5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[13px] font-semibold text-foreground">Pause workspace</div>
+            <div className="text-[13px] font-semibold text-foreground">
+              {t("dashboard.adminAccount.danger.pauseTitle")}
+            </div>
             <div className="text-[11.5px] text-muted-foreground">
-              Hide your public site and freeze billing. Reversible.
+              {t("dashboard.adminAccount.danger.pauseDesc")}
             </div>
           </div>
-          <BtnSecondary>Pause</BtnSecondary>
+          <BtnSecondary>{t("dashboard.adminAccount.danger.pauseAction")}</BtnSecondary>
         </div>
         <div className="border-t border-[rgba(24,24,27,0.08)] pt-2.5" />
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[13px] font-semibold text-foreground">Close workspace</div>
+            <div className="text-[13px] font-semibold text-foreground">
+              {t("dashboard.adminAccount.danger.closeTitle")}
+            </div>
             <div className="text-[11.5px] text-muted-foreground">
-              Permanent after 30 days. Cancels billing immediately.
+              {t("dashboard.adminAccount.danger.closeDesc")}
             </div>
           </div>
           <button
@@ -287,13 +345,12 @@ export function DangerZoneDrawerBody() {
             className="inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-[12.5px] font-semibold transition-colors"
             style={{ color: "#a1302d", borderColor: "rgba(161,48,45,0.35)" }}
           >
-            Close
+            {t("dashboard.adminAccount.danger.closeAction")}
           </button>
         </div>
       </div>
       <p className="text-[11.5px] text-muted-foreground">
-        Closing emails the workspace owner a confirmation link — nothing happens
-        without that confirmation.
+        {t("dashboard.adminAccount.danger.footnote")}
       </p>
     </div>
   );
@@ -304,11 +361,12 @@ export function InvoicesDrawerBody({ hasPaidInvoices, planKey, planLabel }: {
   planKey: string;
   planLabel: string;
 }) {
+  const t = useT();
   if (!hasPaidInvoices) {
     return (
       <div className="rounded-[12px] border border-[rgba(24,24,27,0.1)] bg-white px-4 py-8 text-center">
         <p className="text-[13px] text-muted-foreground">
-          No invoices yet — you&rsquo;re on the Free plan.
+          {t("dashboard.adminAccount.invoices.emptyFree")}
         </p>
       </div>
     );
@@ -317,10 +375,13 @@ export function InvoicesDrawerBody({ hasPaidInvoices, planKey, planLabel }: {
     planKey === "agency" ? "$149.00" :
     planKey === "studio" ? "$49.00" :
     "$499.00";
+  const desc = interpolate(t("dashboard.adminAccount.invoices.planRow"), {
+    plan: planLabel,
+  });
   const rows = [
-    { desc: `${planLabel} plan`, date: "Apr 1, 2026", amount },
-    { desc: `${planLabel} plan`, date: "Mar 1, 2026", amount },
-    { desc: `${planLabel} plan`, date: "Feb 1, 2026", amount },
+    { desc, date: t("dashboard.adminAccount.invoices.sampleDate1"), amount },
+    { desc, date: t("dashboard.adminAccount.invoices.sampleDate2"), amount },
+    { desc, date: t("dashboard.adminAccount.invoices.sampleDate3"), amount },
   ];
   return (
     <div className="overflow-hidden rounded-xl border border-[rgba(24,24,27,0.1)]">

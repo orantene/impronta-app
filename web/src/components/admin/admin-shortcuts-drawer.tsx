@@ -5,6 +5,7 @@ import { Keyboard } from "lucide-react";
 
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 import { DrawerSection } from "@/components/admin/drawer/drawer-pieces";
+import { useT } from "@/i18n/use-t";
 
 /**
  * AdminShortcutsDrawer — single keystroke cheatsheet (`?` opens it).
@@ -19,47 +20,50 @@ import { DrawerSection } from "@/components/admin/drawer/drawer-pieces";
  * "soon" so the drawer is honest.
  */
 
+type ShortcutGroup = "navigation" | "quickCreate" | "listActions" | "utilities";
+
 type Shortcut = {
   keys: string[];
-  label: string;
-  hint?: string;
-  group: "Navigation" | "Quick create" | "List actions" | "Utilities";
+  /** Suffix under `dashboard.adminShell.shortcuts.rows.*`. */
+  labelKey: string;
+  hintKey?: string;
+  group: ShortcutGroup;
   status?: "live" | "soon";
 };
 
 const SHORTCUTS: Shortcut[] = [
   // Navigation
-  { keys: ["⌘", "K"], label: "Open command palette", group: "Navigation", status: "live" },
-  { keys: ["G", "H"], label: "Go to Overview", group: "Navigation", status: "soon" },
-  { keys: ["G", "R"], label: "Go to Requests", group: "Navigation", status: "soon" },
-  { keys: ["G", "B"], label: "Go to Bookings", group: "Navigation", status: "soon" },
-  { keys: ["G", "T"], label: "Go to Talent", group: "Navigation", status: "soon" },
-  { keys: ["G", "C"], label: "Go to Clients", group: "Navigation", status: "soon" },
+  { keys: ["\u2318", "K"], labelKey: "openPalette", group: "navigation", status: "live" },
+  { keys: ["G", "H"], labelKey: "goOverview", group: "navigation", status: "soon" },
+  { keys: ["G", "R"], labelKey: "goRequests", group: "navigation", status: "soon" },
+  { keys: ["G", "B"], labelKey: "goBookings", group: "navigation", status: "soon" },
+  { keys: ["G", "T"], labelKey: "goTalent", group: "navigation", status: "soon" },
+  { keys: ["G", "C"], labelKey: "goClients", group: "navigation", status: "soon" },
 
   // Quick create
-  { keys: ["N"], label: "Open + New menu", group: "Quick create", status: "soon" },
-  { keys: ["N", "R"], label: "New request", group: "Quick create", status: "soon" },
-  { keys: ["N", "B"], label: "New booking", group: "Quick create", status: "soon" },
-  { keys: ["N", "T"], label: "Add talent", group: "Quick create", status: "soon" },
+  { keys: ["N"], labelKey: "openNewMenu", group: "quickCreate", status: "soon" },
+  { keys: ["N", "R"], labelKey: "newRequest", group: "quickCreate", status: "soon" },
+  { keys: ["N", "B"], labelKey: "newBooking", group: "quickCreate", status: "soon" },
+  { keys: ["N", "T"], labelKey: "addTalent", group: "quickCreate", status: "soon" },
 
   // List actions
-  { keys: ["/"], label: "Focus search", group: "List actions", status: "soon" },
-  { keys: ["J"], label: "Next row", group: "List actions", status: "soon" },
-  { keys: ["K"], label: "Previous row", group: "List actions", status: "soon" },
-  { keys: ["Enter"], label: "Open selected row", group: "List actions", status: "soon" },
-  { keys: ["X"], label: "Toggle row checkbox", group: "List actions", status: "soon" },
+  { keys: ["/"], labelKey: "focusSearch", group: "listActions", status: "soon" },
+  { keys: ["J"], labelKey: "nextRow", group: "listActions", status: "soon" },
+  { keys: ["K"], labelKey: "previousRow", group: "listActions", status: "soon" },
+  { keys: ["Enter"], labelKey: "openSelectedRow", group: "listActions", status: "soon" },
+  { keys: ["X"], labelKey: "toggleRowCheckbox", group: "listActions", status: "soon" },
 
   // Utilities
-  { keys: ["?"], label: "Show this cheatsheet", group: "Utilities", status: "live" },
-  { keys: ["Esc"], label: "Close drawer / popover", group: "Utilities", status: "live" },
-  { keys: ["⌘", "."], label: "Toggle compact density", group: "Utilities", status: "soon" },
+  { keys: ["?"], labelKey: "showCheatsheet", group: "utilities", status: "live" },
+  { keys: ["Esc"], labelKey: "closeDrawer", group: "utilities", status: "live" },
+  { keys: ["\u2318", "."], labelKey: "toggleDensity", group: "utilities", status: "soon" },
 ];
 
-const GROUP_ORDER: Shortcut["group"][] = [
-  "Navigation",
-  "Quick create",
-  "List actions",
-  "Utilities",
+const GROUP_ORDER: ShortcutGroup[] = [
+  "navigation",
+  "quickCreate",
+  "listActions",
+  "utilities",
 ];
 
 function Kbd({ children }: { children: React.ReactNode }) {
@@ -77,12 +81,13 @@ export function AdminShortcutsDrawer({
   open: boolean;
   onOpenChange: (next: boolean) => void;
 }) {
+  const t = useT();
   return (
     <DrawerShell
       open={open}
       onOpenChange={onOpenChange}
-      title="Keyboard shortcuts"
-      subtitle="Faster way to drive the dashboard"
+      title={t("dashboard.adminShell.shortcuts.title")}
+      subtitle={t("dashboard.adminShell.shortcuts.subtitle")}
       icon={Keyboard}
       size="md"
     >
@@ -90,7 +95,7 @@ export function AdminShortcutsDrawer({
         const items = SHORTCUTS.filter((s) => s.group === group);
         if (!items.length) return null;
         return (
-          <DrawerSection key={group} title={group}>
+          <DrawerSection key={group} title={t(`dashboard.adminShell.shortcuts.group.${group}`)}>
             {items.map((s, i) => (
               <div
                 key={`${group}-${i}`}
@@ -98,16 +103,16 @@ export function AdminShortcutsDrawer({
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[12.5px] font-medium text-foreground">
-                    {s.label}
+                    {t(`dashboard.adminShell.shortcuts.rows.${s.labelKey}`)}
                     {s.status === "soon" ? (
                       <span className="ml-1.5 inline-flex rounded-full bg-foreground/[0.06] px-1.5 py-px text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                        soon
+                        {t("dashboard.adminShell.shortcuts.soon")}
                       </span>
                     ) : null}
                   </p>
-                  {s.hint ? (
+                  {s.hintKey ? (
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                      {s.hint}
+                      {t(`dashboard.adminShell.shortcuts.hints.${s.hintKey}`)}
                     </p>
                   ) : null}
                 </div>

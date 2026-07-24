@@ -21,6 +21,11 @@ import { userHasCapability } from "@/lib/access";
 import { loadAgencyFinancials, loadAgencyFinancialsByCurrency } from "@/lib/billing/agency-financials";
 import { loadCommissionContext } from "../../_data-bridge";
 import { AdminFinancialsCurrencyTabs } from "@/components/admin/applications/AdminFinancialsCurrencyTabs";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
 
 export const dynamic = "force-dynamic";
 
@@ -123,47 +128,70 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 
 import type { AgencyFinancials } from "@/lib/billing/agency-financials-types";
 
-function FinancialsBundle({ financials }: { financials: AgencyFinancials }) {
+// Payment-status tile labels. `paid` / `pending` / `confirmed` already exist
+// in the shared enum catalog — reuse those rather than duplicating strings.
+const PAYMENT_STATUS_LABEL_KEYS: Record<"paid" | "invoiced" | "pending" | "confirmed", string> = {
+  paid: "dashboard.enums.transactionStatus.paid",
+  invoiced: "dashboard.adminFinancials.statusInvoiced",
+  pending: "dashboard.enums.transactionStatus.pending",
+  confirmed: "dashboard.enums.inquiryStatus.confirmed",
+};
+
+function FinancialsBundle({ financials, t }: { financials: AgencyFinancials; t: Translate }) {
   const { totals, mtd, perTalent, topClients, byPaymentStatus } = financials;
   const eur = (cents: number) => money(cents, totals.currency);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28, fontFamily: FONT }}>
       {/* ── P&L strip ── */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SectionHeader title="P&L" sub={`Calendar year-to-date and current month — ${totals.currency} bookings only.`} />
+        <SectionHeader
+          title={t("dashboard.adminFinancials.pnlTitle")}
+          sub={interpolate(t("dashboard.adminFinancials.pnlSub"), { currency: totals.currency })}
+        />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-          <KpiTile label="YTD gross revenue" value={eur(totals.ytdGrossCents)} sub={`${totals.confirmedBookingsCount} confirmed booking${totals.confirmedBookingsCount === 1 ? "" : "s"}`} />
-          <KpiTile label="YTD agency commission" value={eur(totals.ytdWorkspaceFeeCents)} sub="Workspace lane (your earnings)" tone="green" />
-          <KpiTile label="YTD talent payouts" value={eur(totals.ytdTalentNetCents)} sub="What talent earned" />
-          <KpiTile label="YTD platform fee" value={eur(totals.ytdPlatformFeeCents)} sub="Paid to Tulala" />
-          <KpiTile label="Pending payout (workspace lane)" value={eur(totals.pendingPayoutCents)} sub="Owed but not yet marked paid" tone={totals.pendingPayoutCents > 0 ? "amber" : "neutral"} />
+          <KpiTile
+            label={t("dashboard.adminFinancials.ytdGross")}
+            value={eur(totals.ytdGrossCents)}
+            sub={interpolate(
+              t(
+                totals.confirmedBookingsCount === 1
+                  ? "dashboard.adminFinancials.confirmedBookings.one"
+                  : "dashboard.adminFinancials.confirmedBookings.other",
+              ),
+              { count: totals.confirmedBookingsCount },
+            )}
+          />
+          <KpiTile label={t("dashboard.adminFinancials.ytdCommission")} value={eur(totals.ytdWorkspaceFeeCents)} sub={t("dashboard.adminFinancials.ytdCommissionSub")} tone="green" />
+          <KpiTile label={t("dashboard.adminFinancials.ytdTalentPayouts")} value={eur(totals.ytdTalentNetCents)} sub={t("dashboard.adminFinancials.ytdTalentPayoutsSub")} />
+          <KpiTile label={t("dashboard.adminFinancials.ytdPlatformFee")} value={eur(totals.ytdPlatformFeeCents)} sub={t("dashboard.adminFinancials.ytdPlatformFeeSub")} />
+          <KpiTile label={t("dashboard.adminFinancials.pendingPayout")} value={eur(totals.pendingPayoutCents)} sub={t("dashboard.adminFinancials.pendingPayoutSub")} tone={totals.pendingPayoutCents > 0 ? "amber" : "neutral"} />
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-          <KpiTile label="MTD gross" value={eur(mtd.grossCents)} sub="This calendar month" />
-          <KpiTile label="MTD commission" value={eur(mtd.workspaceFeeCents)} tone="green" />
-          <KpiTile label="MTD talent payouts" value={eur(mtd.talentNetCents)} />
-          <KpiTile label="MTD platform fee" value={eur(mtd.platformFeeCents)} />
+          <KpiTile label={t("dashboard.adminFinancials.mtdGross")} value={eur(mtd.grossCents)} sub={t("dashboard.adminFinancials.mtdGrossSub")} />
+          <KpiTile label={t("dashboard.adminFinancials.mtdCommission")} value={eur(mtd.workspaceFeeCents)} tone="green" />
+          <KpiTile label={t("dashboard.adminFinancials.mtdTalentPayouts")} value={eur(mtd.talentNetCents)} />
+          <KpiTile label={t("dashboard.adminFinancials.mtdPlatformFee")} value={eur(mtd.platformFeeCents)} />
         </div>
       </section>
 
       {/* ── Per-talent payouts ── */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SectionHeader title="Per-talent payouts" sub="What this agency owes / has paid each rostered talent, year-to-date." />
+        <SectionHeader title={t("dashboard.adminFinancials.perTalentTitle")} sub={t("dashboard.adminFinancials.perTalentSub")} />
         {perTalent.length === 0 ? (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, color: C.inkMuted, fontSize: 13 }}>
-            No commission snapshots yet for this currency.
+            {t("dashboard.adminFinancials.perTalentEmpty")}
           </div>
         ) : (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: C.surface, color: C.inkMuted, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.6 }}>
-                  <th style={{ textAlign: "left", padding: "10px 14px" }}>Talent</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Bookings</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Gross</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Talent net</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Pending</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Last booking</th>
+                  <th style={{ textAlign: "left", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colTalent")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colBookings")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colGross")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colTalentNet")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colPending")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colLastBooking")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -185,20 +213,20 @@ function FinancialsBundle({ financials }: { financials: AgencyFinancials }) {
 
       {/* ── Top clients ── */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SectionHeader title="Top clients by gross" sub="Largest revenue contributors year-to-date." />
+        <SectionHeader title={t("dashboard.adminFinancials.topClientsTitle")} sub={t("dashboard.adminFinancials.topClientsSub")} />
         {topClients.length === 0 ? (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 24, color: C.inkMuted, fontSize: 13 }}>
-            No client revenue yet for this currency.
+            {t("dashboard.adminFinancials.topClientsEmpty")}
           </div>
         ) : (
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: C.surface, color: C.inkMuted, textTransform: "uppercase", fontSize: 10.5, letterSpacing: 0.6 }}>
-                  <th style={{ textAlign: "left", padding: "10px 14px" }}>Client</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Bookings</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Gross</th>
-                  <th style={{ textAlign: "right", padding: "10px 14px" }}>Last booking</th>
+                  <th style={{ textAlign: "left", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colClient")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colBookings")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colGross")}</th>
+                  <th style={{ textAlign: "right", padding: "10px 14px" }}>{t("dashboard.adminFinancials.colLastBooking")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,14 +246,16 @@ function FinancialsBundle({ financials }: { financials: AgencyFinancials }) {
 
       {/* ── Payment status ── */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SectionHeader title="Payment status" sub="Counts and gross for each lifecycle state." />
+        <SectionHeader title={t("dashboard.adminFinancials.paymentStatusTitle")} sub={t("dashboard.adminFinancials.paymentStatusSub")} />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {(["paid", "invoiced", "pending", "confirmed"] as const).map((status) => (
             <KpiTile
               key={status}
-              label={status[0]!.toUpperCase() + status.slice(1)}
+              label={t(PAYMENT_STATUS_LABEL_KEYS[status])}
               value={`${byPaymentStatus[status].bookings}`}
-              sub={`${eur(byPaymentStatus[status].grossCents)} gross`}
+              sub={interpolate(t("dashboard.adminFinancials.grossAmount"), {
+                amount: eur(byPaymentStatus[status].grossCents),
+              })}
               tone={status === "paid" ? "green" : status === "pending" ? "amber" : "neutral"}
             />
           ))}
@@ -237,6 +267,8 @@ function FinancialsBundle({ financials }: { financials: AgencyFinancials }) {
 
 export default async function WorkspaceFinancialsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
@@ -260,15 +292,15 @@ export default async function WorkspaceFinancialsPage({ params }: { params: Page
     : [legacyFinancials.totals.currency];
 
   const policyOriginLabel: Record<string, string> = {
-    free: "Free tier default",
-    studio: "Studio tier default",
-    agency: "Agency tier default",
-    network: "Network tier default",
+    free: t("dashboard.adminFinancials.originFree"),
+    studio: t("dashboard.adminFinancials.originStudio"),
+    agency: t("dashboard.adminFinancials.originAgency"),
+    network: t("dashboard.adminFinancials.originNetwork"),
   };
 
   const tabsChildren: Record<string, React.ReactNode> = {};
   for (const bundle of bundles) {
-    tabsChildren[bundle.totals.currency] = <FinancialsBundle financials={bundle} />;
+    tabsChildren[bundle.totals.currency] = <FinancialsBundle financials={bundle} t={t} />;
   }
 
   return (
@@ -280,19 +312,19 @@ export default async function WorkspaceFinancialsPage({ params }: { params: Page
             {scope.membership.display_name}
           </div>
           <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, letterSpacing: 0, lineHeight: 1.1 }}>
-            Business financials
+            {t("dashboard.adminFinancials.pageTitle")}
           </h1>
           <div style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted }}>
-            Revenue, agency commission earned, talent payouts owed. Reads the
-            same snapshot rows as the talent <em>Money</em> view — projected
-            through the agency lens.
+            {t("dashboard.adminFinancials.pageIntroBefore")}{" "}
+            <em>{t("dashboard.adminFinancials.pageIntroMoneyView")}</em>{" "}
+            {t("dashboard.adminFinancials.pageIntroAfter")}
           </div>
         </div>
         <Link
           href={`/${tenantSlug}/admin/bookings`}
           style={{ fontSize: 12.5, color: C.accent, textDecoration: "underline" }}
         >
-          View bookings →
+          {t("dashboard.adminFinancials.viewBookings")}
         </Link>
       </div>
 
@@ -306,30 +338,28 @@ export default async function WorkspaceFinancialsPage({ params }: { params: Page
 
       {/* ── Commission policy ── */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <SectionHeader title="Commission policy" sub="Read-only view of the rate this workspace is currently resolved to. Per-tenant overrides are set by platform admin." />
+        <SectionHeader title={t("dashboard.adminFinancials.commissionPolicyTitle")} sub={t("dashboard.adminFinancials.commissionPolicySub")} />
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
             <div>
-              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.inkDim }}>Plan tier</div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.inkDim }}>{t("dashboard.adminFinancials.planTier")}</div>
               <div style={{ marginTop: 4, fontSize: 14, fontWeight: 600, color: C.ink, textTransform: "capitalize" }}>{commission.planTier}</div>
             </div>
             <div>
-              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.inkDim }}>Platform fee</div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.inkDim }}>{t("dashboard.adminFinancials.platformFee")}</div>
               <div style={{ marginTop: 4, fontSize: 14, fontWeight: 600, color: C.ink, fontVariantNumeric: "tabular-nums" }}>
                 {commission.feePercent} ({commission.feeBasisPoints} bps)
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.inkDim }}>Origin</div>
+              <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: C.inkDim }}>{t("dashboard.adminFinancials.origin")}</div>
               <div style={{ marginTop: 4, fontSize: 14, fontWeight: 600, color: C.ink }}>
-                {policyOriginLabel[commission.planTier] ?? "Plan default"}
+                {policyOriginLabel[commission.planTier] ?? t("dashboard.adminFinancials.originDefault")}
               </div>
             </div>
           </div>
           <div style={{ fontSize: 12, color: C.inkMuted }}>
-            To request a different rate, contact platform admin. Per-tenant
-            self-serve commission UI is on the roadmap and tracked separately
-            from this surface.
+            {t("dashboard.adminFinancials.commissionPolicyNote")}
           </div>
         </div>
       </section>

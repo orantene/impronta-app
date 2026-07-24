@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
 import type { IntegrationView } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
@@ -49,6 +51,7 @@ export function EmailDomainDrawer({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const t = useT();
   const locked = integration.locked;
   const visual = resolveIntegrationStatus(integration, { locked });
   const config = integration.config;
@@ -73,7 +76,7 @@ export function EmailDomainDrawer({
     }
     setFeedback({
       tone: "success",
-      message: "Domain registered. Add the DNS records below, then Verify.",
+      message: t("dashboard.adminWorkspace.integrations.emailSavedOk"),
     });
     onChanged();
   };
@@ -89,8 +92,8 @@ export function EmailDomainDrawer({
       tone: res.status === "verified" ? "success" : "error",
       message:
         res.status === "verified"
-          ? "Verified — email now sends from your domain."
-          : `Not verified yet (status: ${res.status}). DNS can take a while to propagate.`,
+          ? t("dashboard.adminWorkspace.integrations.emailVerifiedOk")
+          : interpolate(t("dashboard.adminWorkspace.integrations.emailNotVerified"), { status: res.status }),
     });
     onChanged();
   };
@@ -117,21 +120,25 @@ export function EmailDomainDrawer({
       footer={
         !canManage ? (
           <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            You don&apos;t have permission to change integrations.
+            {t("dashboard.adminWorkspace.integrations.noPermission")}
           </span>
         ) : locked ? (
           <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            Upgrade your plan to send from your own domain.
+            {t("dashboard.adminWorkspace.integrations.emailUpgradeFooter")}
           </span>
         ) : (
           <>
             {hasDomain && (
-              <AsyncButton variant="secondary" onClick={handleVerify} pendingLabel="Checking…">
-                Verify
+              <AsyncButton
+                variant="secondary"
+                onClick={handleVerify}
+                pendingLabel={t("dashboard.adminWorkspace.integrations.emailChecking")}
+              >
+                {t("dashboard.adminWorkspace.integrations.emailVerify")}
               </AsyncButton>
             )}
-            <AsyncButton onClick={handleSave} pendingLabel="Saving…">
-              {hasDomain ? "Update domain" : "Add domain"}
+            <AsyncButton onClick={handleSave} pendingLabel={t("dashboard.adminWorkspace.integrations.savingPending")}>
+              {hasDomain ? t("dashboard.adminWorkspace.integrations.emailUpdateDomain") : t("dashboard.adminWorkspace.integrations.emailAddDomain")}
             </AsyncButton>
           </>
         )
@@ -149,14 +156,13 @@ export function EmailDomainDrawer({
               lineHeight: 1.5,
             }}
           >
-            White-label email is a plan feature. Upgrade to send client email from
-            your own domain.
+            {t("dashboard.adminWorkspace.integrations.emailLockedBanner")}
           </div>
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label htmlFor="ed-domain" style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
-            Sending domain
+            {t("dashboard.adminWorkspace.integrations.emailSendingDomain")}
           </label>
           <input
             id="ed-domain"
@@ -167,14 +173,14 @@ export function EmailDomainDrawer({
               setDomain(e.target.value);
               setFeedback(null);
             }}
-            placeholder="mail.yourbrand.com"
+            placeholder={t("dashboard.adminWorkspace.integrations.emailDomainPlaceholder")}
             autoComplete="off"
             spellCheck={false}
             style={inputStyle}
           />
           {verificationStatus && (
             <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-              Provider status: <strong>{verificationStatus}</strong>
+              {t("dashboard.adminWorkspace.integrations.emailProviderStatus")} <strong>{verificationStatus}</strong>
             </div>
           )}
         </div>
@@ -190,10 +196,10 @@ export function EmailDomainDrawer({
                 color: COLORS.inkDim,
               }}
             >
-              DNS records to add
+              {t("dashboard.adminWorkspace.integrations.emailDnsTitle")}
             </div>
             <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
-              Add these at your DNS host, then click Verify.
+              {t("dashboard.adminWorkspace.integrations.emailDnsHint")}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {dnsRecords.map((r, i) => (
@@ -215,7 +221,9 @@ export function EmailDomainDrawer({
                 >
                   <div>
                     <strong>{r.type ?? r.record ?? "RECORD"}</strong>
-                    {typeof r.priority === "number" ? `  (priority ${r.priority})` : ""}
+                    {typeof r.priority === "number"
+                      ? `  ${interpolate(t("dashboard.adminWorkspace.integrations.emailDnsPriority"), { priority: r.priority })}`
+                      : ""}
                   </div>
                   {r.name && <div>name: {r.name}</div>}
                   {r.value && <div>value: {r.value}</div>}

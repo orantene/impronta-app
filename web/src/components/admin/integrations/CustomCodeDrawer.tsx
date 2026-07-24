@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useT } from "@/i18n/use-t";
 import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS, RADIUS } from "@/components/admin/shell/internal/state";
 import type { IntegrationView } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
@@ -32,6 +33,7 @@ export function CustomCodeDrawer({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const t = useT();
   const locked = integration.locked;
   const visual = resolveIntegrationStatus(integration, { locked });
 
@@ -56,7 +58,7 @@ export function CustomCodeDrawer({
       setFeedback({ tone: "error", message: res.error });
       throw new Error(res.error);
     }
-    setFeedback({ tone: "success", message: "Saved. Your storefront now runs this code." });
+    setFeedback({ tone: "success", message: t("dashboard.adminWorkspace.integrations.codeSaved") });
     onChanged();
   };
 
@@ -84,15 +86,15 @@ export function CustomCodeDrawer({
       footer={
         !canManage ? (
           <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            You don&apos;t have permission to change integrations.
+            {t("dashboard.adminWorkspace.integrations.noPermission")}
           </span>
         ) : locked ? (
           <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            Upgrade your plan to add custom code.
+            {t("dashboard.adminWorkspace.integrations.codeUpgradeFooter")}
           </span>
         ) : (
-          <AsyncButton onClick={handleSave} pendingLabel="Saving…">
-            Save
+          <AsyncButton onClick={handleSave} pendingLabel={t("dashboard.adminWorkspace.integrations.savingPending")}>
+            {t("dashboard.adminWorkspace.integrations.save")}
           </AsyncButton>
         )
       }
@@ -110,9 +112,9 @@ export function CustomCodeDrawer({
             lineHeight: 1.5,
           }}
         >
-          This code runs on your <strong>public storefront</strong> only — never the
-          admin or other workspaces. Only paste code you trust; it has full access
-          to your storefront pages.
+          {t("dashboard.adminWorkspace.integrations.codeWarningPre")}
+          <strong>{t("dashboard.adminWorkspace.integrations.codeWarningStrong")}</strong>
+          {t("dashboard.adminWorkspace.integrations.codeWarningPost")}
         </div>
 
         {locked && (
@@ -126,17 +128,16 @@ export function CustomCodeDrawer({
               lineHeight: 1.5,
             }}
           >
-            Custom code is a plan feature. Upgrade to inject your own head / body
-            HTML on your storefront.
+            {t("dashboard.adminWorkspace.integrations.codeLockedBanner")}
           </div>
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label htmlFor="cc-head" style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
-            Head HTML
+            {t("dashboard.adminWorkspace.integrations.codeHeadLabel")}
           </label>
           <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            Injected near the top of the page — meta tags, fonts, analytics loaders.
+            {t("dashboard.adminWorkspace.integrations.codeHeadHint")}
           </div>
           <textarea
             id="cc-head"
@@ -154,10 +155,10 @@ export function CustomCodeDrawer({
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <label htmlFor="cc-body" style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
-            Body HTML
+            {t("dashboard.adminWorkspace.integrations.codeBodyLabel")}
           </label>
           <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            Injected at the end of the page — chat widgets, deferred scripts.
+            {t("dashboard.adminWorkspace.integrations.codeBodyHint")}
           </div>
           <textarea
             id="cc-body"

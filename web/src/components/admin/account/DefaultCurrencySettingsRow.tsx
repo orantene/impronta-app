@@ -23,6 +23,7 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
 import {
   loadAgencyDefaultCurrency,
   updateAgencyDefaultCurrency,
@@ -48,6 +49,7 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 
 export function DefaultCurrencySettingsRow() {
+  const t = useT();
   const [currency, setCurrency] = useState<DefaultCurrencyCode>(DEFAULT_CURRENCY_FALLBACK);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -102,13 +104,15 @@ export function DefaultCurrencySettingsRow() {
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>Default currency</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
+            {t("admin.account.currency.label")}
+          </div>
           <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
-            Which currency tab opens first on Business Financials when multiple are present. Display-only — no FX conversion.
+            {t("dashboard.adminWorkspace.defaultCurrency.desc")}
           </div>
         </div>
         <select
-          aria-label="Default currency"
+          aria-label={t("admin.account.currency.label")}
           value={currency}
           disabled={saving}
           onChange={(e) => {
@@ -138,10 +142,14 @@ export function DefaultCurrencySettingsRow() {
       </div>
 
       {saving && (
-        <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 6 }}>Saving…</div>
+        <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 6 }}>
+          {t("admin.account.currency.saving")}
+        </div>
       )}
       {savedOk && !saving && (
-        <div style={{ fontSize: 11, color: C.success, marginTop: 6 }}>Saved</div>
+        <div style={{ fontSize: 11, color: C.success, marginTop: 6 }}>
+          {t("admin.account.currency.saved")}
+        </div>
       )}
       {error && (
         <div style={{ fontSize: 11, color: C.error, marginTop: 6 }}>{error}</div>

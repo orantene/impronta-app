@@ -42,29 +42,43 @@ const EXCLUSIVE_PLAN_TIERS: ReadonlySet<PlanKey> = new Set<PlanKey>([
   "legacy",
 ]);
 
-/** Human copy for the admin mode-picker. Single source so UI + docs agree. */
+/**
+ * Human copy for the admin mode-picker. Single source so UI + docs agree.
+ *
+ * `label` / `description` stay in English as the fallback for non-UI consumers
+ * (docs, server logs, tests). UI surfaces MUST render `t(meta.labelKey)` /
+ * `t(meta.descriptionKey)` so the picker follows the dashboard locale.
+ */
 export const REGISTRATION_MODE_META: Record<
   RegistrationMode,
-  { label: string; description: string }
+  { label: string; description: string; labelKey: string; descriptionKey: string }
 > = {
   closed: {
     label: "Closed",
     description: "Invite-only. No public join button or registration modal.",
+    labelKey: "dashboard.adminWorkspace.registrationModes.closedLabel",
+    descriptionKey: "dashboard.adminWorkspace.registrationModes.closedDesc",
   },
   open: {
     label: "Open · auto-accept",
     description:
       "Anyone can register from your public site and joins your roster immediately.",
+    labelKey: "dashboard.adminWorkspace.registrationModes.openLabel",
+    descriptionKey: "dashboard.adminWorkspace.registrationModes.openDesc",
   },
   approval: {
     label: "Approval required",
     description:
       "Applicants create a pending request. A Manager or above approves or declines.",
+    labelKey: "dashboard.adminWorkspace.registrationModes.approvalLabel",
+    descriptionKey: "dashboard.adminWorkspace.registrationModes.approvalDesc",
   },
   exclusive: {
     label: "Exclusive (agency)",
     description:
       "Joining grants exclusive representation. Always requires approval; subject to the one-exclusive-agency rule.",
+    labelKey: "dashboard.adminWorkspace.registrationModes.exclusiveLabel",
+    descriptionKey: "dashboard.adminWorkspace.registrationModes.exclusiveDesc",
   },
 };
 

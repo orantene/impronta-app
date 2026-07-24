@@ -20,6 +20,11 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
+
+type Translate = (key: string) => string;
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -52,48 +57,37 @@ type BenefitMatrix = {
   multiWorkspace: string;
 };
 
-const TIER_BENEFITS: Record<PlanTier, BenefitMatrix> = {
-  free: {
-    enrollment:     "Talent opt-in (default off)",
-    placement:      "Basic · sorted by trust + activity",
-    analyticsWindow: "7-day rolling window",
-    bulkTools:      "Not included",
-    priority:       "No priority placement",
-    multiWorkspace: "Single workspace only",
-  },
-  studio: {
-    enrollment:     "Default-enroll option for new roster talent",
-    placement:      "Standard · sorted by trust + activity",
-    analyticsWindow: "30-day rolling window",
-    bulkTools:      "Bulk enroll / pause / boost",
-    priority:       "No priority placement",
-    multiWorkspace: "Single workspace only",
-  },
-  agency: {
-    enrollment:     "Default-enroll for new roster talent",
-    placement:      "Priority · featured placement slots in regional results",
-    analyticsWindow: "90-day rolling window + saved cohorts",
-    bulkTools:      "Bulk enroll / pause / boost / saved searches",
-    priority:       "Priority placement",
-    multiWorkspace: "Single workspace (Network plan adds rollup)",
-  },
-  network: {
-    enrollment:     "Default-enroll across all owned workspaces",
-    placement:      "Priority across the network",
-    analyticsWindow: "Unlimited history + saved cohorts",
-    bulkTools:      "Cross-workspace bulk tools",
-    priority:       "Priority placement",
-    multiWorkspace: "Multi-workspace rollup + cross-tenant insights",
-  },
-};
+const BENEFIT_FIELDS = [
+  "enrollment",
+  "placement",
+  "analyticsWindow",
+  "bulkTools",
+  "priority",
+  "multiWorkspace",
+] as const;
 
-TIER_BENEFITS["hub-network"] = TIER_BENEFITS.network;
+/** Catalog tier key for a raw plan_tier value. `hub-network` reuses `network`. */
+function benefitTierKey(tier: PlanTier): "free" | "studio" | "agency" | "network" {
+  if (tier === "studio") return "studio";
+  if (tier === "agency") return "agency";
+  if (tier === "network" || tier === "hub-network") return "network";
+  return "free";
+}
 
-function planLabel(tier: PlanTier): string {
-  if (tier === "free") return "Free plan";
-  if (tier === "studio") return "Studio plan";
-  if (tier === "agency") return "Agency plan";
-  if (tier === "network" || tier === "hub-network") return "Network plan";
+function tierBenefits(tier: PlanTier, t: Translate): BenefitMatrix {
+  const tierKey = benefitTierKey(tier);
+  const out = {} as Record<(typeof BENEFIT_FIELDS)[number], string>;
+  for (const field of BENEFIT_FIELDS) {
+    out[field] = t(`dashboard.adminDiscoverSettings.benefits.${tierKey}.${field}`);
+  }
+  return out;
+}
+
+function planLabel(tier: PlanTier, t: Translate): string {
+  if (tier === "free") return t("dashboard.adminDiscoverSettings.planFree");
+  if (tier === "studio") return t("dashboard.adminDiscoverSettings.planStudio");
+  if (tier === "agency") return t("dashboard.adminDiscoverSettings.planAgency");
+  if (tier === "network" || tier === "hub-network") return t("dashboard.adminDiscoverSettings.planNetwork");
   return tier;
 }
 
@@ -144,13 +138,15 @@ async function loadDiscoverSettings(tenantId: string): Promise<{
 
 export default async function DiscoverSettingsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
   const { planTier, isDiscoverableCount, totalRosterCount } = await loadDiscoverSettings(scope.tenantId);
-  const benefits = TIER_BENEFITS[planTier] ?? TIER_BENEFITS.free;
+  const benefits = tierBenefits(planTier, t);
   const isFree = planTier === "free";
   const enrollmentPct = totalRosterCount > 0
     ? Math.round((isDiscoverableCount / totalRosterCount) * 100)
@@ -163,19 +159,16 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
           href={`/${tenantSlug}/admin/settings`}
           style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}
         >
-          ← Back to Settings
+          {t("dashboard.adminDiscoverSettings.backToSettings")}
         </Link>
       </div>
 
       <div className="mb-6">
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, color: C.ink, letterSpacing: -0.3 }}>
-          Discover settings
+          {t("dashboard.adminDiscoverSettings.pageTitle")}
         </h1>
         <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 6, lineHeight: 1.5, maxWidth: 600 }}>
-          Tulala Discover is the client-side power tool for clients:
-          cross-tenant catalog, shortlists, compare view, and direct
-          inquiries. Your talent appears here when they opt in (and your
-          plan supports the enrollment shape below).
+          {t("dashboard.adminDiscoverSettings.pageIntro")}
         </div>
       </div>
 
@@ -189,10 +182,10 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
           borderRadius: 10, minWidth: 220,
         }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.accent, letterSpacing: 0.4, textTransform: "uppercase" }}>
-            Current plan
+            {t("dashboard.adminDiscoverSettings.currentPlan")}
           </div>
           <div style={{ fontSize: 18, fontWeight: 600, color: C.ink, marginTop: 4 }}>
-            {planLabel(planTier)}
+            {planLabel(planTier, t)}
           </div>
         </div>
         <div style={{
@@ -201,12 +194,15 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
           borderRadius: 10, minWidth: 220,
         }}>
           <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
-            Enrolled talent
+            {t("dashboard.adminDiscoverSettings.enrolledTalent")}
           </div>
           <div style={{ fontSize: 18, fontWeight: 600, color: C.ink, marginTop: 4 }}>
             {isDiscoverableCount}
             <span style={{ fontSize: 13, fontWeight: 500, color: C.inkMuted, marginLeft: 6 }}>
-              of {totalRosterCount} ({enrollmentPct}%)
+              {interpolate(t("dashboard.adminDiscoverSettings.enrolledOfTotal"), {
+                total: totalRosterCount,
+                percent: enrollmentPct,
+              })}
             </span>
           </div>
         </div>
@@ -218,14 +214,14 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
         borderRadius: 12, padding: "18px 22px", marginBottom: 16,
       }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.inkMuted, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 12 }}>
-          Your Discover benefits
+          {t("dashboard.adminDiscoverSettings.benefitsTitle")}
         </div>
-        <BenefitRow label="Enrollment"      value={benefits.enrollment} />
-        <BenefitRow label="Placement"       value={benefits.placement} />
-        <BenefitRow label="Analytics"       value={benefits.analyticsWindow} />
-        <BenefitRow label="Bulk tools"      value={benefits.bulkTools} />
-        <BenefitRow label="Priority"        value={benefits.priority} />
-        <BenefitRow label="Multi-workspace" value={benefits.multiWorkspace} />
+        <BenefitRow label={t("dashboard.adminDiscoverSettings.rowEnrollment")}     value={benefits.enrollment} />
+        <BenefitRow label={t("dashboard.adminDiscoverSettings.rowPlacement")}      value={benefits.placement} />
+        <BenefitRow label={t("dashboard.adminDiscoverSettings.rowAnalytics")}      value={benefits.analyticsWindow} />
+        <BenefitRow label={t("dashboard.adminDiscoverSettings.rowBulkTools")}      value={benefits.bulkTools} />
+        <BenefitRow label={t("dashboard.adminDiscoverSettings.rowPriority")}       value={benefits.priority} />
+        <BenefitRow label={t("dashboard.adminDiscoverSettings.rowMultiWorkspace")} value={benefits.multiWorkspace} />
       </div>
 
       {/* Free-plan upsell — soft amber band that doesn't compete with
@@ -236,14 +232,13 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
           border: `1px solid ${C.amber}33`,
           borderRadius: 10, marginBottom: 16, fontSize: 13, color: C.ink, lineHeight: 1.55,
         }}>
-          <strong>Want priority placement + 90-day analytics?</strong>{" "}
-          Studio and Agency plans unlock default-enrollment, bulk tools,
-          and longer analytics windows. Upgrade in{" "}
+          <strong>{t("dashboard.adminDiscoverSettings.upsellTitle")}</strong>{" "}
+          {t("dashboard.adminDiscoverSettings.upsellBody")}{" "}
           <Link
             href={`/${tenantSlug}/admin/settings`}
             style={{ color: C.accent, textDecoration: "underline" }}
           >
-            Settings → Plan
+            {t("dashboard.adminDiscoverSettings.upsellLink")}
           </Link>.
         </div>
       )}
@@ -259,7 +254,7 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
             textDecoration: "none",
           }}
         >
-          📊 View performance dashboard
+          📊 {t("dashboard.adminDiscoverSettings.linkPerformance")}
         </Link>
         <Link
           href={`/${tenantSlug}/admin/discover-inquiries`}
@@ -271,7 +266,7 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
             textDecoration: "none",
           }}
         >
-          📬 Discover inquiries
+          📬 {t("dashboard.adminDiscoverSettings.linkInquiries")}
         </Link>
         <Link
           href={`/${tenantSlug}/admin/roster`}
@@ -283,7 +278,7 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
             textDecoration: "none",
           }}
         >
-          🎭 Manage roster enrollment
+          🎭 {t("dashboard.adminDiscoverSettings.linkRoster")}
         </Link>
       </div>
     </div>

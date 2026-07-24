@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+
 import { DrawerShell, AsyncButton } from "@/components/admin/shell/internal/primitives";
 import {
   clearConnectionFeedbackParams,
@@ -46,6 +49,7 @@ export function IntegrationConfigDrawer({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const t = useT();
   const visual = resolveIntegrationStatus(integration);
 
   // Seed inputs from the loaded public values. Secret fields start blank — a
@@ -135,7 +139,7 @@ export function IntegrationConfigDrawer({
       }
     }
 
-    setFeedback({ tone: "success", message: "Connected. Format check passed." });
+    setFeedback({ tone: "success", message: t("dashboard.adminWorkspace.integrations.feedbackConnected") });
 
     // Clear the typed secret from memory after a successful round-trip.
     if (secretField) setValue(secretField.name, "");
@@ -149,7 +153,7 @@ export function IntegrationConfigDrawer({
       setFeedback({ tone: "error", message: res.error });
       throw new Error(res.error);
     }
-    setFeedback({ tone: "success", message: "Now using the platform default." });
+    setFeedback({ tone: "success", message: t("dashboard.adminWorkspace.integrations.feedbackUsingDefault") });
     onChanged();
   };
 
@@ -164,8 +168,8 @@ export function IntegrationConfigDrawer({
     setFeedback({
       tone: "success",
       message: integration.inheritable
-        ? "Removed. Reverted to the platform default."
-        : "Removed.",
+        ? t("dashboard.adminWorkspace.integrations.feedbackRemovedReverted")
+        : t("dashboard.adminWorkspace.integrations.feedbackRemoved"),
     });
     onChanged();
   };
@@ -177,7 +181,7 @@ export function IntegrationConfigDrawer({
       setFeedback({ tone: "error", message: res.error });
       throw new Error(res.error);
     }
-    setFeedback({ tone: "success", message: "Disconnected." });
+    setFeedback({ tone: "success", message: t("dashboard.adminWorkspace.integrations.feedbackDisconnected") });
     onChanged();
   };
 
@@ -200,8 +204,8 @@ export function IntegrationConfigDrawer({
     setFeedback({
       tone: "success",
       message: next
-        ? "The verified channel now shows on your public site."
-        : "Hidden from your public site. The connection stays verified.",
+        ? t("dashboard.adminWorkspace.integrations.feedbackYoutubeShown")
+        : t("dashboard.adminWorkspace.integrations.feedbackYoutubeHidden"),
     });
     onChanged();
   };
@@ -222,16 +226,16 @@ export function IntegrationConfigDrawer({
           <>
             {hasAnyConfigured && (
               <AsyncButton variant="secondary" onClick={handleRemove}>
-                Disconnect
+                {t("dashboard.adminWorkspace.integrations.disconnect")}
               </AsyncButton>
             )}
-            <AsyncButton onClick={handleSave} pendingLabel="Saving…">
-              Save
+            <AsyncButton onClick={handleSave} pendingLabel={t("dashboard.adminWorkspace.integrations.savingPending")}>
+              {t("dashboard.adminWorkspace.integrations.save")}
             </AsyncButton>
           </>
         ) : (
           <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
-            You don&apos;t have permission to change integrations.
+            {t("dashboard.adminWorkspace.integrations.noPermission")}
           </span>
         )
       }
@@ -250,8 +254,7 @@ export function IntegrationConfigDrawer({
               lineHeight: 1.5,
             }}
           >
-            This integration is currently using the platform default. Add your own
-            key below to use it on your custom domain.
+            {t("dashboard.adminWorkspace.integrations.inheritedBanner")}
           </div>
         )}
 
@@ -268,7 +271,7 @@ export function IntegrationConfigDrawer({
                 marginBottom: 8,
               }}
             >
-              How to set this up
+              {t("dashboard.adminWorkspace.integrations.howToSetUp")}
             </div>
             <ol style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
               {integration.instructions.map((step, i) => (
@@ -315,21 +318,20 @@ export function IntegrationConfigDrawer({
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.ink }}>
-                Verify ownership
+                {t("dashboard.adminWorkspace.integrations.verifyOwnershipTitle")}
               </div>
               <div style={{ marginTop: 3, fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
-                We store the public channel label and encrypted OAuth tokens. The verified
-                channel is used for workspace trust and public-site social links.
+                {t("dashboard.adminWorkspace.integrations.verifyOwnershipDesc")}
               </div>
             </div>
             <AsyncButton
               variant="secondary"
               disabled={!canOAuthConnect}
               onClick={handleOAuthConnect}
-              pendingLabel="Opening…"
+              pendingLabel={t("dashboard.adminWorkspace.integrations.openingPending")}
               style={{ flexShrink: 0 }}
             >
-              Connect with Google
+              {t("dashboard.adminWorkspace.integrations.connectWithGoogle")}
             </AsyncButton>
           </div>
         )}
@@ -352,12 +354,12 @@ export function IntegrationConfigDrawer({
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.ink }}>
-                Show on public site
+                {t("dashboard.adminWorkspace.integrations.showOnSiteTitle")}
               </div>
               <div style={{ marginTop: 3, fontSize: 12, lineHeight: 1.45, color: COLORS.inkMuted }}>
                 {youtubeShowOnSite
-                  ? "Your verified channel link appears in the public site header and footer."
-                  : "Off by default. The connection stays verified; turn this on to display the channel publicly."}
+                  ? t("dashboard.adminWorkspace.integrations.showOnSiteOnDesc")
+                  : t("dashboard.adminWorkspace.integrations.showOnSiteOffDesc")}
               </div>
             </div>
             {canManage ? (
@@ -365,14 +367,14 @@ export function IntegrationConfigDrawer({
                 variant="secondary"
                 disabled={!youtubeHasProfileUrl && !youtubeShowOnSite}
                 onClick={() => handleToggleYouTubePublic(!youtubeShowOnSite)}
-                pendingLabel="Saving…"
+                pendingLabel={t("dashboard.adminWorkspace.integrations.savingPending")}
                 style={{ flexShrink: 0 }}
               >
-                {youtubeShowOnSite ? "Hide" : "Show"}
+                {youtubeShowOnSite ? t("dashboard.adminWorkspace.integrations.hide") : t("dashboard.adminWorkspace.integrations.show")}
               </AsyncButton>
             ) : (
               <span style={{ fontSize: 12, color: COLORS.inkMuted, flexShrink: 0 }}>
-                {youtubeShowOnSite ? "Shown" : "Hidden"}
+                {youtubeShowOnSite ? t("dashboard.adminWorkspace.integrations.shown") : t("dashboard.adminWorkspace.integrations.hidden")}
               </span>
             )}
           </div>
@@ -392,7 +394,7 @@ export function IntegrationConfigDrawer({
                 </label>
                 {showMask && (
                   <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-                    Stored: ····{f.secretLast4 ?? "????"}
+                    {interpolate(t("dashboard.adminWorkspace.integrations.storedMask"), { last4: f.secretLast4 ?? "????" })}
                     {canManage && (
                       <>
                         {" · "}
@@ -410,7 +412,7 @@ export function IntegrationConfigDrawer({
                             fontFamily: FONTS.body,
                           }}
                         >
-                          Remove
+                          {t("dashboard.adminWorkspace.integrations.remove")}
                         </button>
                       </>
                     )}
@@ -425,9 +427,9 @@ export function IntegrationConfigDrawer({
                   placeholder={
                     f.secret
                       ? showMask
-                        ? "Paste a new key to replace the stored one"
-                        : "Paste your key"
-                      : "Paste your ID"
+                        ? t("dashboard.adminWorkspace.integrations.placeholderReplaceKey")
+                        : t("dashboard.adminWorkspace.integrations.placeholderKey")
+                      : t("dashboard.adminWorkspace.integrations.placeholderId")
                   }
                   autoComplete="off"
                   spellCheck={false}
@@ -464,14 +466,14 @@ export function IntegrationConfigDrawer({
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
-                Use platform default
+                {t("dashboard.adminWorkspace.integrations.usePlatformDefaultTitle")}
               </div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
-                Stop using your own key and fall back to Tulala&apos;s shared credential.
+                {t("dashboard.adminWorkspace.integrations.usePlatformDefaultDesc")}
               </div>
             </div>
             <AsyncButton variant="secondary" onClick={handleUsePlatformDefault}>
-              Switch
+              {t("dashboard.adminWorkspace.integrations.switchToDefault")}
             </AsyncButton>
           </div>
         )}
@@ -507,7 +509,7 @@ export function IntegrationConfigDrawer({
               border: `1px solid ${COLORS.criticalSoft}`,
             }}
           >
-            Last check: {integration.lastError}
+            {interpolate(t("dashboard.adminWorkspace.integrations.lastCheck"), { error: integration.lastError })}
           </div>
         )}
       </div>
