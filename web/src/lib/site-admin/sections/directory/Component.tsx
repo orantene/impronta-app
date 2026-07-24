@@ -372,7 +372,7 @@ export async function DirectoryComponent({
               <div className="mt-8 w-full max-w-2xl">
                 <Suspense
                   fallback={
-                    <div className="h-14 w-full rounded-xl border border-white/15 bg-black/40 sm:h-16" />
+                    <div className="h-14 w-full rounded-full border border-white/10 bg-black/40 sm:h-16" />
                   }
                 >
                   <HeroSearch
@@ -465,7 +465,7 @@ export async function DirectoryComponent({
           >
             <Suspense
               fallback={
-                <div className="h-14 w-full rounded-xl border border-[var(--token-color-line,var(--border))] bg-[var(--token-color-surface-raised,var(--impronta-surface))]/40 sm:h-16" />
+                <div className="h-14 w-full rounded-full border border-[var(--token-color-line,var(--border))] bg-[var(--token-color-surface-raised,var(--impronta-surface))]/40 sm:h-16" />
               }
             >
               <HeroSearch
