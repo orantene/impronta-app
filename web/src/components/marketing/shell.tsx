@@ -77,7 +77,14 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
   return (
     <div
       data-platform-surface="marketing"
-      className="flex min-h-screen flex-col"
+      /* overflow-x-clip: a single component running a few px past the
+         viewport makes EVERY page scroll sideways on phones (it happened —
+         the footer's un-wrappable bottom row, fixed 2026-07-23). `clip`
+         guards against the next regression without creating a scroll
+         container, so position:sticky descendants keep working ("hidden"
+         would break them). Scoped here, not on <body>, so admin and
+         storefront surfaces are untouched. */
+      className="flex min-h-screen flex-col overflow-x-clip"
       style={{ background: "var(--plt-bg)", color: "var(--plt-ink)" }}
     >
       <MarketingHeader

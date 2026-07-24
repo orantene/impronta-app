@@ -90,6 +90,8 @@ const en = {
     accountSettings: "Account settings",
     /** Accessible name + heading for the header's globe language menu. */
     language: "Language",
+    /** Placeholder + accessible name for the mobile menu's directory search. */
+    searchTalent: "Search talent…",
   },
 
   /** Logo lockup descriptor: header (desktop) + footer (always). Category
@@ -448,6 +450,7 @@ const es: MarketingCopy = {
     savedTalent: "Talento guardado",
     accountSettings: "Configuración de cuenta",
     language: "Idioma",
+    searchTalent: "Busca talento…",
   },
 
   brand: {

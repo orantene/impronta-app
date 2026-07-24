@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
+import { HeaderPopover } from "./marketing-header-popover";
 
 /** Support contact — used in the header cluster and the mobile menu alike. */
 export const SUPPORT_EMAIL = "hello@tulala.digital";
@@ -50,43 +51,33 @@ export function DesktopSupport({ copy }: { copy: MarketingCopy["nav"] }) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full w-[15rem] pt-2 mkt-rise" role="menu">
-          <div
-            className="overflow-hidden rounded-[18px] p-2"
-            style={{
-              background: "var(--plt-bg-elevated)",
-              border: "1px solid var(--plt-hairline-strong)",
-              boxShadow:
-                "0 28px 64px -28px rgba(15,23,20,0.4), 0 2px 6px -2px rgba(15,23,20,0.08)",
-            }}
+        <HeaderPopover label={copy.support} widthClass="lg:w-[15rem]" onClose={() => setOpen(false)}>
+          <p
+            className="px-3 pt-1 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide"
+            style={{ color: "var(--plt-muted)" }}
           >
-            <p
-              className="px-3 pt-1 pb-1 text-[0.6875rem] font-medium uppercase tracking-wide"
-              style={{ color: "var(--plt-muted)" }}
-            >
-              {copy.support}
-            </p>
-            <Link
-              href="/help"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={ROW}
-              style={{ color: "var(--plt-ink)" }}
-            >
-              <LifeBuoyGlyph />
-              {copy.helpCenter}
-            </Link>
-            <a
-              href={`mailto:${SUPPORT_EMAIL}`}
-              role="menuitem"
-              className={ROW}
-              style={{ color: "var(--plt-ink)" }}
-            >
-              <MailGlyph />
-              {copy.contactSupport}
-            </a>
-          </div>
-        </div>
+            {copy.support}
+          </p>
+          <Link
+            href="/help"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className={ROW}
+            style={{ color: "var(--plt-ink)" }}
+          >
+            <LifeBuoyGlyph />
+            {copy.helpCenter}
+          </Link>
+          <a
+            href={`mailto:${SUPPORT_EMAIL}`}
+            role="menuitem"
+            className={ROW}
+            style={{ color: "var(--plt-ink)" }}
+          >
+            <MailGlyph />
+            {copy.contactSupport}
+          </a>
+        </HeaderPopover>
       ) : null}
     </div>
   );

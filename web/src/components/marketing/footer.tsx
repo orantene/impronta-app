@@ -117,7 +117,11 @@ export async function MarketingFooter() {
           <span>
             &copy; {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {PLATFORM_BRAND.positioning}
           </span>
-          <div className="inline-flex items-center gap-3">
+          {/* MUST wrap: language pill + currency picker + stage tag run
+              359px wide — an inline-flex here overflowed every mobile page
+              by 3px and made the whole site wobble sideways (the "broken
+              scrolling" report of 2026-07-23). */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <MarketingLanguageToggle
               activeLocale={locale}
               pathnameWithoutLocale={pathnameWithoutLocale}

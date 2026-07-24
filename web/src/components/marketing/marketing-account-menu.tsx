@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
+import { HeaderPopover } from "./marketing-header-popover";
 
 /** A tenant the signed-in user belongs to, with a direct link to its dashboard. */
 export type MarketingWorkspaceLink = {
@@ -136,31 +137,31 @@ export function DesktopAccount({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
+        aria-label={account.displayName}
         /* Colours as classes, not inline `style` — inline outranks stylesheet
-           rules and would nullify the `hover:` variants. */
-        className="group flex items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] py-1 pl-1 pr-2 transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
+           rules and would nullify the `hover:` variants. On mobile the trigger
+           collapses to the avatar alone — the name would crowd a 375px bar. */
+        className="group flex items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] p-1 transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:pr-2"
       >
         <AccountAvatar />
         <span
-          className="max-w-[7rem] truncate text-[0.875rem] font-medium leading-none"
+          className="hidden max-w-[7rem] truncate text-[0.875rem] font-medium leading-none lg:inline"
           style={{ color: "var(--plt-ink)" }}
         >
           {account.displayName}
         </span>
-        <ChevronDownGlyph open={open} />
+        <span className="hidden lg:inline-flex">
+          <ChevronDownGlyph open={open} />
+        </span>
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full w-[18.5rem] pt-2 mkt-rise" role="menu">
-          <div
-            className="overflow-hidden rounded-[18px] p-2"
-            style={{
-              background: "var(--plt-bg-elevated)",
-              border: "1px solid var(--plt-hairline-strong)",
-              boxShadow:
-                "0 28px 64px -28px rgba(15,23,20,0.4), 0 2px 6px -2px rgba(15,23,20,0.08)",
-            }}
-          >
+        <HeaderPopover
+          label={account.displayName}
+          widthClass="lg:w-[18.5rem]"
+          onClose={() => setOpen(false)}
+        >
+          <>
             <a
               href={account.accountHref}
               role="menuitem"
@@ -260,8 +261,8 @@ export function DesktopAccount({
                 </button>
               </form>
             ) : null}
-          </div>
-        </div>
+          </>
+        </HeaderPopover>
       ) : null}
     </div>
   );
