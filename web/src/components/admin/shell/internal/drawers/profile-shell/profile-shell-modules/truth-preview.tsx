@@ -66,17 +66,21 @@ export function visMeta(v: EngineFieldVisibility): { label: string; bg: string; 
 
 /** "Why does this field appear" — tier + how it was brought in. */
 
-export function sourceLabel(f: ResolvedField): string {
-  const tier =
+export function sourceLabel(
+  f: ResolvedField,
+  t: (s: string) => string = (s) => s,
+): string {
+  const tier = t(
     f.tier === "universal" ? "Universal"
     : f.tier === "global" ? "Global"
-    : "Type-specific";
+    : "Type-specific",
+  );
   const b = f.brought_in_by;
   if (b.kind === "tier") return tier;
   if (b.kind === "group") {
-    return `${tier} · via ${f.field_group_label ?? b.group_slug} group`;
+    return `${tier} · ${t("via the {group} group").replace("{group}", f.field_group_label ?? b.group_slug)}`;
   }
-  return `${tier} · via talent-type recommendation`;
+  return `${tier} · ${t("via talent-type recommendation")}`;
 }
 
 /** A small inline chip. */
@@ -128,9 +132,10 @@ export function FieldGroupBlock({
   fields: ResolvedField[];
   viewerRole: ViewerRole;
 }) {
+  const copy = useDashboardText();
   return (
     <div>
-      <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, marginBottom: 2 }} className="text-admin-ink">{title}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, marginBottom: 2 }} className="text-admin-ink">{copy.t(title)}</div>
       <div style={{ fontSize: 10.5, marginBottom: 6 }} className="text-admin-ink-muted">{subtitle}</div>
       <div className="flex flex-col gap-1">
         {fields.map((f) => {
@@ -140,6 +145,10 @@ export function FieldGroupBlock({
           const viewerSees = canViewerSee(eff, viewerRole);
           const platformVis = platformBaseVisibility(resolvedToVisInput(f));
           const vm = visMeta(eff);
+          const viewAsOption = VIEW_AS_OPTIONS.find((o) => o.key === viewerRole);
+          const viewerRoleLabel = viewAsOption
+            ? (copy.isSpanish ? viewAsOption.labelEs : viewAsOption.label)
+            : copy.t("Viewer");
           // Required origin — best-effort, conservative. We can only
           // assert a *platform* origin when a recommendation flag set it;
           // a workspace `required_override` shows as a tenant override
@@ -161,8 +170,8 @@ export function FieldGroupBlock({
               <span
                 title={
                   hasValue
-                    ? "A value is stored for this talent"
-                    : "No value stored yet"
+                    ? copy.t("A value is stored for this talent")
+                    : copy.t("No value stored yet")
                 }
                 style={{
                   marginTop: 4,
@@ -176,7 +185,7 @@ export function FieldGroupBlock({
                 {f.label}
                 {f.required_before_publish && (
                   <span style={{ marginLeft: 6, fontWeight: 700, fontSize: 10 }}
-                    title="Required before publish">*</span>
+                    title={copy.t("Required before publish")}>*</span>
                 )}
                 {f.required_at_registration && (
                   <span style={{
@@ -208,57 +217,61 @@ export function FieldGroupBlock({
                   marginTop: 5, alignItems: "center",
                 }}>
                   <TruthChip
-                    text={sourceLabel(f)}
+                    text={sourceLabel(f, copy.t)}
                     bg={COLORS.indigoSoft}
                     fg={COLORS.indigoDeep}
-                    title="Why this field appears for this talent"
+                    title={copy.t("Why this field appears for this talent")}
                   />
                   <TruthChip
                     text={
                       viewerSees
-                        ? `${VIEW_AS_OPTIONS.find((o) => o.key === viewerRole)?.label ?? "Viewer"} sees · ${vm.label}`
-                        : `Hidden from ${VIEW_AS_OPTIONS.find((o) => o.key === viewerRole)?.label ?? "viewer"} · ${vm.label}`
+                        ? copy.t("{role} sees · {visibility}")
+                            .replace("{role}", viewerRoleLabel)
+                            .replace("{visibility}", copy.t(vm.label))
+                        : copy.t("Hidden from {role} · {visibility}")
+                            .replace("{role}", viewerRoleLabel)
+                            .replace("{visibility}", copy.t(vm.label))
                     }
                     bg={viewerSees ? vm.bg : COLORS.fillSoft}
                     fg={viewerSees ? vm.fg : COLORS.fillDeep}
-                    title={`Effective visibility: ${vm.label}. ${viewerSees ? "This audience can see it." : "This audience cannot see it."}`}
+                    title={`${copy.t("Effective visibility")}: ${copy.t(vm.label)}. ${viewerSees ? copy.t("This audience can see it.") : copy.t("This audience cannot see it.")}`}
                     strong
                   />
                   {f.is_required && (
                     <TruthChip
-                      text={platformRequired ? "Required · platform" : "Required"}
+                      text={platformRequired ? copy.t("Required · platform") : copy.t("Required")}
                       bg={COLORS.coralSoft}
                       fg={COLORS.coralDeep}
                       title={
                         platformRequired
-                          ? "Required by the platform catalog (recommendation flag)"
-                          : "Required (origin not explicitly attributed; may be a workspace setting)"
+                          ? copy.t("Required by the platform catalog (recommendation flag)")
+                          : copy.t("Required (origin not explicitly attributed; may be a workspace setting)")
                       }
                     />
                   )}
                   {f.tenant_override === true ? (
                     <TruthChip
-                      text="Workspace override"
+                      text={copy.t("Workspace override")}
                       bg={COLORS.royalSoft}
                       fg={COLORS.royalDeep}
-                      title="This workspace changed this field from the platform default (visibility / label / required / helper / order). Edit in the Details editor."
+                      title={copy.t("This workspace changed this field from the platform default (visibility / label / required / helper / order). Edit in the Details editor.")}
                     />
                   ) : (
                     <TruthChip
-                      text="Platform default"
+                      text={copy.t("Platform default")}
                       bg={COLORS.surfaceAlt}
                       fg={COLORS.inkMuted}
-                      title={`Inherits the platform catalog (platform visibility: ${visMeta(platformVis).label}). No workspace override.`}
+                      title={copy.t("Inherits the platform catalog (platform visibility: {visibility}). No workspace override.").replace("{visibility}", copy.t(visMeta(platformVis).label))}
                     />
                   )}
                   <TruthChip
-                    text={hasValue ? "Value present" : "No value yet"}
+                    text={hasValue ? copy.t("Value present") : copy.t("No value yet")}
                     bg={hasValue ? COLORS.successSoft : COLORS.surfaceAlt}
                     fg={hasValue ? COLORS.successDeep : COLORS.inkMuted}
                     title={
                       hasValue
-                        ? "A value is stored for this talent. The value itself is editable in the Details editor."
-                        : "No value stored for this talent yet."
+                        ? copy.t("A value is stored for this talent. The value itself is editable in the Details editor.")
+                        : copy.t("No value stored for this talent yet.")
                     }
                   />
                 </div>
@@ -407,7 +420,7 @@ export function LiveCategoryFieldsPanel({
           )}
           {fields && fields.length === 0 && (
             <div className="text-admin-ink-muted text-xs">
-              No category-specific fields yet. Set a primary type first.
+              {copy.t("No category-specific fields yet. Set a primary type first.")}
             </div>
           )}
           {fields && fields.length > 0 && (
@@ -415,13 +428,15 @@ export function LiveCategoryFieldsPanel({
               {/* Architecture summary header */}
               <div style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid rgba(91,107,160,0.18)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  {fields.length} fields across {groups.length} groups · {completion.required} required to publish
+                  {copy.isSpanish
+                    ? `${fields.length} campos en ${groups.length} grupos · ${completion.required} obligatorios para publicar`
+                    : `${fields.length} fields across ${groups.length} groups · ${completion.required} required to publish`}
                 </div>
                 <div className="text-admin-10h">
-                  Groups auto-loaded from primary + secondary parent categories. Universal + global fields apply to everyone.
+                  {copy.t("Groups auto-loaded from primary + secondary parent categories. Universal + global fields apply to everyone.")}
                 </div>
                 <div style={{ fontSize: 10.5, marginTop: 4, opacity: 0.85 }}>
-                  This is the resolved truth: it already reflects this workspace&apos;s Field Catalog &amp; Field Privacy settings — fields you turned off are excluded, renamed fields show your workspace name, and an <strong>ADMIN</strong> tag means it&apos;s admin-only and never public.
+                  {copy.t("This is the resolved truth: it already reflects this workspace's Field Catalog and Field Privacy settings. Fields you turned off are excluded, renamed fields show your workspace name, and an ADMIN tag means the field is admin-only and never public.")}
                 </div>
               </div>
 
@@ -476,7 +491,9 @@ export function LiveCategoryFieldsPanel({
                     <FieldGroupBlock
                       key={g.group_slug}
                       title={g.group_label_en}
-                      subtitle={`${list.length} field${list.length === 1 ? "" : "s"} · ${g.weight} weight`}
+                      subtitle={copy.isSpanish
+                        ? `${list.length} campo${list.length === 1 ? "" : "s"} · peso ${g.weight}`
+                        : `${list.length} field${list.length === 1 ? "" : "s"} · ${g.weight} weight`}
                       fields={list}
                       viewerRole={viewAs}
                     />
@@ -486,8 +503,10 @@ export function LiveCategoryFieldsPanel({
               {/* Universal/global bucket (no group) */}
               {(grouped.get("_universal") ?? []).length > 0 && (
                 <FieldGroupBlock
-                  title="Universal & global"
-                  subtitle={`${(grouped.get("_universal") ?? []).length} field${(grouped.get("_universal") ?? []).length === 1 ? "" : "s"} · always shown`}
+                  title={copy.t("Universal & global")}
+                  subtitle={copy.isSpanish
+                    ? `${(grouped.get("_universal") ?? []).length} campo${(grouped.get("_universal") ?? []).length === 1 ? "" : "s"} · siempre visibles`
+                    : `${(grouped.get("_universal") ?? []).length} field${(grouped.get("_universal") ?? []).length === 1 ? "" : "s"} · always shown`}
                   fields={grouped.get("_universal") ?? []}
                   viewerRole={viewAs}
                 />
@@ -496,8 +515,10 @@ export function LiveCategoryFieldsPanel({
               {/* Recommendation-only bucket (no group, but has rec) */}
               {(grouped.get("_other") ?? []).length > 0 && (
                 <FieldGroupBlock
-                  title="Type-specific"
-                  subtitle={`${(grouped.get("_other") ?? []).length} field${(grouped.get("_other") ?? []).length === 1 ? "" : "s"} · brought in by talent type`}
+                  title={copy.t("Type-specific")}
+                  subtitle={copy.isSpanish
+                    ? `${(grouped.get("_other") ?? []).length} campo${(grouped.get("_other") ?? []).length === 1 ? "" : "s"} · agregados por el tipo de talento`
+                    : `${(grouped.get("_other") ?? []).length} field${(grouped.get("_other") ?? []).length === 1 ? "" : "s"} · brought in by talent type`}
                   fields={grouped.get("_other") ?? []}
                   viewerRole={viewAs}
                 />
@@ -514,11 +535,12 @@ export function CustomWorkspaceFieldInput({ field, value, onChange }: {
   value: string | string[];
   onChange: (v: string | string[]) => void;
 }) {
+  const copy = useDashboardText();
   const labelRow = (
     <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, marginBottom: 5 }} className="text-admin-ink-muted">
       {field.name}
-      {!field.required && <span className="text-admin-ink-dim text-admin-10 font-medium">· optional</span>}
-      {field.required && <span className="text-admin-amber-deep text-admin-10 font-bold">· required</span>}
+      {!field.required && <span className="text-admin-ink-dim text-admin-10 font-medium">· {copy.t("optional")}</span>}
+      {field.required && <span className="text-admin-amber-deep text-admin-10 font-bold">· {copy.t("required")}</span>}
     </label>
   );
   const helper = field.helper && (
@@ -561,7 +583,7 @@ export function CustomWorkspaceFieldInput({ field, value, onChange }: {
           }}>
             <span style={{ position: "absolute", top: 2, left: v ? 16 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.15s", }} />
           </span>
-          <span className="text-admin-ink text-admin-12h">{v ? "Yes" : "No"}</span>
+          <span className="text-admin-ink text-admin-12h">{v ? copy.t("Yes") : copy.t("No")}</span>
         </button>
         {helper}
       </div>
@@ -573,8 +595,8 @@ export function CustomWorkspaceFieldInput({ field, value, onChange }: {
   const isMulti = field.kind === "Multi-select";
   return (
     <ChipsInput
-      label={field.name + (field.required ? "  ·  required" : "  ·  optional")}
-      placeholder={isMulti ? "Add a value…" : "Type a value (single)"}
+      label={field.name + (field.required ? `  ·  ${copy.t("required")}` : `  ·  ${copy.t("optional")}`)}
+      placeholder={isMulti ? copy.t("Add a value…") : copy.t("Type a value (single)")}
       values={arr}
       onChange={(v) => onChange(isMulti ? v : (v[v.length - 1] ?? ""))}
     />

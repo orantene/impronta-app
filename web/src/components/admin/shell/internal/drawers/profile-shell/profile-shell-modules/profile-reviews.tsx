@@ -37,7 +37,7 @@ import type {
   TalentReview,
 } from "@/lib/reviews/review-types";
 import { StaticStars } from "@/components/reviews/star-rating";
-import { COLORS, FONTS } from "../../drawer-shared";
+import { COLORS, FONTS, useDashboardText } from "../../drawer-shared";
 import { useAdminShell } from "../../../state";
 
 function formatDate(iso: string): string {
@@ -75,6 +75,7 @@ function ReviewRow({
   isSelf: boolean;
   onChanged: (next: TalentReview) => void;
 }) {
+  const copy = useDashboardText();
   const [busy, setBusy] = React.useState<RowBusy>(null);
   const [reported, setReported] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -92,7 +93,7 @@ function ReviewRow({
     if (res.ok) {
       onChanged({ ...review, status: "published" });
     } else {
-      setError(res.error || "Could not update the review.");
+      setError(res.error || copy.t("Could not update the review."));
     }
     setBusy(null);
   }
@@ -105,7 +106,7 @@ function ReviewRow({
       onChanged({ ...review, status: "hidden" });
       setPicking(false);
     } else {
-      setError(res.error || "Could not update the review.");
+      setError(res.error || copy.t("Could not update the review."));
     }
     setBusy(null);
   }
@@ -117,7 +118,7 @@ function ReviewRow({
     if (res.ok) {
       setReported(true);
     } else {
-      setError(res.error || "Could not report the review.");
+      setError(res.error || copy.t("Could not report the review."));
     }
     setBusy(null);
   }
@@ -139,7 +140,7 @@ function ReviewRow({
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <StaticStars rating={review.rating} />
         <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
-          {review.clientName ?? "A client"}
+          {review.clientName ?? copy.t("A client")}
         </span>
         <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
           {formatDate(review.createdAt)}
@@ -157,7 +158,7 @@ function ReviewRow({
               color: COLORS.amberDeep,
             }}
           >
-            Hidden
+            {copy.t("Hidden")}
           </span>
         )}
       </div>
@@ -191,7 +192,7 @@ function ReviewRow({
                 fontFamily: FONTS.body,
               }}
             >
-              {busy === "hide" ? "Saving…" : "Unhide"}
+              {busy === "hide" ? copy.t("Saving…") : copy.t("Unhide")}
             </button>
           ) : picking ? (
             <div
@@ -203,10 +204,10 @@ function ReviewRow({
               }}
             >
               <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
-                Reason:
+                {copy.t("Reason:")}
               </span>
               <select
-                aria-label="Reason for hiding this review"
+                aria-label={copy.t("Reason for hiding this review")}
                 disabled={busy === "hide"}
                 defaultValue=""
                 onChange={(e) => {
@@ -226,11 +227,11 @@ function ReviewRow({
                 }}
               >
                 <option value="" disabled>
-                  Pick a reason…
+                  {copy.t("Pick a reason…")}
                 </option>
                 {HIDE_REASON_CODES.map((r) => (
                   <option key={r.code} value={r.code}>
-                    {r.label}
+                    {copy.t(r.label)}
                   </option>
                 ))}
               </select>
@@ -250,7 +251,7 @@ function ReviewRow({
                   fontFamily: FONTS.body,
                 }}
               >
-                Cancel
+                {copy.t("Cancel")}
               </button>
             </div>
           ) : (
@@ -270,12 +271,12 @@ function ReviewRow({
                 fontFamily: FONTS.body,
               }}
             >
-              {busy === "hide" ? "Saving…" : "Hide"}
+              {busy === "hide" ? copy.t("Saving…") : copy.t("Hide")}
             </button>
           )
         ) : reported ? (
           <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.green }}>
-            Reported — staff will review it.
+            {copy.t("Reported. Staff will review it.")}
           </span>
         ) : (
           <button
@@ -294,7 +295,7 @@ function ReviewRow({
               fontFamily: FONTS.body,
             }}
           >
-            {busy === "report" ? "Reporting…" : "Report"}
+            {busy === "report" ? copy.t("Reporting…") : copy.t("Report")}
           </button>
         )}
       </div>
@@ -315,6 +316,7 @@ export function ProfileReviewsEditor({
   // entitled, the module renders a short "not enabled" note instead of the list.
   // If no slug is in scope we do NOT guess — the gate stays unresolved (the
   // per-row server actions still fail closed), so the drawer never breaks.
+  const copy = useDashboardText();
   const { tenantSlug } = useAdminShell();
   const [reviews, setReviews] = React.useState<TalentReview[]>([]);
   const [summary, setSummary] = React.useState<TalentRatingSummary>({
@@ -360,13 +362,13 @@ export function ProfileReviewsEditor({
       })
       .catch(() => {
         if (cancelled) return;
-        setLoadError("Could not load reviews.");
+        setLoadError(copy.t("Could not load reviews."));
         setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [talentId, copy]);
 
   if (entitled === false) {
     return (
@@ -381,8 +383,7 @@ export function ProfileReviewsEditor({
         }}
         className="text-admin-ink-muted"
       >
-        Reviews are not enabled on this workspace. They appear here once the
-        premium reviews feature is turned on.
+        {copy.t("Reviews are not enabled on this workspace. They appear here once the premium reviews feature is turned on.")}
       </div>
     );
   }
@@ -390,7 +391,7 @@ export function ProfileReviewsEditor({
   if (loading) {
     return (
       <div style={{ padding: 14, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-        Loading reviews…
+        {copy.t("Loading reviews…")}
       </div>
     );
   }
@@ -422,15 +423,17 @@ export function ProfileReviewsEditor({
         </span>
         <span style={{ fontSize: 12 }} className="text-admin-ink-muted">
           {summary.count === 0
-            ? "No reviews yet"
-            : `${summary.count} review${summary.count === 1 ? "" : "s"}`}
+            ? copy.t("No reviews yet")
+            : copy.isSpanish
+              ? `${summary.count} reseña${summary.count === 1 ? "" : "s"}`
+              : `${summary.count} review${summary.count === 1 ? "" : "s"}`}
         </span>
       </div>
 
       <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
         {isSelf
-          ? "Reviews clients left after working with you. You can report a review you believe breaks the rules — staff will look into it."
-          : "Reviews clients left for this talent. Hide a review to remove it from the public page; unhide to restore it."}
+          ? copy.t("Reviews clients left after working with you. You can report a review you believe breaks the rules and staff will look into it.")
+          : copy.t("Reviews clients left for this talent. Hide a review to remove it from the public page; unhide to restore it.")}
       </div>
 
       {reviews.length === 0 ? (
@@ -444,7 +447,7 @@ export function ProfileReviewsEditor({
           }}
           className="text-admin-ink-muted"
         >
-          No reviews yet.
+          {copy.t("No reviews yet.")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

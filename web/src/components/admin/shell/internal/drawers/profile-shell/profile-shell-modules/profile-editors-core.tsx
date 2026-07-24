@@ -24,6 +24,7 @@ import {
   TrustTier,
   Verifications,
   shortParentLabel,
+  useDashboardText,
 } from "../../drawer-shared";
 import { findChild } from "./profile-state";
 import {
@@ -36,6 +37,7 @@ export function AdvancedAgencySettingsSection({
 }: {
   talentProfileId: string;
 }) {
+  const copy = useDashboardText();
   const [open, setOpen] = useState(false);
   return (
     <div style={{ padding: "0 24px", marginTop: 4 }}>
@@ -65,10 +67,10 @@ export function AdvancedAgencySettingsSection({
         </span>
         <span className="flex-1 min-w-0">
           <span style={{ display: "block", fontSize: 12, fontWeight: 600 }} className="text-admin-ink">
-            Advanced agency settings
+            {copy.t("Advanced agency settings")}
           </span>
           <span style={{ display: "block", fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
-            Per-agency visibility, featured, display order & internal notes
+            {copy.t("Per-agency visibility, featured, display order & internal notes")}
           </span>
         </span>
       </button>
@@ -133,6 +135,7 @@ export function ServicesEditor({
   // chips (e.g. picking a Performer when the primary is a Model) live
   // behind an explicit toggle so the picker isn't 80 random chips at once.
   const [showOtherCategories, setShowOtherCategories] = useState(false);
+  const copy = useDashboardText();
   const primaryParentId = primaryRes?.parent.id ?? null;
   const sameCategoryChildren = primaryParentId
     ? allowedParents.find(p => p.id === primaryParentId)?.children ?? []
@@ -144,10 +147,10 @@ export function ServicesEditor({
     <>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 4 }} className="text-admin-ink-muted">
-          Booked as
+          {copy.t("Booked as")}
         </div>
         <div style={{ fontSize: 11.5, marginBottom: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
-          What clients book this person as. Pick the main one.
+          {copy.t("What clients book this person as. Pick the main one.")}
         </div>
         {primaryRes ? (
           <div>
@@ -169,7 +172,7 @@ export function ServicesEditor({
               className={primaryDisabledForTenant ? "text-admin-ink-muted" : "text-admin-accent-deep"}
               title={
                 primaryDisabledForTenant
-                  ? "This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types."
+                  ? copy.t("This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types.")
                   : undefined
               }
             >
@@ -178,7 +181,7 @@ export function ServicesEditor({
               <button
                 type="button"
                 onClick={onClearPrimary}
-                aria-label="Change main service"
+                aria-label={copy.t("Change main service")}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -206,14 +209,14 @@ export function ServicesEditor({
                 className="text-admin-ink-muted"
               >
                 <span aria-hidden>⚠</span>
-                <span>Disabled in your workspace.</span>
+                <span>{copy.t("Disabled in your workspace.")}</span>
                 {tenantSettingsHref ? (
                   <a
                     href={tenantSettingsHref}
                     className="underline text-admin-accent-deep"
                     style={{ fontWeight: 600 }}
                   >
-                    Enable in Settings →
+                    {copy.t("Enable in Settings →")}
                   </a>
                 ) : null}
               </div>
@@ -221,7 +224,7 @@ export function ServicesEditor({
             {primaryRes.child.specialties && primaryRes.child.specialties.length > 0 && (
               <div className="mt-2.5">
                 <div style={{ fontSize: 10.5, marginBottom: 4 }} className="text-admin-ink-dim">
-                  Specialties under {primaryRes.child.label}
+                  {copy.t("Specialties under")} {primaryRes.child.label}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {primaryRes.child.specialties.map(s => {
@@ -247,7 +250,7 @@ export function ServicesEditor({
               width: 8, height: 8, borderRadius: "50%",
               background: COLORS.inkDim, display: "inline-block", opacity: 0.5,
             }} />
-            Loading current role…
+            {copy.t("Loading current role…")}
           </div>
         ) : (
           <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={onPickPrimary} />
@@ -259,21 +262,21 @@ export function ServicesEditor({
           borderTop: `1px solid ${COLORS.borderSoft}`,
         }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 4 }} className="text-admin-ink-muted">
-            Also bookable as
+            {copy.t("Also bookable as")}
             {primaryRes && (
               <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">
-                · within {shortParentLabel(primaryRes.parent)} · optional
+                · {copy.t("within")} {shortParentLabel(primaryRes.parent)} · {copy.t("optional")}
               </span>
             )}
           </div>
           <div style={{ fontSize: 11, marginBottom: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
-            Other things this person can be booked as. Pick any that apply.
+            {copy.t("Other things this person can be booked as. Pick any that apply.")}
           </div>
           <SiblingTopNPicker
             children={sameCategoryChildren}
             selected={secondaryTypes}
             onToggle={onToggleSecondary}
-            parentLabel={primaryRes ? shortParentLabel(primaryRes.parent) : "this category"}
+            parentLabel={primaryRes ? shortParentLabel(primaryRes.parent) : copy.t("this category")}
             excludeId={primaryType ?? null}
             tenantEnabledSlugs={tenantEnabledSecondarySlugs}
           />
@@ -288,7 +291,7 @@ export function ServicesEditor({
                   color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500,
                   cursor: "pointer", fontFamily: FONTS.body,
                 }}>
-                {showOtherCategories ? "– Hide other categories" : `+ Also bookable in another category (${otherCategories.length})`}
+                {showOtherCategories ? `– ${copy.t("Hide other categories")}` : `+ ${copy.t("Also bookable in another category")} (${otherCategories.length})`}
               </button>
               {showOtherCategories && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
@@ -316,12 +319,12 @@ export function ServicesEditor({
       {specialtyOptions.filter(g => g.typeId !== primaryType).length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-            More specialties
+            {copy.t("More specialties")}
           </div>
           <div className="flex flex-col gap-2">
             {specialtyOptions.filter(g => g.typeId !== primaryType).map(g => (
               <div key={g.typeId}>
-                <div style={{ fontSize: 10.5, marginBottom: 4 }} className="text-admin-ink-dim">Under {g.typeLabel}</div>
+                <div style={{ fontSize: 10.5, marginBottom: 4 }} className="text-admin-ink-dim">{copy.t("Under")} {g.typeLabel}</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {g.items.map(s => {
                     const active = specialties.includes(s);
@@ -364,6 +367,7 @@ export type BiosEditorProps = {
 };
 
 export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel, disabled }: BiosEditorProps) {
+  const copy = useDashboardText();
   const ALL_LOCALES: LocaleCode[] = ["en", "es", "fr", "it", "pt", "de"];
   const ensureLocale = (l: LocaleCode) => {
     if (bios.some(b => b.locale === l)) return;
@@ -406,7 +410,7 @@ export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, o
               fontSize: 11.5, fontWeight: 600, cursor: "pointer",
               display: "inline-flex", alignItems: "center", gap: 6,
             }}>
-              {LOCALE_LABEL[b.locale]}
+              {copy.t(LOCALE_LABEL[b.locale])}
               {b.locale !== "en" && (
                 <span onClick={(e) => { e.stopPropagation(); remove(b.locale); }}
                   style={{ color: COLORS.inkMuted, fontSize: 12, lineHeight: 1, fontWeight: 700, cursor: "pointer" }}>×</span>
@@ -419,9 +423,9 @@ export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, o
           border: `1px dashed ${COLORS.border}`, background: "transparent",
           fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, cursor: "pointer",
         }}>
-          <option value="">+ Add language</option>
+          <option value="">+ {copy.t("Add language")}</option>
           {ALL_LOCALES.filter(l => !bios.some(b => b.locale === l)).map(l => (
-            <option key={l} value={l}>{LOCALE_LABEL[l]}</option>
+            <option key={l} value={l}>{copy.t(LOCALE_LABEL[l])}</option>
           ))}
         </select>
       </div>
@@ -429,7 +433,7 @@ export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, o
         data-pshell-field="bio"
         value={active?.text ?? ""}
         onChange={(e) => setText(activeLocale, e.target.value)}
-        placeholder={`Bio in ${LOCALE_LABEL[activeLocale]}…`}
+        placeholder={`${copy.t("Bio in")} ${copy.t(LOCALE_LABEL[activeLocale])}…`}
         rows={4}
         maxLength={limit}
         style={{
@@ -448,7 +452,7 @@ export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, o
             fontSize: 11, fontWeight: 500,
             cursor: primaryLabel ? "pointer" : "default",
             fontFamily: FONTS.body,
-          }}>↺ {primaryLabel ? `Regenerate from ${primaryLabel}` : "Pick a Talent Type to regenerate"}</button>
+          }}>↺ {primaryLabel ? `${copy.t("Regenerate from")} ${primaryLabel}` : copy.t("Pick a Talent Type to regenerate")}</button>
           {/* Audit fix #7 — paste-from-clipboard for talent who already
               wrote a bio in another tool (Notes, Notion, Instagram bio).
               Reads navigator.clipboard, falls back silently if blocked.
@@ -472,8 +476,8 @@ export const BiosEditor = React.memo(function BiosEditor({ bios, activeLocale, o
               cursor: "pointer",
               fontFamily: FONTS.body,
             }}
-            title="Paste a bio you already wrote elsewhere"
-          >📋 Paste from clipboard</button>
+            title={copy.t("Paste a bio you already wrote elsewhere")}
+          >📋 {copy.t("Paste from clipboard")}</button>
         </div>
         <span style={{ fontSize: 10.5, color: charCount > limit * 0.9 ? COLORS.amberDeep : COLORS.inkDim }}>
           {charCount} / {limit}
@@ -493,10 +497,11 @@ export type RatesEditorProps = {
 };
 
 export const RatesEditor = React.memo(function RatesEditor({ rates, selectedTypeIds, onChange }: RatesEditorProps) {
+  const copy = useDashboardText();
   if (selectedTypeIds.length === 0) {
     return (
       <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, fontFamily: FONTS.body, lineHeight: 1.5 }} className="bg-admin-surface text-admin-ink-muted">
-        Pick a Talent Type in Services first. Each type gets its own rate.
+        {copy.t("Pick a Talent Type in Services first. Each type gets its own rate.")}
       </div>
     );
   }
@@ -559,17 +564,17 @@ export const RatesEditor = React.memo(function RatesEditor({ rates, selectedType
               border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
               fontSize: 12.5, color: COLORS.ink, outline: "none",
             }}>
-              <option value="hour">/ hour</option>
-              <option value="day">/ day</option>
-              <option value="set">/ set</option>
-              <option value="event">/ event</option>
-              <option value="session">/ session</option>
-              <option value="month">/ month</option>
+              <option value="hour">/ {copy.t("hour")}</option>
+              <option value="day">/ {copy.t("day")}</option>
+              <option value="set">/ {copy.t("set")}</option>
+              <option value="event">/ {copy.t("event")}</option>
+              <option value="session">/ {copy.t("session")}</option>
+              <option value="month">/ {copy.t("month")}</option>
             </select>
           </div>
           <input type="text" value={r.conditions ?? ""}
             onChange={(e) => updateRow(r.typeId, { conditions: e.target.value })}
-            placeholder="Conditions — e.g. min 4 hours, + tax, weekend uplift"
+            placeholder={copy.t("Conditions, e.g. min 4 hours, + tax, weekend uplift")}
             style={{
               width: "100%", boxSizing: "border-box", marginTop: 6,
               padding: "8px 10px", borderRadius: 8,
@@ -589,6 +594,7 @@ export function AvailabilityGrid({ cells, onToggle }: {
   cells: AvailabilityCell[];
   onToggle: (date: string) => void;
 }) {
+  const copy = useDashboardText();
   // Build 28 days starting from today
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -616,15 +622,17 @@ export function AvailabilityGrid({ cells, onToggle }: {
     counts[s] += 1;
   });
 
-  const dowLabels = ["S", "M", "T", "W", "T", "F", "S"];
+  const dowLabels = copy.isSpanish
+    ? ["D", "L", "M", "M", "J", "V", "S"]
+    : ["S", "M", "T", "W", "T", "F", "S"];
   const startDow = today.getDay();
 
   return (
     <div style={{ fontFamily: FONTS.body }}>
       <div style={{ display: "flex", gap: 10, fontSize: 11, marginBottom: 8 }} className="text-admin-ink-muted">
-        <Legend dotColor={COLORS.green} label={`Open · ${counts.open}`} />
-        <Legend dotColor={COLORS.amberDeep} label={`Busy · ${counts.busy}`} />
-        <Legend dotColor="rgba(11,11,13,0.4)" label={`Blocked · ${counts.blocked}`} />
+        <Legend dotColor={COLORS.green} label={`${copy.t("Available")} · ${counts.open}`} />
+        <Legend dotColor={COLORS.amberDeep} label={`${copy.t("Busy")} · ${counts.busy}`} />
+        <Legend dotColor="rgba(11,11,13,0.4)" label={`${copy.t("Blocked")} · ${counts.blocked}`} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
         {dowLabels.map((d, i) => (
@@ -654,7 +662,7 @@ export function AvailabilityGrid({ cells, onToggle }: {
         })}
       </div>
       <div style={{ fontSize: 11, marginTop: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
-        Tap a day to cycle: open → busy → blocked → open. Today highlighted in green.
+        {copy.t("Tap a day to cycle: available → busy → blocked → available. Today is highlighted in green.")}
       </div>
     </div>
   );
@@ -678,13 +686,14 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
   onChange: (v: Verifications) => void;
   isSelf: boolean;
 }) {
+  const copy = useDashboardText();
   const tierMeta = TALENT_TRUST_META[tier];
   const rows: { id: keyof Verifications; label: string; helper: string; readonly?: boolean }[] = [
-    { id: "emailVerified",    label: "Email verified",     helper: "We sent a confirm link." },
-    { id: "phoneVerified",    label: "Phone verified",     helper: "SMS or call." },
-    { id: "idSubmitted",      label: "ID submitted",       helper: "Passport or government ID. Required for Verified." },
-    { id: "payoutConnected",  label: "Payout connected",   helper: "Bank or PSP linked. Required for Verified." },
-    { id: "hasFundedClient",  label: "Funded-account client", helper: "At least one client on Tulala with funds on hold. Required for Gold." },
+    { id: "emailVerified",    label: copy.t("Email verified"),     helper: copy.t("We sent a confirm link.") },
+    { id: "phoneVerified",    label: copy.t("Phone verified"),     helper: copy.t("SMS or call.") },
+    { id: "idSubmitted",      label: copy.t("ID submitted"),       helper: copy.t("Passport or government ID. Required for Verified.") },
+    { id: "payoutConnected",  label: copy.t("Payout connected"),   helper: copy.t("Bank or PSP linked. Required for Verified.") },
+    { id: "hasFundedClient",  label: copy.t("Funded-account client"), helper: copy.t("At least one client on Tulala with funds on hold. Required for Gold.") },
   ];
 
   return (
@@ -696,10 +705,10 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
       }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: tierMeta.fg, display: "inline-flex", alignItems: "center", gap: 6 }}>
           <span className="text-lg">{tierMeta.emoji}</span>
-          {tierMeta.label}
+          {copy.t(tierMeta.label)}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          {tierMeta.helper}
+          {copy.t(tierMeta.helper)}
         </div>
       </div>
       <div className="flex flex-col gap-2">
@@ -716,7 +725,7 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
         <span className="text-admin-ink-muted text-admin-11h">
-          Bookings completed on Tulala
+          {copy.t("Bookings completed on Tulala")}
         </span>
         <input type="number" min={0} value={verifications.bookingsCount}
           onChange={(e) => onChange({ ...verifications, bookingsCount: Number(e.target.value) })}
@@ -732,7 +741,7 @@ export function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
       </div>
       {isSelf && (
         <div style={{ fontSize: 10.5, marginTop: 8, lineHeight: 1.4 }} className="text-admin-ink-dim">
-          Verification status is managed by Tulala — toggle when you complete each step.
+          {copy.t("Verification status is managed by Tulala. Toggle when you complete each step.")}
         </div>
       )}
     </div>
