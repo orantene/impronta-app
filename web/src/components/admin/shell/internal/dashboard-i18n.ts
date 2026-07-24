@@ -415,7 +415,6 @@ const ES_TEXT: Record<string, string> = {
   "Reply time": "Tiempo de respuesta",
   "Surfaces on Discover as a chip.": "Aparece en Descubrir como etiqueta.",
   "Select…": "Seleccionar...",
-  "— select —": "— seleccionar —",
   "Within 1h": "En menos de 1 h",
   "Within 4h": "En menos de 4 h",
   "Within 24h": "En menos de 24 h",
@@ -2830,6 +2829,142 @@ const ES_TEXT: Record<string, string> = {
   // ── W11: talent sidebar group labels ──
   "Work": "Trabajo",
   "Presence": "Presencia",
+
+  // ══ Lane P, i18n sweep: literals that were wrapped in copy.t() but had
+  //    no ES entry, so the map returned them unchanged (English leak in the
+  //    talent profile editor drawer, the slot panels and the plan badge).
+  //    Keys MUST stay byte-identical to the literal in the component.
+
+  // ── Best-fit contexts (context-add-search / context-slot-panel) ──
+  "Add best-fit contexts": "Agregar contextos ideales",
+  "Where is this person best used? Pick all that apply.": "¿Dónde funciona mejor esta persona? Elige todas las opciones que apliquen.",
+  "No matching contexts.": "Sin contextos coincidentes.",
+  "on profile": "en el perfil",
+  "Best fit · contexts": "Mejor ajuste · contextos",
+  "Where this talent works best. Helps clients find the right match.": "Dónde funciona mejor este talento. Ayuda a los clientes a encontrar la opción correcta.",
+  "Loading contexts…": "Cargando contextos…",
+  "No contexts yet. Add the settings this person is best for.": "Aún no hay contextos. Agrega los escenarios para los que esta persona es ideal.",
+  "Remove context": "Quitar contexto",
+  "Add more contexts": "Agregar más contextos",
+
+  // ── Guest chat settings ──
+  "Home page": "Página de inicio",
+  "A “Message {agency}” button on your home page, starts a general inquiry to your team.": "Un botón “Enviar mensaje a {agency}” en tu página de inicio, que inicia una consulta general para tu equipo.",
+  "Directory page": "Página del directorio",
+  "A “Message {agency}” button on your directory page, starts a general inquiry to your team.": "Un botón “Enviar mensaje a {agency}” en tu página del directorio, que inicia una consulta general para tu equipo.",
+
+  // ── Talent profile shell drawer ──
+  "No workspace context.": "Sin contexto de espacio.",
+  "Add a stage / professional name first.": "Agrega primero un nombre artístico o profesional.",
+  "Pick a primary talent type to continue.": "Elige un tipo de talento principal para continuar.",
+  "Enter a home base to continue.": "Ingresa una base principal para continuar.",
+  "Could not create the talent profile.": "No se pudo crear el perfil de talento.",
+  "Resize drawer": "Redimensionar el panel",
+  "Drag to resize": "Arrastra para redimensionar",
+  "Create profile": "Crear perfil",
+  "Audit": "Auditoría",
+  "History": "Historial",
+  "Loading saved profile": "Cargando el perfil guardado",
+  "Loading saved profile…": "Cargando el perfil guardado…",
+  "Couldn't load this profile's saved data": "No se pudieron cargar los datos guardados de este perfil",
+  "Editing is paused so you don't overwrite real data with blanks. Retry to load it.": "La edición está pausada para que no sobrescribas datos reales con espacios en blanco. Reintenta para cargarlos.",
+
+  // ── Discover opt-in + card preview ──
+  "Show me on Tulala Discover": "Mostrarme en Tulala Discover",
+  "ⓘ Discover is where clients across Tulala find new talent. Appearing here multiplies your exposure to event planners, brands, and agencies. Your trust gates and contact controls still apply. Clients reach you through coordinated inquiries, never direct DMs. Toggle off anytime.": "ⓘ Discover es donde los clientes de todo Tulala encuentran nuevo talento. Aparecer aquí multiplica tu exposición ante organizadores de eventos, marcas y agencias. Tus filtros de confianza y tus controles de contacto siguen vigentes. Los clientes te contactan mediante consultas coordinadas, nunca por mensajes directos. Puedes desactivarlo cuando quieras.",
+  "On · appearing on Discover": "Activado · apareces en Discover",
+  "Off · hidden from Discover": "Desactivado · oculto en Discover",
+  "Preview · your Discover card": "Vista previa · tu tarjeta de Discover",
+  "Your name": "Tu nombre",
+  "Add a primary category": "Agregar una categoría principal",
+  "Trust badge, 14-day availability strip, and rate band are derived live by Discover. They update as your verification, calendar, and rates change.": "La insignia de confianza, la franja de disponibilidad de 14 días y el rango de tarifas los calcula Discover en vivo. Se actualizan conforme cambian tu verificación, tu calendario y tus tarifas.",
+
+  // ── Profile coach: drawer sizing ──
+  "Drawer size": "Tamaño del panel",
+  "Side drawer": "Panel lateral",
+  "Half-page": "Media página",
+  "Full-page": "Página completa",
+
+  // ── Identity editor placeholders ──
+  "Change status": "Cambiar estado",
+  "Add legal name": "Agregar nombre legal",
+  "Add nationality": "Agregar nacionalidad",
+  "Add country of residence": "Agregar país de residencia",
+  "Add email": "Agregar correo",
+  "Add phone": "Agregar teléfono",
+  "Add WhatsApp": "Agregar WhatsApp",
+  "Add business line": "Agregar línea comercial",
+
+  // ── Truth preview ──
+  "Agency Fields": "Campos de la agencia",
+
+  // ── Language slot panel ──
+  "Add languages": "Agregar idiomas",
+  "Add the languages this talent speaks.": "Agrega los idiomas que habla este talento.",
+  "Loading languages…": "Cargando idiomas…",
+  "Remove language": "Quitar idioma",
+
+  // ── Location / service-area slot panel ──
+  "Searching…": "Buscando…",
+  "City not in the supported list yet.": "La ciudad aún no está en la lista disponible.",
+  "Loading service areas…": "Cargando áreas de servicio…",
+  "Clear home base": "Borrar base principal",
+  "Type a city…": "Escribe una ciudad…",
+  "Also serves": "También atiende",
+  "Remove city": "Quitar ciudad",
+  "Add a city…": "Agregar una ciudad…",
+  "Charge a travel fee outside the home area": "Cobrar viáticos fuera de la zona base",
+  "Works remotely / online only": "Trabaja de forma remota / solo en línea",
+
+  // ── Talent profile tier labels (profile-1.tsx) ──
+  "Universal": "Universal",
+  "Global": "Global",
+
+  // ── Workspace plan badge ──
+  // NOTE: several keys below are SENTENCE FRAGMENTS concatenated in
+  // WorkspacePlanBadge.tsx template literals (e.g. `${t("Ended")} ${n}
+  // ${t("days ago")}`). Their Spanish is written to compose correctly in
+  // that fixed word order, so it is NOT a standalone translation of the
+  // English word. Each has exactly one call site: do not reuse these keys
+  // elsewhere, and re-check them if the template literals change.
+  "trial ended": "· prueba finalizada",
+  "Free trial": "Prueba gratis",
+  "Ended today": "Finalizó hoy",
+  "Ended yesterday": "Finalizó ayer",
+  "Ended": "Finalizó hace",
+  "days ago": "días",
+  "Ends today": "Termina hoy",
+  "1 day left": "Queda 1 día",
+  "days left": "días restantes",
+  "Back on": "De vuelta en",
+  "Your data is safe. Upgrade to bring back": "Tus datos están a salvo. Mejora tu plan para recuperar",
+  "Upgrade to keep": "Mejora tu plan para conservar",
+  "when your trial ends.": "cuando termine tu prueba.",
+  "Enjoying": "¿Te está gustando",
+  "Upgrade anytime to keep it.": "Mejora tu plan cuando quieras para conservarlo.",
+  "Keep": "Conservar",
+  "Try": "Prueba",
+  "free": "gratis",
+  "Start": "Inicia la prueba de",
+  "trial": "gratis",
+  "Workspace plan": "Plan del espacio",
+  "Loading plan…": "Cargando plan…",
+  "Pricing": "Precio",
+  "Member since": "Miembro desde",
+  "Seats": "Plazas",
+  "unlimited": "ilimitadas",
+  "No billing on Free": "Sin facturación en el plan Gratis",
+  "Plan override active": "Anulación de plan activa",
+  "base": "base",
+  "Until": "Hasta",
+  "No expiry": "Sin vencimiento",
+  "View plan details": "Ver detalles del plan",
+
+  // ── Talent premium pages drawers ──
+  "Embeds live on your public page. Add or remove them from My pages, where the changes are saved and published.": "Los embeds viven en tu página pública. Agrégalos o quítalos desde Mis páginas, donde los cambios se guardan y se publican.",
+  "Press clippings are part of your public page content. Add them from My pages so they publish with the rest of your site.": "Las notas de prensa son parte del contenido de tu página pública. Agrégalas desde Mis páginas para que se publiquen junto con el resto de tu sitio.",
+  "Connect a custom domain from My pages. That manager verifies your DNS records and issues the SSL certificate, and it shows the exact records for your domain.": "Conecta un dominio personalizado desde Mis páginas. Ese gestor verifica tus registros DNS y emite el certificado SSL, y te muestra los registros exactos para tu dominio.",
+  "Photo editing requires a live talent profile.": "Para editar fotos necesitas un perfil de talento activo.",
 
 };
 

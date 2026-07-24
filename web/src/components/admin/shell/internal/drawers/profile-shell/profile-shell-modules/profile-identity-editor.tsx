@@ -627,7 +627,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
               color: COLORS.ink,
             }}
           >
-            <option value="">{copy.t("— select —")}</option>
+            <option value="">{copy.t("Select")}</option>
             <option value="1h">{copy.t("Within 1h")}</option>
             <option value="4h">{copy.t("Within 4h")}</option>
             <option value="24h">{copy.t("Within 24h")}</option>

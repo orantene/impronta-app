@@ -3035,12 +3035,12 @@ export function TalentProfileShellDrawer() {
               <FieldRow
                 label={copy.t("Show me on Tulala Discover")}
                 recommended
-                hint={copy.t("ⓘ Discover is where clients across Tulala find new talent. Appearing here multiplies your exposure to event planners, brands, and agencies. Your trust gates and contact controls still apply — clients reach you through coordinated inquiries, never direct DMs. Toggle off anytime.")}
+                hint={copy.t("ⓘ Discover is where clients across Tulala find new talent. Appearing here multiplies your exposure to event planners, brands, and agencies. Your trust gates and contact controls still apply. Clients reach you through coordinated inquiries, never direct DMs. Toggle off anytime.")}
               >
                 <ToggleControl
                   value={state.isDiscoverable}
                   onChange={(v) => patch({ isDiscoverable: v })}
-                  label={copy.t(state.isDiscoverable ? "On — appearing on Discover" : "Off — hidden from Discover")}
+                  label={copy.t(state.isDiscoverable ? "On · appearing on Discover" : "Off · hidden from Discover")}
                 />
               </FieldRow>
               {/* T2 — Discover card preview. Renders a schematic of what
@@ -3060,7 +3060,7 @@ export function TalentProfileShellDrawer() {
                   }}
                 >
                   <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                    Preview · your Discover card
+                    {copy.t("Preview · your Discover card")}
                   </div>
                   <div style={{
                     display: "grid",
@@ -3088,7 +3088,7 @@ export function TalentProfileShellDrawer() {
                         {state.serviceArea.homeBase ? ` · ${state.serviceArea.homeBase}` : ""}
                       </div>
                       <div style={{ fontSize: 11, marginTop: 8, fontStyle: "italic", lineHeight: 1.45 }} className="text-admin-ink-dim">
-                        {copy.t("Trust badge, 14-day availability strip, and rate band are derived live by Discover — they update as your verification, calendar, and rates change.")}
+                        {copy.t("Trust badge, 14-day availability strip, and rate band are derived live by Discover. They update as your verification, calendar, and rates change.")}
                       </div>
                     </div>
                   </div>
