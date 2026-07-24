@@ -29,6 +29,7 @@ import { loadPublicBranding } from "@/lib/site-admin/server/reads";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
 import { TenantRegisterModalHost } from "./tenant-register-modal-host";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 export async function TenantRegisterMount() {
   const scope = await getPublicTenantScope();
@@ -86,6 +87,7 @@ export async function TenantRegisterMount() {
 
   return (
     <TenantRegisterModalHost
+      locale={await getRequestLocale()}
       tenant={{
         slug,
         displayName,

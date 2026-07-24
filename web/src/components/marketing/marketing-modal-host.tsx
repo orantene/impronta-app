@@ -28,7 +28,9 @@ export function MarketingModalHost({ locale = "en" }: { locale?: string }) {
 
   return (
     <>
-      {talentOpen ? <TalentRegisterModal onClose={() => setTalentOpen(false)} /> : null}
+      {talentOpen ? (
+        <TalentRegisterModal locale={locale} onClose={() => setTalentOpen(false)} />
+      ) : null}
       {loginOpen ? (
         <LoginModal locale={locale} onClose={() => setLoginOpen(false)} />
       ) : null}

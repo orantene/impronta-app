@@ -30,6 +30,10 @@ import {
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import { getAppUrl } from "@/lib/auth-flow";
 import {
+  getTalentModalCopy,
+  type TalentModalCopy,
+} from "./talent-register-modal-copy";
+import {
   ArrowGlyph,
   CloseGlyph,
   GoogleGlyph,
@@ -119,9 +123,18 @@ interface TalentRegisterModalProps {
   onClose: () => void;
   /** When present, render the tenant-branded variant scoped to this workspace. */
   tenant?: TenantRegisterContext;
+  /** Active locale. Drives the copy AND the `locale` stamped on the new
+   *  account — this used to be hardcoded "en", so a Spanish visitor who
+   *  signed up here was silently registered as an English user. */
+  locale?: string;
 }
 
-export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProps) {
+export function TalentRegisterModal({
+  onClose,
+  tenant,
+  locale = "en",
+}: TalentRegisterModalProps) {
+  const t = getTalentModalCopy(locale);
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const emailRef = useRef<HTMLInputElement | null>(null);
@@ -131,7 +144,7 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
   const nextPath = tenant ? `/${tenant.slug}/talent` : DEFAULT_NEXT_PATH;
   // An already-signed-in Tulala talent skips signup and applies in one tap.
   const applyMode = Boolean(tenant?.isAuthedTalent);
-  const header = headerCopy(tenant, applyMode);
+  const header = headerCopy(tenant, applyMode, t);
 
   useEffect(() => setMounted(true), []);
 
@@ -200,7 +213,7 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t.close}
             className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors"
             style={{ color: "var(--plt-muted)" }}
           >
@@ -241,9 +254,9 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
 
           {/* Body — signed-in talent applies in one tap; everyone else signs up. */}
           {applyMode && tenant ? (
-            <TenantApplyPanel tenant={tenant} onClose={onClose} />
+            <TenantApplyPanel tenant={tenant} onClose={onClose} t={t} />
           ) : (
-            <ModalForm onSuccessClose={onClose} next={nextPath} />
+            <ModalForm onSuccessClose={onClose} next={nextPath} t={t} locale={locale} />
           )}
 
           {/* Trust strip + sign-in footer — signup form only, not the apply panel */}
@@ -254,13 +267,13 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
                 style={{ color: "var(--plt-muted)" }}
               >
                 <li className="inline-flex items-center gap-1.5">
-                  <TrustTick /> Free forever
+                  <TrustTick /> {t.trustFree}
                 </li>
                 <li className="inline-flex items-center gap-1.5">
-                  <TrustTick /> No credit card
+                  <TrustTick /> {t.trustNoCard}
                 </li>
                 <li className="inline-flex items-center gap-1.5">
-                  <TrustTick /> 2-min setup
+                  <TrustTick /> {t.trustSetup}
                 </li>
               </ul>
 
@@ -269,8 +282,8 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
                 style={{ color: "var(--plt-muted)" }}
               >
                 {tenant
-                  ? `Already have a ${brandWord(tenant)} account? `
-                  : "Already have an account? "}
+                  ? t.haveTenantAccount(brandWord(tenant))
+                  : t.haveAccount}
                 {tenant ? (
                   <a
                     href={
@@ -283,7 +296,7 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
                     className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                     style={{ color: "var(--plt-ink-soft)" }}
                   >
-                    Sign in to apply
+                    {t.signInToApply}
                   </a>
                 ) : (
                   <Link
@@ -292,7 +305,7 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
                     className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
                     style={{ color: "var(--plt-ink-soft)" }}
                   >
-                    Sign in
+                    {t.signIn}
                   </Link>
                 )}
               </p>
@@ -310,28 +323,23 @@ export function TalentRegisterModal({ onClose, tenant }: TalentRegisterModalProp
 function headerCopy(
   tenant: TenantRegisterContext | undefined,
   applyMode: boolean,
+  t: TalentModalCopy,
 ): { eyebrow: string; title: string; titleAccent: string; sub: string } {
   if (tenant) {
-    if (applyMode) {
-      return {
-        eyebrow: "Join the roster",
-        title: "Apply to",
-        titleAccent: `${tenant.displayName}.`,
-        sub: `You're signed in to ${brandWord(tenant)}. Send your request in one tap.`,
-      };
-    }
     return {
-      eyebrow: "Join the roster",
-      title: "Join",
+      eyebrow: t.joinRoster,
+      title: applyMode ? t.applyTo : t.join,
       titleAccent: `${tenant.displayName}.`,
-      sub: `Create your free ${brandWord(tenant)} talent profile and request to join the roster.`,
+      sub: applyMode
+        ? t.applySignedIn(brandWord(tenant))
+        : t.joinSub(brandWord(tenant)),
     };
   }
   return {
-    eyebrow: "Join as talent · free",
-    title: "Your talent page,",
-    titleAccent: "live in minutes.",
-    sub: "Show your work, share one link, and let bookings come to you.",
+    eyebrow: t.platformEyebrow,
+    title: t.platformTitle,
+    titleAccent: t.platformAccent,
+    sub: t.platformSub,
   };
 }
 
@@ -366,9 +374,11 @@ function TenantBrandMark({ tenant }: { tenant: TenantRegisterContext }) {
 function TenantApplyPanel({
   tenant,
   onClose,
+  t,
 }: {
   tenant: TenantRegisterContext;
   onClose: () => void;
+  t: TalentModalCopy;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -401,17 +411,15 @@ function TenantApplyPanel({
             className="plt-display text-[1.125rem] font-semibold"
             style={{ color: "var(--plt-ink)" }}
           >
-            {done === "active"
-              ? `You've joined ${tenant.displayName}`
-              : "Request sent"}
+            {done === "active" ? t.joined(tenant.displayName) : t.requestSent}
           </h3>
           <p
             className="text-[0.875rem] leading-[1.5]"
             style={{ color: "var(--plt-muted)" }}
           >
             {done === "active"
-              ? `You're on the roster. Manage your work from your ${brandWord(tenant)} dashboard.`
-              : `${tenant.displayName} will review your application and be in touch.`}
+              ? t.joinedSub(brandWord(tenant))
+              : t.requestSentSub(tenant.displayName)}
           </p>
         </div>
         <button
@@ -424,7 +432,7 @@ function TenantApplyPanel({
             background: "var(--plt-bg-raised)",
           }}
         >
-          Got it
+          {t.gotIt}
         </button>
       </div>
     );
@@ -456,7 +464,7 @@ function TenantApplyPanel({
         }}
       >
         <span>
-          {pending ? "Sending your request…" : `Apply to ${tenant.displayName}`}
+          {pending ? t.sendingRequest : t.applyCta(tenant.displayName)}
         </span>
         {pending ? <Spinner /> : <ArrowGlyph />}
       </button>
@@ -464,7 +472,7 @@ function TenantApplyPanel({
         className="text-center text-[0.75rem]"
         style={{ color: "var(--plt-muted)" }}
       >
-        Applying as your signed-in {brandWord(tenant)} account.
+        {t.applyingAs(brandWord(tenant))}
       </p>
     </div>
   );
@@ -478,9 +486,13 @@ function TenantApplyPanel({
 function ModalForm({
   onSuccessClose,
   next,
+  t,
+  locale,
 }: {
   onSuccessClose: () => void;
   next: string;
+  t: TalentModalCopy;
+  locale: string;
 }) {
   const [state, formAction, pending] = useActionState<
     AuthActionState,
@@ -489,16 +501,16 @@ function ModalForm({
 
   // If we got a confirmation message back, show the success view instead.
   if (state?.message) {
-    return <ConfirmationView message={state.message} onClose={onSuccessClose} />;
+    return <ConfirmationView message={state.message} onClose={onSuccessClose} t={t} />;
   }
 
   return (
     <form action={formAction} className="space-y-3.5">
       <input type="hidden" name="next" value={next} />
-      <input type="hidden" name="locale" value="en" />
+      <input type="hidden" name="locale" value={locale} />
 
       {/* Google */}
-      <GoogleButton next={next} />
+      <GoogleButton next={next} t={t} />
 
       {/* OR */}
       <div className="flex items-center gap-3 py-1">
@@ -510,7 +522,7 @@ function ModalForm({
           className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.22em]"
           style={{ color: "var(--plt-muted)" }}
         >
-          or with email
+          {t.orEmail}
         </span>
         <div
           className="h-px flex-1"
@@ -531,19 +543,19 @@ function ModalForm({
         </p>
       ) : null}
 
-      <FieldShell label="Email">
+      <FieldShell label={t.email}>
         <input
           type="email"
           name="email"
           autoComplete="email"
           required
-          placeholder="you@studio.com"
+          placeholder={t.emailPlaceholder}
           className="w-full bg-transparent text-[0.9375rem] leading-none outline-none placeholder:text-[var(--plt-muted-soft)]"
           style={{ color: "var(--plt-ink)" }}
         />
       </FieldShell>
 
-      <FieldShell label="Password" hint="At least 8 characters">
+      <FieldShell label={t.password} hint={t.passwordHint}>
         <input
           type="password"
           name="password"
@@ -566,14 +578,14 @@ function ModalForm({
           boxShadow: "var(--plt-shadow-forest)",
         }}
       >
-        <span>{pending ? "Creating your account…" : "Create my talent page"}</span>
+        <span>{pending ? t.creating : t.createCta}</span>
         {!pending ? <ArrowGlyph /> : <Spinner />}
       </button>
     </form>
   );
 }
 
-function GoogleButton({ next }: { next: string }) {
+function GoogleButton({ next, t }: { next: string; t: TalentModalCopy }) {
   const router = useRouter();
   const popupRef = useRef<Window | null>(null);
   const closeWatcherRef = useRef<number | null>(null);
@@ -585,7 +597,7 @@ function GoogleButton({ next }: { next: string }) {
       if (event.origin !== window.location.origin) return;
       if (event.data?.type !== AUTH_POPUP_MESSAGE_TYPE) return;
       setPending(false);
-      setError(event.data.success ? null : event.data.error ?? "Google sign-in failed.");
+      setError(event.data.success ? null : event.data.error ?? t.googleFailed);
       if (closeWatcherRef.current) {
         window.clearInterval(closeWatcherRef.current);
         closeWatcherRef.current = null;
@@ -604,7 +616,7 @@ function GoogleButton({ next }: { next: string }) {
         window.clearInterval(closeWatcherRef.current);
       }
     };
-  }, [router, next]);
+  }, [router, next, t]);
 
   function handleClick() {
     setError(null);
@@ -621,7 +633,7 @@ function GoogleButton({ next }: { next: string }) {
       `width=${W},height=${H},left=${left},top=${top},popup=yes,resizable=yes,scrollbars=yes`,
     );
     if (!popup) {
-      setError("Popup blocked. Allow popups and try again.");
+      setError(t.popupBlocked);
       return;
     }
     popupRef.current = popup;
@@ -652,7 +664,7 @@ function GoogleButton({ next }: { next: string }) {
         }}
       >
         {pending ? <Spinner /> : <GoogleGlyph />}
-        <span>{pending ? "Opening Google…" : "Continue with Google"}</span>
+        <span>{pending ? t.googleOpening : t.google}</span>
       </button>
       {error ? (
         <p
@@ -673,9 +685,11 @@ function GoogleButton({ next }: { next: string }) {
 function ConfirmationView({
   message,
   onClose,
+  t,
 }: {
   message: string;
   onClose: () => void;
+  t: TalentModalCopy;
 }) {
   return (
     <div className="space-y-5 py-2 text-center">
@@ -693,7 +707,7 @@ function ConfirmationView({
           className="plt-display text-[1.125rem] font-semibold"
           style={{ color: "var(--plt-ink)" }}
         >
-          Check your inbox
+          {t.checkInbox}
         </h3>
         <p
           className="text-[0.875rem] leading-[1.5]"
