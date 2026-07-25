@@ -576,7 +576,20 @@
           "noMappableFreeText": "Los perfiles necesitan una ciudad estructurada para aparecer en el mapa. {count} solo tienen ubicación de texto libre.",
           "noMappableNone": "Ningún talento de este filtro tiene ciudad asignada todavía.",
           "backToGrid": "Volver a la cuadrícula",
-          "cityFilterGroup": "Filtrar por ciudad"
+          "cityFilterGroup": "Filtrar por ciudad",
+          "nearMe": "Buscar cerca de mí",
+          "nearMeLocating": "Ubicando…",
+          "nearMeActive": "Cerca de mí",
+          "nearMeClear": "Quitar ubicación",
+          "nearMeDenied": "Se denegó el permiso de ubicación. Actívalo en la configuración del navegador para ordenar por distancia.",
+          "nearMeUnavailable": "Tu navegador no pudo obtener una ubicación.",
+          "nearMeUnsupported": "Este navegador no admite la ubicación.",
+          "youAreHere": "Tu ubicación",
+          "radiusAny": "Cualquier distancia",
+          "radiusWithin": "Hasta {count} {unit}",
+          "unitToggleAria": "Unidad de distancia",
+          "noneWithinRadius": "No hay ciudades a menos de {count} {unit}. Amplía el radio o quita tu ubicación.",
+          "sortedByDistance": "Ciudades ordenadas por distancia desde tu ubicación"
         }
       },
       "section": {

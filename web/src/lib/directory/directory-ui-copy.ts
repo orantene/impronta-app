@@ -31,6 +31,19 @@ export type DirectoryUiCopy = {
     backToGrid: string;
     /** Accessible name for the keyboard-reachable city-chip group. */
     cityFilterGroup: string;
+    nearMe: string;
+    nearMeLocating: string;
+    nearMeActive: string;
+    nearMeClear: string;
+    nearMeDenied: string;
+    nearMeUnavailable: string;
+    nearMeUnsupported: string;
+    youAreHere: string;
+    radiusAny: string;
+    radiusWithin: string;
+    unitToggleAria: string;
+    noneWithinRadius: string;
+    sortedByDistance: string;
   };
   refine: {
     suggestionsTitle: string;
@@ -325,6 +338,19 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       noMappableNone: t("public.directory.ui.map.noMappableNone"),
       backToGrid: t("public.directory.ui.map.backToGrid"),
       cityFilterGroup: t("public.directory.ui.map.cityFilterGroup"),
+      nearMe: t("public.directory.ui.map.nearMe"),
+      nearMeLocating: t("public.directory.ui.map.nearMeLocating"),
+      nearMeActive: t("public.directory.ui.map.nearMeActive"),
+      nearMeClear: t("public.directory.ui.map.nearMeClear"),
+      nearMeDenied: t("public.directory.ui.map.nearMeDenied"),
+      nearMeUnavailable: t("public.directory.ui.map.nearMeUnavailable"),
+      nearMeUnsupported: t("public.directory.ui.map.nearMeUnsupported"),
+      youAreHere: t("public.directory.ui.map.youAreHere"),
+      radiusAny: t("public.directory.ui.map.radiusAny"),
+      radiusWithin: t("public.directory.ui.map.radiusWithin"),
+      unitToggleAria: t("public.directory.ui.map.unitToggleAria"),
+      noneWithinRadius: t("public.directory.ui.map.noneWithinRadius"),
+      sortedByDistance: t("public.directory.ui.map.sortedByDistance"),
     },
     refine: {
       suggestionsTitle: t("public.directory.ui.refine.suggestionsTitle"),
