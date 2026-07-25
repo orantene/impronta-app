@@ -428,6 +428,13 @@ const ES_TEXT: Record<string, string> = {
   "Visible to": "Visible para",
   "click to change": "clic para cambiar",
   "Public": "Público",
+  // Field-privacy tri-state row (FieldPrivacyRow) — option labels, the
+  // override badge, and the per-option tooltips.
+  "shows on the public site": "se muestra en el sitio público",
+  "admin view only": "solo en la vista de admin",
+  "not collected at all": "no se recoge en absoluto",
+  "changed": "modificado",
+  "Upgrade your plan to use “{option}”": "Mejora tu plan para usar “{option}”",
   "Private": "Privado",
   "Public + agency": "Público + agencia",
   "Agency only": "Solo agencia",

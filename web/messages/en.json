@@ -4331,7 +4331,15 @@
         "proofStatTrust": "Client trust proof",
         "proofYes": "Yes",
         "proofReauthTag": "re-auth"
-      }
+      },
+      "planNameFree": "Free",
+      "planNameStudio": "Studio",
+      "planNameAgency": "Agency",
+      "planNameNetwork": "Network",
+      "planThemeFree": "Join the ecosystem",
+      "planThemeStudio": "Gain control",
+      "planThemeAgency": "Branded operation",
+      "planThemeNetwork": "Multi-brand · hub"
     },
     "adminOperations": {
       "title": "Operations",
@@ -5224,7 +5232,25 @@
       "igVerifyStep4Lead": "4 · Confirm.",
       "igVerifyStep4Body": "Tulala admins verify the DM was received from your handle and matches the code. Most decisions in <24h.",
       "igVerifyCancel": "Cancel",
-      "igVerifyGenerate": "Generate code & continue"
+      "igVerifyGenerate": "Generate code & continue",
+      "legacyTaxonomyTitle": "Talent types",
+      "legacyTaxonomyDescription": "Pick which talent your agency accepts. The registration form and Discover both follow this list.",
+      "legacyTaxonomyPreviewRegistration": "Preview registration",
+      "legacyTaxonomySaved": "Talent types saved",
+      "legacyTaxonomyAllGroups": "All groups available",
+      "legacyTaxonomyGroupsEnabled": "{enabled} of {limit} groups enabled",
+      "legacyTaxonomyPlanLine": "{plan} plan · {cap}",
+      "legacyTaxonomyNoCap": "no cap",
+      "legacyTaxonomyUpgradeForMore": "upgrade to enable more",
+      "legacyTaxonomyPlanCompare": "Plan compare",
+      "legacyTaxonomyUpgrade": "Upgrade",
+      "legacyTaxonomyAvailableOnPlan": "Available on your plan",
+      "legacyTaxonomyLocked": "Locked · upgrade to enable",
+      "legacyTaxonomyRequiresPlan": "{category} requires the {plan} plan",
+      "legacyTaxonomyPlanLimitReached": "Plan limit reached. Upgrade to enable more.",
+      "legacyTaxonomyShowInDirectoryDesc": "Discover surfaces this category to clients.",
+      "legacyTaxonomyShowInRegistrationDesc": "Talent can register under this category.",
+      "legacyTaxonomyRequireApprovalDesc": "New profiles in this category go to the admin queue first."
     },
     "platform": {
       "shell": {

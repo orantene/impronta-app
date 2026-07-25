@@ -636,6 +636,27 @@ function TabBtn({ label, count, active, onClick }: { id: CategoryTabId; label: s
   );
 }
 
+/**
+ * Display name for a taxonomy term in the reader's language.
+ *
+ * Every term carries a platform EN/ES pair (`name_en` / `name_es`) plus an
+ * optional per-workspace override pair (`custom_label` / `custom_label_es`).
+ * The drawer used to render `custom_label ?? name_en` unconditionally, so a
+ * Spanish admin saw the whole category tree in English and the ES override
+ * they had just typed was never shown back to them. Resolve the requested
+ * locale first, then fall back through the other locale so a term with only
+ * one side filled in still renders a name instead of an empty string.
+ */
+export function taxonomyDisplayName(
+  node: { name_en: string; name_es?: string | null; custom_label?: string | null; custom_label_es?: string | null },
+  isSpanish: boolean,
+): string {
+  if (isSpanish) {
+    return node.custom_label_es || node.name_es || node.custom_label || node.name_en;
+  }
+  return node.custom_label || node.name_en || node.custom_label_es || node.name_es || "";
+}
+
 function reorderIds(ids: readonly string[], fromId: string, toId: string): string[] {
   const from = ids.indexOf(fromId);
   const to = ids.indexOf(toId);
@@ -691,6 +712,7 @@ export function CategoryExpandPanel({
   isSavingSubtypes?: boolean;
 }) {
   const t = useT();
+  const { isSpanish } = useDashboardText();
   const [draggingSubId, setDraggingSubId] = useState<string | null>(null);
   const subtypeCount =
     parent.children.length +
@@ -769,7 +791,7 @@ export function CategoryExpandPanel({
                   </span>
                   <div className="flex-1">
                     <div className="text-admin-ink text-admin-12h font-semibold">
-                      {sub.custom_label ?? sub.name_en}
+                      {taxonomyDisplayName(sub, isSpanish)}
                       {sub.is_custom && (
                         <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 4 }} className="bg-admin-indigo-soft text-admin-indigo-deep">{t("dashboard.adminDrawers.taxonomyCustomBadge")}</span>
                       )}
@@ -909,7 +931,7 @@ export function CategoryExpandPanel({
             const tierOrder: Array<["universal" | "global" | "type-specific", string, string]> = [
               ["universal", t("dashboard.adminDrawers.taxonomyTierUniversal"), t("dashboard.adminDrawers.taxonomyTierUniversalDesc")],
               ["global", t("dashboard.adminDrawers.taxonomyTierGlobal"), t("dashboard.adminDrawers.taxonomyTierGlobalDesc")],
-              ["type-specific", t("dashboard.adminDrawers.taxonomyTierCategory"), interpolate(t("dashboard.adminDrawers.taxonomyTierCategoryDesc"), { category: parent.name_en })],
+              ["type-specific", t("dashboard.adminDrawers.taxonomyTierCategory"), interpolate(t("dashboard.adminDrawers.taxonomyTierCategoryDesc"), { category: taxonomyDisplayName(parent, isSpanish) })],
             ];
             const rows = tierOrder.map(([tier, label, desc]) => {
               const list = grouped.get(tier) ?? [];
@@ -1104,6 +1126,7 @@ export function CategoryExpandPanel({
 
 export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
+  const { isSpanish } = useDashboardText();
   const { state, toast } = useAdminShell();
   // Phase 2 (Sub-Task 3): plan-tier gating mirrors light-09 (FIELD pattern).
   // canCustomize → Studio+ (enable/disable + relabel).
@@ -1419,7 +1442,8 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const handleRemoveCustom = async (node: TaxonomyNode) => {
-    if (!confirm(interpolate(t("dashboard.adminDrawers.taxonomyRemoveConfirm"), { name: node.name_en }))) return;
+    const shownName = taxonomyDisplayName(node, isSpanish);
+    if (!confirm(interpolate(t("dashboard.adminDrawers.taxonomyRemoveConfirm"), { name: shownName }))) return;
     const res = await removeCustomSubType({ id: node.id });
     if (!res.ok) {
       toast(res.error);
@@ -1427,7 +1451,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     }
     const fresh = await getEnabledTaxonomyTree();
     if (fresh.ok) setTree(fresh.tree);
-    toast(interpolate(t("dashboard.adminDrawers.taxonomyRemoved"), { name: node.name_en }));
+    toast(interpolate(t("dashboard.adminDrawers.taxonomyRemoved"), { name: shownName }));
   };
 
   const totalEnabled = useMemo(
@@ -1511,7 +1535,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                         >
                           ⋮⋮
                         </span>
-                        {parent.custom_label ?? parent.name_en}
+                        {taxonomyDisplayName(parent, isSpanish)}
                       </div>
                       <div style={{ fontSize: 11.5, marginTop: 1 }} className="text-admin-ink-muted">
                         {interpolate(t(childCount === 1 ? "dashboard.adminDrawers.taxonomySubtypesCountOne" : "dashboard.adminDrawers.taxonomySubtypesCountOther"), { count: childCount })}
@@ -1592,6 +1616,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
 
 
 export function LegacyTalentTypesDrawer() {
+  const t = useT();
   const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const open = state.drawer.drawerId === "talent-types";
   const [settings, setSettings] = useState(WORKSPACE_TAXONOMY_DEFAULT);
@@ -1609,11 +1634,14 @@ export function LegacyTalentTypesDrawer() {
     const parent = TAXONOMY.find(p => p.id === parentId);
     if (!parent) return;
     if (planRank(parent.minPlan) > currentRank) {
-      toast(`${parent.label} requires ${parent.minPlan.charAt(0).toUpperCase() + parent.minPlan.slice(1)} plan`);
+      toast(interpolate(t("dashboard.adminDrawers.legacyTaxonomyRequiresPlan"), {
+        category: parent.label,
+        plan: parent.minPlan.charAt(0).toUpperCase() + parent.minPlan.slice(1),
+      }));
       return;
     }
     if (!target.isEnabled && enabledCount >= limit) {
-      toast(`Plan limit reached — upgrade to enable more.`);
+      toast(t("dashboard.adminDrawers.legacyTaxonomyPlanLimitReached"));
       return;
     }
     setSettings(s => s.map(x => x.parentId === parentId ? { ...x, isEnabled: !x.isEnabled } : x));
@@ -1627,12 +1655,12 @@ export function LegacyTalentTypesDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Talent types"
-      description="Pick which talent your agency accepts. The registration form and Discover both follow this list."
+      title={t("dashboard.adminDrawers.legacyTaxonomyTitle")}
+      description={t("dashboard.adminDrawers.legacyTaxonomyDescription")}
       footer={
         <>
-          <SecondaryButton onClick={() => openDrawer("talent-registration")}>Preview registration</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Talent types saved"); closeDrawer(); }}>Save</PrimaryButton>
+          <SecondaryButton onClick={() => openDrawer("talent-registration")}>{t("dashboard.adminDrawers.legacyTaxonomyPreviewRegistration")}</SecondaryButton>
+          <PrimaryButton onClick={() => { toast(t("dashboard.adminDrawers.legacyTaxonomySaved")); closeDrawer(); }}>{t("dashboard.adminDrawers.save")}</PrimaryButton>
         </>
       }
     >
@@ -1640,23 +1668,30 @@ export function LegacyTalentTypesDrawer() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, fontFamily: FONTS.body, marginBottom: 14 }} className="bg-admin-indigo-soft">
         <div>
           <div className="text-admin-indigo-deep text-xs font-semibold">
-            {limit === 999 ? "All groups available" : `${enabledCount} of ${limit} groups enabled`}
+            {limit === 999
+              ? t("dashboard.adminDrawers.legacyTaxonomyAllGroups")
+              : interpolate(t("dashboard.adminDrawers.legacyTaxonomyGroupsEnabled"), { enabled: enabledCount, limit })}
           </div>
           <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">
-            {planLabel} plan · {limit === 999 ? "no cap" : "upgrade to enable more"}
+            {interpolate(t("dashboard.adminDrawers.legacyTaxonomyPlanLine"), {
+              plan: planLabel,
+              cap: limit === 999
+                ? t("dashboard.adminDrawers.legacyTaxonomyNoCap")
+                : t("dashboard.adminDrawers.legacyTaxonomyUpgradeForMore"),
+            })}
           </div>
         </div>
         {limit !== 999 && (
-          <button type="button" onClick={() => toast("Plan compare")} style={{
+          <button type="button" onClick={() => toast(t("dashboard.adminDrawers.legacyTaxonomyPlanCompare"))} style={{
             padding: "6px 12px", borderRadius: 999, border: "none",
             background: COLORS.indigoDeep, color: "#fff",
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
-          }}>Upgrade</button>
+          }}>{t("dashboard.adminDrawers.legacyTaxonomyUpgrade")}</button>
         )}
       </div>
 
       {/* Available now (within plan tier) */}
-      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">Available on your plan</div>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.legacyTaxonomyAvailableOnPlan")}</div>
       <div style={{
         background: "#fff", borderRadius: 12, overflow: "hidden",
         border: `1px solid ${COLORS.borderSoft}`,
@@ -1679,7 +1714,7 @@ export function LegacyTalentTypesDrawer() {
       {/* Locked behind plan */}
       {TAXONOMY.some(p => planRank(p.minPlan) > currentRank) && (
         <>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">Locked — upgrade to enable</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">{t("dashboard.adminDrawers.legacyTaxonomyLocked")}</div>
           <div style={{
             background: "#fff", borderRadius: 12, overflow: "hidden",
             border: `1px solid ${COLORS.borderSoft}`,
@@ -1691,7 +1726,10 @@ export function LegacyTalentTypesDrawer() {
                 <TalentTypeRow
                   key={parent.id} parent={parent} setting={setting}
                   isFirst={i === 0}
-                  onToggle={() => toast(`${parent.label} requires ${parent.minPlan} plan`)}
+                  onToggle={() => toast(interpolate(t("dashboard.adminDrawers.legacyTaxonomyRequiresPlan"), {
+                    category: parent.label,
+                    plan: parent.minPlan.charAt(0).toUpperCase() + parent.minPlan.slice(1),
+                  }))}
                   onRule={() => {}}
                   locked={true}
                 />
@@ -1715,6 +1753,7 @@ export function TalentTypeRow({
   onRule: (key: keyof WorkspaceTaxonomySetting, val: boolean) => void;
   locked: boolean;
 }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   return (
     <div style={{
@@ -1761,20 +1800,20 @@ export function TalentTypeRow({
           padding: "0 14px 12px 50px", display: "flex", flexDirection: "column", gap: 8,
         }}>
           <TaxonomyToggleRow
-            label="Show in directory"
-            desc="Discover surfaces this category to clients."
+            label={t("dashboard.adminDrawers.taxonomyShowInDirectory")}
+            desc={t("dashboard.adminDrawers.legacyTaxonomyShowInDirectoryDesc")}
             value={setting.showInDirectory}
             onChange={(v) => onRule("showInDirectory", v)}
           />
           <TaxonomyToggleRow
-            label="Show in registration"
-            desc="Talent can register under this category."
+            label={t("dashboard.adminDrawers.taxonomyShowInRegistration")}
+            desc={t("dashboard.adminDrawers.legacyTaxonomyShowInRegistrationDesc")}
             value={setting.showInRegistration}
             onChange={(v) => onRule("showInRegistration", v)}
           />
           <TaxonomyToggleRow
-            label="Require approval"
-            desc="New profiles in this category go to admin queue first."
+            label={t("dashboard.adminDrawers.taxonomyRequireApproval")}
+            desc={t("dashboard.adminDrawers.legacyTaxonomyRequireApprovalDesc")}
             value={setting.requiresApproval}
             onChange={(v) => onRule("requiresApproval", v)}
           />
@@ -4130,11 +4169,14 @@ export function FieldPrivacyRow({
   canFlip: boolean;
   canHide: boolean;
 }) {
+  // Legacy ES_TEXT map — matches FieldPrivacyDrawer (light-10.tsx), this
+  // component's only caller, so the row and its drawer speak one system.
+  const { t: tt } = useDashboardText();
   const isOverridden = current !== defaultVis;
-  const options: { id: FieldVisibility; label: string; emoji: string; tone: string; bg: string; available: boolean }[] = [
-    { id: "public",   label: "Public",   emoji: "🌐", tone: COLORS.successDeep, bg: COLORS.successSoft, available: canFlip || defaultVis === "public" },
-    { id: "internal", label: "Admin",    emoji: "🔒", tone: COLORS.amberDeep,   bg: COLORS.amberSoft,   available: canFlip || defaultVis === "internal" },
-    { id: "hidden",   label: "Off",      emoji: "–",  tone: COLORS.inkMuted,    bg: "rgba(11,11,13,0.06)", available: canHide || defaultVis === "hidden" },
+  const options: { id: FieldVisibility; label: string; hint: string; emoji: string; tone: string; bg: string; available: boolean }[] = [
+    { id: "public",   label: tt("Public"), hint: tt("shows on the public site"), emoji: "🌐", tone: COLORS.successDeep, bg: COLORS.successSoft, available: canFlip || defaultVis === "public" },
+    { id: "internal", label: tt("Admin"),  hint: tt("admin view only"),          emoji: "🔒", tone: COLORS.amberDeep,   bg: COLORS.amberSoft,   available: canFlip || defaultVis === "internal" },
+    { id: "hidden",   label: tt("Hidden"), hint: tt("not collected at all"),     emoji: "–",  tone: COLORS.inkMuted,    bg: "rgba(11,11,13,0.06)", available: canHide || defaultVis === "hidden" },
   ];
   return (
     <div style={{
@@ -4147,7 +4189,7 @@ export function FieldPrivacyRow({
         <div className="flex items-center gap-1.5">
           <span className="text-admin-ink text-admin-12h font-medium">{label}</span>
           {isOverridden && (
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">changed</span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999, letterSpacing: 0.4, textTransform: "uppercase" }} className="bg-admin-indigo-soft text-admin-indigo-deep">{tt("changed")}</span>
           )}
         </div>
         {description && (
@@ -4163,7 +4205,9 @@ export function FieldPrivacyRow({
               type="button"
               onClick={() => o.available && onChange(o.id)}
               disabled={!o.available}
-              title={!o.available ? `Upgrade plan to use "${o.label}"` : `${o.label}: ${o.id === "public" ? "shows on storefront" : o.id === "internal" ? "admins only" : "off entirely"}`}
+              title={!o.available
+                ? tt("Upgrade your plan to use “{option}”").replace("{option}", o.label)
+                : `${o.label}: ${o.hint}`}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "5px 11px", borderRadius: 999, border: "none",
