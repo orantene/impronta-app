@@ -29,6 +29,10 @@ export async function GET(request: NextRequest) {
   const owner = searchParams.get("owner");
   const tenantSlug = searchParams.get("tenantSlug");
   const provider = getConnectionOAuthProvider(providerKey);
+  // The REGISTRY knows about instagram/tiktok, but only vendors with a built
+  // callback may actually start a flow. This gate is what keeps a half-built
+  // provider unreachable: adding the entry to providers.ts does not expose it
+  // until its `/callback/{vendor}` route lands. Widen deliberately, per vendor.
   if (!provider || provider.oauthProvider !== "google") {
     return failureRedirect("/", "unsupported_provider");
   }
