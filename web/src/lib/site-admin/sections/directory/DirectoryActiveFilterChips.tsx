@@ -81,9 +81,22 @@ export function DirectoryActiveFilterChips({
     // — Taxonomy terms (talent type, etc.) —
     for (const termId of taxonomyTermIds) {
       // AI-interpreted terms outside the sidebar/pill catalogs have no label
-      // here — showing the raw UUID as a chip is worse than no chip (the AI
-      // summary chip + "Clear all" still cover them).
-      if (!labelById[termId] && /^[0-9a-f-]{32,}$/i.test(termId)) continue;
+      // here. Showing the raw UUID is meaningless, but hiding the chip
+      // entirely left an ACTIVE, uncountable filter the visitor could not
+      // remove — so render a generic, individually-removable chip instead.
+      const unlabeled = !labelById[termId] && /^[0-9a-f-]{32,}$/i.test(termId);
+      if (unlabeled) {
+        list.push({
+          id: `tax:${termId}`,
+          label: ui.intent.aiFilterChip,
+          remove: (p) => {
+            const next = taxonomyTermIds.filter((t) => t !== termId);
+            if (next.length) p.set("tax", [...next].sort().join(","));
+            else p.delete("tax");
+          },
+        });
+        continue;
+      }
       list.push({
         id: `tax:${termId}`,
         label: humanizeEnumLabel(labelById[termId] ?? termId),

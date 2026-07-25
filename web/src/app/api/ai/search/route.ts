@@ -111,7 +111,10 @@ export async function POST(request: Request) {
       ageMax: parsed.data.ageMax,
       fieldFacetFilters,
       cursor: cursor ?? null,
-      includeTotalCount: false,
+      // First page only (the engine skips the count on cursor pages anyway):
+      // without it the directory toolbar keeps showing the unfiltered SSR
+      // total while an AI search is active — "43 profiles" next to 12 cards.
+      includeTotalCount: true,
       logAnalytics: true,
       analyticsSource: analyticsSrc ?? "ai_search",
       tenantId,
@@ -121,6 +124,7 @@ export async function POST(request: Request) {
       search_mode: out.search_mode,
       results: out.results,
       next_cursor: out.next_cursor,
+      total_count: out.total_count,
       taxonomy_term_ids: out.taxonomy_term_ids,
       vector_active: out.vector_active,
       note: out.note,

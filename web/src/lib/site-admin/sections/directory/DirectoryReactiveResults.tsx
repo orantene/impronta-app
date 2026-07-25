@@ -400,6 +400,10 @@ function DirectoryReactiveResultsInner({
   // closed. Defaults open (matches SSR); the visitor's last choice persists.
   const hasSidebar = showSidebar && sidebarBlocks.length > 0;
   const [filtersOpen, setFiltersOpen] = useState(true);
+  // `animateFilters` stays false until the stored preference has been applied,
+  // so a visitor who closed the panel doesn't watch it slide shut on every
+  // navigation — it is simply already closed on first paint after hydration.
+  const [animateFilters, setAnimateFilters] = useState(false);
   useEffect(() => {
     try {
       if (window.localStorage.getItem("directory:filters-open") === "0") {
@@ -408,17 +412,21 @@ function DirectoryReactiveResultsInner({
     } catch {
       /* storage unavailable (private mode) — keep default */
     }
+    setAnimateFilters(true);
   }, []);
   const toggleFilters = useCallback(() => {
-    setFiltersOpen((open) => {
-      try {
-        window.localStorage.setItem("directory:filters-open", open ? "0" : "1");
-      } catch {
-        /* ignore */
-      }
-      return !open;
-    });
+    // The write lives outside the state updater: React StrictMode invokes
+    // updaters twice, which would double-fire the storage side effect.
+    setFiltersOpen((open) => !open);
   }, []);
+  useEffect(() => {
+    if (!animateFilters) return;
+    try {
+      window.localStorage.setItem("directory:filters-open", filtersOpen ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, [filtersOpen, animateFilters]);
 
   const activeFilterCount =
     taxonomyTermIds.length +
@@ -468,12 +476,19 @@ function DirectoryReactiveResultsInner({
               width: filtersOpen ? 256 : 0,
               opacity: filtersOpen ? 1 : 0,
             }}
-            transition={{ type: "spring", stiffness: 300, damping: 34, mass: 0.9 }}
+            transition={
+              animateFilters
+                ? { type: "spring", stiffness: 300, damping: 34, mass: 0.9 }
+                : { duration: 0 }
+            }
             className={`hidden shrink-0 overflow-hidden md:block ${
               sidebarPosition === "right" ? "order-last" : ""
             }`}
             data-sidebar-position={sidebarPosition}
-            aria-hidden={!filtersOpen}
+            // `inert` (not just aria-hidden): a width-0 overflow-hidden panel
+            // still keeps its inputs in the tab order, so keyboard users would
+            // tab into controls that screen readers refuse to announce.
+            inert={!filtersOpen}
           >
             <div
               className={`w-64 ${sidebarPosition === "right" ? "pl-8" : "pr-8"}`}
@@ -533,19 +548,22 @@ function DirectoryReactiveResultsInner({
             />
           ) : null}
 
-          {showSort || showResultCount ? (
-            <DirectoryResultsToolbar
-              totalCount={liveCount ?? initialPage.totalCount ?? 0}
-              sort={sort}
-              view={view}
-              ui={ui}
-              isFetching={isGridFetching}
-              reviewsEnabled={initialPage.reviewsEnabled}
-              filtersOpen={hasSidebar ? filtersOpen : undefined}
-              onToggleFilters={hasSidebar ? toggleFilters : undefined}
-              activeFilterCount={activeFilterCount}
-            />
-          ) : null}
+          {/* The toolbar also hosts the view switcher and the Filters toggle,
+              so it stays mounted even when both text knobs are off — those two
+              knobs now gate only their own sub-controls. */}
+          <DirectoryResultsToolbar
+            totalCount={liveCount ?? initialPage.totalCount ?? 0}
+            sort={sort}
+            view={view}
+            ui={ui}
+            isFetching={isGridFetching}
+            reviewsEnabled={initialPage.reviewsEnabled}
+            filtersOpen={hasSidebar ? filtersOpen : undefined}
+            onToggleFilters={hasSidebar ? toggleFilters : undefined}
+            activeFilterCount={activeFilterCount}
+            showSort={showSort}
+            showResultCount={showResultCount}
+          />
 
           {view === "map" ? (
             <DirectoryMapView
@@ -577,8 +595,6 @@ function DirectoryReactiveResultsInner({
                 maxFieldLines,
                 nameFallback,
               }}
-              columnsDesktop={columnsDesktop}
-              columnsTablet={columnsTablet}
               columnsMobile={columnsMobile}
               onCountChange={handleCountChange}
             />

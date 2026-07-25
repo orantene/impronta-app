@@ -37,6 +37,8 @@ export type DirectoryUiCopy = {
     showingForPrefix: string;
     interpretedAsPrefix: string;
     heightUnitCm: string;
+    /** Chip label for an AI-applied taxonomy term with no catalog label. */
+    aiFilterChip: string;
   };
   hero: {
     interpreting: string;
@@ -328,6 +330,7 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       showingForPrefix: t("public.directory.ui.intent.showingForPrefix"),
       interpretedAsPrefix: t("public.directory.ui.intent.interpretedAsPrefix"),
       heightUnitCm: t("public.directory.ui.intent.heightUnitCm"),
+      aiFilterChip: t("public.directory.ui.intent.aiFilterChip"),
     },
     hero: {
       interpreting: t("public.directory.ui.hero.interpreting"),
