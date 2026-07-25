@@ -19,6 +19,10 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "image",
   "video",
   "embed",
+  // Instagram / TikTok featured post. In the MVP library (not owner-gated):
+  // it takes a pasted public post URL, needs no credentials, and is a normal
+  // authoring tool rather than a raw-HTML escape hatch like `code`.
+  "social_post",
   "icon",
   "pricing_table",
   "rich_text",
@@ -84,6 +88,7 @@ export const ELEMENT_LIBRARY_CATEGORY_LABEL: Readonly<
 const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCategory>> =
   {
     section: "layout",
+    social_post: "utility",
     container: "layout",
     card: "layout",
     cta_group: "actions",

@@ -449,6 +449,30 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
   }),
 
   // ── Elements / Social & Embed ───────────────────────────────────────────
+  // Two entries for ONE node kind: an operator looks for "Instagram", not for a
+  // generic "social post" they then have to configure. Each seeds its provider.
+  el({
+    id: "el-instagram-post",
+    label: "Instagram Post",
+    description: "Feature one Instagram post or reel.",
+    category: "social-embed",
+    icon: "instagram",
+    insertMethod: "nativeNode",
+    nativeKind: "social_post",
+    nativeVariant: "instagram",
+    searchTerms: ["instagram", "reel", "ig", "social"],
+  }),
+  el({
+    id: "el-tiktok-post",
+    label: "TikTok Video",
+    description: "Feature one TikTok video.",
+    category: "social-embed",
+    icon: "video",
+    insertMethod: "nativeNode",
+    nativeKind: "social_post",
+    nativeVariant: "tiktok",
+    searchTerms: ["tiktok", "tik tok", "social", "video"],
+  }),
   el({
     id: "el-youtube",
     label: "YouTube Video",

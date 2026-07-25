@@ -6,6 +6,10 @@ import {
   STYLE_TOKEN_REF_PREFIX,
 } from "./style-token-bindings";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import {
+  SOCIAL_POST_PROVIDERS,
+  parseSocialPostUrl,
+} from "@/lib/social-embed/social-post-url";
 import type { BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
@@ -26,6 +30,10 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   "image",
   "video",
   "embed",
+  // Instagram / TikTok featured post. Renders the provider's own blockquote,
+  // hydrated by their embed.js — no oEmbed API call, no token. See
+  // lib/social-embed/social-post-url.ts for why.
+  "social_post",
   "icon",
   "pricing_table",
   "rich_text",
@@ -733,6 +741,28 @@ const embedPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+/**
+ * A social post is addressed by its CANONICAL url, which the inspector derives
+ * via parseSocialPostUrl (allow-listed host + strict id). Storing the canonical
+ * form — not the operator's raw paste — keeps tracking params and lookalike
+ * hosts out of published markup even if a future caller skips the parser.
+ */
+const socialPostPropsSchema = z.object({
+  provider: z.enum(SOCIAL_POST_PROVIDERS),
+  url: z
+    .string()
+    .url()
+    .max(2048)
+    .refine((value) => parseSocialPostUrl(value) !== null, {
+      message:
+        "Paste a full Instagram post/reel URL or a TikTok video URL (profile and story links cannot be embedded).",
+    }),
+  /** Optional operator caption shown above the embed. */
+  caption: z.string().max(280).optional(),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
 const iconPropsSchema = z.object({
   icon: z.enum(BUILDER_ICON_NAMES),
   label: z.string().max(160).optional(),
@@ -1106,6 +1136,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       description: "Sandboxed iframe for video, maps, booking, or other embeds.",
       children: { type: "none" },
       propsSchema: embedPropsSchema,
+    },
+    social_post: {
+      kind: "social_post",
+      label: "Social post",
+      description:
+        "Feature one Instagram or TikTok post. Paste the post URL — it renders with the provider's own embed.",
+      children: { type: "none" },
+      propsSchema: socialPostPropsSchema,
     },
     icon: {
       kind: "icon",

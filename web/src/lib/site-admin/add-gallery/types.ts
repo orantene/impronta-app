@@ -78,7 +78,9 @@ export type AddGalleryNativeVariant =
   | "cta-card"
   | "download-link"
   | "breadcrumb"
-  | "youtube";
+  | "youtube"
+  | "instagram"
+  | "tiktok";
 
 export interface AddGalleryItem {
   id: string;

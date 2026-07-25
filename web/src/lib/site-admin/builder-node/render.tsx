@@ -2,6 +2,10 @@ import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { Fragment, cloneElement, isValidElement, memo } from "react";
 
 import { nodeScopedCss } from "@/lib/site-admin/sections/shared/scoped-custom-css";
+import {
+  SOCIAL_POST_EMBED_SCRIPTS,
+  parseSocialPostUrl,
+} from "@/lib/social-embed/social-post-url";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
@@ -4085,6 +4089,108 @@ function renderBuilderNodeElement(
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "16:9"],
           })}
         />
+      );
+    }
+    case "social_post": {
+      // Renders the provider's OWN blockquote, which their embed.js upgrades to
+      // a full post in-place. No oEmbed API call, no token — see
+      // lib/social-embed/social-post-url.ts for why that matters.
+      //
+      // The url is re-parsed at RENDER time rather than trusted from props: the
+      // schema validates on write, but published trees can predate a rule change
+      // or arrive from an import, and this string goes into public markup.
+      const parsed = parseSocialPostUrl(node.props.url);
+      if (!parsed) {
+        // A freshly inserted block has no URL yet. Rendering null would make it
+        // INVISIBLE on the canvas — inserted, unselectable, apparently a no-op.
+        // Show a placeholder while authoring; publish nothing.
+        if (!options.contentLocale?.editorPreview) return null;
+        const providerLabel =
+          node.props.provider === "tiktok" ? "TikTok" : "Instagram";
+        return (
+          <div
+            key={node.id}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            data-social-post-empty=""
+            {...builderNodeStyleAttrs(node.props.style)}
+            className="site-builder-node site-builder-node--social-post"
+            style={inlineNodeStyle(node.props.style, {
+              display: "grid",
+              placeItems: "center",
+              minHeight: 220,
+              padding: 24,
+              border: "1px dashed rgba(24,24,27,0.28)",
+              borderRadius: 12,
+              textAlign: "center",
+              color: "rgba(24,24,27,0.60)",
+              fontSize: 13,
+              lineHeight: 1.5,
+            })}
+          >
+            <span>
+              {`Paste a ${providerLabel} ${
+                node.props.provider === "tiktok" ? "video" : "post or reel"
+              } URL in the Content panel to show it here.`}
+            </span>
+          </div>
+        );
+      }
+      const caption = resolveNodeLocalizedText(
+        node,
+        "caption",
+        node.props.caption ?? "",
+        options.contentLocale,
+      ).value;
+      const common = {
+        key: node.id,
+        "data-builder-node-id": node.id,
+        "data-builder-node-kind": node.kind,
+        "data-social-post-provider": parsed.provider,
+        ...builderNodeStyleAttrs(node.props.style),
+      };
+      // The <script> is emitted beside the blockquote instead of in <head>:
+      // both providers' embed.js scan for un-hydrated blockquotes on load AND
+      // expose a re-scan hook, so a per-block tag keeps the block
+      // self-contained (it works when inserted into an already-loaded page).
+      return (
+        <div
+          {...common}
+          className="site-builder-node site-builder-node--social-post"
+          style={inlineNodeStyle(node.props.style)}
+        >
+          {caption ? (
+            <p className="site-builder-node--social-post__caption">{caption}</p>
+          ) : null}
+          {parsed.provider === "instagram" ? (
+            <blockquote
+              className="instagram-media"
+              data-instgrm-permalink={parsed.canonicalUrl}
+              data-instgrm-version="14"
+              style={{ maxWidth: "100%", width: "100%", margin: 0 }}
+            >
+              <a href={parsed.canonicalUrl} rel="noopener noreferrer" target="_blank">
+                View this post on Instagram
+              </a>
+            </blockquote>
+          ) : (
+            <blockquote
+              className="tiktok-embed"
+              cite={parsed.canonicalUrl}
+              data-video-id={parsed.id}
+              style={{ maxWidth: "100%", width: "100%", margin: 0 }}
+            >
+              <a
+                href={parsed.canonicalUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {parsed.handle ? `@${parsed.handle}` : "View on TikTok"}
+              </a>
+            </blockquote>
+          )}
+          <script async src={SOCIAL_POST_EMBED_SCRIPTS[parsed.provider]} />
+        </div>
       );
     }
     case "icon": {
