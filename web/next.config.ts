@@ -137,6 +137,15 @@ const builderEmbedCsp = {
     "https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://calendly.com https://*.calendly.com",
 };
 
+// Instagram / TikTok post embeds (lib/social-embed/social-post-url.ts). Both
+// providers hydrate a <blockquote> from their own embed.js, so each needs a
+// script-src AND a frame-src host. A missing directive fails SILENTLY — the
+// blockquote simply never hydrates and the block renders blank.
+const socialPostCsp = {
+  script: "https://www.instagram.com https://www.tiktok.com",
+  frame: "https://www.instagram.com https://www.tiktok.com",
+};
+
 // Talent featured-media safe embeds (lib/talent-integrations/media-embed.ts).
 // YouTube/Vimeo are already covered by builderEmbedCsp; Spotify + SoundCloud
 // players need their own frame-src hosts.
@@ -160,13 +169,13 @@ function contentSecurityPolicy(): string {
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
     `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
-    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame}`,
+    `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
     /** Maps workers use blob: URLs; service worker needs 'self'. */
     "worker-src 'self' blob:",
     "frame-ancestors 'self'",
