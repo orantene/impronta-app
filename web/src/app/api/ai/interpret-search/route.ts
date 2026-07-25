@@ -8,6 +8,7 @@ import {
   type RawModelIntent,
 } from "@/lib/ai/validate-interpret-intent";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { finalizeInterpretFilters } from "@/lib/ai/finalize-interpret-filters";
 import { pruneInterpretTermsToTenantRoster } from "@/lib/ai/prune-interpret-terms";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getPublicSettings } from "@/lib/public-settings";
@@ -161,6 +162,25 @@ export async function POST(request: Request) {
         ? q
         : mapped.query);
 
+    // Result-aware finalize: gender → canonical facet, residual free text
+    // dropped when structured terms exist, and over-strict combinations
+    // relaxed against real counts until the query matches someone.
+    const finalized = svc
+      ? await finalizeInterpretFilters(svc, tenantId, locale, {
+          taxonomyTermIds: prunedTermIds,
+          query: prunedQuery,
+          locationSlug: mapped.locationSlug,
+          heightMinCm: mapped.heightMinCm,
+          heightMaxCm: mapped.heightMaxCm,
+          ageMin: mapped.ageMin,
+          ageMax: mapped.ageMax,
+          genderPreference:
+            typeof mapped.parsedIntent?.gender_preference === "string"
+              ? mapped.parsedIntent.gender_preference
+              : "",
+        })
+      : null;
+
     insertAiSearchLog({
       tenantId,
       rawQuery: q,
@@ -180,14 +200,18 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      taxonomyTermIds: prunedTermIds,
-      locationSlug: mapped.locationSlug,
-      query: prunedQuery,
+      // NOTE: explicit ternaries, not `??` — a RELAXED value is often null
+      // (ranges dropped) and must not fall back to the over-strict original.
+      taxonomyTermIds: finalized ? finalized.taxonomyTermIds : prunedTermIds,
+      locationSlug: finalized ? finalized.locationSlug : mapped.locationSlug,
+      query: finalized ? finalized.query : prunedQuery,
       normalizedSummary: mapped.normalizedSummary,
-      heightMinCm: mapped.heightMinCm,
-      heightMaxCm: mapped.heightMaxCm,
-      ageMin: mapped.ageMin,
-      ageMax: mapped.ageMax,
+      heightMinCm: finalized ? finalized.heightMinCm : mapped.heightMinCm,
+      heightMaxCm: finalized ? finalized.heightMaxCm : mapped.heightMaxCm,
+      ageMin: finalized ? finalized.ageMin : mapped.ageMin,
+      ageMax: finalized ? finalized.ageMax : mapped.ageMax,
+      fieldFacets: finalized?.fieldFacets ?? [],
+      relaxationsApplied: finalized?.relaxationsApplied ?? [],
       parsedIntent: mapped.parsedIntent,
       usedInterpreter: usedModel,
       ...(interpretFailureCode != null
