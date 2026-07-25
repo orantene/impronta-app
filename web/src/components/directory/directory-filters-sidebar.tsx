@@ -378,6 +378,18 @@ function SectionAccordion({
   );
 }
 
+/**
+ * Collapsed lists fade their cut-off row instead of ending on a hard edge.
+ *
+ * This is a MASK, not a painted gradient: the previous overlay filled
+ * `from-background` (near-black) on top of the chips, which read as a black
+ * slab above the SHOW ALL button and left the last row looking washed out on
+ * any surface that isn't exactly `--background`. Masking fades the content to
+ * transparent, so it works on every backdrop and never dims a label.
+ */
+const COLLAPSE_FADE_MASK =
+  "linear-gradient(to bottom, #000 calc(100% - 2.25rem), transparent 100%)";
+
 function ExpandableChips({
   optionCount,
   forceExpanded,
@@ -410,15 +422,14 @@ function ExpandableChips({
           ease: [0.16, 1, 0.3, 1],
         }}
         className="overflow-hidden"
+        style={
+          needs && !showAll
+            ? { maskImage: COLLAPSE_FADE_MASK, WebkitMaskImage: COLLAPSE_FADE_MASK }
+            : undefined
+        }
       >
         {children}
       </motion.div>
-      {needs && !showAll ? (
-        <div
-          className="pointer-events-none absolute bottom-8 left-0 right-0 h-12 bg-gradient-to-t from-background via-background/85 to-transparent"
-          aria-hidden
-        />
-      ) : null}
       {needs ? (
         <button
           type="button"
@@ -474,15 +485,14 @@ function ExpandableGrid({
           ease: [0.16, 1, 0.3, 1],
         }}
         className="overflow-hidden"
+        style={
+          needs && !showAll
+            ? { maskImage: COLLAPSE_FADE_MASK, WebkitMaskImage: COLLAPSE_FADE_MASK }
+            : undefined
+        }
       >
         {children}
       </motion.div>
-      {needs && !showAll ? (
-        <div
-          className="pointer-events-none absolute bottom-8 left-0 right-0 h-10 bg-gradient-to-t from-background via-background/85 to-transparent"
-          aria-hidden
-        />
-      ) : null}
       {needs ? (
         <button
           type="button"
