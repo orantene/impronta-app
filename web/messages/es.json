@@ -4110,7 +4110,7 @@
       "talentTypesLabel": "Tipos de Talent y campos del catálogo",
       "talentTypesDesc": "Categorías en vivo, privacidad de campos y reglas de campos de perfil para tu lista.",
       "categoriesOnSite": "Categorías en tu sitio",
-      "categoriesOnSiteMeta": "Taxonomía en vivo de Tulala · habilitada para el registro y el directorio de Impronta",
+      "categoriesOnSiteMeta": "Taxonomía en vivo de Tulala · habilitada para el registro y el directorio de {workspace}",
       "fieldPrivacy": "Privacidad de campos",
       "fieldPrivacyMeta": "Visibilidad resuelta para el sitio público, la vista de admin, el registro y los campos ocultos",
       "fieldCatalog": "Catálogo de campos",
