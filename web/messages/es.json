@@ -575,7 +575,8 @@
           "noMappableTitle": "Aún no hay talento en el mapa",
           "noMappableFreeText": "Los perfiles necesitan una ciudad estructurada para aparecer en el mapa. {count} solo tienen ubicación de texto libre.",
           "noMappableNone": "Ningún talento de este filtro tiene ciudad asignada todavía.",
-          "backToGrid": "Volver a la cuadrícula"
+          "backToGrid": "Volver a la cuadrícula",
+          "cityFilterGroup": "Filtrar por ciudad"
         }
       }
     },
