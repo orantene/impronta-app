@@ -79,7 +79,7 @@ import {
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
-import { resolveGoverningTenantIdForTalent } from "@/lib/saas/talent-roster";
+import { resolvePublicProfileOverrideTenantId } from "@/lib/saas/talent-roster";
 import {
   ALLOW_ALL_TAXONOMY_VISIBILITY,
   loadTenantTaxonomyVisibility,
@@ -269,24 +269,44 @@ function originLabel(locale: string, p: TalentProfile): string {
 }
 
 /**
- * Tenant category overrides for THIS talent's public profile.
+ * THE tenant whose overrides govern this talent's public profile on this host.
  *
- * Keyed on the surface tenant when we are on an agency host, and otherwise on
- * the talent's governing roster tenant — which is exactly the tenant the
- * field-engine overrides above already use. Without the roster fallback the hub
- * host (`hostCtx.tenantId === null`) would keep showing a category the agency
- * disabled, so hub and tenant host would disagree.
+ * One resolution for every override-keyed read on this page — field values,
+ * category visibility, and sidebar SECTION visibility — so the three cannot
+ * disagree. On an agency host it is the surface tenant (unchanged behaviour);
+ * everywhere else (hub / talent site / unknown) it is the talent's governing
+ * roster tenant.
+ *
+ * NOTE `hostCtx.tenantId` is NOT null on the hub: `kind: "hub"` carries the hub
+ * agency's OWN tenant id, which has no authority over a roster talent's fields.
+ * Passing it through was the bug — the hub applied the hub agency's field
+ * settings to sections whose VALUES had been resolved against the roster tenant.
  */
-async function loadProfileTaxonomyVisibility(
+async function resolveProfileOverrideTenantId(
   hostCtx: Awaited<ReturnType<typeof getPublicHostContext>>,
   talentProfileId: string,
+): Promise<string | null> {
+  const svc = createServiceRoleClient();
+  if (!svc) return null;
+  return resolvePublicProfileOverrideTenantId(
+    svc,
+    hostCtx.kind === "agency" ? hostCtx.tenantId : null,
+    talentProfileId,
+  );
+}
+
+/**
+ * Tenant category overrides for THIS talent's public profile, keyed on the
+ * tenant `resolveProfileOverrideTenantId` picked. A null tenant (unaffiliated
+ * talent, or no service client) means "no tenant overrides" — canonical
+ * defaults, which is allow-all for categories.
+ */
+async function loadProfileTaxonomyVisibility(
+  tenantId: string | null,
 ): Promise<TenantTaxonomyVisibility> {
+  if (!tenantId) return ALLOW_ALL_TAXONOMY_VISIBILITY;
   const svc = createServiceRoleClient();
   if (!svc) return ALLOW_ALL_TAXONOMY_VISIBILITY;
-  const tenantId =
-    (hostCtx.kind === "agency" ? hostCtx.tenantId : null) ??
-    (await resolveGoverningTenantIdForTalent(svc, talentProfileId));
-  if (!tenantId) return ALLOW_ALL_TAXONOMY_VISIBILITY;
   return loadTenantTaxonomyVisibility(svc, tenantId);
 }
 
@@ -1376,8 +1396,7 @@ export async function generateMetadata({
   // search engines from there). With every category hidden the title degrades to
   // the same generic "Talent" an untagged profile already uses.
   const metadataTaxonomyVisibility = await loadProfileTaxonomyVisibility(
-    hostCtx,
-    profile.id,
+    await resolveProfileOverrideTenantId(hostCtx, profile.id),
   );
   const talentType =
     primaryTalentType(
@@ -1558,7 +1577,10 @@ export default async function PublicTalentProfilePage({
   // Everything category-derived below — discipline chips, the primary role line,
   // service discipline labels, JSON-LD jobTitle — funnels through this so a
   // disabled category disappears from the public profile, not just the directory.
-  const taxonomyVisibility = await loadProfileTaxonomyVisibility(hostCtx, profile.id);
+  // THE governing tenant for every override-keyed read below (categories,
+  // field values, sidebar sections). Resolved once so they cannot disagree.
+  const overrideTenantId = await resolveProfileOverrideTenantId(hostCtx, profile.id);
+  const taxonomyVisibility = await loadProfileTaxonomyVisibility(overrideTenantId);
 
   const fieldValues = await fetchPublicFieldValues(fieldValuesClient, profile.id);
   type DetailEntry = {
@@ -1957,9 +1979,16 @@ export default async function PublicTalentProfilePage({
   // (legacy fallback, preserved inside the reader). The `skills` section stays
   // hidden under both stores (canonical `skills` row is deprecated). A B-read
   // throw safe-falls-back to A. See read-source-public-sidebar.ts.
+  //
+  // Keyed on `overrideTenantId` — the SAME tenant whose overrides produced the
+  // field VALUES rendered inside these sections — not on `hostCtx.tenantId`.
+  // On the hub host `hostCtx.tenantId` is the HUB agency's own tenant, so the
+  // section gates were being decided by a tenant that has no authority over
+  // this talent while the values inside them came from the roster tenant: hub
+  // and tenant host could show different sections for the same profile.
   const fieldVisibility = await readPublicSidebarVisibility(
     pub,
-    hostCtx.tenantId,
+    overrideTenantId,
   );
   // ── New data: talent skills + availability ─────────────────────────────────
   const [resolvedSkills, publicAvailability, maxSiteLink] = pub
