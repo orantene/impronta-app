@@ -40,6 +40,7 @@ import { DirectoryReactiveGrid } from "./DirectoryReactiveGrid";
 import { DirectoryMapView } from "./DirectoryMapView";
 import type { DirectoryCategoryParent } from "@/lib/directory/directory-category-tree";
 import type { DirectoryV1 } from "./schema";
+import { mapDirectoryDefaultSort } from "./default-sort";
 
 /**
  * Top-bar facet model shape (mirrors `DirectoryTopBarFacetModel` without
@@ -70,6 +71,7 @@ export type DirectoryTopBarFacetPropShape = {
  */
 export function DirectoryReactiveResults({
   initialPage,
+  seedSignature,
   mapApiKey,
   categoryTree,
   locale,
@@ -109,6 +111,8 @@ export function DirectoryReactiveResults({
 }: {
   /** Server-fetched first page (unfiltered for the section scope). */
   initialPage: DirectoryPageResponse;
+  /** Signature of the request the SERVER seeded (see directorySeedSignature). */
+  seedSignature: string;
   /** Google Maps browser key for the map view (null when unconfigured). */
   mapApiKey?: string | null;
   /** Two-level parent→child category model for the top bar (empty = flat). */
@@ -172,6 +176,7 @@ export function DirectoryReactiveResults({
       <Suspense fallback={null}>
         <DirectoryReactiveResultsInner
           initialPage={initialPage}
+          seedSignature={seedSignature}
           mapApiKey={mapApiKey}
           categoryTree={categoryTree}
           locale={locale}
@@ -221,15 +226,10 @@ export function DirectoryReactiveResults({
  * (honest: they're surfaced in the editor but not yet a sort key on the
  * directory engine).
  */
-function mapDefaultSort(s: DirectoryV1["defaultSort"]): DirectorySortValue {
-  if (s === "newest") return "recent";
-  if (s === "recommended") return "recommended";
-  // az / availability / curated → fall back honestly to recommended
-  return "recommended";
-}
 
 function DirectoryReactiveResultsInner({
   initialPage,
+  seedSignature,
   mapApiKey,
   categoryTree,
   locale,
@@ -268,6 +268,8 @@ function DirectoryReactiveResultsInner({
   columnsMobile,
 }: {
   initialPage: DirectoryPageResponse;
+  /** Signature of the request the SERVER seeded (see directorySeedSignature). */
+  seedSignature: string;
   mapApiKey?: string | null;
   categoryTree?: DirectoryCategoryParent[];
   locale: "en" | "es";
@@ -333,7 +335,7 @@ function DirectoryReactiveResultsInner({
     sp.get("sort") &&
     DIRECTORY_SORT_VALUES.includes(sp.get("sort") as DirectorySortValue)
       ? parseDirectorySort(record.sort)
-      : mapDefaultSort(defaultSort);
+      : mapDirectoryDefaultSort(defaultSort);
   const query = parseDirectoryQuery(record.q);
   const locationSlug = parseDirectoryLocation(record.location);
   const { heightMinCm, heightMaxCm } = parseDirectoryHeightRange({
@@ -602,6 +604,7 @@ function DirectoryReactiveResultsInner({
             <DirectoryReactiveGrid
               taxonomyTermIds={taxonomyTermIds}
               initialPage={initialPage}
+              seedSignature={seedSignature}
               locale={locale}
               sort={sort}
               query={query}

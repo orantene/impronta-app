@@ -316,3 +316,109 @@ export function applyCanonicalDirectoryFetchSearchParams(
   }
   canonicalizeDirectorySearchParams(params);
 }
+
+
+// --- SSR seeding: shared URL to filters parse + seed signature ---
+
+/**
+ * Flatten `URLSearchParams` into the `Record<string, string | string[]>`
+ * shape every `parseDirectory*` helper already accepts. Repeated keys (`ff`)
+ * collapse to an array, matching what a Next page's `searchParams` provides.
+ */
+export function searchParamsToDirectoryRecord(
+  sp: URLSearchParams,
+): Record<string, string | string[] | undefined> {
+  const record: Record<string, string | string[] | undefined> = {};
+  sp.forEach((value, key) => {
+    const existing = record[key];
+    if (existing === undefined) record[key] = value;
+    else if (Array.isArray(existing)) existing.push(value);
+    else record[key] = [existing, value];
+  });
+  return record;
+}
+
+export type DirectoryListingFilters = {
+  taxonomyTermIds: string[];
+  query: string;
+  locationSlug: string;
+  heightMinCm: number | null;
+  heightMaxCm: number | null;
+  ageMin: number | null;
+  ageMax: number | null;
+  fieldFacets: DirectoryFieldFacetSelection[];
+  /** Raw `sort` param when it is an engine-valid value, else null. */
+  sortRaw: DirectorySortValue | null;
+};
+
+/**
+ * Parse the directory listing filters out of a URL record. Used by the SERVER
+ * section (to seed the first page from a deep link) and mirrored by the client
+ * island, so both describe the same request.
+ */
+export function parseDirectoryListingFilters(
+  record: Record<string, string | string[] | undefined>,
+): DirectoryListingFilters {
+  const { heightMinCm, heightMaxCm } = parseDirectoryHeightRange({
+    hmin: record.hmin,
+    hmax: record.hmax,
+  });
+  const { ageMin, ageMax } = parseDirectoryAgeRange({
+    amin: record.amin,
+    amax: record.amax,
+  });
+  const rawSort = Array.isArray(record.sort) ? record.sort[0] : record.sort;
+  return {
+    taxonomyTermIds: parseTaxonomyParam(record.tax),
+    query: parseDirectoryQuery(record.q),
+    locationSlug: parseDirectoryLocation(record.location),
+    heightMinCm,
+    heightMaxCm,
+    ageMin,
+    ageMax,
+    fieldFacets: parseDirectoryFieldFacets(record.ff),
+    sortRaw:
+      rawSort && DIRECTORY_SORT_VALUES.includes(rawSort as DirectorySortValue)
+        ? (rawSort as DirectorySortValue)
+        : null,
+  };
+}
+
+/**
+ * Canonical description of the request a rendered first page represents.
+ *
+ * The server stamps this from the params it actually seeded with; the client
+ * grid recomputes it from the live URL and only adopts the SSR rows when the
+ * two match. Without it the client either throws the seed away (refetch +
+ * flash) or, worse, reuses it under a different filter (wrong results).
+ *
+ * Deliberately excludes `view`: grid and list render the same page payload,
+ * and the map view fetches its own full set.
+ */
+export function directorySeedSignature(input: {
+  aiSearch: boolean;
+  taxonomyTermIds: string[];
+  fieldFacets: DirectoryFieldFacetSelection[];
+  locale: string;
+  sort: DirectorySortValue;
+  query: string;
+  locationSlug: string;
+  heightMinCm: number | null;
+  heightMaxCm: number | null;
+  ageMin: number | null;
+  ageMax: number | null;
+}): string {
+  return [
+    input.aiSearch ? "ai" : "classic",
+    [...input.taxonomyTermIds].filter(Boolean).sort().join(","),
+    serializeDirectoryFieldFacetParams(input.fieldFacets).join("|"),
+    input.locale,
+    input.sort,
+    input.query.trim(),
+    input.locationSlug.trim(),
+    input.heightMinCm ?? "",
+    input.heightMaxCm ?? "",
+    input.ageMin ?? "",
+    input.ageMax ?? "",
+  ].join("\u0001");
+}
