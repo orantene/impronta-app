@@ -78,7 +78,7 @@ export function sourceLabel(
   const b = f.brought_in_by;
   if (b.kind === "tier") return tier;
   if (b.kind === "group") {
-    return `${tier} · ${t("via the {group} group").replace("{group}", f.field_group_label ?? b.group_slug)}`;
+    return `${tier} · ${t("via {group} group").replace("{group}", f.field_group_label ?? b.group_slug)}`;
   }
   return `${tier} · ${t("via talent-type recommendation")}`;
 }

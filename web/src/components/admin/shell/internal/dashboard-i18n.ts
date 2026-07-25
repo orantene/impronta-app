@@ -3092,7 +3092,7 @@ const ES_TEXT: Record<string, string> = {
   "No value stored yet": "Todavía no hay ningún valor guardado",
   "Required before publish": "Obligatorio antes de publicar",
   "Why this field appears for this talent": "Por qué aparece este campo para este talento",
-  "via the {group} group": "por el grupo {group}",
+  "via {group} group": "por el grupo {group}",
   "via talent-type recommendation": "por recomendación del tipo de talento",
   "{role} sees · {visibility}": "{role} ve · {visibility}",
   "Hidden from {role} · {visibility}": "Oculto para {role} · {visibility}",
