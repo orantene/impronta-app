@@ -127,3 +127,29 @@ export async function assertAllTalentOnTenantRoster(
   if (missing.length === 0) return { ok: true };
   return { ok: false, missingIds: missing };
 }
+
+/**
+ * The tenant that GOVERNS a talent's presentation when no surface tenant is
+ * available (the hub / platform host, where `hostCtx.tenantId` is null).
+ *
+ * This mirrors, verbatim, the roster lookup the public profile already uses to
+ * resolve field-engine overrides (`fetchPublicFieldValues`), so category
+ * overrides and field overrides key on the SAME tenant instead of disagreeing
+ * between the hub host and the tenant host. Returns null when the talent is on
+ * no active roster (an unaffiliated freelancer — nobody overrides them).
+ */
+export async function resolveGoverningTenantIdForTalent(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<string | null> {
+  if (!talentProfileId) return null;
+  const { data, error } = await supabase
+    .from("agency_talent_roster")
+    .select("tenant_id")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return (data as { tenant_id?: string } | null)?.tenant_id ?? null;
+}

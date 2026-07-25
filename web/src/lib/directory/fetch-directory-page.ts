@@ -41,7 +41,10 @@ import {
 } from "@/lib/directory/apply-directory-field-facet-filters";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
-import { resolveTenantSafeDirectoryTaxonomyTermIds } from "@/lib/directory/taxonomy-tenant-safety";
+import {
+  loadTenantTaxonomyVisibility,
+  resolveTenantSafeDirectoryTaxonomyTermIds,
+} from "@/lib/directory/taxonomy-tenant-safety";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 
 /**
@@ -972,11 +975,60 @@ export async function fetchDirectoryPage(
     }
   }
 
+  // Tenant category overrides — strip terms the tenant disabled BEFORE the card
+  // DTO is built, so a disabled category cannot surface as the card's role line,
+  // a fit label, or a taxonomy card attribute. A card whose every term is hidden
+  // simply renders without a role line (the DTO already tolerates a null
+  // primary type); the card itself still lists, because roster membership — not
+  // the category display override — decides who appears.
+  const cardTaxonomyVisibility = await auditTime(
+    audit,
+    timings,
+    "cardTaxonomyVisibilityMs",
+    () => loadTenantTaxonomyVisibility(supabase, tenantScopeId),
+  );
+
   const taxonomyByProfile = new Map<string, TaxonomyAssignmentRow[]>();
+  /** Profiles whose PRIMARY role row was dropped by the tenant override. */
+  const lostPrimaryRole = new Set<string>();
   for (const row of (taxonomyRowsRes.data ?? []) as TaxonomyAssignmentRow[]) {
+    if (!cardTaxonomyVisibility.unrestricted) {
+      const embedded = row.taxonomy_terms
+        ? Array.isArray(row.taxonomy_terms)
+          ? row.taxonomy_terms
+          : [row.taxonomy_terms]
+        : [];
+      const visible = embedded.filter((term) =>
+        cardTaxonomyVisibility.isTermVisible(term?.id),
+      );
+      if (visible.length === 0) {
+        if (row.is_primary) lostPrimaryRole.add(row.talent_profile_id);
+        continue;
+      }
+      row.taxonomy_terms = visible;
+    }
     const items = taxonomyByProfile.get(row.talent_profile_id) ?? [];
     items.push(row);
     taxonomyByProfile.set(row.talent_profile_id, items);
+  }
+
+  // When the override removed the talent's PRIMARY role, promote the first
+  // surviving talent_type so the card falls back to a real remaining category
+  // instead of the generic label — matching how the public profile's
+  // `primaryTalentType()` falls through to a non-primary term. Talent who
+  // simply never had a primary role are untouched (nothing was lost for them).
+  for (const profileId of lostPrimaryRole) {
+    const rows = taxonomyByProfile.get(profileId);
+    if (!rows || rows.some((r) => r.is_primary)) continue;
+    const promotable = rows.find((r) => {
+      const terms = r.taxonomy_terms
+        ? Array.isArray(r.taxonomy_terms)
+          ? r.taxonomy_terms
+          : [r.taxonomy_terms]
+        : [];
+      return terms.some((term) => term?.kind === "talent_type");
+    });
+    if (promotable) promotable.is_primary = true;
   }
 
   const mediaByProfile = new Map<string, MediaRow[]>();

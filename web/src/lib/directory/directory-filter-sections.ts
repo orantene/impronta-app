@@ -18,6 +18,7 @@ import {
 } from "@/lib/directory/directory-sidebar-layout";
 import { DIRECTORY_CANONICAL_GENDER_FIELD_KEY } from "@/lib/directory/apply-directory-field-facet-filters";
 import { loadDirectoryFacetConfigByLegacyKey } from "@/lib/field-engine/read-source-directory-facet-config";
+import { loadTenantTaxonomyVisibility } from "@/lib/directory/taxonomy-tenant-safety";
 import {
   compareFieldCatalogOrder,
   pickLabel,
@@ -263,8 +264,14 @@ async function loadDirectoryFilterSectionsUncached(
     return { blocks: [] };
   }
 
+  // Tenant category overrides — a term the tenant disabled must not be offered
+  // as a sidebar facet option (clicking it would return nobody anyway, since
+  // `resolveTenantSafeDirectoryTaxonomyTermIds` strips it from `?tax=`).
+  const taxonomyVisibility = await loadTenantTaxonomyVisibility(supabase, tenantId);
+
   const taxonomyByKind = new Map<string, { id: string; label: string }[]>();
   for (const row of (taxonomyRes.data ?? []) as TaxonomyTermRow[]) {
+    if (!taxonomyVisibility.isTermVisible(row.id)) continue;
     const list = taxonomyByKind.get(row.kind) ?? [];
     list.push({
       id: row.id,

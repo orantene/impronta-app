@@ -2,11 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ALLOW_ALL_TAXONOMY_VISIBILITY,
   filterTaxonomyTermIdsByTenantDirectorySafety,
+  isTaxonomyTermVisibleForTenant,
   selectDirectoryMatchLeafTermIds,
   type DirectoryTaxonomySafetySetting,
   type DirectoryTaxonomySafetyTerm,
 } from "@/lib/directory/taxonomy-tenant-safety";
+import { buildTalentProfileJsonLd } from "@/lib/seo/talent-json-ld";
 
 function terms(rows: DirectoryTaxonomySafetyTerm[]) {
   return new Map(rows.map((row) => [row.id, row] as const));
@@ -72,6 +75,106 @@ test("directory taxonomy safety hides terms removed from directory but still ena
   });
 
   assert.deepEqual(result, []);
+});
+
+// ── isTaxonomyTermVisibleForTenant — THE shared predicate behind every public
+//    DISPLAY surface (directory category bar, sidebar facets, card chips, the
+//    public profile). Filter input fails CLOSED on an unknown id; display
+//    filtering fails OPEN, because the display maps only carry the tenant's
+//    hidden subtrees. ────────────────────────────────────────────────────────
+
+test("display filtering fails OPEN for a term outside the tenant's hidden subtrees", () => {
+  // The loader only materialises the disabled roots + their descendants; a term
+  // the tenant never overrode is absent from the map and must still show.
+  const visible = isTaxonomyTermVisibleForTenant(
+    "host",
+    terms([{ id: "dancer", parent_id: null }]),
+    settings([{ taxonomy_term_id: "dancer", is_enabled: false, show_in_directory: null }]),
+    { unknownTermVisible: true },
+  );
+  assert.equal(visible, true);
+});
+
+test("filter input fails CLOSED for an unresolvable term id", () => {
+  const visible = isTaxonomyTermVisibleForTenant(
+    "not-a-real-term",
+    terms([{ id: "dancer", parent_id: null }]),
+    settings([]),
+  );
+  assert.equal(visible, false);
+});
+
+test("display filtering hides a descendant of a disabled category root", () => {
+  const termsById = terms([
+    { id: "performers", parent_id: null },
+    { id: "dance", parent_id: "performers" },
+    { id: "salsa-dancer", parent_id: "dance" },
+  ]);
+  const settingsById = settings([
+    { taxonomy_term_id: "performers", is_enabled: false, show_in_directory: null },
+  ]);
+  for (const id of ["performers", "dance", "salsa-dancer"]) {
+    assert.equal(
+      isTaxonomyTermVisibleForTenant(id, termsById, settingsById, {
+        unknownTermVisible: true,
+      }),
+      false,
+      `${id} must be hidden under a disabled root`,
+    );
+  }
+});
+
+test("the allow-all visibility object shows every term", () => {
+  assert.equal(ALLOW_ALL_TAXONOMY_VISIBILITY.isTermVisible("anything"), true);
+  assert.equal(ALLOW_ALL_TAXONOMY_VISIBILITY.unrestricted, true);
+});
+
+// ── HAZARD: a talent whose EVERY category the tenant disabled. The surfaces
+//    must degrade to a documented fallback, never to empty markup. ───────────
+
+test("a talent whose every category is disabled resolves to zero visible terms", () => {
+  const termsById = terms([
+    { id: "performers", parent_id: null },
+    { id: "dancer", parent_id: "performers" },
+  ]);
+  const settingsById = settings([
+    { taxonomy_term_id: "performers", is_enabled: false, show_in_directory: null },
+  ]);
+  // "Dancer" is this talent's ONLY tag.
+  const visibleTermIds = ["dancer"].filter((id) =>
+    isTaxonomyTermVisibleForTenant(id, termsById, settingsById, {
+      unknownTermVisible: true,
+    }),
+  );
+  assert.deepEqual(visibleTermIds, []);
+  // Contract for the callers: an empty list yields NO chips and a null primary
+  // type — never a chip with an empty label.
+  assert.equal(visibleTermIds.length === 0 ? null : visibleTermIds[0], null);
+});
+
+test("JSON-LD OMITS jobTitle entirely when every category is hidden", () => {
+  // The deliberate fallback: `primaryTalentType()` returns null, and the
+  // profile emits a Person with no `jobTitle` key rather than `jobTitle: ""`.
+  const jsonLd = buildTalentProfileJsonLd({
+    canonicalUrl: "https://example.test/t/TAL-1",
+    name: "Ada Talent",
+    jobTitle: null,
+    inLanguage: "en",
+  }) as { mainEntity: Record<string, unknown> };
+
+  assert.equal("jobTitle" in jsonLd.mainEntity, false);
+  assert.equal(jsonLd.mainEntity.name, "Ada Talent");
+});
+
+test("JSON-LD keeps jobTitle when a category survives the tenant override", () => {
+  const jsonLd = buildTalentProfileJsonLd({
+    canonicalUrl: "https://example.test/t/TAL-1",
+    name: "Ada Talent",
+    jobTitle: "Host",
+    inLanguage: "en",
+  }) as { mainEntity: Record<string, unknown> };
+
+  assert.equal(jsonLd.mainEntity.jobTitle, "Host");
 });
 
 // ── selectDirectoryMatchLeafTermIds — resolve a group filter to its tagged
