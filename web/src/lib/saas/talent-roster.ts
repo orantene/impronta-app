@@ -130,13 +130,29 @@ export async function assertAllTalentOnTenantRoster(
 
 /**
  * The tenant that GOVERNS a talent's presentation when no surface tenant is
- * available (the hub / platform host, where `hostCtx.tenantId` is null).
+ * available (the hub / platform / talent-site hosts, where the request carries
+ * no agency tenant of its own).
  *
- * This mirrors, verbatim, the roster lookup the public profile already uses to
- * resolve field-engine overrides (`fetchPublicFieldValues`), so category
- * overrides and field overrides key on the SAME tenant instead of disagreeing
- * between the hub host and the tenant host. Returns null when the talent is on
- * no active roster (an unaffiliated freelancer — nobody overrides them).
+ * This mirrors the roster lookup the public profile already uses to resolve
+ * field-engine overrides (`fetchPublicFieldValues`), so category overrides,
+ * field VALUE overrides and sidebar SECTION overrides all key on the SAME
+ * tenant instead of disagreeing between the hub host and the tenant host.
+ * Returns null when the talent is on no active roster (an unaffiliated
+ * freelancer — nobody has authority to override them).
+ *
+ * MULTI-TENANT talent: a talent can sit on several tenants' rosters at once, so
+ * "the" governing tenant has to be picked deterministically or the hub would
+ * render different sections on different requests (and disagree with itself
+ * across the unstable_cache TTL). The order is:
+ *   1. `is_primary` — the schema guarantees AT MOST ONE primary agency per
+ *      talent (`agency_talent_roster_talent_primary_uniq`), and primary is
+ *      already the platform's ownership/routing concept, so it is the right
+ *      answer whenever it is set.
+ *   2. `added_at` ascending — the establishing agency wins. Stable over time:
+ *      a later agency joining the roster cannot silently change what the hub
+ *      shows.
+ *   3. `id` ascending — total order, so the result never depends on Postgres
+ *      row order even for same-instant `added_at`.
  */
 export async function resolveGoverningTenantIdForTalent(
   supabase: SupabaseClient,
@@ -145,11 +161,41 @@ export async function resolveGoverningTenantIdForTalent(
   if (!talentProfileId) return null;
   const { data, error } = await supabase
     .from("agency_talent_roster")
-    .select("tenant_id")
+    .select("tenant_id, is_primary, added_at, id")
     .eq("talent_profile_id", talentProfileId)
     .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+    .order("is_primary", { ascending: false })
+    .order("added_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1);
   if (error) return null;
-  return (data as { tenant_id?: string } | null)?.tenant_id ?? null;
+  const rows = (data ?? []) as Array<{ tenant_id?: string }>;
+  return rows[0]?.tenant_id ?? null;
+}
+
+/**
+ * The tenant whose `workspace_profile_field_settings` / taxonomy overrides
+ * govern a talent's PUBLIC profile on the current host.
+ *
+ * Single source of truth for every override-keyed read on /t/[profileCode] —
+ * field values, category (taxonomy) visibility, and sidebar SECTION visibility
+ * all call this so they cannot disagree with one another.
+ *
+ * `surfaceTenantId` must be the tenant of an AGENCY host only. `getPublicHostContext`
+ * returns a non-null `tenantId` for `kind: "hub"` too — that is the hub agency's
+ * OWN tenant, which has no authority over a roster talent's profile — so callers
+ * pass `hostCtx.kind === "agency" ? hostCtx.tenantId : null`.
+ *
+ * Returns null when nothing governs (no agency host, no active roster row).
+ * Null means "canonical defaults, no tenant override", which is the same
+ * decision the values path already makes for an unaffiliated talent — NOT
+ * "show everything": the canonical safety floor still applies.
+ */
+export async function resolvePublicProfileOverrideTenantId(
+  supabase: SupabaseClient,
+  surfaceTenantId: string | null,
+  talentProfileId: string,
+): Promise<string | null> {
+  if (surfaceTenantId) return surfaceTenantId;
+  return resolveGoverningTenantIdForTalent(supabase, talentProfileId);
 }

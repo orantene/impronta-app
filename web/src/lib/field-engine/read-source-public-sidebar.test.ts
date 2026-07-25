@@ -191,3 +191,86 @@ test("order (HAZARD #1): A sort_order and B display_order sequences DIVERGE (non
   // render. The visibility flip (Proofs 1 & 2) does NOT touch order.
   assert.notDeepEqual(aSeq, bSeq);
 });
+
+// ── Proof 4 (2026-07-25): the section gate is keyed on the ROSTER tenant ──────
+//
+// `readPublicSidebarVisibility(pub, tenantId)` funnels each key through
+// `isResolvedFieldVisibleInPublicProfileSidebar`, whose only tenant input is
+// that `tenantId` — it selects the `workspace_profile_field_settings` rows
+// (`show_in_public_profile_sidebar_override`) that decide the six sections.
+//
+// page.tsx used to pass `hostCtx.tenantId`. That is the AGENCY tenant on an
+// agency host, but on the hub host `getPublicHostContext` returns `kind:"hub"`
+// carrying the HUB AGENCY's OWN tenant id — a tenant with no authority over a
+// roster talent — while the field VALUES rendered inside those sections were
+// already resolved against the talent's roster tenant. So the two hosts could
+// disagree about which sections exist, and a section an agency deliberately hid
+// stayed visible on the hub.
+//
+// The fix resolves ONE tenant (`resolveProfileOverrideTenantId`) and passes it
+// to the field-value reads, the category reads and this reader. These tests
+// model the resolver's tenant-keying and pin the host-agreement property.
+
+/** The per-key decision the canonical resolver makes, as a function of the
+ *  tenant whose override row applies. Mirrors the AND in
+ *  `isResolvedFieldVisibleInPublicProfileSidebar`: base guard ∧ isPublic ∧
+ *  (tenant override ?? canonical show_in_public_profile_sidebar). */
+function decisionForTenant(
+  key: string,
+  tenantId: string | null,
+  overridesByTenant: Record<string, Partial<Record<string, boolean>>>,
+): boolean {
+  const b = B_ROWS[key];
+  if (!b) return true; // missing key ⇒ "render all sections" fallback
+  if (b.deprecated) return false; // synthetic !active base guard
+  const override = tenantId ? overridesByTenant[tenantId]?.[key] : undefined;
+  return b.is_public && (override ?? b.show_in_public_profile_sidebar);
+}
+
+const ROSTER_TENANT = "roster-agency";
+const HUB_TENANT = "hub-agency";
+
+// The roster agency hid "Tags" in Settings → Roster & profile fields. The hub
+// agency has no override for it.
+const OVERRIDES: Record<string, Partial<Record<string, boolean>>> = {
+  [ROSTER_TENANT]: { tags: false },
+  [HUB_TENANT]: {},
+};
+
+test("tenant scoping: hub host and tenant host agree once both key on the roster tenant", () => {
+  const project = (tenantId: string | null) =>
+    Object.fromEntries(
+      PUBLIC_SIDEBAR_KEYS.map((k) => [k, decisionForTenant(k, tenantId, OVERRIDES)]),
+    );
+
+  // BEFORE: the hub passed its own tenant id ⇒ the agency's hide did not apply.
+  const buggyHub = project(HUB_TENANT);
+  const tenantHost = project(ROSTER_TENANT);
+  assert.notDeepEqual(
+    buggyHub,
+    tenantHost,
+    "the old hostCtx.tenantId keying must be observably wrong, or this test proves nothing",
+  );
+  assert.equal(buggyHub.tags, true, "hub leaked a section the agency hid");
+
+  // AFTER: both hosts resolve the roster tenant ⇒ identical section set.
+  assert.deepEqual(project(ROSTER_TENANT), tenantHost);
+  assert.equal(tenantHost.tags, false, "the agency's hide applies on both hosts");
+});
+
+test("tenant scoping: a talent on no active roster gets canonical defaults, not a stray tenant's hides", () => {
+  // No active roster row ⇒ resolver returns null ⇒ no override row is selected.
+  // Null means "canonical defaults", NOT "show everything": the deprecated
+  // `skills` section stays hidden by the canonical safety floor.
+  const noRoster = Object.fromEntries(
+    PUBLIC_SIDEBAR_KEYS.map((k) => [k, decisionForTenant(k, null, OVERRIDES)]),
+  );
+  assert.deepEqual(noRoster, {
+    fit_labels: true,
+    skills: false, // canonical floor still applies
+    languages: true,
+    industries: true,
+    event_types: true,
+    tags: true, // nobody has authority to hide an unaffiliated talent's section
+  });
+});
