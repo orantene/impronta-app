@@ -21,6 +21,8 @@ export function DirectoryResultsToolbar({
   filtersOpen,
   onToggleFilters,
   activeFilterCount = 0,
+  showSort = true,
+  showResultCount = true,
 }: {
   totalCount: number;
   sort: DirectorySortValue;
@@ -32,6 +34,9 @@ export function DirectoryResultsToolbar({
   onToggleFilters?: () => void;
   /** Number of active filter facets — shown as a badge on the toggle. */
   activeFilterCount?: number;
+  /** Section knobs: hide the sort control / the result count individually. */
+  showSort?: boolean;
+  showResultCount?: boolean;
   /**
    * Tenant reviews entitlement (DirectoryPageResponse.reviewsEnabled). When
    * explicitly false the "Top rated" sort option is hidden — rating can never
@@ -82,16 +87,19 @@ export function DirectoryResultsToolbar({
               ) : null}
             </button>
           ) : null}
-          <span
-            className={cn(
-              "text-sm tabular-nums transition-opacity duration-150",
-              isFetching ? "text-muted-foreground/50" : "text-muted-foreground",
-            )}
-            aria-live="polite"
-            aria-label={isFetching ? "Updating result count…" : undefined}
-          >
-            {formatResultsCount(ui, totalCount)}
-          </span>
+          {showResultCount ? (
+            <span
+              className={cn(
+                "text-sm tabular-nums transition-opacity duration-150",
+                isFetching ? "opacity-60" : "",
+                "text-muted-foreground",
+              )}
+              aria-live="polite"
+              aria-label={isFetching ? "Updating result count…" : undefined}
+            >
+              {formatResultsCount(ui, totalCount)}
+            </span>
+          ) : null}
         </div>
         <div
           className={cn(
@@ -147,12 +155,14 @@ export function DirectoryResultsToolbar({
               <MapIcon className="size-4" />
             </button>
           </div>
-          <DirectorySort
-            current={sort}
-            className="min-w-[10.5rem]"
-            sortCopy={ui.sort}
-            showTopRated={reviewsEnabled !== false}
-          />
+          {showSort ? (
+            <DirectorySort
+              current={sort}
+              className="min-w-[10.5rem]"
+              sortCopy={ui.sort}
+              showTopRated={reviewsEnabled !== false}
+            />
+          ) : null}
         </div>
       </div>
     </div>

@@ -134,19 +134,26 @@ export function HeroSearch({
     let charIdx = 0;
     setTyped("");
 
+    // The hold-then-advance timer is tracked so it can be cleared alongside
+    // the interval: otherwise it still fires ~2.4s after the visitor focuses
+    // the field or the component unmounts, advancing state either way.
+    let advanceTimer: ReturnType<typeof setTimeout> | null = null;
     const typeInterval = setInterval(() => {
       if (charIdx < example.length) {
         setTyped(example.slice(0, charIdx + 1));
         charIdx++;
       } else {
         clearInterval(typeInterval);
-        setTimeout(() => {
+        advanceTimer = setTimeout(() => {
           setExampleIdx((prev) => (prev + 1) % examples.length);
         }, 2400);
       }
     }, 38);
 
-    return () => clearInterval(typeInterval);
+    return () => {
+      clearInterval(typeInterval);
+      if (advanceTimer) clearTimeout(advanceTimer);
+    };
   }, [exampleIdx, examples, typewriterActive]);
 
   const flushDebouncedUrl = useCallback(() => {
@@ -345,6 +352,9 @@ export function HeroSearch({
     router.push(clientDirectoryHref(pathname, `?q=${encodeURIComponent(q)}`));
   }
 
+  // NOTE: the form carries `text-left` to reset the lifestyle banner's
+  // inherited `text-center` — without it the placeholder, the typed example
+  // and the visitor's own query all render centered inside the pill.
   const showTypewriter = typewriterActive;
   const submitLabel = interpreting ? copy.interpreting ?? copy.searchSubmit : copy.searchSubmit;
 
@@ -359,16 +369,24 @@ export function HeroSearch({
     : "absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--site-radius)] bg-white text-black hover:bg-white/90";
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl">
+    <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl text-left">
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-[var(--impronta-muted)]" />
+        {/* z-10: the input's `backdrop-blur` creates a stacking context that
+            otherwise paints straight over this icon (it precedes the input in
+            the DOM), leaving the pill with no magnifier at all. */}
+        <Search className="pointer-events-none absolute left-4 top-1/2 z-10 size-5 -translate-y-1/2 text-[var(--impronta-muted)]" />
         <input
           ref={inputRef}
           type="text"
-          className={`h-14 w-full border pl-12 pr-28 text-base text-foreground placeholder:text-transparent outline-none transition-all sm:h-16 sm:pr-48 sm:text-lg ${inputShape}`}
+          className={`h-14 w-full border pl-12 pr-28 text-left text-base text-foreground placeholder:text-transparent outline-none transition-all sm:h-16 sm:pr-48 sm:text-lg ${inputShape}`}
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
-          disabled={interpreting}
+          // readOnly (not disabled) while interpreting: a disabled input greys
+          // its text and drops focus, so the query the visitor just typed dims
+          // out exactly while they wait for it. readOnly keeps it legible and
+          // focused; the submit button carries the busy state.
+          readOnly={interpreting}
+          aria-busy={interpreting}
           {...(directoryUrlSync
             ? {
                 value: draft,
@@ -386,7 +404,7 @@ export function HeroSearch({
         {showTypewriter && (
           <span
             aria-hidden
-            className="pointer-events-none absolute left-12 right-28 top-1/2 -translate-y-1/2 overflow-hidden whitespace-nowrap text-base text-[var(--impronta-muted)] sm:right-48 sm:text-lg"
+            className="pointer-events-none absolute left-12 right-28 top-1/2 -translate-y-1/2 overflow-hidden whitespace-nowrap text-left text-base text-[var(--impronta-muted)] sm:right-48 sm:text-lg"
           >
             {typed}
             <motion.span
@@ -401,6 +419,9 @@ export function HeroSearch({
           type="submit"
           size="lg"
           disabled={interpreting}
+          // Below `sm` the label span is display:none and only the icon
+          // remains, leaving the button with no accessible name.
+          aria-label={copy.searchSubmit}
           className={submitClass}
         >
           {/* Icon-only on mobile, text on sm+ */}

@@ -147,6 +147,25 @@ export function DirectoryReactiveGrid({
 
   const effectiveQuery = directorySearchViaAi ? debouncedQuery : query;
 
+  /**
+   * Does the current query key describe the exact request the SERVER already
+   * rendered? `getPublicDirectoryFirstPage` seeds the unfiltered first page at
+   * `sort: "recommended"`, so the seed is only valid while no user filter,
+   * query, range, facet or non-default sort is active. Any other key must
+   * fetch for real instead of inheriting the seed's rows.
+   */
+  const isSeedKey =
+    !directorySearchViaAi &&
+    taxKey === "" &&
+    ffKey === "" &&
+    effectiveQuery.trim() === "" &&
+    locationSlug.trim() === "" &&
+    heightMinCm == null &&
+    heightMaxCm == null &&
+    ageMin == null &&
+    ageMax == null &&
+    sort === "recommended";
+
   const {
     data,
     fetchNextPage,
@@ -207,10 +226,16 @@ export function DirectoryReactiveGrid({
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
-    initialData: { pages: [initialPage], pageParams: [null] },
+    // Seed ONLY the unfiltered key the server actually rendered. `initialData`
+    // is applied to every new queryKey, so seeding unconditionally made each
+    // filter click paint the full unfiltered roster (status "success", no
+    // skeleton) until the filtered fetch landed — visibly wrong results.
+    initialData: isSeedKey
+      ? { pages: [initialPage], pageParams: [null] }
+      : undefined,
     // Mark SSR seed immediately stale so the client always reconciles
     // with the API once per key change (same pattern as legacy grid).
-    initialDataUpdatedAt: 0,
+    initialDataUpdatedAt: isSeedKey ? 0 : undefined,
   });
 
   // P4 — manual-scope render filter. When `scope=manual`, restrict to the
@@ -247,9 +272,13 @@ export function DirectoryReactiveGrid({
   }, [onIntersect]);
 
   const items = useMemo(() => {
-    const all = data?.pages.flatMap((p) => p.items) ?? initialPage.items;
+    // Same rule as `initialData`: the SSR rows are only a valid stand-in for
+    // the unfiltered key. Falling back to them on a filtered key would render
+    // the full roster under an active filter while the fetch is in flight.
+    const all =
+      data?.pages.flatMap((p) => p.items) ?? (isSeedKey ? initialPage.items : []);
     return manualCodeOrder ? filterToManualCodes(all, manualCodeOrder) : all;
-  }, [data?.pages, initialPage.items, manualCodeOrder]);
+  }, [data?.pages, initialPage.items, isSeedKey, manualCodeOrder]);
 
   const gridClass = useMemo(
     () => gridClassFor(columnsMobile, columnsTablet, columnsDesktop, density),
@@ -531,6 +560,8 @@ async function fetchClassicPage({
 type AiSearchPageJson = {
   results: SearchResult[];
   next_cursor: string | null;
+  /** First page only; null on cursor pages (engine skips the count there). */
+  total_count?: number | null;
   taxonomy_term_ids: string[];
   error?: string;
 };
@@ -577,6 +608,7 @@ async function fetchAiPage({
   return {
     items: body.results.map((r) => r.card),
     nextCursor: body.next_cursor,
+    totalCount: body.total_count ?? undefined,
     taxonomyTermIds: body.taxonomy_term_ids,
   };
 }

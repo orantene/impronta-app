@@ -403,7 +403,8 @@
         "intent": {
           "showingForPrefix": "Mostrando talento para:",
           "interpretedAsPrefix": "Interpretado como:",
-          "heightUnitCm": "cm"
+          "heightUnitCm": "cm",
+          "aiFilterChip": "Filtro de IA"
         },
         "hero": {
           "interpreting": "Entendiendo tu búsqueda…",

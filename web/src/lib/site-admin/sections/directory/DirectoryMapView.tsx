@@ -73,8 +73,7 @@ export type DirectoryMapViewProps = {
   ageMax: number | null;
   fieldFacets: DirectoryFieldFacetSelection[];
   card: MapCardConfig;
-  columnsDesktop: number;
-  columnsTablet: number;
+  /** Only the mobile count is used: the split layout fixes 2 columns on lg+. */
   columnsMobile: number;
   /** Reports the FILTERED total up to the toolbar (else it shows the stale SSR count). */
   onCountChange?: (count: number) => void;
@@ -148,7 +147,8 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   // Keep the results toolbar honest while the map view owns the data.
   const { onCountChange } = props;
   useEffect(() => {
-    if (data && onCountChange) onCountChange(items.length);
+    if (!data || !onCountChange) return;
+    onCountChange(data.totalCount ?? items.length);
   }, [data, items.length, onCountChange]);
 
   const { clusters, mappableCount, unmappedCount } = useMemo(() => {
@@ -269,7 +269,7 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
             })()
           )}
           {unmappedCount > 0 ? (
-            <span className="text-muted-foreground/50">
+            <span className="text-muted-foreground">
               {" "}· {replaceCount(ui.map.withoutLocation, unmappedCount)}
             </span>
           ) : null}
@@ -283,7 +283,7 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
             {selectedCluster.label || "•"} · {selectedCluster.items.length} ✕
           </button>
         ) : (
-          <span className="text-[0.6875rem] text-muted-foreground/50">{ui.map.tapPinHint}</span>
+          <span className="text-[0.6875rem] text-muted-foreground">{ui.map.tapPinHint}</span>
         )}
       </div>
 
@@ -509,8 +509,9 @@ async function fetchAllDirectoryItems(args: {
   ageMax: number | null;
   fieldFacets: DirectoryFieldFacetSelection[];
   loadErrorMessage: string;
-}): Promise<{ items: DirectoryCardDTO[] }> {
+}): Promise<{ items: DirectoryCardDTO[]; totalCount: number | null }> {
   const out: DirectoryCardDTO[] = [];
+  let totalCount: number | null = null;
   let cursor: string | null = null;
   // Bounded loop: at most MAP_POINT_CAP / page-size pages.
   for (let page = 0; page < Math.ceil(MAP_POINT_CAP / DIRECTORY_PAGE_SIZE_MAX) + 1; page++) {
@@ -538,9 +539,12 @@ async function fetchAllDirectoryItems(args: {
       throw new Error(body?.error ?? args.loadErrorMessage);
     }
     const json = (await res.json()) as DirectoryPageResponse;
+    // Page 1 carries the true filtered total; `out.length` would report the
+    // MAP_POINT_CAP slice instead (a 900-match filter would read "500").
+    if (totalCount == null) totalCount = json.totalCount ?? null;
     out.push(...json.items);
     cursor = json.nextCursor;
     if (!cursor || out.length >= MAP_POINT_CAP) break;
   }
-  return { items: out.slice(0, MAP_POINT_CAP) };
+  return { items: out.slice(0, MAP_POINT_CAP), totalCount };
 }
