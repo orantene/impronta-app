@@ -83,9 +83,67 @@ function buildHtmlInRendererProcess(designId: string): string {
   );
 }
 
+/**
+ * Make the harness actually offline, as the header above claims it is.
+ *
+ * `impronta` is a REAL product page-design (a tenant can pick it in the
+ * builder), and it references remote photos on images.unsplash.com — the only
+ * design that does. On a runner without egress to that host the requests never
+ * settle, so `img.decode()` below hangs and all 5 impronta frames die on the
+ * 30s test timeout instead of producing a diff. That is why reseeding the
+ * goldens could never fix impronta: a timeout has no pixels to reseed.
+ *
+ * Fixing it in the design is not an option — that would change what tenants
+ * see to suit a test. So the harness stubs external image requests instead.
+ *
+ * The stub is an SVG sized to the EXACT intrinsic dimensions the URL asks for
+ * (unsplash carries `w=`/`h=` params). Intrinsic size drives layout for images
+ * without explicit CSS dimensions, so matching it keeps geometry identical to
+ * a real photo load — only the pixels inside the box become a flat fill. A
+ * fixed-size placeholder would silently reflow the page and bake that reflow
+ * into the goldens.
+ *
+ * Same-origin requests (the fidelity static server: HTML, /marketing photos,
+ * bundled woff2) are never intercepted.
+ */
+const STUB_FILL = "#8a8a8a";
+const DEFAULT_STUB_W = 1200;
+const DEFAULT_STUB_H = 800;
+/** Max wait for a single image to decode. Well under the 30s test timeout so a
+ * stuck image surfaces as a pixel diff, never as a suite-killing hang. */
+const IMAGE_DECODE_CAP_MS = 5_000;
+
+async function stubExternalRequests(page: Page): Promise<void> {
+  await page.route("**/*", (route) => {
+    const url = route.request().url();
+    if (url.startsWith(server.origin) || url.startsWith("data:")) {
+      return route.continue();
+    }
+
+    let width = DEFAULT_STUB_W;
+    let height = DEFAULT_STUB_H;
+    try {
+      const params = new URL(url).searchParams;
+      width = Number(params.get("w")) || DEFAULT_STUB_W;
+      height = Number(params.get("h")) || DEFAULT_STUB_H;
+    } catch {
+      // Unparseable URL — fall back to the default box.
+    }
+
+    return route.fulfill({
+      status: 200,
+      contentType: "image/svg+xml",
+      body:
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+        `<rect width="100%" height="100%" fill="${STUB_FILL}"/></svg>`,
+    });
+  });
+}
+
 /** Write the HTML under the served output dir and navigate to it over http so
  * root-relative photos + bundled woff2 resolve; then settle fonts + images. */
 async function loadServedDesign(page: Page, designId: string, artifact: string): Promise<void> {
+  await stubExternalRequests(page);
   const html = buildHtmlInRendererProcess(designId);
   const htmlPath = join(OUTPUT_ROOT, designId, `${designId}-${artifact}.html`);
   mkdirSync(dirname(htmlPath), { recursive: true });
@@ -93,12 +151,39 @@ async function loadServedDesign(page: Page, designId: string, artifact: string):
   await page.goto(fidelityHtmlUrl(server.origin, OUTPUT_ROOT, htmlPath), {
     waitUntil: "networkidle",
   });
-  await page.evaluate(async () => {
+  await page.evaluate(async (perImageCapMs) => {
+    // The renderer emits `loading="lazy"` on every image. An image below the
+    // fold is therefore NEVER REQUESTED while the viewport sits at the top —
+    // and `img.decode()` on a never-requested lazy image never settles. It does
+    // not reject, so the `.catch()` below cannot save us; the whole test hangs
+    // until the 30s timeout.
+    //
+    // This is what killed all 5 impronta frames (its second photo sits far below
+    // the fold). It is not impronta-specific — any design tall enough to push an
+    // image out of the initial viewport hits it. And because it dies as a TIMEOUT
+    // rather than a diff, reseeding the goldens could never have fixed it.
+    //
+    // Flipping to eager makes the browser fetch immediately, which is also what
+    // we want before a `fullPage` screenshot: every image must be real pixels by
+    // capture time, not a lazy placeholder.
+    for (const img of Array.from(document.images)) {
+      img.loading = "eager";
+    }
+
     await document.fonts.ready;
+
+    // Belt-and-braces: cap each decode. A single unreachable image now costs one
+    // grey box in the diff instead of taking the entire suite down with it —
+    // a visible, debuggable failure rather than an opaque timeout.
     await Promise.all(
-      Array.from(document.images).map((img) => img.decode().catch(() => undefined)),
+      Array.from(document.images).map((img) =>
+        Promise.race([
+          img.decode().catch(() => undefined),
+          new Promise((resolve) => setTimeout(resolve, perImageCapMs)),
+        ]),
+      ),
     );
-  });
+  }, IMAGE_DECODE_CAP_MS);
 }
 
 for (const design of fidelityDesigns) {

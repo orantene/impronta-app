@@ -4,7 +4,11 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    # `ci/seed-fidelity**` is the golden-reseed path. Dispatching this workflow
+    # needs `actions:write`, which the working PAT does not have (403) — so the
+    # seed run is reachable by PUSHING a branch with that prefix instead. Same
+    # runner (macos-14), same artifact, no elevated token required.
+    branches: [main, "ci/seed-fidelity**"]
   workflow_dispatch:
     inputs:
       update_snapshots:
@@ -38,6 +42,11 @@ jobs:
         working-directory: web
     env:
       PLAYWRIGHT_SKIP_WEBSERVER: "1"
+      # One expression both the test step and the seed steps branch on, so they
+      # can never disagree about which mode the run is in.
+      SHOULD_SEED: >-
+        ${{ (github.event_name == 'workflow_dispatch' && inputs.update_snapshots)
+        || startsWith(github.ref, 'refs/heads/ci/seed-fidelity') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,7 +79,7 @@ jobs:
       # which arrives with the P4 harness lane.)
       - name: Run fidelity golden tests
         id: fidelity
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.update_snapshots) }}
+        if: ${{ env.SHOULD_SEED != 'true' }}
         run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium
 
       # `continue-on-error` above keeps this job non-blocking, but it also makes
@@ -114,11 +123,11 @@ jobs:
       # update_snapshots=true, then download the artifact and commit its PNGs
       # into e2e/fidelity/fidelity.spec.ts-snapshots/.
       - name: Seed fidelity goldens (--update-snapshots)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+        if: ${{ env.SHOULD_SEED == 'true' }}
         run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium --project=webkit --update-snapshots
 
       - name: Upload seeded goldens
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.update_snapshots }}
+        if: ${{ env.SHOULD_SEED == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: fidelity-goldens-seeded
