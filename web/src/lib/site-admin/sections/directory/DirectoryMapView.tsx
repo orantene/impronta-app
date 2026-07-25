@@ -12,6 +12,7 @@ import {
 
 import { applyCanonicalDirectoryFetchSearchParams } from "@/lib/directory/search-params";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
+import { cn } from "@/lib/utils";
 import type {
   DirectoryCardDTO,
   DirectoryFieldFacetSelection,
@@ -285,6 +286,41 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
         ) : (
           <span className="text-[0.6875rem] text-muted-foreground">{ui.map.tapPinHint}</span>
         )}
+      </div>
+
+      {/*
+        Keyboard-reachable equivalent of the map pins. A Google Maps `Marker`
+        is canvas-drawn and not focusable, so clicking a pin was the ONLY way
+        to filter by city — unusable without a mouse. These chips are bound to
+        the same `onSelect`, so pins and chips stay in lockstep.
+      */}
+      <div
+        role="group"
+        aria-label={ui.map.cityFilterGroup}
+        className="flex flex-wrap gap-1.5"
+      >
+        {clusters.map((c) => {
+          const on = c.key === selectedKey;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              aria-pressed={on}
+              onClick={() => setSelectedKey((cur) => (cur === c.key ? null : c.key))}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                on
+                  ? "border-[var(--impronta-gold-bright,var(--dir-accent))] bg-[var(--dir-accent)] font-semibold text-black"
+                  : "border-white/10 bg-white/[0.04] text-foreground/70 hover:border-[var(--dir-accent-line)] hover:text-foreground",
+              )}
+            >
+              {c.label || "•"}
+              <span className={cn("ml-1 tabular-nums", on ? "" : "opacity-70")}>
+                ({c.items.length})
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/*

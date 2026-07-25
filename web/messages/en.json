@@ -575,7 +575,8 @@
           "noMappableTitle": "No mappable talent yet",
           "noMappableFreeText": "Profiles need a structured home city to appear on the map. {count} only have a free-text location.",
           "noMappableNone": "No talent in this filter has a mapped city yet.",
-          "backToGrid": "Back to grid"
+          "backToGrid": "Back to grid",
+          "cityFilterGroup": "Filter by city"
         }
       }
     },

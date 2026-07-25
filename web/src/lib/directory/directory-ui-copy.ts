@@ -29,6 +29,8 @@ export type DirectoryUiCopy = {
     noMappableFreeText: string;
     noMappableNone: string;
     backToGrid: string;
+    /** Accessible name for the keyboard-reachable city-chip group. */
+    cityFilterGroup: string;
   };
   refine: {
     suggestionsTitle: string;
@@ -322,6 +324,7 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
       noMappableFreeText: t("public.directory.ui.map.noMappableFreeText"),
       noMappableNone: t("public.directory.ui.map.noMappableNone"),
       backToGrid: t("public.directory.ui.map.backToGrid"),
+      cityFilterGroup: t("public.directory.ui.map.cityFilterGroup"),
     },
     refine: {
       suggestionsTitle: t("public.directory.ui.refine.suggestionsTitle"),

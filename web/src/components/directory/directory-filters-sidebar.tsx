@@ -510,11 +510,14 @@ function ExpandableRadioList({
   options,
   forceExpanded,
   renderRow,
+  groupLabel,
   fc,
 }: {
   options: DirectoryFilterOption[];
   forceExpanded: boolean;
   renderRow: (opt: DirectoryFilterOption) => React.ReactNode;
+  /** Accessible name for the radiogroup (the facet's label). */
+  groupLabel: string;
   fc: DirectoryUiCopy["filters"];
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -529,7 +532,34 @@ function ExpandableRadioList({
 
   return (
     <div>
+      {/*
+        A radiogroup is expected to be arrow-navigable. Rows stay individually
+        tabbable (no roving tabindex) so Tab still reaches every option, while
+        Up/Down/Home/End move focus within the group as screen-reader users
+        expect. The handler walks the rendered role="radio" buttons rather than
+        tracking indices, so it stays correct as the list expands/collapses.
+      */}
       <motion.ul
+        role="radiogroup"
+        aria-label={groupLabel}
+        onKeyDown={(e) => {
+          if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+          const radios = Array.from(
+            e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+          );
+          const current = radios.indexOf(document.activeElement as HTMLButtonElement);
+          if (radios.length === 0 || current === -1) return;
+          e.preventDefault();
+          const next =
+            e.key === "Home"
+              ? 0
+              : e.key === "End"
+                ? radios.length - 1
+                : e.key === "ArrowDown"
+                  ? (current + 1) % radios.length
+                  : (current - 1 + radios.length) % radios.length;
+          radios[next]?.focus();
+        }}
         className="space-y-1.5"
         initial={false}
         animate={{ opacity: 1 }}
@@ -1071,6 +1101,7 @@ export function DirectoryFiltersSidebar({
               <ExpandableRadioList
                 options={optionSource}
                 forceExpanded={forceExpandLists}
+                groupLabel={section.label}
                 fc={fc}
                 renderRow={(opt) => {
                   const on = scalarSelected.has(opt.id);
@@ -1078,6 +1109,11 @@ export function DirectoryFiltersSidebar({
                   return (
                     <button
                       type="button"
+                      // Single-select (selectScalarRadio clears the set first),
+                      // so radio semantics are correct; the visual dot is
+                      // aria-hidden, leaving colour as the only state cue.
+                      role="radio"
+                      aria-checked={on}
                       onClick={() => selectScalarRadio(section.fieldKey, opt.id)}
                       className={cn(
                         "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
@@ -1123,6 +1159,9 @@ export function DirectoryFiltersSidebar({
                       <button
                         key={opt.id}
                         type="button"
+                        // Selected state is otherwise conveyed by colour ALONE,
+                        // so a screen reader cannot tell which filters are on.
+                        aria-pressed={on}
                         onClick={() => toggleScalarChip(section.fieldKey, opt.id)}
                         className={cn(
                           "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
@@ -1146,6 +1185,7 @@ export function DirectoryFiltersSidebar({
               <ExpandableRadioList
                 options={optionSource}
                 forceExpanded={forceExpandLists}
+                groupLabel={section.label}
                 fc={fc}
                 renderRow={(opt) => {
                   const on = selectedSet.has(opt.id);
@@ -1153,6 +1193,12 @@ export function DirectoryFiltersSidebar({
                   return (
                     <button
                       type="button"
+                      // Genuinely single-select (selectRadio clears siblings),
+                      // so radio semantics — not a toggle — are correct. The
+                      // visual dot is aria-hidden, leaving colour as the only
+                      // state cue without this.
+                      role="radio"
+                      aria-checked={on}
                       onClick={() => selectRadio(section, opt.id)}
                       className={cn(
                         "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
@@ -1201,6 +1247,7 @@ export function DirectoryFiltersSidebar({
                       <button
                         key={opt.id}
                         type="button"
+                        aria-pressed={on}
                         onClick={() => toggleChip(opt.id)}
                         title={c !== undefined ? `${displayLabel} (${c})` : displayLabel}
                         aria-label={
@@ -1251,6 +1298,7 @@ export function DirectoryFiltersSidebar({
                       <button
                         key={opt.id}
                         type="button"
+                        aria-pressed={on}
                         onClick={() => toggleChip(opt.id)}
                         className={cn(
                           "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",

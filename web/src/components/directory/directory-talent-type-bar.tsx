@@ -72,6 +72,8 @@ export function DirectoryTalentTypeBar({
   const [pending, startTransition] = useTransition();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [overflowQuery, setOverflowQuery] = useState("");
+  /** Active-descendant index within the overflow listbox (-1 = none). */
+  const [overflowHighlight, setOverflowHighlight] = useState(-1);
   // Child refine sub-row: a single scroll row by default; expands to show all.
   const [childrenExpanded, setChildrenExpanded] = useState(false);
   const overflowRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +141,7 @@ export function DirectoryTalentTypeBar({
       pushTax(termId ? [...rest, termId] : rest);
       setOverflowOpen(false);
       setOverflowQuery("");
+      setOverflowHighlight(-1);
     },
     [selectedIds, siblingIds, pushTax],
   );
@@ -317,38 +320,96 @@ export function DirectoryTalentTypeBar({
         {overflowOpen && overflowParents.length > 0 ? (
           <div
             ref={overflowRef}
-            id="directory-talent-type-overflow"
-            role="listbox"
-            aria-label={overflowCopy.moreOptionsAria.replace("{label}", barAriaLabel)}
             className="absolute right-0 top-full z-30 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur-md"
           >
+            {/*
+              Combobox + listbox, mirroring the sidebar's location picker: the
+              INPUT owns the role and keyboard, the UL is the listbox, and each
+              LI is presentational so the only listbox children are options.
+              Previously role="listbox" sat on this wrapper (making the search
+              input and the ul invalid children) and the only key handled was
+              Escape, so the list was unreachable by keyboard.
+            */}
             <input
               type="search"
+              autoComplete="off"
+              role="combobox"
+              aria-expanded
+              aria-controls="directory-talent-type-overflow"
+              aria-autocomplete="list"
+              aria-activedescendant={
+                overflowHighlight >= 0 && overflowFiltered[overflowHighlight]
+                  ? `dir-type-opt-${overflowFiltered[overflowHighlight]!.id}`
+                  : undefined
+              }
               value={overflowQuery}
-              onChange={(e) => setOverflowQuery(e.target.value)}
+              onChange={(e) => {
+                setOverflowQuery(e.target.value);
+                setOverflowHighlight(-1);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setOverflowOpen(false);
+                  setOverflowHighlight(-1);
+                  buttonRef.current?.focus();
+                  return;
+                }
+                if (overflowFiltered.length === 0) return;
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setOverflowHighlight((i) => Math.min(i + 1, overflowFiltered.length - 1));
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setOverflowHighlight((i) => Math.max(i - 1, 0));
+                } else if (e.key === "Home") {
+                  e.preventDefault();
+                  setOverflowHighlight(0);
+                } else if (e.key === "End") {
+                  e.preventDefault();
+                  setOverflowHighlight(overflowFiltered.length - 1);
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  const target = overflowFiltered[overflowHighlight >= 0 ? overflowHighlight : 0];
+                  if (target) onParent(target.id);
+                }
+              }}
               placeholder={overflowCopy.searchPlaceholder}
               aria-label={overflowCopy.searchAria}
               className="mb-2 w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-foreground/40 focus:ring-1 focus:ring-foreground/25"
               autoFocus
             />
-            <ul className="max-h-72 overflow-y-auto">
+            <ul
+              id="directory-talent-type-overflow"
+              role="listbox"
+              aria-label={overflowCopy.moreOptionsAria.replace("{label}", barAriaLabel)}
+              className="max-h-72 overflow-y-auto"
+            >
               {overflowFiltered.length === 0 ? (
-                <li className="px-2 py-2 text-xs text-muted-foreground">{overflowCopy.noMatches}</li>
+                <li role="presentation" className="px-2 py-2 text-xs text-muted-foreground">
+                  {overflowCopy.noMatches}
+                </li>
               ) : (
-                overflowFiltered.map((p) => {
+                overflowFiltered.map((p, idx) => {
                   const on = activeParent?.id === p.id;
+                  const highlighted = idx === overflowHighlight;
                   return (
-                    <li key={p.id}>
+                    <li key={p.id} role="presentation">
                       <button
                         type="button"
                         role="option"
+                        id={`dir-type-opt-${p.id}`}
                         aria-selected={on}
+                        // Keyboard focus stays on the combobox input; the
+                        // highlight is conveyed via aria-activedescendant.
+                        tabIndex={-1}
                         onClick={() => onParent(p.id)}
                         className={cn(
                           "flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-[12px] tracking-[0.06em] outline-none transition-colors",
                           on
                             ? "bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
-                            : "text-muted-foreground hover:bg-muted/40 hover:text-foreground focus-visible:bg-muted/40 focus-visible:text-foreground",
+                            : highlighted
+                              ? "bg-muted/60 text-foreground"
+                              : "text-muted-foreground hover:bg-muted/40 hover:text-foreground focus-visible:bg-muted/40 focus-visible:text-foreground",
                         )}
                       >
                         <span className="truncate">{pillLabel(p.label)}</span>
