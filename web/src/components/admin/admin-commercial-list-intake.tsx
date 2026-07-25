@@ -30,6 +30,9 @@ type InquiryProps = {
   accounts: AccountOption[];
   contacts: Contact[];
   talents: Talent[];
+  /** Tenant whose `agency_taxonomy_settings` gate the skill-targeting picker
+   *  inside the New-Inquiry sheet. */
+  tenantId?: string | null;
 };
 
 type BookingProps = {
@@ -56,6 +59,7 @@ export function AdminCommercialListIntake(props: Props) {
           accounts={props.accounts}
           contacts={props.contacts}
           talents={props.talents}
+          tenantId={props.tenantId}
         />
       ) : (
         <>
