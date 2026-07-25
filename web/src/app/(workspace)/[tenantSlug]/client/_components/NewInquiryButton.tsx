@@ -17,6 +17,7 @@
  */
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import type { InquirySource } from "@/lib/inquiry/inquiry-intent";
 
@@ -57,6 +58,7 @@ type Props = {
   client: ClientSummary;
   roster: RosterItem[];
   variant?: Variant;
+  /** Defaults to the localized "New inquiry" when omitted. */
   label?: string;
   /** When the entry point already picked a talent (e.g. Discover card). */
   selectedTalentId?: string;
@@ -71,12 +73,14 @@ export function NewInquiryButton({
   client,
   roster,
   variant = "primary",
-  label = "New inquiry",
+  label,
   selectedTalentId,
   source,
   sourceContext,
 }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
+  const resolvedLabel = label ?? t("dashboard.clientMessages.newInquiry");
 
   const btn =
     variant === "primary"
@@ -105,7 +109,7 @@ export function NewInquiryButton({
         >
           <path d="M12 5v14M5 12h14" />
         </svg>
-        {variant !== "icon" && <span>{label}</span>}
+        {variant !== "icon" && <span>{resolvedLabel}</span>}
       </button>
       {open && (
         <InquiryDrawer

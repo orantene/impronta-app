@@ -1,9 +1,12 @@
 "use client";
 
+import { useT } from "@/i18n/use-t";
+
 import type { IntegrationStatusVisual } from "./integration-status";
 
 /** Compact status pill — coloured dot + label. Used on card + drawer header. */
 export function IntegrationStatusPill({ visual }: { visual: IntegrationStatusVisual }) {
+  const t = useT();
   return (
     <span
       style={{
@@ -30,7 +33,7 @@ export function IntegrationStatusPill({ visual }: { visual: IntegrationStatusVis
           flexShrink: 0,
         }}
       />
-      {visual.label}
+      {t(visual.labelKey)}
     </span>
   );
 }

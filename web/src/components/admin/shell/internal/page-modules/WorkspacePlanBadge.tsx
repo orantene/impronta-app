@@ -154,7 +154,7 @@ function TrialStateBlock({
         : `${trial.daysLeft} ${copy.t("days left")}`;
 
   const blurb = expired
-    ? `${copy.t("Back on")} ${baseLabel}. ${copy.t("Your data is safe — upgrade to bring back")} ${trial.grantedPlanLabel}.`
+    ? `${copy.t("Back on")} ${baseLabel}. ${copy.t("Your data is safe. Upgrade to bring back")} ${trial.grantedPlanLabel}.`
     : expiring
       ? `${copy.t("Upgrade to keep")} ${trial.grantedPlanLabel} ${copy.t("when your trial ends.")}`
       : `${copy.t("Enjoying")} ${trial.grantedPlanLabel}? ${copy.t("Upgrade anytime to keep it.")}`;

@@ -9,6 +9,7 @@
 
 import { useEffect } from "react";
 import { logServerError } from "@/lib/server/safe-error";
+import { useT } from "@/i18n/use-t";
 
 export default function ClientDiscoverError({
   error,
@@ -17,6 +18,7 @@ export default function ClientDiscoverError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
   useEffect(() => {
     logServerError("client/discover/error.tsx", error);
   }, [error]);
@@ -54,7 +56,7 @@ export default function ClientDiscoverError({
             margin: 0,
           }}
         >
-          Discover
+          {t("dashboard.clientNav.discover")}
         </p>
         <h1
           style={{
@@ -68,7 +70,7 @@ export default function ClientDiscoverError({
             lineHeight: 1.2,
           }}
         >
-          Could not load results
+          {t("client.discover.errorTitle")}
         </h1>
         <p
           style={{
@@ -80,8 +82,7 @@ export default function ClientDiscoverError({
             marginBottom: 0,
           }}
         >
-          The Discover catalog failed to load. Retry to try again — your
-          favorites and shortlists are unaffected.
+          {t("client.discover.errorBody")}
         </p>
         {error?.digest ? (
           <p
@@ -93,7 +94,7 @@ export default function ClientDiscoverError({
               marginBottom: 0,
             }}
           >
-            Ref: {error.digest}
+            {t("client.discover.errorRefLabel")} {error.digest}
           </p>
         ) : null}
 
@@ -122,7 +123,7 @@ export default function ClientDiscoverError({
               cursor: "pointer",
             }}
           >
-            Retry
+            {t("client.discover.errorRetry")}
           </button>
           <a
             href="."
@@ -140,7 +141,7 @@ export default function ClientDiscoverError({
               textDecoration: "none",
             }}
           >
-            Reload page
+            {t("client.discover.errorReload")}
           </a>
         </div>
       </div>

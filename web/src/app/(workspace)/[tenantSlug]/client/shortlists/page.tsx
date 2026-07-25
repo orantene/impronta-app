@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadClientSelfProfile } from "../../_data-bridge";
@@ -27,6 +28,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 export default async function ClientShortlistsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
   const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -46,9 +48,9 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
-        eyebrow="Shortlists"
-        title="Your shortlists"
-        subtitle="Named groups of talent you saved on Discover. Send one inquiry from a shortlist and it routes to the right agency for each talent."
+        eyebrow={t("client.shortlists.eyebrow")}
+        title={t("client.shortlists.title")}
+        subtitle={t("client.shortlists.subtitle")}
         badge={shortlists.length > 0 ? <HeaderBadge>{shortlists.length}</HeaderBadge> : undefined}
       />
 
@@ -64,8 +66,8 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
       ) : (
         <EmptyState
           icon="📑"
-          title="No shortlists yet"
-          body="Build a shortlist by browsing Discover and adding talent. Then send one inquiry that fans out to the right agency for each talent."
+          title={t("client.shortlists.emptyTitle")}
+          body={t("client.shortlists.emptyBody")}
           actions={
             <Link
               href={`/${tenantSlug}/client/discover`}
@@ -83,7 +85,7 @@ export default async function ClientShortlistsPage({ params }: { params: PagePar
                 letterSpacing: -0.1,
               }}
             >
-              Browse Discover →
+              {t("dashboard.clientConfirm.favoritesEmptyCta")} →
             </Link>
           }
         />

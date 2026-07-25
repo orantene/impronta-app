@@ -22,6 +22,8 @@ import {
   Map as GoogleMap,
   Marker,
 } from "@vis.gl/react-google-maps";
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
@@ -74,6 +76,8 @@ export function DiscoverMapShell({
   /** Talents with no lat/lng that don't appear on the map. */
   unmappedCount: number;
 }) {
+  const t = useT();
+  const tp = useMemo(() => withPluralization(t), [t]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // D9 polish — country-roll-up cluster mode. Useful when the catalog has
   // dense pockets (10+ talents in one city) where individual pins overlap.
@@ -141,8 +145,7 @@ export function DiscoverMapShell({
         background: C.surface, border: `1px dashed ${C.borderSoft}`,
         borderRadius: 14, fontFamily: FONT, color: C.inkMuted, fontSize: 13,
       }}>
-        Map is unavailable — Google Maps API key not configured. Browse the
-        grid instead at{" "}
+        {t("client.discover.map.noKey")}{" "}
         <Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>
           /client/discover
         </Link>.
@@ -158,14 +161,14 @@ export function DiscoverMapShell({
         borderRadius: 14, fontFamily: FONT, color: C.inkMuted, fontSize: 13,
       }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-          No mappable talent yet
+          {t("client.discover.map.emptyTitle")}
         </div>
         <p style={{ fontSize: 12.5, color: C.inkMuted, margin: "0 auto", maxWidth: 380, lineHeight: 1.5 }}>
-          Talents need a structured city (Google Places) to show on the map.
-          {unmappedCount > 0 && ` ${unmappedCount} talent${unmappedCount === 1 ? " has" : "s have"} only free-text locations.`}
-          {" "}Browse them all in the grid view at{" "}
+          {t("client.discover.map.emptyBody")}
+          {unmappedCount > 0 && ` ${tp("client.discover.map.freeTextOnly", unmappedCount)}`}
+          {" "}{t("client.discover.map.emptyBrowsePrefix")}{" "}
           <Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>
-            Discover
+            {t("dashboard.clientNav.discover")}
           </Link>.
         </p>
       </div>
@@ -182,23 +185,23 @@ export function DiscoverMapShell({
           {viewMode === "countries" ? (
             <>
               <strong style={{ color: C.ink }}>{countryClusters.length}</strong>{" "}
-              {countryClusters.length === 1 ? "country" : "countries"}{" · "}
-              {talents.length} talents total
+              {tp("client.discover.map.countryWord", countryClusters.length)}{" · "}
+              {tp("client.discover.map.talentsTotal", talents.length)}
             </>
           ) : (
             <>
-              <strong style={{ color: C.ink }}>{talents.length}</strong> talent
-              {talents.length === 1 ? "" : "s"} on map
+              <strong style={{ color: C.ink }}>{talents.length}</strong>{" "}
+              {tp("client.discover.map.onMapSuffix", talents.length)}
             </>
           )}
           {unmappedCount > 0 && (
             <span style={{ marginLeft: 6, color: C.inkDim }}>
-              · {unmappedCount} hidden (no geocoded city)
+              · {interpolate(t("client.discover.map.hiddenNoGeocode"), { count: unmappedCount })}
             </span>
           )}
         </div>
         <div className="flex items-center gap-3">
-          <div role="tablist" aria-label="Map view mode" style={{
+          <div role="tablist" aria-label={t("client.discover.map.viewModeAria")} style={{
             display: "inline-flex",
             gap: 2,
             background: "rgba(11,11,13,0.04)",
@@ -230,7 +233,7 @@ export function DiscoverMapShell({
                     boxShadow: active ? "0 1px 2px rgba(11,11,13,0.10)" : "none",
                   }}
                 >
-                  {mode === "talents" ? "Talents" : "Countries"}
+                  {mode === "talents" ? t("client.discover.map.modeTalents") : t("client.discover.map.modeCountries")}
                 </button>
               );
             })}
@@ -243,7 +246,7 @@ export function DiscoverMapShell({
               color: C.accent, textDecoration: "none",
             }}
           >
-            ← Back to grid
+            ← {t("client.discover.map.backToGrid")}
           </Link>
         </div>
       </div>
@@ -282,7 +285,7 @@ export function DiscoverMapShell({
                   <Marker
                     key={cluster.country}
                     position={{ lat: cluster.lat, lng: cluster.lng }}
-                    title={`${cluster.country} · ${cluster.count} talent${cluster.count === 1 ? "" : "s"}`}
+                    title={`${cluster.country === "Unknown" ? t("client.discover.map.unknownCountry") : cluster.country} · ${tp("client.discover.talentCount", cluster.count)}`}
                     label={{
                       text: String(cluster.count),
                       color: "#fff",
@@ -334,7 +337,7 @@ export function DiscoverMapShell({
                 <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
                   {[
                     selected.primaryTypeLabel,
-                    selected.agencyName ?? (selected.isExclusive ? null : "Independent"),
+                    selected.agencyName ?? (selected.isExclusive ? null : t("client.discover.independent")),
                     [selected.homeCity, selected.homeCountry].filter(Boolean).join(", ") || null,
                   ].filter(Boolean).join(" · ")}
                 </div>
@@ -353,13 +356,13 @@ export function DiscoverMapShell({
                     letterSpacing: -0.1,
                   }}
                 >
-                  Open →
+                  {t("client.discover.map.openProfile")} →
                 </Link>
               )}
               <button
                 type="button"
                 onClick={() => setSelectedId(null)}
-                aria-label="Close"
+                aria-label={t("client.discover.close")}
                 style={{
                   flexShrink: 0,
                   width: 24, height: 24, borderRadius: 6,

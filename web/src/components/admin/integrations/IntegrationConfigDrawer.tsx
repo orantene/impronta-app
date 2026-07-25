@@ -218,8 +218,8 @@ export function IntegrationConfigDrawer({
     <DrawerShell
       open
       onClose={onClose}
-      title={integration.label}
-      description={integration.description}
+      title={t(integration.labelKey)}
+      description={t(integration.descriptionKey)}
       toolbar={<IntegrationStatusPill visual={visual} />}
       footer={
         canManage ? (
@@ -259,7 +259,7 @@ export function IntegrationConfigDrawer({
         )}
 
         {/* How to set this up */}
-        {integration.instructions.length > 0 && (
+        {integration.instructionKeys.length > 0 && (
           <div>
             <div
               style={{
@@ -274,8 +274,8 @@ export function IntegrationConfigDrawer({
               {t("dashboard.adminWorkspace.integrations.howToSetUp")}
             </div>
             <ol style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
-              {integration.instructions.map((step, i) => (
-                <li key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              {integration.instructionKeys.map((stepKey, i) => (
+                <li key={stepKey} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <span
                     aria-hidden
                     style={{
@@ -295,7 +295,7 @@ export function IntegrationConfigDrawer({
                     {i + 1}
                   </span>
                   <span style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5, paddingTop: 1 }}>
-                    {step}
+                    {t(stepKey)}
                   </span>
                 </li>
               ))}
@@ -390,7 +390,7 @@ export function IntegrationConfigDrawer({
                   htmlFor={`intg-${integration.key}-${f.name}`}
                   style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}
                 >
-                  {f.label}
+                  {t(f.labelKey)}
                 </label>
                 {showMask && (
                   <div style={{ fontSize: 12, color: COLORS.inkMuted }}>

@@ -23,7 +23,9 @@ import { loadWorkspaceAgencySummary } from "@/app/(workspace)/[tenantSlug]/_data
 import { loadWorkspaceBillingState } from "@/app/(workspace)/[tenantSlug]/_data-bridge/billing";
 import { loadWorkspacePlanGrants } from "@/app/(workspace)/platform/workspace-override-banner-data";
 import { loadTierRenewLabels } from "@/lib/admin/plan-tiers-live";
-import { resolveTier } from "@/lib/admin/plan-tiers";
+import { resolveTier, TIER_RENEW_KEY } from "@/lib/admin/plan-tiers";
+import { createTranslator } from "@/i18n/messages";
+import { getRequestLocale } from "@/i18n/request-locale";
 import {
   deriveTrialView,
   type GrantKind,
@@ -174,14 +176,22 @@ export async function loadWorkspacePlanSummary(params: {
 
     // Live, currency-localized renewal line (falls back to the static catalog
     // copy if the price read fails — never an empty line).
+    // Locale-aware: the renew line renders inside the dashboard, so it must
+    // follow the request locale rather than the module-level English catalog.
     const currency = (summary.preferredCurrency ?? "USD").toUpperCase();
+    const locale = await getRequestLocale();
     let renewLabel: string;
     try {
-      const liveRenew = await loadTierRenewLabels(currency);
+      const liveRenew = await loadTierRenewLabels(currency, locale);
       renewLabel = resolveTier(summary.plan, liveRenew).renew;
     } catch (err) {
       logServerError("workspace-plan-summary.renewLabels", err);
-      renewLabel = resolveTier(summary.plan).renew;
+      const t = createTranslator(locale);
+      const fallbackKey =
+        TIER_RENEW_KEY[summary.plan] ?? TIER_RENEW_KEY.free!;
+      const localized = t(fallbackKey);
+      renewLabel =
+        localized === fallbackKey ? resolveTier(summary.plan).renew : localized;
     }
 
     return {

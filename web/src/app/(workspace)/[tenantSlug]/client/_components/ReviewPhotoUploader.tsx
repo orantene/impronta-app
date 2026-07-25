@@ -8,6 +8,8 @@
  */
 
 import { useRef, useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   removeReviewMediaAction,
   uploadReviewMediaAction,
@@ -34,6 +36,7 @@ export function ReviewPhotoUploader({
   bookingId: string;
   talentProfileId: string;
 }) {
+  const t = useT();
   const [photos, setPhotos] = useState<Uploaded[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +52,7 @@ export function ReviewPhotoUploader({
     setError(null);
     for (const file of files) {
       if (photos.length >= MAX_PHOTOS) {
-        setError(`You can attach up to ${MAX_PHOTOS} photos.`);
+        setError(interpolate(t("client.reviews.photoCap"), { count: MAX_PHOTOS }));
         break;
       }
       const fd = new FormData();
@@ -60,7 +63,7 @@ export function ReviewPhotoUploader({
       if (res.ok) {
         setPhotos((prev) => [...prev, res.data]);
       } else {
-        setError(res.error || "Could not add that photo.");
+        setError(res.error || t("client.reviews.photoAddError"));
       }
     }
     setBusy(false);
@@ -73,7 +76,7 @@ export function ReviewPhotoUploader({
     if (res.ok) {
       setPhotos((prev) => prev.filter((p) => p.id !== id));
     } else {
-      setError(res.error || "Could not remove that photo.");
+      setError(res.error || t("client.reviews.photoRemoveError"));
     }
     setBusy(false);
   }
@@ -81,7 +84,7 @@ export function ReviewPhotoUploader({
   return (
     <div style={{ marginTop: 12, fontFamily: FONT }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: C.inkMuted, marginBottom: 8 }}>
-        Add photos (optional). Share a shot from the work.
+        {t("client.reviews.photoPrompt")}
       </div>
 
       {photos.length > 0 && (
@@ -101,14 +104,14 @@ export function ReviewPhotoUploader({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.url}
-                alt="Review photo"
+                alt={t("client.reviews.photoAlt")}
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
               <button
                 type="button"
                 onClick={() => remove(p.id)}
                 disabled={busy}
-                aria-label="Remove photo"
+                aria-label={t("client.reviews.photoRemove")}
                 style={{
                   position: "absolute",
                   top: 3,
@@ -151,7 +154,11 @@ export function ReviewPhotoUploader({
             cursor: busy ? "default" : "pointer",
           }}
         >
-          {busy ? "Uploading…" : photos.length > 0 ? "Add another photo" : "Add a photo"}
+          {busy
+            ? t("client.reviews.photoUploading")
+            : photos.length > 0
+              ? t("client.reviews.photoAddAnother")
+              : t("client.reviews.photoAdd")}
         </button>
       )}
 

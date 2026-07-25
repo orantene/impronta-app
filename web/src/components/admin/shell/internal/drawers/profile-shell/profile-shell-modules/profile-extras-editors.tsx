@@ -44,6 +44,7 @@ export function SkillsProEditor({ entries, onChange }: {
     can_do:   "learning",
     learning: null,
   };
+  const copy = useDashboardText();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
       {(["great", "can_do", "learning"] as SkillProficiency[]).map(p => {
@@ -57,11 +58,11 @@ export function SkillsProEditor({ entries, onChange }: {
               color: meta.fg,
             }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta.fg }} />
-              {meta.label}
+              {copy.t(meta.label)}
               <span style={{ color: COLORS.inkDim, fontWeight: 500, letterSpacing: 0 }}>· {inThisBucket.length}</span>
             </div>
             <div style={{ fontSize: 10.5, marginBottom: 6 }} className="text-admin-ink-dim">
-              {meta.helper}
+              {copy.t(meta.helper)}
             </div>
             {inThisBucket.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
@@ -76,7 +77,7 @@ export function SkillsProEditor({ entries, onChange }: {
                         border: `1.5px solid ${meta.fg}`,
                         background: meta.bg, color: meta.fg,
                         fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-                      }}>{item.label}</button>
+                      }}>{copy.t(item.label)}</button>
                   );
                 })}
               </div>
@@ -88,10 +89,18 @@ export function SkillsProEditor({ entries, onChange }: {
         borderTop: `1px solid ${COLORS.borderSoft}`, paddingTop: 10,
       }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-          Catalog · tap to start at &quot;Great at&quot; then cycle to lower tiers
+          {copy.t("Catalog · tap to start at the top tier, then cycle down")}
         </div>
         <CatalogChips
-          items={SKILL_CATALOG.filter(s => !entries.some(e => e.skillId === s.id))}
+          items={SKILL_CATALOG
+            .filter(s => !entries.some(e => e.skillId === s.id))
+            // "Stage" alone collides with the pipeline-stage entry in the
+            // dashboard copy map, so this group header is disambiguated.
+            .map(s => ({
+              ...s,
+              label: copy.t(s.label),
+              group: copy.t(s.group === "Stage" ? "Stage & performance" : s.group),
+            }))}
           selected={new Set([])}
           onToggle={(id) => onChange(id, "great")}
         />
@@ -118,20 +127,21 @@ export const PersonalityEditor = React.memo(function PersonalityEditor({ value, 
   });
   const setLoves = React.useCallback((v: string[]) => onChange({ ...valueRef.current, loves: v }), [onChange]);
   const setAvoids = React.useCallback((v: string[]) => onChange({ ...valueRef.current, avoids: v }), [onChange]);
+  const copy = useDashboardText();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-          ❤️  I love
+          ❤️  {copy.t("I love")}
         </div>
-        <ChipsInput label="" placeholder="e.g. Champagne service, French villas, late-night gigs"
+        <ChipsInput label="" placeholder={copy.t("e.g. Champagne service, French villas, late-night gigs")}
           values={value.loves} onChange={setLoves} />
       </div>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-          ⊘  I avoid
+          ⊘  {copy.t("I avoid")}
         </div>
-        <ChipsInput label="" placeholder="e.g. Photoshoots before 10am, smoking environments"
+        <ChipsInput label="" placeholder={copy.t("e.g. Photoshoots before 10am, smoking environments")}
           values={value.avoids} onChange={setAvoids} />
       </div>
     </div>
@@ -151,6 +161,7 @@ export type HelloReelEditorProps = {
 
 export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onChange, talentProfileId }: HelloReelEditorProps) {
   const { toast } = useAdminShell();
+  const copy = useDashboardText();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const handleFile = async (f: File) => {
@@ -164,12 +175,12 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
       if (res.ok) {
         onChange({ url: res.data.publicUrl, durationSec: 30 });
       } else {
-        toast(`Reel upload failed: ${res.error}`);
+        toast(`${copy.t("Reel upload failed")}: ${res.error}`);
         onChange(null);
       }
     } catch (err) {
       logServerError("helloreeleditor_upload", err);
-      toast("Reel upload failed");
+      toast(copy.t("Reel upload failed"));
       onChange(null);
     } finally {
       setUploading(false);
@@ -178,24 +189,24 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
   return (
     <div style={{ marginBottom: 12, fontFamily: FONTS.body }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-        ✦  Hello reel · 30 sec intro
+        ✦  {copy.t("Hello reel · 30 sec intro")}
       </div>
       {reel ? (
         <div style={{ padding: 12, borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 10 }} className="bg-admin-surface">
           <span style={{ width: 36, height: 36, borderRadius: 10, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }} className="bg-admin-accent">▶</span>
           <div className="flex-1 min-w-0">
             <div className="text-admin-ink text-admin-12h font-semibold">
-              {uploading ? "Uploading reel…" : "Reel uploaded"}
+              {copy.t(uploading ? "Uploading reel…" : "Reel uploaded")}
             </div>
             <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
-              {reel.durationSec ? `~${reel.durationSec}s` : "Ready"} · {reel.url.startsWith("blob:") ? (uploading ? "saving…" : "local preview") : "saved"}
+              {reel.durationSec ? `~${reel.durationSec}s` : copy.t("Ready")} · {reel.url.startsWith("blob:") ? (uploading ? copy.t("saving…") : copy.t("local preview")) : copy.t("saved")}
             </div>
           </div>
           <button type="button" onClick={() => onChange(null)} style={{
             padding: "5px 10px", borderRadius: 8, border: "none",
             background: "transparent", color: COLORS.inkMuted,
             fontSize: 11, fontWeight: 600, cursor: "pointer",
-          }}>Replace</button>
+          }}>{copy.t("Replace")}</button>
         </div>
       ) : (
         <button type="button" onClick={() => fileRef.current?.click()} style={{
@@ -206,7 +217,7 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
         }}>
           <span className="text-lg">+</span>
-          Drop or pick a 30-sec hello reel
+          {copy.t("Drop or pick a 30-sec hello reel")}
         </button>
       )}
       <input ref={fileRef} type="file" accept="video/*" style={{ display: "none" }}
@@ -228,6 +239,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
   onChange: (a: { id: string; name: string; items: PhotoMeta[] }[]) => void;
   loading?: boolean;
 }) {
+  const copy = useDashboardText();
   const [newName, setNewName] = useState("");
   const addAlbum = () => {
     const name = newName.trim();
@@ -265,7 +277,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
       </div>
       <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface">
         <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 8 }} className="text-admin-ink">
-          Manage albums
+          {copy.t("Manage albums")}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
           {albums.map(a => (
@@ -278,9 +290,9 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
                   fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
                 }}
               />
-              <span className="text-admin-ink-muted text-admin-11">{loading ? "…" : `${a.items.length} photo${a.items.length === 1 ? "" : "s"}`}</span>
+              <span className="text-admin-ink-muted text-admin-11">{loading ? "…" : `${a.items.length} ${copy.t(a.items.length === 1 ? "photo" : "photos")}`}</span>
               {albums.length > 1 && (
-                <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
+                <button type="button" onClick={() => deleteAlbum(a.id)} aria-label={copy.t("Delete album")} style={{
                   width: 24, height: 24, borderRadius: 6,
                   border: "none", background: "transparent", color: COLORS.inkMuted,
                   fontSize: 14, cursor: "pointer", padding: 0,
@@ -293,7 +305,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
           <input type="text" value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAlbum(); } }}
-            placeholder="e.g. Editorial, Lookbook, Behind-the-scenes…"
+            placeholder={copy.t("e.g. Editorial, Lookbook, Behind-the-scenes…")}
             style={{
               flex: 1, padding: "9px 12px", borderRadius: 8,
               border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
@@ -306,7 +318,7 @@ export function AlbumsEditorPro({ albums, activeId, onActivate, onChange, loadin
             color: newName.trim() ? "#fff" : COLORS.inkDim,
             fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
             cursor: newName.trim() ? "pointer" : "default",
-          }}>Add album</button>
+          }}>{copy.t("Add album")}</button>
         </div>
       </div>
     </div>
@@ -347,8 +359,9 @@ export function SeasonalEditor({ windows, onChange }: {
   windows: SeasonalWindow[];
   onChange: (w: SeasonalWindow[]) => void;
 }) {
+  const copy = useDashboardText();
   const [draft, setDraft] = useState<{ city: string; startMonth: number; endMonth: number }>({ city: "", startMonth: 11, endMonth: 4 });
-  const monthName = (m: number) => ["", "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m] ?? String(m);
+  const monthName = (m: number) => copy.t(["", "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]) || String(m);
   return (
     <div style={{ fontFamily: FONTS.body }}>
       {windows.length > 0 && (
@@ -362,7 +375,7 @@ export function SeasonalEditor({ windows, onChange }: {
               <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }} className="text-admin-ink">
                 {w.city} · {monthName(w.startMonth)}–{monthName(w.endMonth)}
               </span>
-              <button type="button" onClick={() => onChange(windows.filter(x => x.id !== w.id))} aria-label="Remove" style={{
+              <button type="button" onClick={() => onChange(windows.filter(x => x.id !== w.id))} aria-label={copy.t("Remove")} style={{
                 background: "transparent", border: "none", padding: 0, cursor: "pointer",
                 color: COLORS.inkMuted, fontSize: 14, lineHeight: 1, fontWeight: 700, width: 20,
               }}>×</button>
@@ -372,7 +385,7 @@ export function SeasonalEditor({ windows, onChange }: {
       )}
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         <input type="text" value={draft.city} onChange={(e) => setDraft(d => ({ ...d, city: e.target.value }))}
-          placeholder="City — e.g. Tulum"
+          placeholder={copy.t("City, e.g. Tulum")}
           style={{
             flex: 1, minWidth: 140, padding: "8px 12px", borderRadius: 8,
             border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
@@ -397,7 +410,7 @@ export function SeasonalEditor({ windows, onChange }: {
           background: draft.city.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
           color: draft.city.trim() ? "#fff" : COLORS.inkDim,
           fontSize: 12, fontWeight: 600, cursor: draft.city.trim() ? "pointer" : "default",
-        }}>Add</button>
+        }}>{copy.t("Add")}</button>
       </div>
     </div>
   );
@@ -411,12 +424,15 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
   onChange: (r: RecurringPattern) => void;
   onVacationChange: (v: VacationWindow | null) => void;
 }) {
-  const dows = ["S", "M", "T", "W", "T", "F", "S"];
+  const copy = useDashboardText();
+  const dows = copy.isSpanish
+    ? ["D", "L", "M", "M", "J", "V", "S"]
+    : ["S", "M", "T", "W", "T", "F", "S"];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-          Recurring pattern
+          {copy.t("Recurring pattern")}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {([
@@ -433,7 +449,7 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
                 background: active ? "rgba(15,79,62,0.08)" : "#fff",
                 color: active ? COLORS.accentDeep : COLORS.ink,
                 fontSize: 11.5, fontWeight: 600, cursor: "pointer",
-              }}>{o.label}</button>
+              }}>{copy.t(o.label)}</button>
             );
           })}
         </div>
@@ -459,18 +475,18 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
       </div>
       <div>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-          Vacation mode
+          {copy.t("Vacation mode")}
         </div>
         {vacation ? (
           <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid rgba(91,107,160,0.18)`, display: "flex", alignItems: "center", gap: 8 }} className="bg-admin-indigo-soft">
             <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }} className="text-admin-indigo-deep">
-              Out {vacation.start} → {vacation.end}
+              {copy.t("Away")} {vacation.start} → {vacation.end}
             </span>
             <button type="button" onClick={() => onVacationChange(null)} style={{
               padding: "5px 10px", borderRadius: 8, border: "none",
               background: "#fff", color: COLORS.indigoDeep,
               fontSize: 11, fontWeight: 600, cursor: "pointer",
-            }}>Cancel</button>
+            }}>{copy.t("Cancel")}</button>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -485,7 +501,7 @@ export function RecurringPatternEditor({ value, vacation, onChange, onVacationCh
               padding: "8px 14px", borderRadius: 8, border: "none",
               background: COLORS.fill, color: "#fff",
               fontSize: 12, fontWeight: 600, cursor: "pointer",
-            }}>Set vacation</button>
+            }}>{copy.t("Set vacation")}</button>
           </div>
         )}
       </div>
@@ -505,6 +521,7 @@ export function PackageRatesEditor({ packages, onChange }: {
   const update = (id: string, p: Partial<PackageRate>) =>
     onChange(packages.map(x => x.id === id ? { ...x, ...p } : x));
   const remove = (id: string) => onChange(packages.filter(x => x.id !== id));
+  const copy = useDashboardText();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
       {packages.map(p => (
@@ -514,20 +531,20 @@ export function PackageRatesEditor({ packages, onChange }: {
         }}>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
             <input type="text" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })}
-              placeholder="Package name — e.g. 1-day shoot + social repost"
+              placeholder={copy.t("Package name, e.g. 1-day shoot + social repost")}
               style={{
                 flex: 1, padding: "9px 12px", borderRadius: 8,
                 border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
                 fontSize: 13, fontWeight: 600, color: COLORS.ink, outline: "none",
               }}
             />
-            <button type="button" onClick={() => remove(p.id)} aria-label="Remove" style={{
+            <button type="button" onClick={() => remove(p.id)} aria-label={copy.t("Remove")} style={{
               width: 32, height: 32, borderRadius: 8, border: "none",
               background: "transparent", color: COLORS.inkMuted, fontSize: 16, cursor: "pointer",
             }}>×</button>
           </div>
           <textarea value={p.description} onChange={(e) => update(p.id, { description: e.target.value })}
-            placeholder="What's included — e.g. 1 day on set + 1 Instagram repost within 7 days"
+            placeholder={copy.t("What's included, e.g. 1 day on set + 1 Instagram repost within 7 days")}
             rows={2}
             style={{
               width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 8,
@@ -555,7 +572,7 @@ export function PackageRatesEditor({ packages, onChange }: {
               }}
             />
             <input type="text" value={p.conditions ?? ""} onChange={(e) => update(p.id, { conditions: e.target.value })}
-              placeholder="Conditions"
+              placeholder={copy.t("Conditions")}
               style={{
                 flex: 1, padding: "8px 12px", borderRadius: 8,
                 border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
@@ -569,7 +586,7 @@ export function PackageRatesEditor({ packages, onChange }: {
         padding: "9px 14px", borderRadius: 10,
         background: "transparent", border: `1.5px dashed ${COLORS.border}`,
         color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
-      }}>+ Add package</button>
+      }}>+ {copy.t("Add package")}</button>
     </div>
   );
 }
@@ -586,6 +603,7 @@ export const PastClientsEditor = React.memo(function PastClientsEditor({ clients
   const update = (id: string, p: Partial<PastClient>) =>
     onChange(clients.map(x => x.id === id ? { ...x, ...p } : x));
   const remove = (id: string) => onChange(clients.filter(x => x.id !== id));
+  const copy = useDashboardText();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
       {clients.map(c => (
@@ -595,7 +613,7 @@ export const PastClientsEditor = React.memo(function PastClientsEditor({ clients
         }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
             <input type="text" value={c.name} onChange={(e) => update(c.id, { name: e.target.value })}
-              placeholder="Client name — e.g. Mango"
+              placeholder={copy.t("Client name, e.g. Mango")}
               style={{
                 flex: 1, padding: "9px 12px", borderRadius: 8,
                 border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
@@ -603,15 +621,15 @@ export const PastClientsEditor = React.memo(function PastClientsEditor({ clients
               }}
             />
             {c.verified && (
-              <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }} className="bg-admin-success-soft text-admin-success-deep">✓ Verified booking</span>
+              <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }} className="bg-admin-success-soft text-admin-success-deep">✓ {copy.t("Verified booking")}</span>
             )}
-            <button type="button" onClick={() => remove(c.id)} aria-label="Remove" style={{
+            <button type="button" onClick={() => remove(c.id)} aria-label={copy.t("Remove")} style={{
               width: 28, height: 28, borderRadius: 8, border: "none",
               background: "transparent", color: COLORS.inkMuted, fontSize: 14, cursor: "pointer",
             }}>×</button>
           </div>
           <textarea value={c.testimonial ?? ""} onChange={(e) => update(c.id, { testimonial: e.target.value })}
-            placeholder="One-line testimonial…"
+            placeholder={copy.t("One-line testimonial…")}
             rows={2}
             style={{
               width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8,
@@ -621,7 +639,7 @@ export const PastClientsEditor = React.memo(function PastClientsEditor({ clients
             }}
           />
           <input type="text" value={c.testimonialBy ?? ""} onChange={(e) => update(c.id, { testimonialBy: e.target.value })}
-            placeholder="By — e.g. Marco Russo, photographer"
+            placeholder={copy.t("Credited to, e.g. Marco Russo, photographer")}
             style={{
               width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8,
               border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
@@ -634,7 +652,7 @@ export const PastClientsEditor = React.memo(function PastClientsEditor({ clients
         padding: "9px 14px", borderRadius: 10,
         background: "transparent", border: `1.5px dashed ${COLORS.border}`,
         color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
-      }}>+ Add client</button>
+      }}>+ {copy.t("Add client")}</button>
     </div>
   );
 });
@@ -645,6 +663,7 @@ export function NextTierCoach({ tier, verifications }: {
   tier: TrustTier;
   verifications: Verifications;
 }) {
+  const copy = useDashboardText();
   if (tier === "gold") {
     return (
       <div style={{
@@ -652,21 +671,21 @@ export function NextTierCoach({ tier, verifications }: {
         background: "rgba(184,135,49,0.10)",
         border: "1px solid rgba(184,135,49,0.25)",
         fontSize: 12, color: "#7A5A1F", fontFamily: FONTS.body, lineHeight: 1.5,
-      }}>★ You&apos;ve reached the top tier. Keep delivering on bookings to stay there.</div>
+      }}>★ {copy.t("You've reached the top tier. Keep delivering on bookings to stay there.")}</div>
     );
   }
   let nextSteps: string[] = [];
   if (tier === "basic") {
-    if (!verifications.idSubmitted)     nextSteps.push("Submit a government ID");
-    if (!verifications.payoutConnected) nextSteps.push("Connect a payout method");
+    if (!verifications.idSubmitted)     nextSteps.push(copy.t("Submit a government ID"));
+    if (!verifications.payoutConnected) nextSteps.push(copy.t("Connect a payout method"));
   } else if (tier === "verified") {
-    nextSteps.push("Complete 1 booking on Tulala to reach Silver");
+    nextSteps.push(copy.t("Complete 1 booking on Tulala to reach Silver"));
   } else if (tier === "silver") {
     if (verifications.bookingsCount < 5) {
-      nextSteps.push(`${5 - verifications.bookingsCount} more bookings`);
+      nextSteps.push(`${5 - verifications.bookingsCount} ${copy.t("more bookings")}`);
     }
     if (!verifications.hasFundedClient) {
-      nextSteps.push("1 funded-account client booking");
+      nextSteps.push(copy.t("1 funded-account client booking"));
     }
   }
   if (nextSteps.length === 0) return null;
@@ -679,7 +698,7 @@ export function NextTierCoach({ tier, verifications }: {
       fontFamily: FONTS.body,
     }}>
       <div style={{ fontSize: 11.5, fontWeight: 600, color: targetMeta.fg, marginBottom: 6 }}>
-        Reach {targetMeta.label} {targetMeta.emoji}
+        {copy.t("Level up to")} {copy.t(targetMeta.label)} {targetMeta.emoji}
       </div>
       <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.55 }} className="text-admin-ink">
         {nextSteps.map(s => <li key={s}>{s}</li>)}

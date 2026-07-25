@@ -339,7 +339,7 @@ function WorkspaceSidebarShell() {
         {/* WS-12.10 — secondary skip link lets keyboard users bypass the
             sidebar nav and jump straight to the page content area. */}
         <a href="#tulala-workspace-content" className="skip-to-main">
-          Skip to page content
+          {copy.t("Skip to page content")}
         </a>
         {/* Tenant switcher (#3) — compact context chip at the top of the
             sidebar. Clicking opens the tenant-switcher drawer. On multi-

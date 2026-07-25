@@ -14,27 +14,41 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { withInterpolation } from "@/i18n/interpolate";
+import { useT } from "@/i18n/use-t";
 import { COLORS, FONTS, TRANSITION } from "../state";
 import { useViewport } from "./hooks";
 
 // ─── AutoSaveIndicator (#6) ───────────────────────────────────────────
 // Displays "Saved X ago" or "Saving…" inside forms.
+//
+// i18n: the whole phrase (verb + number + unit) is one catalog string, so
+// Spanish can reorder it into "Guardado hace 2 min" instead of gluing a
+// translated word onto an English-shaped "2m ago".
 
 export function AutoSaveIndicator({ savedAt }: { savedAt: Date | null }) {
   const [label, setLabel] = useState("");
+  const t = useT();
 
   useEffect(() => {
     if (!savedAt) return;
+    const ti = withInterpolation(t);
     const update = () => {
       const s = Math.round((Date.now() - savedAt.getTime()) / 1000);
-      if (s < 5) setLabel("Saved just now");
-      else if (s < 60) setLabel(`Saved ${s}s ago`);
-      else setLabel(`Saved ${Math.round(s / 60)}m ago`);
+      if (s < 5) setLabel(t("dashboard.adminShell.autosave.justNow"));
+      else if (s < 60)
+        setLabel(ti("dashboard.adminShell.autosave.secondsAgo", { count: s }));
+      else
+        setLabel(
+          ti("dashboard.adminShell.autosave.minutesAgo", {
+            count: Math.round(s / 60),
+          }),
+        );
     };
     update();
     const id = setInterval(update, 10_000);
     return () => clearInterval(id);
-  }, [savedAt]);
+  }, [savedAt, t]);
 
   if (!savedAt) return null;
   return (

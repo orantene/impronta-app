@@ -11,6 +11,7 @@
  */
 
 import { useMemo, useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
 import { clientAddTalentToInquiryAction } from "../_actions/client-add-talent-actions";
 
 export type LineupRosterOption = { id: string; name: string; primaryTypeLabel?: string; city?: string };
@@ -28,6 +29,7 @@ export function LineupAddTalentPicker({
   excludeIds: string[];
   onAdded: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export function LineupAddTalentPicker({
           cursor: "pointer",
         }}
       >
-        <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> Suggest talent
+        <span style={{ fontSize: 14, lineHeight: 1 }}>+</span> {t("client.messages.lineupSuggestTalent")}
       </button>
 
       {open ? (
@@ -92,7 +94,7 @@ export function LineupAddTalentPicker({
         >
           {options.length === 0 ? (
             <div style={{ padding: "12px 14px", fontSize: 12.5, color: "rgba(11,11,13,0.55)" }}>
-              Everyone on the roster is already on this lineup.
+              {t("client.messages.lineupAllOnLineup")}
             </div>
           ) : (
             options.map((r) => (
@@ -131,7 +133,7 @@ export function LineupAddTalentPicker({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {busy && pendingId === r.id ? "Adding…" : "+ Add"}
+                  {busy && pendingId === r.id ? t("client.messages.lineupAdding") : t("client.messages.lineupAdd")}
                 </button>
               </div>
             ))
