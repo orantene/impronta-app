@@ -155,8 +155,15 @@ export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
   children,
+  modal,
 }: Readonly<{
   children: React.ReactNode;
+  /**
+   * @modal parallel slot — intercepted routes render here ON TOP of the
+   * current page (directory quick-open profile: @modal/(.)t/[profileCode]).
+   * Resolves to @modal/default.tsx (null) on every non-intercepted render.
+   */
+  modal: React.ReactNode;
 }>) {
   const [siteTheme, publicFontPreset, publicScope] = await Promise.all([
     getSiteTheme(),
@@ -224,6 +231,9 @@ export default async function RootLayout({
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
+        {/* Intercepted-route overlays (profile quick-open). Sibling of the
+            page so closing = router.back() restores the page untouched. */}
+        {modal}
         {/* Tenant custom code — body snippet (end of <body>). Storefront-only. */}
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />

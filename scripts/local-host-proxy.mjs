@@ -1,16 +1,18 @@
 import http from "node:http";
 
-const [, , portArg, hostArg] = process.argv;
+const [, , portArg, hostArg, upstreamPortArg] = process.argv;
 const port = Number(portArg);
 const hostHeader = hostArg;
 
 if (!port || !hostHeader) {
-  console.error("usage: node scripts/local-host-proxy.mjs <listen-port> <host-header>");
+  console.error(
+    "usage: node scripts/local-host-proxy.mjs <listen-port> <host-header> [upstream-port=3000]",
+  );
   process.exit(2);
 }
 
 const UPSTREAM_HOST = "127.0.0.1";
-const UPSTREAM_PORT = 3000;
+const UPSTREAM_PORT = Number(upstreamPortArg) || 3000;
 
 const server = http.createServer((clientReq, clientRes) => {
   // Rewrite Host, Origin and Referer so Next.js Server Actions CSRF check
