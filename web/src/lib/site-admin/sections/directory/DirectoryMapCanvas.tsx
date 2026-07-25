@@ -11,6 +11,7 @@ import {
 import type { LatLng } from "@/lib/directory/geo-distance";
 
 import type { CityCluster } from "./map-clusters";
+import { groupClustersForZoom } from "./map-zoom-clusters";
 
 /**
  * The Google Maps canvas for the directory map view: dark editorial styling,
@@ -131,36 +132,75 @@ function CityMarkers({
     if (base) setGoldDeep(base);
   }, []);
 
+  // Zoom drives which cities visually collide, so the grouping recomputes as
+  // the visitor zooms. Falls back to the map's own default until the first
+  // camera event lands.
+  const map = useMap();
+  const [zoom, setZoom] = useState<number>(() => map?.getZoom() ?? 4);
+  useEffect(() => {
+    if (!map) return;
+    const sync = () => setZoom(map.getZoom() ?? 4);
+    sync();
+    const listener = map.addListener("zoom_changed", sync);
+    return () => listener.remove();
+  }, [map]);
+
+  const grouped = useMemo(
+    () => groupClustersForZoom(clusters, zoom),
+    [clusters, zoom],
+  );
+
   if (!loaded) return null;
 
   return (
     <>
-      {clusters.map((c) => {
-        const isSelected = selectedKey === c.key;
-        // Pin radius grows with the count (capped) so dense cities read bigger.
-        const scale = Math.min(22, 11 + Math.sqrt(c.items.length) * 2.4);
+      {grouped.map((g) => {
+        const merged = g.cities.length > 1;
+        // A merged bubble counts as selected when it contains the selection.
+        const isSelected = merged
+          ? g.cities.some((c) => c.key === selectedKey)
+          : selectedKey === g.cities[0]!.key;
+        // Pin radius grows with the count (capped) so dense pins read bigger.
+        const scale = Math.min(24, 11 + Math.sqrt(g.count) * 2.4);
         const icon: google.maps.Symbol = {
           path: google.maps.SymbolPath.CIRCLE,
           scale: isSelected ? scale + 2 : scale,
           fillColor: isSelected ? gold : goldDeep,
           fillOpacity: 1,
-          strokeColor: "#0a0a0a",
-          strokeWeight: 2,
+          // Merged bubbles get a lighter ring so "several cities" reads
+          // differently from "one city" at a glance.
+          strokeColor: merged ? "#f3e7c8" : "#0a0a0a",
+          strokeWeight: merged ? 2.5 : 2,
         };
+        const title = merged
+          ? g.cities.map((c) => `${c.label || "City"} · ${c.items.length}`).join("\n")
+          : `${g.cities[0]!.label || "City"} · ${g.count}`;
         return (
           <Marker
-            key={c.key}
-            position={{ lat: c.lat, lng: c.lng }}
-            title={`${c.label || "City"} · ${c.items.length}`}
+            key={g.key}
+            position={{ lat: g.lat, lng: g.lng }}
+            title={title}
             icon={icon}
             label={{
-              text: String(c.items.length),
+              text: String(g.count),
               color: "#0a0a0a",
               fontSize: "11px",
               fontWeight: "700",
             }}
             zIndex={isSelected ? 10 : undefined}
-            onClick={() => onSelect(c.key)}
+            onClick={() => {
+              // Merged bubble → zoom in to break it apart (its member cities
+              // are distinct places, so filtering to "all of them" would be a
+              // lie). Single city → filter, as before.
+              if (merged) {
+                if (!map) return;
+                const bounds = new google.maps.LatLngBounds();
+                for (const c of g.cities) bounds.extend({ lat: c.lat, lng: c.lng });
+                map.fitBounds(bounds, 64);
+                return;
+              }
+              onSelect(g.cities[0]!.key);
+            }}
           />
         );
       })}

@@ -1,7 +1,11 @@
 import { unstable_cache } from "next/cache";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
 import { fetchDirectoryPage } from "@/lib/directory/fetch-directory-page";
-import type { DirectoryFieldFacetSelection, DirectoryPageResponse } from "@/lib/directory/types";
+import type {
+  DirectoryFieldFacetSelection,
+  DirectoryPageResponse,
+  DirectorySortValue,
+} from "@/lib/directory/types";
 import { DIRECTORY_PAGE_SIZE_DEFAULT } from "@/lib/directory/types";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
@@ -34,7 +38,8 @@ export function getCachedDirectoryFirstPage(options: {
   locale?: string;
   query?: string;
   locationSlug?: string;
-  sort?: "recommended" | "featured" | "recent" | "updated";
+  /** Any engine sort, `top_rated` included (the key is sort- and tenant-scoped). */
+  sort?: DirectorySortValue;
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
   ageMin?: number | null;
@@ -113,7 +118,8 @@ export async function getPublicDirectoryFirstPage(options: {
   locale?: string;
   query?: string;
   locationSlug?: string;
-  sort?: "recommended" | "featured" | "recent" | "updated";
+  /** Any engine sort, `top_rated` included (the key is sort- and tenant-scoped). */
+  sort?: DirectorySortValue;
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
   ageMin?: number | null;
