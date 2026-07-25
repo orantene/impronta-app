@@ -22,6 +22,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
 import { globalSearch } from "@/lib/search/global-search";
 import type { SearchResult } from "@/lib/search/global-search-types";
 
@@ -38,11 +39,13 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-const KIND_LABEL: Record<SearchResult["kind"], string> = {
-  inquiry: "Inquiries",
-  booking: "Bookings",
-  message: "Messages",
-  talent: "Talent",
+// Section headers reuse the already-translated client nav vocabulary so search
+// groups read exactly like the sidebar entries they point at.
+const KIND_LABEL_KEY: Record<SearchResult["kind"], string> = {
+  inquiry: "dashboard.clientNav.inquiries",
+  booking: "dashboard.clientNav.bookings",
+  message: "dashboard.clientNav.messages",
+  talent: "dashboard.roleTalent",
 };
 
 const KIND_ORDER: SearchResult["kind"][] = [
@@ -68,6 +71,7 @@ function iconForKind(kind: SearchResult["kind"]): string {
 }
 
 export function GlobalSearch({ placeholder }: { placeholder?: string }) {
+  const t = useT();
   const router = useRouter();
   const popoverId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -230,8 +234,8 @@ export function GlobalSearch({ placeholder }: { placeholder?: string }) {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onInputKeyDown}
-          placeholder={placeholder ?? "Search…"}
-          aria-label="Search"
+          placeholder={placeholder ?? t("client.ui.search.placeholder")}
+          aria-label={t("client.ui.search.ariaLabel")}
           aria-expanded={showDropdown}
           aria-controls={popoverId}
           role="combobox"
@@ -279,7 +283,7 @@ export function GlobalSearch({ placeholder }: { placeholder?: string }) {
                 color: C.inkMuted,
               }}
             >
-              {loading ? "Searching…" : "No matches"}
+              {loading ? t("client.ui.search.searching") : t("client.ui.search.noMatches")}
             </div>
           ) : (
             grouped.sections.map((section) => (
@@ -294,7 +298,7 @@ export function GlobalSearch({ placeholder }: { placeholder?: string }) {
                     color: C.inkDim,
                   }}
                 >
-                  {KIND_LABEL[section.kind]}
+                  {t(KIND_LABEL_KEY[section.kind])}
                 </div>
                 {section.items.map((r) => {
                   runningIndex += 1;

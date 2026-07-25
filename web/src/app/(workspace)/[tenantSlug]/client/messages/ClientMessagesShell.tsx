@@ -349,7 +349,7 @@ export function ClientMessagesShell({
             return [...prev, {
               id: row.id,
               sender_user_id: row.sender_user_id ?? "",
-              sender_name: knownName ?? (row.sender_user_id?.slice(0, 8) ?? "Unknown"),
+              sender_name: knownName ?? (row.sender_user_id?.slice(0, 8) ?? t("client.messages.unknownSender")),
               body: row.body,
               created_at: row.created_at,
               is_mine: false,
@@ -363,7 +363,7 @@ export function ClientMessagesShell({
       .subscribe();
 
     return () => { supabase.removeChannel(channel).catch(() => {}); };
-  }, [activeId, router]);
+  }, [activeId, router, t]);
 
   // Filter predicate lifted VERBATIM into the client role adapter
   // (client-thread-adapter.ts) — pure + oracle-pinned, behaviour
@@ -1179,6 +1179,7 @@ function ThreadPaneWithTabs({
         open={statusSheetOpen}
         data={statusSheetData}
         onClose={() => setStatusSheetOpen(false)}
+        t={t}
       />
 
       {payNowSheet && (
@@ -1363,7 +1364,7 @@ function cardSummaryText(payload: Record<string, unknown> | null | undefined): s
  *   locales (see `sharedFile` copy); a metadata attachment descriptor also
  *   counts if one is ever attached.
  */
-function adaptMessageForSearch(m: WorkspaceMessage): ThreadSearchMessage {
+function adaptMessageForSearch(m: WorkspaceMessage, t: (key: string) => string): ThreadSearchMessage {
   const kind = m.message_kind ?? "text";
   const body = m.body || "";
 
@@ -1388,7 +1389,7 @@ function adaptMessageForSearch(m: WorkspaceMessage): ThreadSearchMessage {
     id: m.id,
     body: indexedBody,
     createdAt: (m.created_at || "").slice(0, 16).replace("T", " "),
-    senderName: m.is_mine ? "You" : m.sender_name,
+    senderName: m.is_mine ? t("client.messages.searchSenderYou") : m.sender_name,
     hasAttachment,
   };
 }
@@ -1405,8 +1406,8 @@ function ClientThreadSearchTrigger({
   const t = useT();
   const [open, setOpen] = useState(false);
   const adapted: ThreadSearchMessage[] = useMemo(
-    () => messages.map(adaptMessageForSearch),
-    [messages],
+    () => messages.map((m) => adaptMessageForSearch(m, t)),
+    [messages, t],
   );
   const jumpTargets: JumpTarget[] = useMemo(() => {
     const out: JumpTarget[] = [];

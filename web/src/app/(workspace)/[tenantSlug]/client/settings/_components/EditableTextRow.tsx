@@ -6,6 +6,7 @@
 // every async state must be visible — no silent waits, no toast-and-vanish.
 
 import { useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const C = {
@@ -38,6 +39,7 @@ export function EditableTextRow({
   onSave: (next: string) => Promise<Result>;
   type?: "text" | "email";
 }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export function EditableTextRow({
                 letterSpacing: 0.2,
               }}
             >
-              ✓ Saved
+              ✓ {t("client.settings.saved")}
             </span>
           )}
         </div>
@@ -154,7 +156,7 @@ export function EditableTextRow({
                   fontFamily: FONT,
                 }}
               >
-                {pending ? "Saving…" : "Save"}
+                {pending ? t("client.settings.saving") : t("client.settings.save")}
               </button>
               <button
                 type="button"
@@ -172,7 +174,7 @@ export function EditableTextRow({
                   fontFamily: FONT,
                 }}
               >
-                Cancel
+                {t("client.settings.cancel")}
               </button>
             </div>
           </div>
@@ -212,7 +214,7 @@ export function EditableTextRow({
             onMouseEnter={(e) => { e.currentTarget.style.background = C.blueSoft; e.currentTarget.style.color = C.blue; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = C.surface; e.currentTarget.style.color = C.ink; }}
           >
-            Edit
+            {t("client.settings.edit")}
           </button>
         </div>
       )}

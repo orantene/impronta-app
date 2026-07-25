@@ -8,20 +8,23 @@ import {
   FONTS,
   ProfileActivityEntry,
   getTalentProfileActivity,
+  useDashboardText,
 } from "../../drawer-shared";
 
 // Q5: relative-time helper hoisted to module scope so the Date.now() call
 // doesn't trip react-hooks/purity when used from a render closure.
-function relTime(iso: string): string {
+function relTime(iso: string, isSpanish: boolean): string {
   const diff = Date.now() - Date.parse(iso);
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return isSpanish ? `hace ${mins} min` : `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return isSpanish ? `hace ${hrs} h` : `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return isSpanish ? `hace ${days} d` : `${days}d ago`;
 }
 
 export function ProfileActivityLog({ talentProfileId }: { talentProfileId?: string }) {
+  const copy = useDashboardText();
   const [entries, setEntries] = useState<ProfileActivityEntry[]>([]);
   const [loading, setLoading] = useState(!!talentProfileId);
 
@@ -34,10 +37,10 @@ export function ProfileActivityLog({ talentProfileId }: { talentProfileId?: stri
   }, [talentProfileId]);
 
   if (loading) return (
-    <div style={{ padding: "12px 0", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">Loading…</div>
+    <div style={{ padding: "12px 0", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">{copy.t("Loading…")}</div>
   );
   if (entries.length === 0) return (
-    <div style={{ padding: "12px 0", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">No activity recorded yet.</div>
+    <div style={{ padding: "12px 0", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">{copy.t("No activity recorded yet.")}</div>
   );
 
   // Q5: relTime moved to module scope (see top of file) so the Date.now()
@@ -56,9 +59,9 @@ export function ProfileActivityLog({ talentProfileId }: { talentProfileId?: stri
               : COLORS.inkDim, flexShrink: 0, }} />
           <span className="flex-1 min-w-0">
             <span style={{ display: "block", fontSize: 12, lineHeight: 1.4 }} className="text-admin-ink">
-              <strong style={{ fontWeight: 600, textTransform: "capitalize" }}>{e.actorRole}</strong>{" · "}{e.action}
+              <strong style={{ fontWeight: 600, textTransform: "capitalize" }}>{copy.t(e.actorRole)}</strong>{" · "}{e.action}
             </span>
-            <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{relTime(e.createdAt)}</span>
+            <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{relTime(e.createdAt, copy.isSpanish)}</span>
           </span>
         </div>
       ))}
@@ -80,6 +83,7 @@ export function ThreeSlotPhotoBlock({
   galleryPhotos: string[];
   onOpenSlot: (slot: "avatar" | "hero" | "gallery") => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div style={{
       padding: "14px 18px 10px",
@@ -97,8 +101,8 @@ export function ThreeSlotPhotoBlock({
       {/* Avatar + gallery strip in a row below */}
       <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
         <PhotoSlot
-          label="Profile"
-          hint="1:1 square"
+          label={copy.t("Profile")}
+          hint={`1:1 ${copy.t("square")}`}
           imageUrl={avatarUrl}
           aspectRatio="1 / 1"
           onClick={() => onOpenSlot("avatar")}
@@ -122,12 +126,13 @@ export function CoverPhotoSlot({
   imageUrl: string | null;
   onClick: () => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div className="flex flex-col gap-1">
       <button
         type="button"
         onClick={onClick}
-        aria-label={imageUrl ? "Change cover photo" : "Set cover photo"}
+        aria-label={copy.t(imageUrl ? "Change cover photo" : "Set cover photo")}
         style={{
           width: "100%",
           height: 220,
@@ -148,7 +153,7 @@ export function CoverPhotoSlot({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
-            alt="Cover"
+            alt={copy.t("Cover")}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
@@ -158,7 +163,7 @@ export function CoverPhotoSlot({
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
             </svg>
-            <span className="text-admin-11h font-medium">Add cover photo</span>
+            <span className="text-admin-11h font-medium">{copy.t("Add cover photo")}</span>
           </div>
         )}
         {imageUrl && (
@@ -174,13 +179,13 @@ export function CoverPhotoSlot({
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 2 }}>
         <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">
-          Cover <span className="text-admin-ink-dim">· 16:9 banner</span>
+          {copy.t("Cover")} <span className="text-admin-ink-dim">· 16:9 {copy.t("banner")}</span>
         </span>
         {imageUrl && (
           <button type="button" onClick={onClick} style={{
             fontFamily: FONTS.body, fontSize: 11, color: COLORS.accent, fontWeight: 500,
             border: "none", background: "none", cursor: "pointer", padding: 0,
-          }}>Change</button>
+          }}>{copy.t("Change")}</button>
         )}
       </div>
     </div>
@@ -197,6 +202,7 @@ export function GalleryStrip({
   totalCount: number;
   onOpen: () => void;
 }) {
+  const copy = useDashboardText();
   // Show up to 8 thumbs; anything beyond gets a +N chip
   const MAX_THUMBS = 8;
   const shown = photos.slice(0, MAX_THUMBS);
@@ -212,7 +218,7 @@ export function GalleryStrip({
       }}>
         <span style={{ fontSize: 20, opacity: 0.35 }}>📷</span>
         <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 500 }} className="text-admin-ink-muted">
-          Add photos
+          {copy.t("Add photos")}
         </span>
       </button>
     );
@@ -259,13 +265,14 @@ export function PhotoSlot({
   onClick: () => void;
   onRemove?: () => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
       <div className="relative">
         <button
           type="button"
           onClick={onClick}
-          aria-label={imageUrl ? `Change ${label}` : `Set ${label}`}
+          aria-label={`${copy.t(imageUrl ? "Change" : "Set")} ${label}`}
           style={{
             width: aspectRatio === "1 / 1" ? 72 : 58,
             height: 72,
@@ -301,14 +308,14 @@ export function PhotoSlot({
             opacity: 0,
             transition: "opacity 120ms",
           }} className="photo-slot-overlay">
-            {imageUrl ? "Change" : "Set"}
+            {copy.t(imageUrl ? "Change" : "Set")}
           </span>
         </button>
         {imageUrl && onRemove && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            aria-label={`Remove ${label}`}
+            aria-label={`${copy.t("Remove")} ${label}`}
             style={{
               position: "absolute", top: 4, right: 4,
               width: 18, height: 18, borderRadius: "50%",

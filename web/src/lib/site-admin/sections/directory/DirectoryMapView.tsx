@@ -76,6 +76,8 @@ export type DirectoryMapViewProps = {
   columnsDesktop: number;
   columnsTablet: number;
   columnsMobile: number;
+  /** Reports the FILTERED total up to the toolbar (else it shows the stale SSR count). */
+  onCountChange?: (count: number) => void;
 };
 
 type CityCluster = {
@@ -142,6 +144,12 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   });
 
   const items = useMemo(() => data?.items ?? [], [data?.items]);
+
+  // Keep the results toolbar honest while the map view owns the data.
+  const { onCountChange } = props;
+  useEffect(() => {
+    if (data && onCountChange) onCountChange(items.length);
+  }, [data, items.length, onCountChange]);
 
   const { clusters, mappableCount, unmappedCount } = useMemo(() => {
     const byCity = new Map<string, CityCluster>();

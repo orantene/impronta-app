@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
@@ -45,8 +46,10 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
-function fmtDate(iso: string | null): string {
-  return formatClientWeekdayDate(iso, "TBC");
+type Translator = (key: string) => string;
+
+function fmtDate(iso: string | null, t: Translator): string {
+  return formatClientWeekdayDate(iso, t("client.bookings.tbc"));
 }
 
 function isPast(iso: string | null): boolean {
@@ -59,12 +62,12 @@ function fmtMoney(cents: number | null, currency: string | null): string | null 
 }
 
 // Client-facing payment label + tone from agency_bookings.payment_status.
-function paymentChip(status: string | null): { label: string; paid: boolean } | null {
+function paymentChip(status: string | null, t: Translator): { label: string; paid: boolean } | null {
   switch (status) {
-    case "paid":      return { label: "Paid", paid: true };
-    case "partial":   return { label: "Partially paid", paid: false };
-    case "unpaid":    return { label: "Payment due", paid: false };
-    case "cancelled": return { label: "Cancelled", paid: false };
+    case "paid":      return { label: t("dashboard.clientBookings.paid"), paid: true };
+    case "partial":   return { label: t("client.bookings.partiallyPaid"), paid: false };
+    case "unpaid":    return { label: t("dashboard.clientBookings.paymentDue"), paid: false };
+    case "cancelled": return { label: t("client.bookings.cancelled"), paid: false };
     default:          return null;
   }
 }
@@ -78,6 +81,7 @@ function BookingRow({
   payNowLabel,
   payable,
   locale,
+  t,
 }: {
   booking: ClientBookingRow;
   idx: number;
@@ -87,7 +91,9 @@ function BookingRow({
   payNowLabel: string;
   payable: PayableMap;
   locale: string;
+  t: Translator;
 }) {
+  const tPlural = withPluralization(t);
   const future = !isPast(booking.event_date);
   // CH2 — a charge the client can settle right now (staff already requested
   // payment). When present we mount the real payment sheet; when absent we
@@ -95,7 +101,7 @@ function BookingRow({
   const payableTxn = booking.agencyBookingId ? payable.get(booking.agencyBookingId) ?? null : null;
   const dateParts = getClientDateParts(booking.event_date);
   const money = fmtMoney(booking.amountCents, booking.currencyCode);
-  const chip = paymentChip(booking.paymentStatus);
+  const chip = paymentChip(booking.paymentStatus, t);
   // D2 — show receipt download only when paid and a booking record exists.
   const showReceipt =
     booking.paymentStatus === "paid" &&
@@ -152,7 +158,7 @@ function BookingRow({
             </div>
           </>
         ) : (
-          <div style={{ fontSize: 11, color: C.inkDim, textAlign: "center" }}>TBC</div>
+          <div style={{ fontSize: 11, color: C.inkDim, textAlign: "center" }}>{t("client.bookings.tbc")}</div>
         )}
       </div>
 
@@ -203,18 +209,18 @@ function BookingRow({
             {booking.company
               ?? (booking.talentLineup.length > 0
                 ? booking.talentLineup.map((t) => t.name).join(", ")
-                : booking.event_location ?? "Confirmed booking")}
+                : booking.event_location ?? t("client.bookings.confirmedBooking"))}
           </div>
         </div>
         <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
           {booking.event_date && (
-            <span style={{ fontSize: 12, color: C.inkMuted }}>{fmtDate(booking.event_date)}</span>
+            <span style={{ fontSize: 12, color: C.inkMuted }}>{fmtDate(booking.event_date, t)}</span>
           )}
           {booking.event_location && (
             <span style={{ fontSize: 12, color: C.inkMuted }}>· {booking.event_location}</span>
           )}
           {booking.quantity && (
-            <span style={{ fontSize: 12, color: C.inkMuted }}>· {booking.quantity} talent</span>
+            <span style={{ fontSize: 12, color: C.inkMuted }}>· {tPlural("client.bookings.talentCount", booking.quantity)}</span>
           )}
         </div>
         {(money || chip) && (
@@ -259,7 +265,7 @@ function BookingRow({
           whiteSpace: "nowrap",
         }}
       >
-        {future ? "Confirmed" : "Past"}
+        {future ? t("client.bookings.confirmed") : t("dashboard.clientBookings.past")}
       </div>
     </Link>
 
@@ -335,7 +341,7 @@ function BookingRow({
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M12 17V3" /><path d="M5 10l7 7 7-7" /><path d="M5 21h14" />
           </svg>
-          Download receipt
+          {t("client.bookings.downloadReceipt")}
         </a>
       </div>
     )}
@@ -345,7 +351,7 @@ function BookingRow({
 
 type PayableMap = Map<string, { transactionId: string; amountCents: number; currency: string; checkoutType: string | null }>;
 
-function BookingSection({ rows, label, tenantSlug, reviewPayLabel, payNowLabel, payable, locale }: { rows: ClientBookingRow[]; label: string; tenantSlug: string; reviewPayLabel: string; payNowLabel: string; payable: PayableMap; locale: string }) {
+function BookingSection({ rows, label, tenantSlug, reviewPayLabel, payNowLabel, payable, locale, t }: { rows: ClientBookingRow[]; label: string; tenantSlug: string; reviewPayLabel: string; payNowLabel: string; payable: PayableMap; locale: string; t: Translator }) {
   if (rows.length === 0) return null;
   return (
     <section>
@@ -354,7 +360,7 @@ function BookingSection({ rows, label, tenantSlug, reviewPayLabel, payNowLabel, 
       </div>
       <div style={{ background: C.cardBg, border: `1px solid ${C.borderSoft}`, borderRadius: 14, overflow: "hidden" }}>
         {rows.map((b, i) => (
-          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} tenantSlug={tenantSlug} reviewPayLabel={reviewPayLabel} payNowLabel={payNowLabel} payable={payable} locale={locale} />
+          <BookingRow key={b.id} booking={b} idx={i} total={rows.length} tenantSlug={tenantSlug} reviewPayLabel={reviewPayLabel} payNowLabel={payNowLabel} payable={payable} locale={locale} t={t} />
         ))}
       </div>
     </section>
@@ -402,29 +408,29 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
-        eyebrow="Bookings"
-        title="Your bookings"
+        eyebrow={t("client.bookings.eyebrow")}
+        title={t("client.bookings.title")}
         subtitle={
           bookings.length === 0
-            ? "Confirmed bookings will appear here once your offers are accepted."
-            : `${bookings.length} confirmed · ${upcoming.length + dateTbc.length} upcoming`
+            ? t("client.bookings.subtitleEmpty")
+            : interpolate(t("client.bookings.subtitleCounts"), { total: bookings.length, upcoming: upcoming.length + dateTbc.length })
         }
-        badge={upcoming.length + dateTbc.length > 0 ? <HeaderBadge tone="success">{upcoming.length + dateTbc.length} upcoming</HeaderBadge> : undefined}
+        badge={upcoming.length + dateTbc.length > 0 ? <HeaderBadge tone="success">{interpolate(t("client.bookings.upcomingBadge"), { count: upcoming.length + dateTbc.length })}</HeaderBadge> : undefined}
         actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} />}
       />
 
       {bookings.length === 0 ? (
         <EmptyState
           icon="📅"
-          title="No bookings yet"
-          body="Once your inquiries are confirmed, they'll appear here as bookings."
-          actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} label="Start inquiry" />}
+          title={t("client.bookings.emptyTitle")}
+          body={t("client.bookings.emptyBody")}
+          actions={<NewInquiryButton tenantSlug={tenantSlug} client={clientForBtn} roster={roster} label={t("dashboard.clientInquiries.startInquiry")} />}
         />
       ) : (
         <div className="flex flex-col gap-7">
-          <BookingSection rows={upcoming} label={t("dashboard.clientBookings.upcoming")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} />
-          <BookingSection rows={dateTbc} label={t("dashboard.clientBookings.dateTbc")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} />
-          <BookingSection rows={past}     label={t("dashboard.clientBookings.past")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} />
+          <BookingSection rows={upcoming} label={t("dashboard.clientBookings.upcoming")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} t={t} />
+          <BookingSection rows={dateTbc} label={t("dashboard.clientBookings.dateTbc")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} t={t} />
+          <BookingSection rows={past}     label={t("dashboard.clientBookings.past")} tenantSlug={tenantSlug} reviewPayLabel={t("dashboard.clientBookings.reviewPay")} payNowLabel={t("dashboard.clientBookings.payNow")} payable={payable} locale={locale} t={t} />
           {/* W7 — client→talent reviews. Self-hides when nothing is eligible. */}
           <ReviewableBookingsSection tenantSlug={tenantSlug} />
           {/* CW5 — payment history: every payment + refund, with receipts. */}
@@ -490,7 +496,7 @@ function PaymentsSection({ transactions, locale }: { transactions: ClientTransac
                   </span>
                 </div>
                 <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-                  {fmtDate(when)}
+                  {fmtDate(when, t)}
                 </div>
               </div>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: refunded ? C.inkMuted : C.ink, fontVariantNumeric: "tabular-nums", textDecoration: refunded && !isRefundRow ? "line-through" : "none" }}>

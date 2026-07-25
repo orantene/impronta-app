@@ -15,6 +15,8 @@
 
 import { Check, Eye } from "lucide-react";
 
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
 import type { RosterCardBadgePrefs } from "@/lib/talent-cards/roster-card-badges";
 import { TalentCard } from "@/components/talent-cards/TalentCard";
@@ -66,20 +68,25 @@ export function PublishCluster({
   publishedAt: string | null;
   onPublish: () => void;
 }) {
+  const t = useT();
   const publishing = publishState.kind === "publishing";
   let line: string;
   if (publishState.kind === "error") {
     line = publishState.message;
   } else if (publishState.kind === "published") {
-    line = `Published v${publishState.version} · live everywhere`;
+    line = interpolate(t("dashboard.adminCardStudio2.publishedVersionLive"), {
+      version: publishState.version,
+    });
   } else if (!canPublish) {
-    line = "You can edit the draft; publishing needs publish access.";
+    line = t("dashboard.adminCardStudio2.publishNeedsAccess");
   } else if (dirty) {
-    line = "Unpublished changes in the draft.";
+    line = t("dashboard.adminCardStudio2.unpublishedChanges");
   } else if (publishedAt) {
-    line = `Live · last published ${fmtPublishDate(publishedAt)}`;
+    line = interpolate(t("dashboard.adminCardStudio2.liveLastPublished"), {
+      date: fmtPublishDate(publishedAt),
+    });
   } else {
-    line = "Nothing published yet.";
+    line = t("dashboard.adminCardStudio2.nothingPublishedYet");
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
@@ -103,7 +110,11 @@ export function PublishCluster({
           opacity: publishing ? 0.7 : 1,
         }}
       >
-        {publishing ? "Publishing…" : "Publish"}
+        {t(
+          publishing
+            ? "dashboard.adminCardStudio2.publishing"
+            : "dashboard.adminCardStudio2.publish",
+        )}
       </button>
       <div
         role="status"
@@ -207,6 +218,7 @@ export function DesignLookSection({
   onKnobChange: (key: string, value: string) => void;
   saveState: DesignSaveState;
 }) {
+  const t = useT();
   return (
     <section
       style={{
@@ -217,8 +229,8 @@ export function DesignLookSection({
       }}
     >
       <GroupHeader
-        title="Look"
-        hint="A one-click kit repaints every card. You can fine-tune the colors after. Saved to a draft as you edit; Publish makes it live everywhere."
+        title={t("dashboard.adminCardStudio2.lookTitle")}
+        hint={t("dashboard.adminCardStudio2.lookHint")}
       />
       {!designReady ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", fontSize: 13, color: COLORS.inkMuted }}>
@@ -232,12 +244,14 @@ export function DesignLookSection({
               animation: "tulala-spin 0.7s linear infinite",
             }}
           />
-          Loading the current card design…
+          {t("dashboard.adminCardStudio2.loadingCardDesign")}
           <style>{`@keyframes tulala-spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       ) : designLoadError ? (
         <div style={{ fontSize: 13, color: COLORS.critical, padding: "8px 0" }}>
-          Couldn’t load the card design: {designLoadError}
+          {interpolate(t("dashboard.adminCardStudio2.couldNotLoadCardDesign"), {
+            error: designLoadError,
+          })}
         </div>
       ) : (
         <>
@@ -250,17 +264,17 @@ export function DesignLookSection({
           />
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "16px 0 4px" }} />
           <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 2 }}>
-            Colors
+            {t("dashboard.adminCardStudio2.colorsTitle")}
           </div>
           <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginBottom: 6, lineHeight: 1.4 }}>
-            Leave a swatch empty to inherit that color from your theme.
+            {t("dashboard.adminCardStudio2.colorsHint")}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {CARD_COLOR_KNOBS.map((knob) => (
               <ColorKnob
                 key={knob.key}
-                label={knob.label}
-                hint={knob.hint}
+                label={t(knob.labelKey)}
+                hint={t(knob.hintKey)}
                 value={draftTokens[knob.key] ?? ""}
                 disabled={!canEdit}
                 onChange={(v) => onKnobChange(knob.key, v)}
@@ -299,10 +313,11 @@ export function CardDesignPreviewColumn({
   favoriteIcon: "heart" | "bookmark";
   fieldChips: string[];
 }) {
+  const t = useT();
   return (
     <div style={{ position: "sticky", top: 12, display: "flex", flexDirection: "column", gap: 12, alignItems: "stretch", minWidth: 0 }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
-        {surfaceLabel} preview
+        {interpolate(t("dashboard.adminCardStudio2.surfacePreview"), { surface: surfaceLabel })}
       </div>
       {isRoster ? (
         <>
@@ -310,20 +325,18 @@ export function CardDesignPreviewColumn({
             <RosterBadgePreviewCard badges={rosterCardBadges} />
           </div>
           <div style={{ fontSize: 11, color: COLORS.inkDim, textAlign: "center", maxWidth: 260, lineHeight: 1.45, alignSelf: "center" }}>
-            Toggle a badge to see it appear or disappear here — exactly how the overlay stacks on
-            your live roster cards.
+            {t("dashboard.adminCardStudio2.rosterPreviewHint")}
           </div>
         </>
       ) : (
         <>
           <CardLivePreview draft={draftTokens} />
           <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
-            This is how your talent card renders on the live site. Look + color edits show here
-            instantly; Publish makes them live everywhere.
+            {t("dashboard.adminCardStudio2.livePreviewHint")}
           </div>
           <div style={{ height: 1, background: COLORS.borderSoft, margin: "2px 0" }} />
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
-            Actions on this surface
+            {t("dashboard.adminCardStudio.actionsTitle")}
           </div>
           <div style={{ alignSelf: "center" }}>
             <PreviewCard
@@ -334,8 +347,7 @@ export function CardDesignPreviewColumn({
             />
           </div>
           <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
-            Favorite + inquiry here are interactive so you can see both states. On the live
-            surface they connect to the client’s real favorites and inquiry list.
+            {t("dashboard.adminCardStudio2.actionsPreviewHint")}
           </div>
         </>
       )}
@@ -368,6 +380,7 @@ const PREVIEW_PILL_BASE: React.CSSProperties = {
 };
 
 export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePrefs }) {
+  const t = useT();
   return (
     <div
       data-tulala-roster-badge-preview
@@ -420,7 +433,7 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
         >
           {badges.visibility ? (
             <span
-              title="Visibility eye — the live show / hide control for the agency site"
+              title={t("dashboard.adminCardStudio2.rosterVisibilityEyeTitle")}
               style={{
                 width: 30,
                 height: 30,
@@ -453,7 +466,7 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
                 boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
               }}
             >
-              Discover
+              {t("dashboard.adminCardStudio2.rosterDiscoverBadge")}
             </span>
           ) : null}
         </div>
@@ -499,7 +512,7 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
         >
           {badges.trust ? (
             <span
-              title="Tulala Verified"
+              title={t("dashboard.adminCardStudio2.rosterTulalaVerifiedTitle")}
               style={{
                 width: 20,
                 height: 20,
@@ -527,7 +540,7 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
               }}
             >
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.green }} />
-              available
+              {t("dashboard.adminCardStudio2.rosterAvailableBadge")}
             </span>
           ) : null}
           {badges.talentId ? (
@@ -548,7 +561,7 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
       {/* Body — name + type + city always show, like the real roster card */}
       <div style={{ padding: "10px 12px 12px" }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, color: COLORS.ink }}>
-          Tina Rossi
+          {"Tina Rossi"}
         </div>
         <div
           style={{
@@ -562,7 +575,7 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
           }}
         >
           <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>📸</span>
-          Fashion Model
+          {t("dashboard.adminCardStudio2.sampleTalentType")}
         </div>
         <div style={{ fontSize: 11, marginTop: 1, color: COLORS.inkMuted }}>📍 Milano, IT</div>
       </div>
@@ -583,12 +596,13 @@ export function CardSurfaceTabStrip({
   activeSurface: CardSurface;
   onSurfaceChange: (s: CardSurface) => void;
 }) {
+  const t = useT();
   const rule = SURFACE_RULES[activeSurface];
   return (
     <>
       <div
         role="tablist"
-        aria-label="Card surface"
+        aria-label={t("dashboard.adminCardStudio2.cardSurfaceTablistAria")}
         style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}
       >
         {SURFACE_ORDER.map((s) => {
@@ -618,7 +632,7 @@ export function CardSurfaceTabStrip({
                 transition: `color ${TRANSITION.sm}, border-color ${TRANSITION.sm}`,
               }}
             >
-              {r.label}
+              {t(r.labelKey)}
               <span
                 style={{
                   fontSize: 9.5,
@@ -631,7 +645,7 @@ export function CardSurfaceTabStrip({
                   padding: "2px 6px",
                 }}
               >
-                {r.tag}
+                {t(r.tagKey)}
               </span>
             </button>
           );
@@ -648,7 +662,7 @@ export function CardSurfaceTabStrip({
           borderRadius: RADIUS.md,
         }}
       >
-        {rule.note}
+        {t(rule.noteKey)}
       </div>
     </>
   );

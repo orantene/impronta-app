@@ -17,7 +17,7 @@ import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { interpolate } from "@/i18n/interpolate";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -100,6 +100,8 @@ function InquiryTable({
   tenantSlug: string;
   t: Translate;
 }) {
+  // Spanish needs real plural agreement here: the flat key rendered "3 talento".
+  const tPlural = withPluralization(t);
   if (rows.length === 0) return null;
   return (
     <section>
@@ -282,7 +284,7 @@ function InquiryTable({
                   )}
                   {inq.quantity && (
                     <span style={{ fontSize: 12, color: C.inkMuted }}>
-                      {interpolate(t("dashboard.clientInquiries.talentCount"), { count: inq.quantity })}
+                      {tPlural("dashboard.clientInquiries.talentCount", inq.quantity)}
                     </span>
                   )}
                 </div>

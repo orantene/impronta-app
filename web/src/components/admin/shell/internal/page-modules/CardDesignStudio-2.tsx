@@ -11,6 +11,7 @@
  * to import from a single `-2` path.
  */
 
+import { useT } from "@/i18n/use-t";
 import { Icon, Toggle } from "../primitives";
 import { COLORS, FONTS, TRANSITION } from "../state";
 
@@ -93,6 +94,7 @@ export function ToggleRow({
   disabled?: boolean;
   locked?: boolean;
 }) {
+  const t = useT();
   return (
     <div
       style={{
@@ -136,7 +138,7 @@ export function ToggleRow({
             whiteSpace: "nowrap",
           }}
         >
-          Off here
+          {t("dashboard.adminCardStudio2.offHere")}
         </span>
       ) : (
         <Toggle on={on} onChange={onChange} label={label} />
@@ -164,6 +166,7 @@ export {
   SURFACE_ORDER,
   DEFAULT_APPEARANCE,
   HOVER_LABEL,
+  HOVER_LABEL_KEY,
   // Preview cards
   GroupHeader,
   PreviewCard,

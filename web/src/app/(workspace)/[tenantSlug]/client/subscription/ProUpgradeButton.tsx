@@ -7,6 +7,7 @@
 // this is the upgrade entry point.
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
 
 export function ProUpgradeButton({
   tenantSlug,
@@ -21,6 +22,7 @@ export function ProUpgradeButton({
   color: string;
   border: string;
 }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "pending" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -41,12 +43,12 @@ export function ProUpgradeButton({
       setState("error");
       setMessage(
         json.error === "not_configured"
-          ? "Self-serve checkout isn't live yet — email sales@tulala.digital and we'll set you up."
-          : "Couldn't start checkout. Please try again, or email sales@tulala.digital.",
+          ? t("client.subscription.checkoutNotConfigured")
+          : t("client.subscription.checkoutFailed"),
       );
     } catch {
       setState("error");
-      setMessage("Network issue starting checkout. Please try again.");
+      setMessage(t("client.subscription.checkoutNetworkError"));
     }
   }
 
@@ -63,7 +65,7 @@ export function ProUpgradeButton({
           cursor: state === "pending" ? "wait" : "pointer",
         }}
       >
-        {state === "pending" ? "Starting checkout…" : label}
+        {state === "pending" ? t("client.subscription.startingCheckout") : label}
       </button>
       {message && (
         <div style={{ marginTop: 8, fontSize: 11, color: "#8A6F1A", lineHeight: 1.4 }}>

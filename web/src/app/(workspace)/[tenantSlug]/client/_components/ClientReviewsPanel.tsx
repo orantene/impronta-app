@@ -28,6 +28,8 @@
  */
 
 import { useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { reportReviewAction } from "@/lib/reviews/review-actions";
 import type { ClientReview, RatingSummary } from "@/lib/reviews/review-types";
 
@@ -64,9 +66,10 @@ export type GivenReview = {
 };
 
 function StaticStars({ rating }: { rating: number }) {
+  const t = useT();
   const rounded = Math.max(0, Math.min(5, Math.round(rating)));
   return (
-    <span style={{ display: "inline-flex", gap: 1 }} aria-label={`${rating} out of 5 stars`}>
+    <span style={{ display: "inline-flex", gap: 1 }} aria-label={interpolate(t("public.reviews.starsAria"), { rating })}>
       {[1, 2, 3, 4, 5].map((n) => (
         <svg
           key={n}
@@ -115,10 +118,11 @@ type ReportState = "idle" | "reporting" | "reported" | "error";
 
 /** A single received (talent→client) review row, with a Report control. */
 function ReceivedRow({ review }: { review: ClientReview }) {
+  const t = useT();
   const [state, setState] = useState<ReportState>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  const authorLabel = review.authorName?.trim() || "A talent";
+  const authorLabel = review.authorName?.trim() || t("client.reviews.authorFallback");
   const hidden = review.status === "hidden";
 
   async function handleReport() {
@@ -128,7 +132,7 @@ function ReceivedRow({ review }: { review: ClientReview }) {
     if (res.ok) {
       setState("reported");
     } else {
-      setError(res.error || "Could not report this review. Please try again.");
+      setError(res.error || t("client.reviews.reportError"));
       setState("error");
     }
   }
@@ -163,7 +167,7 @@ function ReceivedRow({ review }: { review: ClientReview }) {
               borderRadius: 999,
             }}
           >
-            Hidden
+            {t("dashboard.talentReviews.hidden")}
           </span>
         )}
       </div>
@@ -189,7 +193,7 @@ function ReceivedRow({ review }: { review: ClientReview }) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M20 6 9 17l-5-5" />
             </svg>
-            Reported — our team will review it
+            {t("client.reviews.reportedNotice")}
           </span>
         ) : (
           <button
@@ -216,7 +220,7 @@ function ReceivedRow({ review }: { review: ClientReview }) {
               <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
               <line x1="4" y1="22" x2="4" y2="15" />
             </svg>
-            {state === "reporting" ? "Reporting…" : "Report"}
+            {state === "reporting" ? t("dashboard.talentReviews.reporting") : t("dashboard.talentReviews.report")}
           </button>
         )}
       </div>
@@ -244,7 +248,8 @@ function ReceivedRow({ review }: { review: ClientReview }) {
 
 /** A single review the client has written (client→talent), read-only. */
 function GivenRow({ review }: { review: GivenReview }) {
-  const talentLabel = review.talentName?.trim() || "a talent";
+  const t = useT();
+  const talentLabel = review.talentName?.trim() || t("client.reviews.talentFallback");
   const hidden = review.status === "hidden";
   return (
     <div
@@ -260,7 +265,7 @@ function GivenRow({ review }: { review: GivenReview }) {
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 9 }}>
         <StaticStars rating={review.rating} />
         <span style={{ fontSize: 12.5, color: C.inkMuted }}>
-          You reviewed{" "}
+          {t("client.reviews.youReviewed")}{" "}
           <span style={{ fontWeight: 600, color: C.ink }}>{talentLabel}</span>
         </span>
         <span style={{ fontSize: 12, color: C.inkDim }}>{formatDate(review.createdAt)}</span>
@@ -277,7 +282,7 @@ function GivenRow({ review }: { review: GivenReview }) {
               borderRadius: 999,
             }}
           >
-            Hidden
+            {t("dashboard.talentReviews.hidden")}
           </span>
         )}
       </div>
@@ -325,6 +330,8 @@ export function ClientReviewsPanel({
   receivedSummary: RatingSummary;
   given: GivenReview[];
 }) {
+  const t = useT();
+  const tPlural = withPluralization(t);
   const hasReceived = received.length > 0;
   const hasGiven = given.length > 0;
   const showAverage = receivedSummary.count > 0;
@@ -334,7 +341,7 @@ export function ClientReviewsPanel({
       {/* ── Reviews about you (talent → client) ───────────────────────── */}
       <div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-          <SubLabel>Reviews about you ({received.length})</SubLabel>
+          <SubLabel>{interpolate(t("client.reviews.aboutYouHeading"), { count: received.length })}</SubLabel>
           {showAverage && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <StaticStars rating={receivedSummary.average} />
@@ -342,7 +349,7 @@ export function ClientReviewsPanel({
                 {receivedSummary.average.toFixed(1)}
               </span>
               <span style={{ fontSize: 12, color: C.inkMuted }}>
-                · {receivedSummary.count === 1 ? "1 review" : `${receivedSummary.count} reviews`}
+                · {tPlural("client.reviews.countLabel", receivedSummary.count)}
               </span>
             </span>
           )}
@@ -354,15 +361,13 @@ export function ClientReviewsPanel({
             ))}
           </div>
         ) : (
-          <EmptyHint>
-            No reviews about you yet. After a completed booking, the talent you worked with can leave you a review.
-          </EmptyHint>
+          <EmptyHint>{t("client.reviews.aboutYouEmpty")}</EmptyHint>
         )}
       </div>
 
       {/* ── Reviews you've written (client → talent) ──────────────────── */}
       <div>
-        <SubLabel>Reviews you&apos;ve written ({given.length})</SubLabel>
+        <SubLabel>{interpolate(t("client.reviews.writtenHeading"), { count: given.length })}</SubLabel>
         {hasGiven ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {given.map((r) => (
@@ -371,8 +376,9 @@ export function ClientReviewsPanel({
           </div>
         ) : (
           <EmptyHint>
-            You haven&apos;t written any reviews yet. Rate the talent you&apos;ve worked with from your{" "}
-            <span style={{ color: C.accent, fontWeight: 600 }}>Bookings</span> page.
+            {t("client.reviews.writtenEmptyPrefix")}{" "}
+            <span style={{ color: C.accent, fontWeight: 600 }}>{t("dashboard.clientNav.bookings")}</span>
+            {t("client.reviews.writtenEmptySuffix")}
           </EmptyHint>
         )}
       </div>

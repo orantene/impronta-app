@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
   loadClientSelfProfile,
@@ -46,22 +47,26 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
+type Translator = (key: string) => string;
+
 // StatusChip + statusTone now come from ../_components/StatusChip (unified).
 
 function fmtDate(iso: string | null): string {
   return formatClientDate(iso, "-");
 }
 
-function relativeDate(iso: string): string {
+// Reuses the already-translated relative-time keys under
+// `dashboard.clientInquiries.*` rather than minting a second set.
+function relativeDate(iso: string, resolve: (key: string, fallback: string) => string): string {
   const now = Date.now();
   const then = clientDateMs(iso);
   if (then === null) return "-";
   const diffMs = now - then;
   const diffH = diffMs / (1000 * 60 * 60);
-  if (diffH < 1) return "just now";
-  if (diffH < 24) return `${Math.floor(diffH)}h ago`;
+  if (diffH < 1) return resolve("dashboard.clientInquiries.justNow", "just now");
+  if (diffH < 24) return interpolate(resolve("dashboard.clientInquiries.hoursAgo", "{count}h ago"), { count: Math.floor(diffH) });
   const diffD = diffH / 24;
-  if (diffD < 7) return `${Math.floor(diffD)}d ago`;
+  if (diffD < 7) return interpolate(resolve("dashboard.clientInquiries.daysAgo", "{count}d ago"), { count: Math.floor(diffD) });
   return fmtDate(iso);
 }
 
@@ -154,22 +159,23 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
     new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(cents / 100);
 
   // Context-aware headline
+  const tPlural = withPluralization(t);
   let headline: string;
   let subline: string;
   if (allInquiries.length === 0) {
-    headline = `Welcome, ${firstName}.`;
-    subline = "You're all set. Send a booking inquiry when you have a brief ready.";
+    headline = interpolate(t("client.today.welcomeHeadline"), { name: firstName });
+    subline = t("client.today.welcomeSubline");
   } else if (needsDecision.length > 0) {
-    headline = `${needsDecision.length === 1 ? "1 inquiry needs" : `${needsDecision.length} inquiries need`} your attention.`;
-    subline = "Review and respond to keep the process moving.";
+    headline = tPlural("client.today.needsAttentionHeadline", needsDecision.length);
+    subline = t("client.today.needsAttentionSubline");
   } else if (agencyHasIt.length > 0) {
-    headline = `${agencyHasIt.length} active ${agencyHasIt.length === 1 ? "inquiry" : "inquiries"} in progress.`;
-    subline = `${clientProfile.agencyName} is coordinating — you'll hear back soon.`;
+    headline = tPlural("client.today.inProgressHeadline", agencyHasIt.length);
+    subline = interpolate(t("client.today.inProgressSubline"), { agency: clientProfile.agencyName });
   } else {
-    headline = `Hi ${firstName} — nothing urgent right now.`;
+    headline = interpolate(t("client.today.calmHeadline"), { name: firstName });
     subline = confirmed.length > 0
-      ? `${confirmed.length} confirmed booking${confirmed.length > 1 ? "s" : ""} on your record.`
-      : "Browse the roster or send a new inquiry when you have a brief ready.";
+      ? tPlural("client.today.calmSublineConfirmed", confirmed.length)
+      : t("client.today.calmSublineEmpty");
   }
 
   return (
@@ -180,7 +186,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
         eyebrow={clientProfile.agencyName}
         title={headline}
         subtitle={subline}
-        badge={needsDecision.length > 0 ? <HeaderBadge tone="accent">{needsDecision.length} need you</HeaderBadge> : undefined}
+        badge={needsDecision.length > 0 ? <HeaderBadge tone="accent">{interpolate(t("dashboard.clientInquiries.needYouBadge"), { count: needsDecision.length })}</HeaderBadge> : undefined}
         actions={
           <NewInquiryButton
             tenantSlug={tenantSlug}
@@ -212,14 +218,14 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
 
       {/* Stat tiles */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-        <StatTile label="Active" value={activeCount.toString()} sub="in progress" />
+        <StatTile label={t("client.today.statActive")} value={activeCount.toString()} sub={t("client.today.statActiveSub")} />
         <StatTile
-          label="Needs your reply"
+          label={t("client.today.statNeedsReply")}
           value={needsDecision.length.toString()}
-          sub={needsDecision.length > 0 ? "awaiting your decision" : "you're up to date"}
+          sub={needsDecision.length > 0 ? t("client.today.statNeedsReplySub") : t("client.today.statUpToDateSub")}
           accent={needsDecision.length > 0}
         />
-        <StatTile label="Confirmed" value={confirmed.length.toString()} sub="confirmed bookings" />
+        <StatTile label={t("client.today.statConfirmed")} value={confirmed.length.toString()} sub={t("client.today.statConfirmedSub")} />
         {dueMain ? (
           <Link href={`/${tenantSlug}/client/bookings`} style={{ textDecoration: "none" }}>
             <StatTile
@@ -227,22 +233,22 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
               value={fmtMoney(dueMain[1], dueMain[0])}
               sub={
                 dueEntries.length > 1
-                  ? `+ ${dueEntries.length - 1} more ${dueEntries.length - 1 === 1 ? "currency" : "currencies"} · open bookings`
-                  : `${dueRows.length} booking${dueRows.length === 1 ? "" : "s"} awaiting payment`
+                  ? tPlural("client.today.dueMoreCurrencies", dueEntries.length - 1)
+                  : tPlural("client.today.dueAwaitingPayment", dueRows.length)
               }
               accent
             />
           </Link>
         ) : (
-          <StatTile label="Total" value={allInquiries.length.toString()} sub="all time" />
+          <StatTile label={t("client.today.statTotal")} value={allInquiries.length.toString()} sub={t("client.today.statTotalSub")} />
         )}
       </div>
 
       {allInquiries.length === 0 ? (
         <EmptyState
           icon="📋"
-          title="No inquiries yet"
-          body="Send your first booking inquiry now, or browse the roster first if you want to pick a specific talent."
+          title={t("dashboard.clientInquiries.emptyTitle")}
+          body={t("client.today.emptyBody")}
           actions={
             <>
               <NewInquiryButton
@@ -253,7 +259,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
                   agencyName: clientProfile.agencyName,
                 }}
                 roster={roster}
-                label="Start inquiry"
+                label={t("dashboard.clientInquiries.startInquiry")}
               />
               <Link
                 href={`/${tenantSlug}/client/discover`}
@@ -272,7 +278,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
                   fontFamily: FONT,
                 }}
               >
-                Browse roster
+                {t("dashboard.clientInquiries.browseRoster")}
               </Link>
             </>
           }
@@ -284,41 +290,44 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
           {/* Bucket 1 — Needs your decision */}
           {needsDecision.length > 0 && (
             <BucketSection
-              title="Needs your decision"
-              description="The agency has sent something — review and respond to keep things moving."
+              title={t("client.today.bucketDecisionTitle")}
+              description={t("client.today.bucketDecisionDesc")}
               accentBar="#1D4ED8"
               items={needsDecision}
               tenantSlug={tenantSlug}
+              t={t}
             />
           )}
 
           {/* Bucket 2 — Agency has it */}
           {agencyHasIt.length > 0 && (
             <BucketSection
-              title="Agency is coordinating"
-              description="These are in progress — no action from you right now."
+              title={t("client.today.bucketCoordinatingTitle")}
+              description={t("client.today.bucketCoordinatingDesc")}
               items={agencyHasIt.slice(0, 5)}
               totalCount={agencyHasIt.length}
               viewAllHref={agencyHasIt.length > 5 ? `/${tenantSlug}/client/inquiries` : undefined}
               viewAllLabel={t("dashboard.clientBookings.viewAll")}
               tenantSlug={tenantSlug}
+              t={t}
             />
           )}
 
           {/* Bucket 3 — Confirmed */}
           {confirmed.length > 0 && (
             <BucketSection
-              title="Coming up"
-              description="Confirmed and fully booked events."
+              title={t("client.today.bucketComingUpTitle")}
+              description={t("client.today.bucketComingUpDesc")}
               accentBar="#1A7348"
               items={confirmed}
               tenantSlug={tenantSlug}
+              t={t}
             />
           )}
 
           <div style={{ textAlign: "center", paddingTop: 4 }}>
             <Link href={`/${tenantSlug}/client/inquiries`} style={{ fontSize: 12.5, color: C.blueDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}>
-              View all inquiries →
+              {t("client.today.viewAllInquiries")}
             </Link>
           </div>
         </div>
@@ -337,8 +346,9 @@ function BucketSection({
   items,
   totalCount,
   viewAllHref,
-  viewAllLabel = "View all",
+  viewAllLabel,
   tenantSlug,
+  t,
 }: {
   title: string;
   description: string;
@@ -350,7 +360,25 @@ function BucketSection({
   viewAllHref?: string;
   viewAllLabel?: string;
   tenantSlug: string;
+  /** Translator for the shared StatusChip labels + row copy. */
+  t?: Translator;
 }) {
+  const tr: Translator = t ?? ((key: string) => key);
+  const resolve = (key: string, fallback: string) => {
+    const out = tr(key);
+    return out === key ? fallback : out;
+  };
+  const resolvedViewAll = viewAllLabel ?? resolve("dashboard.clientBookings.viewAll", "View all");
+  // Own plural-correct key: the shared dashboard.clientInquiries.talentCount has
+  // a singular-only Spanish form ("{count} talento").
+  const talentCountLabel = (n: number) =>
+    interpolate(
+      resolve(
+        `client.today.talentCount.${n === 1 ? "one" : "other"}`,
+        n === 1 ? "{count} talent" : "{count} talents",
+      ),
+      { count: n },
+    );
   const C2 = {
     ink:        "#0B0B0D",
     inkMuted:   "rgba(11,11,13,0.55)",
@@ -446,7 +474,7 @@ function BucketSection({
               )}
               <div className="min-w-0">
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                  <StatusChip status={inq.status} />
+                  <StatusChip status={inq.status} t={t} />
                   {inq.next_action_by === "client" && (
                     <span
                       style={{
@@ -475,7 +503,7 @@ function BucketSection({
                   {inq.company
                     ?? (inq.talentLineup.length > 0
                       ? inq.talentLineup.map((t2) => t2.name).join(", ")
-                      : inq.event_location ?? "Booking inquiry")}
+                      : inq.event_location ?? resolve("dashboard.clientInquiries.bookingInquiry", "Booking inquiry"))}
                   {inq.company && inq.event_location && (
                     <span style={{ color: C2.inkMuted, fontWeight: 400, marginLeft: 6 }}>
                       · {inq.event_location}
@@ -489,7 +517,7 @@ function BucketSection({
                       inq.talentLineup.length > 0 && inq.company
                         ? inq.talentLineup.map((t2) => t2.name).join(", ")
                         : inq.quantity
-                          ? `${inq.quantity} talent`
+                          ? talentCountLabel(inq.quantity)
                           : null,
                     ]
                       .filter(Boolean)
@@ -499,7 +527,7 @@ function BucketSection({
               </div>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0, fontSize: 11, color: C2.inkDim }}>
-              {relativeDate(inq.created_at)}
+              {relativeDate(inq.created_at, resolve)}
             </div>
           </Link>
         ))}
@@ -510,7 +538,7 @@ function BucketSection({
             href={viewAllHref}
             style={{ fontSize: 12, color: C2.blueDeep, fontWeight: 600, textDecoration: "none", fontFamily: FONT }}
           >
-            {viewAllLabel} {totalCount} →
+            {resolvedViewAll} {totalCount} →
           </Link>
         </div>
       )}

@@ -881,7 +881,7 @@ export function WorkspacePageView() {
               ))}
             </select>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div data-tulala-settings-nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {visibleGroups.map((g) => (
                 <NavItem key={g.id} group={g} active={!trimmedQuery && activeGroup === g.id} onClick={() => { setActiveGroup(g.id); setQuery(""); }} />
               ))}

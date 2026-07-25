@@ -81,8 +81,8 @@ export function CaptchaDrawer({
     <DrawerShell
       open
       onClose={onClose}
-      title={integration.label}
-      description={integration.description}
+      title={t(integration.labelKey)}
+      description={t(integration.descriptionKey)}
       toolbar={<IntegrationStatusPill visual={visual} />}
       footer={
         canManage ? (
@@ -167,7 +167,7 @@ export function CaptchaDrawer({
           />
         </div>
 
-        {integration.instructions.length > 0 && (
+        {integration.instructionKeys.length > 0 && (
           <ol
             style={{
               margin: 0,
@@ -180,8 +180,8 @@ export function CaptchaDrawer({
               lineHeight: 1.5,
             }}
           >
-            {integration.instructions.map((step, i) => (
-              <li key={i}>{step}</li>
+            {integration.instructionKeys.map((stepKey) => (
+              <li key={stepKey}>{t(stepKey)}</li>
             ))}
           </ol>
         )}

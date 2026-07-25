@@ -44,6 +44,8 @@ export function AIInterpretChip({ summary }: { summary: string }) {
           params.delete("hmax");
           params.delete("amin");
           params.delete("amax");
+          // AI-applied facet filters (e.g. gender) ride on `ff` too.
+          params.delete("ff");
         },
       );
     });

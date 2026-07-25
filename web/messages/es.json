@@ -1350,7 +1350,7 @@
       "today": "Hoy",
       "discover": "Descubrir",
       "favorites": "Favoritos",
-      "shortlists": "Selecciones",
+      "shortlists": "Preselecciones",
       "pitches": "Propuestas",
       "inquiries": "Consultas",
       "bookings": "Reservas",
@@ -1876,7 +1876,10 @@
       "shortlistTitle": "Enviaste esta consulta a varios talentos desde una selección de Descubrir",
       "discoverTitle": "Enviaste esta consulta desde Descubrir",
       "bookingInquiry": "Consulta de reserva",
-      "talentCount": "{count} talento",
+      "talentCount": {
+        "one": "{count} talento",
+        "other": "{count} talentos"
+      },
       "justNow": "ahora mismo",
       "hoursAgo": "hace {count} h",
       "daysAgo": "hace {count} d"
@@ -1906,7 +1909,7 @@
       "savedPick": "{count} guardados · elige sobre quién consultar",
       "selectAndSend": "Seleccionar y enviar una consulta",
       "shortlistHintPrefix": "¿Quieres grupos por evento? Crea una ",
-      "shortlistHintLink": "selección",
+      "shortlistHintLink": "preselección",
       "shortlistHintSuffix": " y envía una sola consulta a varios talentos a la vez.",
       "availabilityOnRequest": "Disponibilidad a consultar",
       "modalTitle": "Tu talento guardado",
@@ -4857,8 +4860,8 @@
       "svcLoading": "Cargando servicios…",
       "svcLoadError": "No se pudieron cargar los servicios",
       "fromMenu": "Del menú",
-      "svcPrefill": "— rellenar desde un servicio —",
-      "svcNoneUseTemplate": "Sin servicios publicados — usa una plantilla",
+      "svcPrefill": "Rellenar desde un servicio",
+      "svcNoneUseTemplate": "Sin servicios publicados, usa una plantilla",
       "svcThisTalent": "Servicios de este talento",
       "svcGenericTemplates": "Plantillas genéricas",
       "lineLabelPlaceholder": "Etiqueta (p. ej. Full-day + viaje)",
@@ -8044,9 +8047,11 @@
         "tabTalent": "Talento",
         "tabMore": "Más"
       },
-      "autoSaveJustNow": "Guardado ahora mismo",
-      "autoSaveSecondsAgo": "Guardado hace {count} s",
-      "autoSaveMinutesAgo": "Guardado hace {count} min"
+      "autosave": {
+        "justNow": "Guardado ahora mismo",
+        "secondsAgo": "Guardado hace {count} s",
+        "minutesAgo": "Guardado hace {count} min"
+      }
     },
     "adminAccount": {
       "sections": {
@@ -8555,6 +8560,1958 @@
           "hub": "Descubrimiento entre agencias",
           "multiagency": "Opera varias marcas"
         }
+      }
+    },
+    "adminIntegrationsCatalog": {
+      "status": {
+        "connected": "Conectado",
+        "inherited": "Usando el valor predeterminado de la plataforma",
+        "actionNeeded": "Acción requerida",
+        "error": "Necesita atención",
+        "locked": "Mejora para desbloquear"
+      },
+      "items": {
+        "google_maps": {
+          "label": "Google Maps",
+          "description": "Impulsa el mapa de ubicación y el autocompletado de ciudades (Maps JavaScript + Places). Usa tu propia clave restringida por referer para mostrar el mapa en tu dominio personalizado; si no, se usa la clave de la plataforma.",
+          "steps": {
+            "s1": "En Google Cloud Console, crea (o elige) un proyecto con la facturación activada.",
+            "s2": "Activa la \"Maps JavaScript API\" y la \"Places API\" en ese proyecto.",
+            "s3": "Crea una clave API en APIs y servicios → Credenciales y luego restríngela: Restricciones de aplicación → \"Referentes HTTP\" → agrega tu dominio personalizado (por ejemplo https://tu-dominio.com/*).",
+            "s4": "En restricciones de API, limita la clave a \"Maps JavaScript API\" y \"Places API\", y luego pega la clave aquí."
+          },
+          "fields": {
+            "api_key": "Clave API de Google Maps"
+          }
+        },
+        "ga4": {
+          "label": "Google Analytics 4",
+          "description": "Mide las visitas a tu sitio público con Google Analytics 4. Pega tu ID de medición de GA4 y el fragmento de gtag.js se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "steps": {
+            "s1": "Abre Google Analytics y ve a Administrar (el engranaje de abajo a la izquierda).",
+            "s2": "En la columna Propiedad elige \"Flujos de datos\" y luego selecciona (o crea) tu flujo web.",
+            "s3": "Copia el \"ID de medición\" que aparece arriba a la derecha en los detalles del flujo. Empieza con \"G-\".",
+            "s4": "Pega aquí el ID de medición (por ejemplo G-XXXXXXXXXX)."
+          },
+          "fields": {
+            "measurement_id": "ID de medición de GA4"
+          }
+        },
+        "meta_pixel": {
+          "label": "Meta Pixel",
+          "description": "Mide conversiones y crea audiencias para tus anuncios de Facebook e Instagram. Pega el ID de tu Meta Pixel y el código base del pixel se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "steps": {
+            "s1": "Abre Meta Events Manager (business.facebook.com/events_manager).",
+            "s2": "Selecciona tu pixel o conjunto de datos en la lista de fuentes de datos de la izquierda.",
+            "s3": "Busca el \"ID del conjunto de datos\" (ID del pixel) cerca de la parte superior. Es un número largo.",
+            "s4": "Pega aquí el ID numérico del pixel."
+          },
+          "fields": {
+            "pixel_id": "ID de Meta Pixel"
+          }
+        },
+        "tiktok_pixel": {
+          "label": "TikTok Pixel",
+          "description": "Mide las conversiones de tus anuncios de TikTok. Pega el ID de tu TikTok Pixel y el código base del pixel se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "steps": {
+            "s1": "Abre TikTok Ads Manager y ve a Recursos → Eventos.",
+            "s2": "En \"Eventos web\", abre (o crea) tu pixel.",
+            "s3": "Copia el \"ID del pixel\" que aparece en los detalles del pixel. Es un código alfanumérico.",
+            "s4": "Pega aquí el ID del pixel."
+          },
+          "fields": {
+            "pixel_id": "ID de TikTok Pixel"
+          }
+        },
+        "linkedin_insight": {
+          "label": "LinkedIn Insight Tag",
+          "description": "Mide las conversiones de tus anuncios de LinkedIn y vuelve a impactar a tus visitantes. Pega tu Partner ID de LinkedIn y la Insight Tag se inyecta en tu storefront, siempre sujeta al consentimiento del visitante.",
+          "steps": {
+            "s1": "Abre LinkedIn Campaign Manager y ve a Analizar → Insight Tag.",
+            "s2": "Elige \"Instalar mi Insight Tag\" o \"Administrar Insight Tag\".",
+            "s3": "Copia tu \"Partner ID\", un valor numérico corto.",
+            "s4": "Pega aquí el Partner ID numérico."
+          },
+          "fields": {
+            "partner_id": "Partner ID de LinkedIn"
+          }
+        },
+        "gtm": {
+          "label": "Google Tag Manager",
+          "description": "Administra todas tus etiquetas de marketing desde un solo contenedor sin editar el sitio. Pega tu ID de contenedor de GTM y el fragmento del contenedor se inyecta en tu storefront, siempre sujeto al consentimiento del visitante.",
+          "steps": {
+            "s1": "Abre Google Tag Manager (tagmanager.google.com).",
+            "s2": "Selecciona tu cuenta y el contenedor de este sitio web.",
+            "s3": "Copia el ID de contenedor que aparece cerca de la parte superior. Empieza con \"GTM-\".",
+            "s4": "Pega aquí el ID de contenedor (por ejemplo GTM-XXXXXXX)."
+          },
+          "fields": {
+            "container_id": "ID de contenedor de GTM"
+          }
+        },
+        "custom_code": {
+          "label": "Código personalizado",
+          "description": "Inyecta tu propio HTML o <script> en tu storefront público: agrega un widget de chat, una fuente, una metaetiqueta de verificación o cualquier fragmento de terceros. Se ejecuta solo en tu storefront, nunca en el panel de administración.",
+          "steps": {
+            "s1": "Pega en el campo Head el marcado destinado al <head> de la página (metaetiquetas, hojas de estilo <link>, cargadores de analítica).",
+            "s2": "Pega en el campo Body el marcado destinado al final del <body> (widgets de chat, etiquetas <script> diferidas).",
+            "s3": "Agrega solo código en el que confíes. Se ejecuta en todas las páginas de tu storefront público y tiene acceso total a la página.",
+            "s4": "Guarda. Tu storefront se vuelve a renderizar con los fragmentos inyectados; el panel de administración y los demás espacios nunca se ven afectados."
+          },
+          "fields": {
+            "head_html": "HTML del head",
+            "body_html": "HTML del body"
+          }
+        },
+        "captcha": {
+          "label": "Captcha",
+          "description": "Protege del spam los formularios de contacto de tu storefront con hCaptcha o Cloudflare Turnstile. Usa tus propias claves: el widget se muestra en tus formularios y los envíos se verifican en el servidor.",
+          "steps": {
+            "s1": "Elige un proveedor: hCaptcha (hcaptcha.com) o Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
+            "s2": "Crea un sitio para el dominio de tu storefront y copia la clave del sitio (pública) y la clave secreta (privada).",
+            "s3": "Pega abajo la clave del sitio y la clave secreta, y elige el proveedor que corresponda.",
+            "s4": "Guarda. Tus formularios de contacto muestran el widget y rechazan los envíos que no pasan la verificación."
+          },
+          "fields": {
+            "provider": "Proveedor",
+            "site_key": "Clave del sitio",
+            "secret_key": "Clave secreta"
+          }
+        },
+        "email_domain": {
+          "label": "Dominio de correo",
+          "description": "Envía el correo a clientes desde tu propio dominio (por ejemplo noreply@tumarca.com) en lugar del predeterminado de la plataforma. Agrega tu dominio, publica los registros DNS que generamos y verifica.",
+          "steps": {
+            "s1": "Escribe el dominio de envío desde el que quieres que salga el correo (por ejemplo correo.tumarca.com) y guarda.",
+            "s2": "Lo registramos con nuestro proveedor de correo y te mostramos los registros DNS que debes agregar.",
+            "s3": "Agrega cada registro (SPF / DKIM / DMARC) en tu proveedor de DNS tal como se muestra.",
+            "s4": "Pulsa Verificar. Cuando el DNS se propague, el estado cambia a Verificado y tu correo sale desde tu dominio."
+          },
+          "fields": {
+            "domain": "Dominio de envío"
+          }
+        },
+        "youtube": {
+          "label": "YouTube",
+          "description": "Conecta el canal de YouTube del espacio, verifica su propiedad con Google y muestra el canal verificado en el encabezado y el pie del sitio público.",
+          "steps": {
+            "s1": "Usa la conexión en un clic para iniciar sesión con la cuenta de Google dueña del canal.",
+            "s2": "Tulala guarda el nombre público del canal y los tokens de OAuth cifrados para que la conexión siga verificada.",
+            "s3": "También hay una opción manual: pega la URL del canal de YouTube o el @handle si la conexión en un clic aún no está configurada."
+          },
+          "fields": {
+            "profile_url": "URL del canal de YouTube o @handle"
+          }
+        },
+        "stripe_connect": {
+          "label": "Pagos con Stripe",
+          "description": "Conecta Stripe para recibir los pagos de las reservas y pagarle a tu lista. Se administra en Pagos."
+        },
+        "custom_domain": {
+          "label": "Dominio personalizado",
+          "description": "Publica tu storefront en tu propio dominio. Se administra en Configuración → Dominio."
+        },
+        "ai_provider": {
+          "label": "Proveedor de IA",
+          "description": "Usa tu propia clave de proveedor de IA para importaciones asistidas y redacción. Se administra en Configuración."
+        }
+      }
+    },
+    "adminPlanLive": {
+      "cadenceMonth": "al mes",
+      "cadenceYear": "al año",
+      "cadenceOneTime": "pago único",
+      "priceLine": "{price} {cadence}."
+    },
+    "adminSummaryDrawer": {
+      "workspaceFallback": "Espacio de trabajo",
+      "subtitle": "Plan {plan} · {renew}",
+      "atAGlance": "De un vistazo",
+      "roster": "Lista",
+      "jumpTo": "Ir a",
+      "managePlan": "Gestionar plan",
+      "comparePlans": "Comparar planes",
+      "usageUnavailable": "Uso de la lista no disponible",
+      "seatsTight": "Estás a menos del 10% del límite. Subir de plan desbloquea más lugares al instante.",
+      "planBilling": "Plan y facturación",
+      "recentInvoices": "Facturas recientes"
+    },
+    "adminCapability": {
+      "card": {
+        "roster": {
+          "label": "Lista",
+          "stat": "Talentos · borradores · aprobaciones"
+        },
+        "directory": {
+          "label": "Ajustes del directorio",
+          "stat": "Cuadrícula · páginas dedicadas · 34 campos"
+        },
+        "inquiries": {
+          "label": "Solicitudes",
+          "stat": "Abiertas · en curso · ganadas"
+        },
+        "branding": {
+          "label": "Marca",
+          "stat": "Logo · Cormorant / Inter · #B8860B"
+        },
+        "activity": {
+          "label": "Actividad",
+          "stat": "Ediciones, publicaciones y reservas recientes"
+        },
+        "widgets": {
+          "label": "Widgets",
+          "stat": "Embeds activos · vistas"
+        },
+        "api": {
+          "label": "Claves de API",
+          "stat": "Claves activas · último uso"
+        },
+        "domain": {
+          "label": "Dominio e inicio",
+          "stat": "Subdominio · inicio público"
+        },
+        "homepage": {
+          "label": "Página de inicio",
+          "stat": "Borrador pendiente"
+        },
+        "pages": {
+          "label": "Páginas",
+          "stat": "12 páginas · 3 borradores"
+        },
+        "posts": {
+          "label": "Publicaciones",
+          "stat": "4 publicadas · 1 borrador"
+        },
+        "navigation": {
+          "label": "Navegación y pie de página",
+          "stat": "Encabezado 5 · pie 3 columnas"
+        },
+        "theme": {
+          "label": "Tema y fundamentos",
+          "stat": "Editorial Noir"
+        },
+        "seo": {
+          "label": "SEO y valores por defecto",
+          "stat": "Meta · sitemap · 2 redirecciones"
+        },
+        "hub": {
+          "label": "Publicación en el hub",
+          "stat": "0 talentos promovidos"
+        },
+        "multiagency": {
+          "label": "Gestor multiagencia",
+          "stat": "1 agencia · 3 gerentes"
+        }
+      },
+      "band": {
+        "free": {
+          "headline": "Tu espacio esencial",
+          "helper": "Free, Studio, Agency, Network. Todos los planes lo incluyen.",
+          "badgeLabel": "Todos los planes"
+        },
+        "studio": {
+          "headline": "Incrusta donde quieras",
+          "helper": "Lleva tu lista a WordPress, Webflow, Shopify o tu propio sitio.",
+          "badgeLabel": "Studio",
+          "ctaLabel": "Mejorar"
+        },
+        "agency": {
+          "headline": "Sitio completo con tu marca",
+          "helper": "Tu sitio, tu dominio, tu marca. Páginas, publicaciones, navegación, tema y SEO.",
+          "badgeLabel": "Agency",
+          "ctaLabel": "Mejorar"
+        },
+        "network": {
+          "headline": "Multiagencia y hub",
+          "helper": "Opera varias agencias y lleva tu talento al descubrimiento entre agencias.",
+          "badgeLabel": "Network",
+          "ctaLabel": "Contactar"
+        }
+      }
+    },
+    "adminSiteDrawers": {
+      "noQuickEdit": "Esta función aún no tiene un panel de edición rápida.",
+      "roster": {
+        "title": "Lista",
+        "subtitle": "Talentos · borradores · aprobaciones"
+      },
+      "directory": {
+        "title": "Ajustes del directorio",
+        "subtitle": "Renderizado · plantillas · campos"
+      },
+      "inquiries": {
+        "title": "Solicitudes",
+        "subtitle": "1 abierta · 3 en curso"
+      },
+      "branding": {
+        "title": "Marca",
+        "subtitle": "Logo · tipografías · colores"
+      },
+      "activity": {
+        "title": "Actividad",
+        "subtitle": "Eventos recientes del espacio"
+      },
+      "widgets": {
+        "title": "Widgets",
+        "subtitle": "2 activos · 4 embeds",
+        "body": "Crea widgets de cuadrícula de lista, estante destacado o formulario de solicitud, configura filtros y copia el fragmento para incrustar."
+      },
+      "api": {
+        "title": "Claves de API",
+        "subtitle": "1 clave · último uso hace 3 h",
+        "body": "Crea claves, limita dominios, rótalas y consulta el uso y los límites de tasa."
+      },
+      "domain": {
+        "title": "Dominio e inicio",
+        "body": "Configuración del subdominio, dominio propio (Agency), asignación de la página de inicio y del índice del blog."
+      },
+      "homepage": {
+        "title": "Página de inicio",
+        "subtitle": "Borrador pendiente · hace 2 h",
+        "body": "Abre la página de inicio en modo edición: composición, texto en línea, reemplazo de imágenes y publicación."
+      },
+      "pages": {
+        "title": "Páginas",
+        "subtitle": "12 páginas · 3 borradores",
+        "body": "Páginas de marketing, legales y editoriales servidas en /p/…. La configuración envuelve la lista en una interfaz premium con filtros rápidos."
+      },
+      "posts": {
+        "title": "Publicaciones",
+        "subtitle": "5 publicaciones · 1 borrador",
+        "body": "Artículos editoriales servidos en /posts/…. La configuración te guía para escribir, programar y publicar el primero."
+      },
+      "navigation": {
+        "title": "Navegación y pie de página",
+        "subtitle": "Encabezado 5 · pie 3 columnas",
+        "body": "Arrastra y suelta directamente en el sitio en vivo. Edita la navegación, reordena, agrega enlaces propios y arma las columnas del pie."
+      },
+      "theme": {
+        "title": "Tema y fundamentos",
+        "subtitle": "Editorial Noir",
+        "body": "Elige un kit de diseño: colores, tipografía, movimiento, densidad y diseño, todo en un clic. Los ajustes por token siguen disponibles."
+      },
+      "seo": {
+        "title": "SEO y valores por defecto",
+        "subtitle": "Meta · sitemap · redirecciones",
+        "body": "Plantilla meta para todo el sitio · sitemap · robots · reglas de redirección · ajustes por página."
+      },
+      "hub": {
+        "title": "Publicación en el hub",
+        "subtitle": "Solo Network",
+        "body": "Promueve talento aprobado · descubrimiento entre agencias · enrutamiento de solicitudes del hub."
+      },
+      "multiagency": {
+        "title": "Gestor multiagencia",
+        "subtitle": "Solo Network",
+        "body": "Cambia de agencia · invita gerentes · define alcances de roles · facturación consolidada."
+      }
+    },
+    "adminHelp": {
+      "topics": {
+        "inquiry-workspace": {
+          "purpose": "Una sola hoja para una consulta. El cliente pregunta, tú negocias y el talento confirma, todo en un mismo lugar.",
+          "b0": "Responde en el hilo del cliente (lo ven el cliente y el talento)",
+          "b1": "Coordina en privado con el talento (el cliente nunca lo ve)",
+          "b2": "Envía ofertas y sigue la aprobación del cliente",
+          "b3": "Controla los fondos en garantía y conviértelos en una reserva confirmada",
+          "b4": "Consulta la línea de tiempo completa: cada respuesta, oferta y cambio de estado"
+        },
+        "inquiry-peek": {
+          "purpose": "Resumen rápido de solo lectura de una consulta. Úsalo cuando solo necesitas ver el estado sin abrir el espacio completo.",
+          "b0": "Revisa la solicitud, las fechas y el nombre del cliente",
+          "b1": "Verifica la etapa actual y quién está esperando a quién",
+          "b2": "Abre el espacio completo de la consulta si necesitas actuar"
+        },
+        "new-inquiry": {
+          "purpose": "Crea una consulta a mano, normalmente para clientes que te escribieron por WhatsApp o correo y quieres darles seguimiento dentro de Tulala.",
+          "b0": "Agrega al cliente (existente o nuevo) y al talento involucrado",
+          "b1": "Define las fechas, el tipo de producción y el rango de presupuesto",
+          "b2": "Elige el estado inicial, normalmente Borrador si sigues negociando",
+          "b3": "Envía al cliente un enlace de Tulala por correo para que continúe desde ahí"
+        },
+        "booking-peek": {
+          "purpose": "Resumen de solo lectura de una reserva confirmada (hora de llamado, talento, contratos, estado del pago) sin salir de la página en la que estás.",
+          "b0": "Revisa la reserva de un vistazo",
+          "b1": "Abre el detalle completo de la reserva para actuar",
+          "b2": "Abre la consulta vinculada para ver cómo se negoció"
+        },
+        "new-booking": {
+          "purpose": "Sáltate la fase de consulta y crea una reserva directamente. Útil para tratos ya negociados, clientes recurrentes o registros administrativos.",
+          "b0": "Elige al cliente y al talento",
+          "b1": "Ingresa la fecha, la tarifa y las condiciones de comisión",
+          "b2": "Marca la reserva como financiada si los fondos en garantía ya están depositados",
+          "b3": "Genera la factura al confirmar"
+        },
+        "today-pulse": {
+          "purpose": "Lo que necesita tu atención ahora mismo: respuestas atrasadas, ofertas por vencer, horas de llamado de hoy y apartados sin resolver.",
+          "b0": "Toca cualquier línea para entrar directo a la consulta que necesita acción",
+          "b1": "Descarta los pendientes que atenderás después (vuelven a aparecer al día siguiente)",
+          "b2": "Mira qué talento tiene una reserva confirmada que arranca hoy"
+        },
+        "pipeline": {
+          "purpose": "Todas las consultas, desde la primera solicitud hasta la reserva, agrupadas por lo que frena su avance.",
+          "b0": "Filtra por etapa (borradores, en espera del cliente, confirmadas, archivadas)",
+          "b1": "Abre cualquier consulta para ver su espacio completo",
+          "b2": "Detecta solicitudes estancadas y dale un empujón a quien corresponda",
+          "b3": "Reasigna coordinadores para equilibrar la carga"
+        },
+        "drafts-holds": {
+          "purpose": "Consultas que empezaste y no has enviado, más las fechas apartadas que siguen sin confirmarse.",
+          "b0": "Retoma un borrador donde lo dejaste",
+          "b1": "Convierte un apartado en oferta enviada o libera la fecha",
+          "b2": "Depura borradores abandonados en bloque"
+        },
+        "awaiting-client": {
+          "purpose": "Ofertas a la espera de la decisión del cliente. Ordenadas por el tiempo que llevan sin respuesta.",
+          "b0": "Manda un recordatorio amable si el cliente lleva rato en silencio",
+          "b1": "Retira o ajusta una oferta que ya quedó vieja",
+          "b2": "Abre la consulta para sumar contexto o archivos adjuntos"
+        },
+        "confirmed-bookings": {
+          "purpose": "Todas las reservas aprobadas y financiadas. La fuente de verdad del trabajo que viene.",
+          "b0": "Revisa hora de llamado, ubicación, talento y estado del contrato de un vistazo",
+          "b1": "Abre una reserva para enviar avisos al talento o al cliente",
+          "b2": "Marca la reserva como completada cuando termine la producción"
+        },
+        "archived-work": {
+          "purpose": "Trabajo cancelado, vencido y completado, tu registro histórico.",
+          "b0": "Busca reservas pasadas por cliente o por talento",
+          "b1": "Reabre una consulta cancelada si el cliente vuelve",
+          "b2": "Exporta un reporte por rango de fechas para contabilidad"
+        },
+        "day-detail": {
+          "purpose": "Todo lo que ocurre en un solo día del calendario: reservas, apartados, bloqueos y disponibilidad del talento.",
+          "b0": "Mira quién trabaja, quién tiene la fecha apartada y quién está libre",
+          "b1": "Toca una reserva para abrir su hoja completa",
+          "b2": "Bloquea una fecha por asuntos personales, viajes o días de estudio"
+        },
+        "representation-requests": {
+          "purpose": "Talento que pide entrar a tu lista, ya sea reclamando un perfil existente o registrándose desde cero.",
+          "b0": "Aprueba o rechaza cada solicitud con un motivo",
+          "b1": "Envía al talento un contrato de representación antes de aprobar",
+          "b2": "Reporta solicitudes sospechosas al equipo de la plataforma"
+        },
+        "talent-profile": {
+          "purpose": "La vista de agencia de un talento: medidas, tarifas, disponibilidad y notas internas que el talento nunca ve.",
+          "b0": "Edita medidas, polaroids y créditos",
+          "b1": "Define tarifarios y restricciones por territorio",
+          "b2": "Deja notas internas privadas para tu equipo",
+          "b3": "Consulta el reparto de comisión de la agencia con este talento"
+        },
+        "new-talent": {
+          "purpose": "Agrega talento a tu lista. Elige entre un perfil en borrador (tú llenas todo) o invitar al talento a reclamarlo y completarlo por su cuenta.",
+          "b0": "Crea un perfil en borrador sin reclamar para empezar a reservar de inmediato",
+          "b1": "Envía al talento un enlace de reclamo para que administre su propia página",
+          "b2": "Precarga medidas, polaroids y tarifas"
+        },
+        "my-profile": {
+          "purpose": "Tu propio perfil de talento, por si además trabajas como talento. Editarlo aquí es idéntico a hacerlo desde la vista de talento.",
+          "b0": "Actualiza tus medidas, fotos y créditos",
+          "b1": "Administra tu calendario de disponibilidad",
+          "b2": "Cambia al panel de talento para la experiencia completa"
+        },
+        "tenant-summary": {
+          "purpose": "Panorama de solo lectura del plan, el uso y la configuración de tu espacio, pensado para compartir con finanzas o con legal.",
+          "b0": "Copia un enlace permanente para enviárselo a tu contador",
+          "b1": "Consulta el plan actual, la fecha de cobro y el número de asientos",
+          "b2": "Salta a la pestaña de configuración correspondiente para cambiar algo"
+        },
+        "site-setup": {
+          "purpose": "Asistente de configuración inicial de tu vitrina pública: dominio, identidad de marca y el talento que aparecerá primero.",
+          "b0": "Elige un subdominio de tulala.app o conecta uno propio",
+          "b1": "Sube tu logo y elige los colores de marca",
+          "b2": "Decide qué talento aparece en la lista pública"
+        },
+        "plan-billing": {
+          "purpose": "Tu suscripción, método de pago, facturas y número de asientos.",
+          "b0": "Sube o baja de plan",
+          "b1": "Actualiza la tarjeta registrada",
+          "b2": "Descarga facturas anteriores",
+          "b3": "Agrega o quita asientos para tu equipo"
+        },
+        "team": {
+          "purpose": "Gerentes, editores y otros administradores de tu espacio, y lo que puede hacer cada uno.",
+          "b0": "Invita a tu equipo por correo",
+          "b1": "Asigna roles (administrador, gerente, editor)",
+          "b2": "Revoca el acceso cuando alguien se va",
+          "b3": "Consulta la última actividad de cada integrante"
+        },
+        "branding": {
+          "purpose": "Logo, favicon y recursos de marca que se usan en tu vitrina, tus correos y tus enlaces para compartir.",
+          "b0": "Sube tu logo (versión clara y oscura)",
+          "b1": "Define el favicon que se ve en las pestañas del navegador",
+          "b2": "Sube una imagen OG predeterminada para redes sociales"
+        },
+        "domain": {
+          "purpose": "Conecta un dominio propio (tudominio.com) en lugar del subdominio de tulala.app.",
+          "b0": "Agrega un dominio nuevo y consulta los registros DNS que debes configurar",
+          "b1": "Verifica el dominio y cambia tu vitrina al nuevo",
+          "b2": "Configura una redirección desde tu subdominio anterior"
+        },
+        "identity": {
+          "purpose": "Razón social, domicilio fiscal e información tributaria, se usan en facturas y contratos.",
+          "b0": "Actualiza el nombre y domicilio registrados de tu negocio",
+          "b1": "Agrega un RFC o número de identificación fiscal",
+          "b2": "Elige qué datos aparecen en las facturas que emites"
+        },
+        "workspace-settings": {
+          "purpose": "Valores predeterminados de todo el espacio: moneda, idioma, semana laboral y reglas de notificación.",
+          "b0": "Define la moneda predeterminada de las reservas nuevas",
+          "b1": "Elige con qué día arranca la semana en tu panel",
+          "b2": "Define los tiempos de respuesta y los objetivos de servicio"
+        },
+        "danger-zone": {
+          "purpose": "Operaciones irreversibles del espacio: exportar todo, transferir la propiedad y eliminar el espacio.",
+          "b0": "Exporta un archivo completo (clientes, reservas, archivos) antes de irte",
+          "b1": "Transfiere el espacio a otro administrador",
+          "b2": "Elimina el espacio de forma permanente (periodo de gracia de 90 días)"
+        },
+        "activation-checklist": {
+          "purpose": "Tu avance de configuración: los pasos que convierten un espacio recién creado en una vitrina lista para recibir reservas.",
+          "b0": "Revisa qué pasos de configuración siguen pendientes",
+          "b1": "Toca cualquier paso para entrar directo a él",
+          "b2": "Marca pasos como hechos a mano si te saltaste el flujo dentro de la app"
+        },
+        "tenant-switcher": {
+          "purpose": "Si perteneces a varios espacios (por ejemplo, llevas un estudio y una agencia), cambia entre ellos aquí.",
+          "b0": "Consulta todos los espacios a los que tienes acceso",
+          "b1": "Cambia de espacio sin cerrar sesión",
+          "b2": "Define un espacio predeterminado para tus próximas sesiones"
+        },
+        "plan-compare": {
+          "purpose": "Comparación lado a lado de todos los planes para que elijas (o mejores) el que te conviene.",
+          "b0": "Compara funciones entre Free, Studio, Agency y Network",
+          "b1": "Alterna entre precio mensual y anual",
+          "b2": "Inicia una mejora de plan desde cualquier tarjeta"
+        },
+        "homepage": {
+          "purpose": "Edita la página de inicio de tu vitrina pública, lo primero que ven las visitas en tusitio.tulala.app.",
+          "b0": "Reordena el encabezado, la cuadrícula de talento y las secciones personalizadas",
+          "b1": "Inserta widgets (formulario de reserva, talento destacado, logos de prensa)",
+          "b2": "Previsualiza en escritorio, tableta y móvil antes de publicar"
+        },
+        "pages": {
+          "purpose": "Páginas fijas de tu vitrina: Nosotros, Prensa, Contacto, Términos, etc.",
+          "b0": "Crea una página nueva desde una plantilla o desde cero",
+          "b1": "Define el slug, el título SEO y la imagen OG de cada página",
+          "b2": "Publica, despublica o programa una página para después"
+        },
+        "posts": {
+          "purpose": "Publicaciones editoriales: resúmenes de campañas, talento destacado y noticias de la agencia.",
+          "b0": "Redacta una publicación con texto enriquecido, imágenes e incrustaciones",
+          "b1": "Etiqueta las publicaciones para que aparezcan en los índices correctos",
+          "b2": "Programa la publicación o lánzala ahora mismo"
+        },
+        "navigation": {
+          "purpose": "Los menús de encabezado y pie de página de tu vitrina pública.",
+          "b0": "Agrega, reordena o elimina elementos del menú",
+          "b1": "Enlaza a páginas internas o a URLs externas",
+          "b2": "Define menús distintos para escritorio y para móvil"
+        },
+        "media": {
+          "purpose": "Todas las imágenes, videos y archivos subidos en tu espacio, una biblioteca central.",
+          "b0": "Sube contenido nuevo (arrastra y suelta, admite carga masiva)",
+          "b1": "Busca y etiqueta recursos para que tu equipo los encuentre",
+          "b2": "Reemplaza una imagen en todos los lugares donde se usa, de una sola vez"
+        },
+        "translations": {
+          "purpose": "Vitrina multilingüe: traduce tus páginas, publicaciones y textos de interfaz.",
+          "b0": "Agrega un idioma y elige un idioma de respaldo",
+          "b1": "Edita las traducciones junto al texto original",
+          "b2": "Marca una traducción como pendiente de revisión para un editor"
+        },
+        "seo": {
+          "purpose": "Ajustes SEO generales y por página: título, descripción, imagen OG y robots.",
+          "b0": "Define los valores de todo el sitio (plantilla de título, imagen OG predeterminada)",
+          "b1": "Personaliza el SEO de cualquier página o publicación",
+          "b2": "Envía tu sitemap a Google Search Console"
+        },
+        "field-catalog": {
+          "purpose": "Campos personalizados en perfiles de talento, clientes y consultas. Define tu propio modelo de datos sobre los campos base.",
+          "b0": "Agrega un campo personalizado (texto, número, selección, archivo)",
+          "b1": "Elige dónde aparece (perfil de talento, formulario de consulta, etc.)",
+          "b2": "Marca un campo como obligatorio o solo para administradores"
+        },
+        "taxonomy": {
+          "purpose": "El sistema de categorías (especialidades del talento, industrias de clientes, tipos de consulta) que se usa para filtrar en toda la app.",
+          "b0": "Agrega o renombra una categoría",
+          "b1": "Reordena cómo aparecen las categorías en los menús de filtro",
+          "b2": "Fusiona dos categorías que deberían ser una sola"
+        },
+        "widgets": {
+          "purpose": "Bloques de Tulala para incrustar (formularios de reserva, cuadrículas de talento, directorios de hubs) que puedes colocar en tus páginas.",
+          "b0": "Explora los widgets disponibles",
+          "b1": "Configura un widget (qué talento, qué filtros)",
+          "b2": "Obtén el código para incrustarlo en un sitio externo"
+        },
+        "api-keys": {
+          "purpose": "Claves de API para llevar los datos de tu lista a sitios externos o herramientas de terceros.",
+          "b0": "Genera una clave nueva con permisos acotados",
+          "b1": "Revoca una clave filtrada o en desuso",
+          "b2": "Consulta la fecha de la última llamada de cada clave"
+        },
+        "site-health": {
+          "purpose": "Revisiones del lado de la vitrina: enlaces rotos, etiquetas meta faltantes, páginas lentas e indexabilidad.",
+          "b0": "Consulta una lista de problemas ordenada por prioridad",
+          "b1": "Vuelve a correr una revisión puntual después de corregirla",
+          "b2": "Programa un correo semanal con el estado del sitio"
+        },
+        "storefront-visibility": {
+          "purpose": "Quién puede ver tu vitrina: pública, solo con enlace, protegida con contraseña u oculta del descubrimiento en Tulala.",
+          "b0": "Activa o desactiva el descubrimiento público",
+          "b1": "Pon una contraseña mientras el sitio está incompleto",
+          "b2": "Oculta talento puntual de la búsqueda pública"
+        },
+        "hub-distribution": {
+          "purpose": "Postula tu lista a hubs de la industria, directorios curados de talento que te envían clientes.",
+          "b0": "Postula a un hub (cada uno tiene su propio proceso de revisión)",
+          "b1": "Elige qué talento puede aparecer en el hub",
+          "b2": "Descubre qué hubs te están enviando más consultas"
+        },
+        "filter-config": {
+          "purpose": "Qué filtros aparecen en la página pública de tu lista (estatura, ubicación, especialidad, etc.).",
+          "b0": "Reordena los filtros por importancia",
+          "b1": "Oculta los filtros que no aplican a tu lista",
+          "b2": "Define valores de filtro iniciales para quien llega por primera vez"
+        },
+        "client-list": {
+          "purpose": "Todos los clientes con los que ha trabajado tu espacio: pasados, actuales y potenciales.",
+          "b0": "Filtra por nivel de confianza, última reserva o industria",
+          "b1": "Abre el perfil de un cliente para ver su historial completo",
+          "b2": "Etiqueta clientes VIP o marca los que quieres despriorizar"
+        },
+        "client-profile": {
+          "purpose": "El expediente completo del cliente: contactos, marcas, reservas anteriores e historial de pagos.",
+          "b0": "Actualiza datos de contacto y marcas asociadas",
+          "b1": "Consulta cada consulta y reserva anterior",
+          "b2": "Define tarifas o comisiones específicas para ese cliente",
+          "b3": "Agrega notas internas que el cliente nunca ve"
+        },
+        "relationship-history": {
+          "purpose": "Registro cronológico de cada interacción con un cliente: reservas, mensajes, contratos y pagos.",
+          "b0": "Recorre una línea de tiempo unificada",
+          "b1": "Filtra por un tipo de evento específico",
+          "b2": "Exporta el historial para fines legales o de auditoría"
+        },
+        "private-client-data": {
+          "purpose": "Información del cliente restringida solo a administradores: calificaciones crediticias internas, marcas de no reservar y notas sensibles.",
+          "b0": "Marca a un cliente como no reservable con un motivo",
+          "b1": "Define un límite de crédito interno",
+          "b2": "Deja notas privadas que otros administradores puedan leer"
+        },
+        "notifications": {
+          "purpose": "Todas las alertas que ha generado tu espacio: respuestas, ofertas, pagos y eventos del sistema.",
+          "b0": "Filtra por pendientes de acción para ver lo que de verdad te bloquea",
+          "b1": "Marca como leído o salta directo a la consulta correspondiente",
+          "b2": "Ajusta qué eventos disparan notificaciones desde Preferencias"
+        },
+        "team-activity": {
+          "purpose": "Lo que ha estado haciendo tu equipo: respuestas enviadas, reservas cerradas y talento agregado.",
+          "b0": "Filtra por integrante o por tipo de evento",
+          "b1": "Detecta coordinadores sobrecargados o con poca carga",
+          "b2": "Identifica oportunidades de capacitación a partir de errores comunes"
+        },
+        "talent-activity": {
+          "purpose": "Acciones del talento visibles para ti: ofertas aceptadas, disponibilidad actualizada y material nuevo en el portafolio.",
+          "b0": "Mira qué talento dejó de estar disponible hace poco",
+          "b1": "Detecta perfiles desactualizados (meses sin cambios en el portafolio)",
+          "b2": "Abre el perfil de cualquier talento desde su fila"
+        },
+        "notifications-prefs": {
+          "purpose": "Qué notificaciones recibes (en la app, por correo, push) y con qué frecuencia.",
+          "b0": "Silencia los tipos de evento que no te interesan",
+          "b1": "Define horas de silencio para dejar de recibir avisos de madrugada",
+          "b2": "Elige entrega inmediata, resumen diario o resumen semanal"
+        },
+        "inbox-snippets": {
+          "purpose": "Plantillas de respuesta guardadas para preguntas frecuentes, seguimientos y negativas amables.",
+          "b0": "Crea una plantilla con campos dinámicos (nombre del cliente, fecha, etc.)",
+          "b1": "Edita las plantillas existentes y consulta cuánto se usan",
+          "b2": "Comparte plantillas con todo tu equipo"
+        },
+        "reply-templates": {
+          "purpose": "Respuestas predefinidas y reutilizables para consultas, ofertas y rechazos.",
+          "b0": "Elige de una biblioteca inicial (rechazar con cortesía, pedir más información, etc.)",
+          "b1": "Adáptalas a tu propio tono",
+          "b2": "Inserta cualquier plantilla en un hilo con un clic"
+        },
+        "talent-today-pulse": {
+          "purpose": "Tu día de un vistazo: horas de llamado, solicitudes que te esperan y ofertas por vencer.",
+          "b0": "Toca cualquier línea para entrar directo a la solicitud",
+          "b1": "Consulta tu próxima reserva confirmada y sus detalles",
+          "b2": "Bloquea el día si estás enfermo o de viaje"
+        },
+        "talent-offer-detail": {
+          "purpose": "Una oferta de tu agencia o de un cliente directo: tarifa, fechas, alcance y condiciones.",
+          "b0": "Acepta la oferta y la reserva se confirma automáticamente",
+          "b1": "Contrapropón otra tarifa u otra fecha",
+          "b2": "Rechaza con un motivo que la agencia pueda ver",
+          "b3": "Pregunta en privado antes de decidir"
+        },
+        "talent-request-detail": {
+          "purpose": "Una solicitud que todavía no es una oferta formal, la agencia está tanteando tu interés antes de mandar condiciones.",
+          "b0": "Confirma tu interés para que la agencia arme la oferta",
+          "b1": "Rechaza desde el inicio si no te dan las fechas",
+          "b2": "Haz preguntas para aclarar dudas en el hilo"
+        },
+        "talent-booking-detail": {
+          "purpose": "Una reserva confirmada: hora de llamado, ubicación, contactos y estado del pago.",
+          "b0": "Consulta el call sheet y los archivos adjuntos",
+          "b1": "Escribe a la agencia o al equipo del cliente",
+          "b2": "Agrega la reserva al calendario de tu teléfono",
+          "b3": "Marca la reserva como completada cuando termines"
+        },
+        "talent-closed-booking": {
+          "purpose": "Una reserva terminada: estado final del pago, comprobante y ventana para dejar reseña.",
+          "b0": "Confirma que recibiste el pago",
+          "b1": "Deja tu opinión sobre el cliente (privada, solo la ve la agencia)",
+          "b2": "Descarga la factura o el contrato para tus registros"
+        },
+        "talent-add-event": {
+          "purpose": "Agrega un evento personal, un viaje o un bloqueo a tu calendario para que las agencias dejen de ofrecerte esas fechas.",
+          "b0": "Marca fechas como no disponibles con un motivo opcional",
+          "b1": "Crea un bloqueo recurrente (por ejemplo, todos los domingos)",
+          "b2": "Haz los eventos visibles para todas tus agencias o solo para una"
+        },
+        "talent-hub-detail": {
+          "purpose": "Detalle de un hub: qué es, cuánto paga, cómo postular y quién más está listado.",
+          "b0": "Postula para aparecer (requiere aprobación de la agencia)",
+          "b1": "Lee casos de éxito de otro talento",
+          "b2": "Compara hubs lado a lado"
+        },
+        "talent-hub-compare": {
+          "purpose": "Comparación lado a lado de todos los hubs para los que calificas.",
+          "b0": "Consulta tarifas de pago, condiciones de exclusividad y tiempos de revisión",
+          "b1": "Postula a varios hubs de una sola vez",
+          "b2": "Guarda hubs para postular más adelante"
+        },
+        "talent-profile-edit": {
+          "purpose": "Edita tu perfil de talento completo: biografía, fotos, medidas, créditos y tarifas.",
+          "b0": "Actualiza cualquier sección sin afectar las demás",
+          "b1": "Previsualiza cómo se ve tu página pública antes de guardar",
+          "b2": "Envía los cambios a la agencia para revisión (si tienes exclusividad)"
+        },
+        "talent-profile-section": {
+          "purpose": "Edita una sola sección de tu perfil, modo enfocado para trabajar parte por parte.",
+          "b0": "Haz cambios sin recorrer el perfil entero",
+          "b1": "Guarda solo esta sección",
+          "b2": "Revisa los errores de validación propios de esta parte"
+        },
+        "talent-availability": {
+          "purpose": "Tu calendario maestro de disponibilidad. Las agencias lo consultan cuando quieren ofrecerte trabajo.",
+          "b0": "Marca los días como disponible, tentativo o bloqueado",
+          "b1": "Agrega periodos de viaje (por ejemplo, en Lisboa del 1 al 15 de marzo)",
+          "b2": "Elige qué agencias pueden ver cada bloque"
+        },
+        "talent-block-dates": {
+          "purpose": "Bloquea rápido un rango de fechas: vacaciones, evento familiar, licencia por maternidad.",
+          "b0": "Elige un rango de fechas y un motivo",
+          "b1": "Elige la visibilidad (solo agencias, o también clientes)",
+          "b2": "Libera el bloqueo antes si tus planes cambian"
+        },
+        "talent-portfolio": {
+          "purpose": "Las imágenes de tu portafolio, organizadas en álbumes (editorial, comercial, pasarela, etc.).",
+          "b0": "Sube fotos nuevas en bloque",
+          "b1": "Reordénalas arrastrando y soltando",
+          "b2": "Elige algunas como portada para tu página pública"
+        },
+        "talent-polaroids": {
+          "purpose": "Polaroids de casting: digitales naturales, sin maquillaje y sobre una pared lisa.",
+          "b0": "Sube un juego reciente (casi todas las agencias las piden con menos de 90 días)",
+          "b1": "Agrega fecha y lugar a cada toma",
+          "b2": "Define qué polaroids ve cada cliente"
+        },
+        "talent-photo-edit": {
+          "purpose": "Recorta, retoca y etiqueta una foto de tu portafolio.",
+          "b0": "Recorta y rota",
+          "b1": "Agrega créditos (fotografía, estilismo, peinado, maquillaje)",
+          "b2": "Indica de qué campaña o editorial proviene"
+        },
+        "talent-credits": {
+          "purpose": "Tus créditos de campañas y editoriales, las marcas y publicaciones con las que has trabajado.",
+          "b0": "Agrega un crédito nuevo con año, marca y rol",
+          "b1": "Vincula créditos con fotos específicas del portafolio",
+          "b2": "Marca algunos créditos como verificados por la agencia"
+        },
+        "talent-skills": {
+          "purpose": "Habilidades que influyen en los castings que te llegan: idiomas, deportes, danza, acentos, instrumentos.",
+          "b0": "Agrega una habilidad con tu nivel autoevaluado",
+          "b1": "Sube un video de muestra para verificar la habilidad",
+          "b2": "Descubre qué habilidades piden más en tu mercado"
+        },
+        "talent-limits": {
+          "purpose": "Lo que sí y lo que no estás dispuesto a hacer: desnudos, pieles, alcohol y tabaco, marcas en conflicto.",
+          "b0": "Define negativas firmes que bloquean cualquier consulta que las mencione",
+          "b1": "Define preferencias flexibles (lo consideras si el proyecto encaja)",
+          "b2": "Enumera las marcas con las que ya tienes exclusividad"
+        },
+        "talent-rate-card": {
+          "purpose": "Tus tarifas estándar por tipo de trabajo, mercado y nivel de uso.",
+          "b0": "Define una tarifa base por día y por semana",
+          "b1": "Agrega niveles de uso (regional, nacional, global)",
+          "b2": "Ajusta tarifas para clientes o mercados específicos"
+        },
+        "talent-travel": {
+          "purpose": "Preferencias y restricciones de viaje: datos de pasaporte, vuelos nocturnos, necesidades alimenticias.",
+          "b0": "Agrega tu pasaporte (cifrado) para que los contratos se llenen bien",
+          "b1": "Enumera las aerolíneas en las que tienes estatus",
+          "b2": "Define periodos en los que puedes mudarte con flexibilidad"
+        },
+        "talent-links": {
+          "purpose": "Enlaces externos que se muestran en tu perfil: Instagram, página de la agencia, sitio personal, IMDB.",
+          "b0": "Agrega un enlace con su etiqueta e ícono",
+          "b1": "Elige qué enlaces son públicos y cuáles solo para agencias",
+          "b2": "Reordena cómo aparecen los enlaces en tu página pública"
+        },
+        "talent-reviews": {
+          "purpose": "Opiniones de clientes y agencias con las que has trabajado, visibles para quien está considerando contratarte.",
+          "b0": "Consulta tu calificación general y su desglose",
+          "b1": "Lee cada reseña y responde públicamente",
+          "b2": "Reporta una reseña que consideres injusta"
+        },
+        "talent-showreel": {
+          "purpose": "Tu reel en video: clips de pasarela, comerciales y detrás de cámaras.",
+          "b0": "Súbelo o enlázalo desde Vimeo o YouTube",
+          "b1": "Elige el cuadro que se usará como miniatura",
+          "b2": "Recórtalo a un resumen de 60 segundos"
+        },
+        "talent-measurements": {
+          "purpose": "Tus medidas tal como aparecen en cada brief de casting: estatura, busto o pecho, cintura, cadera, calzado, cabello y ojos.",
+          "b0": "Actualiza tus medidas con la fecha en que se tomaron",
+          "b1": "Elige sistema imperial o métrico según la región",
+          "b2": "Consulta qué agencias ya sincronizaron tus medidas más recientes"
+        },
+        "talent-documents": {
+          "purpose": "Documentos de identidad, permiso de trabajo e impuestos, cifrados y compartidos solo con agencias verificadas.",
+          "b0": "Sube escaneos de pasaporte, visa o permiso de trabajo",
+          "b1": "Configura recordatorios de vencimiento para renovarlos a tiempo",
+          "b2": "Consulta qué agencias han abierto cada documento"
+        },
+        "talent-emergency-contact": {
+          "purpose": "A quién deben llamar las agencias si algo sale mal en el set, solo se revela en emergencias.",
+          "b0": "Agrega hasta 3 contactos con su parentesco y teléfono",
+          "b1": "Elige un contacto principal",
+          "b2": "Consulta en el registro de auditoría quién ha accedido a estos datos"
+        },
+        "talent-public-preview": {
+          "purpose": "Previsualiza exactamente lo que ven los clientes cuando llegan a tu perfil público.",
+          "b0": "Alterna entre la vista de cliente y la de director de casting",
+          "b1": "Míralo en escritorio, tableta y teléfono",
+          "b2": "Comparte un enlace de vista previa privada antes de publicar"
+        },
+        "talent-tier-compare": {
+          "purpose": "Compara los niveles Basic (gratis), Pro y Portfolio, y lo que cada uno desbloquea en tu página personal.",
+          "b0": "Consulta las diferencias de funciones lado a lado",
+          "b1": "Inicia una mejora a Pro o a Portfolio",
+          "b2": "Mira lo que otro talento ha construido con Portfolio"
+        },
+        "talent-personal-page": {
+          "purpose": "Tu página personal premium: independiente de cualquier agencia, tuya, y publicada en tulala.digital/t/<tu-slug>.",
+          "b0": "Elige una plantilla de diseño",
+          "b1": "Decide qué créditos, fotos y enlaces destacar",
+          "b2": "Conecta un dominio propio (nivel Portfolio)"
+        },
+        "talent-page-template": {
+          "purpose": "Elige o personaliza la plantilla de diseño de tu página personal.",
+          "b0": "Explora más de 6 variantes de plantilla",
+          "b1": "Ajusta tipografía, colores y orden de las secciones",
+          "b2": "Guarda como borrador y previsualiza antes de publicar"
+        },
+        "talent-media-embeds": {
+          "purpose": "Inserta contenido externo (reels de Vimeo, listas de Spotify, publicaciones de Instagram) en tu página personal.",
+          "b0": "Pega una URL y el contenido se incrusta automáticamente",
+          "b1": "Reordena las incrustaciones dentro de una sección",
+          "b2": "Ocúltalas en móvil si afectan el rendimiento"
+        },
+        "talent-press": {
+          "purpose": "Menciones de prensa y notas editoriales, los artículos en los que has aparecido.",
+          "b0": "Agrega una nota con publicación, fecha y URL",
+          "b1": "Sube una captura de pantalla para conservarla sin conexión",
+          "b2": "Define qué notas se muestran en tu página pública"
+        },
+        "talent-media-kit": {
+          "purpose": "Media kit descargable en PDF (biografía, fotos, tarifario y contacto) para prensa y propuestas a marcas.",
+          "b0": "Genéralo automáticamente con los datos de tu perfil",
+          "b1": "Personaliza el diseño y qué secciones aparecen",
+          "b2": "Obtén un enlace para compartir o un PDF protegido con contraseña"
+        },
+        "talent-custom-domain": {
+          "purpose": "Conecta tu propio dominio (tunombre.com) a tu página personal, disponible solo en el nivel Portfolio.",
+          "b0": "Agrega un dominio y consulta los registros DNS",
+          "b1": "Verifica el dominio y cambia tu página a él",
+          "b2": "Configura el SSL (se renueva solo)"
+        },
+        "talent-agency-relationship": {
+          "purpose": "Tu relación con una agencia: estatus de exclusividad, comisión y condiciones del contrato.",
+          "b0": "Consulta fechas de inicio y fin del contrato y sus condiciones de renovación",
+          "b1": "Revisa los porcentajes de comisión por tipo de trabajo",
+          "b2": "Inicia el proceso de salida si quieres terminar la relación"
+        },
+        "talent-leave-agency": {
+          "purpose": "Inicia el proceso para dejar una agencia: revisa plazos de aviso, reglas de transferencia y liquidaciones finales.",
+          "b0": "Consulta el plazo de aviso que marca el contrato",
+          "b1": "Envía el aviso formal a la agencia",
+          "b2": "Decide qué pasa con las reservas en curso"
+        },
+        "talent-multi-agency-picker": {
+          "purpose": "Si trabajas con varias agencias, elige cuál gestiona cada consulta o reserva.",
+          "b0": "Define una agencia predeterminada por tipo de trabajo o por región",
+          "b1": "Cámbiala solo para una consulta puntual",
+          "b2": "Consulta cuál es la agencia predeterminada actual"
+        },
+        "talent-conflict-resolve": {
+          "purpose": "Resuelve un conflicto: dos agencias ofreciendo fechas que se empalman, una agencia que ignoró un bloqueo que ya habías puesto, etc.",
+          "b0": "Compara las dos solicitudes lado a lado",
+          "b1": "Elige una y avisa a la otra con un motivo",
+          "b2": "Escala a Tulala HQ si necesitas un mediador"
+        },
+        "talent-network": {
+          "purpose": "Otro talento con el que colaboras: una red privada para pasar castings que no puedes tomar, recomendar y compartir reservas.",
+          "b0": "Invita a otro talento a tu red",
+          "b1": "Refiere a un colega un casting que no puedes tomar (con comisión de referido opcional)",
+          "b2": "Consulta las reservas que otro talento te ha referido"
+        },
+        "talent-referrals": {
+          "purpose": "Tu historial y tus ganancias por referidos: el talento y las marcas que has enviado a otros, y lo que te han enviado de vuelta.",
+          "b0": "Da seguimiento a los referidos abiertos y su estado",
+          "b1": "Consulta tus ganancias por referidos (pagadas y pendientes)",
+          "b2": "Genera un enlace personal de referidos para compartir"
+        },
+        "talent-notifications": {
+          "purpose": "Tus preferencias de notificación como talento, sobre qué te avisamos y de qué forma.",
+          "b0": "Silencia los tipos de evento que no te interesan",
+          "b1": "Define horas de silencio",
+          "b2": "Elige entrega inmediata, diaria o semanal"
+        },
+        "talent-privacy": {
+          "purpose": "Quién ve qué: medidas, contacto, redes sociales e información privada de la agencia.",
+          "b0": "Define la visibilidad campo por campo (público, solo agencias, privado)",
+          "b1": "Oculta tu perfil del descubrimiento en Tulala",
+          "b2": "Audita quién ha accedido a tus datos sensibles"
+        },
+        "talent-contact-preferences": {
+          "purpose": "Quién puede contactarte directamente: por nivel de confianza, por relación con la agencia o por marca específica.",
+          "b0": "Permite el contacto directo solo desde clientes Verificados en adelante",
+          "b1": "Autoriza a agencias específicas para escribirte directo",
+          "b2": "Bloquea marcas o competidores puntuales"
+        },
+        "talent-payouts": {
+          "purpose": "A dónde va tu dinero: cuentas bancarias, procesadores de pago y calendario de retiros.",
+          "b0": "Agrega o elimina un método de cobro",
+          "b1": "Elige la frecuencia de pago (semanal, quincenal o a demanda)",
+          "b2": "Consulta los montos pendientes y los ya pagados"
+        },
+        "talent-earnings-detail": {
+          "purpose": "Ganancias en detalle: cada reserva, lo que entró y lo que se descontó (comisión, impuestos, cargos).",
+          "b0": "Filtra por año, agencia o tipo de trabajo",
+          "b1": "Exporta a CSV para tu contador",
+          "b2": "Consulta las ganancias proyectadas de reservas confirmadas y aún sin pagar"
+        },
+        "talent-tax-docs": {
+          "purpose": "Documentos fiscales de fin de año: 1099, W-9 o sus equivalentes según la región. Descárgalos cuando tus ingresos queden cerrados.",
+          "b0": "Descarga los formatos del año fiscal actual y de años anteriores",
+          "b1": "Actualiza tu información fiscal (W-9 o equivalente)",
+          "b2": "Consulta qué agencias ya presentaron formatos a tu nombre"
+        },
+        "talent-verification": {
+          "purpose": "Entrada heredada: la reemplazan `talent-trust-detail` (el panel de confianza del talento) y los cajones por método (`talent-phone-verify`, `talent-id-verify`, etc.). Se conserva por compatibilidad con enlaces antiguos.",
+          "b0": "(Redirige a `talent-trust-detail`)"
+        },
+        "talent-voice-reply": {
+          "purpose": "Graba una respuesta de voz rápida en lugar de escribir, útil cuando vas en movimiento.",
+          "b0": "Graba hasta 60 segundos de voz",
+          "b1": "Transcribe automáticamente y edita antes de enviar",
+          "b2": "Fija tus respuestas más usadas como plantillas de voz"
+        },
+        "talent-chat-archive": {
+          "purpose": "Conversaciones archivadas: reservas cerradas, solicitudes rechazadas y relaciones con agencias que quedaron inactivas.",
+          "b0": "Busca conversaciones pasadas por cliente, agencia o palabra clave",
+          "b1": "Restaura un chat archivado y vuélvelo activo",
+          "b2": "Exporta un hilo archivado para registros legales"
+        },
+        "data-export": {
+          "purpose": "Descarga un archivo con tus datos: para respaldo, portabilidad o antes de eliminar la cuenta.",
+          "b0": "Elige un rango de fechas o expórtalo todo",
+          "b1": "Elige qué tipos de datos incluir (reservas, mensajes, archivos)",
+          "b2": "Recibe el enlace de descarga por correo cuando esté listo"
+        },
+        "audit-log": {
+          "purpose": "Cada acción relevante en esta cuenta o espacio: quién hizo qué, cuándo y desde dónde.",
+          "b0": "Filtra por usuario, tipo de acción o IP",
+          "b1": "Exporta un rango de fechas para cumplimiento",
+          "b2": "Detecta actividad sospechosa"
+        },
+        "talent-share-card": {
+          "purpose": "Comparte tu perfil de talento con un enlace limpio, un código para incrustar o una tarjeta descargable.",
+          "b0": "Obtén un enlace para compartir",
+          "b1": "Genera un código QR para impresión",
+          "b2": "Descarga una vCard para agendas de contactos"
+        },
+        "whats-new": {
+          "purpose": "Novedades del producto, lanzamientos de funciones y cambios que te conviene conocer.",
+          "b0": "Lee el historial de cambios con capturas de pantalla",
+          "b1": "Mira videos demostrativos de las funciones nuevas",
+          "b2": "Sigue los enlaces a artículos con más detalle"
+        },
+        "help": {
+          "purpose": "El centro de ayuda: busca artículos, explora por tema, contacta a soporte y abre un ticket.",
+          "b0": "Busca en la documentación",
+          "b1": "Explora artículos por vista (administración, talento, cliente)",
+          "b2": "Abre un chat con soporte",
+          "b3": "Abre un ticket para los casos que necesitan a una persona"
+        },
+        "payments-setup": {
+          "purpose": "Conecta tu espacio con un procesador de pagos (Stripe, Wise, Mercury) para poder recibir pagos de clientes.",
+          "b0": "Conecta un procesador",
+          "b1": "Define comisiones y reglas de procesamiento predeterminadas",
+          "b2": "Prueba el flujo con una transacción de prueba"
+        },
+        "payout-receiver-picker": {
+          "purpose": "Elige quién recibe el pago de una reserva: la agencia, el talento directo o un reparto entre ambos.",
+          "b0": "Define el receptor predeterminado de cada talento",
+          "b1": "Cámbialo reserva por reserva",
+          "b2": "Configura repartos (por ejemplo, 80/20 con una agencia socia)"
+        },
+        "payment-detail": {
+          "purpose": "Detalle de un pago: monto, comisiones, impuestos, receptor y estado.",
+          "b0": "Consulta los conceptos y el desglose de comisiones",
+          "b1": "Descarga el comprobante o la factura",
+          "b2": "Abre una disputa si algo no cuadra"
+        },
+        "platform-today-pulse": {
+          "purpose": "Pulso entre espacios: incidentes abiertos, tickets en cola, fallas de cobro y espacios de alto impacto del día.",
+          "b0": "Prioriza incidentes por severidad",
+          "b1": "Entra a cualquier espacio desde su fila",
+          "b2": "Consulta qué procesos de la plataforma están corriendo o atorados"
+        },
+        "platform-tenant-detail": {
+          "purpose": "El expediente completo de un espacio: plan, ingreso mensual, uso, personal clave y actividad reciente.",
+          "b0": "Suplanta la cuenta para ver lo que ellos ven",
+          "b1": "Cambia el plan manualmente o extiende una prueba",
+          "b2": "Suspende el espacio por cobro o por abuso"
+        },
+        "platform-tenant-impersonate": {
+          "purpose": "Inicia sesión como administrador de un espacio (con su consentimiento) para depurar un problema.",
+          "b0": "Inicia una sesión de suplantación (queda registrada y tiene tiempo límite)",
+          "b1": "Termina la sesión a mano o espera a que expire sola",
+          "b2": "Consulta qué acciones tomó HQ durante la sesión"
+        },
+        "platform-tenant-suspend": {
+          "purpose": "Suspende un espacio: falla de cobro, violación de términos o incidente de seguridad.",
+          "b0": "Elige un motivo y una severidad (solo lectura, bloqueo total, eliminación)",
+          "b1": "Define una fecha de reactivación automática si aplica",
+          "b2": "Avisa al espacio o mantenlo en silencio (casos de seguridad)"
+        },
+        "platform-tenant-plan-override": {
+          "purpose": "Cambia manualmente el plan de un espacio: mejoras, cortesías y condiciones empresariales a la medida.",
+          "b0": "Sube de nivel con un precio personalizado",
+          "b1": "Aplica un descuento o un saldo a favor",
+          "b2": "Define un vencimiento para que el cambio se revierta solo"
+        },
+        "platform-user-detail": {
+          "purpose": "El expediente de una persona usuaria: entre espacios, vistas, dispositivos y sesiones.",
+          "b0": "Consulta todos los espacios a los que pertenece",
+          "b1": "Fuerza un restablecimiento de contraseña",
+          "b2": "Fusiónala con una cuenta duplicada"
+        },
+        "platform-user-merge": {
+          "purpose": "Fusiona dos registros de usuario, la misma persona que se registró dos veces con correos distintos.",
+          "b0": "Elige el registro que se conserva",
+          "b1": "Previsualiza qué se transfiere (membresías, historial)",
+          "b2": "Ejecuta la fusión (es irreversible, se confirma dos veces)"
+        },
+        "platform-user-reset": {
+          "purpose": "Fuerza el restablecimiento de la contraseña o del segundo factor de una persona usuaria.",
+          "b0": "Envía un correo para restablecer la contraseña",
+          "b1": "Elimina el segundo factor si perdió su dispositivo",
+          "b2": "Marca la cuenta para volver a verificarla"
+        },
+        "platform-hub-submission": {
+          "purpose": "Un espacio postuló a un hub, revisa qué tan bien encaja su lista antes de aprobar.",
+          "b0": "Consulta el perfil del espacio solicitante y una muestra de su talento",
+          "b1": "Aprueba, rechaza o pide cambios",
+          "b2": "Deja notas internas de HQ sobre la decisión"
+        },
+        "platform-hub-rules": {
+          "purpose": "Reglas de curaduría por hub: nivel mínimo, filtros de elegibilidad y condiciones de exclusividad.",
+          "b0": "Ajusta los filtros de elegibilidad",
+          "b1": "Actualiza las preguntas del formulario de postulación",
+          "b2": "Pausa las postulaciones nuevas cuando haya rezago"
+        },
+        "platform-billing-invoice": {
+          "purpose": "Una factura dentro de la plataforma: espacio, conceptos y estado de pago.",
+          "b0": "Emite un reembolso (total o parcial)",
+          "b1": "Márcala como pagada a mano si el cobro se hizo fuera de la plataforma",
+          "b2": "Reenvía el correo con la factura"
+        },
+        "platform-refund": {
+          "purpose": "Reembolsa un cargo (parcial o total) con motivo obligatorio y rastro de auditoría.",
+          "b0": "Elige el cargo y el monto a reembolsar",
+          "b1": "Elige una categoría de motivo (se usa en los reportes de finanzas)",
+          "b2": "Avisa al espacio o reembolsa en silencio"
+        },
+        "platform-dunning": {
+          "purpose": "Espacios en cobranza: cargos fallidos, calendario de reintentos y cuenta regresiva para la suspensión.",
+          "b0": "Consulta el calendario de reintentos de cada falla",
+          "b1": "Reintenta un cargo manualmente",
+          "b2": "Otorga una cortesía a un espacio con una falla atorada"
+        },
+        "platform-feature-flag": {
+          "purpose": "Activa funciones por espacio o de forma global: despliegues por etapas, acceso beta e interruptores de emergencia.",
+          "b0": "Activa un flag para un espacio o para un porcentaje de usuarios",
+          "b1": "Consulta quién está dentro y fuera de cada flag",
+          "b2": "Programa el cambio de un flag para una fecha futura"
+        },
+        "platform-moderation-item": {
+          "purpose": "Contenido reportado para moderación: fotos inapropiadas, perfiles sospechosos y mensajes abusivos.",
+          "b0": "Aprueba, rechaza o pide cambios",
+          "b1": "Retira el contenido con un motivo que se envía a la persona usuaria",
+          "b2": "Escala a legal en los casos graves"
+        },
+        "platform-system-job": {
+          "purpose": "Procesos en segundo plano: exportaciones, migraciones y agregaciones diarias. Consulta su avance y reintenta las fallas.",
+          "b0": "Filtra por tipo de proceso o por estado",
+          "b1": "Reintenta un proceso fallido",
+          "b2": "Cancela un proceso atorado"
+        },
+        "platform-incident": {
+          "purpose": "Un incidente activo o pasado: qué falló, cuándo y cómo se resolvió.",
+          "b0": "Actualiza el estado (investigando, identificado, en monitoreo, resuelto)",
+          "b1": "Publica actualizaciones que salen en la página pública de estado",
+          "b2": "Enlaza el documento de análisis posterior"
+        },
+        "platform-support-ticket": {
+          "purpose": "Un ticket de soporte de un espacio o de una persona usuaria, la cola que HQ atiende a diario.",
+          "b0": "Asigna el ticket a alguien del equipo",
+          "b1": "Responde a la persona usuaria (con plantilla o texto libre)",
+          "b2": "Vincula tickets relacionados o incidentes conocidos",
+          "b3": "Ciérralo con una categoría de resolución"
+        },
+        "platform-audit-export": {
+          "purpose": "Genera una exportación de auditoría con nivel de cumplimiento: para legal, revisiones de seguridad o solicitudes de un espacio.",
+          "b0": "Elige un espacio o abarca toda la plataforma",
+          "b1": "Selecciona un rango de fechas y los tipos de evento",
+          "b2": "Descarga un archivo firmado y con hash"
+        },
+        "platform-hq-team": {
+          "purpose": "El personal de Tulala HQ con sus roles, permisos y turnos de guardia.",
+          "b0": "Agrega o retira personal de HQ",
+          "b1": "Define roles (ingeniería, soporte, operaciones, finanzas)",
+          "b2": "Administra la rotación de guardias"
+        },
+        "platform-region-config": {
+          "purpose": "Ajustes por región: monedas, reglas fiscales, procesadores de pago disponibles y reglas de moderación de contenido.",
+          "b0": "Agrega o edita una región",
+          "b1": "Define el texto legal de cada región",
+          "b2": "Activa funciones región por región"
+        },
+        "client-trust-detail": {
+          "purpose": "Nivel de confianza del cliente (de Basic a Gold) según su verificación de identidad y las señales de cuenta con fondos.",
+          "b0": "Consulta en qué nivel está el cliente y qué desbloquea cada nivel",
+          "b1": "Entiende qué pasos de verificación siguen pendientes",
+          "b2": "Solicita una revisión manual o aplica una excepción en casos límite"
+        },
+        "escrow-detail": {
+          "purpose": "Los fondos en garantía de una reserva, con su ciclo de vida: autorizados, retenidos y liberados.",
+          "b0": "Consulta el estado actual de los fondos y las condiciones para liberarlos",
+          "b1": "Revisa el calendario de liberación",
+          "b2": "Levanta una disputa antes de la liberación si algo no cuadra"
+        },
+        "refund-flow": {
+          "purpose": "Emite un reembolso del pago de una reserva (total o parcial) con un motivo obligatorio.",
+          "b0": "Elige el motivo del reembolso para los reportes de finanzas",
+          "b1": "Elige reembolso total o captura un monto parcial",
+          "b2": "Consulta cuánto tarda en verse reflejado el abono"
+        },
+        "dispute-flow": {
+          "purpose": "Abre una disputa formal por un problema de pago o de entrega, con un asistente guiado para subir evidencia.",
+          "b0": "Elige el tipo de disputa (no entrega, calidad, cargo no autorizado, otro)",
+          "b1": "Adjunta evidencia (mensajes, fotos, documentos)",
+          "b2": "Revisa tu envío antes de confirmar"
+        },
+        "kyc-verification": {
+          "purpose": "Verificación de identidad (identificación oficial y selfie) necesaria para desbloquear niveles de confianza más altos y límites de pago mayores.",
+          "b0": "Inicia el proceso de verificación",
+          "b1": "Consulta qué paso está pendiente (identificación, selfie, revisión)",
+          "b2": "Revisa el estado de la verificación después de enviarla"
+        },
+        "proof-of-funds": {
+          "purpose": "Verifica una cuenta con fondos (enlace bancario o transferencia) para llegar al nivel de confianza Silver o Gold.",
+          "b0": "Vincula una cuenta bancaria con Plaid para verificación inmediata",
+          "b1": "O bien sube un estado de cuenta para revisión manual",
+          "b2": "Consulta el estado de la verificación y los tiempos estimados"
+        },
+        "payout-method-failure": {
+          "purpose": "Tu método de cobro falló, revisa el motivo y sigue los pasos guiados para resolverlo.",
+          "b0": "Lee el código específico del motivo de la falla",
+          "b1": "Actualiza o reemplaza el método de cobro",
+          "b2": "Reintenta el pago fallido una vez corregido el método"
+        },
+        "subscription-lifecycle": {
+          "purpose": "El ciclo de vida completo de la suscripción: prueba, activa, pausada, periodo de gracia y cancelada.",
+          "b0": "Consulta la fase actual y qué cambia después",
+          "b1": "Pausa o cancela una suscripción activa",
+          "b2": "Reactívala desde el periodo de gracia o desde el estado cancelado"
+        },
+        "notification-detail": {
+          "purpose": "El detalle completo de una notificación: qué pasó, quién la generó y qué acción hace falta.",
+          "b0": "Lee el contenido completo de la notificación",
+          "b1": "Salta a la reserva, consulta o hilo relacionado",
+          "b2": "Márcala como leída o descártala"
+        },
+        "ai-draft-assist": {
+          "purpose": "Borradores de mensajes generados con IA, describe lo que quieres decir y recibe un texto pulido.",
+          "b0": "Escribe una instrucción y genera un borrador",
+          "b1": "Edita el borrador ahí mismo antes de usarlo",
+          "b2": "Insértalo directo en el redactor de mensajes activo"
+        },
+        "ai-search-explain": {
+          "purpose": "Descubre cómo interpretó la IA tu búsqueda y qué filtros aplicó.",
+          "b0": "Revisa las palabras clave extraídas y los criterios inferidos",
+          "b1": "Consulta el total de resultados de esa interpretación",
+          "b2": "Entiende por qué aparecieron ciertos resultados y otros no"
+        },
+        "trust-verification-queue": {
+          "purpose": "Revisa todas las verificaciones de Instagram, Tulala, identificación, negocio, dominio y pago que envía el talento. Aprueba, rechaza o pide más información, y el talento recibe el aviso.",
+          "b0": "Filtra por estado (pendiente, en revisión, falta información, aprobada, rechazada)",
+          "b1": "Filtra por método (solo se muestran los métodos habilitados)",
+          "b2": "Busca por nombre del talento, usuario de Instagram, código o método",
+          "b3": "Aprueba en bloque con las casillas de cada fila",
+          "b4": "Abre una solicitud para ver la URL de evidencia, la nota del talento, la línea de tiempo completa y el puntaje de riesgo",
+          "b5": "Aprueba, rechaza (con motivo), marca en revisión o pide más información"
+        },
+        "trust-disputed-claims": {
+          "purpose": "Resuelve los perfiles creados por agencias que el talento reclamado marcó como ajenos. Hay tres desenlaces: liberar (gana el talento), sostener (gana la agencia y se reenvía la invitación) o eliminar (se baja el perfil).",
+          "b0": "Revisa el motivo de la disputa del talento y los datos de la invitación original",
+          "b1": "Consulta el puntaje de confianza del talento (una disputa de reclamo lo baja 25 puntos)",
+          "b2": "Agrega notas visibles solo para administradores con el razonamiento de la decisión",
+          "b3": "Elige una de las tres resoluciones; la interfaz actualiza el estado del reclamo, el perfil y el registro de auditoría"
+        },
+        "platform-verification-methods": {
+          "purpose": "El registro maestro de los métodos de verificación que existen en Tulala. Los administradores de plataforma activan o desactivan métodos, cambian el modo de revisión y definen el nivel requerido, la evidencia y la vigencia.",
+          "b0": "Activa o desactiva un método en toda la plataforma (avisa si hay insignias activas: siguen siendo válidas hasta su vencimiento, pero desaparecen de las vitrinas públicas de inmediato)",
+          "b1": "Define el modo de revisión (automático, manual o híbrido)",
+          "b2": "Define la visibilidad (perfil público, solo administradores o interno)",
+          "b3": "Limita quién puede usarlo según el nivel del talento (Basic, Pro, Portfolio o todos)",
+          "b4": "Decide si se requiere evidencia para poder enviarlo",
+          "b5": "Define la vigencia de la insignia en días (en blanco significa que no vence)",
+          "b6": "Revisa el registro de auditoría con cada cambio hecho al catálogo"
+        },
+        "talent-trust-detail": {
+          "purpose": "Tu panel de confianza. Consulta tu puntaje de confianza, las insignias que has ganado y qué verificaciones subirían más tu puntaje. Aquí también defines quién puede contactarte.",
+          "b0": "Consulta tu puntaje de confianza (de 0 a 100, cálculo interno)",
+          "b1": "Abre sugerencias como Verifica tu teléfono (+5) que te llevan al flujo correcto",
+          "b2": "Inicia el flujo por mensaje directo de Instagram (usuario, código y URL de evidencia opcional)",
+          "b3": "Solicita una revisión manual de Tulala",
+          "b4": "Abre los flujos de teléfono, identificación, negocio, dominio y pago cuando estén habilitados en la plataforma",
+          "b5": "Define quién puede contactarte: cualquier persona, solo clientes verificados o solo clientes de confianza"
+        },
+        "talent-claim-invite": {
+          "purpose": "Acepta (o disputa) un perfil que una agencia creó a tu nombre. Hay tres acciones: reclamarlo (pasa a ser tuyo), decir que no eres tú (lo revisa un administrador) o reportarlo.",
+          "b0": "Revisa el perfil que armó la agencia: fotos, campos y nombre de la agencia",
+          "b1": "Reclama la propiedad (se verifica tu correo y el reclamo pasa a estado reclamado)",
+          "b2": "Disputa la invitación si el perfil no es tuyo (llega a la cola de reclamos disputados de administración)",
+          "b3": "Reporta la invitación como sospechosa (el perfil se baja mientras administración revisa)"
+        },
+        "talent-phone-verify": {
+          "purpose": "Confirma un número de teléfono activo con un código por SMS. Es una señal interna, nunca se muestra en público. Agiliza la recuperación de tu cuenta y sube tu puntaje de confianza.",
+          "b0": "Escribe tu teléfono con el código de país",
+          "b1": "Recibe un código de 6 dígitos (en el prototipo se muestra en pantalla; en producción llega por SMS real)",
+          "b2": "Escribe el código para verificarte automáticamente",
+          "b3": "Repite el proceso si cambias de número"
+        },
+        "talent-id-verify": {
+          "purpose": "Sube una identificación oficial para revisión manual de administración. Es de uso interno y sirve para confirmar nombre, edad e identidad única. Nunca se comparte con clientes ni agencias.",
+          "b0": "Elige el tipo de documento (pasaporte, licencia de conducir o identificación nacional)",
+          "b1": "Proporciona una URL segura al documento (en producción esto es una carga directa)",
+          "b2": "Agrega una nota para quien revisa si algo del documento necesita contexto",
+          "b3": "Envíalo, administración revisa en un plazo de 48 horas"
+        },
+        "talent-business-verify": {
+          "purpose": "Confirma la entidad legal registrada detrás de tu trabajo, ya sea RFC, registro mercantil o su equivalente. Es una insignia pública para el talento que factura como negocio.",
+          "b0": "Escribe el nombre de tu entidad legal y su número de registro fiscal",
+          "b1": "Adjunta la URL de un registro público (opcional, u obligatoria según la política de la plataforma)",
+          "b2": "Envíalo a revisión manual de administración (3 días hábiles)"
+        },
+        "talent-domain-verify": {
+          "purpose": "Demuestra que controlas un dominio (por ejemplo, martareyes.com) agregando un registro TXT en tu DNS. Es una insignia pública que da credibilidad al talento con sitio propio.",
+          "b0": "Escribe el dominio que quieres verificar",
+          "b1": "Copia el valor del registro TXT generado",
+          "b2": "Agrégalo en tu proveedor de DNS (GoDaddy, Namecheap, Cloudflare, etc.)",
+          "b3": "Toca comprobar ahora para correr la consulta, se aprueba solo si coincide"
+        },
+        "talent-payment-verify": {
+          "purpose": "Confirma que tu método de cobro funciona con una autorización de Stripe que se reembolsa enseguida. Es de uso interno y mejora tu puntaje de confianza ante los clientes que valoran la fiabilidad en los pagos.",
+          "b0": "Corre la verificación (retención de 1 euro y reembolso inmediato, el dinero nunca se mueve de verdad)",
+          "b1": "Consulta el resultado en pantalla; se aprueba automáticamente si todo sale bien"
+        }
+      },
+      "drawerLabels": {
+        "api-keys": "Claves de API",
+        "audit-log": "Registro de auditoría",
+        "booking-peek": "Resumen de la reserva",
+        "branding": "Identidad de marca",
+        "client-list": "Lista de clientes",
+        "client-profile": "Perfil del cliente",
+        "client-trust-detail": "Nivel de confianza del cliente",
+        "confirmed-bookings": "Reservas confirmadas",
+        "danger-zone": "Zona de riesgo",
+        "data-export": "Exportar datos",
+        "dispute-flow": "Abrir una disputa",
+        "domain": "Dominio propio",
+        "drafts-holds": "Borradores y apartados",
+        "escrow-detail": "Fondos en garantía",
+        "field-catalog": "Campos personalizados",
+        "filter-config": "Configuración de filtros",
+        "help": "Ayuda",
+        "homepage": "Página de inicio",
+        "hub-distribution": "Distribución en hubs",
+        "inbox-snippets": "Plantillas guardadas",
+        "inquiry-peek": "Resumen de la consulta",
+        "inquiry-workspace": "Espacio de la consulta",
+        "kyc-verification": "Verificación de identidad",
+        "media": "Biblioteca de medios",
+        "navigation": "Navegación",
+        "new-booking": "Nueva reserva",
+        "new-inquiry": "Nueva consulta",
+        "new-talent": "Agregar talento",
+        "notifications": "Notificaciones",
+        "notifications-prefs": "Preferencias de notificación",
+        "pages": "Páginas",
+        "payment-detail": "Detalle del pago",
+        "payments-setup": "Configuración de pagos",
+        "payout-receiver-picker": "Receptor del pago",
+        "pipeline": "Flujo de consultas",
+        "plan-billing": "Plan y facturación",
+        "plan-compare": "Comparar planes",
+        "platform-billing-invoice": "Factura de plataforma",
+        "platform-feature-flag": "Flags de funciones",
+        "platform-hub-rules": "Reglas del hub",
+        "platform-hub-submission": "Postulación al hub",
+        "platform-incident": "Incidente",
+        "platform-refund": "Reembolso de plataforma",
+        "platform-support-ticket": "Ticket de soporte",
+        "platform-system-job": "Proceso del sistema",
+        "platform-tenant-detail": "Detalle del espacio",
+        "platform-tenant-impersonate": "Suplantar espacio",
+        "platform-tenant-plan-override": "Cambio manual de plan",
+        "platform-tenant-suspend": "Suspender espacio",
+        "platform-user-detail": "Detalle de la persona usuaria",
+        "platform-user-merge": "Fusionar usuarios",
+        "platform-user-reset": "Restablecer acceso",
+        "platform-verification-methods": "Métodos de verificación",
+        "posts": "Publicaciones",
+        "private-client-data": "Datos privados del cliente",
+        "proof-of-funds": "Comprobante de fondos",
+        "refund-flow": "Emitir un reembolso",
+        "relationship-history": "Historial de la relación",
+        "reply-templates": "Plantillas de respuesta",
+        "representation-requests": "Solicitudes de representación",
+        "seo": "SEO",
+        "site-health": "Estado del sitio",
+        "site-setup": "Configuración del sitio",
+        "talent-add-event": "Agregar evento al calendario",
+        "talent-agency-relationship": "Relación con la agencia",
+        "talent-availability": "Disponibilidad",
+        "talent-block-dates": "Bloquear fechas",
+        "talent-business-verify": "Verificación de negocio",
+        "talent-claim-invite": "Reclamar tu perfil",
+        "talent-closed-booking": "Reserva cerrada",
+        "talent-conflict-resolve": "Resolver un conflicto",
+        "talent-contact-preferences": "Preferencias de contacto",
+        "talent-credits": "Créditos",
+        "talent-custom-domain": "Dominio propio",
+        "talent-domain-verify": "Verificación de dominio",
+        "talent-earnings-detail": "Detalle de ganancias",
+        "talent-emergency-contact": "Contacto de emergencia",
+        "talent-hub-compare": "Comparar hubs",
+        "talent-hub-detail": "Detalle del hub",
+        "talent-id-verify": "Verificación de identificación",
+        "talent-leave-agency": "Dejar la agencia",
+        "talent-measurements": "Medidas",
+        "talent-media-embeds": "Contenido incrustado",
+        "talent-multi-agency-picker": "Elegir agencia",
+        "talent-network": "Red de talento",
+        "talent-offer-detail": "Detalle de la oferta",
+        "talent-page-template": "Plantilla de página",
+        "talent-payment-verify": "Verificación de cobro",
+        "talent-payouts": "Cobros",
+        "talent-personal-page": "Página personal",
+        "talent-phone-verify": "Verificación de teléfono",
+        "talent-photo-edit": "Editar foto",
+        "talent-polaroids": "Polaroids",
+        "talent-portfolio": "Portafolio",
+        "talent-press": "Prensa",
+        "talent-privacy": "Privacidad",
+        "talent-profile": "Perfil del talento",
+        "talent-profile-edit": "Editar perfil",
+        "talent-profile-section": "Editar una sección",
+        "talent-public-preview": "Vista previa pública",
+        "talent-rate-card": "Tarifario",
+        "talent-referrals": "Referidos",
+        "talent-request-detail": "Detalle de la solicitud",
+        "talent-showreel": "Showreel",
+        "talent-skills": "Habilidades",
+        "talent-tax-docs": "Documentos fiscales",
+        "talent-tier-compare": "Comparar niveles",
+        "talent-trust-detail": "Panel de confianza",
+        "taxonomy": "Taxonomía",
+        "team": "Equipo",
+        "team-activity": "Actividad del equipo",
+        "today-pulse": "Hoy",
+        "trust-disputed-claims": "Reclamos disputados",
+        "trust-verification-queue": "Cola de verificaciones",
+        "whats-new": "Novedades",
+        "widgets": "Widgets",
+        "workspace-settings": "Ajustes del espacio"
+      },
+      "categories": {
+        "ai": "IA",
+        "account": "Cuenta",
+        "agencies": "Agencias",
+        "clients": "Clientes",
+        "hq": "HQ",
+        "help": "Ayuda",
+        "money": "Dinero",
+        "myProfile": "Mi perfil",
+        "notifications": "Notificaciones",
+        "operations": "Operaciones",
+        "premium": "Premium",
+        "publicSite": "Sitio público",
+        "roster": "Lista",
+        "security": "Seguridad",
+        "settings": "Ajustes",
+        "today": "Hoy"
+      },
+      "audiences": {
+        "workspaceAdmin": "Admin del espacio",
+        "workspaceCoordinator": "Coordinador del espacio",
+        "workspaceEditor": "Editor del espacio",
+        "talent": "Talento",
+        "client": "Cliente",
+        "tulalaHq": "Tulala HQ"
+      },
+      "ticketCategories": {
+        "accountAccess": "Cuenta y acceso",
+        "billing": "Facturación",
+        "bookingsInquiries": "Reservas y consultas",
+        "developerApi": "Desarrollo y API",
+        "general": "General",
+        "publicSiteDomains": "Sitio público y dominios",
+        "trustSafety": "Confianza y seguridad"
+      },
+      "ui": {
+        "aboutThisView": "Acerca de esta vista",
+        "youCanHere": "Qué puedes hacer aquí",
+        "relatedViews": "Vistas relacionadas",
+        "wasThisHelpful": "¿Te resultó útil?",
+        "voteUpAria": "Sí, me resultó útil",
+        "voteDownAria": "No, esto se puede mejorar",
+        "toastThanksUp": "Gracias, qué bueno que te sirvió.",
+        "toastThanksDown": "Gracias, vamos a mejorar esta vista.",
+        "feedbackSavedUp": "Gracias, guardamos tu opinión.",
+        "feedbackSavedDown": "Gracias, vamos a revisar la ayuda de esta vista.",
+        "fullGuide": "Guía completa",
+        "soon": "(pronto)",
+        "submitATicket": "Abrir un ticket",
+        "openHelpDrawer": "Abrir el panel de ayuda",
+        "toastSupportArticle": "El artículo de soporte \"/support/{slug}\" estará disponible pronto.",
+        "toastChatSupport": "El chat con soporte estará disponible pronto. Vamos a precargar el contexto de \"{drawer}\".",
+        "toastTicketForm": "El formulario de tickets estará disponible pronto. Vamos a prellenar la categoría \"{category}\"."
+      }
+    },
+    "adminMedia": {
+      "title": "Medios",
+      "subtitle": "La biblioteca de fotos de tu espacio de trabajo, todas las fotos de todos los talentos, con control de marca de agua y seguimiento de uso.",
+      "navAll": "Todas ({count})",
+      "navPendingReview": "Pendientes de revisión",
+      "navByTalent": "Por talento",
+      "navByKind": "Por tipo",
+      "navAnalytics": "Analíticas",
+      "navigate": "Navegar",
+      "sectionFolders": "Carpetas",
+      "sectionGroupBy": "Agrupar por",
+      "sectionMore": "Más",
+      "newFolder": "Nueva carpeta",
+      "editFolder": "Editar carpeta",
+      "createFolder": "Crear carpeta",
+      "folderName": "Nombre de la carpeta",
+      "folderNamePlaceholder": "p. ej. Kit de prensa, Pasarela 2026…",
+      "color": "Color",
+      "shareLink": "Enlace para compartir",
+      "copy": "Copiar",
+      "revoke": "Revocar",
+      "creating": "Creando…",
+      "createShareLink30": "Crear enlace para compartir (30 días)",
+      "delete": "Eliminar",
+      "deleting": "Eliminando…",
+      "deleteN": "Eliminar {count}",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "clear": "Limpiar",
+      "clearSelection": "Limpiar la selección",
+      "selectAll": "Seleccionar todo",
+      "assign": "Asignar",
+      "open": "Abrir",
+      "on": "Sí",
+      "off": "No",
+      "details": "Detalles",
+      "tags": "Etiquetas",
+      "note": "Nota",
+      "notePlaceholder": "Añade una nota sobre esta foto…",
+      "saveNote": "Guardar nota",
+      "activity": "Actividad",
+      "addTagPlaceholder": "Escribe una etiqueta y pulsa Enter…",
+      "removeTagAria": "Quitar {tag}",
+      "watermarkPreview": "Vista previa de la marca de agua",
+      "watermarkOn": "Marca de agua activada",
+      "customWatermark": "Marca de agua personalizada",
+      "configureWatermark": "Configurar la marca de agua",
+      "metaStatus": "Estado",
+      "metaUploaded": "Subida",
+      "metaDimensions": "Dimensiones",
+      "metaSize": "Tamaño",
+      "metaFilename": "Nombre de archivo",
+      "metaType": "Tipo",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "savingCrop": "Guardando el recorte…",
+      "useAsProfile": "Usar como perfil",
+      "useAsCover": "Usar como portada",
+      "setAsProfile": "Poner como perfil",
+      "moveToTalent": "Mover a otro talento",
+      "reassignHint": "Las fotos se reasignarán y aparecerán bajo el nuevo talento.",
+      "bulkWatermark": "Marca de agua…",
+      "bulkMoveToTalent": "Mover a otro talento…",
+      "bulkAddToFolder": "Añadir a una carpeta…",
+      "nSelected": "{count} seleccionadas",
+      "nPending": "{count} pendientes",
+      "focusedOf": "Enfocada: {index} / {total}",
+      "nUploaded": "{done}/{total} subidas…",
+      "nFailed": "{count} con error",
+      "nReady": "{count} listas",
+      "nPhotos": {
+        "one": "{count} foto",
+        "other": "{count} fotos"
+      },
+      "nFolders": {
+        "one": "{count} carpeta",
+        "other": "{count} carpetas"
+      },
+      "uploadNPhotos": {
+        "one": "Subir {count} foto",
+        "other": "Subir {count} fotos"
+      },
+      "moveNPhotosToTalent": {
+        "one": "Mover {count} foto a otro talento",
+        "other": "Mover {count} fotos a otro talento"
+      },
+      "saveNPhotos": {
+        "one": "Guardar {count} foto",
+        "other": "Guardar {count} fotos"
+      },
+      "confirmDeletePhotos": {
+        "one": "¿Eliminar {count} foto? Esto no se puede deshacer.",
+        "other": "¿Eliminar {count} fotos? Esto no se puede deshacer."
+      },
+      "confirmRejectPhotos": {
+        "one": "¿Rechazar {count} foto?",
+        "other": "¿Rechazar {count} fotos?"
+      },
+      "confirmDeleteFolder": "¿Eliminar \"{name}\"? Las fotos se mantienen, solo se quita la carpeta.",
+      "searchPlaceholder": "Buscar por nombre, etiqueta o archivo…",
+      "filterAllTalent": "Todo el talento",
+      "filterAllStatuses": "Todos los estados",
+      "statusApproved": "Aprobadas",
+      "statusPending": "Pendientes",
+      "sortNewest": "Más recientes",
+      "sortOldest": "Más antiguas",
+      "sortTalentAZ": "Talento de la A a la Z",
+      "showLess": "Ver menos ↑",
+      "seeNMore": "Ver {count} más →",
+      "emptyFolder": "Todavía no hay fotos en esta carpeta. Selecciona fotos y usa '+ Carpeta…' para añadirlas.",
+      "emptyPending": "No hay fotos pendientes de revisión.",
+      "emptyNoMatch": "Ninguna foto coincide. Prueba a limpiar los filtros o a subir fotos.",
+      "emptyNoPhotos": "Todavía no hay fotos, arrastra imágenes o pulsa Subir.",
+      "dropPhotosHere": "Suelta las fotos aquí",
+      "bridgeLoadError": "No pudimos cargar tu biblioteca de medios. Prueba a actualizar la página; si sigue fallando, la consulta del puente está rota.",
+      "showingNofM": "Mostrando {shown} de {total} fotos. Usa filtros o carpetas para acotar lo que ves.",
+      "settings": "Ajustes",
+      "mediaFeatures": "Funciones de medios",
+      "groupByTalent": "Agrupar por talento",
+      "groupByKind": "Agrupar por tipo",
+      "driveImport": "Importar de Drive",
+      "uploadMenuButton": "+ Subir ▾",
+      "fromComputer": "Desde el ordenador",
+      "dragAndDrop": "Arrastrar y soltar",
+      "dragAndDropSub": "Suelta las fotos en cualquier parte de esta página",
+      "driveSub": "Importar desde una carpeta compartida",
+      "toastDropAnywhere": "Suelta las imágenes en cualquier parte de la página",
+      "drivePastePlaceholder": "Pega el enlace de un archivo o carpeta de Drive…",
+      "check": "Comprobar",
+      "checking": "Comprobando…",
+      "foundNPhotosInFolder": {
+        "one": "Se encontró {count} foto en esa carpeta",
+        "other": "Se encontraron {count} fotos en esa carpeta"
+      },
+      "importNPhotos": {
+        "one": "Importar {count} foto",
+        "other": "Importar {count} fotos"
+      },
+      "nPhotosImported": {
+        "one": "{count} foto importada.",
+        "other": "{count} fotos importadas."
+      },
+      "driveFolderTruncated": "Esta carpeta es muy grande, solo se listan las primeras {total} imágenes. Mueve el resto a una subcarpeta y vuelve a ejecutarlo.",
+      "importingProgress": "Importando… {done} / {total} fotos",
+      "safeToLeave": "Puedes salir sin problema, la importación continúa en el servidor",
+      "loadingRoster": "Cargando el roster…",
+      "driveAnyoneWithLink": "Funciona con cualquier archivo o carpeta compartida como \"Cualquier persona con el enlace\"",
+      "keyboardShortcuts": "Atajos de teclado",
+      "shortcutsGeneral": "General",
+      "shortcutsWhenOpen": "Con una foto abierta",
+      "keyClick": "Clic",
+      "shortcutOpenPhoto": "Abrir la foto (vista previa y edición)",
+      "shortcutClearClose": "Limpiar la selección o cerrar",
+      "shortcutSelectAllVisible": "Seleccionar todo lo visible",
+      "shortcutToggleHelp": "Mostrar u ocultar esta ayuda",
+      "shortcutApproveFocused": "Aprobar la foto enfocada",
+      "shortcutRejectFocused": "Rechazar la foto enfocada",
+      "shortcutNavigateBetween": "Moverse entre fotos",
+      "shortcutPrevNext": "Foto anterior o siguiente",
+      "shortcutApproveRejectIfPending": "Aprobar o rechazar (si está pendiente)",
+      "shortcutClose": "Cerrar",
+      "pressQuestionPrefix": "Pulsa",
+      "pressQuestionSuffix": "otra vez para cerrar",
+      "statTotalPhotos": "Fotos en total",
+      "statTotalStorage": "Almacenamiento total",
+      "byVariantKind": "Por tipo de variante",
+      "selectPhotoAria": "Seleccionar la foto",
+      "deselectPhotoAria": "Quitar la selección de la foto",
+      "upgradeTitle": "Galería de medios con tu marca, plan Agency",
+      "upgradeBody": "Todas las fotos que controla tu agencia: carpetas, etiquetas, marcas de agua, acciones masivas y analíticas.",
+      "upgradeBullet1": "Inventario de fotos de todo el espacio de trabajo",
+      "upgradeBullet2": "Carpetas y etiquetas para organizar",
+      "upgradeBullet3": "Marca de agua con tu logo, posición y opacidad",
+      "upgradeBullet4": "Aprobar, rechazar o reasignar en masa",
+      "upgradeBullet5": "Analíticas de uso por talento",
+      "upgradeFeature": "Galería de medios con tu marca",
+      "upgradeWhy": "Consulta todas las fotos que controla tu agencia.",
+      "upgradeToAgency": "Mejorar al plan Agency",
+      "unlockFoldersTags": "Carpetas y etiquetas",
+      "unlockLogoWatermark": "Marca de agua con tu logo",
+      "unlockBulkActions": "Acciones masivas",
+      "toastSetAsProfile": "Puesta como foto de perfil de {name}",
+      "toastSetAsCover": "Puesta como foto de portada de {name}",
+      "toastSetAsCardPhoto": "Puesta como foto de tarjeta de {name}",
+      "toastNewProfileSaved": "Nueva foto de perfil guardada",
+      "toastNewCoverSaved": "Nueva foto de portada guardada",
+      "toastNewCropSaved": "Nueva foto recortada guardada",
+      "toastRevertedToOriginal": "Se restauró la original",
+      "errNameRequired": "El nombre es obligatorio.",
+      "errCouldNotSetProfile": "No se pudo poner como foto de perfil.",
+      "errCouldNotSetCover": "No se pudo poner como foto de portada.",
+      "errCropUploadFailed": "Falló la subida del recorte.",
+      "errRevertFailed": "No se pudo restaurar la original.",
+      "errCouldNotReadFolder": "No se pudo leer la carpeta.",
+      "errImportFailed": "Falló la importación.",
+      "errSvgSkipped": {
+        "one": "Los archivos SVG no se admiten por seguridad. Se omite {count} archivo.",
+        "other": "Los archivos SVG no se admiten por seguridad. Se omiten {count} archivos."
+      },
+      "errZipTooLarge": "El ZIP debe pesar menos de 500 MB.",
+      "errZipTruncated": "Los ZIP contenían más de {cap} imágenes, solo se extrajeron las primeras {cap}. Divídelas en varios ZIP y vuelve a subir el resto.",
+      "errCouldNotReadZip": "No se pudo leer el archivo ZIP.",
+      "errMaxBatch": "Máximo 200 imágenes por lote.",
+      "errNoTalentToAssign": "No hay talento en el roster al que asignarlas.",
+      "errNoTalentOnRoster": "No hay talento en el roster.",
+      "errUploadFailed": "Falló la subida",
+      "variant": {
+        "card": "Perfil",
+        "hero": "Portada",
+        "gallery": "Galería",
+        "lightbox": "Visor",
+        "polaroid": "Polaroid",
+        "reel": "Reel",
+        "publicWatermarked": "Pública con marca",
+        "watermarked": "Con marca de agua"
+      },
+      "pill": {
+        "rejected": "Rechazada",
+        "review": "Revisión",
+        "profile": "Perfil",
+        "cover": "Portada"
+      }
+    },
+    "adminPitchCompose": {
+      "drawerTitle": "Enviar propuesta",
+      "drawerDescSent": "Tu propuesta está activa, comparte el enlace con tu cliente",
+      "drawerDescCompose": {
+        "one": "{count} talento seleccionado · redacta el mensaje y envía",
+        "other": "{count} talentos seleccionados · redacta el mensaje y envía"
+      },
+      "cancel": "Cancelar",
+      "sending": "Enviando…",
+      "sendPitch": "Enviar propuesta →",
+      "whoIsThisFor": "¿Para quién es?",
+      "searchClients": "Buscar entre tus clientes",
+      "searchClientsPlaceholder": "Empieza a escribir el nombre de un cliente…",
+      "contactName": "Nombre de contacto *",
+      "company": "Empresa",
+      "phone": "Teléfono",
+      "email": "Correo",
+      "shortNote": "Una nota breve de tu parte",
+      "shortNoteHint": "Marca el tono, es lo primero que lee quien la recibe.",
+      "messagePlaceholder": "Hola Sara, aquí tienes una selección para tu próxima campaña…",
+      "talentSectionTitle": "Talento ({count})",
+      "dragToReorder": "Arrastra para reordenar",
+      "dragToReorderAria": "Arrastra para reordenar",
+      "removeAria": "Quitar a {name}",
+      "talentNotePlaceholder": "Añade una nota sobre este talento… (opcional)",
+      "noTalentsSelected": "No hay talentos seleccionados.",
+      "noTalentsSelectedHint": "Cierra y elige algunos del roster para empezar una propuesta.",
+      "setExpiry": "Poner una caducidad",
+      "setExpiryHint": "El enlace caduca solo; quien lo recibe ve un aviso amable en lugar de datos desactualizados.",
+      "expiresIn": "Caduca en",
+      "days": "días",
+      "attachments": "Adjuntos",
+      "attachmentsHint": "Lookbook, brief de casting, mood board. Opcional.",
+      "addFiles": "Añadir archivos",
+      "addFilesHint": "Imágenes, PDF y documentos de Word. La subida se realiza al pulsar Enviar.",
+      "pitchSentJustNow": "Propuesta enviada · hace un momento",
+      "recipient": "Destinatario",
+      "talentCount": {
+        "one": "{count} talento",
+        "other": "{count} talentos"
+      },
+      "talentNamesPlusMore": "{names} + {count} más",
+      "expiresToday": "Caduca hoy",
+      "expiresInDays": {
+        "one": "Caduca en {count} día",
+        "other": "Caduca en {count} días"
+      },
+      "previewLink": "Vista previa ↗",
+      "shareLink": "Enlace para compartir",
+      "copy": "Copiar",
+      "copied": "✓ Copiado",
+      "sendDirectly": "Enviar directamente al cliente",
+      "noPhoneOrEmail": "No hay teléfono ni correo registrados, copia el enlace de arriba para compartirlo manualmente.",
+      "newPitch": "+ Nueva propuesta",
+      "done": "Listo",
+      "errRecipientRequired": "El nombre del destinatario es obligatorio.",
+      "errAddOneTalent": "Añade al menos un talento a la propuesta.",
+      "errForbidden": "No tienes permiso para enviar propuestas.",
+      "errNotAuthenticated": "Vuelve a iniciar sesión y reinténtalo.",
+      "errTenantNotFound": "No se encontró el espacio de trabajo.",
+      "errNoPublishableTalents": "Añade al menos un talento publicable (debe estar aprobado y ser público).",
+      "errPlanNotEligibleDraft": "Las propuestas son una función de los planes Studio y Agency. Mejora el plan de tu espacio de trabajo en Ajustes → Plan para enviar selecciones de talento a tus clientes.",
+      "errCouldNotSaveDraft": "No se pudo guardar el borrador. Inténtalo de nuevo.",
+      "errTalentsNoLongerPublishable": "Ninguno de los talentos seleccionados es ya publicable.",
+      "errDraftRequired": "Esta propuesta ya no está en estado de borrador.",
+      "errPlanNotEligibleSend": "Las propuestas son una función de los planes Studio y Agency. Mejora tu plan en Ajustes → Plan para enviar esta propuesta.",
+      "errCouldNotSend": "No se pudo enviar. Inténtalo de nuevo.",
+      "errUnexpected": "Error inesperado. Inténtalo de nuevo."
+    },
+    "adminCardStudio2": {
+      "offHere": "Desactivado aquí",
+      "surfaces": {
+        "directoryLabel": "Directorio",
+        "directoryTag": "Público",
+        "directoryNote": "Cuadrícula pública de descubrimiento. Los clientes pueden guardar un favorito e iniciar una consulta, ambas acciones están activas.",
+        "pitchLabel": "Propuesta",
+        "pitchTag": "Enlace enviado",
+        "pitchNote": "Ya curaste y enviaste esta selección, así que el favorito sobra. La tarjeta mantiene una acción directa de consulta o respuesta en su lugar.",
+        "rosterLabel": "Roster",
+        "rosterTag": "Interno",
+        "rosterNote": "Tu cuadrícula interna de equipo. Sin favorito ni consulta de cara al cliente, estas tarjetas sirven para gestionar talento, no para venderlo.",
+        "embeddedLabel": "Insertado",
+        "embeddedTag": "Público",
+        "embeddedNote": "Las tarjetas insertadas en un sitio externo se comportan como las del Directorio, el público dispone tanto del favorito como de la consulta."
+      },
+      "hover": {
+        "revealTraits": "Mostrar atributos",
+        "zoom": "Ampliar la imagen",
+        "swap": "Cambiar la foto",
+        "none": "Ninguno"
+      },
+      "knobs": {
+        "surfaceLabel": "Fondo de la tarjeta",
+        "surfaceHint": "Fondo del medio o del panel",
+        "nameLabel": "Color del nombre",
+        "nameHint": "Nombre del talento",
+        "mutedLabel": "Texto secundario",
+        "mutedHint": "Tipo · ubicación · disponibilidad"
+      },
+      "knobInheritsTheme": "{hint} · hereda del tema",
+      "clear": "Limpiar",
+      "kitActive": "Activo",
+      "kitApplying": "Aplicando",
+      "savingDraft": "Guardando el borrador…",
+      "draftSavedVersion": "Borrador guardado · v{version}",
+      "sampleTalentType": "Modelo de moda",
+      "previewAvailable": "Disponible",
+      "previewVerified": "Verificado",
+      "previewInquire": "Consultar",
+      "previewAdded": "Añadido",
+      "previewRating": "{rating} · {count} reservas",
+      "previewPriceFrom": "Desde {price} / día",
+      "previewNoClientActions": "No hay acciones de cliente en esta superficie.",
+      "previewSaveFavoriteAria": "Guardar a {name} en favoritos",
+      "previewRemoveFavoriteAria": "Quitar a {name} de favoritos",
+      "publish": "Publicar",
+      "publishing": "Publicando…",
+      "publishedVersionLive": "Publicada la v{version} · activa en todas partes",
+      "publishNeedsAccess": "Puedes editar el borrador; publicar requiere permiso de publicación.",
+      "unpublishedChanges": "Hay cambios sin publicar en el borrador.",
+      "liveLastPublished": "En vivo · última publicación {date}",
+      "nothingPublishedYet": "Todavía no se ha publicado nada.",
+      "lookTitle": "Estilo",
+      "lookHint": "Un kit repinta todas las tarjetas con un clic. Después puedes ajustar los colores. Se guarda como borrador mientras editas; Publicar lo activa en todas partes.",
+      "loadingCardDesign": "Cargando el diseño actual de la tarjeta…",
+      "couldNotLoadCardDesign": "No se pudo cargar el diseño de la tarjeta: {error}",
+      "colorsTitle": "Colores",
+      "colorsHint": "Deja una muestra vacía para heredar ese color de tu tema.",
+      "surfacePreview": "Vista previa de {surface}",
+      "rosterPreviewHint": "Activa o desactiva una insignia para verla aparecer o desaparecer aquí, tal como se apila la superposición en tus tarjetas del roster en vivo.",
+      "livePreviewHint": "Así se ve tu tarjeta de talento en el sitio en vivo. Los cambios de estilo y color se reflejan aquí al instante; Publicar los activa en todas partes.",
+      "actionsPreviewHint": "El favorito y la consulta son interactivos aquí para que veas ambos estados. En la superficie en vivo se conectan con los favoritos y la lista de consulta reales del cliente.",
+      "rosterVisibilityEyeTitle": "Ojo de visibilidad, el control de mostrar u ocultar en vivo para el sitio de la agencia",
+      "rosterDiscoverBadge": "Discover",
+      "rosterTulalaVerifiedTitle": "Verificado por Tulala",
+      "rosterAvailableBadge": "disponible",
+      "cardSurfaceTablistAria": "Superficie de la tarjeta",
+      "reviewsOnCardsTitle": "Reseñas en las tarjetas",
+      "showStandingLabel": "Mostrar la reputación del talento",
+      "showStandingHint": "Valoraciones y reputación en las tarjetas del directorio. Se guarda en el borrador de diseño; Publicar lo sincroniza en todas las superficies.",
+      "standingStyleLabel": "Estilo de reputación",
+      "standingTier": "Nivel",
+      "standingSignal": "Señal",
+      "standingBoth": "Ambos",
+      "reviewsOnProfilesLabel": "Reseñas en las páginas de perfil",
+      "reviewsOnProfilesHint": "Muestra u oculta toda la sección de reseñas en los perfiles de talento."
+    },
+    "adminFieldsEditor": {
+      "add": "Añadir",
+      "added": "Añadido",
+      "yes": "Sí",
+      "no": "No",
+      "edit": "Editar",
+      "agencyChip": "Agencia",
+      "allComplete": "Todos los campos de esta categoría están completos",
+      "jumpToNextEmpty": "Ir al siguiente vacío",
+      "nFieldsStillEmpty": {
+        "one": "{count} campo sigue vacío",
+        "other": "{count} campos siguen vacíos"
+      },
+      "nOfMFilled": "{filled} de {total} rellenados",
+      "nRequiredMissing": "faltan {count} obligatorios",
+      "progressComplete": "{filled}/{total} completos · guardado automático",
+      "generalPrefix": "General",
+      "fillNRequired": "Rellenar {count} obligatorios",
+      "history": "Historial",
+      "categories": "Categorías",
+      "selectCategoryAria": "Seleccionar categoría",
+      "loadingCategoryFields": "Cargando los campos de la categoría…",
+      "couldNotLoadCategoryFields": "No se pudieron cargar los campos de la categoría: {error}",
+      "failedToLoad": "No se pudo cargar.",
+      "noExtraFields": "No hay campos adicionales configurados para este tipo.",
+      "selectTalentType": "Selecciona un tipo de talento en Servicios para ver los campos relevantes.",
+      "toastSavedField": "Se guardó {label}",
+      "toastVisibilityUpdated": "Visibilidad actualizada · {label}",
+      "fieldFallback": "el campo",
+      "ns": {
+        "other": "Otros",
+        "model": "Detalles de modelo",
+        "chef": "Detalles de chef",
+        "performer": "Detalles de artista",
+        "music": "Detalles de música",
+        "creator": "Extras de creador",
+        "security": "Detalles de seguridad",
+        "transport": "Detalles de transporte",
+        "photo": "Detalles de foto y video",
+        "event": "Detalles de personal de eventos",
+        "hosp": "Detalles de hospitalidad",
+        "wellness": "Detalles de bienestar",
+        "host": "Detalles de anfitrión",
+        "singer": "Detalles de cantante",
+        "equipment": "Equipo",
+        "ops": "Operativo",
+        "travel": "Preferencias de viaje",
+        "service": "Preferencias de servicio",
+        "serviceArea": "Zona de servicio",
+        "availability": "Extras de disponibilidad",
+        "consent": "Consentimiento",
+        "emergency": "Emergencia"
+      }
+    },
+    "adminPhase7Drawers": {
+      "consentTitle": "{agencyName} quiere añadirte a su roster",
+      "consentBody": "Les gustaría acceder a los datos de abajo para representarte ante sus clientes. Puedes aprobarlo todo, aprobar una parte o denegarlo por completo.",
+      "denyRequest": "Denegar la solicitud",
+      "saving": "Guardando…",
+      "approveNOfM": "Aprobar {count} de {total}",
+      "loading": "Cargando…",
+      "confirmRemoveFromLayer": "¿Quitar esto de la capa de fotos de tu agencia?",
+      "agencyPhotoLayerFor": "Capa de fotos de la agencia para {talentName}",
+      "agencyPhotoLayerBody": "Las fotos de aquí aparecen SOLO en el sitio con la marca de tu agencia, además de (o en lugar de) las fotos maestras del talento. Las fotos propiedad del talento no cambian en Tulala.",
+      "noAgencyPhotos": "Todavía no hay fotos de la agencia. Pulsa \"+ Añadir foto de agencia\" para subir la primera.",
+      "rowOverride": "Reemplazo",
+      "rowAgencyOriginal": "Original de la agencia",
+      "hidden": "OCULTA",
+      "remove": "Quitar",
+      "uploadShipsNextSlice": "La interfaz de subida y reordenamiento llega en la próxima entrega. Por ahora este panel lee y elimina; las subidas se hacen desde el gestor de medios existente con ownership_kind='agency'.",
+      "trustBadgesTitle": "Insignias de confianza",
+      "trustBadgesHint": "El talento verificado obtiene más visibilidad y consultas de mejor calidad. Cada insignia requiere evidencia que la respalde.",
+      "rejectionReasonPrompt": "Motivo del rechazo (opcional):",
+      "badgeSubmittedPending": "Enviada {source} · pendiente de revisión",
+      "badgeSourcePlatform": "por Tulala",
+      "badgeSourceAgency": "por tu agencia",
+      "badgeVerifiedOn": " · verificada el {date}",
+      "badgeExpiresOn": " · caduca el {date}",
+      "notStarted": "Sin iniciar",
+      "verify": "Verificar",
+      "reject": "Rechazar",
+      "startBadge": "+ Iniciar",
+      "cancel": "Cancelar",
+      "sending": "Enviando…",
+      "sendRequestNScopes": "Enviar solicitud ({count} ámbitos)",
+      "requestAccessTo": "Solicitar acceso a {talentName}",
+      "requestAccessToData": "Solicitar acceso a los datos de {talentName}",
+      "requestAccessHint": "Elige los datos que necesitas para representar a este talento. Los revisará y aprobará o denegará por ámbito. Puede revocarlos cuando quiera.",
+      "optionalMessagePlaceholder": "Mensaje opcional: por qué te gustaría representarlo",
+      "scopes": {
+        "identityLabel": "Identidad",
+        "identityDesc": "Nombre, foto, pronombres, biografía y edad. Lo básico.",
+        "mediaLabel": "Medios y portafolio",
+        "mediaDesc": "Retrato, galería, reel y enlaces sociales.",
+        "ratesLabel": "Tarifas y condiciones de reserva",
+        "ratesDesc": "Precios, depósito y política de cancelación. Sensible, las agencias suelen aplicar margen.",
+        "serviceAreasLabel": "Zonas de servicio",
+        "serviceAreasDesc": "Ciudades donde trabajas, radio de viaje y disposición a viajar.",
+        "availabilityLabel": "Disponibilidad",
+        "availabilityDesc": "Días, horas, fechas bloqueadas y tiempo de respuesta.",
+        "documentsLabel": "Documentos",
+        "documentsDesc": "Identificación oficial, licencias y seguros. Muy sensible.",
+        "physicalLabel": "Físico y casting",
+        "physicalDesc": "Estatura, medidas, color de cabello y ojos, y tallas.",
+        "experienceLabel": "Experiencia y créditos",
+        "experienceDesc": "Años, clientes anteriores, referencias y credenciales."
+      },
+      "badges": {
+        "identity": "Identidad verificada",
+        "backgroundCheck": "Verificación de antecedentes",
+        "license": "Licencia verificada",
+        "insurance": "Seguro verificado",
+        "socialAccount": "Cuenta social verificada",
+        "mediaAuthentic": "Medios auténticos",
+        "agencyApproved": "Aprobado por la agencia"
+      },
+      "badgeStatus": {
+        "pending": "Pendiente",
+        "verified": "Verificada",
+        "rejected": "Rechazada",
+        "expired": "Caducada"
       }
     }
   },
@@ -9285,6 +11242,656 @@
           "noteAdded": "Nota agregada",
           "messageSent": "Mensaje enviado"
         }
+      }
+    }
+  },
+  "client": {
+    "discover": {
+      "title": "Descubre talento",
+      "subtitle": "Encuentra talento en todos los hubs de Tulala y en perfiles independientes. Guarda favoritos, arma preselecciones y envía una sola consulta que llega a la agencia correcta de cada talento.",
+      "badgeOnDiscover": "{count} en Descubrir",
+      "tierStandardBadge": "Plan standard",
+      "tierFreeIntro": "Navegar, guardar favoritos, 1 preselección y las consultas de un solo talento son gratis.",
+      "tierCompare": "Comparar",
+      "tierFanOut": "envío a varios talentos",
+      "tierProSuffix": " y la visibilidad de tarifas se desbloquean con Pro.",
+      "emptyTitle": "Descubrir se está poniendo en marcha",
+      "emptyBody": "Todavía no hay talento que haya activado Descubrir. Cada talento controla su propia visibilidad, así que en cuanto lo activen aparecerán aquí. Vuelve pronto o explora directamente la lista de tu agencia.",
+      "errorTitle": "No se pudieron cargar los resultados",
+      "errorBody": "No se pudo cargar el catálogo de Descubrir. Vuelve a intentarlo, tus favoritos y preselecciones no se ven afectados.",
+      "errorRefLabel": "Ref.:",
+      "errorRetry": "Reintentar",
+      "errorReload": "Recargar la página",
+      "searchPlaceholder": "Busca talento por nombre…",
+      "clearFilters": "Borrar filtros",
+      "mapLink": "Mapa",
+      "mapLinkTitle": "Ver todo el talento en un mapa mundial",
+      "facetCountry": "País",
+      "facetHub": "Hub",
+      "facetCategory": "Categoría",
+      "facetAll": "Todos",
+      "resultsAria": "Resultados de Descubrir",
+      "countOf": {
+        "one": "{shown} de {count} talento",
+        "other": "{shown} de {count} talentos"
+      },
+      "matchingFilters": "· que coinciden con tus filtros",
+      "noMatchesTitle": "Sin coincidencias",
+      "noMatchesBody": "Prueba con un país o una categoría más amplios, o borra los filtros para ver a todos.",
+      "loading": "Cargando…",
+      "loadMore": "Ver más · quedan {count}",
+      "daysOpenNext14": "{count} de los próximos 14 días libres",
+      "daysOpenNext30": "{count} de los próximos 30 días libres",
+      "fullyBookedNext14": "Sin disponibilidad los próximos 14 días",
+      "fullyBookedNext30": "Sin disponibilidad los próximos 30 días",
+      "nextFree": "Próximo libre: {month} {day}",
+      "availability": "Disponibilidad",
+      "tulalaVerified": "Perfil revisado y aprobado por Tulala",
+      "exclusive": "en exclusiva",
+      "independent": "Independiente",
+      "addToShortlist": "Añadir a una preselección",
+      "talentCount": {
+        "one": "{count} talento",
+        "other": "{count} talentos"
+      },
+      "detailAria": "Detalle del talento",
+      "closeDetailDrawer": "Cerrar el panel de detalle",
+      "loadingTalent": "Cargando talento…",
+      "detailGone": "Este talento ya no está en Descubrir.",
+      "detailLoadFailed": "No se pudo cargar este talento. Inténtalo de nuevo.",
+      "close": "Cerrar",
+      "gallery": "Galería",
+      "galleryAlt": "Galería de {name} {index}",
+      "repliesWithin": "Responde en {time}",
+      "cancelInquiry": "Cancelar consulta",
+      "inquireAbout": "Consultar sobre {name}",
+      "inquirySentAgency": "Consulta enviada. {agency} te responderá dentro del plazo que tiene indicado.",
+      "theTalentsAgency": "la agencia del talento",
+      "noRosterHint": "Este talento aún no está en la lista de ninguna agencia. Usa 'Ver perfil completo' para contactarlo directamente.",
+      "noRoutableWorkspace": "No hay un espacio al que dirigir esta consulta. Prueba con 'Ver perfil completo'.",
+      "viewFullProfile": "Ver perfil completo",
+      "noShortlistsYet": "Aún no tienes preselecciones. Crea la primera aquí abajo.",
+      "newShortlistPlaceholder": "Nombre de la nueva preselección…",
+      "create": "Crear",
+      "inquiryForm": {
+        "eventDate": "Fecha del evento (opcional)",
+        "eventLocation": "Lugar del evento (opcional)",
+        "locationPlaceholder": "p. ej. Milán, Italia",
+        "brief": "Brief",
+        "briefPlaceholder": "Contexto rápido: marca, rol, alcance y fechas si ya las tienes.",
+        "sending": "Enviando…",
+        "sendInquiry": "Enviar consulta",
+        "sendFailed": "No se pudo enviar. Inténtalo de nuevo en un momento.",
+        "networkIssue": "Problema de conexión. Inténtalo de nuevo."
+      },
+      "map": {
+        "eyebrow": "Cliente · Descubrir",
+        "title": "Vista de mapa",
+        "subtitle": "Todo el talento visible en Descubrir, ubicado por su ciudad de residencia. Haz clic en un marcador para ver de quién se trata y abrir su perfil.",
+        "backToGrid": "Volver a la cuadrícula",
+        "noKey": "El mapa no está disponible, falta configurar la clave de la API de Google Maps. Explora la cuadrícula en",
+        "emptyTitle": "Aún no hay talento ubicable en el mapa",
+        "emptyBody": "El talento necesita una ciudad estructurada (Google Places) para aparecer en el mapa.",
+        "freeTextOnly": {
+          "one": "{count} talento solo tiene la ubicación como texto libre.",
+          "other": "{count} talentos solo tienen la ubicación como texto libre."
+        },
+        "emptyBrowsePrefix": "Puedes verlos a todos en la vista de cuadrícula en",
+        "countryWord": {
+          "one": "país",
+          "other": "países"
+        },
+        "talentsTotal": {
+          "one": "{count} talento en total",
+          "other": "{count} talentos en total"
+        },
+        "onMapSuffix": {
+          "one": "talento en el mapa",
+          "other": "talentos en el mapa"
+        },
+        "hiddenNoGeocode": "{count} ocultos (sin ciudad geolocalizada)",
+        "viewModeAria": "Modo de vista del mapa",
+        "modeTalents": "Talentos",
+        "modeCountries": "Países",
+        "unknownCountry": "Sin país",
+        "openProfile": "Abrir"
+      }
+    },
+    "favorites": {
+      "title": "Tus favoritos",
+      "subtitle": "El talento que guardaste con ♥ en Descubrir. Una lista de referencia rápida: abre el panel de un talento para consultar o añadirlo a una preselección.",
+      "emptyTitle": "Aún no tienes favoritos",
+      "emptyBody": "Explora Descubrir y toca el ♥ en cualquier talento para guardarlo aquí."
+    },
+    "shortlists": {
+      "eyebrow": "Preselecciones",
+      "title": "Tus preselecciones",
+      "subtitle": "Grupos con nombre del talento que guardaste en Descubrir. Envía una sola consulta desde una preselección y llegará a la agencia correcta de cada talento.",
+      "emptyTitle": "Aún no tienes preselecciones",
+      "emptyBody": "Arma una preselección explorando Descubrir y añadiendo talento. Después envía una sola consulta que llegará a la agencia correcta de cada talento.",
+      "needMorePrefix": "¿Necesitas más preselecciones? Abre ",
+      "needMoreSuffix": ", guarda talento en una lista nueva y aparecerá aquí.",
+      "upgradeTitle": "Mejora a Pro",
+      "upgradeBody": "Compara talento en paralelo y envía una sola consulta que llegue a todas las agencias de tu preselección.",
+      "upgradeNote": "Los filtros de confianza y los controles de contacto siguen aplicando. Pro desbloquea herramientas, no accesos.",
+      "upgradeCta": "Mejora a Pro",
+      "shareTitle": "Genera un enlace público para compartir esta preselección (solo lectura)",
+      "shareGenerating": "Generando…",
+      "shareCopied": "Enlace copiado",
+      "share": "Compartir",
+      "shareForbidden": "Solo quien creó la lista puede compartirla.",
+      "shareFailed": "No se pudo generar el enlace para compartir.",
+      "shareNetworkError": "Error de conexión. Inténtalo de nuevo.",
+      "sharePublicLinkCopied": "Enlace público copiado al portapapeles.",
+      "shareReadOnlyExpiry": "Solo lectura · caduca en 7 días.",
+      "routesTo": {
+        "one": "Llega a {count} espacio",
+        "other": "Llega a {count} espacios"
+      },
+      "needDirectOutreach": "{count} requieren contacto directo",
+      "compare": "Comparar",
+      "compareProTitle": "El plan Pro desbloquea la comparación en paralelo",
+      "compareNeedTwoTitle": "Necesitas al menos 2 talentos para comparar",
+      "compareOpenTitle": "Abrir la comparación en paralelo",
+      "cancel": "Cancelar",
+      "noAgenciesSuffix": "(sin agencias)",
+      "oneInquiryPerWorkspace": "Una consulta por espacio.",
+      "notOnRoster": {
+        "one": "{count} talento no está en ninguna lista, contáctalo desde su perfil público.",
+        "other": "{count} talentos no están en ninguna lista, contáctalos desde su perfil público."
+      },
+      "proRequired": "El envío a varios talentos es una función Pro. Mejora tu plan para enviar una sola consulta a toda tu preselección.",
+      "sentInquiries": {
+        "one": "Se envió {count} consulta al espacio.",
+        "other": "Se enviaron {count} consultas a {count} espacios."
+      },
+      "skippedNotOnRoster": {
+        "one": "Se omitió {count} talento (no está en ninguna lista), contáctalo directamente.",
+        "other": "Se omitieron {count} talentos (no están en ninguna lista), contáctalos directamente."
+      },
+      "noAgenciesToRoute": "No hay agencias a las que dirigir la consulta: todo el talento de esta preselección es independiente.",
+      "sendNInquiries": {
+        "one": "Enviar {count} consulta",
+        "other": "Enviar {count} consultas"
+      },
+      "compareName": "Nombre",
+      "compareCategory": "Categoría",
+      "compareLocation": "Ubicación",
+      "compareAgency": "Agencia",
+      "compareLanguages": "Idiomas",
+      "compareResponse": "Respuesta",
+      "compareBio": "Bio",
+      "compareWithin": "en {time}",
+      "compareAria": "Comparar el talento de {name}",
+      "compareClose": "Cerrar la comparación",
+      "compareLoading": "Cargando los detalles del talento…"
+    },
+    "pitches": {
+      "title": "Propuestas",
+      "subtitle": "Sugerencias de talento que te enviaron. Abre una para aprobarla, rechazarla o enviarla como consulta.",
+      "filterAll": "Todas",
+      "filterOpen": "Abiertas",
+      "filterApproved": "Aprobadas",
+      "filterDone": "Listas",
+      "filterClosed": "Cerradas",
+      "statusDraft": "Borrador",
+      "statusSent": "Enviada",
+      "statusViewed": "Vista",
+      "statusEdited": "Editada",
+      "statusApproved": "Aprobada",
+      "statusConverted": "Convertida",
+      "statusDeclined": "Rechazada",
+      "statusCancelled": "Cancelada",
+      "statusExpired": "Vencida",
+      "actionOpen": "Abrir",
+      "actionContinue": "Continuar",
+      "actionView": "Ver",
+      "emptyTitle": "Aún no hay propuestas",
+      "emptyBody": "Cuando una agencia te envíe una propuesta, aparecerá aquí para que puedas seguirla y volver a ella cuando quieras.",
+      "emptyFilteredTitle": "Nada en esta vista",
+      "emptyFilteredBody": "Ninguna propuesta coincide con este filtro. Cambia a otra pestaña de arriba para ver el resto.",
+      "nextStepReady": "Siguiente paso listo",
+      "talentCount": {
+        "one": "{count} talento",
+        "other": "{count} talentos"
+      },
+      "sentOn": "Enviada el {date}",
+      "expiresOn": "Vence el {date}"
+    },
+    "bookings": {
+      "eyebrow": "Reservas",
+      "title": "Tus reservas",
+      "subtitleEmpty": "Las reservas confirmadas aparecerán aquí cuando aceptes tus ofertas.",
+      "subtitleCounts": "{total} confirmadas · {upcoming} próximas",
+      "upcomingBadge": "{count} próximas",
+      "emptyTitle": "Aún no hay reservas",
+      "emptyBody": "Cuando se confirmen tus consultas, aparecerán aquí como reservas.",
+      "tbc": "Por confirmar",
+      "confirmed": "Confirmada",
+      "confirmedBooking": "Reserva confirmada",
+      "partiallyPaid": "Pago parcial",
+      "cancelled": "Cancelada",
+      "downloadReceipt": "Descargar recibo",
+      "talentCount": {
+        "one": "{count} talento",
+        "other": "{count} talentos"
+      }
+    },
+    "messages": {
+      "lineupSuggestTalent": "Sugerir talento",
+      "lineupAllOnLineup": "Todo el roster ya está en esta lista.",
+      "lineupAdding": "Añadiendo…",
+      "lineupAdd": "+ Añadir",
+      "errorTitle": "No se pudieron cargar los mensajes",
+      "errorBody": "Tus mensajes no se cargaron. Reintenta para recargar esta vista, los datos de tu consulta están a salvo.",
+      "errorRef": "Ref: {digest}",
+      "errorRetry": "Reintentar",
+      "errorReload": "Recargar la página",
+      "searchSenderYou": "Tú",
+      "unknownSender": "Desconocido",
+      "detailsSaved": "Cambios guardados.",
+      "detailsSaveFailed": "No se pudo guardar.",
+      "detailsSaving": "Guardando…",
+      "detailsEdit": "Editar",
+      "detailsCancel": "Cancelar",
+      "detailsProject": "Proyecto",
+      "detailsProjectBrief": "Brief del proyecto",
+      "detailsBriefLabel": "Brief o mensaje",
+      "detailsBriefPlaceholder": "Describe el proyecto, el evento y lo que necesitas…",
+      "detailsSaveBrief": "Guardar brief",
+      "detailsAddBrief": "Añade un brief",
+      "detailsAddBriefHint": "Ayuda a tu coordinador a entender el proyecto y proponer el talento adecuado.",
+      "detailsSchedule": "Agenda",
+      "detailsEventDate": "Fecha del evento",
+      "detailsTalentNeeded": "Talento necesario (cantidad)",
+      "detailsQuantityPlaceholder": "ej. 2",
+      "detailsSaveSchedule": "Guardar agenda",
+      "detailsDate": "Fecha",
+      "detailsNotSet": "Sin definir",
+      "detailsTime": "Hora",
+      "detailsDuration": "Duración",
+      "detailsStatus": "Estado",
+      "detailsLocation": "Ubicación",
+      "detailsCityVenue": "Ciudad o sede",
+      "detailsCityPlaceholder": "ej. Ciudad de México, MX",
+      "detailsSaveLocation": "Guardar ubicación",
+      "detailsVenue": "Sede",
+      "detailsCity": "Ciudad",
+      "detailsCountry": "País",
+      "detailsNotes": "Notas",
+      "detailsYourCoordinator": "Tu coordinador",
+      "detailsCoordinatingSince": "Coordinando desde el {date}",
+      "detailsCoordinatingBooking": "Coordinando tu reserva",
+      "detailsNoCoordinator": "Aún no hay coordinador",
+      "detailsNoCoordinatorHint": "El espacio de trabajo asignará uno en breve.",
+      "detailsTalentLineup": "Lista de talento",
+      "detailsAgencyRecommends": "La agencia recomendará",
+      "detailsTalentNeededHint": "Se necesitan {count} talentos, tu coordinador propondrá opciones.",
+      "detailsAgencyRecommendsHint": "Tu coordinador propondrá talento según tu brief.",
+      "detailsNoTalent": "Aún no hay talento",
+      "detailsNoTalentHint": "Elige talento o deja que la agencia te recomiende.",
+      "detailsBudget": "Presupuesto",
+      "detailsPricing": "Modalidad de precio",
+      "detailsAmount": "Importe",
+      "detailsLogistics": "Logística",
+      "detailsRoleExpectations": "Qué hará el talento",
+      "detailsWardrobe": "Vestuario",
+      "detailsEquipment": "Equipo",
+      "detailsTravel": "Viaje y estacionamiento",
+      "detailsMediaUsage": "Uso de material",
+      "detailsSpecialRequirements": "Requisitos especiales",
+      "detailsContact": "Contacto",
+      "detailsName": "Nombre",
+      "detailsEmail": "Correo",
+      "detailsPhone": "Teléfono",
+      "detailsCompany": "Empresa",
+      "detailsBookingFor": "Reserva para",
+      "detailsFiles": "Archivos y referencias",
+      "detailsNoFiles": "Aún no hay archivos",
+      "detailsNoFilesHint": "Los moodboards, briefs y referencias que se compartan en esta reserva aparecerán aquí.",
+      "detailsActivity": "Actividad",
+      "detailsNoActivity": "Aún no hay actividad",
+      "detailsNoActivityHint": "Las acciones de tu coordinador aparecerán aquí.",
+      "detailsActorSystem": "Sistema",
+      "detailsActorYou": "Tú",
+      "detailsActorCoordinator": "Coordinador",
+      "detailsCancelInquiry": "Cancelar consulta",
+      "detailsCancelInquiryBody": "Si cambiaron tus planes, cancela esta consulta. Se le avisará a tu coordinador.",
+      "detailsCancelling": "Cancelando…",
+      "detailsSubmittedOn": "Enviada el {date}",
+      "detailsOfferStatusLine": "Oferta {status}",
+      "detailsStatusOfferSent": "Oferta enviada",
+      "detailsStatusCancelled": "Cancelada",
+      "detailsTbd": "Por definir",
+      "detailsMinutesAgo": "hace {count} min",
+      "detailsOfferStatus": {
+        "draft": "redactada",
+        "sent": "enviada",
+        "withdrawn": "retirada",
+        "superseded": "actualizada",
+        "accepted": "aceptada",
+        "rejected": "rechazada",
+        "expired": "vencida"
+      },
+      "detailsEvent": {
+        "inquirySubmitted": "envió esta consulta",
+        "movedToCoordination": "inició la coordinación",
+        "coordinatorAssigned": "asignó un coordinador",
+        "coordinatorAccepted": "tomó la coordinación",
+        "talentInvited": "invitó a un talento",
+        "talentAccepted": "confirmó",
+        "talentDeclined": "rechazó",
+        "offerCreated": "redactó una oferta",
+        "offerSent": "te envió una oferta",
+        "offerRejected": "rechazó la oferta",
+        "offerAccepted": "aceptó la oferta",
+        "approvalSubmitted": "envió una aprobación",
+        "approvalsCompleted": "completó todas las aprobaciones",
+        "convertedToBooking": "convirtió esto en una reserva",
+        "bookingConfirmed": "confirmó la reserva",
+        "frozen": "puso en pausa esta consulta",
+        "unfrozen": "reanudó esta consulta",
+        "archived": "archivó esta consulta"
+      }
+    },
+    "ui": {
+      "search": {
+        "placeholder": "Buscar…",
+        "ariaLabel": "Buscar",
+        "searching": "Buscando…",
+        "noMatches": "Sin resultados"
+      },
+      "notifications": {
+        "bellAria": "Notificaciones · {count} sin leer",
+        "markAllRead": "Marcar todo como leído",
+        "allCaughtUp": "Todo al día.",
+        "footer": "Mostrando las notificaciones recientes"
+      },
+      "time": {
+        "justNow": "ahora mismo",
+        "minutesAgo": "hace {count} min",
+        "hoursAgo": "hace {count} h",
+        "daysAgo": "hace {count} d"
+      }
+    },
+    "reviews": {
+      "authorFallback": "Un talento",
+      "talentFallback": "un talento",
+      "thisTalent": "este talento",
+      "reportError": "No se pudo reportar esta reseña. Inténtalo de nuevo.",
+      "reportedNotice": "Reportada, nuestro equipo la revisará",
+      "youReviewed": "Reseñaste a",
+      "aboutYouHeading": "Reseñas sobre ti ({count})",
+      "writtenHeading": "Reseñas que escribiste ({count})",
+      "countLabel": {
+        "one": "{count} reseña",
+        "other": "{count} reseñas"
+      },
+      "aboutYouEmpty": "Aún no hay reseñas sobre ti. Después de una reserva completada, el talento con el que trabajaste puede dejarte una.",
+      "writtenEmptyPrefix": "Aún no has escrito ninguna reseña. Califica al talento con el que trabajaste desde tu página de",
+      "writtenEmptySuffix": ".",
+      "yourReview": "Tu reseña",
+      "editYourReview": "Editar tu reseña",
+      "rateTalent": "Calificar a {name}",
+      "rateYourTalentHeading": "Califica a tu talento ({count})",
+      "photoPrompt": "Agrega fotos (opcional). Comparte una imagen del trabajo.",
+      "photoCap": "Puedes adjuntar hasta {count} fotos.",
+      "photoAddError": "No se pudo agregar esa foto.",
+      "photoRemoveError": "No se pudo quitar esa foto.",
+      "photoAlt": "Foto de la reseña",
+      "photoRemove": "Quitar foto",
+      "photoUploading": "Subiendo…",
+      "photoAddAnother": "Agregar otra foto",
+      "photoAdd": "Agregar una foto",
+      "notEnabled": "Las reseñas no están activadas en este espacio de trabajo.",
+      "pageEmptySubtitle": "Aquí aparecerán las reseñas sobre ti y las que hayas escrito.",
+      "pageCountsSubtitle": "{received} sobre ti · {written} escritas",
+      "avgBadge": "{value} de promedio"
+    },
+    "settings": {
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "cancel": "Cancelar",
+      "edit": "Editar",
+      "done": "Listo",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "Tu nombre completo",
+      "companyLabel": "Empresa",
+      "companyHint": "Se usa en tus consultas y reservas.",
+      "companyPlaceholder": "Empresa o productora",
+      "companyEmpty": "Agregar empresa",
+      "editsVisibleTo": "{agency} verá estos cambios en tus consultas y reservas.",
+      "emailLabel": "Correo",
+      "emailHint": "Se usa para iniciar sesión y recibir avisos.",
+      "emailPendingHint": "Pendiente. Confirma el enlace que enviamos a {email} para completar el cambio.",
+      "passwordLabel": "Contraseña",
+      "signInMethod": "Método de inicio de sesión: {method}",
+      "changePassword": "Cambiar contraseña",
+      "newPasswordPlaceholder": "Contraseña nueva (mínimo 8 caracteres)",
+      "confirmPasswordPlaceholder": "Confirma la contraseña nueva",
+      "updatePassword": "Actualizar contraseña",
+      "updating": "Actualizando…",
+      "passwordUpdated": "Contraseña actualizada. Úsala la próxima vez que inicies sesión.",
+      "channelEmail": "Correo",
+      "channelInApp": "En la app",
+      "prefsSaved": "Preferencias guardadas.",
+      "prefsAutoSave": "Los cambios se guardan solos.",
+      "alwaysOn": "Siempre activo",
+      "alwaysOnTitle": "Obligatorio para tu cuenta, siempre se envía.",
+      "trust": {
+        "sectionTitle": "Nivel de confianza",
+        "tierHeading": "Confianza {tier}",
+        "accessLabel": "Acceso",
+        "accountBalance": "Saldo de la cuenta:",
+        "silverActive": "Silver activo",
+        "goldActive": "Gold activo",
+        "redirecting": "Redirigiendo…",
+        "verifyCta": "Verificar cuenta, $5",
+        "verifyTitle": "Verifica tu cuenta",
+        "verifyBody": "Una cuota única de verificación de $5 confirma tu cuenta y sube tu insignia de confianza a Verified. La mayoría del talento acepta contactos Verified de forma predeterminada.",
+        "fundTitle": "Agrega saldo a tu cuenta",
+        "fundBody": "Un saldo disponible sube tu nivel de confianza: Silver con $100 y Gold con $500. Los niveles más altos te dan acceso a talento que solo acepta clientes verificados y con saldo.",
+        "addBalance": "Agregar saldo",
+        "thresholdNote": "$100 = nivel Silver · $500 = nivel Gold",
+        "basicDescription": "Cuenta gratuita, acceso estándar.",
+        "basicPerk1": "Explorar perfiles de talento",
+        "basicPerk2": "Enviar consultas al talento que acepta Basic",
+        "basicPerk3": "Ver el historial de reservas",
+        "verifiedDescription": "Identidad verificada, con la confianza de la mayoría del talento.",
+        "verifiedPerk1": "Todo lo de Basic",
+        "verifiedPerk2": "Aceptado por defecto por la mayoría del talento",
+        "verifiedPerk3": "Insignia de Verified visible en tus consultas",
+        "silverDescription": "Cuenta verificada y con saldo.",
+        "silverPerk1": "Todo lo de Verified",
+        "silverPerk2": "Insignia Silver destacada en las bandejas del talento",
+        "silverPerk3": "Acceso a talento que exige Silver o superior",
+        "goldDescription": "La confianza más alta, acceso máximo al talento.",
+        "goldPerk1": "Todo lo de Silver",
+        "goldPerk2": "Insignia Gold, la mayor prioridad en la bandeja",
+        "goldPerk3": "Acceso a talento que solo acepta Gold"
+      },
+      "social": {
+        "explainerTitle": "Qué hace Tulala con las cuentas conectadas",
+        "explainerBody": "Guardamos el nombre público de la cuenta, el estado de la conexión, tus opciones para compartir y los tokens de OAuth cifrados, solo cuando hay un proveedor de un clic activo. Los enlaces manuales ayudan a que las agencias y el talento te reconozcan, pero solo la titularidad verificada por el proveedor puede convertirse en una señal de confianza.",
+        "trustSignalLabel": "Usar para la verificación de confianza",
+        "trustSignalDescription": "Solo la titularidad verificada por OAuth puede afectar tu confianza. Los enlaces manuales siguen sin verificar.",
+        "agencyVisibleLabel": "Compartir con las agencias",
+        "agencyVisibleDescription": "El equipo de la agencia puede ver el estado de la conexión y el nombre de la cuenta para su revisión de confianza.",
+        "talentVisibleLabel": "Compartir con el talento en las consultas",
+        "talentVisibleDescription": "El talento ve la prueba de confianza aprobada, no tu contenido privado ni tus tokens.",
+        "publicProfileLabel": "Mostrar en el perfil público de cliente",
+        "publicProfileDescription": "Reservado para los futuros perfiles de cliente o empresa. Déjalo desactivado salvo que quieras hacerlo público más adelante.",
+        "autoRefreshLabel": "Actualizar la prueba automáticamente",
+        "autoRefreshDescription": "Actualiza los datos de la cuenta cuando OAuth esté disponible.",
+        "statusVerified": "Verificada",
+        "statusLinked": "Vinculada",
+        "statusPending": "Pendiente",
+        "statusReconnect": "Reconectar",
+        "statusError": "Requiere atención",
+        "statusOff": "Desactivada",
+        "statusNotConnected": "Sin conectar",
+        "toggleOn": "Sí",
+        "toggleOff": "No",
+        "savedNotice": "Conexión guardada. Los enlaces manuales son contexto compartido, no una prueba de confianza verificada.",
+        "turnedOffNotice": "Conexión desactivada para las vistas de confianza de la agencia y del talento.",
+        "connectYoutube": "Conectar con YouTube",
+        "youtubeConsent": "Aprobarás el acceso de solo lectura al canal con Google. Tulala guarda los tokens cifrados y marca la titularidad del canal como verificada.",
+        "displayLabelPlaceholder": "Nombre para mostrar (opcional)",
+        "saveLink": "Guardar enlace",
+        "turnOff": "Desactivar",
+        "oauthComingSoon": "El OAuth de un clic es el siguiente paso para cada proveedor. Esta base de consentimiento y almacenamiento ya está lista.",
+        "providerNotes": "Notas del proveedor"
+      }
+    },
+    "subscription": {
+      "title": "Suscripción",
+      "subtitle": "Herramientas avanzadas para Descubrir. Explorar siempre es gratis; al mejorar tu plan desbloqueas selecciones, comparación y consultas con varios talentos.",
+      "orthogonalTitle": "La suscripción desbloquea herramientas, no acceso.",
+      "orthogonalBody": "Los controles de contacto del talento y el nivel de confianza son otro eje: un plan Pro nunca te permite saltarte las preferencias de contacto de un talento. La verificación está en",
+      "settingsTrustLink": "Ajustes → Confianza",
+      "priceFree": "Gratis",
+      "priceCustom": "A medida",
+      "currentBadge": "Actual",
+      "yourCurrentPlan": "Tu plan actual",
+      "alwaysAvailable": "Siempre disponible",
+      "upgradeToPro": "Mejorar a Pro",
+      "contactSales": "Hablar con ventas",
+      "standardPriceNote": "Siempre gratis",
+      "standardTagline": "Explora el catálogo y envía consultas de un solo talento.",
+      "standardFeature1": "Explorar todo el catálogo de Descubrir",
+      "standardFeature2": "Ver cualquier perfil de talento",
+      "standardFeature3": "Guardar talento en favoritos",
+      "standardFeature4": "1 selección guardada (máximo 5 talentos)",
+      "standardFeature5": "Consultas de un solo talento",
+      "standardFeature6": "Disponibilidad a 14 días por talento",
+      "proPriceNote": "Provisional, precio por definir",
+      "proTagline": "Herramientas para equipos que reservan mucho.",
+      "proFeature1": "Todo lo de Standard",
+      "proFeature2": "Selecciones ilimitadas",
+      "proFeature3": "Comparación lado a lado (hasta 6)",
+      "proFeature4": "Consultas con varios talentos a la vez",
+      "proFeature5": "Visibilidad de rangos de tarifa",
+      "proFeature6": "Calendario de disponibilidad a 30 días",
+      "proFeature7": "Selecciones compartibles para enviar a tu cliente",
+      "proFeature8": "Filtros avanzados (tarifa, idioma, orden por tiempo de respuesta)",
+      "enterprisePriceNote": "Provisional, habla con ventas",
+      "enterpriseTagline": "Escala, API y marca blanca.",
+      "enterpriseFeature1": "Todo lo de Pro",
+      "enterpriseFeature2": "Acceso a la API",
+      "enterpriseFeature3": "Ejecutivo de cuenta dedicado",
+      "enterpriseFeature4": "Solicitudes de propuesta por lotes",
+      "enterpriseFeature5": "Selecciones compartidas en marca blanca (dominio propio)",
+      "enterpriseFeature6": "Alertas de búsquedas guardadas e informes de mercado",
+      "enterpriseFeature7": "Varios usuarios",
+      "enterpriseFeature8": "Soporte prioritario",
+      "pricingNoteTitle": "Estamos cerrando los precios.",
+      "pricingNoteBody": "Las cifras de arriba son provisionales. El pago en línea llegará cuando el precio esté definido; hasta entonces las mejoras de plan se hacen con nuestro equipo. Escribe a",
+      "planRenews": "y te ayudamos. Tu plan actual se renueva el {date}.",
+      "planFreeNoRenewal": "y te ayudamos. Tu plan actual es gratuito y no se renueva.",
+      "startingCheckout": "Abriendo el pago…",
+      "checkoutNotConfigured": "El pago en línea aún no está disponible. Escribe a sales@tulala.digital y te ayudamos.",
+      "checkoutFailed": "No se pudo abrir el pago. Inténtalo de nuevo o escribe a sales@tulala.digital.",
+      "checkoutNetworkError": "Hubo un problema de red al abrir el pago. Inténtalo de nuevo."
+    },
+    "today": {
+      "welcomeHeadline": "Te damos la bienvenida, {name}.",
+      "welcomeSubline": "Todo listo. Envía una consulta de reserva cuando tengas el brief preparado.",
+      "needsAttentionHeadline": {
+        "one": "1 consulta necesita tu atención.",
+        "other": "{count} consultas necesitan tu atención."
+      },
+      "needsAttentionSubline": "Revísalas y responde para que todo siga avanzando.",
+      "inProgressHeadline": {
+        "one": "1 consulta activa en curso.",
+        "other": "{count} consultas activas en curso."
+      },
+      "inProgressSubline": "{agency} está coordinando, pronto tendrás noticias.",
+      "calmHeadline": "Hola {name}, nada urgente por ahora.",
+      "calmSublineConfirmed": {
+        "one": "1 reserva confirmada en tu historial.",
+        "other": "{count} reservas confirmadas en tu historial."
+      },
+      "calmSublineEmpty": "Explora la lista o envía una consulta nueva cuando tengas el brief preparado.",
+      "statActive": "Activas",
+      "statActiveSub": "en curso",
+      "statNeedsReply": "Requiere tu respuesta",
+      "statNeedsReplySub": "esperando tu decisión",
+      "statUpToDateSub": "estás al día",
+      "statConfirmed": "Confirmadas",
+      "statConfirmedSub": "reservas confirmadas",
+      "statTotal": "Total",
+      "statTotalSub": "histórico",
+      "dueMoreCurrencies": {
+        "one": "+ 1 moneda más · reservas abiertas",
+        "other": "+ {count} monedas más · reservas abiertas"
+      },
+      "dueAwaitingPayment": {
+        "one": "1 reserva pendiente de pago",
+        "other": "{count} reservas pendientes de pago"
+      },
+      "emptyBody": "Envía tu primera consulta de reserva ahora, o explora la lista primero si quieres elegir un talento específico.",
+      "bucketDecisionTitle": "Requiere tu decisión",
+      "bucketDecisionDesc": "La agencia te envió algo, revísalo y responde para que todo siga avanzando.",
+      "bucketCoordinatingTitle": "La agencia está coordinando",
+      "bucketCoordinatingDesc": "Están en curso, no necesitas hacer nada por ahora.",
+      "bucketComingUpTitle": "Próximamente",
+      "bucketComingUpDesc": "Eventos confirmados y reservados.",
+      "viewAllInquiries": "Ver todas las consultas →",
+      "actionNeeded": "Requiere acción",
+      "talentCount": {
+        "one": "{count} talento",
+        "other": "{count} talentos"
+      }
+    },
+    "notificationCategories": {
+      "accountSecurity": {
+        "label": "Cuenta y seguridad",
+        "description": "Enlaces de acceso, confirmación de correo y restablecimiento de contraseña. Siempre activo."
+      },
+      "billing": {
+        "label": "Facturación y recibos",
+        "description": "Facturas, cambios de plan y confirmaciones de pago. Siempre activo."
+      },
+      "messages": {
+        "label": "Mensajes",
+        "description": "Respuestas nuevas en tus conversaciones."
+      },
+      "inquiryUpdates": {
+        "label": "Actualizaciones de consultas",
+        "description": "Cambios de estado en las consultas en las que participas."
+      },
+      "offers": {
+        "label": "Ofertas",
+        "description": "Cuando una oferta está lista, se acepta o se rechaza."
+      },
+      "bookings": {
+        "label": "Reservas",
+        "description": "Confirmaciones, recordatorios del día del evento y cancelaciones."
+      },
+      "payments": {
+        "label": "Pagos",
+        "description": "Pagos recibidos, liquidados o reembolsados."
+      },
+      "rosterActivity": {
+        "label": "Actividad de la lista",
+        "description": "Invitaciones a talento, respuestas y cambios en la lista."
+      },
+      "workspaceActivity": {
+        "label": "Actividad del espacio de trabajo",
+        "description": "Invitaciones al equipo, asignaciones de coordinador y aprobaciones."
+      },
+      "reviews": {
+        "label": "Reseñas",
+        "description": "Invitaciones a reseñar, recordatorios y reseñas que recibes."
+      },
+      "platformAlerts": {
+        "label": "Alertas de la plataforma",
+        "description": "Alertas operativas para administradores de la plataforma."
+      },
+      "marketing": {
+        "label": "Producto y consejos",
+        "description": "Novedades del producto y consejos ocasionales de buenas prácticas."
       }
     }
   }

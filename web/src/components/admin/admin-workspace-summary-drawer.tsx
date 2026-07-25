@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useT } from "@/i18n/use-t";
+import { withInterpolation } from "@/i18n/interpolate";
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 import {
   DrawerActionBar,
@@ -43,11 +44,17 @@ export function AdminWorkspaceSummaryDrawer({
   onOpenUpgrade?: () => void;
 }) {
   const t = useT();
+  const ti = React.useMemo(() => withInterpolation(t), [t]);
   const ws = useAdminWorkspace();
   const planKey = ws?.plan ?? "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
   const renewCopy = t(TIER_RENEW_KEY[planKey] ?? TIER_RENEW_KEY.free!);
+  // "{plan} plan" in English reads "Plan {plan}" in Spanish, so the whole
+  // sentence is one interpolated key rather than a label glued to a word.
+  const planLine = ti("dashboard.adminShell.topBar.planFallback", {
+    plan: planLabel,
+  });
   const usageCopy = formatTalentUsage(ws, t);
   const usageRatio =
     ws && ws.talentLimit && ws.talentLimit > 0
@@ -59,8 +66,11 @@ export function AdminWorkspaceSummaryDrawer({
     <DrawerShell
       open={open}
       onOpenChange={onOpenChange}
-      title={ws?.displayName ?? "Workspace"}
-      subtitle={`${planLabel} plan · ${renewCopy}`}
+      title={ws?.displayName ?? t("dashboard.adminSummaryDrawer.workspaceFallback")}
+      subtitle={ti("dashboard.adminSummaryDrawer.subtitle", {
+        plan: planLabel,
+        renew: renewCopy,
+      })}
       icon={Sparkles}
       size="sm"
       footer={
@@ -74,14 +84,16 @@ export function AdminWorkspaceSummaryDrawer({
                 }}
               >
                 <ArrowUpRight className="size-3.5" aria-hidden />
-                {planKey === "network" ? "Manage plan" : "Compare plans"}
+                {planKey === "network"
+                  ? t("dashboard.adminSummaryDrawer.managePlan")
+                  : t("dashboard.adminSummaryDrawer.comparePlans")}
               </DrawerPrimaryButton>
             ) : undefined
           }
         />
       }
     >
-      <DrawerSection title="At a glance">
+      <DrawerSection title={t("dashboard.adminSummaryDrawer.atAGlance")}>
         <div className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-3">
           <div className="flex items-center gap-2">
             <span
@@ -90,19 +102,19 @@ export function AdminWorkspaceSummaryDrawer({
               aria-hidden
             />
             <p className="text-[13px] font-semibold text-foreground">
-              {planLabel} plan
+              {planLine}
             </p>
           </div>
           <p className="mt-1 text-[12px] text-muted-foreground">{renewCopy}</p>
         </div>
       </DrawerSection>
 
-      <DrawerSection title="Roster">
+      <DrawerSection title={t("dashboard.adminSummaryDrawer.roster")}>
         <div className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-3">
           <div className="flex items-center gap-2">
             <Users className="size-3.5 text-muted-foreground" aria-hidden />
             <p className="text-[12.5px] font-semibold text-foreground">
-              {usageCopy || "Roster usage unavailable"}
+              {usageCopy || t("dashboard.adminSummaryDrawer.usageUnavailable")}
             </p>
           </div>
           {usageRatio !== null ? (
@@ -119,14 +131,13 @@ export function AdminWorkspaceSummaryDrawer({
           ) : null}
           {seatsTight ? (
             <p className="mt-2 text-[11.5px] text-red-600">
-              You&apos;re within 10% of the cap. Bumping the plan unlocks more
-              seats immediately.
+              {t("dashboard.adminSummaryDrawer.seatsTight")}
             </p>
           ) : null}
         </div>
       </DrawerSection>
 
-      <DrawerSection title="Jump to">
+      <DrawerSection title={t("dashboard.adminSummaryDrawer.jumpTo")}>
         <Link
           href="/admin/account"
           onClick={() => onOpenChange(false)}
@@ -134,7 +145,7 @@ export function AdminWorkspaceSummaryDrawer({
         >
           <CreditCard className="size-3.5 text-muted-foreground" aria-hidden />
           <span className="min-w-0 flex-1 text-[12.5px] font-medium text-foreground">
-            Plan &amp; billing
+            {t("dashboard.adminSummaryDrawer.planBilling")}
           </span>
           <ArrowUpRight className="size-3.5 text-muted-foreground" aria-hidden />
         </Link>
@@ -145,7 +156,7 @@ export function AdminWorkspaceSummaryDrawer({
         >
           <FileText className="size-3.5 text-muted-foreground" aria-hidden />
           <span className="min-w-0 flex-1 text-[12.5px] font-medium text-foreground">
-            Recent invoices
+            {t("dashboard.adminSummaryDrawer.recentInvoices")}
           </span>
           <ArrowUpRight className="size-3.5 text-muted-foreground" aria-hidden />
         </Link>
@@ -156,7 +167,7 @@ export function AdminWorkspaceSummaryDrawer({
         >
           <Users className="size-3.5 text-muted-foreground" aria-hidden />
           <span className="min-w-0 flex-1 text-[12.5px] font-medium text-foreground">
-            Team &amp; permissions
+            {t("dashboard.adminShell.topBar.teamPermissions")}
           </span>
           <ArrowUpRight className="size-3.5 text-muted-foreground" aria-hidden />
         </Link>

@@ -114,8 +114,8 @@ export function EmailDomainDrawer({
     <DrawerShell
       open
       onClose={onClose}
-      title={integration.label}
-      description={integration.description}
+      title={t(integration.labelKey)}
+      description={t(integration.descriptionKey)}
       toolbar={<IntegrationStatusPill visual={visual} />}
       footer={
         !canManage ? (

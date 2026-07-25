@@ -22,11 +22,21 @@ export type IntegrationStatusKind =
 
 export type IntegrationStatusVisual = {
   kind: IntegrationStatusKind;
+  /** English fallback, kept for non-UI consumers (tests, logs). */
   label: string;
+  /**
+   * Catalog key mirroring `label`. This resolver is called from both server and
+   * client code paths, so it stays translator-free: `IntegrationStatusPill`
+   * renders `t(labelKey)`.
+   */
+  labelKey: string;
   fg: string;
   bg: string;
   dot: string;
 };
+
+/** Root of the i18n namespace for the pill labels. */
+const STATUS_NS = "dashboard.adminIntegrationsCatalog.status";
 
 export function resolveIntegrationStatus(
   integration: Pick<IntegrationView, "status" | "credentialMode" | "inheritable">,
@@ -36,6 +46,7 @@ export function resolveIntegrationStatus(
     return {
       kind: "locked",
       label: "Upgrade to unlock",
+      labelKey: `${STATUS_NS}.locked`,
       fg: COLORS.inkDim,
       bg: "rgba(24,24,27,0.05)",
       dot: COLORS.inkDim,
@@ -46,6 +57,7 @@ export function resolveIntegrationStatus(
     return {
       kind: "error",
       label: "Needs attention",
+      labelKey: `${STATUS_NS}.error`,
       fg: COLORS.criticalDeep,
       bg: COLORS.criticalSoft,
       dot: COLORS.critical,
@@ -56,6 +68,7 @@ export function resolveIntegrationStatus(
     return {
       kind: "connected",
       label: "Connected",
+      labelKey: `${STATUS_NS}.connected`,
       fg: COLORS.successDeep,
       bg: COLORS.successSoft,
       dot: COLORS.success,
@@ -70,6 +83,7 @@ export function resolveIntegrationStatus(
     return {
       kind: "inherited",
       label: "Using platform default",
+      labelKey: `${STATUS_NS}.inherited`,
       fg: COLORS.indigoDeep,
       bg: COLORS.indigoSoft,
       dot: COLORS.indigo,
@@ -79,6 +93,7 @@ export function resolveIntegrationStatus(
   return {
     kind: "action_needed",
     label: "Action needed",
+    labelKey: `${STATUS_NS}.actionNeeded`,
     fg: COLORS.coralDeep,
     bg: COLORS.coralSoft,
     dot: COLORS.coral,
