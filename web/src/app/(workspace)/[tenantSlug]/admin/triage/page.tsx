@@ -160,6 +160,7 @@ export default async function AdminTriagePage({ params }: { params: PageParams }
             accounts={intake.accounts}
             contacts={intake.contacts}
             talents={intake.talents}
+            tenantId={scope.tenantId}
           />
         </div>
       </header>

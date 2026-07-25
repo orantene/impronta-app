@@ -2603,6 +2603,13 @@ export function TalentProfileShellDrawer() {
             if (s === "polaroids" && !showPolaroidsSection) return null;
             if (s === "details" && dynamicGroups.length === 0) return null;
             if (s === "refinement" && hasResolvedEngineContext) return null;
+            // Mirror the rail's `visible()` below. When the DB field engine
+            // owns these sections their accordion bodies are gated on
+            // `!newEngineActive`, so an ungated pill both advertises legacy
+            // static fields the tenant may have disabled and lands on an
+            // empty panel when tapped.
+            if ((s === "physical" || s === "wardrobe" || s === "details") && newEngineActive) return null;
+            if ((s === "profile_fields" || s === "agency_fields") && !newEngineActive) return null;
             const meta = metaFor(s);
             const active = activeSection === s;
             const done = sectionComplete[s];

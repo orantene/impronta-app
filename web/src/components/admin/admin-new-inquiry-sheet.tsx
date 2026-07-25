@@ -90,11 +90,15 @@ function AdminNewInquirySheetBody({
   accounts,
   contacts,
   talents,
+  tenantId,
 }: {
   onClose: () => void;
   accounts: AccountOption[];
   contacts: Contact[];
   talents: TalentOption[];
+  /** Tenant whose `agency_taxonomy_settings` gate the skill-targeting picker.
+   *  Null falls back to the canonical (ungoverned) taxonomy. */
+  tenantId?: string | null;
 }) {
   const t = useT();
   const queueRouterRefresh = useQueuedRouterRefresh();
@@ -119,7 +123,9 @@ function AdminNewInquirySheetBody({
   const [clientSnapshotLoading, setClientSnapshotLoading] = useState(false);
 
   // Phase 6.1 — skill targeting (optional)
-  const taxonomy = useLiveTaxonomy();
+  // Pass the tenant so categories the agency disabled in
+  // `agency_taxonomy_settings` are not offered as targeting options.
+  const taxonomy = useLiveTaxonomy({ tenantId: tenantId ?? null });
   const allParents = [
     ...(taxonomy.visibleParents ?? []),
     ...(taxonomy.restParents ?? []),
@@ -535,10 +541,13 @@ export function AdminNewInquirySheet({
   accounts,
   contacts,
   talents,
+  tenantId,
 }: {
   accounts: AccountOption[];
   contacts: Contact[];
   talents: TalentOption[];
+  /** Tenant whose `agency_taxonomy_settings` gate the skill-targeting picker. */
+  tenantId?: string | null;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -557,7 +566,7 @@ export function AdminNewInquirySheet({
       >
         {open ? (
           <div className="max-h-[min(85vh,860px)] overflow-y-auto pr-1">
-            <AdminNewInquirySheetBody onClose={() => setOpen(false)} accounts={accounts} contacts={contacts} talents={talents} />
+            <AdminNewInquirySheetBody onClose={() => setOpen(false)} accounts={accounts} contacts={contacts} talents={talents} tenantId={tenantId} />
           </div>
         ) : null}
       </DashboardEditPanel>

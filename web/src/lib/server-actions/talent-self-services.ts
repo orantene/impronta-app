@@ -338,9 +338,25 @@ export async function getTalentTypesUnderParentAsTalent(input: {
   if (input.query) query = query.ilike("name_i18n->>en", `%${input.query}%`);
   const { data, error } = await query;
   if (error) return { ok: false as const, error: CLIENT_ERROR.generic };
+  // Tenant taxonomy overlay: a leaf the agency disabled in
+  // `agency_taxonomy_settings` must not be offered as a selectable type.
+  // Mirrors `getEnabledParentCategoriesForPickerAsTalent` above, which already
+  // applies this overlay to the parent level. Also honours a disabled
+  // category_group so a leaf can't survive its parent being switched off.
+  // Absent row = enabled (only an explicit `is_enabled === false` hides).
+  const { data: typeSettings } = await auth.supabase
+    .from("agency_taxonomy_settings")
+    .select("taxonomy_term_id, is_enabled")
+    .eq("tenant_id", auth.tenantId);
+  const disabledTermIds = new Set(
+    (typeSettings ?? []).filter((s) => s.is_enabled === false).map((s) => s.taxonomy_term_id),
+  );
   return {
     ok: true as const,
-    types: (data ?? []).map((t) => {
+    types: (data ?? [])
+      .filter((t) => !disabledTermIds.has(t.id))
+      .filter((t) => !(t.parent_id && disabledTermIds.has(t.parent_id)))
+      .map((t) => {
       const nameMap = t.name_i18n as Record<string, string | null> | null;
       return {
         id: t.id,
