@@ -93,6 +93,13 @@ export function HeroSearch({
   const [focused, setFocused] = useState(false);
   const [interpreting, setInterpreting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  /**
+   * Right-hand space reserved for the submit button, measured rather than
+   * guessed: a fixed `pr-48` fits "Find Talent" but not "Encontrar talento"
+   * (or the French label), so the typed example ran underneath the button.
+   */
+  const [submitInset, setSubmitInset] = useState(0);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -121,6 +128,21 @@ export function HeroSearch({
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  // Track the button's rendered width (label length varies by locale, and the
+  // button itself reflows on breakpoint changes).
+  useEffect(() => {
+    const el = submitRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => setSubmitInset(el.offsetWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Button sits 0.5rem from the edge; add breathing room before the text.
+  const textInsetPx = submitInset > 0 ? submitInset + 24 : undefined;
 
   // Animated example prompts run on BOTH surfaces: the home hero and the
   // directory band. On the directory the input is controlled, so the loop
@@ -378,7 +400,8 @@ export function HeroSearch({
         <input
           ref={inputRef}
           type="text"
-          className={`h-14 w-full border pl-12 pr-28 text-left text-base text-foreground placeholder:text-transparent outline-none transition-all sm:h-16 sm:pr-48 sm:text-lg ${inputShape}`}
+          className={`h-14 w-full border pl-12 pr-28 text-left text-base text-foreground placeholder:text-transparent outline-none transition-all sm:h-16 sm:text-lg ${inputShape}`}
+          style={textInsetPx ? { paddingRight: textInsetPx } : undefined}
           placeholder={copy.placeholder}
           aria-label={copy.ariaLabel}
           // readOnly (not disabled) while interpreting: a disabled input greys
@@ -404,7 +427,8 @@ export function HeroSearch({
         {showTypewriter && (
           <span
             aria-hidden
-            className="pointer-events-none absolute left-12 right-28 top-1/2 -translate-y-1/2 overflow-hidden whitespace-nowrap text-left text-base text-[var(--impronta-muted)] sm:right-48 sm:text-lg"
+            className="pointer-events-none absolute left-12 right-28 top-1/2 -translate-y-1/2 overflow-hidden text-ellipsis whitespace-nowrap text-left text-base text-[var(--impronta-muted)] sm:text-lg"
+            style={textInsetPx ? { right: textInsetPx } : undefined}
           >
             {typed}
             <motion.span
@@ -416,6 +440,7 @@ export function HeroSearch({
           </span>
         )}
         <Button
+          ref={submitRef}
           type="submit"
           size="lg"
           disabled={interpreting}

@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ChevronDown, ChevronRight, Search, Sparkles, X } from "lucide-react";
+import { ChevronDown, ChevronRight, LocateFixed, Search, Sparkles, X } from "lucide-react";
 import type {
   DirectoryFilterOption,
   DirectoryFilterSection,
@@ -77,6 +77,7 @@ function DirectoryLocationSearchDropdown({
   locationSelected,
   pushLocation,
   filterSidebarQuery,
+  onNearMe,
   fc,
 }: {
   options: DirectoryFilterOption[];
@@ -84,6 +85,8 @@ function DirectoryLocationSearchDropdown({
   pushLocation: (slug: string) => void;
   /** Highlights matches when the sidebar "Search filters" box is in use. */
   filterSidebarQuery: string;
+  /** Switches to the map view and asks for the visitor's location. */
+  onNearMe: () => void;
   fc: DirectoryUiCopy["filters"];
 }) {
   const [open, setOpen] = useState(false);
@@ -311,6 +314,25 @@ function DirectoryLocationSearchDropdown({
           </button>
         ) : null}
       </div>
+
+      {/*
+        Shortcut into the geolocated map. Deliberately a button UNDER the field
+        rather than an entry inside the listbox: the listbox's options are
+        cities, and injecting a non-city option would break the
+        combobox/aria-activedescendant contract for screen readers.
+
+        It only carries a `near=1` intent flag — never coordinates — and the
+        map strips the flag once it has asked for permission.
+      */}
+      <button
+        type="button"
+        onClick={onNearMe}
+        title={fc.nearMeSidebarHint}
+        className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[var(--dir-accent-line)] bg-[var(--dir-accent-soft)]/60 px-2 py-1.5 text-[11px] font-semibold text-[var(--dir-accent)] transition-colors hover:border-[var(--dir-accent)] hover:bg-[var(--dir-accent-soft)]"
+      >
+        <LocateFixed className="size-3.5" aria-hidden />
+        {fc.nearMeSidebar}
+      </button>
 
       {mounted && listEl ? createPortal(listEl, document.body) : null}
     </div>
@@ -852,6 +874,18 @@ export function DirectoryFiltersSidebar({
     [pushParams],
   );
 
+  /**
+   * Sidebar shortcut: switch to the map and ask it to geolocate. Only an
+   * INTENT flag travels in the URL (`near=1`); the map requests permission
+   * itself and strips the flag, so coordinates never touch the URL.
+   */
+  const goToNearMeMap = useCallback(() => {
+    pushParams((params) => {
+      params.set("view", "map");
+      params.set("near", "1");
+    });
+  }, [pushParams]);
+
   const pushHeight = useCallback(
     (min: number | null, max: number | null) => {
       pushParams((params) => {
@@ -1105,6 +1139,7 @@ export function DirectoryFiltersSidebar({
                 locationSelected={locationSelected}
                 pushLocation={pushLocation}
                 filterSidebarQuery={hasFilterSearch ? filterQuery : ""}
+                onNearMe={goToNearMeMap}
                 fc={fc}
               />
             ) : section.kind === "field_text_enum" && section.presentation === "radio" ? (

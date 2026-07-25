@@ -457,7 +457,9 @@
           "filterMatchesAcross": "{matches} across {groups}",
           "filterNoLabelsMatch": "No filter labels match, try another word.",
           "filterNothingMatches": "Nothing matches \"{q}\". Clear the search to see every group again.",
-          "citySectionLabel": "City"
+          "citySectionLabel": "City",
+          "nearMeSidebar": "Search near me",
+          "nearMeSidebarHint": "Opens the map and sorts cities by distance"
         },
         "chips": {
           "height": "Height",

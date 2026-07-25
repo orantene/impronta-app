@@ -69,6 +69,9 @@ export type DirectoryUiCopy = {
   };
   filters: {
     locationSearchLabel: string;
+    /** Sidebar shortcut into the geolocated map view. */
+    nearMeSidebar: string;
+    nearMeSidebarHint: string;
     locationPlaceholder: string;
     clearCityAria: string;
     noCitiesYet: string;
@@ -375,6 +378,8 @@ export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCo
     },
     filters: {
       locationSearchLabel: t("public.directory.ui.filters.locationSearchLabel"),
+      nearMeSidebar: t("public.directory.ui.filters.nearMeSidebar"),
+      nearMeSidebarHint: t("public.directory.ui.filters.nearMeSidebarHint"),
       locationPlaceholder: t("public.directory.ui.filters.locationPlaceholder"),
       clearCityAria: t("public.directory.ui.filters.clearCityAria"),
       noCitiesYet: t("public.directory.ui.filters.noCitiesYet"),
