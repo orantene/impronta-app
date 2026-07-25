@@ -180,6 +180,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:tenant-isolation
 
+      - name: tests — connection-oauth
+        if: ${{ !cancelled() }}
+        run: npm run test:connection-oauth
+
       - name: tests — builder-capabilities
         if: ${{ !cancelled() }}
         run: npm run test:builder-capabilities

@@ -3,14 +3,18 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 
 import { signToken, verifyToken } from "@/lib/crypto/signed-token";
-import { getConnectionOAuthStateSecret } from "./providers";
+import {
+  getConnectionOAuthProvider,
+  getConnectionOAuthStateSecret,
+  type ConnectionOAuthProviderKey,
+} from "./providers";
 
 export type ConnectionOAuthOwner = "talent" | "client" | "workspace";
 
 export type ConnectionOAuthState = {
   v: 1;
   owner: ConnectionOAuthOwner;
-  provider: "youtube";
+  provider: ConnectionOAuthProviderKey;
   actorUserId: string;
   subjectId: string;
   tenantSlug: string | null;
@@ -29,7 +33,7 @@ function normalizeReturnTo(value: string | null | undefined, fallback: string): 
 
 export async function createConnectionOAuthState(input: {
   owner: ConnectionOAuthOwner;
-  provider: "youtube";
+  provider: ConnectionOAuthProviderKey;
   actorUserId: string;
   subjectId: string;
   tenantSlug?: string | null;
@@ -84,7 +88,8 @@ export async function verifyConnectionOAuthState(
   const returnTo = normalizeReturnTo(state.returnTo, "/");
   if (
     state.v !== 1 ||
-    state.provider !== "youtube" ||
+    typeof state.provider !== "string" ||
+    !getConnectionOAuthProvider(state.provider) ||
     (state.owner !== "talent" &&
       state.owner !== "client" &&
       state.owner !== "workspace") ||
