@@ -300,7 +300,7 @@ test("a roster read error resolves to null, not to a wrong tenant", async () => 
 // ── 5. Static pin: the public profile must not re-introduce hostCtx keying ───
 
 test("INVARIANT /t/[profileCode]: override-keyed reads use the resolved tenant, not hostCtx.tenantId", () => {
-  const src = readFileSync("src/app/t/[profileCode]/page.tsx", "utf8");
+  const src = readFileSync("src/app/t/[profileCode]/profile-view.tsx", "utf8");
 
   // The sidebar SECTION gate is the surface this test exists for.
   assert.match(

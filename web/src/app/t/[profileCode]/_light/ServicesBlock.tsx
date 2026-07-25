@@ -4,7 +4,7 @@
  * rate hint. All optional; renders nothing when all are empty. --plt tokens.
  */
 
-import type { TalentServiceAreaRow } from "../page";
+import type { TalentServiceAreaRow } from "../profile-view";
 import { LightSectionLabel } from "./section-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
