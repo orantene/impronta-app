@@ -4110,7 +4110,7 @@
       "talentTypesLabel": "Talent types & Catalog Fields",
       "talentTypesDesc": "Live categories, field privacy, and profile-field rules for your roster.",
       "categoriesOnSite": "Categories on your site",
-      "categoriesOnSiteMeta": "Live Tulala taxonomy · enabled for Impronta registration and directory",
+      "categoriesOnSiteMeta": "Live Tulala taxonomy · enabled for {workspace} registration and directory",
       "fieldPrivacy": "Field privacy",
       "fieldPrivacyMeta": "Resolved visibility for public site, admin view, registration, and hidden fields",
       "fieldCatalog": "Field catalog",

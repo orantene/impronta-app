@@ -484,7 +484,7 @@ export function WorkspacePageView() {
           {
             key: "talent-categories",
             title: t("dashboard.adminWorkspace.categoriesOnSite"),
-            desc: t("dashboard.adminWorkspace.categoriesOnSiteMeta"),
+            desc: interpolate(t("dashboard.adminWorkspace.categoriesOnSiteMeta"), { workspace: effectiveTenant.name }),
             onClick: () => openDrawer("talent-types"),
             right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
           },
