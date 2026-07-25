@@ -9,10 +9,7 @@ import {
   stripNonDefaultLocalePrefix,
   syncLocaleCookieForPath,
 } from "@/i18n/locale-middleware";
-import {
-  LOCALE_HEADER,
-  ORIGINAL_PATHNAME_HEADER,
-} from "@/i18n/request-locale";
+import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
 import {
@@ -631,6 +628,8 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(sanitizedInboundHeaders);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
+  // Query string for server components Next never hands `searchParams` to (CMS sections). See getRequestSearchParams().
+  requestHeaders.set(ORIGINAL_SEARCH_HEADER, request.nextUrl.search);
 
   requestHeaders.set(HOST_CONTEXT_HEADER, effectiveHostContext.kind);
   requestHeaders.set(HOST_NAME_HEADER, effectiveHostContext.hostname);

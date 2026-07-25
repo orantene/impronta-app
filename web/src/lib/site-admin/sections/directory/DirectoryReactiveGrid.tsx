@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AI_SEARCH_DEBOUNCE_MS_DEFAULT } from "@/lib/ai/search-debounce";
 import {
   applyCanonicalDirectoryFetchSearchParams,
+  directorySeedSignature,
   parseTaxonomyParam,
   serializeDirectoryFieldFacetParams,
   type DirectoryViewMode,
@@ -25,6 +26,12 @@ import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
 import type { DirectoryV1 } from "./schema";
 
 /**
+ * How long the client trusts the SSR-seeded first page before revalidating.
+ * Only ever applied to the key whose signature matches the seed.
+ */
+const SEED_STALE_TIME_MS = 30_000;
+
+/**
  * B3 — Premium reactive grid for the portable Directory section.
  *
  * Path β (per evolution prompts doc): owns its own `useInfiniteQuery`
@@ -40,6 +47,7 @@ import type { DirectoryV1 } from "./schema";
 export function DirectoryReactiveGrid({
   taxonomyTermIds,
   initialPage,
+  seedSignature,
   locale = "en",
   sort,
   query,
@@ -71,6 +79,8 @@ export function DirectoryReactiveGrid({
 }: {
   taxonomyTermIds: string[];
   initialPage: DirectoryPageResponse;
+  /** Signature of the request the SERVER seeded (see directorySeedSignature). */
+  seedSignature: string;
   locale?: string;
   sort: DirectorySortValue;
   query: string;
@@ -149,22 +159,25 @@ export function DirectoryReactiveGrid({
 
   /**
    * Does the current query key describe the exact request the SERVER already
-   * rendered? `getPublicDirectoryFirstPage` seeds the unfiltered first page at
-   * `sort: "recommended"`, so the seed is only valid while no user filter,
-   * query, range, facet or non-default sort is active. Any other key must
-   * fetch for real instead of inheriting the seed's rows.
+   * rendered? The section stamps `seedSignature` from the params it actually
+   * seeded with (URL filters included), and we recompute the same signature
+   * from the live URL. Matching → adopt the SSR rows (no refetch, no flash);
+   * differing → fetch for real rather than inheriting another filter's rows.
    */
-  const isSeedKey =
-    !directorySearchViaAi &&
-    taxKey === "" &&
-    ffKey === "" &&
-    effectiveQuery.trim() === "" &&
-    locationSlug.trim() === "" &&
-    heightMinCm == null &&
-    heightMaxCm == null &&
-    ageMin == null &&
-    ageMax == null &&
-    sort === "recommended";
+  const currentSignature = directorySeedSignature({
+    aiSearch: directorySearchViaAi,
+    taxonomyTermIds,
+    fieldFacets,
+    locale,
+    sort,
+    query: effectiveQuery,
+    locationSlug,
+    heightMinCm,
+    heightMaxCm,
+    ageMin,
+    ageMax,
+  });
+  const isSeedKey = currentSignature === seedSignature;
 
   const {
     data,
@@ -226,16 +239,20 @@ export function DirectoryReactiveGrid({
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
-    // Seed ONLY the unfiltered key the server actually rendered. `initialData`
-    // is applied to every new queryKey, so seeding unconditionally made each
-    // filter click paint the full unfiltered roster (status "success", no
-    // skeleton) until the filtered fetch landed — visibly wrong results.
+    // Seed ONLY the key the server actually rendered (signature match).
+    // `initialData` is applied to every new queryKey, so seeding
+    // unconditionally made each filter click paint the previous roster
+    // (status "success", no skeleton) until the real fetch landed.
     initialData: isSeedKey
       ? { pages: [initialPage], pageParams: [null] }
       : undefined,
-    // Mark SSR seed immediately stale so the client always reconciles
-    // with the API once per key change (same pattern as legacy grid).
-    initialDataUpdatedAt: isSeedKey ? 0 : undefined,
+    // The seed is a REAL server response for exactly this key, so let React
+    // Query treat it as just-fetched (no `initialDataUpdatedAt: 0`, which
+    // marked it instantly stale and fired a duplicate fetch for rows we
+    // already had). `staleTime` bounds how long the client trusts it; the SSR
+    // read is itself `unstable_cache`d, so a short window matches the
+    // freshness the page was rendered with. Non-seed keys stay always-stale.
+    staleTime: isSeedKey ? SEED_STALE_TIME_MS : 0,
   });
 
   // P4 — manual-scope render filter. When `scope=manual`, restrict to the

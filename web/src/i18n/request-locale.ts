@@ -10,6 +10,29 @@ const LOCALE_HEADER = "x-impronta-locale";
 /** Browser pathname (e.g. `/es/directory`) — set in middleware before rewrite so locale does not depend on stale cookies in the same request. */
 export const ORIGINAL_PATHNAME_HEADER = "x-impronta-original-pathname";
 
+/**
+ * Browser query string INCLUDING the leading `?` (e.g. `?tax=…&q=…`), set in
+ * middleware alongside the pathname.
+ *
+ * Next only hands `searchParams` to page components. Sections rendered deep
+ * inside the CMS renderer (page → HomepageCmsSections → registry → Component)
+ * have no other way to see the live filters, so a server-rendered listing
+ * could not match the URL it was requested with. Read it with
+ * `getRequestSearchParams()`.
+ */
+export const ORIGINAL_SEARCH_HEADER = "x-impronta-original-search";
+
+/**
+ * URLSearchParams for the CURRENT request, usable from any server component.
+ * Empty when the header is absent (e.g. a route that bypasses middleware) —
+ * callers must treat that as "no filters", never as an error.
+ */
+export async function getRequestSearchParams(): Promise<URLSearchParams> {
+  const h = await headers();
+  const raw = h.get(ORIGINAL_SEARCH_HEADER) ?? "";
+  return new URLSearchParams(raw.startsWith("?") ? raw.slice(1) : raw);
+}
+
 function isAllowedPublicLocale(code: string | null | undefined, publicLocales: string[], def: string): code is string {
   if (!code) return false;
   return publicLocales.includes(code) || code === def;

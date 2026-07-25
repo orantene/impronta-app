@@ -23,39 +23,21 @@ import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { DirectoryV1 } from "./schema";
 import { normalizeDirectoryProps } from "./normalize";
+import { getRequestSearchParams } from "@/i18n/request-locale";
+import {
+  directorySeedSignature,
+  parseDirectoryListingFilters,
+  searchParamsToDirectoryRecord,
+} from "@/lib/directory/search-params";
+
 import { DirectoryBannerTopBar } from "./DirectoryBannerTopBar";
+import { eyebrowSize, headingSize, paragraphSize } from "./heading-sizes";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
+import {
+  mapDirectoryDefaultSort,
+  type DirectorySeedSortValue,
+} from "./default-sort";
 import { resolveDirectoryScopeSeed } from "./scope-seed";
-
-function eyebrowSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
-  return {
-    sm: "0.68rem",
-    md: "0.75rem",
-    lg: "0.85rem",
-    xl: "0.95rem",
-    display: "1.1rem",
-  }[size];
-}
-
-function headingSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
-  return {
-    sm: "1.9rem",
-    md: "2.35rem",
-    lg: "2.85rem",
-    xl: "3.4rem",
-    display: "clamp(3.5rem, 6vw, 6rem)",
-  }[size];
-}
-
-function paragraphSize(size: "sm" | "md" | "lg" | "xl" | "display"): string {
-  return {
-    sm: "0.9rem",
-    md: "1rem",
-    lg: "1.12rem",
-    xl: "1.25rem",
-    display: "clamp(2rem, 4vw, 4.5rem)",
-  }[size];
-}
 
 /**
  * P4 — Resolve a per-instance `cardKitOverride` slug to inline `--token-card-*`
@@ -166,6 +148,34 @@ export async function DirectoryComponent({
       })
     : undefined;
 
+  // URL filters for THIS request. Next only passes `searchParams` to page
+  // components and this section renders below the CMS renderer, so the live
+  // query string arrives via a middleware-set header. Without this the server
+  // always rendered the UNFILTERED roster: a shared `?tax=…&q=…` link painted
+  // the wrong people and then visibly swapped after hydration, and crawlers
+  // only ever saw the unfiltered listing.
+  const requestSearchParams = await getRequestSearchParams();
+  const urlFilters = parseDirectoryListingFilters(
+    searchParamsToDirectoryRecord(requestSearchParams),
+  );
+
+  // Scope terms are the section's own constraint; URL terms are the visitor's.
+  // A URL selection wins so the seed matches what the client will request
+  // (the client reads `tax` alone), falling back to the scope seed otherwise.
+  const seedTermIds =
+    urlFilters.taxonomyTermIds.length > 0
+      ? urlFilters.taxonomyTermIds
+      : seedTaxonomyTermIds;
+  // `getPublicDirectoryFirstPage` accepts a narrower sort union than the
+  // engine (no `top_rated`, which is reviews-entitlement gated). Seeding an
+  // unsupported sort is not worth widening the cache API for: fall back to
+  // the default, and the signature simply won't match so the client fetches
+  // the real ordering — exactly the pre-existing behavior for that sort.
+  const seedSort: DirectorySeedSortValue =
+    urlFilters.sortRaw && urlFilters.sortRaw !== "top_rated"
+      ? urlFilters.sortRaw
+      : mapDirectoryDefaultSort(props.defaultSort);
+
   let initialPage: Awaited<ReturnType<typeof getPublicDirectoryFirstPage>> | null =
     null;
   let sidebar: Awaited<ReturnType<typeof getCachedDirectoryFilterSidebarModel>> = {
@@ -176,23 +186,33 @@ export async function DirectoryComponent({
   try {
     [initialPage, sidebar, aiFlags] = await Promise.all([
       getPublicDirectoryFirstPage({
-        taxonomyTermIds: seedTaxonomyTermIds,
+        taxonomyTermIds: seedTermIds,
         locale: loc,
-        sort: "recommended",
+        sort: seedSort,
         limit: props.pageSize,
         tenantId: directoryTenantId,
+        query: urlFilters.query,
+        locationSlug: urlFilters.locationSlug,
+        heightMinCm: urlFilters.heightMinCm,
+        heightMaxCm: urlFilters.heightMaxCm,
+        ageMin: urlFilters.ageMin,
+        ageMax: urlFilters.ageMax,
+        fieldFacetFilters: urlFilters.fieldFacets,
       }),
+      // The sidebar's facet COUNTS are relative to the active filter set, so
+      // it has to see the same URL filters or a deep link would render counts
+      // for the unfiltered roster.
       getCachedDirectoryFilterSidebarModel(
         loc,
         {
-          taxonomyTermIds: seedTaxonomyTermIds,
-          locationSlug: "",
-          heightMinCm: null,
-          heightMaxCm: null,
-          ageMin: null,
-          ageMax: null,
-          query: "",
-          fieldFacets: [],
+          taxonomyTermIds: seedTermIds,
+          locationSlug: urlFilters.locationSlug,
+          heightMinCm: urlFilters.heightMinCm,
+          heightMaxCm: urlFilters.heightMaxCm,
+          ageMin: urlFilters.ageMin,
+          ageMax: urlFilters.ageMax,
+          query: urlFilters.query,
+          fieldFacets: urlFilters.fieldFacets,
         },
         surface,
       ),
@@ -207,6 +227,30 @@ export async function DirectoryComponent({
   const aiEnabled = Boolean(
     aiFlags?.ai_master_enabled && aiFlags.ai_search_enabled,
   );
+
+  // Stamp exactly what was seeded. The client grid adopts these rows only when
+  // its own live-URL signature matches, so the seed can never be reused under
+  // a different filter — and an identical one is not refetched on hydration.
+  const seedSignature = directorySeedSignature({
+    // MUST mirror the island's own flag exactly
+    // (`aiSearchEnabled && query.trim().length > 0`): the AI branch is only
+    // taken when there is something to interpret. Stamping a bare `aiEnabled`
+    // here made every query-less load mismatch, so the seed was discarded and
+    // refetched immediately.
+    aiSearch: aiEnabled && urlFilters.query.trim().length > 0,
+    taxonomyTermIds: seedTermIds,
+    fieldFacets: urlFilters.fieldFacets,
+    locale: pickLocale(loc, { en: "en", es: "es" } as const),
+    // Stamp what was ACTUALLY seeded: for `top_rated` this is the fallback
+    // sort, so the signature deliberately differs from the client's key.
+    sort: seedSort,
+    query: urlFilters.query,
+    locationSlug: urlFilters.locationSlug,
+    heightMinCm: urlFilters.heightMinCm,
+    heightMaxCm: urlFilters.heightMaxCm,
+    ageMin: urlFilters.ageMin,
+    ageMax: urlFilters.ageMax,
+  });
   const heroCopy: HeroSearchCopy = {
     placeholder:
       props.aiPlaceholder || t("public.home.hero.searchPlaceholder"),
@@ -503,6 +547,7 @@ export async function DirectoryComponent({
         ) : (
           <DirectoryReactiveResults
             initialPage={initialPage!}
+            seedSignature={seedSignature}
             locale={pickLocale(loc, { en: "en", es: "es" } as const)}
             ui={ui}
             mapApiKey={mapApiKey}
