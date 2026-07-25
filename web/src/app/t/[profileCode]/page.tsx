@@ -79,6 +79,12 @@ import {
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
+import { resolveGoverningTenantIdForTalent } from "@/lib/saas/talent-roster";
+import {
+  ALLOW_ALL_TAXONOMY_VISIBILITY,
+  loadTenantTaxonomyVisibility,
+  type TenantTaxonomyVisibility,
+} from "@/lib/directory/taxonomy-tenant-safety";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { isTalentIdWithinTenantPublicDisplayCap } from "@/lib/saas/public-profile-cap";
 import {
@@ -262,7 +268,39 @@ function originLabel(locale: string, p: TalentProfile): string {
   return formatCityCountryLabel(locale, p.origin_city ?? null);
 }
 
-function primaryTalentType(locale: string, rows: TaxonomyRow[]): string | null {
+/**
+ * Tenant category overrides for THIS talent's public profile.
+ *
+ * Keyed on the surface tenant when we are on an agency host, and otherwise on
+ * the talent's governing roster tenant — which is exactly the tenant the
+ * field-engine overrides above already use. Without the roster fallback the hub
+ * host (`hostCtx.tenantId === null`) would keep showing a category the agency
+ * disabled, so hub and tenant host would disagree.
+ */
+async function loadProfileTaxonomyVisibility(
+  hostCtx: Awaited<ReturnType<typeof getPublicHostContext>>,
+  talentProfileId: string,
+): Promise<TenantTaxonomyVisibility> {
+  const svc = createServiceRoleClient();
+  if (!svc) return ALLOW_ALL_TAXONOMY_VISIBILITY;
+  const tenantId =
+    (hostCtx.kind === "agency" ? hostCtx.tenantId : null) ??
+    (await resolveGoverningTenantIdForTalent(svc, talentProfileId));
+  if (!tenantId) return ALLOW_ALL_TAXONOMY_VISIBILITY;
+  return loadTenantTaxonomyVisibility(svc, tenantId);
+}
+
+/**
+ * The talent's primary talent_type LABEL, honouring the tenant's category
+ * overrides. Returns null when the talent has no talent_type the tenant still
+ * shows — callers must degrade (title falls back to "Talent"; JSON-LD omits
+ * `jobTitle`) rather than emit an empty string.
+ */
+function primaryTalentType(
+  locale: string,
+  rows: TaxonomyRow[],
+  visibility: TenantTaxonomyVisibility = ALLOW_ALL_TAXONOMY_VISIBILITY,
+): string | null {
   let fallback: string | null = null;
 
   for (const row of rows) {
@@ -274,6 +312,7 @@ function primaryTalentType(locale: string, rows: TaxonomyRow[]): string | null {
 
     for (const term of terms) {
       if (term.kind !== "talent_type") continue;
+      if (!visibility.isTermVisible(term.id)) continue;
       const label = pickTaxonomyLabel(locale, term);
       if (row.is_primary) return label;
       if (!fallback) fallback = label;
@@ -1333,7 +1372,19 @@ export async function generateMetadata({
     [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
     profileCode;
 
-  const talentType = primaryTalentType("en", profile.talent_profile_taxonomy ?? []) ?? "Talent";
+  // A category the tenant disabled must not reach <title> / og:title (it reaches
+  // search engines from there). With every category hidden the title degrades to
+  // the same generic "Talent" an untagged profile already uses.
+  const metadataTaxonomyVisibility = await loadProfileTaxonomyVisibility(
+    hostCtx,
+    profile.id,
+  );
+  const talentType =
+    primaryTalentType(
+      "en",
+      profile.talent_profile_taxonomy ?? [],
+      metadataTaxonomyVisibility,
+    ) ?? "Talent";
   const loc = residenceLabel("en", profile as TalentProfile);
 
   const title = loc ? `${name} — ${talentType} · ${loc}` : `${name} — ${talentType}`;
@@ -1503,6 +1554,12 @@ export default async function PublicTalentProfilePage({
     );
     if (!withinCap) notFound();
   }
+  // Tenant category overrides (Settings → Roster & profile fields → Categories).
+  // Everything category-derived below — discipline chips, the primary role line,
+  // service discipline labels, JSON-LD jobTitle — funnels through this so a
+  // disabled category disappears from the public profile, not just the directory.
+  const taxonomyVisibility = await loadProfileTaxonomyVisibility(hostCtx, profile.id);
+
   const fieldValues = await fetchPublicFieldValues(fieldValuesClient, profile.id);
   type DetailEntry = {
     key: string;
@@ -1682,7 +1739,7 @@ export default async function PublicTalentProfilePage({
   // S6 — id → label for any discipline a service is scoped to (talent_type terms).
   const disciplineLabels: Record<string, string> = {};
   for (const term of flattenTaxonomy(profile.talent_profile_taxonomy ?? [])) {
-    if (term.kind === "talent_type" && term.id) {
+    if (term.kind === "talent_type" && term.id && taxonomyVisibility.isTermVisible(term.id)) {
       disciplineLabels[term.id] = pickTaxonomyLabel(locale, term);
     }
   }
@@ -1922,6 +1979,7 @@ export default async function PublicTalentProfilePage({
       : [];
     for (const term of terms) {
       if (term.kind !== "talent_type") continue;
+      if (!taxonomyVisibility.isTermVisible(term.id)) continue;
       const label = pickTaxonomyLabel(locale, term);
       if (row.is_primary) {
         // Insert primary at the front
@@ -2069,8 +2127,14 @@ export default async function PublicTalentProfilePage({
     name,
     givenName: profile.first_name ?? null,
     familyName: profile.last_name ?? null,
+    // null when every category is hidden for this tenant — buildTalentProfileJsonLd
+    // OMITS the jobTitle key rather than emitting an empty string.
     jobTitle:
-      primaryTalentType(pickLocale(locale, { en: "en", es: "es" }), profile.talent_profile_taxonomy ?? []) ?? null,
+      primaryTalentType(
+        pickLocale(locale, { en: "en", es: "es" }),
+        profile.talent_profile_taxonomy ?? [],
+        taxonomyVisibility,
+      ) ?? null,
     description: aboutText.trim() || null,
     imageUrl: bannerUrl ?? null,
     addressLocality: residenceLabel(pickLocale(locale, { en: "en", es: "es" }), profile as TalentProfile) ?? null,
@@ -2149,7 +2213,11 @@ export default async function PublicTalentProfilePage({
         isFeatured={Boolean(profile.is_featured)}
         aboutText={aboutText}
         allTalentTypes={allTalentTypes}
-        primaryType={primaryTalentType(locale, profile.talent_profile_taxonomy ?? [])}
+        primaryType={primaryTalentType(
+          locale,
+          profile.talent_profile_taxonomy ?? [],
+          taxonomyVisibility,
+        )}
         livesIn={livesIn}
         originallyFrom={originallyFrom}
         languages={languages}

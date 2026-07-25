@@ -8,6 +8,7 @@ import {
 } from "@/lib/saas/scope";
 import { resolveAnyTenantPublicPath } from "@/lib/saas/surface-allow-list";
 import { isTalentOnTenantRoster } from "@/lib/saas/talent-roster";
+import { loadTenantTaxonomyVisibility } from "@/lib/directory/taxonomy-tenant-safety";
 import { isTalentIdWithinTenantPublicDisplayCap } from "@/lib/saas/public-profile-cap";
 import {
   formatCityCountryLabel,
@@ -39,18 +40,15 @@ async function resolvePathTenantIdFromReferer(
   }
 }
 
+type TaxonomyTermEmbed = {
+  id?: string | null;
+  kind: string;
+  name_i18n: Record<string, string | null> | null;
+};
+
 type TaxonomyRow = {
   is_primary?: boolean;
-  taxonomy_terms:
-    | {
-        kind: string;
-        name_i18n: Record<string, string | null> | null;
-      }
-    | {
-        kind: string;
-        name_i18n: Record<string, string | null> | null;
-      }[]
-    | null;
+  taxonomy_terms: TaxonomyTermEmbed | TaxonomyTermEmbed[] | null;
 };
 
 function flattenTerms(rows: TaxonomyRow[]) {
@@ -171,7 +169,7 @@ export async function GET(
       origin_city:locations!origin_city_id ( display_name_i18n, country_code ),
       talent_profile_taxonomy (
         is_primary,
-        taxonomy_terms ( kind, name_i18n )
+        taxonomy_terms ( id, kind, name_i18n )
       )
     `,
     )
@@ -210,7 +208,14 @@ export async function GET(
     | CanonicalLocationEmbed
     | CanonicalLocationEmbed[]
     | null;
-  const terms = flattenTerms((profile.talent_profile_taxonomy ?? []) as TaxonomyRow[]);
+  // Tenant category overrides — the quick-look card must not surface a category
+  // the tenant disabled. With every talent_type hidden the label degrades to the
+  // same translated fallback an untagged talent already gets.
+  const taxonomyVisibility = await loadTenantTaxonomyVisibility(supabase, tenantId);
+
+  const terms = flattenTerms(
+    (profile.talent_profile_taxonomy ?? []) as TaxonomyRow[],
+  ).filter((term) => taxonomyVisibility.isTermVisible(term.id));
   const primaryTalentType =
     ((profile.talent_profile_taxonomy ?? []) as TaxonomyRow[])
       .flatMap((row) => {
@@ -221,6 +226,7 @@ export async function GET(
           : [];
         return items
           .filter((item) => item.kind === "talent_type")
+          .filter((item) => taxonomyVisibility.isTermVisible(item.id))
           .map((item) => ({
             name: pickTermName(item),
             isPrimary: Boolean(row.is_primary),

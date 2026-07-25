@@ -4,6 +4,7 @@ import { CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
+import { loadTenantTaxonomyVisibility } from "@/lib/directory/taxonomy-tenant-safety";
 
 /**
  * Two-level category model for the directory top bar.
@@ -75,6 +76,11 @@ async function loadCategoryTreeUncached(
   const rosterIds = await listTalentIdsOnTenantRoster(supabase, tenantId);
   if (rosterIds.length === 0) return [];
 
+  // Tenant category overrides (Settings → Roster & profile fields → Categories).
+  // A category the tenant disabled must not appear as a top-bar pill or a refine
+  // chip, even when roster talent are still tagged with it.
+  const taxonomyVisibility = await loadTenantTaxonomyVisibility(supabase, tenantId);
+
   // Taxonomy tree (the three category levels only — ~530 rows, one page).
   const { data: termRows, error: termErr } = await supabase
     .from("taxonomy_terms")
@@ -119,8 +125,10 @@ async function loadCategoryTreeUncached(
     const leaf = byId.get(a.taxonomy_term_id);
     if (!leaf || leaf.term_type !== "talent_type") continue;
     if (leaf.is_active === false) continue;
+    if (!taxonomyVisibility.isTermVisible(leaf.id)) continue;
     const parent = parentCategoryOf(leaf.id);
     if (!parent || parent.is_active === false) continue;
+    if (!taxonomyVisibility.isTermVisible(parent.id)) continue;
 
     (parentTalents.get(parent.id) ?? parentTalents.set(parent.id, new Set()).get(parent.id)!).add(
       a.talent_profile_id,
