@@ -224,6 +224,14 @@ export async function DirectoryComponent({
 
   const t = createTranslator(loc);
   const ui = cachedBuildDirectoryUiCopy(t);
+
+  // Heading copy falls back to LOCALIZED defaults when the page hasn't
+  // authored its own. The snapshot is authored per page, and this tenant's
+  // `__directory__` exists only in `en` (other locales fall back to it), so
+  // hardcoded props showed English headings to Spanish visitors. An eyebrow
+  // has no default on purpose: clearing it removes it.
+  const headingText = props.headline?.trim() || t("public.directory.section.headline");
+  const copyText = props.copy?.trim() || t("public.directory.section.copy");
   const aiEnabled = Boolean(
     aiFlags?.ai_master_enabled && aiFlags.ai_search_enabled,
   );
@@ -365,7 +373,7 @@ export async function DirectoryComponent({
           />
           <div className="relative mx-auto flex w-full max-w-7xl flex-col items-center px-4 pb-10 pt-20 text-center sm:px-6 sm:pb-12 sm:pt-28">
             {props.showHeading &&
-            (props.eyebrow || props.headline || props.copy) ? (
+            (props.eyebrow || headingText || copyText) ? (
               <header className="flex max-w-2xl flex-col items-center gap-4">
                 {props.eyebrow ? (
                   <span
@@ -382,7 +390,7 @@ export async function DirectoryComponent({
                     {renderInlineRich(props.eyebrow)}
                   </span>
                 ) : null}
-                {props.headline ? (
+                {headingText ? (
                   <h2
                     className="font-display text-3xl font-medium tracking-wide text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] sm:text-5xl"
                     data-builder-node-id={nodeIdsByRole?.headline}
@@ -394,10 +402,10 @@ export async function DirectoryComponent({
                       ),
                     }}
                   >
-                    {renderInlineRich(props.headline)}
+                    {renderInlineRich(headingText)}
                   </h2>
                 ) : null}
-                {props.copy ? (
+                {copyText ? (
                   <p
                     className="text-[15px] leading-relaxed text-white/80"
                     data-builder-node-id={nodeIdsByRole?.copy}
@@ -406,7 +414,7 @@ export async function DirectoryComponent({
                       paragraphSize,
                     )}
                   >
-                    {renderInlineRich(props.copy)}
+                    {renderInlineRich(copyText)}
                   </p>
                 ) : null}
               </header>
@@ -452,7 +460,7 @@ export async function DirectoryComponent({
       >
         {!hasBanner &&
         props.showHeading &&
-        (props.eyebrow || props.headline || props.copy) ? (
+        (props.eyebrow || headingText || copyText) ? (
           <header
             className={`mb-10 flex max-w-2xl flex-col gap-4 border-b border-[var(--token-color-line,rgba(120,120,120,0.18))] pb-7 ${headAlign}`}
           >
@@ -471,7 +479,7 @@ export async function DirectoryComponent({
                 {renderInlineRich(props.eyebrow)}
               </span>
             ) : null}
-            {props.headline ? (
+            {headingText ? (
               <h2
                 className="font-display text-3xl font-medium tracking-wide text-[var(--token-color-ink,var(--foreground))] sm:text-4xl"
                 data-builder-node-id={nodeIdsByRole?.headline}
@@ -483,10 +491,10 @@ export async function DirectoryComponent({
                   ),
                 }}
               >
-                {renderInlineRich(props.headline)}
+                {renderInlineRich(headingText)}
               </h2>
             ) : null}
-            {props.copy ? (
+            {copyText ? (
               <p
                 className="text-[15px] leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]"
                 data-builder-node-id={nodeIdsByRole?.copy}
@@ -495,7 +503,7 @@ export async function DirectoryComponent({
                   paragraphSize,
                 )}
               >
-                {renderInlineRich(props.copy)}
+                {renderInlineRich(copyText)}
               </p>
             ) : null}
           </header>

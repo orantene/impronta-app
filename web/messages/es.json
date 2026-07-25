@@ -578,6 +578,10 @@
           "backToGrid": "Volver a la cuadrícula",
           "cityFilterGroup": "Filtrar por ciudad"
         }
+      },
+      "section": {
+        "headline": "Encuentra tu elenco.",
+        "copy": "Modelos, anfitriones, artistas y creadores en la Riviera Maya. Describe lo que necesitas o filtra por disciplina."
       }
     },
     "forms": {

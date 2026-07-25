@@ -578,6 +578,10 @@
           "backToGrid": "Back to grid",
           "cityFilterGroup": "Filter by city"
         }
+      },
+      "section": {
+        "headline": "Find your cast.",
+        "copy": "Models, hosts, performers and creators across the Riviera Maya. Describe what you need, or filter by discipline."
       }
     },
     "forms": {
