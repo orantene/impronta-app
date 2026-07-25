@@ -14,6 +14,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, TRANSITION } from "../state";
 import { useViewport } from "./hooks";
 
@@ -21,20 +23,21 @@ import { useViewport } from "./hooks";
 // Displays "Saved X ago" or "Saving…" inside forms.
 
 export function AutoSaveIndicator({ savedAt }: { savedAt: Date | null }) {
+  const t = useT();
   const [label, setLabel] = useState("");
 
   useEffect(() => {
     if (!savedAt) return;
     const update = () => {
       const s = Math.round((Date.now() - savedAt.getTime()) / 1000);
-      if (s < 5) setLabel("Saved just now");
-      else if (s < 60) setLabel(`Saved ${s}s ago`);
-      else setLabel(`Saved ${Math.round(s / 60)}m ago`);
+      if (s < 5) setLabel(t("dashboard.adminShell.autoSaveJustNow"));
+      else if (s < 60) setLabel(interpolate(t("dashboard.adminShell.autoSaveSecondsAgo"), { count: s }));
+      else setLabel(interpolate(t("dashboard.adminShell.autoSaveMinutesAgo"), { count: Math.round(s / 60) }));
     };
     update();
     const id = setInterval(update, 10_000);
     return () => clearInterval(id);
-  }, [savedAt]);
+  }, [savedAt, t]);
 
   if (!savedAt) return null;
   return (

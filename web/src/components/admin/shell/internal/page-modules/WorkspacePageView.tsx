@@ -6,7 +6,7 @@ import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talen
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { Affordance, AutoSaveIndicator, Card, CompactLockedCard, MoreWithSection, PlanChip, ReadOnlyChip, useViewport } from "../primitives";
-import { COLORS, FONTS, PLAN_META, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
+import { COLORS, FONTS, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
 import { AutoAckSettingsRow, LockedPill } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
@@ -201,6 +201,13 @@ export function WorkspacePageView() {
   const [activeGroup, setActiveGroup] = useState<GroupId>("account");
   const [query, setQuery] = useState("");
 
+  // PLAN_META carries English-only `label`/`theme` (it is a shared fixture,
+  // also read by non-localized consumers). PlanChip already renders the
+  // localized label, so reading PLAN_META raw here put "Studio" next to a
+  // chip saying "Estudio". Resolve both through the catalog instead.
+  const planLabel = t(`dashboard.adminWorkspace.planName${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`);
+  const planTheme = t(`dashboard.adminWorkspace.planTheme${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`);
+
   // Auto-save indicator — simulates a settings save 1.2s after mount.
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   useEffect(() => {
@@ -286,16 +293,16 @@ export function WorkspacePageView() {
           isOwner
             ? {
                 key: "plan-manage",
-                title: PLAN_META[state.plan].label,
-                desc: PLAN_META[state.plan].theme,
+                title: planLabel,
+                desc: planTheme,
                 onClick: () => openDrawer("plan-billing"),
                 custom: (
                   <>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <PlanChip plan={state.plan} variant="solid" />
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{PLAN_META[state.plan].label}</div>
-                        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{PLAN_META[state.plan].theme}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{planLabel}</div>
+                        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{planTheme}</div>
                       </div>
                     </div>
                     <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
@@ -781,7 +788,7 @@ export function WorkspacePageView() {
     ];
     return list;
   }, [
-    t, state.plan, state.role, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug,
+    t, state.plan, state.role, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug,
     bridgeTalentSelfProfile, effectiveTeamMembers.length, pendingTrustCount, disputedClaimsCount,
     pendingTalent.length, openDrawer, openUpgrade, setPage,
   ]);

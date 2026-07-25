@@ -4328,7 +4328,15 @@
         "proofStatTrust": "Prueba de confianza del cliente",
         "proofYes": "Sí",
         "proofReauthTag": "reautenticar"
-      }
+      },
+      "planNameFree": "Gratis",
+      "planNameStudio": "Estudio",
+      "planNameAgency": "Agencia",
+      "planNameNetwork": "Red",
+      "planThemeFree": "Únete al ecosistema",
+      "planThemeStudio": "Toma el control",
+      "planThemeAgency": "Operación con marca propia",
+      "planThemeNetwork": "Multimarca · hub"
     },
     "adminOperations": {
       "title": "Operaciones",
@@ -5221,7 +5229,25 @@
       "igVerifyStep4Lead": "4 · Confirma.",
       "igVerifyStep4Body": "Los administradores de Tulala verifican que el DM se recibió desde tu usuario y coincide con el código. La mayoría de las decisiones en <24 h.",
       "igVerifyCancel": "Cancelar",
-      "igVerifyGenerate": "Generar código y continuar"
+      "igVerifyGenerate": "Generar código y continuar",
+      "legacyTaxonomyTitle": "Tipos de talento",
+      "legacyTaxonomyDescription": "Elige qué talento acepta tu agencia. El formulario de registro y Discover siguen esta lista.",
+      "legacyTaxonomyPreviewRegistration": "Ver el registro",
+      "legacyTaxonomySaved": "Tipos de talento guardados",
+      "legacyTaxonomyAllGroups": "Todos los grupos disponibles",
+      "legacyTaxonomyGroupsEnabled": "{enabled} de {limit} grupos habilitados",
+      "legacyTaxonomyPlanLine": "Plan {plan} · {cap}",
+      "legacyTaxonomyNoCap": "sin límite",
+      "legacyTaxonomyUpgradeForMore": "mejora tu plan para habilitar más",
+      "legacyTaxonomyPlanCompare": "Comparar planes",
+      "legacyTaxonomyUpgrade": "Mejorar plan",
+      "legacyTaxonomyAvailableOnPlan": "Disponible en tu plan",
+      "legacyTaxonomyLocked": "Bloqueado · mejora tu plan para habilitar",
+      "legacyTaxonomyRequiresPlan": "{category} requiere el plan {plan}",
+      "legacyTaxonomyPlanLimitReached": "Alcanzaste el límite de tu plan. Mejóralo para habilitar más.",
+      "legacyTaxonomyShowInDirectoryDesc": "Discover muestra esta categoría a los clientes.",
+      "legacyTaxonomyShowInRegistrationDesc": "El talento puede registrarse en esta categoría.",
+      "legacyTaxonomyRequireApprovalDesc": "Los perfiles nuevos de esta categoría pasan primero por la cola de admin."
     },
     "platform": {
       "shell": {
@@ -8017,7 +8043,10 @@
         "tabOps": "Operación",
         "tabTalent": "Talento",
         "tabMore": "Más"
-      }
+      },
+      "autoSaveJustNow": "Guardado ahora mismo",
+      "autoSaveSecondsAgo": "Guardado hace {count} s",
+      "autoSaveMinutesAgo": "Guardado hace {count} min"
     },
     "adminAccount": {
       "sections": {
