@@ -1,9 +1,9 @@
 // ============================================================================
 // settings-deeplink.ts — cross-component request to open a specific Settings
-// tab + accordion section.
+// group.
 //
 // The workspace plan badge (and any other surface) calls
-// `requestSettingsSection({ tab, section })` and then navigates to the Settings
+// `requestSettingsSection({ section })` and then navigates to the Settings
 // page via `setPage("settings")`. WorkspacePageView resolves the request two
 // ways, covering both timing cases:
 //
@@ -18,21 +18,15 @@
 // hand-off that survives the setPage → remount: requestSettingsSection() sets
 // it synchronously *before* navigation, and the freshly-mounted view reads +
 // clears it on mount. The event covers the no-remount path.
+//
+// Post flat-settings redesign (2026-07-24): Settings is a single flat list of
+// groups (no more tabs + accordions), so the target is just the group id.
 // ============================================================================
 
 export const SETTINGS_SECTION_EVENT = "tulala:open-settings-section";
 
-export type SettingsTabId =
-  | "workspace"
-  | "roster"
-  | "team"
-  | "billing"
-  | "advanced";
-
 export type SettingsSectionTarget = {
-  /** Settings tab id — must match a WorkspacePageView TABS entry. */
-  tab: SettingsTabId;
-  /** Accordion section id — must match a `data-settings-section` value. */
+  /** Settings group id — must match a WorkspacePageView group id. */
   section: string;
 };
 

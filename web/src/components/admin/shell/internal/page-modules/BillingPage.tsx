@@ -633,9 +633,14 @@ function SettingsSectionHeader({ title, desc }: { title: string; desc: string })
 }
 
 export function LockedPill({ plan }: { plan: Plan }) {
+  const t = useT();
+  // The raw `plan` enum is English ("studio"); Settings rows sit next to a
+  // PlanChip that already renders the localized tier name, so resolve the
+  // same catalog entry here rather than printing the enum.
+  const label = t(`dashboard.adminWorkspace.planName${plan.charAt(0).toUpperCase()}${plan.slice(1)}`);
   return (
     <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, textTransform: "capitalize" }} className="bg-admin-surface-alt text-admin-ink-muted">
-      {plan}+
+      {label}+
     </span>
   );
 }

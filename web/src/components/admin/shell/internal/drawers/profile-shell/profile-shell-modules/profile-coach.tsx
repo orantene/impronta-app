@@ -265,7 +265,7 @@ export function ProfileShellMobileMenu({
         }}>
             <>
                 <PMobileMenuItem
-                  icon="👁" label="View as client"
+                  icon="👁" label={copy.t("View as client")}
                   onClick={() => { onViewAsClient(); close(); }}
                 />
                 {/* #3 redesign — Review changes joins the menu so admins can
@@ -273,7 +273,7 @@ export function ProfileShellMobileMenu({
                     in the desktop strip that this menu now replaces. */}
                 {adminVisible && onReviewChanges && (
                   <PMobileMenuItem
-                    icon="⇆" label="Review changes"
+                    icon="⇆" label={copy.t("Review changes")}
                     onClick={() => { onReviewChanges(); close(); }}
                   />
                 )}
@@ -288,7 +288,7 @@ export function ProfileShellMobileMenu({
                   <>
                     <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
                     <PMobileMenuItem
-                      icon="↗" label="Open full editor"
+                      icon="↗" label={copy.t("Open full editor")}
                       onClick={() => { onOpenFullEditor(); close(); }}
                     />
                   </>
@@ -322,7 +322,7 @@ export function ProfileShellMobileMenu({
 
                 <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
                 <PMobileMenuItem
-                  icon="💾" label="Save & exit"
+                  icon="💾" label={copy.t("Save & exit")}
                   onClick={() => { onSaveAndExit(); close(); }}
                 />
                 {adminVisible && onRemoveFromRoster && (
@@ -388,6 +388,7 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
   onStart: (sectionId: ProfileSectionId) => void;
   talentId: string;
 }) {
+  const copy = useDashboardText();
   const [dismissed, setDismissed] = React.useState(false);
   const steps: { id: ProfileSectionId; label: string; helper: string; emoji: string }[] = [
     { id: "media",    label: "Add a photo",   helper: "One headshot is enough to start.", emoji: "📷" },
@@ -415,13 +416,13 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
           color: COLORS.inkMuted, fontSize: 14, lineHeight: 1,
           padding: "2px 4px",
         }}
-        aria-label="Dismiss"
+        aria-label={copy.t("Dismiss")}
       >×</button>
       <div style={{ fontSize: 11.5, fontWeight: 600, marginBottom: 4 }} className="text-admin-ink">
-        Welcome — let&apos;s start with 3 things
+        {copy.t("Welcome. Let's start with 3 things")}
       </div>
       <div style={{ fontSize: 11, marginBottom: 10, lineHeight: 1.5 }} className="text-admin-ink-muted">
-        Each takes about 30 seconds. You can polish the rest later.
+        {copy.t("Each takes about 30 seconds. You can polish the rest later.")}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {steps.map((s, i) => (
@@ -433,15 +434,17 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
           }}>
             <span style={{ width: 22, height: 22, borderRadius: "50%", border: `1px solid ${COLORS.borderSoft}`, fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} className="bg-admin-surface text-admin-ink-muted">{i + 1}</span>
             <span className="flex-1 min-w-0">
-              <span style={{ display: "block", fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{s.emoji}  {s.label}</span>
-              <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{s.helper}</span>
+              <span style={{ display: "block", fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">{s.emoji}  {copy.t(s.label)}</span>
+              <span style={{ display: "block", fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{copy.t(s.helper)}</span>
             </span>
             <span className="text-admin-ink-dim text-sm">›</span>
           </button>
         ))}
       </div>
       <div style={{ fontSize: 10, marginTop: 8 }} className="text-admin-ink-dim">
-        Profile is {completeness}% complete · publish at 100%
+        {copy.isSpanish
+          ? `Perfil ${completeness}% completo · publica al 100%`
+          : `Profile is ${completeness}% complete · publish at 100%`}
       </div>
     </div>
   );
@@ -451,6 +454,7 @@ export function FirstTimeHero({ completeness, onStart, talentId }: {
 // Mock-data for now (would pull from analytics in production).
 
 export function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
+  const copy = useDashboardText();
   // Stable mock — would come from /analytics/talent/{id}/last-7d
   const views = 47;
   const inquiries = 3;
@@ -464,7 +468,7 @@ export function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
       fontFamily: FONTS.body,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">Last 7 days</span>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">{copy.t("Last 7 days")}</span>
         <span style={{ fontSize: 10, fontWeight: 600, color: trend >= 0 ? COLORS.successDeep : COLORS.amberDeep }}>
           {trend >= 0 ? "▲" : "▼"} {Math.abs(trend)}%
         </span>
@@ -472,12 +476,12 @@ export function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
       <div className="flex gap-2.5">
         <div className="flex-1">
           <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.3 }} className="text-admin-ink">{views}</div>
-          <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">Profile views</div>
+          <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{copy.t("Profile views")}</div>
         </div>
         <div style={{ width: 1, background: COLORS.borderSoft }} />
         <div className="flex-1">
           <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.3 }} className="text-admin-ink">{inquiries}</div>
-          <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">Inquiries</div>
+          <div style={{ fontSize: 10.5, marginTop: 1 }} className="text-admin-ink-muted">{copy.t("Inquiries")}</div>
         </div>
       </div>
       <button type="button" onClick={onJump} style={{
@@ -486,7 +490,7 @@ export function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
         color: COLORS.inkMuted,
         fontSize: 10.5, fontWeight: 500, cursor: "pointer",
         fontFamily: FONTS.body,
-      }}>↑ Refresh photos to boost views</button>
+      }}>↑ {copy.t("Refresh photos to boost views")}</button>
     </div>
   );
 }

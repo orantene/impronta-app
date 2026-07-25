@@ -39,6 +39,8 @@ import { CSS } from "@dnd-kit/utilities";
 // Use the prototype's DrawerShell (light surface, matches the rest of the
 // workspace chrome) instead of the production drawer which defaults to a
 // dark theme when no [data-dashboard-theme] attribute is set.
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { DrawerShell, GhostButton, PrimaryButton, Eyebrow } from "./primitives";
 import { COLORS, FONTS, type TalentProfile, type Client } from "./state";
 
@@ -178,6 +180,7 @@ function SortableTalentRow({
   onNoteChange: (id: string, note: string) => void;
   onRemove: (id: string) => void;
 }) {
+  const t = useT();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   });
@@ -207,7 +210,7 @@ function SortableTalentRow({
         type="button"
         {...attributes}
         {...listeners}
-        aria-label="Drag to reorder"
+        aria-label={t("dashboard.adminPitchCompose.dragToReorderAria")}
         style={{
           background: "none",
           border: "none",
@@ -265,7 +268,7 @@ function SortableTalentRow({
           )}
         </div>
         <textarea
-          placeholder="Add a note about this talent… (optional)"
+          placeholder={t("dashboard.adminPitchCompose.talentNotePlaceholder")}
           value={entry.adminNote}
           onChange={(e) => onNoteChange(entry.id, e.target.value)}
           rows={2}
@@ -283,7 +286,7 @@ function SortableTalentRow({
       <button
         type="button"
         onClick={() => onRemove(entry.id)}
-        aria-label={`Remove ${entry.name}`}
+        aria-label={interpolate(t("dashboard.adminPitchCompose.removeAria"), { name: entry.name })}
         style={{
           background: "none",
           border: "none",
@@ -325,6 +328,7 @@ function AttachmentChip({
   name: string;
   onRemove: () => void;
 }) {
+  const t = useT();
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: COLORS.borderSoft, borderRadius: 6, padding: "4px 8px", fontFamily: FONTS.body, fontSize: 12, maxWidth: 180 }} className="text-admin-ink">
       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -333,7 +337,7 @@ function AttachmentChip({
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Remove ${name}`}
+        aria-label={interpolate(t("dashboard.adminPitchCompose.removeAria"), { name })}
         style={{
           background: "none",
           border: "none",
@@ -354,14 +358,16 @@ function AttachmentChip({
 // Q5: humanize an ISO/string future expiry to "Expires in N days". Hoisted
 // to module scope so Date.now() doesn't fire react-hooks/purity from a
 // render-body IIFE inside PostSendView.
-function formatExpiry(expiresAt: string | null | undefined): string | null {
+function formatExpiry(
+  expiresAt: string | null | undefined,
+  t: (key: string) => string,
+): string | null {
   if (!expiresAt) return null;
   const ms = new Date(expiresAt).getTime() - Date.now();
   if (!Number.isFinite(ms) || ms <= 0) return null;
   const days = Math.round(ms / (1000 * 60 * 60 * 24));
-  if (days < 1) return "Expires today";
-  if (days === 1) return "Expires in 1 day";
-  return `Expires in ${days} days`;
+  if (days < 1) return t("dashboard.adminPitchCompose.expiresToday");
+  return withPluralization(t)("dashboard.adminPitchCompose.expiresInDays", days);
 }
 
 // ─── Post-send view ───────────────────────────────────────────────────────────
@@ -383,6 +389,7 @@ function PostSendView({
   onClose: () => void;
   onNewPitch: () => void;
 }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const copyLink = async () => {
@@ -411,7 +418,7 @@ function PostSendView({
   // Expiry chip — humanize "expires in N days" if a future timestamp is given.
   // Q5: builder hoisted to module scope (see formatExpiry below) so the
   // Date.now() call isn't inside the render-time IIFE.
-  const expiryLabel = formatExpiry(expiresAt);
+  const expiryLabel = formatExpiry(expiresAt, t);
 
   const visibleAvatars = talents.slice(0, 4);
   const overflow = Math.max(0, talents.length - visibleAvatars.length);
@@ -419,11 +426,14 @@ function PostSendView({
     talents.length === 0
       ? ""
       : talents.length <= 2
-        ? talents.map((t) => t.name).join(" & ")
-        : `${talents
-            .slice(0, 2)
-            .map((t) => t.name.split(" ")[0])
-            .join(", ")} + ${talents.length - 2} more`;
+        ? talents.map((entry) => entry.name).join(" & ")
+        : interpolate(t("dashboard.adminPitchCompose.talentNamesPlusMore"), {
+            names: talents
+              .slice(0, 2)
+              .map((entry) => entry.name.split(" ")[0])
+              .join(", "),
+            count: talents.length - 2,
+          });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18, paddingTop: 4 }}>
@@ -446,7 +456,7 @@ function PostSendView({
         >
           ✓
         </span>
-        Pitch sent · just now
+        {t("dashboard.adminPitchCompose.pitchSentJustNow")}
       </div>
 
       {/* Pitch summary — recipient + talent avatars + expiry. Replaces the
@@ -455,7 +465,7 @@ function PostSendView({
       <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 14 }} className="bg-admin-surface-alt">
         <div>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 4 }} className="text-admin-ink-dim">
-            Recipient
+            {t("dashboard.adminPitchCompose.recipient")}
           </div>
           <div style={{ fontSize: 14, fontWeight: 600, fontFamily: FONTS.body }} className="text-admin-ink">
             {recipientName || "—"}
@@ -507,7 +517,7 @@ function PostSendView({
 
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 500, fontFamily: FONTS.body, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
-              {talents.length} talent{talents.length === 1 ? "" : "s"}
+              {withPluralization(t)("dashboard.adminPitchCompose.talentCount", talents.length)}
               {talentNames ? (
                 <span style={{ fontWeight: 400 }} className="text-admin-ink-muted">
                   {" · "}
@@ -543,7 +553,7 @@ function PostSendView({
               fontFamily: FONTS.body,
             }}
           >
-            Preview ↗
+            {t("dashboard.adminPitchCompose.previewLink")}
           </a>
         </div>
       </div>
@@ -551,7 +561,7 @@ function PostSendView({
       {/* Share link — compact card with inline copy. The URL is visible but
           truncated; full value still goes into the clipboard on copy. */}
       <div>
-        <p style={sectionHeading}>Share link</p>
+        <p style={sectionHeading}>{t("dashboard.adminPitchCompose.shareLink")}</p>
         <div style={{ display: "flex", alignItems: "stretch", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, overflow: "hidden" }} className="bg-admin-card">
           <div style={{ flex: 1, minWidth: 0, padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 2, fontSize: 12.5, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink-muted">
             <span style={{ fontWeight: 600 }} className="text-admin-ink">
@@ -580,7 +590,11 @@ function PostSendView({
               transition: "background 0.15s, color 0.15s",
             }}
           >
-            {copied ? "✓ Copied" : "Copy"}
+            {t(
+              copied
+                ? "dashboard.adminPitchCompose.copied"
+                : "dashboard.adminPitchCompose.copy",
+            )}
           </button>
         </div>
       </div>
@@ -588,7 +602,7 @@ function PostSendView({
       {/* Send via — equal-weight options, brand-tinted icon badges. */}
       {(data.whatsappUrl || data.emailUrl) && (
         <div>
-          <p style={sectionHeading}>Send directly to client</p>
+          <p style={sectionHeading}>{t("dashboard.adminPitchCompose.sendDirectly")}</p>
           <div className="flex gap-2">
             {data.whatsappUrl ? (
               <a
@@ -668,7 +682,7 @@ function PostSendView({
                 >
                   ✉
                 </span>
-                <span className="flex-1">Email</span>
+                <span className="flex-1">{t("dashboard.adminPitchCompose.email")}</span>
                 <span className="text-admin-ink-dim text-sm font-normal">↗</span>
               </a>
             ) : null}
@@ -678,7 +692,7 @@ function PostSendView({
 
       {!data.whatsappUrl && !data.emailUrl ? (
         <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-          No phone or email on file — copy the link above to share it manually.
+          {t("dashboard.adminPitchCompose.noPhoneOrEmail")}
         </p>
       ) : null}
 
@@ -706,7 +720,7 @@ function PostSendView({
             cursor: "pointer",
           }}
         >
-          + New pitch
+          {t("dashboard.adminPitchCompose.newPitch")}
         </button>
         <button
           type="button"
@@ -723,7 +737,7 @@ function PostSendView({
             cursor: "pointer",
           }}
         >
-          Done
+          {t("dashboard.adminPitchCompose.done")}
         </button>
       </div>
     </div>
@@ -767,6 +781,7 @@ export function PitchComposeDrawer({
   baseUrl = "https://tulala.digital",
   onPitchSent,
 }: PitchComposeDrawerProps) {
+  const t = useT();
   // Talent list (sortable)
   const [talents, setTalents] = useState<PitchTalentEntry[]>(() =>
     selectedTalents.map((t) => ({
@@ -841,11 +856,11 @@ export function PitchComposeDrawer({
 
   const handleSend = async () => {
     if (!recipient.name.trim()) {
-      setError("Recipient name is required.");
+      setError(t("dashboard.adminPitchCompose.errRecipientRequired"));
       return;
     }
     if (talents.length === 0) {
-      setError("Add at least one talent to the pitch.");
+      setError(t("dashboard.adminPitchCompose.errAddOneTalent"));
       return;
     }
 
@@ -886,15 +901,15 @@ export function PitchComposeDrawer({
       if (!draft.ok) {
         const reason = draft.reason ?? "internal_error";
         const map: Record<string, string> = {
-          forbidden: "You don't have permission to send pitches.",
-          not_authenticated: "Sign in again, then retry.",
-          tenant_not_found: "Workspace not found.",
-          no_talents: "Add at least one publishable talent (must be approved + public).",
+          forbidden: t("dashboard.adminPitchCompose.errForbidden"),
+          not_authenticated: t("dashboard.adminPitchCompose.errNotAuthenticated"),
+          tenant_not_found: t("dashboard.adminPitchCompose.errTenantNotFound"),
+          no_talents: t("dashboard.adminPitchCompose.errNoPublishableTalents"),
           // Phase G PR 3 — plan-tier gate now blocks Free workspaces.
           // Friendly message points to the upgrade path.
-          plan_not_eligible: "Pitches are a Studio + Agency feature. Upgrade your workspace plan in Settings → Plan to send curated talent suggestions to clients.",
+          plan_not_eligible: t("dashboard.adminPitchCompose.errPlanNotEligibleDraft"),
         };
-        setError(map[reason] ?? draft.message ?? "Could not save draft. Try again.");
+        setError(map[reason] ?? draft.message ?? t("dashboard.adminPitchCompose.errCouldNotSaveDraft"));
         return;
       }
 
@@ -902,12 +917,12 @@ export function PitchComposeDrawer({
       if (!sent.ok) {
         const reason = sent.reason ?? "internal_error";
         const map: Record<string, string> = {
-          no_talents: "All selected talents are no longer publishable.",
-          forbidden: "You don't have permission to send pitches.",
-          draft_required: "This pitch is no longer in draft state.",
-          plan_not_eligible: "Pitches are a Studio + Agency feature. Upgrade in Settings → Plan to send this pitch.",
+          no_talents: t("dashboard.adminPitchCompose.errTalentsNoLongerPublishable"),
+          forbidden: t("dashboard.adminPitchCompose.errForbidden"),
+          draft_required: t("dashboard.adminPitchCompose.errDraftRequired"),
+          plan_not_eligible: t("dashboard.adminPitchCompose.errPlanNotEligibleSend"),
         };
-        setError(map[reason] ?? sent.message ?? "Could not send. Try again.");
+        setError(map[reason] ?? sent.message ?? t("dashboard.adminPitchCompose.errCouldNotSend"));
         return;
       }
 
@@ -920,7 +935,7 @@ export function PitchComposeDrawer({
       onPitchSent?.(sent.data.pitchId);
     } catch (e) {
       logServerError("pitch_compose", e);
-      setError("Unexpected error. Please try again.");
+      setError(t("dashboard.adminPitchCompose.errUnexpected"));
     } finally {
       setIsLoading(false);
     }
@@ -945,11 +960,14 @@ export function PitchComposeDrawer({
     <DrawerShell
       open={open}
       onClose={resetAndClose}
-      title="Send pitch"
+      title={t("dashboard.adminPitchCompose.drawerTitle")}
       description={
         postSend
-          ? "Your pitch is live — share the link with your client"
-          : `${talents.length} talent${talents.length === 1 ? "" : "s"} selected · craft the message and send`
+          ? t("dashboard.adminPitchCompose.drawerDescSent")
+          : withPluralization(t)(
+              "dashboard.adminPitchCompose.drawerDescCompose",
+              talents.length,
+            )
       }
       defaultSize="half"
       width={560}
@@ -957,7 +975,7 @@ export function PitchComposeDrawer({
         !postSend ? (
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <GhostButton size="sm" onClick={resetAndClose}>
-              Cancel
+              {t("dashboard.adminPitchCompose.cancel")}
             </GhostButton>
             <button
               type="button"
@@ -982,7 +1000,11 @@ export function PitchComposeDrawer({
                 letterSpacing: 0.1,
               }}
             >
-              {isLoading ? "Sending…" : "Send pitch →"}
+              {t(
+                isLoading
+                  ? "dashboard.adminPitchCompose.sending"
+                  : "dashboard.adminPitchCompose.sendPitch",
+              )}
             </button>
           </div>
         ) : null
@@ -1012,15 +1034,15 @@ export function PitchComposeDrawer({
         <div className="flex flex-col gap-6">
           {/* ── Recipient ─────────────────────────────────────── */}
           <section>
-            <Eyebrow>Who is this for?</Eyebrow>
+            <Eyebrow>{t("dashboard.adminPitchCompose.whoIsThisFor")}</Eyebrow>
             <div style={{ marginTop: 12 }} />
 
             {/* Client autocomplete */}
             <div style={{ position: "relative", marginBottom: 10 }}>
-              <label style={fieldLabel}>Search existing clients</label>
+              <label style={fieldLabel}>{t("dashboard.adminPitchCompose.searchClients")}</label>
               <input
                 type="text"
-                placeholder="Start typing a client name…"
+                placeholder={t("dashboard.adminPitchCompose.searchClientsPlaceholder")}
                 value={clientQuery}
                 onChange={(e) => {
                   setClientQuery(e.target.value);
@@ -1074,7 +1096,7 @@ export function PitchComposeDrawer({
             {/* Free-text recipient fields */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <div>
-                <label style={fieldLabel}>Contact name *</label>
+                <label style={fieldLabel}>{t("dashboard.adminPitchCompose.contactName")}</label>
                 <input
                   type="text"
                   placeholder="Sara Bianchi"
@@ -1084,7 +1106,7 @@ export function PitchComposeDrawer({
                 />
               </div>
               <div>
-                <label style={fieldLabel}>Company</label>
+                <label style={fieldLabel}>{t("dashboard.adminPitchCompose.company")}</label>
                 <input
                   type="text"
                   placeholder="Vogue Italia"
@@ -1094,7 +1116,7 @@ export function PitchComposeDrawer({
                 />
               </div>
               <div>
-                <label style={fieldLabel}>Phone</label>
+                <label style={fieldLabel}>{t("dashboard.adminPitchCompose.phone")}</label>
                 <input
                   type="tel"
                   placeholder="+39 333 123 4567"
@@ -1104,7 +1126,7 @@ export function PitchComposeDrawer({
                 />
               </div>
               <div>
-                <label style={fieldLabel}>Email</label>
+                <label style={fieldLabel}>{t("dashboard.adminPitchCompose.email")}</label>
                 <input
                   type="email"
                   placeholder="sara@vogue.it"
@@ -1118,12 +1140,12 @@ export function PitchComposeDrawer({
 
           {/* ── Personal message ──────────────────────────────── */}
           <section>
-            <Eyebrow>A short note from you</Eyebrow>
+            <Eyebrow>{t("dashboard.adminPitchCompose.shortNote")}</Eyebrow>
             <p style={{ margin: "4px 0 10px", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-              Sets the tone — first thing the recipient reads.
+              {t("dashboard.adminPitchCompose.shortNoteHint")}
             </p>
             <textarea
-              placeholder="Hi Sara — here's a curated selection for your upcoming campaign…"
+              placeholder={t("dashboard.adminPitchCompose.messagePlaceholder")}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
@@ -1135,19 +1157,21 @@ export function PitchComposeDrawer({
           <section>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
               <Eyebrow>
-                Talent ({talents.length})
+                {interpolate(t("dashboard.adminPitchCompose.talentSectionTitle"), {
+                  count: talents.length,
+                })}
               </Eyebrow>
               {talents.length > 1 ? (
                 <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                  Drag to reorder
+                  {t("dashboard.adminPitchCompose.dragToReorder")}
                 </span>
               ) : null}
             </div>
             {talents.length === 0 ? (
               <div style={{ padding: "24px", textAlign: "center", fontSize: 13, fontFamily: FONTS.body, background: "rgba(11,11,13,0.02)", border: `1px dashed ${COLORS.borderSoft}`, borderRadius: 12, lineHeight: 1.6 }} className="text-admin-ink-muted">
-                No talents selected.<br />
+                {t("dashboard.adminPitchCompose.noTalentsSelected")}<br />
                 <span className="text-admin-ink-dim text-xs">
-                  Close, then pick some from the roster to start a pitch.
+                  {t("dashboard.adminPitchCompose.noTalentsSelectedHint")}
                 </span>
               </div>
             ) : (
@@ -1202,16 +1226,18 @@ export function PitchComposeDrawer({
                 style={{ cursor: "pointer", width: 16, height: 16, accentColor: COLORS.ink }}
               />
               <div className="flex-1">
-                <div className="text-admin-ink text-admin-13 font-semibold">Set an expiry</div>
+                <div className="text-admin-ink text-admin-13 font-semibold">
+                  {t("dashboard.adminPitchCompose.setExpiry")}
+                </div>
                 <div style={{ fontSize: 12, marginTop: 1 }} className="text-admin-ink-muted">
-                  Link auto-expires; recipient sees a friendly notice instead of stale data.
+                  {t("dashboard.adminPitchCompose.setExpiryHint")}
                 </div>
               </div>
             </label>
             {expiryEnabled && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, paddingLeft: 26 }}>
                 <span style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-                  Expires in
+                  {t("dashboard.adminPitchCompose.expiresIn")}
                 </span>
                 <input
                   type="number"
@@ -1222,7 +1248,7 @@ export function PitchComposeDrawer({
                   style={{ ...field, width: 72, padding: "8px 10px" }}
                 />
                 <span style={{ fontFamily: FONTS.body, fontSize: 13 }} className="text-admin-ink-muted">
-                  days
+                  {t("dashboard.adminPitchCompose.days")}
                 </span>
               </div>
             )}
@@ -1230,9 +1256,9 @@ export function PitchComposeDrawer({
 
           {/* ── File attachments ──────────────────────────────── */}
           <section>
-            <Eyebrow>Attachments</Eyebrow>
+            <Eyebrow>{t("dashboard.adminPitchCompose.attachments")}</Eyebrow>
             <p style={{ margin: "4px 0 10px", fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-              Lookbook, casting brief, mood board — optional.
+              {t("dashboard.adminPitchCompose.attachmentsHint")}
             </p>
             {attachments.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
@@ -1290,10 +1316,10 @@ export function PitchComposeDrawer({
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Add files
+              {t("dashboard.adminPitchCompose.addFiles")}
             </button>
             <p style={{ fontFamily: FONTS.body, fontSize: 11, marginTop: 5 }} className="text-admin-ink-dim">
-              Images, PDFs, Word docs. Upload goes live when you hit Send.
+              {t("dashboard.adminPitchCompose.addFilesHint")}
             </p>
           </section>
 

@@ -1,15 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import type { Locale } from "@/i18n/config";
-import { Affordance, AutoSaveIndicator, Card, CompactLockedCard, MoreWithSection, PlanChip, ReadOnlyChip } from "../primitives";
-import { COLORS, FONTS, PLAN_META, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
-import type { Plan, Role } from "../state";
-import { AutoAckSettingsRow, LockedPill, SETTINGS_SECTIONS } from "./BillingPage";
+import { Affordance, AutoSaveIndicator, Card, CompactLockedCard, MoreWithSection, PlanChip, ReadOnlyChip, useViewport } from "../primitives";
+import { COLORS, FONTS, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell } from "../state";
+import { AutoAckSettingsRow, LockedPill } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
 import { PageHeader } from "./pages-shared";
@@ -22,12 +20,27 @@ import { RegistrationSection } from "./RegistrationSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
+// ════════════════════════════════════════════════════════════════════════
+// 2026-07-24 flat redesign — replaces the old tabs + 13-accordion wall with
+// a single flat list of settings groups (Shopify/Stripe pattern): a slim
+// left nav (dropdown on phone), one click per group, no accordions, no
+// "Configure" → drawer detour through a collapsed section. A search box
+// above the nav filters rows by label/description across every group.
+//
+// Also dedupes three rows that opened the *same* drawer from two places:
+//   - "Profile fields" (Workspace tab) and "Field catalog" (Roster tab)
+//     both opened `field-catalog` — kept once, in "Roster & profile fields".
+//   - "Talent categories" (Workspace tab) and "Categories on your site"
+//     (Roster tab) both opened `talent-types` — kept once, same group.
+//   - "Field settings" (Workspace tab) opened `workspace-field-settings`,
+//     a redundant parallel editor writing the same tables as the Field
+//     catalog drawer (light-10.tsx). That row + its drawer (light-09.tsx)
+//     are removed entirely — see drawers.tsx / drawer-ids.ts.
+// ════════════════════════════════════════════════════════════════════════
 
 /** Settings list row — white card with flex-row layout + hover lift.
  *  Interactive rows: pass `onClick`; the whole surface becomes the tap target.
- *  Non-interactive rows (inner button only): omit `onClick`.
- *
- *  Hoisted to module scope (Q4) — has no closure over WorkspacePageView state. */
+ *  Non-interactive rows (inner button only): omit `onClick`. */
 function SettingsRow({
   children,
   onClick,
@@ -59,106 +72,121 @@ function SettingsRow({
   );
 }
 
-// ── Accordion item shell ────────────────────────────────────────
-// Click the row to expand/collapse. Smooth chevron rotation + soft
-// border highlight when open. `supportLink` is wired to a data-attr
-// so backend deep-linking works.
-//
-// Hoisted to module scope (Q4). `open` + `onToggle` lifted to props so the
-// component no longer closes over WorkspacePageView's openSet state. Parent
-// computes both per call site via isOpen(id) / () => toggleSection(id).
-function AccordionItem({
-  id, label, desc, supportLink, danger, defaultBadge, open, onToggle, children,
-}: {
-  id: string;
+/** Declarative row descriptor — covers the vast majority of settings rows
+ *  (title + description + tap target). `custom` is an escape hatch for the
+ *  handful of rows with bespoke layout (count badges, plan chips, locked
+ *  read-only states); `title`/`desc` still feed the search index even when
+ *  `custom` is used, so search stays exhaustive. */
+type SimpleSettingRow = {
+  key: string;
+  title: string;
+  desc: string;
+  onClick?: () => void;
+  opacity?: number;
+  borderColor?: string;
+  titleColor?: string;
+  right?: ReactNode;
+  custom?: ReactNode;
+};
+
+function renderSimpleRow(row: SimpleSettingRow) {
+  return (
+    <SettingsRow key={row.key} onClick={row.onClick} opacity={row.opacity} borderColor={row.borderColor}>
+      {row.custom ?? (
+        <>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: row.titleColor ?? COLORS.ink }}>{row.title}</div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{row.desc}</div>
+          </div>
+          {row.right}
+        </>
+      )}
+    </SettingsRow>
+  );
+}
+
+type GroupId =
+  | "account"
+  | "plan"
+  | "workspace"
+  | "commercial-terms"
+  | "domain"
+  | "branding"
+  | "team"
+  | "roster-fields"
+  | "registration"
+  | "discover"
+  | "compliance"
+  | "integrations"
+  | "email"
+  | "advanced";
+
+type Group = {
+  id: GroupId;
   label: string;
   desc: string;
-  supportLink: string;
-  danger?: boolean;
-  defaultBadge?: ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
+  visible: boolean;
+  /** Small chip shown next to the label in the nav (plan tier only). */
+  navBadge?: ReactNode;
+  rows: SimpleSettingRow[];
+  /** Bespoke content that isn't a simple row (cards, forms, sub-sections). */
+  extra?: ReactNode;
+  extraSearch?: { title: string; desc: string }[];
+  /** Where `extra` renders relative to `rows`. Default "after". */
+  extraPosition?: "before" | "after";
+};
+
+/** One flat nav item — icon tile, label, description, active state. */
+function NavItem({
+  group,
+  active,
+  onClick,
+}: {
+  group: Group;
+  active: boolean;
+  onClick: () => void;
 }) {
   return (
-    <div
-      data-settings-section={id}
-      data-support-link={supportLink}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "true" : undefined}
       style={{
-        marginBottom: 8,
-        background: "#fff",
-        border: `1px solid ${open ? (danger ? "#FCA5A5" : COLORS.border) : COLORS.borderSoft}`,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        width: "100%",
+        padding: "9px 10px",
         borderRadius: RADIUS.md,
-        overflow: "hidden",
-        transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
-        boxShadow: open ? "0 1px 3px rgba(11,11,13,0.04)" : "none",
+        border: "none",
+        background: active ? "rgba(11,11,13,0.055)" : "transparent",
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: FONTS.body,
+        transition: `background ${TRANSITION.micro}`,
       }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(11,11,13,0.03)"; }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls={`settings-body-${id}`}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          width: "100%",
-          padding: "14px 16px",
-          background: "transparent",
-          border: "none",
-          cursor: "pointer",
-          fontFamily: FONTS.body,
-          textAlign: "left",
-        }}
-        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
-        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
-      >
-        <SettingsSectionIcon sectionId={id} danger={danger} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{
-              fontFamily: FONTS.display, fontSize: 15, fontWeight: 600,
-              color: danger ? "#DC2626" : COLORS.ink, letterSpacing: -0.1,
-            }}>
-              {label}
-            </span>
-            {defaultBadge}
-          </div>
-          <div style={{
-            fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4,
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      <SettingsSectionIcon sectionId={group.id} size={26} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{
+            fontSize: 13, fontWeight: active ? 700 : 600,
+            color: COLORS.ink, letterSpacing: -0.05,
           }}>
-            {desc}
-          </div>
+            {group.label}
+          </span>
+          {group.navBadge}
         </div>
-        {/* Chevron — rotates 180° when open */}
-        <span aria-hidden className={`shrink-0 text-admin-ink-muted [transition:transform_var(--transition-admin-sm)] ${open ? 'rotate-180' : 'rotate-0'}`}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </span>
-      </button>
-      {open && (
-        <div
-          id={`settings-body-${id}`}
-          style={{
-            padding: "0 16px 14px",
-            borderTop: `1px solid ${COLORS.borderSoft}`,
-            animation: "settingsAccordionExpand .2s ease-out",
-          }}
-        >
-          <div style={{ paddingTop: 12 }}>{children}</div>
-        </div>
-      )}
-    </div>
+      </div>
+    </button>
   );
 }
 
 export function WorkspacePageView() {
   const t = useT();
-  const { state, setPage, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
+  const { state, setPage, openDrawer, openUpgrade, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
   ).length;
@@ -167,55 +195,32 @@ export function WorkspacePageView() {
   const isAdmin = meetsRole(state.role, "admin");
   const isFree = state.plan === "free";
   const [createTalentDialogOpenSettings, setCreateTalentDialogOpenSettings] = useState(false);
+  const viewport = useViewport();
+  const isPhone = viewport === "phone";
 
-  // Accordion: only Account expanded by default. Click a section header
-  // to expand it; click again to collapse. Each accordion item carries
-  // a `data-support-link` that backend can route to /help/settings/{id}.
-  const [openSet, setOpenSet] = useState<Set<string>>(new Set(["account"]));
-  const isOpen = (id: string) => openSet.has(id);
-  const toggleSection = (id: string) => {
-    setOpenSet((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-  const expandAll = () => setOpenSet(new Set(SETTINGS_SECTIONS.map(s => s.id)));
-  const collapseAll = () => setOpenSet(new Set(["account"]));
+  const [activeGroup, setActiveGroup] = useState<GroupId>("account");
+  const [query, setQuery] = useState("");
 
-  // 2026 redesign — group the 13-accordion wall into 4 tabs.
-  // Each tab renders a subset of the accordion list; user can still
-  // expand/collapse within the tab. Clearer mental map than a giant scroll.
-  type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
-  const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
-  const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
-    { id: "workspace", label: t("dashboard.adminWorkspace.tabWorkspace"),     emoji: "🏛", sections: ["account", "workspace", "commercial-terms", "domain", "branding", "media-watermark"] },
-    { id: "roster",    label: t("dashboard.adminWorkspace.tabRoster"),        emoji: "🎯", sections: ["talent-types", "roster-review", "registration", "discover"] },
-    { id: "team",      label: t("dashboard.adminWorkspace.tabTeamLegal"),  emoji: "👥", sections: ["team", "compliance"] },
-    { id: "billing",   label: t("dashboard.adminWorkspace.tabPlanIntegrations"), emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
-    { id: "advanced",  label: t("dashboard.adminWorkspace.tabAdvanced"),      emoji: "⚙",  sections: ["features", "danger"] },
-  ];
-  const visibleSections = new Set(TABS.find(t => t.id === activeTab)!.sections);
+  // PLAN_META carries English-only `label`/`theme` (it is a shared fixture,
+  // also read by non-localized consumers). PlanChip already renders the
+  // localized label, so reading PLAN_META raw here put "Studio" next to a
+  // chip saying "Estudio". Resolve both through the catalog instead.
+  const planLabel = t(`dashboard.adminWorkspace.planName${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`);
+  const planTheme = t(`dashboard.adminWorkspace.planTheme${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`);
 
-  // Auto-save indicator (#6) — simulates a settings save 1.2s after mount
+  // Auto-save indicator — simulates a settings save 1.2s after mount.
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   useEffect(() => {
-    const t = setTimeout(() => setSavedAt(new Date()), 1200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSavedAt(new Date()), 1200);
+    return () => clearTimeout(timer);
   }, []);
 
   // Deep-link: another surface (e.g. the top-bar plan badge) can ask Settings
-  // to open a specific tab + accordion section. Switch to the tab so the
-  // section actually renders, expand it, then scroll it into view.
+  // to open a specific group. Switch to it, clear any search, then scroll the
+  // content pane into view.
   const applySettingsTarget = useCallback((target: SettingsSectionTarget) => {
-    setActiveTab(target.tab);
-    setOpenSet((prev) => {
-      const next = new Set(prev);
-      next.add(target.section);
-      return next;
-    });
-    // Wait for the tab switch + accordion expand to commit, then scroll.
-    // Two rAFs ≈ one full render+paint cycle, so the node exists by then.
+    setActiveGroup(target.section as GroupId);
+    setQuery("");
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const el = document.querySelector(`[data-settings-section="${target.section}"]`);
@@ -224,9 +229,6 @@ export function WorkspacePageView() {
     });
   }, []);
 
-  // Resolve a deep-link two ways: (1) consume a target parked right before
-  // navigation (covers the setPage → remount path), and (2) listen for live
-  // requests fired while we're already on Settings (no remount).
   useEffect(() => {
     const pending = consumePendingSettingsSection();
     if (pending) {
@@ -234,11 +236,11 @@ export function WorkspacePageView() {
     } else {
       // Deep-link from a full navigation (notification "Review request" link or
       // the legacy /admin/roster/registration redirect): ?focus=registration
-      // opens Roster → Open for registration and scrolls to it.
+      // opens the Registration group and scrolls to it.
       try {
         const focus = new URLSearchParams(window.location.search).get("focus");
         if (focus === "registration") {
-          applySettingsTarget({ tab: "roster", section: "registration" });
+          applySettingsTarget({ section: "registration" });
         }
       } catch {
         /* no-op */
@@ -252,659 +254,712 @@ export function WorkspacePageView() {
     return () => window.removeEventListener(SETTINGS_SECTION_EVENT, handler);
   }, [applySettingsTarget]);
 
+  // ── Groups — every settings row lives in exactly one group. ───────────
+  const groups: Group[] = useMemo(() => {
+    const list: Group[] = [
+      {
+        id: "account",
+        label: t("dashboard.adminWorkspace.accountLabel"),
+        desc: t("dashboard.adminWorkspace.accountDesc"),
+        visible: true,
+        rows: [
+          {
+            key: "identity",
+            title: effectiveTenant.name,
+            desc: t("dashboard.adminWorkspace.accountRowMeta"),
+            onClick: () => openDrawer("identity"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceEdit")} />,
+          },
+          // Pure Workspace state: CTA to create own talent page. Shown only
+          // when the current admin has no talent profile in this workspace.
+          ...(bridgeTalentSelfProfile === null && isAdmin && tenantSlug
+            ? [{
+                key: "take-bookings",
+                title: t("dashboard.adminWorkspace.takeBookingsTitle"),
+                desc: t("dashboard.adminWorkspace.takeBookingsDesc"),
+                onClick: () => setCreateTalentDialogOpenSettings(true),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceCreate")} />,
+              }]
+            : []),
+        ],
+      },
+      {
+        id: "plan",
+        label: t("dashboard.adminWorkspace.planLabel"),
+        desc: t("dashboard.adminWorkspace.planDesc"),
+        visible: true,
+        navBadge: <PlanChip plan={state.plan} variant="solid" />,
+        rows: [
+          isOwner
+            ? {
+                key: "plan-manage",
+                title: planLabel,
+                desc: planTheme,
+                onClick: () => openDrawer("plan-billing"),
+                custom: (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <PlanChip plan={state.plan} variant="solid" />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{planLabel}</div>
+                        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{planTheme}</div>
+                      </div>
+                    </div>
+                    <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
+                  </>
+                ),
+              }
+            : {
+                key: "plan-readonly",
+                title: t("dashboard.adminWorkspace.ownersOnlyBilling"),
+                desc: "",
+                opacity: 0.6,
+                custom: (
+                  <>
+                    <span style={{ fontSize: 13, color: COLORS.inkMuted }}>{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
+                    <ReadOnlyChip />
+                  </>
+                ),
+              },
+        ],
+      },
+      {
+        id: "workspace",
+        label: t("dashboard.adminWorkspace.workspaceLabel"),
+        desc: t("dashboard.adminWorkspace.workspaceDesc"),
+        visible: true,
+        rows: [
+          {
+            key: "ws-general",
+            title: t("dashboard.adminWorkspace.wsGeneralTitle"),
+            desc: t("dashboard.adminWorkspace.wsGeneralDesc"),
+            onClick: () => openDrawer("workspace-settings"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />,
+          },
+          {
+            key: "ws-guest-chat",
+            title: t("dashboard.adminWorkspace.wsGuestChatTitle"),
+            desc: t("dashboard.adminWorkspace.wsGuestChatDesc"),
+            onClick: () => openDrawer("guest-chat-settings"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />,
+          },
+        ],
+        extra: <DefaultCurrencySettingsRow />,
+        extraSearch: [{ title: t("dashboard.adminWorkspace.defaultCurrency"), desc: "" }],
+      },
+      {
+        id: "commercial-terms",
+        label: t("dashboard.adminWorkspace.bookingTermsLabel"),
+        desc: t("dashboard.adminWorkspace.bookingTermsDesc"),
+        visible: !!tenantSlug,
+        rows: [],
+        extra: tenantSlug ? <CommercialTermsSettingsCard tenantSlug={tenantSlug} /> : null,
+        extraSearch: [{ title: t("dashboard.adminWorkspace.bookingTermsLabel"), desc: t("dashboard.adminWorkspace.bookingTermsDesc") }],
+      },
+      {
+        id: "domain",
+        label: t("dashboard.adminWorkspace.domainLabel"),
+        desc: t("dashboard.adminWorkspace.domainDesc"),
+        visible: true,
+        rows: [
+          meetsPlan(state.plan, "studio")
+            ? {
+                key: "custom-domain",
+                title: t("dashboard.adminWorkspace.customDomain"),
+                desc: t("dashboard.adminWorkspace.noCustomDomain"),
+              }
+            : {
+                key: "custom-domain-locked",
+                title: t("dashboard.adminWorkspace.customDomain"),
+                desc: t("dashboard.adminWorkspace.requiresStudio"),
+                opacity: 0.55,
+                onClick: () => openUpgrade({ feature: t("dashboard.adminWorkspace.customDomain"), why: t("dashboard.adminWorkspace.domainDesc"), requiredPlan: "studio" }),
+                right: <LockedPill plan="studio" />,
+              },
+        ],
+      },
+      {
+        id: "branding",
+        label: t("dashboard.adminWorkspace.brandingMediaLabel"),
+        desc: t("dashboard.adminWorkspace.brandingMediaDesc"),
+        visible: true,
+        rows: [
+          isAdmin && meetsPlan(state.plan, "agency")
+            ? {
+                key: "brand-identity",
+                title: t("dashboard.adminWorkspace.brandIdentity"),
+                desc: t("dashboard.adminWorkspace.brandIdentityMeta"),
+                onClick: () => openDrawer("branding"),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceEdit")} />,
+              }
+            : {
+                key: "brand-identity-locked",
+                title: t("dashboard.adminWorkspace.brandIdentity"),
+                desc: t("dashboard.adminWorkspace.requiresAgency"),
+                opacity: 0.55,
+                onClick: () => openUpgrade({ feature: t("dashboard.adminWorkspace.brandingLabel"), why: t("dashboard.adminWorkspace.brandingUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.brandingUnlock1"), t("dashboard.adminWorkspace.brandingUnlock2"), t("dashboard.adminWorkspace.brandingUnlock3")] }),
+                right: <LockedPill plan="agency" />,
+              },
+          meetsPlan(state.plan, "studio")
+            ? {
+                key: "logo-watermark",
+                title: t("dashboard.adminWorkspace.logoWatermark"),
+                desc: t("dashboard.adminWorkspace.logoWatermarkMeta"),
+                onClick: () => openDrawer("branding"),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />,
+              }
+            : {
+                key: "logo-watermark-locked",
+                title: t("dashboard.adminWorkspace.logoWatermark"),
+                desc: t("dashboard.adminWorkspace.requiresStudio"),
+                opacity: 0.55,
+                onClick: () => openUpgrade({
+                  feature: t("dashboard.adminWorkspace.logoWatermark"),
+                  why: t("dashboard.adminWorkspace.watermarkUpgradeWhy"),
+                  requiredPlan: "studio",
+                  unlocks: [t("dashboard.adminWorkspace.watermarkUnlock1"), t("dashboard.adminWorkspace.watermarkUnlock2"), t("dashboard.adminWorkspace.watermarkUnlock3")],
+                }),
+                right: <LockedPill plan="studio" />,
+              },
+          meetsPlan(state.plan, "agency")
+            ? {
+                key: "media-gallery",
+                title: t("dashboard.adminWorkspace.mediaGallery"),
+                desc: t("dashboard.adminWorkspace.mediaGalleryMeta"),
+                onClick: () => setPage("media"),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />,
+              }
+            : {
+                key: "media-gallery-locked",
+                title: t("dashboard.adminWorkspace.mediaGallery"),
+                desc: t("dashboard.adminWorkspace.requiresAgency"),
+                opacity: 0.55,
+                onClick: () => openUpgrade({
+                  feature: t("dashboard.adminWorkspace.brandedMediaGallery"),
+                  why: t("dashboard.adminWorkspace.mediaGalleryUpgradeWhy"),
+                  requiredPlan: "agency",
+                  unlocks: [t("dashboard.adminWorkspace.mediaGalleryUnlock1"), t("dashboard.adminWorkspace.mediaGalleryUnlock2"), t("dashboard.adminWorkspace.mediaGalleryUnlock3")],
+                }),
+                right: <LockedPill plan="agency" />,
+              },
+          {
+            key: "brand-assets",
+            title: t("dashboard.adminWorkspace.brandAssets"),
+            desc: t("dashboard.adminWorkspace.brandAssetsDesc"),
+            onClick: () => openDrawer("brand-assets"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+          },
+        ],
+      },
+      {
+        id: "team",
+        label: t("dashboard.adminWorkspace.teamLabel"),
+        desc: t("dashboard.adminWorkspace.teamDesc"),
+        visible: true,
+        rows: [
+          isAdmin && !isFree
+            ? {
+                key: "team-members",
+                title: t("dashboard.adminWorkspace.teamMembers"),
+                desc: interpolate(t("dashboard.adminWorkspace.teamMembersMeta"), { count: effectiveTeamMembers.length }),
+                onClick: () => openDrawer("team"),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+              }
+            : {
+                key: "team-members-locked",
+                title: t("dashboard.adminWorkspace.teamMembers"),
+                desc: t("dashboard.adminWorkspace.requiresAgency"),
+                opacity: 0.55,
+                onClick: () => openUpgrade({ feature: t("dashboard.adminWorkspace.teamRolesFeature"), why: t("dashboard.adminWorkspace.teamUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.teamUnlock1"), t("dashboard.adminWorkspace.teamUnlock2")] }),
+                right: <LockedPill plan="agency" />,
+              },
+        ],
+      },
+      {
+        id: "roster-fields",
+        label: t("dashboard.adminWorkspace.rosterFieldsLabel"),
+        desc: t("dashboard.adminWorkspace.rosterFieldsDesc"),
+        visible: true,
+        rows: [
+          {
+            key: "talent-categories",
+            title: t("dashboard.adminWorkspace.categoriesOnSite"),
+            desc: t("dashboard.adminWorkspace.categoriesOnSiteMeta"),
+            onClick: () => openDrawer("talent-types"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+          },
+          {
+            key: "field-catalog",
+            title: t("dashboard.adminWorkspace.fieldCatalog"),
+            desc: t("dashboard.adminWorkspace.fieldCatalogMeta"),
+            onClick: () => openDrawer("field-catalog"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />,
+          },
+          {
+            key: "field-privacy",
+            title: t("dashboard.adminWorkspace.fieldPrivacy"),
+            desc: t("dashboard.adminWorkspace.fieldPrivacyMeta"),
+            onClick: () => openDrawer("field-privacy"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />,
+          },
+          {
+            key: "trust-verification",
+            title: t("dashboard.adminWorkspace.trustVerification"),
+            desc: t("dashboard.adminWorkspace.trustVerificationMeta"),
+            onClick: () => openDrawer("trust-verification-queue"),
+            custom: (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.trustVerification")}</div>
+                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.trustVerificationMeta")}</div>
+                  </div>
+                  {pendingTrustCount > 0 && (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
+                      background: COLORS.indigo, color: "#fff",
+                      fontSize: 10.5, fontWeight: 700, lineHeight: 1,
+                    }}>{pendingTrustCount}</span>
+                  )}
+                </div>
+                <Affordance label={pendingTrustCount > 0 ? t("dashboard.adminWorkspace.affordanceReview") : t("dashboard.adminWorkspace.affordanceOpen")} />
+              </>
+            ),
+          },
+          {
+            key: "disputed-claims",
+            title: t("dashboard.adminWorkspace.disputedClaims"),
+            desc: t("dashboard.adminWorkspace.disputedClaimsMeta"),
+            onClick: () => openDrawer("trust-disputed-claims"),
+            custom: (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.disputedClaims")}</div>
+                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.disputedClaimsMeta")}</div>
+                  </div>
+                  {disputedClaimsCount > 0 && (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
+                      background: COLORS.red, color: "#fff",
+                      fontSize: 10.5, fontWeight: 700, lineHeight: 1,
+                    }}>{disputedClaimsCount}</span>
+                  )}
+                </div>
+                <Affordance label={disputedClaimsCount > 0 ? t("dashboard.adminWorkspace.affordanceResolve") : t("dashboard.adminWorkspace.affordanceOpen")} />
+              </>
+            ),
+          },
+          {
+            key: "pending-approvals",
+            title: t("dashboard.adminWorkspace.pendingApprovals"),
+            desc: pendingTalent.length === 0
+              ? t("dashboard.adminWorkspace.pendingApprovalsEmpty")
+              : t("dashboard.adminWorkspace.pendingApprovalsWaiting"),
+            onClick: () => openDrawer("talent-approvals"),
+            custom: (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.pendingApprovals")}</div>
+                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                      {pendingTalent.length === 0
+                        ? t("dashboard.adminWorkspace.pendingApprovalsEmpty")
+                        : t("dashboard.adminWorkspace.pendingApprovalsWaiting")}
+                    </div>
+                  </div>
+                  {pendingTalent.length > 0 && (
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
+                      background: COLORS.amber, color: "#fff",
+                      fontSize: 10.5, fontWeight: 700,
+                    }}>{pendingTalent.length}</span>
+                  )}
+                </div>
+                <Affordance label={pendingTalent.length === 0 ? t("dashboard.adminWorkspace.affordanceOpenQueue") : t("dashboard.adminWorkspace.affordanceReview")} />
+              </>
+            ),
+          },
+        ],
+      },
+      {
+        id: "registration",
+        label: t("dashboard.adminWorkspace.registrationLabel"),
+        desc: t("dashboard.adminWorkspace.registrationDesc"),
+        visible: true,
+        rows: [],
+        extra: <RegistrationSection />,
+        extraSearch: [{ title: t("dashboard.adminWorkspace.registrationLabel"), desc: t("dashboard.adminWorkspace.registrationDesc") }],
+      },
+      {
+        id: "discover",
+        label: t("dashboard.adminWorkspace.discoverLabel"),
+        desc: t("dashboard.adminWorkspace.discoverDesc"),
+        visible: true,
+        rows: [
+          {
+            key: "discover-talents",
+            title: t("dashboard.adminWorkspace.discoverTalentsTitle"),
+            desc: t("dashboard.adminWorkspace.discoverTalentsDesc"),
+          },
+          {
+            key: "discover-analytics",
+            title: t("dashboard.adminWorkspace.discoverAnalyticsTitle"),
+            desc: t("dashboard.adminWorkspace.discoverAnalyticsDesc"),
+            right: state.plan === "free" ? <LockedPill plan="studio" /> : undefined,
+          },
+          {
+            key: "discover-boost",
+            title: t("dashboard.adminWorkspace.discoverBoostTitle"),
+            desc: t("dashboard.adminWorkspace.discoverBoostDesc"),
+            right: (state.plan === "free" || state.plan === "studio") ? <LockedPill plan="agency" /> : undefined,
+          },
+          {
+            key: "discover-rollup",
+            title: t("dashboard.adminWorkspace.discoverRollupTitle"),
+            desc: t("dashboard.adminWorkspace.discoverRollupDesc"),
+            right: state.plan !== "network" ? <LockedPill plan="network" /> : undefined,
+          },
+        ],
+        extra: (
+          <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", lineHeight: 1.5 }}>
+            {t("dashboard.adminWorkspace.discoverFootnote")}
+          </div>
+        ),
+      },
+      {
+        id: "compliance",
+        label: t("dashboard.adminWorkspace.complianceLabel"),
+        desc: t("dashboard.adminWorkspace.complianceDesc"),
+        visible: true,
+        rows: [
+          {
+            key: "gdpr-export",
+            title: t("dashboard.adminWorkspace.exportData"),
+            desc: t("dashboard.adminWorkspace.exportDataDesc"),
+            onClick: () => openDrawer("gdpr-export"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceExport")} />,
+          },
+          {
+            key: "consent-log",
+            title: t("dashboard.adminWorkspace.consentLog"),
+            desc: t("dashboard.adminWorkspace.consentLogDesc"),
+            onClick: () => openDrawer("consent-log"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />,
+          },
+          {
+            key: "contract-templates",
+            title: t("dashboard.adminWorkspace.contractTemplates"),
+            desc: t("dashboard.adminWorkspace.contractTemplatesDesc"),
+            onClick: () => openDrawer("contract-templates"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+          },
+          {
+            key: "audit-log",
+            title: t("dashboard.adminWorkspace.auditLog"),
+            desc: t("dashboard.adminWorkspace.auditLogDesc"),
+            onClick: () => openDrawer("audit-log"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />,
+          },
+        ],
+      },
+      {
+        id: "integrations",
+        label: t("dashboard.adminWorkspace.integrationsLabel"),
+        desc: t("dashboard.adminWorkspace.integrationsDesc"),
+        visible: true,
+        extraPosition: "before",
+        extra: <IntegrationsSection />,
+        extraSearch: [{ title: t("dashboard.adminWorkspace.integrationsLabel"), desc: t("dashboard.adminWorkspace.integrationsDesc") }],
+        rows: [
+          {
+            key: "calendar-sync",
+            title: t("dashboard.adminWorkspace.calendarSync"),
+            desc: t("dashboard.adminWorkspace.calendarSyncDesc"),
+            onClick: () => openDrawer("calendar-sync"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+          },
+          {
+            key: "referral-dashboard",
+            title: t("dashboard.adminWorkspace.referralProgram"),
+            desc: t("dashboard.adminWorkspace.referralProgramDesc"),
+            onClick: () => openDrawer("referral-dashboard"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />,
+          },
+          {
+            key: "system-status",
+            title: t("dashboard.adminWorkspace.systemStatus"),
+            desc: t("dashboard.adminWorkspace.systemStatusDesc"),
+            onClick: () => openDrawer("system-status"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />,
+          },
+        ],
+      },
+      {
+        id: "email",
+        label: t("dashboard.adminWorkspace.emailLabel"),
+        desc: t("dashboard.adminWorkspace.emailDesc"),
+        visible: true,
+        rows: [
+          {
+            key: "email-templates",
+            title: t("dashboard.adminWorkspace.emailTemplates"),
+            desc: t("dashboard.adminWorkspace.emailTemplatesDesc"),
+            onClick: () => openDrawer("email-templates"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+          },
+          {
+            key: "email-branding",
+            title: t("dashboard.adminWorkspace.emailBranding"),
+            desc: t("dashboard.adminWorkspace.emailBrandingDesc"),
+            onClick: () => openDrawer("email-branding"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceCustomize")} />,
+          },
+          {
+            key: "email-sequences",
+            title: t("dashboard.adminWorkspace.emailSequences"),
+            desc: t("dashboard.adminWorkspace.emailSequencesDesc"),
+            onClick: () => openDrawer("email-sequences"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+          },
+          {
+            key: "notification-prefs",
+            title: t("dashboard.adminWorkspace.notificationPrefs"),
+            desc: t("dashboard.adminWorkspace.notificationPrefsDesc"),
+            onClick: () => openDrawer("notification-prefs"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />,
+          },
+        ],
+        extra: <AutoAckSettingsRow />,
+        extraSearch: [{ title: t("dashboard.adminWorkspace.autoAckTitle"), desc: t("dashboard.adminWorkspace.autoAckDesc") }],
+      },
+      {
+        id: "advanced",
+        label: t("dashboard.adminWorkspace.advancedLabel"),
+        desc: t("dashboard.adminWorkspace.advancedDesc"),
+        visible: true,
+        rows: [
+          ...(isAdmin
+            ? [{
+                key: "feature-controls",
+                title: t("dashboard.adminWorkspace.allFeatureToggles"),
+                desc: t("dashboard.adminWorkspace.allFeatureTogglesDesc"),
+                onClick: () => openDrawer("feature-controls"),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />,
+              }]
+            : []),
+          {
+            key: "import-talent",
+            title: t("dashboard.adminWorkspace.importTalent"),
+            desc: t("dashboard.adminWorkspace.importTalentDesc"),
+            onClick: () => openDrawer("csv-import", { type: "talent" }),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceImport")} />,
+          },
+          {
+            key: "migration-assistant",
+            title: t("dashboard.adminWorkspace.migrationAssistant"),
+            desc: t("dashboard.adminWorkspace.migrationAssistantDesc"),
+            onClick: () => openDrawer("migration-assistant"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceMigrate")} />,
+          },
+          {
+            key: "beta-program",
+            title: t("dashboard.adminWorkspace.betaProgram"),
+            desc: t("dashboard.adminWorkspace.betaProgramDesc"),
+            onClick: () => openDrawer("beta-program"),
+            right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
+          },
+          ...(isOwner
+            ? [{
+                key: "danger-zone",
+                title: t("dashboard.adminWorkspace.deleteTransferWorkspace"),
+                desc: t("dashboard.adminWorkspace.deleteTransferWorkspaceDesc"),
+                titleColor: "#DC2626",
+                borderColor: "#FCA5A5",
+                onClick: () => openDrawer("danger-zone"),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />,
+              }]
+            : []),
+        ],
+      },
+    ];
+    return list;
+  }, [
+    t, state.plan, state.role, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug,
+    bridgeTalentSelfProfile, effectiveTeamMembers.length, pendingTrustCount, disputedClaimsCount,
+    pendingTalent.length, openDrawer, openUpgrade, setPage,
+  ]);
+
+  const visibleGroups = useMemo(() => groups.filter((g) => g.visible), [groups]);
+
+  // ── Search index — flattens every visible row (+ bespoke section) across
+  //    every group so the search box can match by label/description. ──────
+  type SearchHit = { groupId: GroupId; groupLabel: string; title: string; desc: string; onClick?: () => void };
+  const searchIndex: SearchHit[] = useMemo(() => visibleGroups.flatMap((g) => [
+    ...g.rows.map((r) => ({ groupId: g.id, groupLabel: g.label, title: r.title, desc: r.desc, onClick: r.onClick })),
+    ...(g.extraSearch ?? []).map((e) => ({ groupId: g.id, groupLabel: g.label, title: e.title, desc: e.desc, onClick: undefined })),
+  ]), [visibleGroups]);
+
+  const trimmedQuery = query.trim().toLowerCase();
+  const matches = useMemo(
+    () => (trimmedQuery ? searchIndex.filter((h) => `${h.title} ${h.desc}`.toLowerCase().includes(trimmedQuery)) : []),
+    [searchIndex, trimmedQuery],
+  );
+
+  const activeGroupData = visibleGroups.find((g) => g.id === activeGroup) ?? visibleGroups[0];
+
+  const searchInput = (
+    <div style={{ position: "relative", marginBottom: 10 }}>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+        <circle cx="11" cy="11" r="7" stroke={COLORS.inkMuted} strokeWidth="1.8" />
+        <path d="m20 20-3.5-3.5" stroke={COLORS.inkMuted} strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={t("dashboard.adminWorkspace.searchPlaceholder")}
+        style={{
+          width: "100%",
+          padding: "9px 12px 9px 32px",
+          borderRadius: RADIUS.md,
+          border: `1px solid ${COLORS.border}`,
+          background: "#fff",
+          fontFamily: FONTS.body,
+          fontSize: 13,
+          color: COLORS.ink,
+          outline: "none",
+        }}
+      />
+    </div>
+  );
+
   return (
     <>
       <PageHeader
         title={t("dashboard.adminWorkspace.title")}
         subtitle={t("dashboard.adminWorkspace.subtitle")}
-        actions={
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button
-              type="button"
-              onClick={openSet.size === SETTINGS_SECTIONS.length ? collapseAll : expandAll}
-              style={{
-                background: "transparent", border: "none", cursor: "pointer",
-                fontFamily: FONTS.body, fontSize: 12, fontWeight: 500,
-                color: COLORS.inkMuted, padding: "6px 8px", borderRadius: 6,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
-              onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
-            >
-              {openSet.size === SETTINGS_SECTIONS.length ? t("dashboard.adminWorkspace.collapseAll") : t("dashboard.adminWorkspace.expandAll")}
-            </button>
-            <AutoSaveIndicator savedAt={savedAt} />
-          </div>
-        }
+        actions={<AutoSaveIndicator savedAt={savedAt} />}
       />
 
-      {/* 2026 redesign — tab nav groups the 13 accordions into 5 buckets.
-          Each tab still uses accordion sections within for expand/collapse. */}
-      <div
-        data-tulala-settings-tabs
-        style={{
-          display: "flex",
-          gap: 4,
-          padding: 4,
-          background: "rgba(11,11,13,0.04)",
-          borderRadius: 999,
-          marginBottom: 16,
-          maxWidth: 760,
-          overflowX: "auto",
-          scrollbarWidth: "none",
-        }}
-      >
-        {TABS.map((t) => {
-          const active = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActiveTab(t.id)}
+      {tenantSlug && (
+        <CreateMyTalentProfileDialog
+          open={createTalentDialogOpenSettings}
+          onOpenChange={setCreateTalentDialogOpenSettings}
+          tenantSlug={tenantSlug}
+        />
+      )}
+
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", maxWidth: 980 }}>
+        {/* Left nav — flat list, one click per group. Collapses to a native
+            <select> on phone (reuses useViewport, the same hook DrawerShell
+            and the bottom-nav already use for responsive breakpoints). */}
+        <div style={{ width: isPhone ? "100%" : 240, flexShrink: 0, position: isPhone ? "static" : "sticky", top: 16 }}>
+          {searchInput}
+          {isPhone ? (
+            <select
+              value={activeGroup}
+              onChange={(e) => { setActiveGroup(e.target.value as GroupId); setQuery(""); }}
+              aria-label={t("dashboard.adminWorkspace.jumpToSection")}
               style={{
-                flexShrink: 0,
-                padding: "7px 14px",
-                borderRadius: 999,
-                border: "none",
-                background: active ? "#fff" : "transparent",
-                color: active ? COLORS.ink : COLORS.inkMuted,
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: RADIUS.md,
+                border: `1px solid ${COLORS.border}`,
+                background: "#fff",
                 fontFamily: FONTS.body,
-                fontSize: 12.5,
-                fontWeight: active ? 600 : 500,
-                cursor: "pointer",
-                boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
-                whiteSpace: "nowrap",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: COLORS.ink,
               }}
             >
-              <span aria-hidden className="text-admin-13">{t.emoji}</span>
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Single column accordion — click each section header to expand. */}
-      <div style={{ maxWidth: 760 }}>
-        <div>
-
-          {visibleSections.has("account") && (
-          <AccordionItem id="account" label={t("dashboard.adminWorkspace.accountLabel")} desc={t("dashboard.adminWorkspace.accountDesc")} supportLink="/help/settings/account" open={isOpen("account")} onToggle={() => toggleSection("account")}>
-            <SettingsRow onClick={() => openDrawer("identity")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{effectiveTenant.name}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.accountRowMeta")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceEdit")} />
-            </SettingsRow>
-            {/* Phase 4 — Pure Workspace state: CTA to create own talent page.
-                Shown only when the current admin has no talent profile in this
-                workspace (bridgeTalentSelfProfile === null). */}
-            {bridgeTalentSelfProfile === null && isAdmin && tenantSlug && (
-              <SettingsRow onClick={() => setCreateTalentDialogOpenSettings(true)}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-                    {t("dashboard.adminWorkspace.takeBookingsTitle")}
-                  </div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {t("dashboard.adminWorkspace.takeBookingsDesc")}
-                  </div>
-                </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceCreate")} />
-              </SettingsRow>
-            )}
-          </AccordionItem>
-          )}
-          {/* Dialog for creating own talent page (settings location) */}
-          {tenantSlug && (
-            <CreateMyTalentProfileDialog
-              open={createTalentDialogOpenSettings}
-              onOpenChange={setCreateTalentDialogOpenSettings}
-              tenantSlug={tenantSlug}
-            />
-          )}
-
-          {visibleSections.has("plan") && (
-          <AccordionItem id="plan" label={t("dashboard.adminWorkspace.planLabel")} desc={t("dashboard.adminWorkspace.planDesc")} supportLink="/help/settings/billing" defaultBadge={<PlanChip plan={state.plan} variant="solid" />} open={isOpen("plan")} onToggle={() => toggleSection("plan")}>
-            {isOwner ? (
-              <SettingsRow onClick={() => openDrawer("plan-billing")}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <PlanChip plan={state.plan} variant="solid" />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{PLAN_META[state.plan].label}</div>
-                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{PLAN_META[state.plan].theme}</div>
-                  </div>
-                </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-              </SettingsRow>
-            ) : (
-              <SettingsRow opacity={0.6}>
-                <span style={{ fontSize: 13, color: COLORS.inkMuted }}>{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
-                <ReadOnlyChip />
-              </SettingsRow>
-            )}
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("workspace") && (
-          <AccordionItem id="workspace" label={t("dashboard.adminWorkspace.workspaceLabel")} desc={t("dashboard.adminWorkspace.workspaceDesc")} supportLink="/help/settings/workspace" open={isOpen("workspace")} onToggle={() => toggleSection("workspace")}>
-            {[
-              { title: t("dashboard.adminWorkspace.wsGeneralTitle"),     desc: t("dashboard.adminWorkspace.wsGeneralDesc"),  drawer: "workspace-settings" as const },
-              { title: t("dashboard.adminWorkspace.wsGuestChatTitle"), desc: t("dashboard.adminWorkspace.wsGuestChatDesc"), drawer: "guest-chat-settings" as const },
-              { title: t("dashboard.adminWorkspace.wsProfileFieldsTitle"), desc: t("dashboard.adminWorkspace.wsProfileFieldsDesc"), drawer: "field-catalog" as const, plan: "agency" as const },
-              { title: t("dashboard.adminWorkspace.wsFieldSettingsTitle"), desc: t("dashboard.adminWorkspace.wsFieldSettingsDesc"), drawer: "workspace-field-settings" as const, plan: "agency" as const },
-              { title: t("dashboard.adminWorkspace.wsTalentCategoriesTitle"), desc: t("dashboard.adminWorkspace.wsTalentCategoriesDesc"),  drawer: "talent-types" as const, plan: "agency" as const },
-            ].map((row) => {
-              const locked = row.plan && !meetsPlan(state.plan, row.plan);
-              return (
-                <SettingsRow
-                  key={row.drawer}
-                  opacity={locked ? 0.55 : 1}
-                  onClick={() => locked ? openUpgrade({ feature: row.title, why: row.desc, requiredPlan: row.plan! }) : openDrawer(row.drawer)}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.title}</div>
-                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{row.desc}</div>
-                  </div>
-                  {locked ? <LockedPill plan={row.plan!} /> : <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />}
-                </SettingsRow>
-              );
-            })}
-            {/* L49 — Default currency inline picker (display-only, no FX). */}
-            <DefaultCurrencySettingsRow />
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("commercial-terms") && tenantSlug && (
-          <AccordionItem id="commercial-terms" label={t("dashboard.adminWorkspace.bookingTermsLabel")} desc={t("dashboard.adminWorkspace.bookingTermsDesc")} supportLink="/help/settings/booking-terms" open={isOpen("commercial-terms")} onToggle={() => toggleSection("commercial-terms")}>
-            {/* Commercial terms — workspace defaults; an offer can override. */}
-            <CommercialTermsSettingsCard tenantSlug={tenantSlug} />
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("domain") && (
-          <AccordionItem id="domain" label={t("dashboard.adminWorkspace.domainLabel")} desc={t("dashboard.adminWorkspace.domainDesc")} supportLink="/help/settings/domain" open={isOpen("domain")} onToggle={() => toggleSection("domain")}>
-            {meetsPlan(state.plan, "studio") ? (
-              <SettingsRow>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.customDomain")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {t("dashboard.adminWorkspace.noCustomDomain")}
-                  </div>
-                </div>
-              </SettingsRow>
-            ) : (
-              <SettingsRow
-                opacity={0.55}
-                onClick={() => openUpgrade({ feature: t("dashboard.adminWorkspace.customDomain"), why: t("dashboard.adminWorkspace.domainDesc"), requiredPlan: "studio" })}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.customDomain")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresStudio")}</div>
-                </div>
-                <LockedPill plan="studio" />
-              </SettingsRow>
-            )}
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("branding") && (
-          <AccordionItem id="branding" label={t("dashboard.adminWorkspace.brandingLabel")} desc={t("dashboard.adminWorkspace.brandingDesc")} supportLink="/help/settings/branding" open={isOpen("branding")} onToggle={() => toggleSection("branding")}>
-            {isAdmin && meetsPlan(state.plan, "agency") ? (
-              <SettingsRow onClick={() => openDrawer("branding")}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.brandIdentity")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.brandIdentityMeta")}</div>
-                </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceEdit")} />
-              </SettingsRow>
-            ) : (
-              <SettingsRow
-                opacity={0.55}
-                onClick={() => openUpgrade({ feature: t("dashboard.adminWorkspace.brandingLabel"), why: t("dashboard.adminWorkspace.brandingUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.brandingUnlock1"), t("dashboard.adminWorkspace.brandingUnlock2"), t("dashboard.adminWorkspace.brandingUnlock3")] })}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.brandIdentity")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresAgency")}</div>
-                </div>
-                <LockedPill plan="agency" />
-              </SettingsRow>
-            )}
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("media-watermark") && (
-          <AccordionItem id="media-watermark" label={t("dashboard.adminWorkspace.mediaWatermarkLabel")} desc={t("dashboard.adminWorkspace.mediaWatermarkDesc")} supportLink="/help/settings/media" open={isOpen("media-watermark")} onToggle={() => toggleSection("media-watermark")}>
-            {/* Watermark — Studio+ */}
-            {meetsPlan(state.plan, "studio") ? (
-              <SettingsRow onClick={() => openDrawer("branding")}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.logoWatermark")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {t("dashboard.adminWorkspace.logoWatermarkMeta")}
-                  </div>
-                </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
-              </SettingsRow>
-            ) : (
-              <SettingsRow
-                opacity={0.55}
-                onClick={() => openUpgrade({
-                  feature: t("dashboard.adminWorkspace.logoWatermark"),
-                  why: t("dashboard.adminWorkspace.watermarkUpgradeWhy"),
-                  requiredPlan: "studio",
-                  unlocks: [t("dashboard.adminWorkspace.watermarkUnlock1"), t("dashboard.adminWorkspace.watermarkUnlock2"), t("dashboard.adminWorkspace.watermarkUnlock3")],
-                })}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.logoWatermark")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresStudio")}</div>
-                </div>
-                <LockedPill plan="studio" />
-              </SettingsRow>
-            )}
-            {/* Media gallery + usage — Agency+ */}
-            {meetsPlan(state.plan, "agency") ? (
-              <SettingsRow onClick={() => setPage("media")}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.mediaGallery")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {t("dashboard.adminWorkspace.mediaGalleryMeta")}
-                  </div>
-                </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
-              </SettingsRow>
-            ) : (
-              <SettingsRow
-                opacity={0.55}
-                onClick={() => openUpgrade({
-                  feature: t("dashboard.adminWorkspace.brandedMediaGallery"),
-                  why: t("dashboard.adminWorkspace.mediaGalleryUpgradeWhy"),
-                  requiredPlan: "agency",
-                  unlocks: [t("dashboard.adminWorkspace.mediaGalleryUnlock1"), t("dashboard.adminWorkspace.mediaGalleryUnlock2"), t("dashboard.adminWorkspace.mediaGalleryUnlock3")],
-                })}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.mediaGallery")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresAgency")}</div>
-                </div>
-                <LockedPill plan="agency" />
-              </SettingsRow>
-            )}
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("team") && (
-          <AccordionItem id="team" label={t("dashboard.adminWorkspace.teamLabel")} desc={t("dashboard.adminWorkspace.teamDesc")} supportLink="/help/settings/team" open={isOpen("team")} onToggle={() => toggleSection("team")}>
-            {isAdmin && !isFree ? (
-              <SettingsRow onClick={() => openDrawer("team")}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.teamMembers")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {interpolate(t("dashboard.adminWorkspace.teamMembersMeta"), { count: effectiveTeamMembers.length })}
-                  </div>
-                </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-              </SettingsRow>
-            ) : (
-              <SettingsRow
-                opacity={0.55}
-                onClick={() => openUpgrade({ feature: t("dashboard.adminWorkspace.teamRolesFeature"), why: t("dashboard.adminWorkspace.teamUpgradeWhy"), requiredPlan: "agency", unlocks: [t("dashboard.adminWorkspace.teamUnlock1"), t("dashboard.adminWorkspace.teamUnlock2")] })}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.teamMembers")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.requiresAgency")}</div>
-                </div>
-                <LockedPill plan="agency" />
-              </SettingsRow>
-            )}
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("talent-types") && (
-          <AccordionItem id="talent-types" label={t("dashboard.adminWorkspace.talentTypesLabel")} desc={t("dashboard.adminWorkspace.talentTypesDesc")} supportLink="/help/settings/talent-types" open={isOpen("talent-types")} onToggle={() => toggleSection("talent-types")}>
-            <SettingsRow onClick={() => openDrawer("talent-types")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.categoriesOnSite")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t("dashboard.adminWorkspace.categoriesOnSiteMeta")}
-                </div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("field-privacy")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.fieldPrivacy")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t("dashboard.adminWorkspace.fieldPrivacyMeta")}
-                </div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("field-catalog")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.fieldCatalog")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t("dashboard.adminWorkspace.fieldCatalogMeta")}
-                </div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
-            </SettingsRow>
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("roster-review") && (
-          <AccordionItem id="roster-review" label={t("dashboard.adminWorkspace.rosterReviewLabel")} desc={t("dashboard.adminWorkspace.rosterReviewDesc")} supportLink="/help/settings/talent-types" open={isOpen("roster-review")} onToggle={() => toggleSection("roster-review")}>
-            <SettingsRow onClick={() => openDrawer("trust-verification-queue")}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.trustVerification")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {t("dashboard.adminWorkspace.trustVerificationMeta")}
-                  </div>
-                </div>
-                {pendingTrustCount > 0 && (
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
-                    background: COLORS.indigo, color: "#fff",
-                    fontSize: 10.5, fontWeight: 700, lineHeight: 1,
-                  }}>{pendingTrustCount}</span>
-                )}
-              </div>
-              <Affordance label={pendingTrustCount > 0 ? t("dashboard.adminWorkspace.affordanceReview") : t("dashboard.adminWorkspace.affordanceOpen")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("trust-disputed-claims")}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.disputedClaims")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {t("dashboard.adminWorkspace.disputedClaimsMeta")}
-                  </div>
-                </div>
-                {disputedClaimsCount > 0 && (
-                  <span style={{
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
-                    background: COLORS.red, color: "#fff",
-                    fontSize: 10.5, fontWeight: 700, lineHeight: 1,
-                  }}>{disputedClaimsCount}</span>
-                )}
-              </div>
-              <Affordance label={disputedClaimsCount > 0 ? t("dashboard.adminWorkspace.affordanceResolve") : t("dashboard.adminWorkspace.affordanceOpen")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("talent-approvals")}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.pendingApprovals")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                    {pendingTalent.length === 0
-                      ? t("dashboard.adminWorkspace.pendingApprovalsEmpty")
-                      : t("dashboard.adminWorkspace.pendingApprovalsWaiting")}
-                  </div>
-                </div>
-                {pendingTalent.length > 0 && (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 18,
-                      height: 18,
-                      padding: "0 6px",
-                      borderRadius: 999,
-                      background: COLORS.amber,
-                      color: "#fff",
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {pendingTalent.length}
-                  </span>
-                )}
-              </div>
-              <Affordance label={pendingTalent.length === 0 ? t("dashboard.adminWorkspace.affordanceOpenQueue") : t("dashboard.adminWorkspace.affordanceReview")} />
-            </SettingsRow>
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("registration") && (
-          <AccordionItem id="registration" label={t("dashboard.adminWorkspace.registrationLabel")} desc={t("dashboard.adminWorkspace.registrationDesc")} supportLink="/help/settings/registration" open={isOpen("registration")} onToggle={() => toggleSection("registration")}>
-            <RegistrationSection />
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("discover") && (
-          <AccordionItem id="discover" label={t("dashboard.adminWorkspace.discoverLabel")} desc={t("dashboard.adminWorkspace.discoverDesc")} supportLink="/help/settings/discover" open={isOpen("discover")} onToggle={() => toggleSection("discover")}>
-            <SettingsRow>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverTalentsTitle")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t("dashboard.adminWorkspace.discoverTalentsDesc")}
-                </div>
-              </div>
-            </SettingsRow>
-            <SettingsRow>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverAnalyticsTitle")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t("dashboard.adminWorkspace.discoverAnalyticsDesc")}
-                </div>
-              </div>
-              {state.plan === "free" && <LockedPill plan="studio" />}
-            </SettingsRow>
-            <SettingsRow>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverBoostTitle")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t("dashboard.adminWorkspace.discoverBoostDesc")}
-                </div>
-              </div>
-              {(state.plan === "free" || state.plan === "studio") && <LockedPill plan="agency" />}
-            </SettingsRow>
-            <SettingsRow>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.discoverRollupTitle")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {t("dashboard.adminWorkspace.discoverRollupDesc")}
-                </div>
-              </div>
-              {state.plan !== "network" && <LockedPill plan="network" />}
-            </SettingsRow>
-            <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", lineHeight: 1.5 }}>
-              {t("dashboard.adminWorkspace.discoverFootnote")}
+              {visibleGroups.map((g) => (
+                <option key={g.id} value={g.id}>{g.label}</option>
+              ))}
+            </select>
+          ) : (
+            <div data-tulala-settings-nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {visibleGroups.map((g) => (
+                <NavItem key={g.id} group={g} active={!trimmedQuery && activeGroup === g.id} onClick={() => { setActiveGroup(g.id); setQuery(""); }} />
+              ))}
             </div>
-          </AccordionItem>
           )}
+        </div>
 
-          {visibleSections.has("integrations") && (
-          <AccordionItem id="integrations" label={t("dashboard.adminWorkspace.integrationsLabel")} desc={t("dashboard.adminWorkspace.integrationsDesc")} supportLink="/help/settings/integrations" open={isOpen("integrations")} onToggle={() => toggleSection("integrations")}>
-            <IntegrationsSection />
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("brand") && (
-          <AccordionItem id="brand" label={t("dashboard.adminWorkspace.dataBrandLabel")} desc={t("dashboard.adminWorkspace.dataBrandDesc")} supportLink="/help/settings/data-brand" open={isOpen("brand")} onToggle={() => toggleSection("brand")}>
-            <SettingsRow onClick={() => openDrawer("csv-import", { type: "talent" })}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.importTalent")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.importTalentDesc")}</div>
+        {/* Content pane */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {trimmedQuery ? (
+            matches.length === 0 ? (
+              <div style={{ padding: "24px 4px", fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                {t("dashboard.adminWorkspace.noSearchResults")}
               </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceImport")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("migration-assistant")}>
+            ) : (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.migrationAssistant")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.migrationAssistantDesc")}</div>
+                {matches.map((hit, i) => (
+                  <SettingsRow
+                    key={`${hit.groupId}-${i}`}
+                    onClick={hit.onClick ?? (() => { setActiveGroup(hit.groupId); setQuery(""); })}
+                  >
+                    <div>
+                      <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3 }}>
+                        {hit.groupLabel}
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{hit.title}</div>
+                      {hit.desc && <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{hit.desc}</div>}
+                    </div>
+                    <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
+                  </SettingsRow>
+                ))}
               </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceMigrate")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("brand-assets")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.brandAssets")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.brandAssetsDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("beta-program")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.betaProgram")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.betaProgramDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-            </SettingsRow>
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("growth") && (
-          <AccordionItem id="growth" label={t("dashboard.adminWorkspace.growthLabel")} desc={t("dashboard.adminWorkspace.growthDesc")} supportLink="/help/settings/growth" open={isOpen("growth")} onToggle={() => toggleSection("growth")}>
-            <SettingsRow onClick={() => openDrawer("calendar-sync")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.calendarSync")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.calendarSyncDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("referral-dashboard")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.referralProgram")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.referralProgramDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("system-status")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.systemStatus")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.systemStatusDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
-            </SettingsRow>
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("email") && (
-          <AccordionItem id="email" label={t("dashboard.adminWorkspace.emailLabel")} desc={t("dashboard.adminWorkspace.emailDesc")} supportLink="/help/settings/email" open={isOpen("email")} onToggle={() => toggleSection("email")}>
-            <SettingsRow onClick={() => openDrawer("email-templates")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.emailTemplates")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.emailTemplatesDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("email-branding")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.emailBranding")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.emailBrandingDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceCustomize")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("email-sequences")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.emailSequences")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.emailSequencesDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("notification-prefs")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.notificationPrefs")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.notificationPrefsDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
-            </SettingsRow>
-            {/* Step 13 — Auto-acknowledgement inline form */}
-            <AutoAckSettingsRow />
-          </AccordionItem>
-          )}
-
-          {visibleSections.has("compliance") && (
-          <AccordionItem id="compliance" label={t("dashboard.adminWorkspace.complianceLabel")} desc={t("dashboard.adminWorkspace.complianceDesc")} supportLink="/help/settings/compliance" open={isOpen("compliance")} onToggle={() => toggleSection("compliance")}>
-            <SettingsRow onClick={() => openDrawer("gdpr-export")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.exportData")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.exportDataDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceExport")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("consent-log")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.consentLog")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.consentLogDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("contract-templates")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.contractTemplates")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.contractTemplatesDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
-            </SettingsRow>
-            <SettingsRow onClick={() => openDrawer("audit-log")}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.auditLog")}</div>
-                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.auditLogDesc")}</div>
-              </div>
-              <Affordance label={t("dashboard.adminWorkspace.affordanceView")} />
-            </SettingsRow>
-          </AccordionItem>
-          )}
-
-          {isAdmin && visibleSections.has("features") && (
-          <AccordionItem id="features" label={t("dashboard.adminWorkspace.featuresLabel")} desc={t("dashboard.adminWorkspace.featuresDesc")} supportLink="/help/settings/features" open={isOpen("features")} onToggle={() => toggleSection("features")}>
-              <SettingsRow onClick={() => openDrawer("feature-controls")}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.allFeatureToggles")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.allFeatureTogglesDesc")}</div>
+            )
+          ) : (
+            activeGroupData && (
+              <div data-settings-section={activeGroupData.id}>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
+                    {activeGroupData.label}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2 }}>{activeGroupData.desc}</div>
                 </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceConfigure")} />
-              </SettingsRow>
-            </AccordionItem>
+                {activeGroupData.extraPosition === "before" && activeGroupData.extra}
+                {activeGroupData.rows.map(renderSimpleRow)}
+                {activeGroupData.extraPosition !== "before" && activeGroupData.extra}
+              </div>
+            )
           )}
 
-          {isOwner && visibleSections.has("danger") && (
-          <AccordionItem id="danger" label={t("dashboard.adminWorkspace.dangerLabel")} desc={t("dashboard.adminWorkspace.dangerDesc")} supportLink="/help/settings/danger" danger open={isOpen("danger")} onToggle={() => toggleSection("danger")}>
-              <SettingsRow borderColor="#FCA5A5" onClick={() => openDrawer("danger-zone")}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>{t("dashboard.adminWorkspace.deleteTransferWorkspace")}</div>
-                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.deleteTransferWorkspaceDesc")}</div>
-                </div>
-                <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
-              </SettingsRow>
-            </AccordionItem>
+          {/* Legacy — keep MoreWithSection for free plan upsell below the main layout */}
+          {state.plan === "free" && (
+            <MoreWithSection plan="studio">
+              <CompactLockedCard
+                title={t("dashboard.adminWorkspace.customDomain")}
+                requiredPlan="studio"
+                onClick={() =>
+                  openUpgrade({
+                    feature: t("dashboard.adminWorkspace.customDomain"),
+                    why: t("dashboard.adminWorkspace.domainDesc"),
+                    requiredPlan: "studio",
+                  })
+                }
+              />
+              <CompactLockedCard
+                title={t("dashboard.adminWorkspace.emailFromAddress")}
+                requiredPlan="studio"
+                onClick={() =>
+                  openUpgrade({
+                    feature: t("dashboard.adminWorkspace.emailFromFeature"),
+                    why: t("dashboard.adminWorkspace.emailFromWhy"),
+                    requiredPlan: "studio",
+                  })
+                }
+              />
+            </MoreWithSection>
           )}
-
-        </div>{/* end accordion list */}
-      </div>{/* end max-width wrapper */}
-
-      {/* Legacy — keep MoreWithSection for free plan upsell below the main layout */}
-      {state.plan === "free" && (
-        <MoreWithSection plan="studio">
-          <CompactLockedCard
-            title={t("dashboard.adminWorkspace.customDomain")}
-            requiredPlan="studio"
-            onClick={() =>
-              openUpgrade({
-                feature: t("dashboard.adminWorkspace.customDomain"),
-                why: t("dashboard.adminWorkspace.domainDesc"),
-                requiredPlan: "studio",
-              })
-            }
-          />
-          <CompactLockedCard
-            title={t("dashboard.adminWorkspace.emailFromAddress")}
-            requiredPlan="studio"
-            onClick={() =>
-              openUpgrade({
-                feature: t("dashboard.adminWorkspace.emailFromFeature"),
-                why: t("dashboard.adminWorkspace.emailFromWhy"),
-                requiredPlan: "studio",
-              })
-            }
-          />
-        </MoreWithSection>
-      )}
+        </div>
+      </div>
     </>
   );
 }

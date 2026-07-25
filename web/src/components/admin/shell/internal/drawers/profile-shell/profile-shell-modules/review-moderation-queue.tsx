@@ -54,7 +54,7 @@ import type {
   ReportedReview,
 } from "@/lib/reviews/review-moderation-loaders";
 import { StaticStars } from "@/components/reviews/star-rating";
-import { COLORS, FONTS, RADIUS } from "../../drawer-shared";
+import { COLORS, FONTS, RADIUS, useDashboardText } from "../../drawer-shared";
 
 /**
  * Fixed reason-code set for HIDING a flagged review. Kept in sync with the
@@ -72,15 +72,15 @@ const HIDE_REASON_CODES = [
 /** Gap (public avg - all avg) at/above which we tint the integrity row red. */
 const HIGH_GAP = 0.5;
 
-function ageSince(iso: string): string {
+function ageSince(iso: string, es = false): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "";
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return es ? `hace ${mins} min` : `${mins}m ago`;
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return es ? `hace ${hours} h` : `${hours}h ago`;
   const days = Math.round(hours / 24);
-  return `${days}d ago`;
+  return es ? `hace ${days} d` : `${days}d ago`;
 }
 
 function ReasonPicker({
@@ -92,13 +92,14 @@ function ReasonPicker({
   onPick: (code: string) => void;
   onCancel: () => void;
 }) {
+  const copy = useDashboardText();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
       <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
-        Reason:
+        {copy.t("Reason:")}
       </span>
       <select
-        aria-label="Reason for hiding this review"
+        aria-label={copy.t("Reason for hiding this review")}
         disabled={busy}
         defaultValue=""
         onChange={(e) => {
@@ -118,11 +119,11 @@ function ReasonPicker({
         }}
       >
         <option value="" disabled>
-          Pick a reason…
+          {copy.t("Pick a reason…")}
         </option>
         {HIDE_REASON_CODES.map((r) => (
           <option key={r.code} value={r.code}>
-            {r.label}
+            {copy.t(r.label)}
           </option>
         ))}
       </select>
@@ -142,7 +143,7 @@ function ReasonPicker({
           fontFamily: FONTS.body,
         }}
       >
-        Cancel
+        {copy.t("Cancel")}
       </button>
     </div>
   );
@@ -155,6 +156,7 @@ function ReportedReviewRow({
   review: ReportedReview;
   onChanged: (next: ReportedReview) => void;
 }) {
+  const copy = useDashboardText();
   const [busy, setBusy] = React.useState(false);
   const [picking, setPicking] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -168,7 +170,7 @@ function ReportedReviewRow({
     if (res.ok) {
       onChanged({ ...review, status: "published" });
     } else {
-      setError(res.error || "Could not update the review.");
+      setError(res.error || copy.t("Could not update the review."));
     }
     setBusy(false);
   }
@@ -186,7 +188,7 @@ function ReportedReviewRow({
       onChanged({ ...review, status: "hidden" });
       setPicking(false);
     } else {
-      setError(res.error || "Could not update the review.");
+      setError(res.error || copy.t("Could not update the review."));
     }
     setBusy(false);
   }
@@ -212,7 +214,7 @@ function ReportedReviewRow({
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <StaticStars rating={review.rating} />
         <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
-          {review.talentName ?? "Talent"}
+          {review.talentName ?? copy.t("Talent")}
         </span>
         <span
           style={{
@@ -226,7 +228,7 @@ function ReportedReviewRow({
             color: COLORS.coralDeep,
           }}
         >
-          Flagged by {review.reporterSide} · {ageSince(review.reportedAt)}
+          {copy.t("Flagged by {side}").replace("{side}", copy.t(review.reporterSide))} · {ageSince(review.reportedAt, copy.isSpanish)}
         </span>
         {hidden && (
           <span
@@ -241,7 +243,7 @@ function ReportedReviewRow({
               color: COLORS.amberDeep,
             }}
           >
-            Hidden{lastReason ? ` · ${lastReason}` : ""}
+            {copy.t("Hidden")}{lastReason ? ` · ${lastReason}` : ""}
           </span>
         )}
       </div>
@@ -252,7 +254,7 @@ function ReportedReviewRow({
         </div>
       ) : (
         <div style={{ fontSize: 12, fontStyle: "italic" }} className="text-admin-ink-muted">
-          No written review. Rating only.
+          {copy.t("No written review. Rating only.")}
         </div>
       )}
 
@@ -261,7 +263,7 @@ function ReportedReviewRow({
           {review.recentEvents.slice(0, 3).map((e) => (
             <div key={e.id}>
               {e.action}
-              {e.reasonCode ? ` · ${e.reasonCode}` : ""} · {ageSince(e.createdAt)}
+              {e.reasonCode ? ` · ${e.reasonCode}` : ""} · {ageSince(e.createdAt, copy.isSpanish)}
             </div>
           ))}
         </div>
@@ -287,7 +289,7 @@ function ReportedReviewRow({
               fontFamily: FONTS.body,
             }}
           >
-            {busy ? "Saving…" : "Unhide"}
+            {busy ? copy.t("Saving…") : copy.t("Unhide")}
           </button>
         ) : picking ? (
           <ReasonPicker
@@ -312,7 +314,7 @@ function ReportedReviewRow({
               fontFamily: FONTS.body,
             }}
           >
-            {busy ? "Saving…" : "Hide"}
+            {busy ? copy.t("Saving…") : copy.t("Hide")}
           </button>
         )}
       </div>
@@ -321,6 +323,7 @@ function ReportedReviewRow({
 }
 
 function IntegrityPanel({ signals }: { signals: ModerationIntegritySignal[] }) {
+  const copy = useDashboardText();
   if (signals.length === 0) {
     return (
       <div
@@ -334,8 +337,7 @@ function IntegrityPanel({ signals }: { signals: ModerationIntegritySignal[] }) {
         }}
         className="text-admin-ink-muted"
       >
-        No integrity gaps. Every talent&rsquo;s public average matches their
-        all-reviews average.
+        {copy.t("No integrity gaps. Every talent's public average matches their all-reviews average.")}
       </div>
     );
   }
@@ -360,25 +362,25 @@ function IntegrityPanel({ signals }: { signals: ModerationIntegritySignal[] }) {
             }}
           >
             <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-admin-ink">
-              {s.talentName ?? "Talent"}
+              {s.talentName ?? copy.t("Talent")}
             </span>
             <span
               style={{ fontSize: 11.5, display: "flex", gap: 12, flexWrap: "wrap" }}
               className="text-admin-ink-muted"
             >
               <span>
-                Public {s.publicAvg.toFixed(2)} ({s.publicCount})
+                {copy.t("Public")} {s.publicAvg.toFixed(2)} ({s.publicCount})
               </span>
               <span>
-                All {s.allAvg.toFixed(2)} ({s.allCount})
+                {copy.t("All")} {s.allAvg.toFixed(2)} ({s.allCount})
               </span>
               <span
                 style={{ fontWeight: 700, color: high ? COLORS.criticalDeep : COLORS.inkMuted }}
               >
-                +{s.gap.toFixed(2)} gap
+                +{s.gap.toFixed(2)} {copy.t("gap")}
               </span>
               <span>
-                {s.hiddenCount} hidden
+                {s.hiddenCount} {copy.t("hidden")}
               </span>
             </span>
           </div>
@@ -394,6 +396,7 @@ function IntegrityPanel({ signals }: { signals: ModerationIntegritySignal[] }) {
  * lists, never an error.
  */
 export function ReviewModerationQueue({ tenantId }: { tenantId: string }) {
+  const copy = useDashboardText();
   const [reported, setReported] = React.useState<ReportedReview[]>([]);
   const [signals, setSignals] = React.useState<ModerationIntegritySignal[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -421,13 +424,13 @@ export function ReviewModerationQueue({ tenantId }: { tenantId: string }) {
       })
       .catch(() => {
         if (cancelled) return;
-        setLoadError("Could not load the moderation queue.");
+        setLoadError(copy.t("Could not load the moderation queue."));
         setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [tenantId]);
+  }, [tenantId, copy]);
 
   if (loading) {
     return (
@@ -435,7 +438,7 @@ export function ReviewModerationQueue({ tenantId }: { tenantId: string }) {
         style={{ padding: 14, fontSize: 12, fontFamily: FONTS.body }}
         className="text-admin-ink-muted"
       >
-        Loading moderation queue…
+        {copy.t("Loading moderation queue…")}
       </div>
     );
   }
@@ -461,23 +464,20 @@ export function ReviewModerationQueue({ tenantId }: { tenantId: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONTS.body }}>
       <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">
-          Rating integrity
+          {copy.t("Rating integrity")}
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Talents whose public average sits above their all-reviews average. A
-          positive gap with hidden reviews can mean low ratings were hidden to
-          lift the public score.
+          {copy.t("Talents whose public average sits above their all-reviews average. A positive gap with hidden reviews can mean low ratings were hidden to lift the public score.")}
         </div>
         <IntegrityPanel signals={signals} />
       </section>
 
       <section style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 700 }} className="text-admin-ink">
-          Reported reviews{reported.length > 0 ? ` (${reported.length})` : ""}
+          {copy.t("Reported reviews")}{reported.length > 0 ? ` (${reported.length})` : ""}
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-          Reviews a subject flagged for staff to look at. Hide a review to remove
-          it from the public page (a reason is recorded); unhide to restore it.
+          {copy.t("Reviews a subject flagged for staff to look at. Hide a review to remove it from the public page (a reason is recorded); unhide to restore it.")}
         </div>
         {reported.length === 0 ? (
           <div
@@ -490,7 +490,7 @@ export function ReviewModerationQueue({ tenantId }: { tenantId: string }) {
             }}
             className="text-admin-ink-muted"
           >
-            Nothing reported. The queue is clear.
+            {copy.t("Nothing reported. The queue is clear.")}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

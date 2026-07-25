@@ -32,6 +32,7 @@ import { SiteCard } from "./site-card";
 import {
   PLAN_BADGE_COLOR,
   TIER_BANDS,
+  catalogCopy,
   isLocked,
   type Capability,
   type Plan,
@@ -53,86 +54,138 @@ import {
  * drawer body instead of navigating.
  */
 
+/**
+ * Drawer copy is localized the same way the capability catalog is: the English
+ * literal stays in the module as the fallback, and the `*Key` beside it is what
+ * actually renders. A `key` of `""` means "never translate this" (the `domain`
+ * subtitle is a hostname).
+ */
 type DrawerEntry = {
   title: string;
+  titleKey: string;
   subtitle: string;
+  subtitleKey: string;
   icon: LucideIcon;
   /** Wide drawer (lg:max-w-3xl) for list+detail capabilities. */
   wide?: boolean;
-  body: (ctx: { activePlan: Plan; capability: Capability }) => React.ReactNode;
+  body: (ctx: {
+    activePlan: Plan;
+    capability: Capability;
+    t: Translator;
+  }) => React.ReactNode;
 };
+
+/** Localized stub blurb for a drawer id, English literal as the fallback. */
+function stubBody(t: Translator, id: string, english: string): string {
+  return catalogCopy(t, `dashboard.adminSiteDrawers.${id}.body`, english);
+}
 
 const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   roster: {
     title: "Roster",
+    titleKey: "dashboard.adminSiteDrawers.roster.title",
     subtitle: "Talents · drafts · approvals",
+    subtitleKey: "dashboard.adminSiteDrawers.roster.subtitle",
     icon: Users,
     body: () => <RosterDrawerBody />,
   },
   directory: {
     title: "Directory Settings",
+    titleKey: "dashboard.adminSiteDrawers.directory.title",
     subtitle: "Render · templates · fields",
+    subtitleKey: "dashboard.adminSiteDrawers.directory.subtitle",
     icon: LayoutGrid,
     body: () => <DirectoryDrawerBody />,
   },
   inquiries: {
     title: "Inquiries",
+    titleKey: "dashboard.adminSiteDrawers.inquiries.title",
     subtitle: "1 open · 3 in progress",
+    subtitleKey: "dashboard.adminSiteDrawers.inquiries.subtitle",
     icon: Inbox,
     body: () => <InquiriesDrawerBody />,
   },
   branding: {
     title: "Branding",
+    titleKey: "dashboard.adminSiteDrawers.branding.title",
     subtitle: "Logo · fonts · colors",
+    subtitleKey: "dashboard.adminSiteDrawers.branding.subtitle",
     icon: Sparkles,
     body: () => <BrandingDrawerBody />,
   },
   activity: {
     title: "Activity",
+    titleKey: "dashboard.adminSiteDrawers.activity.title",
     subtitle: "Recent workspace events",
+    subtitleKey: "dashboard.adminSiteDrawers.activity.subtitle",
     icon: Activity,
     body: () => <ActivityDrawerBody />,
   },
   widgets: {
     title: "Widgets",
+    titleKey: "dashboard.adminSiteDrawers.widgets.title",
     subtitle: "2 active · 4 embeds",
+    subtitleKey: "dashboard.adminSiteDrawers.widgets.subtitle",
     icon: LayoutDashboard,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Create roster grid / featured shelf / inquiry form widgets, configure filters, and copy the embed snippet."
+        body={stubBody(
+          t,
+          "widgets",
+          "Create roster grid / featured shelf / inquiry form widgets, configure filters, and copy the embed snippet.",
+        )}
         legacyHref="/admin/site/widgets"
       />
     ),
   },
   api: {
     title: "API keys",
+    titleKey: "dashboard.adminSiteDrawers.api.title",
     subtitle: "1 key · last used 3h ago",
+    subtitleKey: "dashboard.adminSiteDrawers.api.subtitle",
     icon: Key,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Create keys, scope domains, rotate, and view usage / rate limits."
+        body={stubBody(
+          t,
+          "api",
+          "Create keys, scope domains, rotate, and view usage / rate limits.",
+        )}
         legacyHref="/admin/site/api-keys"
       />
     ),
   },
   domain: {
     title: "Domain & Home",
+    titleKey: "dashboard.adminSiteDrawers.domain.title",
+    // Hostname — never translated.
     subtitle: "nova.rostra.app",
+    subtitleKey: "",
     icon: Globe2,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Subdomain config, custom domain (Agency), homepage assignment, blog index assignment."
+        body={stubBody(
+          t,
+          "domain",
+          "Subdomain config, custom domain (Agency), homepage assignment, blog index assignment.",
+        )}
         legacyHref="/admin/site/domain"
       />
     ),
   },
   homepage: {
     title: "Homepage",
+    titleKey: "dashboard.adminSiteDrawers.homepage.title",
     subtitle: "Draft pending · 2h ago",
+    subtitleKey: "dashboard.adminSiteDrawers.homepage.subtitle",
     icon: Star,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Open the live homepage in edit mode — composition, inline text, image replace, publish."
+        body={stubBody(
+          t,
+          "homepage",
+          "Open the live homepage in edit mode: composition, inline text, image replace, publish.",
+        )}
         setupHref="/admin/site/setup/homepage"
         legacyHref="/"
       />
@@ -140,12 +193,18 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   pages: {
     title: "Pages",
+    titleKey: "dashboard.adminSiteDrawers.pages.title",
     subtitle: "12 pages · 3 drafts",
+    subtitleKey: "dashboard.adminSiteDrawers.pages.subtitle",
     icon: FileText,
     wide: true,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Marketing, legal, and editorial pages served at /p/…. Setup wraps the list in premium chrome with quick filters."
+        body={stubBody(
+          t,
+          "pages",
+          "Marketing, legal, and editorial pages served at /p/…. Setup wraps the list in premium chrome with quick filters.",
+        )}
         setupHref="/admin/site/setup/pages"
         legacyHref="/admin/site-settings/content/pages"
       />
@@ -153,12 +212,18 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   posts: {
     title: "Posts",
+    titleKey: "dashboard.adminSiteDrawers.posts.title",
     subtitle: "5 posts · 1 draft",
+    subtitleKey: "dashboard.adminSiteDrawers.posts.subtitle",
     icon: Newspaper,
     wide: true,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Editorial articles served at /posts/…. Setup walks through writing, scheduling, and publishing the first one."
+        body={stubBody(
+          t,
+          "posts",
+          "Editorial articles served at /posts/…. Setup walks through writing, scheduling, and publishing the first one.",
+        )}
         setupHref="/admin/site/setup/posts"
         legacyHref="/admin/site-settings/content/posts"
       />
@@ -166,11 +231,17 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   navigation: {
     title: "Navigation & Footer",
+    titleKey: "dashboard.adminSiteDrawers.navigation.title",
     subtitle: "Header 5 · Footer 3 cols",
+    subtitleKey: "dashboard.adminSiteDrawers.navigation.subtitle",
     icon: Menu,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Drag-and-drop directly on the live site. Edit nav, reorder, add custom links, build footer columns."
+        body={stubBody(
+          t,
+          "navigation",
+          "Drag-and-drop directly on the live site. Edit nav, reorder, add custom links, build footer columns.",
+        )}
         setupHref="/admin/site/setup/navigation"
         legacyHref="/admin/site-settings/content/navigation"
       />
@@ -178,11 +249,17 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   theme: {
     title: "Theme & foundations",
+    titleKey: "dashboard.adminSiteDrawers.theme.title",
     subtitle: "Editorial Noir",
+    subtitleKey: "dashboard.adminSiteDrawers.theme.subtitle",
     icon: Palette,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Pick a designer kit — colors, typography, motion, density, layout — all in one click. Token-level overrides still possible."
+        body={stubBody(
+          t,
+          "theme",
+          "Pick a designer kit: colors, typography, motion, density, layout, all in one click. Token-level overrides still possible.",
+        )}
         setupHref="/admin/site/setup/theme"
         legacyHref="/admin/site-settings/design"
       />
@@ -190,11 +267,17 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   seo: {
     title: "SEO & defaults",
+    titleKey: "dashboard.adminSiteDrawers.seo.title",
     subtitle: "Meta · sitemap · redirects",
+    subtitleKey: "dashboard.adminSiteDrawers.seo.subtitle",
     icon: Search,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Site-wide meta template · sitemap · robots · redirect rules · per-page overrides."
+        body={stubBody(
+          t,
+          "seo",
+          "Site-wide meta template · sitemap · robots · redirect rules · per-page overrides.",
+        )}
         setupHref="/admin/site/setup/seo"
         legacyHref="/admin/site-settings/seo"
       />
@@ -202,22 +285,34 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   hub: {
     title: "Hub publishing",
+    titleKey: "dashboard.adminSiteDrawers.hub.title",
     subtitle: "Network only",
+    subtitleKey: "dashboard.adminSiteDrawers.hub.subtitle",
     icon: Network,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Promote approved talent · cross-agency discovery · hub inquiry routing."
+        body={stubBody(
+          t,
+          "hub",
+          "Promote approved talent · cross-agency discovery · hub inquiry routing.",
+        )}
         legacyHref="/admin/site/hub"
       />
     ),
   },
   multiagency: {
     title: "Multi-agency manager",
+    titleKey: "dashboard.adminSiteDrawers.multiagency.title",
     subtitle: "Network only",
+    subtitleKey: "dashboard.adminSiteDrawers.multiagency.subtitle",
     icon: Code2,
-    body: () => (
+    body: ({ t }) => (
       <StubDrawerBody
-        body="Switch agencies · invite managers · scope roles · consolidated billing."
+        body={stubBody(
+          t,
+          "multiagency",
+          "Switch agencies · invite managers · scope roles · consolidated billing.",
+        )}
         legacyHref="/admin/site/multi-agency"
       />
     ),
@@ -261,10 +356,14 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
   const fallbackEntry: DrawerEntry | null = openCapability
     ? {
         title: openCapability.label,
+        titleKey: openCapability.labelKey,
         subtitle: openCapability.stat,
+        subtitleKey: openCapability.statKey,
         icon: openCapability.icon,
-        body: () => (
-          <StubDrawerBody body="This capability does not have a quick-edit drawer yet." />
+        body: ({ t: tt }) => (
+          <StubDrawerBody
+            body={tt("dashboard.adminSiteDrawers.noQuickEdit")}
+          />
         ),
       }
     : null;
@@ -283,13 +382,13 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                   className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.18em] before:size-1.5 before:rounded-full before:bg-current before:content-['']"
                   style={{ backgroundColor: accent.bg, color: accent.fg }}
                 >
-                  {band.badgeLabel}
+                  {catalogCopy(t, band.badgeLabelKey, band.badgeLabel)}
                 </span>
                 <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-foreground">
-                  {band.headline}
+                  {catalogCopy(t, band.headlineKey, band.headline)}
                 </h2>
                 <span className="text-[12px] text-muted-foreground">
-                  {band.helper}
+                  {catalogCopy(t, band.helperKey, band.helper)}
                 </span>
                 <div
                   aria-hidden
@@ -312,7 +411,7 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                       className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
                       style={{ color: accent.fg }}
                     >
-                      {band.ctaLabel} →
+                      {catalogCopy(t, band.ctaLabelKey, band.ctaLabel)} →
                     </Link>
                   ) : (
                     <button
@@ -321,7 +420,7 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                       className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
                       style={{ color: accent.fg }}
                     >
-                      {band.ctaLabel} →
+                      {catalogCopy(t, band.ctaLabelKey, band.ctaLabel)} →
                     </button>
                   )
                 ) : null}
@@ -350,8 +449,10 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
             setOpenLocked(false);
           }
         }}
-        title={drawer?.title ?? ""}
-        subtitle={drawer?.subtitle}
+        title={drawer ? catalogCopy(t, drawer.titleKey, drawer.title) : ""}
+        subtitle={
+          drawer ? catalogCopy(t, drawer.subtitleKey, drawer.subtitle) : undefined
+        }
         icon={drawer?.icon ?? Sparkles}
         wide={drawer?.wide}
       >
@@ -364,7 +465,7 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
               onUpgrade={openUpgrade}
             />
           ) : (
-            drawer.body({ activePlan, capability: openCapability })
+            drawer.body({ activePlan, capability: openCapability, t })
           )
         ) : null}
       </DrawerShell>

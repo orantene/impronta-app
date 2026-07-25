@@ -16,7 +16,10 @@ import { cancelInquiryAsClient } from "../_actions/inquiry-cancel-actions";
 import { updateClientInquiryDetailsAction } from "../_actions/inquiry-details-actions";
 import { ClientConfirmDialog } from "../_components/ConfirmDialog";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
+
+type Translator = (key: string) => string;
 
 const FONT = '"Inter", system-ui, sans-serif';
 const FONT_DISPLAY =
@@ -42,42 +45,46 @@ function humanize(s: string): string {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const OFFER_STATUS_LABELS: Record<string, string> = {
-  draft: "drafted",
-  sent: "sent",
-  withdrawn: "withdrawn",
-  superseded: "updated",
-  accepted: "accepted",
-  rejected: "declined",
-  expired: "expired",
+// English values kept as the non-UI fallback / documentation; UI renders
+// `t(OFFER_STATUS_KEYS[status])` so the label follows the dashboard locale.
+const OFFER_STATUS_KEYS: Record<string, string> = {
+  draft: "client.messages.detailsOfferStatus.draft",
+  sent: "client.messages.detailsOfferStatus.sent",
+  withdrawn: "client.messages.detailsOfferStatus.withdrawn",
+  superseded: "client.messages.detailsOfferStatus.superseded",
+  accepted: "client.messages.detailsOfferStatus.accepted",
+  rejected: "client.messages.detailsOfferStatus.rejected",
+  expired: "client.messages.detailsOfferStatus.expired",
 };
 
-function offerStatusLabel(status: string): string {
-  return OFFER_STATUS_LABELS[status] ?? humanize(status);
+function offerStatusLabel(status: string, t: Translator): string {
+  const key = OFFER_STATUS_KEYS[status];
+  return key ? t(key) : humanize(status);
 }
 
 // NOTE: client-facing wording intentionally differs from the admin canonical set
 // in @/lib/status-labels (e.g. "In review" vs "Coordination", "Declined" vs
 // "Rejected"). Do not replace with the shared import without auditing copy.
-const INQUIRY_STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  submitted: "Submitted",
-  coordination: "In review",
-  offer_pending: "Offer pending",
-  offer_sent: "Offer sent",
-  approved: "Approved",
-  booked: "Booked",
-  converted: "Booked",
-  rejected: "Declined",
-  cancelled: "Cancelled",
-  expired: "Expired",
-  closed: "Closed",
-  closed_lost: "Closed",
-  archived: "Archived",
+const INQUIRY_STATUS_KEYS: Record<string, string> = {
+  draft: "dashboard.clientInquiries.statusDraft",
+  submitted: "dashboard.clientInquiries.statusSubmitted",
+  coordination: "dashboard.clientInquiries.statusInReview",
+  offer_pending: "dashboard.clientInquiries.statusOfferPending",
+  offer_sent: "client.messages.detailsStatusOfferSent",
+  approved: "dashboard.clientInquiries.statusApproved",
+  booked: "dashboard.clientInquiries.statusBooked",
+  converted: "dashboard.clientInquiries.statusBooked",
+  rejected: "dashboard.clientInquiries.statusDeclined",
+  cancelled: "client.messages.detailsStatusCancelled",
+  expired: "dashboard.clientInquiries.statusExpired",
+  closed: "dashboard.clientInquiries.statusClosed",
+  closed_lost: "dashboard.clientInquiries.statusClosed",
+  archived: "dashboard.clientInquiries.statusArchived",
 };
 
-function inquiryStatusLabel(status: string): string {
-  return INQUIRY_STATUS_LABELS[status] ?? humanize(status);
+function inquiryStatusLabel(status: string, t: Translator): string {
+  const key = INQUIRY_STATUS_KEYS[status];
+  return key ? t(key) : humanize(status);
 }
 
 // Statuses where no edits are allowed.
@@ -138,7 +145,7 @@ export function DetailsTab({
       startSave(async () => {
         const res = await updateClientInquiryDetailsAction(tenantSlug, details.id, patch);
         if (!res.ok) {
-          setSaveError(res.error ?? "Save failed.");
+          setSaveError(res.error ?? t("client.messages.detailsSaveFailed"));
         } else {
           setSaveSuccess(true);
           setEditSection(null);
@@ -147,7 +154,7 @@ export function DetailsTab({
         }
       });
     },
-    [details, tenantSlug],
+    [details, tenantSlug, t],
   );
 
   if (!details) {
@@ -172,13 +179,13 @@ export function DetailsTab({
             fontWeight: 600,
           }}
         >
-          Changes saved.
+          {t("client.messages.detailsSaved")}
         </div>
       )}
 
       {/* Project brief — editable */}
       <Section
-        title="Project brief"
+        title={t("client.messages.detailsProjectBrief")}
         editable={!isLocked}
         onEdit={() => openEdit("brief")}
         editing={editSection === "brief"}
@@ -186,12 +193,12 @@ export function DetailsTab({
         {editSection === "brief" ? (
           <EditBlock onCancel={cancelEdit} saving={saving} error={saveError}>
             <label className="flex flex-col gap-1.5">
-              <span style={fieldLabelStyle}>Brief / message</span>
+              <span style={fieldLabelStyle}>{t("client.messages.detailsBriefLabel")}</span>
               <textarea
                 value={draftBrief}
                 onChange={(e) => setDraftBrief(e.target.value)}
                 rows={5}
-                placeholder="Describe the project, event, and what you need…"
+                placeholder={t("client.messages.detailsBriefPlaceholder")}
                 style={{ ...editInputStyle, resize: "vertical", minHeight: 80, lineHeight: 1.45 }}
               />
             </label>
@@ -201,20 +208,20 @@ export function DetailsTab({
               disabled={saving}
               onClick={() => save({ message: draftBrief.trim() || null })}
             >
-              {saving ? "Saving…" : "Save brief"}
+              {saving ? t("client.messages.detailsSaving") : t("client.messages.detailsSaveBrief")}
             </button>
           </EditBlock>
         ) : details.brief.summary ? (
           <p style={paragraphStyle}>{details.brief.summary}</p>
         ) : (
-          <EmptyPrompt label="Add a brief" hint="Help the coordinator triage and match the right talent." />
+          <EmptyPrompt label={t("client.messages.detailsAddBrief")} hint={t("client.messages.detailsAddBriefHint")} />
         )}
       </Section>
 
       <SectionGrid>
         {/* Schedule — date + quantity editable */}
         <Section
-          title="Schedule"
+          title={t("client.messages.detailsSchedule")}
           inline
           editable={!isLocked}
           onEdit={() => openEdit("schedule")}
@@ -223,7 +230,7 @@ export function DetailsTab({
           {editSection === "schedule" ? (
             <EditBlock onCancel={cancelEdit} saving={saving} error={saveError}>
               <label className="flex flex-col gap-1.5">
-                <span style={fieldLabelStyle}>Event date</span>
+                <span style={fieldLabelStyle}>{t("client.messages.detailsEventDate")}</span>
                 <input
                   type="date"
                   value={draftDate}
@@ -232,13 +239,13 @@ export function DetailsTab({
                 />
               </label>
               <label className="flex flex-col gap-1.5">
-                <span style={fieldLabelStyle}>Talent needed (qty)</span>
+                <span style={fieldLabelStyle}>{t("client.messages.detailsTalentNeeded")}</span>
                 <input
                   type="number"
                   min={1}
                   value={draftQuantity}
                   onChange={(e) => setDraftQuantity(e.target.value)}
-                  placeholder="e.g. 2"
+                  placeholder={t("client.messages.detailsQuantityPlaceholder")}
                   style={editInputStyle}
                 />
               </label>
@@ -253,18 +260,18 @@ export function DetailsTab({
                   })
                 }
               >
-                {saving ? "Saving…" : "Save schedule"}
+                {saving ? t("client.messages.detailsSaving") : t("client.messages.detailsSaveSchedule")}
               </button>
             </EditBlock>
           ) : (
             <>
-              <KV label="Date" value={formatDate(details.schedule.event_date)} fallback="Not set" />
-              <KV label="Time" value={details.schedule.start_time} fallback="—" />
-              <KV label="Duration" value={details.schedule.duration} fallback="—" />
+              <KV label={t("client.messages.detailsDate")} value={formatDate(details.schedule.event_date)} fallback={t("client.messages.detailsNotSet")} />
+              <KV label={t("client.messages.detailsTime")} value={details.schedule.start_time} fallback="—" />
+              <KV label={t("client.messages.detailsDuration")} value={details.schedule.duration} fallback="—" />
               <KV
-                label="Status"
-                value={statusLabel(details.schedule.date_status)}
-                fallback="Exact"
+                label={t("client.messages.detailsStatus")}
+                value={statusLabel(details.schedule.date_status, t)}
+                fallback={t("dashboard.enums.inquiryStatus.exact")}
               />
             </>
           )}
@@ -272,7 +279,7 @@ export function DetailsTab({
 
         {/* Location — city editable */}
         <Section
-          title="Location"
+          title={t("client.messages.detailsLocation")}
           inline
           editable={!isLocked}
           onEdit={() => openEdit("location")}
@@ -281,12 +288,12 @@ export function DetailsTab({
           {editSection === "location" ? (
             <EditBlock onCancel={cancelEdit} saving={saving} error={saveError}>
               <label className="flex flex-col gap-1.5">
-                <span style={fieldLabelStyle}>City / venue</span>
+                <span style={fieldLabelStyle}>{t("client.messages.detailsCityVenue")}</span>
                 <input
                   type="text"
                   value={draftLocation}
                   onChange={(e) => setDraftLocation(e.target.value)}
-                  placeholder="e.g. Mexico City, MX"
+                  placeholder={t("client.messages.detailsCityPlaceholder")}
                   style={editInputStyle}
                 />
               </label>
@@ -296,29 +303,29 @@ export function DetailsTab({
                 disabled={saving}
                 onClick={() => save({ event_location: draftLocation.trim() || null })}
               >
-                {saving ? "Saving…" : "Save location"}
+                {saving ? t("client.messages.detailsSaving") : t("client.messages.detailsSaveLocation")}
               </button>
             </EditBlock>
           ) : (
             <>
-              <KV label="Venue" value={details.location.venue_name} fallback="—" />
-              <KV label="City" value={details.location.city} fallback="—" />
-              <KV label="Country" value={details.location.country} fallback="—" />
+              <KV label={t("client.messages.detailsVenue")} value={details.location.venue_name} fallback="—" />
+              <KV label={t("client.messages.detailsCity")} value={details.location.city} fallback="—" />
+              <KV label={t("client.messages.detailsCountry")} value={details.location.country} fallback="—" />
               <KV
-                label="Status"
-                value={statusLabel(details.location.status)}
-                fallback="Unconfirmed"
+                label={t("client.messages.detailsStatus")}
+                value={statusLabel(details.location.status, t)}
+                fallback={t("dashboard.enums.inquiryStatus.unconfirmed")}
                 badge={details.location.status === "confirmed" ? "success" : details.location.status === "unconfirmed" ? "warn" : undefined}
               />
               {details.location.notes && (
-                <KV label="Notes" value={details.location.notes} multiline />
+                <KV label={t("client.messages.detailsNotes")} value={details.location.notes} multiline />
               )}
             </>
           )}
         </Section>
       </SectionGrid>
 
-      <Section title="Your coordinator">
+      <Section title={t("client.messages.detailsYourCoordinator")}>
         {details.coordinator.assigned && details.coordinator.name ? (
           <div className="flex items-center gap-3">
             <div
@@ -344,17 +351,17 @@ export function DetailsTab({
               </div>
               <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
                 {details.coordinator.assigned_at
-                  ? `Coordinating since ${formatDate(details.coordinator.assigned_at)}`
-                  : "Coordinating your booking"}
+                  ? interpolate(t("client.messages.detailsCoordinatingSince"), { date: formatDate(details.coordinator.assigned_at) })
+                  : t("client.messages.detailsCoordinatingBooking")}
               </div>
             </div>
           </div>
         ) : (
-          <EmptyPrompt label="No coordinator yet" hint="The workspace will assign one shortly." />
+          <EmptyPrompt label={t("client.messages.detailsNoCoordinator")} hint={t("client.messages.detailsNoCoordinatorHint")} />
         )}
       </Section>
 
-      <Section title="Talent lineup">
+      <Section title={t("client.messages.detailsTalentLineup")}>
         {details.talent.selected.length > 0 ? (
           <div className="flex flex-col gap-2">
             {details.talent.selected.map((t) => (
@@ -402,15 +409,15 @@ export function DetailsTab({
           </div>
         ) : details.talent.selection_mode === "agency_recommends" ? (
           <EmptyPrompt
-            label="Agency to recommend"
+            label={t("client.messages.detailsAgencyRecommends")}
             hint={
               details.talent.count_needed
-                ? `${details.talent.count_needed} talent needed — the coordinator will propose options.`
-                : "The coordinator will propose talent based on your brief."
+                ? interpolate(t("client.messages.detailsTalentNeededHint"), { count: details.talent.count_needed })
+                : t("client.messages.detailsAgencyRecommendsHint")
             }
           />
         ) : (
-          <EmptyPrompt label="No talent yet" hint="Pick talent or let the agency recommend." />
+          <EmptyPrompt label={t("client.messages.detailsNoTalent")} hint={t("client.messages.detailsNoTalentHint")} />
         )}
         {details.talent.notes && (
           <div style={{ marginTop: 10, fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
@@ -419,53 +426,53 @@ export function DetailsTab({
         )}
       </Section>
 
-      <Section title="Budget">
+      <Section title={t("client.messages.detailsBudget")}>
         <KV
-          label="Pricing"
-          value={budgetLabel(details.budget.preference)}
-          fallback="Let agency recommend"
+          label={t("client.messages.detailsPricing")}
+          value={budgetLabel(details.budget.preference, t)}
+          fallback={t("dashboard.enums.budgetPreference.agency_recommends")}
         />
         {details.budget.amount != null && (
           <KV
-            label="Amount"
+            label={t("client.messages.detailsAmount")}
             value={`${details.budget.amount.toLocaleString()} ${details.budget.currency ?? ""}`.trim()}
           />
         )}
-        {details.budget.notes && <KV label="Notes" value={details.budget.notes} multiline />}
+        {details.budget.notes && <KV label={t("client.messages.detailsNotes")} value={details.budget.notes} multiline />}
       </Section>
 
-      <Section title="Logistics">
+      <Section title={t("client.messages.detailsLogistics")}>
         <KV
-          label="What talent should do"
+          label={t("client.messages.detailsRoleExpectations")}
           value={details.brief.role_expectations.join(", ")}
           fallback="—"
           multiline
         />
-        <KV label="Wardrobe" value={details.brief.wardrobe_notes} fallback="—" />
-        <KV label="Equipment" value={details.brief.equipment_notes} fallback="—" />
-        <KV label="Travel / parking" value={details.brief.travel_notes} fallback="—" />
-        <KV label="Media usage" value={details.brief.media_usage} fallback="—" />
+        <KV label={t("client.messages.detailsWardrobe")} value={details.brief.wardrobe_notes} fallback="—" />
+        <KV label={t("client.messages.detailsEquipment")} value={details.brief.equipment_notes} fallback="—" />
+        <KV label={t("client.messages.detailsTravel")} value={details.brief.travel_notes} fallback="—" />
+        <KV label={t("client.messages.detailsMediaUsage")} value={details.brief.media_usage} fallback="—" />
         <KV
-          label="Special requirements"
+          label={t("client.messages.detailsSpecialRequirements")}
           value={details.brief.special_requirements}
           fallback="—"
           multiline
         />
       </Section>
 
-      <Section title="Contact">
-        <KV label="Name" value={details.contact.name} />
-        <KV label="Email" value={details.contact.email} />
-        <KV label="Phone" value={details.contact.phone} fallback="—" />
-        {details.contact.company && <KV label="Company" value={details.contact.company} />}
+      <Section title={t("client.messages.detailsContact")}>
+        <KV label={t("client.messages.detailsName")} value={details.contact.name} />
+        <KV label={t("client.messages.detailsEmail")} value={details.contact.email} />
+        <KV label={t("client.messages.detailsPhone")} value={details.contact.phone} fallback="—" />
+        {details.contact.company && <KV label={t("client.messages.detailsCompany")} value={details.contact.company} />}
         {details.contact.booking_for && (
-          <KV label="Booking for" value={statusLabel(details.contact.booking_for)} />
+          <KV label={t("client.messages.detailsBookingFor")} value={statusLabel(details.contact.booking_for, t)} />
         )}
       </Section>
 
-      <Section title="Files & references">
+      <Section title={t("client.messages.detailsFiles")}>
         {details.attachments.files.length === 0 && details.attachments.links.length === 0 ? (
-          <EmptyPrompt label="No files yet" hint="Moodboards, briefs, and references shared on this booking will appear here." />
+          <EmptyPrompt label={t("client.messages.detailsNoFiles")} hint={t("client.messages.detailsNoFilesHint")} />
         ) : (
           <>
             {details.attachments.files.map((f, i) => (
@@ -488,9 +495,9 @@ export function DetailsTab({
         )}
       </Section>
 
-      <Section title="Activity">
+      <Section title={t("client.messages.detailsActivity")}>
         {details.activity.length === 0 ? (
-          <EmptyPrompt label="No activity yet" hint="Coordinator actions will show up here." />
+          <EmptyPrompt label={t("client.messages.detailsNoActivity")} hint={t("client.messages.detailsNoActivityHint")} />
         ) : (
           <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
             {details.activity.map((a) => (
@@ -507,11 +514,11 @@ export function DetailsTab({
                 }}
               >
                 <span className="flex-1">
-                  <strong>{a.actor_name ?? actorRoleLabel(a.actor_role) ?? "System"}</strong>{" "}
-                  <span style={{ color: C.inkMuted }}>{eventLabel(a.event_type)}</span>
+                  <strong>{a.actor_name ?? actorRoleLabel(a.actor_role, t) ?? t("client.messages.detailsActorSystem")}</strong>{" "}
+                  <span style={{ color: C.inkMuted }}>{eventLabel(a.event_type, t)}</span>
                 </span>
                 <span style={{ color: C.inkDim, fontSize: 11, whiteSpace: "nowrap" }}>
-                  {formatRelative(a.created_at)}
+                  {formatRelative(a.created_at, t)}
                 </span>
               </li>
             ))}
@@ -559,10 +566,10 @@ function CancelInquiryRow({ tenantSlug, inquiryId }: { tenantSlug: string; inqui
       }}
     >
       <div style={{ fontSize: 11, fontWeight: 700, color: "#991B1B", textTransform: "uppercase", letterSpacing: 0.6 }}>
-        Cancel inquiry
+        {t("client.messages.detailsCancelInquiry")}
       </div>
       <div style={{ marginTop: 6, fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
-        If your plans changed, cancel this inquiry. Your coordinator will be notified.
+        {t("client.messages.detailsCancelInquiryBody")}
       </div>
       {err && (
         <div style={{ marginTop: 8, fontSize: 12, color: "#991B1B" }}>
@@ -586,7 +593,7 @@ function CancelInquiryRow({ tenantSlug, inquiryId }: { tenantSlug: string; inqui
           cursor: pending ? "wait" : "pointer",
         }}
       >
-        {pending ? "Cancelling…" : "Cancel inquiry"}
+        {pending ? t("client.messages.detailsCancelling") : t("client.messages.detailsCancelInquiry")}
       </button>
 
       <ClientConfirmDialog
@@ -611,6 +618,7 @@ function CancelInquiryRow({ tenantSlug, inquiryId }: { tenantSlug: string; inqui
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function JobHeader({ details }: { details: ClientInquiryDetails }) {
+  const t = useT();
   return (
     <div
       style={{
@@ -621,7 +629,7 @@ function JobHeader({ details }: { details: ClientInquiryDetails }) {
       }}
     >
       <div style={{ fontSize: 10.5, fontWeight: 700, color: C.inkMuted, textTransform: "uppercase", letterSpacing: 0.6 }}>
-        Project
+        {t("client.messages.detailsProject")}
       </div>
       <h2
         style={{
@@ -633,16 +641,16 @@ function JobHeader({ details }: { details: ClientInquiryDetails }) {
           letterSpacing: -0.2,
         }}
       >
-        {details.job.title ?? "Inquiry"}
+        {details.job.title ?? t("dashboard.clientMessages.inquiryFallback")}
       </h2>
       <div style={{ marginTop: 6, fontSize: 12, color: C.inkMuted, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <span>Submitted {formatDate(details.created_at)}</span>
+        <span>{interpolate(t("client.messages.detailsSubmittedOn"), { date: formatDate(details.created_at) })}</span>
         <span>·</span>
-        <span>{inquiryStatusLabel(details.status)}</span>
+        <span>{inquiryStatusLabel(details.status, t)}</span>
         {details.offer && (
           <>
             <span>·</span>
-            <span style={{ color: C.accent, fontWeight: 600 }}>Offer {offerStatusLabel(details.offer.status)}</span>
+            <span style={{ color: C.accent, fontWeight: 600 }}>{interpolate(t("client.messages.detailsOfferStatusLine"), { status: offerStatusLabel(details.offer.status, t) })}</span>
           </>
         )}
       </div>
@@ -665,6 +673,7 @@ function Section({
   onEdit?: () => void;
   editing?: boolean;
 }) {
+  const t = useT();
   return (
     <section
       style={{
@@ -710,7 +719,7 @@ function Section({
               letterSpacing: 0.2,
             }}
           >
-            Edit
+            {t("client.messages.detailsEdit")}
           </button>
         )}
       </div>
@@ -740,6 +749,7 @@ function EditBlock({
   error: string | null;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-3">
       {children}
@@ -765,7 +775,7 @@ function EditBlock({
           alignSelf: "flex-start",
         }}
       >
-        Cancel
+        {t("client.messages.detailsCancel")}
       </button>
     </div>
   );
@@ -798,6 +808,7 @@ function KV({
   multiline?: boolean;
   badge?: "success" | "warn";
 }) {
+  const t = useT();
   const display = value?.trim() ? value : fallback ?? null;
   const empty = !value?.trim();
   return (
@@ -837,7 +848,7 @@ function KV({
               color: badge === "success" ? C.success : C.amber,
             }}
           >
-            {badge === "success" ? "Confirmed" : "TBD"}
+            {badge === "success" ? t("dashboard.enums.inquiryStatus.confirmed") : t("client.messages.detailsTbd")}
           </span>
         )}
       </div>
@@ -859,20 +870,21 @@ function EmptyPrompt({ label, hint }: { label: string; hint: string }) {
       }}
     >
       <strong style={{ color: C.ink }}>{label}</strong>
-      <span> — {hint}</span>
+      <span> · {hint}</span>
     </div>
   );
 }
 
 function TalentStatusPill({ status }: { status: string }) {
+  const t = useT();
   const palette = (() => {
     switch (status) {
       case "active":
-        return { bg: C.successSoft, fg: C.success, label: "Confirmed" };
+        return { bg: C.successSoft, fg: C.success, label: t("dashboard.clientMessages.statusConfirmed") };
       case "invited":
-        return { bg: C.accentSoft, fg: C.accent, label: "Invited" };
+        return { bg: C.accentSoft, fg: C.accent, label: t("dashboard.clientMessages.statusInvited") };
       case "declined":
-        return { bg: "rgba(239,68,68,0.08)", fg: "#991B1B", label: "Declined" };
+        return { bg: "rgba(239,68,68,0.08)", fg: "#991B1B", label: t("dashboard.clientMessages.statusDeclined") };
       default:
         return { bg: "rgba(11,11,13,0.06)", fg: C.inkMuted, label: humanize(status) };
     }
@@ -906,55 +918,59 @@ function initials(name: string): string {
     .join("");
 }
 
-function statusLabel(s: string | null | undefined): string | null {
+/** Enum values that have a shared catalog entry under dashboard.enums.inquiryStatus. */
+const SHARED_STATUS_ENUM_VALUES = new Set([
+  "confirmed", "unconfirmed", "online", "not_sure", "exact", "flexible", "multi_day", "recurring",
+]);
+
+function statusLabel(s: string | null | undefined, t: Translator): string | null {
   if (!s) return null;
-  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (SHARED_STATUS_ENUM_VALUES.has(s)) return t(`dashboard.enums.inquiryStatus.${s}`);
+  return humanize(s);
 }
 
-function budgetLabel(p: string | null | undefined): string | null {
+/** Enum values that have a shared catalog entry under dashboard.enums.budgetPreference. */
+const SHARED_BUDGET_ENUM_VALUES = new Set([
+  "agency_recommends", "total_budget", "per_hour", "per_day", "per_week", "per_contract", "per_talent", "not_sure",
+]);
+
+function budgetLabel(p: string | null | undefined, t: Translator): string | null {
   if (!p) return null;
-  const map: Record<string, string> = {
-    agency_recommends: "Let agency recommend",
-    total_budget: "Total budget",
-    per_hour: "Per hour",
-    per_day: "Per day",
-    per_week: "Per week",
-    per_contract: "Per contract",
-    per_talent: "Per talent",
-    not_sure: "Not sure yet",
-  };
-  return map[p] ?? statusLabel(p);
+  if (SHARED_BUDGET_ENUM_VALUES.has(p)) return t(`dashboard.enums.budgetPreference.${p}`);
+  return statusLabel(p, t);
 }
 
-function eventLabel(t: string): string {
-  const map: Record<string, string> = {
-    INQUIRY_SUBMITTED: "submitted this inquiry",
-    INQUIRY_MOVED_TO_COORDINATION: "started coordination",
-    COORDINATOR_ASSIGNED: "assigned a coordinator",
-    COORDINATOR_ACCEPTED: "took over coordination",
-    ROSTER_TALENT_INVITED: "invited a talent",
-    ROSTER_TALENT_ACCEPTED: "confirmed",
-    ROSTER_TALENT_DECLINED: "declined",
-    OFFER_CREATED: "drafted an offer",
-    OFFER_SENT: "sent you an offer",
-    OFFER_CLIENT_REJECTED: "rejected the offer",
-    OFFER_CLIENT_ACCEPTED: "accepted the offer",
-    APPROVAL_SUBMITTED: "submitted an approval",
-    APPROVALS_COMPLETED: "completed all approvals",
-    INQUIRY_CONVERTED_TO_BOOKING: "converted this to a booking",
-    BOOKING_CONFIRMED: "confirmed the booking",
-    INQUIRY_FROZEN: "froze this inquiry",
-    INQUIRY_UNFROZEN: "unfroze this inquiry",
-    INQUIRY_ARCHIVED: "archived this inquiry",
-  };
-  return map[t] ?? t.toLowerCase().replace(/_/g, " ");
+const EVENT_LABEL_KEYS: Record<string, string> = {
+  INQUIRY_SUBMITTED: "client.messages.detailsEvent.inquirySubmitted",
+  INQUIRY_MOVED_TO_COORDINATION: "client.messages.detailsEvent.movedToCoordination",
+  COORDINATOR_ASSIGNED: "client.messages.detailsEvent.coordinatorAssigned",
+  COORDINATOR_ACCEPTED: "client.messages.detailsEvent.coordinatorAccepted",
+  ROSTER_TALENT_INVITED: "client.messages.detailsEvent.talentInvited",
+  ROSTER_TALENT_ACCEPTED: "client.messages.detailsEvent.talentAccepted",
+  ROSTER_TALENT_DECLINED: "client.messages.detailsEvent.talentDeclined",
+  OFFER_CREATED: "client.messages.detailsEvent.offerCreated",
+  OFFER_SENT: "client.messages.detailsEvent.offerSent",
+  OFFER_CLIENT_REJECTED: "client.messages.detailsEvent.offerRejected",
+  OFFER_CLIENT_ACCEPTED: "client.messages.detailsEvent.offerAccepted",
+  APPROVAL_SUBMITTED: "client.messages.detailsEvent.approvalSubmitted",
+  APPROVALS_COMPLETED: "client.messages.detailsEvent.approvalsCompleted",
+  INQUIRY_CONVERTED_TO_BOOKING: "client.messages.detailsEvent.convertedToBooking",
+  BOOKING_CONFIRMED: "client.messages.detailsEvent.bookingConfirmed",
+  INQUIRY_FROZEN: "client.messages.detailsEvent.frozen",
+  INQUIRY_UNFROZEN: "client.messages.detailsEvent.unfrozen",
+  INQUIRY_ARCHIVED: "client.messages.detailsEvent.archived",
+};
+
+function eventLabel(eventType: string, t: Translator): string {
+  const key = EVENT_LABEL_KEYS[eventType];
+  return key ? t(key) : eventType.toLowerCase().replace(/_/g, " ");
 }
 
-function actorRoleLabel(role: string | null): string | null {
+function actorRoleLabel(role: string | null, t: Translator): string | null {
   if (!role) return null;
-  if (role === "client") return "You";
-  if (role === "admin") return "Coordinator";
-  return statusLabel(role);
+  if (role === "client") return t("client.messages.detailsActorYou");
+  if (role === "admin") return t("client.messages.detailsActorCoordinator");
+  return statusLabel(role, t);
 }
 
 function formatDate(iso: string | null): string {
@@ -963,16 +979,16 @@ function formatDate(iso: string | null): string {
   return formatDateOnly(iso);
 }
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string, t: Translator): string {
   try {
     const ms = Date.now() - new Date(iso).getTime();
-    if (ms < 60_000) return "just now";
+    if (ms < 60_000) return t("dashboard.clientInquiries.justNow");
     const m = Math.floor(ms / 60_000);
-    if (m < 60) return `${m}m ago`;
+    if (m < 60) return interpolate(t("client.messages.detailsMinutesAgo"), { count: m });
     const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
+    if (h < 24) return interpolate(t("dashboard.clientInquiries.hoursAgo"), { count: h });
     const d = Math.floor(h / 24);
-    if (d < 7) return `${d}d ago`;
+    if (d < 7) return interpolate(t("dashboard.clientInquiries.daysAgo"), { count: d });
     return formatDate(iso);
   } catch {
     return "";

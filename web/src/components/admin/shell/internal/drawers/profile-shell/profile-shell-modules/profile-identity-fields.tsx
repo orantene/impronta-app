@@ -11,6 +11,7 @@ import {
   SHARED_FIELD_INPUT_STYLE,
   TaxonomyParentId,
   sectionAppliesToType,
+  useDashboardText,
 } from "../../drawer-shared";
 
 
@@ -29,6 +30,7 @@ export function CollapsibleIdentityField({
   children: React.ReactNode;
   defaultOpen?: boolean;
 }) {
+  const copy = useDashboardText();
   const [open, setOpen] = React.useState(!!defaultOpen);
   const [hover, setHover] = React.useState(false);
   const restBg = "#fff";
@@ -86,7 +88,7 @@ export function CollapsibleIdentityField({
           transition: "color 120ms ease",
         }}>
           {!open && hover && (
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }}>Edit</span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.3 }}>{copy.t("Edit")}</span>
           )}
           <span style={{ fontSize: 16, lineHeight: 1, fontWeight: 600 }}>
             {open ? "⌄" : "›"}
@@ -182,6 +184,7 @@ export function CountryAutocompleteInput({
   placeholder?: string;
   onChange: (nameEn: string, iso2?: string) => void;
 }) {
+  const copy = useDashboardText();
   const [draft, setDraft] = React.useState(value);
   const [suggestions, setSuggestions] = React.useState<CountrySuggestion[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -235,7 +238,7 @@ export function CountryAutocompleteInput({
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
       <input
-        placeholder={placeholder ?? "Search country…"}
+        placeholder={placeholder ?? copy.t("Search country…")}
         value={draft}
         autoComplete="off"
         onChange={(e) => handleChange(e.target.value)}
@@ -283,6 +286,7 @@ export function CityAutocompleteInput({
   placeholder?: string;
   onChange: (city: string, placeId?: string) => void;
 }) {
+  const copy = useDashboardText();
   const [draft, setDraft] = React.useState(value);
   const [predictions, setPredictions] = React.useState<CityPrediction[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -333,7 +337,7 @@ export function CityAutocompleteInput({
     <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
       <input
         data-pshell-field="homeBase"
-        placeholder={placeholder ?? "e.g. Playa del Carmen"}
+        placeholder={placeholder ?? copy.t("e.g. Playa del Carmen")}
         value={draft}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => { if (predictions.length > 0) setOpen(true); }}
@@ -341,7 +345,7 @@ export function CityAutocompleteInput({
       />
       {!configured && (
         <div style={{ fontSize: 11, marginTop: 4 }} className="text-admin-ink-muted">
-          Google Places not configured — type any city name.
+          {copy.t("Google Places is not configured. Type any city name.")}
         </div>
       )}
       {open && predictions.length > 0 && (
@@ -380,6 +384,7 @@ export function UpcomingVisitsEditor({
   visits: VisitEntry[];
   onChange: (visits: VisitEntry[]) => void;
 }) {
+  const copy = useDashboardText();
   const add = () => {
     onChange([...visits, { id: crypto.randomUUID(), city: "", date: "" }]);
   };
@@ -395,7 +400,7 @@ export function UpcomingVisitsEditor({
             <CityAutocompleteInput
               value={v.city}
               placeId={v.placeId}
-              placeholder="City or destination…"
+              placeholder={copy.t("City or destination…")}
               onChange={(city, pid) => update(v.id, { city, placeId: pid })}
             />
           </div>
@@ -403,7 +408,7 @@ export function UpcomingVisitsEditor({
             type="date"
             value={v.date ?? ""}
             onChange={(e) => update(v.id, { date: e.target.value || undefined })}
-            title="Start date (optional)"
+            title={copy.t("Start date (optional)")}
             style={{
               padding: "9px 10px", borderRadius: 10, border: `1px solid ${COLORS.border}`,
               fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
@@ -412,7 +417,7 @@ export function UpcomingVisitsEditor({
           />
           <button
             onClick={() => remove(v.id)}
-            title="Remove"
+            title={copy.t("Remove")}
             style={{
               padding: "9px 10px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`,
               background: "none", cursor: "pointer", color: COLORS.inkMuted,
@@ -430,7 +435,7 @@ export function UpcomingVisitsEditor({
           color: COLORS.inkMuted, display: "flex", alignItems: "center", gap: 6,
         }}
       >
-        <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> Add destination
+        <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> {copy.t("Add destination")}
       </button>
     </div>
   );
@@ -440,6 +445,7 @@ export function UpcomingVisitsEditor({
 export function ServiceAreaMap({ homeBase, travelKm, cities }: {
   homeBase: string; travelKm: number; cities: string[];
 }) {
+  const copy = useDashboardText();
   const radius = Math.max(20, Math.min(70, travelKm / 12));
   return (
     <div style={{ position: "relative", height: 130, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden" }} className="bg-admin-surface">
@@ -461,8 +467,8 @@ export function ServiceAreaMap({ homeBase, travelKm, cities }: {
         })}
       </svg>
       <div style={{ position: "absolute", bottom: 8, left: 10, right: 10, display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 500, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-        <span>📍 {homeBase || "Set home base"}</span>
-        <span>{travelKm === 999 ? "Anywhere" : `${travelKm} km`}</span>
+        <span>📍 {homeBase || copy.t("Set home base")}</span>
+        <span>{travelKm === 999 ? copy.t("Anywhere") : `${travelKm} km`}</span>
       </div>
     </div>
   );

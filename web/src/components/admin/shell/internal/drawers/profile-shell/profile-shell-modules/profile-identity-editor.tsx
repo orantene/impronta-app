@@ -270,7 +270,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
       <div data-pshell-identity-full>
         <FieldRow label={copy.t("Stage / professional name")} hint={copy.t("What clients see on the public profile.")}>
           <input data-pshell-field="stageName"
-            placeholder="First Last"
+            placeholder={copy.t("First Last")}
             value={identity.stageName}
             onChange={(e) => onChange({ ...identity, stageName: e.target.value })}
             disabled={isFieldLocked("identity.stageName")}
@@ -360,7 +360,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
         />
         {identity.pronouns === "custom" && (
           <input
-            placeholder="e.g. xe / xem"
+            placeholder={copy.t("e.g. xe / xem")}
             value={identity.pronounsCustom ?? ""}
             onChange={(e) => onChange({ ...identity, pronounsCustom: e.target.value })}
             style={{
@@ -627,7 +627,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
               color: COLORS.ink,
             }}
           >
-            <option value="">{copy.t("— select —")}</option>
+            <option value="">{copy.t("Select")}</option>
             <option value="1h">{copy.t("Within 1h")}</option>
             <option value="4h">{copy.t("Within 4h")}</option>
             <option value="24h">{copy.t("Within 24h")}</option>
@@ -699,7 +699,7 @@ export function FieldLocksOverviewPanel({
       background: "#fff", fontFamily: FONTS.body,
     }}>
       {locks.map((path) => {
-        const label = PATH_LABEL[path] ?? path;
+        const label = copy.t(PATH_LABEL[path] ?? path);
         const reason = reasons[path] ?? "";
         return (
           <div key={path} style={{
@@ -719,8 +719,8 @@ export function FieldLocksOverviewPanel({
               type="text"
               value={reason}
               onChange={(e) => onSetReason(path, e.target.value)}
-              placeholder="Reason (e.g. set by contract)"
-              aria-label={`Reason for locking ${label}`}
+              placeholder={copy.t("Reason (e.g. set by contract)")}
+              aria-label={copy.isSpanish ? `Motivo del bloqueo de ${label}` : `Reason for locking ${label}`}
               style={{
                 width: "100%",
                 boxSizing: "border-box",
@@ -737,8 +737,8 @@ export function FieldLocksOverviewPanel({
             <button
               type="button"
               onClick={() => onUnlock(path)}
-              aria-label={`Unlock ${label}`}
-              title="Unlock"
+              aria-label={copy.isSpanish ? `Desbloquear ${label}` : `Unlock ${label}`}
+              title={copy.t("Unlock")}
               style={{
                 padding: "4px 9px",
                 borderRadius: 999,
@@ -752,13 +752,13 @@ export function FieldLocksOverviewPanel({
                 whiteSpace: "nowrap",
               }}
             >
-              Unlock
+              {copy.t("Unlock")}
             </button>
           </div>
         );
       })}
       <div style={{ fontSize: 10.5, marginTop: 2, padding: "0 4px" }} className="text-admin-ink-muted">
-        Tip: lock anything tied to a contract, payout setup, or trust signal — talent see the reason next to the field.
+        {copy.t("Tip: lock anything tied to a contract, payout setup, or trust signal. Talent see the reason next to the field.")}
       </div>
     </div>
   );

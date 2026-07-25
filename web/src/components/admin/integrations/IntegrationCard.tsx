@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/i18n/use-t";
+
 import { Card } from "@/components/admin/shell/internal/primitives";
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import type { IntegrationView } from "@/app/(workspace)/[tenantSlug]/admin/settings/integration-actions";
@@ -30,6 +32,7 @@ export function IntegrationCard({
   integration: IntegrationView;
   onOpen: () => void;
 }) {
+  const t = useT();
   const isLink = integration.connection === "link";
   const visual = resolveIntegrationStatus(integration, {
     locked: integration.locked,
@@ -42,10 +45,10 @@ export function IntegrationCard({
   );
   const summary =
     isLink || !configuredField
-      ? integration.description
+      ? t(integration.descriptionKey)
       : configuredField.secret
-        ? `${configuredField.label} ····${configuredField.secretLast4 ?? ""}`
-        : `${configuredField.label}: ${configuredField.value}`;
+        ? `${t(configuredField.labelKey)} ····${configuredField.secretLast4 ?? ""}`
+        : `${t(configuredField.labelKey)}: ${configuredField.value}`;
 
   const cardInner = (
     <Card
@@ -81,7 +84,7 @@ export function IntegrationCard({
               whiteSpace: "nowrap",
             }}
           >
-            {integration.label}
+            {t(integration.labelKey)}
           </span>
           <span aria-hidden style={{ color: COLORS.inkDim, display: "inline-flex", flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">

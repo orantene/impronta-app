@@ -57,14 +57,25 @@ export type IntegrationActionResult = { ok: true } | { ok: false; error: string 
 export type IntegrationView = {
   key: string;
   label: string;
+  /**
+   * i18n catalog keys mirroring `label` / `description` / `instructions`, copied
+   * straight off the catalog def. The English strings stay for non-UI consumers;
+   * every client surface renders `t(labelKey)` / `t(descriptionKey)` /
+   * `instructionKeys.map(t)`. `instructionKeys` is index-aligned with
+   * `instructions` (both empty for surfaced link cards).
+   */
+  labelKey: string;
   category: IntegrationDef["category"];
   connection: IntegrationDef["connection"];
   inheritable: boolean;
   description: string;
+  descriptionKey: string;
   instructions: string[];
+  instructionKeys: string[];
   fields: {
     name: string;
     label: string;
+    labelKey: string;
     secret: boolean;
     public: boolean;
     /** Current PUBLIC config value (only for non-secret fields). */
@@ -183,6 +194,7 @@ export async function loadTenantIntegrations(
         fields.push({
           name: f.name,
           label: f.label,
+          labelKey: f.labelKey,
           secret: true,
           public: false,
           value: null,
@@ -194,6 +206,7 @@ export async function loadTenantIntegrations(
         fields.push({
           name: f.name,
           label: f.label,
+          labelKey: f.labelKey,
           secret: false,
           public: f.public,
           value: typeof raw === "string" ? raw : null,
@@ -206,11 +219,14 @@ export async function loadTenantIntegrations(
     integrations.push({
       key: def.key,
       label: def.label,
+      labelKey: def.labelKey,
       category: def.category,
       connection: def.connection,
       inheritable: def.inheritable,
       description: def.description,
+      descriptionKey: def.descriptionKey,
       instructions: def.instructions,
+      instructionKeys: def.instructionKeys,
       fields,
       credentialMode: row?.credential_mode ?? "inherit",
       status: row?.status ?? "not_configured",
@@ -231,11 +247,14 @@ export async function loadTenantIntegrations(
     integrations.push({
       key: surfaced.key,
       label: surfaced.label,
+      labelKey: surfaced.labelKey,
       category: surfaced.category,
       connection: "link",
       inheritable: false,
       description: surfaced.description,
+      descriptionKey: surfaced.descriptionKey,
       instructions: [],
+      instructionKeys: [],
       fields: [],
       credentialMode: "inherit",
       status: liveStatus,

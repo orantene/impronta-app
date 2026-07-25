@@ -148,6 +148,8 @@ export default async function ClientSettingsPage({ params }: { params: PageParam
     id: c.id,
     label: c.label,
     description: c.description,
+    labelKey: c.labelKey,
+    descriptionKey: c.descriptionKey,
     required: c.required,
     channels: c.defaultChannels.filter((ch): ch is UiChannel =>
       (LIVE_CHANNELS as readonly string[]).includes(ch),

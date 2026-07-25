@@ -2,6 +2,7 @@
 
 import * as React from "react";
 
+import { useT } from "@/i18n/use-t";
 import {
   connectManualClientIntegrationAction,
   disconnectClientIntegrationAction,
@@ -52,38 +53,52 @@ type ControlKey =
   | "publicProfileEnabled"
   | "autoRefreshEnabled";
 
+// English label/description stay as the non-UI fallback; *Key is the localized
+// display path (same additive pattern as lib/status-labels.ts).
 const CONTROL_COPY: Array<{
   key: ControlKey;
   label: string;
+  labelKey: string;
   description: string;
+  descriptionKey: string;
   capability?: string;
 }> = [
   {
     key: "trustSignalEnabled",
     label: "Use for trust verification",
+    labelKey: "client.settings.social.trustSignalLabel",
     description: "Only OAuth-verified account ownership can affect trust. Manual links stay unverified.",
+    descriptionKey: "client.settings.social.trustSignalDescription",
     capability: "verify_account",
   },
   {
     key: "agencyVisible",
     label: "Share with agencies",
+    labelKey: "client.settings.social.agencyVisibleLabel",
     description: "Tenant staff can see connection status and account label for trust review.",
+    descriptionKey: "client.settings.social.agencyVisibleDescription",
   },
   {
     key: "talentVisible",
     label: "Share with talent on inquiries",
+    labelKey: "client.settings.social.talentVisibleLabel",
     description: "Talent can see approved trust proof, not private content or tokens.",
+    descriptionKey: "client.settings.social.talentVisibleDescription",
     capability: "talent_inquiry_badge",
   },
   {
     key: "publicProfileEnabled",
     label: "Show on public client profile",
+    labelKey: "client.settings.social.publicProfileLabel",
     description: "Reserved for future client/company profiles. Keep off unless you want this public later.",
+    descriptionKey: "client.settings.social.publicProfileDescription",
   },
   {
     key: "autoRefreshEnabled",
     label: "Auto-refresh proof",
+    labelKey: "client.settings.social.autoRefreshLabel",
     description: "Refreshes account metadata after OAuth is available.",
+    descriptionKey: "client.settings.social.autoRefreshDescription",
     capability: "verify_account",
   },
 ];
@@ -98,25 +113,31 @@ function defaultControls(provider: ClientConnectionProviderState) {
   };
 }
 
-function statusMeta(provider: ClientConnectionProviderState) {
+function statusMeta(provider: ClientConnectionProviderState, t: (key: string) => string) {
   const status = provider.row?.status ?? "not_connected";
   const verification = provider.row?.verificationStatus;
   if (status === "connected" && verification === "oauth_verified") {
-    return { label: "Verified", color: C.green };
+    return { label: t("client.settings.social.statusVerified"), color: C.green };
   }
   if (status === "connected") {
-    return { label: "Linked", color: C.amber };
+    return { label: t("client.settings.social.statusLinked"), color: C.amber };
   }
   if (status === "pending" || status === "needs_reauth") {
-    return { label: status === "pending" ? "Pending" : "Reconnect", color: C.amber };
+    return {
+      label:
+        status === "pending"
+          ? t("client.settings.social.statusPending")
+          : t("client.settings.social.statusReconnect"),
+      color: C.amber,
+    };
   }
   if (status === "error") {
-    return { label: "Needs attention", color: C.red };
+    return { label: t("client.settings.social.statusError"), color: C.red };
   }
   if (status === "disabled") {
-    return { label: "Off", color: C.inkDim };
+    return { label: t("client.settings.social.statusOff"), color: C.inkDim };
   }
-  return { label: "Not connected", color: C.inkMuted };
+  return { label: t("client.settings.social.statusNotConnected"), color: C.inkMuted };
 }
 
 function SmallButton({
@@ -197,6 +218,7 @@ function Toggle({
   onChange: (checked: boolean) => void;
   label: string;
 }) {
+  const t = useT();
   return (
     <label
       style={{
@@ -218,7 +240,7 @@ function Toggle({
         aria-label={label}
         style={{ width: 16, height: 16, accentColor: C.accent }}
       />
-      {checked ? "On" : "Off"}
+      {checked ? t("client.settings.social.toggleOn") : t("client.settings.social.toggleOff")}
     </label>
   );
 }
@@ -232,7 +254,8 @@ function ProviderButton({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const meta = statusMeta(provider);
+  const t = useT();
+  const meta = statusMeta(provider, t);
   return (
     <button
       type="button"
@@ -265,6 +288,7 @@ function ProviderButton({
 }
 
 export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: string }) {
+  const t = useT();
   const [providers, setProviders] = React.useState<ClientConnectionProviderState[]>(fallbackProviders);
   const [selectedKey, setSelectedKey] = React.useState(fallbackProviders[0]?.key ?? "");
   const [profileUrl, setProfileUrl] = React.useState("");
@@ -299,7 +323,7 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
   const accountHint = selected?.profileUrlHint ?? "https://...";
   const canManualConnect = selected?.connectionMethods.includes("manual") ?? false;
   const canOAuthConnect = selected?.key === "youtube";
-  const selectedStatus = selected ? statusMeta(selected) : null;
+  const selectedStatus = selected ? statusMeta(selected, t) : null;
 
   function mergeSelected(next: ClientConnectionProviderState | null) {
     if (!next) return;
@@ -368,7 +392,7 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
       mergeSelected(result.provider);
       setProfileUrl("");
       setAccountLabel("");
-      setMessage("Connection saved. Manual links are shared context, not verified trust proof.");
+      setMessage(t("client.settings.social.savedNotice"));
     });
   }
 
@@ -396,7 +420,7 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
         return;
       }
       mergeSelected(result.provider);
-      setMessage("Connection turned off for agency and talent trust views.");
+      setMessage(t("client.settings.social.turnedOffNotice"));
     });
   }
 
@@ -412,10 +436,10 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
         }}
       >
         <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 4 }}>
-          What Tulala does with connected accounts
+          {t("client.settings.social.explainerTitle")}
         </div>
         <div style={{ fontSize: 12, lineHeight: 1.55, color: C.inkMuted }}>
-          We store the public account label, connection status, your sharing switches, and encrypted OAuth tokens only when a one-click provider is enabled. Manual links can help agencies and talent recognize you, but only verified provider ownership can become a trust signal.
+          {t("client.settings.social.explainerBody")}
         </div>
       </div>
 
@@ -481,16 +505,18 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>
-                      {control.label}
+                      {t(control.labelKey) === control.labelKey ? control.label : t(control.labelKey)}
                     </div>
                     <div style={{ fontSize: 11.5, lineHeight: 1.45, color: C.inkMuted, marginTop: 2 }}>
-                      {control.description}
+                      {t(control.descriptionKey) === control.descriptionKey
+                        ? control.description
+                        : t(control.descriptionKey)}
                     </div>
                   </div>
                   <Toggle
                     checked={Boolean(controls[control.key])}
                     onChange={(value) => saveControl(control.key, value)}
-                    label={control.label}
+                    label={t(control.labelKey) === control.labelKey ? control.label : t(control.labelKey)}
                   />
                 </div>
               ))}
@@ -501,10 +527,10 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
                 <div style={{ height: 1, background: C.border, margin: "13px 0" }} />
                 <div style={{ display: "grid", gap: 8 }}>
                   <SmallButton onClick={connectOAuth} disabled={isPending}>
-                    Connect with YouTube
+                    {t("client.settings.social.connectYoutube")}
                   </SmallButton>
                   <div style={{ fontSize: 11.5, lineHeight: 1.45, color: C.inkMuted }}>
-                    You will approve read-only channel access with Google. Tulala stores encrypted tokens and marks channel ownership as verified.
+                    {t("client.settings.social.youtubeConsent")}
                   </div>
                 </div>
               </>
@@ -522,15 +548,15 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
                   <TextInput
                     value={accountLabel}
                     onChange={setAccountLabel}
-                    placeholder="Display label (optional)"
+                    placeholder={t("client.settings.social.displayLabelPlaceholder")}
                   />
                   <div className="flex flex-wrap gap-2">
                     <SmallButton onClick={connectManual} disabled={isPending || !profileUrl.trim()}>
-                      {isPending ? "Saving..." : "Save link"}
+                      {isPending ? t("client.settings.saving") : t("client.settings.social.saveLink")}
                     </SmallButton>
                     {selected.row?.status === "connected" ? (
                       <SmallButton onClick={disconnectSelected} disabled={isPending} variant="danger">
-                        Turn off
+                        {t("client.settings.social.turnOff")}
                       </SmallButton>
                     ) : null}
                   </div>
@@ -540,14 +566,14 @@ export function ClientSocialVerificationPanel({ tenantSlug }: { tenantSlug: stri
               <>
                 <div style={{ height: 1, background: C.border, margin: "13px 0" }} />
                 <div style={{ fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5 }}>
-                  One-click OAuth is the next provider-specific step. This consent and storage foundation is ready for it.
+                  {t("client.settings.social.oauthComingSoon")}
                 </div>
               </>
             )}
 
             <details style={{ marginTop: 13 }}>
               <summary style={{ fontSize: 12, color: C.accent, fontWeight: 800, cursor: "pointer" }}>
-                Provider notes
+                {t("client.settings.social.providerNotes")}
               </summary>
               <ul style={{ margin: "8px 0 0", paddingLeft: 18, color: C.inkMuted, fontSize: 12, lineHeight: 1.55 }}>
                 {selected.setupCopy.map((item) => (

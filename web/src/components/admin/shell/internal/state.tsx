@@ -26,5 +26,6 @@ export * from "./state/context";
 export {
   computeProfileCompleteness,
   fieldsForType,
+  applyWorkspaceFieldOverride,
   FIELD_CATALOG,
 } from "./field-catalog";

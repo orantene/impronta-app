@@ -253,6 +253,10 @@ export function TalentProfileShellDrawer() {
     ?? tenantSlug
     ?? effectiveTenant.slug;
   const copy = useDashboardText();
+  const addItemsToPublishText = (count: number) =>
+    copy.isSpanish
+      ? `Agrega ${count} ${count === 1 ? "elemento" : "elementos"} para publicar`
+      : `Add ${count} ${count === 1 ? "item" : "items"} to publish`;
   const queueShellRouterRefresh = useQueuedRouterRefresh();
   const drawerId = protoState.drawer.drawerId;
   const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
@@ -1329,20 +1333,20 @@ export function TalentProfileShellDrawer() {
     ];
 
     const labels = [
-      "Identity",
-      "Media & contact links",
-      "About",
-      "Location",
-      "Rates",
-      "Availability",
-      "Languages",
-      "Credits",
-      "Limits",
-      "Social proof",
-      "Portfolio albums",
-      "Documents",
-      "Profile fields",
-      "Profile status",
+      copy.t("Identity"),
+      copy.t("Media & contact links"),
+      copy.t("About"),
+      copy.t("Location"),
+      copy.t("Rates"),
+      copy.t("Availability"),
+      copy.t("Languages"),
+      copy.t("Credits"),
+      copy.t("Limits"),
+      copy.t("Social proof"),
+      copy.t("Portfolio albums"),
+      copy.t("Documents"),
+      copy.t("Profile fields"),
+      copy.t("Profile status"),
     ];
     const results = await Promise.all(ops);
 
@@ -1392,7 +1396,7 @@ export function TalentProfileShellDrawer() {
     });
     return true;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Save failed";
+      const msg = e instanceof Error ? e.message : copy.t("Save failed");
       setSaveStatus("error");
       setSaveError(msg);
       logServerError("saveall", e);
@@ -1532,7 +1536,11 @@ export function TalentProfileShellDrawer() {
   // ── Plan filter + live taxonomy ───────────────────────────────────
   // PR-A — picker source comes from taxonomy_terms (parent_category +
   // talent_type). Workspace-enabled subset + plan tier still apply.
-  const liveTax = useLiveTaxonomy();
+  // Pass the real tenant UUID so the taxonomy hook drops categories the admin
+  // disabled in workspace settings. `bridgeTenantIdentity.tenantId` is the
+  // UUID (not the slug), matching `agency_taxonomy_settings.tenant_id`; when
+  // absent (prototype / no tenant) the hook keeps its unfiltered behaviour.
+  const liveTax = useLiveTaxonomy({ tenantId: bridgeTenantIdentity?.tenantId ?? null });
   const [showMoreParents, setShowMoreParents] = useState(false);
   const planRank = (p: "free" | "studio" | "agency" | "network") =>
     ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
@@ -1964,11 +1972,12 @@ export function TalentProfileShellDrawer() {
       // and review drawer can show what changed without re-running the
       // diff machinery. Cap at the first 3 fields + count of the rest.
       const diff = computeDiff();
+      const updatedPrefix = copy.isSpanish ? "Actualizó" : "Updated";
       const note = diff.length === 0
-        ? "Submitted for review"
+        ? copy.t("Submitted for review")
         : diff.length <= 3
-          ? `Updated ${diff.map(d => d.fieldLabel.toLowerCase()).join(", ")}`
-          : `Updated ${diff.slice(0, 3).map(d => d.fieldLabel.toLowerCase()).join(", ")} +${diff.length - 3} more`;
+          ? `${updatedPrefix} ${diff.map(d => d.fieldLabel.toLowerCase()).join(", ")}`
+          : `${updatedPrefix} ${diff.slice(0, 3).map(d => d.fieldLabel.toLowerCase()).join(", ")} +${diff.length - 3} ${copy.isSpanish ? "más" : "more"}`;
       // Pending-review queue requires a talent id to key by. Skip
       // when this is a brand-new (uncommitted) registration.
       if (tid) {
@@ -1978,13 +1987,15 @@ export function TalentProfileShellDrawer() {
           note,
         });
       }
-      toast(`Submitted to ${effectiveTenant.name} · they'll review within 1 business day`);
+      toast(copy.isSpanish
+        ? `Enviado a ${effectiveTenant.name} · lo revisarán en 1 día hábil`
+        : `Submitted to ${effectiveTenant.name} · they'll review within 1 business day`);
     } else {
       // Admin path clears the pending-review queue so the strip on
       // the roster page goes away after action. Safe no-op when the
       // talent isn't in the queue.
       if (tid) clearPendingReview(tid);
-      toast(state.profileStatus === "published" ? "Profile updated" : "Profile published");
+      toast(state.profileStatus === "published" ? copy.t("Profile updated") : copy.t("Profile published"));
     }
     // #4 — Clear the QuickAdd → Shell handoff draft once the profile
     // has been committed; otherwise the next "Add talent" inherits stale data.
@@ -1999,7 +2010,7 @@ export function TalentProfileShellDrawer() {
         nextStatus: "published",
         canPublish: canPublishProfile,
       })) {
-        toast(missing.length === 1 ? "Add 1 item to publish" : `Add ${missing.length} items to publish`);
+        toast(addItemsToPublishText(missing.length));
         return;
       }
       // Admin going draft/pending → published. Open celebration first.
@@ -2064,7 +2075,7 @@ export function TalentProfileShellDrawer() {
       nextStatus,
       canPublish: canPublishProfile,
     })) {
-      toast(missing.length === 1 ? "Add 1 item to publish" : `Add ${missing.length} items to publish`);
+      toast(addItemsToPublishText(missing.length));
       return;
     }
     patch({ profileStatus: nextStatus });
@@ -2523,12 +2534,17 @@ export function TalentProfileShellDrawer() {
                 ? async () => {
                     const tid = payload.talentId;
                     if (!tid) return;
-                    const name = state.identity.stageName || "this talent";
+                    const name = state.identity.stageName || copy.t("this talent");
                     const ok = window.confirm(
-                      `Remove ${name} from your roster?\n\n` +
-                        `They'll keep their Tulala account and any work history. ` +
-                        `You can re-add them later. This only ends the agency ` +
-                        `relationship — it does NOT delete the talent's account.`,
+                      copy.isSpanish
+                        ? `¿Quitar a ${name} de tu lista?\n\n` +
+                          `Conservará su cuenta de Tulala y su historial de trabajo. ` +
+                          `Puedes volver a agregarlo más adelante. Esto solo termina la relación ` +
+                          `con la agencia. NO elimina la cuenta del talento.`
+                        : `Remove ${name} from your roster?\n\n` +
+                          `They'll keep their Tulala account and any work history. ` +
+                          `You can re-add them later. This only ends the agency ` +
+                          `relationship. It does NOT delete the talent's account.`,
                     );
                     if (!ok) return;
                     const result = await removeFromRoster({ talent_profile_id: tid });
@@ -2538,8 +2554,12 @@ export function TalentProfileShellDrawer() {
                     }
                     toast(
                       result.keptUserAccount
-                        ? `${name} removed. Their Tulala account is still active.`
-                        : `${name} removed from your roster.`,
+                        ? (copy.isSpanish
+                            ? `Quitaste a ${name}. Su cuenta de Tulala sigue activa.`
+                            : `${name} removed. Their Tulala account is still active.`)
+                        : (copy.isSpanish
+                            ? `Quitaste a ${name} de tu lista.`
+                            : `${name} removed from your roster.`),
                     );
                     closeDrawer();
                     // Refresh server-rendered roster list so the removed
@@ -2584,8 +2604,10 @@ export function TalentProfileShellDrawer() {
         {isInvited && (
           <InviteClaimBanner
             stageName={state.stageName}
-            onResend={() => toast(`Resent invite to ${state.stageName}`)}
-            onTakeOver={() => { patch({ profileStatus: "draft" }); toast("Now agency-managed"); }}
+            onResend={() => toast(copy.isSpanish
+              ? `Invitación reenviada a ${state.stageName}`
+              : `Resent invite to ${state.stageName}`)}
+            onTakeOver={() => { patch({ profileStatus: "draft" }); toast(copy.t("Now agency-managed")); }}
           />
         )}
 
@@ -2599,6 +2621,13 @@ export function TalentProfileShellDrawer() {
             if (s === "polaroids" && !showPolaroidsSection) return null;
             if (s === "details" && dynamicGroups.length === 0) return null;
             if (s === "refinement" && hasResolvedEngineContext) return null;
+            // Mirror the rail's `visible()` below. When the DB field engine
+            // owns these sections their accordion bodies are gated on
+            // `!newEngineActive`, so an ungated pill both advertises legacy
+            // static fields the tenant may have disabled and lands on an
+            // empty panel when tapped.
+            if ((s === "physical" || s === "wardrobe" || s === "details") && newEngineActive) return null;
+            if ((s === "profile_fields" || s === "agency_fields") && !newEngineActive) return null;
             const meta = metaFor(s);
             const active = activeSection === s;
             const done = sectionComplete[s];
@@ -2661,10 +2690,12 @@ export function TalentProfileShellDrawer() {
               ✓
             </span>
             <div style={{ flex: 1, lineHeight: 1.45 }}>
-              <strong>Tulala-verified talent.</strong>{" "}
+              <strong>{copy.t("Tulala-verified talent.")}</strong>{" "}
               {personalProfileLocked
-                ? "Personal profile is owned by the talent — you can manage roster relationship only."
-                : `Roster relationship: ${rosterExclusivity ?? "unspecified"}. Personal profile editable because the relationship is exclusive.`}
+                ? copy.t("Personal profile is owned by the talent. You can manage the roster relationship only.")
+                : (copy.isSpanish
+                    ? `Relación con la lista: ${rosterExclusivity ?? "sin especificar"}. El perfil personal es editable porque la relación es exclusiva.`
+                    : `Roster relationship: ${rosterExclusivity ?? "unspecified"}. Personal profile editable because the relationship is exclusive.`)}
             </div>
           </div>
         )}
@@ -2715,7 +2746,7 @@ export function TalentProfileShellDrawer() {
             const totalDone = allVisibleSections.filter(s => sectionComplete[s]).length;
             const ratio = totalVisible > 0 ? totalDone / totalVisible : 0;
             return (
-              <aside data-pshell-rail aria-label="Profile sections">
+              <aside data-pshell-rail aria-label={copy.t("Profile sections")}>
                 <div style={{
                   padding: "8px 12px 12px",
                   borderBottom: `1px solid ${COLORS.borderSoft}`,
@@ -2818,7 +2849,7 @@ export function TalentProfileShellDrawer() {
                               <div
                                 data-details-rail-children
                                 role="group"
-                                aria-label="Service detail categories"
+                                aria-label={copy.t("Service detail categories")}
                               >
                                 {ownsLegacyRefinement && !ownsProfileFieldGroups && (
                                   <button
@@ -3031,12 +3062,12 @@ export function TalentProfileShellDrawer() {
               <FieldRow
                 label={copy.t("Show me on Tulala Discover")}
                 recommended
-                hint={copy.t("ⓘ Discover is where clients across Tulala find new talent. Appearing here multiplies your exposure to event planners, brands, and agencies. Your trust gates and contact controls still apply — clients reach you through coordinated inquiries, never direct DMs. Toggle off anytime.")}
+                hint={copy.t("ⓘ Discover is where clients across Tulala find new talent. Appearing here multiplies your exposure to event planners, brands, and agencies. Your trust gates and contact controls still apply. Clients reach you through coordinated inquiries, never direct DMs. Toggle off anytime.")}
               >
                 <ToggleControl
                   value={state.isDiscoverable}
                   onChange={(v) => patch({ isDiscoverable: v })}
-                  label={copy.t(state.isDiscoverable ? "On — appearing on Discover" : "Off — hidden from Discover")}
+                  label={copy.t(state.isDiscoverable ? "On · appearing on Discover" : "Off · hidden from Discover")}
                 />
               </FieldRow>
               {/* T2 — Discover card preview. Renders a schematic of what
@@ -3056,7 +3087,7 @@ export function TalentProfileShellDrawer() {
                   }}
                 >
                   <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10, fontFamily: FONTS.body }} className="text-admin-ink-dim">
-                    Preview · your Discover card
+                    {copy.t("Preview · your Discover card")}
                   </div>
                   <div style={{
                     display: "grid",
@@ -3084,7 +3115,7 @@ export function TalentProfileShellDrawer() {
                         {state.serviceArea.homeBase ? ` · ${state.serviceArea.homeBase}` : ""}
                       </div>
                       <div style={{ fontSize: 11, marginTop: 8, fontStyle: "italic", lineHeight: 1.45 }} className="text-admin-ink-dim">
-                        {copy.t("Trust badge, 14-day availability strip, and rate band are derived live by Discover — they update as your verification, calendar, and rates change.")}
+                        {copy.t("Trust badge, 14-day availability strip, and rate band are derived live by Discover. They update as your verification, calendar, and rates change.")}
                       </div>
                     </div>
                   </div>
@@ -3176,13 +3207,13 @@ export function TalentProfileShellDrawer() {
                       fontFamily: FONTS.body,
                     }}>
                       {showMoreParents
-                        ? `– Hide ${restParentsLP.length} more`
-                        : `+ More categories… (${restParentsLP.length})`}
+                        ? (copy.isSpanish ? `– Ocultar ${restParentsLP.length} más` : `– Hide ${restParentsLP.length} more`)
+                        : (copy.isSpanish ? `+ Más categorías... (${restParentsLP.length})` : `+ More categories… (${restParentsLP.length})`)}
                     </button>
                   )}
                   {/* M7 fix — "Live taxonomy" replaced with plain English. */}
                   <div className="text-admin-ink-dim text-admin-10h">
-                    Showing {visibleParentsLP.length} categories{restParentsLP.length > 0 ? ` · ${restParentsLP.length} more available` : ""}
+                    {copy.isSpanish ? `Mostrando ${visibleParentsLP.length} categorías` : `Showing ${visibleParentsLP.length} categories`}{restParentsLP.length > 0 ? (copy.isSpanish ? ` · ${restParentsLP.length} más disponibles` : ` · ${restParentsLP.length} more available`) : ""}
                     {liveTax.error && ` · ${liveTax.error}`}
                   </div>
                 </>
@@ -3191,8 +3222,8 @@ export function TalentProfileShellDrawer() {
                 <details className="mt-3">
                   <summary style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6, cursor: "pointer", listStyle: "none", display: "inline-flex", alignItems: "center", gap: 6, userSelect: "none" }} className="text-admin-ink-muted">
                     <span aria-hidden="true" style={{ fontSize: 10, transform: "translateY(-1px)" }}>▸</span>
-                    Career interests
-                    <span style={{ fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">· optional · open-to-grow signals</span>
+                    {copy.t("Career interests")}
+                    <span style={{ fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">{copy.t("· optional · open-to-grow signals")}</span>
                   </summary>
                   <div className="mt-2">
                     <AspirationsEditor
@@ -3209,8 +3240,8 @@ export function TalentProfileShellDrawer() {
 
             {/* LOCATION */}
             <ProfileAccordionSection
-              id="location" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Location & service area"
-              sub="Current location + upcoming travel."
+              id="location" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Location & service area")}
+              sub={copy.t("Current location + upcoming travel.")}
               complete={sectionComplete.location} started={sectionStarted.location}
               open={activeSection === "location"}
               onToggle={() => setActiveSection(activeSection === "location" ? "" : "location")}
@@ -3227,11 +3258,11 @@ export function TalentProfileShellDrawer() {
                 </>
               ) : (
                 <>
-                  <FieldRow label="Current location" catalogId="serviceArea.homeBase" tenantId={workspaceScopeTenantId}>
+                  <FieldRow label={copy.t("Current location")} catalogId="serviceArea.homeBase" tenantId={workspaceScopeTenantId}>
                     <CityAutocompleteInput
                       value={state.serviceArea.homeBase}
                       placeId={state.serviceArea.homePlaceId}
-                      placeholder="e.g. Playa del Carmen"
+                      placeholder={copy.t("e.g. Playa del Carmen")}
                       onChange={(city, pid) => patch({ serviceArea: { ...state.serviceArea, homeBase: city, homePlaceId: pid } })}
                     />
                   </FieldRow>
@@ -3246,21 +3277,21 @@ export function TalentProfileShellDrawer() {
                       style={{ width: "100%", accentColor: COLORS.accent }}
                     />
                   </FieldRow>
-                  <FieldRow label="Travel fee" optional>
+                  <FieldRow label={copy.t("Travel fee")} optional>
                     <ToggleControl value={state.serviceArea.travelFee}
                       onChange={(v) => patch({ serviceArea: { ...state.serviceArea, travelFee: v } })}
-                      label="Charge a travel fee outside the home area" />
+                      label={copy.t("Charge a travel fee outside the home area")} />
                   </FieldRow>
-                  <FieldRow label="Remote only" optional>
+                  <FieldRow label={copy.t("Remote only")} optional>
                     <ToggleControl value={!!state.serviceArea.remoteOnly}
                       onChange={(v) => patch({ serviceArea: { ...state.serviceArea, remoteOnly: v } })}
-                      label="Talent works remotely / online only" />
+                      label={copy.t("Talent works remotely / online only")} />
                   </FieldRow>
                 </>
               )}
               {/* Visiting / Away (upcoming_visits) — deferred concern,
                   unchanged, still written via the global save. */}
-              <FieldRow label="Visiting / Away" hint="Add cities the talent will be visiting. Shown on their public page.">
+              <FieldRow label={copy.t("Visiting / Away")} hint={copy.t("Add cities the talent will be visiting. Shown on their public page.")}>
                 <UpcomingVisitsEditor
                   visits={state.serviceArea.upcomingVisits ?? []}
                   onChange={(visits) => patch({ serviceArea: { ...state.serviceArea, upcomingVisits: visits } })}
@@ -3269,8 +3300,8 @@ export function TalentProfileShellDrawer() {
 
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 6 }} className="text-admin-ink-muted">
-                  Seasonal windows
-                  <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">· &quot;I&apos;m here X months a year&quot;</span>
+                  {copy.t("Seasonal windows")}
+                  <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">{copy.t("· \"I'm here X months a year\"")}</span>
                 </div>
                 <SeasonalEditor windows={state.seasonalWindows} onChange={(w) => patch({ seasonalWindows: w })} />
               </div>
@@ -3282,8 +3313,8 @@ export function TalentProfileShellDrawer() {
                 Same state.serviceArea.* slice — pure relocation, no data
                 migration. */}
             <ProfileAccordionSection
-              id="logistics" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Logistics"
-              sub="Travel documents & work eligibility for cross-border bookings."
+              id="logistics" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Logistics")}
+              sub={copy.t("Travel documents & work eligibility for cross-border bookings.")}
               complete={sectionComplete.logistics} started={sectionStarted.logistics}
               open={activeSection === "logistics"}
               onToggle={() => setActiveSection(activeSection === "logistics" ? "" : "logistics")}
@@ -3295,7 +3326,7 @@ export function TalentProfileShellDrawer() {
                   All optional + admin-visibility by default. */}
               <div style={{ marginTop: 6, padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
-                  Travel & work eligibility
+                  {copy.t("Travel & work eligibility")}
                 </div>
                 {/* Audit fix #8 — back-reference to Identity for related
                     "where can I legally work" data (nationality + country
@@ -3304,12 +3335,12 @@ export function TalentProfileShellDrawer() {
                     slices. */}
                 <div style={{ marginBottom: 10, fontSize: 11.5, fontFamily: FONTS.body, display: "inline-flex", alignItems: "center", gap: 6 }} className="text-admin-ink-muted">
                   <span aria-hidden>ℹ️</span>
-                  <span>Nationality &amp; country of residence are in <strong>Identity</strong>.</span>
+                  <span>{copy.t("Nationality & country of residence are in")} <strong>{copy.t("Identity")}</strong>.</span>
                 </div>
                 <FieldRow
-                  label="Passport status"
+                  label={copy.t("Passport status")}
                   optional
-                  hint="Pre-checks international bookings."
+                  hint={copy.t("Pre-checks international bookings.")}
                   visibility={state.dynFieldVisibility["serviceArea.passport"] ?? ["agency"]}
                   onVisibilityChange={(next) => patch({
                     dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.passport": next },
@@ -3332,16 +3363,16 @@ export function TalentProfileShellDrawer() {
                           color: active ? COLORS.accentDeep : COLORS.ink,
                           fontSize: 11.5, fontWeight: 600, cursor: "pointer",
                           fontFamily: FONTS.body,
-                        }}>{opt.label}</button>
+                        }}>{copy.t(opt.label)}</button>
                       );
                     })}
                   </div>
                 </FieldRow>
                 <div style={{ height: 8 }} />
                 <FieldRow
-                  label="Driver's license"
+                  label={copy.t("Driver's license")}
                   optional
-                  hint="Drives commercial / chauffeur / on-set transport jobs."
+                  hint={copy.t("Drives commercial / chauffeur / on-set transport jobs.")}
                   visibility={state.dynFieldVisibility["serviceArea.driversLicense"] ?? ["agency"]}
                   onVisibilityChange={(next) => patch({
                     dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.driversLicense": next },
@@ -3365,44 +3396,44 @@ export function TalentProfileShellDrawer() {
                           color: active ? COLORS.accentDeep : COLORS.ink,
                           fontSize: 11.5, fontWeight: 600, cursor: "pointer",
                           fontFamily: FONTS.body,
-                        }}>{opt.label}</button>
+                        }}>{copy.t(opt.label)}</button>
                       );
                     })}
                   </div>
                 </FieldRow>
                 <div style={{ height: 8 }} />
-                <FieldRow label="Owns a vehicle" optional catalogId="serviceArea.ownsVehicle" tenantId={workspaceScopeTenantId}>
+                <FieldRow label={copy.t("Owns a vehicle")} optional catalogId="serviceArea.ownsVehicle" tenantId={workspaceScopeTenantId}>
                   <ToggleControl
                     value={!!state.serviceArea.ownsVehicle}
                     onChange={(v) => patch({ serviceArea: { ...state.serviceArea, ownsVehicle: v } })}
-                    label="Has access to own vehicle for shoot logistics" />
+                    label={copy.t("Has access to own vehicle for shoot logistics")} />
                 </FieldRow>
                 <div style={{ height: 8 }} />
                 <FieldRow
-                  label="Work-eligible countries"
+                  label={copy.t("Work-eligible countries")}
                   optional
-                  hint="ISO codes — drives international booking pre-checks."
+                  hint={copy.t("ISO codes. Drives international booking pre-checks.")}
                   visibility={state.dynFieldVisibility["serviceArea.workEligibility"] ?? ["agency"]}
                   onVisibilityChange={(next) => patch({
                     dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.workEligibility": next },
                   })}
                 >
-                  <ChipsInput label="" placeholder="e.g. ES, FR, MX…"
+                  <ChipsInput label="" placeholder={copy.t("e.g. ES, FR, MX…")}
                     values={state.serviceArea.workEligibility ?? []}
                     onChange={patchWorkEligibility}
                   />
                 </FieldRow>
                 <div style={{ height: 8 }} />
                 <FieldRow
-                  label="Visas held"
+                  label={copy.t("Visas held")}
                   optional
-                  hint="Active visa countries beyond home country."
+                  hint={copy.t("Active visa countries beyond home country.")}
                   visibility={state.dynFieldVisibility["serviceArea.visaCountries"] ?? ["agency"]}
                   onVisibilityChange={(next) => patch({
                     dynFieldVisibility: { ...state.dynFieldVisibility, "serviceArea.visaCountries": next },
                   })}
                 >
-                  <ChipsInput label="" placeholder="e.g. US (B1/B2), GB…"
+                  <ChipsInput label="" placeholder={copy.t("e.g. US (B1/B2), GB…")}
                     values={state.serviceArea.visaCountries ?? []}
                     onChange={patchVisaCountries}
                   />
@@ -3412,8 +3443,8 @@ export function TalentProfileShellDrawer() {
 
             {/* VIDEO — hello reel + social/video links */}
             <ProfileAccordionSection
-              id="media" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Photos & video"
-              sub="Profile photo, cover, gallery, hello reel, and social links."
+              id="media" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Photos & video")}
+              sub={copy.t("Profile photo, cover, gallery, hello reel, and social links.")}
               complete={sectionComplete.media} started={sectionStarted.media}
               open={activeSection === "media"}
               onToggle={() => setActiveSection(activeSection === "media" ? "" : "media")}
@@ -3423,7 +3454,7 @@ export function TalentProfileShellDrawer() {
                 onChange={patchHelloReel}
                 talentProfileId={payload.talentId}
               />
-              <FieldRow label="Video / social links" optional catalogId="links" tenantId={workspaceScopeTenantId}>
+              <FieldRow label={copy.t("Video / social links")} optional catalogId="links" tenantId={workspaceScopeTenantId}>
                 <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks ?? []} onChange={patchVideoLinks} />
               </FieldRow>
             </ProfileAccordionSection>
@@ -3431,10 +3462,10 @@ export function TalentProfileShellDrawer() {
             {/* ALBUMS */}
             <ProfileAccordionSection
               id="albums" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes}
-              title={isServicesPrimary ? "Work & venue albums" : "Portfolio albums"}
+              title={isServicesPrimary ? copy.t("Work & venue albums") : copy.t("Portfolio albums")}
               sub={isServicesPrimary
-                ? "Group photos by venue or job — Suites, Hallways, Behind-the-scenes."
-                : "Group photos by mood — Editorial, Lookbook, Behind-the-scenes."}
+                ? copy.t("Group photos by venue or job: Suites, Hallways, Behind-the-scenes.")
+                : copy.t("Group photos by mood: Editorial, Lookbook, Behind-the-scenes.")}
               complete={sectionComplete.albums} started={sectionStarted.albums}
               open={activeSection === "albums"}
               onToggle={() => setActiveSection(activeSection === "albums" ? "" : "albums")}
@@ -3452,8 +3483,8 @@ export function TalentProfileShellDrawer() {
                 Impronta until tenant/type-level media rules are configurable. */}
             {showPolaroidsSection && (
               <ProfileAccordionSection
-                id="polaroids" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Polaroids"
-                sub="5-shot set casting directors expect: front, side, back, smile, no-makeup."
+                id="polaroids" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Polaroids")}
+                sub={copy.t("5-shot set casting directors expect: front, side, back, smile, no-makeup.")}
                 complete={sectionComplete.polaroids} started={sectionStarted.polaroids}
                 open={activeSection === "polaroids"}
                 onToggle={() => setActiveSection(activeSection === "polaroids" ? "" : "polaroids")}
@@ -3468,8 +3499,8 @@ export function TalentProfileShellDrawer() {
 
             {/* ABOUT — locale-aware bios + tone + personality */}
             <ProfileAccordionSection
-              id="about" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="About"
-              sub="2–3 sentences per language."
+              id="about" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("About")}
+              sub={copy.t("2–3 sentences per language.")}
               complete={sectionComplete.about} started={sectionStarted.about}
               open={activeSection === "about"}
               onToggle={() => setActiveSection(activeSection === "about" ? "" : "about")}
@@ -3489,8 +3520,8 @@ export function TalentProfileShellDrawer() {
                   with the rest of "who this person is". */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
-                  Languages
-                  <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">· Languages this talent can use with clients.</span>
+                  {copy.t("Languages")}
+                  <span style={{ marginLeft: 6, fontWeight: 500, letterSpacing: 0 }} className="text-admin-ink-dim">{copy.t("· Languages this talent can use with clients.")}</span>
                 </div>
                 {payload.talentId && bridgeTenantIdentity?.tenantId ? (
                   <>
@@ -3607,10 +3638,18 @@ export function TalentProfileShellDrawer() {
                 editing experience matches the surface's grid layout
                 and feels like a coherent measurement block, not a
                 vertical text-input list. */}
-            {dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical")) && (
+            {/* Gate on `!newEngineActive` to MATCH the rail's `visible()`
+                helper (which hides physical/wardrobe/details when the DB
+                engine is mounted). Without this gate the accordion BODY still
+                mounted for a real tenant and rendered the static per-type
+                field set — including fields the admin DISABLED via workspace
+                field settings — even though the rail correctly hid the entry.
+                One engine per tenant: the DB `LiveCategoryFieldsEditor` above
+                is the single source of truth. */}
+            {!newEngineActive && dynamicGroups.some(g => g.fields.some(f => f.subsection === "physical")) && (
               <ProfileAccordionSection
-                id="physical" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Physical & measurements"
-                sub="Height, body sizes, features."
+                id="physical" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Physical & measurements")}
+                sub={copy.t("Height, body sizes, features.")}
                 complete={sectionComplete.physical} started={sectionStarted.physical}
                 open={activeSection === "physical"}
                 onToggle={() => setActiveSection(activeSection === "physical" ? "" : "physical")}
@@ -3651,10 +3690,10 @@ export function TalentProfileShellDrawer() {
             {/* WARDROBE SIZES — separated from physical so a model who
                 only wants to fill body data isn't asked about shoes/
                 dress in the same breath. Same grid layout. */}
-            {dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe")) && (
+            {!newEngineActive && dynamicGroups.some(g => g.fields.some(f => f.subsection === "wardrobe")) && (
               <ProfileAccordionSection
-                id="wardrobe" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Wardrobe sizes"
-                sub="Shoe, dress, suit sizes."
+                id="wardrobe" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Wardrobe sizes")}
+                sub={copy.t("Shoe, dress, suit sizes.")}
                 complete={sectionComplete.wardrobe} started={sectionStarted.wardrobe}
                 open={activeSection === "wardrobe"}
                 onToggle={() => setActiveSection(activeSection === "wardrobe" ? "" : "wardrobe")}
@@ -3688,10 +3727,10 @@ export function TalentProfileShellDrawer() {
 
             {/* DETAILS — leftover catch-all for non-physical, non-wardrobe
                 type-specific fields (e.g. years modeling, allergies). */}
-            {(dynamicGroups.some(g => g.fields.some(f => !f.subsection)) || workspaceCustomTalentFields.length > 0) && (
+            {!newEngineActive && (dynamicGroups.some(g => g.fields.some(f => !f.subsection)) || workspaceCustomTalentFields.length > 0) && (
               <ProfileAccordionSection
-                id="details" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Profile details"
-                sub="Fields specific to this kind of work."
+                id="details" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Profile details")}
+                sub={copy.t("Fields specific to this kind of work.")}
                 complete={sectionComplete.details} started={sectionStarted.details}
                 open={activeSection === "details"}
                 onToggle={() => setActiveSection(activeSection === "details" ? "" : "details")}
@@ -3727,7 +3766,7 @@ export function TalentProfileShellDrawer() {
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: 0.4, marginBottom: 8 }} className="text-admin-ink-muted">
                       <span className="text-admin-13">✦</span>
-                      Custom workspace fields
+                      {copy.t("Custom workspace fields")}
                       <span style={{
                         fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
                         background: "rgba(184,135,49,0.14)", color: "#7A5A1F",
@@ -3756,7 +3795,7 @@ export function TalentProfileShellDrawer() {
                     color: COLORS.inkMuted,
                     fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
                   }}>
-                    + Add custom field
+                    {copy.t("+ Add custom field")}
                   </button>
                 )}
               </ProfileAccordionSection>
@@ -3766,8 +3805,8 @@ export function TalentProfileShellDrawer() {
                 logical flow is "Are you available? At what price?" not
                 "Price first, then schedule." */}
             <ProfileAccordionSection
-              id="availability" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Availability"
-              sub="Tap a day to block it. Open by default."
+              id="availability" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Availability")}
+              sub={copy.t("Tap a day to block it. Open by default.")}
               complete={sectionComplete.availability} started={sectionStarted.availability}
               open={activeSection === "availability"}
               onToggle={() => setActiveSection(activeSection === "availability" ? "" : "availability")}
@@ -3808,8 +3847,8 @@ export function TalentProfileShellDrawer() {
                 talentId, so it's hidden in create mode until the row exists. */}
             {payload.talentId && mode !== "create" && (
               <ProfileAccordionSection
-                id="commercial_terms" title="Booking terms"
-                sub="Default deposit, refund policy and instant-book preferences."
+                id="commercial_terms" title={copy.t("Booking terms")}
+                sub={copy.t("Default deposit, refund policy and instant-book preferences.")}
                 complete={sectionComplete.commercial_terms} started={sectionStarted.commercial_terms}
                 open={activeSection === "commercial_terms"}
                 onToggle={() => setActiveSection(activeSection === "commercial_terms" ? "" : "commercial_terms")}
@@ -3827,8 +3866,8 @@ export function TalentProfileShellDrawer() {
                 a real talentId, so hidden in create mode until the row exists. */}
             {payload.talentId && mode !== "create" && (
               <ProfileAccordionSection
-                id="reviews" title="Reviews"
-                sub="Reviews clients left after working with this talent."
+                id="reviews" title={copy.t("Reviews")}
+                sub={copy.t("Reviews clients left after working with this talent.")}
                 complete={sectionComplete.reviews} started={sectionStarted.reviews}
                 open={activeSection === "reviews"}
                 onToggle={() => setActiveSection(activeSection === "reviews" ? "" : "reviews")}
@@ -3840,8 +3879,8 @@ export function TalentProfileShellDrawer() {
             {/* REFINEMENT — prototype SkillsProEditor is not batch-saved; hide when DB-backed SkillSlotPanel is active. */}
             {!hasResolvedEngineContext && (
             <ProfileAccordionSection
-              id="refinement" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Refinement"
-              sub="Skills they have. Contexts where they shine."
+              id="refinement" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Refinement")}
+              sub={copy.t("Skills they have. Contexts where they shine.")}
               complete={sectionComplete.refinement} started={sectionStarted.refinement}
               open={activeSection === "refinement"}
               onToggle={() => setActiveSection(activeSection === "refinement" ? "" : "refinement")}
@@ -3851,8 +3890,8 @@ export function TalentProfileShellDrawer() {
                 background: "rgba(11,11,13,0.04)",
               }}>
                 {([
-                  { id: "skills" as const,   label: state.skillEntries.length ? `Skills · ${state.skillEntries.length}`   : "Skills" },
-                  { id: "contexts" as const, label: state.contexts.length     ? `Best for · ${state.contexts.length}`     : "Best for" },
+                  { id: "skills" as const,   label: state.skillEntries.length ? `${copy.t("Skills")} · ${state.skillEntries.length}`   : copy.t("Skills") },
+                  { id: "contexts" as const, label: state.contexts.length     ? `${copy.t("Best for")} · ${state.contexts.length}`     : copy.t("Best for") },
                 ]).map(tb => {
                   const active = refinementTab === tb.id;
                   return (
@@ -3922,8 +3961,8 @@ export function TalentProfileShellDrawer() {
 
             {/* CREDITS — past work / campaigns / editorials */}
             <ProfileAccordionSection
-              id="credits" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Credits"
-              sub="Past work. Pin your top 3."
+              id="credits" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Credits")}
+              sub={copy.t("Past work. Pin your top 3.")}
               complete={sectionComplete.credits} started={sectionStarted.credits}
               open={activeSection === "credits"}
               onToggle={() => setActiveSection(activeSection === "credits" ? "" : "credits")}
@@ -3936,8 +3975,8 @@ export function TalentProfileShellDrawer() {
 
             {/* LIMITS — hard/soft constraints */}
             <ProfileAccordionSection
-              id="limits" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Limits"
-              sub="Hard no's. Soft case-by-case. Clients see this on the brief."
+              id="limits" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Limits")}
+              sub={copy.t("Hard no's. Soft case-by-case. Clients see this on the brief.")}
               complete={sectionComplete.limits} started={sectionStarted.limits}
               open={activeSection === "limits"}
               onToggle={() => setActiveSection(activeSection === "limits" ? "" : "limits")}
@@ -3950,8 +3989,8 @@ export function TalentProfileShellDrawer() {
 
             {/* FILES — work documents (W-8BEN, NDA, model release, certifications) */}
             <ProfileAccordionSection
-              id="files" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Files"
-              sub="Tax forms, releases, certifications. Admin-only by default."
+              id="files" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Files")}
+              sub={copy.t("Tax forms, releases, certifications. Admin-only by default.")}
               complete={sectionComplete.files} started={sectionStarted.files}
               open={activeSection === "files"}
               onToggle={() => setActiveSection(activeSection === "files" ? "" : "files")}
@@ -3965,8 +4004,8 @@ export function TalentProfileShellDrawer() {
 
             {/* SOCIAL PROOF */}
             <ProfileAccordionSection
-              id="social_proof" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Past clients & testimonials"
-              sub="Past clients + 1-line quotes. Verified bookings get a checkmark."
+              id="social_proof" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Past clients & testimonials")}
+              sub={copy.t("Past clients + 1-line quotes. Verified bookings get a checkmark.")}
               complete={sectionComplete.social_proof} started={sectionStarted.social_proof}
               open={activeSection === "social_proof"}
               onToggle={() => setActiveSection(activeSection === "social_proof" ? "" : "social_proof")}
@@ -3976,8 +4015,8 @@ export function TalentProfileShellDrawer() {
 
             {/* VERIFICATIONS */}
             <ProfileAccordionSection
-              id="verifications" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Trust & verification"
-              sub="Verification level. Higher tier = more visibility."
+              id="verifications" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Trust & verification")}
+              sub={copy.t("Verification level. Higher tier = more visibility.")}
               complete={sectionComplete.verifications} started={sectionStarted.verifications}
               open={activeSection === "verifications"}
               onToggle={() => setActiveSection(activeSection === "verifications" ? "" : "verifications")}
@@ -3999,18 +4038,18 @@ export function TalentProfileShellDrawer() {
             {/* ADMIN */}
             {adminVisible && (
               <ProfileAccordionSection
-                id="admin" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title="Admin controls" sub="Visible only to your team."
+                id="admin" primaryType={state.primaryType ? [state.primaryType, ...state.secondaryTypes] : state.secondaryTypes} title={copy.t("Admin controls")} sub={copy.t("Visible only to your team.")}
                 complete open={activeSection === "admin"}
                 onToggle={() => setActiveSection(activeSection === "admin" ? "" : "admin")}
                 accent="amber"
               >
-                <FieldRow label="Feature in directory" optional>
+                <FieldRow label={copy.t("Feature in directory")} optional>
                   <ToggleControl value={state.featureInDirectory} onChange={(v) => patch({ featureInDirectory: v })}
-                    label="Pin near the top of Discover" />
+                    label={copy.t("Pin near the top of Discover")} />
                 </FieldRow>
-                <FieldRow label="Internal notes" hint="Visible to your team only.">
+                <FieldRow label={copy.t("Internal notes")} hint={copy.t("Visible to your team only.")}>
                   <textarea value={state.internalNotes} onChange={(e) => patch({ internalNotes: e.target.value })}
-                    placeholder="Reliability notes, payment terms, special instructions…"
+                    placeholder={copy.t("Reliability notes, payment terms, special instructions…")}
                     rows={3}
                     style={{
                       width: "100%", boxSizing: "border-box", padding: "10px 12px",
@@ -4028,13 +4067,13 @@ export function TalentProfileShellDrawer() {
                     side-by-side; production wires a phone-format
                     validator and a relation enum. */}
                 <FieldRow
-                  label="Emergency contact"
-                  hint="Masked on public profile. Visible to coordinators during active bookings only."
+                  label={copy.t("Emergency contact")}
+                  hint={copy.t("Masked on public profile. Visible to coordinators during active bookings only.")}
                 >
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <input
                       type="text"
-                      placeholder="Name"
+                      placeholder={copy.t("Name")}
                       value={state.emergencyContact.name}
                       onChange={(e) => patch({ emergencyContact: { ...state.emergencyContact, name: e.target.value } })}
                       style={{
@@ -4045,7 +4084,7 @@ export function TalentProfileShellDrawer() {
                     />
                     <input
                       type="text"
-                      placeholder="Relation (e.g. Mother, Manager)"
+                      placeholder={copy.t("Relation (e.g. Mother, Manager)")}
                       value={state.emergencyContact.relation}
                       onChange={(e) => patch({ emergencyContact: { ...state.emergencyContact, relation: e.target.value } })}
                       style={{
@@ -4056,7 +4095,7 @@ export function TalentProfileShellDrawer() {
                     />
                     <input
                       type="tel"
-                      placeholder="Phone (with country code)"
+                      placeholder={copy.t("Phone (with country code)")}
                       value={state.emergencyContact.phone}
                       onChange={(e) => patch({ emergencyContact: { ...state.emergencyContact, phone: e.target.value } })}
                       style={{
@@ -4070,12 +4109,12 @@ export function TalentProfileShellDrawer() {
                 </FieldRow>
                 {/* Profile ownership — convert agency-managed to claimable */}
                 <FieldRow
-                  label="Profile ownership"
-                  hint="Hand the keys to the talent so they can edit their own profile + accept inquiries directly."
+                  label={copy.t("Profile ownership")}
+                  hint={copy.t("Hand the keys to the talent so they can edit their own profile + accept inquiries directly.")}
                 >
                   <ProfileOwnershipPanel
                     talentProfileId={payload.talentId}
-                    talentName={state.stageName || "this talent"}
+                    talentName={state.stageName || copy.t("this talent")}
                     contactEmail={payload.seed?.contact}
                   />
                 </FieldRow>
@@ -4088,8 +4127,8 @@ export function TalentProfileShellDrawer() {
                     FieldLockToggle next to the field — this panel is the
                     bird's-eye view + reason store. */}
                 <FieldRow
-                  label="Locked fields"
-                  hint="Talent can't edit these without admin approval. Add a short reason so they understand why."
+                  label={copy.t("Locked fields")}
+                  hint={copy.t("Talent can't edit these without admin approval. Add a short reason so they understand why.")}
                 >
                   <FieldLocksOverviewPanel
                     locks={state.fieldLocks}
@@ -4101,7 +4140,7 @@ export function TalentProfileShellDrawer() {
                   />
                 </FieldRow>
                 {/* #9 — Recent activity / change log */}
-                <FieldRow label="Recent activity" hint="Last 5 changes to this profile. Tap to see diff.">
+                <FieldRow label={copy.t("Recent activity")} hint={copy.t("Last 5 changes to this profile. Tap to see diff.")}>
                   <ProfileActivityLog talentProfileId={payload.talentId} />
                 </FieldRow>
               </ProfileAccordionSection>
@@ -4141,8 +4180,8 @@ export function TalentProfileShellDrawer() {
             slug={(state.stageName || "talent").toLowerCase().replace(/\s+/g, "-")}
             tenantSlug={effectiveTenant.slug}
             onClose={() => { setPublishCelebrationOpen(false); closeDrawer(); }}
-            onCopyLink={() => toast("Profile link copied")}
-            onShare={() => toast("Sharing profile…")}
+            onCopyLink={() => toast(copy.t("Profile link copied"))}
+            onShare={() => toast(copy.t("Sharing profile…"))}
           />
         )}
 
@@ -4155,7 +4194,7 @@ export function TalentProfileShellDrawer() {
             onClose={() => setDiffOpen(false)}
             onSubmit={() => { setDiffOpen(false); finalSubmit(); }}
             onApproveAll={!isSelf ? () => { setDiffOpen(false); finalSubmit(); } : undefined}
-            onRejectAll={!isSelf ? () => { setDiffOpen(false); toast("Changes rejected — talent will be notified"); closeDrawer(); } : undefined}
+            onRejectAll={!isSelf ? () => { setDiffOpen(false); toast(copy.t("Changes rejected. The talent will be notified.")); closeDrawer(); } : undefined}
             // #2 — Per-field decisions actually patch the record. Rejected
             // fields revert to the baseline; approved + undecided fields
             // keep the talent's submission. We dispatch a RESET with the
@@ -4175,7 +4214,9 @@ export function TalentProfileShellDrawer() {
               if (rejected.has("photos")) merged.albumsPro = baseline.albumsPro;
               dispatch({ type: "RESET", state: merged });
               setDiffOpen(false);
-              toast(`Applied · approved ${computeDiff().length - rejected.size} · reverted ${rejected.size}`);
+              toast(copy.isSpanish
+                ? `Aplicado · aprobados ${computeDiff().length - rejected.size} · revertidos ${rejected.size}`
+                : `Applied · approved ${computeDiff().length - rejected.size} · reverted ${rejected.size}`);
             } : undefined}
           />
         )}
