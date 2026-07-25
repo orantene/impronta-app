@@ -576,7 +576,20 @@
           "noMappableFreeText": "Profiles need a structured home city to appear on the map. {count} only have a free-text location.",
           "noMappableNone": "No talent in this filter has a mapped city yet.",
           "backToGrid": "Back to grid",
-          "cityFilterGroup": "Filter by city"
+          "cityFilterGroup": "Filter by city",
+          "nearMe": "Find near me",
+          "nearMeLocating": "Locating…",
+          "nearMeActive": "Near me",
+          "nearMeClear": "Clear location",
+          "nearMeDenied": "Location permission was denied. Enable it in your browser settings to sort by distance.",
+          "nearMeUnavailable": "Your browser could not provide a location.",
+          "nearMeUnsupported": "This browser does not support location.",
+          "youAreHere": "Your location",
+          "radiusAny": "Any distance",
+          "radiusWithin": "Within {count} {unit}",
+          "unitToggleAria": "Distance unit",
+          "noneWithinRadius": "No cities within {count} {unit}. Widen the radius or clear your location.",
+          "sortedByDistance": "Cities sorted by distance from you"
         }
       },
       "section": {

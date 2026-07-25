@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { LocateFixed, MapPin } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import {
-  APIProvider,
-  Map as GoogleMap,
-  Marker,
-  useApiIsLoaded,
-} from "@vis.gl/react-google-maps";
+import { APIProvider } from "@vis.gl/react-google-maps";
 
 import { applyCanonicalDirectoryFetchSearchParams } from "@/lib/directory/search-params";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
 import { cn } from "@/lib/utils";
+import {
+  formatDistance,
+  haversineKm,
+  NEAR_ME_RADIUS_KM,
+  type DistanceUnit,
+  type LatLng,
+} from "@/lib/directory/geo-distance";
 import type {
   DirectoryCardDTO,
   DirectoryFieldFacetSelection,
@@ -23,6 +26,8 @@ import { DIRECTORY_PAGE_SIZE_MAX } from "@/lib/directory/types";
 import { replaceCount, type DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 import { DirectoryCardAdapter } from "./DirectoryCardAdapter";
+import { DirectoryMapCanvas } from "./DirectoryMapCanvas";
+import type { CityCluster } from "./map-clusters";
 import type { DirectoryV1 } from "./schema";
 
 /**
@@ -78,14 +83,6 @@ export type DirectoryMapViewProps = {
   columnsMobile: number;
   /** Reports the FILTERED total up to the toolbar (else it shows the stale SSR count). */
   onCountChange?: (count: number) => void;
-};
-
-type CityCluster = {
-  key: string;
-  lat: number;
-  lng: number;
-  label: string;
-  items: DirectoryCardDTO[];
 };
 
 export function DirectoryMapView(props: DirectoryMapViewProps) {
@@ -183,6 +180,47 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   }, [items]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  // ── "Find near me" ──────────────────────────────────────────────────────
+  // Coordinates live in component state only: never written to the URL, never
+  // sent to the server. The visitor's position is theirs, and a shared link
+  // must not leak it.
+  const [origin, setOrigin] = useState<LatLng | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [unit, setUnit] = useState<DistanceUnit>("km");
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
+
+  const requestLocation = () => {
+    setGeoError(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoError(ui.map.nearMeUnsupported);
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+        setSelectedKey(null);
+      },
+      (err) => {
+        setLocating(false);
+        setGeoError(
+          err.code === err.PERMISSION_DENIED
+            ? ui.map.nearMeDenied
+            : ui.map.nearMeUnavailable,
+        );
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
+  };
+
+  const clearLocation = () => {
+    setOrigin(null);
+    setRadiusKm(null);
+    setGeoError(null);
+  };
   // Reset the selection when the underlying filter set changes.
   const clusterKeysSig = clusters.map((c) => c.key).join("|");
   useEffect(() => {
@@ -194,7 +232,38 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
     [clusters, selectedKey],
   );
 
-  const visibleCards = selectedCluster ? selectedCluster.items : clusters.flatMap((c) => c.items);
+  /**
+   * Clusters decorated with distance-from-you and re-ordered nearest-first
+   * when a location is known. Without a location this is the original
+   * count-ordered list, so nothing changes for visitors who never opt in.
+   */
+  const rankedClusters = useMemo(() => {
+    if (!origin) return clusters.map((c) => ({ cluster: c, distanceKm: null as number | null }));
+    return clusters
+      .map((c) => ({ cluster: c, distanceKm: haversineKm(origin, { lat: c.lat, lng: c.lng }) }))
+      .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+  }, [clusters, origin]);
+
+  /** Radius applies only in near-me mode; `null` radius = any distance. */
+  const visibleClusters = useMemo(() => {
+    if (!origin || radiusKm == null) return rankedClusters;
+    return rankedClusters.filter((r) => (r.distanceKm ?? Infinity) <= radiusKm);
+  }, [rankedClusters, origin, radiusKm]);
+
+  const visibleKeys = useMemo(
+    () => new Set(visibleClusters.map((r) => r.cluster.key)),
+    [visibleClusters],
+  );
+
+  // A selection that falls outside the radius would strand the visitor on an
+  // empty list with no visible chip to clear.
+  useEffect(() => {
+    if (selectedKey && !visibleKeys.has(selectedKey)) setSelectedKey(null);
+  }, [selectedKey, visibleKeys]);
+
+  const visibleCards = selectedCluster
+    ? selectedCluster.items
+    : visibleClusters.flatMap((r) => r.cluster.items);
 
   const goBackToGrid = () => {
     commitDirectoryListingUrl(router, pathname, searchParams.toString(), (p) => {
@@ -294,12 +363,83 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
         to filter by city — unusable without a mouse. These chips are bound to
         the same `onSelect`, so pins and chips stay in lockstep.
       */}
+      {/* Near-me controls: opt-in geolocation, unit toggle, radius. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {origin ? (
+          <>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] px-3 py-1 text-[11px] font-semibold text-[var(--dir-accent)]">
+              <LocateFixed className="size-3.5" aria-hidden />
+              {ui.map.nearMeActive}
+            </span>
+            <select
+              value={radiusKm ?? ""}
+              onChange={(e) => setRadiusKm(e.target.value ? Number(e.target.value) : null)}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-foreground/80 outline-none transition-colors hover:border-[var(--dir-accent-line)] focus:border-[var(--dir-accent)]"
+            >
+              <option value="">{ui.map.radiusAny}</option>
+              {NEAR_ME_RADIUS_KM.map((km) => (
+                <option key={km} value={km}>
+                  {ui.map.radiusWithin
+                    .replace("{count}", String(Math.round(unit === "mi" ? km * 0.621371 : km)))
+                    .replace("{unit}", unit)}
+                </option>
+              ))}
+            </select>
+            <div
+              role="group"
+              aria-label={ui.map.unitToggleAria}
+              className="inline-flex overflow-hidden rounded-full border border-white/10"
+            >
+              {(["km", "mi"] as const).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  aria-pressed={unit === u}
+                  onClick={() => setUnit(u)}
+                  className={cn(
+                    "px-2.5 py-1 text-[11px] font-medium transition-colors",
+                    unit === u
+                      ? "bg-[var(--dir-accent)] font-semibold text-black"
+                      : "bg-white/[0.04] text-foreground/70 hover:text-foreground",
+                  )}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={clearLocation}
+              className="rounded-full px-2 py-1 text-[11px] text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              {ui.map.nearMeClear}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={requestLocation}
+            disabled={locating}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--dir-accent-line)] bg-[var(--dir-accent-soft)] px-3 py-1.5 text-[11px] font-semibold text-[var(--dir-accent)] transition-colors hover:border-[var(--dir-accent)] disabled:opacity-60"
+          >
+            <LocateFixed className={cn("size-3.5", locating && "animate-pulse")} aria-hidden />
+            {locating ? ui.map.nearMeLocating : ui.map.nearMe}
+          </button>
+        )}
+      </div>
+
+      {geoError ? (
+        <p role="status" className="text-[0.75rem] text-muted-foreground">
+          {geoError}
+        </p>
+      ) : null}
+
       <div
         role="group"
-        aria-label={ui.map.cityFilterGroup}
+        aria-label={origin ? ui.map.sortedByDistance : ui.map.cityFilterGroup}
         className="flex flex-wrap gap-1.5"
       >
-        {clusters.map((c) => {
+        {visibleClusters.map(({ cluster: c, distanceKm }) => {
           const on = c.key === selectedKey;
           return (
             <button
@@ -308,19 +448,42 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
               aria-pressed={on}
               onClick={() => setSelectedKey((cur) => (cur === c.key ? null : c.key))}
               className={cn(
-                "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
                 on
                   ? "border-[var(--impronta-gold-bright,var(--dir-accent))] bg-[var(--dir-accent)] font-semibold text-black"
                   : "border-white/10 bg-white/[0.04] text-foreground/70 hover:border-[var(--dir-accent-line)] hover:text-foreground",
               )}
             >
+              {/* Filled pin when active, outline when not — the chip reads as a
+                  map affordance, and state survives the colour-blind case. */}
+              <MapPin
+                className={cn("size-3.5 shrink-0", on ? "fill-black/20" : "text-[var(--dir-accent)]")}
+                aria-hidden
+              />
               {c.label || "•"}
-              <span className={cn("ml-1 tabular-nums", on ? "" : "opacity-70")}>
+              <span className={cn("tabular-nums", on ? "" : "opacity-70")}>
                 ({c.items.length})
               </span>
+              {distanceKm != null ? (
+                <span
+                  className={cn(
+                    "ml-0.5 border-l pl-1.5 text-[10px] tabular-nums",
+                    on ? "border-black/25 text-black/70" : "border-white/10 text-[var(--dir-accent)]/80",
+                  )}
+                >
+                  {formatDistance(distanceKm, unit)}
+                </span>
+              ) : null}
             </button>
           );
         })}
+        {origin && visibleClusters.length === 0 ? (
+          <p className="text-[0.75rem] text-muted-foreground">
+            {ui.map.noneWithinRadius
+              .replace("{count}", String(Math.round(unit === "mi" ? (radiusKm ?? 0) * 0.621371 : (radiusKm ?? 0))))
+              .replace("{unit}", unit)}
+          </p>
+        ) : null}
       </div>
 
       {/*
@@ -337,7 +500,9 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
         >
           <APIProvider apiKey={apiKey}>
             <DirectoryMapCanvas
-              clusters={clusters}
+              clusters={visibleClusters.map((r) => r.cluster)}
+              origin={origin}
+              originLabel={ui.map.youAreHere}
               selectedKey={selectedKey}
               onSelect={(k) => setSelectedKey((cur) => (cur === k ? null : k))}
             />
@@ -380,117 +545,6 @@ function mapCardsGridClass(mobile: number) {
   return ["grid gap-3 sm:gap-4", GRID_COLS_MOBILE[m], "sm:grid-cols-2", "lg:grid-cols-2"]
     .filter(Boolean)
     .join(" ");
-}
-
-/** Dark, low-chrome Google Maps style for the editorial-noir canvas. */
-const DARK_MAP_STYLE: google.maps.MapTypeStyle[] = [
-  { elementType: "geometry", stylers: [{ color: "#0e0e10" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8a8478" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a0a" }] },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1a1a1d" }] },
-  { featureType: "road", elementType: "labels", stylers: [{ visibility: "off" }] },
-  { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#2a2a2e" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#05070a" }] },
-];
-
-function DirectoryMapCanvas({
-  clusters,
-  selectedKey,
-  onSelect,
-}: {
-  clusters: CityCluster[];
-  selectedKey: string | null;
-  onSelect: (key: string) => void;
-}) {
-  const center = useMemo(() => {
-    if (clusters.length === 0) return { lat: 20, lng: -90 };
-    // Weighted by cluster size so the densest cities anchor the view.
-    let sumLat = 0;
-    let sumLng = 0;
-    let n = 0;
-    for (const c of clusters) {
-      sumLat += c.lat * c.items.length;
-      sumLng += c.lng * c.items.length;
-      n += c.items.length;
-    }
-    return { lat: sumLat / n, lng: sumLng / n };
-  }, [clusters]);
-
-  return (
-    <GoogleMap
-      defaultCenter={center}
-      defaultZoom={clusters.length > 4 ? 3 : 6}
-      gestureHandling="cooperative"
-      disableDefaultUI
-      zoomControl
-      clickableIcons={false}
-      styles={DARK_MAP_STYLE}
-      style={{ width: "100%", height: "100%" }}
-    >
-      <CityMarkers clusters={clusters} selectedKey={selectedKey} onSelect={onSelect} />
-    </GoogleMap>
-  );
-}
-
-/** Markers render only once the Maps JS API is ready (Symbol icons need it). */
-function CityMarkers({
-  clusters,
-  selectedKey,
-  onSelect,
-}: {
-  clusters: CityCluster[];
-  selectedKey: string | null;
-  onSelect: (key: string) => void;
-}) {
-  const loaded = useApiIsLoaded();
-  const [gold, setGold] = useState("#d4af37");
-  const [goldDeep, setGoldDeep] = useState("#9a7b2c");
-
-  useEffect(() => {
-    const cs = getComputedStyle(document.documentElement);
-    const bright = cs.getPropertyValue("--impronta-gold-bright").trim();
-    const base = cs.getPropertyValue("--impronta-gold").trim();
-    if (bright) setGold(bright);
-    if (base) setGoldDeep(base);
-  }, []);
-
-  if (!loaded) return null;
-
-  return (
-    <>
-      {clusters.map((c) => {
-        const isSelected = selectedKey === c.key;
-        // Pin radius grows with the count (capped) so dense cities read bigger.
-        const scale = Math.min(22, 11 + Math.sqrt(c.items.length) * 2.4);
-        const icon: google.maps.Symbol = {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: isSelected ? scale + 2 : scale,
-          fillColor: isSelected ? gold : goldDeep,
-          fillOpacity: 1,
-          strokeColor: "#0a0a0a",
-          strokeWeight: 2,
-        };
-        return (
-          <Marker
-            key={c.key}
-            position={{ lat: c.lat, lng: c.lng }}
-            title={`${c.label || "City"} · ${c.items.length}`}
-            icon={icon}
-            label={{
-              text: String(c.items.length),
-              color: "#0a0a0a",
-              fontSize: "11px",
-              fontWeight: "700",
-            }}
-            zIndex={isSelected ? 10 : undefined}
-            onClick={() => onSelect(c.key)}
-          />
-        );
-      })}
-    </>
-  );
 }
 
 function MapNotice({
