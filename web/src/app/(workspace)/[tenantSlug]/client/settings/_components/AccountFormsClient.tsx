@@ -6,6 +6,8 @@
 // server actions.
 
 import { useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { EditableTextRow } from "./EditableTextRow";
 import {
   updateClientSelfProfile,
@@ -35,15 +37,16 @@ export function ProfileFields({
   initialCompany: string;
   agencyName: string;
 }) {
+  const t = useT();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [company, setCompany] = useState(initialCompany);
 
   return (
     <>
       <EditableTextRow
-        label="Name"
+        label={t("client.settings.nameLabel")}
         value={displayName}
-        placeholder="Your full name"
+        placeholder={t("client.settings.namePlaceholder")}
         onSave={async (next) => {
           const res = await updateClientSelfProfile({
             tenantSlug,
@@ -55,11 +58,11 @@ export function ProfileFields({
         }}
       />
       <EditableTextRow
-        label="Company"
-        hint="Used on inquiries and bookings."
+        label={t("client.settings.companyLabel")}
+        hint={t("client.settings.companyHint")}
         value={company}
-        placeholder="Company or production name"
-        emptyLabel="Add company"
+        placeholder={t("client.settings.companyPlaceholder")}
+        emptyLabel={t("client.settings.companyEmpty")}
         onSave={async (next) => {
           const res = await updateClientSelfProfile({
             tenantSlug,
@@ -78,7 +81,7 @@ export function ProfileFields({
           fontFamily: FONT,
         }}
       >
-        Edits are visible to {agencyName} on your inquiries and bookings.
+        {interpolate(t("client.settings.editsVisibleTo"), { agency: agencyName })}
       </div>
     </>
   );
@@ -94,6 +97,7 @@ export function AccountFields({
   // `email` stays at the current confirmed address until Supabase
   // verifies the change on both sides; `pendingEmail` holds the
   // unconfirmed new value for the hint copy.
+  const t = useT();
   const [email] = useState(initialEmail);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -101,11 +105,11 @@ export function AccountFields({
   return (
     <>
       <EditableTextRow
-        label="Email"
+        label={t("client.settings.emailLabel")}
         hint={
           pendingEmail
-            ? `Pending — confirm the link sent to ${pendingEmail} to finish the change.`
-            : "Used for sign-in and notifications."
+            ? interpolate(t("client.settings.emailPendingHint"), { email: pendingEmail })
+            : t("client.settings.emailHint")
         }
         value={email}
         type="email"
@@ -132,9 +136,9 @@ export function AccountFields({
         }}
       >
         <div className="flex-1 min-w-0">
-          <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>Password</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{t("client.settings.passwordLabel")}</div>
           <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2 }}>
-            Sign-in method: {signInMethodLabel}
+            {interpolate(t("client.settings.signInMethod"), { method: signInMethodLabel })}
           </div>
         </div>
         {!showPasswordForm && (
@@ -153,7 +157,7 @@ export function AccountFields({
               fontFamily: FONT,
             }}
           >
-            Change password
+            {t("client.settings.changePassword")}
           </button>
         )}
       </div>
@@ -166,6 +170,7 @@ export function AccountFields({
 }
 
 function PasswordChangeForm({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -200,7 +205,7 @@ function PasswordChangeForm({ onClose }: { onClose: () => void }) {
         }}
       >
         <div style={{ fontSize: 13, color: C.green, fontWeight: 500 }}>
-          ✓ Password updated. Use it next time you sign in.
+          ✓ {t("client.settings.passwordUpdated")}
         </div>
         <button
           type="button"
@@ -217,7 +222,7 @@ function PasswordChangeForm({ onClose }: { onClose: () => void }) {
             fontFamily: FONT,
           }}
         >
-          Done
+          {t("client.settings.done")}
         </button>
       </div>
     );
@@ -234,15 +239,15 @@ function PasswordChangeForm({ onClose }: { onClose: () => void }) {
         fontFamily: FONT,
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>Change password</div>
+      <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{t("client.settings.changePassword")}</div>
       <PasswordInput
-        placeholder="New password (min 8 characters)"
+        placeholder={t("client.settings.newPasswordPlaceholder")}
         value={newPassword}
         onChange={setNewPassword}
         disabled={pending}
       />
       <PasswordInput
-        placeholder="Confirm new password"
+        placeholder={t("client.settings.confirmPasswordPlaceholder")}
         value={confirmPassword}
         onChange={setConfirmPassword}
         disabled={pending}
@@ -267,7 +272,7 @@ function PasswordChangeForm({ onClose }: { onClose: () => void }) {
             fontFamily: FONT,
           }}
         >
-          {pending ? "Updating…" : "Update password"}
+          {pending ? t("client.settings.updating") : t("client.settings.updatePassword")}
         </button>
         <button
           type="button"
@@ -285,7 +290,7 @@ function PasswordChangeForm({ onClose }: { onClose: () => void }) {
             fontFamily: FONT,
           }}
         >
-          Cancel
+          {t("client.settings.cancel")}
         </button>
       </div>
     </div>

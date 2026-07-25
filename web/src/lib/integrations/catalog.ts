@@ -44,6 +44,12 @@ export type IntegrationField = {
   /** Stable field name; the secret_field / config_json key. */
   name: string;
   label: string;
+  /**
+   * Catalog key mirroring {@link IntegrationField.label}. UI surfaces MUST
+   * render `t(labelKey)`; `label` stays English as the fallback for non-UI
+   * consumers (server validation messages, logs, tests).
+   */
+  labelKey: string;
   /** true → encrypted in tenant_integration_secrets. */
   secret: boolean;
   /** true → a PUBLIC identifier safe to store in config_json (and ship to the browser). */
@@ -68,14 +74,24 @@ export type IntegrationDef = {
   /** Stable integration_key persisted on tenant_integrations. */
   key: string;
   label: string;
+  /**
+   * Catalog keys mirroring `label` / `description` / `instructions`. The English
+   * strings stay as the fallback for non-UI consumers (docs, logs, tests); every
+   * UI surface MUST render `t(labelKey)` / `t(descriptionKey)` /
+   * `instructionKeys.map(t)` so the integrations hub follows the dashboard
+   * locale. `instructionKeys` is index-aligned with `instructions`.
+   */
+  labelKey: string;
   category: IntegrationCategory;
   connection: IntegrationConnection;
   /** true → may fall back to the platform env credential when mode='inherit'. */
   inheritable: boolean;
   /** Short human description for an eventual settings UI. */
   description: string;
+  descriptionKey: string;
   /** Ordered setup steps for the tenant (rendered later in the UI). */
   instructions: string[];
+  instructionKeys: string[];
   fields: IntegrationField[];
   /** Plan-entitlement gate (agency_entitlements column). Undefined = always on. */
   entitlement?: IntegrationEntitlement;
@@ -233,25 +249,41 @@ export const STRIPE_CONNECT_INTEGRATION_KEY = "stripe_connect" as const;
 export const CUSTOM_DOMAIN_INTEGRATION_KEY = "custom_domain" as const;
 export const AI_PROVIDER_INTEGRATION_KEY = "ai_provider" as const;
 
+/**
+ * Root of the i18n namespace that mirrors this catalog. Keys live under
+ * `<CATALOG_I18N_NS>.items.<integration_key>.…` and `<CATALOG_I18N_NS>.status.…`
+ * in `web/messages/*.json`.
+ */
+const NS = "dashboard.adminIntegrationsCatalog.items";
+
 export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [GOOGLE_MAPS_INTEGRATION_KEY]: {
     key: GOOGLE_MAPS_INTEGRATION_KEY,
     label: "Google Maps",
+    labelKey: `${NS}.google_maps.label`,
     category: "website",
     connection: "manual",
     inheritable: true,
     description:
       "Powers the location / orbit map and city autocomplete (Maps JavaScript + Places). Supply your own referer-restricted key to use the map on your own custom domain; otherwise the platform key is used.",
+    descriptionKey: `${NS}.google_maps.description`,
     instructions: [
       "In Google Cloud Console, create (or pick) a project with billing enabled.",
       'Enable the "Maps JavaScript API" and the "Places API" for that project.',
       'Create an API key under APIs & Services → Credentials, then restrict it: Application restrictions → "HTTP referrers" → add your custom domain (e.g. https://your-domain.com/*).',
       'Under API restrictions, limit the key to "Maps JavaScript API" and "Places API", then paste the key here.',
     ],
+    instructionKeys: [
+      `${NS}.google_maps.steps.s1`,
+      `${NS}.google_maps.steps.s2`,
+      `${NS}.google_maps.steps.s3`,
+      `${NS}.google_maps.steps.s4`,
+    ],
     fields: [
       {
         name: "api_key",
         label: "Google Maps API key",
+        labelKey: `${NS}.google_maps.fields.api_key`,
         secret: true,
         public: false,
         test: testGoogleMapsApiKey,
@@ -270,21 +302,30 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [GA4_INTEGRATION_KEY]: {
     key: GA4_INTEGRATION_KEY,
     label: "Google Analytics 4",
+    labelKey: `${NS}.ga4.label`,
     category: "analytics",
     connection: "manual",
     inheritable: true,
     description:
       "Track visits to your public site with Google Analytics 4. Paste your GA4 Measurement ID and the gtag.js snippet is injected on your storefront (consent-gated).",
+    descriptionKey: `${NS}.ga4.description`,
     instructions: [
       "Open Google Analytics → Admin (gear, bottom-left).",
       'Under the Property column choose "Data streams", then select (or create) your Web stream.',
-      'Copy the "Measurement ID" at the top right of the stream details — it starts with "G-".',
+      'Copy the "Measurement ID" at the top right of the stream details. It starts with "G-".',
       "Paste the Measurement ID (e.g. G-XXXXXXXXXX) here.",
+    ],
+    instructionKeys: [
+      `${NS}.ga4.steps.s1`,
+      `${NS}.ga4.steps.s2`,
+      `${NS}.ga4.steps.s3`,
+      `${NS}.ga4.steps.s4`,
     ],
     fields: [
       {
         name: "measurement_id",
         label: "GA4 Measurement ID",
+        labelKey: `${NS}.ga4.fields.measurement_id`,
         secret: false,
         public: true,
         test: testGa4MeasurementId,
@@ -295,21 +336,30 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [META_PIXEL_INTEGRATION_KEY]: {
     key: META_PIXEL_INTEGRATION_KEY,
     label: "Meta Pixel",
+    labelKey: `${NS}.meta_pixel.label`,
     category: "analytics",
     connection: "manual",
     inheritable: false,
     description:
       "Measure conversions and build audiences for Facebook / Instagram ads. Paste your Meta (Facebook) Pixel ID and the base pixel code is injected on your storefront (consent-gated).",
+    descriptionKey: `${NS}.meta_pixel.description`,
     instructions: [
       "Open Meta Events Manager (business.facebook.com/events_manager).",
       "Select your pixel / dataset in the Data Sources list on the left.",
-      'Find the "Dataset ID" (Pixel ID) near the top — it is a long number.',
+      'Find the "Dataset ID" (Pixel ID) near the top. It is a long number.',
       "Paste the numeric Pixel ID here.",
+    ],
+    instructionKeys: [
+      `${NS}.meta_pixel.steps.s1`,
+      `${NS}.meta_pixel.steps.s2`,
+      `${NS}.meta_pixel.steps.s3`,
+      `${NS}.meta_pixel.steps.s4`,
     ],
     fields: [
       {
         name: "pixel_id",
         label: "Meta Pixel ID",
+        labelKey: `${NS}.meta_pixel.fields.pixel_id`,
         secret: false,
         public: true,
         test: testMetaPixelId,
@@ -320,21 +370,30 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [TIKTOK_PIXEL_INTEGRATION_KEY]: {
     key: TIKTOK_PIXEL_INTEGRATION_KEY,
     label: "TikTok Pixel",
+    labelKey: `${NS}.tiktok_pixel.label`,
     category: "analytics",
     connection: "manual",
     inheritable: false,
     description:
       "Track conversions from TikTok ads. Paste your TikTok Pixel ID and the pixel base code is injected on your storefront (consent-gated).",
+    descriptionKey: `${NS}.tiktok_pixel.description`,
     instructions: [
       "Open TikTok Ads Manager → Assets → Events.",
       'Under "Web Events", open (or create) your pixel.',
-      'Copy the "Pixel ID" shown in the pixel\'s details — an alphanumeric code.',
+      'Copy the "Pixel ID" shown in the pixel\'s details, an alphanumeric code.',
       "Paste the Pixel ID here.",
+    ],
+    instructionKeys: [
+      `${NS}.tiktok_pixel.steps.s1`,
+      `${NS}.tiktok_pixel.steps.s2`,
+      `${NS}.tiktok_pixel.steps.s3`,
+      `${NS}.tiktok_pixel.steps.s4`,
     ],
     fields: [
       {
         name: "pixel_id",
         label: "TikTok Pixel ID",
+        labelKey: `${NS}.tiktok_pixel.fields.pixel_id`,
         secret: false,
         public: true,
         test: testTikTokPixelId,
@@ -345,21 +404,30 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [LINKEDIN_INSIGHT_INTEGRATION_KEY]: {
     key: LINKEDIN_INSIGHT_INTEGRATION_KEY,
     label: "LinkedIn Insight Tag",
+    labelKey: `${NS}.linkedin_insight.label`,
     category: "analytics",
     connection: "manual",
     inheritable: false,
     description:
       "Measure LinkedIn ad conversions and retarget visitors. Paste your LinkedIn Partner ID and the Insight Tag is injected on your storefront (consent-gated).",
+    descriptionKey: `${NS}.linkedin_insight.description`,
     instructions: [
       "Open LinkedIn Campaign Manager → Analyze → Insight Tag.",
       'Choose "Install my Insight Tag" / "Manage Insight Tag".',
-      'Copy your "Partner ID" — a short numeric value.',
+      'Copy your "Partner ID", a short numeric value.',
       "Paste the numeric Partner ID here.",
+    ],
+    instructionKeys: [
+      `${NS}.linkedin_insight.steps.s1`,
+      `${NS}.linkedin_insight.steps.s2`,
+      `${NS}.linkedin_insight.steps.s3`,
+      `${NS}.linkedin_insight.steps.s4`,
     ],
     fields: [
       {
         name: "partner_id",
         label: "LinkedIn Partner ID",
+        labelKey: `${NS}.linkedin_insight.fields.partner_id`,
         secret: false,
         public: true,
         test: testLinkedInPartnerId,
@@ -370,21 +438,30 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [GTM_INTEGRATION_KEY]: {
     key: GTM_INTEGRATION_KEY,
     label: "Google Tag Manager",
+    labelKey: `${NS}.gtm.label`,
     category: "analytics",
     connection: "manual",
     inheritable: false,
     description:
       "Manage all your marketing tags from one container without editing the site. Paste your GTM Container ID and the container snippet is injected on your storefront (consent-gated).",
+    descriptionKey: `${NS}.gtm.description`,
     instructions: [
       "Open Google Tag Manager (tagmanager.google.com).",
       "Select your account and the container for this website.",
-      'Copy the Container ID shown near the top — it starts with "GTM-".',
+      'Copy the Container ID shown near the top. It starts with "GTM-".',
       "Paste the Container ID (e.g. GTM-XXXXXXX) here.",
+    ],
+    instructionKeys: [
+      `${NS}.gtm.steps.s1`,
+      `${NS}.gtm.steps.s2`,
+      `${NS}.gtm.steps.s3`,
+      `${NS}.gtm.steps.s4`,
     ],
     fields: [
       {
         name: "container_id",
         label: "GTM Container ID",
+        labelKey: `${NS}.gtm.fields.container_id`,
         secret: false,
         public: true,
         test: testGtmContainerId,
@@ -400,28 +477,38 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [CUSTOM_CODE_INTEGRATION_KEY]: {
     key: CUSTOM_CODE_INTEGRATION_KEY,
     label: "Custom code",
+    labelKey: `${NS}.custom_code.label`,
     category: "website",
     connection: "manual",
     inheritable: false,
     entitlement: "custom_css_allowed",
     description:
-      "Inject your own HTML / <script> into your public storefront — add a chat widget, a font, a verification meta tag, or any third-party snippet. Runs on your storefront only, never the admin.",
+      "Inject your own HTML / <script> into your public storefront: add a chat widget, a font, a verification meta tag, or any third-party snippet. Runs on your storefront only, never the admin.",
+    descriptionKey: `${NS}.custom_code.description`,
     instructions: [
       "Paste markup destined for the page <head> (meta tags, <link> stylesheets, analytics loaders) into the Head field.",
       "Paste markup destined for the end of <body> (chat widgets, deferred <script> tags) into the Body field.",
-      "Only add code you trust — it runs on every page of your public storefront with full access to the page.",
+      "Only add code you trust. It runs on every page of your public storefront with full access to the page.",
       "Save. Your storefront re-renders with the snippets injected; the admin and other tenants are never affected.",
+    ],
+    instructionKeys: [
+      `${NS}.custom_code.steps.s1`,
+      `${NS}.custom_code.steps.s2`,
+      `${NS}.custom_code.steps.s3`,
+      `${NS}.custom_code.steps.s4`,
     ],
     fields: [
       {
         name: "head_html",
         label: "Head HTML",
+        labelKey: `${NS}.custom_code.fields.head_html`,
         secret: false,
         public: true,
       },
       {
         name: "body_html",
         label: "Body HTML",
+        labelKey: `${NS}.custom_code.fields.body_html`,
         secret: false,
         public: true,
       },
@@ -435,21 +522,30 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [CAPTCHA_INTEGRATION_KEY]: {
     key: CAPTCHA_INTEGRATION_KEY,
     label: "Captcha",
+    labelKey: `${NS}.captcha.label`,
     category: "security",
     connection: "manual",
     inheritable: false,
     description:
       "Protect your storefront contact forms from spam with hCaptcha or Cloudflare Turnstile. Bring your own keys; the widget renders on your forms and submissions are verified server-side.",
+    descriptionKey: `${NS}.captcha.description`,
     instructions: [
-      "Pick a provider — hCaptcha (hcaptcha.com) or Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
+      "Pick a provider: hCaptcha (hcaptcha.com) or Cloudflare Turnstile (dash.cloudflare.com → Turnstile).",
       "Create a site for your storefront domain and copy the Site key (public) and Secret key (private).",
       "Paste the Site key and Secret key below and choose the matching provider.",
       "Save. Your contact forms render the widget and reject submissions that fail verification.",
+    ],
+    instructionKeys: [
+      `${NS}.captcha.steps.s1`,
+      `${NS}.captcha.steps.s2`,
+      `${NS}.captcha.steps.s3`,
+      `${NS}.captcha.steps.s4`,
     ],
     fields: [
       {
         name: "provider",
         label: "Provider",
+        labelKey: `${NS}.captcha.fields.provider`,
         secret: false,
         public: true,
         test: testCaptchaProvider,
@@ -457,6 +553,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
       {
         name: "site_key",
         label: "Site key",
+        labelKey: `${NS}.captcha.fields.site_key`,
         secret: false,
         public: true,
         test: testCaptchaSiteKey,
@@ -464,6 +561,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
       {
         name: "secret_key",
         label: "Secret key",
+        labelKey: `${NS}.captcha.fields.secret_key`,
         secret: true,
         public: false,
         test: testCaptchaSecretKey,
@@ -479,22 +577,31 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [EMAIL_DOMAIN_INTEGRATION_KEY]: {
     key: EMAIL_DOMAIN_INTEGRATION_KEY,
     label: "Email domain",
+    labelKey: `${NS}.email_domain.label`,
     category: "comms",
     connection: "manual",
     inheritable: false,
     entitlement: "white_label_email",
     description:
       "Send client emails from your own domain (e.g. noreply@yourbrand.com) instead of the platform default. Add your domain, drop the DNS records we generate, and verify.",
+    descriptionKey: `${NS}.email_domain.description`,
     instructions: [
       "Enter the sending domain you want email to come from (e.g. mail.yourbrand.com) and Save.",
       "We register it with our email provider and show you the DNS records to add.",
       "Add each record (SPF / DKIM / DMARC) at your DNS host exactly as shown.",
-      "Click Verify — once DNS propagates the status flips to Verified and your email sends from your domain.",
+      "Click Verify. Once DNS propagates the status flips to Verified and your email sends from your domain.",
+    ],
+    instructionKeys: [
+      `${NS}.email_domain.steps.s1`,
+      `${NS}.email_domain.steps.s2`,
+      `${NS}.email_domain.steps.s3`,
+      `${NS}.email_domain.steps.s4`,
     ],
     fields: [
       {
         name: "domain",
         label: "Sending domain",
+        labelKey: `${NS}.email_domain.fields.domain`,
         secret: false,
         public: true,
         test: testEmailDomain,
@@ -512,20 +619,28 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   [YOUTUBE_INTEGRATION_KEY]: {
     key: YOUTUBE_INTEGRATION_KEY,
     label: "YouTube",
+    labelKey: `${NS}.youtube.label`,
     category: "social",
     connection: "oauth",
     inheritable: false,
     description:
       "Connect the workspace YouTube channel, verify ownership with Google, and show the verified channel on the public site header and footer.",
+    descriptionKey: `${NS}.youtube.description`,
     instructions: [
       "Use one-click connect to sign in with the Google account that owns the channel.",
       "Tulala stores the public channel label and encrypted OAuth tokens so the connection can stay verified.",
       "Manual fallback is available: paste a YouTube channel URL or @handle if one-click OAuth is not configured yet.",
     ],
+    instructionKeys: [
+      `${NS}.youtube.steps.s1`,
+      `${NS}.youtube.steps.s2`,
+      `${NS}.youtube.steps.s3`,
+    ],
     fields: [
       {
         name: "profile_url",
         label: "YouTube channel URL or @handle",
+        labelKey: `${NS}.youtube.fields.profile_url`,
         secret: false,
         public: true,
         test: testYouTubeProfileUrl,
@@ -545,9 +660,15 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
 export type SurfacedIntegrationDef = {
   key: string;
   label: string;
+  /**
+   * Catalog keys mirroring `label` / `description`. English stays the fallback
+   * for non-UI consumers; the hub renders `t(labelKey)` / `t(descriptionKey)`.
+   */
+  labelKey: string;
   category: IntegrationCategory;
   connection: "link";
   description: string;
+  descriptionKey: string;
   /** In-app path under `/<tenantSlug>` the card navigates to. */
   hrefPath: string;
 };
@@ -556,28 +677,34 @@ export const SURFACED_INTEGRATIONS: Record<string, SurfacedIntegrationDef> = {
   [STRIPE_CONNECT_INTEGRATION_KEY]: {
     key: STRIPE_CONNECT_INTEGRATION_KEY,
     label: "Stripe payouts",
+    labelKey: `${NS}.stripe_connect.label`,
     category: "money",
     connection: "link",
     description:
       "Connect Stripe to receive booking payments and pay out your roster. Managed in Payouts.",
+    descriptionKey: `${NS}.stripe_connect.description`,
     hrefPath: "/admin/payouts",
   },
   [CUSTOM_DOMAIN_INTEGRATION_KEY]: {
     key: CUSTOM_DOMAIN_INTEGRATION_KEY,
     label: "Custom domain",
+    labelKey: `${NS}.custom_domain.label`,
     category: "website",
     connection: "link",
     description:
       "Run your storefront at your own domain. Managed in Settings → Domain.",
+    descriptionKey: `${NS}.custom_domain.description`,
     hrefPath: "/admin/settings",
   },
   [AI_PROVIDER_INTEGRATION_KEY]: {
     key: AI_PROVIDER_INTEGRATION_KEY,
     label: "AI provider",
+    labelKey: `${NS}.ai_provider.label`,
     category: "website",
     connection: "link",
     description:
       "Bring your own AI provider key for assisted imports and copy. Managed in Settings.",
+    descriptionKey: `${NS}.ai_provider.description`,
     hrefPath: "/admin/settings",
   },
 };

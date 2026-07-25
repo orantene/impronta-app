@@ -18,6 +18,8 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   loadMyNotifications,
   markNotificationsRead,
@@ -41,15 +43,15 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 
-function relativeTs(iso: string): string {
+function relativeTs(iso: string, t: (key: string) => string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diffMs / 60_000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
+  if (min < 1) return t("client.ui.time.justNow");
+  if (min < 60) return interpolate(t("client.ui.time.minutesAgo"), { count: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return interpolate(t("client.ui.time.hoursAgo"), { count: hr });
   const days = Math.floor(hr / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return interpolate(t("client.ui.time.daysAgo"), { count: days });
   return new Date(iso).toLocaleDateString();
 }
 
@@ -82,6 +84,7 @@ export function ClientNotificationBell({
   initialNotifications: MyNotification[];
   tenantSlug: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const popoverId = useId();
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -191,7 +194,7 @@ export function ClientNotificationBell({
       <button
         ref={buttonRef}
         type="button"
-        aria-label={`Notifications · ${unreadCount} unread`}
+        aria-label={interpolate(t("client.ui.notifications.bellAria"), { count: unreadCount })}
         {...({ popoverTarget: popoverId } as Record<string, string>)}
         onClick={(e) => { e.currentTarget.blur(); }}
         style={{
@@ -298,7 +301,7 @@ export function ClientNotificationBell({
               letterSpacing: -0.1,
             }}
           >
-            Notifications
+            {t("dashboard.accountMenu.notifications")}
             {loading && (
               <span
                 style={{
@@ -329,7 +332,7 @@ export function ClientNotificationBell({
                 fontFamily: FONT,
               }}
             >
-              Mark all read
+              {t("client.ui.notifications.markAllRead")}
             </button>
           )}
         </div>
@@ -347,7 +350,7 @@ export function ClientNotificationBell({
               }}
             >
               <div style={{ fontSize: 26, marginBottom: 8 }}>✓</div>
-              All caught up.
+              {t("client.ui.notifications.allCaughtUp")}
             </div>
           ) : (
             notifications.map((n) => {
@@ -429,7 +432,7 @@ export function ClientNotificationBell({
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {relativeTs(n.createdAt)}
+                        {relativeTs(n.createdAt, t)}
                       </span>
                     </div>
                     {n.body && (
@@ -481,7 +484,7 @@ export function ClientNotificationBell({
             flexShrink: 0,
           }}
         >
-          Showing recent notifications
+          {t("client.ui.notifications.footer")}
         </div>
       </div>
 

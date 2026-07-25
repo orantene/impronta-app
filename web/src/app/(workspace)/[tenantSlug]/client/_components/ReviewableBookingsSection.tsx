@@ -19,6 +19,8 @@
  */
 
 import { useEffect, useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { loadReviewableBookingsAction } from "@/lib/reviews/review-actions";
 import type { ReviewableBooking } from "@/lib/reviews/review-types";
 import { LeaveReviewCard, type LeaveReviewSaved } from "./LeaveReviewCard";
@@ -71,8 +73,9 @@ function mergeExistingReview(
 }
 
 function StaticStars({ rating }: { rating: number }) {
+  const t = useT();
   return (
-    <span style={{ display: "inline-flex", gap: 1 }} aria-label={`${rating} out of 5 stars`}>
+    <span style={{ display: "inline-flex", gap: 1 }} aria-label={interpolate(t("public.reviews.starsAria"), { rating })}>
       {[1, 2, 3, 4, 5].map((n) => (
         <svg
           key={n}
@@ -102,12 +105,13 @@ function ReviewableRow({
   row: RowState;
   onSaved: (saved: LeaveReviewSaved) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const { booking, saved } = row;
   // Merge any in-session save over the server-provided existingReview.
   const current = mergeExistingReview(booking, saved);
   const reviewed = current != null;
-  const talentLabel = booking.talentName ?? "this talent";
+  const talentLabel = booking.talentName ?? t("client.reviews.thisTalent");
 
   // Pass the in-session save through so the form prefills after re-open.
   const bookingForForm: ReviewableBooking = saved
@@ -147,7 +151,7 @@ function ReviewableRow({
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <StaticStars rating={current.rating} />
                 <span style={{ fontSize: 11, color: C.inkDim, fontVariantNumeric: "tabular-nums" }}>
-                  Your review
+                  {t("client.reviews.yourReview")}
                 </span>
               </span>
             )}
@@ -178,7 +182,9 @@ function ReviewableRow({
                 <path d="M12 2.5l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.4l-5.8 3.05 1.1-6.47L2.6 9.35l6.5-.95L12 2.5z" />
               </svg>
             )}
-            {reviewed ? "Edit your review" : `Rate ${talentLabel}`}
+            {reviewed
+              ? t("client.reviews.editYourReview")
+              : interpolate(t("client.reviews.rateTalent"), { name: talentLabel })}
           </button>
         )}
       </div>
@@ -201,6 +207,7 @@ function ReviewableRow({
 }
 
 export function ReviewableBookingsSection({ tenantSlug }: { tenantSlug: string }) {
+  const t = useT();
   const [rows, setRows] = useState<RowState[] | null>(null);
 
   useEffect(() => {
@@ -234,7 +241,7 @@ export function ReviewableBookingsSection({ tenantSlug }: { tenantSlug: string }
           fontFamily: FONT,
         }}
       >
-        Rate your talent ({rows.length})
+        {interpolate(t("client.reviews.rateYourTalentHeading"), { count: rows.length })}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {rows.map((row, i) => (

@@ -24,6 +24,7 @@
  */
 
 import { useState, useTransition } from "react";
+import { useT } from "@/i18n/use-t";
 import { setCategoryNotificationPrefs } from "@/lib/server-actions/user-prefs";
 
 /** Live channels a category preference can carry. Mirrors `LIVE_CHANNELS`. */
@@ -32,8 +33,14 @@ export type UiChannel = "email" | "in_app";
 /** Serializable category descriptor handed down from the server page. */
 export type UiCategory = {
   id: string;
+  /** English fallback (see categories.ts). */
   label: string;
+  /** English fallback (see categories.ts). */
   description: string;
+  /** Localized display path for `label`. */
+  labelKey?: string;
+  /** Localized display path for `description`. */
+  descriptionKey?: string;
   required: boolean;
   /** Live default channels for this category (already ∩ LIVE_CHANNELS). */
   channels: UiChannel[];
@@ -51,12 +58,25 @@ const C = {
   lockBg: "rgba(11,11,13,0.04)",
 } as const;
 
+// English stays as the non-UI fallback; the key is the localized display path.
 const CHANNEL_LABEL: Record<UiChannel, string> = {
   email: "Email",
   in_app: "In-app",
 };
 
+const CHANNEL_LABEL_KEY: Record<UiChannel, string> = {
+  email: "client.settings.channelEmail",
+  in_app: "client.settings.channelInApp",
+};
+
 type ChannelState = Record<UiChannel, boolean>;
+
+/** Resolve a localized string, falling back to the English constant. */
+function resolve(t: (key: string) => string, key: string | undefined, fallback: string): string {
+  if (!key) return fallback;
+  const out = t(key);
+  return out === key ? fallback : out;
+}
 
 function readBool(raw: Record<string, unknown>, ...keys: string[]): boolean | undefined {
   for (const key of keys) {
@@ -92,6 +112,7 @@ export function NotificationPrefsPanel({
   // Required categories always render (locked). Non-required render only when
   // they have at least one live default channel — otherwise there's nothing to
   // toggle (e.g. marketing, default channels []).
+  const t = useT();
   const visible = categories.filter((c) => c.required || c.channels.length > 0);
 
   const [prefs, setPrefs] = useState<Record<string, ChannelState>>(() => {
@@ -118,6 +139,8 @@ export function NotificationPrefsPanel({
     <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column" }}>
       {visible.map((cat, i) => {
         const state = prefs[cat.id];
+        const catLabel = resolve(t, cat.labelKey, cat.label);
+        const catDescription = resolve(t, cat.descriptionKey, cat.description);
         return (
           <div
             key={cat.id}
@@ -130,9 +153,9 @@ export function NotificationPrefsPanel({
             }}
           >
             <div className="flex-1 min-w-0">
-              <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{cat.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: C.ink }}>{catLabel}</div>
               <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
-                {cat.description}
+                {catDescription}
               </div>
             </div>
 
@@ -140,15 +163,20 @@ export function NotificationPrefsPanel({
               <LockedPill />
             ) : (
               <div style={{ display: "flex", gap: 4 }}>
-                {cat.channels.map((ch) => (
-                  <ChannelControl
-                    key={ch}
-                    label={CHANNEL_LABEL[ch]}
-                    on={state[ch]}
-                    onClick={() => toggle(cat, ch)}
-                    ariaLabel={`${cat.label} — ${CHANNEL_LABEL[ch]}`}
-                  />
-                ))}
+                {cat.channels.map((ch) => {
+                  const resolved = t(CHANNEL_LABEL_KEY[ch]);
+                  const channelLabel =
+                    resolved === CHANNEL_LABEL_KEY[ch] ? CHANNEL_LABEL[ch] : resolved;
+                  return (
+                    <ChannelControl
+                      key={ch}
+                      label={channelLabel}
+                      on={state[ch]}
+                      onClick={() => toggle(cat, ch)}
+                      ariaLabel={`${catLabel} · ${channelLabel}`}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -167,7 +195,7 @@ export function NotificationPrefsPanel({
           minHeight: 16,
         }}
       >
-        {savedAt ? "Preferences saved." : "Changes auto-save."}
+        {savedAt ? t("client.settings.prefsSaved") : t("client.settings.prefsAutoSave")}
       </div>
     </div>
   );
@@ -211,9 +239,10 @@ function ChannelControl({
 }
 
 function LockedPill() {
+  const t = useT();
   return (
     <span
-      title="Required for your account — always sent."
+      title={t("client.settings.alwaysOnTitle")}
       style={{
         fontSize: 10.5,
         fontWeight: 600,
@@ -237,7 +266,7 @@ function LockedPill() {
           strokeLinejoin="round"
         />
       </svg>
-      Always on
+      {t("client.settings.alwaysOn")}
     </span>
   );
 }

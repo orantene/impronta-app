@@ -22,6 +22,8 @@
 // ============================================================================
 
 import React, { useEffect, useState } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   createPermissionRequest,
   respondToPermissionRequest,
@@ -63,45 +65,67 @@ const F_BODY = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
 
 // ─── 1. PermissionConsentDrawer ────────────────────────────────────────────
 
-const SCOPE_META: Record<DataScope, { label: string; description: string; emoji: string }> = {
+// `label` / `description` stay in English as the non-UI fallback (docs, logs,
+// tests). UI surfaces render `t(meta.labelKey)` / `t(meta.descriptionKey)` so
+// the drawer follows the dashboard locale.
+const SCOPE_META: Record<
+  DataScope,
+  { label: string; description: string; labelKey: string; descriptionKey: string; emoji: string }
+> = {
   identity: {
     label: "Identity",
     description: "Name, photo, pronouns, bio, age. The basics.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.identityLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.identityDesc",
     emoji: "👤",
   },
   media: {
     label: "Media & Portfolio",
     description: "Headshot, gallery, showreel, social links.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.mediaLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.mediaDesc",
     emoji: "🎨",
   },
   rates: {
     label: "Rates & Booking Terms",
-    description: "Pricing, deposit, cancellation policy. Sensitive — agencies often markup.",
+    description: "Pricing, deposit, cancellation policy. Sensitive, agencies often markup.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.ratesLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.ratesDesc",
     emoji: "💰",
   },
   service_areas: {
     label: "Service Areas",
     description: "Cities you serve, travel radius, willingness to travel.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.serviceAreasLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.serviceAreasDesc",
     emoji: "📍",
   },
   availability: {
     label: "Availability",
     description: "Days, hours, blackout dates, response time.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.availabilityLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.availabilityDesc",
     emoji: "📅",
   },
   documents: {
     label: "Documents",
     description: "Government ID, licenses, insurance. Highly sensitive.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.documentsLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.documentsDesc",
     emoji: "🔒",
   },
   physical: {
     label: "Physical / Casting",
     description: "Height, measurements, hair/eye color, sizes.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.physicalLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.physicalDesc",
     emoji: "📐",
   },
   experience: {
     label: "Experience & Credits",
     description: "Years, past clients, references, credentials.",
+    labelKey: "dashboard.adminPhase7Drawers.scopes.experienceLabel",
+    descriptionKey: "dashboard.adminPhase7Drawers.scopes.experienceDesc",
     emoji: "⭐",
   },
 };
@@ -127,6 +151,7 @@ export function PermissionConsentDrawer({
   onClose: () => void;
   onApproved?: (approvedScopes: DataScope[]) => void;
 }) {
+  const t = useT();
   const [approvedScopes, setApprovedScopes] = useState<Set<DataScope>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,11 +208,10 @@ export function PermissionConsentDrawer({
           padding: "20px 24px 16px", borderBottom: `1px solid ${T.borderSoft}`,
         }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: T.ink, marginBottom: 6 }}>
-            {agencyName} wants to add you to their roster
+            {interpolate(t("dashboard.adminPhase7Drawers.consentTitle"), { agencyName })}
           </div>
           <div style={{ fontSize: 13, color: T.inkMuted, lineHeight: 1.5 }}>
-            They&apos;d like access to the data below to represent you to their clients.
-            You can approve all, approve a subset, or deny entirely.
+            {t("dashboard.adminPhase7Drawers.consentBody")}
           </div>
           {request.request_message && (
             <div style={{
@@ -223,10 +247,10 @@ export function PermissionConsentDrawer({
                 <span style={{ fontSize: 22, lineHeight: 1 }}>{meta.emoji}</span>
                 <div className="flex-1">
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, marginBottom: 2 }}>
-                    {meta.label}
+                    {t(meta.labelKey)}
                   </div>
                   <div style={{ fontSize: 11.5, color: T.inkMuted, lineHeight: 1.4 }}>
-                    {meta.description}
+                    {t(meta.descriptionKey)}
                   </div>
                 </div>
                 <span style={{
@@ -264,7 +288,7 @@ export function PermissionConsentDrawer({
               background: T.surface, color: T.red, cursor: "pointer",
               fontFamily: F_BODY,
             }}>
-            Deny request
+            {t("dashboard.adminPhase7Drawers.denyRequest")}
           </button>
           <button type="button" disabled={submitting || approvedScopes.size === 0}
             onClick={() => handleResponse("approved")}
@@ -275,7 +299,12 @@ export function PermissionConsentDrawer({
               color: "#fff", cursor: approvedScopes.size === 0 ? "not-allowed" : "pointer",
               fontFamily: F_BODY,
             }}>
-            {submitting ? "Saving…" : `Approve ${approvedScopes.size} of ${request.requested_scopes.length}`}
+            {submitting
+              ? t("dashboard.adminPhase7Drawers.saving")
+              : interpolate(t("dashboard.adminPhase7Drawers.approveNOfM"), {
+                  count: approvedScopes.size,
+                  total: request.requested_scopes.length,
+                })}
           </button>
         </div>
       </div>
@@ -292,6 +321,7 @@ export function AgencyMediaCurationPanel({
   talentProfileId: string;
   talentName: string;
 }) {
+  const t = useT();
   const [rows, setRows] = useState<AgencyMediaRow[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -311,7 +341,7 @@ export function AgencyMediaCurationPanel({
   }, [talentProfileId]);
 
   const handleRemove = async (id: string) => {
-    if (!confirm("Remove this from your agency's photo layer?")) return;
+    if (!confirm(t("dashboard.adminPhase7Drawers.confirmRemoveFromLayer"))) return;
     await removeAgencyMedia({ agency_talent_media_id: id });
     reload();
   };
@@ -323,14 +353,17 @@ export function AgencyMediaCurationPanel({
         background: T.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
         fontSize: 12, color: T.indigoDeep, marginBottom: 12, lineHeight: 1.5,
       }}>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Agency photo layer for {talentName}</div>
-        <div>
-          Photos here appear ONLY on your agency-branded site, in addition to (or replacing)
-          the talent&apos;s master photos. Talent-owned photos remain unchanged on Tulala.
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          {interpolate(t("dashboard.adminPhase7Drawers.agencyPhotoLayerFor"), { talentName })}
         </div>
+        <div>{t("dashboard.adminPhase7Drawers.agencyPhotoLayerBody")}</div>
       </div>
 
-      {loading && <div style={{ color: T.inkMuted, fontSize: 12 }}>Loading…</div>}
+      {loading && (
+        <div style={{ color: T.inkMuted, fontSize: 12 }}>
+          {t("dashboard.adminPhase7Drawers.loading")}
+        </div>
+      )}
       {error && (
         <div style={{
           padding: 10, borderRadius: 8, background: T.redSoft,
@@ -344,7 +377,7 @@ export function AgencyMediaCurationPanel({
           border: `1px dashed ${T.border}`,
           fontSize: 12, color: T.inkMuted, textAlign: "center",
         }}>
-          No agency photos yet. Click &quot;+ Add agency photo&quot; to upload your first.
+          {t("dashboard.adminPhase7Drawers.noAgencyPhotos")}
         </div>
       )}
 
@@ -362,13 +395,15 @@ export function AgencyMediaCurationPanel({
               }} />
               <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>
-                  {r.master_media_id ? "Override" : "Agency-original"}
+                  {r.master_media_id
+                    ? t("dashboard.adminPhase7Drawers.rowOverride")
+                    : t("dashboard.adminPhase7Drawers.rowAgencyOriginal")}
                   {!r.is_visible_on_agency_site && (
                     <span style={{
                       marginLeft: 8, fontSize: 9, fontWeight: 700,
                       padding: "1px 5px", borderRadius: 3,
                       background: T.inkMuted, color: "#fff",
-                    }}>HIDDEN</span>
+                    }}>{t("dashboard.adminPhase7Drawers.hidden")}</span>
                   )}
                 </div>
                 {r.caption && (
@@ -381,16 +416,14 @@ export function AgencyMediaCurationPanel({
                   borderRadius: 6, border: `1px solid ${T.border}`,
                   background: T.surface, color: T.red, cursor: "pointer",
                   fontFamily: F_BODY,
-                }}>Remove</button>
+                }}>{t("dashboard.adminPhase7Drawers.remove")}</button>
             </div>
           ))}
         </div>
       )}
 
       <div style={{ marginTop: 12, fontSize: 11, color: T.inkMuted, fontStyle: "italic" }}>
-        Upload + drag-reorder UI ships next slice. For now, this panel reads
-        and removes; uploads happen via the existing media manager with
-        ownership_kind=&apos;agency&apos;.
+        {t("dashboard.adminPhase7Drawers.uploadShipsNextSlice")}
       </div>
     </div>
   );
@@ -398,21 +431,22 @@ export function AgencyMediaCurationPanel({
 
 // ─── 3. TrustBadgesPanel ───────────────────────────────────────────────────
 
-const BADGE_META: Record<TrustBadgeKind, { label: string; emoji: string }> = {
-  identity: { label: "Identity verified", emoji: "🪪" },
-  background_check: { label: "Background check", emoji: "🔍" },
-  license: { label: "License verified", emoji: "📜" },
-  insurance: { label: "Insurance verified", emoji: "🛡️" },
-  social_account: { label: "Social account verified", emoji: "🔗" },
-  media_authentic: { label: "Media authentic", emoji: "📸" },
-  agency_approved: { label: "Agency approved", emoji: "✅" },
+// English `label` is the non-UI fallback; UI renders `t(meta.labelKey)`.
+const BADGE_META: Record<TrustBadgeKind, { label: string; labelKey: string; emoji: string }> = {
+  identity: { label: "Identity verified", labelKey: "dashboard.adminPhase7Drawers.badges.identity", emoji: "🪪" },
+  background_check: { label: "Background check", labelKey: "dashboard.adminPhase7Drawers.badges.backgroundCheck", emoji: "🔍" },
+  license: { label: "License verified", labelKey: "dashboard.adminPhase7Drawers.badges.license", emoji: "📜" },
+  insurance: { label: "Insurance verified", labelKey: "dashboard.adminPhase7Drawers.badges.insurance", emoji: "🛡️" },
+  social_account: { label: "Social account verified", labelKey: "dashboard.adminPhase7Drawers.badges.socialAccount", emoji: "🔗" },
+  media_authentic: { label: "Media authentic", labelKey: "dashboard.adminPhase7Drawers.badges.mediaAuthentic", emoji: "📸" },
+  agency_approved: { label: "Agency approved", labelKey: "dashboard.adminPhase7Drawers.badges.agencyApproved", emoji: "✅" },
 };
 
 const BADGE_STATUS_META = {
-  pending: { color: T.amber, bg: T.amberSoft, label: "Pending" },
-  verified: { color: T.accent, bg: T.accentSoft, label: "Verified" },
-  rejected: { color: T.red, bg: T.redSoft, label: "Rejected" },
-  expired: { color: T.inkMuted, bg: T.surfaceAlt, label: "Expired" },
+  pending: { color: T.amber, bg: T.amberSoft, label: "Pending", labelKey: "dashboard.adminPhase7Drawers.badgeStatus.pending" },
+  verified: { color: T.accent, bg: T.accentSoft, label: "Verified", labelKey: "dashboard.adminPhase7Drawers.badgeStatus.verified" },
+  rejected: { color: T.red, bg: T.redSoft, label: "Rejected", labelKey: "dashboard.adminPhase7Drawers.badgeStatus.rejected" },
+  expired: { color: T.inkMuted, bg: T.surfaceAlt, label: "Expired", labelKey: "dashboard.adminPhase7Drawers.badgeStatus.expired" },
 };
 
 export function TrustBadgesPanel({
@@ -420,6 +454,7 @@ export function TrustBadgesPanel({
 }: {
   talentProfileId: string;
 }) {
+  const t = useT();
   const [badges, setBadges] = useState<TrustBadge[] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -441,7 +476,7 @@ export function TrustBadgesPanel({
   };
 
   const handleReject = async (badgeId: string) => {
-    const reason = prompt("Rejection reason (optional):") ?? undefined;
+    const reason = prompt(t("dashboard.adminPhase7Drawers.rejectionReasonPrompt")) ?? undefined;
     await updateTrustBadge({ badge_id: badgeId, status: "rejected", notes: reason });
     reload();
   };
@@ -471,14 +506,18 @@ export function TrustBadgesPanel({
     <div style={{ fontFamily: F_BODY }}>
       <div style={{
         fontSize: 13, color: T.ink, fontWeight: 600, marginBottom: 4,
-      }}>Trust badges</div>
+      }}>{t("dashboard.adminPhase7Drawers.trustBadgesTitle")}</div>
       <div style={{
         fontSize: 11.5, color: T.inkMuted, marginBottom: 12, lineHeight: 1.5,
       }}>
-        Verified talent get more visibility and higher-quality inquiries. Each badge requires supporting evidence.
+        {t("dashboard.adminPhase7Drawers.trustBadgesHint")}
       </div>
 
-      {loading && <div style={{ color: T.inkMuted, fontSize: 12 }}>Loading…</div>}
+      {loading && (
+        <div style={{ color: T.inkMuted, fontSize: 12 }}>
+          {t("dashboard.adminPhase7Drawers.loading")}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         {allBadgeKinds.map((kind) => {
@@ -495,17 +534,29 @@ export function TrustBadgesPanel({
               <span className="text-xl">{meta.emoji}</span>
               <div className="flex-1">
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: T.ink }}>
-                  {meta.label}
+                  {t(meta.labelKey)}
                 </div>
                 {badge ? (
                   <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
-                    Submitted {badge.scope === "platform" ? "by Tulala" : "by your agency"} · pending review
-                    {badge.verified_at && ` · verified ${new Date(badge.verified_at).toLocaleDateString()}`}
-                    {badge.expires_at && ` · expires ${new Date(badge.expires_at).toLocaleDateString()}`}
+                    {interpolate(t("dashboard.adminPhase7Drawers.badgeSubmittedPending"), {
+                      source: t(
+                        badge.scope === "platform"
+                          ? "dashboard.adminPhase7Drawers.badgeSourcePlatform"
+                          : "dashboard.adminPhase7Drawers.badgeSourceAgency",
+                      ),
+                    })}
+                    {badge.verified_at &&
+                      interpolate(t("dashboard.adminPhase7Drawers.badgeVerifiedOn"), {
+                        date: new Date(badge.verified_at).toLocaleDateString(),
+                      })}
+                    {badge.expires_at &&
+                      interpolate(t("dashboard.adminPhase7Drawers.badgeExpiresOn"), {
+                        date: new Date(badge.expires_at).toLocaleDateString(),
+                      })}
                   </div>
                 ) : (
                   <div style={{ fontSize: 10.5, color: T.inkMuted, marginTop: 1 }}>
-                    Not started
+                    {t("dashboard.adminPhase7Drawers.notStarted")}
                   </div>
                 )}
               </div>
@@ -514,7 +565,7 @@ export function TrustBadgesPanel({
                   fontSize: 9.5, fontWeight: 700, padding: "3px 7px", borderRadius: 4,
                   background: statusMeta.bg, color: statusMeta.color,
                   letterSpacing: 0.4, textTransform: "uppercase",
-                }}>{statusMeta.label}</span>
+                }}>{t(statusMeta.labelKey)}</span>
               )}
               {badge?.status === "pending" && (
                 <>
@@ -524,14 +575,14 @@ export function TrustBadgesPanel({
                       borderRadius: 6, border: "none",
                       background: T.accent, color: "#fff", cursor: "pointer",
                       fontFamily: F_BODY,
-                    }}>Verify</button>
+                    }}>{t("dashboard.adminPhase7Drawers.verify")}</button>
                   <button type="button" onClick={() => handleReject(badge.id)}
                     style={{
                       padding: "4px 10px", fontSize: 11, fontWeight: 600,
                       borderRadius: 6, border: `1px solid ${T.border}`,
                       background: T.surface, color: T.red, cursor: "pointer",
                       fontFamily: F_BODY,
-                    }}>Reject</button>
+                    }}>{t("dashboard.adminPhase7Drawers.reject")}</button>
                 </>
               )}
               {!badge && (
@@ -541,7 +592,7 @@ export function TrustBadgesPanel({
                     borderRadius: 6, border: `1px dashed ${T.border}`,
                     background: T.surface, color: T.inkMuted, cursor: "pointer",
                     fontFamily: F_BODY,
-                  }}>+ Start</button>
+                  }}>{t("dashboard.adminPhase7Drawers.startBadge")}</button>
               )}
             </div>
           );
@@ -566,6 +617,7 @@ export function RequestPermissionButton({
   talentName: string;
   onRequested?: () => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [scopes, setScopes] = useState<Set<DataScope>>(new Set([
     "identity", "media", "service_areas", "availability",
@@ -613,7 +665,7 @@ export function RequestPermissionButton({
           borderRadius: 8, border: `1px solid ${T.accent}`,
           background: T.accent, color: "#fff", cursor: "pointer",
           fontFamily: F_BODY,
-        }}>Request access to {talentName}</button>
+        }}>{interpolate(t("dashboard.adminPhase7Drawers.requestAccessTo"), { talentName })}</button>
     );
   }
 
@@ -624,11 +676,10 @@ export function RequestPermissionButton({
       fontFamily: F_BODY,
     }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, marginBottom: 8 }}>
-        Request access to {talentName}&apos;s data
+        {interpolate(t("dashboard.adminPhase7Drawers.requestAccessToData"), { talentName })}
       </div>
       <div style={{ fontSize: 11.5, color: T.inkMuted, marginBottom: 10, lineHeight: 1.4 }}>
-        Pick the data you need to represent this talent. They&apos;ll review and
-        approve / deny per scope. They can revoke any time.
+        {t("dashboard.adminPhase7Drawers.requestAccessHint")}
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
@@ -645,14 +696,14 @@ export function RequestPermissionButton({
                 border: `1px solid ${on ? T.accent : T.border}`,
                 fontFamily: F_BODY,
               }}>
-              {meta.emoji} {meta.label}
+              {meta.emoji} {t(meta.labelKey)}
             </button>
           );
         })}
       </div>
 
       <textarea value={message} onChange={(e) => setMessage(e.target.value)}
-        placeholder="Optional message — why you'd like to represent them"
+        placeholder={t("dashboard.adminPhase7Drawers.optionalMessagePlaceholder")}
         rows={3}
         style={{
           width: "100%", padding: 10, borderRadius: 8,
@@ -675,7 +726,7 @@ export function RequestPermissionButton({
             borderRadius: 6, border: `1px solid ${T.border}`,
             background: T.surface, color: T.inkMuted, cursor: "pointer",
             fontFamily: F_BODY,
-          }}>Cancel</button>
+          }}>{t("dashboard.adminPhase7Drawers.cancel")}</button>
         <button type="button" disabled={submitting || scopes.size === 0} onClick={handleSubmit}
           style={{
             padding: "6px 14px", fontSize: 12, fontWeight: 600,
@@ -684,7 +735,11 @@ export function RequestPermissionButton({
             color: "#fff", cursor: scopes.size === 0 ? "not-allowed" : "pointer",
             fontFamily: F_BODY,
           }}>
-          {submitting ? "Sending…" : `Send request (${scopes.size} scopes)`}
+          {submitting
+            ? t("dashboard.adminPhase7Drawers.sending")
+            : interpolate(t("dashboard.adminPhase7Drawers.sendRequestNScopes"), {
+                count: scopes.size,
+              })}
         </button>
       </div>
     </div>

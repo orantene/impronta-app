@@ -18,6 +18,9 @@ import {
   ClientReviewsPanel,
   type GivenReview,
 } from "../_components/ClientReviewsPanel";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -26,6 +29,8 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 export default async function ClientReviewsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -43,9 +48,9 @@ export default async function ClientReviewsPage({ params }: { params: PageParams
     return (
       <div style={{ fontFamily: FONT }}>
         <ClientPageHeader
-          eyebrow="Reviews"
-          title="Reviews"
-          subtitle="Reviews are not enabled on this workspace."
+          eyebrow={t("dashboard.clientNav.reviews")}
+          title={t("dashboard.clientNav.reviews")}
+          subtitle={t("client.reviews.notEnabled")}
         />
       </div>
     );
@@ -75,17 +80,22 @@ export default async function ClientReviewsPage({ params }: { params: PageParams
   return (
     <div style={{ fontFamily: FONT }}>
       <ClientPageHeader
-        eyebrow="Reviews"
-        title="Reviews"
+        eyebrow={t("dashboard.clientNav.reviews")}
+        title={t("dashboard.clientNav.reviews")}
         subtitle={
           receivedCount === 0 && given.length === 0
-            ? "Reviews about you and the reviews you've written will appear here."
-            : `${receivedCount} about you · ${given.length} written`
+            ? t("client.reviews.pageEmptySubtitle")
+            : interpolate(t("client.reviews.pageCountsSubtitle"), {
+                received: receivedCount,
+                written: given.length,
+              })
         }
         badge={
           receivedCount > 0 ? (
             <HeaderBadge tone="success">
-              {receivedSummary.average.toFixed(1)} avg
+              {interpolate(t("client.reviews.avgBadge"), {
+                value: receivedSummary.average.toFixed(1),
+              })}
             </HeaderBadge>
           ) : undefined
         }

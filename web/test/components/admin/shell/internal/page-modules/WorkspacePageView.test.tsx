@@ -1,9 +1,8 @@
-// Smoke test for the WorkspacePageView god-file (845 LOC, recently
-// refactored by Q4 to hoist AccordionItem + SettingsRow). The component
-// is a function-of-context — it reads everything from useAdminShell(),
-// so the smoke test mounts it inside the real AdminShellProvider and
-// verifies that the settings shell ("Settings" title + tab pills)
-// renders without throwing.
+// Smoke test for the WorkspacePageView god-file. The component is a
+// function-of-context — it reads everything from useAdminShell(), so the
+// smoke test mounts it inside the real AdminShellProvider and verifies
+// that the settings shell ("Settings" title + flat group nav) renders
+// without throwing.
 //
 // Why a real provider rather than a hand-rolled mock: the provider
 // already includes a "mock fixture" mode (initialBridgeData defaults
@@ -43,16 +42,15 @@ describe("WorkspacePageView smoke", () => {
     const { container } = testRenderWithShell(<WorkspacePageView />);
     // PageHeader title — "Settings" is hard-coded at WorkspacePageView.tsx:196.
     expect(screen.getByText("Settings")).toBeInTheDocument();
-    // Tab pills — the 2026 redesign renders all 5 tab buttons inside a
-    // container marked with `data-tulala-settings-tabs`
-    // (WorkspacePageView.tsx:220-264). Scope the query so we don't
-    // collide with accordion section headers that also say "Workspace".
-    const tabBar = container.querySelector("[data-tulala-settings-tabs]");
-    expect(tabBar).not.toBeNull();
-    const tabText = tabBar!.textContent ?? "";
-    expect(tabText).toContain("Workspace");
-    expect(tabText).toContain("Roster");
-    expect(tabText).toContain("Plan & integrations");
-    expect(tabText).toContain("Advanced");
+    // Flat left nav — the tabs-plus-accordions layout was replaced by one
+    // group per row, marked with `data-tulala-settings-nav`. Scope the
+    // query so we don't collide with content-pane headings of the same name.
+    const nav = container.querySelector("[data-tulala-settings-nav]");
+    expect(nav).not.toBeNull();
+    const navText = nav!.textContent ?? "";
+    expect(navText).toContain("Workspace");
+    expect(navText).toContain("Roster & profile fields");
+    expect(navText).toContain("Integrations");
+    expect(navText).toContain("Advanced");
   });
 });

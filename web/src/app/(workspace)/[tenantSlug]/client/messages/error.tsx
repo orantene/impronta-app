@@ -8,6 +8,8 @@
 // retry on the same Messages surface — the user's inquiry data is unaffected.
 
 import { useEffect } from "react";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { logServerError } from "@/lib/server/safe-error";
 
 export default function ClientMessagesError({
@@ -17,6 +19,8 @@ export default function ClientMessagesError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
+
   useEffect(() => {
     logServerError("client/messages/error.tsx", error);
   }, [error]);
@@ -54,7 +58,7 @@ export default function ClientMessagesError({
             margin: 0,
           }}
         >
-          Messages
+          {t("dashboard.clientMessages.eyebrow")}
         </p>
         <h1
           style={{
@@ -68,7 +72,7 @@ export default function ClientMessagesError({
             lineHeight: 1.2,
           }}
         >
-          Could not load messages
+          {t("client.messages.errorTitle")}
         </h1>
         <p
           style={{
@@ -80,8 +84,7 @@ export default function ClientMessagesError({
             marginBottom: 0,
           }}
         >
-          Your messages failed to load. Retry to reload this view — your
-          inquiry data is safe.
+          {t("client.messages.errorBody")}
         </p>
         {error?.digest ? (
           <p
@@ -93,7 +96,7 @@ export default function ClientMessagesError({
               marginBottom: 0,
             }}
           >
-            Ref: {error.digest}
+            {interpolate(t("client.messages.errorRef"), { digest: error.digest })}
           </p>
         ) : null}
 
@@ -122,7 +125,7 @@ export default function ClientMessagesError({
               cursor: "pointer",
             }}
           >
-            Retry
+            {t("client.messages.errorRetry")}
           </button>
           <a
             href="."
@@ -140,7 +143,7 @@ export default function ClientMessagesError({
               textDecoration: "none",
             }}
           >
-            Reload page
+            {t("client.messages.errorReload")}
           </a>
         </div>
       </div>

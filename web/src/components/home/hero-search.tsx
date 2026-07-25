@@ -244,6 +244,7 @@ export function HeroSearch({
             heightMaxCm?: number | null;
             ageMin?: number | null;
             ageMax?: number | null;
+            fieldFacets?: { fieldKey: string; values: string[] }[];
           };
           const tax = data.taxonomyTermIds ?? [];
           const loc = (data.locationSlug ?? "").trim();
@@ -265,6 +266,9 @@ export function HeroSearch({
             typeof data.ageMax === "number" && Number.isFinite(data.ageMax)
               ? data.ageMax
               : null;
+          const aiFacets = (data.fieldFacets ?? []).filter(
+            (f) => f && typeof f.fieldKey === "string" && Array.isArray(f.values) && f.values.length > 0,
+          );
           if (directoryUrlSync) {
             startTransition(() => {
               commitDirectoryListingUrl(router, pathname, searchParamsRef.current, (params) => {
@@ -276,6 +280,10 @@ export function HeroSearch({
                 params.delete("hmax");
                 params.delete("amin");
                 params.delete("amax");
+                params.delete("ff");
+                for (const f of aiFacets) {
+                  params.append("ff", `${f.fieldKey}:${f.values.join(",")}`);
+                }
                 if (tax.length) params.set("tax", [...tax].sort().join(","));
                 if (loc) params.set("location", loc);
                 if (qq) params.set("q", qq);
@@ -297,7 +305,12 @@ export function HeroSearch({
               ageMax: aMax,
               aiSummary: sum,
             });
-            router.push(clientDirectoryHref(pathname, qs ? `?${qs}` : ""));
+            const qsParams = new URLSearchParams(qs);
+            for (const f of aiFacets) {
+              qsParams.append("ff", `${f.fieldKey}:${f.values.join(",")}`);
+            }
+            const qsFinal = qsParams.toString();
+            router.push(clientDirectoryHref(pathname, qsFinal ? `?${qsFinal}` : ""));
           }
           return;
         }

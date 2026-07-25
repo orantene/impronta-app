@@ -338,7 +338,7 @@ function SectionAccordion({
   }, [forceOpen]);
 
   return (
-    <div className="border-b border-border pb-3">
+    <div className="border-b border-white/[0.07] pb-3">
       <button
         type="button"
         onClick={() => !forceOpen && setOpen((o) => !o)}
@@ -348,7 +348,7 @@ function SectionAccordion({
         )}
         aria-expanded={effectiveOpen}
       >
-        <span className="text-xs font-semibold uppercase tracking-widest text-[var(--impronta-muted)]">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--dir-accent)]/75">
           {title}
         </span>
         {effectiveOpen ? (
@@ -423,7 +423,7 @@ function ExpandableChips({
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-border py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-transparent py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--dir-accent)]/75 transition-colors hover:bg-[var(--dir-accent-soft)] hover:text-[var(--dir-accent)]"
         >
           {showAll ? (
             <>
@@ -487,7 +487,7 @@ function ExpandableGrid({
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-border py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-transparent py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--dir-accent)]/75 transition-colors hover:bg-[var(--dir-accent-soft)] hover:text-[var(--dir-accent)]"
         >
           {showAll ? (
             <>
@@ -554,7 +554,7 @@ function ExpandableRadioList({
         <button
           type="button"
           onClick={() => setExpanded((e) => !e)}
-          className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border border-border py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-transparent py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--dir-accent)]/75 transition-colors hover:bg-[var(--dir-accent-soft)] hover:text-[var(--dir-accent)]"
         >
           {showAll ? (
             <>
@@ -940,7 +940,7 @@ export function DirectoryFiltersSidebar({
             type="button"
             onClick={clearAll}
             aria-label="Clear all sidebar filters"
-            className="text-xs text-foreground underline-offset-4 hover:underline"
+            className="text-xs font-medium text-[var(--dir-accent)] underline-offset-4 hover:underline"
           >
             {fc.clearAll}
           </button>
@@ -1080,8 +1080,10 @@ export function DirectoryFiltersSidebar({
                       type="button"
                       onClick={() => selectScalarRadio(section.fieldKey, opt.id)}
                       className={cn(
-                        "flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-left text-sm transition-colors",
-                        on ? "text-[var(--dir-accent)]" : "text-muted-foreground hover:text-foreground",
+                        "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                        on
+                          ? "bg-[var(--dir-accent-soft)] font-medium text-[var(--dir-accent)]"
+                          : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
                       )}
                     >
                       <span className="flex items-center gap-2">
@@ -1125,8 +1127,8 @@ export function DirectoryFiltersSidebar({
                         className={cn(
                           "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
                           on
-                            ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
-                            : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                            ? "border-[var(--impronta-gold-bright,var(--dir-accent))] bg-[var(--dir-accent)] font-semibold text-black shadow-[0_2px_10px_-2px_rgba(200,160,74,0.5)]"
+                            : "border-white/10 bg-white/[0.04] text-foreground/70 hover:border-[var(--dir-accent-line)] hover:text-foreground",
                         )}
                       >
                         <span>
@@ -1153,8 +1155,10 @@ export function DirectoryFiltersSidebar({
                       type="button"
                       onClick={() => selectRadio(section, opt.id)}
                       className={cn(
-                        "flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-left text-sm transition-colors",
-                        on ? "text-[var(--dir-accent)]" : "text-muted-foreground hover:text-foreground",
+                        "flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                        on
+                          ? "bg-[var(--dir-accent-soft)] font-medium text-[var(--dir-accent)]"
+                          : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground",
                       )}
                     >
                       <span className="flex items-center gap-2">
@@ -1251,8 +1255,8 @@ export function DirectoryFiltersSidebar({
                         className={cn(
                           "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
                           on
-                            ? "border-[var(--dir-accent)] bg-[var(--dir-accent-soft)] text-[var(--dir-accent)]"
-                            : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                            ? "border-[var(--impronta-gold-bright,var(--dir-accent))] bg-[var(--dir-accent)] font-semibold text-black shadow-[0_2px_10px_-2px_rgba(200,160,74,0.5)]"
+                            : "border-white/10 bg-white/[0.04] text-foreground/70 hover:border-[var(--dir-accent-line)] hover:text-foreground",
                         )}
                       >
                         <span>

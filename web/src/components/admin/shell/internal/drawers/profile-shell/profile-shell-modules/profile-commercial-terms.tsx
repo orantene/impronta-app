@@ -32,7 +32,7 @@ import {
   type TalentBookingTerms,
 } from "@/lib/billing/commercial-terms-types";
 import { useT } from "@/i18n/use-t";
-import { COLORS, FONTS } from "../../drawer-shared";
+import { COLORS, FONTS, useDashboardText } from "../../drawer-shared";
 
 const REFUND_KEYS: RefundPolicyKey[] = ["tiered", "flexible", "strict", "manual"];
 
@@ -65,6 +65,7 @@ export function CommercialTermsEditor({
   readOnly?: boolean;
 }) {
   const t = useT();
+  const copy = useDashboardText();
   const [terms, setTerms] = React.useState<TalentBookingTerms>(EMPTY);
   const [rateInput, setRateInput] = React.useState("");
   const [depositInput, setDepositInput] = React.useState("");
@@ -129,7 +130,7 @@ export function CommercialTermsEditor({
   if (loading) {
     return (
       <div style={{ padding: 14, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-        Loading booking terms…
+        {copy.t("Loading booking terms…")}
       </div>
     );
   }
@@ -137,7 +138,7 @@ export function CommercialTermsEditor({
   if (loadError) {
     return (
       <div style={{ padding: 14, borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-        {loadError}
+        {copy.t(loadError)}
       </div>
     );
   }
@@ -158,14 +159,12 @@ export function CommercialTermsEditor({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
       <div style={{ fontSize: 12, lineHeight: 1.5 }} className="text-admin-ink-muted">
-        These are the talent&apos;s default preferences — they inform offers and
-        show on the public page. The binding deposit and terms for each booking
-        are set per-offer in the booking flow.
+        {copy.t("These are the talent's default preferences. They inform offers and show on the public page. The binding deposit and terms for each booking are set per-offer in the booking flow.")}
       </div>
 
       {/* Fixed rate */}
       <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <span className="text-admin-ink text-admin-12 font-semibold">Fixed rate (optional)</span>
+        <span className="text-admin-ink text-admin-12 font-semibold">{copy.t("Fixed rate (optional)")}</span>
         <input
           type="number"
           inputMode="decimal"
@@ -182,13 +181,13 @@ export function CommercialTermsEditor({
           style={inputStyle}
         />
         <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
-          A starting price shown as &ldquo;From …&rdquo;. Leave blank for quote-only.
+          {copy.t("A starting price shown as “From …”. Leave blank for quote-only.")}
         </span>
       </label>
 
       {/* Preferred deposit % */}
       <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <span className="text-admin-ink text-admin-12 font-semibold">Preferred deposit %</span>
+        <span className="text-admin-ink text-admin-12 font-semibold">{copy.t("Preferred deposit %")}</span>
         <input
           type="number"
           inputMode="numeric"
@@ -208,13 +207,13 @@ export function CommercialTermsEditor({
           style={inputStyle}
         />
         <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
-          Suggested upfront share. Not binding.
+          {copy.t("Suggested upfront share. Not binding.")}
         </span>
       </label>
 
       {/* Refund policy preset */}
       <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <span className="text-admin-ink text-admin-12 font-semibold">Preferred refund policy</span>
+        <span className="text-admin-ink text-admin-12 font-semibold">{copy.t("Preferred refund policy")}</span>
         <select
           value={terms.refundPolicy ?? ""}
           disabled={saving || readOnly}
@@ -225,7 +224,7 @@ export function CommercialTermsEditor({
           }}
           style={{ ...inputStyle, cursor: saving ? "wait" : "pointer" }}
         >
-          <option value="">No preference</option>
+          <option value="">{copy.t("No preference")}</option>
           {REFUND_KEYS.map((k) => (
             <option key={k} value={k}>{t(REFUND_POLICY_LABEL_KEYS[k])}</option>
           ))}
@@ -233,7 +232,7 @@ export function CommercialTermsEditor({
         <span style={{ fontSize: 11 }} className="text-admin-ink-muted">
           {terms.refundPolicy
             ? t(REFUND_POLICY_DESCRIPTION_KEYS[terms.refundPolicy])
-            : "Falls back to the agency's policy."}
+            : copy.t("Falls back to the agency's policy.")}
         </span>
       </label>
 
@@ -247,19 +246,18 @@ export function CommercialTermsEditor({
           style={{ marginTop: 2, accentColor: COLORS.accentDeep, width: 16, height: 16, flexShrink: 0 }}
         />
         <span>
-          <span className="text-admin-ink text-admin-12 font-semibold">Open to instant booking</span>
+          <span className="text-admin-ink text-admin-12 font-semibold">{copy.t("Open to instant booking")}</span>
           <span style={{ display: "block", fontSize: 11, marginTop: 1, lineHeight: 1.45 }} className="text-admin-ink-muted">
-            Signals the talent is happy to be booked without a back-and-forth.
-            Whether instant-book is offered still depends on the agency and project.
+            {copy.t("Signals the talent is happy to be booked without a back-and-forth. Whether instant-book is offered still depends on the agency and project.")}
           </span>
         </span>
       </label>
 
       {/* Async state */}
       <div style={{ minHeight: 16 }}>
-        {saving && <span style={{ fontSize: 11 }} className="text-admin-ink-muted">Saving…</span>}
-        {saveState === "saved" && <span style={{ fontSize: 11, color: "#16a34a" }}>Saved</span>}
-        {saveState === "error" && saveError && <span style={{ fontSize: 11, color: "#dc2626" }}>{saveError}</span>}
+        {saving && <span style={{ fontSize: 11 }} className="text-admin-ink-muted">{copy.t("Saving…")}</span>}
+        {saveState === "saved" && <span style={{ fontSize: 11, color: "#16a34a" }}>{copy.t("Saved")}</span>}
+        {saveState === "error" && saveError && <span style={{ fontSize: 11, color: "#dc2626" }}>{copy.t(saveError)}</span>}
       </div>
     </div>
   );

@@ -8,6 +8,8 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -187,6 +189,8 @@ async function loadMappableTalents(): Promise<{
 
 export default async function ClientDiscoverMapPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const session = await getCachedActorSession();
   if (!session.user) notFound();
@@ -212,22 +216,21 @@ export default async function ClientDiscoverMapPage({ params }: { params: PagePa
           fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5,
           textTransform: "uppercase", color: C.inkMuted, marginBottom: 6,
         }}>
-          Client · Discover
+          {t("client.discover.map.eyebrow")}
         </div>
         <h1 style={{
           fontSize: 26, fontWeight: 700, color: C.ink,
           margin: 0, marginBottom: 6, letterSpacing: -0.4,
         }}>
-          Map view
+          {t("client.discover.map.title")}
         </h1>
         <p style={{
           fontSize: 13, color: C.inkMuted, margin: 0, lineHeight: 1.55,
           maxWidth: 640,
         }}>
-          Every discoverable talent geocoded by their home city. Click a
-          marker to see who they are and open their profile.{" "}
+          {t("client.discover.map.subtitle")}{" "}
           <Link href={`/${tenantSlug}/client/discover`} style={{ color: C.accent, fontWeight: 600 }}>
-            Back to grid →
+            {t("client.discover.map.backToGrid")}
           </Link>
         </p>
       </div>

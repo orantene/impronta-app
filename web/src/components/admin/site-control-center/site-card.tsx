@@ -2,7 +2,8 @@
 
 import { ChevronRight, Lock } from "lucide-react";
 
-import { PLAN_BADGE_COLOR, type Capability } from "./capability-catalog";
+import { useT } from "@/i18n/use-t";
+import { PLAN_BADGE_COLOR, catalogCopy, type Capability } from "./capability-catalog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,8 +21,19 @@ export function SiteCard({
   locked: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   const Icon = capability.icon;
   const accent = PLAN_BADGE_COLOR[capability.tier];
+  const label = catalogCopy(t, capability.labelKey, capability.label);
+  // Locked pitch copy reuses the wave-1 `adminShared.drawer.lockedCopy.*` keys
+  // so the card and the locked drawer body never drift apart.
+  const subline = locked
+    ? catalogCopy(
+        t,
+        `dashboard.adminShared.drawer.lockedCopy.${capability.id}`,
+        capability.lockedCopy,
+      )
+    : catalogCopy(t, capability.statKey, capability.stat);
 
   const lockedTint: Record<string, { bg: string; border: string }> = {
     studio: {
@@ -85,7 +97,7 @@ export function SiteCard({
               locked ? "text-foreground/80" : "text-foreground",
             )}
           >
-            {capability.label}
+            {label}
           </h3>
           <p
             className={cn(
@@ -93,7 +105,7 @@ export function SiteCard({
               locked ? "italic text-muted-foreground" : "text-muted-foreground",
             )}
           >
-            {locked ? capability.lockedCopy : capability.stat}
+            {subline}
           </p>
         </div>
         {locked ? (

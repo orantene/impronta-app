@@ -27,6 +27,8 @@ import {
   cardDesignToCssVars,
   type CardDesign,
 } from "@/lib/site-admin/server/card-design-shape";
+import { useT } from "@/i18n/use-t";
+import { interpolate, withPluralization, type Translator } from "@/i18n/interpolate";
 
 /** Local mirror of DiscoverAvailabilityDay (API response shape). */
 type DiscoverAvailabilityDay = {
@@ -133,6 +135,8 @@ export function DiscoverShell({
     () => (cardDesign ? cardDesignToCssVars(cardDesign) : undefined),
     [cardDesign],
   );
+  const t = useT();
+  const tp = useMemo(() => withPluralization(t), [t]);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -281,7 +285,7 @@ export function DiscoverShell({
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input
             type="search"
-            placeholder="Search talent by name…"
+            placeholder={t("client.discover.searchPlaceholder")}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => {
@@ -312,7 +316,7 @@ export function DiscoverShell({
                 fontWeight: 500, cursor: "pointer",
               }}
             >
-              Clear filters
+              {t("client.discover.clearFilters")}
             </button>
           )}
           <a
@@ -333,21 +337,21 @@ export function DiscoverShell({
               textDecoration: "none",
               marginLeft: "auto",
             }}
-            title="See every talent on a world map"
+            title={t("client.discover.mapLinkTitle")}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M9 2 3 5v17l6-3 6 3 6-3V2l-6 3-6-3z" />
               <line x1="9" y1="2" x2="9" y2="19" />
               <line x1="15" y1="5" x2="15" y2="22" />
             </svg>
-            Map
+            {t("client.discover.mapLink")}
           </a>
         </div>
 
         {/* Country chip row */}
         {facets.countries.length > 0 && (
           <FacetChipRow
-            label="Country"
+            label={t("client.discover.facetCountry")}
             value={activeFilters.country}
             options={facets.countries.map((c) => ({ value: c.value, label: c.value, count: c.count }))}
             onChange={(v) => pushFilters({ country: v })}
@@ -357,7 +361,7 @@ export function DiscoverShell({
         {/* Hub chip row — agency Studio/Agency/Network workspaces only */}
         {hubs.length > 0 && (
           <FacetChipRow
-            label="Hub"
+            label={t("client.discover.facetHub")}
             value={activeFilters.hub}
             options={hubs.map((h) => ({ value: h.id, label: h.displayName, count: h.discoverableTalentCount }))}
             onChange={(v) => pushFilters({ hub: v })}
@@ -367,7 +371,7 @@ export function DiscoverShell({
         {/* Category chip row */}
         {facets.categories.length > 0 && (
           <FacetChipRow
-            label="Category"
+            label={t("client.discover.facetCategory")}
             value={activeFilters.category}
             options={facets.categories.map((c) => ({ value: c.value, label: c.label, count: c.count }))}
             onChange={(v) => pushFilters({ category: v })}
@@ -377,13 +381,13 @@ export function DiscoverShell({
 
       {/* Result count + grid — wrapped in a polite live region so screen
           readers announce filter updates and load-more completions. */}
-      <div aria-live="polite" aria-busy={loadingMore} aria-label="Discover results">
+      <div aria-live="polite" aria-busy={loadingMore} aria-label={t("client.discover.resultsAria")}>
         <div
           role="status"
           style={{ fontSize: 12, color: C.inkMuted, marginBottom: 12, fontFamily: FONT }}
         >
-          {items.length} of {total} {total === 1 ? "talent" : "talents"}
-          {hasActiveFilters && " · matching your filters"}
+          {tp("client.discover.countOf", total, { shown: items.length })}
+          {hasActiveFilters && ` ${t("client.discover.matchingFilters")}`}
         </div>
 
         {items.length > 0 ? (
@@ -417,10 +421,10 @@ export function DiscoverShell({
           >
             <div aria-hidden="true" style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
-              No matches
+              {t("client.discover.noMatchesTitle")}
             </div>
             <p style={{ fontSize: 13, color: C.inkMuted, margin: "0 auto", maxWidth: 320, lineHeight: 1.5 }}>
-              Try a broader country or category — or clear your filters to see everyone.
+              {t("client.discover.noMatchesBody")}
             </p>
           </div>
         )}
@@ -441,7 +445,9 @@ export function DiscoverShell({
               cursor: loadingMore ? "not-allowed" : "pointer",
             }}
           >
-            {loadingMore ? "Loading…" : `Load more · ${total - items.length} remaining`}
+            {loadingMore
+              ? t("client.discover.loading")
+              : interpolate(t("client.discover.loadMore"), { count: total - items.length })}
           </button>
         </div>
       )}
@@ -472,6 +478,7 @@ function FacetChipRow({
   options: Array<{ value: string; label: string; count: number }>;
   onChange: (next: string | null) => void;
 }) {
+  const t = useT();
   return (
     <div>
       <div
@@ -491,7 +498,7 @@ function FacetChipRow({
         }}
       >
         <FacetChip
-          label="All"
+          label={t("client.discover.facetAll")}
           count={null}
           active={!value}
           onClick={() => onChange(null)}
@@ -559,6 +566,7 @@ function FacetChip({
 function toDiscoverCardData(
   item: DiscoverTalentListItem,
   reviewsEnabled: boolean,
+  t: Translator,
 ): CanonicalTalentCardData {
   const known =
     typeof item.availableDaysInNext30 === "number" &&
@@ -574,8 +582,8 @@ function toDiscoverCardData(
     agencyName: item.agencyName,
     isExclusive: item.isExclusive,
     availabilityLabel: known
-      ? `${item.availableDaysInNext30} of next 30 days open`
-      : "Availability on request",
+      ? interpolate(t("client.discover.daysOpenNext30"), { count: item.availableDaysInNext30 })
+      : t("dashboard.clientFavorites.availabilityOnRequest"),
     availabilityKnown: known,
     availableDaysInNext30: item.availableDaysInNext30,
     // Rating fields are only mapped when the dashboard tenant is entitled to
@@ -611,6 +619,7 @@ function DiscoverCard({
   onAddToShortlist: () => void;
   onOpen: () => void;
 }) {
+  const t = useT();
   // Canonical card, editorial style (photo + info block below — the layout
   // Discover already used). rootMode="button" + onActivate preserves the
   // div+role=button drawer-open behavior (so the inner favorite/shortlist
@@ -621,7 +630,7 @@ function DiscoverCard({
   //   - availabilitySlot:    the 14-day AvailabilityStrip + footer labels
   return (
     <TalentCard
-      data={toDiscoverCardData(item, reviewsEnabled)}
+      data={toDiscoverCardData(item, reviewsEnabled, t)}
       style="editorial"
       rootMode="button"
       onActivate={onOpen}
@@ -655,7 +664,7 @@ function DiscoverCard({
               backdropFilter: "blur(4px)",
               boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
             }}
-            title="Profile reviewed and approved by Tulala"
+            title={t("client.discover.tulalaVerified")}
           >
             ✓ Tulala
           </div>
@@ -690,10 +699,10 @@ function DiscoverCard({
                 backdropFilter: "blur(6px)",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
               }}
-              title={`${item.agencyName}${item.isExclusive ? " · exclusive" : ""}`}
+              title={`${item.agencyName}${item.isExclusive ? ` · ${t("client.discover.exclusive")}` : ""}`}
             >
               {item.agencyName}
-              {item.isExclusive && <span style={{ marginLeft: 4, color: C.inkMuted, fontSize: 9 }}>· exclusive</span>}
+              {item.isExclusive && <span style={{ marginLeft: 4, color: C.inkMuted, fontSize: 9 }}>· {t("client.discover.exclusive")}</span>}
             </div>
           ) : (
             <div
@@ -705,7 +714,7 @@ function DiscoverCard({
                 backdropFilter: "blur(6px)",
               }}
             >
-              Independent
+              {t("client.discover.independent")}
             </div>
           )}
         </>
@@ -715,13 +724,13 @@ function DiscoverCard({
         // beside the heart so the two save-affordances live together.
         <button
           type="button"
-          aria-label="Add to shortlist"
+          aria-label={t("client.discover.addToShortlist")}
           onClick={(e) => {
             e.stopPropagation();
             onAddToShortlist();
           }}
           onKeyDown={(e) => { e.stopPropagation(); }}
-          title="Add to shortlist"
+          title={t("client.discover.addToShortlist")}
           style={{
             // Positioned to the LEFT of the heart (which the badgeSlot pins at
             // right:8). The slot wrapper is anchored at right:2.5 (10px), so we
@@ -777,6 +786,7 @@ function AvailabilityStrip({
   availableDaysInNext30: number | null;
   nextAvailableDate: string | null;
 }) {
+  const t = useT();
   type Cell = { color: string; title?: string };
   const colorFor = (s: DiscoverAvailabilityDay["status"]): string => {
     if (s === "booked") return "#B0303A";
@@ -815,12 +825,12 @@ function AvailabilityStrip({
   const footerLabel = (() => {
     if (granularOpenIn14 !== null) {
       return granularOpenIn14 === 0
-        ? "Fully booked next 14 days"
-        : `${granularOpenIn14} of next 14 days open`;
+        ? t("client.discover.fullyBookedNext14")
+        : interpolate(t("client.discover.daysOpenNext14"), { count: granularOpenIn14 });
     }
     if (typeof availableDaysInNext30 === "number") {
-      if (availableDaysInNext30 === 0) return "Fully booked next 30 days";
-      return `${availableDaysInNext30} of next 30 days open`;
+      if (availableDaysInNext30 === 0) return t("client.discover.fullyBookedNext30");
+      return interpolate(t("client.discover.daysOpenNext30"), { count: availableDaysInNext30 });
     }
     return null;
   })();
@@ -834,14 +844,14 @@ function AvailabilityStrip({
     today.setHours(0, 0, 0, 0);
     if (d <= today) return null; // already available today — redundant
     const month = d.toLocaleString("en-US", { month: "short" });
-    return `Next free ${month} ${d.getDate()}`;
+    return interpolate(t("client.discover.nextFree"), { month, day: d.getDate() });
   })();
 
   return (
     <div className="mt-2.5">
       <div
         style={{ display: "flex", gap: 2, alignItems: "center" }}
-        aria-label={footerLabel ?? "Availability"}
+        aria-label={footerLabel ?? t("client.discover.availability")}
       >
         {cells.map((c, i) => (
           <span
@@ -891,6 +901,8 @@ function DiscoverDetailDrawer({
   onCreateShortlist: (name: string) => Promise<DiscoverShortlist | null>;
   autoOpenPicker?: boolean;
 }) {
+  const t = useT();
+  const tp = useMemo(() => withPluralization(t), [t]);
   const [detail, setDetail] = useState<DiscoverTalentDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -925,18 +937,18 @@ function DiscoverDetailDrawer({
       .then(async (r) => {
         if (cancelled) return;
         if (r.status === 404) {
-          setError("Talent is no longer on Discover.");
+          setError(t("client.discover.detailGone"));
           return;
         }
         if (!r.ok) {
-          setError("Couldn't load this talent — try again.");
+          setError(t("client.discover.detailLoadFailed"));
           return;
         }
         const j = (await r.json()) as { talent: DiscoverTalentDetail };
         if (!cancelled) setDetail(j.talent);
       })
       .catch(() => {
-        if (!cancelled) setError("Network issue — try again.");
+        if (!cancelled) setError(t("client.discover.inquiryForm.networkIssue"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -944,7 +956,7 @@ function DiscoverDetailDrawer({
     return () => {
       cancelled = true;
     };
-  }, [talentId]);
+  }, [talentId, t]);
 
   useEffect(() => {
     if (!talentId) return;
@@ -961,7 +973,7 @@ function DiscoverDetailDrawer({
     <div
       role="dialog"
       aria-modal
-      aria-label="Talent detail"
+      aria-label={t("client.discover.detailAria")}
       style={{
         position: "fixed", inset: 0, zIndex: 50,
         display: "flex", justifyContent: "flex-end",
@@ -993,7 +1005,7 @@ function DiscoverDetailDrawer({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close detail drawer"
+          aria-label={t("client.discover.closeDetailDrawer")}
           style={{
             position: "absolute", top: 12, right: 12, zIndex: 2,
             width: 32, height: 32, borderRadius: "50%",
@@ -1008,7 +1020,7 @@ function DiscoverDetailDrawer({
 
         {loading && !detail && (
           <div style={{ padding: 32, color: C.inkMuted, fontSize: 13 }}>
-            Loading talent…
+            {t("client.discover.loadingTalent")}
           </div>
         )}
 
@@ -1027,7 +1039,7 @@ function DiscoverDetailDrawer({
                 color: C.ink, fontFamily: FONT, fontSize: 12.5, cursor: "pointer",
               }}
             >
-              Close
+              {t("client.discover.close")}
             </button>
           </div>
         )}
@@ -1077,7 +1089,7 @@ function DiscoverDetailDrawer({
                   backdropFilter: "blur(4px)",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
                 }}
-                title="Profile reviewed and approved by Tulala"
+                title={t("client.discover.tulalaVerified")}
               >
                 ✓ Tulala
               </div>
@@ -1110,16 +1122,16 @@ function DiscoverDetailDrawer({
               <div className="flex flex-wrap gap-1.5">
                 {detail.agencyName ? (
                   <Pill bg={C.accentSoft} color={C.accentDeep}>
-                    🏛 {detail.agencyName}{detail.isExclusive ? " · exclusive" : ""}
+                    🏛 {detail.agencyName}{detail.isExclusive ? ` · ${t("client.discover.exclusive")}` : ""}
                   </Pill>
                 ) : (
                   <Pill bg="rgba(11,11,13,0.05)" color={C.inkMuted}>
-                    Independent
+                    {t("client.discover.independent")}
                   </Pill>
                 )}
                 {detail.responseTime && (
                   <Pill bg="rgba(11,11,13,0.05)" color={C.inkMuted}>
-                    ⏱ Replies within {detail.responseTime}
+                    ⏱ {interpolate(t("client.discover.repliesWithin"), { time: detail.responseTime })}
                   </Pill>
                 )}
                 {detail.languages.slice(0, 4).map((l) => (
@@ -1141,7 +1153,7 @@ function DiscoverDetailDrawer({
                     fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
                     textTransform: "uppercase", color: C.inkDim, marginBottom: 8,
                   }}>
-                    Gallery
+                    {t("client.discover.gallery")}
                   </div>
                   <div style={{
                     display: "grid",
@@ -1161,7 +1173,7 @@ function DiscoverDetailDrawer({
                       >
                         <Image
                           src={url}
-                          alt={`${detail.displayName} gallery ${i + 1}`}
+                          alt={interpolate(t("client.discover.galleryAlt"), { name: detail.displayName, index: i + 1 })}
                           fill
                           sizes="(max-width: 600px) 33vw, 160px"
                           style={{ objectFit: "cover" }}
@@ -1190,7 +1202,9 @@ function DiscoverDetailDrawer({
                     cursor: "pointer",
                   }}
                 >
-                  {inquireOpen ? "Cancel inquiry" : `Inquire about ${detail.displayName}`}
+                  {inquireOpen
+                    ? t("client.discover.cancelInquiry")
+                    : interpolate(t("client.discover.inquireAbout"), { name: detail.displayName })}
                 </button>
                 {inquireOpen && (
                   <div
@@ -1204,7 +1218,7 @@ function DiscoverDetailDrawer({
                     }}
                   >
                     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
-                      Event date (optional)
+                      {t("client.discover.inquiryForm.eventDate")}
                       <input
                         type="date"
                         value={inquireDate}
@@ -1217,10 +1231,10 @@ function DiscoverDetailDrawer({
                       />
                     </label>
                     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
-                      Event location (optional)
+                      {t("client.discover.inquiryForm.eventLocation")}
                       <input
                         type="text"
-                        placeholder="e.g. Milan, Italy"
+                        placeholder={t("client.discover.inquiryForm.locationPlaceholder")}
                         value={inquireLocation}
                         onChange={(e) => setInquireLocation(e.target.value)}
                         style={{
@@ -1231,9 +1245,9 @@ function DiscoverDetailDrawer({
                       />
                     </label>
                     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11, color: C.inkMuted }}>
-                      Brief
+                      {t("client.discover.inquiryForm.brief")}
                       <textarea
-                        placeholder="Quick context: brand, role, scope, dates if known."
+                        placeholder={t("client.discover.inquiryForm.briefPlaceholder")}
                         value={inquireMessage}
                         onChange={(e) => setInquireMessage(e.target.value)}
                         rows={3}
@@ -1279,7 +1293,9 @@ function DiscoverDetailDrawer({
                           if (res.ok && j.inquiries?.length > 0) {
                             setInquireResult({
                               ok: true,
-                              text: `Inquiry sent — ${detail.agencyName ?? "the talent's agency"} will get back to you within their stated SLA.`,
+                              text: interpolate(t("client.discover.inquirySentAgency"), {
+                                agency: detail.agencyName ?? t("client.discover.theTalentsAgency"),
+                              }),
                             });
                             setInquireDate("");
                             setInquireLocation("");
@@ -1287,18 +1303,18 @@ function DiscoverDetailDrawer({
                           } else if (j.skipped?.length > 0 && j.skipped[0].reason === "no_roster") {
                             setInquireResult({
                               ok: false,
-                              text: "This talent isn't on any agency roster yet. Use 'View full profile' to reach them directly.",
+                              text: t("client.discover.noRosterHint"),
                             });
                           } else {
                             setInquireResult({
                               ok: false,
                               text: j.error === "no_routable_talents"
-                                ? "No routable workspace for this talent — try 'View full profile' instead."
-                                : "Couldn't send — try again in a moment.",
+                                ? t("client.discover.noRoutableWorkspace")
+                                : t("client.discover.inquiryForm.sendFailed"),
                             });
                           }
                         } catch {
-                          setInquireResult({ ok: false, text: "Network issue — try again." });
+                          setInquireResult({ ok: false, text: t("client.discover.inquiryForm.networkIssue") });
                         } finally {
                           setInquireSubmitting(false);
                         }
@@ -1311,7 +1327,7 @@ function DiscoverDetailDrawer({
                         cursor: inquireSubmitting ? "not-allowed" : "pointer",
                       }}
                     >
-                      {inquireSubmitting ? "Sending…" : "Send inquiry"}
+                      {inquireSubmitting ? t("client.discover.inquiryForm.sending") : t("client.discover.inquiryForm.sendInquiry")}
                     </button>
                   </div>
                 )}
@@ -1328,7 +1344,7 @@ function DiscoverDetailDrawer({
                       textDecoration: "none",
                     }}
                   >
-                    View full profile ↗
+                    {t("client.discover.viewFullProfile")} ↗
                   </a>
                 )}
                 <button
@@ -1343,7 +1359,7 @@ function DiscoverDetailDrawer({
                     cursor: "pointer",
                   }}
                 >
-                  ＋ Add to shortlist
+                  ＋ {t("client.discover.addToShortlist")}
                 </button>
                 {pickerOpen && detail && (
                   <div
@@ -1385,20 +1401,20 @@ function DiscoverDetailDrawer({
                               {s.name}
                             </span>
                             <span style={{ fontSize: 11, color: C.inkDim }}>
-                              {s.talentIds.length} {s.talentIds.length === 1 ? "talent" : "talents"}
+                              {tp("client.discover.talentCount", s.talentIds.length)}
                             </span>
                           </button>
                         );
                       })
                     ) : (
                       <div style={{ fontSize: 12, color: C.inkMuted, padding: "4px 4px 8px" }}>
-                        No shortlists yet — create your first below.
+                        {t("client.discover.noShortlistsYet")}
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                       <input
                         type="text"
-                        placeholder="New shortlist name…"
+                        placeholder={t("client.discover.newShortlistPlaceholder")}
                         value={newListName}
                         onChange={(e) => setNewListName(e.target.value)}
                         onKeyDown={async (e) => {
@@ -1442,7 +1458,7 @@ function DiscoverDetailDrawer({
                           cursor: !newListName.trim() || creating ? "not-allowed" : "pointer",
                         }}
                       >
-                        {creating ? "…" : "Create"}
+                        {creating ? "…" : t("client.discover.create")}
                       </button>
                     </div>
                   </div>

@@ -580,6 +580,7 @@ function DirectoryReactiveResultsInner({
               columnsDesktop={columnsDesktop}
               columnsTablet={columnsTablet}
               columnsMobile={columnsMobile}
+              onCountChange={handleCountChange}
             />
           ) : (
             <DirectoryReactiveGrid
