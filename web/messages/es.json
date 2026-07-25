@@ -457,7 +457,9 @@
           "filterMatchesAcross": "{matches} en {groups}",
           "filterNoLabelsMatch": "Ninguna etiqueta de filtro coincide, prueba otra palabra.",
           "filterNothingMatches": "Nada coincide con «{q}». Borra la búsqueda para ver todos los grupos otra vez.",
-          "citySectionLabel": "Ciudad"
+          "citySectionLabel": "Ciudad",
+          "nearMeSidebar": "Buscar cerca de mí",
+          "nearMeSidebarHint": "Abre el mapa y ordena las ciudades por distancia"
         },
         "chips": {
           "height": "Altura",

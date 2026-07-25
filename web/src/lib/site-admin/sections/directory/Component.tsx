@@ -392,7 +392,7 @@ export async function DirectoryComponent({
                 ) : null}
                 {headingText ? (
                   <h2
-                    className="font-display text-3xl font-medium tracking-wide text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] sm:text-5xl"
+                    className="text-balance font-display text-3xl font-medium tracking-wide text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.55)] sm:text-5xl"
                     data-builder-node-id={nodeIdsByRole?.headline}
                     style={{
                       fontFamily: "var(--site-heading-font, inherit)",
@@ -407,7 +407,7 @@ export async function DirectoryComponent({
                 ) : null}
                 {copyText ? (
                   <p
-                    className="text-[15px] leading-relaxed text-white/80"
+                    className="mx-auto max-w-[46ch] text-balance text-[15px] leading-relaxed text-white/80"
                     data-builder-node-id={nodeIdsByRole?.copy}
                     style={nodePresentationInlineStyle(
                       props.nodePresentation?.copy,

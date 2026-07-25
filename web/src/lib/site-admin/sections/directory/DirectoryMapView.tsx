@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed, MapPin } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -191,7 +191,7 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
   const [unit, setUnit] = useState<DistanceUnit>("km");
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
 
-  const requestLocation = () => {
+  const requestLocation = useCallback(() => {
     setGeoError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setGeoError(ui.map.nearMeUnsupported);
@@ -214,7 +214,36 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
     );
-  };
+  }, [ui.map.nearMeUnsupported, ui.map.nearMeDenied, ui.map.nearMeUnavailable]);
+
+  /**
+   * Honour the sidebar's `near=1` intent: ask for location on arrival, then
+   * strip the flag so a copied URL doesn't prompt whoever it's shared with.
+   * `requestedRef` guards against re-firing on re-render.
+   */
+  const nearRequestedRef = useRef(false);
+  useEffect(() => {
+    if (nearRequestedRef.current) return;
+    if (searchParams.get("near") !== "1") return;
+    nearRequestedRef.current = true;
+    requestLocation();
+  }, [searchParams, requestLocation]);
+
+  // Strip the flag only once the request has RESOLVED. Doing it immediately
+  // raced the still-in-flight navigation that set it, which simply put
+  // `near=1` back.
+  useEffect(() => {
+    if (!nearRequestedRef.current) return;
+    if (!origin && !geoError) return;
+    if (searchParams.get("near") !== "1") return;
+    // Rebuild from the LIVE URL, not the hook snapshot: the snapshot can lag
+    // the navigation that brought us here, and committing a stale base wiped
+    // `view=map` along with the flag.
+    const live = window.location.search.replace(/^\?/, "");
+    commitDirectoryListingUrl(router, pathname, live, (p) => {
+      p.delete("near");
+    });
+  }, [origin, geoError, searchParams, router, pathname]);
 
   const clearLocation = () => {
     setOrigin(null);
