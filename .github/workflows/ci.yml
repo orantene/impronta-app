@@ -184,6 +184,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:connection-oauth
 
+      - name: tests — social-embed
+        if: ${{ !cancelled() }}
+        run: npm run test:social-embed
+
       - name: tests — builder-capabilities
         if: ${{ !cancelled() }}
         run: npm run test:builder-capabilities
