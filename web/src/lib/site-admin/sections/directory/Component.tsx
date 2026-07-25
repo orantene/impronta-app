@@ -8,6 +8,7 @@ import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { loadDirectoryCategoryTree } from "@/lib/directory/directory-category-tree";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getPublicDirectoryFirstPage } from "@/lib/directory/cache";
+import type { DirectorySortValue } from "@/lib/directory/types";
 import {
   directorySurfaceFromTenantId,
   getCachedDirectoryFilterSidebarModel,
@@ -33,10 +34,7 @@ import {
 import { DirectoryBannerTopBar } from "./DirectoryBannerTopBar";
 import { eyebrowSize, headingSize, paragraphSize } from "./heading-sizes";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
-import {
-  mapDirectoryDefaultSort,
-  type DirectorySeedSortValue,
-} from "./default-sort";
+import { mapDirectoryDefaultSort } from "./default-sort";
 import { resolveDirectoryScopeSeed } from "./scope-seed";
 
 /**
@@ -166,15 +164,12 @@ export async function DirectoryComponent({
     urlFilters.taxonomyTermIds.length > 0
       ? urlFilters.taxonomyTermIds
       : seedTaxonomyTermIds;
-  // `getPublicDirectoryFirstPage` accepts a narrower sort union than the
-  // engine (no `top_rated`, which is reviews-entitlement gated). Seeding an
-  // unsupported sort is not worth widening the cache API for: fall back to
-  // the default, and the signature simply won't match so the client fetches
-  // the real ordering — exactly the pre-existing behavior for that sort.
-  const seedSort: DirectorySeedSortValue =
-    urlFilters.sortRaw && urlFilters.sortRaw !== "top_rated"
-      ? urlFilters.sortRaw
-      : mapDirectoryDefaultSort(props.defaultSort);
+  // Every engine sort is seedable, `top_rated` included: the cache key is
+  // sort- AND tenant-scoped, and the rating smoothing collapses to the prior
+  // when the tenant has no reviews entitlement, so a cached entry can never
+  // leak one tenant's ordering to another.
+  const seedSort: DirectorySortValue =
+    urlFilters.sortRaw ?? mapDirectoryDefaultSort(props.defaultSort);
 
   let initialPage: Awaited<ReturnType<typeof getPublicDirectoryFirstPage>> | null =
     null;
@@ -249,8 +244,6 @@ export async function DirectoryComponent({
     taxonomyTermIds: seedTermIds,
     fieldFacets: urlFilters.fieldFacets,
     locale: pickLocale(loc, { en: "en", es: "es" } as const),
-    // Stamp what was ACTUALLY seeded: for `top_rated` this is the fallback
-    // sort, so the signature deliberately differs from the client's key.
     sort: seedSort,
     query: urlFilters.query,
     locationSlug: urlFilters.locationSlug,
