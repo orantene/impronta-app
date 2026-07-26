@@ -56,7 +56,7 @@
     "test:webhook": "tsx --test src/lib/stripe/webhook-routing.test.ts",
     "test:commission-pipeline": "tsx --test src/lib/billing/commission-pipeline.integration.test.ts",
     "test:auth-routing": "tsx --test src/lib/auth-routing.test.ts",
-    "test:connection-oauth": "tsx --test src/lib/connection-oauth/providers.test.ts",
+    "test:connection-oauth": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/connection-oauth/providers.test.ts",
     "test:social-embed": "tsx --test src/lib/social-embed/social-post-url.test.ts",
     "test:access": "tsx --test src/lib/access/parity.test.ts src/lib/access/talent-membership.test.ts",
     "test:csv-parser": "tsx --test src/components/admin/shell/internal/csv-parser.test.ts",
