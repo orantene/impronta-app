@@ -393,6 +393,14 @@ export function TalentCard({
             {availabilitySlot ??
               (show.showAvailability ? <AvailabilityLine data={data} /> : null)}
           </div>
+          {data.priceFromLabel ? (
+            <p
+              data-card-price-from
+              className="mt-1 text-[11px] font-medium tracking-wide text-[var(--dir-accent,#c8a04a)]"
+            >
+              {data.priceFromLabel}
+            </p>
+          ) : null}
         </div>
       </Root>
     );
@@ -498,6 +506,14 @@ export function TalentCard({
               {data.availabilityLabel}
             </span>
           ) : null)}
+        {data.priceFromLabel ? (
+          <p
+            data-card-price-from
+            className="mt-0.5 text-[11px] font-medium tracking-wide text-[var(--impronta-gold-bright,var(--dir-accent,#c8a04a))]"
+          >
+            {data.priceFromLabel}
+          </p>
+        ) : null}
       </div>
     </Root>
   );

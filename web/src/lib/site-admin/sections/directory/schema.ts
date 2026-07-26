@@ -106,7 +106,7 @@ export const directorySchemaV1 = z.object({
   showLocation: z.boolean().default(true),
   showAttributes: z.boolean().default(true),
   showRating: z.boolean().default(false),
-  showPriceFrom: z.boolean().default(false),
+  showPriceFrom: z.boolean().default(true),
   showAvailability: z.boolean().default(true),
   showBadges: z.boolean().default(true),
   showSave: z.boolean().default(true),
@@ -204,4 +204,7 @@ export type DirectoryCta = z.infer<typeof ctaSchema>;
 
 export const directorySchemasByVersion = {
   1: directorySchemaV1,
+  // v2: same shape as v1 — the bump exists only to run the showPriceFrom
+  // backfill migration exactly once per persisted section.
+  2: directorySchemaV1,
 } as const;

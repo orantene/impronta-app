@@ -67,6 +67,7 @@ export function DirectoryReactiveGrid({
   showSave,
   showAddToInquiry,
   showQuickView,
+  showPriceFrom,
   cardClickAction,
   cardFieldKeys,
   maxFieldLines,
@@ -116,6 +117,7 @@ export function DirectoryReactiveGrid({
   /** Render the per-card favorite (save) affordance. */
   showSave: boolean;
   showQuickView: boolean;
+  showPriceFrom: boolean;
   cardClickAction: DirectoryV1["cardClickAction"];
   /** Render the per-card "Inquire / Added" cart bar. */
   showAddToInquiry: boolean;
@@ -408,6 +410,7 @@ export function DirectoryReactiveGrid({
                 showSave={showSave}
                 showAddToInquiry={showAddToInquiry}
                 showQuickView={showQuickView}
+                showPriceFrom={showPriceFrom}
                 cardClickAction={cardClickAction}
                 locale={locale}
                 cardFieldKeys={cardFieldKeys}

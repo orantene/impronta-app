@@ -92,6 +92,13 @@ export type DirectoryCardDTO = {
   ratingCount?: number | null;
   ratingAllCount?: number | null;
   wouldBookAgainPct?: number | null;
+  /**
+   * Cheapest published+approved public offering (talent_offerings), verbatim
+   * in its own currency — the card's "From $X" chip. Null = no public
+   * numeric pricing (quote-only / custom / none).
+   */
+  priceFromCents?: number | null;
+  priceFromCurrency?: string | null;
 };
 
 /**
