@@ -48,6 +48,7 @@ import { useResolveCartPortraits } from "./use-resolve-cart-portraits";
 import { useNarrowLauncherViewport } from "./use-compact-viewport";
 import { ChatGlyph, CloseGlyph } from "./chat-launcher-glyphs";
 import { useLauncherSessionRestore } from "./use-launcher-session-restore";
+import { useLauncherScrollCollapse } from "./use-launcher-scroll-collapse";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
 import {
@@ -494,6 +495,18 @@ export function TalentProfileChatLauncher({
   // "Finish your inquiry (N)" (the resume_draft state carries no count itself).
   const launcherLabel = launcherLabelForCta(ctaState, t, brandVoice, cart.cartCount);
 
+  // Audit finding: on a 375px viewport this pill is ~full width and parked
+  // permanently over the bottom of the talent grid, covering a whole card row.
+  // Collapse it to an icon while the visitor scrolls DOWN; it re-expands on
+  // scroll up or near the top, so the action is never more than a flick away.
+  // Narrow viewports only, never while the panel is open, and never for
+  // reduced-motion visitors (for them the pill simply stays put).
+  // MUST sit above the `!mounted` guard — hooks run in the same order every
+  // render (react-hooks/rules-of-hooks).
+  const collapsedByScroll = useLauncherScrollCollapse(
+    narrowLauncher && !open && !reduceMotion,
+  );
+
   if (!mounted) return null;
 
   // Finding #4: activate the already-coded A.9 mobile geometry (32px avatars,
@@ -612,9 +625,14 @@ export function TalentProfileChatLauncher({
             position: "relative",
             display: "inline-flex",
             alignItems: "center",
-            gap: 9,
+            gap: collapsedByScroll ? 0 : 9,
             height: 52,
-            padding: "0 20px 0 18px",
+            // Collapsed → a 52px circle carrying just the glyph. The accessible
+            // name never changes (aria-label above), so the control keeps its
+            // identity for screen readers even when the visible label is gone.
+            width: collapsedByScroll ? 52 : undefined,
+            justifyContent: collapsedByScroll ? "center" : undefined,
+            padding: collapsedByScroll ? 0 : "0 20px 0 18px",
             borderRadius: 26,
             border: "none",
             background: accent,
@@ -638,7 +656,7 @@ export function TalentProfileChatLauncher({
                   : "none",
             transition: reduceMotion
               ? "none"
-              : "transform 140ms ease, box-shadow 140ms ease",
+              : "transform 140ms ease, box-shadow 140ms ease, width 180ms ease, padding 180ms ease",
           }}
         >
           {/* Phase 8 — REPLIED pulse. Reuses NewMessagePulse, mounted inside the
@@ -654,7 +672,9 @@ export function TalentProfileChatLauncher({
           ) : (
             <ChatGlyph color={accentInk} />
           )}
-          <span>{open ? "Close" : launcherLabel}</span>
+          {collapsedByScroll && !open ? null : (
+            <span>{open ? "Close" : launcherLabel}</span>
+          )}
           {/* W1-D — the separate cart count chip (the "9" bubble) was REMOVED. It
               double-counted against the avatar stack (faces + a single "+N" chip
               ARE the count) and, in states like `sent_awaiting`, `labelShowsCount`
