@@ -615,6 +615,7 @@ export async function DirectoryComponent({
             showSave={props.showSave}
             showAddToInquiry={props.showAddToInquiry}
             showQuickView={props.showQuickView}
+            showPriceFrom={props.showPriceFrom}
             cardClickAction={props.cardClickAction}
             cardFieldKeys={props.cardFieldKeys}
             maxFieldLines={props.maxFieldLines}

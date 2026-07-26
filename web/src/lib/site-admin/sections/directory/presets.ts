@@ -43,7 +43,7 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   showLocation: true,
   showAttributes: true,
   showRating: false,
-  showPriceFrom: false,
+  showPriceFrom: true,
   showAvailability: true,
   // Single-agency storefront: every card is this agency's talent, so the
   // per-card ownership badge ("Impronta Models" stamped on every tile) is

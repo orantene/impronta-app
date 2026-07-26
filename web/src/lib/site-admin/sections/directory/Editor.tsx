@@ -670,10 +670,14 @@ export function DirectoryEditor({
             checked={p.showAttributes}
             onChange={(v) => set("showAttributes", v)}
           />
-          {/* Show rating / show price-from are intentionally NOT listed:
-              ratings + starting-price aren't published to cards, and a dead
-              toggle reads as a broken product (matches #649). The schema keeps
-              the fields for back-compat; re-add a toggle when the data ships. */}
+          {/* Show rating is intentionally NOT listed (data not published to
+              cards; a dead toggle reads as a broken product, #649). Price-from
+              shipped with the offerings-backed "From $X" chip. */}
+          <FieldToggle
+            label="Show starting price"
+            checked={p.showPriceFrom}
+            onChange={(v) => set("showPriceFrom", v)}
+          />
           <FieldToggle
             label="Show availability"
             checked={p.showAvailability}

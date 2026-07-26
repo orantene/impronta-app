@@ -618,7 +618,7 @@ export const featuredTalentSection: SectionRegistryEntry<FeaturedTalentV1> = {
 
 export const directorySection: SectionRegistryEntry<DirectoryV1> = {
   meta: directoryMeta,
-  currentVersion: 1,
+  currentVersion: 2,
   schemasByVersion: directorySchemasByVersion,
   migrations: directoryMigrations,
   Component: DirectoryComponent,

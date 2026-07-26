@@ -43,6 +43,7 @@ export function DirectoryCardAdapter({
   showSave,
   showAddToInquiry,
   showQuickView = true,
+  showPriceFrom = false,
   cardClickAction = "modal",
   locale = "en",
   cardFieldKeys,
@@ -70,6 +71,8 @@ export function DirectoryCardAdapter({
   showAddToInquiry: boolean;
   /** Render the quick-view (eye) media-peek affordance over the card. */
   showQuickView?: boolean;
+  /** Render the "From $X" starting-price line (cheapest public offering). */
+  showPriceFrom?: boolean;
   /**
    * "modal" (default): the card's soft navigation is intercepted by
    * @modal/(.)t and quick-opens the profile overlay. "page": force a hard
@@ -97,6 +100,17 @@ export function DirectoryCardAdapter({
   const cart = useInquiryCart();
 
   const data = mapDtoToCardData(card, pathname);
+  if (
+    showPriceFrom &&
+    typeof card.priceFromCents === "number" &&
+    card.priceFromCents > 0
+  ) {
+    data.priceFromLabel = formatPriceFromLabel(
+      card.priceFromCents,
+      card.priceFromCurrency ?? "USD",
+      locale,
+    );
+  }
 
   // STATE must stay visible; only ACTIONS may hide behind hover. When the
   // talent is in the visitor's lineup the pill (now reading "In lineup" ✓)
@@ -408,4 +422,27 @@ function formatAvailability(card: DirectoryCardDTO): {
     };
   }
   return { label: AVAILABILITY_UNKNOWN, known: false };
+}
+
+/**
+ * "From $850" / "Desde $850" — whole-currency, no decimals (offering prices
+ * are stored in cents; sub-dollar starting prices don't exist in practice
+ * and decimals read as clutter on a card).
+ */
+function formatPriceFromLabel(
+  amountCents: number,
+  currency: string,
+  locale: string,
+): string {
+  let amount: string;
+  try {
+    amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(Math.round(amountCents / 100));
+  } catch {
+    amount = `$${Math.round(amountCents / 100)}`;
+  }
+  return locale === "es" ? `Desde ${amount}` : `From ${amount}`;
 }

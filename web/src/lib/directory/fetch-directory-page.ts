@@ -32,6 +32,11 @@ import {
   DIRECTORY_PAGE_SIZE_DEFAULT,
   DIRECTORY_PAGE_SIZE_MAX,
 } from "@/lib/directory/types";
+import { fetchStartingPrices } from "@/lib/directory/price-from";
+import {
+  applyDemandSmoothing,
+  getDemandScores,
+} from "@/lib/directory/demand-score";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -1051,6 +1056,20 @@ export async function fetchDirectoryPage(
     () => chunkAndMergeThumbs(profileIds, (chunk) => loadTalentCardThumbs(supabase, chunk)),
   );
 
+  // "From $X" chip source + demand-ranking signal, fetched concurrently for
+  // the page's talents. Both are additive: empty maps degrade to the old
+  // behavior (no chip, base recency order).
+  const [startingPriceByProfile, demandScores] = await Promise.all([
+    auditTime(audit, timings, "startingPricesMs", () =>
+      fetchStartingPrices(supabase, profileIds),
+    ),
+    sort === "recommended" && tenantScopeId
+      ? auditTime(audit, timings, "demandScoresMs", () =>
+          getDemandScores(tenantScopeId),
+        )
+      : Promise.resolve(new Map<string, number>()),
+  ]);
+
   const mapStart = performance.now();
   const rows: ApiDirectoryCardRpcRow[] = profiles.map((profile) => {
     const taxonomyRows = taxonomyByProfile.get(profile.id) ?? [];
@@ -1223,6 +1242,10 @@ export async function fetchDirectoryPage(
       would_book_again_pct: reviewsStandingEnabled
         ? profile.would_book_again_pct
         : null,
+      price_from_cents:
+        startingPriceByProfile.get(profile.id)?.amountCents ?? null,
+      price_from_currency:
+        startingPriceByProfile.get(profile.id)?.currency ?? null,
     };
   });
 
@@ -1245,6 +1268,12 @@ export async function fetchDirectoryPage(
   // loaded order is preserved.
   if (sort === "top_rated") {
     applyTopRatedSmoothing(items);
+  }
+
+  // "recommended": demand-weighted page-local smoothing (same contract as
+  // top_rated — featured block untouched, no window/cursor change).
+  if (sort === "recommended" && demandScores.size > 0) {
+    applyDemandSmoothing(items, demandScores);
   }
 
   if (audit) {

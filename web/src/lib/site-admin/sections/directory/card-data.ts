@@ -57,6 +57,12 @@ export type DirectoryCardData = {
   ratingAvg?: number | null;
   ratingCount?: number | null;
   wouldBookAgainPct?: number | null;
+  /**
+   * Pre-formatted, locale-aware "From $X" line (e.g. "From $850" /
+   * "Desde $850"). Null = no public numeric pricing OR the section's
+   * `showPriceFrom` knob is off — the renderer shows it iff present.
+   */
+  priceFromLabel?: string | null;
 };
 
 /** Ratified fallback string (Discover spec §5.4 / acceptance AV-2). */

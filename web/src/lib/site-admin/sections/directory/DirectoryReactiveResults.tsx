@@ -103,6 +103,7 @@ export function DirectoryReactiveResults({
   showSave,
   showAddToInquiry,
   showQuickView,
+  showPriceFrom,
   cardClickAction,
   cardFieldKeys,
   maxFieldLines,
@@ -166,6 +167,7 @@ export function DirectoryReactiveResults({
   showAddToInquiry: boolean;
   /** Render the per-card quick-view (eye) media peek. */
   showQuickView: boolean;
+  showPriceFrom: boolean;
   /** Card click → profile modal (default) or hard page navigation. */
   cardClickAction: DirectoryV1["cardClickAction"];
   /** Catalog-field allow-list + order for the card trait row. */
@@ -214,6 +216,7 @@ export function DirectoryReactiveResults({
           showSave={showSave}
           showAddToInquiry={showAddToInquiry}
           showQuickView={showQuickView}
+          showPriceFrom={showPriceFrom}
           cardClickAction={cardClickAction}
           cardFieldKeys={cardFieldKeys}
           maxFieldLines={maxFieldLines}
@@ -269,6 +272,7 @@ function DirectoryReactiveResultsInner({
   showSave,
   showAddToInquiry,
   showQuickView,
+  showPriceFrom,
   cardClickAction,
   cardFieldKeys,
   maxFieldLines,
@@ -311,6 +315,7 @@ function DirectoryReactiveResultsInner({
   showSave: boolean;
   showAddToInquiry: boolean;
   showQuickView: boolean;
+  showPriceFrom: boolean;
   cardClickAction: DirectoryV1["cardClickAction"];
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   maxFieldLines: DirectoryV1["maxFieldLines"];
@@ -606,6 +611,7 @@ function DirectoryReactiveResultsInner({
                 showSave,
                 showAddToInquiry,
                 showQuickView,
+                showPriceFrom,
                 cardClickAction,
                 cardFieldKeys,
                 maxFieldLines,
@@ -648,6 +654,7 @@ function DirectoryReactiveResultsInner({
               showSave={showSave}
               showAddToInquiry={showAddToInquiry}
               showQuickView={showQuickView}
+              showPriceFrom={showPriceFrom}
               cardClickAction={cardClickAction}
               cardFieldKeys={cardFieldKeys}
               maxFieldLines={maxFieldLines}
