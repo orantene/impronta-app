@@ -137,7 +137,11 @@ window.gtag = gtag;
 gtag('js', new Date());${
   tenantIdForGa ? `\ngtag('set', { tenant_id: '${tenantIdForGa}' });` : ""
 }
-gtag('config', '${gaId}', { send_page_view: true });`,
+// send_page_view:false — SpaPageViewTracker owns page_view for BOTH the
+// initial load and every client-side navigation (directory → profile
+// modal, locale switches…). gtag's auto page_view only covered the very
+// first load, silently under-counting all SPA navigation.
+gtag('config', '${gaId}', { send_page_view: false });`,
             }}
           />
           <Script

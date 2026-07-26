@@ -2512,6 +2512,7 @@ export async function TalentProfileView({
               talentId={profile.id}
               pageSlug={profileSourcePage}
               locale={locale}
+              viewContext="modal"
             />
             {profileBody}
             <DirectoryInquirySheet ui={ui} locale={locale} />
@@ -2553,6 +2554,7 @@ export async function TalentProfileView({
             talentId={profile.id}
             pageSlug={profileSourcePage}
             locale={locale}
+            viewContext="page"
           />
 
           {platformChrome ? (

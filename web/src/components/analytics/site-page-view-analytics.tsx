@@ -34,6 +34,12 @@ export function SitePageViewAnalytics({
    */
   talentId,
   /**
+   * How the surface was presented — "page" (canonical route render) or
+   * "modal" (directory quick-open overlay). Totals stay unified; this is a
+   * breakdown dimension only. Omitted → no key in the payload (legacy rows).
+   */
+  viewContext,
+  /**
    * Emit the legacy `view_talent_profile` event in addition to `view_site_page`.
    * Defaults true ONLY for the `talent-profile` surface so the existing funnel
    * loaders (loadFunnelEventCounts / loadExecutiveOverviewInternal) keep working
@@ -48,6 +54,7 @@ export function SitePageViewAnalytics({
   pageSlug?: string | null;
   locale: string;
   talentId?: string | null;
+  viewContext?: "page" | "modal";
   emitLegacyProfileView?: boolean;
 }) {
   const legacy =
@@ -65,6 +72,7 @@ export function SitePageViewAnalytics({
       ...(tenantId ? { tenant_id: tenantId } : {}),
       ...(pageId ? { page_id: pageId } : {}),
       ...(pageSlug ? { page_slug: pageSlug } : {}),
+      ...(viewContext ? { view_context: viewContext } : {}),
       ...(referrer ? { referrer } : {}),
     });
 
@@ -75,11 +83,12 @@ export function SitePageViewAnalytics({
         talent_id: talentId,
         locale,
         ...(pageSlug ? { source_page: pageSlug } : {}),
+        ...(viewContext ? { view_context: viewContext } : {}),
         ...(tenantId ? { tenant_id: tenantId } : {}),
       });
     }
     // Fire-once-per-mount semantics, keyed on the identifying inputs.
-  }, [surface, tenantId, pageId, pageSlug, locale, talentId, legacy]);
+  }, [surface, tenantId, pageId, pageSlug, locale, talentId, legacy, viewContext]);
 
   return null;
 }
