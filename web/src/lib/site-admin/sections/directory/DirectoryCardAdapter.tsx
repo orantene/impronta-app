@@ -8,6 +8,11 @@ import { TalentQuickViewButton } from "@/components/directory/talent-quick-view"
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
+import {
+  type CaptionNorms,
+  isRedundant,
+  NO_CAPTION_NORMS,
+} from "@/lib/directory/caption-norms";
 
 import { DirectoryCard } from "./DirectoryCard";
 import {
@@ -44,6 +49,7 @@ export function DirectoryCardAdapter({
   showAddToInquiry,
   showQuickView = true,
   showPriceFrom = false,
+  captionNorms = NO_CAPTION_NORMS,
   cardClickAction = "modal",
   locale = "en",
   cardFieldKeys,
@@ -74,6 +80,12 @@ export function DirectoryCardAdapter({
   /** Render the "From $X" starting-price line (cheapest public offering). */
   showPriceFrom?: boolean;
   /**
+   * What is NORMAL for the grid this card sits in. Fields matching the norm
+   * are dropped from THIS card so the caption only ever carries
+   * differentiating information (see lib/directory/caption-norms).
+   */
+  captionNorms?: CaptionNorms;
+  /**
    * "modal" (default): the card's soft navigation is intercepted by
    * @modal/(.)t and quick-opens the profile overlay. "page": force a hard
    * navigation so the canonical profile page renders instead.
@@ -100,6 +112,22 @@ export function DirectoryCardAdapter({
   const cart = useInquiryCart();
 
   const data = mapDtoToCardData(card, pathname);
+
+  // Differential caption: a card only spends a line on location/availability
+  // when it DIFFERS from the rest of the grid. On a roster where 40 of 43
+  // cards read "Available from Jul 26", that line told the client nothing;
+  // now it appears exactly where it means something. `show` stays the
+  // operator's ceiling — this can only ever hide, never reveal.
+  const effectiveShow = {
+    ...show,
+    showLocation:
+      show.showLocation &&
+      !isRedundant(data.location, captionNorms.dominantLocation),
+    showAvailability:
+      show.showAvailability &&
+      !isRedundant(data.availabilityLabel, captionNorms.dominantAvailability),
+  };
+
   if (
     showPriceFrom &&
     typeof card.priceFromCents === "number" &&
@@ -163,7 +191,7 @@ export function DirectoryCardAdapter({
         <DirectoryCard
           data={data}
           style={style}
-          show={show}
+          show={effectiveShow}
           nameFallback={nameFallback}
           aspect={cardAspect}
           density={density}
@@ -398,7 +426,7 @@ function mapDtoToCardData(
   };
 }
 
-function formatAvailability(card: DirectoryCardDTO): {
+export function formatAvailability(card: DirectoryCardDTO): {
   label: string;
   known: boolean;
 } {

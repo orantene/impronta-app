@@ -20,7 +20,8 @@ import { DIRECTORY_PAGE_SIZE_DEFAULT } from "@/lib/directory/types";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import type { SearchResult } from "@/lib/ai/search-result";
 
-import { DirectoryCardAdapter } from "./DirectoryCardAdapter";
+import { DirectoryCardAdapter, formatAvailability } from "./DirectoryCardAdapter";
+import { computeCaptionNorms } from "@/lib/directory/caption-norms";
 import { TalentDirectoryListRow } from "@/components/directory/talent-directory-list-row";
 import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
 import type { DirectoryV1 } from "./schema";
@@ -303,6 +304,20 @@ export function DirectoryReactiveGrid({
     return manualCodeOrder ? filterToManualCodes(all, manualCodeOrder) : all;
   }, [data?.pages, initialPage.items, isSeedKey, manualCodeOrder]);
 
+  // What "normal" looks like for the cards actually on screen. Recomputed as
+  // the visitor filters, so a city that is noise on the full roster becomes
+  // signal the moment the grid is mixed.
+  const captionNorms = useMemo(
+    () =>
+      computeCaptionNorms(
+        items.map((c) => ({
+          locationLabel: c.locationLabel,
+          availabilityLabel: formatAvailability(c).label,
+        })),
+      ),
+    [items],
+  );
+
   const gridClass = useMemo(
     () => gridClassFor(columnsMobile, columnsTablet, columnsDesktop, density),
     [columnsMobile, columnsTablet, columnsDesktop, density],
@@ -411,6 +426,7 @@ export function DirectoryReactiveGrid({
                 showAddToInquiry={showAddToInquiry}
                 showQuickView={showQuickView}
                 showPriceFrom={showPriceFrom}
+                captionNorms={captionNorms}
                 cardClickAction={cardClickAction}
                 locale={locale}
                 cardFieldKeys={cardFieldKeys}

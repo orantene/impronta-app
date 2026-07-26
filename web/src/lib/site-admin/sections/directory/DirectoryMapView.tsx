@@ -25,7 +25,8 @@ import type {
 import { DIRECTORY_PAGE_SIZE_MAX } from "@/lib/directory/types";
 import { replaceCount, type DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
-import { DirectoryCardAdapter } from "./DirectoryCardAdapter";
+import { DirectoryCardAdapter, formatAvailability } from "./DirectoryCardAdapter";
+import { computeCaptionNorms } from "@/lib/directory/caption-norms";
 import { DirectoryMapCanvas } from "./DirectoryMapCanvas";
 import type { CityCluster } from "./map-clusters";
 import type { DirectoryV1 } from "./schema";
@@ -297,6 +298,16 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
     ? selectedCluster.items
     : visibleClusters.flatMap((r) => r.cluster.items);
 
+  // Map panel gets its own norms: the cards beside a zoomed-in map are a
+  // different population than the full grid, so what counts as redundant
+  // differs too (a single-city cluster should not repeat the city 12 times).
+  const captionNorms = computeCaptionNorms(
+    visibleCards.map((c) => ({
+      locationLabel: c.locationLabel,
+      availabilityLabel: formatAvailability(c).label,
+    })),
+  );
+
   const goBackToGrid = () => {
     commitDirectoryListingUrl(router, pathname, searchParams.toString(), (p) => {
       p.delete("view");
@@ -555,6 +566,7 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
                 showAddToInquiry={props.card.showAddToInquiry}
                 showQuickView={props.card.showQuickView}
                 showPriceFrom={props.card.showPriceFrom}
+                captionNorms={captionNorms}
                 cardClickAction={props.card.cardClickAction}
                 locale={props.locale}
                 cardFieldKeys={props.card.cardFieldKeys}
