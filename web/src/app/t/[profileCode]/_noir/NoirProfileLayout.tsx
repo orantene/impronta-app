@@ -108,7 +108,9 @@ const noirVars: Record<string, string> = {
   "--plt-ink-soft": "rgba(236,228,211,0.74)",
   "--plt-ink-strong": "#fbf5e8",
   "--plt-muted": "rgba(236,228,211,0.6)",
-  "--plt-muted-soft": "rgba(236,228,211,0.44)",
+  // WCAG AA: at 0.44 this token measured 3.64:1 on the profile ground (needs
+  // 4.5 for 10px text). 0.56 -> 5.30:1 and still reads as the muted tier.
+  "--plt-muted-soft": "rgba(236,228,211,0.56)",
   "--plt-on-inverse": "#161108",
   "--plt-on-inverse-muted": "rgba(22,17,8,0.66)",
   "--plt-on-inverse-soft": "rgba(22,17,8,0.82)",
@@ -197,7 +199,9 @@ html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
 [data-profile-theme="noir"] .nf-digitals .d{ background:#100e13; padding:22px 20px; min-width:0; }
 [data-profile-theme="noir"] .nf-digitals .d .k{ font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--nf-champagne); }
 [data-profile-theme="noir"] .nf-digitals .d .v{ font-family:'Cormorant Garamond',serif; font-size:1.5rem; margin-top:8px; color:#ece4d3; word-break:break-word; }
-[data-profile-theme="noir"] .nf-group-label{ font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(236,228,211,0.5); margin:26px 0 12px; }
+/* Section eyebrows measured 4.43:1 at alpha .5 — just under the 4.5 floor
+   for 10.5px text. 0.56 -> 5.30:1. */
+[data-profile-theme="noir"] .nf-group-label{ font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(236,228,211,0.56); margin:26px 0 12px; }
 
 /* clients */
 [data-profile-theme="noir"] .nf-clients{ display:flex; flex-wrap:wrap; gap:14px 40px; align-items:center; }
@@ -226,7 +230,7 @@ html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
 [data-profile-theme="noir"] .nf-foot{ background:#100e13; border-top:1px solid var(--nf-line); padding-block:clamp(40px,6vw,72px); }
 [data-profile-theme="noir"] .nf-foot__row{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:18px; }
 [data-profile-theme="noir"] .nf-foot__brand{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(1.8rem,4vw,2.8rem); letter-spacing:0.12em; color:var(--nf-champagne); }
-[data-profile-theme="noir"] .nf-foot__pw{ font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:rgba(236,228,211,0.5); }
+[data-profile-theme="noir"] .nf-foot__pw{ font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:rgba(236,228,211,0.56); }
 [data-profile-theme="noir"] .nf-foot__pw em{ font-style:normal; color:var(--nf-champagne); }
 
 /* sticky book bar */
