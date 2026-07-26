@@ -182,6 +182,15 @@ function createTabPanel(
 
 export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
   switch (kind) {
+    case "social_post":
+      // Seeded EMPTY on purpose: a placeholder post URL would render someone
+      // else's content on the operator's page until they noticed. The inspector
+      // shows an empty state until a real URL is pasted.
+      return {
+        id: makeId("social_post"),
+        kind: "social_post",
+        props: { provider: "instagram", url: "" },
+      };
     case "section":
       return {
         id: makeId("section"),

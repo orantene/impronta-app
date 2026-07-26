@@ -3589,6 +3589,12 @@ function childPrimaryLabel(node: BuilderNode): string {
 
 function childSecondaryLabel(node: BuilderNode): string {
   switch (node.kind) {
+    case "social_post":
+      // Name the network, not the generic kind: a page can carry several of
+      // these and "Social post" three times over tells the operator nothing.
+      return node.props.provider === "tiktok"
+        ? "TikTok post"
+        : "Instagram post";
     case "heading":
       return `Heading · H${node.props.level}`;
     case "paragraph":

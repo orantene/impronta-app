@@ -17,6 +17,7 @@ export type BuilderNodeKind =
   | "image"
   | "video"
   | "embed"
+  | "social_post"
   | "icon"
   | "pricing_table"
   | "rich_text"
@@ -815,6 +816,18 @@ export interface BuilderEmbedNode extends BuilderNodeBase {
   };
 }
 
+export interface BuilderSocialPostNode extends BuilderNodeBase {
+  kind: "social_post";
+  props: {
+    provider: "instagram" | "tiktok";
+    /** CANONICAL post url (rebuilt by parseSocialPostUrl), never a raw paste. */
+    url: string;
+    caption?: string;
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderIconNode extends BuilderNodeBase {
   kind: "icon";
   props: {
@@ -1174,6 +1187,7 @@ export type BuilderNode =
   | BuilderImageNode
   | BuilderVideoNode
   | BuilderEmbedNode
+  | BuilderSocialPostNode
   | BuilderIconNode
   | BuilderPricingTableNode
   | BuilderRichTextNode

@@ -446,6 +446,18 @@ export function applyNativeVariant(
         };
       }
       break;
+    // One node kind, two gallery entries: the variant is what makes an
+    // "Instagram Post" insert already set to Instagram rather than making the
+    // operator pick a provider after inserting.
+    case "instagram":
+    case "tiktok":
+      if (node.kind === "social_post") {
+        return {
+          ...node,
+          props: { ...node.props, provider: variant },
+        };
+      }
+      break;
     case "youtube":
       if (node.kind === "embed") {
         return {
