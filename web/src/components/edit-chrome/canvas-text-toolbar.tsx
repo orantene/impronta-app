@@ -11,14 +11,16 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal } from "react-dom";
 import {
   ALargeSmall,
-  ArrowLeftToLine,
-  ArrowRightToLine,
+  AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignHorizontalJustifyStart,
   AlignCenter,
   AlignLeft,
   AlignRight,
   ChevronDown,
   ChevronUp,
   Copy,
+  FolderTree,
   GripVertical,
   Link2,
   MoreHorizontal,
@@ -96,6 +98,15 @@ export interface CanvasTextToolbarProps {
   onRequestInlineEdit?: () => void;
   /** Opens the "revise this element with AI" modal for the selected text node. */
   onReviseWithAi?: () => void;
+  /**
+   * Nested-blocks panel visibility. Selecting text swaps the selection chip for
+   * THIS bar, and the chip owned the only toggle — so on a text block the panel
+   * could be closed and never reopened. Mirrored here so both surfaces expose
+   * the same control.
+   */
+  nestedOpen?: boolean;
+  /** Null when the selection has no sibling/child list to show. */
+  onToggleNested?: (() => void) | null;
   /** Bump when canvas scroll/zoom changes so fixed position recomputes. */
   repositionKey?: number;
   onCopyStyle?: () => void;
@@ -171,13 +182,21 @@ function computeToolbarPosition(
     typeof window !== "undefined" ? window.innerWidth : TOOLBAR_MAX_WIDTH;
   const widthEstimate =
     measuredWidth ?? Math.min(viewportWidth * 0.96, TOOLBAR_MAX_WIDTH);
+  // The zoom bar shares this baseline, so the left clamp must clear it rather
+  // than pinning to the viewport edge — otherwise a narrow window slides this
+  // toolbar underneath it. Only clamp when the toolbar would actually reach
+  // that far, so wide viewports keep a true centre.
+  const leftLimit = Math.max(
+    VIEWPORT_LEFT_GUTTER,
+    CANVAS_FLOATING_BAR.leftReserve,
+  );
   const availableWidth =
     viewportWidth - VIEWPORT_LEFT_GUTTER - rightReservePx;
   const centeredLeft =
     VIEWPORT_LEFT_GUTTER + (availableWidth - widthEstimate) / 2;
   const maxLeft = viewportWidth - rightReservePx - widthEstimate;
   return {
-    left: Math.max(VIEWPORT_LEFT_GUTTER, Math.min(centeredLeft, maxLeft)),
+    left: Math.max(leftLimit, Math.min(centeredLeft, maxLeft)),
   };
 }
 
@@ -383,6 +402,8 @@ export function CanvasTextToolbar({
   onPatchStyle,
   onRequestInlineEdit,
   onReviseWithAi,
+  nestedOpen,
+  onToggleNested,
   repositionKey = 0,
   onCopyStyle,
   onPasteStyle,
@@ -868,7 +889,7 @@ export function CanvasTextToolbar({
       <Divider />
 
       <ToolbarBtn
-        title="Text align left"
+        title="Align text left (inside this block)"
         active={align === "left"}
         disabled={disabled}
         onClick={() => patchAlign("left")}
@@ -876,7 +897,7 @@ export function CanvasTextToolbar({
         <AlignLeft size={15} strokeWidth={2} aria-hidden />
       </ToolbarBtn>
       <ToolbarBtn
-        title="Text align center"
+        title="Align text center (inside this block)"
         active={align === "center"}
         disabled={disabled}
         onClick={() => patchAlign("center")}
@@ -884,7 +905,7 @@ export function CanvasTextToolbar({
         <AlignCenter size={15} strokeWidth={2} aria-hidden />
       </ToolbarBtn>
       <ToolbarBtn
-        title="Text align right"
+        title="Align text right (inside this block)"
         active={align === "right"}
         disabled={disabled}
         onClick={() => patchAlign("right")}
@@ -906,7 +927,7 @@ export function CanvasTextToolbar({
 
       <div style={{ position: "relative", flexShrink: 0 }}>
         <ToolbarBtn
-          title="Block position in parent"
+          title="Move this block within its section"
           active={blockPositionOpen || blockPosition !== null}
           disabled={disabled}
           onClick={(e) => {
@@ -939,29 +960,47 @@ export function CanvasTextToolbar({
               zIndex: Z_INDEX.toast,
             }}
           >
+            {/* A header, because the icons alone cannot carry the distinction:
+                this group moves the BLOCK, the group on the bar aligns the TEXT
+                inside it. They used to share the same centre glyph, so
+                "I clicked center and nothing moved" was the common failure. */}
+            <span
+              style={{
+                alignSelf: "center",
+                padding: "0 6px 0 4px",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: CHROME.muted3,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Block
+            </span>
             <ToolbarBtn
-              title="Block flush left"
+              title="Move block to the left of its section"
               active={blockPosition === "left"}
               disabled={disabled}
               onClick={() => patchBlockPosition("left")}
             >
-              <ArrowLeftToLine size={15} strokeWidth={2} aria-hidden />
+              <AlignHorizontalJustifyStart size={15} strokeWidth={2} aria-hidden />
             </ToolbarBtn>
             <ToolbarBtn
-              title="Block centered (margin auto)"
+              title="Center block in its section"
               active={blockPosition === "center"}
               disabled={disabled}
               onClick={() => patchBlockPosition("center")}
             >
-              <AlignCenter size={15} strokeWidth={2} aria-hidden />
+              <AlignHorizontalJustifyCenter size={15} strokeWidth={2} aria-hidden />
             </ToolbarBtn>
             <ToolbarBtn
-              title="Block flush right"
+              title="Move block to the right of its section"
               active={blockPosition === "right"}
               disabled={disabled}
               onClick={() => patchBlockPosition("right")}
             >
-              <ArrowRightToLine size={15} strokeWidth={2} aria-hidden />
+              <AlignHorizontalJustifyEnd size={15} strokeWidth={2} aria-hidden />
             </ToolbarBtn>
           </div>
         ) : null}
@@ -994,6 +1033,18 @@ export function CanvasTextToolbar({
 
       <Divider />
 
+      {/* Nested blocks — mirrors the selection chip's toggle so a text block
+          can reopen the panel it just closed. */}
+      {onToggleNested ? (
+        <ToolbarBtn
+          title={nestedOpen ? "Hide nested blocks" : "Show nested blocks"}
+          active={!!nestedOpen}
+          disabled={disabled}
+          onClick={onToggleNested}
+        >
+          <FolderTree size={15} strokeWidth={2} aria-hidden />
+        </ToolbarBtn>
+      ) : null}
       <ToolbarBtn
         title="Advanced, open inspector"
         disabled={disabled}

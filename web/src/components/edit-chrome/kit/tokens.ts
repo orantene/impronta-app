@@ -295,4 +295,12 @@ export const CANVAS_FLOATING_BAR = {
   buttonSize: 28,
   /** Button corner radius inside a bar. */
   buttonRadius: 8,
+  /**
+   * Horizontal space the bottom-left zoom bar occupies, including its gutter.
+   * The centred bars share this baseline now, so on a narrow viewport their
+   * left-clamp would slide them straight under the zoom bar. They reserve this
+   * much instead. Measured from the rendered bar (5 controls at 28px + gaps +
+   * the 52px zoom readout + padding), rounded up.
+   */
+  leftReserve: 232,
 } as const;

@@ -5063,6 +5063,12 @@ export function SelectionLayer() {
 	              }}
 	              disabled={saving}
 	              locked={selectedBuilderNode.locked === true}
+	              nestedOpen={nestedPanelOpen}
+	              onToggleNested={
+	                canManageSelectedNodeChildren
+	                  ? () => setNestedPanelOpen((open) => !open)
+	                  : null
+	              }
 	              onOpenInspector={() => requestInspectorTab("style")}
 	              onDuplicate={() => {
 	                if (!selectedBuilderNodeId) return;
@@ -5165,9 +5171,13 @@ export function SelectionLayer() {
               // still. The rAF loop below no longer writes top/left for the
               // chip (it still tracks the ring + handles).
               bottom: CANVAS_FLOATING_BAR.bottom,
-              left: "50%",
+              // Centre within the space RIGHT of the zoom bar, not the whole
+              // viewport: they share this baseline now, so a plain 50% centre
+              // slides under the zoom bar on a narrow window.
+              left: `calc(50% + ${CANVAS_FLOATING_BAR.leftReserve / 2}px)`,
               transform: "translateX(-50%)",
-              maxWidth: "min(96vw, 720px)",
+              // Bounded by the space right of the zoom bar, not the viewport.
+              maxWidth: `min(720px, calc(100vw - ${CANVAS_FLOATING_BAR.leftReserve + 24}px))`,
               height: CANVAS_FLOATING_BAR.height,
               display: "inline-flex",
               alignItems: "stretch",
@@ -5247,9 +5257,7 @@ export function SelectionLayer() {
               >
                 <span
                   style={{
-                    color: selectedNodeIsEditableBlock
-                      ? "rgba(255,255,255,0.50)"
-                      : CHROME.muted3,
+                    color: CHROME.muted3,
                     lineHeight: 0,
                   }}
                 >
@@ -5276,18 +5284,12 @@ export function SelectionLayer() {
                   width: 22,
                   height: 22,
                   borderRadius: CANVAS_CHROME_RADIUS,
-                  background: selectedNodeIsEditableBlock
-                    ? "rgba(255,255,255,0.08)"
-                    : "rgba(124, 58, 237, 0.10)",
-                  color: selectedNodeIsEditableBlock
-                    ? "rgba(255,255,255,0.92)"
-                    : CHROME.accent,
+                  background: "rgba(124, 58, 237, 0.10)",
+                  color: CHROME.accent,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: selectedNodeIsEditableBlock
-                    ? "inset 0 0 0 1px rgba(255,255,255,0.06)"
-                    : `inset 0 0 0 1px rgba(124, 58, 237, 0.16)`,
+                  boxShadow: `inset 0 0 0 1px rgba(124, 58, 237, 0.16)`,
                   flexShrink: 0,
                 }}
               >
@@ -5330,10 +5332,10 @@ export function SelectionLayer() {
                     fontSize: 10,
                     fontWeight: 700,
                     letterSpacing: "0.02em",
-                    color: "white",
-                    background: "rgba(42, 49, 71, 0.95)",
+                    color: CHROME.accent,
+                    background: "rgba(124, 58, 237, 0.10)",
                     borderRadius: CANVAS_CHROME_RADIUS,
-                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)",
+                    boxShadow: "inset 0 0 0 1px rgba(124, 58, 237, 0.16)",
                     flexShrink: 0,
                   }}
                 >
@@ -5358,7 +5360,7 @@ export function SelectionLayer() {
                     style={{
                       width: 1,
                       height: 16,
-                      background: "rgba(255,255,255,0.16)",
+                      background: CHROME.line,
                       margin: "0 4px",
                       flexShrink: 0,
                     }}
@@ -5369,7 +5371,7 @@ export function SelectionLayer() {
                       fontWeight: 600,
                       letterSpacing: "0.10em",
                       textTransform: "uppercase",
-                      color: "rgba(255,255,255,0.55)",
+                      color: CHROME.muted3,
                     }}
                   >
                     {chipPrimaryType}
