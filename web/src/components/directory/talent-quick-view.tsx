@@ -16,7 +16,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Eye, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Images, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
@@ -100,7 +100,7 @@ export function TalentQuickViewButton({
         )}
         data-card-quick-view=""
       >
-        <Eye className="size-3.5" aria-hidden />
+        <Images className="size-3.5" aria-hidden />
       </button>
       {open ? (
         <TalentQuickViewLightbox

@@ -56,3 +56,17 @@
   background: color-mix(in srgb, var(--dir-accent, #c8a04a) 26%, rgba(0, 0, 0, 0.55));
   color: var(--impronta-gold-bright, var(--dir-accent, #c8a04a));
 }
+
+/* Lineup STATE badge (DirectoryCardAdapter, top-left while in lineup).
+ * Restyles the compact inquiry toggle into a solid gold check chip so the
+ * active state reads instantly over any photo; click = remove (unchanged
+ * behavior). Rides the directory accent token like the pill. */
+.lineup-check-badge [data-card-inquiry-toggle] {
+  border-color: var(--dir-accent, #c8a04a);
+  background: color-mix(in srgb, var(--dir-accent, #c8a04a) 88%, #000);
+  color: #14100a;
+  border-radius: 9999px;
+}
+.lineup-check-badge [data-card-inquiry-toggle]:hover {
+  background: var(--dir-accent, #c8a04a);
+}
