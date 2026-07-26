@@ -82,20 +82,31 @@ export function BuilderCoachmarkTip({
             ...(placement === "below"
               ? { top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" }
               : { bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" }),
-            background: "rgba(42, 49, 71, 0.96)",
-            color: "rgba(255,255,255,0.94)",
+            // Light surface, matching every other floating canvas control. It
+            // was the last dark-navy chrome left, and once the selection chip
+            // docked to the bottom bar this tooltip sat on top of it as a dark
+            // slab over a white bar.
+            background: CHROME.surface,
+            color: CHROME.ink,
             fontSize: 11,
             fontWeight: 500,
             lineHeight: 1.35,
             boxShadow: CHROME_SHADOWS.popover,
-            border: `1px solid ${CHROME.lineStrong}`,
+            border: `1px solid ${CHROME.line}`,
           }}
         >
           <span className="flex-1">{message}</span>
           <button
             type="button"
             onClick={dismiss}
-            className="shrink-0 cursor-pointer rounded border-none bg-white/12 px-1.5 py-0.5 text-[10px] font-semibold text-white/90"
+            className="shrink-0 cursor-pointer rounded border-none px-1.5 py-0.5 text-[10px] font-semibold"
+            style={{
+              // bg-white/12 + text-white/90 were invisible on the light surface
+              // — the same white-on-white class of bug as ChipBtn /
+              // ContextMenuButton / CanvasMiniButton.
+              background: "rgba(24,24,27,0.06)",
+              color: CHROME.muted,
+            }}
           >
             Got it
           </button>

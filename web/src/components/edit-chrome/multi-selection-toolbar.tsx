@@ -170,7 +170,8 @@ export function MultiSelectionToolbar({
         // selection chip so both stay visible and centered instead of one
         // floating over the canvas at the element's top-left corner.
         bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
-        left: "50%",
+        // Centre within the space RIGHT of the zoom bar (shared baseline).
+        left: `calc(50% + ${CANVAS_FLOATING_BAR.leftReserve / 2}px)`,
         transform: "translateX(-50%)",
         height: 32,
         display: "inline-flex",
@@ -409,7 +410,8 @@ function BulkStylePanel({
       style={{
         position: "fixed",
         bottom,
-        left: "50%",
+        // Centre within the space RIGHT of the zoom bar (shared baseline).
+        left: `calc(50% + ${CANVAS_FLOATING_BAR.leftReserve / 2}px)`,
         transform: "translateX(-50%)",
         width: 232,
         padding: 10,
@@ -430,7 +432,7 @@ function BulkStylePanel({
           fontWeight: 700,
           letterSpacing: "0.08em",
           textTransform: "uppercase",
-          color: "rgba(255,255,255,0.6)",
+          color: CHROME.muted3,
         }}
       >
         Apply to all selected
@@ -511,7 +513,7 @@ function BulkStyleRow({
         gap: 8,
         fontSize: 11.5,
         fontWeight: 600,
-        color: "rgba(255,255,255,0.82)",
+        color: CHROME.ink,
       }}
     >
       <span style={{ flex: "1 1 auto", minWidth: 0 }}>{label}</span>
@@ -530,7 +532,7 @@ function BulkStyleRow({
               width: 28,
               height: 22,
               padding: 0,
-              border: "1px solid rgba(255,255,255,0.16)",
+              border: `1px solid ${CHROME.line}`,
               borderRadius: 5,
               background: "transparent",
               cursor: disabled ? "not-allowed" : "pointer",
@@ -558,10 +560,10 @@ function BulkStyleRow({
               width: 56,
               height: 22,
               padding: "0 6px",
-              border: "1px solid rgba(255,255,255,0.16)",
+              border: `1px solid ${CHROME.line}`,
               borderRadius: 5,
-              background: "rgba(255,255,255,0.06)",
-              color: "white",
+              background: "rgba(24,24,27,0.03)",
+              color: CHROME.ink,
               fontSize: 11.5,
               fontWeight: 600,
             }}
@@ -585,7 +587,7 @@ function BulkStyleRow({
             border: "none",
             borderRadius: 4,
             background: "transparent",
-            color: "rgba(255,255,255,0.6)",
+            color: CHROME.muted,
             cursor: disabled ? "not-allowed" : "pointer",
             fontSize: 13,
             lineHeight: 1,
