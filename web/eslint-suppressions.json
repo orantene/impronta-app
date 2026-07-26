@@ -89,6 +89,11 @@
       "count": 1
     }
   },
+  "src/app/t/[profileCode]/profile-view.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/components/admin/shell/admin-shell-client.tsx": {
     "max-lines": {
       "count": 1
@@ -1484,6 +1489,11 @@
       "count": 8
     }
   },
+  "src/lib/server-actions/admin-pricing-defaults.ts": {
+    "ratchet/no-untenanted-from": {
+      "count": 3
+    }
+  },
   "src/lib/server-actions/admin-product-discounts.ts": {
     "ratchet/no-untenanted-from": {
       "count": 5
@@ -1864,11 +1874,6 @@
     }
   },
   "src/lib/site-admin/tokens/registry.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
-  "src/app/t/[profileCode]/profile-view.tsx": {
     "max-lines": {
       "count": 1
     }

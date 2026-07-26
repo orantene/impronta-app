@@ -22,6 +22,7 @@ const GLYPH: Record<string, ReactElement> = {
   plan: <g {...S}><rect x="3" y="5.5" width="18" height="13" rx="2.2" /><path d="M3 9.5h18" /><path d="M6.5 14.5h4" /></g>,
   workspace: <g {...S}><path d="M4 7h11M19 7h1M4 12h1M9 12h11M4 17h7M15 17h5" /><circle cx="17" cy="7" r="1.8" /><circle cx="7" cy="12" r="1.8" /><circle cx="13" cy="17" r="1.8" /></g>,
   "commercial-terms": <g {...S}><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /><path d="M9 13h6M9 16.5h4" /></g>,
+  "pricing-defaults": <g {...S}><path d="M12 3v18" /><path d="M16.5 7.5c0-1.7-2-2.8-4.5-2.8S7.5 5.8 7.5 7.5s2 2.4 4.5 2.9 4.5 1.2 4.5 3-2 2.9-4.5 2.9-4.5-1.2-4.5-2.9" /></g>,
   domain: <g {...S}><circle cx="12" cy="12" r="8.4" /><path d="M3.6 12h16.8" /><path d="M12 3.6c2.4 2.2 3.8 5.2 3.8 8.4s-1.4 6.2-3.8 8.4c-2.4-2.2-3.8-5.2-3.8-8.4S9.6 5.8 12 3.6Z" /></g>,
   branding: <g {...S}><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2.2-1 2.2-2 0-1.4-1.2-1.7-1.2-2.8 0-.8.7-1.4 1.6-1.4H16a4 4 0 0 0 4-4c0-4.2-3.6-7.8-8-7.8Z" /><circle cx="8" cy="11" r="1" /><circle cx="12" cy="8" r="1" /><circle cx="16" cy="11" r="1" /></g>,
   "media-watermark": <g {...S}><rect x="3.5" y="5" width="17" height="14" rx="2.2" /><circle cx="9" cy="10" r="1.6" /><path d="m4.5 17 4.5-4.5 3.5 3.5L16 12l4 4.5" /></g>,

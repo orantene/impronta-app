@@ -10,6 +10,7 @@ import { COLORS, FONTS, RADIUS, TRANSITION, meetsPlan, meetsRole, useAdminShell 
 import { AutoAckSettingsRow, LockedPill } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
+import { PricingDefaultsSettingsCard } from "@/components/admin/account/PricingDefaultsSettingsCard";
 import { PageHeader } from "./pages-shared";
 import {
   SETTINGS_SECTION_EVENT,
@@ -110,6 +111,7 @@ type GroupId =
   | "plan"
   | "workspace"
   | "commercial-terms"
+  | "pricing-defaults"
   | "domain"
   | "branding"
   | "team"
@@ -355,6 +357,18 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? <CommercialTermsSettingsCard tenantSlug={tenantSlug} /> : null,
         extraSearch: [{ title: t("dashboard.adminWorkspace.bookingTermsLabel"), desc: t("dashboard.adminWorkspace.bookingTermsDesc") }],
+      },
+      {
+        id: "pricing-defaults",
+        label: "Starting prices",
+        desc: "Shown on directory cards when a talent has not set their own price",
+        visible: !!tenantSlug,
+        rows: [],
+        extra: tenantSlug ? <PricingDefaultsSettingsCard /> : null,
+        extraSearch: [
+          { title: "Starting prices", desc: "Default From $X price on talent cards" },
+          { title: "Default rate", desc: "Per talent type pricing defaults" },
+        ],
       },
       {
         id: "domain",

@@ -61,9 +61,10 @@ export type ApiDirectoryCardRpcRow = {
   rating_avg?: number | null;
   rating_count?: number | null;
   would_book_again_pct?: number | null;
-  /** Cheapest public offering price (see fetchStartingPrices). */
+  /** Resolved starting price (own price, else a tenant/platform default). */
   price_from_cents?: number | null;
   price_from_currency?: string | null;
+  price_from_source?: "talent" | "tenant_default" | "platform_default" | null;
 };
 
 function pickLocalizedName(
@@ -223,5 +224,6 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
     priceFromCents:
       typeof row.price_from_cents === "number" ? row.price_from_cents : null,
     priceFromCurrency: row.price_from_currency ?? null,
+    priceFromSource: row.price_from_source ?? null,
   };
 }
