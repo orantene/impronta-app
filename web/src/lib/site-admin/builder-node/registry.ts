@@ -749,11 +749,15 @@ const embedPropsSchema = z.object({
  */
 const socialPostPropsSchema = z.object({
   provider: z.enum(SOCIAL_POST_PROVIDERS),
+  // Empty is VALID and is the seeded state: a freshly inserted block has no URL
+  // yet (seeding a placeholder post would put someone else's content on the
+  // page). Requiring a valid URL here made every insert fail validation and get
+  // dropped silently — the block could never be added at all. Non-empty values
+  // must still parse to an allow-listed post.
   url: z
     .string()
-    .url()
     .max(2048)
-    .refine((value) => parseSocialPostUrl(value) !== null, {
+    .refine((value) => value === "" || parseSocialPostUrl(value) !== null, {
       message:
         "Paste a full Instagram post/reel URL or a TikTok video URL (profile and story links cannot be embedded).",
     }),
