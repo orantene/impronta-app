@@ -51,7 +51,7 @@ import { TalentReviewsSection } from "@/components/reviews/TalentReviewsSection"
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
-import { NoirReveal } from "./NoirReveal";
+import { NoirBookbarAutoHide, NoirReveal } from "./NoirReveal";
 import {
   heroRatingChipLabel,
   type LightProfileLayoutProps,
@@ -230,7 +230,9 @@ html:has([data-profile-theme="noir"]){ scroll-behavior:smooth; }
 [data-profile-theme="noir"] .nf-foot__pw em{ font-style:normal; color:var(--nf-champagne); }
 
 /* sticky book bar */
-[data-profile-theme="noir"] .nf-bookbar{ position:sticky; bottom:0; z-index:40; background:rgba(10,9,12,0.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px var(--nf-pad); flex-wrap:wrap; border-top:1px solid var(--nf-line); }
+[data-profile-theme="noir"] .nf-bookbar{ transition:transform .28s ease, opacity .28s ease; position:sticky; bottom:0; z-index:40; background:rgba(10,9,12,0.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px var(--nf-pad); flex-wrap:wrap; border-top:1px solid var(--nf-line); }
+[data-profile-theme="noir"][data-bookbar="idle"] .nf-bookbar{ transform:translateY(115%); opacity:0; pointer-events:none; }
+@media (prefers-reduced-motion: reduce){ [data-profile-theme="noir"] .nf-bookbar{ transition:none; } }
 [data-profile-theme="noir"] .nf-bookbar .who{ display:flex; align-items:center; gap:14px; min-width:0; }
 [data-profile-theme="noir"] .nf-bookbar .who img{ width:46px; height:46px; border-radius:50%; object-fit:cover; border:1px solid var(--nf-gold); }
 [data-profile-theme="noir"] .nf-bookbar .who .mono{ width:46px; height:46px; border-radius:50%; border:1px solid var(--nf-gold); display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; color:var(--nf-champagne); }
@@ -397,6 +399,12 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       style={noirVars as React.CSSProperties}
       data-profile-shell
       data-profile-theme="noir"
+      // Sticky book bar starts stowed: at first paint the hero's own
+      // "Inquire" button is on screen, so a second identical CTA in the
+      // bottom bar is pure duplication. NoirBookbarAutoHide reveals it once
+      // the hero CTA scrolls away; the <noscript> style below forces it
+      // visible when JS never runs, so the CTA is never unreachable.
+      data-bookbar="idle"
     >
       {/* Fonts + scoped Noir styles */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -412,9 +420,10 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
       <style dangerouslySetInnerHTML={{ __html: NOIR_CSS }} />
       {/* No-JS / pre-hydration safety: reveal everything if the controller never runs. */}
       <noscript>
-        <style>{`[data-profile-theme="noir"] [data-nf-reveal]{opacity:1!important;transform:none!important}`}</style>
+        <style>{`[data-profile-theme="noir"] [data-nf-reveal]{opacity:1!important;transform:none!important}[data-profile-theme="noir"][data-bookbar="idle"] .nf-bookbar{transform:none!important;opacity:1!important;pointer-events:auto!important}`}</style>
       </noscript>
       <NoirReveal />
+      <NoirBookbarAutoHide />
 
       {resolvedPreview ? (
         <div className="nf-preview-banner">{t("public.profile.previewModeBanner")}</div>
