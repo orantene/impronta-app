@@ -111,6 +111,14 @@ export const directorySchemaV1 = z.object({
   showBadges: z.boolean().default(true),
   showSave: z.boolean().default(true),
   showAddToInquiry: z.boolean().default(true),
+  /** Card eye affordance — media quick-view lightbox, no navigation. */
+  showQuickView: z.boolean().default(true),
+  /**
+   * What a card click does. "modal" (default) = quick-open the profile in the
+   * intercepting-route overlay (URL still becomes /t/<code>, full tracking
+   * parity); "page" = hard navigation to the canonical profile page.
+   */
+  cardClickAction: z.enum(["modal", "page"]).default("modal"),
   hoverBehavior: z
     .enum(["zoom", "swap", "reveal_traits", "none"])
     .default("reveal_traits"),

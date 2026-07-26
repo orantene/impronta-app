@@ -183,16 +183,23 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // Quick-view (card eye affordance) requests more media via ?media=N — the
+  // legacy single-image consumers keep the cheap 3-row read.
+  const mediaLimitRaw = Number(url.searchParams.get("media"));
+  const mediaLimit =
+    Number.isFinite(mediaLimitRaw) && mediaLimitRaw > 0
+      ? Math.min(Math.floor(mediaLimitRaw), 18)
+      : 3;
   const { data: mediaRows } = await supabase
     .from("media_assets")
-    .select("storage_path, bucket_id, width, height, variant_kind, sort_order, created_at")
+    .select("id, storage_path, bucket_id, width, height, variant_kind, sort_order, created_at")
     .eq("owner_talent_profile_id", profile.id)
     .eq("approval_state", "approved")
     .is("deleted_at", null)
     .in("variant_kind", ["public_watermarked", "gallery", "card"])
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true })
-    .limit(3);
+    .limit(mediaLimit);
 
   const residenceRow = resolveResidenceLocationEmbed({
     residence_city: profile.residence_city as
@@ -280,5 +287,21 @@ export async function GET(
           height: chosenMedia?.height ?? null,
         }
       : null,
+    // Quick-view media rail — every approved public asset up to the ?media cap.
+    media: (mediaRows ?? []).flatMap((m) => {
+      if (!m.bucket_id || !m.storage_path) return [];
+      const publicUrl = supabase.storage
+        .from(m.bucket_id)
+        .getPublicUrl(m.storage_path).data.publicUrl;
+      if (!publicUrl) return [];
+      return [
+        {
+          id: m.id as string,
+          url: publicUrl,
+          width: (m.width as number | null) ?? null,
+          height: (m.height as number | null) ?? null,
+        },
+      ];
+    }),
   });
 }

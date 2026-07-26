@@ -59,6 +59,8 @@ type MapCardConfig = {
   >;
   showSave: boolean;
   showAddToInquiry: boolean;
+  showQuickView: boolean;
+  cardClickAction: DirectoryV1["cardClickAction"];
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   maxFieldLines: DirectoryV1["maxFieldLines"];
   nameFallback: DirectoryV1["nameFallback"];
@@ -550,6 +552,9 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
                 show={props.card.show}
                 showSave={props.card.showSave}
                 showAddToInquiry={props.card.showAddToInquiry}
+                showQuickView={props.card.showQuickView}
+                cardClickAction={props.card.cardClickAction}
+                locale={props.locale}
                 cardFieldKeys={props.card.cardFieldKeys}
                 maxFieldLines={props.card.maxFieldLines}
                 nameFallback={props.card.nameFallback}

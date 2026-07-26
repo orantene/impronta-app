@@ -579,6 +579,8 @@ export async function DirectoryComponent({
             showBadges={props.showBadges}
             showSave={props.showSave}
             showAddToInquiry={props.showAddToInquiry}
+            showQuickView={props.showQuickView}
+            cardClickAction={props.cardClickAction}
             cardFieldKeys={props.cardFieldKeys}
             maxFieldLines={props.maxFieldLines}
             nameFallback={props.nameFallback}
