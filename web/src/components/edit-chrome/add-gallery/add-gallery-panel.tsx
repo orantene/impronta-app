@@ -32,6 +32,8 @@ import {
 } from "@/lib/site-admin/add-gallery/catalog-structure";
 
 import { useEditContext } from "../edit-context";
+import { paidPlanInsertBlockMessage } from "@/lib/site-admin/add-gallery/paid-plan-gate";
+import { TabBar } from "./add-gallery-tab-bar";
 import { useBuilderTree } from "../builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { DockFloatingPanel } from "../dock-floating-panel";
@@ -70,59 +72,6 @@ const TAB_TITLE_BY_KEY: Partial<Record<AddGalleryTab, string>> = {
 interface AddGalleryPanelProps {
   open: boolean;
   onClose: () => void;
-}
-
-function TabBar({
-  tabs,
-  active,
-  onChange,
-}: {
-  tabs: ReadonlyArray<{ id: AddGalleryTab; label: string }>;
-  active: AddGalleryTab;
-  onChange: (tab: AddGalleryTab) => void;
-}) {
-  const { t } = useEditorLocale();
-  return (
-    <div
-      className="flex shrink-0 gap-0 border-b"
-      style={{ borderColor: CHROME.line, padding: "0 16px" }}
-      role="tablist"
-      aria-label={t("Add gallery tabs")}
-    >
-      {tabs.map((tab) => {
-        const isActive = tab.id === active;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(tab.id)}
-            className="cursor-pointer rounded-t-[6px] border-none bg-transparent px-[14px] py-[11px] text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
-            style={{
-              color: isActive ? CHROME.accent : CHROME.muted,
-              borderBottom: isActive
-                ? `2px solid ${CHROME.accent}`
-                : "2px solid transparent",
-              marginBottom: -1,
-            }}
-            onMouseEnter={(e) => {
-              if (isActive) return;
-              e.currentTarget.style.background = "rgba(124, 58, 237, 0.06)";
-              e.currentTarget.style.color = CHROME.ink4;
-            }}
-            onMouseLeave={(e) => {
-              if (isActive) return;
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = CHROME.muted;
-            }}
-          >
-            {t(tab.label)}
-          </button>
-        );
-      })}
-    </div>
-  );
 }
 
 function CategoryRail({
@@ -477,6 +426,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     selectBuilderNode,
     notifyTemplateApplied,
     gallerySurface,
+    workspacePlan,
   } = useEditContext();
   // WS2 — read tree from micro-store so edits don't re-render this panel.
   const builderTree = useBuilderTree();
@@ -604,6 +554,8 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const handleInsert = useCallback(
     async (item: AddGalleryItem) => {
       if (pending || !isAddGalleryItemAvailable(item)) return;
+      const paidGate = paidPlanInsertBlockMessage(item, workspacePlan);
+      if (paidGate) return reportMutationError(t(paidGate));
       setPending(true);
       try {
         // W1-L4 — selection → viewport section → end-of-tree; never the far bottom.
@@ -644,6 +596,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       insertBuilderSectionEmbed,
       insertBuilderComponent,
       reportMutationError,
+      workspacePlan, t,
       selectBuilderNode,
       notifyTemplateApplied,
       onClose,

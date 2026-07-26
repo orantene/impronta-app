@@ -716,6 +716,11 @@ function canvasChildSecondaryLabel(node: BuilderNode): string {
       return node.props.provider === "tiktok"
         ? "TikTok post"
         : "Instagram post";
+    case "social_feed":
+      // Same reasoning as social_post: name the network the feed pulls from.
+      return node.props.provider === "tiktok"
+        ? "TikTok feed"
+        : "Instagram feed";
     case "heading":
       return `Heading · H${node.props.level}`;
     case "paragraph":

@@ -16,6 +16,7 @@ import {
 } from "@/lib/site-admin/sections/shared/rich-text";
 
 import { BuilderNodeCarouselTrack } from "./carousel";
+import { SocialFeedWidget } from "./social-feed";
 import { BuilderNodeCodeFrame } from "./code-frame";
 import { BuilderNodeLayoutMotion } from "./layout-motion";
 import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
@@ -633,6 +634,52 @@ const CONTAINER_STYLE: CSSProperties = {
   marginLeft: "auto",
 };
 
+
+// Social-feed widget CSS (grid / masonry / slider / stories). Theme-aware via
+// --token-color-*; hover states are gated on (hover:hover) so touch devices
+// never get sticky overlays; reduced-motion drops the zoom.
+const BUILDER_NODE_SOCIAL_FEED_CSS = `
+.sf-root{display:block;width:100%;min-width:0}
+.sf-header{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:var(--token-color-heading,inherit)}
+.sf-header-mark{display:inline-flex;opacity:0.85}
+.sf-header-handle{font-size:14px;letter-spacing:0.08em;text-transform:uppercase}
+.sf-grid{display:grid;grid-template-columns:repeat(var(--sf-cols,3),minmax(0,1fr));gap:var(--sf-gap,6px)}
+.sf-masonry{columns:var(--sf-cols,3);column-gap:var(--sf-gap,6px)}
+.sf-masonry .sf-tile{margin:0 0 var(--sf-gap,6px);break-inside:avoid}
+.sf-tile{position:relative;display:block;width:100%;padding:0;border:0;background:none;cursor:pointer;overflow:hidden;border-radius:10px}
+.sf-tile .sf-media{transition:transform 600ms cubic-bezier(0.16,1,0.3,1)}
+@media (hover:hover){
+.sf-hover-zoom .sf-tile:hover .sf-media,.sf-hover-zoom-caption .sf-tile:hover .sf-media{transform:scale(1.045)}
+.sf-tile-overlay{opacity:0;transition:opacity 300ms ease}
+.sf-tile:hover .sf-tile-overlay{opacity:1}
+}
+@media (hover:none){.sf-tile-overlay{opacity:1}}
+@media (prefers-reduced-motion:reduce){.sf-tile .sf-media{transition:none}.sf-hover-zoom .sf-tile:hover .sf-media,.sf-hover-zoom-caption .sf-tile:hover .sf-media{transform:none}}
+.sf-tile-overlay{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;padding:10px;background:linear-gradient(180deg,rgba(0,0,0,0.28) 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,0) 55%,rgba(0,0,0,0.55) 100%);color:#fff;pointer-events:none}
+.sf-tile-provider{display:inline-flex;align-self:flex-end;opacity:0.9}
+.sf-tile-caption{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.4;text-align:left}
+.sf-rail-wrap{position:relative}
+.sf-rail{display:flex;gap:var(--sf-gap,6px);overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
+.sf-rail::-webkit-scrollbar{display:none}
+.sf-rail-cell{flex:0 0 auto;width:calc((100% - (var(--sf-cols,3) - 1)*var(--sf-gap,6px))/var(--sf-cols,3));min-width:180px;scroll-snap-align:start}
+.sf-layout-stories .sf-rail-cell{min-width:150px}
+.sf-arrow{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:999px;border:0;background:rgba(255,255,255,0.92);color:#111;font-size:22px;line-height:1;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.22);display:none;align-items:center;justify-content:center}
+@media (hover:hover){.sf-arrow{display:inline-flex}}
+.sf-arrow-prev{left:8px}
+.sf-arrow-next{right:8px}
+.sf-more-row{display:flex;justify-content:center;margin-top:18px}
+.sf-more{border:1px solid currentColor;background:transparent;color:inherit;border-radius:999px;padding:9px 26px;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;cursor:pointer}
+.sf-lightbox{position:fixed;inset:0;z-index:2147483000;background:rgba(8,8,10,0.92);display:flex;align-items:center;justify-content:center;padding:4vh 4vw}
+.sf-lightbox-figure{margin:0;max-width:min(92vw,960px);max-height:92vh;display:flex;flex-direction:column;gap:10px}
+.sf-lightbox-media{max-width:100%;max-height:78vh;object-fit:contain;border-radius:8px}
+.sf-lightbox-caption{color:rgba(255,255,255,0.85);font-size:13px;line-height:1.5;display:flex;gap:14px;justify-content:space-between;align-items:baseline}
+.sf-lightbox-caption a{color:#fff;text-decoration:underline;white-space:nowrap}
+.sf-lightbox-close{position:absolute;top:16px;right:18px;width:40px;height:40px;border:0;border-radius:999px;background:rgba(255,255,255,0.14);color:#fff;font-size:24px;cursor:pointer}
+.sf-lightbox-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:999px;background:rgba(255,255,255,0.14);color:#fff;font-size:26px;cursor:pointer}
+.sf-lightbox-prev{left:14px}
+.sf-lightbox-next{right:14px}
+`;
+
 // Hero-variant carousel CSS (a full-bleed image slider with crossfade / Ken
 // Burns / scrim / grain). Fully theme-tokenized: colors come from --token-color-*
 // so the same hero renders Noir & Or / Espresso / Atelier Blanc by swapping the
@@ -1068,6 +1115,7 @@ ${BUILDER_NODE_CONTAINER_QUERY_CSS}
 ${BUILDER_NODE_NAV_CSS}
 ${BUILDER_NODE_SOCIAL_CSS}
 ${BUILDER_NODE_CAROUSEL_HERO_CSS}
+${BUILDER_NODE_SOCIAL_FEED_CSS}
 `;
 
 /**
@@ -4089,6 +4137,66 @@ function renderBuilderNodeElement(
               NODE_ASPECT_RATIO[node.props.style?.aspectRatio ?? "16:9"],
           })}
         />
+      );
+    }
+    case "social_feed": {
+      const feedItems = node.props.items ?? [];
+      if (feedItems.length === 0) {
+        // Same rule as social_post: an empty block must be visible while
+        // authoring and publish nothing.
+        if (!options.contentLocale?.editorPreview) return null;
+        return (
+          <div
+            key={node.id}
+            data-builder-node-id={node.id}
+            data-builder-node-kind={node.kind}
+            {...builderNodeStyleAttrs(node.props.style)}
+            className="site-builder-node site-builder-node--social-feed"
+            style={inlineNodeStyle(node.props.style, {
+              display: "grid",
+              placeItems: "center",
+              minHeight: 240,
+              padding: 24,
+              border: "1px dashed rgba(24,24,27,0.28)",
+              borderRadius: 12,
+              textAlign: "center",
+              color: "rgba(24,24,27,0.60)",
+              fontSize: 13,
+              lineHeight: 1.5,
+            })}
+          >
+            <span>
+              Add posts in the Content panel: pick images or videos, then link
+              each one to its Instagram or TikTok post.
+            </span>
+          </div>
+        );
+      }
+      return (
+        <div
+          key={node.id}
+          data-builder-node-id={node.id}
+          data-builder-node-kind={node.kind}
+          {...builderNodeStyleAttrs(node.props.style)}
+          className="site-builder-node site-builder-node--social-feed"
+          style={inlineNodeStyle(node.props.style)}
+        >
+          <SocialFeedWidget
+            nodeId={node.id}
+            layout={node.props.layout ?? "grid"}
+            provider={node.props.provider ?? "instagram"}
+            handle={node.props.handle}
+            columns={node.props.columns ?? 3}
+            initialCount={node.props.initialCount ?? 6}
+            gap={node.props.gap ?? "sm"}
+            aspect={node.props.aspect ?? "square"}
+            hover={node.props.hover ?? "zoom-caption"}
+            lightbox={node.props.lightbox ?? true}
+            loadMore={node.props.loadMore ?? "button"}
+            autoplayVideos={node.props.autoplayVideos ?? true}
+            items={feedItems}
+          />
+        </div>
       );
     }
     case "social_post": {

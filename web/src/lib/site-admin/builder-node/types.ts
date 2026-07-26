@@ -18,6 +18,7 @@ export type BuilderNodeKind =
   | "video"
   | "embed"
   | "social_post"
+  | "social_feed"
   | "icon"
   | "pricing_table"
   | "rich_text"
@@ -828,6 +829,41 @@ export interface BuilderSocialPostNode extends BuilderNodeBase {
   };
 }
 
+export type BuilderSocialFeedItem = {
+  id: string;
+  /** Direct media URL (media library or any https image/video). */
+  mediaUrl: string;
+  mediaType?: "image" | "video";
+  /** Poster frame for video items. */
+  posterUrl?: string;
+  /** Where a click leads (the post on Instagram/TikTok). */
+  permalink?: string;
+  caption?: string;
+};
+
+export interface BuilderSocialFeedNode extends BuilderNodeBase {
+  kind: "social_feed";
+  props: {
+    /** Presentation preset. */
+    layout?: "grid" | "masonry" | "slider" | "stories";
+    provider?: "instagram" | "tiktok" | "mixed";
+    /** Account handle shown in the header, without the @. */
+    handle?: string;
+    columns?: number;
+    /** Items shown before Load more / auto-load reveals the rest. */
+    initialCount?: number;
+    gap?: "none" | "sm" | "md" | "lg";
+    aspect?: "square" | "portrait" | "video" | "auto";
+    hover?: "none" | "zoom" | "caption" | "zoom-caption";
+    lightbox?: boolean;
+    loadMore?: "button" | "auto" | "none";
+    autoplayVideos?: boolean;
+    items: BuilderSocialFeedItem[];
+    layerLabel?: string;
+    style?: BuilderNodeStyle;
+  };
+}
+
 export interface BuilderIconNode extends BuilderNodeBase {
   kind: "icon";
   props: {
@@ -1188,6 +1224,7 @@ export type BuilderNode =
   | BuilderVideoNode
   | BuilderEmbedNode
   | BuilderSocialPostNode
+  | BuilderSocialFeedNode
   | BuilderIconNode
   | BuilderPricingTableNode
   | BuilderRichTextNode

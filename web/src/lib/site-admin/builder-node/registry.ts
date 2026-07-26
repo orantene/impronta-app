@@ -34,6 +34,10 @@ const COMPOSABLE_LAYOUT_CHILD_KINDS: ReadonlyArray<BuilderNodeKind> = [
   // hydrated by their embed.js — no oEmbed API call, no token. See
   // lib/social-embed/social-post-url.ts for why.
   "social_post",
+  // Social FEED — a curated gallery of posts/reels (grid/masonry/slider/
+  // stories) with lazy-load + lightbox. Paid plans only (enforced at publish
+  // preflight; the gallery card carries the same gate).
+  "social_feed",
   "icon",
   "pricing_table",
   "rich_text",
@@ -767,6 +771,47 @@ const socialPostPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const HTTPS_URL = z
+  .string()
+  .max(2048)
+  .refine((v) => v.startsWith("https://"), {
+    message: "Media and link URLs must use https://.",
+  });
+
+const socialFeedItemSchema = z.object({
+  id: z.string().min(1).max(64),
+  mediaUrl: HTTPS_URL,
+  mediaType: z.enum(["image", "video"]).optional(),
+  posterUrl: HTTPS_URL.optional(),
+  permalink: HTTPS_URL.optional(),
+  caption: z.string().max(500).optional(),
+});
+
+/**
+ * Deliberately shaped like the Instagram/TikTok API payloads (media url,
+ * media type, permalink, caption) so the OAuth-connected source (Phase 3 of
+ * the social plan) is a data-source swap, not a schema migration. Items are
+ * capped at 48 — a storefront section, not an archive.
+ */
+const socialFeedPropsSchema = z.object({
+  layout: z.enum(["grid", "masonry", "slider", "stories"]).optional(),
+  provider: z.enum(["instagram", "tiktok", "mixed"]).optional(),
+  handle: z.string().max(64).optional(),
+  columns: z.number().int().min(2).max(6).optional(),
+  initialCount: z.number().int().min(2).max(48).optional(),
+  gap: z.enum(["none", "sm", "md", "lg"]).optional(),
+  aspect: z.enum(["square", "portrait", "video", "auto"]).optional(),
+  hover: z.enum(["none", "zoom", "caption", "zoom-caption"]).optional(),
+  lightbox: z.boolean().optional(),
+  loadMore: z.enum(["button", "auto", "none"]).optional(),
+  autoplayVideos: z.boolean().optional(),
+  // Empty is valid and is the seeded state (see social_post: requiring content
+  // at insert time silently breaks insertion).
+  items: z.array(socialFeedItemSchema).max(48),
+  layerLabel: layerLabelSchema,
+  style: builderNodeStyleSchema,
+});
+
 const iconPropsSchema = z.object({
   icon: z.enum(BUILDER_ICON_NAMES),
   label: z.string().max(160).optional(),
@@ -1148,6 +1193,14 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
         "Feature one Instagram or TikTok post. Paste the post URL and it renders with the provider's own embed.",
       children: { type: "none" },
       propsSchema: socialPostPropsSchema,
+    },
+    social_feed: {
+      kind: "social_feed",
+      label: "Social feed",
+      description:
+        "A gallery of posts and reels: grid, masonry, slider or stories, with lazy loading and a lightbox. Paid plans.",
+      children: { type: "none" },
+      propsSchema: socialFeedPropsSchema,
     },
     icon: {
       kind: "icon",

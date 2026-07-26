@@ -51,6 +51,9 @@ export const ES_TEXT: Record<string, string> = {
     "Ocultar esta barra. Vuelve a aparecer la próxima vez que inicies sesión.",
   // Narrow-screen collapse (wave 6.4): label on the control that opens the
   // same six destinations as the desktop link row.
+  // ── Paid-plan block gate (add-gallery insert chokepoint) ──────────────
+  "This block is available on paid plans. Upgrade in Settings, Plan & billing.":
+    "Este bloque está disponible en los planes de pago. Mejora tu plan en Ajustes, Plan y facturación.",
   // ── Topbar — page picker ──────────────────────────────────────────────
   Rename: "Renombrar",
   "Click to switch page · double-click to rename":
