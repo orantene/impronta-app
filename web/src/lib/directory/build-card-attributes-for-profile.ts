@@ -6,6 +6,7 @@ import {
   type ProfileTaxonomyTerm,
 } from "@/lib/directory/format-card-attribute-value";
 import type { DirectoryLocale } from "@/lib/directory/talent-card-dto";
+import { isPlausibleHeightCm } from "@/lib/fields/height-convert";
 
 export const MAX_CARD_ATTRIBUTE_LINES = 12;
 
@@ -32,7 +33,10 @@ export function buildCardAttributesForProfile(
 
   if (heightCardDef) {
     const h = profile.height_cm;
-    if (h != null && Number.isFinite(Number(h))) {
+    // Plausibility gate, not just finiteness: a talent who entered their
+    // height in metres ("2") used to publish a literal "2 cm" line on their
+    // public card. Suppress implausible values instead of shipping nonsense.
+    if (h != null && isPlausibleHeightCm(h)) {
       blocks.push({
         key: "height_cm",
         label_en: heightCardDef.label_en,
