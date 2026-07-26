@@ -165,17 +165,31 @@ export function DirectoryCardAdapter({
             reflects cart membership as "In lineup" with a filled pill. On touch
             devices (no hover) the pill stays visible so the action is never
             hidden; on desktop it fades in on card hover / focus. */}
+        {/* Lineup STATE badge — top-left, always visible while active. A
+            compact gold check; hover reveals the label, click removes (the
+            shared TalentCardActions keeps the Undo-flash + fly animation
+            behavior single-source). Styled via .lineup-check-badge in
+            talent-card-actions.css. */}
+        {showAddToInquiry && inLineup ? (
+          <div
+            className="lineup-check-badge absolute left-2.5 top-2.5 z-[2]"
+            title={locale === "es" ? "En tu lineup — quitar" : "In lineup — click to remove"}
+          >
+            <TalentCardActions
+              talentProfileId={card.id}
+              profileCode={card.profileCode ?? ""}
+              displayName={card.displayName}
+              sourcePage={pathname}
+              variant="compact"
+              hideFavorite
+              locale={locale}
+            />
+          </div>
+        ) : null}
         {showSave || showAddToInquiry || showQuickView ? (
           <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
-            {showAddToInquiry ? (
-              <div
-                className={
-                  inLineup
-                    ? // Active lineup state — ALWAYS visible (state, not action).
-                      "pointer-events-auto"
-                    : "pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100"
-                }
-              >
+            {showAddToInquiry && !inLineup ? (
+              <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
                 <TalentCardActions
                   talentProfileId={card.id}
                   profileCode={card.profileCode ?? ""}
@@ -193,7 +207,7 @@ export function DirectoryCardAdapter({
               </div>
             ) : null}
             {showQuickView && data.profileHref ? (
-              <div className="pointer-events-none opacity-0 transition-opacity duration-200 focus-within:pointer-events-auto focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100">
+              <div>
                 <TalentQuickViewButton
                   talentProfileId={card.id}
                   profileCode={card.profileCode ?? ""}
