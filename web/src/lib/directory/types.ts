@@ -99,6 +99,12 @@ export type DirectoryCardDTO = {
    */
   priceFromCents?: number | null;
   priceFromCurrency?: string | null;
+  /**
+   * Where the number came from: the talent themselves, or a default set by
+   * their agency / the platform. Carried so the price chip can be measured
+   * (and presented differently) by source.
+   */
+  priceFromSource?: "talent" | "tenant_default" | "platform_default" | null;
 };
 
 /**

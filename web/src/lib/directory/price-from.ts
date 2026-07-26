@@ -20,6 +20,38 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 export type StartingPrice = { amountCents: number; currency: string };
 
+/**
+ * Talents with ANY published, publicly-visible offering — priced or not.
+ *
+ * Intersected with "has no resolvable price" (i.e. absent from
+ * fetchStartingPrices) this identifies the talents who published a service and
+ * deliberately withheld the number: "quote on request" / custom pricing. They
+ * have MADE a pricing statement, so no tenant or platform default may speak
+ * over it — see resolveStartingPrice's consent gate. Telling those apart from
+ * talents with no pricing at all is the whole reason this second query exists.
+ */
+export async function fetchTalentsWithPublishedOfferings(
+  supabase: SupabaseClient,
+  talentProfileIds: string[],
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (talentProfileIds.length === 0) return out;
+
+  const { data, error } = await supabase
+    .from("talent_offerings")
+    .select("talent_profile_id")
+    .in("talent_profile_id", talentProfileIds)
+    .eq("status", "published")
+    .eq("moderation_state", "approved")
+    .in("visibility", ["public", "on_request"]);
+
+  if (error || !data) return out;
+  for (const row of data as { talent_profile_id: string }[]) {
+    out.add(row.talent_profile_id);
+  }
+  return out;
+}
+
 type OfferingPriceRow = {
   talent_profile_id: string;
   amount_cents: number | null;

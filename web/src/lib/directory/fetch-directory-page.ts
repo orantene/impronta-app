@@ -32,7 +32,13 @@ import {
   DIRECTORY_PAGE_SIZE_DEFAULT,
   DIRECTORY_PAGE_SIZE_MAX,
 } from "@/lib/directory/types";
-import { fetchStartingPrices } from "@/lib/directory/price-from";
+import {
+  fetchStartingPrices,
+  fetchTalentsWithPublishedOfferings,
+} from "@/lib/directory/price-from";
+import { loadTenantPricingDefaults } from "@/lib/directory/pricing-defaults";
+import { resolveStartingPrice } from "@/lib/directory/pricing-defaults-shape";
+import { loadPlatformTalentPriceDefault } from "@/lib/platform/talent-price-defaults";
 import {
   applyDemandSmoothing,
   getDemandScores,
@@ -1059,10 +1065,19 @@ export async function fetchDirectoryPage(
   // "From $X" chip source + demand-ranking signal, fetched concurrently for
   // the page's talents. Both are additive: empty maps degrade to the old
   // behavior (no chip, base recency order).
-  const [startingPriceByProfile, demandScores] = await Promise.all([
+  const [
+    startingPriceByProfile,
+    talentsWithOfferings,
+    tenantPricingDefaults,
+    platformPriceDefault,
+    demandScores,
+  ] = await Promise.all([
     auditTime(audit, timings, "startingPricesMs", () =>
       fetchStartingPrices(supabase, profileIds),
     ),
+    fetchTalentsWithPublishedOfferings(supabase, profileIds),
+    loadTenantPricingDefaults(tenantScopeId),
+    loadPlatformTalentPriceDefault(),
     sort === "recommended" && tenantScopeId
       ? auditTime(audit, timings, "demandScoresMs", () =>
           getDemandScores(tenantScopeId),
@@ -1100,6 +1115,10 @@ export async function fetchDirectoryPage(
         name_es: primaryTerm.name_es ?? null,
       };
     }
+    // The slug is already in hand from the taxonomy join (it was being
+    // discarded); the pricing cascade keys per-type defaults off it, so no
+    // extra query is needed.
+    const primaryTypeSlug = primaryTerm?.slug ?? null;
 
     if (fitLabelsEnabled) {
       for (const taxonomyRow of taxonomyRows) {
@@ -1242,10 +1261,25 @@ export async function fetchDirectoryPage(
       would_book_again_pct: reviewsStandingEnabled
         ? profile.would_book_again_pct
         : null,
-      price_from_cents:
-        startingPriceByProfile.get(profile.id)?.amountCents ?? null,
-      price_from_currency:
-        startingPriceByProfile.get(profile.id)?.currency ?? null,
+      // Cascade: the talent's own published price -> their tenant's default
+      // for this talent type -> the tenant floor -> the platform floor. A
+      // talent who published a service and chose "quote on request" is never
+      // overridden (see resolveStartingPrice's consent gate).
+      ...(() => {
+        const resolved = resolveStartingPrice({
+          ownPrice: startingPriceByProfile.get(profile.id) ?? null,
+          hasDeliberateQuoteOnly: talentsWithOfferings.has(profile.id),
+          primaryTypeSlug,
+          tenantDefaults: tenantPricingDefaults,
+          platformFromCents: platformPriceDefault.fromCents,
+          platformCurrency: platformPriceDefault.currency,
+        });
+        return {
+          price_from_cents: resolved?.amountCents ?? null,
+          price_from_currency: resolved?.currency ?? null,
+          price_from_source: resolved?.source ?? null,
+        };
+      })(),
     };
   });
 
