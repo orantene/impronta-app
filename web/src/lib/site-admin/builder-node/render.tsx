@@ -103,6 +103,29 @@ export interface BuilderNodeRenderDataSources {
     label?: string;
   }>;
   mediaAssets?: ReadonlyArray<BuilderImageMediaAsset>;
+  /**
+   * Phase 3 — cached Instagram/TikTok media for THIS tenant, keyed by provider.
+   * Injected by the server caller from `readCachedFeedItems`; a `social_feed`
+   * node with `source: "connected"` renders these instead of its authored
+   * `items`. Absent (or empty) ⇒ the node falls back to its authored items and
+   * never blanks out — same contract as `socialLinks` above.
+   *
+   * The render path NEVER fetches: a vendor outage or rate limit must not be
+   * able to slow or break a public tenant page.
+   */
+  socialFeeds?: Readonly<
+    Record<
+      string,
+      ReadonlyArray<{
+        id: string;
+        mediaUrl: string;
+        mediaType: "image" | "video";
+        posterUrl?: string;
+        permalink?: string;
+        caption?: string;
+      }>
+    >
+  >;
 }
 
 export interface BuilderNodeRenderOptions {
@@ -4140,7 +4163,18 @@ function renderBuilderNodeElement(
       );
     }
     case "social_feed": {
-      const feedItems = node.props.items ?? [];
+      // Connected source reads the cache the cron fills; falls back to authored
+      // items when the account is not connected yet or the cache is empty, so
+      // switching the toggle can never blank a live page.
+      const connected =
+        node.props.source === "connected"
+          ? (options.dataSources?.socialFeeds?.[node.props.provider ?? "instagram"] ??
+             [])
+          : [];
+      const feedItems =
+        connected.length > 0
+          ? connected.map((item) => ({ ...item }))
+          : (node.props.items ?? []);
       if (feedItems.length === 0) {
         // Same rule as social_post: an empty block must be visible while
         // authoring and publish nothing.
@@ -4166,8 +4200,9 @@ function renderBuilderNodeElement(
             })}
           >
             <span>
-              Add posts in the Content panel: pick images or videos, then link
-              each one to its Instagram or TikTok post.
+              {node.props.source === "connected"
+                ? "Connect Instagram or TikTok in Settings, Integrations, and your latest posts appear here."
+                : "Add posts in the Content panel: pick images or videos, then link each one to its Instagram or TikTok post."}
             </span>
           </div>
         );

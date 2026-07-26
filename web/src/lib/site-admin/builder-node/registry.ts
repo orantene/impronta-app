@@ -794,6 +794,7 @@ const socialFeedItemSchema = z.object({
  * capped at 48 — a storefront section, not an archive.
  */
 const socialFeedPropsSchema = z.object({
+  source: z.enum(["manual", "connected"]).optional(),
   layout: z.enum(["grid", "masonry", "slider", "stories"]).optional(),
   provider: z.enum(["instagram", "tiktok", "mixed"]).optional(),
   handle: z.string().max(64).optional(),

@@ -844,6 +844,12 @@ export type BuilderSocialFeedItem = {
 export interface BuilderSocialFeedNode extends BuilderNodeBase {
   kind: "social_feed";
   props: {
+    /**
+     * Where posts come from. "connected" pulls the tenant's linked account via
+     * the feed cache (auto-updating); "manual" uses the curated `items`.
+     * Defaults to manual so an existing block never silently changes source.
+     */
+    source?: "manual" | "connected";
     /** Presentation preset. */
     layout?: "grid" | "masonry" | "slider" | "stories";
     provider?: "instagram" | "tiktok" | "mixed";

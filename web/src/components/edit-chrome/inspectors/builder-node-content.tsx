@@ -1024,6 +1024,17 @@ export function BuilderNodeContentInspector({
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Feed">
           <div className="flex flex-col gap-3">
+            {select("Posts come from", feed.source ?? "manual", [
+              ["manual", "Posts I add below"],
+              ["connected", "My connected account (auto-updates)"],
+            ], (v) => void commitPatch({ source: v }))}
+            {feed.source === "connected" ? (
+              <p className={KIT.hint}>
+                Pulls your latest posts from the account connected in Settings,
+                Integrations. Until that account is connected, the posts you add
+                below are shown instead.
+              </p>
+            ) : null}
             {select("Layout", feed.layout ?? "grid", [
               ["grid", "Grid"],
               ["masonry", "Masonry"],
