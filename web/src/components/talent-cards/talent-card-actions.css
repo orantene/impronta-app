@@ -70,3 +70,42 @@
 .lineup-check-badge [data-card-inquiry-toggle]:hover {
   background: var(--dir-accent, #c8a04a);
 }
+
+/* Touch comfort — expand the HIT AREA without touching the visual circle.
+ *
+ * The in-media card controls are 32px circles. That already clears WCAG 2.2
+ * AA target size (SC 2.5.8 = 24x24 CSS px); the 44px figure people quote is
+ * the platform/AAA guideline. Growing the circles to 44px would have made the
+ * top-right cluster heavier on exactly the small screens where it is already
+ * the busiest thing on the card, so instead each control keeps its 32px look
+ * and gains an invisible tap pad.
+ *
+ * Sizing is deliberate: 44px tall (nothing sits above or below in the
+ * cluster) but only 40px wide. The controls sit 8px apart, so a full 44px
+ * width would make neighbouring pads overlap by 4px and steal each other's
+ * taps — 40px meets edge-to-edge exactly and never overlaps.
+ *
+ * Coarse pointers only: on mouse the 32px circle is already an easy target
+ * and an invisible pad would only create surprise hover/click zones.
+ */
+@media (pointer: coarse) {
+  .talent-card-actions__favorite,
+  [data-card-quick-view],
+  [data-card-inquiry-toggle] {
+    position: relative;
+  }
+
+  .talent-card-actions__favorite::after,
+  [data-card-quick-view]::after,
+  [data-card-inquiry-toggle]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    /* Purely a hit surface — never paints, never affects layout. */
+    background: transparent;
+  }
+}
