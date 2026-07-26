@@ -11,6 +11,7 @@ import {
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
+import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
@@ -155,8 +156,15 @@ export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
   children,
+  modal,
 }: Readonly<{
   children: React.ReactNode;
+  /**
+   * @modal parallel slot — intercepted routes render here ON TOP of the
+   * current page (directory quick-open profile: @modal/(.)t/[profileCode]).
+   * Resolves to @modal/default.tsx (null) on every non-intercepted render.
+   */
+  modal: React.ReactNode;
 }>) {
   const [siteTheme, publicFontPreset, publicScope] = await Promise.all([
     getSiteTheme(),
@@ -221,9 +229,15 @@ export default async function RootLayout({
           // surface sends no tenant_id.
           tenantId={publicScope?.tenantId}
         />
+        {/* SPA page_view — GA4/pixel parity for client-side navigations
+            (gtag config above uses send_page_view:false; this owns it). */}
+        <SpaPageViewTracker />
         <WebVitalsReporter />
         <CspViolationReporter />
         {children}
+        {/* Intercepted-route overlays (profile quick-open). Sibling of the
+            page so closing = router.back() restores the page untouched. */}
+        {modal}
         {/* Tenant custom code — body snippet (end of <body>). Storefront-only. */}
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />

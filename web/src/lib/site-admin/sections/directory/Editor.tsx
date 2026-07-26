@@ -694,6 +694,22 @@ export function DirectoryEditor({
             checked={p.showAddToInquiry}
             onChange={(v) => set("showAddToInquiry", v)}
           />
+          <FieldToggle
+            label="Show quick view (media peek)"
+            checked={p.showQuickView}
+            onChange={(v) => set("showQuickView", v)}
+          />
+          <FieldSelect
+            label="Card click opens"
+            value={p.cardClickAction}
+            onChange={(v) =>
+              set("cardClickAction", v as DirectoryV1["cardClickAction"])
+            }
+            options={[
+              { value: "modal", label: "Profile overlay (stay on page)" },
+              { value: "page", label: "Full profile page" },
+            ]}
+          />
           <FieldSelect
             label="Hover behavior"
             value={p.hoverBehavior}

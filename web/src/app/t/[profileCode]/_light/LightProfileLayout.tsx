@@ -41,7 +41,7 @@ import { TalentCardActions } from "@/components/talent-cards/talent-card-actions
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 import type { ServiceMenuItem } from "@/lib/talent/services-menu-types";
-import type { TalentServiceAreaRow } from "../page";
+import type { TalentServiceAreaRow } from "../profile-view";
 import type {
   TalentRatingSummary,
   TalentReview,

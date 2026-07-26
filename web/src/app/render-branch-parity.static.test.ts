@@ -89,7 +89,7 @@ const SCANNED: { rel: string; note: string }[] = [
   // <SkipToContent/> + <SitePageViewAnalytics/> at the return root and the
   // degenerate fallback's id="main-content".
   {
-    rel: "app/t/[profileCode]/page.tsx",
+    rel: "app/t/[profileCode]/profile-view.tsx",
     note: "talent profile — skip-link + analytics root + config-fallback landmark",
   },
   // The talent profile's main render uses LightProfileLayout's <main>, which

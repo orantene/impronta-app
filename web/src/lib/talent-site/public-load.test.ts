@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PUBLIC_PAGE_SRC = readFileSync(
-  join(process.cwd(), "src/app/t/[profileCode]/page.tsx"),
+  join(process.cwd(), "src/app/t/[profileCode]/profile-view.tsx"),
   "utf8",
 );
 

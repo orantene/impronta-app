@@ -13,7 +13,11 @@ import {
   directorySurfaceFromTenantId,
   getCachedDirectoryFilterSidebarModel,
 } from "@/lib/directory/field-driven-filters";
-import { getPublicTenantScope } from "@/lib/saas/scope";
+import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
+import {
+  buildRosterItemListJsonLd,
+  jsonLdToString,
+} from "@/lib/seo/talent-json-ld";
 import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCardKit } from "@/lib/site-admin/presets/card-kits";
@@ -299,6 +303,27 @@ export async function DirectoryComponent({
   const hasResults = seedItems.length > 0;
   const seedFailed = initialPage === null;
 
+  // SEO — schema.org ItemList of the seeded roster page. Absolute URLs on an
+  // agency host; skipped elsewhere (previews / unknown hosts have no stable
+  // canonical). Thin Person entries only; the profile page owns the full
+  // ProfilePage/Person JSON-LD.
+  const hostCtx = await getPublicHostContext();
+  const rosterJsonLd =
+    hostCtx.kind === "agency" && hostCtx.hostname && hasResults
+      ? buildRosterItemListJsonLd(
+          `https://${hostCtx.hostname}/directory`,
+          seedItems
+            .filter((it) => it.profileCode)
+            .slice(0, 36)
+            .map((it) => ({
+              url: `https://${hostCtx.hostname}/t/${encodeURIComponent(it.profileCode!)}`,
+              name: it.displayName,
+              jobTitle: it.primaryTalentTypeLabel ?? null,
+              imageUrl: it.thumbnail?.url ?? null,
+            })),
+        )
+      : null;
+
   const topBarFacet =
     props.topBarMode === "talent_type" && sidebar.topBarFacet
       ? {
@@ -546,6 +571,16 @@ export async function DirectoryComponent({
             </p>
           </div>
         ) : (
+          <>
+          {rosterJsonLd ? (
+            <script
+              type="application/ld+json"
+              // Pre-stringified — React must NOT escape JSON-LD content.
+              dangerouslySetInnerHTML={{
+                __html: jsonLdToString(rosterJsonLd),
+              }}
+            />
+          ) : null}
           <DirectoryReactiveResults
             initialPage={initialPage!}
             seedSignature={seedSignature}
@@ -579,6 +614,8 @@ export async function DirectoryComponent({
             showBadges={props.showBadges}
             showSave={props.showSave}
             showAddToInquiry={props.showAddToInquiry}
+            showQuickView={props.showQuickView}
+            cardClickAction={props.cardClickAction}
             cardFieldKeys={props.cardFieldKeys}
             maxFieldLines={props.maxFieldLines}
             nameFallback={props.nameFallback}
@@ -586,6 +623,7 @@ export async function DirectoryComponent({
             columnsTablet={props.columnsTablet}
             columnsMobile={props.columnsMobile}
           />
+          </>
         )}
       </div>
     </section>

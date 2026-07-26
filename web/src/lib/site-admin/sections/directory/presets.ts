@@ -52,6 +52,8 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   showBadges: false,
   showSave: true,
   showAddToInquiry: true,
+  showQuickView: true,
+  cardClickAction: "modal",
   hoverBehavior: "reveal_traits",
   cardFieldKeys: [],
   maxFieldLines: 3,

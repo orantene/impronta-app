@@ -102,6 +102,8 @@ export function DirectoryReactiveResults({
   showBadges,
   showSave,
   showAddToInquiry,
+  showQuickView,
+  cardClickAction,
   cardFieldKeys,
   maxFieldLines,
   nameFallback,
@@ -162,6 +164,10 @@ export function DirectoryReactiveResults({
   showSave: boolean;
   /** Render the per-card "Inquire / Added" cart bar. */
   showAddToInquiry: boolean;
+  /** Render the per-card quick-view (eye) media peek. */
+  showQuickView: boolean;
+  /** Card click → profile modal (default) or hard page navigation. */
+  cardClickAction: DirectoryV1["cardClickAction"];
   /** Catalog-field allow-list + order for the card trait row. */
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   /** Cap on the card trait lines. */
@@ -207,6 +213,8 @@ export function DirectoryReactiveResults({
           showBadges={showBadges}
           showSave={showSave}
           showAddToInquiry={showAddToInquiry}
+          showQuickView={showQuickView}
+          cardClickAction={cardClickAction}
           cardFieldKeys={cardFieldKeys}
           maxFieldLines={maxFieldLines}
           nameFallback={nameFallback}
@@ -260,6 +268,8 @@ function DirectoryReactiveResultsInner({
   showBadges,
   showSave,
   showAddToInquiry,
+  showQuickView,
+  cardClickAction,
   cardFieldKeys,
   maxFieldLines,
   nameFallback,
@@ -300,6 +310,8 @@ function DirectoryReactiveResultsInner({
   showBadges: boolean;
   showSave: boolean;
   showAddToInquiry: boolean;
+  showQuickView: boolean;
+  cardClickAction: DirectoryV1["cardClickAction"];
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   maxFieldLines: DirectoryV1["maxFieldLines"];
   nameFallback: DirectoryV1["nameFallback"];
@@ -593,6 +605,8 @@ function DirectoryReactiveResultsInner({
                 },
                 showSave,
                 showAddToInquiry,
+                showQuickView,
+                cardClickAction,
                 cardFieldKeys,
                 maxFieldLines,
                 nameFallback,
@@ -633,6 +647,8 @@ function DirectoryReactiveResultsInner({
               }}
               showSave={showSave}
               showAddToInquiry={showAddToInquiry}
+              showQuickView={showQuickView}
+              cardClickAction={cardClickAction}
               cardFieldKeys={cardFieldKeys}
               maxFieldLines={maxFieldLines}
               nameFallback={nameFallback}

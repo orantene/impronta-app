@@ -4,6 +4,8 @@ import { useRef } from "react";
 import { usePathname } from "next/navigation";
 
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
+import { TalentQuickViewButton } from "@/components/directory/talent-quick-view";
+import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 
@@ -40,6 +42,9 @@ export function DirectoryCardAdapter({
   nameFallback,
   showSave,
   showAddToInquiry,
+  showQuickView = true,
+  cardClickAction = "modal",
+  locale = "en",
   cardFieldKeys,
   maxFieldLines,
   density = "comfortable",
@@ -63,6 +68,16 @@ export function DirectoryCardAdapter({
   showSave: boolean;
   /** Render the in-media hover-revealed "Inquire" cart pill over the card. */
   showAddToInquiry: boolean;
+  /** Render the quick-view (eye) media-peek affordance over the card. */
+  showQuickView?: boolean;
+  /**
+   * "modal" (default): the card's soft navigation is intercepted by
+   * @modal/(.)t and quick-opens the profile overlay. "page": force a hard
+   * navigation so the canonical profile page renders instead.
+   */
+  cardClickAction?: DirectoryV1["cardClickAction"];
+  /** Locale for quick-view copy + analytics. */
+  locale?: string;
   /** Catalog-field allow-list + order; empty = catalog default order. */
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   /** Cap on the catalog trait lines under the chips. */
@@ -79,8 +94,15 @@ export function DirectoryCardAdapter({
 }) {
   const pathname = usePathname();
   const mediaRef = useRef<HTMLDivElement>(null);
+  const cart = useInquiryCart();
 
   const data = mapDtoToCardData(card, pathname);
+
+  // STATE must stay visible; only ACTIONS may hide behind hover. When the
+  // talent is in the visitor's lineup the pill (now reading "In lineup" ✓)
+  // stays persistent on the resting card — previously the active state was
+  // invisible until hover, which read as "nothing selected".
+  const inLineup = cart.isReady && cart.isInCart(card.id);
 
   const style: "portrait" | "editorial" =
     cardStyle === "editorial" ? "editorial" : "portrait";
@@ -100,8 +122,29 @@ export function DirectoryCardAdapter({
   // and focus-within keeps it keyboard-accessible.
   const revealTraitsOnHover = hoverBehavior === "reveal_traits";
 
+  // cardClickAction="page" — defeat the route interception by turning the
+  // card root's soft <Link> navigation into a hard load. Capture-phase so it
+  // runs before Next's Link handler; overlay action buttons are siblings of
+  // the root link, so closest() keeps them unaffected.
+  const handleClickCapture =
+    cardClickAction === "page" && data.profileHref
+      ? (event: React.MouseEvent) => {
+          const link = (event.target as HTMLElement).closest?.(
+            "a.talent-card",
+          );
+          if (!link) return;
+          if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+          event.preventDefault();
+          event.stopPropagation();
+          window.location.assign(data.profileHref);
+        }
+      : undefined;
+
   return (
-    <div className="group/cardwrap relative flex flex-col">
+    <div
+      className="group/cardwrap relative flex flex-col"
+      onClickCapture={handleClickCapture}
+    >
       <div className="relative" ref={mediaRef}>
         <DirectoryCard
           data={data}
@@ -122,10 +165,17 @@ export function DirectoryCardAdapter({
             reflects cart membership as "In lineup" with a filled pill. On touch
             devices (no hover) the pill stays visible so the action is never
             hidden; on desktop it fades in on card hover / focus. */}
-        {showSave || showAddToInquiry ? (
+        {showSave || showAddToInquiry || showQuickView ? (
           <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
             {showAddToInquiry ? (
-              <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
+              <div
+                className={
+                  inLineup
+                    ? // Active lineup state — ALWAYS visible (state, not action).
+                      "pointer-events-auto"
+                    : "pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100"
+                }
+              >
                 <TalentCardActions
                   talentProfileId={card.id}
                   profileCode={card.profileCode ?? ""}
@@ -138,6 +188,24 @@ export function DirectoryCardAdapter({
                     mediaRef.current
                       ?.querySelector("img")
                       ?.getBoundingClientRect() ?? null
+                  }
+                />
+              </div>
+            ) : null}
+            {showQuickView && data.profileHref ? (
+              <div className="pointer-events-none opacity-0 transition-opacity duration-200 focus-within:pointer-events-auto focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100">
+                <TalentQuickViewButton
+                  talentProfileId={card.id}
+                  profileCode={card.profileCode ?? ""}
+                  displayName={card.displayName}
+                  profileHref={data.profileHref}
+                  thumbnailUrl={card.thumbnail?.url ?? null}
+                  locale={locale}
+                  sourcePage={pathname}
+                  openLabel={locale === "es" ? "Vista rápida" : "Quick view"}
+                  closeLabel={locale === "es" ? "Cerrar" : "Close"}
+                  viewProfileLabel={
+                    locale === "es" ? "Ver perfil" : "View profile"
                   }
                 />
               </div>
