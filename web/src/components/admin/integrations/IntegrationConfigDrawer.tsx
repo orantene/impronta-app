@@ -50,7 +50,9 @@ export function IntegrationConfigDrawer({
   onChanged: () => void;
 }) {
   const t = useT();
-  const visual = resolveIntegrationStatus(integration);
+  const visual = resolveIntegrationStatus(integration, {
+    providerConfigured: integration.providerConfigured,
+  });
 
   // Seed inputs from the loaded public values. Secret fields start blank — a
   // present secret is shown via masked last4, not its value.
@@ -70,8 +72,24 @@ export function IntegrationConfigDrawer({
   const usingInheritedDefault =
     integration.inheritable && integration.credentialMode === "inherit";
   const isYouTube = integration.key === "youtube";
+  // Providers with a built OAuth flow. The drawer used to hard-code YouTube, so
+  // an Instagram/TikTok card would have shown a Connect button that launched a
+  // GOOGLE consent screen. Keyed off the catalog's `connection` plus this
+  // allow-list so a new catalog entry can't silently claim a flow that has no
+  // callback route behind it.
+  const OAUTH_PROVIDERS = new Set(["youtube", "instagram", "tiktok"]);
   const canOAuthConnect =
-    canManage && integration.connection === "oauth" && isYouTube;
+    canManage &&
+    integration.connection === "oauth" &&
+    OAUTH_PROVIDERS.has(integration.key);
+  // Social feed providers surface a "Reconnect needed" state: a token that
+  // expired or was revoked leaves the cached feed rendering while the operator
+  // is told to act — silence here would look like a broken feed.
+  const needsReconnect = integration.config.needs_reconnect === true;
+  const connectedHandle =
+    typeof integration.config.handle === "string"
+      ? (integration.config.handle as string)
+      : null;
 
   // Privacy control: whether the verified/connected workspace YouTube channel is
   // mirrored onto the public site (header/footer). DEFAULT OFF — connecting and
@@ -188,7 +206,10 @@ export function IntegrationConfigDrawer({
   const handleOAuthConnect = async () => {
     const url = new URL("/api/connections/oauth/start", window.location.origin);
     url.searchParams.set("owner", "workspace");
-    url.searchParams.set("provider", "youtube");
+    // The provider is the integration being configured — NOT a constant. This
+    // was hard-coded to "youtube", which would have sent an Instagram connect
+    // into a Google consent screen.
+    url.searchParams.set("provider", integration.key);
     url.searchParams.set("tenantSlug", tenantSlug);
     url.searchParams.set("returnTo", window.location.pathname + window.location.search);
     window.location.assign(url.toString());
@@ -331,7 +352,9 @@ export function IntegrationConfigDrawer({
               pendingLabel={t("dashboard.adminWorkspace.integrations.openingPending")}
               style={{ flexShrink: 0 }}
             >
-              {t("dashboard.adminWorkspace.integrations.connectWithGoogle")}
+              {isYouTube
+                ? t("dashboard.adminWorkspace.integrations.connectWithGoogle")
+                : `${t("dashboard.adminWorkspace.integrations.connect")} ${integration.label}`}
             </AsyncButton>
           </div>
         )}

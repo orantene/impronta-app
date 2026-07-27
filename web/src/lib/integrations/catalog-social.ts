@@ -8,7 +8,8 @@ import type { IntegrationDef } from "./catalog";
  * its definition site, so consumers still read one catalog.
  */
 
-const NS = "integrations";
+// MUST match catalog.ts — a divergent namespace renders raw keys in the UI.
+const NS = "dashboard.adminIntegrationsCatalog.items";
 
 export const SOCIAL_FEED_INTEGRATIONS: Record<string, IntegrationDef> = {
   // ─── Social — Instagram (OAuth, powers the live social_feed source) ───────
@@ -32,9 +33,9 @@ export const SOCIAL_FEED_INTEGRATIONS: Record<string, IntegrationDef> = {
       "Tulala stores an encrypted long-lived token and refreshes it automatically so the feed keeps updating.",
     ],
     instructionKeys: [
-      `${NS}.instagram.instructions.0`,
-      `${NS}.instagram.instructions.1`,
-      `${NS}.instagram.instructions.2`,
+      `${NS}.instagram.steps.s1`,
+      `${NS}.instagram.steps.s2`,
+      `${NS}.instagram.steps.s3`,
     ],
     fields: [
       {
@@ -63,9 +64,9 @@ export const SOCIAL_FEED_INTEGRATIONS: Record<string, IntegrationDef> = {
       "Tulala stores encrypted tokens and refreshes them automatically.",
     ],
     instructionKeys: [
-      `${NS}.tiktok.instructions.0`,
-      `${NS}.tiktok.instructions.1`,
-      `${NS}.tiktok.instructions.2`,
+      `${NS}.tiktok.steps.s1`,
+      `${NS}.tiktok.steps.s2`,
+      `${NS}.tiktok.steps.s3`,
     ],
     fields: [
       {

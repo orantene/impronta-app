@@ -36,6 +36,7 @@ export function IntegrationCard({
   const isLink = integration.connection === "link";
   const visual = resolveIntegrationStatus(integration, {
     locked: integration.locked,
+    providerConfigured: integration.providerConfigured,
   });
 
   // A compact one-line summary of what's configured (no full secrets — last4

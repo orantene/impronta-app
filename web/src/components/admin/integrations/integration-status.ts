@@ -17,6 +17,8 @@ export type IntegrationStatusKind =
   | "connected"
   | "inherited"
   | "action_needed"
+  | "reconnect"
+  | "setup_required"
   | "error"
   | "locked";
 
@@ -39,9 +41,38 @@ export type IntegrationStatusVisual = {
 const STATUS_NS = "dashboard.adminIntegrationsCatalog.status";
 
 export function resolveIntegrationStatus(
-  integration: Pick<IntegrationView, "status" | "credentialMode" | "inheritable">,
-  opts?: { locked?: boolean },
+  integration: Pick<IntegrationView, "status" | "credentialMode" | "inheritable"> & {
+    config?: Record<string, unknown>;
+  },
+  opts?: { locked?: boolean; providerConfigured?: boolean },
 ): IntegrationStatusVisual {
+  // Platform-level gap: the OAuth app for this provider is not registered on
+  // this deployment (no client id/secret). "Action needed" would send the
+  // operator hunting for something THEY can fix; this says it is on us.
+  if (opts?.providerConfigured === false) {
+    return {
+      kind: "setup_required",
+      label: "Setup required",
+      labelKey: `${STATUS_NS}.setupRequired`,
+      fg: COLORS.inkDim,
+      bg: "rgba(24,24,27,0.05)",
+      dot: COLORS.inkDim,
+    };
+  }
+
+  // A token expired or was revoked. Distinct from a generic error because the
+  // fix is one specific action, and meanwhile the cached feed keeps rendering —
+  // so without this the operator sees a working page and no reason to act.
+  if (integration.config?.needs_reconnect === true) {
+    return {
+      kind: "reconnect",
+      label: "Reconnect needed",
+      labelKey: `${STATUS_NS}.reconnect`,
+      fg: COLORS.criticalDeep,
+      bg: COLORS.criticalSoft,
+      dot: COLORS.critical,
+    };
+  }
   if (opts?.locked) {
     return {
       kind: "locked",
