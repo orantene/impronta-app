@@ -2,6 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { pickHeadlinePrice, type CatalogPriceRow } from "@/lib/directory/headline-price";
+
 /**
  * Batched "starting from" price per talent for directory cards.
  *
@@ -13,10 +15,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * real numeric price (quote-only and custom-priced offerings never yield a
  * "From $X").
  *
- * Currency: prices are NOT FX-converted. The minimum is taken per
- * (talent, currency) and the winning row's own currency is returned, so a
- * talent with mixed-currency offerings shows the cheapest row verbatim
- * rather than a cross-currency lie.
+ * Which of a talent's services becomes the headline is decided by
+ * pickHeadlinePrice (featured → cheapest bookable unit → cheapest overall),
+ * NOT by a naive MIN: the cheapest catalog line is usually an add-on like a
+ * casting session or an extra hour, which misrepresents the cost of actually
+ * booking the person.
+ *
+ * Currency: prices are NOT FX-converted. The winning row's own currency is
+ * returned verbatim rather than a cross-currency lie.
  */
 export type StartingPrice = { amountCents: number; currency: string };
 
@@ -56,6 +62,8 @@ type OfferingPriceRow = {
   talent_profile_id: string;
   amount_cents: number | null;
   currency: string | null;
+  price_type: string | null;
+  is_featured: boolean | null;
 };
 
 export async function fetchStartingPrices(
@@ -67,7 +75,7 @@ export async function fetchStartingPrices(
 
   const { data, error } = await supabase
     .from("talent_offerings")
-    .select("talent_profile_id, amount_cents, currency")
+    .select("talent_profile_id, amount_cents, currency, price_type, is_featured")
     .in("talent_profile_id", talentProfileIds)
     .eq("status", "published")
     .eq("moderation_state", "approved")
@@ -78,15 +86,23 @@ export async function fetchStartingPrices(
 
   if (error || !data) return out;
 
+  // Group the catalog per talent, then let pickHeadlinePrice choose which of
+  // their services represents them on a card.
+  const byTalent = new Map<string, CatalogPriceRow[]>();
   for (const row of data as OfferingPriceRow[]) {
     if (typeof row.amount_cents !== "number" || row.amount_cents <= 0) continue;
-    const prev = out.get(row.talent_profile_id);
-    if (!prev || row.amount_cents < prev.amountCents) {
-      out.set(row.talent_profile_id, {
-        amountCents: row.amount_cents,
-        currency: (row.currency ?? "USD").toUpperCase(),
-      });
-    }
+    const list = byTalent.get(row.talent_profile_id) ?? [];
+    list.push({
+      amountCents: row.amount_cents,
+      currency: (row.currency ?? "USD").toUpperCase(),
+      priceType: row.price_type ?? "",
+      isFeatured: row.is_featured === true,
+    });
+    byTalent.set(row.talent_profile_id, list);
+  }
+  for (const [talentId, rows] of byTalent) {
+    const headline = pickHeadlinePrice(rows);
+    if (headline) out.set(talentId, headline);
   }
   return out;
 }
