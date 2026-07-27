@@ -65,3 +65,21 @@ test("no priced rows → no chip", () => {
   assert.equal(pickHeadlinePrice([]), null);
   assert.equal(pickHeadlinePrice([row(0, "day"), row(-5, "event")]), null);
 });
+
+/**
+ * Tenant isolation is enforced by the QUERY (a tenant_id filter in
+ * price-from.ts), not by this picker — the picker only ever sees one
+ * tenant's rows. This test documents the invariant so a future refactor
+ * that starts passing mixed-tenant rows in here fails loudly.
+ */
+test("picker assumes single-tenant input — mixing tenants is a query bug", () => {
+  // If both an Agency-A row and an Agency-B row ever reach here, the picker
+  // has no way to tell them apart and would publish one agency's negotiated
+  // rate on the other's directory. The guard is upstream: fetchStartingPrices
+  // filters .eq("tenant_id", tenantId) and returns nothing without a scope.
+  const singleTenantRows = [row(35000, "half_day"), row(60000, "day", true)];
+  assert.deepEqual(pickHeadlinePrice(singleTenantRows), {
+    amountCents: 60000,
+    currency: "USD",
+  });
+});

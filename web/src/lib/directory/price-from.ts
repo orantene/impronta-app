@@ -23,6 +23,14 @@ import { pickHeadlinePrice, type CatalogPriceRow } from "@/lib/directory/headlin
  *
  * Currency: prices are NOT FX-converted. The winning row's own currency is
  * returned verbatim rather than a cross-currency lie.
+ *
+ * TENANT ISOLATION — load-bearing, do not drop the tenant_id filter.
+ * `talent_offerings.tenant_id` means a catalog belongs to ONE agency
+ * relationship, and a talent can sit on several rosters at once (the live
+ * data already has talent on 5 tenants). Agencies routinely negotiate
+ * different rates for the same person, so an unscoped query would publish
+ * Agency A's negotiated rate on Agency B's public directory. Without a tenant
+ * scope we return nothing rather than guess whose price to show.
  */
 export type StartingPrice = { amountCents: number; currency: string };
 
@@ -39,14 +47,16 @@ export type StartingPrice = { amountCents: number; currency: string };
 export async function fetchTalentsWithPublishedOfferings(
   supabase: SupabaseClient,
   talentProfileIds: string[],
+  tenantId: string | null,
 ): Promise<Set<string>> {
   const out = new Set<string>();
-  if (talentProfileIds.length === 0) return out;
+  if (talentProfileIds.length === 0 || !tenantId) return out;
 
   const { data, error } = await supabase
     .from("talent_offerings")
     .select("talent_profile_id")
     .in("talent_profile_id", talentProfileIds)
+    .eq("tenant_id", tenantId)
     .eq("status", "published")
     .eq("moderation_state", "approved")
     .in("visibility", ["public", "on_request"]);
@@ -69,14 +79,16 @@ type OfferingPriceRow = {
 export async function fetchStartingPrices(
   supabase: SupabaseClient,
   talentProfileIds: string[],
+  tenantId: string | null,
 ): Promise<Map<string, StartingPrice>> {
   const out = new Map<string, StartingPrice>();
-  if (talentProfileIds.length === 0) return out;
+  if (talentProfileIds.length === 0 || !tenantId) return out;
 
   const { data, error } = await supabase
     .from("talent_offerings")
     .select("talent_profile_id, amount_cents, currency, price_type, is_featured")
     .in("talent_profile_id", talentProfileIds)
+    .eq("tenant_id", tenantId)
     .eq("status", "published")
     .eq("moderation_state", "approved")
     .in("visibility", ["public", "on_request"])
