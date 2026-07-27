@@ -4860,7 +4860,7 @@
       "iconHeart": "Heart",
       "iconBookmark": "Bookmark",
       "layoutTitle": "Layout",
-      "layoutHint": "How the card is laid out and which lines show. Live preview this release; the Look + Colors above save and publish.",
+      "layoutHint": "Preview only. These follow each Directory section, so set them on the section itself in the page builder. The Look and Colors above save and publish for every card.",
       "cardStyleLabel": "Card style",
       "stylePortrait": "Portrait",
       "styleEditorial": "Editorial",

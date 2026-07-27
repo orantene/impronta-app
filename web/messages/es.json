@@ -4860,7 +4860,7 @@
       "iconHeart": "Corazón",
       "iconBookmark": "Marcador",
       "layoutTitle": "Disposición",
-      "layoutHint": "Cómo se dispone la tarjeta y qué líneas se muestran. Vista previa en vivo en esta versión; el Estilo + Colores de arriba se guardan y publican.",
+      "layoutHint": "Solo vista previa. Dependen de cada sección de Directorio, así que configúralos en la sección desde el editor de páginas. El Estilo y los Colores de arriba sí se guardan y publican para todas las tarjetas.",
       "cardStyleLabel": "Estilo de tarjeta",
       "stylePortrait": "Retrato",
       "styleEditorial": "Editorial",
