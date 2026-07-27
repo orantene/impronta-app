@@ -457,7 +457,9 @@ export function TalentCard({
         {displayName ? (
           <h3
             data-card-name
-            className={`font-display font-medium leading-tight tracking-wide text-white drop-shadow-sm ${
+            // Falls back to white, so a tenant that never set the token keeps
+            // the exact previous rendering.
+            className={`font-display font-medium leading-tight tracking-wide text-[var(--token-card-name-color,#fff)] drop-shadow-sm ${
               compact ? "text-sm sm:text-base" : "text-base sm:text-lg"
             }`}
           >
@@ -477,7 +479,7 @@ export function TalentCard({
         ) : null}
         {(show.showTalentType && data.primaryType) ||
         (show.showLocation && data.location) ? (
-          <p className="truncate text-xs text-white/80">
+          <p className="truncate text-xs text-[var(--token-card-muted,rgba(255,255,255,0.8))]">
             {show.showTalentType ? data.primaryType : null}
             {show.showTalentType &&
             data.primaryType &&
@@ -495,7 +497,7 @@ export function TalentCard({
           (show.showAvailability ? (
             <span
               data-card-availability
-              className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-white/75"
+              className="mt-0.5 inline-flex items-center gap-1.5 text-[11px] text-[var(--token-card-muted,rgba(255,255,255,0.75))]"
             >
               <span
                 aria-hidden
