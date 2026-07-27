@@ -1073,9 +1073,9 @@ export async function fetchDirectoryPage(
     demandScores,
   ] = await Promise.all([
     auditTime(audit, timings, "startingPricesMs", () =>
-      fetchStartingPrices(supabase, profileIds),
+      fetchStartingPrices(supabase, profileIds, tenantScopeId),
     ),
-    fetchTalentsWithPublishedOfferings(supabase, profileIds),
+    fetchTalentsWithPublishedOfferings(supabase, profileIds, tenantScopeId),
     loadTenantPricingDefaults(tenantScopeId),
     loadPlatformTalentPriceDefault(),
     sort === "recommended" && tenantScopeId
