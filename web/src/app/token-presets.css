@@ -2126,7 +2126,7 @@ html[data-token-template-directory-card-family="editorial-noir"] .talent-card [d
   font-weight: 400 !important;
   letter-spacing: -0.01em !important;
   text-transform: none !important;
-  color: var(--token-color-ink) !important;
+  color: var(--token-card-name-color, var(--token-color-ink)) !important;
 }
 
 /* Body area — inherits from portrait base (absolute-positioned overlay). */
@@ -2136,7 +2136,7 @@ html[data-token-template-directory-card-family="editorial-noir"] .talent-card [d
 
 /* Availability indicator — muted color matches the card's dark register. */
 html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-availability] {
-  color: var(--token-color-muted) !important;
+  color: var(--token-card-muted, var(--token-color-muted)) !important;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2215,14 +2215,14 @@ html[data-token-template-directory-card-family="magazine"] .talent-card [data-ca
   font-weight: 400 !important;
   letter-spacing: -0.008em !important;
   text-transform: none !important;
-  color: var(--token-color-ink) !important;
+  color: var(--token-card-name-color, var(--token-color-ink)) !important;
   /* Drop text-white Tailwind class applied in portrait mode. */
   text-shadow: none !important;
 }
 
 /* Availability: matches body text register, slightly muted. */
 html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-availability] {
-  color: var(--token-color-muted) !important;
+  color: var(--token-card-muted, var(--token-color-muted)) !important;
 }
 
 /* Chips/badges — paper surface, no glass effect. */
@@ -2298,13 +2298,13 @@ html[data-token-template-directory-card-family="minimal-portrait"] .talent-card 
   font-weight: 400 !important;
   letter-spacing: 0.01em !important;
   text-transform: none !important;
-  color: #ffffff !important;
+  color: var(--token-card-name-color, #ffffff) !important;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* Availability: white-toned to match portrait overlay register. */
 html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-availability] {
-  color: rgba(255, 255, 255, 0.75) !important;
+  color: var(--token-card-muted, rgba(255, 255, 255, 0.75)) !important;
 }
 
 /* Ownership chip — blends into the portrait overlay; glass blur matches
