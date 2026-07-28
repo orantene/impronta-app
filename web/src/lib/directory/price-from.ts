@@ -37,9 +37,10 @@ export type StartingPrice = { amountCents: number; currency: string };
 /**
  * Talents with ANY published, publicly-visible offering — priced or not.
  *
- * Intersected with "has no resolvable price" (i.e. absent from
- * fetchStartingPrices) this identifies the talents who published a service and
- * deliberately withheld the number: "quote on request" / custom pricing. They
+ * Narrowed to rows that WITHHOLD a number deliberately (quote display, custom
+ * pricing, or an unset amount). Intersected with "has no resolvable price"
+ * (i.e. absent from fetchStartingPrices) this identifies talents who published
+ * a service and deliberately withheld the number. They
  * have MADE a pricing statement, so no tenant or platform default may speak
  * over it — see resolveStartingPrice's consent gate. Telling those apart from
  * talents with no pricing at all is the whole reason this second query exists.
@@ -59,7 +60,13 @@ export async function fetchTalentsWithPublishedOfferings(
     .eq("tenant_id", tenantId)
     .eq("status", "published")
     .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"]);
+    .in("visibility", ["public", "on_request"])
+    // Only rows that WITHHOLD a number on purpose. A published service left
+    // with a blank/zero amount is an incomplete draft, not a pricing
+    // statement, and must still be eligible for the agency default.
+    .or(
+      "price_display.eq.quote,price_type.eq.custom,amount_cents.is.null,amount_cents.eq.0",
+    );
 
   if (error || !data) return out;
   for (const row of data as { talent_profile_id: string }[]) {

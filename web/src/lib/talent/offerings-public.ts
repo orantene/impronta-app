@@ -21,20 +21,34 @@ import {
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
   locale: string,
+  /**
+   * Viewing agency, when the profile is rendered on an AGENCY host.
+   *
+   * A services catalog belongs to one agency relationship
+   * (`talent_offerings.tenant_id`), and a talent can sit on several rosters
+   * with different negotiated rates. Scoping here stops Agency A's catalog
+   * from appearing on Agency B's storefront — the same isolation already
+   * enforced for directory cards in lib/directory/price-from.ts.
+   *
+   * null/undefined = no agency context (the talent's own premium site, or a
+   * platform host), where showing everything they offer is correct.
+   */
+  tenantId?: string | null,
 ): Promise<TalentOffering[]> {
   try {
     const admin = createServiceRoleClient();
     if (!admin) return [];
     const db = admin;
 
-    const { data, error } = await db
+    let query = db
       .from("talent_offerings")
       .select("*")
       .eq("talent_profile_id", talentProfileId)
       .eq("status", "published")
       .eq("moderation_state", "approved")
-      .in("visibility", ["public", "on_request"])
-      .order("sort_order", { ascending: true });
+      .in("visibility", ["public", "on_request"]);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data, error } = await query.order("sort_order", { ascending: true });
     if (error) {
       logServerError("public.offerings.load", error);
       return [];

@@ -1739,7 +1739,13 @@ export async function TalentProfileView({
   // Storefront — the offerings catalog (talent_offerings). When present it
   // REPLACES the legacy services menu on the layouts; when empty the legacy
   // ServiceMenuBlock keeps rendering (zero-regression fallback).
-  const storefrontOfferings = await loadPublicOfferingsForProfile(profile.id, locale);
+  const storefrontOfferings = await loadPublicOfferingsForProfile(
+    profile.id,
+    locale,
+    // Agency host → that agency's catalog only. The talent's own premium site
+    // and platform hosts pass null and see everything they offer.
+    hostCtx.kind === "agency" ? hostCtx.tenantId : null,
+  );
 
   // W3-7 — schema.org Offer JSON-LD for the storefront (SEO). Only published,
   // exactly-priced offerings are emitted; quote/on-request carry no price.

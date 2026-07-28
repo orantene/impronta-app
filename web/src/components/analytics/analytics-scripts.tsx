@@ -215,6 +215,9 @@ fbq('track','PageView');`,
           dangerouslySetInnerHTML={{
             __html: `
 (function(){
+  // Configured for this tenant — set BEFORE the consent gate so the consent
+  // banner knows a reload would actually load this pixel.
+  window.__ttqConfigured = true;
   var granted=false;
   try{granted=localStorage.getItem('impronta_analytics_consent')==='granted';}catch(e){}
   if(!granted) return;
@@ -242,6 +245,7 @@ fbq('track','PageView');`,
           dangerouslySetInnerHTML={{
             __html: `
 (function(){
+  window.__lintrkConfigured = true;
   var granted=false;
   try{granted=localStorage.getItem('impronta_analytics_consent')==='granted';}catch(e){}
   if(!granted) return;
