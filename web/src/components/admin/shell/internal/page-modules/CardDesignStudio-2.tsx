@@ -195,3 +195,82 @@ export {
   CardDesignPreviewColumn,
   CardSurfaceTabStrip,
 } from "./CardDesignStudio-4";
+
+
+/**
+ * Card features that shipped AFTER the Studio's first cut (the "From $X" price
+ * chip and the quick-view gallery button).
+ *
+ * These are REAL tokens — they save and publish — unlike the preview-only
+ * Layout block. Both are tenant-wide CEILINGS: a directory section can still
+ * hide either per instance, but cannot turn one back on where the tenant
+ * switched it off.
+ *
+ * Lives here rather than inline so CardDesignStudio.tsx stays under the
+ * max-lines cap.
+ */
+export function CardFeatureToggles({
+  t,
+  canEdit,
+  readTemplateToken,
+  setTemplateToken,
+}: {
+  t: (key: string) => string;
+  canEdit: boolean;
+  readTemplateToken: (key: string) => string | undefined;
+  setTemplateToken: (key: string, value: string) => void;
+}) {
+  return (
+    <>
+      <div className="mt-[10px]">
+        <ToggleRow
+          label={t("dashboard.adminCardStudio2.showPriceLabel")}
+          hint={t("dashboard.adminCardStudio2.showPriceHint")}
+          on={readTemplateToken("directory.card.show-starting-from-price") === "on"}
+          onChange={
+            canEdit
+              ? (v) =>
+                  setTemplateToken(
+                    "directory.card.show-starting-from-price",
+                    v ? "on" : "off",
+                  )
+              : undefined
+          }
+          disabled={!canEdit}
+        />
+      </div>
+      <div className="mt-[10px]">
+        <ToggleRow
+          label={t("dashboard.adminCardStudio2.showQuickViewLabel")}
+          hint={t("dashboard.adminCardStudio2.showQuickViewHint")}
+          on={readTemplateToken("directory.card.show-quick-view") !== "off"}
+          onChange={
+            canEdit
+              ? (v) => setTemplateToken("directory.card.show-quick-view", v ? "on" : "off")
+              : undefined
+          }
+          disabled={!canEdit}
+        />
+      </div>
+      {/* Profile-scope, but it lives in this panel because operators think of
+          "what standing/reviews show" as one decision. */}
+      <div className="mt-[10px]">
+        <ToggleRow
+          label={t("dashboard.adminCardStudio2.reviewsOnProfilesLabel")}
+          hint={t("dashboard.adminCardStudio2.reviewsOnProfilesHint")}
+          on={readTemplateToken("profile.reviews-visibility") !== "hidden"}
+          onChange={
+            canEdit
+              ? (v) =>
+                  setTemplateToken(
+                    "profile.reviews-visibility",
+                    v ? "visible" : "hidden",
+                  )
+              : undefined
+          }
+          disabled={!canEdit}
+        />
+      </div>
+    </>
+  );
+}

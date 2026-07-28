@@ -2504,7 +2504,19 @@ html[data-token-card-ribbon="off"] [data-card-ribbon],
 html[data-token-card-ribbon="off"] [data-profile-ribbon] {
   display: none !important;
 }
-html[data-token-card-price="off"] [data-card-price] {
+/* The card emits `data-card-price-from` (TalentCard editorial + portrait
+ * branches). The original selector here was `[data-card-price]`, an exact
+ * attribute-name match that never matched it — so this toggle was a no-op and
+ * prices rendered even with the token set to "off". Both names are listed so
+ * the rule keeps working if the hook is ever renamed back. */
+/* Quick-view (gallery) control — the card already exposes the
+ * `data-card-quick-view` hook, so the tenant-wide ceiling is a one-rule gate.
+ * The per-section `showQuickView` prop still wins for hiding it. */
+html[data-token-card-quick-view="off"] [data-card-quick-view] {
+  display: none !important;
+}
+html[data-token-card-price="off"] [data-card-price],
+html[data-token-card-price="off"] [data-card-price-from] {
   display: none !important;
 }
 

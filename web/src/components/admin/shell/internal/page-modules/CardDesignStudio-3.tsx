@@ -513,6 +513,9 @@ export const CARD_DESIGN_TOKEN_KEYS: string[] = [
   "directory.card.show-standing",
   "directory.card.standing-style",
   "profile.reviews-visibility",
+  // Card features that shipped after the Studio's first cut.
+  "directory.card.show-starting-from-price",
+  "directory.card.show-quick-view",
 ];
 
 /**

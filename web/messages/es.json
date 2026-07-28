@@ -10427,7 +10427,11 @@
       "standingSignal": "Señal",
       "standingBoth": "Ambos",
       "reviewsOnProfilesLabel": "Reseñas en las páginas de perfil",
-      "reviewsOnProfilesHint": "Muestra u oculta toda la sección de reseñas en los perfiles de talento."
+      "reviewsOnProfilesHint": "Muestra u oculta toda la sección de reseñas en los perfiles de talento.",
+      "showPriceLabel": "Mostrar precio “Desde $X”",
+      "showPriceHint": "Muestra el precio inicial de cada talento en la tarjeta. Una sección de Directorio puede ocultarlo igualmente.",
+      "showQuickViewLabel": "Mostrar botón de vista rápida",
+      "showQuickViewHint": "El icono de galería que abre las fotos sin salir del directorio."
     },
     "adminFieldsEditor": {
       "add": "Añadir",

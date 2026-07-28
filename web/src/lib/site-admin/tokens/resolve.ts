@@ -193,6 +193,7 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "directory.card.show-destination-ready-ribbon":
     "data-token-card-ribbon",
   "directory.card.show-starting-from-price": "data-token-card-price",
+  "directory.card.show-quick-view": "data-token-card-quick-view",
   "directory.card.specialty-chips-max": "data-token-card-chips-max",
   "directory.card.show-standing": "data-token-card-standing",
   "directory.card.standing-style": "data-token-card-standing-style",
