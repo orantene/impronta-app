@@ -19,6 +19,13 @@ import type { DirectoryAiCardOverlay, DirectoryCardDTO } from "@/lib/directory/t
 import { cn } from "@/lib/utils";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
+import {
+  type CaptionNorms,
+  isRedundant,
+  NO_CAPTION_NORMS,
+} from "@/lib/directory/caption-norms";
+import { TalentQuickViewButton } from "@/components/directory/talent-quick-view";
+import { formatPriceFromLabel } from "@/lib/directory/format-price-from";
 
 function talentProfileHref(pathname: string, profileCode: string): string {
   return clientLocaleHref(pathname, `/t/${encodeURIComponent(profileCode)}`);
@@ -31,14 +38,25 @@ export function TalentDirectoryListRow({
   sourcePage = "/directory",
   ui,
   aiOverlay = null,
+  locale = "en",
+  showQuickView = true,
+  showPriceFrom = false,
+  cardClickAction = "modal",
+  captionNorms = NO_CAPTION_NORMS,
 }: {
   card: DirectoryCardDTO;
-  /** Optional quick-preview handler; the preview button is hidden when absent. */
+  /** Legacy hook; when absent the row renders the shared quick-view lightbox. */
   onQuickPreview?: () => void;
   priority?: boolean;
   sourcePage?: string;
   ui: DirectoryUiCopy;
   aiOverlay?: DirectoryAiCardOverlay | null;
+  locale?: string;
+  /** Parity with the grid — same section knobs, same behavior. */
+  showQuickView?: boolean;
+  showPriceFrom?: boolean;
+  cardClickAction?: "modal" | "page";
+  captionNorms?: CaptionNorms;
 }) {
   const pathname = usePathname();
   const lc = ui.list;
@@ -51,8 +69,39 @@ export function TalentDirectoryListRow({
     () => mediaRef.current?.getBoundingClientRect() ?? null,
     [],
   );
+
+  const priceFromLabel =
+    typeof card.priceFromCents === "number" && card.priceFromCents > 0
+      ? formatPriceFromLabel(
+          card.priceFromCents,
+          card.priceFromCurrency ?? "USD",
+          locale,
+        )
+      : null;
+
+  // cardClickAction="page" — defeat the @modal interception exactly like the
+  // grid adapter does, preserving every native new-tab / save-link gesture.
+  const handleClickCapture =
+    cardClickAction === "page" && profileHref
+      ? (event: React.MouseEvent) => {
+          if (!(event.target as HTMLElement).closest?.("a[href]")) return;
+          if (
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0
+          ) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          window.location.assign(profileHref);
+        }
+      : undefined;
   return (
     <article
+      onClickCapture={handleClickCapture}
       className={cn(
         "flex gap-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm transition-[box-shadow] hover:shadow-md hover:shadow-[var(--impronta-gold)]/10",
       )}
@@ -88,13 +137,24 @@ export function TalentDirectoryListRow({
           </h2>
           <p className="truncate text-sm text-[var(--impronta-muted)]">
             {card.primaryTalentTypeLabel}
-            {card.locationLabel ? (
+            {/* Differential caption — parity with the grid: the city only
+                earns a line when it differs from the rest of the results. */}
+            {card.locationLabel &&
+            !isRedundant(card.locationLabel, captionNorms.dominantLocation) ? (
               <>
                 <span className="mx-1.5 text-[var(--impronta-gold-dim)]">·</span>
                 {card.locationLabel}
               </>
             ) : null}
           </p>
+          {showPriceFrom && priceFromLabel ? (
+            <p
+              data-card-price-from
+              className="mt-0.5 text-[12px] font-medium tracking-wide text-[var(--impronta-gold)]"
+            >
+              {priceFromLabel}
+            </p>
+          ) : null}
           {aiOverlay &&
           (aiOverlay.explanationLines.length > 0 ||
             aiOverlay.confidenceNote ||
@@ -207,6 +267,9 @@ export function TalentDirectoryListRow({
           >
             <Link href={profileHref}>{lc.view}</Link>
           </Button>
+          {/* Quick view. `onQuickPreview` was never passed by any caller, so
+              this button was dead code and lc.preview unreachable; the row now
+              mounts the SAME lightbox the grid cards use. */}
           {onQuickPreview ? (
             <button
               type="button"
@@ -215,6 +278,19 @@ export function TalentDirectoryListRow({
             >
               {lc.preview}
             </button>
+          ) : showQuickView && card.profileCode ? (
+            <TalentQuickViewButton
+              talentProfileId={card.id}
+              profileCode={card.profileCode}
+              displayName={card.displayName}
+              profileHref={profileHref}
+              thumbnailUrl={card.thumbnail.url ?? null}
+              locale={locale}
+              sourcePage={sourcePage}
+              openLabel={locale === "es" ? "Vista rápida" : "Quick view"}
+              closeLabel={locale === "es" ? "Cerrar" : "Close"}
+              viewProfileLabel={locale === "es" ? "Ver perfil" : "View profile"}
+            />
           ) : null}
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AI_SEARCH_DEBOUNCE_MS_DEFAULT } from "@/lib/ai/search-debounce";
@@ -304,6 +305,8 @@ export function DirectoryReactiveGrid({
     return manualCodeOrder ? filterToManualCodes(all, manualCodeOrder) : all;
   }, [data?.pages, initialPage.items, isSeedKey, manualCodeOrder]);
 
+  const pathname = usePathname();
+
   // What "normal" looks like for the cards actually on screen. Recomputed as
   // the visitor filters, so a city that is noise on the full roster becomes
   // signal the moment the grid is mixed.
@@ -410,6 +413,16 @@ export function DirectoryReactiveGrid({
                 card={card}
                 ui={ui}
                 priority={index < 4}
+                // Feature parity with the grid — the list view previously
+                // received none of these, so switching view silently dropped
+                // the price chip, quick view, differential captions and the
+                // card-click setting.
+                locale={locale}
+                sourcePage={pathname}
+                showQuickView={showQuickView}
+                showPriceFrom={showPriceFrom}
+                cardClickAction={cardClickAction}
+                captionNorms={captionNorms}
               />
             ))}
           </div>
