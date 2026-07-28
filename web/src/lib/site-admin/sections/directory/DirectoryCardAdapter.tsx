@@ -7,6 +7,7 @@ import { TalentCardActions } from "@/components/talent-cards/talent-card-actions
 import { TalentQuickViewButton } from "@/components/directory/talent-quick-view";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
+import { formatPriceFromLabel } from "@/lib/directory/format-price-from";
 import type { DirectoryCardDTO } from "@/lib/directory/types";
 import {
   type CaptionNorms,
@@ -456,25 +457,3 @@ export function formatAvailability(card: DirectoryCardDTO): {
   return { label: AVAILABILITY_UNKNOWN, known: false };
 }
 
-/**
- * "From $850" / "Desde $850" — whole-currency, no decimals (offering prices
- * are stored in cents; sub-dollar starting prices don't exist in practice
- * and decimals read as clutter on a card).
- */
-function formatPriceFromLabel(
-  amountCents: number,
-  currency: string,
-  locale: string,
-): string {
-  let amount: string;
-  try {
-    amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(Math.round(amountCents / 100));
-  } catch {
-    amount = `$${Math.round(amountCents / 100)}`;
-  }
-  return locale === "es" ? `Desde ${amount}` : `From ${amount}`;
-}
