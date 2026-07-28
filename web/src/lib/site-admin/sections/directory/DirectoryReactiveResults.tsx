@@ -616,6 +616,8 @@ function DirectoryReactiveResultsInner({
                 cardFieldKeys,
                 maxFieldLines,
                 nameFallback,
+                density,
+                hoverBehavior,
               }}
               columnsMobile={columnsMobile}
               onCountChange={handleCountChange}

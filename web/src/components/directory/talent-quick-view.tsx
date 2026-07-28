@@ -154,7 +154,12 @@ function TalentQuickViewLightbox({
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (!cancelled && json) setPayload(json as QuickViewPayload);
+        // Shape guard: a 200 with an unexpected body (edge proxy, API drift)
+        // must degrade to the thumbnail fallback, not throw in render — there
+        // is no error boundary between here and the directory tree.
+        if (!cancelled && json && Array.isArray(json.media)) {
+          setPayload(json as QuickViewPayload);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -281,7 +286,7 @@ function TalentQuickViewLightbox({
             <button
               type="button"
               onClick={() => go(-1)}
-              aria-label="Previous"
+              aria-label={locale === "es" ? "Anterior" : "Previous"}
               className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-md transition-colors hover:bg-black/60 sm:left-5"
             >
               <ChevronLeft className="size-5" aria-hidden />
@@ -289,7 +294,7 @@ function TalentQuickViewLightbox({
             <button
               type="button"
               onClick={() => go(1)}
-              aria-label="Next"
+              aria-label={locale === "es" ? "Siguiente" : "Next"}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-md transition-colors hover:bg-black/60 sm:right-5"
             >
               <ChevronRight className="size-5" aria-hidden />
