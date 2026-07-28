@@ -6,6 +6,8 @@ import { useEffect, useRef } from "react";
 declare global {
   interface Window {
     gtag?: (...args: unknown[]) => void;
+    /** Set by ga-init AFTER gtag('config') — the only safe "GA ready" signal. */
+    __gaConfigured?: boolean;
     fbq?: (...args: unknown[]) => void;
     ttq?: { page?: () => void };
   }
@@ -33,6 +35,8 @@ export function SpaPageViewTracker() {
   const pathname = usePathname();
   const lastTracked = useRef<string | null>(null);
 
+  const prevUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!pathname || lastTracked.current === pathname) return;
     const first = lastTracked.current === null;
@@ -43,23 +47,30 @@ export function SpaPageViewTracker() {
     // would cancel the timer before it fires; the lastTracked guard above is
     // what prevents duplicates, so the fire itself must never be revocable.
     //
-    // First-load race: ga-init (Script afterInteractive) may not have defined
-    // window.gtag yet when hydration effects run. gtag events queued before
-    // the config command are dropped by gtag.js, so instead of pushing blind
-    // we retry briefly until gtag exists. Tenants with no GA configured never
-    // define window.gtag — the retries lapse silently.
+    // First-load race: hydration effects run BEFORE afterInteractive
+    // scripts, and the beforeInteractive consent snippet defines window.gtag
+    // for every tenant — so "gtag exists" never meant "GA is configured".
+    // Events queued before the config command are dropped by gtag.js (this
+    // silently killed the landing page_view). Wait for the __gaConfigured
+    // sentinel that ga-init sets right after its config call. Tenants with
+    // no GA never set it — the retries lapse silently as before.
     let attempts = 0;
     const fire = () => {
-      if (!window.gtag && attempts < 40) {
+      if (!window.__gaConfigured && attempts < 40) {
         attempts += 1;
         setTimeout(fire, 250);
         return;
       }
+      // page_referrer: after a soft nav document.referrer still holds the
+      // EXTERNAL landing referrer; sending it on every hit reads as a new
+      // referral mid-session in GA4. Send the previous in-app URL instead.
+      const referrer = prevUrlRef.current ?? document.referrer;
+      prevUrlRef.current = window.location.href;
       window.gtag?.("event", "page_view", {
         page_location: window.location.href,
         page_path: pathname,
         page_title: document.title,
-        ...(document.referrer ? { page_referrer: document.referrer } : {}),
+        ...(referrer ? { page_referrer: referrer } : {}),
       });
       if (!first) {
         window.fbq?.("track", "PageView");

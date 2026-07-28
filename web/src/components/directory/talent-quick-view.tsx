@@ -154,7 +154,12 @@ function TalentQuickViewLightbox({
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
-        if (!cancelled && json) setPayload(json as QuickViewPayload);
+        // Shape guard: a 200 with an unexpected body (edge proxy, API drift)
+        // must degrade to the thumbnail fallback, not throw in render — there
+        // is no error boundary between here and the directory tree.
+        if (!cancelled && json && Array.isArray(json.media)) {
+          setPayload(json as QuickViewPayload);
+        }
       })
       .catch(() => undefined);
     return () => {

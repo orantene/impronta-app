@@ -62,6 +62,8 @@ type MapCardConfig = {
   showAddToInquiry: boolean;
   showQuickView: boolean;
   showPriceFrom: boolean;
+  density: DirectoryV1["density"];
+  hoverBehavior: DirectoryV1["hoverBehavior"];
   cardClickAction: DirectoryV1["cardClickAction"];
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   maxFieldLines: DirectoryV1["maxFieldLines"];
@@ -566,6 +568,8 @@ export function DirectoryMapView(props: DirectoryMapViewProps) {
                 showAddToInquiry={props.card.showAddToInquiry}
                 showQuickView={props.card.showQuickView}
                 showPriceFrom={props.card.showPriceFrom}
+                density={props.card.density}
+                hoverBehavior={props.card.hoverBehavior}
                 captionNorms={captionNorms}
                 cardClickAction={props.card.cardClickAction}
                 locale={props.locale}
