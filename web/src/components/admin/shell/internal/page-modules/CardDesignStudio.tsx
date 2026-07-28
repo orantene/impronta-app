@@ -63,6 +63,7 @@ import {
   CARD_DESIGN_TOKEN_KEYS,
   CARD_FAMILY_TOKEN_KEY,
   CardDesignPreviewColumn,
+  CardFeatureToggles,
   CardSurfaceTabStrip,
   DEFAULT_APPEARANCE,
   DesignLookSection,
@@ -684,15 +685,12 @@ export function CardDesignStudio() {
                 />
               </label>
             ) : null}
-            <div className="mt-[10px]">
-              <ToggleRow
-                label={t("dashboard.adminCardStudio2.reviewsOnProfilesLabel")}
-                hint={t("dashboard.adminCardStudio2.reviewsOnProfilesHint")}
-                on={readTemplateToken("profile.reviews-visibility") !== "hidden"}
-                onChange={canEdit ? (v) => setTemplateToken("profile.reviews-visibility", v ? "visible" : "hidden") : undefined}
-                disabled={!canEdit}
-              />
-            </div>
+            <CardFeatureToggles
+              t={t}
+              canEdit={canEdit}
+              readTemplateToken={readTemplateToken}
+              setTemplateToken={setTemplateToken}
+            />
           </section>
 
           {/* Engine fields — REAL persistence */}

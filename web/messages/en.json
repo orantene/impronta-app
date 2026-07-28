@@ -10410,7 +10410,11 @@
       "standingSignal": "Signal",
       "standingBoth": "Both",
       "reviewsOnProfilesLabel": "Reviews on profile pages",
-      "reviewsOnProfilesHint": "Show or hide the whole reviews section on talent profiles."
+      "reviewsOnProfilesHint": "Show or hide the whole reviews section on talent profiles.",
+      "showPriceLabel": "Show “From $X” price",
+      "showPriceHint": "Shows each talent’s starting price on the card. A directory section can still hide it.",
+      "showQuickViewLabel": "Show quick-view button",
+      "showQuickViewHint": "The gallery icon that opens photos without leaving the directory."
     },
     "adminFieldsEditor": {
       "add": "Add",

@@ -665,6 +665,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "off",
     group: "Template families",
   },
+  "directory.card.show-quick-view": {
+    key: "directory.card.show-quick-view",
+    label: "Show quick-view (gallery) button",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide ceiling for the card's gallery/quick-view control. A directory section can still hide it per instance; this cannot turn it back on where the section switched it off.",
+  },
   "directory.card.specialty-chips-max": {
     key: "directory.card.specialty-chips-max",
     label: "Specialty chips per card",
