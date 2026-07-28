@@ -28,8 +28,14 @@ import type { DirectorySortValue } from "@/lib/directory/types";
  * orthogonal user concepts (the prototype shows a card with the bookmark
  * filled but no `ADDED ✓`, and another with `ADDED ✓` but no bookmark).
  */
-const SAVED_IDS_KEY = "impronta.public.saved-ids";
-const FAVORITE_IDS_KEY = "impronta.public.favorite-ids";
+import {
+  FAVORITE_IDS_KEY,
+  parseIdList,
+  sameIdList,
+  SAVED_IDS_KEY,
+  subscribeDiscoveryState,
+  writeAndBroadcast,
+} from "@/components/directory/discovery-state-sync";
 const SEARCH_CONTEXT_KEY = "impronta.public.search-context";
 
 export type PublicFlashMessage = {
@@ -97,17 +103,6 @@ type PublicDiscoveryStateValue = {
 const PublicDiscoveryStateContext =
   createContext<PublicDiscoveryStateValue | null>(null);
 
-function parseIdList(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string");
-  } catch {
-    return [];
-  }
-}
-
 function parseSearchContext(raw: string | null): DiscoverySearchContext | null {
   if (!raw) return null;
   try {
@@ -153,14 +148,6 @@ function parseSearchContext(raw: string | null): DiscoverySearchContext | null {
   }
 }
 
-function sameIdList(a: readonly string[], b: readonly string[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-}
-
 export function PublicDiscoveryStateProvider({
   children,
   initialSavedIds = [],
@@ -201,6 +188,17 @@ export function PublicDiscoveryStateProvider({
     setStorageMerged(true);
   }, []);
 
+  // Adopt snapshots published by ANY other provider instance in this document
+  // (the @modal profile overlay and the directory page each mount one) and by
+  // other tabs. Authoritative replace — a union could never express a removal,
+  // which is precisely why the mount-time merge above could not fix the fork.
+  useEffect(() => {
+    return subscribeDiscoveryState(({ key, ids }) => {
+      const apply = key === SAVED_IDS_KEY ? setSavedIds : setFavoriteIds;
+      apply((prev) => (sameIdList(prev, ids) ? prev : ids));
+    });
+  }, []);
+
   const isSaved = useCallback(
     (id: string) => savedIds.includes(id),
     [savedIds],
@@ -211,8 +209,9 @@ export function PublicDiscoveryStateProvider({
       const next = saved
         ? Array.from(new Set([...prev, id]))
         : prev.filter((item) => item !== id);
-      window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(next));
-      return next;
+      // Broadcast so the sibling provider tree (the @modal profile overlay,
+      // or the directory underneath it) adopts this immediately.
+      return writeAndBroadcast(SAVED_IDS_KEY, next);
     });
   }, []);
 
@@ -220,8 +219,7 @@ export function PublicDiscoveryStateProvider({
     const next = Array.from(new Set(ids));
     setSavedIds((prev) => {
       if (sameIdList(prev, next)) return prev;
-      window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(next));
-      return next;
+      return writeAndBroadcast(SAVED_IDS_KEY, next);
     });
   }, []);
 
@@ -233,7 +231,7 @@ export function PublicDiscoveryStateProvider({
   // yet; when the separate-inquiry flow is wired, the caller owns that ordering.
   const clearSavedIds = useCallback(() => {
     setSavedIds([]);
-    window.localStorage.setItem(SAVED_IDS_KEY, JSON.stringify([]));
+    writeAndBroadcast(SAVED_IDS_KEY, []);
   }, []);
 
   const isFavorited = useCallback(
@@ -246,8 +244,7 @@ export function PublicDiscoveryStateProvider({
       const next = favorited
         ? Array.from(new Set([...prev, id]))
         : prev.filter((item) => item !== id);
-      window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify(next));
-      return next;
+      return writeAndBroadcast(FAVORITE_IDS_KEY, next);
     });
   }, []);
 
@@ -255,14 +252,13 @@ export function PublicDiscoveryStateProvider({
     const next = Array.from(new Set(ids));
     setFavoriteIds((prev) => {
       if (sameIdList(prev, next)) return prev;
-      window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify(next));
-      return next;
+      return writeAndBroadcast(FAVORITE_IDS_KEY, next);
     });
   }, []);
 
   const clearFavoriteIds = useCallback(() => {
     setFavoriteIds([]);
-    window.localStorage.setItem(FAVORITE_IDS_KEY, JSON.stringify([]));
+    writeAndBroadcast(FAVORITE_IDS_KEY, []);
   }, []);
 
   const setSearchContext = useCallback(
