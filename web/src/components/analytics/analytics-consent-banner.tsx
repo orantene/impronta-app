@@ -9,6 +9,18 @@ const STORAGE_KEY = "impronta_analytics_consent";
 // committing to accept/decline for now. Cleared by tab close.
 const DISMISS_SESSION_KEY = "impronta_analytics_consent_dismissed_at";
 
+declare global {
+  interface Window {
+    /** Set by the TikTok snippet when the tenant HAS a pixel configured. */
+    __ttqConfigured?: boolean;
+    /** Set by the LinkedIn snippet when the tenant HAS a tag configured. */
+    __lintrkConfigured?: boolean;
+    ttq?: { page?: () => void };
+    lintrk?: unknown;
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
 type Consent = "granted" | "denied" | null;
 
 function readConsent(): Consent {
@@ -31,6 +43,29 @@ function updateGtagConsent(next: "granted" | "denied") {
     ad_user_data: analytics_storage,
     ad_personalization: analytics_storage,
   });
+}
+
+/**
+ * Activate the NON-Google pixels on acceptance.
+ *
+ * Only gtag listens for a consent update. Meta was explicitly revoked at init
+ * and TikTok/LinkedIn return early when storage isn't 'granted', so before
+ * this they stayed dark for the ENTIRE session — the first and highest-intent
+ * visit was invisible to paid attribution, and SpaPageViewTracker's
+ * window.fbq / window.ttq calls were silent no-ops on every later navigation.
+ *
+ * Meta can be flipped in place. TikTok/LinkedIn have no runtime consent API,
+ * so their loaders must actually run; a reload is the only reliable way to
+ * re-enter their init path, and it happens once, immediately after a click
+ * the visitor just made.
+ */
+function activatePixelsAfterConsent() {
+  if (typeof window === "undefined") return;
+  window.fbq?.("consent", "grant");
+  const needsLoad =
+    (window.__ttqConfigured === true && !window.ttq) ||
+    (window.__lintrkConfigured === true && !window.lintrk);
+  if (needsLoad) window.location.reload();
 }
 
 /**
@@ -76,6 +111,8 @@ export function AnalyticsConsentBanner() {
       /* ignore */
     }
     updateGtagConsent("granted");
+    // Google reacts to the consent update above; Meta/TikTok/LinkedIn do not.
+    activatePixelsAfterConsent();
     setConsent("granted");
   }, []);
 
