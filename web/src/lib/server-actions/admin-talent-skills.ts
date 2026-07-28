@@ -583,7 +583,16 @@ export async function setTalentProfileSkills(
       });
     if (insErr) {
       await restoreDeleted();
-      logServerError("setTalentProfileSkills.insert", insErr);
+      // Cap constraint violations (23514) are expected user-input errors surfaced
+      // to the UI — skip Sentry noise to match addSkill/addSkills behavior.
+      const isCapConstraint =
+        insErr.code === "23514" ||
+        insErr.message?.includes("9 skills") ||
+        insErr.message?.includes("primary skills") ||
+        insErr.message?.includes("secondary categories");
+      if (!isCapConstraint) {
+        logServerError("setTalentProfileSkills.insert", insErr);
+      }
       void improntaLog("admin_talent_skills.warn", {
         message: `${LOG} FAIL insert talent=${tpid} code=${insErr.code} restored=${toDelete.length}`,
       });
