@@ -13,7 +13,7 @@
  *   - If IntersectionObserver is missing, every section is revealed at once.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function NoirReveal() {
   useEffect(() => {
@@ -72,8 +72,14 @@ export function NoirReveal() {
  * scrollable ancestors, so the hero leaving the panel counts as leaving view.
  */
 export function NoirBookbarAutoHide() {
+  // Anchor ref so we resolve OUR shell, not the first noir shell in the
+  // document — with the profile modal stacked over a profile page there are
+  // TWO shells, and a document-global query would drive the background one
+  // while the modal's booking CTA stayed permanently stowed.
+  const anchorRef = useRef<HTMLSpanElement | null>(null);
+
   useEffect(() => {
-    const shell = document.querySelector<HTMLElement>(
+    const shell = anchorRef.current?.closest<HTMLElement>(
       '[data-profile-theme="noir"]',
     );
     const heroActions = shell?.querySelector(".nf-actions");
@@ -117,5 +123,5 @@ export function NoirBookbarAutoHide() {
     };
   }, []);
 
-  return null;
+  return <span ref={anchorRef} hidden aria-hidden data-bookbar-anchor />;
 }

@@ -107,7 +107,11 @@ export const DEFAULT_APPEARANCE: CardAppearance = {
   showAvailability: true,
   showBadges: true,
   showRating: false,
-  showPriceFrom: false,
+  // Matches the live section default (directory schema v2 backfilled
+  // showPriceFrom:true) so the studio preview no longer contradicts the
+  // published directory. Round-tripping the REAL knob is still open — see
+  // the TODO(reviewer) in CardDesignStudio.tsx.
+  showPriceFrom: true,
   showSave: true,
   showAddToInquiry: true,
 };

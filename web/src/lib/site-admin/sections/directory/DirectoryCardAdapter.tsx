@@ -175,7 +175,11 @@ export function DirectoryCardAdapter({
             "a.talent-card",
           );
           if (!link) return;
-          if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+          // Every browser new-tab / save-link gesture must keep native
+          // behavior: cmd/ctrl (new tab), shift (new window), alt
+          // (save/download), middle button (new tab).
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          if (event.button !== 0) return;
           event.preventDefault();
           event.stopPropagation();
           window.location.assign(data.profileHref);

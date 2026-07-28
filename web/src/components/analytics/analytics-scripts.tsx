@@ -141,7 +141,12 @@ gtag('js', new Date());${
 // initial load and every client-side navigation (directory → profile
 // modal, locale switches…). gtag's auto page_view only covered the very
 // first load, silently under-counting all SPA navigation.
-gtag('config', '${gaId}', { send_page_view: false });`,
+gtag('config', '${gaId}', { send_page_view: false });
+// Sentinel for SpaPageViewTracker: the consent snippet above defines
+// window.gtag for EVERY tenant, so "gtag exists" can't mean "GA is
+// configured". Events pushed before this config are dropped by gtag.js —
+// the tracker must wait for THIS flag, not for window.gtag.
+window.__gaConfigured = true;`,
             }}
           />
           <Script
