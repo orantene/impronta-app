@@ -10379,7 +10379,9 @@
         "nameLabel": "Name color",
         "nameHint": "Talent name",
         "mutedLabel": "Secondary text",
-        "mutedHint": "Type · location · availability"
+        "mutedHint": "Type · location · availability",
+        "priceLabel": "Price chip",
+        "priceHint": "The “From $X” chip"
       },
       "knobInheritsTheme": "{hint} · inherits theme",
       "clear": "Clear",

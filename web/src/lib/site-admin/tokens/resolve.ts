@@ -104,6 +104,7 @@ export const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "card.surface": "--token-card-surface",
   "card.name-color": "--token-card-name-color",
   "card.muted": "--token-card-muted",
+  "card.price-color": "--token-card-price-color",
   // Phase 13 — free font-family overrides (CSS vars consumed by the
   // storefront stylesheet's `--site-heading-font` / `--site-body-font`
   // resolver chain).

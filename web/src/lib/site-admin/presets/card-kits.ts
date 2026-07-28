@@ -14,7 +14,11 @@
  * enforces that via the registry's own validateThemePatch.
  */
 
-export type CardKitSlug = "editorial-noir" | "magazine" | "minimal-portrait";
+export type CardKitSlug =
+  | "editorial-noir"
+  | "magazine"
+  | "minimal-portrait"
+  | "editorial-bridal";
 
 export type CardKit = {
   slug: CardKitSlug;
@@ -36,6 +40,7 @@ export const CARD_KITS: Record<CardKitSlug, CardKit> = {
       "card.surface": "#0f0f0f",
       "card.name-color": "#f4f1ea",
       "card.muted": "#8a8478",
+      "card.price-color": "#c8a04a",
     },
   },
   magazine: {
@@ -48,6 +53,20 @@ export const CARD_KITS: Record<CardKitSlug, CardKit> = {
       "card.surface": "#f4f1ea",
       "card.name-color": "#171717",
       "card.muted": "#6b6b6b",
+      "card.price-color": "#8a6d2f",
+    },
+  },
+  "editorial-bridal": {
+    slug: "editorial-bridal",
+    label: "Editorial Bridal",
+    description:
+      "Soft raised cards on a warm ground with a gentle lift on hover — an atelier lookbook register.",
+    tokens: {
+      "template.directory-card-family": "editorial-bridal",
+      "card.surface": "#faf7f2",
+      "card.name-color": "#221c17",
+      "card.muted": "#7a7068",
+      "card.price-color": "#8a6d2f",
     },
   },
   "minimal-portrait": {
@@ -60,6 +79,7 @@ export const CARD_KITS: Record<CardKitSlug, CardKit> = {
       "card.surface": "#ffffff",
       "card.name-color": "#171717",
       "card.muted": "#8a8a8a",
+      "card.price-color": "#3f3f46",
     },
   },
 };

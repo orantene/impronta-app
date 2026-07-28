@@ -665,6 +665,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "off",
     group: "Template families",
   },
+  "card.price-color": {
+    key: "card.price-color",
+    label: "Price chip colour",
+    scope: "color",
+    agencyConfigurable: true,
+    validator: hexColorOrEmpty,
+    defaultValue: "",
+    group: "Card design",
+    description:
+      "Colour of the “From $X” chip. Empty = the brand accent, which is what both card branches used before this token existed.",
+  },
   "directory.card.show-quick-view": {
     key: "directory.card.show-quick-view",
     label: "Show quick-view (gallery) button",

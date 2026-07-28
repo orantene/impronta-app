@@ -105,6 +105,12 @@ export const directorySchemaV1 = z.object({
   showTalentType: z.boolean().default(true),
   showLocation: z.boolean().default(true),
   showAttributes: z.boolean().default(true),
+  /**
+   * @deprecated NO-OP — nothing in the render path reads this. Rating only
+   * appears inside the standing chip, which is governed tenant-wide by the
+   * `directory.card.show-standing` token (Card Design → Reviews on cards).
+   * Kept so existing published snapshots still parse; do not wire new UI to it.
+   */
   showRating: z.boolean().default(false),
   showPriceFrom: z.boolean().default(true),
   showAvailability: z.boolean().default(true),
