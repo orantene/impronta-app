@@ -10362,7 +10362,9 @@
         "nameLabel": "Color del nombre",
         "nameHint": "Nombre del talento",
         "mutedLabel": "Texto secundario",
-        "mutedHint": "Tipo · ubicación · disponibilidad"
+        "mutedHint": "Tipo · ubicación · disponibilidad",
+        "priceLabel": "Etiqueta de precio",
+        "priceHint": "La etiqueta “Desde $X”"
       },
       "knobInheritsTheme": "{hint} · hereda del tema",
       "clear": "Limpiar",

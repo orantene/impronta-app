@@ -499,6 +499,8 @@ export const CARD_COLOR_KNOBS: Array<{
     labelKey: `${KNOB_NS}.nameLabel`, hintKey: `${KNOB_NS}.nameHint` },
   { key: "card.muted", label: "Secondary text", hint: "Type · location · availability",
     labelKey: `${KNOB_NS}.mutedLabel`, hintKey: `${KNOB_NS}.mutedHint` },
+  { key: "card.price-color", label: "Price chip", hint: "The “From $X” chip",
+    labelKey: `${KNOB_NS}.priceLabel`, hintKey: `${KNOB_NS}.priceHint` },
 ];
 
 /** Every card-family token key the studio touches (kit + knobs). */

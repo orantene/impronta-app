@@ -396,7 +396,9 @@ export function TalentCard({
           {data.priceFromLabel ? (
             <p
               data-card-price-from
-              className="mt-1 text-[11px] font-medium tracking-wide text-[var(--dir-accent,#c8a04a)]"
+              // One token for both branches; the previous per-branch value is
+              // the fallback, so an unset tenant renders exactly as before.
+              className="mt-1 text-[11px] font-medium tracking-wide text-[var(--token-card-price-color,var(--dir-accent,#c8a04a))]"
             >
               {data.priceFromLabel}
             </p>
@@ -511,7 +513,7 @@ export function TalentCard({
         {data.priceFromLabel ? (
           <p
             data-card-price-from
-            className="mt-0.5 text-[11px] font-medium tracking-wide text-[var(--impronta-gold-bright,var(--dir-accent,#c8a04a))]"
+            className="mt-0.5 text-[11px] font-medium tracking-wide text-[var(--token-card-price-color,var(--impronta-gold-bright,var(--dir-accent,#c8a04a)))]"
           >
             {data.priceFromLabel}
           </p>
