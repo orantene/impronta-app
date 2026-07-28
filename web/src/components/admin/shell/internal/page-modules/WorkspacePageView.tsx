@@ -360,14 +360,20 @@ export function WorkspacePageView() {
       },
       {
         id: "pricing-defaults",
-        label: "Starting prices",
-        desc: "Shown on directory cards when a talent has not set their own price",
+        label: t("dashboard.adminWorkspace.pricingDefaultsLabel"),
+        desc: t("dashboard.adminWorkspace.pricingDefaultsDesc"),
         visible: !!tenantSlug,
         rows: [],
         extra: tenantSlug ? <PricingDefaultsSettingsCard /> : null,
         extraSearch: [
-          { title: "Starting prices", desc: "Default From $X price on talent cards" },
-          { title: "Default rate", desc: "Per talent type pricing defaults" },
+          {
+            title: t("dashboard.adminWorkspace.pricingDefaultsLabel"),
+            desc: t("dashboard.adminWorkspace.pricingDefaultsSearchDesc"),
+          },
+          {
+            title: t("dashboard.adminWorkspace.pricingDefaultsSearchAltTitle"),
+            desc: t("dashboard.adminWorkspace.pricingDefaultsSearchAltDesc"),
+          },
         ],
       },
       {

@@ -281,7 +281,7 @@ function TalentQuickViewLightbox({
             <button
               type="button"
               onClick={() => go(-1)}
-              aria-label="Previous"
+              aria-label={locale === "es" ? "Anterior" : "Previous"}
               className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-md transition-colors hover:bg-black/60 sm:left-5"
             >
               <ChevronLeft className="size-5" aria-hidden />
@@ -289,7 +289,7 @@ function TalentQuickViewLightbox({
             <button
               type="button"
               onClick={() => go(1)}
-              aria-label="Next"
+              aria-label={locale === "es" ? "Siguiente" : "Next"}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-black/40 p-2 text-white backdrop-blur-md transition-colors hover:bg-black/60 sm:right-5"
             >
               <ChevronRight className="size-5" aria-hidden />

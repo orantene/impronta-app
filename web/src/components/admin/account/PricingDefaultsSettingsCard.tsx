@@ -17,6 +17,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useT } from "@/i18n/use-t";
+
 import {
   EMPTY_PRICING_DEFAULTS,
   MAX_DEFAULT_PRICE_CENTS,
@@ -38,6 +40,7 @@ const toCents = (units: string): number | null => {
 };
 
 export function PricingDefaultsSettingsCard() {
+  const t = useT();
   const [state, setState] = useState<TenantPricingDefaults>(EMPTY_PRICING_DEFAULTS);
   const [types, setTypes] = useState<TalentTypeOption[]>([]);
   const [status, setStatus] = useState<"loading" | "idle" | "saving" | "saved" | "error">(
@@ -79,7 +82,7 @@ export function PricingDefaultsSettingsCard() {
 
   if (status === "loading") {
     return (
-      <p className="text-sm text-muted-foreground">Loading pricing defaults…</p>
+      <p className="text-sm text-muted-foreground">{t("dashboard.adminWorkspace.pricingDefaultsLoading")}</p>
     );
   }
 
@@ -91,13 +94,10 @@ export function PricingDefaultsSettingsCard() {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">
-            Show a starting price when talent have not set one
+            {t("dashboard.adminWorkspace.pricingDefaultsToggleTitle")}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            These amounts appear publicly on directory cards as
-            &quot;From&nbsp;$X&quot;. A talent&apos;s own published price always
-            wins, and anyone who chose &quot;quote on request&quot; is never
-            overridden.
+            {t("dashboard.adminWorkspace.pricingDefaultsToggleDesc")}
           </p>
         </div>
         <label className="flex shrink-0 items-center gap-2 text-xs">
@@ -107,7 +107,7 @@ export function PricingDefaultsSettingsCard() {
             onChange={(e) => void save({ ...state, enabled: e.target.checked })}
             className="size-4 accent-[var(--tulala-accent,#c8a04a)]"
           />
-          <span>{state.enabled ? "On" : "Off"}</span>
+          <span>{state.enabled ? t("dashboard.adminWorkspace.pricingDefaultsOn") : t("dashboard.adminWorkspace.pricingDefaultsOff")}</span>
         </label>
       </div>
 
@@ -116,7 +116,7 @@ export function PricingDefaultsSettingsCard() {
           <div className="flex flex-wrap items-end gap-4">
             <label className="flex flex-col gap-1">
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Currency
+                {t("dashboard.adminWorkspace.pricingDefaultsCurrency")}
               </span>
               <input
                 type="text"
@@ -131,14 +131,14 @@ export function PricingDefaultsSettingsCard() {
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Default for everyone
+                {t("dashboard.adminWorkspace.pricingDefaultsGlobal")}
               </span>
               <input
                 type="number"
                 inputMode="decimal"
                 min={minUnits}
                 max={maxUnits}
-                placeholder="e.g. 200"
+                placeholder={t("dashboard.adminWorkspace.pricingDefaultsAmountPlaceholder")}
                 value={toUnits(state.globalFromCents)}
                 onChange={(e) =>
                   setState({ ...state, globalFromCents: toCents(e.target.value) })
@@ -152,18 +152,18 @@ export function PricingDefaultsSettingsCard() {
           {types.length > 0 ? (
             <div className="flex flex-col gap-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Per talent type (overrides the default above)
+                {t("dashboard.adminWorkspace.pricingDefaultsPerType")}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {types.map((t) => (
+                {types.map((opt) => (
                   <label
-                    key={t.slug}
+                    key={opt.slug}
                     className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
                   >
                     <span className="min-w-0 truncate text-sm">
-                      {t.label}
+                      {opt.label}
                       <span className="ml-1.5 text-xs text-muted-foreground">
-                        · {t.talentCount}
+                        · {opt.talentCount}
                       </span>
                     </span>
                     <input
@@ -172,12 +172,12 @@ export function PricingDefaultsSettingsCard() {
                       min={minUnits}
                       max={maxUnits}
                       placeholder="—"
-                      value={toUnits(state.byTypeSlug[t.slug] ?? null)}
+                      value={toUnits(state.byTypeSlug[opt.slug] ?? null)}
                       onChange={(e) => {
                         const cents = toCents(e.target.value);
                         const next = { ...state.byTypeSlug };
-                        if (cents == null) delete next[t.slug];
-                        else next[t.slug] = cents;
+                        if (cents == null) delete next[opt.slug];
+                        else next[opt.slug] = cents;
                         setState({ ...state, byTypeSlug: next });
                       }}
                       onBlur={() => void save(state)}
@@ -204,11 +204,11 @@ export function PricingDefaultsSettingsCard() {
         }}
       >
         {status === "saving"
-          ? "Saving…"
+          ? t("dashboard.adminWorkspace.pricingDefaultsSaving")
           : status === "saved"
-            ? "Saved."
+            ? t("dashboard.adminWorkspace.pricingDefaultsSaved")
             : status === "error"
-              ? (error ?? "Could not save.")
+              ? (error ?? t("dashboard.adminWorkspace.pricingDefaultsSaveFailed"))
               : " "}
       </p>
     </div>

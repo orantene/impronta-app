@@ -22,6 +22,33 @@ const PLATFORM_HOSTS = new Set([
   "127.0.0.1",
 ]);
 
+/**
+ * Stale-client auto-recovery.
+ *
+ * With continuous deploys, a visitor whose tab predates the current build
+ * requests chunks / RSC payloads that no longer exist on the alias. The
+ * resulting ChunkLoadError / failed-import surfaces here ~2s after paint as
+ * a "We hit a snag" card that a real user reported on the directory. A full
+ * reload fixes it 100% of the time — so do that FOR them, once.
+ *
+ * sessionStorage guards the retry: one automatic reload per session. If the
+ * error persists after a fresh document (a genuine bug, not staleness), the
+ * card renders as before instead of reload-looping.
+ */
+const RELOADED_KEY = "tulala-stale-reload";
+
+function isStaleClientError(error: Error & { digest?: string }): boolean {
+  const text = `${error.name} ${error.message}`;
+  return (
+    /ChunkLoadError|Loading chunk|dynamically imported module|import\(\) failed|Failed to fetch dynamically imported/i.test(
+      text,
+    ) ||
+    // Minified React hydration/render errors (#310, #423, #425) — on a stale
+    // client these are skew symptoms; a fresh document resolves them.
+    /Minified React error #(310|418|423|425)/.test(text)
+  );
+}
+
 export default function GlobalError({
   error,
   reset,
@@ -36,6 +63,18 @@ export default function GlobalError({
     if (typeof window !== "undefined") {
       const h = window.location.hostname;
       setIsAgencyHost(!PLATFORM_HOSTS.has(h));
+
+      if (isStaleClientError(error)) {
+        let alreadyTried = false;
+        try {
+          alreadyTried = sessionStorage.getItem(RELOADED_KEY) === "1";
+          if (!alreadyTried) sessionStorage.setItem(RELOADED_KEY, "1");
+        } catch {
+          // Storage blocked (private mode) → still reload once per mount;
+          // the error card renders if the reload lands back here.
+        }
+        if (!alreadyTried) window.location.reload();
+      }
     }
   }, [error]);
 
