@@ -1,7 +1,8 @@
 name: Vercel post-deploy alias
 
-# Re-aliases the two ghost-locked domains (tulala.digital, app.tulala.digital)
-# onto the latest successful production deployment. These domains can't be
+# Re-aliases EVERY custom domain onto the latest successful production
+# deployment — the two ghost-locked platform domains AND the tenant storefront
+# hosts. These domains can't be
 # attached at the Vercel project level (a deleted predecessor project still
 # "owns" them), so autoAssignCustomDomains skips them. See
 # .claude/.../memory/project_vercel_deployment.md "Ghost project alias workaround".
@@ -74,9 +75,58 @@ jobs:
             echo "::notice::event fired for ${EVENT_URL:-<none>} but newest-ready is $LATEST; aliasing to newest-ready"
           fi
 
-          echo "Aliasing $DEPLOY_URL -> tulala.digital + app.tulala.digital"
-          for D in tulala.digital app.tulala.digital; do
-            vercel alias set "$DEPLOY_URL" "$D" \
-              --scope oran-tenes-projects \
-              --token "$VERCEL_TOKEN"
+          # Every custom host that must follow production.
+          #
+          # The tenant storefront hosts were MISSING here, which is why each
+          # deploy needed a manual `vercel alias set` for them: the site looked
+          # deployed while impronta.tulala.digital / improntamodels.com still
+          # served the previous build. Source of truth for tenant hosts is the
+          # `public.agency_domains` table — when a new agency domain is seeded
+          # there, add it to this list (the runner has no DB access).
+          DOMAINS=(
+            tulala.digital
+            app.tulala.digital
+            impronta.tulala.digital
+            improntamodels.com
+          )
+
+          echo "Aliasing $DEPLOY_URL -> ${DOMAINS[*]}"
+          FAILED=()
+          for D in "${DOMAINS[@]}"; do
+            if vercel alias set "$DEPLOY_URL" "$D" \
+                 --scope oran-tenes-projects \
+                 --token "$VERCEL_TOKEN"; then
+              echo "::notice::aliased $D"
+            else
+              # Don't abort the loop — one unreachable domain must not strand
+              # the others on a stale build.
+              echo "::warning::failed to alias $D"
+              FAILED+=("$D")
+            fi
           done
+
+          if [[ "${#FAILED[@]}" -gt 0 ]]; then
+            echo "::warning::alias command failed for: ${FAILED[*]} — the verify step below decides the run"
+          fi
+
+      - name: Verify every domain serves the new build
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -uo pipefail
+          # A green alias step has still left domains stale before (ghost-project
+          # quirks), so assert reachability rather than trusting exit codes.
+          BAD=0
+          for D in tulala.digital app.tulala.digital impronta.tulala.digital improntamodels.com; do
+            CODE="$(curl -sL -o /dev/null -w '%{http_code}' --max-time 25 "https://$D/" || echo 000)"
+            if [[ "$CODE" == "200" || "$CODE" == "401" ]]; then
+              echo "::notice::$D -> $CODE"
+            else
+              echo "::warning::$D returned $CODE"
+              BAD=$((BAD+1))
+            fi
+          done
+          if [[ "$BAD" -gt 0 ]]; then
+            echo "::error::$BAD domain(s) did not serve a healthy response after aliasing"
+            exit 1
+          fi
