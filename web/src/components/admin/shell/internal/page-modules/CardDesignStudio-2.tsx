@@ -252,6 +252,20 @@ export function CardFeatureToggles({
           disabled={!canEdit}
         />
       </div>
+      <div className="mt-[10px]">
+        <ToggleRow
+          label={t("dashboard.adminCardStudio2.profilePopupLabel")}
+          hint={t("dashboard.adminCardStudio2.profilePopupHint")}
+          on={readTemplateToken("directory.card.profile-popup") !== "off"}
+          onChange={
+            canEdit
+              ? (v) =>
+                  setTemplateToken("directory.card.profile-popup", v ? "on" : "off")
+              : undefined
+          }
+          disabled={!canEdit}
+        />
+      </div>
       {/* Profile-scope, but it lives in this panel because operators think of
           "what standing/reviews show" as one decision. */}
       <div className="mt-[10px]">
