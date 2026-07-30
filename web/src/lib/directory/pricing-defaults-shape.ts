@@ -171,3 +171,23 @@ export type UpdatePricingDefaultsResult =
 export type LoadPricingDefaultsResult =
   | { ok: true; data: TenantPricingDefaults; talentTypes: TalentTypeOption[] }
   | { ok: false; error: string };
+
+/** One roster row in the bulk rate editor. */
+export type RosterRateRow = {
+  talentProfileId: string;
+  displayName: string;
+  roleLabel: string | null;
+  /** Current headline amount in cents, or null when quote-only / unpriced. */
+  headlineCents: number | null;
+  currency: string;
+  /** True when the talent deliberately publishes "quote on request". */
+  quoteOnly: boolean;
+};
+
+export type LoadRosterRatesResult =
+  | { ok: true; rows: RosterRateRow[]; currency: string }
+  | { ok: false; error: string };
+
+export type SaveRosterRatesResult =
+  | { ok: true; updated: number }
+  | { ok: false; error: string };

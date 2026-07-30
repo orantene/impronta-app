@@ -11,6 +11,7 @@ import { AutoAckSettingsRow, LockedPill } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
 import { PricingDefaultsSettingsCard } from "@/components/admin/account/PricingDefaultsSettingsCard";
+import { RosterRateCardEditor } from "@/components/admin/account/RosterRateCardEditor";
 import { PageHeader } from "./pages-shared";
 import {
   SETTINGS_SECTION_EVENT,
@@ -364,7 +365,14 @@ export function WorkspacePageView() {
         desc: t("dashboard.adminWorkspace.pricingDefaultsDesc"),
         visible: !!tenantSlug,
         rows: [],
-        extra: tenantSlug ? <PricingDefaultsSettingsCard /> : null,
+        extra: tenantSlug ? (
+          <div className="flex flex-col gap-8">
+            <PricingDefaultsSettingsCard />
+            {/* Per-talent rates live in the same group: defaults are the
+                fallback, this is the real thing. */}
+            <RosterRateCardEditor />
+          </div>
+        ) : null,
         extraSearch: [
           {
             title: t("dashboard.adminWorkspace.pricingDefaultsLabel"),
@@ -373,6 +381,10 @@ export function WorkspacePageView() {
           {
             title: t("dashboard.adminWorkspace.pricingDefaultsSearchAltTitle"),
             desc: t("dashboard.adminWorkspace.pricingDefaultsSearchAltDesc"),
+          },
+          {
+            title: t("dashboard.adminWorkspace.rosterRatesTitle"),
+            desc: t("dashboard.adminWorkspace.rosterRatesDesc"),
           },
         ],
       },
