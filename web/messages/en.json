@@ -4377,7 +4377,15 @@
       "pricingDefaultsOff": "Off",
       "pricingDefaultsSaving": "Saving…",
       "pricingDefaultsSaved": "Saved.",
-      "pricingDefaultsSaveFailed": "Could not save."
+      "pricingDefaultsSaveFailed": "Could not save.",
+      "rosterRatesTitle": "Day rate per talent",
+      "rosterRatesDesc": "Sets each talent's headline rate directly in their services catalog, so it is the same number clients are quoted. Use the per-role box to fill a whole group at once.",
+      "rosterRatesLoading": "Loading roster rates…",
+      "rosterRatesEmpty": "No active talent on the roster yet.",
+      "rosterRatesNoRole": "No role set",
+      "rosterRatesFillAll": "Fill all",
+      "rosterRatesQuoteOnly": "Quote on request",
+      "rosterRatesSave": "Save rates"
     },
     "adminOperations": {
       "title": "Operations",

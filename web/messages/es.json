@@ -4377,7 +4377,15 @@
       "pricingDefaultsOff": "Desactivado",
       "pricingDefaultsSaving": "Guardando…",
       "pricingDefaultsSaved": "Guardado.",
-      "pricingDefaultsSaveFailed": "No se pudo guardar."
+      "pricingDefaultsSaveFailed": "No se pudo guardar.",
+      "rosterRatesTitle": "Tarifa por día por talento",
+      "rosterRatesDesc": "Fija la tarifa principal de cada talento directamente en su catálogo de servicios, así es el mismo monto que se cotiza a los clientes. Usa la casilla por categoría para completar todo un grupo a la vez.",
+      "rosterRatesLoading": "Cargando tarifas del roster…",
+      "rosterRatesEmpty": "Aún no hay talento activo en el roster.",
+      "rosterRatesNoRole": "Sin categoría",
+      "rosterRatesFillAll": "Completar todos",
+      "rosterRatesQuoteOnly": "Cotización a pedido",
+      "rosterRatesSave": "Guardar tarifas"
     },
     "adminOperations": {
       "title": "Operaciones",
