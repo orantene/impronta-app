@@ -483,13 +483,17 @@ export function TalentCard({
         (show.showLocation && data.location) ? (
           <p className="truncate text-xs text-[var(--token-card-muted,rgba(255,255,255,0.8))]">
             {show.showTalentType ? data.primaryType : null}
-            {show.showTalentType &&
-            data.primaryType &&
-            show.showLocation &&
-            data.location
-              ? "  ·  "
-              : null}
-            {show.showLocation ? data.location : null}
+            {/* On a 2-up mobile grid the caption truncates mid-word
+                ("Commercial Model · Pla…"), so a clipped city conveys nothing
+                while costing the role its legibility. The separator + city are
+                hidden below sm and reappear once there is room; the city is
+                still on the profile and in the filters. */}
+            {show.showLocation && data.location ? (
+              <span className="hidden sm:inline">
+                {show.showTalentType && data.primaryType ? "  ·  " : null}
+                {data.location}
+              </span>
+            ) : null}
           </p>
         ) : null}
         <StandingChip data={data} onScrim showStanding={showStanding} />
