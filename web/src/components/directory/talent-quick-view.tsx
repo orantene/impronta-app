@@ -208,6 +208,20 @@ function TalentQuickViewLightbox({
     .filter(Boolean)
     .join(" · ");
 
+  /*
+   * DESIGN DECISION — this is a neutral PHOTO VIEWER, not a card.
+   *
+   * It deliberately does NOT read the `--token-card-*` colours. Those are
+   * tuned for the card surface, which is light in the Magazine and Minimal
+   * families; painting them onto this black scrim would give dark-on-dark,
+   * unreadable text. A full-bleed image viewer wants a dark neutral chrome so
+   * the photography carries the frame.
+   *
+   * What it DOES follow is the tenant's brand accent (--dir-accent), on the
+   * secondary CTA and the focus rings, so the viewer reads as theirs without
+   * risking legibility. The primary Inquire pill already rides the accent via
+   * TalentCardActions.
+   */
   return createPortal(
     <div
       role="dialog"
@@ -235,7 +249,7 @@ function TalentQuickViewLightbox({
           <Link
             href={profileHref}
             onClick={() => onClose()}
-            className="inline-flex h-9 items-center rounded-full border border-white/20 bg-white/10 px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur-md transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className="inline-flex h-9 items-center rounded-full border border-[var(--dir-accent-line,rgba(255,255,255,0.2))] bg-white/10 px-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur-md transition-colors hover:border-[var(--dir-accent,rgba(255,255,255,0.4))] hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--dir-accent,rgba(255,255,255,0.6))]"
           >
             {viewProfileLabel}
           </Link>

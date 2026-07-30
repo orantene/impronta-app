@@ -10433,7 +10433,9 @@
       "showPriceLabel": "Mostrar precio “Desde $X”",
       "showPriceHint": "Muestra el precio inicial de cada talento en la tarjeta. Una sección de Directorio puede ocultarlo igualmente.",
       "showQuickViewLabel": "Mostrar botón de vista rápida",
-      "showQuickViewHint": "El icono de galería que abre las fotos sin salir del directorio."
+      "showQuickViewHint": "El icono de galería que abre las fotos sin salir del directorio.",
+      "profilePopupLabel": "Abrir perfiles en ventana emergente",
+      "profilePopupHint": "Desactivado = al hacer clic en una tarjeta se abre la página completa del perfil, en todo el sitio."
     },
     "adminFieldsEditor": {
       "add": "Añadir",

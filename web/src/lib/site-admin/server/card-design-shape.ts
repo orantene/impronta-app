@@ -59,8 +59,16 @@ export type CardDesign = {
   nameColor?: string;
   /** `card.muted` — secondary / muted card text. */
   muted?: string;
+  /** `card.price-color` — the "From $X" chip. */
+  priceColor?: string;
   /** `template.directory-card-family`. */
   family: CardDesignFamily;
+  /**
+   * `directory.card.profile-popup`. "off" forces full-page navigation on every
+   * directory card site-wide — a CEILING: a section may choose the full page on
+   * its own, but cannot force the popup back on once the tenant disables it.
+   */
+  profilePopup?: "on" | "off";
 };
 
 /** Registry token key → `CardDesign` color field. */
@@ -68,7 +76,10 @@ const CARD_COLOR_KEYS = {
   surface: "card.surface",
   nameColor: "card.name-color",
   muted: "card.muted",
+  priceColor: "card.price-color",
 } as const;
+
+const PROFILE_POPUP_KEY = "directory.card.profile-popup";
 
 const CARD_FAMILY_KEY = "template.directory-card-family";
 
@@ -112,6 +123,8 @@ export function projectCardDesign(
       out[field] = value;
     }
   }
+  const popup = live[PROFILE_POPUP_KEY];
+  if (popup === "off" || popup === "on") out.profilePopup = popup;
   return out;
 }
 
@@ -141,5 +154,6 @@ export function cardDesignToCssVars(
   if (design.surface) out["--token-card-surface"] = design.surface;
   if (design.nameColor) out["--token-card-name-color"] = design.nameColor;
   if (design.muted) out["--token-card-muted"] = design.muted;
+  if (design.priceColor) out["--token-card-price-color"] = design.priceColor;
   return out;
 }

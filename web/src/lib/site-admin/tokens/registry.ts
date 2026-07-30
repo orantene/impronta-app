@@ -676,6 +676,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "Colour of the “From $X” chip. Empty = the brand accent, which is what both card branches used before this token existed.",
   },
+  "directory.card.profile-popup": {
+    key: "directory.card.profile-popup",
+    label: "Open profiles in a popup",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "When off, clicking a card goes straight to the full profile page everywhere on the site. A directory section can choose the full page on its own, but cannot force the popup back on once this is off.",
+  },
   "directory.card.show-quick-view": {
     key: "directory.card.show-quick-view",
     label: "Show quick-view (gallery) button",

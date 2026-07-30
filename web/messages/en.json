@@ -10433,7 +10433,9 @@
       "showPriceLabel": "Show “From $X” price",
       "showPriceHint": "Shows each talent’s starting price on the card. A directory section can still hide it.",
       "showQuickViewLabel": "Show quick-view button",
-      "showQuickViewHint": "The gallery icon that opens photos without leaving the directory."
+      "showQuickViewHint": "The gallery icon that opens photos without leaving the directory.",
+      "profilePopupLabel": "Open profiles in a popup",
+      "profilePopupHint": "Off = clicking a card goes straight to the full profile page, everywhere."
     },
     "adminFieldsEditor": {
       "add": "Add",

@@ -19,6 +19,7 @@ import {
   jsonLdToString,
 } from "@/lib/seo/talent-json-ld";
 import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
+import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import { logServerError } from "@/lib/server/safe-error";
 import { getCardKit } from "@/lib/site-admin/presets/card-kits";
 import { HeroSearch, type HeroSearchCopy } from "@/components/home/hero-search";
@@ -125,6 +126,15 @@ export async function DirectoryComponent({
   // key authorizes their custom domain; falls back to the platform key in inherit
   // mode. null → the map panel shows its graceful "unavailable" box.
   const mapApiKey = await resolveGoogleMapsKeyForClient(directoryTenantId);
+
+  // Tenant-wide profile-popup ceiling. "off" forces full-page navigation for
+  // every card on the site; a section can still choose the full page itself,
+  // but cannot force the popup back on. Click interception is JS, so unlike
+  // the price/quick-view gates this cannot be a CSS rule.
+  const tenantCardDesign = directoryTenantId
+    ? await resolveCardDesign(directoryTenantId)
+    : null;
+  const popupDisabledTenantWide = tenantCardDesign?.profilePopup === "off";
 
   // Resolve scope seed: maps by_talent_type keys → taxonomy term UUIDs for
   // the SSR first-page pre-filter, surfaces manual codes for client
@@ -616,7 +626,9 @@ export async function DirectoryComponent({
             showAddToInquiry={props.showAddToInquiry}
             showQuickView={props.showQuickView}
             showPriceFrom={props.showPriceFrom}
-            cardClickAction={props.cardClickAction}
+            cardClickAction={
+              popupDisabledTenantWide ? "page" : props.cardClickAction
+            }
             cardFieldKeys={props.cardFieldKeys}
             maxFieldLines={props.maxFieldLines}
             nameFallback={props.nameFallback}
