@@ -647,7 +647,9 @@ export function CardDesignStudio() {
             <ToggleRow label={t("dashboard.adminCardStudio.rowAvailability")} on={appearance.showAvailability} onChange={canEdit ? (v) => patchAppearance("showAvailability", v) : undefined} disabled={!canEdit} />
             <ToggleRow label={t("dashboard.adminCardStudio.rowTrustBadges")} on={appearance.showBadges} onChange={canEdit ? (v) => patchAppearance("showBadges", v) : undefined} disabled={!canEdit} />
             <ToggleRow label={t("dashboard.adminCardStudio.rowRating")} on={appearance.showRating} onChange={canEdit ? (v) => patchAppearance("showRating", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowPriceFrom")} on={appearance.showPriceFrom} onChange={canEdit ? (v) => patchAppearance("showPriceFrom", v) : undefined} disabled={!canEdit} />
+            {/* PREVIEW-ONLY — real control is the directory section's showPriceFrom
+                knob; a 2nd persistence path would just re-create the drift. */}
+            <ToggleRow label={t("dashboard.adminCardStudio.rowPriceFrom")} hint={t("dashboard.adminCardStudio.rowPriceFromHint")} on={appearance.showPriceFrom} onChange={canEdit ? (v) => patchAppearance("showPriceFrom", v) : undefined} disabled={!canEdit} />
 
             {/* Reviews on cards — REAL persistence (template tokens; see
                 setTemplateToken). Master on/off maps show-standing off↔compact;

@@ -4922,7 +4922,8 @@
       "toastNeedAdminDesign": "You need admin access to change the card design.",
       "toastNeedAdminFields": "You need admin access to change card fields.",
       "toastNeedAdminBadges": "You need admin access to change roster card badges.",
-      "toastCouldNotSaveField": "Could not save that field."
+      "toastCouldNotSaveField": "Could not save that field.",
+      "rowPriceFromHint": "Preview only. The live starting price is controlled by the Directory section (Show starting price) and is on by default."
     },
     "adminPitches": {
       "statusDraft": "Draft",
