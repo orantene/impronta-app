@@ -246,6 +246,12 @@ function WorkspaceSidebarShell() {
           label: copy.isSpanish ? "Registro" : "Registration",
           href: `${rosterBase}/registration`,
         },
+        {
+          // Per-talent day rates — roster DATA, so it belongs beside the
+          // roster. The tenant-wide fallback stays in Settings (a policy).
+          label: copy.isSpanish ? "Tarifas" : "Rates",
+          href: `${rosterBase}/rates`,
+        },
       ];
     }
     return null;

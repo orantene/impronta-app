@@ -99,6 +99,11 @@ export function PricingDefaultsSettingsCard() {
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {t("dashboard.adminWorkspace.pricingDefaultsToggleDesc")}
           </p>
+          {/* One home per job: this card is the fallback policy, the roster
+              owns per-person rates. */}
+          <p className="mt-1.5 text-xs text-muted-foreground/80">
+            {t("dashboard.adminWorkspace.pricingDefaultsPerTalentPointer")}
+          </p>
         </div>
         <label className="flex shrink-0 items-center gap-2 text-xs">
           <input
