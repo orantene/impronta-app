@@ -16,6 +16,7 @@ import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import type { MediaAsset } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero } from "./extended-actions";
 import { actionUploadAndAssignMedia, actionDeleteMediaAssets, actionLoadTalentMediaBundle, actionImportFromGoogleDrive, actionReorderMediaAssets, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
 // ─── Design tokens (match workspace shell) ────────────────────────────────────
@@ -551,12 +552,37 @@ function ThreeSlotPhotoPanel({
             return { ok: true };
           }}
           onUploadFile={async (file, variantKind, sourceMediaAssetId) => {
-            const fd = new FormData();
-            fd.append("file", file);
             const allowed = ["gallery", "card", "hero", "lightbox"] as const;
             const kind = allowed.includes(variantKind as typeof allowed[number])
               ? (variantKind as typeof allowed[number])
               : "gallery";
+
+            // Signed-upload pipeline first — see the note on the same handler in
+            // TalentProfileShellDrawer. The legacy action's 4 MB Server Action
+            // body cap rejects normal camera photos; compressing in the browser
+            // and PUTting straight to storage sidesteps it.
+            const fast = await uploadTalentMedia({
+              file,
+              variantKind: kind,
+              talentProfileId: talentId,
+              sourceMediaAssetId: sourceMediaAssetId ?? null,
+            });
+            if (fast.ok) {
+              return {
+                ok: true,
+                asset: {
+                  id: fast.id,
+                  url: fast.publicUrl,
+                  variantKind: kind,
+                  sortOrder: fast.sortOrder,
+                  sourceMediaAssetId: fast.sourceMediaAssetId,
+                },
+              };
+            }
+            if (!fast.fallbackToLegacy) return { ok: false, error: fast.error };
+
+            const fd = new FormData();
+            fd.append("file", file);
             const res = await actionUploadAndAssignMedia(fd, talentId, kind, {}, sourceMediaAssetId ?? null);
             if (!res.ok) return { ok: false, error: res.error };
             return {

@@ -198,6 +198,7 @@ import {
   profileReducer
 } from "./profile-shell-internal";
 import { shouldShowPolaroidsSection } from "./profile-polaroids-policy";
+import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercial-terms";
 import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
@@ -4281,12 +4282,41 @@ export function TalentProfileShellDrawer() {
               return { ok: res.ok, error: res.ok ? undefined : (res as { error?: string }).error };
             }}
             onUploadFile={async (file, variantKind, sourceMediaAssetId) => {
-              const fd = new FormData();
-              fd.append("file", file);
               const allowed = ["gallery", "card", "hero", "lightbox"] as const;
               const kind = allowed.includes(variantKind as typeof allowed[number])
                 ? (variantKind as typeof allowed[number])
                 : "gallery";
+
+              // Signed-upload pipeline first (compress in browser → PUT direct
+              // to Supabase → register). The legacy action POSTs the raw file
+              // through a Server Action, whose 4 MB body cap REJECTS ordinary
+              // phone/camera photos before the action even runs — that was the
+              // "gallery stuck on Uploading N photos…" bug. Compression here
+              // means the bytes on the wire are ~150 KB, well under any cap.
+              // Falls back to the legacy action for files the fast path can't
+              // handle (animated GIF, no canvas, signed PUT 5xx).
+              const fast = await uploadTalentMedia({
+                file,
+                variantKind: kind,
+                talentProfileId: payload.talentId!,
+                sourceMediaAssetId: sourceMediaAssetId ?? null,
+              });
+              if (fast.ok) {
+                return {
+                  ok: true,
+                  asset: {
+                    id: fast.id,
+                    url: fast.publicUrl,
+                    variantKind: kind,
+                    sortOrder: fast.sortOrder,
+                    sourceMediaAssetId: fast.sourceMediaAssetId,
+                  },
+                };
+              }
+              if (!fast.fallbackToLegacy) return { ok: false, error: fast.error };
+
+              const fd = new FormData();
+              fd.append("file", file);
               const res = await actionUploadAndAssignMedia(fd, payload.talentId!, kind, {}, sourceMediaAssetId ?? null);
               if (!res.ok) return { ok: false, error: res.error };
               return {
