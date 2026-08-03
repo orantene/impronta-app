@@ -4385,7 +4385,8 @@
       "rosterRatesNoRole": "Sin categoría",
       "rosterRatesFillAll": "Completar todos",
       "rosterRatesQuoteOnly": "Cotización a pedido",
-      "rosterRatesSave": "Guardar tarifas"
+      "rosterRatesSave": "Guardar tarifas",
+      "pricingDefaultsPerTalentPointer": "Fijar la tarifa de cada talento se hace junto al roster: Roster → Tarifas."
     },
     "adminOperations": {
       "title": "Operaciones",

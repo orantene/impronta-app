@@ -4385,7 +4385,8 @@
       "rosterRatesNoRole": "No role set",
       "rosterRatesFillAll": "Fill all",
       "rosterRatesQuoteOnly": "Quote on request",
-      "rosterRatesSave": "Save rates"
+      "rosterRatesSave": "Save rates",
+      "pricingDefaultsPerTalentPointer": "Setting a rate for individual talent lives with the roster: Roster → Rates."
     },
     "adminOperations": {
       "title": "Operations",
