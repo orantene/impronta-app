@@ -50,3 +50,39 @@ test("all-featured page untouched", () => {
     ["f1", "f2"],
   );
 });
+
+test("manually curated rows keep their slots; demand reorders only uncurated", () => {
+  const items = [
+    { id: "r1", isFeatured: false, manualRankOverride: 1 },
+    { id: "a", isFeatured: false, manualRankOverride: null },
+    { id: "r2", isFeatured: false, manualRankOverride: 2 },
+    { id: "b", isFeatured: false, manualRankOverride: null },
+    { id: "c", isFeatured: false, manualRankOverride: null },
+  ];
+  applyDemandSmoothing(
+    items,
+    new Map([
+      // huge demand on a curated row must NOT move it
+      ["r2", 100],
+      ["c", 9],
+      ["b", 3],
+    ]),
+  );
+  assert.deepEqual(
+    items.map((i) => i.id),
+    ["r1", "c", "r2", "b", "a"],
+  );
+});
+
+test("fully curated page is untouched by demand", () => {
+  const items = [
+    { id: "r1", isFeatured: false, manualRankOverride: 1 },
+    { id: "r2", isFeatured: false, manualRankOverride: 2 },
+    { id: "r3", isFeatured: false, manualRankOverride: 3 },
+  ];
+  applyDemandSmoothing(items, new Map([["r3", 50]]));
+  assert.deepEqual(
+    items.map((i) => i.id),
+    ["r1", "r2", "r3"],
+  );
+});
