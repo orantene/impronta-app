@@ -487,14 +487,20 @@ export type CardKitOption = {
   tokens: Record<string, string>;
 };
 
-/** The card-family token key that records which kit is active. */
-export const CARD_FAMILY_TOKEN_KEY = "template.directory-card-family";
+// Token-key constants live in the import-free ./card-design-token-keys module
+// (this file re-exports them for its existing consumers). Do NOT define keys
+// here and import them from there — that exact shape was a module cycle that
+// crashed the whole admin shell on production at chunk-evaluation time.
+export {
+  CARD_DESIGN_TOKEN_KEYS,
+  CARD_FAMILY_TOKEN_KEY,
+} from "./card-design-token-keys";
 
-/** The three color knobs the studio exposes, in display order. */
+/** The color knobs the studio exposes, in display order. */
 // English `label` / `hint` remain the non-UI fallback; the studio renders
-// `t(knob.labelKey)` / `t(knob.hintKey)`.
+// `t(knob.labelKey)` / `t(knob.hintKey)`. Key strings must stay in sync with
+// CARD_COLOR_KNOB_KEYS in ./card-design-token-keys (pinned by test).
 const KNOB_NS = "dashboard.adminCardStudio2.knobs";
-export { CARD_DESIGN_TOKEN_KEYS } from "./card-design-token-keys";
 
 export const CARD_COLOR_KNOBS: Array<{
   key: string; label: string; hint: string; labelKey: string; hintKey: string;
@@ -508,8 +514,6 @@ export const CARD_COLOR_KNOBS: Array<{
   { key: "card.price-color", label: "Price chip", hint: "The “From $X” chip",
     labelKey: `${KNOB_NS}.priceLabel`, hintKey: `${KNOB_NS}.priceHint` },
 ];
-
-/** Every card-family token key the studio touches (kit + knobs). */
 
 /**
  * Realistic sample talent for the live preview. Editorial portrait imagery,
