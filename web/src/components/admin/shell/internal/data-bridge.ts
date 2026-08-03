@@ -445,6 +445,7 @@ type RosterRow = {
     workflow_status: string | null;
     is_publicly_hidden: boolean | null;
     height_cm: number | null;
+    manual_rank_override: number | null;
     updated_at: string | null;
     talent_profile_taxonomy:
       | {
@@ -719,6 +720,7 @@ export async function loadWorkspaceRosterForCurrentTenant(
           workflow_status,
           is_publicly_hidden,
           height_cm,
+          manual_rank_override,
           updated_at,
           talent_profile_taxonomy (
             relationship_type,
@@ -793,6 +795,9 @@ export async function loadWorkspaceRosterForCurrentTenant(
           row.agency_visibility === "featured",
         // Talent's own global hide switch — overrides the agency eye.
         talentHidden: profile.is_publicly_hidden ?? false,
+        // Curated "Recommended" rank (`talent_profiles.manual_rank_override`).
+        // Drives the roster Arrange-order mode; null = not manually ranked.
+        directoryRank: profile.manual_rank_override ?? undefined,
         createdAt: row.created_at ?? undefined,
         updatedAt: profile.updated_at ?? undefined,
         // `completeness`, `availability`, `lastActive` are derived UI

@@ -11105,6 +11105,20 @@
         "matchesMany": "{count} matches found",
         "noFeaturedSkill": "No featured skill",
         "score": "score {score}"
+      },
+      "arrange": {
+        "button": "Arrange order",
+        "title": "Arrange directory order",
+        "subtitle": "Drag cards or click a number to set the order visitors see in your public directory (Recommended sort). Changes save automatically.",
+        "done": "Done",
+        "reset": "Reset to automatic",
+        "resetConfirm": "Remove the custom order? Talent will go back to the automatic order.",
+        "saving": "Saving…",
+        "saved": "Saved",
+        "saveError": "Could not save. Retry",
+        "hiddenHint": "Hidden from the public directory",
+        "rankAria": "Position of {name}. Click to type a position.",
+        "workspaceOnly": "Open a live workspace to arrange the directory order."
       }
     },
     "account": {

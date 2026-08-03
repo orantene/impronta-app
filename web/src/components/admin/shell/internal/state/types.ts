@@ -549,6 +549,11 @@ export type TalentProfile = {
    *  overrides any agency's `siteVisible` choice. Drives the "Hidden by
    *  talent" indicator on the roster card. */
   talentHidden?: boolean;
+  /** Curated "Recommended" position (`talent_profiles.manual_rank_override`).
+   *  Lower = earlier in the public directory's default sort. undefined =
+   *  never manually ranked — the talent falls through to the automatic
+   *  featured/recency ordering. Edited via the roster Arrange-order mode. */
+  directoryRank?: number;
   // ── WS-31.6 / WS-34.8 Minor protections ────────────────────────────
   // Talent under 18 carries a guardian + protection block. Surfaced on
   // every offer, inquiry workspace, and roster card via

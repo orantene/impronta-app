@@ -93,12 +93,15 @@ export async function getDemandScores(
 }
 
 /**
- * Stable page-local re-rank: the leading featured block is left byte-stable;
- * everything after it is ordered by demand score desc (ties keep the base
- * recency order). Mutates `items` in place, mirroring applyTopRatedSmoothing.
+ * Stable page-local re-rank: the leading featured block is left byte-stable,
+ * and every manually-curated row (`manualRankOverride` set via the roster
+ * "Arrange directory order" mode) keeps its exact slot — the agency's explicit
+ * order always beats the demand signal. Only the remaining uncurated rows are
+ * re-ordered by demand score desc (ties keep the base recency order). Mutates
+ * `items` in place, mirroring applyTopRatedSmoothing.
  */
 export function applyDemandSmoothing<
-  T extends { id: string; isFeatured: boolean },
+  T extends { id: string; isFeatured: boolean; manualRankOverride?: number | null },
 >(items: T[], scores: Map<string, number>): void {
   if (items.length < 2 || scores.size === 0) return;
   let firstNonFeatured = 0;
@@ -108,10 +111,17 @@ export function applyDemandSmoothing<
   ) {
     firstNonFeatured++;
   }
-  const tail = items
-    .slice(firstNonFeatured)
-    .map((item, i) => ({ item, i, score: scores.get(item.id) ?? 0 }))
+  // Slots eligible for demand re-ordering: past the featured block AND not
+  // manually curated. Curated rows stay exactly where the SQL order (rank asc)
+  // placed them.
+  const slots: number[] = [];
+  for (let i = firstNonFeatured; i < items.length; i++) {
+    if (items[i].manualRankOverride == null) slots.push(i);
+  }
+  if (slots.length < 2) return;
+  const reordered = slots
+    .map((slot, i) => ({ item: items[slot], i, score: scores.get(items[slot].id) ?? 0 }))
     .sort((a, b) => b.score - a.score || a.i - b.i)
     .map((e) => e.item);
-  for (let i = 0; i < tail.length; i++) items[firstNonFeatured + i] = tail[i];
+  for (let i = 0; i < slots.length; i++) items[slots[i]] = reordered[i];
 }
