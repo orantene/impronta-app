@@ -33,6 +33,9 @@ import { fillAdminTpl } from "./TalentPage-1";
 //    public directory's "Recommended" sort. Persists to
 //    `talent_profiles.manual_rank_override` via saveDirectoryOrder;
 //    every committed change autosaves with an explicit Saving/Saved chip.
+//    Styling lives in the scoped <style> block below (ratchet rule 2:
+//    no new inline style attributes in the admin shell — dynamic values
+//    travel through CSS custom properties only).
 // ════════════════════════════════════════════════════════════════════
 
 /**
@@ -59,6 +62,98 @@ function initialArrangeOrder(items: TalentProfile[]): TalentProfile[] {
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+
+const ARRANGE_CSS = `
+[data-tulala-arrange] { font-family: var(--ta-font-body); }
+[data-tulala-arrange] .ta-header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px; margin-bottom: 14px; border-radius: 12px;
+  background: rgba(15,79,62,0.05); border: 1px solid var(--ta-accent);
+}
+[data-tulala-arrange] .ta-header-copy { flex: 1; min-width: 220px; }
+[data-tulala-arrange] .ta-title { font-size: 13.5px; font-weight: 700; letter-spacing: -0.1px; }
+[data-tulala-arrange] .ta-subtitle { font-size: 11.5px; margin-top: 2px; }
+[data-tulala-arrange] .ta-chip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px;
+  border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+}
+[data-tulala-arrange] .ta-chip-saving { border: 1px solid var(--ta-border-soft); background: #fff; color: var(--ta-ink-muted); }
+[data-tulala-arrange] .ta-chip-saved { border: 1px solid rgba(46,125,91,0.35); background: rgba(46,125,91,0.08); color: var(--ta-green); }
+[data-tulala-arrange] .ta-chip-error { border: 1px solid rgba(176,48,58,0.4); background: rgba(176,48,58,0.08); color: var(--ta-critical); cursor: pointer; font-family: var(--ta-font-body); }
+[data-tulala-arrange] .ta-spinner {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 2px solid var(--ta-border-soft); border-top-color: var(--ta-ink-muted);
+  animation: tulala-arrange-spin 0.7s linear infinite;
+}
+@keyframes tulala-arrange-spin { to { transform: rotate(360deg); } }
+[data-tulala-arrange] .ta-btn-ghost {
+  padding: 7px 12px; border-radius: 999px; border: 1px solid var(--ta-border-soft);
+  background: #fff; color: var(--ta-ink-muted); font-family: var(--ta-font-body);
+  font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+[data-tulala-arrange] .ta-btn-ghost:disabled { cursor: default; opacity: 0.6; }
+[data-tulala-arrange] .ta-btn-primary {
+  padding: 7px 16px; border-radius: 999px; border: none;
+  background: var(--ta-accent); color: #fff; font-family: var(--ta-font-body);
+  font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+[data-tulala-arrange] .ta-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
+}
+@media (max-width: 600px) {
+  [data-tulala-arrange] .ta-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}
+@media (min-width: 1500px) {
+  [data-tulala-arrange] .ta-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 1340px; }
+}
+[data-tulala-arrange] .ta-card {
+  position: relative; background: #fff; border-radius: 14px; overflow: hidden;
+  font-family: var(--ta-font-body); cursor: grab;
+  border: 1px solid var(--ta-border-soft);
+  box-shadow: 0 1px 2px rgba(11,11,13,0.03);
+  transform: var(--ta-dnd-transform); transition: var(--ta-dnd-transition);
+  opacity: var(--ta-card-opacity, 1);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+[data-tulala-arrange] .ta-card-dragging {
+  cursor: grabbing; border-color: var(--ta-accent); z-index: 5;
+  box-shadow: 0 12px 28px -12px rgba(11,11,13,0.35);
+}
+[data-tulala-arrange] .ta-photo {
+  position: relative; aspect-ratio: 4 / 5; display: flex;
+  align-items: center; justify-content: center; overflow: hidden;
+}
+[data-tulala-arrange] .ta-photo img { object-fit: cover; pointer-events: none; }
+[data-tulala-arrange] .ta-initials {
+  font-family: var(--ta-font-display); font-size: 36px; font-weight: 500;
+  color: var(--ta-ink-muted); letter-spacing: -1px; user-select: none;
+}
+[data-tulala-arrange] .ta-rank {
+  position: absolute; top: 8px; left: 8px; min-width: 26px; height: 26px;
+  padding: 0 7px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(11,11,13,0.72); color: #fff; font-family: var(--ta-font-body);
+  font-size: 12.5px; font-weight: 700; cursor: text;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+[data-tulala-arrange] .ta-rank-input {
+  position: absolute; top: 8px; left: 8px; width: 44px; height: 26px;
+  border-radius: 8px; border: 1.5px solid var(--ta-accent); background: #fff;
+  color: var(--ta-ink); font-family: var(--ta-font-body); font-size: 12.5px;
+  font-weight: 700; text-align: center; outline: none; padding: 0;
+}
+[data-tulala-arrange] .ta-drag-hint {
+  position: absolute; top: 8px; right: 8px; width: 24px; height: 24px;
+  border-radius: 7px; background: rgba(11,11,13,0.55);
+  border: 1px solid rgba(255,255,255,0.2); display: inline-flex;
+  align-items: center; justify-content: center; color: rgba(255,255,255,0.9);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); pointer-events: none;
+}
+[data-tulala-arrange] .ta-name-row { padding: 8px 12px 10px; }
+[data-tulala-arrange] .ta-name {
+  font-size: 13px; font-weight: 600; letter-spacing: -0.1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+`;
 
 export function RosterArrangeView({
   items,
@@ -142,28 +237,26 @@ export function RosterArrangeView({
   };
 
   return (
-    <div style={{ fontFamily: FONTS.body }}>
+    <div
+      data-tulala-arrange
+      style={{
+        "--ta-accent": COLORS.accent,
+        "--ta-green": COLORS.green,
+        "--ta-critical": COLORS.critical,
+        "--ta-ink": COLORS.ink,
+        "--ta-ink-muted": COLORS.inkMuted,
+        "--ta-border-soft": COLORS.borderSoft,
+        "--ta-font-body": FONTS.body,
+        "--ta-font-display": FONTS.display,
+      } as React.CSSProperties}
+    >
+      <style>{ARRANGE_CSS}</style>
+
       {/* Arrange header — title + save state + reset/done */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-          padding: "12px 14px",
-          marginBottom: 14,
-          borderRadius: 12,
-          background: "rgba(15,79,62,0.05)",
-          border: `1px solid ${COLORS.accent}`,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: -0.1 }} className="text-admin-ink">
-            {t("admin.roster.arrange.title")}
-          </div>
-          <div style={{ fontSize: 11.5, marginTop: 2 }} className="text-admin-ink-muted">
-            {t("admin.roster.arrange.subtitle")}
-          </div>
+      <div className="ta-header">
+        <div className="ta-header-copy">
+          <div className="ta-title text-admin-ink">{t("admin.roster.arrange.title")}</div>
+          <div className="ta-subtitle text-admin-ink-muted">{t("admin.roster.arrange.subtitle")}</div>
         </div>
         <SaveStateChip
           state={saveState}
@@ -171,40 +264,13 @@ export function RosterArrangeView({
         />
         <button
           type="button"
+          className="ta-btn-ghost"
           onClick={() => void handleReset()}
           disabled={isResetting}
-          style={{
-            padding: "7px 12px",
-            borderRadius: 999,
-            border: `1px solid ${COLORS.borderSoft}`,
-            background: "#fff",
-            color: COLORS.inkMuted,
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: isResetting ? "default" : "pointer",
-            opacity: isResetting ? 0.6 : 1,
-            whiteSpace: "nowrap",
-          }}
         >
           {t("admin.roster.arrange.reset")}
         </button>
-        <button
-          type="button"
-          onClick={onExit}
-          style={{
-            padding: "7px 16px",
-            borderRadius: 999,
-            border: "none",
-            background: COLORS.accent,
-            color: "#fff",
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            fontWeight: 600,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <button type="button" className="ta-btn-primary" onClick={onExit}>
           {t("admin.roster.arrange.done")}
         </button>
       </div>
@@ -212,25 +278,7 @@ export function RosterArrangeView({
       {/* Sortable grid — mirrors RosterGrid's column model */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={ids} strategy={rectSortingStrategy}>
-          <div
-            data-tulala-arrange-grid
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 12,
-            }}
-          >
-            <style>{`
-              @media (max-width: 600px) {
-                [data-tulala-arrange-grid] { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
-              }
-              @media (min-width: 1500px) {
-                [data-tulala-arrange-grid] {
-                  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-                  max-width: 1340px;
-                }
-              }
-            `}</style>
+          <div className="ta-grid">
             {order.map((p, i) => (
               <ArrangeCard
                 key={p.id}
@@ -252,66 +300,22 @@ function SaveStateChip({ state, onRetry }: { state: SaveState; onRetry: () => vo
   if (state === "idle") return null;
   if (state === "error") {
     return (
-      <button
-        type="button"
-        onClick={onRetry}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "5px 11px",
-          borderRadius: 999,
-          border: "1px solid rgba(176,48,58,0.4)",
-          background: "rgba(176,48,58,0.08)",
-          color: COLORS.critical,
-          fontFamily: FONTS.body,
-          fontSize: 11.5,
-          fontWeight: 600,
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}
-      >
+      <button type="button" className="ta-chip ta-chip-error" onClick={onRetry}>
         {t("admin.roster.arrange.saveError")}
       </button>
     );
   }
   const saving = state === "saving";
   return (
-    <div
-      aria-live="polite"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "5px 11px",
-        borderRadius: 999,
-        border: `1px solid ${saving ? COLORS.borderSoft : "rgba(46,125,91,0.35)"}`,
-        background: saving ? "#fff" : "rgba(46,125,91,0.08)",
-        color: saving ? COLORS.inkMuted : COLORS.green,
-        fontSize: 11.5,
-        fontWeight: 600,
-        whiteSpace: "nowrap",
-      }}
-    >
+    <div aria-live="polite" className={`ta-chip ${saving ? "ta-chip-saving" : "ta-chip-saved"}`}>
       {saving ? (
-        <span
-          aria-hidden
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            border: `2px solid ${COLORS.borderSoft}`,
-            borderTopColor: COLORS.inkMuted,
-            animation: "tulala-arrange-spin 0.7s linear infinite",
-          }}
-        />
+        <span aria-hidden className="ta-spinner" />
       ) : (
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       )}
       {saving ? t("admin.roster.arrange.saving") : t("admin.roster.arrange.saved")}
-      <style>{`@keyframes tulala-arrange-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -348,62 +352,30 @@ function ArrangeCard({
       {...attributes}
       {...listeners}
       aria-label={fillAdminTpl(t("admin.roster.arrange.rankAria"), { name: profile.name })}
+      className={`ta-card${isDragging ? " ta-card-dragging" : ""}`}
       style={{
-        position: "relative",
-        background: "#fff",
-        border: `1px solid ${isDragging ? COLORS.accent : COLORS.borderSoft}`,
-        borderRadius: 14,
-        overflow: "hidden",
-        fontFamily: FONTS.body,
-        cursor: isDragging ? "grabbing" : "grab",
-        transform: CSS.Transform.toString(transform),
-        transition,
-        boxShadow: isDragging
-          ? "0 12px 28px -12px rgba(11,11,13,0.35)"
-          : "0 1px 2px rgba(11,11,13,0.03)",
-        zIndex: isDragging ? 5 : undefined,
-        opacity: isPubliclyVisible ? 1 : 0.55,
-        touchAction: "none",
-        userSelect: "none",
-      }}
+        "--ta-dnd-transform": CSS.Transform.toString(transform) ?? "none",
+        "--ta-dnd-transition": transition ?? "none",
+        "--ta-card-opacity": isPubliclyVisible ? 1 : 0.55,
+      } as React.CSSProperties}
       title={isPubliclyVisible ? undefined : t("admin.roster.arrange.hiddenHint")}
     >
       {/* Photo */}
-      <div
-        style={{
-          position: "relative",
-          aspectRatio: "4 / 5",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-        className="bg-admin-surface-alt"
-      >
+      <div className="ta-photo bg-admin-surface-alt">
         {profile.thumb && !photoFailed && (
           <Image
             src={profile.thumb}
             alt={profile.name}
             fill
             sizes="(max-width: 600px) 50vw, (max-width: 1500px) 22vw, 220px"
-            style={{ objectFit: "cover", pointerEvents: "none" }}
             unoptimized={!/^https?:\/\//.test(profile.thumb) || /\/(card|thumb|polaroid)\//.test(profile.thumb)}
             onError={() => setPhotoFailed(true)}
             draggable={false}
           />
         )}
+        {/* Initials fallback when no photo / photo failed to load. */}
         {(!profile.thumb || photoFailed) && (
-          <div
-            aria-hidden
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 36,
-              fontWeight: 500,
-              color: COLORS.inkMuted,
-              letterSpacing: -1,
-              userSelect: "none",
-            }}
-          >
+          <div aria-hidden className="ta-initials">
             {profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
           </div>
         )}
@@ -417,6 +389,7 @@ function ArrangeCard({
             min={1}
             max={total}
             value={draft}
+            className="ta-rank-input"
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commitDraft}
             onKeyDown={(e) => {
@@ -425,77 +398,24 @@ function ArrangeCard({
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              position: "absolute",
-              top: 8,
-              left: 8,
-              width: 44,
-              height: 26,
-              borderRadius: 8,
-              border: `1.5px solid ${COLORS.accent}`,
-              background: "#fff",
-              color: COLORS.ink,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              fontWeight: 700,
-              textAlign: "center",
-              outline: "none",
-              padding: 0,
-            }}
           />
         ) : (
           <button
             type="button"
+            className="ta-rank"
             onClick={() => {
               setDraft(String(position));
               setEditing(true);
             }}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={fillAdminTpl(t("admin.roster.arrange.rankAria"), { name: profile.name })}
-            style={{
-              position: "absolute",
-              top: 8,
-              left: 8,
-              minWidth: 26,
-              height: 26,
-              padding: "0 7px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.25)",
-              background: "rgba(11,11,13,0.72)",
-              color: "#fff",
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              fontWeight: 700,
-              cursor: "text",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-            }}
           >
             {position}
           </button>
         )}
 
         {/* Drag affordance — visual hint only; the whole card drags */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            width: 24,
-            height: 24,
-            borderRadius: 7,
-            background: "rgba(11,11,13,0.55)",
-            border: "1px solid rgba(255,255,255,0.2)",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "rgba(255,255,255,0.9)",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
-            pointerEvents: "none",
-          }}
-        >
+        <div aria-hidden className="ta-drag-hint">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="8" cy="5" r="1.7" />
             <circle cx="16" cy="5" r="1.7" />
@@ -508,20 +428,8 @@ function ArrangeCard({
       </div>
 
       {/* Body — name only; arrange mode is about order, not profile detail */}
-      <div style={{ padding: "8px 12px 10px" }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: -0.1,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-          className="text-admin-ink"
-        >
-          {profile.name}
-        </div>
+      <div className="ta-name-row">
+        <div className="ta-name text-admin-ink">{profile.name}</div>
       </div>
     </div>
   );

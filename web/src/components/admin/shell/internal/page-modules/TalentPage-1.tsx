@@ -70,9 +70,7 @@ export function TalentPage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
   const [pitchComposeOpen, setPitchComposeOpen] = useState(false);
-  // Arrange-directory-order mode — replaces the filter/grid section with a
-  // drag-sortable grid writing `manual_rank_override` (the public directory's
-  // Recommended sort). Live workspaces only: the save action needs a slug.
+  // Arrange-directory-order mode (live workspaces only; see RosterArrangeView).
   const [arrangeMode, setArrangeMode] = useState(false);
 
   // Resolve a parent-type filter to its children (for filtering by primaryType id).
@@ -228,11 +226,7 @@ export function TalentPage() {
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <>
-                {tenantSlug && !arrangeMode && (
-                  <GhostButton onClick={() => setArrangeMode(true)}>
-                    {t("admin.roster.arrange.button")}
-                  </GhostButton>
-                )}
+                {tenantSlug && !arrangeMode && <GhostButton onClick={() => setArrangeMode(true)}>{t("admin.roster.arrange.button")}</GhostButton>}
                 <RosterMoreMenu
                   open={moreOpen}
                   onToggle={() => setMoreOpen((o) => !o)}
@@ -325,18 +319,13 @@ export function TalentPage() {
         }
       />
 
-      {/* Arrange mode — drag-sortable directory order. Replaces the filter +
-          grid section so the arranged list is always the FULL roster in the
-          exact public order (filters/search would make positions ambiguous). */}
+      {/* Arrange mode replaces the filter + grid section: the arranged list is
+          always the FULL roster in public order (filters would be ambiguous). */}
       {arrangeMode && tenantSlug ? (
         <RosterArrangeView
           items={roster}
           tenantSlug={tenantSlug}
-          onExit={() => {
-            setArrangeMode(false);
-            // Re-fetch the server roster so cards reflect the saved ranks.
-            router.refresh();
-          }}
+          onExit={() => { setArrangeMode(false); router.refresh(); }}
         />
       ) : (
       <>
