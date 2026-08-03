@@ -187,6 +187,7 @@ export function TalentPage() {
           ? fillAdminTpl(t("admin.roster.list.bulkPublishedToast"), { count: String(result.updatedCount) })
           : fillAdminTpl(t("admin.roster.list.bulkArchivedToast"), { count: String(result.updatedCount) }),
       );
+      if (result.skippedCount) toast(`${result.skippedCount} skipped as incomplete: ${result.skippedNames?.join(", ")}`); // publish-checklist rejects; a silent "0" reads as broken
       clearSelected();
       // Refresh server-rendered roster so the new workflow_status badges
       // (Published / Archived) update on the cards immediately.

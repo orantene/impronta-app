@@ -22,6 +22,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { residenceCityPatchFromText } from "@/lib/residence-city-sync";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
+import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-publish-server-gate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -583,8 +584,14 @@ export async function updateRosterTalentWorkflow(
  *                     (kept on the roster, not shown publicly)
  *
  * This is the agency-side public gate that replaces the old Draft/Published
- * workflow. A talent whose `is_publicly_hidden` is true stays hidden publicly
- * regardless — that global kill-switch belongs to the talent, not the agency.
+ * workflow, and since 20260803203521 it is the sole input to
+ * `talent_profiles.is_publicly_listed` — the column the directory, the Discover
+ * matview and the media RLS policy all read. Flipping the eye on is therefore
+ * the real approve action, so it clears the same publish checklist the drawer's
+ * Publish button enforces.
+ *
+ * A talent whose `is_publicly_hidden` is true stays hidden publicly regardless —
+ * that global kill-switch belongs to the talent, not the agency.
  */
 export async function setRosterTalentSiteVisibility(
   tenantSlug: string,
@@ -601,6 +608,18 @@ export async function setRosterTalentSiteVisibility(
   // just because the eye was clicked "on".
   if (visible && currentAgencyVisibility === "featured") return { success: true };
   if (currentAgencyVisibility === next) return { success: true };
+
+  // Publish checklist — only when going public. Hiding is always allowed, and
+  // must stay allowed: an agency has to be able to pull an incomplete profile
+  // down without first filling in the fields that made it incomplete.
+  if (visible) {
+    const ready = await assertTalentReadyForPublicListing({
+      supabase: admin,
+      tenantId,
+      talentProfileId: talentId,
+    });
+    if (!ready.ok) return { error: ready.error };
+  }
 
   const { error } = await admin
     .from("agency_talent_roster")

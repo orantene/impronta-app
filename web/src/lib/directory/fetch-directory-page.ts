@@ -510,6 +510,7 @@ export async function fetchDirectoryPage(
           .select("id")
           .is("deleted_at", null)
           .eq("is_publicly_hidden", false)
+          .eq("is_publicly_listed", true)
           .or(orResidenceOrLegacyLocationMatches(locIds)),
     );
     if (locTalentErr) {
@@ -690,7 +691,10 @@ export async function fetchDirectoryPage(
       .from("talent_profiles")
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
-      .eq("is_publicly_hidden", false);
+      .eq("is_publicly_hidden", false)
+      // Must mirror the listing query below, or the header count disagrees with
+      // the number of cards actually rendered.
+      .eq("is_publicly_listed", true);
 
     if (locationId) {
       countQuery = countQuery.or(orResidenceOrLegacyLocationEq(locationId));
@@ -777,7 +781,13 @@ export async function fetchDirectoryPage(
     `,
     )
     .is("deleted_at", null)
-    .eq("is_publicly_hidden", false);
+    .eq("is_publicly_hidden", false)
+    // The public gate. Before this the listing filtered only on
+    // is_publicly_hidden, while media RLS and the Discover matview used a
+    // stricter rule — so unpublished profiles rendered as cards whose photos
+    // the RLS policy then refused to return (the "faceless card" bug). All
+    // three now read talent_profiles.is_publicly_listed.
+    .eq("is_publicly_listed", true);
 
   if (locationId) {
     query = query.or(orResidenceOrLegacyLocationEq(locationId));

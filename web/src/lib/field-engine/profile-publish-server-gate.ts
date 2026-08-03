@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildCorePublishRequirements,
   buildProfilePublishRequirements,
+  formatPublishBlockerError,
   isResolvedFieldPublishBlocking,
   validateProfileStatusTransition,
 } from "@/lib/field-engine/profile-publish-requirements";
@@ -95,6 +96,75 @@ async function loadCorePublishSnapshot(input: {
   };
 }
 
+/**
+ * Build the publish requirement list for a talent without applying anything.
+ *
+ * Shared by the profile-drawer status transition and the roster "eye" toggle so
+ * the two approve controls cannot disagree about what "ready to publish" means.
+ */
+async function loadPublishRequirements(input: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  talentProfileId: string;
+}) {
+  const { supabase, tenantId, talentProfileId } = input;
+  const snapshot = await loadCorePublishSnapshot({ supabase, tenantId, talentProfileId });
+  const resolved = await resolveTalentFields({
+    supabase,
+    tenantId,
+    talentProfileId,
+    viewerRole: "agency_admin",
+  });
+  const resolverMissing = resolved.ok
+    ? resolved.fields
+        .filter((field) => isResolvedFieldPublishBlocking(field) && !field.has_value)
+        .map((field) => ({
+          id: `field:${field.field_definition_id}`,
+          label: field.label,
+          groupKey: field.field_group_slug ?? undefined,
+        }))
+    : [];
+  const requirements = buildProfilePublishRequirements({
+    core: buildCorePublishRequirements({
+      stageName: snapshot.profile.display_name ?? "",
+      primaryType: snapshot.primaryType,
+      homeBase: snapshot.profile.home_city_text ?? "",
+      totalPhotos: snapshot.totalPhotos,
+      activeBioLength: snapshot.activeBioLen,
+      languageCount: snapshot.languageCount,
+    }),
+    resolverMissing,
+  });
+  return { snapshot, requirements };
+}
+
+/**
+ * Gate for the roster "eye" toggle (`setRosterTalentSiteVisibility`).
+ *
+ * Turning the eye on is the agency's real approve action, so it must clear the
+ * same checklist the drawer's Publish enforces. Without this an agency could
+ * make an incomplete profile site-visible — and, since the eye also fires the
+ * `talent.profile_approved` email, tell the talent they were live while their
+ * card rendered with no name, type, or bio.
+ */
+export async function assertTalentReadyForPublicListing(input: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  talentProfileId: string;
+}): Promise<Result> {
+  try {
+    const { requirements } = await loadPublishRequirements(input);
+    const missing = requirements.filter((requirement) => !requirement.met);
+    if (missing.length > 0) {
+      return { ok: false, error: formatPublishBlockerError(missing) };
+    }
+    return { ok: true };
+  } catch (error) {
+    logServerError("profile-publish-server-gate.assertReady", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+}
+
 export async function applyProfileShellStatusWithPublishGate(input: {
   supabase: SupabaseClient;
   tenantId: string;
@@ -103,37 +173,15 @@ export async function applyProfileShellStatusWithPublishGate(input: {
 }): Promise<Result> {
   const { supabase, tenantId, talentProfileId, nextStatus } = input;
   try {
-    const snapshot = await loadCorePublishSnapshot({ supabase, tenantId, talentProfileId });
+    const { snapshot, requirements } = await loadPublishRequirements({
+      supabase,
+      tenantId,
+      talentProfileId,
+    });
     const currentStatus = dbToUiProfileShellStatus(
       snapshot.profile.workflow_status,
       snapshot.profile.visibility,
     );
-    const resolved = await resolveTalentFields({
-      supabase,
-      tenantId,
-      talentProfileId,
-      viewerRole: "agency_admin",
-    });
-    const resolverMissing = resolved.ok
-      ? resolved.fields
-          .filter((field) => isResolvedFieldPublishBlocking(field) && !field.has_value)
-          .map((field) => ({
-            id: `field:${field.field_definition_id}`,
-            label: field.label,
-            groupKey: field.field_group_slug ?? undefined,
-          }))
-      : [];
-    const requirements = buildProfilePublishRequirements({
-      core: buildCorePublishRequirements({
-        stageName: snapshot.profile.display_name ?? "",
-        primaryType: snapshot.primaryType,
-        homeBase: snapshot.profile.home_city_text ?? "",
-        totalPhotos: snapshot.totalPhotos,
-        activeBioLength: snapshot.activeBioLen,
-        languageCount: snapshot.languageCount,
-      }),
-      resolverMissing,
-    });
 
     const transition = validateProfileStatusTransition({
       role: "admin",
