@@ -14,12 +14,18 @@ function postInternal(name: ProductAnalyticsEventName, payload: ProductAnalytics
     typeof payload.tenant_id === "string" && payload.tenant_id ? payload.tenant_id : undefined;
   const referrer =
     typeof payload.referrer === "string" && payload.referrer ? payload.referrer : undefined;
+  // Same promotion for `talent_id` → the analytics_events.talent_id COLUMN.
+  // Without it every per-talent query (demand ranking, profile analytics) sees
+  // null; the server also falls back to payload.talent_id for older clients.
+  const talentId =
+    typeof payload.talent_id === "string" && payload.talent_id ? payload.talent_id : undefined;
   const body = JSON.stringify({
     name,
     payload,
     path,
     locale: typeof document !== "undefined" ? document.documentElement.lang || undefined : undefined,
     ...(tenantId ? { tenant_id: tenantId } : {}),
+    ...(talentId ? { talent_id: talentId } : {}),
     ...(referrer ? { referrer } : {}),
   });
   void fetch("/api/analytics/events", {
