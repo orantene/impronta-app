@@ -67,6 +67,8 @@ export function TalentPage() {
   // Default = Recommended: the roster opens in the same order visitors see
   // in the public directory (curated rank first, recency after).
   const [sort, setSort] = useState<RosterSortKey>("recommended");
+  // Exit arrange mode + re-fetch the server roster so cards show saved ranks.
+  const exitArrange = () => { setArrangeMode(false); router.refresh(); };
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -215,7 +217,9 @@ export function TalentPage() {
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <>
-                {tenantSlug && !arrangeMode && <GhostButton onClick={() => setArrangeMode(true)}>{t("admin.roster.arrange.button")}</GhostButton>}
+                {tenantSlug && (arrangeMode
+                  ? <PrimaryButton onClick={exitArrange}>{t("admin.roster.arrange.done")}</PrimaryButton>
+                  : <GhostButton onClick={() => setArrangeMode(true)}>{t("admin.roster.arrange.button")}</GhostButton>)}
                 <RosterMoreMenu
                   open={moreOpen}
                   onToggle={() => setMoreOpen((o) => !o)}
@@ -311,11 +315,7 @@ export function TalentPage() {
       {/* Arrange mode replaces the filter + grid section: the arranged list is
           always the FULL roster in public order (filters would be ambiguous). */}
       {arrangeMode && tenantSlug ? (
-        <RosterArrangeView
-          items={roster}
-          tenantSlug={tenantSlug}
-          onExit={() => { setArrangeMode(false); router.refresh(); }}
-        />
+        <RosterArrangeView items={roster} tenantSlug={tenantSlug} onExit={exitArrange} />
       ) : (
       <>
       {/* Status strip — single line replaces 4-up StatusCard. Each segment

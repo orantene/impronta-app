@@ -92,11 +92,6 @@ const ARRANGE_CSS = `
   font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 [data-tulala-arrange] .ta-btn-ghost:disabled { cursor: default; opacity: 0.6; }
-[data-tulala-arrange] .ta-btn-primary {
-  padding: 7px 16px; border-radius: 999px; border: none;
-  background: var(--ta-accent); color: #fff; font-family: var(--ta-font-body);
-  font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
-}
 [data-tulala-arrange] .ta-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
 }
@@ -269,9 +264,6 @@ export function RosterArrangeView({
           disabled={isResetting}
         >
           {t("admin.roster.arrange.reset")}
-        </button>
-        <button type="button" className="ta-btn-primary" onClick={onExit}>
-          {t("admin.roster.arrange.done")}
         </button>
       </div>
 
