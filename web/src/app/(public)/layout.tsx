@@ -11,6 +11,7 @@ import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { resolveTenantSiteVerification } from "@/lib/integrations/site-verification-resolver";
 import {
   getFavoriteTalentIds,
   getSavedTalentIds,
@@ -28,12 +29,28 @@ import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/
  */
 export async function generateMetadata(): Promise<Metadata> {
   const ctx = await getPublicHostContext();
-  const tenantBrand =
-    ctx.kind === "agency" || ctx.kind === "hub"
-      ? (await loadPublicIdentity(ctx.tenantId))?.public_name?.trim() || null
-      : null;
-  if (!tenantBrand) return {};
-  return { title: { template: `%s · ${tenantBrand}`, default: tenantBrand } };
+  const isTenant = ctx.kind === "agency" || ctx.kind === "hub";
+  if (!isTenant) return {};
+
+  // Resolve brand (title suffix) and the tenant's Search Console token in
+  // parallel. The token is emitted as a real <meta name="google-site-
+  // verification"> in the storefront <head>; being defined here, it overrides
+  // the root layout's platform token on tenant hosts (Next merges metadata
+  // child-over-parent), so each storefront can prove its own ownership.
+  const [identity, verification] = await Promise.all([
+    loadPublicIdentity(ctx.tenantId),
+    resolveTenantSiteVerification(ctx.tenantId),
+  ]);
+  const tenantBrand = identity?.public_name?.trim() || null;
+
+  const metadata: Metadata = {};
+  if (tenantBrand) {
+    metadata.title = { template: `%s · ${tenantBrand}`, default: tenantBrand };
+  }
+  if (verification.googleToken) {
+    metadata.verification = { google: verification.googleToken };
+  }
+  return metadata;
 }
 
 export default async function PublicLayout({
