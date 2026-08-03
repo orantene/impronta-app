@@ -31,6 +31,11 @@ export type DirectoryCardData = {
   primaryType: string | null;
   location: string | null;
   photoUrl: string | null;
+  /**
+   * Optional second photo for the `hover: "swap"` card behavior — crossfaded
+   * in on hover when present. Surfaces that don't support swap leave it unset.
+   */
+  hoverPhotoUrl?: string | null;
   agencyName: string | null;
   isExclusive: boolean;
   /** Human availability line, or the ratified unknown fallback. */

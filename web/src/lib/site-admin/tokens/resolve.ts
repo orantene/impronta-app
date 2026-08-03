@@ -205,6 +205,10 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   // cannot land without a render-time hook, and the attribute also lets CSS
   // / instrumentation see the tenant-wide ceiling.
   "directory.card.profile-popup": "data-token-card-profile-popup",
+  // Same server-side-read + invariant story as profile-popup above: the
+  // directory section merges these ceilings into showSave/showAddToInquiry.
+  "directory.card.show-favorite": "data-token-card-favorite",
+  "directory.card.show-inquiry": "data-token-card-inquiry",
   "directory.card.specialty-chips-max": "data-token-card-chips-max",
   "directory.card.show-standing": "data-token-card-standing",
   "directory.card.standing-style": "data-token-card-standing-style",

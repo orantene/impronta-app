@@ -1,9 +1,10 @@
+"use client";
+
 import { TalentCard } from "@/components/talent-cards/TalentCard";
-import type { TalentCardStyle } from "@/components/talent-cards/talent-card-shape";
 import {
   cardDesignToCssVars,
   DEFAULT_CARD_DESIGN,
-  type CardDesignFamily,
+  familyToTalentCardStyle,
 } from "@/lib/site-admin/server/card-design-shape";
 import type { DirectoryCardRow } from "./shared";
 import { toCanonicalCardData } from "./shared";
@@ -22,25 +23,17 @@ import { toCanonicalCardData } from "./shared";
  * per `agencyTenantId` by `resolveCardDesign` (see the directory page). The
  * `family` picks the editorial vs portrait render and is exposed as the same
  * `data-token-template-directory-card-family` attribute the storefront cascade
- * uses, so a card-family stylesheet rule targets it identically.
+ * uses — paired with `data-card-design-scope` so the family stylesheet rules
+ * (written as `:is(html, [data-card-design-scope])[data-token-…]` in
+ * token-presets.css) actually match this non-`<html>` carrier.
  *
  * Browse-only: each card links to `/t/<code>` (handled inside `<TalentCard>`).
- * No pricing, no cart/favorite, no "hire".
+ * No pricing, no cart/favorite, no "hire". Client component solely so the
+ * per-row tenant's `directory.card.profile-popup` ceiling can intercept the
+ * click: "off" turns the soft `<Link>` navigation into a hard load, which the
+ * `@modal` route interception cannot catch — the same pattern as
+ * `DirectoryCardAdapter`.
  */
-
-/** Editorial families get the byline-under-portrait render; everything else
- *  (classic / service-professional / minimal-portrait) uses the portrait
- *  render with the name over a legibility scrim. */
-const EDITORIAL_FAMILIES: ReadonlySet<CardDesignFamily> = new Set([
-  "editorial-noir",
-  "editorial-bridal",
-  "magazine",
-]);
-
-function familyToStyle(family: CardDesignFamily): TalentCardStyle {
-  return EDITORIAL_FAMILIES.has(family) ? "editorial" : "portrait";
-}
-
 export function DirectoryTalentCard({
   talent,
   priority,
@@ -55,14 +48,30 @@ export function DirectoryTalentCard({
 }) {
   const design = talent.design ?? DEFAULT_CARD_DESIGN;
   const data = toCanonicalCardData(talent);
-  const style = familyToStyle(design.family);
+  const style = familyToTalentCardStyle(design.family);
   const cssVars = cardDesignToCssVars(design);
+
+  const handleClickCapture =
+    design.profilePopup === "off" && data.profileHref
+      ? (event: React.MouseEvent) => {
+          const link = (event.target as HTMLElement).closest?.("a.talent-card");
+          if (!link) return;
+          // Preserve every native new-tab / save-link gesture.
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          window.location.assign(data.profileHref);
+        }
+      : undefined;
 
   return (
     <div
       style={cssVars}
       data-token-template-directory-card-family={design.family}
+      data-card-design-scope=""
       data-directory-card
+      onClickCapture={handleClickCapture}
     >
       <TalentCard
         data={data}

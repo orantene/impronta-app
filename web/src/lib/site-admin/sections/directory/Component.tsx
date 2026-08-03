@@ -135,6 +135,11 @@ export async function DirectoryComponent({
     ? await resolveCardDesign(directoryTenantId)
     : null;
   const popupDisabledTenantWide = tenantCardDesign?.profilePopup === "off";
+  // Favorite / inquiry ceilings — same one-directional semantics as the
+  // popup: tenant "off" hides the control everywhere; a section can still
+  // hide per instance but cannot force it back on.
+  const favoriteDisabledTenantWide = tenantCardDesign?.showFavorite === "off";
+  const inquiryDisabledTenantWide = tenantCardDesign?.showInquiry === "off";
 
   /**
    * Card layout resolution: SECTION value → tenant Card Design default →
@@ -635,8 +640,11 @@ export async function DirectoryComponent({
             showLocation={props.showLocation}
             showAvailability={props.showAvailability}
             showBadges={props.showBadges}
-            showSave={props.showSave}
-            showAddToInquiry={props.showAddToInquiry}
+            showAttributes={props.showAttributes}
+            showSave={favoriteDisabledTenantWide ? false : props.showSave}
+            showAddToInquiry={
+              inquiryDisabledTenantWide ? false : props.showAddToInquiry
+            }
             showQuickView={props.showQuickView}
             showPriceFrom={props.showPriceFrom}
             cardClickAction={

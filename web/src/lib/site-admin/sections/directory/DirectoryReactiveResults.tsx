@@ -100,6 +100,7 @@ export function DirectoryReactiveResults({
   showLocation,
   showAvailability,
   showBadges,
+  showAttributes,
   showSave,
   showAddToInquiry,
   showQuickView,
@@ -161,6 +162,7 @@ export function DirectoryReactiveResults({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  showAttributes: boolean;
   /** Render the per-card favorite (save) affordance. */
   showSave: boolean;
   /** Render the per-card "Inquire / Added" cart bar. */
@@ -213,6 +215,7 @@ export function DirectoryReactiveResults({
           showLocation={showLocation}
           showAvailability={showAvailability}
           showBadges={showBadges}
+          showAttributes={showAttributes}
           showSave={showSave}
           showAddToInquiry={showAddToInquiry}
           showQuickView={showQuickView}
@@ -269,6 +272,7 @@ function DirectoryReactiveResultsInner({
   showLocation,
   showAvailability,
   showBadges,
+  showAttributes,
   showSave,
   showAddToInquiry,
   showQuickView,
@@ -312,6 +316,7 @@ function DirectoryReactiveResultsInner({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  showAttributes: boolean;
   showSave: boolean;
   showAddToInquiry: boolean;
   showQuickView: boolean;
@@ -607,6 +612,7 @@ function DirectoryReactiveResultsInner({
                   showLocation,
                   showAvailability,
                   showBadges,
+                  showAttributes,
                 },
                 showSave,
                 showAddToInquiry,
@@ -652,6 +658,7 @@ function DirectoryReactiveResultsInner({
                 showLocation,
                 showAvailability,
                 showBadges,
+                showAttributes,
               }}
               showSave={showSave}
               showAddToInquiry={showAddToInquiry}

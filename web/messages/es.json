@@ -4869,7 +4869,7 @@
       "bannerDesignLead": "El diseño visual",
       "bannerDesignMid": " (estilo + colores) se guarda como borrador mientras editas, Publicar lo activa en vivo en cada superficie de tarjeta.",
       "bannerLayoutLead": "El diseño de disposición y los interruptores",
-      "bannerLayoutRest": " de abajo son una vista previa en vivo; guardar una disposición distinta por superficie llega en la próxima versión.",
+      "bannerLayoutRest": " y los interruptores de acciones se guardan como valores predeterminados del espacio y se publican junto con el diseño visual. Una sección del directorio que define su propio valor en el editor de páginas lo conserva.",
       "rosterBadgesTitle": "Insignias de la tarjeta del roster",
       "rosterBadgesHint": "Muestra u oculta cada superposición en tus tarjetas del roster. Se guarda al instante en este espacio de trabajo, la cuadrícula del roster es interna para tu equipo.",
       "badgeHideEyeWarn": "Ocultar el ojo elimina el único control de mostrar / ocultar de la tarjeta. Aún puedes gestionar la visibilidad desde el panel del talent.",

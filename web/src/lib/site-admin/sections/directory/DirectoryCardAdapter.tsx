@@ -70,6 +70,7 @@ export function DirectoryCardAdapter({
     | "showLocation"
     | "showAvailability"
     | "showBadges"
+    | "showAttributes"
   >;
   nameFallback: DirectoryV1["nameFallback"];
   /** Render the favorite (save) affordance overlay. */
@@ -113,6 +114,11 @@ export function DirectoryCardAdapter({
   const cart = useInquiryCart();
 
   const data = mapDtoToCardData(card, pathname);
+  // hover:"swap" — give the canonical card its second photo. Only under swap
+  // so the extra <Image> never mounts for the other hover modes.
+  if (hoverBehavior === "swap" && card.hoverThumbUrl) {
+    data.hoverPhotoUrl = card.hoverThumbUrl;
+  }
 
   // Differential caption: a card only spends a line on location/availability
   // when it DIFFERS from the rest of the grid. On a roster where 40 of 43
@@ -287,11 +293,14 @@ export function DirectoryCardAdapter({
 
       {/* Restrained editorial trait row: a couple of fit chips + a couple of
           catalog lines. Tagged with `data-card-chip` so a card kit can
-          restyle it. Renders nothing when the DTO carries no trait data.
+          restyle it. Renders nothing when the DTO carries no trait data or
+          the section turned "Show attributes" off (the previously-dead
+          `showAttributes` knob now gates this row).
           With `reveal_traits` (the preset default) the row is collapsed at
           rest and reveals on hover / focus / touch; every other hover mode
           keeps it statically visible. */}
-      {fitChips.length > 0 || traitLines.length > 0 ? (
+      {show.showAttributes !== false &&
+      (fitChips.length > 0 || traitLines.length > 0) ? (
         revealTraitsOnHover ? (
           // Collapsed at rest (0-fr grid row + faded), revealed on
           // group-hover / focus-within / touch. The grid-rows transition

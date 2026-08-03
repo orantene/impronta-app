@@ -115,6 +115,7 @@ export function DirectoryReactiveGrid({
     | "showLocation"
     | "showAvailability"
     | "showBadges"
+    | "showAttributes"
   >;
   /** Render the per-card favorite (save) affordance. */
   showSave: boolean;
@@ -421,6 +422,8 @@ export function DirectoryReactiveGrid({
                 sourcePage={pathname}
                 showQuickView={showQuickView}
                 showPriceFrom={showPriceFrom}
+                showSave={showSave}
+                showAddToInquiry={showAddToInquiry}
                 cardClickAction={cardClickAction}
                 captionNorms={captionNorms}
               />

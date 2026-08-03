@@ -186,14 +186,30 @@ function Photo({
       data-card-media
     >
       {data.photoUrl ? (
-        <Image
-          src={data.photoUrl}
-          alt={data.name}
-          fill
-          className="object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
-          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          priority={priority}
-        />
+        <>
+          <Image
+            src={data.photoUrl}
+            alt={data.name}
+            fill
+            className="object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            priority={priority}
+          />
+          {data.hoverPhotoUrl ? (
+            // hover:"swap" — a second photo crossfaded in on hover. Lazy by
+            // nature (opacity 0 until hover) and skipped entirely when the
+            // surface doesn't provide one.
+            <Image
+              src={data.hoverPhotoUrl}
+              alt=""
+              aria-hidden
+              fill
+              className="object-cover opacity-0 transition-opacity duration-300 group-hover/card:opacity-100"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              data-card-hover-photo
+            />
+          ) : null}
+        </>
       ) : (
         // No-photo fallback — a quiet, letter-free line-art silhouette on the
         // card surface. Never the name-as-text and never initials-in-a-box

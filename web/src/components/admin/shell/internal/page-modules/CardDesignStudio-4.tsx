@@ -155,10 +155,20 @@ export function CardLivePreview({ draft }: { draft: Record<string, string> }) {
     ...(isHex(draft["card.muted"] ?? "")
       ? { ["--token-card-muted" as string]: draft["card.muted"] }
       : {}),
+    ...(isHex(draft["card.price-color"] ?? "")
+      ? { ["--token-card-price-color" as string]: draft["card.price-color"] }
+      : {}),
   };
+
+  // Family attr on the preview wrapper (paired with data-card-design-scope so
+  // the :is(html, [data-card-design-scope]) family CSS matches) — the preview
+  // now shows the kit's chrome, not just its colors.
+  const family = draft["template.directory-card-family"] || undefined;
 
   return (
     <div
+      data-token-template-directory-card-family={family}
+      data-card-design-scope=""
       style={{
         padding: 18,
         borderRadius: RADIUS.xl,

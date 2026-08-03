@@ -22,6 +22,7 @@ import { TalentCard } from "@/components/talent-cards/TalentCard";
 import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
 import {
   cardDesignToCssVars,
+  familyToTalentCardStyle,
   type CardDesign,
 } from "@/lib/site-admin/server/card-design-shape";
 import { useT } from "@/i18n/use-t";
@@ -80,6 +81,7 @@ export function ShortlistsShell({
           tenantSlug={tenantSlug}
           hasPro={hasPro}
           cardCssVars={cardCssVars}
+          cardDesign={cardDesign}
           locale={locale}
         />
       ))}
@@ -179,12 +181,14 @@ function ShortlistCard({
   tenantSlug,
   hasPro,
   cardCssVars,
+  cardDesign,
   locale = "en",
 }: {
   shortlist: DiscoverShortlistWithTalents;
   tenantSlug: string;
   hasPro: boolean;
   cardCssVars: Record<string, string> | undefined;
+  cardDesign?: CardDesign;
   locale?: string;
 }) {
   const t = useT();
@@ -418,7 +422,14 @@ function ShortlistCard({
           gap: 10,
         }}>
           {shortlist.talents.map((t) => (
-            <ShortlistTalentTile key={t.talentId} talent={t} cardCssVars={cardCssVars} locale={locale} />
+            <ShortlistTalentTile
+              key={t.talentId}
+              talent={t}
+              cardCssVars={cardCssVars}
+              cardStyle={cardDesign ? familyToTalentCardStyle(cardDesign.family) : "editorial"}
+              popupDisabled={cardDesign?.profilePopup === "off"}
+              locale={locale}
+            />
           ))}
         </div>
       )}
@@ -596,10 +607,16 @@ function toShortlistTileData(t: DiscoverShortlistTalent, tr: Translator): Canoni
 function ShortlistTalentTile({
   talent,
   cardCssVars,
+  cardStyle = "editorial",
+  popupDisabled = false,
   locale = "en",
 }: {
   talent: DiscoverShortlistTalent;
   cardCssVars: Record<string, string> | undefined;
+  /** Tenant card family → TalentCard style branch (no more hardcoded editorial). */
+  cardStyle?: "portrait" | "editorial";
+  /** Tenant `directory.card.profile-popup` ceiling: "off" = hard-navigate so the @modal intercept never fires. */
+  popupDisabled?: boolean;
   locale?: string;
 }) {
   const t = useT();
@@ -608,12 +625,23 @@ function ShortlistTalentTile({
   return (
     <TalentCard
       data={toShortlistTileData(talent, t)}
-      style="editorial"
+      style={cardStyle}
       aspect="1:1"
       cssVars={cardCssVars}
       nameFallback="first_name"
       rootMode="button"
-      onActivate={profileHref ? () => router.push(profileHref) : undefined}
+      onActivate={
+        profileHref
+          ? () => {
+              // Tenant popup ceiling — same rationale as FavoritesShell.
+              if (popupDisabled) {
+                window.location.assign(profileHref);
+                return;
+              }
+              router.push(profileHref);
+            }
+          : undefined
+      }
       show={{
         showName: true,
         showTalentType: true,

@@ -539,6 +539,9 @@ export const CARD_PREVIEW_SAMPLE: DirectoryCardData = {
   availabilityLabel: "Available this month",
   availabilityKnown: true,
   availableDaysInNext30: 12,
+  // Sample price so the "Price chip" color knob has visible feedback in the
+  // live preview (the chip renders only when a priceFromLabel is present).
+  priceFromLabel: "From $850 / day",
 };
 
 export type DesignSaveState =
