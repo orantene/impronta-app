@@ -4923,7 +4923,10 @@
       "toastNeedAdminFields": "Necesitas acceso de administrador para cambiar los campos de la tarjeta.",
       "toastNeedAdminBadges": "Necesitas acceso de administrador para cambiar las insignias de la tarjeta del roster.",
       "toastCouldNotSaveField": "No se pudo guardar ese campo.",
-      "rowPriceFromHint": "Solo vista previa. El precio inicial en vivo se controla en la sección Directorio (Mostrar precio inicial) y está activado por defecto."
+      "rowPriceFromHint": "Solo vista previa. El precio inicial en vivo se controla en la sección Directorio (Mostrar precio inicial) y está activado por defecto.",
+      "densityLabel": "Densidad",
+      "densityComfortable": "Cómoda",
+      "densityCompact": "Compacta"
     },
     "adminPitches": {
       "statusDraft": "Borrador",

@@ -79,10 +79,13 @@ export type CardStyle = "portrait" | "editorial";
 export type CardAspect = "4:5" | "1:1" | "3:4" | "16:9";
 export type HoverBehavior = "reveal_traits" | "zoom" | "swap" | "none";
 
+export type CardDensity = "comfortable" | "compact";
+
 export type CardAppearance = {
   cardStyle: CardStyle;
   cardAspect: CardAspect;
   hoverBehavior: HoverBehavior;
+  density: CardDensity;
   showName: boolean;
   showTalentType: boolean;
   showLocation: boolean;
@@ -100,6 +103,7 @@ export const DEFAULT_APPEARANCE: CardAppearance = {
   cardStyle: "portrait",
   cardAspect: "4:5",
   hoverBehavior: "reveal_traits",
+  density: "comfortable",
   showName: true,
   showTalentType: true,
   showLocation: true,
