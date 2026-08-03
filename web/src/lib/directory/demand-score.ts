@@ -22,11 +22,15 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
  * non-featured remainder of the loaded page is stably re-ordered by demand.
  * No query/offset/nextCursor change.
  */
-const EVENT_WEIGHTS: Record<string, number> = {
+export const DEMAND_EVENT_WEIGHTS: Record<string, number> = {
   view_talent_profile: 3,
   view_talent_card: 1,
 };
-const WINDOW_DAYS = 30;
+export const DEMAND_WINDOW_DAYS = 30;
+
+/** Back-compat aliases for the in-module live path below. */
+const EVENT_WEIGHTS = DEMAND_EVENT_WEIGHTS;
+const WINDOW_DAYS = DEMAND_WINDOW_DAYS;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const SCAN_LIMIT = 50_000;
 
@@ -41,6 +45,28 @@ export async function getDemandScores(
   const scores = new Map<string, number>();
   const admin = createServiceRoleClient();
   if (!admin) return scores;
+
+  // Prefer the MATERIALIZED score (refreshed nightly by
+  // /api/cron/refresh-demand-scores): it covers the whole roster, so a talent
+  // with real demand on page 3 can climb. Falls through to the live scan below
+  // when the table is empty — a fresh install, or before the first cron run —
+  // so the feature is never worse than the page-local behavior it replaced.
+  const { data: persisted } = await admin
+    .from("talent_demand_scores")
+    .select("talent_profile_id, score")
+    .eq("tenant_id", tenantId);
+
+  if (persisted && persisted.length > 0) {
+    for (const row of persisted as Array<{
+      talent_profile_id: string;
+      score: number | string;
+    }>) {
+      const n = Number(row.score);
+      if (Number.isFinite(n) && n > 0) scores.set(row.talent_profile_id, n);
+    }
+    cache.set(tenantId, { at: Date.now(), scores });
+    return scores;
+  }
 
   const since = new Date(
     Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000,

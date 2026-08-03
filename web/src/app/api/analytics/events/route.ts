@@ -82,11 +82,22 @@ export async function POST(request: Request) {
     ...(referrer != null ? { referrer } : {}),
   };
 
+  // `talent_id` belongs in the COLUMN, not just the payload — every
+  // per-talent query (demand ranking, profile analytics) filters on it. Every
+  // caller passes it inside `payload` via trackProductEvent, and only
+  // `tenant_id`/`referrer` were being promoted, so the column was null on
+  // 100% of rows and the demand signal had no data source at all. Falling back
+  // to the payload here fixes all existing call sites at once.
+  const payloadTalentId =
+    typeof mergedPayload.talent_id === "string" ? mergedPayload.talent_id : null;
+  const resolvedTalentId =
+    talent_id ?? (pgUuidSchema().safeParse(payloadTalentId).success ? payloadTalentId : null);
+
   await logAnalyticsEventServer({
     name,
     payload: mergedPayload,
     sessionId: session_id ?? null,
-    talentId: talent_id ?? null,
+    talentId: resolvedTalentId,
     tenantId,
     path: path ?? null,
     locale: locale ?? null,
