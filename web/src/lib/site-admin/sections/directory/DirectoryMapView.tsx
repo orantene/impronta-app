@@ -52,8 +52,8 @@ import type { DirectoryV1 } from "./schema";
 const MAP_POINT_CAP = 500;
 
 type MapCardConfig = {
-  cardStyle: DirectoryV1["cardStyle"];
-  cardAspect: DirectoryV1["cardAspect"];
+  cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
+  cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
   show: Pick<
     DirectoryV1,
     "showName" | "showTalentType" | "showLocation" | "showAvailability" | "showBadges"
@@ -62,8 +62,8 @@ type MapCardConfig = {
   showAddToInquiry: boolean;
   showQuickView: boolean;
   showPriceFrom: boolean;
-  density: DirectoryV1["density"];
-  hoverBehavior: DirectoryV1["hoverBehavior"];
+  density: NonNullable<DirectoryV1["density"]>;
+  hoverBehavior: NonNullable<DirectoryV1["hoverBehavior"]>;
   cardClickAction: DirectoryV1["cardClickAction"];
   cardFieldKeys: DirectoryV1["cardFieldKeys"];
   maxFieldLines: DirectoryV1["maxFieldLines"];

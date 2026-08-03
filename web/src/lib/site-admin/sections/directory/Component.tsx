@@ -136,6 +136,19 @@ export async function DirectoryComponent({
     : null;
   const popupDisabledTenantWide = tenantCardDesign?.profilePopup === "off";
 
+  /**
+   * Card layout resolution: SECTION value → tenant Card Design default →
+   * platform default. The section props are optional precisely so "never
+   * chose" is distinguishable from "chose the default"; without that a
+   * tenant-wide default could never apply. Resolved once here so everything
+   * downstream keeps a concrete, non-optional value.
+   */
+  const cardStyle = props.cardStyle ?? tenantCardDesign?.cardStyle ?? "portrait";
+  const cardAspect = props.cardAspect ?? tenantCardDesign?.cardAspect ?? "4:5";
+  const hoverBehavior =
+    props.hoverBehavior ?? tenantCardDesign?.hover ?? "reveal_traits";
+  const density = props.density ?? tenantCardDesign?.density ?? "comfortable";
+
   // Resolve scope seed: maps by_talent_type keys → taxonomy term UUIDs for
   // the SSR first-page pre-filter, surfaces manual codes for client
   // reconciliation, and sets an honest scopeLimited hint when the requested
@@ -367,9 +380,9 @@ export async function DirectoryComponent({
     <section
       data-section="directory"
       data-template={props.template}
-      data-card-style={props.cardStyle}
-      data-density={props.density}
-      data-hover={props.hoverBehavior}
+      data-card-style={cardStyle}
+      data-density={density}
+      data-hover={hoverBehavior}
       className={
         hasBanner
           ? "w-full pb-14 sm:pb-20"
@@ -613,10 +626,10 @@ export async function DirectoryComponent({
             sidebarSticky={props.sidebarSticky}
             scope={props.scope}
             manualProfileCodes={scopeSeed.manualProfileCodes}
-            density={props.density}
-            hoverBehavior={props.hoverBehavior}
-            cardStyle={props.cardStyle}
-            cardAspect={props.cardAspect}
+            density={density}
+            hoverBehavior={hoverBehavior}
+            cardStyle={cardStyle}
+            cardAspect={cardAspect}
             showName={props.showName}
             showTalentType={props.showTalentType}
             showLocation={props.showLocation}

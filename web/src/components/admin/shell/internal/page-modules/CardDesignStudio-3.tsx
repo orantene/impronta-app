@@ -494,6 +494,8 @@ export const CARD_FAMILY_TOKEN_KEY = "template.directory-card-family";
 // English `label` / `hint` remain the non-UI fallback; the studio renders
 // `t(knob.labelKey)` / `t(knob.hintKey)`.
 const KNOB_NS = "dashboard.adminCardStudio2.knobs";
+export { CARD_DESIGN_TOKEN_KEYS } from "./card-design-token-keys";
+
 export const CARD_COLOR_KNOBS: Array<{
   key: string; label: string; hint: string; labelKey: string; hintKey: string;
 }> = [
@@ -508,18 +510,6 @@ export const CARD_COLOR_KNOBS: Array<{
 ];
 
 /** Every card-family token key the studio touches (kit + knobs). */
-export const CARD_DESIGN_TOKEN_KEYS: string[] = [
-  CARD_FAMILY_TOKEN_KEY,
-  ...CARD_COLOR_KNOBS.map((k) => k.key),
-  // STANDING reviews-on-cards controls (persist + seed the CardDesignStudio panel).
-  "directory.card.show-standing",
-  "directory.card.standing-style",
-  "profile.reviews-visibility",
-  // Card features that shipped after the Studio's first cut.
-  "directory.card.show-starting-from-price",
-  "directory.card.show-quick-view",
-  "directory.card.profile-popup",
-];
 
 /**
  * Realistic sample talent for the live preview. Editorial portrait imagery,

@@ -106,8 +106,8 @@ export function DirectoryReactiveGrid({
    * honest hint). `undefined` → no manual filter.
    */
   manualProfileCodes?: string[];
-  cardStyle: DirectoryV1["cardStyle"];
-  cardAspect: DirectoryV1["cardAspect"];
+  cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
+  cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
   show: Pick<
     DirectoryV1,
     | "showName"
@@ -135,13 +135,13 @@ export function DirectoryReactiveGrid({
    * Grid density from the section knob. `"compact"` tightens the grid gap and
    * the card captions; `"comfortable"` (default) is the original spacing.
    */
-  density?: DirectoryV1["density"];
+  density?: NonNullable<DirectoryV1["density"]>;
   /**
    * Hover behavior from the section knob. `"reveal_traits"` (default) hides the
    * per-card trait row until the card is hovered / focused; every other value
    * keeps the traits statically visible.
    */
-  hoverBehavior?: DirectoryV1["hoverBehavior"];
+  hoverBehavior?: NonNullable<DirectoryV1["hoverBehavior"]>;
   /** Called whenever the filter-refetch-in-flight state changes. */
   onFetchingChange?: (isFetching: boolean) => void;
   /** Called with the filtered total whenever a fresh result set arrives. */
@@ -479,7 +479,7 @@ export function DirectoryReactiveGrid({
   );
 }
 
-const ASPECT_RATIO: Record<DirectoryV1["cardAspect"], string> = {
+const ASPECT_RATIO: Record<NonNullable<DirectoryV1["cardAspect"]>, string> = {
   "4:5": "4 / 5",
   "1:1": "1 / 1",
   "3:4": "3 / 4",
@@ -489,7 +489,7 @@ const ASPECT_RATIO: Record<DirectoryV1["cardAspect"], string> = {
 function DirectoryCardSkeleton({
   aspect,
 }: {
-  aspect: DirectoryV1["cardAspect"];
+  aspect: NonNullable<DirectoryV1["cardAspect"]>;
 }) {
   return (
     <div
@@ -509,7 +509,7 @@ function gridClassFor(
   mobile: number,
   tablet: number,
   desktop: number,
-  density: DirectoryV1["density"] = "comfortable",
+  density: NonNullable<DirectoryV1["density"]> = "comfortable",
 ) {
   const m = clamp(mobile, 1, 2);
   const t = clamp(tablet, 1, 4);

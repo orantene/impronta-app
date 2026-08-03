@@ -80,11 +80,18 @@ export const directorySchemaV1 = z.object({
   columnsDesktop: z.number().int().min(1).max(6).default(4),
   columnsTablet: z.number().int().min(1).max(4).default(3),
   columnsMobile: z.number().int().min(1).max(2).default(2),
-  density: z.enum(["comfortable", "compact"]).default("comfortable"),
+  /** UNSET = follow `directory.card.density`. */
+  density: z.enum(["comfortable", "compact"]).optional(),
   containerWidth: z.enum(["boxed", "full"]).default("boxed"),
   background: z.enum(["cool_ground", "plain", "subtle"]).default("cool_ground"),
 
   // — Card (micro-unit) —
+  /**
+   * UNSET = follow the tenant's Card Design default (`directory.card.style`).
+   * Optional rather than defaulted so "the operator never chose" is
+   * distinguishable from "the operator deliberately chose portrait" — without
+   * that distinction a tenant-wide default can never apply.
+   */
   cardStyle: z
     .enum([
       "portrait",
@@ -95,8 +102,9 @@ export const directorySchemaV1 = z.object({
       "service",
       "minimal",
     ])
-    .default("portrait"),
-  cardAspect: z.enum(["4:5", "1:1", "3:4", "16:9"]).default("4:5"),
+    .optional(),
+  /** UNSET = follow `directory.card.aspect`. */
+  cardAspect: z.enum(["4:5", "1:1", "3:4", "16:9"]).optional(),
   showName: z.boolean().default(true),
   /** Used when showName=false (privacy verticals). */
   nameFallback: z
@@ -125,9 +133,10 @@ export const directorySchemaV1 = z.object({
    * parity); "page" = hard navigation to the canonical profile page.
    */
   cardClickAction: z.enum(["modal", "page"]).default("modal"),
+  /** UNSET = follow `directory.card.hover`. */
   hoverBehavior: z
     .enum(["zoom", "swap", "reveal_traits", "none"])
-    .default("reveal_traits"),
+    .optional(),
   /** Overrides the card display catalog order; empty = catalog default. */
   cardFieldKeys: z.array(z.string().min(1).max(80)).max(24).default([]),
   maxFieldLines: z.number().int().min(1).max(6).default(3),

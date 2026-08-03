@@ -557,9 +557,14 @@ export function DirectoryEditor({
           </div>
           <FieldSelect
             label="Density"
-            value={p.density}
-            onChange={(v) => set("density", v as DirectoryV1["density"])}
+            value={p.density ?? ""}
+            onChange={(v) =>
+              // "" = clear the per-section value so this section follows
+              // the tenant-wide Card Design default.
+              set("density", (v === "" ? undefined : v) as DirectoryV1["density"])
+            }
             options={[
+              { value: "", label: "Follow Card Design default" },
               { value: "comfortable", label: "Comfortable" },
               { value: "compact", label: "Compact" },
             ]}
@@ -614,21 +619,31 @@ export function DirectoryEditor({
           </p>
           <FieldSelect
             label="Card style"
-            value={p.cardStyle}
-            onChange={(v) => set("cardStyle", v as DirectoryV1["cardStyle"])}
+            value={p.cardStyle ?? ""}
+            onChange={(v) =>
+              // "" = clear the per-section value so this section follows
+              // the tenant-wide Card Design default.
+              set("cardStyle", (v === "" ? undefined : v) as DirectoryV1["cardStyle"])
+            }
             // Only shipped card styles are listed; unbuilt ones (portfolio,
             // profile, stat, service, minimal) are omitted rather than shown as
             // disabled "coming soon" rows. Schema enum keeps them for back-compat.
             options={[
+              { value: "", label: "Follow Card Design default" },
               { value: "portrait", label: "Portrait (editorial)" },
               { value: "editorial", label: "Editorial (display name)" },
             ]}
           />
           <FieldSelect
             label="Image aspect"
-            value={p.cardAspect}
-            onChange={(v) => set("cardAspect", v as DirectoryV1["cardAspect"])}
+            value={p.cardAspect ?? ""}
+            onChange={(v) =>
+              // "" = clear the per-section value so this section follows
+              // the tenant-wide Card Design default.
+              set("cardAspect", (v === "" ? undefined : v) as DirectoryV1["cardAspect"])
+            }
             options={[
+              { value: "", label: "Follow Card Design default" },
               { value: "4:5", label: "4:5 portrait" },
               { value: "1:1", label: "1:1 square" },
               { value: "3:4", label: "3:4" },
@@ -716,11 +731,17 @@ export function DirectoryEditor({
           />
           <FieldSelect
             label="Hover behavior"
-            value={p.hoverBehavior}
+            value={p.hoverBehavior ?? ""}
             onChange={(v) =>
-              set("hoverBehavior", v as DirectoryV1["hoverBehavior"])
+              // "" = clear the per-section value so this section follows
+              // the tenant-wide Card Design default.
+              set(
+                "hoverBehavior",
+                (v === "" ? undefined : v) as DirectoryV1["hoverBehavior"],
+              )
             }
             options={[
+              { value: "", label: "Follow Card Design default" },
               { value: "reveal_traits", label: "Reveal traits" },
               { value: "zoom", label: "Image zoom" },
               { value: "swap", label: "Swap image" },
