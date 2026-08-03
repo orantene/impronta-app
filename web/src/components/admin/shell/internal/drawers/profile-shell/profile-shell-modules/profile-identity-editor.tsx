@@ -26,11 +26,17 @@ import {
 import { IntlPhoneInput } from "@/components/ui/intl-phone-input";
 import { getAllowedProfileStatusOptions } from "@/lib/field-engine/profile-publish-requirements";
 
-export function StatusPillDropdown({ status, onChange, role, canPublish }: {
+export function StatusPillDropdown({ status, onChange, role, canPublish, missingCount = 0, loading = false }: {
   status: "draft" | "pending" | "published" | "hidden";
   onChange: (s: "draft" | "pending" | "published" | "hidden") => void;
   role: "admin" | "talent";
   canPublish?: boolean;
+  /** Open publish blockers — shown on the disabled "Published" row so the
+   *  option's absence is explained instead of silently omitted. */
+  missingCount?: number;
+  /** True until the editor bundle hydrates. The pill renders dimmed and inert
+   *  so a pre-hydration default never reads as the profile's real status. */
+  loading?: boolean;
 }) {
   const copy = useDashboardText();
   type Status = "draft" | "pending" | "published" | "hidden";
@@ -71,9 +77,10 @@ export function StatusPillDropdown({ status, onChange, role, canPublish }: {
     <div className="relative">
       <button type="button"
         ref={triggerRef}
+        disabled={loading}
         // Native popover trigger — browser handles open/close
-        {...({ popoverTarget: popoverId } as Record<string, string>)}
-        title={copy.t("Change status")}
+        {...(loading ? {} : ({ popoverTarget: popoverId } as Record<string, string>))}
+        title={loading ? undefined : copy.t("Change status")}
         // #3 redesign — a border + clearer chevron + hover make this read as
         // a dropdown control, not a static status label. The old borderless
         // pill looked un-clickable, so admins didn't realise they could flip
@@ -84,11 +91,12 @@ export function StatusPillDropdown({ status, onChange, role, canPublish }: {
           padding: "5px 10px", borderRadius: 999,
           border: `1px solid ${cur.bd}`,
           background: cur.bg, color: cur.fg,
-          fontSize: 11, fontWeight: 600, cursor: "pointer",
+          fontSize: 11, fontWeight: 600, cursor: loading ? "default" : "pointer",
           display: "inline-flex", alignItems: "center", gap: 5,
           fontFamily: FONTS.body,
+          opacity: loading ? 0.45 : 1,
         }}>
-        {copy.t(cur.label)}
+        {loading ? "…" : copy.t(cur.label)}
         <span className="text-admin-10 opacity-70">▾</span>
       </button>
       <div
@@ -125,6 +133,21 @@ export function StatusPillDropdown({ status, onChange, role, canPublish }: {
             {copy.t(meta[s].label)}
           </button>
         ))}
+        {/* A hidden option is a mystery; a disabled one is a to-do list.
+            When Published isn't reachable, say so and say why. */}
+        {role === "admin" && !allowed.includes("published") && (
+          <div className="flex w-full cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-admin-ink-muted opacity-70">
+            <span className="inline-block size-1.5 rounded-full bg-current" />
+            <span className="text-admin-12 font-medium">
+              {copy.t(meta.published.label)}
+              <span className="block text-admin-10 font-normal">
+                {copy.isSpanish
+                  ? `Completa ${missingCount} ${missingCount === 1 ? "elemento" : "elementos"} primero`
+                  : `Complete ${missingCount} ${missingCount === 1 ? "item" : "items"} first`}
+              </span>
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

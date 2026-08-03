@@ -22,6 +22,7 @@ type ProfilePublishSnapshot = {
   visibility: string | null;
   display_name: string | null;
   home_city_text: string | null;
+  deleted_at: string | null;
 };
 
 function activeBioLength(bios: unknown): number {
@@ -51,16 +52,21 @@ async function loadCorePublishSnapshot(input: {
   // transition). Read it from the catalog value store below.
   const { data: profile, error: profileError } = await supabase
     .from("talent_profiles")
-    .select("workflow_status, visibility, display_name, home_city_text")
+    .select("workflow_status, visibility, display_name, home_city_text, deleted_at")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (profileError || !profile) throw profileError ?? new Error("Profile not found.");
 
+  // Tenant-scoped OR tenant-null: primary_role rows are written with
+  // tenant_id NULL by several flows (and the Discover matview + roster cards
+  // read them without a tenant filter). Requiring `.eq(tenant_id)` here made
+  // the gate stricter than every consumer — profiles whose card already
+  // showed "fashion-model" were blocked with "Add Talent Type" on publish.
   const { data: primaryRows, error: primaryError } = await supabase
     .from("talent_profile_taxonomy")
     .select("taxonomy_term_id")
     .eq("talent_profile_id", talentProfileId)
-    .eq("tenant_id", tenantId)
+    .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
     .eq("relationship_type", "primary_role")
     .limit(1);
   if (primaryError) throw primaryError;
@@ -153,7 +159,15 @@ export async function assertTalentReadyForPublicListing(input: {
   talentProfileId: string;
 }): Promise<Result> {
   try {
-    const { requirements } = await loadPublishRequirements(input);
+    const { snapshot, requirements } = await loadPublishRequirements(input);
+    // Same rule as the status gate: deleted profiles can't go public (the
+    // listing gate would refuse them anyway — fail loudly, not invisibly).
+    if (snapshot.profile.deleted_at) {
+      return {
+        ok: false,
+        error: "This profile was deleted, so it can't be made visible. Restore it first (or re-add the talent).",
+      };
+    }
     const missing = requirements.filter((requirement) => !requirement.met);
     if (missing.length > 0) {
       return { ok: false, error: formatPublishBlockerError(missing) };
@@ -182,6 +196,19 @@ export async function applyProfileShellStatusWithPublishGate(input: {
       snapshot.profile.workflow_status,
       snapshot.profile.visibility,
     );
+
+    // A soft-deleted profile must never publish: `is_publicly_listed` (which
+    // gates the directory, Discover and media RLS) refuses deleted rows, so
+    // letting the status flip to approved here would "succeed" while the
+    // talent stays invisible — a celebration over a profile nobody can see.
+    // Found live: a roster card the admin could edit and publish was a row
+    // soft-deleted at creation time (roster doesn't filter deleted_at yet).
+    if (nextStatus === "published" && snapshot.profile.deleted_at) {
+      return {
+        ok: false,
+        error: "This profile was deleted, so it can't be published. Restore it first (or re-add the talent).",
+      };
+    }
 
     const transition = validateProfileStatusTransition({
       role: "admin",

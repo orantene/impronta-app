@@ -27,6 +27,7 @@ type RosterRow = {
     first_name: string | null;
     last_name: string | null;
     workflow_status: string | null;
+    is_publicly_listed: boolean | null;
     height_cm: number | null;
     user_id: string | null;
     is_discoverable: boolean | null;
@@ -76,6 +77,13 @@ export type WorkspaceRosterItem = {
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
   if (row.status === "pending") return "awaiting-approval";
+  // A publicly listed talent IS published, whatever the legacy lifecycle
+  // column says. `is_publicly_listed` (20260803203521) is what the directory,
+  // Discover and media RLS actually gate on, so the roster badge must agree —
+  // this is what stopped cards reading DRAFT next to a green "visible" eye.
+  if (row.status === "active" && row.talent_profiles?.is_publicly_listed === true) {
+    return "published";
+  }
   // Phase G fix (2026-05-14) — workflow_status='approved' is the canonical
   // production value; 'published' was the early-fixture literal. Both
   // count as "published" for surface gating (audit §A.1 #2). Without
@@ -158,6 +166,7 @@ export async function loadWorkspaceRosterForTenant(
           first_name,
           last_name,
           workflow_status,
+          is_publicly_listed,
           height_cm,
           user_id,
           is_discoverable,

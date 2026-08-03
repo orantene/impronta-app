@@ -487,27 +487,14 @@ export type CardKitOption = {
   tokens: Record<string, string>;
 };
 
-/** The card-family token key that records which kit is active. */
-export const CARD_FAMILY_TOKEN_KEY = "template.directory-card-family";
-
-/** The three color knobs the studio exposes, in display order. */
-// English `label` / `hint` remain the non-UI fallback; the studio renders
-// `t(knob.labelKey)` / `t(knob.hintKey)`.
-const KNOB_NS = "dashboard.adminCardStudio2.knobs";
-export { CARD_DESIGN_TOKEN_KEYS } from "./card-design-token-keys";
-
-export const CARD_COLOR_KNOBS: Array<{
-  key: string; label: string; hint: string; labelKey: string; hintKey: string;
-}> = [
-  { key: "card.surface", label: "Card surface", hint: "Media / panel ground",
-    labelKey: `${KNOB_NS}.surfaceLabel`, hintKey: `${KNOB_NS}.surfaceHint` },
-  { key: "card.name-color", label: "Name color", hint: "Talent name",
-    labelKey: `${KNOB_NS}.nameLabel`, hintKey: `${KNOB_NS}.nameHint` },
-  { key: "card.muted", label: "Secondary text", hint: "Type · location · availability",
-    labelKey: `${KNOB_NS}.mutedLabel`, hintKey: `${KNOB_NS}.mutedHint` },
-  { key: "card.price-color", label: "Price chip", hint: "The “From $X” chip",
-    labelKey: `${KNOB_NS}.priceLabel`, hintKey: `${KNOB_NS}.priceHint` },
-];
+// Token constants moved to card-design-token-keys.ts (the studio's LEAF
+// module) to break the Studio-3 ⇄ token-keys import cycle that TDZ-crashed
+// the admin shell in dev. Re-exported here so existing importers keep working.
+export {
+  CARD_FAMILY_TOKEN_KEY,
+  CARD_COLOR_KNOBS,
+  CARD_DESIGN_TOKEN_KEYS,
+} from "./card-design-token-keys";
 
 /** Every card-family token key the studio touches (kit + knobs). */
 

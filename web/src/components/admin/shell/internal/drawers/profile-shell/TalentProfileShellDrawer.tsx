@@ -359,6 +359,9 @@ export function TalentProfileShellDrawer() {
   type SaveStatus = "idle" | "saving" | "saved" | "error";
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Same text as saveError, readable synchronously right after `await saveAll()`
+   *  (state hasn't re-rendered yet at that point). submit() toasts from this. */
+  const lastSaveErrorRef = useRef<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [serverProfileUpdatedAtMs, setServerProfileUpdatedAtMs] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -919,7 +922,12 @@ export function TalentProfileShellDrawer() {
   // stateRef is declared above (near the media hydration block) — saveAll
   // reads from it so we can keep `state` out of this callback's dep array.
 
-  const saveAll = React.useCallback(async (): Promise<boolean> => {
+  const saveAll = React.useCallback(async (opts?: {
+    /** Persist THIS status instead of stateRef's — used by submit(), which
+     *  patches the status and saves in the same tick, before React has
+     *  re-rendered and refreshed stateRef.current. */
+    statusOverride?: "draft" | "pending" | "published" | "hidden";
+  }): Promise<boolean> => {
     let tid = payload.talentId;
     /** First save in `create` mode — row minted this click; fall through to
      *  commitTalentProfileShellAdmin so identity/location/bio/etc. persist. */
@@ -1210,7 +1218,7 @@ export function TalentProfileShellDrawer() {
               skip_service_areas: useCanonicalDeferredPanels,
               shell_primary_talent_slug: s.primaryType,
               shell_secondary_talent_slugs: s.secondaryTypes,
-              shell_profile_status: s.profileStatus,
+              shell_profile_status: opts?.statusOverride ?? s.profileStatus,
               availability: { availability_data: availPayload.availability_data },
               languages: { languages: langsPayload.languages },
               credits: { credits_data: creditsPayload.credits_data },
@@ -1274,7 +1282,8 @@ export function TalentProfileShellDrawer() {
       const stepped = await runProfileShellSaveSteps(saveSteps);
       if (!stepped.ok) {
         setSaveStatus("error");
-        setSaveError(formatProfileShellSaveFailures(stepped.failures));
+        lastSaveErrorRef.current = formatProfileShellSaveFailures(stepped.failures);
+        setSaveError(lastSaveErrorRef.current);
         void improntaLog("admin_talentprofileshelldrawer.error", {
           message: "[saveAll] stepped:",
           failures: stepped.failures.join(", "),
@@ -1873,7 +1882,19 @@ export function TalentProfileShellDrawer() {
   const computeDiff = (): DiffEntry[] => {
     return computeProfileDiff(initialState.current ?? null, state);
   };
-  const finalSubmit = () => {
+  const finalSubmit = async () => {
+    // Persist FIRST. This CTA (Update / Submit for review) used to close the
+    // drawer after only writing the client-side override store below — the
+    // server never saw the edits unless the admin ALSO clicked the separate
+    // Save button. One primary action now means one durable result.
+    if (payload.talentId || mode === "create") {
+      const ok = await saveAll(isSelf ? { statusOverride: "pending" } : undefined);
+      if (!ok) {
+        toast(lastSaveErrorRef.current
+          ?? (copy.isSpanish ? "No se guardó. Revisa los errores." : "Not saved — check the errors."));
+        return;
+      }
+    }
     // Translate the relevant ProfileState slices into MyTalentProfile
     // shape and write to the override store. Closes the data-debt
     // where dashboard tiles read seed data while the shell wrote to
@@ -2002,7 +2023,7 @@ export function TalentProfileShellDrawer() {
     if (mode === "create") clearProfileDraft("default");
     closeDrawer();
   };
-  const submit = () => {
+  const submit = async () => {
     if (!isSelf && state.profileStatus !== "published") {
       if (!canApplyProfileStatusTransition({
         role: "admin",
@@ -2013,8 +2034,23 @@ export function TalentProfileShellDrawer() {
         toast(addItemsToPublishText(missing.length));
         return;
       }
-      // Admin going draft/pending → published. Open celebration first.
+      // Admin going draft/pending/hidden → published. Persist BEFORE the
+      // celebration: this used to patch local state and open the modal, whose
+      // Close closed the drawer — Publish never reached the server, so the
+      // profile stayed draft while the admin saw "You're live". The server
+      // runs the same publish gate and also flips this tenant's roster eye,
+      // so success here means genuinely publicly listed.
+      const prev = state.profileStatus;
       patch({ profileStatus: "published" });
+      const ok = await saveAll({ statusOverride: "published" });
+      if (!ok) {
+        patch({ profileStatus: prev });
+        // Server names the exact blockers (e.g. "Add a bio, 1 language to
+        // publish") — surface that, not a bare count.
+        toast(lastSaveErrorRef.current ?? addItemsToPublishText(missing.length));
+        return;
+      }
+      if (payload.talentId) clearPendingReview(payload.talentId);
       setPublishCelebrationOpen(true);
       return;
     }
@@ -2026,7 +2062,7 @@ export function TalentProfileShellDrawer() {
         return;
       }
     }
-    finalSubmit();
+    void finalSubmit();
   };
   // Save & exit — fire saveAll(), wait for it, then close. Distinct from
   // the Save button: saveAll alone keeps the drawer open so the user can
@@ -2380,6 +2416,8 @@ export function TalentProfileShellDrawer() {
             onChange={handleProfileStatusChange}
             role={isSelf ? "talent" : "admin"}
             canPublish={canPublishProfile}
+            missingCount={missing.length}
+            loading={mode !== "create" && !!payload.talentId && editorHydration === "loading"}
           />
 
           {/* History control strip — always visible (incl. mobile); pairs with explicit Save. */}
@@ -2497,7 +2535,11 @@ export function TalentProfileShellDrawer() {
               review). Every OTHER secondary action moved into the ⋯ menu, so
               the toolbar now fits at every width and never collapses into a
               "mobile menu" at the default size. */}
-          {state.profileStatus !== "published" && state.profileStatus !== "hidden" && missing.length > 0 ? (
+          {state.profileStatus !== "published" && missing.length > 0 ? (
+            // Coach for EVERY non-live state, including "hidden". Hidden used
+            // to render the Unhide CTA instead, whose click failed the publish
+            // gate with a count-only toast — a dead end with no way to see
+            // WHAT was missing. Unhide appears the moment the checklist clears.
             <HeaderPublishCoach missing={missing} onJump={onJumpToMissing} />
           ) : (
             <SmartFooterCTA
@@ -4192,8 +4234,8 @@ export function TalentProfileShellDrawer() {
             entries={computeDiff()}
             mode={isSelf ? "talent" : "admin"}
             onClose={() => setDiffOpen(false)}
-            onSubmit={() => { setDiffOpen(false); finalSubmit(); }}
-            onApproveAll={!isSelf ? () => { setDiffOpen(false); finalSubmit(); } : undefined}
+            onSubmit={() => { setDiffOpen(false); void finalSubmit(); }}
+            onApproveAll={!isSelf ? () => { setDiffOpen(false); void finalSubmit(); } : undefined}
             onRejectAll={!isSelf ? () => { setDiffOpen(false); toast(copy.t("Changes rejected. The talent will be notified.")); closeDrawer(); } : undefined}
             // #2 — Per-field decisions actually patch the record. Rejected
             // fields revert to the baseline; approved + undecided fields
