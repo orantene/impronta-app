@@ -160,6 +160,26 @@ function testLinkedInPartnerId(value: string): IntegrationFieldTestResult {
 }
 
 /**
+ * Google Search Console verification token — the value of the `content="…"`
+ * attribute of the `google-site-verification` meta tag. Google's tokens are
+ * ~43-char URL-safe base64 (`[A-Za-z0-9_-]`); we accept 20-100 of those chars.
+ * We deliberately REJECT a pasted full `<meta>` tag (angle brackets / spaces):
+ * the generic config writer stores the value verbatim into the emitted meta
+ * tag, so the tenant must paste ONLY the token, not the whole snippet.
+ */
+function testGoogleSiteVerificationToken(
+  value: string,
+): IntegrationFieldTestResult {
+  const v = value.trim();
+  if (!v) return { ok: false, reason: "empty" };
+  if (/[<>\s]/.test(v)) return { ok: false, reason: "paste_token_only" };
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(v)) {
+    return { ok: false, reason: "expected_verification_token" };
+  }
+  return { ok: true };
+}
+
+/**
  * Captcha site key (PUBLIC) — hCaptcha keys look like a UUID; Turnstile keys
  * start with "0x". We accept both shapes (and any other non-empty token without
  * whitespace) as a plausibility gate — this guards against a blank/garbled paste,
@@ -238,6 +258,7 @@ export const META_PIXEL_INTEGRATION_KEY = "meta_pixel" as const;
 export const TIKTOK_PIXEL_INTEGRATION_KEY = "tiktok_pixel" as const;
 export const LINKEDIN_INSIGHT_INTEGRATION_KEY = "linkedin_insight" as const;
 export const GTM_INTEGRATION_KEY = "gtm" as const;
+export const SEARCH_CONSOLE_INTEGRATION_KEY = "search_console" as const;
 export const CUSTOM_CODE_INTEGRATION_KEY = "custom_code" as const;
 export const CAPTCHA_INTEGRATION_KEY = "captcha" as const;
 export const EMAIL_DOMAIN_INTEGRATION_KEY = "email_domain" as const;
@@ -465,6 +486,39 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
         secret: false,
         public: true,
         test: testGtmContainerId,
+      },
+    ],
+  },
+
+  // ─── SEO — Google Search Console site-ownership verification ──────────────
+  // PUBLIC token only (config_json.verification_token). Emitted as a real
+  // <meta name="google-site-verification"> in the storefront <head> via the
+  // per-tenant generateMetadata in (public)/layout.tsx — NOT via custom_code
+  // (which is entitlement-gated and lands in <body>, where Google won't read
+  // it). No entitlement gate: verification is a baseline capability every plan
+  // gets. Uniform across subdomains and custom domains (no DNS required).
+  [SEARCH_CONSOLE_INTEGRATION_KEY]: {
+    key: SEARCH_CONSOLE_INTEGRATION_KEY,
+    label: "Google Search Console",
+    category: "analytics",
+    connection: "manual",
+    inheritable: false,
+    description:
+      "Verify ownership of your storefront in Google Search Console to track how you rank in Search and submit your sitemap. Paste the verification token and the meta tag is added to your site's <head>.",
+    instructions: [
+      "Open Google Search Console (search.google.com/search-console) and add a property.",
+      'Choose the "URL prefix" property type and enter your exact storefront address (e.g. https://your-agency.tulala.digital, or your custom domain).',
+      'Pick the "HTML tag" verification method. Google shows a tag like <meta name="google-site-verification" content="TOKEN" />.',
+      'Copy ONLY the token — the value inside content="…" — paste it below and Save.',
+      'Back in Search Console, click Verify. Once verified, submit your sitemap at /sitemap.xml (e.g. https://your-agency.tulala.digital/sitemap.xml).',
+    ],
+    fields: [
+      {
+        name: "verification_token",
+        label: "Search Console verification token",
+        secret: false,
+        public: true,
+        test: testGoogleSiteVerificationToken,
       },
     ],
   },
