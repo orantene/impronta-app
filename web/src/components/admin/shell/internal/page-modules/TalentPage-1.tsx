@@ -11,6 +11,7 @@ import type { Plan, TalentPage, TalentProfile, TaxonomyParentId } from "../state
 import { SavedViewsBar, downloadCsv } from "../wave2";
 import { FabWithQuickCreate } from "./InboxPage";
 import { FilterChip, RosterGrid, RosterMoreMenu, SortButton, ViewToggle } from "./TalentPage-2";
+import { RosterArrangeView } from "./TalentPage-arrange";
 import { RosterBulkActionBar, RosterEmptyState, RosterList } from "./TalentPage-3";
 import { Grid, PageHeader } from "./pages-shared";
 import { byName } from "@/lib/field-engine/sort-comparators";
@@ -69,6 +70,10 @@ export function TalentPage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [isBulkLoading, setIsBulkLoading] = useState(false);
   const [pitchComposeOpen, setPitchComposeOpen] = useState(false);
+  // Arrange-directory-order mode — replaces the filter/grid section with a
+  // drag-sortable grid writing `manual_rank_override` (the public directory's
+  // Recommended sort). Live workspaces only: the save action needs a slug.
+  const [arrangeMode, setArrangeMode] = useState(false);
 
   // Resolve a parent-type filter to its children (for filtering by primaryType id).
   const typeFilterChildren = typeFilter === "all"
@@ -223,6 +228,11 @@ export function TalentPage() {
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <>
+                {tenantSlug && !arrangeMode && (
+                  <GhostButton onClick={() => setArrangeMode(true)}>
+                    {t("admin.roster.arrange.button")}
+                  </GhostButton>
+                )}
                 <RosterMoreMenu
                   open={moreOpen}
                   onToggle={() => setMoreOpen((o) => !o)}
@@ -315,6 +325,21 @@ export function TalentPage() {
         }
       />
 
+      {/* Arrange mode — drag-sortable directory order. Replaces the filter +
+          grid section so the arranged list is always the FULL roster in the
+          exact public order (filters/search would make positions ambiguous). */}
+      {arrangeMode && tenantSlug ? (
+        <RosterArrangeView
+          items={roster}
+          tenantSlug={tenantSlug}
+          onExit={() => {
+            setArrangeMode(false);
+            // Re-fetch the server roster so cards reflect the saved ranks.
+            router.refresh();
+          }}
+        />
+      ) : (
+      <>
       {/* Status strip — single line replaces 4-up StatusCard. Each segment
           is a clickable filter (toggle on/off). */}
       <RosterStatusStrip
@@ -394,6 +419,8 @@ export function TalentPage() {
           onSelect={canEdit ? toggleSelect : undefined}
           onOpen={openProfile}
         />
+      )}
+      </>
       )}
 
       {/* Bulk action bar — sticky bottom when selection > 0 */}

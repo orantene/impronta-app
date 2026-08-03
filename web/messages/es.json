@@ -11105,6 +11105,20 @@
         "matchesMany": "{count} coincidencias encontradas",
         "noFeaturedSkill": "Sin habilidad destacada",
         "score": "puntuación {score}"
+      },
+      "arrange": {
+        "button": "Ordenar directorio",
+        "title": "Ordenar el directorio",
+        "subtitle": "Arrastra las tarjetas o haz clic en un número para definir el orden en que los visitantes ven tu directorio público (orden Recomendado). Los cambios se guardan automáticamente.",
+        "done": "Listo",
+        "reset": "Restablecer automático",
+        "resetConfirm": "¿Quitar el orden personalizado? El talento volverá al orden automático.",
+        "saving": "Guardando…",
+        "saved": "Guardado",
+        "saveError": "No se pudo guardar. Reintentar",
+        "hiddenHint": "Oculto en el directorio público",
+        "rankAria": "Posición de {name}. Haz clic para escribir una posición.",
+        "workspaceOnly": "Abre un espacio de trabajo activo para ordenar el directorio."
       }
     },
     "account": {

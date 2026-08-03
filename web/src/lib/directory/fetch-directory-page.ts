@@ -279,7 +279,7 @@ function intersectSortedIds(sets: string[][]): string[] {
   return [...acc];
 }
 
-function applySort<T extends { order: (column: string, options?: { ascending?: boolean }) => T }>(
+function applySort<T extends { order: (column: string, options?: { ascending?: boolean; nullsFirst?: boolean }) => T }>(
   query: T,
   sort: DirectorySortValue,
 ): T {
@@ -318,7 +318,13 @@ function applySort<T extends { order: (column: string, options?: { ascending?: b
       .order("id", { ascending: false });
   }
 
+  // "Recommended" (default): agency-curated order first. `manual_rank_override`
+  // is the roster "Arrange directory" rank — talents the agency explicitly
+  // ordered sort first (1, 2, 3…), everyone else (null) falls through to the
+  // featured/recency chain below. The AI-search rerank honors the same column
+  // (see lib/ai/rerank.ts §5), so curated order is consistent across both legs.
   return query
+    .order("manual_rank_override", { ascending: true, nullsFirst: false })
     .order("is_featured", { ascending: false })
     .order("featured_level", { ascending: false })
     .order("featured_position", { ascending: true })
