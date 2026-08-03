@@ -73,3 +73,47 @@ test("card-design save: the merged map passes the registry gate the save path en
     )}`,
   );
 });
+
+// ── Module-cycle guard for card-design-token-keys.ts ─────────────────────────
+//
+// 2026-08-03 sev-1: card-design-token-keys.ts imported CARD_FAMILY_TOKEN_KEY /
+// CARD_COLOR_KNOBS from CardDesignStudio-3 while CardDesignStudio-3 re-exported
+// CARD_DESIGN_TOKEN_KEYS from it. In the production chunk graph that cycle hit
+// a temporal-dead-zone ReferenceError at module evaluation and took down the
+// whole admin shell (dev chunking, tsc, lint and `next build` were all green).
+// Pin: the keys module stays import-free, and its knob keys stay in sync with
+// the labeled knob array in CardDesignStudio-3.
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import {
+  CARD_COLOR_KNOB_KEYS,
+  CARD_DESIGN_TOKEN_KEYS,
+  CARD_FAMILY_TOKEN_KEY,
+} from "../../../components/admin/shell/internal/page-modules/card-design-token-keys";
+
+const KEYS_MODULE_PATH = join(
+  process.cwd(),
+  "src/components/admin/shell/internal/page-modules/card-design-token-keys.ts",
+);
+
+test("card-design-token-keys.ts is import-free (module-cycle guard)", () => {
+  const source = readFileSync(KEYS_MODULE_PATH, "utf8");
+  const importLines = source
+    .split("\n")
+    .filter((l) => /^\s*import[\s{]/.test(l) || /\brequire\s*\(/.test(l));
+  assert.deepEqual(
+    importLines,
+    [],
+    "card-design-token-keys.ts must not import anything — a CardDesignStudio-3 " +
+      "import here recreates the TDZ cycle that crashed the prod admin shell",
+  );
+});
+
+test("CARD_DESIGN_TOKEN_KEYS starts with the family key + color knob keys", () => {
+  assert.deepEqual(
+    CARD_DESIGN_TOKEN_KEYS.slice(0, 1 + CARD_COLOR_KNOB_KEYS.length),
+    [CARD_FAMILY_TOKEN_KEY, ...CARD_COLOR_KNOB_KEYS],
+  );
+});

@@ -487,29 +487,33 @@ export type CardKitOption = {
   tokens: Record<string, string>;
 };
 
-/**
- * Token keys + colour knobs now live in `card-design-token-keys.ts` and are
- * re-exported here so existing importers keep working.
- *
- * WHY THEY MOVED — circular import, load-order dependent:
- * this file used to DEFINE `CARD_FAMILY_TOKEN_KEY` / `CARD_COLOR_KNOBS` while
- * also re-exporting `CARD_DESIGN_TOKEN_KEYS` from card-design-token-keys, and
- * that module consumed both at MODULE level. The re-export sat ABOVE the
- * `CARD_COLOR_KNOBS` definition, so entering the cycle from this side
- * evaluated the other module first and hit the temporal dead zone:
- *   ReferenceError: Cannot access 'CARD_FAMILY_TOKEN_KEY' before initialization
- * (minified in production as "Cannot access 'oo' before initialization"),
- * which took the whole admin shell down — intermittently, because it depended
- * on which side of the cycle was evaluated first.
- *
- * The leaf module now owns the constants and imports nothing from here, so
- * the edge points one way only. Keep it that way.
- */
+// Token-key constants live in the import-free ./card-design-token-keys module
+// (this file re-exports them for its existing consumers). Do NOT define keys
+// here and import them from there — that exact shape was a module cycle that
+// crashed the whole admin shell on production at chunk-evaluation time.
 export {
-  CARD_COLOR_KNOBS,
   CARD_DESIGN_TOKEN_KEYS,
   CARD_FAMILY_TOKEN_KEY,
 } from "./card-design-token-keys";
+
+/** The color knobs the studio exposes, in display order. */
+// English `label` / `hint` remain the non-UI fallback; the studio renders
+// `t(knob.labelKey)` / `t(knob.hintKey)`. Key strings must stay in sync with
+// CARD_COLOR_KNOB_KEYS in ./card-design-token-keys (pinned by test).
+const KNOB_NS = "dashboard.adminCardStudio2.knobs";
+
+export const CARD_COLOR_KNOBS: Array<{
+  key: string; label: string; hint: string; labelKey: string; hintKey: string;
+}> = [
+  { key: "card.surface", label: "Card surface", hint: "Media / panel ground",
+    labelKey: `${KNOB_NS}.surfaceLabel`, hintKey: `${KNOB_NS}.surfaceHint` },
+  { key: "card.name-color", label: "Name color", hint: "Talent name",
+    labelKey: `${KNOB_NS}.nameLabel`, hintKey: `${KNOB_NS}.nameHint` },
+  { key: "card.muted", label: "Secondary text", hint: "Type · location · availability",
+    labelKey: `${KNOB_NS}.mutedLabel`, hintKey: `${KNOB_NS}.mutedHint` },
+  { key: "card.price-color", label: "Price chip", hint: "The “From $X” chip",
+    labelKey: `${KNOB_NS}.priceLabel`, hintKey: `${KNOB_NS}.priceHint` },
+];
 
 /**
  * Realistic sample talent for the live preview. Editorial portrait imagery,
