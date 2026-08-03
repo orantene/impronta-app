@@ -4385,7 +4385,8 @@
       "rosterRatesNoRole": "No role set",
       "rosterRatesFillAll": "Fill all",
       "rosterRatesQuoteOnly": "Quote on request",
-      "rosterRatesSave": "Save rates"
+      "rosterRatesSave": "Save rates",
+      "pricingDefaultsPerTalentPointer": "Setting a rate for individual talent lives with the roster: Roster → Rates."
     },
     "adminOperations": {
       "title": "Operations",
@@ -4923,7 +4924,10 @@
       "toastNeedAdminFields": "You need admin access to change card fields.",
       "toastNeedAdminBadges": "You need admin access to change roster card badges.",
       "toastCouldNotSaveField": "Could not save that field.",
-      "rowPriceFromHint": "Preview only. The live starting price is controlled by the Directory section (Show starting price) and is on by default."
+      "rowPriceFromHint": "Preview only. The live starting price is controlled by the Directory section (Show starting price) and is on by default.",
+      "densityLabel": "Density",
+      "densityComfortable": "Comfortable",
+      "densityCompact": "Compact"
     },
     "adminPitches": {
       "statusDraft": "Draft",
@@ -8696,6 +8700,20 @@
             "container_id": "GTM Container ID"
           }
         },
+        "search_console": {
+          "label": "Google Search Console",
+          "description": "Verify ownership of your storefront in Google Search Console to track how you rank in Search and submit your sitemap. Paste the verification token and the meta tag is added to your site's <head>.",
+          "steps": {
+            "s1": "Open Google Search Console (search.google.com/search-console) and add a property.",
+            "s2": "Choose the \"URL prefix\" property type and enter your exact storefront address (e.g. https://your-agency.tulala.digital, or your custom domain).",
+            "s3": "Pick the \"HTML tag\" verification method. Google shows a tag like <meta name=\"google-site-verification\" content=\"TOKEN\" />.",
+            "s4": "Copy ONLY the token — the value inside content=\"…\" — paste it below and Save.",
+            "s5": "Back in Search Console, click Verify. Once verified, submit your sitemap at /sitemap.xml (e.g. https://your-agency.tulala.digital/sitemap.xml)."
+          },
+          "fields": {
+            "verification_token": "Search Console verification token"
+          }
+        },
         "custom_code": {
           "label": "Custom code",
           "description": "Inject your own HTML / <script> into your public storefront: add a chat widget, a font, a verification meta tag, or any third-party snippet. Runs on your storefront only, never the admin.",
@@ -11036,6 +11054,7 @@
         "selectAll": "Select all",
         "selectedClear": "selected · clear",
         "sortLabel": "Sort:",
+        "sortRecommended": "Recommended",
         "sortName": "Name",
         "sortCompleteness": "Completeness",
         "sortNewest": "Newest",

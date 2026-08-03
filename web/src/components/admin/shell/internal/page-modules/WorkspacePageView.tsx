@@ -11,7 +11,6 @@ import { AutoAckSettingsRow, LockedPill } from "./BillingPage";
 import { DefaultCurrencySettingsRow } from "@/components/admin/account/DefaultCurrencySettingsRow";
 import { CommercialTermsSettingsCard } from "@/components/admin/account/CommercialTermsSettingsCard";
 import { PricingDefaultsSettingsCard } from "@/components/admin/account/PricingDefaultsSettingsCard";
-import { RosterRateCardEditor } from "@/components/admin/account/RosterRateCardEditor";
 import { PageHeader } from "./pages-shared";
 import {
   SETTINGS_SECTION_EVENT,
@@ -365,14 +364,11 @@ export function WorkspacePageView() {
         desc: t("dashboard.adminWorkspace.pricingDefaultsDesc"),
         visible: !!tenantSlug,
         rows: [],
-        extra: tenantSlug ? (
-          <div className="flex flex-col gap-8">
-            <PricingDefaultsSettingsCard />
-            {/* Per-talent rates live in the same group: defaults are the
-                fallback, this is the real thing. */}
-            <RosterRateCardEditor />
-          </div>
-        ) : null,
+        // Only the tenant-wide FALLBACK lives here — it is a policy you set
+        // once. Editing 50 individual people is roster work, so the per-talent
+        // rate table moved to Roster → Rates; this group points at it rather
+        // than duplicating it (two homes for one job is how features drift).
+        extra: tenantSlug ? <PricingDefaultsSettingsCard /> : null,
         extraSearch: [
           {
             title: t("dashboard.adminWorkspace.pricingDefaultsLabel"),
@@ -384,7 +380,7 @@ export function WorkspacePageView() {
           },
           {
             title: t("dashboard.adminWorkspace.rosterRatesTitle"),
-            desc: t("dashboard.adminWorkspace.rosterRatesDesc"),
+            desc: t("dashboard.adminWorkspace.pricingDefaultsPerTalentPointer"),
           },
         ],
       },

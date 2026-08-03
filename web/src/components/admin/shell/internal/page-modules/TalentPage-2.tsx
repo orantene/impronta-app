@@ -7,6 +7,7 @@ import { COLORS, FONTS, TAXONOMY, useAdminShell } from "../state";
 import type { TalentProfile } from "../state";
 import { fillAdminTpl } from "./TalentPage-1";
 import { RosterEyeToggle, RosterPhotoBadgeOverlay, RosterTrustCell } from "./TalentPage-3";
+import type { RosterSortKey } from "./roster-sort";
 
 
 export function FilterChip({
@@ -51,13 +52,14 @@ export function SortButton({
   sortDir,
   onSort,
 }: {
-  sort: "name" | "completeness" | "newest" | "lastEdited";
+  sort: RosterSortKey;
   sortDir: "asc" | "desc";
-  onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
+  onSort: (s: RosterSortKey) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { t } = useAdminShell();
   const sortLabel = {
+    recommended: t("admin.roster.filters.sortRecommended"),
     name: t("admin.roster.filters.sortName"),
     completeness: t("admin.roster.filters.sortCompleteness"),
     newest: t("admin.roster.filters.sortNewest"),
@@ -102,8 +104,9 @@ export function SortButton({
               fontFamily: FONTS.body,
             }}
           >
-            {(["name", "completeness", "newest", "lastEdited"] as const).map((s) => {
+            {(["recommended", "name", "completeness", "newest", "lastEdited"] as const).map((s) => {
               const labels: Record<string, string> = {
+                recommended: t("admin.roster.filters.sortRecommended"),
                 name: t("admin.roster.filters.sortName"),
                 completeness: t("admin.roster.filters.sortCompleteness"),
                 newest: t("admin.roster.filters.sortNewest"),

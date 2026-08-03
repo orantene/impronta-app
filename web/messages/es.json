@@ -4385,7 +4385,8 @@
       "rosterRatesNoRole": "Sin categoría",
       "rosterRatesFillAll": "Completar todos",
       "rosterRatesQuoteOnly": "Cotización a pedido",
-      "rosterRatesSave": "Guardar tarifas"
+      "rosterRatesSave": "Guardar tarifas",
+      "pricingDefaultsPerTalentPointer": "Fijar la tarifa de cada talento se hace junto al roster: Roster → Tarifas."
     },
     "adminOperations": {
       "title": "Operaciones",
@@ -4923,7 +4924,10 @@
       "toastNeedAdminFields": "Necesitas acceso de administrador para cambiar los campos de la tarjeta.",
       "toastNeedAdminBadges": "Necesitas acceso de administrador para cambiar las insignias de la tarjeta del roster.",
       "toastCouldNotSaveField": "No se pudo guardar ese campo.",
-      "rowPriceFromHint": "Solo vista previa. El precio inicial en vivo se controla en la sección Directorio (Mostrar precio inicial) y está activado por defecto."
+      "rowPriceFromHint": "Solo vista previa. El precio inicial en vivo se controla en la sección Directorio (Mostrar precio inicial) y está activado por defecto.",
+      "densityLabel": "Densidad",
+      "densityComfortable": "Cómoda",
+      "densityCompact": "Compacta"
     },
     "adminPitches": {
       "statusDraft": "Borrador",
@@ -8696,6 +8700,20 @@
             "container_id": "ID de contenedor de GTM"
           }
         },
+        "search_console": {
+          "label": "Google Search Console",
+          "description": "Verifica la propiedad de tu sitio en Google Search Console para seguir tu posición en la Búsqueda y enviar tu sitemap. Pega el token de verificación y la etiqueta meta se añade al <head> de tu sitio.",
+          "steps": {
+            "s1": "Abre Google Search Console (search.google.com/search-console) y añade una propiedad.",
+            "s2": "Elige el tipo de propiedad \"Prefijo de URL\" e introduce la dirección exacta de tu sitio (p. ej. https://tu-agencia.tulala.digital, o tu dominio propio).",
+            "s3": "Selecciona el método de verificación \"Etiqueta HTML\". Google muestra una etiqueta como <meta name=\"google-site-verification\" content=\"TOKEN\" />.",
+            "s4": "Copia SOLO el token, el valor dentro de content=\"…\", pégalo abajo y guarda.",
+            "s5": "Vuelve a Search Console y haz clic en Verificar. Una vez verificado, envía tu sitemap en /sitemap.xml (p. ej. https://tu-agencia.tulala.digital/sitemap.xml)."
+          },
+          "fields": {
+            "verification_token": "Token de verificación de Search Console"
+          }
+        },
         "custom_code": {
           "label": "Código personalizado",
           "description": "Inyecta tu propio HTML o <script> en tu storefront público: agrega un widget de chat, una fuente, una metaetiqueta de verificación o cualquier fragmento de terceros. Se ejecuta solo en tu storefront, nunca en el panel de administración.",
@@ -11036,6 +11054,7 @@
         "selectAll": "Seleccionar todo",
         "selectedClear": "seleccionados · limpiar",
         "sortLabel": "Ordenar:",
+        "sortRecommended": "Recomendado",
         "sortName": "Nombre",
         "sortCompleteness": "Completitud",
         "sortNewest": "Más reciente",

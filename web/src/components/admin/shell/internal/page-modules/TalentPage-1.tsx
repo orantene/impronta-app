@@ -14,7 +14,8 @@ import { FilterChip, RosterGrid, RosterMoreMenu, SortButton, ViewToggle } from "
 import { RosterArrangeView } from "./TalentPage-arrange";
 import { RosterBulkActionBar, RosterEmptyState, RosterList } from "./TalentPage-3";
 import { Grid, PageHeader } from "./pages-shared";
-import { byName } from "@/lib/field-engine/sort-comparators";
+import { rosterSortComparator } from "./roster-sort";
+import type { RosterSortKey } from "./roster-sort";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -63,8 +64,12 @@ export function TalentPage() {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<"all" | "visible" | "hidden">("all");
   const [typeFilter, setTypeFilter] = useState<TaxonomyParentId | "all">("all");
-  const [sort, setSort] = useState<"name" | "completeness" | "newest" | "lastEdited">("newest");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Default = Recommended: the roster opens in the same order visitors see
+  // in the public directory (curated rank first, recency after).
+  const [sort, setSort] = useState<RosterSortKey>("recommended");
+  // Exit arrange mode + re-fetch the server roster so cards show saved ranks.
+  const exitArrange = () => { setArrangeMode(false); router.refresh(); };
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
@@ -98,21 +103,7 @@ export function TalentPage() {
         (p.primaryType ?? "").toLowerCase().includes(q)
       );
     })
-    .sort((a, b) => {
-      let r = 0;
-      if (sort === "name") r = byName(a, b);
-      else if (sort === "completeness") r = (a.completeness ?? 0) - (b.completeness ?? 0);
-      else if (sort === "newest") {
-        const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
-        const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
-        r = ta - tb;
-      } else if (sort === "lastEdited") {
-        const ta = a.updatedAt ? Date.parse(a.updatedAt) : 0;
-        const tb = b.updatedAt ? Date.parse(b.updatedAt) : 0;
-        r = ta - tb;
-      }
-      return sortDir === "asc" ? r : -r;
-    });
+    .sort(rosterSortComparator(sort, sortDir));
 
   const visibleCount = roster.filter(isPubliclyVisible).length;
   const counts = {
@@ -226,7 +217,9 @@ export function TalentPage() {
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <>
-                {tenantSlug && !arrangeMode && <GhostButton onClick={() => setArrangeMode(true)}>{t("admin.roster.arrange.button")}</GhostButton>}
+                {tenantSlug && (arrangeMode
+                  ? <PrimaryButton onClick={exitArrange}>{t("admin.roster.arrange.done")}</PrimaryButton>
+                  : <GhostButton onClick={() => setArrangeMode(true)}>{t("admin.roster.arrange.button")}</GhostButton>)}
                 <RosterMoreMenu
                   open={moreOpen}
                   onToggle={() => setMoreOpen((o) => !o)}
@@ -322,11 +315,7 @@ export function TalentPage() {
       {/* Arrange mode replaces the filter + grid section: the arranged list is
           always the FULL roster in public order (filters would be ambiguous). */}
       {arrangeMode && tenantSlug ? (
-        <RosterArrangeView
-          items={roster}
-          tenantSlug={tenantSlug}
-          onExit={() => { setArrangeMode(false); router.refresh(); }}
-        />
+        <RosterArrangeView items={roster} tenantSlug={tenantSlug} onExit={exitArrange} />
       ) : (
       <>
       {/* Status strip — single line replaces 4-up StatusCard. Each segment
@@ -367,9 +356,9 @@ export function TalentPage() {
           if (s === sort) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
           else {
             setSort(s);
-            // "Newest" + "Completeness" read more naturally with the high
-            // value on top — default to desc. Name → A→Z.
-            setSortDir(s === "name" ? "asc" : "desc"); // newest / lastEdited / completeness → desc by default
+            // Name → A→Z; Recommended → position 1 on top. "Newest" +
+            // "Completeness" read more naturally with the high value on top.
+            setSortDir(s === "name" || s === "recommended" ? "asc" : "desc");
           }
         }}
         view={view}
@@ -636,9 +625,9 @@ function RosterFilterBar({
   typeFilter: TaxonomyParentId | "all";
   onTypeFilter: (f: TaxonomyParentId | "all") => void;
   usedTypes: TaxonomyParentId[];
-  sort: "name" | "completeness" | "newest" | "lastEdited";
+  sort: RosterSortKey;
   sortDir: "asc" | "desc";
-  onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
+  onSort: (s: RosterSortKey) => void;
   view: "grid" | "list";
   onView: (v: "grid" | "list") => void;
   canBulk: boolean;
