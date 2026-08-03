@@ -65,6 +65,13 @@ export type DirectoryCardDTO = {
     width: number | null;
     height: number | null;
   };
+  /**
+   * Second-best approved photo (differs from `thumbnail.url`), for the
+   * `hover: "swap"` card behavior. Populated by fetch-directory-page from the
+   * media rows it already loads — no extra query. Null when the talent has
+   * only one usable photo.
+   */
+  hoverThumbUrl?: string | null;
   /** Why this match — overlap between active filters and profile data (classic directory). */
   filterMatchLabels?: readonly string[];
   /**

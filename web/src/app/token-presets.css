@@ -1893,7 +1893,12 @@ html[data-token-typography-scale-preset="editorial"] {
 /* ---------------------------------------------------------------------------
  * Directory card families (M7.1).
  *
- * Variant selection fires on the <html> via `data-token-template-directory-card-family`.
+ * Variant selection fires via `data-token-template-directory-card-family` —
+ * on the <html> for the tenant storefront cascade, OR on any wrapper that
+ * also carries `data-card-design-scope` (cross-tenant surfaces like the
+ * marketing global directory resolve a family PER ROW and can't use <html>).
+ * Every family selector is written `:is(html, [data-card-design-scope])[...]`
+ * so both carriers match; keep that shape when adding rules.
  * The card component (see `TalentCard`) renders a base shell; families
  * override image ratio, chip style, spacing, hover, and CTA layout via
  * these targeted rules. Keeps the component simple — CSS owns variance.
@@ -1906,7 +1911,7 @@ html[data-token-typography-scale-preset="editorial"] {
  * one attribute selector so its specificity lands above the Tailwind
  * `bg-gradient-to-b from-zinc-900/95` et al. without needing !important. */
 
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card {
   border-radius: var(--site-radius-lg);
   border: 1px solid var(--token-color-line);
   /* important: overrides Tailwind gradient bg baked into component */
@@ -1918,26 +1923,26 @@ html[data-token-template-directory-card-family="editorial-bridal"] .talent-card 
     transform var(--site-motion-dur-short) var(--site-motion-ease),
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--site-shadow-ambient);
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] {
   aspect-ratio: 4 / 5;
   position: relative;
   overflow: hidden;
   background: var(--token-color-secondary);
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] img {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] img {
   transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card:hover [data-card-media] img {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card:hover [data-card-media] img {
   transform: scale(1.04);
 }
 /* Soften the dark gradient that the base component paints for text
  * legibility — editorial cards still show the name overlay on image,
  * just in softer tones. */
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] > div[aria-hidden].pointer-events-none {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-media] > div[aria-hidden].pointer-events-none {
   background: linear-gradient(
     to top,
     rgba(42, 34, 30, 0.55) 0%,
@@ -1949,20 +1954,20 @@ html[data-token-template-directory-card-family="editorial-bridal"] .talent-card 
  * repainted to ivory (already white, so no change needed) + the kicker
  * recolor. Real reorg to name-in-body is scheduled for when the card
  * component itself gets a family-switch prop. */
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-name] {
   font-family: var(--site-heading-font) !important;
   font-weight: 400 !important;
   letter-spacing: -0.005em !important;
   text-transform: none !important;
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-body] {
   padding: 22px 22px 24px !important;
   display: flex !important;
   flex-direction: column;
   gap: 14px;
   background: var(--token-color-surface-raised);
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-chip] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-chip] {
   background: var(--token-color-secondary) !important;
   color: var(--token-color-ink) !important;
   padding: 7px 14px !important;
@@ -1973,10 +1978,10 @@ html[data-token-template-directory-card-family="editorial-bridal"] .talent-card 
   font-weight: 500 !important;
   border: 1px solid var(--token-color-line) !important;
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-ribbon] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-ribbon] {
   z-index: 3;
 }
-html[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-ribbon] > span {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"] .talent-card [data-card-ribbon] > span {
   background: rgba(246, 241, 234, 0.92) !important;
   color: var(--token-color-primary) !important;
   border: 1px solid rgba(74, 64, 58, 0.1) !important;
@@ -1992,11 +1997,11 @@ html[data-token-template-directory-card-family="editorial-bridal"] .talent-card 
  * editorial-bridal family. Scoped to `.site-featured-talent__card` so
  * directory listing cards are untouched. Token-driven (no Impronta
  * literals) so it travels to any tenant on this family. */
-html[data-token-template-directory-card-family="editorial-bridal"]
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"]
   .site-featured-talent__card {
   border-radius: var(--site-radius-lg) !important;
 }
-html[data-token-template-directory-card-family="editorial-bridal"]
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"]
   .site-featured-talent__card:hover {
   transform: translateY(-6px);
   box-shadow:
@@ -2004,19 +2009,19 @@ html[data-token-template-directory-card-family="editorial-bridal"]
     0 1px 0 0 rgba(255, 255, 255, 0.04) inset;
 }
 /* Kicker (primary type · city) — warm ivory, refined tracking. */
-html[data-token-template-directory-card-family="editorial-bridal"]
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"]
   .site-featured-talent__card [data-card-kicker] {
   color: rgba(246, 241, 234, 0.86) !important;
   letter-spacing: 0.14em !important;
 }
 /* Quiet meta line (secondary type · languages) over the softened scrim. */
-html[data-token-template-directory-card-family="editorial-bridal"]
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"]
   .site-featured-talent__card [data-card-meta] {
   color: rgba(246, 241, 234, 0.6) !important;
   letter-spacing: 0.05em !important;
 }
 /* Availability chip — same ivory blur register as the featured ribbon. */
-html[data-token-template-directory-card-family="editorial-bridal"]
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"]
   .site-featured-talent__card [data-card-availability] > span {
   background: rgba(246, 241, 234, 0.9) !important;
   color: var(--token-color-primary) !important;
@@ -2025,24 +2030,24 @@ html[data-token-template-directory-card-family="editorial-bridal"]
   -webkit-backdrop-filter: blur(10px);
 }
 /* Premium action footer on the raised paper surface. */
-html[data-token-template-directory-card-family="editorial-bridal"]
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"]
   .site-featured-talent__card [data-card-actions] {
   border-top: 1px solid var(--token-color-line) !important;
   background: var(--token-color-surface-raised) !important;
   padding: 16px !important;
   gap: 10px !important;
 }
-html[data-token-template-directory-card-family="editorial-bridal"]
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-bridal"]
   .site-featured-talent__card [data-card-actions] .site-prim-cta {
   border-radius: var(--site-radius-pill);
   letter-spacing: 0.06em;
 }
 
 /* service-professional — same shell, no ribbon, squarer ratio */
-html[data-token-template-directory-card-family="service-professional"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="service-professional"] .talent-card [data-card-media] {
   aspect-ratio: 1 / 1;
 }
-html[data-token-template-directory-card-family="service-professional"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="service-professional"] .talent-card [data-card-body] {
   padding: 18px 20px;
 }
 
@@ -2063,7 +2068,7 @@ html[data-token-template-directory-card-family="service-professional"] .talent-c
  * Impronta literals — tenant color cascade drives everything.
  * ------------------------------------------------------------------------- */
 
-html[data-token-template-directory-card-family="editorial-noir"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card {
   /* Forced dark ground beats any Tailwind bg-* on the card root. */
   background: var(--token-color-background) !important;
   /* Hairline border — reads gold on the noir palette (token-color-line
@@ -2079,13 +2084,13 @@ html[data-token-template-directory-card-family="editorial-noir"] .talent-card {
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
 
-html[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 28px -8px rgba(0, 0, 0, 0.88);
 }
 
 /* Tall portrait ratio — 3:4 gives cinematic stature. */
-html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] {
   aspect-ratio: 3 / 4;
   position: relative;
   overflow: hidden;
@@ -2094,17 +2099,17 @@ html[data-token-template-directory-card-family="editorial-noir"] .talent-card [d
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-media] img {
     transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
   }
-  html[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card:hover [data-card-media] img {
     transform: scale(1.03);
   }
 }
 
 /* Cinematic scrim — heavier at the bottom for name legibility, with a
  * faint mid-register veil so overexposed images still feel dark. */
-html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-scrim] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-scrim] {
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.82) 0%,
@@ -2116,7 +2121,7 @@ html[data-token-template-directory-card-family="editorial-noir"] .talent-card [d
 
 /* Name: lighter weight, serif fallback hierarchy, restrained tracking.
  * Stays white-on-dark so it reads over the scrim. */
-html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-name] {
   font-family:
     var(--font-playfair-display, "Playfair Display"),
     var(--site-heading-font),
@@ -2130,12 +2135,12 @@ html[data-token-template-directory-card-family="editorial-noir"] .talent-card [d
 }
 
 /* Body area — inherits from portrait base (absolute-positioned overlay). */
-html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-body] {
   /* inherit from portrait base — already absolute-positioned overlay */
 }
 
 /* Availability indicator — muted color matches the card's dark register. */
-html[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-availability] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="editorial-noir"] .talent-card [data-card-availability] {
   color: var(--token-card-muted, var(--token-color-muted)) !important;
 }
 
@@ -2148,7 +2153,7 @@ html[data-token-template-directory-card-family="editorial-noir"] .talent-card [d
  * spacing and typography alone. Reads like a well-printed magazine feature.
  * ------------------------------------------------------------------------- */
 
-html[data-token-template-directory-card-family="magazine"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card {
   background: var(--token-color-surface-raised) !important;
   border: 1px solid var(--token-color-line);
   border-radius: var(--site-radius-lg);
@@ -2160,13 +2165,13 @@ html[data-token-template-directory-card-family="magazine"] .talent-card {
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
 
-html[data-token-template-directory-card-family="magazine"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--site-shadow-ambient);
 }
 
 /* Landscape-adjacent ratio — 4:3 gives a magazine-spread feel. */
-html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] {
   aspect-ratio: 4 / 3;
   position: relative;
   overflow: hidden;
@@ -2174,17 +2179,17 @@ html[data-token-template-directory-card-family="magazine"] .talent-card [data-ca
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-media] img {
     transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
   }
-  html[data-token-template-directory-card-family="magazine"] .talent-card:hover [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card:hover [data-card-media] img {
     transform: scale(1.04);
   }
 }
 
 /* Scrim: very light — name lives in the body panel below image, not
  * over the image, so the scrim only guards the lower image edge. */
-html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-scrim] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-scrim] {
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.22) 0%,
@@ -2193,7 +2198,7 @@ html[data-token-template-directory-card-family="magazine"] .talent-card [data-ca
 }
 
 /* Body panel below image — the magazine's pull-quote zone. */
-html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-body] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-body] {
   /* Portrait-style overlay → reposition to static below-image panel. */
   position: static !important;
   padding: 20px 20px 22px !important;
@@ -2205,7 +2210,7 @@ html[data-token-template-directory-card-family="magazine"] .talent-card [data-ca
 }
 
 /* Name: editorial serif feel with tighter tracking. */
-html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-name] {
   font-family:
     var(--font-fraunces, "Fraunces"),
     var(--font-playfair-display, "Playfair Display"),
@@ -2221,12 +2226,12 @@ html[data-token-template-directory-card-family="magazine"] .talent-card [data-ca
 }
 
 /* Availability: matches body text register, slightly muted. */
-html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-availability] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-availability] {
   color: var(--token-card-muted, var(--token-color-muted)) !important;
 }
 
 /* Chips/badges — paper surface, no glass effect. */
-html[data-token-template-directory-card-family="magazine"] .talent-card [data-card-chip] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="magazine"] .talent-card [data-card-chip] {
   background: var(--token-color-secondary) !important;
   color: var(--token-color-ink) !important;
   border: 1px solid var(--token-color-line) !important;
@@ -2245,7 +2250,7 @@ html[data-token-template-directory-card-family="magazine"] .talent-card [data-ca
  * disappears — only the face matters.
  * ------------------------------------------------------------------------- */
 
-html[data-token-template-directory-card-family="minimal-portrait"] .talent-card {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card {
   background: transparent !important;
   border: 1px solid transparent !important;
   border-radius: var(--site-radius-lg);
@@ -2257,13 +2262,13 @@ html[data-token-template-directory-card-family="minimal-portrait"] .talent-card 
     box-shadow var(--site-motion-dur-short) var(--site-motion-ease);
 }
 
-html[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover {
   border-color: var(--token-color-line) !important;
   box-shadow: var(--site-shadow-soft);
 }
 
 /* Tall portrait — image IS the card. */
-html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] {
   aspect-ratio: 3 / 4;
   position: relative;
   overflow: hidden;
@@ -2273,17 +2278,17 @@ html[data-token-template-directory-card-family="minimal-portrait"] .talent-card 
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-media] img {
     transition: transform var(--site-motion-dur-long) var(--site-motion-ease);
   }
-  html[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover [data-card-media] img {
+  :is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card:hover [data-card-media] img {
     transform: scale(1.025);
   }
 }
 
 /* Minimal scrim — barely-there gradient, just enough to legibility the
  * name without killing the portrait. Quiet, not cinematic. */
-html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-scrim] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-scrim] {
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.44) 0%,
@@ -2293,7 +2298,7 @@ html[data-token-template-directory-card-family="minimal-portrait"] .talent-card 
 }
 
 /* Name: clean sans, normal weight — pure legibility over the portrait. */
-html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-name] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-name] {
   font-family: var(--site-heading-font) !important;
   font-weight: 400 !important;
   letter-spacing: 0.01em !important;
@@ -2303,13 +2308,13 @@ html[data-token-template-directory-card-family="minimal-portrait"] .talent-card 
 }
 
 /* Availability: white-toned to match portrait overlay register. */
-html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-availability] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-availability] {
   color: var(--token-card-muted, rgba(255, 255, 255, 0.75)) !important;
 }
 
 /* Ownership chip — blends into the portrait overlay; glass blur matches
  * the base component chip but with softer tint. */
-html[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-chip] {
+:is(html, [data-card-design-scope])[data-token-template-directory-card-family="minimal-portrait"] .talent-card [data-card-chip] {
   background: rgba(255, 255, 255, 0.15) !important;
   color: rgba(255, 255, 255, 0.9) !important;
   border: 1px solid rgba(255, 255, 255, 0.22) !important;
@@ -6704,4 +6709,23 @@ html[data-theme="dark"] [data-tone="light"] {
 }
 .site-footer[data-variant="editorial"] .site-footer__social-link:hover {
   color: var(--token-color-accent, var(--token-color-ink));
+}
+
+/* ---------------------------------------------------------------------------
+ * Directory hover behavior (`data-directory-hover` on the results wrapper,
+ * from the section's hoverBehavior ?? tenant `directory.card.hover` default).
+ *   reveal_traits — JS-implemented trait reveal (DirectoryCardAdapter) + the
+ *                   component's subtle base zoom. No rules needed here.
+ *   zoom          — a deliberately stronger image zoom.
+ *   swap          — crossfades the second photo (rendered by <TalentCard>
+ *                   when the DTO carries hoverThumbUrl); the base zoom is
+ *                   stilled so the fade reads as a photo change, not motion.
+ *   none          — no hover motion at all.
+ * ------------------------------------------------------------------------- */
+[data-directory-hover="zoom"] .talent-card:hover [data-card-media] img {
+  transform: scale(1.06);
+}
+[data-directory-hover="swap"] .talent-card [data-card-media] img,
+[data-directory-hover="none"] .talent-card [data-card-media] img {
+  transform: none !important;
 }

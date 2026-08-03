@@ -56,7 +56,7 @@ type MapCardConfig = {
   cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
   show: Pick<
     DirectoryV1,
-    "showName" | "showTalentType" | "showLocation" | "showAvailability" | "showBadges"
+    "showName" | "showTalentType" | "showLocation" | "showAvailability" | "showBadges" | "showAttributes"
   >;
   showSave: boolean;
   showAddToInquiry: boolean;

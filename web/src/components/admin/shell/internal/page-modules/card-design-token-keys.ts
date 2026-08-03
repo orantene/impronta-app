@@ -43,6 +43,10 @@ export const CARD_DESIGN_TOKEN_KEYS: string[] = [
   "directory.card.show-starting-from-price",
   "directory.card.show-quick-view",
   "directory.card.profile-popup",
+  // Action ceilings (favorite / inquiry) + the tenant's favorite glyph.
+  "directory.card.show-favorite",
+  "directory.card.show-inquiry",
+  "favorite.icon",
   // Layout DEFAULTS — a section that set its own value keeps it.
   "directory.card.style",
   "directory.card.aspect",

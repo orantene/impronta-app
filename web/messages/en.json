@@ -4868,7 +4868,7 @@
       "bannerDesignLead": "Visual design",
       "bannerDesignMid": " (look + colors) saves to a draft as you edit, Publish promotes it live across every card surface.",
       "bannerLayoutLead": "Layout + show-toggles",
-      "bannerLayoutRest": " below are a live preview; saving distinct layout per surface ships in the next release.",
+      "bannerLayoutRest": " and the action toggles save as tenant-wide defaults and publish with the visual design. A directory section that sets its own value in the page builder keeps it.",
       "rosterBadgesTitle": "Roster card badges",
       "rosterBadgesHint": "Show or hide each overlay on your roster cards. Saved instantly to this workspace, the roster grid is internal to your team.",
       "badgeHideEyeWarn": "Hiding the eye removes the only show / hide control from the card. You can still manage visibility from the talent drawer.",

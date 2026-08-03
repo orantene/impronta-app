@@ -25,6 +25,7 @@ import { TalentCard } from "@/components/talent-cards/TalentCard";
 import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
 import {
   cardDesignToCssVars,
+  familyToTalentCardStyle,
   type CardDesign,
 } from "@/lib/site-admin/server/card-design-shape";
 import { useT } from "@/i18n/use-t";
@@ -404,6 +405,7 @@ export function DiscoverShell({
                 item={t}
                 availability={availabilityByTalent.get(t.id)}
                 cardCssVars={cardCssVars}
+                cardStyle={cardDesign ? familyToTalentCardStyle(cardDesign.family) : "editorial"}
                 locale={locale}
                 reviewsEnabled={reviewsEnabled}
                 onOpen={() => { setAutoOpenPicker(false); setOpenTalentId(t.id); }}
@@ -604,6 +606,7 @@ function DiscoverCard({
   item,
   availability,
   cardCssVars,
+  cardStyle = "editorial",
   locale = "en",
   reviewsEnabled = false,
   onAddToShortlist,
@@ -612,6 +615,8 @@ function DiscoverCard({
   item: DiscoverTalentListItem;
   availability: DiscoverAvailabilityDay[] | undefined;
   cardCssVars: Record<string, string> | undefined;
+  /** Tenant card family → TalentCard style branch (no more hardcoded editorial). */
+  cardStyle?: "portrait" | "editorial";
   /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
   locale?: string;
   /** See `DiscoverShell`'s `reviewsEnabled` prop doc. */
@@ -631,7 +636,7 @@ function DiscoverCard({
   return (
     <TalentCard
       data={toDiscoverCardData(item, reviewsEnabled, t)}
-      style="editorial"
+      style={cardStyle}
       rootMode="button"
       onActivate={onOpen}
       cssVars={cardCssVars}

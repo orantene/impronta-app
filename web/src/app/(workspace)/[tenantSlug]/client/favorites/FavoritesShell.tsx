@@ -23,6 +23,7 @@ import { TalentCard } from "@/components/talent-cards/TalentCard";
 import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
 import {
   cardDesignToCssVars,
+  familyToTalentCardStyle,
   type CardDesign,
 } from "@/lib/site-admin/server/card-design-shape";
 import { useFavorites } from "@/lib/talent-cards/use-favorites";
@@ -159,6 +160,8 @@ export function FavoritesShell({
             talent={t}
             tenantSlug={tenantSlug}
             cardCssVars={cardCssVars}
+            cardStyle={cardDesign ? familyToTalentCardStyle(cardDesign.family) : "editorial"}
+            popupDisabled={cardDesign?.profilePopup === "off"}
             locale={locale}
           />
         ))}
@@ -213,11 +216,17 @@ function FavoriteCard({
   talent,
   tenantSlug,
   cardCssVars,
+  cardStyle = "editorial",
+  popupDisabled = false,
   locale = "en",
 }: {
   talent: DiscoverShortlistTalent;
   tenantSlug: string;
   cardCssVars: Record<string, string> | undefined;
+  /** Tenant card family → TalentCard style branch (no more hardcoded editorial). */
+  cardStyle?: "portrait" | "editorial";
+  /** Tenant `directory.card.profile-popup` ceiling: "off" = hard-navigate so the @modal intercept never fires. */
+  popupDisabled?: boolean;
   /** Workspace UI locale (request locale) so the remove-undo toast localizes. */
   locale?: string;
 }) {
@@ -241,12 +250,20 @@ function FavoriteCard({
   return (
     <TalentCard
       data={toFavoriteCardData(talent, nameHref, t("dashboard.clientFavorites.availabilityOnRequest"))}
-      style="editorial"
+      style={cardStyle}
       aspect="4:5"
       cssVars={cardCssVars}
       nameFallback="first_name"
       rootMode="button"
-      onActivate={() => router.push(nameHref)}
+      onActivate={() => {
+        // Tenant popup ceiling: soft router.push to /t/<code> would open the
+        // @modal intercept; a hard load honors "open the full profile page".
+        if (popupDisabled && talent.profileCode) {
+          window.location.assign(nameHref);
+          return;
+        }
+        router.push(nameHref);
+      }}
       show={{
         showName: true,
         showTalentType: true,

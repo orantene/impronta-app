@@ -139,8 +139,12 @@ export function CardDesignStudio() {
   // AdminShell context, which owns the optimistic flip + revert + toast).
   const [badgeStatus, setBadgeStatus] = useState<Partial<Record<RosterCardBadgeKey, FieldSaveState>>>({});
 
-  // Seed the preview favorite glyph from the tenant's live token.
+  // Seed the preview favorite glyph from the tenant's live token — but only
+  // until the design draft (or the operator) provides an explicit value; the
+  // draft is the working copy and must not be clobbered by the live attr.
+  const favoriteIconPinnedRef = useRef(false);
   useEffect(() => {
+    if (favoriteIconPinnedRef.current) return;
     setFavoriteIcon(tenantFavoriteIcon);
   }, [tenantFavoriteIcon]);
 
@@ -188,10 +192,33 @@ export function CardDesignStudio() {
         for (const k of CARD_DESIGN_TOKEN_KEYS) out[k] = src[k] ?? "";
         return out;
       };
-      setDraftTokens(pick(res.snapshot.themeDraft));
+      const draft = pick(res.snapshot.themeDraft);
+      setDraftTokens(draft);
       setLiveTokens(pick(res.snapshot.themeLive));
       setDesignVersion(res.snapshot.version);
       setDesignPublishedAt(res.snapshot.themePublishedAt);
+      // Hydrate the preview `appearance` from the persisted tenant defaults so
+      // the Layout + Actions controls report the SAVED state after a reload
+      // (previously they silently reset to DEFAULT_APPEARANCE).
+      setAppearance((prev) => ({
+        ...prev,
+        ...(draft["directory.card.style"]
+          ? { cardStyle: draft["directory.card.style"] as CardAppearance["cardStyle"] }
+          : {}),
+        ...(draft["directory.card.aspect"]
+          ? { cardAspect: draft["directory.card.aspect"] as CardAppearance["cardAspect"] }
+          : {}),
+        ...(draft["directory.card.hover"]
+          ? { hoverBehavior: draft["directory.card.hover"] as CardAppearance["hoverBehavior"] }
+          : {}),
+        showSave: draft["directory.card.show-favorite"] !== "off",
+        showAddToInquiry: draft["directory.card.show-inquiry"] !== "off",
+      }));
+      const draftIcon = draft["favorite.icon"];
+      if (draftIcon === "heart" || draftIcon === "bookmark") {
+        favoriteIconPinnedRef.current = true;
+        setFavoriteIcon(draftIcon);
+      }
       setDesignReady(true);
     })();
     return () => {
@@ -551,19 +578,37 @@ export function CardDesignStudio() {
               title={t("dashboard.adminCardStudio.actionsTitle")}
               hint={t("dashboard.adminCardStudio.actionsHint")}
             />
+            {/* Persisted tenant-wide ceilings (same lifecycle as the Look
+                tokens: draft on toggle, Publish promotes live). The preview
+                `appearance` is patched in the same click so the sample card
+                reacts instantly. */}
             <ToggleRow
               label={t("dashboard.adminCardStudio.favoriteSaveLabel")}
               hint={rule.favorite ? t("dashboard.adminCardStudio.favoriteSaveHint") : undefined}
-              on={appearance.showSave}
-              onChange={canEdit && rule.favorite ? (v) => patchAppearance("showSave", v) : undefined}
+              on={readTemplateToken("directory.card.show-favorite") !== "off"}
+              onChange={
+                canEdit && rule.favorite
+                  ? (v) => {
+                      patchAppearance("showSave", v);
+                      setTemplateToken("directory.card.show-favorite", v ? "on" : "off");
+                    }
+                  : undefined
+              }
               disabled={!canEdit}
               locked={!rule.favorite}
             />
             <ToggleRow
               label={t("dashboard.adminCardStudio.inquiryCtaLabel")}
               hint={rule.inquiry ? t("dashboard.adminCardStudio.inquiryCtaHint") : undefined}
-              on={appearance.showAddToInquiry}
-              onChange={canEdit && rule.inquiry ? (v) => patchAppearance("showAddToInquiry", v) : undefined}
+              on={readTemplateToken("directory.card.show-inquiry") !== "off"}
+              onChange={
+                canEdit && rule.inquiry
+                  ? (v) => {
+                      patchAppearance("showAddToInquiry", v);
+                      setTemplateToken("directory.card.show-inquiry", v ? "on" : "off");
+                    }
+                  : undefined
+              }
               disabled={!canEdit}
               locked={!rule.inquiry}
             />
@@ -580,7 +625,15 @@ export function CardDesignStudio() {
               </div>
               <Segmented<"heart" | "bookmark">
                 value={favoriteIcon}
-                onChange={setFavoriteIcon}
+                onChange={(v) => {
+                  favoriteIconPinnedRef.current = true;
+                  setFavoriteIcon(v);
+                  // Persist to the `favorite.icon` design token — the CSS in
+                  // talent-card-actions.css keys off the projected
+                  // `data-token-favorite-icon` on <html>, so Publish flips the
+                  // glyph on every card surface.
+                  if (canEdit) setTemplateToken("favorite.icon", v);
+                }}
                 options={[
                   { value: "heart", label: t("dashboard.adminCardStudio.iconHeart") },
                   { value: "bookmark", label: t("dashboard.adminCardStudio.iconBookmark") },
