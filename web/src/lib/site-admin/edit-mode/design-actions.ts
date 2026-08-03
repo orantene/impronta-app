@@ -537,6 +537,109 @@ export async function applyCardKitFromEditAction(input: {
   }
 }
 
+// ── save card-design tokens (merge-on-save) ─────────────────────────────────
+
+/**
+ * Persist a PARTIAL token patch from the Card Design studio by MERGING it
+ * onto the tenant's current `theme_json_draft` (patch wins on its keys only).
+ *
+ * Why this exists: `saveDesignDraftFromEditAction` is full-replacement by
+ * contract — the ThemeDrawer seeds its working copy from the ENTIRE registry
+ * and always submits the full map, so replacement is safe there. The Card
+ * Design studio only holds the card-family token keys; sending that subset
+ * through the replacement path stripped every orthogonal token (page canvas,
+ * fonts, accent, profile layout) from the draft, and the next Publish
+ * reverted the live theme to registry defaults. This action gives the studio
+ * the same read-merge-save lifecycle `applyCardKitFromEditAction` already
+ * uses: `loadDesignForStaff` doubles as the CAS read, the merged FULL map
+ * goes through `saveDesignDraft`, so validation + version CAS + audit /
+ * revision discipline stay identical.
+ *
+ * An empty-string value in the patch is an explicit "clear back to theme
+ * default" (the registry's hex-or-empty validators accept it), so cleared
+ * knobs still clear — they just no longer take the rest of the theme along.
+ */
+export async function saveCardDesignTokensFromEditAction(input: {
+  patch: Record<string, string>;
+  tenantSlug?: string;
+}): Promise<DesignSaveResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await resolveDesignScope(input?.tenantSlug);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before editing the card design.",
+    };
+  }
+
+  try {
+    const row = await loadDesignForStaff(auth.supabase, scope.tenantId);
+    if (!row) {
+      return {
+        ok: false,
+        error: "Branding row missing. Initialise branding before editing the card design.",
+        code: "NOT_FOUND",
+      };
+    }
+
+    const merged: Record<string, string> = {
+      ...row.theme_json_draft,
+      ...input.patch,
+    };
+
+    const parsed = designSaveDraftSchema.safeParse({
+      tenantId: scope.tenantId,
+      expectedVersion: row.version,
+      patch: merged,
+    });
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const path = issue.path.join(".");
+        if (path && !fieldErrors[path]) {
+          fieldErrors[path] = issue.message;
+        }
+      }
+      return {
+        ok: false,
+        error: "These card-design changes could not be saved.",
+        code: "VALIDATION_FAILED",
+        fieldErrors,
+      };
+    }
+
+    const result = await saveDesignDraft(auth.supabase, {
+      tenantId: scope.tenantId,
+      values: parsed.data,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      if (result.code === "VERSION_CONFLICT") {
+        return {
+          ok: false,
+          error: "Theme changed elsewhere; reload and try again.",
+          code: result.code,
+          currentVersion: result.currentVersion,
+        };
+      }
+      return {
+        ok: false,
+        error: result.message ?? "Could not save the card design.",
+        code: result.code,
+      };
+    }
+    return {
+      ok: true,
+      version: result.data.version,
+      themeDraft: result.data.themeDraft,
+    };
+  } catch (error) {
+    logServerError("edit-mode/save-card-design-tokens", error);
+    return { ok: false, error: "Could not save the card design." };
+  }
+}
+
 // ── restore revision (P2.2) ─────────────────────────────────────────────────
 
 /**

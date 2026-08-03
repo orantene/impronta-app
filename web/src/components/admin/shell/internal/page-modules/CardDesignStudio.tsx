@@ -46,7 +46,7 @@ import {
   applyCardKitFromEditAction,
   loadDesignAction,
   publishDesignFromEditAction,
-  saveDesignDraftFromEditAction,
+  saveCardDesignTokensFromEditAction,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { EmptyState, Icon, SecondaryButton, Toggle } from "../primitives";
 import { COLORS, meetsRole, useAdminShell } from "../state";
@@ -205,13 +205,17 @@ export function CardDesignStudio() {
   );
   const activeFamily = draftTokens[CARD_FAMILY_TOKEN_KEY] ?? "";
 
-  // ── Persist the full working draft via the token-save path ────────────────
+  // ── Persist the card-token working map via the MERGE save path ────────────
+  // This panel only holds CARD_DESIGN_TOKEN_KEYS, so it must NOT use the
+  // full-replacement `saveDesignDraftFromEditAction` (that path expects the
+  // ThemeDrawer's complete registry map and would strip every non-card token
+  // from the draft). The merge action reads the stored draft server-side and
+  // lays these keys on top, so page-canvas / font / accent tokens survive.
   const saveDesignDraft = useCallback(
-    async (next: Record<string, string>, expected: number) => {
+    async (next: Record<string, string>) => {
       setSaveState({ kind: "saving" });
-      const res = await saveDesignDraftFromEditAction({
+      const res = await saveCardDesignTokensFromEditAction({
         patch: next,
-        expectedVersion: expected,
         tenantSlug,
       });
       if (!res.ok) {
@@ -232,34 +236,22 @@ export function CardDesignStudio() {
         const next = { ...prev, [key]: value };
         if (knobDebounceRef.current) clearTimeout(knobDebounceRef.current);
         knobDebounceRef.current = setTimeout(() => {
-          void saveDesignDraft(next, designVersion);
+          void saveDesignDraft(next);
         }, 350);
         return next;
       });
     },
-    [canEdit, designVersion, saveDesignDraft],
+    [canEdit, saveDesignDraft],
   );
 
   // ── Reviews-on-cards template tokens (REAL persistence — same path as the
   // color knobs above: write into the working `draftTokens` map, then save
-  // the full map through `saveDesignDraft` → `saveDesignDraftFromEditAction`.
-  // Publish promotes the draft live like every other card token). No debounce:
-  // these are discrete toggle/segmented clicks, not a dragged color picker.
-  //
-  // TODO(reviewer): `CARD_DESIGN_TOKEN_KEYS` (defined in CardDesignStudio-3.tsx,
-  // not owned by this change) does NOT list these three keys. Consequences:
-  //   1. loadDesignAction's `pick()` only seeds `draftTokens` with
-  //      CARD_DESIGN_TOKEN_KEYS, so on reload these controls fall back to the
-  //      registry defaults (off / both / visible) for their DISPLAYED state even
-  //      if a non-default value is live. The SETTING itself persists (the save
-  //      patch carries the key), it just isn't reflected back in this panel
-  //      after a refresh until CARD_DESIGN_TOKEN_KEYS includes these keys.
-  //   2. `designDirty` and the publish re-seed loop also iterate
-  //      CARD_DESIGN_TOKEN_KEYS, so a change to ONLY these tokens won't light the
-  //      publish button via `designDirty`. Editing any card-family token (kit or
-  //      color knob) makes the panel dirty and Publish then promotes ALL draft
-  //      tokens including these. Adding the three keys to CARD_DESIGN_TOKEN_KEYS
-  //      in -3 closes both gaps; that file is owned by another change.
+  // it through `saveDesignDraft` → `saveCardDesignTokensFromEditAction`, which
+  // merges onto the stored draft server-side. Publish promotes the draft live
+  // like every other card token). No debounce: these are discrete
+  // toggle/segmented clicks, not a dragged color picker. All of these keys are
+  // listed in CARD_DESIGN_TOKEN_KEYS (CardDesignStudio-3.tsx), so they re-seed
+  // on reload and light `designDirty` like the color knobs.
   const readTemplateToken = useCallback(
     (key: string) => draftTokens[key] || STANDING_DEFAULTS[key] || "",
     [draftTokens],
@@ -272,11 +264,11 @@ export function CardDesignStudio() {
       }
       setDraftTokens((prev) => {
         const next = { ...prev, [key]: value };
-        void saveDesignDraft(next, designVersion);
+        void saveDesignDraft(next);
         return next;
       });
     },
-    [canEdit, toast, t, designVersion, saveDesignDraft],
+    [canEdit, toast, t, saveDesignDraft],
   );
 
   // ── Apply a kit (one-click repaint of the whole card family) ──────────────
