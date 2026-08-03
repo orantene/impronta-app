@@ -8765,6 +8765,20 @@
         "ai_provider": {
           "label": "AI provider",
           "description": "Bring your own AI provider key for assisted imports and copy. Managed in Settings."
+        },
+        "search_console": {
+          "label": "Google Search Console",
+          "description": "Verify ownership of your storefront in Google Search Console to track how you rank in Search and submit your sitemap. Paste the verification token and the meta tag is added to your site's <head>.",
+          "fields": {
+            "verification_token": "Search Console verification token"
+          },
+          "steps": {
+            "s1": "Open Google Search Console (search.google.com/search-console) and add a property.",
+            "s2": "Choose the “URL prefix” property type and enter your exact storefront address (e.g. https://your-agency.tulala.digital, or your custom domain).",
+            "s3": "Pick the “HTML tag” verification method. Google shows a tag like <meta name=\"google-site-verification\" content=\"TOKEN\" />.",
+            "s4": "Copy ONLY the token — the value inside content=\"…\" — paste it below and Save.",
+            "s5": "Back in Search Console, click Verify. Once verified, submit your sitemap at /sitemap.xml (e.g. https://your-agency.tulala.digital/sitemap.xml)."
+          }
         }
       }
     },

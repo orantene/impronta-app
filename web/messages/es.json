@@ -8765,6 +8765,20 @@
         "ai_provider": {
           "label": "Proveedor de IA",
           "description": "Usa tu propia clave de proveedor de IA para importaciones asistidas y redacción. Se administra en Configuración."
+        },
+        "search_console": {
+          "label": "Google Search Console",
+          "description": "Verifica la propiedad de tu sitio en Google Search Console para seguir tu posicionamiento en el buscador y enviar tu sitemap. Pega el token de verificación y la metaetiqueta se añade al <head> de tu sitio.",
+          "fields": {
+            "verification_token": "Token de verificación de Search Console"
+          },
+          "steps": {
+            "s1": "Abre Google Search Console (search.google.com/search-console) y añade una propiedad.",
+            "s2": "Elige el tipo de propiedad “Prefijo de URL” e introduce la dirección exacta de tu sitio (p. ej. https://tu-agencia.tulala.digital, o tu dominio propio).",
+            "s3": "Selecciona el método de verificación “Etiqueta HTML”. Google muestra una etiqueta como <meta name=\"google-site-verification\" content=\"TOKEN\" />.",
+            "s4": "Copia SOLO el token — el valor dentro de content=\"…\" —, pégalo abajo y guarda.",
+            "s5": "De vuelta en Search Console, pulsa Verificar. Una vez verificado, envía tu sitemap en /sitemap.xml (p. ej. https://tu-agencia.tulala.digital/sitemap.xml)."
+          }
         }
       }
     },

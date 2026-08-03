@@ -491,20 +491,20 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   },
 
   // ─── SEO — Google Search Console site-ownership verification ──────────────
-  // PUBLIC token only (config_json.verification_token). Emitted as a real
+  // PUBLIC token only (config_json.verification_token), emitted as a real
   // <meta name="google-site-verification"> in the storefront <head> via the
   // per-tenant generateMetadata in (public)/layout.tsx — NOT via custom_code
-  // (which is entitlement-gated and lands in <body>, where Google won't read
-  // it). No entitlement gate: verification is a baseline capability every plan
-  // gets. Uniform across subdomains and custom domains (no DNS required).
+  // (entitlement-gated, lands in <body> where Google won't read it). No
+  // entitlement gate; uniform across subdomains + custom domains (no DNS).
   [SEARCH_CONSOLE_INTEGRATION_KEY]: {
     key: SEARCH_CONSOLE_INTEGRATION_KEY,
-    label: "Google Search Console",
+    label: "Google Search Console", labelKey: `${NS}.search_console.label`,
     category: "analytics",
     connection: "manual",
     inheritable: false,
     description:
       "Verify ownership of your storefront in Google Search Console to track how you rank in Search and submit your sitemap. Paste the verification token and the meta tag is added to your site's <head>.",
+    descriptionKey: `${NS}.search_console.description`,
     instructions: [
       "Open Google Search Console (search.google.com/search-console) and add a property.",
       'Choose the "URL prefix" property type and enter your exact storefront address (e.g. https://your-agency.tulala.digital, or your custom domain).',
@@ -512,10 +512,12 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
       'Copy ONLY the token — the value inside content="…" — paste it below and Save.',
       'Back in Search Console, click Verify. Once verified, submit your sitemap at /sitemap.xml (e.g. https://your-agency.tulala.digital/sitemap.xml).',
     ],
+    instructionKeys: ["s1", "s2", "s3", "s4", "s5"].map((x) => `${NS}.search_console.steps.${x}`),
     fields: [
       {
         name: "verification_token",
-        label: "Search Console verification token",
+        label: "Search Console verification token", labelKey: `${NS}.search_console.fields.verification_token`,
+
         secret: false,
         public: true,
         test: testGoogleSiteVerificationToken,
