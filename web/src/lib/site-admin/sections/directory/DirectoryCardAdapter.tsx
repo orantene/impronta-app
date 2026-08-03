@@ -61,8 +61,8 @@ export function DirectoryCardAdapter({
   index,
 }: {
   card: DirectoryCardDTO;
-  cardStyle: DirectoryV1["cardStyle"];
-  cardAspect: DirectoryV1["cardAspect"];
+  cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
+  cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
   show: Pick<
     DirectoryV1,
     | "showName"
@@ -99,12 +99,12 @@ export function DirectoryCardAdapter({
   /** Cap on the catalog trait lines under the chips. */
   maxFieldLines: DirectoryV1["maxFieldLines"];
   /** Grid density — threaded to the canonical card for compact captions. */
-  density?: DirectoryV1["density"];
+  density?: NonNullable<DirectoryV1["density"]>;
   /**
    * Hover behavior. `"reveal_traits"` (default) hides the trait row until the
    * card is hovered / focused; every other value keeps it statically visible.
    */
-  hoverBehavior?: DirectoryV1["hoverBehavior"];
+  hoverBehavior?: NonNullable<DirectoryV1["hoverBehavior"]>;
   priority?: boolean;
   index?: number;
 }) {

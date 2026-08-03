@@ -151,11 +151,11 @@ export function DirectoryReactiveResults({
   scope: DirectoryV1["scope"];
   /** Resolved manual profile codes (in pick order) when `scope=manual`. */
   manualProfileCodes: string[];
-  density: DirectoryV1["density"];
-  hoverBehavior: DirectoryV1["hoverBehavior"];
+  density: NonNullable<DirectoryV1["density"]>;
+  hoverBehavior: NonNullable<DirectoryV1["hoverBehavior"]>;
   // B3 — card-level config threaded through to the new reactive grid.
-  cardStyle: DirectoryV1["cardStyle"];
-  cardAspect: DirectoryV1["cardAspect"];
+  cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
+  cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
   showName: boolean;
   showTalentType: boolean;
   showLocation: boolean;
@@ -303,10 +303,10 @@ function DirectoryReactiveResultsInner({
   sidebarSticky: boolean;
   scope: DirectoryV1["scope"];
   manualProfileCodes: string[];
-  density: DirectoryV1["density"];
-  hoverBehavior: DirectoryV1["hoverBehavior"];
-  cardStyle: DirectoryV1["cardStyle"];
-  cardAspect: DirectoryV1["cardAspect"];
+  density: NonNullable<DirectoryV1["density"]>;
+  hoverBehavior: NonNullable<DirectoryV1["hoverBehavior"]>;
+  cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
+  cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
   showName: boolean;
   showTalentType: boolean;
   showLocation: boolean;

@@ -676,6 +676,50 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "Colour of the “From $X” chip. Empty = the brand accent, which is what both card branches used before this token existed.",
   },
+  "directory.card.style": {
+    key: "directory.card.style",
+    label: "Card layout",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["portrait", "editorial"]),
+    defaultValue: "portrait",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for the card layout. A directory section that has its own layout set keeps it; sections left unset follow this.",
+  },
+  "directory.card.aspect": {
+    key: "directory.card.aspect",
+    label: "Card image ratio",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["4:5", "1:1", "3:4", "16:9"]),
+    defaultValue: "4:5",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for the card image ratio. Sections with their own ratio keep it.",
+  },
+  "directory.card.hover": {
+    key: "directory.card.hover",
+    label: "Card hover behaviour",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["zoom", "swap", "reveal_traits", "none"]),
+    defaultValue: "reveal_traits",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for what a card does on hover. Sections with their own setting keep it.",
+  },
+  "directory.card.density": {
+    key: "directory.card.density",
+    label: "Card density",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["comfortable", "compact"]),
+    defaultValue: "comfortable",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for card spacing. Sections with their own density keep it.",
+  },
   "directory.card.profile-popup": {
     key: "directory.card.profile-popup",
     label: "Open profiles in a popup",

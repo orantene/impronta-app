@@ -69,6 +69,15 @@ export type CardDesign = {
    * its own, but cannot force the popup back on once the tenant disables it.
    */
   profilePopup?: "on" | "off";
+  /**
+   * Tenant-wide DEFAULTS for the card layout knobs. A directory section that
+   * sets its own value keeps it; sections that left the value UNSET follow
+   * these. Undefined here = fall through to the platform default.
+   */
+  cardStyle?: "portrait" | "editorial";
+  cardAspect?: "4:5" | "1:1" | "3:4" | "16:9";
+  hover?: "zoom" | "swap" | "reveal_traits" | "none";
+  density?: "comfortable" | "compact";
 };
 
 /** Registry token key → `CardDesign` color field. */
@@ -80,6 +89,14 @@ const CARD_COLOR_KEYS = {
 } as const;
 
 const PROFILE_POPUP_KEY = "directory.card.profile-popup";
+
+/** Registry token key → `CardDesign` layout field, with its allowed values. */
+const LAYOUT_KEYS = {
+  cardStyle: ["directory.card.style", ["portrait", "editorial"]],
+  cardAspect: ["directory.card.aspect", ["4:5", "1:1", "3:4", "16:9"]],
+  hover: ["directory.card.hover", ["zoom", "swap", "reveal_traits", "none"]],
+  density: ["directory.card.density", ["comfortable", "compact"]],
+} as const;
 
 const CARD_FAMILY_KEY = "template.directory-card-family";
 
@@ -125,6 +142,14 @@ export function projectCardDesign(
   }
   const popup = live[PROFILE_POPUP_KEY];
   if (popup === "off" || popup === "on") out.profilePopup = popup;
+
+  for (const [field, spec] of Object.entries(LAYOUT_KEYS)) {
+    const [tokenKey, allowed] = spec as unknown as [string, readonly string[]];
+    const value = live[tokenKey];
+    if (typeof value === "string" && allowed.includes(value)) {
+      (out as Record<string, unknown>)[field] = value;
+    }
+  }
   return out;
 }
 

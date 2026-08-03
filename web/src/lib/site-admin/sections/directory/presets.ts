@@ -31,12 +31,14 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   columnsDesktop: 4,
   columnsTablet: 3,
   columnsMobile: 2,
-  density: "comfortable",
+  // density / cardStyle / cardAspect / hoverBehavior are deliberately UNSET:
+  // the starter section follows the tenant's Card Design defaults
+  // (`directory.card.*` tokens), which themselves default to the same values
+  // this preset used to hardcode — so zero-config tenants render identically,
+  // and tenants who set a Card Design default actually see it apply.
   containerWidth: "boxed",
   background: "cool_ground",
 
-  cardStyle: "portrait",
-  cardAspect: "4:5",
   showName: true,
   nameFallback: "first_name",
   showTalentType: true,
@@ -54,7 +56,6 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   showAddToInquiry: true,
   showQuickView: true,
   cardClickAction: "modal",
-  hoverBehavior: "reveal_traits",
   cardFieldKeys: [],
   maxFieldLines: 3,
 

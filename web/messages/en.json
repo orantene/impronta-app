@@ -4885,7 +4885,7 @@
       "iconHeart": "Heart",
       "iconBookmark": "Bookmark",
       "layoutTitle": "Layout",
-      "layoutHint": "Preview only. These follow each Directory section, so set them on the section itself in the page builder. The Look and Colors above save and publish for every card.",
+      "layoutHint": "Card layout, image ratio and hover now save and publish as tenant-wide DEFAULTS. A directory section that set its own value keeps it; sections left on “Follow Card Design default” follow these. The show/hide toggles below stay per-section in the page builder.",
       "cardStyleLabel": "Card style",
       "stylePortrait": "Portrait",
       "styleEditorial": "Editorial",

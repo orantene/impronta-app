@@ -194,6 +194,10 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "directory.card.show-destination-ready-ribbon":
     "data-token-card-ribbon",
   "directory.card.show-starting-from-price": "data-token-card-price",
+  "directory.card.style": "data-token-card-style",
+  "directory.card.aspect": "data-token-card-aspect",
+  "directory.card.hover": "data-token-card-hover",
+  "directory.card.density": "data-token-card-density",
   "directory.card.show-quick-view": "data-token-card-quick-view",
   // Consumed server-side by the directory section (it gates the quick-open
   // popup for the whole tenant), but it still needs a projection: the

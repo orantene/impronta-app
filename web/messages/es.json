@@ -4885,7 +4885,7 @@
       "iconHeart": "Corazón",
       "iconBookmark": "Marcador",
       "layoutTitle": "Disposición",
-      "layoutHint": "Solo vista previa. Dependen de cada sección de Directorio, así que configúralos en la sección desde el editor de páginas. El Estilo y los Colores de arriba sí se guardan y publican para todas las tarjetas.",
+      "layoutHint": "El diseño de la tarjeta, la proporción de imagen y el hover ahora se guardan y publican como valores PREDETERMINADOS de todo el sitio. Una sección de Directorio que definió su propio valor lo conserva; las secciones en “Seguir el valor de Card Design” siguen estos. Los interruptores de mostrar/ocultar siguen siendo por sección en el editor de páginas.",
       "cardStyleLabel": "Estilo de tarjeta",
       "stylePortrait": "Retrato",
       "styleEditorial": "Editorial",
