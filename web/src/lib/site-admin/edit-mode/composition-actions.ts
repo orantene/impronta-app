@@ -1019,12 +1019,19 @@ export async function saveHomepageCompositionAction(
       }
 
       // Replace draft slot rows atomically: delete then insert.
-      await admin
+      // supabase-js reports failures via the returned `error`, never by
+      // throwing — an unchecked call here silently drops the write while the
+      // version pointer above has already advanced.
+      const { error: delErr } = await admin
         .from("cms_page_sections")
         .delete()
         .eq("tenant_id", scope.tenantId)
         .eq("page_id", input.pageId)
         .eq("is_draft", true);
+      if (delErr) {
+        logServerError("edit-mode/composition/save-page-slot-delete", delErr);
+        return { ok: false, error: CLIENT_ERROR.update };
+      }
 
       const newRows: Array<{
         tenant_id: string;
@@ -1060,7 +1067,12 @@ export async function saveHomepageCompositionAction(
         preferredBuilderTree: input.builderTree,
       });
 
-      await admin.from("cms_page_revisions").insert({
+      // The revision snapshot is the ONLY place the builder tree is stored —
+      // an unchecked failure here returns ok:true with the version already
+      // bumped, and the "saved" tree never existed (silent draft loss).
+      // Fail honestly instead: the client keeps `dirty`, and a same-session
+      // retry is rescued by the W1-L2 adoption above.
+      const { error: revErr } = await admin.from("cms_page_revisions").insert({
         tenant_id: scope.tenantId,
         page_id: input.pageId,
         kind: "draft",
@@ -1101,6 +1113,10 @@ export async function saveHomepageCompositionAction(
         },
         created_by: auth.user.id,
       });
+      if (revErr) {
+        logServerError("edit-mode/composition/save-page-revision", revErr);
+        return { ok: false, error: CLIENT_ERROR.update };
+      }
 
       return { ok: true, pageVersion: nextVersion };
     } catch (err) {
