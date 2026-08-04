@@ -10386,13 +10386,13 @@
         "directoryNote": "Public discovery grid. Clients can save a favorite and start an inquiry, both actions are on.",
         "pitchLabel": "Pitch",
         "pitchTag": "Sent link",
-        "pitchNote": "You already curated and sent this shortlist, so a favorite is redundant. The card keeps a direct inquiry / reply action instead.",
+        "pitchNote": "You already curated and sent this shortlist, so a favorite is redundant. The card keeps a direct inquiry / reply action instead. Pitch tiles paint in your published card design.",
         "rosterLabel": "Roster",
         "rosterTag": "Internal",
         "rosterNote": "Your internal team grid. No client-facing favorite or inquiry, these cards are for managing talent, not selling them.",
         "embeddedLabel": "Embedded",
         "embeddedTag": "Public",
-        "embeddedNote": "Cards embedded on an external site behave like the Directory, both favorite and inquiry are available to the public."
+        "embeddedNote": "Cards embedded on an external site behave like the Directory, both favorite and inquiry are available to the public. Embeds paint in your published card design."
       },
       "hover": {
         "revealTraits": "Reveal traits",
