@@ -18,6 +18,8 @@
 import type { NextRequest } from "next/server";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { loadEmbedRoster } from "@/lib/embed/roster-data";
+import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
+import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -72,8 +74,14 @@ export async function GET(request: NextRequest, ctx: RouteContext) {
     });
   }
 
+  // The tenant's published Card Design — the embed paints in the same
+  // palette as every other card surface ("one design, every surface").
+  // The ?theme=dark|light flag stays as the host-page base; pinned design
+  // colors win over the theme's neutral card palette.
+  const cardDesign = await resolveCardDesign(scope.tenantId);
+
   const baseHref = baseOrigin(request);
-  return new Response(renderEmbedHtml({ roster, theme, baseHref }), {
+  return new Response(renderEmbedHtml({ roster, theme, baseHref, cardDesign }), {
     status: 200,
     headers: htmlHeaders(),
   });
@@ -103,6 +111,13 @@ function baseOrigin(request: NextRequest): string {
 
 /* ─── HTML render ───────────────────────────────────────────────────── */
 
+/** Only validated hex colors may be inlined into the embed stylesheet. */
+function safeHex(value: string | undefined): string | null {
+  return value && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value.trim())
+    ? value.trim()
+    : null;
+}
+
 interface RenderArgs {
   roster: {
     tenantSlug: string;
@@ -118,13 +133,21 @@ interface RenderArgs {
   };
   theme: "light" | "dark";
   baseHref: string;
+  cardDesign: CardDesign;
 }
 
-function renderEmbedHtml({ roster, theme, baseHref }: RenderArgs): string {
+function renderEmbedHtml({ roster, theme, baseHref, cardDesign }: RenderArgs): string {
   const bg = theme === "dark" ? "#0B0B0D" : "#FCFBF7";
   const ink = theme === "dark" ? "#F5F4F0" : "#0B0B0D";
   const inkMuted = theme === "dark" ? "rgba(245,244,240,0.62)" : "rgba(11,11,13,0.62)";
-  const cardBg = theme === "dark" ? "rgba(255,255,255,0.04)" : "#FFFFFF";
+  // Tenant Card Design colors (validated hex only) win over the theme's
+  // neutral card palette; unset colors inherit the theme — the same
+  // fallback contract as the canonical <TalentCard> var chain.
+  const cardBg =
+    safeHex(cardDesign.surface) ??
+    (theme === "dark" ? "rgba(255,255,255,0.04)" : "#FFFFFF");
+  const nameInk = safeHex(cardDesign.nameColor) ?? ink;
+  const metaInk = safeHex(cardDesign.muted) ?? inkMuted;
   const cardBorder = theme === "dark" ? "rgba(255,255,255,0.10)" : "rgba(11,11,13,0.08)";
 
   const cards = roster.entries.map((e) => {
@@ -169,10 +192,10 @@ function renderEmbedHtml({ roster, theme, baseHref }: RenderArgs): string {
   .avatar-img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; display: block; }
   .avatar-silhouette { width: 42%; height: 42%; opacity: 0.55; }
   .meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .name { font-size: 14px; font-weight: 600; color: ${ink};
+  .name { font-size: 14px; font-weight: 600; color: ${nameInk};
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .role { font-size: 12px; color: ${inkMuted}; text-transform: capitalize; }
-  .loc { font-size: 11.5px; color: ${inkMuted}; }
+  .role { font-size: 12px; color: ${metaInk}; text-transform: capitalize; }
+  .loc { font-size: 11.5px; color: ${metaInk}; }
   footer { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px;
     text-align: center; }
   .see-more { font-size: 13px; font-weight: 600; color: ${ink}; text-decoration: none;

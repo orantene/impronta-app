@@ -58,7 +58,23 @@ const CARD_KIT_TOKEN_TO_CSS_VAR: Record<string, string> = {
   "card.surface": "--token-card-surface",
   "card.name-color": "--token-card-name-color",
   "card.muted": "--token-card-muted",
+  "card.price-color": "--token-card-price-color",
 };
+
+/**
+ * The kit's family slug, for the results wrapper's
+ * `data-token-template-directory-card-family` + `data-card-design-scope`
+ * pairing — the same carrier contract the marketing directory and the Studio
+ * preview use, so a per-section kit override now brings the family CHROME
+ * (borders, scrims, chips, hover) and not just the colors.
+ */
+function resolveCardKitOverrideFamily(
+  slug: string | undefined,
+): string | undefined {
+  if (!slug) return undefined;
+  const family = getCardKit(slug)?.tokens["template.directory-card-family"];
+  return typeof family === "string" && family.length > 0 ? family : undefined;
+}
 
 function resolveCardKitOverrideStyle(
   slug: string | undefined,
@@ -324,6 +340,9 @@ export async function DirectoryComponent({
   // vars on the results wrapper (DirectoryReactiveResults). Undefined → the
   // instance inherits the tenant's published card palette.
   const cardKitOverrideStyle = resolveCardKitOverrideStyle(
+    props.cardKitOverride,
+  );
+  const cardKitOverrideFamily = resolveCardKitOverrideFamily(
     props.cardKitOverride,
   );
 
@@ -627,6 +646,7 @@ export async function DirectoryComponent({
             aiSearchEnabled={aiEnabled}
             scopeLimitedHint={scopeLimitedHint}
             cardKitOverrideStyle={cardKitOverrideStyle}
+            cardKitOverrideFamily={cardKitOverrideFamily}
             sidebarPosition={props.sidebarPosition}
             sidebarSticky={props.sidebarSticky}
             scope={props.scope}

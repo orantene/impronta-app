@@ -10386,13 +10386,13 @@
         "directoryNote": "Cuadrícula pública de descubrimiento. Los clientes pueden guardar un favorito e iniciar una consulta, ambas acciones están activas.",
         "pitchLabel": "Propuesta",
         "pitchTag": "Enlace enviado",
-        "pitchNote": "Ya curaste y enviaste esta selección, así que el favorito sobra. La tarjeta mantiene una acción directa de consulta o respuesta en su lugar.",
+        "pitchNote": "Ya seleccionaste y enviaste esta lista, así que un favorito es redundante. La tarjeta mantiene una acción directa de consulta / respuesta. Las tarjetas del pitch se pintan con tu diseño de tarjetas publicado.",
         "rosterLabel": "Roster",
         "rosterTag": "Interno",
         "rosterNote": "Tu cuadrícula interna de equipo. Sin favorito ni consulta de cara al cliente, estas tarjetas sirven para gestionar talento, no para venderlo.",
         "embeddedLabel": "Insertado",
         "embeddedTag": "Público",
-        "embeddedNote": "Las tarjetas insertadas en un sitio externo se comportan como las del Directorio, el público dispone tanto del favorito como de la consulta."
+        "embeddedNote": "Las tarjetas insertadas en un sitio externo se comportan como el Directorio: favorito y consulta están disponibles para el público. Las inserciones se pintan con tu diseño de tarjetas publicado."
       },
       "hover": {
         "revealTraits": "Mostrar atributos",

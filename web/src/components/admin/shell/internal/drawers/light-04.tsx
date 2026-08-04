@@ -297,8 +297,6 @@ export function BrandingDrawer() {
   const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
     setWm(prev => ({ ...prev, [k]: v }));
 
-  const [favoriteIcon, setFavoriteIcon] = useState<"heart" | "bookmark">("bookmark");
-
   const [isSaving, setIsSaving] = useState(false);
 
   // Load saved branding settings on open
@@ -315,7 +313,6 @@ export function BrandingDrawer() {
           if (d.tagline) setTagline(d.tagline);
           if (d.description) setDescription(d.description);
           if (d.watermarkPreset) setWm(d.watermarkPreset);
-          if (d.favoriteIcon) setFavoriteIcon(d.favoriteIcon);
         }
       } finally {
         setLoadingSettings(false);
@@ -360,7 +357,6 @@ export function BrandingDrawer() {
         accent_color: /^#[0-9a-fA-F]{6}$/u.test(accentColor) ? accentColor : undefined,
         logo_url: logoUrl,
         watermark_preset: isStudioPlus ? wm : undefined,
-        favorite_icon: favoriteIcon,
       });
       if (!result.ok) { toast(result.error || tt("Couldn't save. Try again.")); return; }
       toast(tt("Branding saved"));
@@ -440,25 +436,27 @@ export function BrandingDrawer() {
         </FieldRow>
       </Section>
 
+      {/* Card look/behavior (incl. the favorite icon) lives in ONE place — the
+          Card Design studio — so this drawer never shows a control that a
+          different editor can contradict. The old segmented here wrote a
+          column no rendered surface reads (the cards follow the
+          `favorite.icon` design token); it was removed rather than double-
+          wired so there is exactly one source of truth. */}
       <Section title={tt("Directory cards")} framed>
-        <FieldRow label={tt("Favorite icon")} hint={tt("Icon shown on talent cards for saving to favorites.")}>
-          <div className="flex gap-2">
-            {(["bookmark", "heart"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setFavoriteIcon(v)}
-                className={[
-                  "cursor-pointer rounded-full border-[1.5px] px-3.5 py-[5px] text-xs font-semibold capitalize transition-colors",
-                  favoriteIcon === v
-                    ? "border-[#4D4855] bg-[#4D4855] text-white"
-                    : "border-[#18181b1a] bg-transparent text-[#0B0B0D]",
-                ].join(" ")}
-              >
-                {v === "bookmark" ? `🔖 ${tt("Bookmark")}` : `♥ ${tt("Heart")}`}
-              </button>
-            ))}
-          </div>
+        <FieldRow
+          label={tt("Card design")}
+          hint={tt("Card look, actions and the favorite icon are managed in Website → Card Design, so every surface stays in sync.")}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              closeDrawer();
+              window.location.assign(`/${tenantSlug}/admin/website/card-design`);
+            }}
+            className="cursor-pointer rounded-full border-[1.5px] border-[#18181b1a] bg-transparent px-3.5 py-[5px] text-xs font-semibold text-[#0B0B0D] transition-colors hover:border-[#4D4855]"
+          >
+            {tt("Open Card Design")}
+          </button>
         </FieldRow>
       </Section>
 

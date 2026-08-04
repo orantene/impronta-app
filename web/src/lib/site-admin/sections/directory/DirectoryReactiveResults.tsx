@@ -87,6 +87,7 @@ export function DirectoryReactiveResults({
   aiSearchEnabled = false,
   scopeLimitedHint,
   cardKitOverrideStyle,
+  cardKitOverrideFamily,
   sidebarPosition,
   sidebarSticky,
   scope,
@@ -144,6 +145,8 @@ export function DirectoryReactiveResults({
    * vars only (publishPageSnapshot does not bake classes).
    */
   cardKitOverrideStyle?: CSSProperties;
+  /** Family slug of the per-section kit override — pairs with data-card-design-scope on the results wrapper. */
+  cardKitOverrideFamily?: string;
   /** Filter sidebar placement (`left`/`right`) — orders the aside via flex. */
   sidebarPosition: DirectoryV1["sidebarPosition"];
   /** Whether the desktop filter aside is sticky. */
@@ -202,6 +205,7 @@ export function DirectoryReactiveResults({
           aiSearchEnabled={aiSearchEnabled}
           scopeLimitedHint={scopeLimitedHint}
           cardKitOverrideStyle={cardKitOverrideStyle}
+          cardKitOverrideFamily={cardKitOverrideFamily}
           sidebarPosition={sidebarPosition}
           sidebarSticky={sidebarSticky}
           scope={scope}
@@ -259,6 +263,7 @@ function DirectoryReactiveResultsInner({
   aiSearchEnabled,
   scopeLimitedHint,
   cardKitOverrideStyle,
+  cardKitOverrideFamily,
   sidebarPosition,
   sidebarSticky,
   scope,
@@ -303,6 +308,8 @@ function DirectoryReactiveResultsInner({
   aiSearchEnabled: boolean;
   scopeLimitedHint?: string;
   cardKitOverrideStyle?: CSSProperties;
+  /** Family slug of the per-section kit override — pairs with data-card-design-scope on the results wrapper. */
+  cardKitOverrideFamily?: string;
   sidebarPosition: DirectoryV1["sidebarPosition"];
   sidebarSticky: boolean;
   scope: DirectoryV1["scope"];
@@ -538,6 +545,8 @@ function DirectoryReactiveResultsInner({
           className="min-w-0 flex-1"
           data-directory-density={density}
           data-directory-hover={hoverBehavior}
+          data-token-template-directory-card-family={cardKitOverrideFamily}
+          data-card-design-scope={cardKitOverrideFamily ? "" : undefined}
           style={cardKitOverrideStyle}
         >
           {showSidebar && sidebarBlocks.length > 0 ? (
