@@ -1,0 +1,89 @@
+# Red-main alarm.
+#
+# Vercel deploys every push to main REGARDLESS of CI — the structural gate
+# runs in parallel with the deploy, so a red gate on main means production is
+# already running (or about to run) unvetted code. On 2026-08-03 main sat red
+# for ~1.5h (#978's type error) while three other lanes kept merging on top.
+#
+# This workflow makes that state impossible to miss: when the CI workflow
+# completes with failure on a main push, it opens (or comments on) a pinned
+# "MAIN IS RED" issue, and closes it automatically on the next green run.
+
+name: Main red alert
+
+on:
+  workflow_run:
+    workflows: ["CI — structural quality gate"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  issues: write
+
+jobs:
+  alert:
+    name: Raise / clear the red-main issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open, bump, or close the alarm issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const conclusion = run.conclusion; // success | failure | cancelled | ...
+            const sha = run.head_sha.slice(0, 9);
+            const runUrl = run.html_url;
+            const TITLE = "🔴 MAIN IS RED — production exposure window open";
+
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "main-red",
+              per_page: 1,
+            });
+            const existing = open[0];
+
+            if (conclusion === "failure") {
+              const body = [
+                `CI failed on \`main\` at \`${sha}\` — and Vercel deploys main pushes regardless of CI, so production may be running this commit right now.`,
+                "",
+                `Run: ${runUrl}`,
+                "",
+                "**Protocol** (see web/docs/development-workflow.md → “When main is red”):",
+                "1. Fix forward or revert the breaking commit IMMEDIATELY — every open PR is also failing its ratchet against this.",
+                "2. If production is misbehaving, roll back: `cd web && npm run deploy:promote -- <last-good-deploy-url>`.",
+                "3. Do not merge anything unrelated until this closes.",
+              ].join("\n");
+
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `Still red: \`${sha}\` — ${runUrl}`,
+                });
+              } else {
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: TITLE,
+                  body,
+                  labels: ["main-red"],
+                });
+              }
+            } else if (conclusion === "success" && existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Main is green again at \`${sha}\` — ${runUrl}. Closing.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: "closed",
+              });
+            }

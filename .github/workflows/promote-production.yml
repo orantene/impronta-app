@@ -1,0 +1,60 @@
+# CI-gated production pointer.
+#
+# Today Vercel's production branch is `main`, and Vercel deploys every main
+# push in parallel with CI — a red gate cannot stop a bad deploy (see
+# main-red-alert.yml for the alarm that mitigates this).
+#
+# This workflow maintains a `production` branch that fast-forwards to main
+# ONLY after the structural quality gate succeeds on that exact commit. Once
+# the Vercel project's production branch is switched from `main` to
+# `production` (one settings change, documented in
+# web/docs/development-workflow.md → "CI-gated production"), a red main can no
+# longer reach production at all: the pointer simply stops advancing until
+# main is green again. Nothing about the developer workflow changes — everyone
+# still branches from and merges to main.
+#
+# Until that switch is made, this workflow is inert-but-observable: the
+# `production` branch advances with green CI and anyone can verify it tracks
+# only vetted commits.
+
+name: Promote production pointer
+
+on:
+  workflow_run:
+    workflows: ["CI — structural quality gate"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Fast-forward `production` to the vetted commit
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward production
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          git fetch origin main
+          # Only promote commits that are actually on main (a re-run of an old
+          # workflow must not rewind or sidetrack the pointer).
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::notice::$SHA is not on main (superseded run) — skipping."
+            exit 0
+          fi
+          if git fetch origin production 2>/dev/null; then
+            if git merge-base --is-ancestor "$SHA" origin/production; then
+              echo "::notice::production already at or past $SHA — nothing to do."
+              exit 0
+            fi
+          fi
+          git push origin "$SHA:refs/heads/production"
+          echo "::notice title=production advanced::production → $SHA (CI-vetted)"

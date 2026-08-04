@@ -1,0 +1,99 @@
+# Admin-boot gate — builds the app, starts the COMPILED server, signs in and
+# loads the admin shell + Card Design studio headlessly. Exists because the
+# 2026-08-03 sev-1 (a module cycle that crashed every production /admin route
+# at chunk evaluation) was invisible to tsc, lint, `next build`, dev-server QA
+# and the structural gate: only a compiled server evaluates client chunks in
+# production order. See web/e2e/admin-boot.spec.ts for the failure signatures.
+#
+# Secrets: reuses the E2E_* repository secrets that builder-e2e.yml documents
+# (E2E_SUPABASE_URL / E2E_SUPABASE_ANON_KEY / E2E_SUPABASE_SERVICE_ROLE_KEY).
+# When they are ABSENT the job SKIPS with a loud warning instead of failing —
+# so the gate arms itself the moment the secrets are added, without holding
+# every PR hostage before then. Once armed, treat a red here as a merge
+# blocker: it means the admin shell does not boot on a production build.
+
+name: CI — admin boot (prod build)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admin-boot-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin-boot:
+    name: Admin boot (prod build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      PLAYWRIGHT_USE_DEV_SIGNIN: "1"
+      PLAYWRIGHT_SKIP_WEBSERVER: "1"
+      PLAYWRIGHT_BASE_URL: "http://localhost:3000"
+    steps:
+      - name: Check secrets (skip with warning when unarmed)
+        id: secrets
+        # Runs before checkout, so the job-default working-directory (web)
+        # does not exist yet — override to the runner root.
+        working-directory: .
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::warning title=Admin-boot gate UNARMED::E2E_SUPABASE_URL / E2E_SUPABASE_ANON_KEY / E2E_SUPABASE_SERVICE_ROLE_KEY repository secrets are not set. The chunk-evaluation crash class (2026-08-03 sev-1) is NOT gated until they are added."
+            echo "armed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "armed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.secrets.outputs.armed == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        if: steps.secrets.outputs.armed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        if: steps.secrets.outputs.armed == 'true'
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        if: steps.secrets.outputs.armed == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Build (production)
+        if: steps.secrets.outputs.armed == 'true'
+        run: npx next build
+
+      - name: Start compiled server
+        if: steps.secrets.outputs.armed == 'true'
+        run: |
+          # VERCEL_ENV=preview enables the dev-signin route on a production
+          # build (its guard allows dev OR preview; plain prod 403s).
+          VERCEL_ENV=preview npx next start -p 3000 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ || true)
+            [ "$code" = "200" ] || [ "$code" = "307" ] || [ "$code" = "308" ] && exit 0
+            sleep 2
+          done
+          echo "::error title=Server never came up::next start did not serve within 120s"
+          exit 1
+
+      - name: Admin boot spec
+        if: steps.secrets.outputs.armed == 'true'
+        run: npx playwright test e2e/admin-boot.spec.ts --project=chromium --workers=1
