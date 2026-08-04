@@ -42,7 +42,7 @@ import {
   type ComponentStyleDefaults,
 } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScope, getTenantScopeBySlug } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -143,6 +143,20 @@ function withDefaults(
  * sets the `x-impronta-tenant-id` header from the verified host) fall back to
  * the header/cookie-based scope. Both helpers return `null` when no scope can
  * be proven; callers treat that as "no workspace selected".
+ *
+ * AUTH MODEL (2026-08-04 fix): these actions guard with `requireSession` +
+ * tenant scope (membership proof), NOT `requireStaff`. `requireStaff` checks
+ * the GLOBAL `profiles.app_role`, which rejects hybrid workspace owners — a
+ * talent/client-signup user who owns or staffs a workspace keeps
+ * `app_role='talent'`/`'client'` (see workspace-lifecycle.ts). The workspace
+ * layout admits them via the membership-based `agency.workspace.view`
+ * capability, so the Card Design studio rendered but every action here
+ * failed "Not authorized." on their tenants. Authorization is enforced by:
+ *   (a) scope resolution — `getTenantScopeBySlug`/`getTenantScope` return
+ *       null unless the caller has an agency_memberships row for the tenant;
+ *   (b) the lib ops' `agency.site_admin.design.edit|publish` capability
+ *       checks (membership-role based, admin/owner only);
+ *   (c) RLS — `is_staff_of_tenant()` is membership-based, not app_role-based.
  */
 async function resolveDesignScope(tenantSlug: string | undefined) {
   return tenantSlug ? getTenantScopeBySlug(tenantSlug) : getTenantScope();
@@ -159,7 +173,7 @@ export async function loadDesignAction(input?: {
   /** Workspace URL slug — resolves the tenant from the URL (admin studio). */
   tenantSlug?: string;
 }): Promise<DesignLoadResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
@@ -217,7 +231,7 @@ export async function saveDesignDraftFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
@@ -317,7 +331,7 @@ export async function saveComponentStylesDraftFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<ComponentStylesSaveResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
@@ -377,7 +391,7 @@ export async function applyThemePresetFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPresetResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
@@ -447,7 +461,7 @@ export async function applyCardKitFromEditAction(input: {
   kitSlug: string;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
@@ -563,7 +577,7 @@ export async function saveCardDesignTokensFromEditAction(input: {
   patch: Record<string, string>;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
@@ -654,7 +668,7 @@ export async function restoreDesignRevisionFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignSaveResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
@@ -725,7 +739,7 @@ export async function publishDesignFromEditAction(input: {
   expectedVersion: number;
   tenantSlug?: string;
 }): Promise<DesignPublishResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
   if (!scope) {
