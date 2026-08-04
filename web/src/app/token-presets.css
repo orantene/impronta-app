@@ -92,7 +92,7 @@ html {
 /* ---------------------------------------------------------------------------
  * Background modes — global page canvas.
  * ------------------------------------------------------------------------- */
-html[data-token-background-mode="editorial-ivory"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="editorial-ivory"] {
   --site-page-background: #f6f1ea;
   /* Re-pin the canvas-paint var so `[data-theme-canvas-root]` (storefront /
    * talent page / editor canvas) matches this mode's base tint, even on a
@@ -137,7 +137,7 @@ html[data-token-background-mode="editorial-ivory"] body {
  * This is the original Impronta register: black page, gold eyebrow / brand
  * marks, serif headlines. Mirrors the legacy `.site-theme-dark` utility but
  * plumbs through the token system so any tenant can opt in. */
-html[data-token-background-mode="editorial-noir"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="editorial-noir"] {
   --site-page-background: #0a0a0a;
   /* CRITICAL — Impronta parity. This re-pins the canvas-paint var to the noir
    * black so `[data-theme-canvas-root]` (storefront frame, talent page <main>,
@@ -222,7 +222,7 @@ html[data-token-background-mode="editorial-noir"] body.site-theme-tenant-overrid
  * ========================================================================= */
 
 /* Noir & Or — near-black canvas, warm off-white ink, gold accents. */
-html[data-token-background-mode="noir-or"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="noir-or"] {
   --site-page-background: #0b0a0d;
   --token-color-background: #0b0a0d;
   --token-color-surface-raised: #161320;
@@ -279,7 +279,7 @@ html[data-token-background-mode="noir-or"] body.site-theme-tenant-override {
 }
 
 /* Espresso — warm dark browns, copper accent. */
-html[data-token-background-mode="espresso"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="espresso"] {
   --site-page-background: #1a1410;
   --token-color-background: #1a1410;
   --token-color-surface-raised: #241c16;
@@ -336,7 +336,7 @@ html[data-token-background-mode="espresso"] body.site-theme-tenant-override {
 }
 
 /* Atelier Blanc — light ivory canvas, charcoal ink, refined gold accent. */
-html[data-token-background-mode="atelier-blanc"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="atelier-blanc"] {
   --site-page-background: #f6f3ee;
   --token-color-background: #f6f3ee;
   --token-color-surface-raised: #ffffff;
@@ -396,7 +396,7 @@ html[data-token-background-mode="atelier-blanc"] body.site-theme-tenant-override
  * canvas). Re-pin --token-color-background to each mode's base tint so the
  * `[data-theme-canvas-root]` paint (which consumes the var directly) matches
  * the mode's base color on subtrees too. The body gradient still layers on top. */
-html[data-token-background-mode="champagne-gradient"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="champagne-gradient"] {
   --token-color-background: #f6f1ea;
 }
 html[data-token-background-mode="champagne-gradient"] body {
@@ -427,7 +427,7 @@ html[data-token-background-mode="noise-texture"] body {
 /* Phase 5 — mesh-gradient presets. Layered radial gradients on a
  * fixed-size attachment so the mesh stays still while the page
  * scrolls. Pure CSS, no JS, no images. */
-html[data-token-background-mode="mesh-blush"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="mesh-blush"] {
   --token-color-background: #faf3ee;
 }
 html[data-token-background-mode="mesh-blush"] body {
@@ -439,7 +439,7 @@ html[data-token-background-mode="mesh-blush"] body {
     radial-gradient(at 18% 88%, rgba(250, 230, 215, 0.5) 0, transparent 45%);
   background-attachment: fixed;
 }
-html[data-token-background-mode="mesh-sage"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="mesh-sage"] {
   --token-color-background: #f3f5f0;
 }
 html[data-token-background-mode="mesh-sage"] body {
@@ -454,7 +454,7 @@ html[data-token-background-mode="mesh-sage"] body {
 /* mesh-noir is a DARK mode — re-pin the canvas-paint var to its dark base so
  * `[data-theme-canvas-root]` stays dark on subtrees (same parity guarantee as
  * editorial-noir). */
-html[data-token-background-mode="mesh-noir"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="mesh-noir"] {
   --token-color-background: #0c0c0e;
 }
 html[data-token-background-mode="mesh-noir"] body {
@@ -467,7 +467,7 @@ html[data-token-background-mode="mesh-noir"] body {
   background-attachment: fixed;
   color: #f8f5ef;
 }
-html[data-token-background-mode="mesh-aurora"] {
+:is(html, [data-card-design-scope])[data-token-background-mode="mesh-aurora"] {
   --token-color-background: #f8f7f4;
 }
 html[data-token-background-mode="mesh-aurora"] body {

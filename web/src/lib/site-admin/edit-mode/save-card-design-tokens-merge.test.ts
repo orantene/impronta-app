@@ -16,8 +16,8 @@ import { validateThemePatch } from "../index";
  * registry defaults.
  */
 
-// The working map the studio submits: card-family keys only (mirrors
-// CARD_DESIGN_TOKEN_KEYS in CardDesignStudio-3.tsx).
+// The working map the studio submits: every key in CARD_DESIGN_TOKEN_KEYS
+// (the registry-gate assertion below exercises the full persisted set).
 const STUDIO_PATCH: Record<string, string> = {
   "template.directory-card-family": "editorial-noir",
   "card.surface": "#0f0f0f",
@@ -26,9 +26,17 @@ const STUDIO_PATCH: Record<string, string> = {
   "card.price-color": "",
   "directory.card.show-standing": "compact",
   "directory.card.standing-style": "both",
+  "profile.reviews-visibility": "visible",
   "directory.card.show-starting-from-price": "off",
   "directory.card.show-quick-view": "on",
   "directory.card.profile-popup": "on",
+  "directory.card.show-favorite": "on",
+  "directory.card.show-inquiry": "on",
+  "favorite.icon": "heart",
+  "directory.card.style": "portrait",
+  "directory.card.aspect": "4:5",
+  "directory.card.hover": "reveal_traits",
+  "directory.card.density": "comfortable",
 };
 
 // A tenant draft that carries non-card theme tokens (the ones the old
@@ -115,5 +123,34 @@ test("CARD_DESIGN_TOKEN_KEYS starts with the family key + color knob keys", () =
   assert.deepEqual(
     CARD_DESIGN_TOKEN_KEYS.slice(0, 1 + CARD_COLOR_KNOB_KEYS.length),
     [CARD_FAMILY_TOKEN_KEY, ...CARD_COLOR_KNOB_KEYS],
+  );
+});
+
+test("CARD_COLOR_KNOB_KEYS matches the labeled knob array in CardDesignStudio-3 (real parity, not a tautology)", () => {
+  // CardDesignStudio-3.tsx is a client component (lucide/react imports), so
+  // extract the knob keys statically instead of importing the module.
+  const source = readFileSync(
+    join(
+      process.cwd(),
+      "src/components/admin/shell/internal/page-modules/CardDesignStudio-3.tsx",
+    ),
+    "utf8",
+  );
+  const block = source.match(
+    /CARD_COLOR_KNOBS[\s\S]*?=\s*\[([\s\S]*?)\n\];/,
+  );
+  assert.ok(block, "CARD_COLOR_KNOBS array not found in CardDesignStudio-3");
+  const knobKeys = [...block![1].matchAll(/key:\s*"([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(
+    knobKeys,
+    [...CARD_COLOR_KNOB_KEYS],
+    "the studio's labeled color knobs drifted from CARD_COLOR_KNOB_KEYS — update card-design-token-keys.ts in the same change",
+  );
+});
+
+test("STUDIO_PATCH covers every persisted studio key (registry gate exercises the full set)", () => {
+  assert.deepEqual(
+    Object.keys(STUDIO_PATCH).sort(),
+    [...CARD_DESIGN_TOKEN_KEYS].sort(),
   );
 });

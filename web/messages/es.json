@@ -4868,8 +4868,8 @@
       "bannerFieldsMid": " en tu motor y se aplican en todas partes.",
       "bannerDesignLead": "El diseño visual",
       "bannerDesignMid": " (estilo + colores) se guarda como borrador mientras editas, Publicar lo activa en vivo en cada superficie de tarjeta.",
-      "bannerLayoutLead": "El diseño de disposición y los interruptores",
-      "bannerLayoutRest": " y los interruptores de acciones se guardan como valores predeterminados del espacio y se publican junto con el diseño visual. Una sección del directorio que define su propio valor en el editor de páginas lo conserva.",
+      "bannerLayoutLead": "La disposición",
+      "bannerLayoutRest": " (estilo de tarjeta, proporción, hover, densidad) y los interruptores de acciones se guardan como valores predeterminados del espacio y se publican junto con el diseño visual. Una sección del directorio que define su propio valor lo conserva; los interruptores de mostrar/ocultar de abajo siguen siendo por sección en el editor de páginas.",
       "rosterBadgesTitle": "Insignias de la tarjeta del roster",
       "rosterBadgesHint": "Muestra u oculta cada superposición en tus tarjetas del roster. Se guarda al instante en este espacio de trabajo, la cuadrícula del roster es interna para tu equipo.",
       "badgeHideEyeWarn": "Ocultar el ojo elimina el único control de mostrar / ocultar de la tarjeta. Aún puedes gestionar la visibilidad desde el panel del talent.",
@@ -4886,7 +4886,7 @@
       "iconHeart": "Corazón",
       "iconBookmark": "Marcador",
       "layoutTitle": "Disposición",
-      "layoutHint": "El diseño de la tarjeta, la proporción de imagen y el hover ahora se guardan y publican como valores PREDETERMINADOS de todo el sitio. Una sección de Directorio que definió su propio valor lo conserva; las secciones en “Seguir el valor de Card Design” siguen estos. Los interruptores de mostrar/ocultar siguen siendo por sección en el editor de páginas.",
+      "layoutHint": "El estilo de tarjeta, la proporción, el hover y la densidad se guardan y publican como valores predeterminados del espacio. Una sección del directorio que definió su propio valor lo conserva; las secciones en “Seguir el diseño de tarjetas” siguen estos valores. Los interruptores de mostrar/ocultar de abajo siguen siendo por sección en el editor de páginas.",
       "cardStyleLabel": "Estilo de tarjeta",
       "stylePortrait": "Retrato",
       "styleEditorial": "Editorial",
@@ -4901,7 +4901,7 @@
       "rowRating": "Valoración",
       "rowPriceFrom": "Precio desde",
       "cardFieldsTitle": "Campos de la tarjeta · desde tu motor Tulala",
-      "cardFieldsHint": "Qué campos del motor pueden mostrarse en las tarjetas en todas partes. Se guarda al instante en este espacio de trabajo.",
+      "cardFieldsHint": "Qué campos del motor pueden aparecer en las tarjetas. Se guarda al instante en tu motor de Tulala: los campos de catálogo compartidos aplican a todos los espacios que los usan.",
       "loadingFields": "Cargando campos desde el motor…",
       "couldNotLoadFields": "No se pudieron cargar los campos: {error}",
       "svcLoading": "Cargando servicios…",
@@ -10392,7 +10392,7 @@
         "rosterNote": "Tu cuadrícula interna de equipo. Sin favorito ni consulta de cara al cliente, estas tarjetas sirven para gestionar talento, no para venderlo.",
         "embeddedLabel": "Insertado",
         "embeddedTag": "Público",
-        "embeddedNote": "Las tarjetas insertadas en un sitio externo se comportan como el Directorio: favorito y consulta están disponibles para el público. Las inserciones se pintan con tu diseño de tarjetas publicado."
+        "embeddedNote": "Las tarjetas insertadas en un sitio externo son solo de navegación: sin favorito ni consulta, cada tarjeta enlaza al perfil del talento. Las inserciones se pintan con los colores de tarjeta publicados."
       },
       "hover": {
         "revealTraits": "Mostrar atributos",

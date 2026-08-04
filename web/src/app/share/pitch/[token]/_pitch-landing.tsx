@@ -244,7 +244,13 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
             </div>
             <div
               className="grid grid-cols-1 gap-5 sm:grid-cols-2"
-              style={cardDesignToCssVars(data.cardDesign)}
+              // Full theme token vars FIRST (family CSS reads --token-color-*),
+              // card-design vars second (explicit card colors win).
+              style={{
+                ...data.designTokenVars,
+                ...cardDesignToCssVars(data.cardDesign),
+              }}
+              {...data.designTokenAttrs}
               data-token-template-directory-card-family={data.cardDesign.family}
               data-card-design-scope=""
             >
@@ -437,11 +443,18 @@ function TalentCard({
         // pairs the family attr with data-card-design-scope). The literal
         // colors below remain as var() fallbacks for tenants on the classic
         // default with no pinned colors.
-        "talent-card group relative overflow-hidden rounded-2xl bg-[var(--token-card-surface,#ffffff)] ring-1 ring-[#0B0B0D]/[0.06] transition",
+        "talent-card group relative overflow-hidden rounded-2xl ring-1 ring-[#0B0B0D]/[0.06] transition",
         removed ? "opacity-50" : "hover:ring-[#0B0B0D]/[0.12] hover:shadow-[0_6px_24px_rgba(11,11,13,0.06)]",
       ]
         .filter(Boolean)
         .join(" ")}
+      // INLINE surface, deliberately: family CSS background rules reference
+      // theme vars (--token-color-*) that only exist on tenant storefront
+      // hosts — on the hub domain they collapse to transparent and would
+      // strand a dark design's warm name color on the light page. Inline
+      // style outranks any stylesheet rule, so the tenant surface (or white)
+      // is guaranteed under the tokens the wrapper provides.
+      style={{ background: "var(--token-card-surface, #ffffff)" }}
     >
       {/* Photo — full-bleed top, 4:5 portrait aspect */}
       <div className="relative aspect-[4/5] overflow-hidden bg-[#F2F2EE]" data-card-media>
@@ -504,7 +517,7 @@ function TalentCard({
 
         {talent.adminNote && (
           <div className="mt-2 border-l-2 border-[#0F4F3E]/40 pl-3 py-1">
-            <p className="text-[12.5px] italic leading-[1.55] text-[#0B0B0D]/60">
+            <p className="text-[12.5px] italic leading-[1.55] text-[var(--token-card-muted,rgba(11,11,13,0.6))]">
               {talent.adminNote}
             </p>
           </div>

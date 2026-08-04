@@ -66,7 +66,7 @@ export const SURFACE_RULES: Record<CardSurface, SurfaceRule> = {
     note: "Your internal team grid. No client-facing favorite or inquiry, these cards are for managing talent, not selling them.",
   },
   embedded: {
-    label: "Embedded", tag: "Public", favorite: true, inquiry: true,
+    label: "Embedded", tag: "Public", favorite: false, inquiry: false,
     labelKey: `${SURFACE_NS}.embeddedLabel`, tagKey: `${SURFACE_NS}.embeddedTag`,
     noteKey: `${SURFACE_NS}.embeddedNote`,
     note: "Cards embedded on an external site behave like the Directory, both favorite and inquiry are available to the public.",
@@ -114,7 +114,7 @@ export const DEFAULT_APPEARANCE: CardAppearance = {
   // Matches the live section default (directory schema v2 backfilled
   // showPriceFrom:true) so the studio preview no longer contradicts the
   // published directory. Round-tripping the REAL knob is still open — see
-  // the TODO(reviewer) in CardDesignStudio.tsx.
+  // the reload-seeding notes in CardDesignStudio.tsx.
   showPriceFrom: true,
   showSave: true,
   showAddToInquiry: true,
