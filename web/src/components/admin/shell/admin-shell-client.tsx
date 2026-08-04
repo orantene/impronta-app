@@ -1327,7 +1327,7 @@ function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
 }
 
 function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
-  const { bridgeTenantIdentity } = useAdminShell();
+  const { bridgeTenantIdentity, workspaceFabEnabled } = useAdminShell();
   // Whitelabel accent — only set for whitelabel-tier tenants (the loader
   // already gates + hex-validates it). When present, `--tulala-accent` and
   // `--tulala-accent-deep` re-tint every accent token in the shell; when
@@ -2544,9 +2544,11 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
 
           {/* Unified bottom-right floating action button — combines
               Quick Create (was top-right "+ New") + AI Assistant (was a
-              separate sparkle FAB) into one menu. */}
-          <BottomActionFab />
-          {/* First-time admin tour — 4 tooltip overlays. Self-fires once. */}
+              separate sparkle FAB) into one menu. Platform-gated: HQ shows
+              it via the Workspace UI switch on /platform/admin/settings. */}
+          {workspaceFabEnabled && <BottomActionFab />}
+          {/* First-time admin tour — 4 tooltip overlays. Self-fires once.
+              Platform-gated by the same Workspace UI switch card. */}
           <AdminTourGate />
         </div>
     </>
@@ -2556,7 +2558,8 @@ function AdminShellContent({ showDevBar }: { showDevBar: boolean }) {
 /** Gate the tour to workspace surface only. Lives outside AdminShellProvider's
  *  children scope so it can read state via useAdminShell. */
 function AdminTourGate() {
-  const { state } = useAdminShell();
+  const { state, workspaceTourEnabled } = useAdminShell();
+  if (!workspaceTourEnabled) return null;
   if (state.surface !== "workspace") return null;
   const tourSuspended = !!state.drawer.drawerId;
   return <AdminTour suspended={tourSuspended} />;

@@ -4385,7 +4385,8 @@
       "rosterRatesNoRole": "Sin categoría",
       "rosterRatesFillAll": "Completar todos",
       "rosterRatesQuoteOnly": "Cotización a pedido",
-      "rosterRatesSave": "Guardar tarifas"
+      "rosterRatesSave": "Guardar tarifas",
+      "pricingDefaultsPerTalentPointer": "Fijar la tarifa de cada talento se hace junto al roster: Roster → Tarifas."
     },
     "adminOperations": {
       "title": "Operaciones",
@@ -4867,8 +4868,8 @@
       "bannerFieldsMid": " en tu motor y se aplican en todas partes.",
       "bannerDesignLead": "El diseño visual",
       "bannerDesignMid": " (estilo + colores) se guarda como borrador mientras editas, Publicar lo activa en vivo en cada superficie de tarjeta.",
-      "bannerLayoutLead": "El diseño de disposición y los interruptores",
-      "bannerLayoutRest": " de abajo son una vista previa en vivo; guardar una disposición distinta por superficie llega en la próxima versión.",
+      "bannerLayoutLead": "La disposición",
+      "bannerLayoutRest": " (estilo de tarjeta, proporción, hover, densidad) y los interruptores de acciones se guardan como valores predeterminados del espacio y se publican junto con el diseño visual. Una sección del directorio que define su propio valor lo conserva; los interruptores de mostrar/ocultar de abajo siguen siendo por sección en el editor de páginas.",
       "rosterBadgesTitle": "Insignias de la tarjeta del roster",
       "rosterBadgesHint": "Muestra u oculta cada superposición en tus tarjetas del roster. Se guarda al instante en este espacio de trabajo, la cuadrícula del roster es interna para tu equipo.",
       "badgeHideEyeWarn": "Ocultar el ojo elimina el único control de mostrar / ocultar de la tarjeta. Aún puedes gestionar la visibilidad desde el panel del talent.",
@@ -4885,7 +4886,7 @@
       "iconHeart": "Corazón",
       "iconBookmark": "Marcador",
       "layoutTitle": "Disposición",
-      "layoutHint": "El diseño de la tarjeta, la proporción de imagen y el hover ahora se guardan y publican como valores PREDETERMINADOS de todo el sitio. Una sección de Directorio que definió su propio valor lo conserva; las secciones en “Seguir el valor de Card Design” siguen estos. Los interruptores de mostrar/ocultar siguen siendo por sección en el editor de páginas.",
+      "layoutHint": "El estilo de tarjeta, la proporción, el hover y la densidad se guardan y publican como valores predeterminados del espacio. Una sección del directorio que definió su propio valor lo conserva; las secciones en “Seguir el diseño de tarjetas” siguen estos valores. Los interruptores de mostrar/ocultar de abajo siguen siendo por sección en el editor de páginas.",
       "cardStyleLabel": "Estilo de tarjeta",
       "stylePortrait": "Retrato",
       "styleEditorial": "Editorial",
@@ -4900,7 +4901,7 @@
       "rowRating": "Valoración",
       "rowPriceFrom": "Precio desde",
       "cardFieldsTitle": "Campos de la tarjeta · desde tu motor Tulala",
-      "cardFieldsHint": "Qué campos del motor pueden mostrarse en las tarjetas en todas partes. Se guarda al instante en este espacio de trabajo.",
+      "cardFieldsHint": "Qué campos del motor pueden aparecer en las tarjetas. Se guarda al instante en tu motor de Tulala: los campos de catálogo compartidos aplican a todos los espacios que los usan.",
       "loadingFields": "Cargando campos desde el motor…",
       "couldNotLoadFields": "No se pudieron cargar los campos: {error}",
       "svcLoading": "Cargando servicios…",
@@ -4923,7 +4924,10 @@
       "toastNeedAdminFields": "Necesitas acceso de administrador para cambiar los campos de la tarjeta.",
       "toastNeedAdminBadges": "Necesitas acceso de administrador para cambiar las insignias de la tarjeta del roster.",
       "toastCouldNotSaveField": "No se pudo guardar ese campo.",
-      "rowPriceFromHint": "Solo vista previa. El precio inicial en vivo se controla en la sección Directorio (Mostrar precio inicial) y está activado por defecto."
+      "rowPriceFromHint": "Solo vista previa. El precio inicial en vivo se controla en la sección Directorio (Mostrar precio inicial) y está activado por defecto.",
+      "densityLabel": "Densidad",
+      "densityComfortable": "Cómoda",
+      "densityCompact": "Compacta"
     },
     "adminPitches": {
       "statusDraft": "Borrador",
@@ -5460,6 +5464,13 @@
         "payoutGlobalHint": "El Talent recibe en un banco local o en USDC mediante Stripe v2 Money Movement (unos 90 países). Se aplica el enrutamiento por opción de cripto de cada Talent.",
         "payoutSavedConnect": "Guardado. La plataforma ahora funciona con Stripe Connect.",
         "payoutSavedGlobal": "Guardado. La plataforma ahora funciona con Global Payouts.",
+        "workspaceUiTitle": "Interfaz del workspace",
+        "workspaceUiSubtitle": "Ayudas ambientales en cada workspace de agencia: el botón + flotante y el tour inicial.",
+        "workspaceUiFabLabel": "Botón + flotante de acciones rápidas",
+        "workspaceUiFabHint": "El + inferior derecho en cada página del workspace (creación rápida y asistente de IA). Apagado lo oculta en toda la plataforma.",
+        "workspaceUiTourLabel": "Tour guiado inicial",
+        "workspaceUiTourHint": "El tour de 4 pasos que ven los nuevos administradores en su primera visita. Apagado lo desactiva en toda la plataforma.",
+        "workspaceUiSaved": "Guardado. Se aplica a todos los workspaces.",
         "depositFieldLabel": "Depósito predeterminado (%)",
         "refundPolicyFieldLabel": "Política de reembolso predeterminada",
         "instantBookLabel": "Reserva instantánea activada por defecto",
@@ -8696,6 +8707,20 @@
             "container_id": "ID de contenedor de GTM"
           }
         },
+        "search_console": {
+          "label": "Google Search Console",
+          "description": "Verifica la propiedad de tu sitio en Google Search Console para seguir tu posición en la Búsqueda y enviar tu sitemap. Pega el token de verificación y la etiqueta meta se añade al <head> de tu sitio.",
+          "steps": {
+            "s1": "Abre Google Search Console (search.google.com/search-console) y añade una propiedad.",
+            "s2": "Elige el tipo de propiedad \"Prefijo de URL\" e introduce la dirección exacta de tu sitio (p. ej. https://tu-agencia.tulala.digital, o tu dominio propio).",
+            "s3": "Selecciona el método de verificación \"Etiqueta HTML\". Google muestra una etiqueta como <meta name=\"google-site-verification\" content=\"TOKEN\" />.",
+            "s4": "Copia SOLO el token, el valor dentro de content=\"…\", pégalo abajo y guarda.",
+            "s5": "Vuelve a Search Console y haz clic en Verificar. Una vez verificado, envía tu sitemap en /sitemap.xml (p. ej. https://tu-agencia.tulala.digital/sitemap.xml)."
+          },
+          "fields": {
+            "verification_token": "Token de verificación de Search Console"
+          }
+        },
         "custom_code": {
           "label": "Código personalizado",
           "description": "Inyecta tu propio HTML o <script> en tu storefront público: agrega un widget de chat, una fuente, una metaetiqueta de verificación o cualquier fragmento de terceros. Se ejecuta solo en tu storefront, nunca en el panel de administración.",
@@ -10368,13 +10393,13 @@
         "directoryNote": "Cuadrícula pública de descubrimiento. Los clientes pueden guardar un favorito e iniciar una consulta, ambas acciones están activas.",
         "pitchLabel": "Propuesta",
         "pitchTag": "Enlace enviado",
-        "pitchNote": "Ya curaste y enviaste esta selección, así que el favorito sobra. La tarjeta mantiene una acción directa de consulta o respuesta en su lugar.",
+        "pitchNote": "Ya seleccionaste y enviaste esta lista, así que un favorito es redundante. La tarjeta mantiene una acción directa de consulta / respuesta. Las tarjetas del pitch se pintan con tu diseño de tarjetas publicado.",
         "rosterLabel": "Roster",
         "rosterTag": "Interno",
         "rosterNote": "Tu cuadrícula interna de equipo. Sin favorito ni consulta de cara al cliente, estas tarjetas sirven para gestionar talento, no para venderlo.",
         "embeddedLabel": "Insertado",
         "embeddedTag": "Público",
-        "embeddedNote": "Las tarjetas insertadas en un sitio externo se comportan como las del Directorio, el público dispone tanto del favorito como de la consulta."
+        "embeddedNote": "Las tarjetas insertadas en un sitio externo son solo de navegación: sin favorito ni consulta, cada tarjeta enlaza al perfil del talento. Las inserciones se pintan con los colores de tarjeta publicados."
       },
       "hover": {
         "revealTraits": "Mostrar atributos",
@@ -10426,9 +10451,13 @@
       "livePreviewHint": "Así se ve tu tarjeta de talento en el sitio en vivo. Los cambios de estilo y color se reflejan aquí al instante; Publicar los activa en todas partes.",
       "actionsPreviewHint": "El favorito y la consulta son interactivos aquí para que veas ambos estados. En la superficie en vivo se conectan con los favoritos y la lista de consulta reales del cliente.",
       "rosterVisibilityEyeTitle": "Ojo de visibilidad, el control de mostrar u ocultar en vivo para el sitio de la agencia",
+      "rosterQuickViewTitle": "Vista rápida, abre la página pública del talento en una ventana emergente sobre el roster",
       "rosterDiscoverBadge": "Discover",
       "rosterTulalaVerifiedTitle": "Verificado por Tulala",
       "rosterAvailableBadge": "disponible",
+      "sampleParentCategory": "Modelos",
+      "sampleSecondaryTypeA": "Modelo de Belleza",
+      "sampleSecondaryTypeB": "Modelo de Pasarela",
       "cardSurfaceTablistAria": "Superficie de la tarjeta",
       "reviewsOnCardsTitle": "Reseñas en las tarjetas",
       "showStandingLabel": "Mostrar la reputación del talento",
@@ -11036,6 +11065,7 @@
         "selectAll": "Seleccionar todo",
         "selectedClear": "seleccionados · limpiar",
         "sortLabel": "Ordenar:",
+        "sortRecommended": "Recomendado",
         "sortName": "Nombre",
         "sortCompleteness": "Completitud",
         "sortNewest": "Más reciente",
@@ -11046,6 +11076,8 @@
       "card": {
         "youBadgeAria": "Tu perfil de talento",
         "youBadge": "Tú",
+        "quickViewAria": "Vista rápida del perfil",
+        "quickViewTitle": "Previsualiza la página pública de este talento en una ventana emergente, sin salir del roster",
         "selectAria": "Seleccionar",
         "deselectAria": "Deseleccionar",
         "noTypeSet": "Sin tipo asignado",

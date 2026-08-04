@@ -157,6 +157,109 @@ test("homepage adapter.save targets a non-homepage page by pageId from ctx", asy
   assert.equal((calls.save![0] as CompositionSaveInput).locale, "es");
 });
 
+// ── DRAFT-INTEGRITY — the REAL homepage ctx carries its own row id ──────────
+// The homepage load returns the homepage's cms_pages id, so at runtime ctx is
+// { pageSlug: null, pageId: "<real uuid>" } — NOT the { pageId: null } the
+// legacy parity cases above exercise. Forwarding that id verbatim routed every
+// homepage save into the generic `if (input.pageId)` page branch, skipping the
+// hardened homepage lane (LWW beacon adoption, content-aware empty guard,
+// introTagline persistence) — the 2026-08-04 audit's live silent-draft-loss P0.
+// The adapter must treat pageId as a target ONLY when pageSlug marks a real
+// non-homepage page.
+
+test("homepage adapter.save normalizes pageId to null for the homepage even when ctx carries the row id", async () => {
+  const { actions, calls } = makeSpyActions();
+  const adapter = createHomepageAdapter(actions);
+  const ctx: BuilderSurfaceContext = {
+    locale: "en",
+    pageSlug: null,
+    pageId: "home-row-uuid",
+  };
+  const input: CompositionSaveInput = {
+    locale: "en",
+    pageId: "home-row-uuid",
+    expectedVersion: 7,
+    metadata: baseMetadata,
+    slots: baseSlots,
+    builderTree: [],
+  };
+
+  await adapter.save(ctx, input);
+
+  assert.equal((calls.save![0] as CompositionSaveInput).pageId, null);
+});
+
+test("homepage adapter.saveDraft normalizes pageId to null for the homepage even when ctx carries the row id", async () => {
+  const { actions, calls } = makeSpyActions();
+  const adapter = createHomepageAdapter(actions);
+  const ctx: BuilderSurfaceContext = {
+    locale: "en",
+    pageSlug: null,
+    pageId: "home-row-uuid",
+  };
+  const input: BuilderSurfaceSaveDraftInput = {
+    expectedVersion: 4,
+    metadata: baseMetadata,
+    slots: baseSlots,
+    builderTree: [],
+    styleClasses: undefined,
+    editSession: { id: "sess-1", seq: 3 },
+  };
+
+  await adapter.saveDraft(ctx, input);
+
+  assert.equal(
+    (calls.saveDraft![0] as { pageId: string | null }).pageId,
+    null,
+  );
+});
+
+test("homepage adapter.saveDraft still targets a real page by pageId when pageSlug is set", async () => {
+  const { actions, calls } = makeSpyActions();
+  const adapter = createHomepageAdapter(actions);
+  const ctx: BuilderSurfaceContext = {
+    locale: "es",
+    pageSlug: "about",
+    pageId: "page-9",
+  };
+  const input: BuilderSurfaceSaveDraftInput = {
+    expectedVersion: 4,
+    metadata: baseMetadata,
+    slots: baseSlots,
+    builderTree: [],
+    styleClasses: undefined,
+    editSession: { id: "sess-1", seq: 3 },
+  };
+
+  await adapter.saveDraft(ctx, input);
+
+  assert.equal(
+    (calls.saveDraft![0] as { pageId: string | null }).pageId,
+    "page-9",
+  );
+});
+
+test("homepage adapter.publish normalizes pageId to null for the homepage even when ctx carries the row id", async () => {
+  const { actions, calls } = makeSpyActions();
+  const adapter = createHomepageAdapter(actions);
+  const ctx: BuilderSurfaceContext = {
+    locale: "en",
+    pageSlug: null,
+    pageId: "home-row-uuid",
+  };
+  const input: BuilderSurfacePublishInput = {
+    expectedVersion: 5,
+    styleClasses: undefined,
+  };
+
+  await adapter.publish(ctx, input);
+
+  assert.equal(
+    (calls.publish![0] as { pageId: string | null }).pageId,
+    null,
+  );
+});
+
 test("homepage adapter.saveDraft forwards the legacy saveDraftHomepageAction shape", async () => {
   const { actions, calls, results } = makeSpyActions();
   const adapter = createHomepageAdapter(actions);

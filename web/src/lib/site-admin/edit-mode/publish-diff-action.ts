@@ -1,6 +1,6 @@
 "use server";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
@@ -61,7 +61,7 @@ function parseSnapshotRows(value: unknown): PublishedSnapshotRow[] {
 export async function loadPublishedSnapshotRowsAction(input: {
   pageId: string;
 }): Promise<LoadPublishedSnapshotResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

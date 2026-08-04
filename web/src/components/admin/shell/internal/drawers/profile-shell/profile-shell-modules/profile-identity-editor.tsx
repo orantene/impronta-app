@@ -291,7 +291,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
 
       {/* ── Profile name ────────────────────────────────────────────── */}
       <div data-pshell-identity-full>
-        <FieldRow label={copy.t("Stage / professional name")} hint={copy.t("What clients see on the public profile.")}>
+        <FieldRow label={copy.t("Stage / professional name")} required hint={copy.t("What clients see on the public profile.")}>
           <input data-pshell-field="stageName"
             placeholder={copy.t("First Last")}
             value={identity.stageName}

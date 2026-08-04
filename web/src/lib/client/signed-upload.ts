@@ -131,6 +131,272 @@ export async function uploadTalentMedia(opts: {
   };
 }
 
+// ── Talent reel (video) uploads ─────────────────────────────────────────
+
+/** Mirrors the legacy action's video allowance + the bucket cap. */
+const MAX_REEL_BYTES = 200 * 1024 * 1024;
+
+const REEL_MIME_TO_EXT: Record<string, "mp4" | "mov" | "webm"> = {
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
+};
+
+export type TalentReelUploadOk = {
+  ok: true;
+  id: string;
+  publicUrl: string;
+  sortOrder: number;
+};
+
+/**
+ * Hello-reel upload: signed PUT direct to storage, no canvas step —
+ * video can't round-trip a canvas, and it's exactly the payload the
+ * 4 MB Server Action body cap makes impossible to ship any other way.
+ * `fallbackToLegacy` is only set for container formats the signed
+ * pipeline doesn't whitelist (avi/mkv/…): tiny clips in those formats
+ * can still make it through the legacy action.
+ */
+export async function uploadTalentReel(opts: {
+  file: File;
+  talentProfileId: string;
+  onProgress?: (p: SignedUploadProgress) => void;
+}): Promise<TalentReelUploadOk | FailureResult> {
+  const { file, talentProfileId } = opts;
+
+  if (!file.type.startsWith("video/")) {
+    return { ok: false, fallbackToLegacy: true, error: "not a video file" };
+  }
+  if (file.size > MAX_REEL_BYTES) {
+    return {
+      ok: false,
+      fallbackToLegacy: false,
+      error: `Video must be under ${Math.round(MAX_REEL_BYTES / 1024 / 1024)} MB.`,
+    };
+  }
+  const ext = REEL_MIME_TO_EXT[file.type];
+  if (!ext) {
+    return {
+      ok: false,
+      fallbackToLegacy: true,
+      error: `unsupported video container (${file.type})`,
+    };
+  }
+
+  const { actionCreateSignedUploadUrl, actionRegisterUploadedAsset } =
+    await import("@/app/(workspace)/[tenantSlug]/admin/media/actions");
+  const signed = await actionCreateSignedUploadUrl("reel", talentProfileId, ext);
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  opts.onProgress?.({ phase: "uploading", bytesTotal: file.size });
+  const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+  if (!putOk.ok) {
+    // A failed 100 MB PUT will not fare better as a 100 MB Server
+    // Action body — surface the error instead of a doomed retry.
+    return { ok: false, fallbackToLegacy: false, error: putOk.error };
+  }
+
+  opts.onProgress?.({ phase: "registering" });
+  const registered = await actionRegisterUploadedAsset({
+    storagePath: signed.data.storagePath,
+    variantKind: "reel",
+    talentProfileId,
+    originalFilename: file.name || null,
+  });
+  if (!registered.ok) {
+    return { ok: false, fallbackToLegacy: false, error: registered.error };
+  }
+
+  return {
+    ok: true,
+    id: registered.data.id,
+    publicUrl: registered.data.publicUrl,
+    sortOrder: registered.data.sortOrder,
+  };
+}
+
+// ── Voice notes (inquiry threads — private bucket) ──────────────────────
+
+/**
+ * Voice-note upload: signed PUT of the recorded audio into inquiry-files,
+ * then a finalize action that writes the attachment + voice-message rows.
+ * Long recordings exceed the 4 MB Server Action cap the legacy FormData
+ * path rides on; this transport has the bucket's 100 MB ceiling instead.
+ */
+export async function uploadVoiceNoteSigned(opts: {
+  inquiryId: string;
+  threadType: "private" | "group";
+  blob: Blob;
+  mimeType: string;
+  durationMs: number;
+}): Promise<{ ok: true; messageId: string } | FailureResult> {
+  const { inquiryId, blob } = opts;
+  if (blob.size === 0) {
+    return { ok: false, fallbackToLegacy: false, error: "Recording is empty." };
+  }
+
+  const ext = opts.mimeType.includes("ogg")
+    ? "ogg"
+    : opts.mimeType.includes("mp4")
+      ? "m4a"
+      : "webm";
+
+  const { createVoiceNoteUploadUrl, finalizeVoiceNote } =
+    await import("@/lib/server-actions/voice-notes");
+
+  const signed = await createVoiceNoteUploadUrl(inquiryId, ext);
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  const putOk = await putToSignedUrl(signed.data.uploadUrl, blob);
+  if (!putOk.ok) {
+    // Short recordings still fit through the legacy FormData action.
+    return { ok: false, fallbackToLegacy: blob.size < 4 * 1024 * 1024, error: putOk.error };
+  }
+
+  const finalized = await finalizeVoiceNote({
+    inquiryId,
+    threadType: opts.threadType,
+    durationMs: opts.durationMs,
+    storagePath: signed.data.storagePath,
+    mimeType: opts.mimeType,
+  });
+  if (!finalized.ok) {
+    return { ok: false, fallbackToLegacy: false, error: finalized.error };
+  }
+  return finalized;
+}
+
+// ── Talent documents (comp cards, contracts — private bucket) ───────────
+
+export type TalentDocumentUploadOk = {
+  ok: true;
+  storagePath: string;
+  bucketId: string;
+  sizeBytes: number;
+  mimeType: string;
+};
+
+/**
+ * Document upload for the Files editor: signed PUT into the private
+ * media-originals bucket, then a finalize action that stats the object.
+ * No compression — a contract's bytes must land exactly as picked.
+ */
+export async function uploadTalentDocumentSigned(opts: {
+  file: File;
+  talentProfileId: string;
+  onProgress?: (p: SignedUploadProgress) => void;
+}): Promise<TalentDocumentUploadOk | FailureResult> {
+  const { file, talentProfileId } = opts;
+
+  if (file.size === 0) {
+    return { ok: false, fallbackToLegacy: false, error: "File is empty." };
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    return { ok: false, fallbackToLegacy: false, error: "File must be under 50 MB." };
+  }
+
+  const { actionCreateDocumentSignedUploadUrl, actionFinalizeDocumentUpload } =
+    await import("@/app/(workspace)/[tenantSlug]/admin/media/actions");
+
+  const signed = await actionCreateDocumentSignedUploadUrl(
+    talentProfileId,
+    file.name || "file.bin",
+  );
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  opts.onProgress?.({ phase: "uploading", bytesTotal: file.size });
+  const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+  if (!putOk.ok) {
+    // Small documents may still fit through the legacy FormData action.
+    return { ok: false, fallbackToLegacy: file.size < 4 * 1024 * 1024, error: putOk.error };
+  }
+
+  opts.onProgress?.({ phase: "registering" });
+  const finalized = await actionFinalizeDocumentUpload(
+    talentProfileId,
+    signed.data.storagePath,
+  );
+  if (!finalized.ok) {
+    return { ok: false, fallbackToLegacy: false, error: finalized.error };
+  }
+
+  return { ok: true, ...finalized.data };
+}
+
+// ── Inquiry attachments (message threads, staff + client) ───────────────
+
+export type InquiryAttachmentUploadOk = {
+  ok: true;
+  attachmentId: string;
+  filename: string;
+  byteSize: number;
+  attachmentKind: string | null;
+};
+
+/**
+ * Attachment upload for inquiry threads: signed PUT into the private
+ * inquiry-files bucket, then register. No compression — attachments
+ * are documents; the bytes the user picked are the bytes that land.
+ * Works for both staff and client callers (the server resolves scope
+ * from the session + inquiry).
+ */
+export async function uploadInquiryAttachmentSigned(opts: {
+  inquiryId: string;
+  file: File;
+  attachmentKind?: string | null;
+  description?: string | null;
+  onProgress?: (p: SignedUploadProgress) => void;
+}): Promise<InquiryAttachmentUploadOk | FailureResult> {
+  const { inquiryId, file } = opts;
+
+  if (file.size === 0) {
+    return { ok: false, fallbackToLegacy: false, error: "File is empty." };
+  }
+  if (file.size > 100 * 1024 * 1024) {
+    return { ok: false, fallbackToLegacy: false, error: "File exceeds 100 MB cap." };
+  }
+
+  const { actionCreateInquiryAttachmentUploadUrl, actionRegisterInquiryAttachment } =
+    await import("@/lib/server-actions/inquiry-attachment-signed");
+
+  const signed = await actionCreateInquiryAttachmentUploadUrl(
+    inquiryId,
+    file.name || "file",
+  );
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  opts.onProgress?.({ phase: "uploading", bytesTotal: file.size });
+  const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+  if (!putOk.ok) {
+    // Small files may still fit through the legacy FormData action;
+    // big ones won't, but the caller's fallback will say so honestly.
+    return { ok: false, fallbackToLegacy: file.size < 4 * 1024 * 1024, error: putOk.error };
+  }
+
+  opts.onProgress?.({ phase: "registering" });
+  const registered = await actionRegisterInquiryAttachment({
+    inquiryId,
+    storagePath: signed.data.storagePath,
+    filename: file.name || "file",
+    mimeType: file.type || null,
+    attachmentKind: opts.attachmentKind ?? null,
+    description: opts.description ?? null,
+  });
+  if (!registered.ok) {
+    return { ok: false, fallbackToLegacy: false, error: registered.error };
+  }
+
+  return { ok: true, ...registered.data };
+}
+
 // ── Staging uploads (tenant parking lot for bulk drop) ──────────────────
 
 export type StagingUploadOk = {

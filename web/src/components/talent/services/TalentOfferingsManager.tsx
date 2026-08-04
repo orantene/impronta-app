@@ -29,6 +29,7 @@ import {
 } from "@/lib/talent/offerings-actions";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import { actionUploadAndAssignMedia } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import {
   blankOffering,
   offeringPriceLabel,
@@ -192,9 +193,26 @@ function OfferingForm({
     setUploading(true);
     setUploadError(null);
     try {
-      const fd = new FormData();
-      fd.set("file", file);
-      const up = await actionUploadAndAssignMedia(fd, value.talentProfileId, "gallery");
+      // Signed pipeline first (works for staff AND talent-self since the
+      // sign/register actions are dual-auth) — the legacy FormData action
+      // rejects photos over the 4 MB Server Action body cap before it runs.
+      let up:
+        | { ok: true; data: { id: string; publicUrl: string } }
+        | { ok: false; error: string };
+      const fast = await uploadTalentMedia({
+        file,
+        variantKind: "gallery",
+        talentProfileId: value.talentProfileId,
+      });
+      if (fast.ok) {
+        up = { ok: true, data: { id: fast.id, publicUrl: fast.publicUrl } };
+      } else if (!fast.fallbackToLegacy) {
+        up = { ok: false, error: fast.error };
+      } else {
+        const fd = new FormData();
+        fd.set("file", file);
+        up = await actionUploadAndAssignMedia(fd, value.talentProfileId, "gallery");
+      }
       if (!up.ok) {
         setUploadError(up.error);
         return;

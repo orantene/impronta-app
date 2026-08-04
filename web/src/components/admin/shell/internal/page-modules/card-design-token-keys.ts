@@ -1,45 +1,40 @@
 /**
- * Card Design Studio token constants — the LEAF module of the studio's import
- * graph. Nothing here may import from CardDesignStudio-*.tsx.
+ * Token-key constants for the Card Design Studio.
  *
- * This file used to import CARD_FAMILY_TOKEN_KEY / CARD_COLOR_KNOBS from
- * CardDesignStudio-3 while Studio-3 re-exported CARD_DESIGN_TOKEN_KEYS from
- * here — a module cycle. Under dev/Turbopack the evaluation order made
- * `CARD_DESIGN_TOKEN_KEYS`'s spread hit Studio-3's binding before it was
- * initialized ("Cannot access 'CARD_FAMILY_TOKEN_KEY' before initialization"),
- * taking the whole admin shell down (same failure family as incident #971).
- * The constants now live here and Studio-3 re-exports them, so the edge only
- * points one way.
+ * IMPORT-FREE ON PURPOSE. This module used to import CARD_FAMILY_TOKEN_KEY and
+ * CARD_COLOR_KNOBS from ./CardDesignStudio-3 while CardDesignStudio-3
+ * re-exported CARD_DESIGN_TOKEN_KEYS from here — a two-module cycle. In the
+ * production chunk graph CardDesignStudio-3 evaluated first, hit the re-export
+ * above its own const declarations, and this module then read CARD_COLOR_KNOBS
+ * inside its temporal dead zone: `ReferenceError: Cannot access 'oo' before
+ * initialization` at module evaluation, which took down the ENTIRE admin shell
+ * on production (2026-08-03 sev-1; dev chunking masked it, so tsc / lint /
+ * `next build` / dev QA were all green). Keep this file dependency-free: keys
+ * live here, UI vocabulary (labels/hints) lives in CardDesignStudio-3, and the
+ * import direction is strictly CardDesignStudio-* → this file. The key-parity
+ * contract with CARD_COLOR_KNOBS is pinned in
+ * lib/site-admin/edit-mode/save-card-design-tokens-merge.test.ts.
  */
 
 /** The card-family token key that records which kit is active. */
 export const CARD_FAMILY_TOKEN_KEY = "template.directory-card-family";
 
-/** The color knobs the studio exposes, in display order. English `label` /
- *  `hint` remain the non-UI fallback; the studio renders `t(knob.labelKey)` /
- *  `t(knob.hintKey)`. */
-const KNOB_NS = "dashboard.adminCardStudio2.knobs";
-
-export const CARD_COLOR_KNOBS: Array<{
-  key: string; label: string; hint: string; labelKey: string; hintKey: string;
-}> = [
-  { key: "card.surface", label: "Card surface", hint: "Media / panel ground",
-    labelKey: `${KNOB_NS}.surfaceLabel`, hintKey: `${KNOB_NS}.surfaceHint` },
-  { key: "card.name-color", label: "Name color", hint: "Talent name",
-    labelKey: `${KNOB_NS}.nameLabel`, hintKey: `${KNOB_NS}.nameHint` },
-  { key: "card.muted", label: "Secondary text", hint: "Type · location · availability",
-    labelKey: `${KNOB_NS}.mutedLabel`, hintKey: `${KNOB_NS}.mutedHint` },
-  { key: "card.price-color", label: "Price chip", hint: "The “From $X” chip",
-    labelKey: `${KNOB_NS}.priceLabel`, hintKey: `${KNOB_NS}.priceHint` },
-];
+/** The color-knob token keys, in the studio's display order. */
+export const CARD_COLOR_KNOB_KEYS = [
+  "card.surface",
+  "card.name-color",
+  "card.muted",
+  "card.price-color",
+] as const;
 
 /**
  * Every registry token the Card Design Studio owns: it seeds the panel from
- * these and persists exactly these on save/publish.
+ * these and persists exactly these on save/publish. Extracted from
+ * CardDesignStudio-3 to keep that file under the max-lines cap.
  */
 export const CARD_DESIGN_TOKEN_KEYS: string[] = [
   CARD_FAMILY_TOKEN_KEY,
-  ...CARD_COLOR_KNOBS.map((k) => k.key),
+  ...CARD_COLOR_KNOB_KEYS,
   // STANDING reviews-on-cards controls (persist + seed the CardDesignStudio panel).
   "directory.card.show-standing",
   "directory.card.standing-style",
@@ -48,6 +43,10 @@ export const CARD_DESIGN_TOKEN_KEYS: string[] = [
   "directory.card.show-starting-from-price",
   "directory.card.show-quick-view",
   "directory.card.profile-popup",
+  // Action ceilings (favorite / inquiry) + the tenant's favorite glyph.
+  "directory.card.show-favorite",
+  "directory.card.show-inquiry",
+  "favorite.icon",
   // Layout DEFAULTS — a section that set its own value keeps it.
   "directory.card.style",
   "directory.card.aspect",

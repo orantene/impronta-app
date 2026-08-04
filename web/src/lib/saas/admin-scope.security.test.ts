@@ -335,24 +335,45 @@ test("assertRowBelongsToTenant: whitespace-wrapped real ids are trimmed before b
 // structurally.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test("INVARIANT requireStaffTenantAction: requires BOTH staff auth AND a resolved tenant; never throws (returns {ok:false})", () => {
+test("INVARIANT requireStaffTenantAction: requires BOTH a session AND a resolved tenant AND a capability; never throws (returns {ok:false})", () => {
   const fn = ADMIN_SCOPE_SRC.slice(
     ADMIN_SCOPE_SRC.indexOf("export async function requireStaffTenantAction"),
     ADMIN_SCOPE_SRC.indexOf("export type TalentSelfActionGuard"),
   );
   assert.ok(fn.length > 0, "requireStaffTenantAction located");
-  assert.match(fn, /Promise\.all\(\[requireStaff\(\), getTenantScope\(\)\]\)/, "auth AND scope are both required");
-  assert.match(fn, /if \(!auth\.ok\) return \{ ok: false/, "staff failure → {ok:false} (no throw)");
+  // 2026-08-04 sweep: the auth leg is `requireSession`, NOT `requireStaff`.
+  // `requireStaff` gates the GLOBAL profiles.app_role and therefore rejected
+  // hybrid workspace owners (talent/client app_role + owner membership) on
+  // their own workspace. Membership is the boundary — proven by getTenantScope
+  // (fails closed without an agency_memberships row) plus the capability check.
+  assert.match(fn, /Promise\.all\(\[requireSession\(\), getTenantScope\(\)\]\)/, "session AND scope are both required");
+  assert.doesNotMatch(fn, /\brequireStaff\s*\(/, "must not re-introduce the global-app_role gate");
+  assert.match(fn, /if \(!auth\.ok\) return \{ ok: false/, "session failure → {ok:false} (no throw)");
   assert.match(fn, /if \(!scope\) \{\s*\n\s*return \{ ok: false/, "missing tenant → {ok:false} (no throw, no default tenant)");
+  assert.match(
+    fn,
+    /userHasCapability\(capability, scope\.tenantId\)/,
+    "capability is always evaluated against the RESOLVED tenant, never a caller-supplied one",
+  );
   assert.match(fn, /tenantId: scope\.tenantId/, "tenantId comes from the resolved scope");
   assert.match(fn, /tenantSlug: scope\.membership\.slug/, "tenantSlug comes from membership, never caller input");
 });
 
-test("INVARIANT requireStaffTenantAction: takes no parameters — a tenant cannot be supplied by the caller", () => {
+test("INVARIANT requireStaffTenantAction: its only parameter is a capability — a tenant cannot be supplied by the caller", () => {
+  const sig = ADMIN_SCOPE_SRC.slice(
+    ADMIN_SCOPE_SRC.indexOf("export async function requireStaffTenantAction"),
+    ADMIN_SCOPE_SRC.indexOf("const capability: CapabilityKey"),
+  );
+  assert.ok(sig.length > 0, "signature located");
   assert.match(
-    ADMIN_SCOPE_SRC,
-    /export async function requireStaffTenantAction\(\):/,
-    "zero-arg signature — structural anti-escalation",
+    sig,
+    /requireStaffTenantAction\(options\?: \{\s*\n\s*capability\?: CapabilityKey;\s*\n\s*\}\)/,
+    "the ONLY caller-supplied input is a capability to grade UP with",
+  );
+  assert.doesNotMatch(
+    sig,
+    /tenantId|tenantSlug|tenant_id/,
+    "structural anti-escalation: no tenant identifier may enter through the signature",
   );
 });
 

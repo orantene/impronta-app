@@ -25,7 +25,7 @@
 
 import { updateTag } from "next/cache";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { pageSlugSchema } from "@/lib/site-admin/forms/pages";
@@ -54,7 +54,7 @@ export async function savePageSlugAction(input: {
   pageId: string;
   slug: string;
 }): Promise<SavePageSlugResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -136,7 +136,7 @@ export type LoadPageSeoResult =
 export async function loadPageSeoAction(input: {
   pageId: string;
 }): Promise<LoadPageSeoResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -184,7 +184,7 @@ export async function savePageSeoFlagsAction(input: {
   includeInSitemap?: boolean;
   jsonLdRaw?: string | null;
 }): Promise<SavePageSeoFlagsResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -252,7 +252,7 @@ export type ListRedirectsResult =
   | { ok: false; error: string };
 
 export async function listRedirectsAction(): Promise<ListRedirectsResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -296,7 +296,7 @@ export async function createRedirectAction(input: {
   newPath: string;
   statusCode?: number;
 }): Promise<MutateRedirectResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -371,7 +371,7 @@ export async function setRedirectActiveAction(input: {
   id: string;
   active: boolean;
 }): Promise<SimpleRedirectResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -401,7 +401,7 @@ export async function setRedirectActiveAction(input: {
 export async function deleteRedirectAction(input: {
   id: string;
 }): Promise<SimpleRedirectResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

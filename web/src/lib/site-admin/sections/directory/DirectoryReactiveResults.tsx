@@ -87,6 +87,7 @@ export function DirectoryReactiveResults({
   aiSearchEnabled = false,
   scopeLimitedHint,
   cardKitOverrideStyle,
+  cardKitOverrideFamily,
   sidebarPosition,
   sidebarSticky,
   scope,
@@ -100,6 +101,7 @@ export function DirectoryReactiveResults({
   showLocation,
   showAvailability,
   showBadges,
+  showAttributes,
   showSave,
   showAddToInquiry,
   showQuickView,
@@ -143,6 +145,8 @@ export function DirectoryReactiveResults({
    * vars only (publishPageSnapshot does not bake classes).
    */
   cardKitOverrideStyle?: CSSProperties;
+  /** Family slug of the per-section kit override — pairs with data-card-design-scope on the results wrapper. */
+  cardKitOverrideFamily?: string;
   /** Filter sidebar placement (`left`/`right`) — orders the aside via flex. */
   sidebarPosition: DirectoryV1["sidebarPosition"];
   /** Whether the desktop filter aside is sticky. */
@@ -161,6 +165,7 @@ export function DirectoryReactiveResults({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  showAttributes: boolean;
   /** Render the per-card favorite (save) affordance. */
   showSave: boolean;
   /** Render the per-card "Inquire / Added" cart bar. */
@@ -200,6 +205,7 @@ export function DirectoryReactiveResults({
           aiSearchEnabled={aiSearchEnabled}
           scopeLimitedHint={scopeLimitedHint}
           cardKitOverrideStyle={cardKitOverrideStyle}
+          cardKitOverrideFamily={cardKitOverrideFamily}
           sidebarPosition={sidebarPosition}
           sidebarSticky={sidebarSticky}
           scope={scope}
@@ -213,6 +219,7 @@ export function DirectoryReactiveResults({
           showLocation={showLocation}
           showAvailability={showAvailability}
           showBadges={showBadges}
+          showAttributes={showAttributes}
           showSave={showSave}
           showAddToInquiry={showAddToInquiry}
           showQuickView={showQuickView}
@@ -256,6 +263,7 @@ function DirectoryReactiveResultsInner({
   aiSearchEnabled,
   scopeLimitedHint,
   cardKitOverrideStyle,
+  cardKitOverrideFamily,
   sidebarPosition,
   sidebarSticky,
   scope,
@@ -269,6 +277,7 @@ function DirectoryReactiveResultsInner({
   showLocation,
   showAvailability,
   showBadges,
+  showAttributes,
   showSave,
   showAddToInquiry,
   showQuickView,
@@ -299,6 +308,8 @@ function DirectoryReactiveResultsInner({
   aiSearchEnabled: boolean;
   scopeLimitedHint?: string;
   cardKitOverrideStyle?: CSSProperties;
+  /** Family slug of the per-section kit override — pairs with data-card-design-scope on the results wrapper. */
+  cardKitOverrideFamily?: string;
   sidebarPosition: DirectoryV1["sidebarPosition"];
   sidebarSticky: boolean;
   scope: DirectoryV1["scope"];
@@ -312,6 +323,7 @@ function DirectoryReactiveResultsInner({
   showLocation: boolean;
   showAvailability: boolean;
   showBadges: boolean;
+  showAttributes: boolean;
   showSave: boolean;
   showAddToInquiry: boolean;
   showQuickView: boolean;
@@ -533,6 +545,8 @@ function DirectoryReactiveResultsInner({
           className="min-w-0 flex-1"
           data-directory-density={density}
           data-directory-hover={hoverBehavior}
+          data-token-template-directory-card-family={cardKitOverrideFamily}
+          data-card-design-scope={cardKitOverrideFamily ? "" : undefined}
           style={cardKitOverrideStyle}
         >
           {showSidebar && sidebarBlocks.length > 0 ? (
@@ -607,6 +621,7 @@ function DirectoryReactiveResultsInner({
                   showLocation,
                   showAvailability,
                   showBadges,
+                  showAttributes,
                 },
                 showSave,
                 showAddToInquiry,
@@ -652,6 +667,7 @@ function DirectoryReactiveResultsInner({
                 showLocation,
                 showAvailability,
                 showBadges,
+                showAttributes,
               }}
               showSave={showSave}
               showAddToInquiry={showAddToInquiry}

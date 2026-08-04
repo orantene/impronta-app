@@ -63,7 +63,7 @@ import { upsertSection } from "@/lib/site-admin/server/sections";
 import { homepageTemplate } from "@/lib/site-admin";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { publishPageSnapshot } from "@/lib/site-admin/edit-mode/page-composer-action";
@@ -345,7 +345,7 @@ export async function loadHomepageCompositionAction(input: {
    */
   pageSlug?: string | null;
 }): Promise<CompositionLoadResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -793,7 +793,7 @@ export interface CompositionSaveInput {
 export async function saveHomepageCompositionAction(
   input: CompositionSaveInput,
 ): Promise<CompositionSaveResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -1019,12 +1019,19 @@ export async function saveHomepageCompositionAction(
       }
 
       // Replace draft slot rows atomically: delete then insert.
-      await admin
+      // supabase-js reports failures via the returned `error`, never by
+      // throwing — an unchecked call here silently drops the write while the
+      // version pointer above has already advanced.
+      const { error: delErr } = await admin
         .from("cms_page_sections")
         .delete()
         .eq("tenant_id", scope.tenantId)
         .eq("page_id", input.pageId)
         .eq("is_draft", true);
+      if (delErr) {
+        logServerError("edit-mode/composition/save-page-slot-delete", delErr);
+        return { ok: false, error: CLIENT_ERROR.update };
+      }
 
       const newRows: Array<{
         tenant_id: string;
@@ -1060,7 +1067,12 @@ export async function saveHomepageCompositionAction(
         preferredBuilderTree: input.builderTree,
       });
 
-      await admin.from("cms_page_revisions").insert({
+      // The revision snapshot is the ONLY place the builder tree is stored —
+      // an unchecked failure here returns ok:true with the version already
+      // bumped, and the "saved" tree never existed (silent draft loss).
+      // Fail honestly instead: the client keeps `dirty`, and a same-session
+      // retry is rescued by the W1-L2 adoption above.
+      const { error: revErr } = await admin.from("cms_page_revisions").insert({
         tenant_id: scope.tenantId,
         page_id: input.pageId,
         kind: "draft",
@@ -1101,6 +1113,10 @@ export async function saveHomepageCompositionAction(
         },
         created_by: auth.user.id,
       });
+      if (revErr) {
+        logServerError("edit-mode/composition/save-page-revision", revErr);
+        return { ok: false, error: CLIENT_ERROR.update };
+      }
 
       return { ok: true, pageVersion: nextVersion };
     } catch (err) {
@@ -1226,7 +1242,7 @@ export async function createAndInsertSectionAction(input: {
    *  adoption alive for the editor's insert path). */
   editSession?: { id: string; seq: number };
 }): Promise<CreateAndInsertResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -1480,7 +1496,7 @@ export async function duplicateSectionAction(input: {
    *  to the save so the write is stamped. */
   editSession?: { id: string; seq: number };
 }): Promise<CreateAndInsertResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -1756,7 +1772,7 @@ export async function applyHomepageDraftBeaconAction(input: {
     return saveDraftHomepageAction(input);
   }
 
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -1893,7 +1909,7 @@ export async function publishHomepageFromEditModeAction(input: {
    *  pagehide beacon bumped it (see publishHomepage). */
   editSession?: { id: string; seq: number };
 }): Promise<PublishResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
@@ -2134,7 +2150,7 @@ export type CopyPublishedResult =
  * DRAFT-ONLY: gates on the DRAFT capability (`agency.site_admin.homepage.compose`,
  * enforced inside the lib op), never publishes, never touches published_at /
  * published_homepage_snapshot, never busts the public cache. Mirrors
- * `publishHomepageFromEditModeAction`'s requireStaff + requireTenantScope +
+ * `publishHomepageFromEditModeAction`'s requireSession + requireTenantScope +
  * locale gating, but routes through the draft-reset op instead of publish.
  */
 export async function copyPublishedHomepageAction(input: {
@@ -2146,7 +2162,7 @@ export async function copyPublishedHomepageAction(input: {
    */
   mode?: PullFromLiveMode;
 }): Promise<CopyPublishedResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }

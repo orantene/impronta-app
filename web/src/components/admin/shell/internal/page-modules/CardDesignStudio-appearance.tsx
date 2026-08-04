@@ -9,6 +9,7 @@ import {
   GroupHeader,
   type CardAppearance,
   type CardAspect,
+  type CardDensity,
   type CardStyle,
   type HoverBehavior,
 } from "./CardDesignStudio-3";
@@ -95,6 +96,20 @@ export function CardAppearanceSection({
                     value: h,
                     label: t(HOVER_LABEL_KEY[h]),
                   }))}
+                />
+              </label>
+              <label className="flex flex-col gap-[6px]">
+                <span className="text-[12px] font-semibold text-admin-ink-muted">
+                  {t("dashboard.adminCardStudio.densityLabel")}
+                </span>
+                <Segmented<CardDensity>
+                  value={appearance.density}
+                  onChange={(v) => setLayoutDefault("density", "directory.card.density", v)}
+                  disabled={!canEdit}
+                  options={[
+                    { value: "comfortable", label: t("dashboard.adminCardStudio.densityComfortable") },
+                    { value: "compact", label: t("dashboard.adminCardStudio.densityCompact") },
+                  ]}
                 />
               </label>
             </div>

@@ -246,7 +246,7 @@ export function MediaGalleryDrawer({
   const [isDragging, setIsDragging] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<
     | { kind: "idle" }
-    | { kind: "uploading"; count: number }
+    | { kind: "uploading"; count: number; completed: number }
     | { kind: "ok"; count: number }
     | { kind: "error"; message: string }
   >({ kind: "idle" });
@@ -312,18 +312,41 @@ export function MediaGalleryDrawer({
   const processFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
 
-    setUploadStatus({ kind: "uploading", count: files.length });
+    setUploadStatus({ kind: "uploading", count: files.length, completed: 0 });
 
     const results: MediaAsset[] = [];
     const errors: string[] = [];
 
     for (const file of files) {
-      const res = await onUploadFile(file, "gallery");
-      if (res.ok && res.asset) {
-        results.push(res.asset);
-      } else {
-        errors.push(res.error ?? t("admin.talent.edit.mediaGallery.uploadFailed"));
+      // A THROWN upload (not a returned `{ ok: false }`) used to escape this
+      // loop entirely and leave the drawer pinned on "Uploading N photos…"
+      // forever with no error — the exact symptom reported from prod, where
+      // an over-the-limit file made the Server Action reject before it ran.
+      // Every file now settles on its own; one bad photo can't strand the
+      // batch or the spinner.
+      try {
+        const res = await onUploadFile(file, "gallery");
+        if (res.ok && res.asset) {
+          results.push(res.asset);
+        } else {
+          errors.push(res.error ?? t("admin.talent.edit.mediaGallery.uploadFailed"));
+        }
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : String(e);
+        errors.push(`${file.name}: ${detail || t("admin.talent.edit.mediaGallery.uploadFailed")}`);
+      } finally {
+        setUploadStatus((prev) =>
+          prev.kind === "uploading"
+            ? { ...prev, completed: prev.completed + 1 }
+            : prev,
+        );
       }
+    }
+
+    // Commit whatever DID land before reporting, so partial batches still
+    // show up in the grid instead of being thrown away with the error.
+    if (results.length > 0) {
+      onAssetsChange([...assets, ...results]);
     }
 
     if (errors.length > 0) {
@@ -331,10 +354,6 @@ export function MediaGalleryDrawer({
     } else {
       setUploadStatus({ kind: "ok", count: results.length });
       setTimeout(() => setUploadStatus({ kind: "idle" }), 2500);
-    }
-
-    if (results.length > 0) {
-      onAssetsChange([...assets, ...results]);
     }
   }, [assets, onAssetsChange, onUploadFile, t]);
 
@@ -754,7 +773,17 @@ export function MediaGalleryDrawer({
               }}
             >
               {uploadStatus.kind === "uploading"
-                ? withCount(t("admin.talent.edit.mediaGallery.uploadProgress"), uploadStatus.count)
+                ? uploadStatus.count > 1
+                  // Reuse the Drive importer's "x of y" string so a multi-photo
+                  // batch visibly advances instead of sitting on a static count
+                  // that reads as a hang.
+                  ? withCount(
+                      t("admin.talent.edit.mediaGallery.driveUploadProgress")
+                        .replace("{completed}", String(Math.min(uploadStatus.completed + 1, uploadStatus.count)))
+                        .replace("{total}", String(uploadStatus.count)),
+                      uploadStatus.count,
+                    )
+                  : withCount(t("admin.talent.edit.mediaGallery.uploadProgress"), uploadStatus.count)
                 : t("admin.talent.edit.mediaGallery.uploadButton")}
             </button>
             <input

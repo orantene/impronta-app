@@ -9,7 +9,7 @@
  * created row + its public URL so the caller can immediately use it.
  *
  * Auth:
- *   - requireStaff
+ *   - requireSession
  *   - tenantId must match the caller's resolved scope (no cross-tenant
  *     uploads).
  *
@@ -22,7 +22,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -112,7 +112,7 @@ function resolveKindConfig(kind: AssetKind): {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }

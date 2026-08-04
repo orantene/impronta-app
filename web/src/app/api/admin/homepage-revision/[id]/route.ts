@@ -3,7 +3,7 @@
  *
  * Returns the snapshot JSONB of a single cms_page_revisions row + a
  * trimmed `summary` computed server-side for the admin preview modal.
- * Auth: requireStaff + tenant-scope parity check against the revision's
+ * Auth: requireSession + tenant-scope parity check against the revision's
  * tenant_id. No cross-tenant exposure.
  *
  * The modal uses this to render a non-destructive "what's in this
@@ -12,7 +12,7 @@
 
 import { NextResponse } from "next/server";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -43,7 +43,7 @@ export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }

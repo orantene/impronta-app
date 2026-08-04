@@ -742,9 +742,12 @@ export function EditProvider({
   const historyPendingRef = useRef<"undo" | "redo" | null>(null);
   // W1-T5(c) — locale + pageId for the pagehide keepalive draft beacon, mirrored
   // into a ref so the (empty-deps) pagehide handler reads the latest values.
+  // pageId is a target only for NON-homepage pages: the homepage's own row id
+  // must NOT ride the beacon, or the server routes it into the plain-CAS page
+  // branch and the WS1-D last-write-wins lane never runs for the homepage.
   const draftBeaconMetaRef = useRef<{ locale: string; pageId: string | null }>({
     locale,
-    pageId,
+    pageId: pageSlug ? pageId : null,
   });
   const builderTreeSaveQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   // AbortController for the draft save whose AWAIT is currently in flight. When a
@@ -841,8 +844,8 @@ export function EditProvider({
     };
   }, []);
   useEffect(() => {
-    draftBeaconMetaRef.current = { locale, pageId };
-  }, [locale, pageId]);
+    draftBeaconMetaRef.current = { locale, pageId: pageSlug ? pageId : null };
+  }, [locale, pageSlug, pageId]);
 
   // W3 Sub-step B — publish the live tree to the cross-subtree bridge so the
   // client canvas (mounted in the storefront body, OUTSIDE this provider) can
@@ -1611,6 +1614,17 @@ export function EditProvider({
   );
 
   const applyComposition = useCallback((data: CompositionData) => {
+    // Fresh authoritative state invalidates any not-yet-flushed edit from the
+    // composition being replaced. A debounce timer surviving this point fires
+    // AFTER the version refs advance and CAS-saves the pre-refresh tree over
+    // what was just loaded — the restore / copy-from-live / locale-switch
+    // clobber. (Save-draft, undo, publish and conflict-reload each clear this
+    // themselves; this covers every path that lands here.)
+    if (builderSaveTimerRef.current !== null) {
+      clearTimeout(builderSaveTimerRef.current);
+      builderSaveTimerRef.current = null;
+    }
+    pendingTreeRef.current = null;
     const normalizedSlots = normalizeCompositionSlots(data.slots);
     pageVersionRef.current = data.pageVersion;
     pageMetadataRef.current = data.metadata;

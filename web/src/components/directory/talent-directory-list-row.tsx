@@ -41,6 +41,8 @@ export function TalentDirectoryListRow({
   locale = "en",
   showQuickView = true,
   showPriceFrom = false,
+  showSave = true,
+  showAddToInquiry = true,
   cardClickAction = "modal",
   captionNorms = NO_CAPTION_NORMS,
 }: {
@@ -55,6 +57,8 @@ export function TalentDirectoryListRow({
   /** Parity with the grid — same section knobs, same behavior. */
   showQuickView?: boolean;
   showPriceFrom?: boolean;
+  showSave?: boolean;
+  showAddToInquiry?: boolean;
   cardClickAction?: "modal" | "page";
   captionNorms?: CaptionNorms;
 }) {
@@ -250,16 +254,21 @@ export function TalentDirectoryListRow({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Favorite + inquiry — canonical TalentCardActions. Carries the
-              portrait + photo rect for the card→pill fly animation on add. */}
-          <TalentCardActions
-            talentProfileId={card.id}
-            profileCode={card.profileCode}
-            displayName={card.displayName}
-            sourcePage={sourcePage}
-            variant="compact"
-            portraitUrl={card.thumbnail.url ?? null}
-            getInquiryPhotoRect={getInquiryPhotoRect}
-          />
+              portrait + photo rect for the card→pill fly animation on add.
+              Honors the same section/tenant toggles as the grid cards. */}
+          {showSave || showAddToInquiry ? (
+            <TalentCardActions
+              talentProfileId={card.id}
+              profileCode={card.profileCode}
+              displayName={card.displayName}
+              sourcePage={sourcePage}
+              variant="compact"
+              portraitUrl={card.thumbnail.url ?? null}
+              getInquiryPhotoRect={getInquiryPhotoRect}
+              hideFavorite={!showSave}
+              hideInquiry={!showAddToInquiry}
+            />
+          ) : null}
           <Button
             asChild
             size="sm"

@@ -132,3 +132,48 @@ into one: `main`.
 **Pipeline verified 2026-05-21** — a commit pushed to `main` auto-built and
 promoted to a production deployment on Vercel, live on all domains. The
 `main` → production sync works end to end.
+
+## 10. When main is red — and how we keep it from mattering
+
+Vercel deploys **every** push to `main` in parallel with CI, so a red
+structural gate on `main` means production may already be running the broken
+commit, and every open PR fails its ratchet against it. This happened on
+2026-08-03 (#978): main sat red ~1.5h while three lanes kept merging.
+
+Guard rails now in place:
+
+- **`main-red-alert.yml`** opens a pinned `🔴 MAIN IS RED` issue the moment CI
+  fails on a main push, and closes it on the next green run. If that issue is
+  open: fix forward or revert FIRST; merge nothing unrelated.
+- **`admin-boot.yml`** builds the app, boots the **compiled** server and loads
+  the admin shell + Card Design studio headlessly. It exists because
+  chunk-evaluation crashes (module cycles / TDZ — the 2026-08-03 sev-1 class)
+  are invisible to tsc, lint, `next build` and dev-server QA: only a
+  production build evaluates client chunks in production order. It skips with
+  a loud warning until the `E2E_SUPABASE_*` repo secrets are added — add them
+  to arm it. When touching module-level constants in hot shared graphs
+  (admin-shell page-modules especially), also verify locally:
+  `npm run build && VERCEL_ENV=preview npx next start -p 3079` → load
+  `/impronta/admin`.
+- **`promote-production.yml`** fast-forwards a `production` branch only when
+  CI succeeds on that exact main commit. Flipping the Vercel project's
+  production branch from `main` to `production` (Vercel → Settings → Git →
+  Production Branch) makes deploys CI-gated with zero workflow change for
+  developers: a red main simply stops the pointer until it is green.
+  Until the flip, the branch is an observable dry-run.
+
+## 11. Branch freshness — re-gate when main moves under you
+
+With many concurrent lanes, `main` regularly moves between your branch point
+and your merge. GitHub auto-merge without textual conflicts is NOT a semantic
+gate. Before merging any PR whose files were also touched on `main` since
+your branch point:
+
+```bash
+git fetch origin && git log --oneline <your-base>..origin/main -- <paths you touched>
+```
+
+If anything shows, merge `origin/main` into your branch and re-run the full
+gate (tsc, lint, lanes, `next build`) BEFORE merging the PR — CI on the PR
+tests the merged tree, but your local prod-build/QA evidence is stale until
+you refresh it.

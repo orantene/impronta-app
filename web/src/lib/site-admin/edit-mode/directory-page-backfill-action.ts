@@ -6,11 +6,11 @@
  * One-shot, idempotent backfill so an already-live tenant (e.g. Impronta
  * on the shared remote Supabase) gets its seeded `__directory__` system
  * page immediately — without waiting for a fresh signup. Mirrors
- * `backfillSiteShellForCurrentTenant`: requireStaff + requireTenantScope
+ * `backfillSiteShellForCurrentTenant`: requireSession + requireTenantScope
  * → service-role client → `ensureDirectoryPage`. Safe to re-run.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@/lib/site-admin/server/onboard-directory-page";
 
 export async function backfillDirectoryPageForCurrentTenant(): Promise<EnsureDirectoryResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

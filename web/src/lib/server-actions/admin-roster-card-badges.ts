@@ -33,6 +33,8 @@ const rosterCardBadgesSchema = z
     photoCount:   z.boolean().optional(),
     availability: z.boolean().optional(),
     talentId:     z.boolean().optional(),
+    categories:   z.boolean().optional(),
+    quickView:    z.boolean().optional(),
   })
   .strict();
 
@@ -51,11 +53,19 @@ export type SetRosterCardBadgesResult =
  * tenant-scoped-query helper does not model it — every settings writer in the
  * sibling admin-workspace-settings module accesses it the same way, gated by
  * `requireStaffTenantAction` and filtered by `.eq("id", tenantId)`.
+ *
+ * AUTH (2026-08-04 sweep): the guard is MEMBERSHIP-based, not global-app_role
+ * based, and is graded to `agency.site_admin.design.edit` (admin/owner) — the
+ * capability the Phase-5 matrix assigns to card/design surfaces. A hybrid
+ * workspace owner (talent/client `profiles.app_role`, owner membership) holds
+ * it; the previous `requireStaff()` chain rejected them outright.
  */
 export async function setRosterCardBadges(
   input: SetRosterCardBadgesInput,
 ): Promise<SetRosterCardBadgesResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireStaffTenantAction({
+    capability: "agency.site_admin.design.edit",
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

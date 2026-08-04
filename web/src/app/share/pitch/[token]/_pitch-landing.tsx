@@ -11,6 +11,7 @@ import {
   convertPitchToInquiryAction,
 } from "@/lib/pitch/pitch-public-actions";
 import type { PitchLandingData, PitchTalentCard } from "./page";
+import { cardDesignToCssVars } from "@/lib/site-admin/server/card-design-shape";
 import type { PitchRow } from "@/lib/pitch/pitch-types";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -241,7 +242,18 @@ export function PitchLanding({ data }: { data: PitchLandingData }) {
                 {activeTalents.length} of {talents.length}
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div
+              className="grid grid-cols-1 gap-5 sm:grid-cols-2"
+              // Full theme token vars FIRST (family CSS reads --token-color-*),
+              // card-design vars second (explicit card colors win).
+              style={{
+                ...data.designTokenVars,
+                ...cardDesignToCssVars(data.cardDesign),
+              }}
+              {...data.designTokenAttrs}
+              data-token-template-directory-card-family={data.cardDesign.family}
+              data-card-design-scope=""
+            >
               {talents.map((talent) => (
                 <TalentCard
                   key={talent.pitchTalentId}
@@ -426,14 +438,26 @@ function TalentCard({
   return (
     <article
       className={[
-        "group relative overflow-hidden rounded-2xl bg-white ring-1 ring-[#0B0B0D]/[0.06] transition",
+        // `talent-card` + the data-card-* hooks make this tile a legitimate
+        // carrier for the tenant's card-family CSS (the grid wrapper above
+        // pairs the family attr with data-card-design-scope). The literal
+        // colors below remain as var() fallbacks for tenants on the classic
+        // default with no pinned colors.
+        "talent-card group relative overflow-hidden rounded-2xl ring-1 ring-[#0B0B0D]/[0.06] transition",
         removed ? "opacity-50" : "hover:ring-[#0B0B0D]/[0.12] hover:shadow-[0_6px_24px_rgba(11,11,13,0.06)]",
       ]
         .filter(Boolean)
         .join(" ")}
+      // INLINE surface, deliberately: family CSS background rules reference
+      // theme vars (--token-color-*) that only exist on tenant storefront
+      // hosts — on the hub domain they collapse to transparent and would
+      // strand a dark design's warm name color on the light page. Inline
+      // style outranks any stylesheet rule, so the tenant surface (or white)
+      // is guaranteed under the tokens the wrapper provides.
+      style={{ background: "var(--token-card-surface, #ffffff)" }}
     >
       {/* Photo — full-bleed top, 4:5 portrait aspect */}
-      <div className="relative aspect-[4/5] overflow-hidden bg-[#F2F2EE]">
+      <div className="relative aspect-[4/5] overflow-hidden bg-[#F2F2EE]" data-card-media>
         {talent.photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -471,20 +495,20 @@ function TalentCard({
       </div>
 
       {/* Info — display name + meta row + bio + admin note */}
-      <div className="flex flex-col gap-2 px-5 py-5">
-        <h3 className="text-[17px] font-semibold leading-tight tracking-tight text-[#0B0B0D]">
+      <div className="flex flex-col gap-2 px-5 py-5" data-card-body>
+        <h3 className="text-[17px] font-semibold leading-tight tracking-tight text-[var(--token-card-name-color,#0B0B0D)]">
           {talent.displayName}
         </h3>
 
         {(height || talent.shortBio) && (
           <div className="space-y-1.5">
             {height && (
-              <p className="text-[12px] font-medium tabular-nums tracking-wide text-[#0B0B0D]/55">
+              <p className="text-[12px] font-medium tabular-nums tracking-wide text-[var(--token-card-muted,rgba(11,11,13,0.55))]">
                 {height}
               </p>
             )}
             {talent.shortBio && (
-              <p className="line-clamp-3 text-[13px] leading-[1.55] text-[#0B0B0D]/65">
+              <p className="line-clamp-3 text-[13px] leading-[1.55] text-[var(--token-card-muted,rgba(11,11,13,0.65))]">
                 {talent.shortBio}
               </p>
             )}
@@ -493,7 +517,7 @@ function TalentCard({
 
         {talent.adminNote && (
           <div className="mt-2 border-l-2 border-[#0F4F3E]/40 pl-3 py-1">
-            <p className="text-[12.5px] italic leading-[1.55] text-[#0B0B0D]/60">
+            <p className="text-[12.5px] italic leading-[1.55] text-[var(--token-card-muted,rgba(11,11,13,0.6))]">
               {talent.adminNote}
             </p>
           </div>

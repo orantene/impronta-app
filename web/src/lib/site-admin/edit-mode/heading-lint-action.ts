@@ -23,7 +23,7 @@ import { improntaLog } from "@/lib/server/structured-log";
  * See web/docs/qa-evidence/outline-probe-rca-2026-05-13.md.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { getCurrentUserTenants } from "@/lib/saas/tenant";
 import {
   listSectionsByIdsForStaff,
@@ -97,7 +97,7 @@ export async function loadHeadingProbeForLint(
   sectionIds: ReadonlyArray<string>,
   tenantId: string,
 ): Promise<HeadingProbeResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     // QA 2026-05-13 — surface auth-gate failures in dev so the
     // operator can root-cause an empty Outline from the server console

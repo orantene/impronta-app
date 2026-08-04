@@ -15,10 +15,12 @@
  */
 
 export type CardKitSlug =
+  | "classic"
   | "editorial-noir"
   | "magazine"
   | "minimal-portrait"
-  | "editorial-bridal";
+  | "editorial-bridal"
+  | "service-professional";
 
 export type CardKit = {
   slug: CardKitSlug;
@@ -30,6 +32,21 @@ export type CardKit = {
 };
 
 export const CARD_KITS: Record<CardKitSlug, CardKit> = {
+  classic: {
+    slug: "classic",
+    label: "Classic",
+    description:
+      "The platform's clean base card. No color pins — every card inherits your theme, exactly as a fresh workspace starts.",
+    tokens: {
+      "template.directory-card-family": "classic",
+      // Empty = clear the pin and inherit the theme (hex-or-empty validators
+      // accept ""). This makes Classic the true "reset to default" kit.
+      "card.surface": "",
+      "card.name-color": "",
+      "card.muted": "",
+      "card.price-color": "",
+    },
+  },
   "editorial-noir": {
     slug: "editorial-noir",
     label: "Editorial Noir",
@@ -80,6 +97,19 @@ export const CARD_KITS: Record<CardKitSlug, CardKit> = {
       "card.name-color": "#171717",
       "card.muted": "#8a8a8a",
       "card.price-color": "#3f3f46",
+    },
+  },
+  "service-professional": {
+    slug: "service-professional",
+    label: "Service Pro",
+    description:
+      "Square portraits with roomier text — built for service professionals, studios and crews.",
+    tokens: {
+      "template.directory-card-family": "service-professional",
+      "card.surface": "#ffffff",
+      "card.name-color": "#1c1c1c",
+      "card.muted": "#6f6f6f",
+      "card.price-color": "#2f5d50",
     },
   },
 };

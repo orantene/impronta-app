@@ -65,8 +65,6 @@ const updateBrandingSchema = z
     logo_url:         z.string().url().optional(),
     sender_email:     z.string().email().optional(),
     watermark_preset: watermarkPresetSchema,
-    /** A1 — per-tenant favorite icon: 'heart' | 'bookmark'. Default 'bookmark'. */
-    favorite_icon:    z.enum(["heart", "bookmark"]).optional(),
   })
   .strict();
 
@@ -137,7 +135,7 @@ export async function updateAgencyBranding(
   // Sync select fields into agency_branding so the public-readable table
   // (agency_branding) stays consistent. agencies.settings is staff-only so
   // storefront code cannot read it directly.
-  if (v.watermark_preset !== undefined || v.logo_url !== undefined || v.favorite_icon !== undefined) {
+  if (v.watermark_preset !== undefined || v.logo_url !== undefined) {
     const { data: brandingRow } = await tenantScopedQuery(
       supabase,
       "agency_branding",
@@ -158,10 +156,10 @@ export async function updateAgencyBranding(
       theme_json: themeUpdate,
       updated_at: new Date().toISOString(),
     };
-    // A1/A2 — favorite_icon goes in its own typed column (not theme_json) so
-    // the storefront can read it without parsing theme_json.
-    if (v.favorite_icon !== undefined) publicBrandingPatch.favorite_icon = v.favorite_icon;
-    // Non-fatal if this fails — settings are still saved
+    // Non-fatal if this fails — settings are still saved.
+    // (favorite_icon was removed from this writer 2026-08-04: the column fed a
+    // context no component reads — cards follow the `favorite.icon` design
+    // token, edited in Website → Card Design.)
     await tenantScopedQuery(supabase, "agency_branding", tenantId)
       .upsert(publicBrandingPatch, { onConflict: "tenant_id" });
   }
@@ -731,8 +729,6 @@ export type AgencyBrandingSettings = {
   tagline: string | null;
   description: string | null;
   watermarkPreset: WatermarkPreset | null;
-  /** A1 — per-tenant favorite icon preference. */
-  favoriteIcon: "heart" | "bookmark" | null;
 };
 
 export type LoadBrandingResult =
@@ -762,10 +758,6 @@ export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> 
     ? settings.branding
     : {}) as Record<string, unknown>;
 
-  const rawFavIcon = branding.favorite_icon;
-  const favoriteIcon: "heart" | "bookmark" | null =
-    rawFavIcon === "heart" || rawFavIcon === "bookmark" ? rawFavIcon : null;
-
   return {
     ok: true,
     data: {
@@ -777,7 +769,6 @@ export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> 
       watermarkPreset: (branding.watermark_preset && typeof branding.watermark_preset === "object"
         ? branding.watermark_preset as WatermarkPreset
         : null),
-      favoriteIcon,
     },
   };
 }

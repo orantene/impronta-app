@@ -960,6 +960,105 @@ export async function actionUploadTalentDocument(
   };
 }
 
+/**
+ * Signed-upload twin of `actionUploadTalentDocument`. Documents (PDF
+ * contracts, comp cards) are routinely over the 4 MB Server Action body
+ * cap, which made the legacy action's 50 MB allowance unreachable — the
+ * browser PUTs directly to the private media-originals bucket instead.
+ * Call `actionFinalizeDocumentUpload` after the PUT.
+ */
+export async function actionCreateDocumentSignedUploadUrl(
+  talentProfileId: string,
+  filename: string,
+): Promise<ActionResult<{ uploadUrl: string; storagePath: string }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const ext = (filename.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+  const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
+
+  const { data, error } = await admin.storage
+    .from("media-originals")
+    .createSignedUploadUrl(storagePath);
+  if (error || !data) {
+    logServerError("media.actions.docSignedUrl.create", error);
+    return { ok: false, error: "Could not start upload. Try again." };
+  }
+  return {
+    ok: true,
+    data: { uploadUrl: data.signedUrl, storagePath: data.path ?? storagePath },
+  };
+}
+
+/**
+ * Post-PUT half of the signed document flow: re-validate the caller,
+ * stat the stored object (server-verified byte size + mime — never the
+ * client's claim), and hand back the same shape as the legacy action so
+ * the Files editor persists identical entries.
+ */
+export async function actionFinalizeDocumentUpload(
+  talentProfileId: string,
+  storagePath: string,
+): Promise<DocumentUploadResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  if (!storagePath.startsWith(`${talentProfileId}/documents/`)) {
+    return { ok: false, error: "Upload path doesn't match this talent." };
+  }
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const slash = storagePath.lastIndexOf("/");
+  const { data: listed, error: listErr } = await admin.storage
+    .from("media-originals")
+    .list(storagePath.slice(0, slash), { limit: 1, search: storagePath.slice(slash + 1) });
+  const meta = (listed?.[0] as { metadata?: { size?: number; mimetype?: string } } | undefined)
+    ?.metadata;
+  if (listErr || !meta || typeof meta.size !== "number" || meta.size === 0) {
+    logServerError("media.actions.docFinalize.stat", listErr);
+    return { ok: false, error: "Could not verify upload. Try again." };
+  }
+  if (meta.size > 50 * 1024 * 1024) {
+    await admin.storage.from("media-originals").remove([storagePath]);
+    return { ok: false, error: "File must be under 50 MB." };
+  }
+
+  return {
+    ok: true,
+    data: {
+      storagePath,
+      bucketId: "media-originals",
+      sizeBytes: meta.size,
+      mimeType: meta.mimetype || "application/octet-stream",
+    },
+  };
+}
+
 /** Generate a short-lived signed URL for a talent document (5 minutes). */
 export async function actionGetTalentDocumentSignedUrl(
   bucketId: string,
@@ -1553,29 +1652,43 @@ const SERVER_RESIZE_GUARD_RATIO = 0.8;
  *
  * `ext` should match what compressImage() returned (`"jpg"` for photos,
  * `"png"` for alpha). Defaults to "jpg" — matches the dominant case.
+ * Video extensions are accepted ONLY for the `reel` variant — a 30-sec
+ * hello reel can never fit through the Server Action body cap, so the
+ * signed PUT is the only transport that actually works for it.
  */
 export async function actionCreateSignedUploadUrl(
   variantKind: UploadVariant,
   talentProfileId: string,
-  ext: "jpg" | "png" = "jpg",
+  ext: "jpg" | "png" | "mp4" | "mov" | "webm" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
+  // Dual auth, mirroring actionUploadAndAssignMedia: agency staff of the
+  // active tenant OR the talent who owns this profile (self-service
+  // surfaces like the offerings manager have no staff scope; ownership is
+  // the security boundary there).
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  const staff = await requireStaffTenantAction();
+  if (staff.ok) {
+    const { data: rosterRow } = await admin
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", staff.tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  } else {
+    const self = await requireTalentSelfAction(talentProfileId);
+    if (!self.ok) return { ok: false, error: self.error };
+  }
 
-  const safeExt = (ext === "png" ? "png" : "jpg") as "jpg" | "png";
+  const VIDEO_EXTS = ["mp4", "mov", "webm"] as const;
+  const isVideoExt = (VIDEO_EXTS as readonly string[]).includes(ext);
+  if (isVideoExt && variantKind !== "reel") {
+    return { ok: false, error: "Video upload is only supported for the hello reel." };
+  }
+  const safeExt = isVideoExt ? ext : ext === "png" ? "png" : "jpg";
   const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${safeExt}`;
 
   const { data, error } = await admin.storage
@@ -1734,6 +1847,34 @@ async function reverifyStoredObject(
   };
 }
 
+/**
+ * Cheap object stat via the storage list API — size + mime without
+ * downloading the bytes. Used for reel videos, where pulling a
+ * 100-200 MB object into the Function just to record its size would
+ * be absurd (and sharp can't resize video anyway).
+ */
+async function statStoredObject(
+  admin: SupabaseClient,
+  storagePath: string,
+): Promise<{ byteSize: number; mimeType: string } | null> {
+  const slash = storagePath.lastIndexOf("/");
+  const prefix = slash === -1 ? "" : storagePath.slice(0, slash);
+  const name = slash === -1 ? storagePath : storagePath.slice(slash + 1);
+  const { data, error } = await admin.storage
+    .from("media-public")
+    .list(prefix, { limit: 1, search: name });
+  if (error || !data?.length) {
+    logServerError("media.actions.statStored.list", error);
+    return null;
+  }
+  const meta = (data[0] as { metadata?: { size?: number; mimetype?: string } }).metadata;
+  if (!meta || typeof meta.size !== "number") return null;
+  return {
+    byteSize: meta.size,
+    mimeType: meta.mimetype || "application/octet-stream",
+  };
+}
+
 // ── Register actions ───────────────────────────────────────────────────────
 
 export type RegisterUploadedAssetInput = {
@@ -1762,10 +1903,6 @@ export type RegisterUploadedAssetInput = {
 export async function actionRegisterUploadedAsset(
   input: RegisterUploadedAssetInput,
 ): Promise<RegisterMediaResult> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1780,16 +1917,44 @@ export async function actionRegisterUploadedAsset(
     return { ok: false, error: "Upload path doesn't match this talent." };
   }
 
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  // Dual auth, mirroring actionUploadAndAssignMedia (and the sign action
+  // above): agency staff of the active tenant OR the owning talent.
+  let tenantId: string | null;
+  let revalidate: { path: string; type: "layout" | "page" };
+  const staff = await requireStaffTenantAction();
+  if (staff.ok) {
+    tenantId = staff.tenantId;
+    revalidate = { path: `/${staff.tenantSlug}`, type: "layout" };
+    const { data: rosterRow } = await admin
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  } else {
+    const self = await requireTalentSelfAction(talentProfileId);
+    if (!self.ok) return { ok: false, error: self.error };
+    tenantId = self.tenantId;
+    revalidate = { path: `/t/${self.profileCode}`, type: "page" };
+  }
 
-  const verified = await reverifyStoredObject(admin, storagePath, variantKind);
+  // Reel videos skip the sharp re-verify: there's nothing to resize, and
+  // downloading a 100-200 MB video into the Function just to measure it
+  // defeats the point of the signed pipeline. Stat the object instead.
+  let verified: {
+    width: number | null;
+    height: number | null;
+    byteSize: number;
+    mimeType: string;
+  } | null;
+  if (variantKind === "reel") {
+    const stat = await statStoredObject(admin, storagePath);
+    verified = stat ? { width: null, height: null, ...stat } : null;
+  } else {
+    verified = await reverifyStoredObject(admin, storagePath, variantKind);
+  }
   if (!verified) {
     // Storage download / sharp both failed — bail so we don't insert a
     // half-broken row. The orphaned object will be cleaned up by the
@@ -1852,7 +2017,7 @@ export async function actionRegisterUploadedAsset(
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
 
-  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  revalidatePath(revalidate.path, revalidate.type);
   return {
     ok: true,
     data: {

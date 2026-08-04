@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { withLocalePath } from "@/i18n/pathnames";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
+import { publicRequestSiteBase } from "@/lib/seo/request-base";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -113,13 +113,17 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = publicSiteMetadataBase();
   const supabase = await createClient();
 
   // Each host-kind advertises only the routes its surface-allow-list permits,
   // so we never publish a manifest of dead links. Hub/app/unknown still return
   // empty; agency returns storefront routes; marketing returns its static tree.
   const hostContext = await getPublicHostContext();
+  // Anchor every emitted URL to the host actually serving this request: a
+  // tenant storefront's sitemap must list URLs on the tenant's own host (a
+  // Search Console prerequisite), not the fixed platform apex. Off-tenant
+  // surfaces fall back to the platform base — unchanged behaviour.
+  const base = publicRequestSiteBase(hostContext);
   const platformTalentEntries = isTalentProfilePlatformHost(hostContext.kind)
     ? await loadPlatformTalentSitemapEntries()
     : [];

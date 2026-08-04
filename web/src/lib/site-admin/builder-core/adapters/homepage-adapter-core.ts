@@ -93,10 +93,16 @@ export function createHomepageAdapter(
       ctx: BuilderSurfaceContext,
       input: CompositionSaveInput,
     ): Promise<CompositionSaveResult> {
-      // The save envelope already carries locale + pageId; pass it straight
-      // through, threading ctx.locale / ctx.pageId so the call-site can keep
-      // handing us the same envelope it built, byte-for-byte unchanged.
-      return actions.save({ ...input, locale: ctx.locale, pageId: ctx.pageId });
+      // pageId is only a target for NON-homepage pages (pageSlug set). The
+      // homepage load returns its real row id too, but forwarding it routes
+      // the save into the generic `if (input.pageId)` branch, skipping the
+      // hardened homepage lane (LWW beacon adoption, content-aware empty
+      // guard, introTagline). Same normalization the publish drawer applies.
+      return actions.save({
+        ...input,
+        locale: ctx.locale,
+        pageId: ctx.pageSlug ? ctx.pageId : null,
+      });
     },
 
     saveDraft(
@@ -105,7 +111,7 @@ export function createHomepageAdapter(
     ): Promise<SaveDraftResult> {
       return actions.saveDraft({
         locale: ctx.locale,
-        pageId: ctx.pageId,
+        pageId: ctx.pageSlug ? ctx.pageId : null,
         expectedVersion: input.expectedVersion,
         metadata: input.metadata,
         slots: input.slots,
@@ -122,7 +128,7 @@ export function createHomepageAdapter(
     ): Promise<PublishResult> {
       return actions.publish({
         locale: ctx.locale,
-        pageId: ctx.pageId,
+        pageId: ctx.pageSlug ? ctx.pageId : null,
         expectedVersion: input.expectedVersion,
         styleClasses: input.styleClasses,
         stylePresets: input.stylePresets,

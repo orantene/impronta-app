@@ -11,12 +11,12 @@
  * discipline is identical.
  *
  * Auth contract on every action:
- *   - `requireStaff` (super_admin | agency_staff)
+ *   - `requireSession` (super_admin | agency_staff)
  *   - `requireTenantScope` matches the cookie-scoped tenant
  *   - the incoming sectionId / tenantId must agree with scope
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { sectionUpsertSchema } from "@/lib/site-admin";
 import {
@@ -47,7 +47,7 @@ export type EditLoadResult =
 export async function loadSectionForEditAction(
   sectionId: string,
 ): Promise<EditLoadResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Tenant scope required" };
@@ -117,7 +117,7 @@ export interface EditSaveInput {
 export async function saveSectionDraftAction(
   input: EditSaveInput,
 ): Promise<EditSaveResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Tenant scope required" };
@@ -216,7 +216,7 @@ export async function setSectionVisibilityAction(input: {
   sectionId: string;
   visibility: SectionVisibility;
 }): Promise<SetSectionVisibilityResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Tenant scope required" };

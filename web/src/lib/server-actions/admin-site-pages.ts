@@ -45,7 +45,7 @@ import {
   restorePageRevision,
   upsertPage,
 } from "@/lib/site-admin/server/pages";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import {
   cmsAdditionalPageDeniedReason,
@@ -149,7 +149,7 @@ export async function savePageAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -220,7 +220,7 @@ export async function deletePageAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -266,7 +266,7 @@ export async function publishPageAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -317,7 +317,7 @@ export async function archivePageAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -368,7 +368,7 @@ export async function restorePageRevisionAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -429,7 +429,7 @@ export async function startPagePreviewAction(
   _prev: PageActionState,
   formData: FormData,
 ): Promise<PageActionState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -496,7 +496,7 @@ export async function endPagePreviewAction(
 ): Promise<PageActionState> {
   void _prev;
   void _formData;
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   try {
@@ -526,7 +526,7 @@ export async function listPagesForPickerAction(): Promise<
   { ok: true; pages: PagePickerItem[]; availability: PagePickerAvailability }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };
@@ -573,7 +573,7 @@ export async function listPagesForPickerAction(): Promise<
 export async function createDraftPageAction(): Promise<
   { ok: true; id: string; slug: string; locale: string } | { ok: false; error: string }
 > {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -691,7 +691,7 @@ export async function createDraftPageAction(): Promise<
 export async function duplicatePageAction(
   sourceId: string,
 ): Promise<{ ok: true; id: string; slug: string } | { ok: false; error: string }> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };

@@ -2,8 +2,8 @@
 
 This project deploys to **Vercel** (project `tulala`, team `oran-tenes-projects`). GitHub auto-deploys are live as of 2026-04-23.
 
-- **`main` is the canonical branch** — GitHub default + Vercel production branch + single source of truth. Production runs whatever is on `main`.
-- **Push to `main` → Vercel builds a production deployment.** No promote step for a normal release.
+- **`main` is the canonical branch** — GitHub default + single source of truth. Nobody's workflow changes: branch off main, PR back to main.
+- **Deploys are CI-GATED (since 2026-08-04):** Vercel's production branch is `production`, a pointer branch that `promote-production.yml` fast-forwards ONLY when the structural quality gate passes on that exact main commit. Merge to `main` → CI (~11 min) → pointer advances → Vercel builds production. **A red main cannot deploy.** When CI fails on main, `main-red-alert.yml` opens a pinned 🔴 MAIN IS RED issue (auto-closes on green); fix forward or revert before merging anything else.
 - Push to any **other** branch → Vercel builds an SSO-gated **preview** (401).
 - `phase-1` is the **retired** former working branch. Do not develop on it; it is kept briefly as a transition alias and will be deleted. New work branches off `main` — see [`web/docs/development-workflow.md`](web/docs/development-workflow.md).
 - **Alias custom domains after a production deploy.** The production pointer does **not** reliably reassign `tulala.digital` + `app.tulala.digital`; the `vercel-post-deploy-alias.yml` Action re-aliases them. Manual fallback:

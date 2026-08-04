@@ -18,12 +18,12 @@
  *     adds an explicit `revisionId` parameter — for v1, the implicit
  *     "latest" is what the topbar Share button surfaces.)
  *
- * Capability gate: requireStaff + requireTenantScope, mirroring every
+ * Capability gate: requireSession + requireTenantScope, mirroring every
  * other edit-mode action wrapper. The JWT itself carries `tenantId` so
  * the public share route can re-verify scope without re-running auth.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
@@ -77,7 +77,7 @@ const HOURS_TO_SECONDS = 60 * 60;
 export async function createShareLinkAction(
   input: CreateShareLinkInput = {},
 ): Promise<CreateShareLinkResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
   const scope = await requireTenantScope().catch(() => null);

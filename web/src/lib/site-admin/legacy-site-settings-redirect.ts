@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas";
 
 /**
@@ -42,7 +42,7 @@ export async function redirectLegacySiteSettingsToWorkspaceSettings(): Promise<n
 export async function redirectLegacySiteSettingsPageIdToStorefrontEditor(
   pageId: string,
 ): Promise<never> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     redirect("/login");
   }

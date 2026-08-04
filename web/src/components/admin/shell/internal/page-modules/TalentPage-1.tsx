@@ -6,15 +6,24 @@ import { bulkSetWorkflowStatus } from "@/app/(workspace)/[tenantSlug]/admin/rost
 import { PitchComposeDrawer } from "../pitch-compose";
 import { CapNudge, Card, GhostButton, PrimaryButton, ReadOnlyChip, StatusCard } from "../primitives";
 import { SkillDiscoveryPanel } from "../skill-discovery-panel";
-import { COLORS, FONTS, PLAN_META, TAXONOMY, Z, getClients, getRoster, meetsRole, useAdminShell } from "../state";
-import type { Plan, TalentPage, TalentProfile, TaxonomyParentId } from "../state";
+import { COLORS, FONTS, PLAN_META, Z, getClients, getRoster, meetsRole, useAdminShell } from "../state";
+import type { Plan, TalentPage, TalentProfile } from "../state";
 import { SavedViewsBar, downloadCsv } from "../wave2";
 import { FabWithQuickCreate } from "./InboxPage";
 import { FilterChip, RosterGrid, RosterMoreMenu, SortButton, ViewToggle } from "./TalentPage-2";
 import { RosterArrangeView } from "./TalentPage-arrange";
 import { RosterBulkActionBar, RosterEmptyState, RosterList } from "./TalentPage-3";
 import { Grid, PageHeader } from "./pages-shared";
-import { byName } from "@/lib/field-engine/sort-comparators";
+import {
+  resolveRosterCardTaxonomy,
+  rosterMatchesParentFilter,
+  rosterParentFilterOf,
+} from "./roster-card-taxonomy";
+import { rosterSortComparator } from "./roster-sort";
+import type { RosterSortKey } from "./roster-sort";
+
+/** Parent-category filter chip option (live slug or static TAXONOMY id). */
+type RosterTypeFilterOption = { id: string; label: string; emoji?: string };
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -50,7 +59,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 export function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t } = useAdminShell();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t, locale } = useAdminShell();
   const router = useRouter();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
@@ -62,9 +71,15 @@ export function TalentPage() {
 
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<"all" | "visible" | "hidden">("all");
-  const [typeFilter, setTypeFilter] = useState<TaxonomyParentId | "all">("all");
-  const [sort, setSort] = useState<"name" | "completeness" | "newest" | "lastEdited">("newest");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  // Parent-category filter — id space covers BOTH live `parent_category`
+  // slugs (e.g. "hosts-promo") and static TAXONOMY parent ids ("hosts").
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  // Default = Recommended: the roster opens in the same order visitors see
+  // in the public directory (curated rank first, recency after).
+  const [sort, setSort] = useState<RosterSortKey>("recommended");
+  // Exit arrange mode + re-fetch the server roster so cards show saved ranks.
+  const exitArrange = () => { setArrangeMode(false); router.refresh(); };
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
@@ -72,11 +87,6 @@ export function TalentPage() {
   const [pitchComposeOpen, setPitchComposeOpen] = useState(false);
   // Arrange-directory-order mode (live workspaces only; see RosterArrangeView).
   const [arrangeMode, setArrangeMode] = useState(false);
-
-  // Resolve a parent-type filter to its children (for filtering by primaryType id).
-  const typeFilterChildren = typeFilter === "all"
-    ? null
-    : new Set(TAXONOMY.find(p => p.id === typeFilter)?.children.map(c => c.id) ?? []);
 
   // A talent is publicly visible when the agency eye is on AND the talent
   // has not globally hidden themselves.
@@ -88,31 +98,23 @@ export function TalentPage() {
       if (stateFilter === "all") return true;
       return stateFilter === "visible" ? isPubliclyVisible(p) : !isPubliclyVisible(p);
     })
-    .filter((p) => !typeFilterChildren || (p.primaryType !== undefined && typeFilterChildren.has(p.primaryType)))
+    .filter((p) => typeFilter === "all" || rosterMatchesParentFilter(p, typeFilter))
     .filter((p) => {
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
+      // Search over what the admin SEES (humanized labels — primary, parent,
+      // secondaries) plus the raw slug and city.
+      const view = resolveRosterCardTaxonomy(p, locale);
       return (
         p.name.toLowerCase().includes(q) ||
         (p.city ?? "").toLowerCase().includes(q) ||
-        (p.primaryType ?? "").toLowerCase().includes(q)
+        (p.primaryType ?? "").toLowerCase().includes(q) ||
+        (view.primaryLabel ?? "").toLowerCase().includes(q) ||
+        (view.parentLabel ?? "").toLowerCase().includes(q) ||
+        view.secondaryLabels.some((s) => s.toLowerCase().includes(q))
       );
     })
-    .sort((a, b) => {
-      let r = 0;
-      if (sort === "name") r = byName(a, b);
-      else if (sort === "completeness") r = (a.completeness ?? 0) - (b.completeness ?? 0);
-      else if (sort === "newest") {
-        const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
-        const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
-        r = ta - tb;
-      } else if (sort === "lastEdited") {
-        const ta = a.updatedAt ? Date.parse(a.updatedAt) : 0;
-        const tb = b.updatedAt ? Date.parse(b.updatedAt) : 0;
-        r = ta - tb;
-      }
-      return sortDir === "asc" ? r : -r;
-    });
+    .sort(rosterSortComparator(sort, sortDir));
 
   const visibleCount = roster.filter(isPubliclyVisible).length;
   const counts = {
@@ -120,19 +122,18 @@ export function TalentPage() {
     hidden: roster.length - visibleCount,
   };
 
-  // Talent-type parents that actually exist in the roster — drives the
-  // type filter chips (no point showing "Chefs" if there are 0 chefs).
-  const usedTypes = Array.from(new Set(
-    roster
-      .map((r) => {
-        if (!r.primaryType) return null;
-        for (const p of TAXONOMY) {
-          if (p.children.some((c) => c.id === r.primaryType)) return p.id;
-        }
-        return null;
-      })
-      .filter((x): x is TaxonomyParentId => x !== null)
-  ));
+  // Parent categories that actually exist in the roster — drives the type
+  // filter chips (no point showing "Chefs" if there are 0 chefs). Live
+  // workspaces resolve to real `parent_category` terms; mock workspaces fall
+  // back to the static TAXONOMY parents.
+  const usedTypes: RosterTypeFilterOption[] = (() => {
+    const byId = new Map<string, RosterTypeFilterOption>();
+    for (const r of roster) {
+      const opt = rosterParentFilterOf(r, locale);
+      if (opt && !byId.has(opt.id)) byId.set(opt.id, opt);
+    }
+    return Array.from(byId.values());
+  })();
 
   const pendingCount = overviewMetrics !== null
     ? (overviewMetrics.pendingApprovals ?? 0)
@@ -227,7 +228,9 @@ export function TalentPage() {
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <>
-                {tenantSlug && !arrangeMode && <GhostButton onClick={() => setArrangeMode(true)}>{t("admin.roster.arrange.button")}</GhostButton>}
+                {tenantSlug && (arrangeMode
+                  ? <PrimaryButton onClick={exitArrange}>{t("admin.roster.arrange.done")}</PrimaryButton>
+                  : <GhostButton onClick={() => setArrangeMode(true)}>{t("admin.roster.arrange.button")}</GhostButton>)}
                 <RosterMoreMenu
                   open={moreOpen}
                   onToggle={() => setMoreOpen((o) => !o)}
@@ -323,11 +326,7 @@ export function TalentPage() {
       {/* Arrange mode replaces the filter + grid section: the arranged list is
           always the FULL roster in public order (filters would be ambiguous). */}
       {arrangeMode && tenantSlug ? (
-        <RosterArrangeView
-          items={roster}
-          tenantSlug={tenantSlug}
-          onExit={() => { setArrangeMode(false); router.refresh(); }}
-        />
+        <RosterArrangeView items={roster} tenantSlug={tenantSlug} onExit={exitArrange} />
       ) : (
       <>
       {/* Status strip — single line replaces 4-up StatusCard. Each segment
@@ -368,9 +367,9 @@ export function TalentPage() {
           if (s === sort) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
           else {
             setSort(s);
-            // "Newest" + "Completeness" read more naturally with the high
-            // value on top — default to desc. Name → A→Z.
-            setSortDir(s === "name" ? "asc" : "desc"); // newest / lastEdited / completeness → desc by default
+            // Name → A→Z; Recommended → position 1 on top. "Newest" +
+            // "Completeness" read more naturally with the high value on top.
+            setSortDir(s === "name" || s === "recommended" ? "asc" : "desc");
           }
         }}
         view={view}
@@ -634,12 +633,12 @@ function RosterFilterBar({
 }: {
   search: string;
   onSearch: (s: string) => void;
-  typeFilter: TaxonomyParentId | "all";
-  onTypeFilter: (f: TaxonomyParentId | "all") => void;
-  usedTypes: TaxonomyParentId[];
-  sort: "name" | "completeness" | "newest" | "lastEdited";
+  typeFilter: string;
+  onTypeFilter: (f: string) => void;
+  usedTypes: RosterTypeFilterOption[];
+  sort: RosterSortKey;
   sortDir: "asc" | "desc";
-  onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
+  onSort: (s: RosterSortKey) => void;
   view: "grid" | "list";
   onView: (v: "grid" | "list") => void;
   canBulk: boolean;
@@ -722,18 +721,15 @@ function RosterFilterBar({
             active={typeFilter === "all"}
             onClick={() => onTypeFilter("all")}
           />
-          {usedTypes.map((t) => {
-            const meta = TAXONOMY.find((p) => p.id === t)!;
-            return (
-              <FilterChip
-                key={t}
-                label={meta.label}
-                emoji={meta.emoji}
-                active={typeFilter === t}
-                onClick={() => onTypeFilter(t)}
-              />
-            );
-          })}
+          {usedTypes.map((opt) => (
+            <FilterChip
+              key={opt.id}
+              label={opt.label}
+              emoji={opt.emoji}
+              active={typeFilter === opt.id}
+              onClick={() => onTypeFilter(opt.id)}
+            />
+          ))}
         </div>
       )}
 

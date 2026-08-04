@@ -66,7 +66,7 @@ export const SURFACE_RULES: Record<CardSurface, SurfaceRule> = {
     note: "Your internal team grid. No client-facing favorite or inquiry, these cards are for managing talent, not selling them.",
   },
   embedded: {
-    label: "Embedded", tag: "Public", favorite: true, inquiry: true,
+    label: "Embedded", tag: "Public", favorite: false, inquiry: false,
     labelKey: `${SURFACE_NS}.embeddedLabel`, tagKey: `${SURFACE_NS}.embeddedTag`,
     noteKey: `${SURFACE_NS}.embeddedNote`,
     note: "Cards embedded on an external site behave like the Directory, both favorite and inquiry are available to the public.",
@@ -79,10 +79,13 @@ export type CardStyle = "portrait" | "editorial";
 export type CardAspect = "4:5" | "1:1" | "3:4" | "16:9";
 export type HoverBehavior = "reveal_traits" | "zoom" | "swap" | "none";
 
+export type CardDensity = "comfortable" | "compact";
+
 export type CardAppearance = {
   cardStyle: CardStyle;
   cardAspect: CardAspect;
   hoverBehavior: HoverBehavior;
+  density: CardDensity;
   showName: boolean;
   showTalentType: boolean;
   showLocation: boolean;
@@ -100,6 +103,7 @@ export const DEFAULT_APPEARANCE: CardAppearance = {
   cardStyle: "portrait",
   cardAspect: "4:5",
   hoverBehavior: "reveal_traits",
+  density: "comfortable",
   showName: true,
   showTalentType: true,
   showLocation: true,
@@ -110,7 +114,7 @@ export const DEFAULT_APPEARANCE: CardAppearance = {
   // Matches the live section default (directory schema v2 backfilled
   // showPriceFrom:true) so the studio preview no longer contradicts the
   // published directory. Round-tripping the REAL knob is still open — see
-  // the TODO(reviewer) in CardDesignStudio.tsx.
+  // the reload-seeding notes in CardDesignStudio.tsx.
   showPriceFrom: true,
   showSave: true,
   showAddToInquiry: true,
@@ -487,16 +491,33 @@ export type CardKitOption = {
   tokens: Record<string, string>;
 };
 
-// Token constants moved to card-design-token-keys.ts (the studio's LEAF
-// module) to break the Studio-3 ⇄ token-keys import cycle that TDZ-crashed
-// the admin shell in dev. Re-exported here so existing importers keep working.
+// Token-key constants live in the import-free ./card-design-token-keys module
+// (this file re-exports them for its existing consumers). Do NOT define keys
+// here and import them from there — that exact shape was a module cycle that
+// crashed the whole admin shell on production at chunk-evaluation time.
 export {
-  CARD_FAMILY_TOKEN_KEY,
-  CARD_COLOR_KNOBS,
   CARD_DESIGN_TOKEN_KEYS,
+  CARD_FAMILY_TOKEN_KEY,
 } from "./card-design-token-keys";
 
-/** Every card-family token key the studio touches (kit + knobs). */
+/** The color knobs the studio exposes, in display order. */
+// English `label` / `hint` remain the non-UI fallback; the studio renders
+// `t(knob.labelKey)` / `t(knob.hintKey)`. Key strings must stay in sync with
+// CARD_COLOR_KNOB_KEYS in ./card-design-token-keys (pinned by test).
+const KNOB_NS = "dashboard.adminCardStudio2.knobs";
+
+export const CARD_COLOR_KNOBS: Array<{
+  key: string; label: string; hint: string; labelKey: string; hintKey: string;
+}> = [
+  { key: "card.surface", label: "Card surface", hint: "Media / panel ground",
+    labelKey: `${KNOB_NS}.surfaceLabel`, hintKey: `${KNOB_NS}.surfaceHint` },
+  { key: "card.name-color", label: "Name color", hint: "Talent name",
+    labelKey: `${KNOB_NS}.nameLabel`, hintKey: `${KNOB_NS}.nameHint` },
+  { key: "card.muted", label: "Secondary text", hint: "Type · location · availability",
+    labelKey: `${KNOB_NS}.mutedLabel`, hintKey: `${KNOB_NS}.mutedHint` },
+  { key: "card.price-color", label: "Price chip", hint: "The “From $X” chip",
+    labelKey: `${KNOB_NS}.priceLabel`, hintKey: `${KNOB_NS}.priceHint` },
+];
 
 /**
  * Realistic sample talent for the live preview. Editorial portrait imagery,
@@ -518,6 +539,9 @@ export const CARD_PREVIEW_SAMPLE: DirectoryCardData = {
   availabilityLabel: "Available this month",
   availabilityKnown: true,
   availableDaysInNext30: 12,
+  // Sample price so the "Price chip" color knob has visible feedback in the
+  // live preview (the chip renders only when a priceFromLabel is present).
+  priceFromLabel: "From $850 / day",
 };
 
 export type DesignSaveState =

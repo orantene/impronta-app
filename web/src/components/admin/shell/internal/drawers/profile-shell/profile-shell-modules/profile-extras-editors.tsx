@@ -32,6 +32,7 @@ import {
   useAdminShell,
   useDashboardText,
 } from "../../drawer-shared";
+import { uploadTalentReel } from "@/lib/client/signed-upload";
 
 export function SkillsProEditor({ entries, onChange }: {
   entries: SkillEntry[];
@@ -170,6 +171,19 @@ export const HelloReelEditor = React.memo(function HelloReelEditor({ reel, onCha
     if (!talentProfileId) return;
     setUploading(true);
     try {
+      // Signed PUT direct to storage — a real 30-sec video NEVER fits the
+      // 4 MB Server Action body cap, so the legacy FormData action below is
+      // only a fallback for exotic containers small enough to squeeze through.
+      const fast = await uploadTalentReel({ file: f, talentProfileId });
+      if (fast.ok) {
+        onChange({ url: fast.publicUrl, durationSec: 30 });
+        return;
+      }
+      if (!fast.fallbackToLegacy) {
+        toast(`${copy.t("Reel upload failed")}: ${fast.error}`);
+        onChange(null);
+        return;
+      }
       const fd = new FormData(); fd.append("file", f);
       const res = await actionUploadAndAssignMedia(fd, talentProfileId, "reel");
       if (res.ok) {

@@ -15,7 +15,7 @@ import { improntaLog } from "@/lib/server/structured-log";
  * from the published snapshot and the shell falls back to the idle pill.
  *
  * Auth:
- *   - `requireStaff`: must be super_admin or agency_staff
+ *   - `requireSession`: must be super_admin or agency_staff
  *   - `requireTenantScope`: caller has a resolved tenant scope matching the
  *     host. The JWT's `tid` claim is set from this scope — middleware on the
  *     tenant host re-verifies, so a cross-tenant edit attempt would silently
@@ -26,7 +26,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -62,7 +62,7 @@ export interface EnterEditModeResult {
  * action result via `useActionState` (post-hydration error toasts).
  */
 export async function enterEditModeAction(): Promise<EnterEditModeResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     void improntaLog("site_admin_edit_mode.warn", {
       message: "[edit-mode] enter denied:",

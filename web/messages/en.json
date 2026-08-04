@@ -4385,7 +4385,8 @@
       "rosterRatesNoRole": "No role set",
       "rosterRatesFillAll": "Fill all",
       "rosterRatesQuoteOnly": "Quote on request",
-      "rosterRatesSave": "Save rates"
+      "rosterRatesSave": "Save rates",
+      "pricingDefaultsPerTalentPointer": "Setting a rate for individual talent lives with the roster: Roster → Rates."
     },
     "adminOperations": {
       "title": "Operations",
@@ -4867,8 +4868,8 @@
       "bannerFieldsMid": " to your engine and apply everywhere.",
       "bannerDesignLead": "Visual design",
       "bannerDesignMid": " (look + colors) saves to a draft as you edit, Publish promotes it live across every card surface.",
-      "bannerLayoutLead": "Layout + show-toggles",
-      "bannerLayoutRest": " below are a live preview; saving distinct layout per surface ships in the next release.",
+      "bannerLayoutLead": "Layout",
+      "bannerLayoutRest": " (card style, image ratio, hover, density) and the action toggles save as tenant-wide defaults and publish with the visual design. A directory section that sets its own value keeps it; the show/hide line toggles below stay per-section in the page builder.",
       "rosterBadgesTitle": "Roster card badges",
       "rosterBadgesHint": "Show or hide each overlay on your roster cards. Saved instantly to this workspace, the roster grid is internal to your team.",
       "badgeHideEyeWarn": "Hiding the eye removes the only show / hide control from the card. You can still manage visibility from the talent drawer.",
@@ -4885,7 +4886,7 @@
       "iconHeart": "Heart",
       "iconBookmark": "Bookmark",
       "layoutTitle": "Layout",
-      "layoutHint": "Card layout, image ratio and hover now save and publish as tenant-wide DEFAULTS. A directory section that set its own value keeps it; sections left on “Follow Card Design default” follow these. The show/hide toggles below stay per-section in the page builder.",
+      "layoutHint": "Card layout, image ratio, hover and density save and publish as tenant-wide defaults. A directory section that set its own value keeps it; sections left on “Follow Card Design default” follow these. The show/hide line toggles below stay per-section in the page builder.",
       "cardStyleLabel": "Card style",
       "stylePortrait": "Portrait",
       "styleEditorial": "Editorial",
@@ -4900,7 +4901,7 @@
       "rowRating": "Rating",
       "rowPriceFrom": "Price from",
       "cardFieldsTitle": "Card fields · from your Tulala engine",
-      "cardFieldsHint": "Which engine fields are eligible to render on cards everywhere. Saved instantly to this workspace.",
+      "cardFieldsHint": "Which engine fields are eligible to render on cards. Saved instantly to your Tulala engine — shared catalog fields apply to every workspace that uses them.",
       "loadingFields": "Loading fields from the engine…",
       "couldNotLoadFields": "Couldn't load fields: {error}",
       "svcLoading": "Loading services…",
@@ -4923,7 +4924,10 @@
       "toastNeedAdminFields": "You need admin access to change card fields.",
       "toastNeedAdminBadges": "You need admin access to change roster card badges.",
       "toastCouldNotSaveField": "Could not save that field.",
-      "rowPriceFromHint": "Preview only. The live starting price is controlled by the Directory section (Show starting price) and is on by default."
+      "rowPriceFromHint": "Preview only. The live starting price is controlled by the Directory section (Show starting price) and is on by default.",
+      "densityLabel": "Density",
+      "densityComfortable": "Comfortable",
+      "densityCompact": "Compact"
     },
     "adminPitches": {
       "statusDraft": "Draft",
@@ -5460,6 +5464,13 @@
         "payoutGlobalHint": "Talent receive to a local bank or USDC via Stripe v2 Money Movement (about 90 countries). Per-talent crypto opt-in routing applies.",
         "payoutSavedConnect": "Saved. Platform now runs on Stripe Connect.",
         "payoutSavedGlobal": "Saved. Platform now runs on Global Payouts.",
+        "workspaceUiTitle": "Workspace UI",
+        "workspaceUiSubtitle": "Ambient helpers in every agency workspace: the floating + button and the first-run tour.",
+        "workspaceUiFabLabel": "Floating + quick-action button",
+        "workspaceUiFabHint": "The bottom-right + on every workspace page (quick create and AI assistant). Off hides it platform-wide.",
+        "workspaceUiTourLabel": "First-run guided tour",
+        "workspaceUiTourHint": "The 4-step tooltip tour new admins see on their first visit. Off disables it platform-wide.",
+        "workspaceUiSaved": "Saved. Applies to every workspace.",
         "depositFieldLabel": "Default deposit (%)",
         "refundPolicyFieldLabel": "Default refund policy",
         "instantBookLabel": "Instant booking on by default",
@@ -8696,6 +8707,20 @@
             "container_id": "GTM Container ID"
           }
         },
+        "search_console": {
+          "label": "Google Search Console",
+          "description": "Verify ownership of your storefront in Google Search Console to track how you rank in Search and submit your sitemap. Paste the verification token and the meta tag is added to your site's <head>.",
+          "steps": {
+            "s1": "Open Google Search Console (search.google.com/search-console) and add a property.",
+            "s2": "Choose the \"URL prefix\" property type and enter your exact storefront address (e.g. https://your-agency.tulala.digital, or your custom domain).",
+            "s3": "Pick the \"HTML tag\" verification method. Google shows a tag like <meta name=\"google-site-verification\" content=\"TOKEN\" />.",
+            "s4": "Copy ONLY the token — the value inside content=\"…\" — paste it below and Save.",
+            "s5": "Back in Search Console, click Verify. Once verified, submit your sitemap at /sitemap.xml (e.g. https://your-agency.tulala.digital/sitemap.xml)."
+          },
+          "fields": {
+            "verification_token": "Search Console verification token"
+          }
+        },
         "custom_code": {
           "label": "Custom code",
           "description": "Inject your own HTML / <script> into your public storefront: add a chat widget, a font, a verification meta tag, or any third-party snippet. Runs on your storefront only, never the admin.",
@@ -10368,13 +10393,13 @@
         "directoryNote": "Public discovery grid. Clients can save a favorite and start an inquiry, both actions are on.",
         "pitchLabel": "Pitch",
         "pitchTag": "Sent link",
-        "pitchNote": "You already curated and sent this shortlist, so a favorite is redundant. The card keeps a direct inquiry / reply action instead.",
+        "pitchNote": "You already curated and sent this shortlist, so a favorite is redundant. The card keeps a direct inquiry / reply action instead. Pitch tiles paint in your published card design.",
         "rosterLabel": "Roster",
         "rosterTag": "Internal",
         "rosterNote": "Your internal team grid. No client-facing favorite or inquiry, these cards are for managing talent, not selling them.",
         "embeddedLabel": "Embedded",
         "embeddedTag": "Public",
-        "embeddedNote": "Cards embedded on an external site behave like the Directory, both favorite and inquiry are available to the public."
+        "embeddedNote": "Cards embedded on an external site are browse-only: no favorite or inquiry, each card links to the talent profile. Embeds paint in your published card colors."
       },
       "hover": {
         "revealTraits": "Reveal traits",
@@ -10426,9 +10451,13 @@
       "livePreviewHint": "This is how your talent card renders on the live site. Look and color edits show here instantly; Publish makes them live everywhere.",
       "actionsPreviewHint": "Favorite and inquiry here are interactive so you can see both states. On the live surface they connect to the client's real favorites and inquiry list.",
       "rosterVisibilityEyeTitle": "Visibility eye, the live show / hide control for the agency site",
+      "rosterQuickViewTitle": "Quick view, opens the talent's public page in a popup over the roster",
       "rosterDiscoverBadge": "Discover",
       "rosterTulalaVerifiedTitle": "Tulala Verified",
       "rosterAvailableBadge": "available",
+      "sampleParentCategory": "Models",
+      "sampleSecondaryTypeA": "Beauty Model",
+      "sampleSecondaryTypeB": "Runway Model",
       "cardSurfaceTablistAria": "Card surface",
       "reviewsOnCardsTitle": "Reviews on cards",
       "showStandingLabel": "Show talent standing",
@@ -11036,6 +11065,7 @@
         "selectAll": "Select all",
         "selectedClear": "selected · clear",
         "sortLabel": "Sort:",
+        "sortRecommended": "Recommended",
         "sortName": "Name",
         "sortCompleteness": "Completeness",
         "sortNewest": "Newest",
@@ -11046,6 +11076,8 @@
       "card": {
         "youBadgeAria": "Your talent profile",
         "youBadge": "You",
+        "quickViewAria": "Quick view profile",
+        "quickViewTitle": "Preview this talent's public page in a popup, without leaving the roster",
         "selectAria": "Select",
         "deselectAria": "Deselect",
         "noTypeSet": "No type set",

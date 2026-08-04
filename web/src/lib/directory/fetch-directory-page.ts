@@ -1308,6 +1308,25 @@ export async function fetchDirectoryPage(
   for (let i = 0; i < items.length; i++) {
     const url = thumbUrlByProfile.get(rows[i].id) ?? null;
     items[i].thumbnail.url = url;
+    // hover:"swap" second photo — the best-ranked media row whose URL differs
+    // from the primary. Reuses the media rows already loaded above (no extra
+    // query); absolute storage_path passthrough mirrors talent-card-thumbs.
+    const mediaRows = [...(mediaByProfile.get(rows[i].id) ?? [])].sort(
+      (a, b) =>
+        (CARD_THUMB_RANK[a.variant_kind] ?? 99) -
+        (CARD_THUMB_RANK[b.variant_kind] ?? 99),
+    );
+    for (const m of mediaRows) {
+      if (!m.bucket_id || !m.storage_path) continue;
+      const candidate = m.storage_path.startsWith("http")
+        ? m.storage_path
+        : supabase.storage.from(m.bucket_id).getPublicUrl(m.storage_path).data
+            .publicUrl;
+      if (candidate && candidate !== url) {
+        items[i].hoverThumbUrl = candidate;
+        break;
+      }
+    }
   }
 
   // `top_rated`: Bayesian-shrunk re-sort of the loaded page (see

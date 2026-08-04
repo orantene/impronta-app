@@ -32,6 +32,10 @@
  *   - `photoCount`   — total gallery photo count (turns critical at 0).
  *   - `availability` — availability pill.
  *   - `talentId`     — the TAL-ID / public profile code chip.
+ *   - `categories`   — the card-body category block: parent-category strip,
+ *                      primary type label, secondary type chips.
+ *   - `quickView`    — the quick-view button (opens the talent's public
+ *                      profile in a popup over the roster).
  */
 export const ROSTER_CARD_BADGE_KEYS = [
   "visibility",
@@ -41,6 +45,8 @@ export const ROSTER_CARD_BADGE_KEYS = [
   "photoCount",
   "availability",
   "talentId",
+  "categories",
+  "quickView",
 ] as const;
 
 export type RosterCardBadgeKey = (typeof ROSTER_CARD_BADGE_KEYS)[number];
@@ -57,6 +63,8 @@ export const DEFAULT_ROSTER_CARD_BADGES: RosterCardBadgePrefs = {
   photoCount: true,
   availability: true,
   talentId: true,
+  categories: true,
+  quickView: true,
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -118,6 +126,18 @@ export const ROSTER_CARD_BADGE_META: readonly RosterCardBadgeMeta[] = [
     key: "talentId",
     label: "TAL-ID",
     description: "The public profile code chip (e.g. TAL-0042).",
+  },
+  {
+    key: "categories",
+    label: "Category & type labels",
+    description:
+      "The card-body category block: parent category strip, primary type, and secondary type chips.",
+  },
+  {
+    key: "quickView",
+    label: "Quick view button",
+    description:
+      "Opens the talent's public page in a popup without leaving the roster.",
   },
 ];
 

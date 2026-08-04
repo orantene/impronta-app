@@ -20,7 +20,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { TestimonialSource } from "./review-types";
@@ -65,7 +65,7 @@ export async function createTestimonialAction(input: {
   rating?: number;
   source?: TestimonialSource;
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -91,8 +91,10 @@ export async function createTestimonialAction(input: {
   const tenantId = await resolveTenantId(supabase, input.tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
-  // Workspace-scoped authority: the caller must be ACTIVE staff of this tenant.
-  // requireStaff() gates the global staff role; this scopes it to the tenant.
+  // Workspace-scoped authority: the caller must be an ACTIVE owner/admin
+  // member of this tenant. This membership check IS the boundary — the guard
+  // above only proves a session (the old requireStaff() global-app_role gate
+  // added nothing here and wrongly rejected hybrid workspace owners).
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Service unavailable." };
 

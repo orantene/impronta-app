@@ -22,7 +22,7 @@
  * which always renders those, so they're informational pass markers.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
@@ -83,7 +83,7 @@ const NAMED_REGION_TYPES = new Set<string>([
 const NAV_TYPES = new Set<string>(["anchor_nav"]);
 
 export async function runAriaLandmarkCheck(): Promise<LandmarkCheckResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

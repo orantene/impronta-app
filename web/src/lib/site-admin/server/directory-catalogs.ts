@@ -25,8 +25,18 @@
  * section's local intent and the live sidebar would keep rendering
  * height. (Lane brief, Phase 2b.)
  *
- * AUTH: `requireStaff` (admin/coord) + `requireTenantScope`. Layout writes
- * are keyed by `scope.tenantId` — the tenant-isolation invariant.
+ * AUTH (2026-08-04 fix): `requireSession` + tenant scope (membership proof),
+ * NOT `requireStaff`. `requireStaff` checks the GLOBAL `profiles.app_role`
+ * and therefore rejected hybrid workspace owners (talent/client-signup users
+ * who own a workspace keep `app_role='talent'`/`'client'` — see
+ * workspace-lifecycle.ts), even though the workspace layout admits them via
+ * the membership-based `agency.workspace.view` capability. Scope resolution
+ * (`getTenantScopeBySlug`/`getTenantScope`) fails closed unless the caller
+ * has an agency_memberships row for the tenant. Layout writes are keyed by
+ * `scope.tenantId` — the tenant-isolation invariant. The GLOBAL System-B
+ * field-flag writes additionally require the membership-role capability
+ * `agency.site_admin.design.edit` (admin/owner) via `guardCatalogScope`'s
+ * `requireCapability` option.
  *
  * READ CONTRACT: the reader for the sidebar layout is
  * `fetchDirectorySidebarLayout` (lib/directory/directory-sidebar-layout.ts).
@@ -55,7 +65,8 @@
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { getTenantScope, getTenantScopeBySlug } from "@/lib/saas/scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CACHE_TAG_DIRECTORY } from "@/lib/cache-tags";
@@ -105,19 +116,34 @@ type GuardedScope = {
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>;
 };
 
-async function guardCatalogScope(tenantSlug?: string): Promise<
-  { ok: true; scope: GuardedScope } | { ok: false; error: string }
-> {
-  const auth = await requireStaff();
+async function guardCatalogScope(
+  tenantSlug?: string,
+  opts?: {
+    /**
+     * Membership-role capability the caller must hold on the resolved
+     * tenant. Pass for writes that mutate GLOBAL canonical System-B flags
+     * (`profile_field_definitions.show_in_directory_*`) so only
+     * admin/owner-grade members (or platform admins) can flip them.
+     */
+    requireCapability?: "agency.site_admin.design.edit";
+  },
+): Promise<{ ok: true; scope: GuardedScope } | { ok: false; error: string }> {
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   // URL-authoritative when the workspace-admin studio passes its slug; falls
   // back to the header/cookie scope for callers without one. A multi-workspace
   // operator whose active_tenant_id cookie points elsewhere would otherwise
   // toggle the wrong tenant's fields (or get "Pick an agency workspace").
+  // Membership proof lives HERE: both scope helpers return null unless the
+  // caller has an agency_memberships row for the tenant (see module AUTH doc).
   const scope = tenantSlug
     ? await getTenantScopeBySlug(tenantSlug)
     : await getTenantScope();
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  if (opts?.requireCapability) {
+    const allowed = await userHasCapability(opts.requireCapability, scope.tenantId);
+    if (!allowed) return { ok: false, error: "Not authorized." };
+  }
   const admin = createServiceRoleClient();
   if (!admin) {
     return { ok: false, error: "Server is missing service-role credentials." };
@@ -535,7 +561,9 @@ export async function setFieldCardVisible(
   cardVisible: boolean,
   tenantSlug?: string,
 ): Promise<CatalogActionResult> {
-  const guard = await guardCatalogScope(tenantSlug);
+  const guard = await guardCatalogScope(tenantSlug, {
+    requireCapability: "agency.site_admin.design.edit",
+  });
   if (!guard.ok) return guard;
   const { admin, tenantId } = guard.scope;
 
@@ -552,7 +580,9 @@ export async function setFieldDirectoryFilterVisible(
   fieldKey: string,
   directoryFilterVisible: boolean,
 ): Promise<CatalogActionResult> {
-  const guard = await guardCatalogScope();
+  const guard = await guardCatalogScope(undefined, {
+    requireCapability: "agency.site_admin.design.edit",
+  });
   if (!guard.ok) return guard;
   const { admin, tenantId } = guard.scope;
 

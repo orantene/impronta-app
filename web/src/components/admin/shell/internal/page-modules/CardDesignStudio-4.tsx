@@ -13,7 +13,7 @@
  * editorial card painting from its own published tokens.
  */
 
-import { Check, Eye } from "lucide-react";
+import { Check, Eye, Maximize2 } from "lucide-react";
 
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -155,10 +155,20 @@ export function CardLivePreview({ draft }: { draft: Record<string, string> }) {
     ...(isHex(draft["card.muted"] ?? "")
       ? { ["--token-card-muted" as string]: draft["card.muted"] }
       : {}),
+    ...(isHex(draft["card.price-color"] ?? "")
+      ? { ["--token-card-price-color" as string]: draft["card.price-color"] }
+      : {}),
   };
+
+  // Family attr on the preview wrapper (paired with data-card-design-scope so
+  // the :is(html, [data-card-design-scope]) family CSS matches) — the preview
+  // now shows the kit's chrome, not just its colors.
+  const family = draft["template.directory-card-family"] || undefined;
 
   return (
     <div
+      data-token-template-directory-card-family={family}
+      data-card-design-scope=""
       style={{
         padding: 18,
         borderRadius: RADIUS.xl,
@@ -450,6 +460,15 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
               <Eye size={15} aria-hidden />
             </span>
           ) : null}
+          {badges.quickView ? (
+            <span
+              data-preview-quick-view
+              title={t("dashboard.adminCardStudio2.rosterQuickViewTitle")}
+              className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[rgba(11,11,13,0.14)] bg-[rgba(255,255,255,0.95)] text-admin-ink-muted shadow-[0_1px_4px_rgba(11,11,13,0.16)]"
+            >
+              <Maximize2 size={14} aria-hidden />
+            </span>
+          ) : null}
           {badges.discover ? (
             <span
               style={{
@@ -558,25 +577,60 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
         </div>
       </div>
 
-      {/* Body — name + type + city always show, like the real roster card */}
+      {/* Parent-category strip — mirrors the real card's admin scanning
+          anchor (band between photo and body), gated by `categories`. */}
+      {badges.categories ? (
+        <div
+          data-preview-parent-category
+          className="border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
+        >
+          {t("dashboard.adminCardStudio2.sampleParentCategory")}
+        </div>
+      ) : null}
+
+      {/* Body — name + city always show; the category block (type line +
+          secondary chips) is gated by `categories`, like the real card. */}
       <div style={{ padding: "10px 12px 12px" }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, color: COLORS.ink }}>
           {"Tina Rossi"}
         </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: COLORS.accentDeep,
-            fontWeight: 600,
-            marginTop: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>📸</span>
-          {t("dashboard.adminCardStudio2.sampleTalentType")}
-        </div>
+        {badges.categories ? (
+          <>
+            <div
+              style={{
+                fontSize: 11.5,
+                color: COLORS.accentDeep,
+                fontWeight: 600,
+                marginTop: 2,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>📸</span>
+              {t("dashboard.adminCardStudio2.sampleTalentType")}
+            </div>
+            <div
+              data-preview-secondary-types
+              className="mt-[4px] flex flex-wrap gap-[3px]"
+            >
+              {[
+                t("dashboard.adminCardStudio2.sampleSecondaryTypeA"),
+                t("dashboard.adminCardStudio2.sampleSecondaryTypeB"),
+              ].map((label) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted"
+                >
+                  {label}
+                </span>
+              ))}
+              <span className="inline-flex items-center rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted">
+                +2
+              </span>
+            </div>
+          </>
+        ) : null}
         <div style={{ fontSize: 11, marginTop: 1, color: COLORS.inkMuted }}>📍 Milano, IT</div>
       </div>
     </div>

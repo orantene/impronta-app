@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Card } from "../primitives";
-import { COLORS, FONTS, TAXONOMY, useAdminShell } from "../state";
+import { COLORS, FONTS, useAdminShell } from "../state";
 import type { TalentProfile } from "../state";
 import { fillAdminTpl } from "./TalentPage-1";
-import { RosterEyeToggle, RosterPhotoBadgeOverlay, RosterTrustCell } from "./TalentPage-3";
+import { RosterEyeToggle, RosterPhotoBadgeOverlay, RosterQuickViewButton, RosterTrustCell } from "./TalentPage-3";
+import { resolveRosterCardTaxonomy } from "./roster-card-taxonomy";
+import type { RosterSortKey } from "./roster-sort";
 
 
 export function FilterChip({
@@ -51,13 +53,14 @@ export function SortButton({
   sortDir,
   onSort,
 }: {
-  sort: "name" | "completeness" | "newest" | "lastEdited";
+  sort: RosterSortKey;
   sortDir: "asc" | "desc";
-  onSort: (s: "name" | "completeness" | "newest" | "lastEdited") => void;
+  onSort: (s: RosterSortKey) => void;
 }) {
   const [open, setOpen] = useState(false);
   const { t } = useAdminShell();
   const sortLabel = {
+    recommended: t("admin.roster.filters.sortRecommended"),
     name: t("admin.roster.filters.sortName"),
     completeness: t("admin.roster.filters.sortCompleteness"),
     newest: t("admin.roster.filters.sortNewest"),
@@ -102,8 +105,9 @@ export function SortButton({
               fontFamily: FONTS.body,
             }}
           >
-            {(["name", "completeness", "newest", "lastEdited"] as const).map((s) => {
+            {(["recommended", "name", "completeness", "newest", "lastEdited"] as const).map((s) => {
               const labels: Record<string, string> = {
+                recommended: t("admin.roster.filters.sortRecommended"),
                 name: t("admin.roster.filters.sortName"),
                 completeness: t("admin.roster.filters.sortCompleteness"),
                 newest: t("admin.roster.filters.sortNewest"),
@@ -365,25 +369,17 @@ function RosterCard({
   // Mirror the old CSS background-image silent-fallback: on 400/404 from
   // Supabase, hide the image and let the initials placeholder show through.
   const [photoFailed, setPhotoFailed] = useState(false);
-  const { bridgeTalentSelfProfile, tenantSlug, t, rosterCardBadges } = useAdminShell();
+  const { bridgeTalentSelfProfile, tenantSlug, t, locale, rosterCardBadges } = useAdminShell();
   const isSelf = !!bridgeTalentSelfProfile?.id && profile.id === bridgeTalentSelfProfile.id;
 
-  // Resolve primary type → label + parent emoji + first specialty.
-  // The triplet is what makes the card scan-able: emoji = visual anchor,
-  // label = "what they do", specialty = "what flavor of that".
-  const typeMeta = (() => {
-    if (!profile.primaryType) return null;
-    for (const parent of TAXONOMY) {
-      const c = parent.children.find((x) => x.id === profile.primaryType);
-      if (c) return {
-        label: c.label,
-        emoji: parent.emoji,
-        specialty: c.specialties?.[0] ?? null,
-      };
-    }
-    return null;
-  })();
-  const typeLabel = typeMeta?.label ?? null;
+  // Resolve categories → parent label (WHO bucket), primary label ("what they
+  // do", humanized — never a raw slug), secondary labels ("what else").
+  // Live bridge chips win; static TAXONOMY covers mock workspaces.
+  const taxonomyView = resolveRosterCardTaxonomy(profile, locale);
+  const typeLabel = taxonomyView.primaryLabel ?? null;
+  const secondaryLabels = rosterCardBadges.categories ? taxonomyView.secondaryLabels : [];
+  const visibleSecondaries = secondaryLabels.slice(0, 3);
+  const extraSecondaryCount = secondaryLabels.length - visibleSecondaries.length;
 
   // Availability dot
   const availDot = profile.availability === "available"
@@ -538,6 +534,12 @@ function RosterCard({
               talentHidden={profile.talentHidden ?? false}
             />
           )}
+          {/* Quick view — soft-navigates to /t/<code>; the root @modal/(.)t
+              interception renders the public profile as a popup OVER the
+              roster, so staff can peek a talent without losing their place. */}
+          {rosterCardBadges.quickView && profile.profileCode && (
+            <RosterQuickViewButton profileCode={profile.profileCode} />
+          )}
           {/* "On Discover" pill — surfaces talent_profiles.is_discoverable
               (the talent's cross-tenant Tulala Discover opt-in). */}
           {rosterCardBadges.discover && profile.isDiscoverable && (
@@ -661,6 +663,18 @@ function RosterCard({
         </div>
       </div>
 
+      {/* Parent-category strip — the admin scanning anchor ("Models",
+          "Performers", "Hosts & Promo"). Full-width band between photo and
+          body so it never collides with the photo overlays. */}
+      {rosterCardBadges.categories && taxonomyView.parentLabel && (
+        <div
+          data-roster-parent-category
+          className="overflow-hidden text-ellipsis whitespace-nowrap border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
+        >
+          {taxonomyView.parentLabel}
+        </div>
+      )}
+
       {/* Card body — name + type + city, hairlined */}
       <div style={{ padding: "10px 12px 12px" }}>
         {profile.state === "draft" && (
@@ -677,33 +691,59 @@ function RosterCard({
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {profile.name}
         </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: typeLabel ? COLORS.accentDeep : COLORS.inkMuted,
-            fontWeight: typeLabel ? 600 : 500,
-            marginTop: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-          }}
-        >
-          {typeMeta && (
-            <span aria-hidden style={{ fontSize: 12, flexShrink: 0, opacity: 0.85 }}>
-              {typeMeta.emoji}
-            </span>
-          )}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? profile.primaryType ?? t("admin.roster.card.noTypeSet")}
-            {typeMeta?.specialty && (
-              <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">
-                {" · "}{typeMeta.specialty}
+        {rosterCardBadges.categories && (
+          <div
+            data-roster-primary-type
+            style={{
+              fontSize: 11.5,
+              color: typeLabel ? COLORS.accentDeep : COLORS.inkMuted,
+              fontWeight: typeLabel ? 600 : 500,
+              marginTop: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+            }}
+          >
+            {taxonomyView.parentEmoji && (
+              <span aria-hidden style={{ fontSize: 12, flexShrink: 0, opacity: 0.85 }}>
+                {taxonomyView.parentEmoji}
               </span>
             )}
-          </span>
-        </div>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+              {typeLabel ?? t("admin.roster.card.noTypeSet")}
+              {taxonomyView.specialty && visibleSecondaries.length === 0 && (
+                <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">
+                  {" · "}{taxonomyView.specialty}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
+        {visibleSecondaries.length > 0 && (
+          <div
+            data-roster-secondary-types
+            className="mt-[4px] flex flex-wrap gap-[3px]"
+          >
+            {visibleSecondaries.map((label) => (
+              <span
+                key={label}
+                className="inline-flex max-w-full items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted"
+              >
+                {label}
+              </span>
+            ))}
+            {extraSecondaryCount > 0 && (
+              <span
+                title={secondaryLabels.slice(3).join(" · ")}
+                className="inline-flex items-center rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted"
+              >
+                +{extraSecondaryCount}
+              </span>
+            )}
+          </div>
+        )}
         {profile.city && (
           <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
             📍 {profile.city}

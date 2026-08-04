@@ -19,6 +19,14 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadPitchByToken } from "@/lib/pitch/pitch-engine";
 import type { PitchRow } from "@/lib/pitch/pitch-types";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
+import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
+import type { CardDesign } from "@/lib/site-admin/server/card-design-shape";
+import { loadPublicBranding } from "@/lib/site-admin/server/reads";
+import {
+  designTokensToCssVars,
+  designTokensToDataAttrs,
+  resolveDesignTokens,
+} from "@/lib/site-admin/tokens/resolve";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 import { PitchLanding } from "./_pitch-landing";
@@ -58,6 +66,24 @@ export type PitchLandingData = {
    * guest-or-register prompt; anonymous viewers see both options.
    */
   viewerSignedIn: boolean;
+  /**
+   * The pitching tenant's published Card Design. Pitch links land on the
+   * shared hub domain, so the <html> token cascade carries platform defaults —
+   * the landing resolves the design explicitly (like the marketing directory)
+   * so pitch tiles paint in the SAME palette + family as every other card
+   * surface. One design, every surface.
+   */
+  cardDesign: CardDesign;
+  /**
+   * The tenant's FULL resolved design-token CSS vars (what the storefront
+   * <html> carries). Family CSS reads theme vars (--token-color-*, with
+   * !important); the hub domain doesn't have them, so without this the
+   * family background collapses to transparent under a dark design.
+   */
+  designTokenVars: Record<string, string>;
+  /** data-token-* attrs (background-mode etc.) — the var-defining CSS blocks
+   *  match :is(html, [data-card-design-scope]) so the wrapper can carry them. */
+  designTokenAttrs: Record<string, string>;
   /** Path the registration CTA should navigate back to (?next=). */
   registerNextPath: string;
 };
@@ -189,10 +215,21 @@ export default async function PitchTokenPage({ params }: PageProps) {
   // or gate access on auth; the pitch is always reachable via the token.
   const viewerSession = await getCachedActorSession();
   const viewerSignedIn = !!viewerSession.user;
+
+  // The pitching tenant's published Card Design (cached, tag-busted on
+  // publish) — pitch tiles paint in the tenant's palette + family.
+  const cardDesign = await resolveCardDesign(pitch.tenant_id);
+  const publicBranding = await loadPublicBranding(pitch.tenant_id);
+  const resolvedTokens = resolveDesignTokens(publicBranding);
+  const designTokenVars = designTokensToCssVars(resolvedTokens);
+  const designTokenAttrs = designTokensToDataAttrs(resolvedTokens);
   const registerNextPath = `/share/pitch/${encodeURIComponent(token)}`;
 
   const landingData: PitchLandingData = {
     token,
+    cardDesign,
+    designTokenVars,
+    designTokenAttrs,
     pitch,
     talents,
     agencyName: publicName,

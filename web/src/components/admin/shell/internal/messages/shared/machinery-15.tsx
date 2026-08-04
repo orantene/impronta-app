@@ -4,6 +4,7 @@ import React, { useTransition, useRef, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { uploadInquiryAttachmentSigned } from "@/lib/client/signed-upload";
 import { uploadInquiryAttachmentAsTalent, acceptInquiryInvitation, declineInquiryInvitation, submitMyRateForInquiry, sendInquiryMessageAsTalent } from "@/lib/server-actions/talent-pipeline";
 import { useAdminShell, COLORS, FONTS, MY_TALENT_PROFILE, TRANSITION } from "../../state";
 import { Avatar } from "../../primitives";
@@ -27,12 +28,30 @@ export function FilesTab({ conv, povCanSeeTalentFiles, pov }: { conv: Conversati
   const onTalentPickFile = (file: File) => {
     if (file.size > 100 * 1024 * 1024) { toast(t("dashboard.adminTabs.files.fileOver100")); return; }
     startTalentUploadTransition(async () => {
-      const fd = new FormData();
-      fd.set("inquiryId", conv.id);
-      fd.set("file", file);
-      const r = await uploadInquiryAttachmentAsTalent(fd);
-      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: r.error }));
-      else toast(t("dashboard.adminTabs.files.fileUploaded"));
+      // try/catch is load-bearing: a thrown action (e.g. the 4 MB Server
+      // Action body cap on the legacy path) would otherwise escape the
+      // transition with no toast at all.
+      try {
+        // Signed PUT first — the server resolves the caller as an active
+        // talent participant and writes visibility='participant', same as
+        // the legacy action.
+        const fast = await uploadInquiryAttachmentSigned({ inquiryId: conv.id, file });
+        if (fast.ok) { toast(t("dashboard.adminTabs.files.fileUploaded")); return; }
+        if (!fast.fallbackToLegacy) {
+          toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: fast.error }));
+          return;
+        }
+        const fd = new FormData();
+        fd.set("inquiryId", conv.id);
+        fd.set("file", file);
+        const r = await uploadInquiryAttachmentAsTalent(fd);
+        if (!r.ok) toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: r.error }));
+        else toast(t("dashboard.adminTabs.files.fileUploaded"));
+      } catch (err) {
+        toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), {
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
     });
   };
 

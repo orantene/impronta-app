@@ -23,9 +23,10 @@
  * talent_profiles.rating_all_avg / rating_all_count (both written by migration
  * 20261110040000 but never read until now).
  *
- * Auth model: every entry point requires an AGENCY-STAFF session (requireStaff)
- * and then reads through the SERVICE-ROLE client scoped to `tenantId` in the
- * query. review_moderation_events + the hidden/reported rows are staff-only
+ * Auth model (2026-08-04): every entry point requires a signed-in caller who
+ * holds `agency.workspace.view` ON THE REQUESTED TENANT (an active
+ * agency_memberships row — NOT the global profiles.app_role), and then reads
+ * through the SERVICE-ROLE client scoped to `tenantId` in the query. review_moderation_events + the hidden/reported rows are staff-only
  * under RLS anyway; running on the service role avoids brittle cross-table RLS
  * joins while the explicit tenant_id filter keeps every read tenant-scoped.
  * Callers that fail the staff gate get an empty payload — never an error, never
@@ -33,7 +34,8 @@
  * regenerated this wave).
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 /** A single moderation-audit event on a review (immutable trail row). */
@@ -191,9 +193,9 @@ function publicFirstName(raw: string | null | undefined): string | null {
 /**
  * Review PHOTOS for a tenant awaiting/under staff moderation (STANDING v3 item
  * 5), newest first. Each row carries the parent review's talent + reviewer
- * context and a public thumbnail URL. Staff-scoped to `tenantId` via
- * requireStaff + an explicit tenant_id filter on the service-role client;
- * returns [] for a non-staff caller, an unknown tenant, or when there are no
+ * context and a public thumbnail URL. Member-scoped to `tenantId` via the
+ * per-tenant capability check + an explicit tenant_id filter on the
+ * service-role client; returns [] for a non-member caller, an unknown tenant, or when there are no
  * photos. Includes soft-deleted? NO — soft-deleted (uploader-removed) rows are
  * excluded; only live rows are moderatable.
  *
@@ -204,11 +206,18 @@ export async function loadReviewMediaForTenant(
   states?: readonly string[],
   limit = 100,
 ): Promise<ReviewMediaModerationItem[]> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
 
   const tid = (tenantId ?? "").trim();
   if (!tid) return [];
+  // These loaders read through the SERVICE-ROLE client (RLS bypassed) and scope
+  // only by the caller-supplied `tenantId`, so the app layer is the whole
+  // boundary. The former requireStaff() gate keyed on the GLOBAL
+  // profiles.app_role: it admitted staff of ANY tenant to ANY tenant's
+  // moderation queue, and rejected hybrid workspace owners on their own.
+  // Membership on THIS tenant is the correct gate on both counts.
+  if (!(await userHasCapability("agency.workspace.view", tid))) return [];
 
   const svc = createServiceRoleClient();
   if (!svc) return [];
@@ -299,11 +308,18 @@ export async function loadReportedReviews(
   tenantId: string,
   limit = 100,
 ): Promise<ReportedReview[]> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
 
   const tid = (tenantId ?? "").trim();
   if (!tid) return [];
+  // These loaders read through the SERVICE-ROLE client (RLS bypassed) and scope
+  // only by the caller-supplied `tenantId`, so the app layer is the whole
+  // boundary. The former requireStaff() gate keyed on the GLOBAL
+  // profiles.app_role: it admitted staff of ANY tenant to ANY tenant's
+  // moderation queue, and rejected hybrid workspace owners on their own.
+  // Membership on THIS tenant is the correct gate on both counts.
+  if (!(await userHasCapability("agency.workspace.view", tid))) return [];
 
   const svc = createServiceRoleClient();
   if (!svc) return [];
@@ -389,11 +405,18 @@ export async function loadModerationIntegritySignals(
   tenantId: string,
   minGap = 0.1,
 ): Promise<ModerationIntegritySignal[]> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
 
   const tid = (tenantId ?? "").trim();
   if (!tid) return [];
+  // These loaders read through the SERVICE-ROLE client (RLS bypassed) and scope
+  // only by the caller-supplied `tenantId`, so the app layer is the whole
+  // boundary. The former requireStaff() gate keyed on the GLOBAL
+  // profiles.app_role: it admitted staff of ANY tenant to ANY tenant's
+  // moderation queue, and rejected hybrid workspace owners on their own.
+  // Membership on THIS tenant is the correct gate on both counts.
+  if (!(await userHasCapability("agency.workspace.view", tid))) return [];
 
   const svc = createServiceRoleClient();
   if (!svc) return [];

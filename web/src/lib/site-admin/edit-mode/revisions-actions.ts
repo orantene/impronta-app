@@ -33,7 +33,7 @@ import {
 } from "@/lib/site-admin/server/homepage-reads";
 import { loadPageRevisionsForStaff } from "@/lib/site-admin/server/pages-reads";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -95,7 +95,7 @@ function asLocale(raw: string): Locale | null {
 export async function loadHomepageRevisionsAction(input: {
   locale: string;
 }): Promise<RevisionsLoadResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -198,7 +198,7 @@ export async function restoreHomepageRevisionAction(input: {
   locale: string;
   expectedVersion: number;
 }): Promise<RevisionRestoreResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -363,7 +363,7 @@ export async function loadPageRevisionsAction(input: {
   pageId: string;
   pageVersion: number;
 }): Promise<RevisionsLoadResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -442,7 +442,7 @@ export async function restorePageRevisionAction(input: {
   pageId: string;
   expectedVersion: number;
 }): Promise<RevisionRestoreResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -517,7 +517,7 @@ export type NamedCheckpointResult =
 export async function fetchNewestDraftRevisionIdAction(input: {
   pageId: string;
 }): Promise<NamedCheckpointResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -566,7 +566,7 @@ export type PublishDiffRevisionIdsResult =
 export async function loadPublishDiffRevisionIdsAction(input: {
   pageId: string;
 }): Promise<PublishDiffRevisionIdsResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
@@ -613,7 +613,7 @@ export async function loadRevisionDiffAction(input: {
   revisionIdA: string;
   revisionIdB: string;
 }): Promise<RevisionSnapshotResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };

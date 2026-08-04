@@ -15,7 +15,7 @@
  * matching the workspace-templates action.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -47,7 +47,7 @@ export async function saveBuilderComponent(input: {
   description?: string;
   subtree: BuilderNode;
 }): Promise<SaveComponentResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -108,7 +108,7 @@ export async function updateBuilderComponent(input: {
   componentId: string;
   subtree: BuilderNode;
 }): Promise<SaveComponentResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -149,7 +149,7 @@ export async function updateBuilderComponent(input: {
 // ── 2. listBuilderComponents ─────────────────────────────────────────────
 
 export async function listBuilderComponents(): Promise<ListComponentsResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -181,7 +181,7 @@ export async function listBuilderComponents(): Promise<ListComponentsResult> {
 export async function deleteBuilderComponent(input: {
   componentId: string;
 }): Promise<SimpleComponentResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

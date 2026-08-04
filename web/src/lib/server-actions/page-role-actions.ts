@@ -2,7 +2,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { tagFor } from "@/lib/site-admin";
 import { readTenantPageRoles, writeTenantPageRole } from "@/lib/site-admin/server/page-roles";
@@ -19,7 +19,7 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 export async function readPageRolesAction(): Promise<
   { ok: true; roles: TenantPageRoles } | { ok: false; error: string }
 > {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };
@@ -40,7 +40,7 @@ export async function setPageRoleAction(
 ): Promise<ActionResult> {
   if (!PAGE_ROLES.includes(role)) return { ok: false, error: "Unknown role." };
 
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
@@ -96,7 +96,7 @@ export async function setPageRoleAction(
 export async function convertLegacyHomepageToPageAction(): Promise<
   { ok: true; slug: string } | { ok: false; error: string }
 > {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };

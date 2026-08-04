@@ -70,6 +70,14 @@ export type CardDesign = {
    */
   profilePopup?: "on" | "off";
   /**
+   * `directory.card.show-favorite` / `directory.card.show-inquiry`. Same
+   * CEILING semantics as `profilePopup`: "off" hides the control on every
+   * directory card tenant-wide; a section can still hide it per instance but
+   * cannot force it back on.
+   */
+  showFavorite?: "on" | "off";
+  showInquiry?: "on" | "off";
+  /**
    * Tenant-wide DEFAULTS for the card layout knobs. A directory section that
    * sets its own value keeps it; sections that left the value UNSET follow
    * these. Undefined here = fall through to the platform default.
@@ -89,6 +97,12 @@ const CARD_COLOR_KEYS = {
 } as const;
 
 const PROFILE_POPUP_KEY = "directory.card.profile-popup";
+
+/** Registry token key → on/off ceiling field (popup-style semantics). */
+const ACTION_CEILING_KEYS = {
+  showFavorite: "directory.card.show-favorite",
+  showInquiry: "directory.card.show-inquiry",
+} as const;
 
 /** Registry token key → `CardDesign` layout field, with its allowed values. */
 const LAYOUT_KEYS = {
@@ -143,6 +157,13 @@ export function projectCardDesign(
   const popup = live[PROFILE_POPUP_KEY];
   if (popup === "off" || popup === "on") out.profilePopup = popup;
 
+  for (const [field, tokenKey] of Object.entries(ACTION_CEILING_KEYS) as Array<
+    [keyof typeof ACTION_CEILING_KEYS, string]
+  >) {
+    const value = live[tokenKey];
+    if (value === "off" || value === "on") out[field] = value;
+  }
+
   for (const [field, spec] of Object.entries(LAYOUT_KEYS)) {
     const [tokenKey, allowed] = spec as unknown as [string, readonly string[]];
     const value = live[tokenKey];
@@ -181,4 +202,23 @@ export function cardDesignToCssVars(
   if (design.muted) out["--token-card-muted"] = design.muted;
   if (design.priceColor) out["--token-card-price-color"] = design.priceColor;
   return out;
+}
+
+/** Families that render with the `<TalentCard>` editorial branch. */
+const EDITORIAL_FAMILIES: ReadonlySet<CardDesignFamily> = new Set([
+  "editorial-noir",
+  "editorial-bridal",
+  "magazine",
+]);
+
+/**
+ * Map a card family to the `<TalentCard>` style branch. Shared by every
+ * surface that renders per-tenant designs OUTSIDE the `<html>` token cascade
+ * (marketing global directory, client dashboard shells) so none of them
+ * hardcodes `"editorial"`.
+ */
+export function familyToTalentCardStyle(
+  family: CardDesignFamily,
+): "portrait" | "editorial" {
+  return EDITORIAL_FAMILIES.has(family) ? "editorial" : "portrait";
 }
