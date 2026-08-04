@@ -211,6 +211,9 @@ export function CardDesignStudio() {
         ...(draft["directory.card.hover"]
           ? { hoverBehavior: draft["directory.card.hover"] as CardAppearance["hoverBehavior"] }
           : {}),
+        ...(draft["directory.card.density"]
+          ? { density: draft["directory.card.density"] as CardAppearance["density"] }
+          : {}),
         showSave: draft["directory.card.show-favorite"] !== "off",
         showAddToInquiry: draft["directory.card.show-inquiry"] !== "off",
       }));
@@ -292,6 +295,13 @@ export function CardDesignStudio() {
       }
       setDraftTokens((prev) => {
         const next = { ...prev, [key]: value };
+        // Cancel any pending debounced knob save — its stale snapshot would
+        // otherwise land AFTER this save and revert the toggle. The knob's
+        // edit is already inside `next`, so nothing is lost.
+        if (knobDebounceRef.current) {
+          clearTimeout(knobDebounceRef.current);
+          knobDebounceRef.current = null;
+        }
         void saveDesignDraft(next);
         return next;
       });
