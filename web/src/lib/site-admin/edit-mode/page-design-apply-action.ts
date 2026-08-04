@@ -16,7 +16,7 @@
  * clicks Publish — they're editing a draft they can restyle or replace.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
@@ -51,7 +51,7 @@ export async function applyPageDesignToHomepage(
   _prev: ApplyPageDesignState,
   formData: FormData,
 ): Promise<ApplyPageDesignState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -136,7 +136,7 @@ export async function applyPageDesignToPage(
   designId: string,
   expectedVersion: number,
 ): Promise<ApplyPageDesignState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {

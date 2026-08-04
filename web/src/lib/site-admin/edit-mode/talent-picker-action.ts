@@ -5,7 +5,7 @@
  * `talent_collection` visual picker.
  *
  * Tenant isolation (defence in depth):
- *   1. `requireStaff()` — authenticated workspace staff only (RLS-authed
+ *   1. `requireSession()` — authenticated workspace staff only (RLS-authed
  *      client), never a public/anon client.
  *   2. `requireTenantScope()` — resolves the active workspace tenant.
  *   3. `listAdminRosterTalentIds(tenantId)` — explicit `agency_talent_roster`
@@ -19,7 +19,7 @@
  * editor; this powers the primary search UX.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { logServerError } from "@/lib/server/safe-error";
@@ -65,7 +65,7 @@ function one<T>(v: T | T[] | null | undefined): T | null {
 export async function searchTenantTalent(input: {
   query?: string;
 }): Promise<TenantTalentSearchResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {

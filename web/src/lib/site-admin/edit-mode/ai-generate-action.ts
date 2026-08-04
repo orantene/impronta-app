@@ -15,7 +15,7 @@
  * should be product-scoped before code lands.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
@@ -74,7 +74,7 @@ Never invent specific facts (real names, phone numbers, addresses, prices) unles
 export async function generateSectionWithAi(
   input: GenerateSectionInput,
 ): Promise<GenerateSectionResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
@@ -237,7 +237,7 @@ export async function generateAltTextWithAi(
   imageUrl: string,
   context: string,
 ): Promise<AltTextResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

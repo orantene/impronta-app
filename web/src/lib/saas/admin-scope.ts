@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope, type TenantScope } from "./scope";
 
@@ -60,13 +61,48 @@ export async function requireAdminTenantGuardOrThrow(): Promise<AdminTenantGuard
 }
 
 /**
- * Server-action guard: authenticates agency staff AND resolves the active
- * tenant. Returns an `AdminActionState`-compatible `{ error }` shape on
- * failure so server actions can early-return without rewriting their return
- * contracts.
+ * Server-action guard: authenticates the caller as an authorised MEMBER of the
+ * active tenant AND resolves that tenant. Returns an `AdminActionState`-
+ * compatible `{ error }` shape on failure so server actions can early-return
+ * without rewriting their return contracts.
  *
- * Always prefer this over raw `requireStaff()` in any action that touches
+ * Always prefer this over raw `requireSession()` in any action that touches
  * tenant-scoped tables.
+ *
+ * AUTH MODEL (2026-08-04 sweep, extends PR #990):
+ * This guard used to be `requireStaff() + getTenantScope()`. `requireStaff`
+ * checks the GLOBAL `profiles.app_role` (`super_admin` | `agency_staff`), which
+ * rejects **hybrid workspace owners** — a talent/client-signup user who creates
+ * or is granted a workspace keeps `app_role='talent'`/`'client'` (see
+ * `workspace-lifecycle.ts`; that is a supported product state). The workspace
+ * admin shell admits them through the membership-based `agency.workspace.view`
+ * capability, so every action behind this guard rendered but returned
+ * "Not authorized." on their own workspace.
+ *
+ * Authorization is now proven by three independent, membership-based layers —
+ * no global role anywhere:
+ *   (a) `getTenantScope()` fails CLOSED: it walks `agency_memberships` and
+ *       returns null unless the caller holds a row on the resolved tenant (a
+ *       tampered `impronta.active_tenant_id` cookie is rejected + logged);
+ *   (b) the capability check below runs the canonical 10-step resolver
+ *       (`userHasCapability`), which requires an **active** membership whose
+ *       ROLE grants the capability, on a servable tenant. Platform admins
+ *       (`super_admin`) bypass via the platform-role step, so HQ flows are
+ *       unaffected;
+ *   (c) RLS — `is_staff_of_tenant()` is membership-based, not app_role-based,
+ *       so the database boundary is unchanged by this swap.
+ *
+ * Net effect on the gate: hybrid owners are admitted (the bug), and
+ * `pending_acceptance` members are now *rejected* for mutations (step (b)
+ * requires `status='active'`) — a tightening the capability model already
+ * documented but the old global-role gate never enforced.
+ *
+ * @param options.capability Membership-role capability the caller must hold on
+ *   the resolved tenant. Defaults to `agency.workspace.view` (the same gate the
+ *   workspace admin shell uses to admit the caller at all — every membership
+ *   role from `viewer` up holds it). Pass a narrower capability from actions
+ *   that mutate admin-grade surfaces so the guard grades up with the action
+ *   instead of relying on RLS alone.
  */
 export type StaffTenantActionGuard = {
   ok: true;
@@ -78,13 +114,20 @@ export type StaffTenantActionGuard = {
 
 export type StaffTenantActionGuardFail = { ok: false; error: string };
 
-export async function requireStaffTenantAction(): Promise<
-  StaffTenantActionGuard | StaffTenantActionGuardFail
-> {
-  const [auth, scope] = await Promise.all([requireStaff(), getTenantScope()]);
+export async function requireStaffTenantAction(options?: {
+  capability?: CapabilityKey;
+}): Promise<StaffTenantActionGuard | StaffTenantActionGuardFail> {
+  const [auth, scope] = await Promise.all([requireSession(), getTenantScope()]);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!scope) {
     return { ok: false, error: "No active tenant for this request." };
+  }
+  // Membership-role capability check (see AUTH MODEL above). `getTenantScope`
+  // already proved a membership row exists; this proves the membership is
+  // ACTIVE and its role actually grants the requested surface.
+  const capability: CapabilityKey = options?.capability ?? "agency.workspace.view";
+  if (!(await userHasCapability(capability, scope.tenantId))) {
+    return { ok: false, error: "Not authorized." };
   }
   return {
     ok: true,

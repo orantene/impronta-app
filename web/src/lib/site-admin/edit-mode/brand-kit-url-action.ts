@@ -18,7 +18,8 @@
  * but works on enough sites to be a real shortcut.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { getTenantScope } from "@/lib/saas/scope";
 
 export type BrandKitExtractResult =
   | { ok: true; tokens: Record<string, string> }
@@ -33,8 +34,15 @@ const FONT_QUERY_RE = /family=([^&"'\s]+)/g;
 export async function extractBrandKitFromUrl(input: {
   url: string;
 }): Promise<BrandKitExtractResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
+  // Tenant-agnostic builder utility (no row it could scope), so the gate is
+  // "member of SOME workspace". `getTenantScope` fails closed without an
+  // agency_memberships row — membership, not the global profiles.app_role,
+  // is the boundary (see the AUTH MODEL note on requireStaffTenantAction).
+  if (!(await getTenantScope())) {
+    return { ok: false, error: "Select an agency workspace first." };
+  }
 
   let target: URL;
   try {

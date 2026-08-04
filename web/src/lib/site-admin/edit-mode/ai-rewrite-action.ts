@@ -10,7 +10,7 @@
  * Both share the same provider adapter, allow-list, and rate limit.
  *
  * Safety:
- *   - requireStaff + requireTenantScope (same gate as every other edit
+ *   - requireSession + requireTenantScope (same gate as every other edit
  *     action).
  *   - Field allow-list per section (string fields only; we never let
  *     the AI rewrite numbers, enums, or URLs).
@@ -30,7 +30,7 @@
  *     when present.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
@@ -154,7 +154,7 @@ function checkRateLimit(tenantId: string): {
 export async function rewriteFieldWithAi(
   input: AiRewriteInput,
 ): Promise<AiRewriteResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -270,7 +270,7 @@ const TRANSLATE_SYSTEM_PROMPT = `You translate website copy. The operator gives 
 export async function translateSectionWithAi(
   input: AiTranslateInput,
 ): Promise<AiTranslateResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {

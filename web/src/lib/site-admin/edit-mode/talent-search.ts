@@ -5,7 +5,7 @@
  * featured_talent bespoke inspector's picker.
  *
  * Query semantics:
- *   - staff-only (requireStaff + tenant scope)
+ *   - staff-only (requireSession + tenant scope)
  *   - tenant-roster scoped (admin-side: includes pending/inactive so the
  *     operator sees the same set they manage in /admin/talent — not just
  *     public-visible cards)
@@ -23,7 +23,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 
@@ -70,7 +70,7 @@ export async function searchAgencyTalentAction(input: {
   limit?: number;
   excludeCodes?: string[];
 }): Promise<TalentSearchResult | TalentSearchError> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
@@ -191,7 +191,7 @@ export async function searchAgencyTalentAction(input: {
 export async function resolveTalentByCodesAction(input: {
   codes: string[];
 }): Promise<TalentSearchResult | TalentSearchError> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
@@ -301,7 +301,7 @@ export async function resolveTalentByCodesAction(input: {
 export async function resolveTalentByIdsAction(input: {
   ids: string[];
 }): Promise<TalentSearchResult | TalentSearchError> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }

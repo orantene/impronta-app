@@ -16,7 +16,11 @@ export type AgencyLogoUploadResult =
 export async function actionUploadAgencyLogo(
   formData: FormData,
 ): Promise<AgencyLogoUploadResult> {
-  const auth = await requireStaffTenantAction();
+  // Branding surface — graded above the workspace baseline to the
+  // membership-role capability the Phase-5 matrix assigns it (admin/owner).
+  const auth = await requireStaffTenantAction({
+    capability: "agency.site_admin.branding.edit",
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
