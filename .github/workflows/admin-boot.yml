@@ -45,6 +45,9 @@ jobs:
     steps:
       - name: Check secrets (skip with warning when unarmed)
         id: secrets
+        # Runs before checkout, so the job-default working-directory (web)
+        # does not exist yet — override to the runner root.
+        working-directory: .
         run: |
           if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
             echo "::warning title=Admin-boot gate UNARMED::E2E_SUPABASE_URL / E2E_SUPABASE_ANON_KEY / E2E_SUPABASE_SERVICE_ROLE_KEY repository secrets are not set. The chunk-evaluation crash class (2026-08-03 sev-1) is NOT gated until they are added."
