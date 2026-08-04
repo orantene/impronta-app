@@ -10,6 +10,7 @@ import { readVoiceMetaFromMessageMetadata } from "@/lib/messages/voice-meta";
 import { addReaction as addReactionAction, removeReaction as removeReactionAction } from "@/lib/server-actions/message-reactions";
 import { sendMessage as sendMessageAction } from "@/app/(workspace)/[tenantSlug]/admin/messages/actions";
 import { uploadInquiryAttachment, loadInquiryLineup } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { uploadInquiryAttachmentSigned } from "@/lib/client/signed-upload";
 import { type ThreadType } from "@/app/(workspace)/[tenantSlug]/_data-bridge";
 import { useAdminShell, TENANT, meetsRole, FONTS, COLORS, type RichInquiry } from "../state";
 import { Avatar } from "../primitives";
@@ -430,12 +431,32 @@ export function AdminMessageStream({
             // system message is posted to signal the upload.
             onAttach={(file) => {
               startTransition(async () => {
-                const fd = new FormData();
-                fd.append("inquiryId", inquiryId);
-                fd.append("file", file);
-                const r = await uploadInquiryAttachment(fd);
-                if (!r.ok) toast(interpolate(t("dashboard.adminThread.attachFailed"), { error: r.error }));
-                else toast(interpolate(t("dashboard.adminThread.fileAttached"), { name: file.name }));
+                // try/catch is load-bearing: a THROWN action (e.g. the 4 MB
+                // Server Action body cap on the legacy path) escapes the
+                // transition silently — no toast, upload just vanishes.
+                try {
+                  // Signed PUT direct to storage first — the legacy FormData
+                  // action rejects anything over 4 MB before it even runs.
+                  const fast = await uploadInquiryAttachmentSigned({ inquiryId, file });
+                  if (fast.ok) {
+                    toast(interpolate(t("dashboard.adminThread.fileAttached"), { name: file.name }));
+                    return;
+                  }
+                  if (!fast.fallbackToLegacy) {
+                    toast(interpolate(t("dashboard.adminThread.attachFailed"), { error: fast.error }));
+                    return;
+                  }
+                  const fd = new FormData();
+                  fd.append("inquiryId", inquiryId);
+                  fd.append("file", file);
+                  const r = await uploadInquiryAttachment(fd);
+                  if (!r.ok) toast(interpolate(t("dashboard.adminThread.attachFailed"), { error: r.error }));
+                  else toast(interpolate(t("dashboard.adminThread.fileAttached"), { name: file.name }));
+                } catch (err) {
+                  toast(interpolate(t("dashboard.adminThread.attachFailed"), {
+                    error: err instanceof Error ? err.message : String(err),
+                  }));
+                }
               });
             }}
             // Voice notes — record + send straight to the inquiry thread.

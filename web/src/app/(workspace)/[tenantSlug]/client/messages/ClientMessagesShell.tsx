@@ -61,6 +61,7 @@ import {
   deleteClientMessageAction,
 } from "../_actions/inquiry-message-actions";
 import { uploadInquiryAttachmentAsClient } from "@/lib/server-actions/client-inquiry-attachments";
+import { uploadInquiryAttachmentSigned } from "@/lib/client/signed-upload";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -1794,11 +1795,44 @@ function ChatComposer({
     });
 
     startTransition(async () => {
-      const formData = new FormData();
-      formData.set("inquiryId", inquiryId);
-      formData.set("attachmentKind", "reference");
-      formData.set("file", file);
-      const upRes = await uploadInquiryAttachmentAsClient(formData);
+      // Wrapped so a THROWN action can't strand the "Uploading…" bubble
+      // forever — that was exactly the failure mode of the legacy path,
+      // whose 4 MB Server Action body cap throws (not returns) on any
+      // real photo or deck.
+      let upRes: Awaited<ReturnType<typeof uploadInquiryAttachmentAsClient>>;
+      try {
+        // Signed PUT direct to storage first; legacy FormData action only
+        // as a fallback for small files if the signed PUT itself fails.
+        const fast = await uploadInquiryAttachmentSigned({
+          inquiryId,
+          file,
+          attachmentKind: "reference",
+        });
+        if (fast.ok) {
+          upRes = {
+            ok: true,
+            data: {
+              attachmentId: fast.attachmentId,
+              filename: fast.filename,
+              byteSize: fast.byteSize,
+              attachmentKind: fast.attachmentKind,
+            },
+          };
+        } else if (!fast.fallbackToLegacy) {
+          upRes = { ok: false, error: fast.error };
+        } else {
+          const formData = new FormData();
+          formData.set("inquiryId", inquiryId);
+          formData.set("attachmentKind", "reference");
+          formData.set("file", file);
+          upRes = await uploadInquiryAttachmentAsClient(formData);
+        }
+      } catch (err) {
+        upRes = {
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
 
       if (!upRes.ok) {
         setError(upRes.error || t("dashboard.clientMessages.uploadFailed"));
