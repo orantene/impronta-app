@@ -1553,11 +1553,14 @@ const SERVER_RESIZE_GUARD_RATIO = 0.8;
  *
  * `ext` should match what compressImage() returned (`"jpg"` for photos,
  * `"png"` for alpha). Defaults to "jpg" — matches the dominant case.
+ * Video extensions are accepted ONLY for the `reel` variant — a 30-sec
+ * hello reel can never fit through the Server Action body cap, so the
+ * signed PUT is the only transport that actually works for it.
  */
 export async function actionCreateSignedUploadUrl(
   variantKind: UploadVariant,
   talentProfileId: string,
-  ext: "jpg" | "png" = "jpg",
+  ext: "jpg" | "png" | "mp4" | "mov" | "webm" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
   const auth = await requireStaffTenantAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -1575,7 +1578,12 @@ export async function actionCreateSignedUploadUrl(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
-  const safeExt = (ext === "png" ? "png" : "jpg") as "jpg" | "png";
+  const VIDEO_EXTS = ["mp4", "mov", "webm"] as const;
+  const isVideoExt = (VIDEO_EXTS as readonly string[]).includes(ext);
+  if (isVideoExt && variantKind !== "reel") {
+    return { ok: false, error: "Video upload is only supported for the hello reel." };
+  }
+  const safeExt = isVideoExt ? ext : ext === "png" ? "png" : "jpg";
   const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${safeExt}`;
 
   const { data, error } = await admin.storage
@@ -1734,6 +1742,34 @@ async function reverifyStoredObject(
   };
 }
 
+/**
+ * Cheap object stat via the storage list API — size + mime without
+ * downloading the bytes. Used for reel videos, where pulling a
+ * 100-200 MB object into the Function just to record its size would
+ * be absurd (and sharp can't resize video anyway).
+ */
+async function statStoredObject(
+  admin: SupabaseClient,
+  storagePath: string,
+): Promise<{ byteSize: number; mimeType: string } | null> {
+  const slash = storagePath.lastIndexOf("/");
+  const prefix = slash === -1 ? "" : storagePath.slice(0, slash);
+  const name = slash === -1 ? storagePath : storagePath.slice(slash + 1);
+  const { data, error } = await admin.storage
+    .from("media-public")
+    .list(prefix, { limit: 1, search: name });
+  if (error || !data?.length) {
+    logServerError("media.actions.statStored.list", error);
+    return null;
+  }
+  const meta = (data[0] as { metadata?: { size?: number; mimetype?: string } }).metadata;
+  if (!meta || typeof meta.size !== "number") return null;
+  return {
+    byteSize: meta.size,
+    mimeType: meta.mimetype || "application/octet-stream",
+  };
+}
+
 // ── Register actions ───────────────────────────────────────────────────────
 
 export type RegisterUploadedAssetInput = {
@@ -1789,7 +1825,21 @@ export async function actionRegisterUploadedAsset(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
-  const verified = await reverifyStoredObject(admin, storagePath, variantKind);
+  // Reel videos skip the sharp re-verify: there's nothing to resize, and
+  // downloading a 100-200 MB video into the Function just to measure it
+  // defeats the point of the signed pipeline. Stat the object instead.
+  let verified: {
+    width: number | null;
+    height: number | null;
+    byteSize: number;
+    mimeType: string;
+  } | null;
+  if (variantKind === "reel") {
+    const stat = await statStoredObject(admin, storagePath);
+    verified = stat ? { width: null, height: null, ...stat } : null;
+  } else {
+    verified = await reverifyStoredObject(admin, storagePath, variantKind);
+  }
   if (!verified) {
     // Storage download / sharp both failed — bail so we don't insert a
     // half-broken row. The orphaned object will be cleaned up by the
