@@ -217,6 +217,59 @@ export async function uploadTalentReel(opts: {
   };
 }
 
+// ── Voice notes (inquiry threads — private bucket) ──────────────────────
+
+/**
+ * Voice-note upload: signed PUT of the recorded audio into inquiry-files,
+ * then a finalize action that writes the attachment + voice-message rows.
+ * Long recordings exceed the 4 MB Server Action cap the legacy FormData
+ * path rides on; this transport has the bucket's 100 MB ceiling instead.
+ */
+export async function uploadVoiceNoteSigned(opts: {
+  inquiryId: string;
+  threadType: "private" | "group";
+  blob: Blob;
+  mimeType: string;
+  durationMs: number;
+}): Promise<{ ok: true; messageId: string } | FailureResult> {
+  const { inquiryId, blob } = opts;
+  if (blob.size === 0) {
+    return { ok: false, fallbackToLegacy: false, error: "Recording is empty." };
+  }
+
+  const ext = opts.mimeType.includes("ogg")
+    ? "ogg"
+    : opts.mimeType.includes("mp4")
+      ? "m4a"
+      : "webm";
+
+  const { createVoiceNoteUploadUrl, finalizeVoiceNote } =
+    await import("@/lib/server-actions/voice-notes");
+
+  const signed = await createVoiceNoteUploadUrl(inquiryId, ext);
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  const putOk = await putToSignedUrl(signed.data.uploadUrl, blob);
+  if (!putOk.ok) {
+    // Short recordings still fit through the legacy FormData action.
+    return { ok: false, fallbackToLegacy: blob.size < 4 * 1024 * 1024, error: putOk.error };
+  }
+
+  const finalized = await finalizeVoiceNote({
+    inquiryId,
+    threadType: opts.threadType,
+    durationMs: opts.durationMs,
+    storagePath: signed.data.storagePath,
+    mimeType: opts.mimeType,
+  });
+  if (!finalized.ok) {
+    return { ok: false, fallbackToLegacy: false, error: finalized.error };
+  }
+  return finalized;
+}
+
 // ── Talent documents (comp cards, contracts — private bucket) ───────────
 
 export type TalentDocumentUploadOk = {

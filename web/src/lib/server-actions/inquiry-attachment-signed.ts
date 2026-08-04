@@ -44,13 +44,14 @@ const VALID_KINDS = new Set(["mood_board", "contract", "reference", "other"]);
 
 type Scope =
   | { kind: "staff"; tenantId: string; tenantSlug: string; userId: string; supabase: SupabaseClient }
-  | { kind: "client"; tenantId: string; userId: string; supabase: SupabaseClient };
+  | { kind: "client"; tenantId: string; userId: string; supabase: SupabaseClient }
+  | { kind: "talent"; tenantId: string; userId: string; supabase: SupabaseClient };
 
 /**
  * Resolve the caller against the inquiry: agency staff of the owning
- * tenant, or the inquiry's primary client. Anyone else is refused.
- * Staff is tried first — a staff member who is ALSO a client of some
- * inquiry should act as staff on their tenant's threads.
+ * tenant, the inquiry's primary client, or an active talent participant.
+ * Anyone else is refused. Staff is tried first — a staff member who is
+ * ALSO a client/talent should act as staff on their tenant's threads.
  */
 async function resolveScope(
   inquiryId: string,
@@ -86,24 +87,47 @@ async function resolveScope(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not authenticated." };
 
-  // eslint-disable-next-line ratchet/no-untenanted-from -- tenant DISCOVERY lookup: the tenant comes FROM this row; RLS-bound client + the explicit client_user_id check below are the guards
+  // eslint-disable-next-line ratchet/no-untenanted-from -- tenant DISCOVERY lookup: the tenant comes FROM this row; RLS-bound client + the explicit client_user_id / participant checks below are the guards
   const { data: inq } = await supabase
     .from("inquiries")
     .select("id, tenant_id, client_user_id")
     .eq("id", inquiryId)
     .maybeSingle();
   if (!inq) return { ok: false, error: "Inquiry not found." };
-  if ((inq.client_user_id as string | null) !== user.id) {
+  const tenantId = inq.tenant_id as string;
+  if ((inq.client_user_id as string | null) === user.id) {
+    return {
+      ok: true,
+      scope: { kind: "client", tenantId, userId: user.id, supabase },
+    };
+  }
+
+  // Talent-participant scope — mirrors uploadInquiryAttachmentAsTalent's
+  // guard: the caller's talent profile must be an ACTIVE participant on
+  // this inquiry (not removed/declined).
+  // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is looked up by the CALLER's user_id (RLS-bound); the tenant scope is enforced on the participant check below
+  const { data: tp } = await supabase
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!tp) return { ok: false, error: "Not authorized for this inquiry." };
+  const { data: participant } = await tenantScopedQuery(supabase, "inquiry_participants", tenantId)
+    .select("id, status")
+    .eq("inquiry_id", inquiryId)
+    .eq("talent_profile_id", tp.id as string)
+    .eq("role", "talent")
+    .maybeSingle<{ id: string; status: string }>();
+  if (
+    !participant ||
+    participant.status === "removed" ||
+    participant.status === "declined"
+  ) {
     return { ok: false, error: "Not authorized for this inquiry." };
   }
   return {
     ok: true,
-    scope: {
-      kind: "client",
-      tenantId: inq.tenant_id as string,
-      userId: user.id,
-      supabase,
-    },
+    scope: { kind: "talent", tenantId, userId: user.id, supabase },
   };
 }
 
@@ -215,11 +239,15 @@ export async function actionRegisterInquiryAttachment(
     const kindRaw = (input.attachmentKind ?? "").trim();
     const attachmentKind = VALID_KINDS.has(kindRaw) ? kindRaw : null;
 
-    // Metadata insert uses the AUTH-SCOPED client so the existing RLS
-    // policies (staff insert / inquiry_attachments_client_insert) stay
-    // the enforcement boundary, exactly as in the legacy actions.
+    // Metadata insert: staff + client use the AUTH-SCOPED client so the
+    // existing RLS policies stay the enforcement boundary, exactly as in
+    // the legacy actions. The talent path mirrors
+    // uploadInquiryAttachmentAsTalent: RLS filters talent inserts, so
+    // after the participant guard above it self-elevates to service-role
+    // and writes visibility='participant'.
+    const insertClient = scope.kind === "talent" ? admin : scope.supabase;
     const { data: row, error: insertErr } = await tenantScopedQuery(
-      scope.supabase,
+      insertClient,
       "inquiry_attachments",
       scope.tenantId,
     )
@@ -233,7 +261,9 @@ export async function actionRegisterInquiryAttachment(
         attachment_kind: attachmentKind,
         ...(scope.kind === "staff"
           ? { description: input.description?.trim() || null, visibility: "staff" }
-          : { visibility: "shared" }),
+          : scope.kind === "talent"
+            ? { description: input.description?.trim() || null, visibility: "participant" }
+            : { visibility: "shared" }),
       })
       .select("id, filename, byte_size, attachment_kind")
       .single();

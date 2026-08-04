@@ -4,6 +4,7 @@ import React, { useState, useEffect, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { uploadInquiryAttachmentSigned } from "@/lib/client/signed-upload";
 import { loadInquiryAttachments, deleteInquiryAttachment, uploadInquiryAttachment, duplicateInquiryBooking, type InquiryAttachment } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { useAdminShell, FONTS, COLORS, RICH_INQUIRIES } from "../../state";
 import { type Conversation } from "../../talent";
@@ -503,13 +504,34 @@ export function LiveFilesPanel({ inquiryId }: { inquiryId: string }) {
   const onPickFile = (file: File) => {
     if (file.size > 100 * 1024 * 1024) { toast(t("dashboard.adminTabs.files.fileOver100")); return; }
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set("inquiryId", inquiryId);
-      fd.set("file", file);
-      fd.set("attachmentKind", selectedKind);
-      const r = await uploadInquiryAttachment(fd);
-      if (!r.ok) toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: r.error }));
-      else { toast(t("dashboard.adminTabs.files.fileUploaded")); reload(); }
+      // try/catch is load-bearing: a thrown action (e.g. the 4 MB Server
+      // Action body cap on the legacy path) would otherwise escape the
+      // transition with no toast at all.
+      try {
+        // Signed PUT direct to storage first — the legacy FormData action
+        // rejects anything over 4 MB before it even runs.
+        const fast = await uploadInquiryAttachmentSigned({
+          inquiryId,
+          file,
+          attachmentKind: selectedKind,
+        });
+        if (fast.ok) { toast(t("dashboard.adminTabs.files.fileUploaded")); reload(); return; }
+        if (!fast.fallbackToLegacy) {
+          toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: fast.error }));
+          return;
+        }
+        const fd = new FormData();
+        fd.set("inquiryId", inquiryId);
+        fd.set("file", file);
+        fd.set("attachmentKind", selectedKind);
+        const r = await uploadInquiryAttachment(fd);
+        if (!r.ok) toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), { error: r.error }));
+        else { toast(t("dashboard.adminTabs.files.fileUploaded")); reload(); }
+      } catch (err) {
+        toast(interpolate(t("dashboard.adminTabs.files.uploadFailed"), {
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
     });
   };
 
