@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, ProfilePhotoBadgeOverlay, TrustBadgeGroup } from "../primitives";
-import { COLORS, FONTS, TAXONOMY, useAdminShell } from "../state";
+import { COLORS, FONTS, useAdminShell } from "../state";
 import type { TalentProfile } from "../state";
+import { resolveRosterCardTaxonomy } from "./roster-card-taxonomy";
 import { setRosterTalentSiteVisibility } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/actions";
 
 
@@ -130,6 +132,47 @@ export function RosterEyeToggle({
   );
 }
 
+
+// ── Quick view button ───────────────────────────────────────────────
+/**
+ * Quick view — peek a talent's public page WITHOUT leaving the roster.
+ * Soft-navigates (router.push) to /t/<profileCode>; the root layout's
+ * @modal/(.)t interception renders the profile as a popup over the current
+ * page, and closing it router.back()s to the roster with scroll intact.
+ * Hidden / capped profiles resolve to the modal's own "profile isn't
+ * available" state — the roster underneath survives either way.
+ */
+export function RosterQuickViewButton({
+  profileCode,
+  size = 30,
+}: {
+  profileCode: string;
+  size?: number;
+}) {
+  const router = useRouter();
+  const { t } = useAdminShell();
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        router.push(`/t/${encodeURIComponent(profileCode)}`);
+      }}
+      aria-label={t("admin.roster.card.quickViewAria")}
+      title={t("admin.roster.card.quickViewTitle")}
+      className={`${size <= 26 ? "h-[26px] w-[26px]" : "h-[30px] w-[30px]"} inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-[rgba(11,11,13,0.14)] bg-[rgba(255,255,255,0.95)] p-0 text-admin-ink-muted shadow-[0_1px_4px_rgba(11,11,13,0.16)] backdrop-blur-[6px] transition-colors hover:bg-white hover:text-admin-ink`}
+    >
+      {/* Expand / preview glyph (maximize-2) — the eye family is taken by
+          the visibility toggle, so quick view gets its own icon. */}
+      <svg width={Math.round(size / 2)} height={Math.round(size / 2)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 3 21 3 21 9" />
+        <polyline points="9 21 3 21 3 15" />
+        <line x1="21" y1="3" x2="14" y2="10" />
+        <line x1="3" y1="21" x2="10" y2="14" />
+      </svg>
+    </button>
+  );
+}
 
 /** Resolves trust state for a talent and renders compact admin-surface badges. */
 export function RosterTrustCell({ talentId }: { talentId: string }) {
@@ -279,17 +322,12 @@ function RosterRow({
   onOpen: (p: TalentProfile) => void;
 }) {
   const [hover, setHover] = useState(false);
-  const { tenantSlug, t, rosterCardBadges } = useAdminShell();
+  const { tenantSlug, t, locale, rosterCardBadges } = useAdminShell();
 
-  const typeMeta = (() => {
-    if (!profile.primaryType) return null;
-    for (const parent of TAXONOMY) {
-      const c = parent.children.find((x) => x.id === profile.primaryType);
-      if (c) return { label: c.label, emoji: parent.emoji, specialty: c.specialties?.[0] ?? null };
-    }
-    return null;
-  })();
-  const typeLabel = typeMeta?.label ?? null;
+  // Humanized category labels (never raw slugs) — parent bucket + primary
+  // type + secondary count. Same resolver as the grid card.
+  const taxonomyView = resolveRosterCardTaxonomy(profile, locale);
+  const secondaryCount = rosterCardBadges.categories ? taxonomyView.secondaryLabels.length : 0;
 
   return (
     <div
@@ -364,15 +402,33 @@ function RosterRow({
           {profile.name}
         </div>
         <div style={{ fontSize: 11.5, marginTop: 1, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", overflow: "hidden" }} className="text-admin-ink-muted">
-          {typeMeta && (
+          {rosterCardBadges.categories && taxonomyView.parentEmoji && (
             <span aria-hidden style={{ fontSize: 12, flexShrink: 0, opacity: 0.85 }}>
-              {typeMeta.emoji}
+              {taxonomyView.parentEmoji}
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {typeMeta?.label ?? profile.primaryType ?? t("admin.roster.row.noType")}
-            {typeMeta?.specialty && <span className="text-admin-ink-dim">{" · "}{typeMeta.specialty}</span>}
-            {profile.city && <span className="text-admin-ink-dim">{" · "}{profile.city}</span>}
+            {rosterCardBadges.categories && taxonomyView.parentLabel && (
+              <span className="text-[10px] font-semibold uppercase tracking-[0.4px]">
+                {taxonomyView.parentLabel}{" · "}
+              </span>
+            )}
+            {rosterCardBadges.categories
+              ? (taxonomyView.primaryLabel ?? t("admin.roster.row.noType"))
+              : null}
+            {secondaryCount > 0 && (
+              <span className="text-admin-ink-dim" title={taxonomyView.secondaryLabels.join(" · ")}>
+                {" "}+{secondaryCount}
+              </span>
+            )}
+            {taxonomyView.specialty && secondaryCount === 0 && rosterCardBadges.categories && (
+              <span className="text-admin-ink-dim">{" · "}{taxonomyView.specialty}</span>
+            )}
+            {profile.city && (
+              <span className="text-admin-ink-dim">
+                {rosterCardBadges.categories ? " · " : ""}{profile.city}
+              </span>
+            )}
           </span>
         </div>
       </div>
@@ -397,6 +453,11 @@ function RosterRow({
             fontSize: 11, width: 60, textAlign: "right", flexShrink: 0 }} className="text-admin-ink-muted">
           {profile.lastActive}
         </div>
+      )}
+
+      {/* Quick view — peek the public profile popup without leaving the roster */}
+      {rosterCardBadges.quickView && profile.profileCode && (
+        <RosterQuickViewButton profileCode={profile.profileCode} size={26} />
       )}
 
       {/* Directory-visibility eye toggle */}
