@@ -60,7 +60,7 @@ import {
   starterTemplateDeniedReason,
   type BuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { randomBytes } from "node:crypto";
@@ -836,7 +836,7 @@ async function loadWorkspaceStarterPlan(
 }
 
 export async function loadStarterAvailability(): Promise<StarterAvailabilityResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
@@ -899,7 +899,7 @@ export async function applyStarterComposition(
   _prev: StarterActionState,
   formData: FormData,
 ): Promise<StarterActionState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -939,7 +939,7 @@ export async function applyStarterComposition(
   }
 
   // Service-role for branding + section inserts; the request itself is
-  // requireStaff + tenant-scope guarded.
+  // requireSession + tenant-scope guarded.
   const admin = createServiceRoleClient();
   if (!admin) {
     return { ok: false, error: "Server is missing service-role credentials." };

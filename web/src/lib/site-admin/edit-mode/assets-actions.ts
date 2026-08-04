@@ -13,7 +13,7 @@
  *   - scanAssetUsageAction()     — count cms_sections.props_jsonb
  *                                  references per asset id / public URL
  *
- * Both actions are staff-gated (`requireStaff`) and tenant-scoped
+ * Both actions are staff-gated (`requireSession`) and tenant-scoped
  * (`requireTenantScope`), matching the disciplines used by the design
  * + revisions edit-mode wrappers.
  *
@@ -34,7 +34,7 @@ import {
   listTenantMediaLibrary,
 } from "@/lib/site-admin/media/assets";
 import type { MediaLibraryItem } from "@/lib/site-admin/media/types";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -73,7 +73,7 @@ const MAX_SAMPLE_SECTIONS_PER_ASSET = 6;
 // ── actions ───────────────────────────────────────────────────────────────
 
 export async function loadAssetsLibraryAction(): Promise<LoadAssetsLibraryResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const scope = await requireTenantScope().catch(() => null);
@@ -97,7 +97,7 @@ export async function loadAssetsLibraryAction(): Promise<LoadAssetsLibraryResult
 }
 
 export async function scanAssetUsageAction(): Promise<ScanAssetUsageResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const scope = await requireTenantScope().catch(() => null);

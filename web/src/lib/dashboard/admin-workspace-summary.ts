@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { getTenantScope } from "@/lib/saas/scope";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
@@ -48,7 +48,7 @@ function coercePlan(raw: unknown): WorkspacePlan {
  */
 export const loadAdminWorkspaceSummary = cache(
   async (): Promise<AdminWorkspaceSummary | null> => {
-    const auth = await requireStaff();
+    const auth = await requireSession();
     if (!auth.ok) return null;
 
     const { supabase } = auth;

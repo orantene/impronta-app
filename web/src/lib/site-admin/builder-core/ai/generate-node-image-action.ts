@@ -16,7 +16,7 @@
  * "not configured" error until one is added on /platform/admin/ai-providers.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -33,7 +33,7 @@ export type GenerateNodeImageState =
 export async function generateNodeImageAction(input: {
   subject: string;
 }): Promise<GenerateNodeImageState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
   let tenantId: string;

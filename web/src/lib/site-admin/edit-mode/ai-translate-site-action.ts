@@ -16,7 +16,7 @@
  * succeeded / failed / hit rate-limit.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { upsertSection } from "@/lib/site-admin/server/sections";
@@ -53,7 +53,7 @@ export async function translateSiteWithAi(input: {
   targetLocale: string;
   targetLocaleLabel?: string;
 }): Promise<TranslateSiteResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

@@ -16,14 +16,14 @@
  * Returns:
  *   { ok: true, uploadUrl, storagePath, bucketId }
  *
- * Auth: requireStaff + tenant scope must match (mirrors the legacy
+ * Auth: requireSession + tenant scope must match (mirrors the legacy
  * upload route).
  */
 
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -58,7 +58,7 @@ function resolveExtSet(kind: "image" | "document" | "video"): Set<string> {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }

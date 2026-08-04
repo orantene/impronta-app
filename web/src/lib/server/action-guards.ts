@@ -35,7 +35,34 @@ export async function requireSession(): Promise<GuardOk | GuardFail> {
   };
 }
 
-/** Agency staff routes (`super_admin` or `agency_staff`). */
+/**
+ * GLOBAL-role gate (`profiles.app_role` is `super_admin` or `agency_staff`).
+ *
+ * ⚠️ NOT a workspace gate. Do NOT use this for anything tenant-scoped.
+ *
+ * `app_role` is a PLATFORM attribute; workspace access is MEMBERSHIP-based
+ * (`agency_memberships` → RLS `is_staff_of_tenant()`, which never consults
+ * `app_role`). The product explicitly supports **hybrid workspace owners** — a
+ * talent/client-signup user who creates or is granted a workspace keeps
+ * `app_role='talent'`/`'client'` (see `workspace-lifecycle.ts`) — so this guard
+ * rejects legitimate owners on their own workspace while the surrounding UI,
+ * gated on the membership capability `agency.workspace.view`, happily renders.
+ * That mismatch was the Card Design studio outage (PR #990) and the roster /
+ * builder / storefront-editor class swept in this change.
+ *
+ * For tenant-scoped work use, in order of preference:
+ *   1. `requireStaffTenantAction({ capability })` from `@/lib/saas/admin-scope`
+ *      — session + membership-fail-closed tenant scope + capability;
+ *   2. `requireSession()` + `getTenantScope()` / `getTenantScopeBySlug()`
+ *      when you need the scope object directly;
+ *   3. `requireSession()` + `userHasCapability(cap, tenantId)` when the tenant
+ *      arrives as an argument rather than from the request.
+ *
+ * Legitimate remaining uses are PLATFORM-global surfaces with no tenant to
+ * scope to (the shared translation / taxonomy / location catalogs, cross-tenant
+ * analytics, dev-only routes). Prefer `requireAdmin()` when the surface is
+ * genuinely super-admin-only.
+ */
 export async function requireStaff(): Promise<GuardOk | GuardFail> {
   const session = await requireSession();
   if (!session.ok) return session;

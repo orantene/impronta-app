@@ -4,7 +4,7 @@
  *
  * Returns approved media_assets for the tenant (newest first, capped at 60)
  * so admin MediaPicker can render thumbnails without a server component
- * round-trip. Auth is requireStaff + tenant-scope parity check — the
+ * round-trip. Auth is requireSession + tenant-scope parity check — the
  * requested tenantId MUST match the caller's resolved tenant scope, so
  * no-one can enumerate another tenant's imagery.
  *
@@ -24,7 +24,7 @@ import {
   updateTenantMediaAssetAlt,
   updateTenantMediaAssetTags,
 } from "@/lib/site-admin/media/assets";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 
 export const runtime = "nodejs";
@@ -34,7 +34,7 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: Request) {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }

@@ -7,8 +7,14 @@
  *      return null immediately — the builder is storefront-only.
  *   2. Only renders on tenant hosts (agency or hub); marketing/app/unknown
  *      hosts get nothing.
- *   3. Only renders for authenticated staff (super_admin or agency_staff).
- *      Talent / clients / unauthenticated visitors see nothing.
+ *   3. Only renders for an authenticated MEMBER of the host's tenant — proven
+ *      by the membership capability `agency.site_admin.pages.edit`, not by the
+ *      global `profiles.app_role`. (2026-08-04: the old `requireStaff()` gate
+ *      hid the edit pill from hybrid workspace owners — talent/client-signup
+ *      users who own a workspace keep `app_role='talent'`/`'client'` — on
+ *      their OWN storefront. Membership is the boundary; see the AUTH MODEL
+ *      note on requireStaffTenantAction.) Talent / clients / unauthenticated
+ *      visitors, and members of a DIFFERENT tenant, see nothing.
  *   4. Reads the edit cookie server-side to tell the client which mode to
  *      mount in (pill vs shell) — avoids a client flash from idle→engaged.
  *   5. Loads the tenant's published locales so the topbar locale switcher
@@ -24,7 +30,8 @@
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { headers } from "next/headers";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { type CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
@@ -111,8 +118,14 @@ export async function EditChromeMount() {
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "agency" && ctx.kind !== "hub") return null;
 
-  const staff = await requireStaff();
-  if (!staff.ok) {
+  const session = await requireSession();
+  // Membership proof, scoped to the tenant this host actually serves: a member
+  // of tenant A never gets the edit pill on tenant B's storefront. Replaces the
+  // former global-app_role `requireStaff()` gate (see the module doc, rule 3).
+  const canEdit =
+    session.ok &&
+    (await userHasCapability("agency.site_admin.pages.edit", ctx.tenantId));
+  if (!session.ok || !canEdit) {
     // T1-1 diagnostic — when ?edit=1 is on the URL but the staff check
     // fails, an operator on the tenant host sees nothing (no pill, no
     // error, just the live storefront). The most common cause in dev is
@@ -139,6 +152,7 @@ export async function EditChromeMount() {
     }
     return null;
   }
+  const staff = session;
 
   const editActive = await isEditModeActiveForTenant(ctx.tenantId);
   const workspacePlan = await loadBuilderWorkspacePlan(staff.supabase, ctx.tenantId, {

@@ -23,7 +23,7 @@
 import { revalidateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
@@ -158,7 +158,7 @@ export async function loadHeaderSectionAction(): Promise<
     };
   }>
 > {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No tenant in scope." };
@@ -197,7 +197,7 @@ export async function saveHeaderSectionAction(input: {
   brandDisplay?: string;
   density?: HeaderSectionDensity | null;
 }): Promise<ActionResult<{ version: number }>> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No tenant in scope." };
@@ -282,7 +282,7 @@ export async function saveHeaderSectionAction(input: {
 export async function loadHeaderConfigAction(): Promise<
   ActionResult<{ config: SiteHeaderConfig }>
 > {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const scope = await requireTenantScope().catch(() => null);
@@ -428,7 +428,7 @@ interface IdentityPatchInput {
 export async function saveHeaderIdentityAction(
   input: IdentityPatchInput,
 ): Promise<ActionResult<{ version: number }>> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const scope = await requireTenantScope().catch(() => null);
@@ -538,7 +538,7 @@ interface BrandingPatchInput {
 export async function saveHeaderBrandingAction(
   input: BrandingPatchInput,
 ): Promise<ActionResult<{ version: number }>> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const scope = await requireTenantScope().catch(() => null);
@@ -625,7 +625,7 @@ interface TokenPatchInput {
 export async function saveHeaderTokenAction(
   input: TokenPatchInput,
 ): Promise<ActionResult<{ version: number; theme: Record<string, string> }>> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const scope = await requireTenantScope().catch(() => null);
@@ -730,7 +730,7 @@ interface NavBulkResult {
 export async function saveHeaderNavigationAction(
   input: NavBulkInput,
 ): Promise<ActionResult<NavBulkResult>> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const scope = await requireTenantScope().catch(() => null);

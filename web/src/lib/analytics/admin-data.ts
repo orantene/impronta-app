@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
 
 export type DateRangeKey = "7d" | "30d" | "90d";
@@ -31,7 +31,7 @@ export type ExecutiveOverviewInternal = {
 
 export const loadExecutiveOverviewInternal = cache(
   async (range: { start: Date; end: Date }): Promise<ExecutiveOverviewInternal | null> => {
-    const auth = await requireStaff();
+    const auth = await requireSession();
     if (!auth.ok) return null;
     const scope = await getTenantScope();
     if (!scope) return null;
@@ -131,7 +131,7 @@ export type FunnelEventCounts = Record<(typeof FUNNEL_EVENT_NAMES)[number], numb
 
 export const loadFunnelEventCounts = cache(
   async (range: { start: Date; end: Date }): Promise<FunnelEventCounts | null> => {
-    const auth = await requireStaff();
+    const auth = await requireSession();
     if (!auth.ok) return null;
     const scope = await getTenantScope();
     if (!scope) return null;
@@ -161,7 +161,7 @@ export const loadFunnelEventCounts = cache(
 
 export const loadSearchQualitySummary = cache(
   async (range: { start: Date; end: Date }): Promise<SearchQualitySummary | null> => {
-    const auth = await requireStaff();
+    const auth = await requireSession();
     if (!auth.ok) return null;
     const scope = await getTenantScope();
     if (!scope) return null;

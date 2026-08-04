@@ -12,7 +12,7 @@ import {
   visibilitySchema,
   workflowStatusSchema,
 } from "@/lib/admin/validation";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession, requireStaff } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
@@ -669,7 +669,7 @@ export async function createTalentProfile(
   _prev: CreateTalentFormState,
   formData: FormData,
 ): Promise<CreateTalentFormState> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;
 

@@ -10,7 +10,7 @@
  * picker feels instant on repeat opens.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -25,7 +25,7 @@ export type TalentPathListResult =
   | { ok: false; error: string };
 
 export async function loadTalentPathsForLinkPicker(): Promise<TalentPathListResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };

@@ -24,7 +24,7 @@ import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/ex
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
-import { requireStaff } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   jsonLdDocumentToScript,
@@ -109,7 +109,12 @@ export async function generateMetadata({
   // for the person editing it. Anonymous visitors still get "Not found".
   if (!page) {
     const draftReader =
-      (await isPreviewActiveForTenant(publicScope.tenantId)) || (await requireStaff()).ok;
+      (await isPreviewActiveForTenant(publicScope.tenantId)) ||
+      // Membership-based draft reader (2026-08-04): the former requireStaff()
+      // gate keyed on the GLOBAL profiles.app_role and so hid a hybrid
+      // workspace owner's OWN unpublished draft from them. Scoped to this
+      // storefront's tenant, so it is also strictly narrower than before.
+      (await userHasCapability("agency.site_admin.pages.edit", publicScope.tenantId));
     if (draftReader) {
       const draft = await supabase
         .from("cms_pages")
@@ -236,7 +241,10 @@ export default async function CmsPublicPage({
     // tenant read nothing.
     let draftReaderActive = previewActive;
     if (!freeformErr && !freeformPage && !draftReaderActive) {
-      draftReaderActive = (await requireStaff()).ok;
+      draftReaderActive = await userHasCapability(
+        "agency.site_admin.pages.edit",
+        publicScope.tenantId,
+      );
     }
     if (!freeformErr && !freeformPage && draftReaderActive) {
       const draftRead = await supabase

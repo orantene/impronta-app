@@ -19,7 +19,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas/scope";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
@@ -107,7 +107,7 @@ export async function loadCmsFreeformPage(input: {
   slug: string;
   locale?: string;
 }): Promise<CmsFreeformPageRow | null> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return null;
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return null;
@@ -145,7 +145,7 @@ export async function saveCmsFreeformPage(input: {
     style_presets?: unknown;
   };
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
@@ -230,7 +230,7 @@ export async function publishCmsFreeformPage(input: {
   | { ok: true; publishedAt: string; updatedAt: string }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
@@ -281,7 +281,7 @@ export async function restoreCmsFreeformRevisionAction(input: {
   pageId: string;
   revisionId: string;
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };

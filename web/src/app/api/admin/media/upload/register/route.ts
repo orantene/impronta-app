@@ -19,7 +19,7 @@
 
 import { NextResponse } from "next/server";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -48,7 +48,7 @@ function resolveKindPurpose(kind: Kind): string {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }

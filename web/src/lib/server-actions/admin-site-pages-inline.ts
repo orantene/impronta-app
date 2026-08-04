@@ -9,7 +9,7 @@
  */
 
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { reconcileRolesOnSlugChange } from "@/lib/site-admin/server/page-roles";
@@ -26,7 +26,7 @@ export async function quickRenamePageAction(input: {
   title: string;
   slug: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };
@@ -84,7 +84,7 @@ export async function quickRenamePageAction(input: {
 export async function quickDeletePageAction(input: {
   id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };

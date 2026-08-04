@@ -6,7 +6,7 @@ import {
   mapBootstrapToAdminPulse,
   type AdminTranslationHealth,
 } from "@/lib/translation-center/admin-pulse";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession, requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { getTenantScope } from "@/lib/saas/scope";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
@@ -94,7 +94,7 @@ export type AdminShellPulseCounts = AdminOverviewData["counts"];
 
 export const loadAdminShellPulseCounts = cache(
   async (): Promise<AdminShellPulseCounts | null> => {
-    const auth = await requireStaff();
+    const auth = await requireSession();
     if (!auth.ok) return null;
 
     const { supabase } = auth;
@@ -171,7 +171,7 @@ export const loadAdminShellPulseCounts = cache(
  * One server call = three PostgREST reads + an in-memory union. No new table.
  */
 export const loadAdminTier1AlertCount = cache(async (): Promise<number> => {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return 0;
   const { supabase, user } = auth;
   const userId = user?.id ?? null;
@@ -331,7 +331,7 @@ export type AdminPendingMediaRow = {
 };
 
 export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData | null> => {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return null;
 
   const { supabase } = auth;
@@ -443,7 +443,7 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
 });
 
 export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]> => {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
 
   const { supabase } = auth;
@@ -564,7 +564,7 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
 });
 
 export const loadAdminStaffRows = cache(async (): Promise<AdminStaffRow[]> => {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
 
   const { supabase } = auth;
@@ -616,8 +616,13 @@ export const loadAdminStaffRows = cache(async (): Promise<AdminStaffRow[]> => {
 });
 
 export const loadTaxonomyTalentTypesForFilters = cache(async () => {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
+  // `taxonomy_terms` is a shared platform catalog (no tenant_id), so the gate
+  // is "is this caller a member of SOME workspace" rather than a per-row
+  // tenant filter. `getTenantScope` fails closed without an agency_memberships
+  // row — see the AUTH MODEL note on requireStaffTenantAction.
+  if (!(await getTenantScope())) return [];
 
   const { supabase } = auth;
   const { data, error } = await supabase
@@ -640,7 +645,7 @@ export const loadTaxonomyTalentTypesForFilters = cache(async () => {
 });
 
 export async function loadAdminClientDetail(userId: string) {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return null;
   const scope = await getTenantScope();
   if (!scope) return null;
@@ -706,7 +711,7 @@ export async function loadAdminClientDetail(userId: string) {
 }
 
 export const loadAdminPendingMediaData = cache(async (): Promise<AdminPendingMediaRow[]> => {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
 
   const { supabase } = auth;
@@ -757,7 +762,7 @@ export const loadAdminPendingMediaData = cache(async (): Promise<AdminPendingMed
 
 /** Recent staff-approved assets for the admin media library tab (read-only browse). */
 export const loadAdminApprovedMediaLibraryData = cache(async (): Promise<AdminPendingMediaRow[]> => {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return [];
 
   const { supabase } = auth;

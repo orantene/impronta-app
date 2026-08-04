@@ -12,7 +12,8 @@
  * results each time they ask. 4-second timeout.
  */
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { getTenantScope } from "@/lib/saas/scope";
 
 export type LinkValidateResult =
   | { ok: true; status: number; reachable: boolean }
@@ -23,8 +24,15 @@ const TIMEOUT_MS = 4000;
 export async function validateLinkUrl(input: {
   url: string;
 }): Promise<LinkValidateResult> {
-  const auth = await requireStaff();
+  const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
+  // Tenant-agnostic builder utility (no row it could scope), so the gate is
+  // "member of SOME workspace". `getTenantScope` fails closed without an
+  // agency_memberships row — membership, not the global profiles.app_role,
+  // is the boundary (see the AUTH MODEL note on requireStaffTenantAction).
+  if (!(await getTenantScope())) {
+    return { ok: false, error: "Select an agency workspace first." };
+  }
 
   const raw = (input.url ?? "").trim();
   if (!raw) return { ok: false, error: "Empty URL" };
