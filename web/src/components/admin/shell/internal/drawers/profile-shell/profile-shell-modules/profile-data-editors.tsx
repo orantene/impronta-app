@@ -16,6 +16,7 @@ import {
   useAdminShell,
   useDashboardText,
 } from "../../drawer-shared";
+import { uploadTalentMedia, uploadTalentDocumentSigned } from "@/lib/client/signed-upload";
 
 // Q5: hoisted ID generator for new optimistic rows. Date.now() +
 // Math.random() inside render-body closures (handler factories like
@@ -50,10 +51,27 @@ export const PolaroidsEditor = React.memo(function PolaroidsEditor({ polaroids, 
     const slot = polaroidsRef.current.find(p => p.id === id);
     // Soft-delete previous polaroid for this slot if any
     if (slot?.mediaAssetId) void actionDeleteMediaAssets([slot.mediaAssetId]);
-    const fd = new FormData(); fd.append("file", f);
-    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "polaroid", { polaroidSlot: id });
-    if (res.ok) setUrl(id, res.data.publicUrl, res.data.id);
-    else { toast(res.error || copy.t("Upload failed")); setUrl(id, null, null); }
+    try {
+      // Signed pipeline first — the legacy FormData action rejects photos
+      // over the 4 MB Server Action body cap before it runs.
+      const fast = await uploadTalentMedia({
+        file: f,
+        variantKind: "polaroid",
+        talentProfileId,
+        metadata: { polaroidSlot: id },
+      });
+      if (fast.ok) { setUrl(id, fast.publicUrl, fast.id); return; }
+      if (!fast.fallbackToLegacy) {
+        toast(fast.error || copy.t("Upload failed")); setUrl(id, null, null); return;
+      }
+      const fd = new FormData(); fd.append("file", f);
+      const res = await actionUploadAndAssignMedia(fd, talentProfileId, "polaroid", { polaroidSlot: id });
+      if (res.ok) setUrl(id, res.data.publicUrl, res.data.id);
+      else { toast(res.error || copy.t("Upload failed")); setUrl(id, null, null); }
+    } catch (err) {
+      logServerError("polaroids_editor_upload", err);
+      toast(copy.t("Upload failed")); setUrl(id, null, null);
+    }
   };
   const handleClear = (id: string) => {
     const slot = polaroidsRef.current.find(p => p.id === id);
@@ -311,8 +329,21 @@ export const FilesEditor = React.memo(function FilesEditor({ files, onChange, ta
     onChange([...filesRef.current, optimistic]);
     if (!talentProfileId) return;
     try {
-      const fd = new FormData(); fd.append("file", selectedFile);
-      const res = await actionUploadTalentDocument(fd, talentProfileId);
+      // Signed PUT first — contracts/comp cards routinely exceed the 4 MB
+      // Server Action body cap that the legacy FormData action rides on,
+      // making its 50 MB allowance unreachable.
+      let res:
+        | { ok: true; data: { storagePath: string; bucketId: string; sizeBytes: number; mimeType: string } }
+        | { ok: false; error: string };
+      const fast = await uploadTalentDocumentSigned({ file: selectedFile, talentProfileId });
+      if (fast.ok) {
+        res = { ok: true, data: { storagePath: fast.storagePath, bucketId: fast.bucketId, sizeBytes: fast.sizeBytes, mimeType: fast.mimeType } };
+      } else if (!fast.fallbackToLegacy) {
+        res = { ok: false, error: fast.error };
+      } else {
+        const fd = new FormData(); fd.append("file", selectedFile);
+        res = await actionUploadTalentDocument(fd, talentProfileId);
+      }
       const next = [...filesRef.current];
       const idx = next.findIndex(f => f.id === id);
       if (idx === -1) return;

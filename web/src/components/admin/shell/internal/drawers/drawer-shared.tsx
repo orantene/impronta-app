@@ -49,6 +49,7 @@ import {
 } from "@/lib/talent/profile-shell-drawer-persist";
 import { updateAgencyBranding, updateWorkspaceAccount, updateWorkspaceFields, updateMediaWatermarkOverride, loadAgencyBrandingSettings, loadWorkspaceAccountSettings, type WatermarkPreset } from "@/lib/server-actions/admin-workspace-settings";
 import { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDeleteMediaAssets, actionReorderMediaAssets, actionLoadTalentMediaBundle, actionUploadTalentDocument, actionGetTalentDocumentSignedUrl, actionDeleteTalentDocument, actionImportFromGoogleDrive, actionListDriveFolder, actionImportSingleDriveFile, actionRevertCropToSource } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
+import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
@@ -2594,13 +2595,31 @@ export const CoverPhotoEditor = React.memo(function CoverPhotoEditor({ url, onCh
   const handleFile = async (f: File) => {
     if (!talentProfileId) { onChange(URL.createObjectURL(f)); return; }
     onChange(URL.createObjectURL(f)); // optimistic preview
-    const fd = new FormData(); fd.append("file", f);
-    const res = await actionUploadAndAssignMedia(fd, talentProfileId, "hero");
-    if (res.ok) {
-      onChange(res.data.publicUrl);
-      onMediaAssetIdChange?.(res.data.id);
-    } else {
-      toast(res.error || t("dashboard.adminDrawers.coverUploadFailed"));
+    try {
+      // Signed pipeline first — the legacy FormData action rejects photos
+      // over the 4 MB Server Action body cap before it runs.
+      const fast = await uploadTalentMedia({ file: f, variantKind: "hero", talentProfileId });
+      if (fast.ok) {
+        onChange(fast.publicUrl);
+        onMediaAssetIdChange?.(fast.id);
+        return;
+      }
+      if (!fast.fallbackToLegacy) {
+        toast(fast.error || t("dashboard.adminDrawers.coverUploadFailed"));
+        onChange(null);
+        return;
+      }
+      const fd = new FormData(); fd.append("file", f);
+      const res = await actionUploadAndAssignMedia(fd, talentProfileId, "hero");
+      if (res.ok) {
+        onChange(res.data.publicUrl);
+        onMediaAssetIdChange?.(res.data.id);
+      } else {
+        toast(res.error || t("dashboard.adminDrawers.coverUploadFailed"));
+        onChange(null);
+      }
+    } catch {
+      toast(t("dashboard.adminDrawers.coverUploadFailed"));
       onChange(null);
     }
   };
@@ -3071,10 +3090,25 @@ export const PhotoGalleryPro = React.memo(function PhotoGalleryPro({ items, onCh
     // Upload each file in parallel; patch the corresponding row in place.
     await Promise.all(arr.map(async (file, i) => {
       try {
-        const fd = new FormData();
-        fd.append("file", file);
         const meta = albumId ? { albumId } : {};
-        const res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", meta);
+        // Signed pipeline first — the legacy FormData action rejects photos
+        // over the 4 MB Server Action body cap before it runs.
+        let res: { ok: true; data: { publicUrl: string; id: string } } | { ok: false; error: string };
+        const fast = await uploadTalentMedia({
+          file,
+          variantKind: "gallery",
+          talentProfileId,
+          metadata: meta,
+        });
+        if (fast.ok) {
+          res = { ok: true, data: { publicUrl: fast.publicUrl, id: fast.id } };
+        } else if (!fast.fallbackToLegacy) {
+          res = { ok: false, error: fast.error };
+        } else {
+          const fd = new FormData();
+          fd.append("file", file);
+          res = await actionUploadAndAssignMedia(fd, talentProfileId, "gallery", meta);
+        }
         void improntaLog("admin_drawer_shared.info", {
           message: "[PhotoGalleryPro] upload result",
           fileName: file.name,

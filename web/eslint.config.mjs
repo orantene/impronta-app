@@ -171,6 +171,49 @@ const ratchetPlugin = {
       },
     },
 
+    // Rule 6 — raw-file-upload guard. `fd.append("file", …)` /
+    // `fd.set("file", …)` marks a raw file body headed for a Server Action
+    // or API route — the transport that dies at the 4 MB Server Action cap
+    // (or Vercel's ~4.5 MB body cap) and produced the 2026-08 upload
+    // incidents (#981/#985). New uploads must go through the signed-upload
+    // pipeline (lib/client/signed-upload.ts) or compress first
+    // (lib/client/image-compress.ts); the surviving call sites are the
+    // sanctioned small-file FALLBACKS behind a signed attempt and are
+    // grandfathered in eslint-suppressions.json.
+    "no-raw-file-formdata": {
+      meta: {
+        type: "problem",
+        schema: [],
+        messages: {
+          raw: 'Raw {{method}}("file", …) sends the un-compressed file through a body-capped transport (4 MB Server Action / ~4.5 MB Vercel). Use the signed-upload pipeline (lib/client/signed-upload.ts) or compressImage() first; legacy fallbacks are grandfathered in eslint-suppressions.json.',
+        },
+      },
+      create(context) {
+        return {
+          CallExpression(node) {
+            const cal = node.callee;
+            if (
+              !cal ||
+              cal.type !== "MemberExpression" ||
+              cal.computed ||
+              !cal.property ||
+              (cal.property.name !== "append" && cal.property.name !== "set")
+            ) {
+              return;
+            }
+            const a = node.arguments[0];
+            if (a && a.type === "Literal" && a.value === "file") {
+              context.report({
+                node,
+                messageId: "raw",
+                data: { method: cal.property.name },
+              });
+            }
+          },
+        };
+      },
+    },
+
     // House copy rule — no em (U+2014) / en (U+2013) dashes in user-facing
     // copy. Flags string Literals and JSXText that contain either dash.
     // Implemented as a dedicated ratchet rule (not a bare `no-restricted-
@@ -421,6 +464,15 @@ const eslintConfig = defineConfig([
     rules: {
       // Rule 4 — tenant-scope guard (lint half).
       "ratchet/no-untenanted-from": "error",
+    },
+  },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/client/signed-upload.ts"],
+    plugins: { ratchet: ratchetPlugin },
+    rules: {
+      // Rule 6 — no NEW raw-file FormData uploads (4 MB body-cap class).
+      "ratchet/no-raw-file-formdata": "error",
     },
   },
   {

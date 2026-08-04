@@ -960,6 +960,105 @@ export async function actionUploadTalentDocument(
   };
 }
 
+/**
+ * Signed-upload twin of `actionUploadTalentDocument`. Documents (PDF
+ * contracts, comp cards) are routinely over the 4 MB Server Action body
+ * cap, which made the legacy action's 50 MB allowance unreachable — the
+ * browser PUTs directly to the private media-originals bucket instead.
+ * Call `actionFinalizeDocumentUpload` after the PUT.
+ */
+export async function actionCreateDocumentSignedUploadUrl(
+  talentProfileId: string,
+  filename: string,
+): Promise<ActionResult<{ uploadUrl: string; storagePath: string }>> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const ext = (filename.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+  const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
+
+  const { data, error } = await admin.storage
+    .from("media-originals")
+    .createSignedUploadUrl(storagePath);
+  if (error || !data) {
+    logServerError("media.actions.docSignedUrl.create", error);
+    return { ok: false, error: "Could not start upload. Try again." };
+  }
+  return {
+    ok: true,
+    data: { uploadUrl: data.signedUrl, storagePath: data.path ?? storagePath },
+  };
+}
+
+/**
+ * Post-PUT half of the signed document flow: re-validate the caller,
+ * stat the stored object (server-verified byte size + mime — never the
+ * client's claim), and hand back the same shape as the legacy action so
+ * the Files editor persists identical entries.
+ */
+export async function actionFinalizeDocumentUpload(
+  talentProfileId: string,
+  storagePath: string,
+): Promise<DocumentUploadResult> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  if (!storagePath.startsWith(`${talentProfileId}/documents/`)) {
+    return { ok: false, error: "Upload path doesn't match this talent." };
+  }
+
+  const { data: rosterRow } = await admin
+    .from("agency_talent_roster")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("talent_profile_id", talentProfileId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  const slash = storagePath.lastIndexOf("/");
+  const { data: listed, error: listErr } = await admin.storage
+    .from("media-originals")
+    .list(storagePath.slice(0, slash), { limit: 1, search: storagePath.slice(slash + 1) });
+  const meta = (listed?.[0] as { metadata?: { size?: number; mimetype?: string } } | undefined)
+    ?.metadata;
+  if (listErr || !meta || typeof meta.size !== "number" || meta.size === 0) {
+    logServerError("media.actions.docFinalize.stat", listErr);
+    return { ok: false, error: "Could not verify upload. Try again." };
+  }
+  if (meta.size > 50 * 1024 * 1024) {
+    await admin.storage.from("media-originals").remove([storagePath]);
+    return { ok: false, error: "File must be under 50 MB." };
+  }
+
+  return {
+    ok: true,
+    data: {
+      storagePath,
+      bucketId: "media-originals",
+      sizeBytes: meta.size,
+      mimeType: meta.mimetype || "application/octet-stream",
+    },
+  };
+}
+
 /** Generate a short-lived signed URL for a talent document (5 minutes). */
 export async function actionGetTalentDocumentSignedUrl(
   bucketId: string,
