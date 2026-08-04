@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { uploadAndSendVoiceNote } from "@/lib/server-actions/voice-notes";
+import { uploadVoiceNoteSigned } from "@/lib/client/signed-upload";
 
 type Phase = "idle" | "recording" | "preview" | "sending";
 
@@ -185,15 +186,34 @@ export function VoiceRecorderButton({
     if (!blob) return;
     setPhase("sending");
     try {
+      const durationMs = Math.max(0, Math.round(durationRef.current));
+      const mimeType = mimeRef.current || "audio/webm";
+      // Signed PUT direct to storage first — the legacy FormData action
+      // rides the 4 MB Server Action body cap, which long recordings
+      // exceed. The legacy path stays as a fallback for short clips when
+      // the signed PUT itself fails.
+      const fast = await uploadVoiceNoteSigned({
+        inquiryId,
+        threadType,
+        blob,
+        mimeType,
+        durationMs,
+      });
+      if (fast.ok) {
+        onSent?.();
+        resetToIdle();
+        return;
+      }
+      if (!fast.fallbackToLegacy) {
+        onError?.(fast.error || "Could not send voice note.");
+        setPhase("preview");
+        return;
+      }
       const fd = new FormData();
       fd.set("inquiry_id", inquiryId);
       fd.set("thread_type", threadType);
-      fd.set("duration_ms", String(Math.max(0, Math.round(durationRef.current))));
-      const ext = (mimeRef.current || "audio/webm").includes("ogg")
-        ? "ogg"
-        : (mimeRef.current || "").includes("mp4")
-          ? "m4a"
-          : "webm";
+      fd.set("duration_ms", String(durationMs));
+      const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "m4a" : "webm";
       fd.set("file", blob, `voice-note.${ext}`);
       const res = await uploadAndSendVoiceNote(fd);
       if (!res.ok) {

@@ -1661,21 +1661,27 @@ export async function actionCreateSignedUploadUrl(
   talentProfileId: string,
   ext: "jpg" | "png" | "mp4" | "mov" | "webm" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
+  // Dual auth, mirroring actionUploadAndAssignMedia: agency staff of the
+  // active tenant OR the talent who owns this profile (self-service
+  // surfaces like the offerings manager have no staff scope; ownership is
+  // the security boundary there).
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  const staff = await requireStaffTenantAction();
+  if (staff.ok) {
+    const { data: rosterRow } = await admin
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", staff.tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  } else {
+    const self = await requireTalentSelfAction(talentProfileId);
+    if (!self.ok) return { ok: false, error: self.error };
+  }
 
   const VIDEO_EXTS = ["mp4", "mov", "webm"] as const;
   const isVideoExt = (VIDEO_EXTS as readonly string[]).includes(ext);
@@ -1897,10 +1903,6 @@ export type RegisterUploadedAssetInput = {
 export async function actionRegisterUploadedAsset(
   input: RegisterUploadedAssetInput,
 ): Promise<RegisterMediaResult> {
-  const auth = await requireStaffTenantAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
@@ -1915,14 +1917,28 @@ export async function actionRegisterUploadedAsset(
     return { ok: false, error: "Upload path doesn't match this talent." };
   }
 
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  // Dual auth, mirroring actionUploadAndAssignMedia (and the sign action
+  // above): agency staff of the active tenant OR the owning talent.
+  let tenantId: string | null;
+  let revalidate: { path: string; type: "layout" | "page" };
+  const staff = await requireStaffTenantAction();
+  if (staff.ok) {
+    tenantId = staff.tenantId;
+    revalidate = { path: `/${staff.tenantSlug}`, type: "layout" };
+    const { data: rosterRow } = await admin
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  } else {
+    const self = await requireTalentSelfAction(talentProfileId);
+    if (!self.ok) return { ok: false, error: self.error };
+    tenantId = self.tenantId;
+    revalidate = { path: `/t/${self.profileCode}`, type: "page" };
+  }
 
   // Reel videos skip the sharp re-verify: there's nothing to resize, and
   // downloading a 100-200 MB video into the Function just to measure it
@@ -2001,7 +2017,7 @@ export async function actionRegisterUploadedAsset(
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
 
-  revalidatePath(`/${auth.tenantSlug}`, "layout");
+  revalidatePath(revalidate.path, revalidate.type);
   return {
     ok: true,
     data: {
