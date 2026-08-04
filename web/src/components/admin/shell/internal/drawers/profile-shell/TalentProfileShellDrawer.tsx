@@ -360,6 +360,12 @@ export function TalentProfileShellDrawer() {
   type SaveStatus = "idle" | "saving" | "saved" | "error";
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Which create-gate field blocked the last save. Drives the "Go to field"
+   *  action in the error banner and the auto-clear once it's filled — the
+   *  three gate fields live in three different sections, so an error with no
+   *  way back to the field left admins retrying the same failing save. */
+  type CreateGateTarget = { sectionId: ProfileSectionId; fieldId?: "stageName" | "homeBase" };
+  const [createGateTarget, setCreateGateTarget] = useState<CreateGateTarget | null>(null);
   const [dirty, setDirty] = useState(false);
   const [serverProfileUpdatedAtMs, setServerProfileUpdatedAtMs] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -410,6 +416,7 @@ export function TalentProfileShellDrawer() {
     setSavedAt(null);
     setSaveStatus("idle");
     setSaveError(null);
+    setCreateGateTarget(null);
     setServerProfileUpdatedAtMs(null);
     if (savedStatusResetTimerRef.current) {
       clearTimeout(savedStatusResetTimerRef.current);
@@ -921,6 +928,10 @@ export function TalentProfileShellDrawer() {
   // reads from it so we can keep `state` out of this callback's dep array.
 
   const saveAll = React.useCallback(async (): Promise<boolean> => {
+    // Every attempt recomputes which field (if any) blocks the save, so a
+    // stale target can never point the banner's jump action at the wrong
+    // field after an unrelated failure.
+    setCreateGateTarget(null);
     let tid = payload.talentId;
     /** First save in `create` mode — row minted this click; fall through to
      *  commitTalentProfileShellAdmin so identity/location/bio/etc. persist. */
@@ -947,21 +958,28 @@ export function TalentProfileShellDrawer() {
       // type + home base to mint a profile.
       if (!stageName) {
         setSaveError(copy.t("Add a stage / professional name first."));
+        setCreateGateTarget({ sectionId: "identity", fieldId: "stageName" });
         setSaveStatus("error");
         return false;
       }
       if (!primaryType) {
         setSaveError(copy.t("Pick a primary talent type to continue."));
+        setCreateGateTarget({ sectionId: "services" });
         setSaveStatus("error");
         return false;
       }
       if (!homeBase) {
-        setSaveError(copy.t("Enter a home base to continue."));
+        // Names the field by its on-screen label ("Current location" /
+        // "Ubicación actual"). The old "home base" wording matched no
+        // visible label, so there was nothing for the admin to go find.
+        setSaveError(copy.t("Add a current location to continue."));
+        setCreateGateTarget({ sectionId: "location", fieldId: "homeBase" });
         setSaveStatus("error");
         return false;
       }
       setSaveStatus("saving");
       setSaveError(null);
+      setCreateGateTarget(null);
       // Derive first/last from the explicit identity fields if filled,
       // otherwise split the stage name as a best-effort fallback.
       const explicitFirst = (s.identity?.firstName ?? "").trim();
@@ -2048,6 +2066,34 @@ export function TalentProfileShellDrawer() {
     closeDrawer();
   };
 
+  // Sections still holding an unfilled create-gate field. Marked with a red
+  // asterisk in the rail so "what do I have to fill in to create this?" is
+  // answerable before you hit Create, not only after it fails.
+  const createGateActive = mode === "create" && !isSelf;
+  const createGateBlockingSections = new Set<ProfileSectionId>([
+    ...(createGateActive && !(state.stageName ?? state.identity?.stageName ?? "").trim() ? (["identity"] as const) : []),
+    ...(createGateActive && !state.primaryType ? (["services"] as const) : []),
+    ...(createGateActive && !(state.serviceArea?.homeBase ?? "").trim() ? (["location"] as const) : []),
+  ]);
+
+  // Clear the create-gate failure as soon as the blocking field is filled.
+  // Without this the banner kept naming a field the admin had already fixed
+  // (it only reset on the next save attempt), which reads as "still broken".
+  const createGateFieldFilled =
+    createGateTarget === null
+      ? false
+      : createGateTarget.fieldId === "stageName"
+        ? (state.stageName ?? state.identity?.stageName ?? "").trim().length > 0
+        : createGateTarget.fieldId === "homeBase"
+          ? (state.serviceArea?.homeBase ?? "").trim().length > 0
+          : !!state.primaryType;
+  useEffect(() => {
+    if (saveStatus !== "error" || !createGateTarget || !createGateFieldFilled) return;
+    setSaveStatus("idle");
+    setSaveError(null);
+    setCreateGateTarget(null);
+  }, [saveStatus, createGateTarget, createGateFieldFilled]);
+
   // Required-coach jump-and-focus.
   // Uses querySelector inside the shell rather than forwardRef wiring,
   // since several controls are wrapped components.
@@ -2062,6 +2108,25 @@ export function TalentProfileShellDrawer() {
     setTimeout(() => {
       const sel = `[data-tulala-pshell] [data-pshell-field="${id}"]`;
       const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel);
+      if (el) {
+        el.focus();
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 250);
+  };
+
+  // Same jump-and-focus, aimed at the field that blocked `create`. The three
+  // gate fields (stage name / booked-as / current location) live in three
+  // different sections, so the banner needs to be able to take you there.
+  const onJumpToCreateGateField = () => {
+    if (!createGateTarget) return;
+    setActiveSection(createGateTarget.sectionId);
+    const fieldId = createGateTarget.fieldId;
+    if (!fieldId) return;
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+        `[data-tulala-pshell] [data-pshell-field="${fieldId}"]`,
+      );
       if (el) {
         el.focus();
         el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2190,6 +2255,15 @@ export function TalentProfileShellDrawer() {
           [data-tulala-pshell] [data-details-rail-badge][data-active="true"] {
             background: rgba(15,79,62,0.12);
             color: ${COLORS.accentDeep};
+          }
+          /* Create-mode gate marker — the section still holds a field that
+             blocks "Create profile". */
+          [data-tulala-pshell] [data-pshell-required-star] {
+            flex-shrink: 0;
+            color: ${COLORS.red};
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1;
           }
           [data-tulala-pshell] [data-details-rail-chevron] {
             flex-shrink: 0;
@@ -2591,6 +2665,15 @@ export function TalentProfileShellDrawer() {
               </strong>
               {saveError}
             </span>
+            {createGateTarget && (
+              <button
+                type="button"
+                onClick={onJumpToCreateGateField}
+                className="shrink-0 rounded-lg border border-admin-red/40 bg-white px-2.5 py-0.5 text-admin-11h font-bold text-admin-red"
+              >
+                {copy.isSpanish ? "Ir al campo" : "Go to field"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => { void saveAll(); }}
@@ -2835,6 +2918,13 @@ export function TalentProfileShellDrawer() {
                               }} />
                               <span aria-hidden style={{ fontSize: 13, lineHeight: 1, width: 16, textAlign: "center", flexShrink: 0 }}>{meta.emoji}</span>
                               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{copy.term(meta.label, meta.labelEs)}</span>
+                              {createGateBlockingSections.has(s) && (
+                                <span
+                                  data-pshell-required-star
+                                  title={copy.t("Required to create the profile")}
+                                  aria-label={copy.t("Required to create the profile")}
+                                >*</span>
+                              )}
                               {isDetailsSection && (
                                 <>
                                   <span data-details-rail-badge data-active={active ? "true" : "false"}>
@@ -3259,7 +3349,7 @@ export function TalentProfileShellDrawer() {
                 </>
               ) : (
                 <>
-                  <FieldRow label={copy.t("Current location")} catalogId="serviceArea.homeBase" tenantId={workspaceScopeTenantId}>
+                  <FieldRow label={copy.t("Current location")} required catalogId="serviceArea.homeBase" tenantId={workspaceScopeTenantId}>
                     <CityAutocompleteInput
                       value={state.serviceArea.homeBase}
                       placeId={state.serviceArea.homePlaceId}
