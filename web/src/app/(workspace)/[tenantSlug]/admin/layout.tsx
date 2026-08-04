@@ -35,6 +35,7 @@ import {
 import { loadProfileEditorLayout } from "@/lib/profile-editor/section-layout";
 import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
 import { loadPayoutsSurface } from "./payouts/payouts-surface-actions";
 import { loadTalentUnreadCount } from "@/lib/saas/unread-counts";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
@@ -146,6 +147,7 @@ export default async function WorkspaceAdminLayout({
     profileEditorLayout,
     clientFieldSource,
     localeSettings,
+    workspaceUi,
   ] = await Promise.all([
     loadWorkspaceRosterForCurrentTenant(tenantId),
     loadInquiriesForMessages(tenantId),
@@ -186,6 +188,9 @@ export default async function WorkspaceAdminLayout({
     // so registry-added languages (e.g. `fr`) appear, not just static en/es.
     // Cached + degrades to the platform fallback, so it never breaks the layout.
     loadTenantLocaleSettings(tenantId),
+    // Platform-wide workspace-UI switches (floating "+" FAB + first-run tour).
+    // Degrades to both-hidden on any failure, so it never breaks the layout.
+    loadPlatformWorkspaceUi(),
   ]);
 
   // Pre-fetch hybrid-only data (talent inquiries + cross-mode unread + user
@@ -269,6 +274,7 @@ export default async function WorkspaceAdminLayout({
             supportedLocales: localeSettings.supportedLocales,
             defaultLocale: localeSettings.defaultLocale,
           },
+          workspaceUi,
         }}
       >
         {/* PageRouteSyncer lives here — inside AdminShellProvider context, returns null */}

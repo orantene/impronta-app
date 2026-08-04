@@ -468,6 +468,14 @@ type Ctx = {
   supportedLocales: readonly string[];
   /** Tenant's primary locale; initial active state for the locale toggle. */
   tenantDefaultLocale: string;
+  /**
+   * Platform-wide switch for the floating "+" quick-action button
+   * (BottomActionFab). Set by HQ on /platform/admin/settings; false (the
+   * default, incl. standalone/mock mode) hides the FAB everywhere.
+   */
+  workspaceFabEnabled: boolean;
+  /** Platform-wide switch for the first-run guided tour. Same source; false = never fires. */
+  workspaceTourEnabled: boolean;
   /** Current UI locale resolved from the locale cookie. */
   locale: string;
   /** Dot-path translator for the current locale. */
@@ -1932,6 +1940,11 @@ export function AdminShellProvider({
   const tenantDefaultLocale: string =
     initialBridgeData?.localeSettings?.defaultLocale ?? "en";
 
+  // Platform-wide workspace-UI switches (HQ, /platform/admin/settings) —
+  // gate the floating "+" FAB and the first-run tour. Default hidden.
+  const workspaceFabEnabled = initialBridgeData?.workspaceUi?.fabEnabled ?? false;
+  const workspaceTourEnabled = initialBridgeData?.workspaceUi?.tourEnabled ?? false;
+
   // DB-backed profile-editor sidebar layout (or the client-safe hardcoded
   // fallback when the bridge didn't carry one). Never null, so the drawer can
   // read order/grouping/labels unconditionally.
@@ -2168,6 +2181,8 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      workspaceFabEnabled,
+      workspaceTourEnabled,
       locale,
       t: createTranslator(locale),
     }),
@@ -2286,6 +2301,8 @@ export function AdminShellProvider({
       bridgeTalentChecklistDismissed,
       supportedLocales,
       tenantDefaultLocale,
+      workspaceFabEnabled,
+      workspaceTourEnabled,
       locale,
     ],
   );
