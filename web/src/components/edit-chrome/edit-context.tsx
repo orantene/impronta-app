@@ -138,7 +138,11 @@ import { resolveMobileEditModeTransition } from "./mobile-edit-mode";
 import { publishDirty } from "./dirty-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
-import { commitActiveInlineEditor } from "./canvas-lexical-bridge";
+import {
+  cancelCanvasTextStylePatches,
+  commitActiveInlineEditor,
+} from "./canvas-lexical-bridge";
+import { clearCanvasTextStylePreview } from "./canvas-text-style-preview";
 import { getEditSessionId } from "./presence-provider";
 import {
   readOsBuilderClipboard,
@@ -1614,6 +1618,10 @@ export function EditProvider({
   );
 
   const applyComposition = useCallback((data: CompositionData) => {
+    // An authoritative tree also supersedes the toolbar's imperative preview
+    // layer and any debounced patch aimed at the composition being replaced.
+    cancelCanvasTextStylePatches();
+    clearCanvasTextStylePreview();
     // Fresh authoritative state invalidates any not-yet-flushed edit from the
     // composition being replaced. A debounce timer surviving this point fires
     // AFTER the version refs advance and CAS-saves the pre-refresh tree over
@@ -4949,6 +4957,13 @@ export function EditProvider({
     // leaving the inline editor undoes that text edit — never the prior node op
     // with the typed text silently dropped. No-op when no inline editor is open.
     await commitActiveInlineEditor();
+    // The toolbar previews style tweaks by writing inline styles straight onto
+    // the canvas DOM, outside React. Drop any debounced patch (it predates the
+    // tree we are about to restore) and strip the preview layer, otherwise the
+    // canvas keeps showing the undone value and undo reads as a no-op even
+    // though the tree reverted correctly.
+    cancelCanvasTextStylePatches();
+    clearCanvasTextStylePreview();
     // WS2 (Step 3) — read the live `past` stack from the ref so `undo` does not
     // list `past` in its deps; dropping that dep keeps `undo` stable across every
     // edit (an edit pushes to `past`, which used to recreate this callback and,
@@ -5047,6 +5062,10 @@ export function EditProvider({
     // must settle before the `futureRef` check below — otherwise redo could
     // replay onto a stack the just-typed text already invalidated.
     await commitActiveInlineEditor();
+    // Mirror undo: the restored tree, not a stale imperative preview, decides
+    // what the canvas shows.
+    cancelCanvasTextStylePatches();
+    clearCanvasTextStylePreview();
     // WS2 (Step 3) — read the live `future` stack from the ref (mirror of `undo`)
     // so `redo` does not list `future` in its deps and stays stable across edits.
     if (futureRef.current.length === 0) return;

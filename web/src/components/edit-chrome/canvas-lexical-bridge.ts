@@ -43,6 +43,9 @@ let stylePatchFlusher: StylePatchFlusher | null = null;
 type InlineEditorCommitHandle = () => void | Promise<void>;
 let inlineEditorCommitHandle: InlineEditorCommitHandle | null = null;
 
+type StylePatchCanceller = () => void;
+let stylePatchCanceller: StylePatchCanceller | null = null;
+
 export function registerCanvasTextStylePatchFlusher(
   flusher: StylePatchFlusher | null,
 ): void {
@@ -52,6 +55,21 @@ export function registerCanvasTextStylePatchFlusher(
 /** Flush toolbar style tweaks that were deferred during inline canvas edit. */
 export function flushCanvasTextStylePatches(): void {
   void stylePatchFlusher?.();
+}
+
+export function registerCanvasTextStylePatchCanceller(
+  canceller: StylePatchCanceller | null,
+): void {
+  stylePatchCanceller = canceller;
+}
+
+/**
+ * Drop a debounced toolbar style patch. Undo/redo and authoritative reloads
+ * restore a tree that predates the patch, so flushing it would re-apply the
+ * edit being reverted; only cancelling keeps the restored tree intact.
+ */
+export function cancelCanvasTextStylePatches(): void {
+  stylePatchCanceller?.();
 }
 
 /**
