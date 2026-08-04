@@ -8674,6 +8674,8 @@ export type Database = {
           operating_currency: string
           updated_at: string
           updated_by: string | null
+          workspace_fab_enabled: boolean
+          workspace_tour_enabled: boolean
         }
         Insert: {
           active_payout_system?: string
@@ -8696,6 +8698,8 @@ export type Database = {
           operating_currency?: string
           updated_at?: string
           updated_by?: string | null
+          workspace_fab_enabled?: boolean
+          workspace_tour_enabled?: boolean
         }
         Update: {
           active_payout_system?: string
@@ -8718,6 +8722,8 @@ export type Database = {
           operating_currency?: string
           updated_at?: string
           updated_by?: string | null
+          workspace_fab_enabled?: boolean
+          workspace_tour_enabled?: boolean
         }
         Relationships: [
           {

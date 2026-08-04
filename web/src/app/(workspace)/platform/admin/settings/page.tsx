@@ -6,6 +6,8 @@ import { loadPlatformSuperAdmins } from "../../platform-data";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadPlatformCommercialDefaults } from "@/lib/platform/commercial-defaults";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
+import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
+import { PlatformWorkspaceUiCard } from "./PlatformWorkspaceUiCard";
 import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
 import { PlatformCommercialDefaultsCard } from "./PlatformCommercialDefaultsCard";
 import { PlatformPayoutSystemCard } from "./PlatformPayoutSystemCard";
@@ -124,6 +126,7 @@ export default async function PlatformSettingsPage() {
   const operatingCurrency = await loadPlatformOperatingCurrency();
   const commercialDefaults = await loadPlatformCommercialDefaults();
   const activePayoutSystem = await loadActivePayoutSystem();
+  const workspaceUi = await loadPlatformWorkspaceUi();
 
   return (
     <>
@@ -196,6 +199,15 @@ export default async function PlatformSettingsPage() {
               instantBookDefault: commercialDefaults.instantBookDefault,
             }}
           />
+        </HqCard>
+
+        {/* Workspace UI — floating "+" button + first-run tour switches */}
+        <HqCard
+          title={t("dashboard.platform.settings.workspaceUiTitle")}
+          subtitle={t("dashboard.platform.settings.workspaceUiSubtitle")}
+          iconId="features"
+        >
+          <PlatformWorkspaceUiCard current={workspaceUi} />
         </HqCard>
 
         {/* HQ team — all users with platform staff role */}

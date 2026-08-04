@@ -364,6 +364,14 @@ export type BridgeData = {
   clientFieldSource?: ClientFieldSourcePayload | null;
   /** Tenant locale settings (loadTenantLocaleSettings) — drives the shell chrome's DashboardLocaleToggle so registry-added languages show; omitted = mock mode → ["en","es"]. */
   localeSettings?: { supportedLocales: readonly import("@/i18n/config").Locale[]; defaultLocale: import("@/i18n/config").Locale } | null;
+
+  /**
+   * Platform-wide workspace-UI switches (`platform_settings` singleton, set by
+   * HQ on /platform/admin/settings). Gate the floating "+" quick-action button
+   * (BottomActionFab) and the first-run guided tour. `null`/omitted = both
+   * hidden (the platform default).
+   */
+  workspaceUi?: { fabEnabled: boolean; tourEnabled: boolean } | null;
 };
 
 export function createBridgeDataFromRoster(
