@@ -273,7 +273,7 @@ export function TalentApprovalsDrawer() {
 
 
 export function BrandingDrawer() {
-  const { state, closeDrawer, openUpgrade, toast, tenantSlug, effectiveTenant } = useAdminShell();
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug, effectiveTenant, adminBasePath } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
   const queueRouterRefresh = useQueuedRouterRefresh();
@@ -451,7 +451,10 @@ export function BrandingDrawer() {
             type="button"
             onClick={() => {
               closeDrawer();
-              window.location.assign(`/${tenantSlug}/admin/website/card-design`);
+              // adminBasePath, never a hardcoded slug path — on branded hosts
+              // the canonical admin URL is /admin (see #912 + the
+              // admin-href-invariant static test).
+              window.location.assign(`${adminBasePath}/website/card-design`);
             }}
             className="cursor-pointer rounded-full border-[1.5px] border-[#18181b1a] bg-transparent px-3.5 py-[5px] text-xs font-semibold text-[#0B0B0D] transition-colors hover:border-[#4D4855]"
           >
