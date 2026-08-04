@@ -6,16 +6,24 @@ import { bulkSetWorkflowStatus } from "@/app/(workspace)/[tenantSlug]/admin/rost
 import { PitchComposeDrawer } from "../pitch-compose";
 import { CapNudge, Card, GhostButton, PrimaryButton, ReadOnlyChip, StatusCard } from "../primitives";
 import { SkillDiscoveryPanel } from "../skill-discovery-panel";
-import { COLORS, FONTS, PLAN_META, TAXONOMY, Z, getClients, getRoster, meetsRole, useAdminShell } from "../state";
-import type { Plan, TalentPage, TalentProfile, TaxonomyParentId } from "../state";
+import { COLORS, FONTS, PLAN_META, Z, getClients, getRoster, meetsRole, useAdminShell } from "../state";
+import type { Plan, TalentPage, TalentProfile } from "../state";
 import { SavedViewsBar, downloadCsv } from "../wave2";
 import { FabWithQuickCreate } from "./InboxPage";
 import { FilterChip, RosterGrid, RosterMoreMenu, SortButton, ViewToggle } from "./TalentPage-2";
 import { RosterArrangeView } from "./TalentPage-arrange";
 import { RosterBulkActionBar, RosterEmptyState, RosterList } from "./TalentPage-3";
 import { Grid, PageHeader } from "./pages-shared";
+import {
+  resolveRosterCardTaxonomy,
+  rosterMatchesParentFilter,
+  rosterParentFilterOf,
+} from "./roster-card-taxonomy";
 import { rosterSortComparator } from "./roster-sort";
 import type { RosterSortKey } from "./roster-sort";
+
+/** Parent-category filter chip option (live slug or static TAXONOMY id). */
+type RosterTypeFilterOption = { id: string; label: string; emoji?: string };
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -51,7 +59,7 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 export function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t } = useAdminShell();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster, overviewMetrics, tenantSlug, effectiveTenant, t, locale } = useAdminShell();
   const router = useRouter();
   // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
   // the server pre-fetches Impronta's roster and `effectiveRoster` is
@@ -63,7 +71,9 @@ export function TalentPage() {
 
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<"all" | "visible" | "hidden">("all");
-  const [typeFilter, setTypeFilter] = useState<TaxonomyParentId | "all">("all");
+  // Parent-category filter — id space covers BOTH live `parent_category`
+  // slugs (e.g. "hosts-promo") and static TAXONOMY parent ids ("hosts").
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   // Default = Recommended: the roster opens in the same order visitors see
   // in the public directory (curated rank first, recency after).
   const [sort, setSort] = useState<RosterSortKey>("recommended");
@@ -78,11 +88,6 @@ export function TalentPage() {
   // Arrange-directory-order mode (live workspaces only; see RosterArrangeView).
   const [arrangeMode, setArrangeMode] = useState(false);
 
-  // Resolve a parent-type filter to its children (for filtering by primaryType id).
-  const typeFilterChildren = typeFilter === "all"
-    ? null
-    : new Set(TAXONOMY.find(p => p.id === typeFilter)?.children.map(c => c.id) ?? []);
-
   // A talent is publicly visible when the agency eye is on AND the talent
   // has not globally hidden themselves.
   const isPubliclyVisible = (p: TalentProfile) =>
@@ -93,14 +98,20 @@ export function TalentPage() {
       if (stateFilter === "all") return true;
       return stateFilter === "visible" ? isPubliclyVisible(p) : !isPubliclyVisible(p);
     })
-    .filter((p) => !typeFilterChildren || (p.primaryType !== undefined && typeFilterChildren.has(p.primaryType)))
+    .filter((p) => typeFilter === "all" || rosterMatchesParentFilter(p, typeFilter))
     .filter((p) => {
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
+      // Search over what the admin SEES (humanized labels — primary, parent,
+      // secondaries) plus the raw slug and city.
+      const view = resolveRosterCardTaxonomy(p, locale);
       return (
         p.name.toLowerCase().includes(q) ||
         (p.city ?? "").toLowerCase().includes(q) ||
-        (p.primaryType ?? "").toLowerCase().includes(q)
+        (p.primaryType ?? "").toLowerCase().includes(q) ||
+        (view.primaryLabel ?? "").toLowerCase().includes(q) ||
+        (view.parentLabel ?? "").toLowerCase().includes(q) ||
+        view.secondaryLabels.some((s) => s.toLowerCase().includes(q))
       );
     })
     .sort(rosterSortComparator(sort, sortDir));
@@ -111,19 +122,18 @@ export function TalentPage() {
     hidden: roster.length - visibleCount,
   };
 
-  // Talent-type parents that actually exist in the roster — drives the
-  // type filter chips (no point showing "Chefs" if there are 0 chefs).
-  const usedTypes = Array.from(new Set(
-    roster
-      .map((r) => {
-        if (!r.primaryType) return null;
-        for (const p of TAXONOMY) {
-          if (p.children.some((c) => c.id === r.primaryType)) return p.id;
-        }
-        return null;
-      })
-      .filter((x): x is TaxonomyParentId => x !== null)
-  ));
+  // Parent categories that actually exist in the roster — drives the type
+  // filter chips (no point showing "Chefs" if there are 0 chefs). Live
+  // workspaces resolve to real `parent_category` terms; mock workspaces fall
+  // back to the static TAXONOMY parents.
+  const usedTypes: RosterTypeFilterOption[] = (() => {
+    const byId = new Map<string, RosterTypeFilterOption>();
+    for (const r of roster) {
+      const opt = rosterParentFilterOf(r, locale);
+      if (opt && !byId.has(opt.id)) byId.set(opt.id, opt);
+    }
+    return Array.from(byId.values());
+  })();
 
   const pendingCount = overviewMetrics !== null
     ? (overviewMetrics.pendingApprovals ?? 0)
@@ -622,9 +632,9 @@ function RosterFilterBar({
 }: {
   search: string;
   onSearch: (s: string) => void;
-  typeFilter: TaxonomyParentId | "all";
-  onTypeFilter: (f: TaxonomyParentId | "all") => void;
-  usedTypes: TaxonomyParentId[];
+  typeFilter: string;
+  onTypeFilter: (f: string) => void;
+  usedTypes: RosterTypeFilterOption[];
   sort: RosterSortKey;
   sortDir: "asc" | "desc";
   onSort: (s: RosterSortKey) => void;
@@ -710,18 +720,15 @@ function RosterFilterBar({
             active={typeFilter === "all"}
             onClick={() => onTypeFilter("all")}
           />
-          {usedTypes.map((t) => {
-            const meta = TAXONOMY.find((p) => p.id === t)!;
-            return (
-              <FilterChip
-                key={t}
-                label={meta.label}
-                emoji={meta.emoji}
-                active={typeFilter === t}
-                onClick={() => onTypeFilter(t)}
-              />
-            );
-          })}
+          {usedTypes.map((opt) => (
+            <FilterChip
+              key={opt.id}
+              label={opt.label}
+              emoji={opt.emoji}
+              active={typeFilter === opt.id}
+              onClick={() => onTypeFilter(opt.id)}
+            />
+          ))}
         </div>
       )}
 

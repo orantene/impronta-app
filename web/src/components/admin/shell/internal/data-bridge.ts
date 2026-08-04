@@ -73,7 +73,7 @@ export type {
 // runtime-importing it from server code would defeat the whole point of
 // the bridge. `import type` is erased at compile time and emits no JS,
 // so we get the shape without pulling the client tree into server land.
-import type { TalentProfile } from "./state";
+import type { RosterTaxonomyChip, TalentProfile } from "./state";
 import type { WorkspaceMediaPhoto, WorkspaceMediaFolder } from "@/app/(workspace)/[tenantSlug]/_data-bridge-media";
 // Type-only — erased at compile time, so importing from the `"use server"`
 // payouts actions module pulls no runtime JS (no server tree) into either
@@ -460,6 +460,8 @@ type RosterRow = {
           relationship_type: string | null;
           display_order: number | null;
           taxonomy_terms: {
+            id: string | null;
+            parent_id: string | null;
             term_type: string | null;
             slug: string | null;
             name_i18n: Record<string, string | null> | null;
@@ -589,22 +591,18 @@ function deriveDisplayName(
 }
 
 /**
- * Read the talent's FEATURED skill slug for roster cards / search snippets.
- *
- * Multi-skill V1 (2026-05-07): a talent can have multiple primary_role rows
- * (up to 9 total skills). The "featured" skill = lowest display_order among
- * primary_role rows. Falls back to first secondary_role if no primary set.
- * Returns the canonical slug; when it isn't in TAXONOMY the caller can use the
- * string directly as a display fallback via name_en.
+ * Rank a talent's role terms for roster display: primary_role rows first
+ * (lowest display_order = the featured skill), then secondary_role rows by
+ * display_order. Multi-skill V1 (2026-05-07) allows several primary_role
+ * rows, so "primary" = ranked[0] and everything after it renders as a
+ * secondary chip.
  */
-function derivePrimaryType(
+function rankRoleTerms(
   profile: NonNullable<RosterRow["talent_profiles"]>,
-): string | undefined {
-  const taxonomy = profile.talent_profile_taxonomy ?? [];
-  if (taxonomy.length === 0) return undefined;
-
-  // Helper: sort by display_order ASC (lower = featured), then by relationship.
-  const ranked = [...taxonomy]
+): NonNullable<
+  NonNullable<RosterRow["talent_profiles"]>["talent_profile_taxonomy"]
+> {
+  return [...(profile.talent_profile_taxonomy ?? [])]
     .filter(
       (t) =>
         t.relationship_type === "primary_role" ||
@@ -617,11 +615,145 @@ function derivePrimaryType(
       }
       return (a.display_order ?? 0) - (b.display_order ?? 0);
     });
+}
 
-  const top = ranked[0]?.taxonomy_terms;
+/**
+ * Read the talent's FEATURED skill slug for roster cards / search snippets.
+ *
+ * Multi-skill V1 (2026-05-07): a talent can have multiple primary_role rows
+ * (up to 9 total skills). The "featured" skill = lowest display_order among
+ * primary_role rows. Falls back to first secondary_role if no primary set.
+ * Returns the canonical slug; when it isn't in TAXONOMY the caller can use the
+ * string directly as a display fallback via name_en.
+ */
+function derivePrimaryType(
+  profile: NonNullable<RosterRow["talent_profiles"]>,
+): string | undefined {
+  const top = rankRoleTerms(profile)[0]?.taxonomy_terms;
   // Fall back to the English term name (name_i18n.en, WS4) when slug is absent —
   // card renderer shows it when TAXONOMY.children.find(c => c.id === slug) is null.
   return top?.slug ?? top?.name_i18n?.en ?? undefined;
+}
+
+// ── Roster category enrichment (labels, never slugs) ────────────────────────
+//
+// The admin roster card is internal tooling: staff must instantly see WHO a
+// talent is. The DB tags talent at the taxonomy LEAF (`talent_type`, e.g.
+// "fashion-model"), whose parent chain is category_group → parent_category
+// ("Models"). The bridge rolls each talent's role terms up to display-ready
+// chips — localized primary label, its parent-category label, secondary type
+// labels — so the card never renders a raw slug and can differentiate a
+// model-heavy roster by parent + secondaries.
+
+/** Minimal taxonomy-tree row used to walk leaf → parent_category. */
+type CategoryTreeRow = {
+  id: string;
+  parent_id: string | null;
+  term_type: string | null;
+  slug: string | null;
+  name_i18n: Record<string, string | null> | null;
+};
+
+/** "cultural-dancer" → "Cultural Dancer" (last-resort label when name_i18n is empty). */
+function titleCaseSlug(slug: string): string {
+  return slug
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+function toTaxonomyChip(term: {
+  slug: string | null;
+  name_i18n: Record<string, string | null> | null;
+}): RosterTaxonomyChip | undefined {
+  const slug = term.slug?.trim();
+  const labelEn = term.name_i18n?.en?.trim() || (slug ? titleCaseSlug(slug) : undefined);
+  if (!slug || !labelEn) return undefined;
+  const labelEs = term.name_i18n?.es?.trim() || undefined;
+  return { slug, labelEn, ...(labelEs ? { labelEs } : {}) };
+}
+
+type BridgeReadClient =
+  | NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>
+  | NonNullable<ReturnType<typeof createServiceRoleClient>>;
+
+/**
+ * Load the category levels of the taxonomy tree (parent_category +
+ * category_group — ~a few hundred rows, one page) so the roster loader can
+ * walk each assigned leaf up to its parent_category. Leaf terms arrive
+ * embedded on the roster rows (with `parent_id`), so they are not re-fetched.
+ */
+async function loadCategoryTreeById(
+  client: BridgeReadClient,
+): Promise<Map<string, CategoryTreeRow>> {
+  const byId = new Map<string, CategoryTreeRow>();
+  const { data, error } = await client
+    .from("taxonomy_terms")
+    .select("id, parent_id, term_type, slug, name_i18n")
+    .in("term_type", ["parent_category", "category_group"]);
+  if (error) {
+    // Non-fatal: cards fall back to leaf labels without the parent strip.
+    logServerError("admin-shell-prototype.loadCategoryTree", error);
+    return byId;
+  }
+  for (const row of (data ?? []) as CategoryTreeRow[]) byId.set(row.id, row);
+  return byId;
+}
+
+/** Walk up from a leaf's parent_id to its enclosing parent_category (≤ 5 hops). */
+function parentCategoryOf(
+  parentId: string | null,
+  categoryById: Map<string, CategoryTreeRow>,
+): CategoryTreeRow | undefined {
+  let cur = parentId ? categoryById.get(parentId) : undefined;
+  let hops = 0;
+  while (cur && hops < 5) {
+    if (cur.term_type === "parent_category") return cur;
+    cur = cur.parent_id ? categoryById.get(cur.parent_id) : undefined;
+    hops++;
+  }
+  return undefined;
+}
+
+/**
+ * Derive the roster card's category chips for one talent: the featured
+ * primary type, its parent category, and every remaining role term as a
+ * secondary chip (display order preserved, de-duplicated by slug).
+ */
+function deriveTypeChips(
+  profile: NonNullable<RosterRow["talent_profiles"]>,
+  categoryById: Map<string, CategoryTreeRow>,
+): {
+  primaryTypeInfo?: RosterTaxonomyChip;
+  parentCategory?: RosterTaxonomyChip;
+  secondaryTypes?: RosterTaxonomyChip[];
+} {
+  const ranked = rankRoleTerms(profile);
+  if (ranked.length === 0) return {};
+
+  const primaryTerm = ranked[0]?.taxonomy_terms ?? null;
+  const primaryTypeInfo = primaryTerm ? toTaxonomyChip(primaryTerm) : undefined;
+
+  const parentTerm = primaryTerm
+    ? parentCategoryOf(primaryTerm.parent_id, categoryById)
+    : undefined;
+  const parentCategory = parentTerm ? toTaxonomyChip(parentTerm) : undefined;
+
+  const seen = new Set<string>(primaryTypeInfo ? [primaryTypeInfo.slug] : []);
+  const secondaryTypes: RosterTaxonomyChip[] = [];
+  for (const entry of ranked.slice(1)) {
+    const chip = entry.taxonomy_terms ? toTaxonomyChip(entry.taxonomy_terms) : undefined;
+    if (!chip || seen.has(chip.slug)) continue;
+    seen.add(chip.slug);
+    secondaryTypes.push(chip);
+  }
+
+  return {
+    ...(primaryTypeInfo ? { primaryTypeInfo } : {}),
+    ...(parentCategory ? { parentCategory } : {}),
+    ...(secondaryTypes.length > 0 ? { secondaryTypes } : {}),
+  };
 }
 
 /**
@@ -733,7 +865,7 @@ export async function loadWorkspaceRosterForCurrentTenant(
           talent_profile_taxonomy (
             relationship_type,
             display_order,
-            taxonomy_terms ( term_type, slug, name_i18n )
+            taxonomy_terms ( id, parent_id, term_type, slug, name_i18n )
           ),
           talent_service_areas (
             service_kind,
@@ -761,6 +893,12 @@ export async function loadWorkspaceRosterForCurrentTenant(
     }
 
     const rows = (data ?? []) as unknown as RosterRow[];
+
+    // Category-tree lookup for the leaf → parent_category walk. One small
+    // query per roster load; failure degrades to cards without the parent
+    // strip (never blocks the roster).
+    const categoryById = await loadCategoryTreeById(readClient);
+
     const out: TalentProfile[] = [];
     for (const row of rows) {
       const profile = row.talent_profiles;
@@ -796,6 +934,9 @@ export async function loadWorkspaceRosterForCurrentTenant(
         city: deriveCity(profile),
         thumb: thumbUrl,
         primaryType: derivePrimaryType(profile),
+        // Display-ready category chips (localized labels, parent category,
+        // secondaries) — the card must never render a raw slug.
+        ...deriveTypeChips(profile, categoryById),
         portfolioCount,
         // Agency directory visibility — the roster-card eye toggle.
         siteVisible:

@@ -33,6 +33,8 @@ const rosterCardBadgesSchema = z
     photoCount:   z.boolean().optional(),
     availability: z.boolean().optional(),
     talentId:     z.boolean().optional(),
+    categories:   z.boolean().optional(),
+    quickView:    z.boolean().optional(),
   })
   .strict();
 

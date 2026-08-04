@@ -491,6 +491,21 @@ export type InquiryRecord = {
 
 // ─── Mock data ───────────────────────────────────────────────────────
 
+/**
+ * A live taxonomy term surfaced on roster cards (primary type, its parent
+ * category, secondary types). Labels come from `taxonomy_terms.name_i18n`
+ * with the slug title-cased as the last-resort fallback — roster cards must
+ * never render a raw slug like "fashion-model".
+ */
+export type RosterTaxonomyChip = {
+  /** Canonical `taxonomy_terms.slug` (stable id for filtering). */
+  slug: string;
+  /** English display label (name_i18n.en, falling back to title-cased slug). */
+  labelEn: string;
+  /** Spanish display label when the term has one. */
+  labelEs?: string;
+};
+
 export type TalentProfile = {
   id: string;
   /** Human-readable canonical talent code (`talent_profiles.profile_code`),
@@ -521,6 +536,25 @@ export type TalentProfile = {
   representation?: RepresentationStatus;
   /** Primary Talent Type id (matches TaxonomyChild.id). Drives the type chip on cards. */
   primaryType?: string;
+  /**
+   * Live-taxonomy display info for the primary type (localized labels from
+   * `taxonomy_terms.name_i18n`). Set by the roster bridge; absent on mock
+   * fixtures, where the card falls back to the static TAXONOMY lookup.
+   */
+  primaryTypeInfo?: RosterTaxonomyChip;
+  /**
+   * The primary type's enclosing `parent_category` term (e.g. Models,
+   * Performers, Hosts & Promo). Drives the roster card's category strip so
+   * admins can tell at a glance WHO a talent is — the leaf type alone
+   * ("Fashion Model") reads uniform across a model-heavy roster.
+   */
+  parentCategory?: RosterTaxonomyChip;
+  /**
+   * Additional talent-type terms (extra primary_role rows beyond the
+   * featured one + secondary_role rows), in display order. Rendered as
+   * small muted chips on the roster card (capped there, "+N" for the rest).
+   */
+  secondaryTypes?: RosterTaxonomyChip[];
   /** Profile completeness 0–100. Surfaced on cards in non-published states. */
   completeness?: number;
   /** ISO timestamp of when this talent was added to the roster. Drives "Newest" sort. */
