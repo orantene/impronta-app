@@ -40,6 +40,7 @@ import {
   qaInputStyle,
 } from "./talent-type-picker";
 import { buildNewTalentPickerTaxonomy } from "./new-talent-taxonomy";
+import { uploadTalentMedia } from "@/lib/client/signed-upload";
 
 // ── F14/F15 — Publish checklist ────────────────────────────────────────────────
 function PublishChecklist({
@@ -294,13 +295,24 @@ export function NewTalentDrawer() {
       // failure but don't block the add flow.
       if (result.talentProfileId && photoFile) {
         try {
-          const fd = new FormData();
-          fd.append("file", photoFile);
-          const upRes = await actionUploadAndAssignMedia(fd, result.talentProfileId, "card");
-          if (!upRes.ok) toast(
-            copy.isSpanish ? `Error al subir la foto: ${upRes.error}` : `Photo upload failed: ${upRes.error}`,
-            { tone: "error" },
-          );
+          // Signed pipeline first — the legacy FormData action rejects any
+          // photo over the 4 MB Server Action body cap, i.e. most camera
+          // shots, which left brand-new talents photoless.
+          const fast = await uploadTalentMedia({
+            file: photoFile,
+            variantKind: "card",
+            talentProfileId: result.talentProfileId,
+          });
+          if (!fast.ok) {
+            if (!fast.fallbackToLegacy) throw new Error(fast.error);
+            const fd = new FormData();
+            fd.append("file", photoFile);
+            const upRes = await actionUploadAndAssignMedia(fd, result.talentProfileId, "card");
+            if (!upRes.ok) toast(
+              copy.isSpanish ? `Error al subir la foto: ${upRes.error}` : `Photo upload failed: ${upRes.error}`,
+              { tone: "error" },
+            );
+          }
         } catch (err) {
           logServerError("newtalentdrawer_photo_upload", err);
           toast(tt("Photo upload failed. Talent created without photo."), { tone: "error" });

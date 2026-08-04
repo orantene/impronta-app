@@ -217,6 +217,65 @@ export async function uploadTalentReel(opts: {
   };
 }
 
+// ── Talent documents (comp cards, contracts — private bucket) ───────────
+
+export type TalentDocumentUploadOk = {
+  ok: true;
+  storagePath: string;
+  bucketId: string;
+  sizeBytes: number;
+  mimeType: string;
+};
+
+/**
+ * Document upload for the Files editor: signed PUT into the private
+ * media-originals bucket, then a finalize action that stats the object.
+ * No compression — a contract's bytes must land exactly as picked.
+ */
+export async function uploadTalentDocumentSigned(opts: {
+  file: File;
+  talentProfileId: string;
+  onProgress?: (p: SignedUploadProgress) => void;
+}): Promise<TalentDocumentUploadOk | FailureResult> {
+  const { file, talentProfileId } = opts;
+
+  if (file.size === 0) {
+    return { ok: false, fallbackToLegacy: false, error: "File is empty." };
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    return { ok: false, fallbackToLegacy: false, error: "File must be under 50 MB." };
+  }
+
+  const { actionCreateDocumentSignedUploadUrl, actionFinalizeDocumentUpload } =
+    await import("@/app/(workspace)/[tenantSlug]/admin/media/actions");
+
+  const signed = await actionCreateDocumentSignedUploadUrl(
+    talentProfileId,
+    file.name || "file.bin",
+  );
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  opts.onProgress?.({ phase: "uploading", bytesTotal: file.size });
+  const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+  if (!putOk.ok) {
+    // Small documents may still fit through the legacy FormData action.
+    return { ok: false, fallbackToLegacy: file.size < 4 * 1024 * 1024, error: putOk.error };
+  }
+
+  opts.onProgress?.({ phase: "registering" });
+  const finalized = await actionFinalizeDocumentUpload(
+    talentProfileId,
+    signed.data.storagePath,
+  );
+  if (!finalized.ok) {
+    return { ok: false, fallbackToLegacy: false, error: finalized.error };
+  }
+
+  return { ok: true, ...finalized.data };
+}
+
 // ── Inquiry attachments (message threads, staff + client) ───────────────
 
 export type InquiryAttachmentUploadOk = {

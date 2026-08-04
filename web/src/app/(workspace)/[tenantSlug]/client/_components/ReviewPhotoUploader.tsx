@@ -14,6 +14,7 @@ import {
   removeReviewMediaAction,
   uploadReviewMediaAction,
 } from "@/lib/reviews/review-media-actions";
+import { compressImage } from "@/lib/client/image-compress";
 
 const FONT = '"Inter", system-ui, sans-serif';
 const MAX_PHOTOS = 6;
@@ -55,15 +56,25 @@ export function ReviewPhotoUploader({
         setError(interpolate(t("client.reviews.photoCap"), { count: MAX_PHOTOS }));
         break;
       }
-      const fd = new FormData();
-      fd.set("bookingId", bookingId);
-      fd.set("talentProfileId", talentProfileId);
-      fd.set("file", file);
-      const res = await uploadReviewMediaAction(fd);
-      if (res.ok) {
-        setPhotos((prev) => [...prev, res.data]);
-      } else {
-        setError(res.error || t("client.reviews.photoAddError"));
+      // try/catch is load-bearing: the Server Action transport rejects
+      // bodies over 4 MB by THROWING, which previously escaped the loop
+      // and left `busy` stuck. Compressing first (~150 KB out of a phone
+      // photo) keeps real photos far under the cap; the raw file only
+      // goes through when compression can't run (GIF, decode failure).
+      try {
+        const compressed = await compressImage(file);
+        const fd = new FormData();
+        fd.set("bookingId", bookingId);
+        fd.set("talentProfileId", talentProfileId);
+        fd.set("file", compressed.file, compressed.file.name || file.name);
+        const res = await uploadReviewMediaAction(fd);
+        if (res.ok) {
+          setPhotos((prev) => [...prev, res.data]);
+        } else {
+          setError(res.error || t("client.reviews.photoAddError"));
+        }
+      } catch {
+        setError(t("client.reviews.photoAddError"));
       }
     }
     setBusy(false);

@@ -15,6 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
+import { compressImage } from "@/lib/client/image-compress";
 
 import {
   CHROME,
@@ -155,11 +156,14 @@ export function MediaPickerDrawer({
       let item: MediaPickerItem;
       if (isTalentScope) {
         // Talent-self upload — the agency signed-upload + /api/admin routes are
-        // staff-only. POST straight to the talent endpoint, which owns the row
-        // to this talent so it lands in "My uploads".
+        // staff-only. POST to the talent endpoint, which owns the row to this
+        // talent so it lands in "My uploads". Compress FIRST: raw phone photos
+        // (5-15 MB) blow both Vercel's ~4.5 MB request-body cap and the
+        // route's 5 MB limit; post-compression bytes are ~150 KB.
+        const compressed = await compressImage(file);
         const form = new FormData();
         form.set("talentProfileId", talentProfileId!);
-        form.set("file", file);
+        form.set("file", compressed.file, compressed.file.name || file.name);
         const res = await fetch("/api/talent/media/upload", {
           method: "POST",
           body: form,

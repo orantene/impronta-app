@@ -19,6 +19,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { C, FONT, saveBtn, secondaryBtn } from "./onboarding-shared";
+import { compressImage } from "@/lib/client/image-compress";
 
 export function PhotoStep({
   mediaCount,
@@ -45,9 +46,16 @@ export function PhotoStep({
       let added = 0;
       for (const file of list) {
         try {
+          // Compress in the browser before the POST. Raw phone photos are
+          // 5-15 MB — over Vercel's ~4.5 MB request-body cap AND the API
+          // route's own 5 MB limit, so the un-compressed POST failed for
+          // typical camera files. Post-compression bytes are ~150 KB; the
+          // original file passes through only when compression can't run
+          // (GIF, decode failure) — small ones still fit.
+          const compressed = await compressImage(file);
           const form = new FormData();
           form.set("talentProfileId", talentProfileId);
-          form.set("file", file);
+          form.set("file", compressed.file, compressed.file.name || file.name);
           const res = await fetch("/api/talent/media/upload", { method: "POST", body: form });
           const body = await res.json().catch(() => ({}));
           if (!res.ok || !body.ok) {
