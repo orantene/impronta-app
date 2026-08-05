@@ -5,6 +5,7 @@ import {
   isWithinDays,
   dayLimitFor,
   searchableText,
+  isFailureAction,
   type AuditFilterRow,
   type AuditFilterState,
 } from "./filter";
@@ -126,6 +127,38 @@ test("filters combine as AND", () => {
     NOW,
   );
   assert.equal(out.length, 1);
+});
+
+test("isFailureAction flags refusals and failures, not successes", () => {
+  for (const a of [
+    "security.permission_denied",
+    "media.upload.failed",
+    "auth.sign_in_failed",
+    "billing.payment.failed",
+    "billing.payout.failed",
+  ]) {
+    assert.equal(isFailureAction(a), true, `expected ${a} to be a failure`);
+  }
+  for (const a of [
+    "settings.branding.updated",
+    "roster.talent.created",
+    "media.uploaded",
+    "auth.signed_in",
+    // must not match on a substring in the middle of the action
+    "media.failed_upload.retried",
+  ]) {
+    assert.equal(isFailureAction(a), false, `expected ${a} NOT to be a failure`);
+  }
+});
+
+test("failures are findable by searching their reason", () => {
+  const r = row({
+    category: "security",
+    action: "security.permission_denied",
+    summary: "Attempted an action their role does not allow",
+    targetId: "manage_billing",
+  });
+  assert.equal(filterAuditRows([r], { ...ALL, search: "manage_billing" }, NOW).length, 1);
 });
 
 test("security events are reachable by category filter", () => {

@@ -107,6 +107,31 @@ Rules:
   snapshots, and never secret values — integration actions log the *field name*
   only, never the key.
 
+### Failures and refusals
+
+`auditFailure(...)` (same module) records something that **failed or was
+refused** — a permission denial, an upload that did not land, a payment that
+failed. Its `reason` goes into `metadata.reason`.
+
+This is deliberately **not** a mirror of `logServerError`: there are ~480 of
+those, most carry no workspace context, and piping them all in would flood the
+log and the retention cap with noise support cannot act on. Ordinary crashes
+stay in Sentry; the two systems answer different questions.
+
+Currently recorded:
+
+| Event | Where |
+|---|---|
+| `security.permission_denied` | `requireStaffTenantAction` — a signed-in member tried something their role does not grant (the single choke point for staff actions) |
+| `media.upload.failed` | signed-upload register route — rejected or unprocessable image |
+| `auth.sign_in_failed` | rejected credentials |
+| `billing.payment.failed` / `billing.payout.failed` | transaction state machine (already flows through `emitTransactionEvent`) |
+
+**Convention:** a failure action ends in `.failed` / `.denied` / `.rejected`,
+with either `.` or `_` before the word. `isFailureAction()` in `filter.ts`
+detects it and the table shows a red **Failed** badge and tints the row — no
+schema column, so adding a failure event never needs a migration.
+
 ### Why it costs almost nothing at request time
 
 `scheduleWorkspaceAudit` captures request context (headers + session)

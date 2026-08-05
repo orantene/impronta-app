@@ -38,3 +38,38 @@ export function auditEvent(
   if (!tenantId) return;
   scheduleWorkspaceAudit({ tenantId, category, action, summary, ...extra });
 }
+
+/**
+ * Record something that FAILED or was REFUSED.
+ *
+ * Deliberately NOT a mirror of `logServerError` — there are hundreds of those
+ * and most carry no workspace context, so piping them all in would flood the
+ * log (and the retention cap) with noise support can't act on. This is for
+ * failures a workspace admin or Tulala support would actually ask about:
+ * a refused permission, an upload that did not land, a payment that failed.
+ *
+ * Ordinary crashes stay in Sentry (`logServerError`); the two systems answer
+ * different questions.
+ *
+ * By convention the action ends in `.denied` or `.failed` so the table can
+ * flag the row — see `isFailureAction` in the activity-log filter module.
+ * Keep `reason` short and free of secrets; it is shown to workspace admins.
+ */
+export function auditFailure(
+  tenantId: string | null | undefined,
+  category: WorkspaceAuditCategory,
+  action: string,
+  summary: string,
+  extra?: AuditExtras & { reason?: string },
+): void {
+  if (!tenantId) return;
+  const { reason, ...rest } = extra ?? {};
+  scheduleWorkspaceAudit({
+    tenantId,
+    category,
+    action,
+    summary,
+    ...rest,
+    metadata: { ...(rest.metadata ?? {}), ...(reason ? { reason } : {}) },
+  });
+}

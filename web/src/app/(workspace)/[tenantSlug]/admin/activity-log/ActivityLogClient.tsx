@@ -3,7 +3,11 @@
 import { useMemo, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
-import { filterAuditRows, type DateRangeKey as AuditDateRangeKey } from "./filter";
+import {
+  filterAuditRows,
+  isFailureAction,
+  type DateRangeKey as AuditDateRangeKey,
+} from "./filter";
 
 export interface WorkspaceAuditRow {
   id: string;
@@ -394,11 +398,15 @@ function FragmentRow({
     verticalAlign: "top",
   };
   const metadataEntries = Object.entries(row.metadata ?? {});
+  const failed = isFailureAction(row.action);
   return (
     <>
       <tr
         onClick={onToggle}
-        style={{ cursor: "pointer", background: expanded ? C.surface : undefined }}
+        style={{
+          cursor: "pointer",
+          background: expanded ? C.surface : failed ? "rgba(220,38,38,0.03)" : undefined,
+        }}
       >
         <td style={{ ...cellStyle, whiteSpace: "nowrap", color: C.inkMuted }}>
           {formatRelativeTime(row.createdAtIso, t)}
@@ -426,6 +434,21 @@ function FragmentRow({
             >
               {categoryName(row.category)}
             </span>
+            {failed && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#DC2626",
+                  background: "rgba(220,38,38,0.08)",
+                  borderRadius: 999,
+                  padding: "2px 8px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t("dashboard.adminActivityLog.failedBadge")}
+              </span>
+            )}
             <span style={{ color: C.ink, minWidth: 180, flex: 1 }}>
               {row.summary ?? row.action}
             </span>

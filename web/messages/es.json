@@ -10663,7 +10663,8 @@
         "platform": "Soporte de Tulala",
         "system": "Sistema",
         "guest": "Invitado"
-      }
+      },
+      "failedBadge": "Fallido"
     }
   },
   "admin": {

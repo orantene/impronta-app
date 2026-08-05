@@ -66,6 +66,19 @@ export function searchableText<T extends AuditFilterRow>(row: T): string {
     .toLowerCase();
 }
 
+/**
+ * Whether a row represents something that FAILED or was REFUSED, so the table
+ * can flag it. Encoded in the action name by convention (see `auditFailure` in
+ * lib/audit/emit.ts) rather than a schema column, so adding a failure event
+ * never needs a migration.
+ */
+export function isFailureAction(action: string): boolean {
+  // Both separators are in use: `media.upload.failed` (new events) and
+  // `auth.sign_in_failed` / `security.permission_denied` (existing ones).
+  // Anchored to the end so `media.failed_upload.retried` is not a failure.
+  return /[._](failed|denied|rejected)$/.test(action);
+}
+
 export function matchesAuditFilters<T extends AuditFilterRow>(
   row: T,
   filters: AuditFilterState,

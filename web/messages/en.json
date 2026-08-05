@@ -10663,7 +10663,8 @@
         "platform": "Tulala support",
         "system": "System",
         "guest": "Guest"
-      }
+      },
+      "failedBadge": "Failed"
     }
   },
   "admin": {
