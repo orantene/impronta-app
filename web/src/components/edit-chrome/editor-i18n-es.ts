@@ -13,7 +13,6 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_CATALOG_TEXT,
   // ── Admin quick bar (idle storefront, credentialed member only) ────────
   "Workspace quick actions": "Acciones rápidas del espacio de trabajo",
-  "Workspace quick links": "Enlaces rápidos del espacio de trabajo",
   "Signed in to {site}": "Sesión iniciada en {site}",
   "Signed in to your workspace": "Sesión iniciada en tu espacio de trabajo",
   "Hide this bar": "Ocultar esta barra",
