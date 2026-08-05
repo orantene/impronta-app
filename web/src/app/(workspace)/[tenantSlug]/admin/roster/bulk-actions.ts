@@ -15,9 +15,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
+import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-publish-server-gate";
 
 export type BulkWorkflowResult =
-  | { ok: true; updatedCount: number }
+  | { ok: true; updatedCount: number; skippedCount?: number; skippedNames?: string[] }
   | { ok: false; error: string };
 
 /**
@@ -68,13 +69,50 @@ export async function bulkSetWorkflowStatus(
     return { ok: false, error: "Could not verify roster membership." };
   }
 
-  const confirmedRows = (rosterRows ?? []) as Array<{
+  const allConfirmedRows = (rosterRows ?? []) as Array<{
     talent_profile_id: string;
     agency_visibility: string | null;
   }>;
-  const confirmedIds = confirmedRows.map((r) => r.talent_profile_id);
 
-  if (confirmedIds.length === 0) return { ok: true, updatedCount: 0 };
+  if (allConfirmedRows.length === 0) return { ok: true, updatedCount: 0 };
+
+  // Publish checklist — the eye is the public gate now, so bulk publish has to
+  // clear the same bar as the single-row toggle or it becomes the way around it.
+  // Checked per row and non-fatal: one incomplete profile shouldn't sink the
+  // whole batch, so unready rows are skipped and reported back to the caller.
+  let confirmedRows = allConfirmedRows;
+  let skippedNames: string[] = [];
+  if (targetStatus === "publish") {
+    const verdicts = await Promise.all(
+      allConfirmedRows.map(async (row) => ({
+        row,
+        ready: await assertTalentReadyForPublicListing({
+          supabase: admin,
+          tenantId: scope.tenantId,
+          talentProfileId: row.talent_profile_id,
+        }),
+      })),
+    );
+    confirmedRows = verdicts.filter((v) => v.ready.ok).map((v) => v.row);
+    const blockedIds = verdicts.filter((v) => !v.ready.ok).map((v) => v.row.talent_profile_id);
+    if (blockedIds.length > 0) {
+      const { data: blockedProfiles } = await admin
+        .from("talent_profiles")
+        .select("id, display_name")
+        .in("id", blockedIds);
+      const byId = new Map(
+        ((blockedProfiles ?? []) as Array<{ id: string; display_name: string | null }>).map(
+          (p) => [p.id, p.display_name],
+        ),
+      );
+      skippedNames = blockedIds.map((id) => byId.get(id) || "Unnamed profile");
+    }
+    if (confirmedRows.length === 0) {
+      return { ok: true, updatedCount: 0, skippedCount: skippedNames.length, skippedNames };
+    }
+  }
+
+  const confirmedIds = confirmedRows.map((r) => r.talent_profile_id);
 
   // Public gate — flip the agency directory eye on the roster rows.
   const { error: rosterUpdErr } = await admin
@@ -143,5 +181,11 @@ export async function bulkSetWorkflowStatus(
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidateDirectoryListing();
-  return { ok: true, updatedCount: count ?? confirmedIds.length };
+  return {
+    ok: true,
+    updatedCount: count ?? confirmedIds.length,
+    ...(skippedNames.length > 0
+      ? { skippedCount: skippedNames.length, skippedNames }
+      : {}),
+  };
 }

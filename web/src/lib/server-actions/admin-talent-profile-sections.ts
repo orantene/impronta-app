@@ -807,6 +807,30 @@ export async function commitTalentProfileShellAdmin(
     });
     lap("shellProfileStatusGate");
     if (!statusRes.ok) return statusRes;
+
+    // Keep THIS tenant's roster eye (`agency_visibility`) in lockstep with the
+    // drawer's status control. Since 20260803203521 the eye is what actually
+    // gates public listing (`talent_profiles.is_publicly_listed`), so a drawer
+    // Publish that didn't flip it would report success while the talent stayed
+    // invisible — the exact split-brain this migration removed. Other tenants'
+    // rosters are untouched: each workspace curates its own lineup.
+    //   published → site_visible ('featured' already counts as visible — keep)
+    //   hidden    → roster_only  (also demotes 'featured'; hiding must win)
+    if (input.shell_profile_status === "published" || input.shell_profile_status === "hidden") {
+      const goingPublic = input.shell_profile_status === "published";
+      const { error: eyeErr } = await tenantScopedQuery(supabase, "agency_talent_roster", tenantId)
+        .update({ agency_visibility: goingPublic ? "site_visible" : "roster_only" })
+        .eq("talent_profile_id", tid)
+        .neq("status", "removed")
+        .in("agency_visibility", goingPublic ? ["roster_only"] : ["site_visible", "featured"]);
+      lap("rosterEyeSync");
+      if (eyeErr) {
+        // The profile status DID apply — don't fail the whole save, but never
+        // swallow it either: a logged sync failure is diagnosable, a silent
+        // one recreates the faceless-card bug.
+        logServerError("admin-talent-profile-sections.rosterEyeSync", eyeErr);
+      }
+    }
   }
 
   revalidatePath(`/${tenantSlug}/admin/roster`, "page");

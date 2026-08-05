@@ -7240,6 +7240,36 @@ export type Database = {
           },
         ]
       }
+      marketing_subscribers: {
+        Row: {
+          consented_at: string
+          email: string
+          id: string
+          locale: string
+          source: string
+          unsubscribe_token: string
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          consented_at?: string
+          email: string
+          id?: string
+          locale?: string
+          source: string
+          unsubscribe_token?: string
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          consented_at?: string
+          email?: string
+          id?: string
+          locale?: string
+          source?: string
+          unsubscribe_token?: string
+          unsubscribed_at?: string | null
+        }
+        Relationships: []
+      }
       media_asset_activity: {
         Row: {
           actor_id: string | null
@@ -8661,6 +8691,7 @@ export type Database = {
           default_refund_policy: string
           default_storefront_template_id: string | null
           default_talent_freeform_enabled: boolean
+          default_talent_price_from_cents: number | null
           default_talent_template_id: string | null
           default_theme_preset_slug: string | null
           default_theme_preset_slug_talent: string | null
@@ -8685,6 +8716,7 @@ export type Database = {
           default_refund_policy?: string
           default_storefront_template_id?: string | null
           default_talent_freeform_enabled?: boolean
+          default_talent_price_from_cents?: number | null
           default_talent_template_id?: string | null
           default_theme_preset_slug?: string | null
           default_theme_preset_slug_talent?: string | null
@@ -8709,6 +8741,7 @@ export type Database = {
           default_refund_policy?: string
           default_storefront_template_id?: string | null
           default_talent_freeform_enabled?: boolean
+          default_talent_price_from_cents?: number | null
           default_talent_template_id?: string | null
           default_theme_preset_slug?: string | null
           default_theme_preset_slug_talent?: string | null
@@ -9668,6 +9701,8 @@ export type Database = {
       saas_marketing_signups: {
         Row: {
           audience: string
+          business_description: string | null
+          business_name: string | null
           claimed_at: string | null
           claimed_by_profile_id: string | null
           created_at: string
@@ -9693,6 +9728,8 @@ export type Database = {
         }
         Insert: {
           audience: string
+          business_description?: string | null
+          business_name?: string | null
           claimed_at?: string | null
           claimed_by_profile_id?: string | null
           created_at?: string
@@ -9718,6 +9755,8 @@ export type Database = {
         }
         Update: {
           audience?: string
+          business_description?: string | null
+          business_name?: string | null
           claimed_at?: string | null
           claimed_by_profile_id?: string | null
           created_at?: string
@@ -10600,6 +10639,49 @@ export type Database = {
           },
           {
             foreignKeyName: "talent_contact_preferences_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talent_demand_scores: {
+        Row: {
+          computed_at: string
+          score: number
+          talent_profile_id: string
+          tenant_id: string
+        }
+        Insert: {
+          computed_at?: string
+          score?: number
+          talent_profile_id: string
+          tenant_id: string
+        }
+        Update: {
+          computed_at?: string
+          score?: number
+          talent_profile_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_demand_scores_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_discover_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_demand_scores_talent_profile_id_fkey"
+            columns: ["talent_profile_id"]
+            isOneToOne: false
+            referencedRelation: "talent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_demand_scores_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "agencies"
@@ -12009,6 +12091,7 @@ export type Database = {
           is_discoverable: boolean
           is_featured: boolean
           is_publicly_hidden: boolean
+          is_publicly_listed: boolean
           is_test_account: boolean
           languages: string[]
           last_active_at: string | null
@@ -12108,6 +12191,7 @@ export type Database = {
           is_discoverable?: boolean
           is_featured?: boolean
           is_publicly_hidden?: boolean
+          is_publicly_listed?: boolean
           is_test_account?: boolean
           languages?: string[]
           last_active_at?: string | null
@@ -12207,6 +12291,7 @@ export type Database = {
           is_discoverable?: boolean
           is_featured?: boolean
           is_publicly_hidden?: boolean
+          is_publicly_listed?: boolean
           is_test_account?: boolean
           languages?: string[]
           last_active_at?: string | null
@@ -13862,6 +13947,62 @@ export type Database = {
           },
         ]
       }
+      tenant_social_feed_items: {
+        Row: {
+          caption: string | null
+          created_at: string
+          external_id: string
+          fetched_at: string
+          hidden: boolean
+          id: string
+          media_type: string
+          media_url: string
+          permalink: string | null
+          posted_at: string | null
+          poster_url: string | null
+          provider: string
+          tenant_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          external_id: string
+          fetched_at?: string
+          hidden?: boolean
+          id?: string
+          media_type?: string
+          media_url: string
+          permalink?: string | null
+          posted_at?: string | null
+          poster_url?: string | null
+          provider: string
+          tenant_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          external_id?: string
+          fetched_at?: string
+          hidden?: boolean
+          id?: string
+          media_type?: string
+          media_url?: string
+          permalink?: string | null
+          posted_at?: string | null
+          poster_url?: string | null
+          provider?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_social_feed_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_testimonials: {
         Row: {
           author_name: string
@@ -14174,6 +14315,7 @@ export type Database = {
           notification_prefs: Json
           preferred_surface: string | null
           privacy_prefs: Json
+          talent_checklist_dismissed: boolean
           unsubscribe_token: string
           updated_at: string
           user_id: string
@@ -14183,6 +14325,7 @@ export type Database = {
           notification_prefs?: Json
           preferred_surface?: string | null
           privacy_prefs?: Json
+          talent_checklist_dismissed?: boolean
           unsubscribe_token?: string
           updated_at?: string
           user_id: string
@@ -14192,6 +14335,7 @@ export type Database = {
           notification_prefs?: Json
           preferred_surface?: string | null
           privacy_prefs?: Json
+          talent_checklist_dismissed?: boolean
           unsubscribe_token?: string
           updated_at?: string
           user_id?: string
@@ -15663,6 +15807,10 @@ export type Database = {
         Returns: Json
       }
       sync_location_taxonomy_terms: { Args: never; Returns: undefined }
+      talent_compute_publicly_listed: {
+        Args: { p_talent_profile_id: string }
+        Returns: boolean
+      }
       talent_has_public_roster: {
         Args: { p_talent_profile_id: string }
         Returns: boolean
@@ -15680,6 +15828,14 @@ export type Database = {
           published_snapshot: Json
           talent_profile_id: string
         }[]
+      }
+      talent_recompute_completed_bookings: {
+        Args: { p_talent_profile_id: string }
+        Returns: undefined
+      }
+      talent_refresh_publicly_listed: {
+        Args: { p_ids: string[] }
+        Returns: undefined
       }
       talent_reviews_recompute_summary: {
         Args: { p_talent_profile_id: string }
