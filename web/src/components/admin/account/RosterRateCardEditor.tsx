@@ -20,6 +20,13 @@
  * Talents who publish "quote on request" are shown but never writable — that
  * is their decision to make on their own profile, not something to sweep over
  * from a bulk table.
+ *
+ * COLOURS: `admin-*` utilities only (styles/admin-color-bridge.css), never the
+ * shadcn semantics. Those are theme-scoped, and this page renders under
+ * `<body class="site-theme-dark">` while the workspace grid paints a LIGHT
+ * canvas — so `text-foreground` resolved to near-white ON white (invisible),
+ * and `bg-muted`/`bg-background` to near-black slabs. The `admin-*` scale is
+ * defined at `:root`, so it resolves identically in every hosting context.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -176,17 +183,13 @@ export function RosterRateCardEditor() {
   }, [pending]);
 
   if (status === "loading") {
-    // Alpha-on-currentColor, not bg-muted: this component renders both inside
-    // the shell's remapped `.admin-prototype-main` scope and (pre-hydration)
-    // against the global storefront palette, where `--muted` is near-black.
-    // A translucent tint of the text colour is correct in either.
     return (
-      <div className="flex flex-col gap-3 text-foreground" aria-busy="true">
-        <div className="h-6 w-56 animate-pulse rounded-md bg-current/10" />
-        <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-current/[0.07]" />
+      <div className="flex flex-col gap-3 text-admin-ink" aria-busy="true">
+        <div className="h-6 w-56 animate-pulse rounded-md bg-admin-surface-alt" />
+        <div className="h-4 w-full max-w-xl animate-pulse rounded-md bg-admin-surface-alt" />
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-current/[0.05]" />
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-admin-surface-alt" />
           ))}
         </div>
         <p className="sr-only">{t("dashboard.adminWorkspace.rosterRatesLoading")}</p>
@@ -196,7 +199,7 @@ export function RosterRateCardEditor() {
 
   if (rows.length === 0 && status !== "error") {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-admin-ink-muted">
         {t("dashboard.adminWorkspace.rosterRatesEmpty")}
       </p>
     );
@@ -206,14 +209,14 @@ export function RosterRateCardEditor() {
     pending.length > 0 || status === "saving" || status === "saved" || status === "error";
 
   return (
-    <div className="flex flex-col gap-5 pb-24 text-foreground">
+    <div className="flex flex-col gap-5 pb-24 text-admin-ink">
       {/* ── Header: title + stats + search ─────────────────────────────── */}
       <header className="flex flex-col gap-3">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">
+          <h1 className="text-lg font-semibold tracking-tight text-admin-ink">
             {t("dashboard.adminWorkspace.rosterRatesTitle")}
           </h1>
-          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-admin-ink-muted">
             {t("dashboard.adminWorkspace.rosterRatesDesc")}
           </p>
         </div>
@@ -221,24 +224,24 @@ export function RosterRateCardEditor() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Neutral chips — no colour accents (the workspace palette is ink +
               greys; coloured status dots read as decoration here). */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1">
-              <span className="font-semibold text-foreground">{stats.total}</span>
+          <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-admin-ink-muted">
+            <span className="inline-flex items-center gap-1 rounded-full border border-admin-border px-2.5 py-1">
+              <span className="font-semibold text-admin-ink">{stats.total}</span>
               {t("dashboard.adminWorkspace.rosterRatesTalents")}
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1">
-              <span className="font-semibold text-foreground">{stats.priced}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-admin-border px-2.5 py-1">
+              <span className="font-semibold text-admin-ink">{stats.priced}</span>
               {t("dashboard.adminWorkspace.rosterRatesWithRate")}
             </span>
             {stats.missing > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1">
-                <span className="font-semibold text-foreground">{stats.missing}</span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-admin-border px-2.5 py-1">
+                <span className="font-semibold text-admin-ink">{stats.missing}</span>
                 {t("dashboard.adminWorkspace.rosterRatesNoRate")}
               </span>
             ) : null}
             {stats.quoteOnly > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1">
-                <span className="font-semibold text-foreground">{stats.quoteOnly}</span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-admin-border px-2.5 py-1">
+                <span className="font-semibold text-admin-ink">{stats.quoteOnly}</span>
                 {t("dashboard.adminWorkspace.rosterRatesQuoteOnly")}
               </span>
             ) : null}
@@ -250,14 +253,14 @@ export function RosterRateCardEditor() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("dashboard.adminWorkspace.rosterRatesSearch")}
             aria-label={t("dashboard.adminWorkspace.rosterRatesSearch")}
-            className="h-9 w-full max-w-[240px] rounded-full border border-border bg-transparent px-4 text-[13px] outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/35 sm:w-60"
+            className="h-9 w-full max-w-[240px] rounded-full border border-admin-border bg-admin-card px-4 text-[13px] outline-none transition-colors placeholder:text-admin-ink-muted focus:border-admin-accent sm:w-60"
           />
         </div>
       </header>
 
       {/* ── Groups ─────────────────────────────────────────────────────── */}
       {groups.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+        <p className="rounded-xl border border-dashed border-admin-border px-4 py-8 text-center text-sm text-admin-ink-muted">
           {t("dashboard.adminWorkspace.rosterRatesNoMatches")}
         </p>
       ) : (
@@ -265,17 +268,17 @@ export function RosterRateCardEditor() {
           {groups.map(([role, members]) => (
             <section
               key={role}
-              className="rounded-xl border border-border p-3 text-foreground sm:p-4"
+              className="rounded-xl border border-admin-border p-3 text-admin-ink sm:p-4"
             >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-admin-ink-muted">
                   {role}
                   <span className="ml-1.5 normal-case tracking-normal">
                     · {members.length}
                   </span>
                 </p>
                 <div className="flex items-center gap-1.5">
-                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <label className="flex items-center gap-1.5 text-[11px] text-admin-ink-muted">
                     {t("dashboard.adminWorkspace.rosterRatesFillAll")}
                     <input
                       type="number"
@@ -289,14 +292,14 @@ export function RosterRateCardEditor() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter") applyFill(role, members);
                       }}
-                      className="h-7 w-20 rounded-md border border-border bg-transparent px-2 text-xs text-foreground outline-none focus:border-foreground/35"
+                      className="h-7 w-20 rounded-md border border-admin-border bg-admin-card px-2 text-xs text-admin-ink outline-none focus:border-admin-accent"
                     />
                   </label>
                   <button
                     type="button"
                     onClick={() => applyFill(role, members)}
                     disabled={!(fillDraft[role] ?? "").trim()}
-                    className="h-7 rounded-md border border-border px-2.5 text-[11px] font-medium text-foreground transition-colors hover:bg-current/[0.06] disabled:opacity-40"
+                    className="h-7 rounded-md border border-admin-border px-2.5 text-[11px] font-medium text-admin-ink transition-colors hover:bg-admin-surface-alt disabled:opacity-40"
                   >
                     {t("dashboard.adminWorkspace.rosterRatesApply")}
                   </button>
@@ -311,23 +314,23 @@ export function RosterRateCardEditor() {
                       key={row.talentProfileId}
                       className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors ${
                         dirty
-                          ? "border-foreground/40 bg-current/[0.03]"
-                          : "border-border hover:border-foreground/20"
+                          ? "border-admin-border-strong bg-admin-surface-alt"
+                          : "border-admin-border hover:border-admin-border-strong"
                       }`}
                     >
                       <span className="flex min-w-0 flex-col">
                         <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="truncate text-sm font-medium text-foreground">
+                          <span className="truncate text-sm font-medium text-admin-ink">
                             {row.displayName}
                           </span>
                           {dirty ? (
                             <span
-                              className="h-1.5 w-1.5 shrink-0 rounded-full bg-foreground/70"
+                              className="h-1.5 w-1.5 shrink-0 rounded-full bg-admin-accent"
                               aria-hidden
                             />
                           ) : null}
                         </span>
-                        <span className="truncate text-[11px] text-muted-foreground">
+                        <span className="truncate text-[11px] text-admin-ink-muted">
                           {row.quoteOnly
                             ? t("dashboard.adminWorkspace.rosterRatesQuoteOnlyHint")
                             : row.willCreate
@@ -338,17 +341,17 @@ export function RosterRateCardEditor() {
 
                       {row.quoteOnly ? (
                         // Their explicit choice — visible, deliberately not editable.
-                        <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        <span className="shrink-0 rounded-full border border-admin-border px-2 py-0.5 text-[10px] uppercase tracking-wider text-admin-ink-muted">
                           {t("dashboard.adminWorkspace.rosterRatesQuoteOnly")}
                         </span>
                       ) : (
                         <span className="flex shrink-0 items-center gap-1.5">
                           {row.willCreate && !dirty ? (
-                            <span className="rounded-full border border-dashed border-foreground/30 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            <span className="rounded-full border border-dashed border-admin-border-strong px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-admin-ink-muted">
                               {t("dashboard.adminWorkspace.rosterRatesNewBadge")}
                             </span>
                           ) : null}
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-admin-ink-muted">
                             {row.currency}
                           </span>
                           <input
@@ -363,7 +366,7 @@ export function RosterRateCardEditor() {
                                 [row.talentProfileId]: e.target.value,
                               }))
                             }
-                            className="h-8 w-24 rounded-md border border-border bg-transparent px-2 text-right text-sm tabular-nums text-foreground outline-none focus:border-foreground/35"
+                            className="h-8 w-24 rounded-md border border-admin-border bg-admin-card px-2 text-right text-sm tabular-nums text-admin-ink outline-none focus:border-admin-accent"
                           />
                         </span>
                       )}
@@ -382,28 +385,25 @@ export function RosterRateCardEditor() {
           showBar ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
         }`}
       >
-        {/* `--card` is the workspace surface (white in light, cool dark in
-            dark) — correct here, unlike `--background` which is the storefront
-            near-black before the shell's scope applies. */}
-        <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border border-border bg-card py-1.5 pl-4 pr-1.5 shadow-lg">
-          <p className="text-xs text-muted-foreground" role="status" aria-live="polite">
+        <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-full border border-admin-border bg-admin-card py-1.5 pl-4 pr-1.5 shadow-lg">
+          <p className="text-xs text-admin-ink-muted" role="status" aria-live="polite">
             {status === "saving" ? (
               t("dashboard.adminWorkspace.pricingDefaultsSaving")
             ) : status === "error" ? (
-              <span className="text-destructive">
+              <span className="text-admin-red">
                 {error ?? t("dashboard.adminWorkspace.pricingDefaultsSaveFailed")}
               </span>
             ) : status === "saved" && pending.length === 0 ? (
               <>
                 {t("dashboard.adminWorkspace.pricingDefaultsSaved")}{" "}
-                <span className="font-semibold text-foreground">{savedCount}</span>
+                <span className="font-semibold text-admin-ink">{savedCount}</span>
                 {createdCount > 0
                   ? ` · ${createdCount} ${t("dashboard.adminWorkspace.rosterRatesCreatedNew")}`
                   : ""}
               </>
             ) : (
               <>
-                <span className="font-semibold text-foreground">{pending.length}</span>{" "}
+                <span className="font-semibold text-admin-ink">{pending.length}</span>{" "}
                 {t("dashboard.adminWorkspace.rosterRatesUnsaved")}
               </>
             )}
@@ -413,7 +413,7 @@ export function RosterRateCardEditor() {
               type="button"
               onClick={discard}
               disabled={status === "saving"}
-              className="h-8 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+              className="h-8 rounded-full px-3 text-xs font-medium text-admin-ink-muted transition-colors hover:text-admin-ink disabled:opacity-40"
             >
               {t("dashboard.adminWorkspace.rosterRatesDiscard")}
             </button>
@@ -422,7 +422,7 @@ export function RosterRateCardEditor() {
             type="button"
             onClick={() => void save()}
             disabled={pending.length === 0 || status === "saving"}
-            className="inline-flex h-8 items-center rounded-full bg-foreground px-4 text-xs font-semibold text-background transition-opacity disabled:opacity-45"
+            className="inline-flex h-8 items-center rounded-full bg-admin-accent px-4 text-xs font-semibold text-white transition-opacity disabled:opacity-45"
           >
             {t("dashboard.adminWorkspace.rosterRatesSave")}
           </button>
