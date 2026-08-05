@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { applyCanvasTextStylePreview } from "./canvas-text-style-preview";
 import {
   notifyCanvasOverlayStylePatch,
+  registerCanvasTextStylePatchCanceller,
   registerCanvasTextStylePatchFlusher,
 } from "./canvas-lexical-bridge";
 
@@ -84,6 +85,25 @@ export function useCanvasTextStylePatch({
     await patchRef.current(targetId, {
       style: mergeTopLevelStylePatch(prevStyle, patch),
     });
+    // NOTE: tracking is deliberately NOT released on commit. A committed patch
+    // does not guarantee a repaint of this node: on a surface with no client
+    // canvas mounted for it the canvas is server-rendered, and undo/redo skip
+    // the RSC refresh, so React never rewrites the property. The stamped value
+    // would then survive the undo and the canvas would keep showing the undone
+    // size. Tracking therefore lives until something authoritative clears it.
+  }, []);
+
+  /**
+   * Drop a debounced patch instead of flushing it. Undo/redo restore a tree
+   * that predates the patch, so a flush landing in the 480ms window would
+   * re-apply the very edit being undone, on top of the restored tree.
+   */
+  const cancelPendingStylePatch = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    pendingRef.current = null;
   }, []);
 
   const scheduleFlush = useCallback(() => {
@@ -119,6 +139,11 @@ export function useCanvasTextStylePatch({
   }, [flushPendingStylePatch]);
 
   useEffect(() => {
+    registerCanvasTextStylePatchCanceller(cancelPendingStylePatch);
+    return () => registerCanvasTextStylePatchCanceller(null);
+  }, [cancelPendingStylePatch]);
+
+  useEffect(() => {
     if (deferTreeCommit) return;
     void flushPendingStylePatch();
   }, [deferTreeCommit, flushPendingStylePatch]);
@@ -129,5 +154,5 @@ export function useCanvasTextStylePatch({
     };
   }, [nodeId, flushPendingStylePatch]);
 
-  return { patchTextStyle, flushPendingStylePatch };
+  return { patchTextStyle, flushPendingStylePatch, cancelPendingStylePatch };
 }
