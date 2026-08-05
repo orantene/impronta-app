@@ -11,6 +11,14 @@ import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 
 export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_CATALOG_TEXT,
+  // ── Admin quick bar (idle storefront, credentialed member only) ────────
+  "Workspace quick actions": "Acciones rápidas del espacio de trabajo",
+  "Workspace quick links": "Enlaces rápidos del espacio de trabajo",
+  "Signed in to {site}": "Sesión iniciada en {site}",
+  "Signed in to your workspace": "Sesión iniciada en tu espacio de trabajo",
+  "Hide this bar": "Ocultar esta barra",
+  "Hide this bar. It comes back next time you sign in.":
+    "Ocultar esta barra. Vuelve a aparecer la próxima vez que inicies sesión.",
   // ── Topbar — page picker ──────────────────────────────────────────────
   Rename: "Renombrar",
   "Click to switch page · double-click to rename":
