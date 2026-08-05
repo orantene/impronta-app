@@ -7,9 +7,9 @@ import type { HeaderInquiryV1 } from "./schema";
 export function HeaderInquiryEditor(_props: SectionEditorProps<HeaderInquiryV1>) {
   return (
     <HeaderWidgetEditorNote title="Header inquiry">
-      Drops the live inquiry-cart affordance (plane icon → inquiry drawer) into
-      the shell — the same discovery cluster the default header uses. Interactive
-      on the published site; a placeholder chip in the editor.
+      Drops the live inquiry lineup control (plane icon, opens the inquiry
+      drawer) into the shell, the same discovery cluster the default header
+      uses. Interactive on the published site; a placeholder chip in the editor.
     </HeaderWidgetEditorNote>
   );
 }

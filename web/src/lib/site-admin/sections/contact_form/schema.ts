@@ -102,7 +102,7 @@ export const contactFormSchemaV1 = z.object({
   method: z.enum(["POST", "GET"]).default("POST"),
   /** Honeypot field name (hidden, must stay empty to submit). */
   honeypot: z.string().max(60).default("website"),
-  successMessage: z.string().max(200).default("Thanks — we'll be in touch."),
+  successMessage: z.string().max(200).default("Thanks, we'll be in touch."),
   variant: z.enum(["card", "inline", "minimal"]).default("card"),
   /**
    * Optional captcha provider. When set, the form renders the matching

@@ -163,7 +163,7 @@ export function CategoryGridContentInspector({
             color: "#1d4ed8",
           }}
         >
-          {t("Editing selected canvas node:")}{" "}
+          {t("Editing selected block:")}{" "}
           {focusRole === "subheadline"
             ? t("Eyebrow")
             : focusRole === "headline"

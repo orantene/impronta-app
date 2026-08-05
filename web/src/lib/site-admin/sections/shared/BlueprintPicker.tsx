@@ -64,7 +64,7 @@ export function BlueprintPicker<T extends Record<string, unknown>>({
         })}
       </div>
       <p className="mt-2 text-[10px] text-muted-foreground">
-        Blueprints overwrite layout fields only — your copy stays. Click Save draft to persist.
+        Blueprints overwrite layout fields only; your copy stays. Click Save draft to persist.
       </p>
     </details>
   );

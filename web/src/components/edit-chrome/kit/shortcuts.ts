@@ -173,7 +173,7 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   },
   {
     id: "zoom-fit",
-    label: "Fit page to viewport",
+    label: "Fit page to screen",
     description: "Scale the canvas so the whole page is visible.",
     keys: ["⌘", "⇧", "F"],
     category: "navigation",
@@ -323,7 +323,7 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   },
   {
     id: "nav-tree-arrows",
-    label: "Move selection through the tree",
+    label: "Move selection between blocks",
     description:
       "↑ / ↓ select the previous / next sibling; ← selects the parent; → selects the first child.",
     keys: ["↑", "↓", "←", "→"],
@@ -333,7 +333,7 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   {
     id: "select-parent-block",
     label: "Select parent block",
-    description: "Same as ← in tree navigation.",
+    description: "Same as ← when moving between blocks.",
     keys: ["["],
     category: "navigation",
     paletteAction: false,
@@ -341,25 +341,25 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   {
     id: "select-child-block",
     label: "Select first child block",
-    description: "Same as → in tree navigation.",
+    description: "Same as → when moving between blocks.",
     keys: ["]"],
     category: "navigation",
     paletteAction: false,
   },
   {
     id: "move-section-up",
-    label: "Move selected section/node up",
+    label: "Move selected section or block up",
     description:
-      "In navigator child rows, Alt+↑ reorders the selected node within its sibling group.",
+      "In navigator child rows, Alt+↑ reorders the selected block among its siblings.",
     keys: ["⌥", "↑"],
     category: "editing",
     paletteAction: false,
   },
   {
     id: "move-section-down",
-    label: "Move selected section/node down",
+    label: "Move selected section or block down",
     description:
-      "In navigator child rows, Alt+↓ reorders the selected node within its sibling group.",
+      "In navigator child rows, Alt+↓ reorders the selected block among its siblings.",
     keys: ["⌥", "↓"],
     category: "editing",
     paletteAction: false,

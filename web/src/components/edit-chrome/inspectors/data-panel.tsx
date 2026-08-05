@@ -28,6 +28,7 @@ import { listCollectionsAction } from "@/lib/site-admin/collections/actions";
 import { collectionSourceKey } from "@/lib/site-admin/collections/types";
 import { useEditContext } from "../edit-context";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Toggle } from "../kit";
+import { CHROME } from "../kit/tokens";
 import {
   ABTestCard,
   FieldMapPreview,
@@ -365,7 +366,7 @@ function DataPanelInner({
               <Helper>
                 {binding && source
                   ? source.description
-                  : "Keep this node manually edited, or connect it to workspace data."}
+                  : "Keep this block manually edited, or connect it to workspace data."}
               </Helper>
             </Field>
 
@@ -404,10 +405,10 @@ function DataPanelInner({
 
             {binding && source && !hasSourcePlanAccess ? (
               <div
-                className="rounded-lg border px-3 py-2 text-[11px] leading-snug text-amber-800"
+                className="rounded-lg border px-3 py-2 text-[11px] leading-snug text-blue-800"
                 style={{
-                  borderColor: "rgba(217, 119, 6, 0.35)",
-                  background: "rgba(251, 191, 36, 0.12)",
+                  borderColor: CHROME.amberLine,
+                  background: CHROME.amberBg,
                 }}
                 data-builder-data-plan-warning=""
               >
@@ -610,7 +611,7 @@ function FieldBindingsPanel({
 function SectionDataHintCard() {
   return (
     <Card state="muted">
-      <CardHead title="Data tab" sub="Select a data-ready node" iconAccent="blue" />
+      <CardHead title="Data tab" sub="Select a data-ready block" iconAccent="blue" />
       <CardBody>
         <p className="text-[12px] leading-5 text-stone-500">
           Select a container or data-ready block inside the canvas to connect it

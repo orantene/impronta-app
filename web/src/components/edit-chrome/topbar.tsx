@@ -62,6 +62,7 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { flushThenNavigate } from "./page-switch-flush";
+import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { useEditorLocale } from "./use-editor-locale";
 import { resolveWorkspaceAdminBase } from "./workspace-admin-base";
 import {
@@ -247,6 +248,12 @@ function PagePicker({
   const [creatingPage, setCreatingPage] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
+  // FIX #7 — the row Duplicate button is gated by the SAME plan rule as
+  // "+ Add page" (a duplicate is an additional page). It used to grey out with
+  // a static `Duplicate "<title>"` tooltip, so on a capped plan the operator got
+  // a dead control and no reason. Reuse the one canonical reason resolver the
+  // upsell row above and all-pages-panel already use.
+  const duplicateDenialMessage = resolveAddPageDenialMessage(availability);
   const router = useRouter();
   const pagePickerMenuId = useId();
   const pagePickerTriggerId = useId();
@@ -751,8 +758,15 @@ function PagePicker({
                   {/* Duplicate icon */}
                   <button
                     type="button"
-                    title={`Duplicate "${page.title}"`}
-                    disabled={isDuplicating || (availability?.canCreatePages === false)}
+                    title={
+                      duplicateDenialMessage ?? `Duplicate "${page.title}"`
+                    }
+                    aria-label={
+                      duplicateDenialMessage
+                        ? `Duplicate "${page.title}" (unavailable: ${duplicateDenialMessage})`
+                        : `Duplicate "${page.title}"`
+                    }
+                    disabled={isDuplicating || duplicateDenialMessage !== null}
                     className="inline-flex shrink-0 items-center justify-center rounded-[5px] opacity-0 transition-opacity group-hover:opacity-100"
                     style={{ width: 24, height: 24, color: CHROME.muted }}
                     onClick={() => void handleDuplicate(page.id)}

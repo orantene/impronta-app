@@ -226,7 +226,7 @@ function ElementCard({
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  const { comingSoon, advanced, draggable, shortDescription, infoTooltip } =
+  const { comingSoon, advanced, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
   const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
@@ -263,7 +263,7 @@ function ElementCard({
         <AddGalleryIcon name={item.icon} size="xl" tone="accent" />
       </div>
       <div className="px-[8px] pb-[10px] pt-[4px]">
-        <GalleryCardCopy label={item.label} description={shortDescription} />
+        <GalleryCardCopy label={label} description={shortDescription} />
       </div>
       {comingSoon ? (
         <span className="absolute left-[8px] top-[8px]">
@@ -289,7 +289,7 @@ function SectionCard({
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  const { comingSoon, advanced, connected, draggable, shortDescription, infoTooltip } =
+  const { comingSoon, advanced, connected, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
   const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
@@ -347,7 +347,7 @@ function SectionCard({
       </div>
       <div className="px-[10px] pb-[10px] pt-[8px]">
         <GalleryCardCopy
-          label={item.label}
+          label={label}
           description={shortDescription}
           align="left"
         />
@@ -367,7 +367,7 @@ function ConnectedCard({
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  const { comingSoon, advanced, draggable, shortDescription, infoTooltip } =
+  const { comingSoon, advanced, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
   const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
@@ -415,7 +415,7 @@ function ConnectedCard({
               className="min-w-0 flex-1 text-[12px] font-semibold leading-tight"
               style={{ color: CHROME.ink }}
             >
-              {item.label}
+              {label}
             </span>
             <GalleryStatusBadge variant="connected" className="mt-[1px]" />
           </div>

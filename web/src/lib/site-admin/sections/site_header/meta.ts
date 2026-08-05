@@ -7,7 +7,7 @@ export const siteHeaderMeta: SectionMeta = {
   hasLiveData: true,
   label: "Site header",
   description:
-    "The header that wraps every page on this tenant — brand mark, primary navigation, optional CTA. Edited as a section, published as part of the site shell.",
+    "The header that wraps every page on this tenant: brand mark, primary navigation, optional CTA. Edited as a section, published as part of the site shell.",
   // No "navigation" enum value yet — use "feature" until we add a shell
   // bucket. visibleToAgency=false keeps it out of the picker either way.
   businessPurpose: "feature",

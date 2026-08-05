@@ -196,7 +196,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
             </button>
           </div>
           {error ? (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+            <div className="rounded-md border border-blue-500/40 bg-blue-500/10 p-2 text-[11px] text-blue-700 dark:text-blue-300">
               {error}
             </div>
           ) : null}

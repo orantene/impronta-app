@@ -282,7 +282,7 @@ export function LinkPicker({
               {validateState.status} OK
             </span>
           ) : validateState.kind === "warn" ? (
-            <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+            <span className="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-300">
               {validateState.status}
             </span>
           ) : validateState.kind === "error" ? (

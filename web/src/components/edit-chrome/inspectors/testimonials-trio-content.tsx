@@ -225,8 +225,8 @@ function QuoteGuidance({ len }: { len: number }) {
   if (len <= 220) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-amber-500">{t("Getting long, may wrap on mobile")}</span>
-        <span className="text-[10px] tabular-nums text-amber-500">{len}</span>
+        <span className="text-[10px] text-blue-500">{t("Getting long, may wrap on mobile")}</span>
+        <span className="text-[10px] tabular-nums text-blue-500">{len}</span>
       </div>
     );
   }
@@ -467,7 +467,7 @@ export function TestimonialsTrioContentInspector({
             color: "#1d4ed8",
           }}
         >
-          {t("Editing selected canvas node:")} {focusRole === "subheadline" ? t("Eyebrow") : t("Headline")}
+          {t("Editing selected block:")} {focusRole === "subheadline" ? t("Eyebrow") : t("Headline")}
         </div>
       ) : null}
       {/* ── Headline ── */}
@@ -522,7 +522,7 @@ export function TestimonialsTrioContentInspector({
           ))}
         </div>
         {filledCount === 0 && (
-          <p className={`${KIT.hint} text-amber-600`}>
+          <p className={`${KIT.hint} text-blue-600`}>
             {t("Fill at least one voice to publish this section.")}
           </p>
         )}

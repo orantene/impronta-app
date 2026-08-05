@@ -641,7 +641,7 @@ export function InlineEditor() {
           }}
           className={`pointer-events-auto rounded-md px-3 py-2 text-xs font-medium shadow-lg ${
             banner.kind === "error"
-              ? "bg-amber-50 text-amber-800 border border-amber-200"
+              ? "bg-rose-50 text-rose-800 border border-rose-200"
               : "bg-violet-600 text-white"
           }`}
         >

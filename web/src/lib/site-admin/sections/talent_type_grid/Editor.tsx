@@ -99,11 +99,11 @@ export function TalentTypeGridEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
+      <div className="rounded-lg border border-violet-300/70 bg-violet-50 p-3 text-violet-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">V11 prototype preset</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+            <p className="mt-0.5 text-xs leading-relaxed text-violet-800">
               Resets this section to the prototype roster: seven cards, one
               featured pod, rail arrows, overlays, descriptions, icons, image
               alt text, and the prototype spacing.
@@ -117,7 +117,7 @@ export function TalentTypeGridEditor({
             Apply full preset
           </button>
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-amber-800">
+        <p className="mt-2 text-[11px] leading-relaxed text-violet-800">
           After applying, tune images, alt text, links, and featured card in the
           manual cards below.
         </p>
@@ -161,7 +161,7 @@ export function TalentTypeGridEditor({
             }
           >
             <option value="manual">Manual cards</option>
-            <option value="dynamic">Dynamic — from tenant roster</option>
+            <option value="dynamic">Dynamic, from tenant roster</option>
           </select>
         </label>
         <label className={FIELD}>

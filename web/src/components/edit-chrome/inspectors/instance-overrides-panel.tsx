@@ -198,7 +198,7 @@ export function InstanceOverridesPanel({
         </span>
       ) : slots.length === 0 ? (
         <span className="text-[11px]" style={{ color: CHROME.muted }}>
-          The master has no slots to override.
+          The master has no editable parts to override.
         </span>
       ) : (
         slots.map((slot) => {

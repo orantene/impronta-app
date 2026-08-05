@@ -217,7 +217,7 @@ function NavRow({
         <input
           type="text"
           className={`w-full cursor-text rounded-sm border-0 bg-transparent px-1.5 py-0 font-mono text-[10.5px] transition-colors duration-150 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none ${
-            hrefWarn ? "text-amber-700" : "text-stone-500"
+            hrefWarn ? "text-blue-700" : "text-stone-500"
           }`}
           placeholder="/path or https://…"
           value={hrefDraft}

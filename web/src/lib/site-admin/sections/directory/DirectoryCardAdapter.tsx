@@ -226,7 +226,7 @@ export function DirectoryCardAdapter({
         {showAddToInquiry && inLineup ? (
           <div
             className="lineup-check-badge absolute left-2.5 top-2.5 z-[2]"
-            title={locale === "es" ? "En tu lineup — quitar" : "In lineup — click to remove"}
+            title={locale === "es" ? "En tu lineup, clic para quitar" : "In lineup, click to remove"}
           >
             <TalentCardActions
               talentProfileId={card.id}

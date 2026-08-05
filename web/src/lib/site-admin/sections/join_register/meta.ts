@@ -7,7 +7,7 @@ export const joinRegisterMeta: SectionMeta = {
   hasLiveData: true,
   label: "Join / Register",
   description:
-    "A call-to-action that opens your branded talent registration — so people can join your roster directly from your site.",
+    "A call-to-action that opens your branded talent registration, so people can join your roster directly from your site.",
   businessPurpose: "conversion",
   visibleToAgency: true,
   category: "convert",

@@ -883,13 +883,13 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                 {/* X4 — a TRUE 4-surface matrix: each real builder surface has
                     its OWN independent enable toggle. The talent shell no longer
                     rides the Workspace toggle (the lossy 3-on-1 collapse is gone). */}
-                <Th center help="The talent's freeform profile page builder gallery (talent_profile_enabled).">
+                <Th center help="The talent's custom profile page builder gallery.">
                   Talent profile
                 </Th>
                 <Th center help="The talent Max-SITE header/footer shell gallery, now its OWN toggle (talent_shell_enabled), no longer chained to Workspace.">
                   Talent shell
                 </Th>
-                <Th center help="The agency storefront freeform page gallery (workspace_page_enabled).">
+                <Th center help="The agency storefront custom page gallery.">
                   Workspace page
                 </Th>
                 <Th center help="The agency site header/footer shell gallery (workspace_shell_enabled).">
@@ -908,7 +908,7 @@ export function CatalogRowTable(props: CatalogRowTableProps) {
                     cms_builder_components.subtree_jsonb / talent_sites
                     snapshots + shell). "—" for items with no single countable
                     type (a DB page/section template is inlined as a subtree). */}
-                <Th center help="How many tenant pages use this component type, tallied across every tenant tree (pages, saved sections, reusable components, talent Max-sites + shells).">
+                <Th center help="How many tenant pages use this component type, tallied across every tenant (pages, saved sections, reusable components, talent Max-sites and shells).">
                   Used
                 </Th>
                 <Th right>Manage</Th>

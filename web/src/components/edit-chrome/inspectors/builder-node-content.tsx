@@ -3119,14 +3119,14 @@ function NestedBlocksCard({
             <div
               className={
                 pastePreview.mode === "blocked"
-                  ? "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2"
+                  ? "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2"
                   : "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2"
               }
             >
               <span
                 className={
                   pastePreview.mode === "blocked"
-                    ? "text-[11px] font-medium text-amber-900"
+                    ? "text-[11px] font-medium text-blue-900"
                     : "text-[11px] font-medium text-emerald-800"
                 }
               >

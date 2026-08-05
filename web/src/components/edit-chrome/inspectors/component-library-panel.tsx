@@ -199,7 +199,7 @@ export function ComponentLibraryPanel({
         ) : (
           <>
             {linkableTotal === 0 ? (
-              <div className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10.5px] text-amber-800">
+              <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10.5px] text-blue-800">
                 Only container/card components can be linked instances. Save a
                 container or card block to use the library.
               </div>

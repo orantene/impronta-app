@@ -104,9 +104,12 @@ const KIND_LABEL: Record<MobileHealthCheckKind, string> = {
   overflow: "Overflow",
 };
 
+// Three distinguishable, on-palette hues. No gold/rust in admin chrome, so the
+// rust that used to mark tap-target issues is now the violet chrome accent,
+// which reads as distinctly against the two blues as the rust did.
 const KIND_COLOR: Record<MobileHealthCheckKind, string> = {
-  tiny_text: "#2c5fdb", // cool attention blue (no gold/rust in admin chrome)
-  tap_target: "#c2410c", // orange-700
+  tiny_text: "#2c5fdb", // cool attention blue (CHROME.amber / CHROME.blue)
+  tap_target: "#7c3aed", // violet chrome accent (CHROME.accent)
   overflow: "#1d4ed8",   // blue-700
 };
 

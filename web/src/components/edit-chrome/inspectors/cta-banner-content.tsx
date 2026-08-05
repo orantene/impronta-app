@@ -159,7 +159,7 @@ export function CtaBannerContentInspector({
             color: "#1d4ed8",
           }}
         >
-          {t("Editing selected canvas node:")} {focusLabel}
+          {t("Editing selected block:")} {focusLabel}
         </div>
       ) : null}
       <div className={KIT.field} data-cta-banner-node-role="subheadline">

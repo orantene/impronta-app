@@ -192,8 +192,8 @@ export function PublishNotePanel({
     }
     return {
       text: vLabel
-        ? `Tree changed since ${vLabel}.`
-        : "Tree changed since last publish.",
+        ? `Blocks changed since ${vLabel}.`
+        : "Blocks changed since last publish.",
       tone: LAB.inkMuted,
     };
   })();

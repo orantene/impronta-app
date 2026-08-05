@@ -178,7 +178,7 @@ const VIEWPORT_OPTIONS: ReadonlyArray<SegmentedOption<NodeViewport>> = [
 const STANDALONE_STYLE_SCOPE_OPTIONS: ReadonlyArray<
   SegmentedOption<StandaloneStyleScope>
 > = [
-  { value: "viewport", label: "Viewport" },
+  { value: "viewport", label: "Screen" },
   { value: "container", label: "Container" },
 ];
 const BUILDER_NODE_CONTAINER_TYPE_OPTIONS: ReadonlyArray<
@@ -2070,7 +2070,7 @@ export function StylePanel({
     const baseNodePresentation = nodePresentationRaw ?? {};
     if (!baseNodePresentation[selectedNodeRole]) return;
     setNodeRolePresentation(selectedNodeRole, undefined);
-    recordNodeAction("Reset node style");
+    recordNodeAction("Reset block style");
   }
 
   function copyDesktopToSelectedViewport() {
@@ -2281,14 +2281,14 @@ export function StylePanel({
         : null,
       viewportSource: selectedViewport,
     });
-    recordNodeAction("Copied node style");
+    recordNodeAction("Copied block style");
   }
 
   function pasteClipboardNodeStyle() {
     if (!selectedNodeRole || !nodeStyleClipboard?.full) return;
     const cloned = cloneNodePresentation(nodeStyleClipboard.full);
     setNodeRolePresentation(selectedNodeRole, cloned);
-    recordNodeAction("Pasted full node style");
+    recordNodeAction("Pasted full block style");
   }
 
   function pasteClipboardViewportStyle() {
@@ -2301,7 +2301,7 @@ export function StylePanel({
         ...(selectedNodePresentation ?? {}),
         ...viewportPatch,
       });
-      recordNodeAction("Pasted viewport style (desktop)");
+      recordNodeAction("Pasted device style (desktop)");
       return;
     }
     const nextForRole: NodePresentation = {
@@ -2312,7 +2312,7 @@ export function StylePanel({
       },
     };
     setNodeRolePresentation(selectedNodeRole, nextForRole);
-    recordNodeAction(`Pasted viewport style (${selectedViewport})`);
+    recordNodeAction(`Pasted device style (${selectedViewport})`);
   }
 
   function clearNodeStyleClipboard() {
@@ -3448,7 +3448,7 @@ export function StylePanel({
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className={FIELD_LABEL}>Viewport</span>
+                  <span className={FIELD_LABEL}>Device</span>
                   <div className="flex items-center gap-3">
                     {canCopyDesktopToAllViewports ? (
                       <button
@@ -3560,7 +3560,7 @@ export function StylePanel({
                           padding: 0,
                         }}
                       >
-                        Copy node
+                        Copy block
                       </button>
                     ) : null}
                     {canPasteNodeStyle ? (
@@ -3576,11 +3576,11 @@ export function StylePanel({
                         }}
                         title={
                           nodeStyleClipboard
-                            ? `Paste from ${nodeRoleLabel(nodeStyleClipboard.role) ?? "node"}`
+                            ? `Paste from ${nodeRoleLabel(nodeStyleClipboard.role) ?? "block"}`
                             : undefined
                         }
                       >
-                        Paste node
+                        Paste block
                       </button>
                     ) : null}
                     {canPasteViewportStyle ? (
@@ -3596,11 +3596,11 @@ export function StylePanel({
                         }}
                         title={
                           nodeStyleClipboard
-                            ? `Paste ${nodeStyleClipboard.viewportSource} viewport only`
+                            ? `Paste ${nodeStyleClipboard.viewportSource} device only`
                             : undefined
                         }
                       >
-                        Paste viewport
+                        Paste device
                       </button>
                     ) : null}
                     {canPasteViewportType ? (
@@ -3614,7 +3614,7 @@ export function StylePanel({
                           color: CHROME.muted,
                           padding: 0,
                         }}
-                        title="Paste viewport typography only"
+                        title="Paste device typography only"
                       >
                         Paste type
                       </button>
@@ -3630,7 +3630,7 @@ export function StylePanel({
                           color: CHROME.muted,
                           padding: 0,
                         }}
-                        title="Paste viewport spacing only"
+                        title="Paste device spacing only"
                       >
                         Paste spacing
                       </button>
@@ -3648,8 +3648,8 @@ export function StylePanel({
                         }}
                         title={
                           selectedRoleGroup === "text"
-                            ? "Apply style to all text nodes in this section"
-                            : "Apply style to all CTA nodes in this section"
+                            ? "Apply style to all text blocks in this section"
+                            : "Apply style to all CTA blocks in this section"
                         }
                       >
                         Apply to {selectedRoleGroup === "text" ? "text" : "CTAs"}
@@ -3670,8 +3670,8 @@ export function StylePanel({
                         }}
                         title={
                           selectedRoleGroup === "text"
-                            ? `Apply ${selectedViewport} typography to all text nodes`
-                            : `Apply ${selectedViewport} typography to all CTA nodes`
+                            ? `Apply ${selectedViewport} typography to all text blocks`
+                            : `Apply ${selectedViewport} typography to all CTA blocks`
                         }
                       >
                         Apply type
@@ -3690,8 +3690,8 @@ export function StylePanel({
                         }}
                         title={
                           selectedRoleGroup === "text"
-                            ? `Apply ${selectedViewport} spacing to all text nodes`
-                            : `Apply ${selectedViewport} spacing to all CTA nodes`
+                            ? `Apply ${selectedViewport} spacing to all text blocks`
+                            : `Apply ${selectedViewport} spacing to all CTA blocks`
                         }
                       >
                         Apply spacing
@@ -3710,8 +3710,8 @@ export function StylePanel({
                         }}
                         title={
                           selectedRoleGroup === "text"
-                            ? `Apply ${selectedViewport} style to all text nodes`
-                            : `Apply ${selectedViewport} style to all CTA nodes`
+                            ? `Apply ${selectedViewport} style to all text blocks`
+                            : `Apply ${selectedViewport} style to all CTA blocks`
                         }
                       >
                         Apply {selectedViewport}
@@ -3732,8 +3732,8 @@ export function StylePanel({
                         }}
                         title={
                           selectedRoleGroup === "text"
-                            ? "Reset all text-node styles in this section"
-                            : "Reset all CTA-node styles in this section"
+                            ? "Reset all text-block styles in this section"
+                            : "Reset all CTA-block styles in this section"
                         }
                       >
                         {resetConfirmTarget === "group"
@@ -3785,13 +3785,13 @@ export function StylePanel({
                           padding: 0,
                         }}
                       >
-                        {resetConfirmTarget === "node" ? "Confirm reset" : "Reset node"}
+                        {resetConfirmTarget === "node" ? "Confirm reset" : "Reset block"}
                       </button>
                     ) : null}
                   </div>
                 </div>
                 <p className={HINT}>
-                  Viewport is controlled by the device rail above (synced to the canvas).
+                  Device is controlled by the device rail above (synced to the canvas).
                   {selectedViewport !== "desktop"
                     ? ` Editing ${selectedViewport}: ${selectedViewportOverrideCount} override${
                         selectedViewportOverrideCount === 1 ? "" : "s"
@@ -4149,7 +4149,7 @@ export function StylePanel({
                 value={selectedSpacingPreset ?? ""}
                 onChange={(next) => applySpacingPreset(next as SpacingPreset)}
                 options={SPACING_PRESET_OPTIONS}
-                hint="Fast-start spacing preset for this viewport."
+                hint="Fast-start spacing preset for this device."
               />
               <div className="flex flex-col gap-1.5">
                 <span className={FIELD_LABEL}>Margin horizontal</span>
@@ -4804,7 +4804,7 @@ export function StylePanel({
             data-builder-node-style-panel={selectedStandaloneStyleNode.kind}
           >
             <p className={HINT}>
-              Viewport is controlled by the device rail above the inspector (synced to the canvas).
+              Device is controlled by the device rail above the inspector (synced to the canvas).
               {selectedViewport !== "desktop"
                 ? ` Editing ${selectedViewport} overrides: ${selectedStandaloneViewportOverrideCount} field${
                     selectedStandaloneViewportOverrideCount === 1 ? "" : "s"

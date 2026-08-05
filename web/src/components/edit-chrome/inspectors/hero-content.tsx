@@ -228,7 +228,7 @@ export function HeroContentInspector({
             color: CHROME.accentInk,
           }}
         >
-          {t("Editing selected canvas node:")} {focusLabel}
+          {t("Editing selected block:")} {focusLabel}
         </div>
       ) : null}
 

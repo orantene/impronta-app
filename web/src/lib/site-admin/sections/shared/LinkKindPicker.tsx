@@ -152,7 +152,7 @@ export function LinkKindPicker({ value, onChange, className, tenantId }: Props) 
         />
       ) : (
         <p className={HELP}>
-          Goes to the platform {ref.kind === "platform-auth-login" ? "login" : "page"} —
+          Goes to the platform {ref.kind === "platform-auth-login" ? "login" : "page"}:
           no value needed.
         </p>
       )}

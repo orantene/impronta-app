@@ -20,14 +20,14 @@ export interface LibraryDefault {
 
 const defaults: Record<SectionTypeKey, LibraryDefault> = {
   hero: {
-    name: "Hero — new",
+    name: "Hero (new)",
     props: {
       headline: "A house of curated talent.",
       subheadline: "Quiet, unhurried, always in the same key.",
     },
   },
   trust_strip: {
-    name: "Trust band — new",
+    name: "Trust band (new)",
     props: {
       eyebrow: "Why book us",
       headline: "Three reasons teams choose our collective.",
@@ -41,7 +41,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   cta_banner: {
-    name: "Final CTA — new",
+    name: "Final CTA (new)",
     props: {
       eyebrow: "Ready when you are",
       headline: "Tell us about your celebration.",
@@ -56,7 +56,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   category_grid: {
-    name: "Services grid — new",
+    name: "Services grid (new)",
     props: {
       eyebrow: "Services",
       headline: "A house of beauty, image, and live experience.",
@@ -72,13 +72,13 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   talent_type_grid: {
-    name: "Talent by discipline — new",
+    name: "Talent by discipline (new)",
     // DEFAULT seed content only — never hardcoded in the renderer.
     // Operators replace these or switch to dynamic tenant-roster mode.
     props: v11TalentTypeGridPreset,
   },
   hero_search: {
-    name: "Hero search — new",
+    name: "Hero search (new)",
     props: {
       eyebrow: "Models & Image Agency",
       headline: "Find the right talent",
@@ -111,7 +111,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   location_discovery: {
-    name: "Location discovery — new",
+    name: "Location discovery (new)",
     props: {
       eyebrow: "Talent network",
       headline: "Local faces, international reach",
@@ -147,12 +147,12 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   editorial_split_hero: {
-    name: "Editorial split hero — new",
+    name: "Editorial split hero (new)",
     props: {
       eyebrow: "The agency",
       headline: "Discover premium talent across",
       highlight: "destination cities.",
-      body: "Premium models, hosts, performers and creators for events, productions and brand experiences — Riviera Maya, Mexico City, Buenos Aires & beyond.",
+      body: "Premium models, hosts, performers and creators for events, productions and brand experiences in Riviera Maya, Mexico City, Buenos Aires & beyond.",
       primaryCta: { label: "Explore talent", href: "/directory" },
       secondaryCta: { label: "Start an inquiry", href: "/contact" },
       discoveryForm: {
@@ -184,7 +184,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   destinations_mosaic: {
-    name: "Destinations — new",
+    name: "Destinations (new)",
     props: {
       eyebrow: "Destinations",
       headline: "Where the collective travels.",
@@ -199,7 +199,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   testimonials_trio: {
-    name: "Testimonials — new",
+    name: "Testimonials (new)",
     props: {
       eyebrow: "Couples & planners",
       headline: "Words from the people we work for.",
@@ -216,7 +216,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   process_steps: {
-    name: "Process — new",
+    name: "Process (new)",
     props: {
       eyebrow: "How it works",
       headline: "A clear, professional process.",
@@ -243,7 +243,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   image_copy_alternating: {
-    name: "Services deep-dive — new",
+    name: "Services deep-dive (new)",
     props: {
       eyebrow: "Signature services",
       headline: "What we do, in detail.",
@@ -259,7 +259,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
           title: "Editorial hair",
           italicTagline: "Soft structure.",
           body:
-            "Styles that move, hold, and feel like you — built from a trial session and a reference board.",
+            "Styles that move, hold, and feel like you, built from a trial session and a reference board.",
           side: "image-left",
         },
       ],
@@ -267,7 +267,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   values_trio: {
-    name: "Values — new",
+    name: "Values (new)",
     props: {
       eyebrow: "Why Impronta",
       headline: "An agency, not a directory.",
@@ -292,7 +292,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   press_strip: {
-    name: "Press strip — new",
+    name: "Press strip (new)",
     props: {
       eyebrow: "As seen in",
       items: [
@@ -305,7 +305,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   gallery_strip: {
-    name: "Gallery — new",
+    name: "Gallery (new)",
     props: {
       eyebrow: "Moments",
       headline: "Recent work.",
@@ -331,15 +331,15 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   featured_talent: {
-    name: "Featured professionals — new",
+    name: "Featured professionals (new)",
     props: v11FeaturedTalentPreset,
   },
   directory: {
-    name: "Directory — new",
+    name: "Directory (new)",
     props: fashionDirectoryPreset,
   },
   marquee: {
-    name: "Marquee — new",
+    name: "Marquee (new)",
     props: {
       items: [
         { text: "Featured in Vogue" },
@@ -354,7 +354,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   stats: {
-    name: "Stats — new",
+    name: "Stats (new)",
     props: {
       eyebrow: "By the numbers",
       headline: "A decade of quiet, considered work.",
@@ -368,7 +368,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   faq_accordion: {
-    name: "FAQ — new",
+    name: "FAQ (new)",
     props: {
       eyebrow: "Common questions",
       headline: "Things people ask before they book.",
@@ -387,7 +387,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
         {
           question: "Do you travel?",
           answer:
-            "Yes — domestic and international. Travel costs are billed at cost.",
+            "Yes, domestic and international. Travel costs are billed at cost.",
         },
       ],
       variant: "bordered",
@@ -395,12 +395,12 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   split_screen: {
-    name: "Split — new",
+    name: "Split (new)",
     props: {
       eyebrow: "Our approach",
       headline: "Quiet, unhurried, in the same key.",
       body:
-        "We build short, deliberate teams around your story — never overstaffed, never anonymous. Each booking is led by a single concierge from inquiry to wrap.",
+        "We build short, deliberate teams around your story: never overstaffed, never anonymous. Each booking is led by a single concierge from inquiry to wrap.",
       primaryCta: { label: "See our work", href: "/work" },
       imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
       imageAlt: "Editorial portrait",
@@ -411,7 +411,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   timeline: {
-    name: "Timeline — new",
+    name: "Timeline (new)",
     props: {
       eyebrow: "Our story",
       headline: "How the studio came together.",
@@ -425,7 +425,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   pricing_grid: {
-    name: "Pricing — new",
+    name: "Pricing (new)",
     props: {
       eyebrow: "Investment",
       headline: "Three ways to work with us.",
@@ -438,7 +438,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   team_grid: {
-    name: "Team — new",
+    name: "Team (new)",
     props: {
       eyebrow: "The studio",
       headline: "Who you'll be working with.",
@@ -452,7 +452,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   contact_form: {
-    name: "Contact form — new",
+    name: "Contact form (new)",
     props: {
       eyebrow: "Get in touch",
       headline: "Tell us about your project.",
@@ -466,23 +466,23 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       action: "https://formspree.io/f/your-id",
       method: "POST",
       honeypot: "website",
-      successMessage: "Thanks — we'll be in touch.",
+      successMessage: "Thanks, we'll be in touch.",
       variant: "card",
       captcha: "none",
     },
   },
   join_register: {
-    name: "Join / Register — new",
+    name: "Join / Register (new)",
     props: {
       eyebrow: "Join the team",
       headline: "Become part of our roster.",
-      copy: "Create your profile and apply to join — it only takes a minute.",
+      copy: "Create your profile and apply to join. It only takes a minute.",
       variant: "card",
       align: "center",
     },
   },
   anchor_nav: {
-    name: "Anchor nav — new",
+    name: "Anchor nav (new)",
     props: {
       links: [
         { label: "About", href: "#about" },
@@ -496,7 +496,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   before_after: {
-    name: "Before/After — new",
+    name: "Before/After (new)",
     props: {
       beforeUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
       afterUrl: "https://images.unsplash.com/photo-1519225421980-715cb0215aed",
@@ -509,7 +509,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   content_tabs: {
-    name: "Tabs — new",
+    name: "Tabs (new)",
     props: {
       eyebrow: "Find what you need",
       headline: "Explore the studio.",
@@ -523,7 +523,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   code_embed: {
-    name: "Embed — new",
+    name: "Embed (new)",
     props: {
       headline: "Watch the reel",
       url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
@@ -532,7 +532,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   blog_index: {
-    name: "Blog — new",
+    name: "Blog (new)",
     props: {
       eyebrow: "Field notes",
       headline: "From the studio.",
@@ -546,7 +546,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   comparison_table: {
-    name: "Compare — new",
+    name: "Compare (new)",
     props: {
       eyebrow: "Compare plans",
       headline: "What's in each tier.",
@@ -567,7 +567,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   lottie: {
-    name: "Lottie — new",
+    name: "Lottie (new)",
     props: {
       headline: "Animated explainer",
       src: "https://lottie.host/d7c0c9c4-6e91-4d83-aaf1-8c5c5e4b2d6a/eGD9bN9Yt8.json",
@@ -579,7 +579,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   sticky_scroll: {
-    name: "Sticky scroll — new",
+    name: "Sticky scroll (new)",
     props: {
       eyebrow: "Process",
       headline: "How it works.",
@@ -595,7 +595,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   masonry: {
-    name: "Masonry — new",
+    name: "Masonry (new)",
     props: {
       eyebrow: "Recent",
       headline: "Selected work.",
@@ -609,7 +609,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   scroll_carousel: {
-    name: "Carousel — new",
+    name: "Carousel (new)",
     props: {
       eyebrow: "Featured",
       headline: "Swipe to see more.",
@@ -623,7 +623,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   blog_detail: {
-    name: "Post — new",
+    name: "Post (new)",
     props: {
       category: "Field notes",
       date: "April 2026",
@@ -633,7 +633,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   magazine_layout: {
-    name: "Magazine — new",
+    name: "Magazine (new)",
     props: {
       eyebrow: "Featured",
       headline: "From the studio.",
@@ -646,7 +646,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   hero_split: {
-    name: "Hero split — new",
+    name: "Hero split (new)",
     props: {
       headline: "Quiet, unhurried, in {accent}the same key{/accent}.",
       subheadline: "A short subhead that sets the tone.",
@@ -657,7 +657,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   logo_cloud: {
-    name: "Logo cloud — new",
+    name: "Logo cloud (new)",
     props: {
       eyebrow: "Trusted by",
       // No seed logos — the operator adds real partner logos. Never ship
@@ -669,7 +669,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   image_orbit: {
-    name: "Image with tags — new",
+    name: "Image with tags (new)",
     props: {
       eyebrow: "What's inside",
       headline: "A closer look.",
@@ -683,7 +683,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   video_reel: {
-    name: "Video reel — new",
+    name: "Video reel (new)",
     props: {
       eyebrow: "Watch",
       headline: "The studio reel.",
@@ -700,7 +700,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   map_overlay: {
-    name: "Map — new",
+    name: "Map (new)",
     props: {
       eyebrow: "Find us",
       headline: "Visit the studio.",
@@ -711,7 +711,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   donation_form: {
-    name: "Donation — new",
+    name: "Donation (new)",
     props: {
       eyebrow: "Support our work",
       headline: "Every contribution counts.",
@@ -722,11 +722,11 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       allowCustom: true,
       checkoutUrl: "https://buy.stripe.com/your-link",
       ctaLabel: "Donate",
-      trustNote: "Powered by Stripe — secure encrypted checkout.",
+      trustNote: "Powered by Stripe. Secure encrypted payment.",
     },
   },
   code_snippet: {
-    name: "Code — new",
+    name: "Code (new)",
     props: {
       filename: "example.ts",
       language: "typescript",
@@ -737,7 +737,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   event_listing: {
-    name: "Events — new",
+    name: "Events (new)",
     props: {
       eyebrow: "Calendar",
       headline: "Upcoming events.",
@@ -749,7 +749,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   lookbook: {
-    name: "Lookbook — new",
+    name: "Lookbook (new)",
     props: {
       pages: [
         { imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552", alt: "" },
@@ -762,11 +762,11 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     },
   },
   booking_widget: {
-    name: "Booking widget — new",
+    name: "Booking widget (new)",
     props: {
       eyebrow: "Book a call",
       headline: "Pick a time that works",
-      intro: "We'll meet over Google Meet — link arrives in your inbox.",
+      intro: "We'll meet over Google Meet. The link arrives in your inbox.",
       url: "https://calendly.com/your-handle/intro",
       variant: "inline",
       buttonLabel: "Book a call",

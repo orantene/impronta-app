@@ -13,13 +13,14 @@
  * buttons. We never auto-apply — the operator owns the call.
  */
 
-import { useState, useTransition, type ReactElement } from "react";
+import { useCallback, useState, useTransition, type ReactElement } from "react";
 
 import {
   rewriteFieldWithAi,
   type AiRewriteResult,
 } from "@/lib/site-admin/edit-mode/ai-rewrite-action";
 import { PortaledOverlay, useAnchoredPopover } from "../kit";
+import { useModalFocusTrap } from "../modal-focus-trap";
 
 interface AiRewriteButtonProps {
   sectionTypeKey: string;
@@ -55,6 +56,21 @@ export function AiRewriteButton({
     HTMLButtonElement,
     HTMLDivElement
   >({ open, onClose: () => setOpen(false), width: 300, align: "right" });
+
+  // FIX #7 (a11y) — this popover declares `role="dialog"` but shipped with
+  // neither a focus trap nor Escape handling, so keyboard users tabbed straight
+  // out of it into the inspector behind and had no way to dismiss it without a
+  // mouse. Reuse the repo's working trap (the same one kit/drawer.tsx wires).
+  const trapRef = useModalFocusTrap<HTMLDivElement>(open, () => setOpen(false));
+  // Merge the trap container ref with the anchored-popover ref so ONE DOM node
+  // feeds both systems (positioning + trapping), mirroring drawer.tsx.
+  const setPopoverNode = useCallback(
+    (node: HTMLDivElement | null) => {
+      popoverRef.current = node;
+      trapRef.current = node;
+    },
+    [popoverRef, trapRef],
+  );
 
   function trigger(text: string) {
     setInstruction(text);
@@ -97,7 +113,7 @@ export function AiRewriteButton({
       {open ? (
         <PortaledOverlay>
         <div
-          ref={popoverRef}
+          ref={setPopoverNode}
           role="dialog"
           aria-label={`Rewrite ${fieldName}`}
           data-edit-overlay="ai-rewrite-popover"
@@ -153,7 +169,7 @@ export function AiRewriteButton({
             </button>
           </div>
           {error ? (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+            <div className="rounded-md border border-blue-500/40 bg-blue-500/10 p-2 text-[11px] text-blue-700 dark:text-blue-300">
               {error}
             </div>
           ) : null}

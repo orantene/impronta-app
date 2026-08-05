@@ -39,7 +39,7 @@ const OVERLAY_OPTIONS: ReadonlyArray<{
   {
     value: "aurora",
     label: "Aurora",
-    hint: "Tenant-palette tinted wash — editorial glow.",
+    hint: "Tenant-palette tinted wash with an editorial glow.",
   },
   {
     value: "soft-vignette",
@@ -62,7 +62,7 @@ const MOOD_OPTIONS: ReadonlyArray<{
   {
     value: "cinematic",
     label: "Cinematic",
-    hint: "Oversized type, dramatic spacing — pairs with slider.",
+    hint: "Oversized type, dramatic spacing. Pairs with the slider.",
   },
 ];
 
@@ -389,7 +389,7 @@ export function HeroEditor({
 
       <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
         <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Slides — lifestyle reel
+          Slides: lifestyle reel
         </legend>
         <p className={HINT}>
           One slide renders as a static hero. Two or more slides trigger the
@@ -398,7 +398,7 @@ export function HeroEditor({
 
         {slides.length === 0 ? (
           <p className="rounded-md bg-muted/30 px-3 py-4 text-xs text-muted-foreground">
-            No slides yet — the hero will fall back to CMS copy with the
+            No slides yet, so the hero falls back to CMS copy with the
             tenant&rsquo;s default visual treatment.
           </p>
         ) : (

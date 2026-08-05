@@ -79,7 +79,7 @@ export function AltTextField({
           ) : null}
           {missing ? (
             <span
-              className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+              className="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-300"
               title="Screen-readers rely on alt text. Required for non-decorative images."
             >
               Missing
@@ -115,7 +115,7 @@ export function AltTextField({
         disabled={decorative}
         placeholder={
           decorative
-            ? "(Decorative — alt empty)"
+            ? "(Decorative, alt empty)"
             : "Describe what's in the image"
         }
         value={value}
@@ -123,7 +123,7 @@ export function AltTextField({
         aria-invalid={missing || undefined}
       />
       {error ? (
-        <span className="text-[10px] text-amber-700 dark:text-amber-300">{error}</span>
+        <span className="text-[10px] text-blue-700 dark:text-blue-300">{error}</span>
       ) : null}
     </div>
   );

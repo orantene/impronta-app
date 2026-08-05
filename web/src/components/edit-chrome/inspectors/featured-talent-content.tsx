@@ -250,7 +250,7 @@ export function FeaturedTalentContentInspector({
             color: "#1d4ed8",
           }}
         >
-          {t("Editing selected canvas node:")} {focusLabel}
+          {t("Editing selected block:")} {focusLabel}
         </div>
       ) : null}
 
@@ -787,12 +787,12 @@ function ToggleRow({
 function ShowcasePreview() {
   return (
     <svg viewBox="0 0 68 36" className="h-[36px] w-[68px]" aria-hidden>
-      <rect x="8" y="3" width="52" height="4" rx="1" className="fill-amber-500" />
+      <rect x="8" y="3" width="52" height="4" rx="1" className="fill-violet-500" />
       {[0, 1, 2, 3].map((col) => (
         <g key={col} transform={`translate(${4 + col * 16} 11)`}>
           <rect width="13" height="20" rx="1.5" className="fill-stone-900" />
           <rect x="2" y="14" width="9" height="1.5" rx=".5" className="fill-stone-100" />
-          <rect x="2" y="17" width="6" height="1" rx=".5" className="fill-amber-500" />
+          <rect x="2" y="17" width="6" height="1" rx=".5" className="fill-violet-500" />
         </g>
       ))}
     </svg>
@@ -822,7 +822,7 @@ function ModePreview({ value }: { value: SourceMode }) {
         <rect x="51" y="6" width="13" height="24" rx="2" className="fill-stone-300" />
         <path
           d="M6 12 l2 0 l1-2 l1 2 l2 0 l-1.5 1.5 l.5 2 l-2-1 l-2 1 l.5-2z"
-          className="fill-amber-500"
+          className="fill-violet-500"
         />
       </svg>
     );

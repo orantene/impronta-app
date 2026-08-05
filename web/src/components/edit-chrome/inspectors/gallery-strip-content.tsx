@@ -325,7 +325,7 @@ export function GalleryStripContentInspector({
             color: "#1d4ed8",
           }}
         >
-          {t("Editing selected canvas node:")}{" "}
+          {t("Editing selected block:")}{" "}
           {focusRole === "subheadline"
             ? t("Eyebrow")
             : focusRole === "headline"
@@ -400,7 +400,7 @@ export function GalleryStripContentInspector({
 
         {/* Below-threshold warning */}
         {tooFew && (
-          <div className="rounded-md bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+          <div className="rounded-md bg-blue-50 px-3 py-2 text-[11px] text-blue-700">
             {t("Add {count} more {noun}, minimum 3 required to publish.")
               .replace("{count}", String(3 - rawItems.length))
               .replace(
