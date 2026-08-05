@@ -15,6 +15,41 @@ import {
 } from "./snapshot-tree";
 import type { BuilderNode, BuilderNodeTree } from "./types";
 
+/**
+ * PERF (A2) — per-root-block nested render options, cached by caller identity.
+ *
+ * Every root block used to spread a FRESH `{ ...options, includeRendererStyles:
+ * false, includeFontLinks: false }` object into `renderBuilderNodes`. The
+ * renderer's only memo boundary (`BuilderNodeView`) compares
+ * `Object.is(prev.options, next.options)`, so a fresh object per block per
+ * render defeated it: the entire page rebuilt its vdom on every commit even
+ * though `ClientBuilderCanvas` hands us a stable memoized `options`.
+ *
+ * The derived object is a pure function of `options`, so it is cached in a
+ * `WeakMap` keyed by the caller's object — a stable caller now yields ONE
+ * shared nested-options reference for all root blocks across all renders.
+ * The produced object is field-identical to the old inline spread, so render
+ * output is unchanged.
+ */
+const nestedRootOptionsCache = new WeakMap<
+  BuilderNodeRenderOptions,
+  BuilderNodeRenderOptions
+>();
+
+function nestedRootOptions(
+  options: BuilderNodeRenderOptions,
+): BuilderNodeRenderOptions {
+  const cached = nestedRootOptionsCache.get(options);
+  if (cached) return cached;
+  const derived: BuilderNodeRenderOptions = {
+    ...options,
+    includeRendererStyles: false,
+    includeFontLinks: false,
+  };
+  nestedRootOptionsCache.set(options, derived);
+  return derived;
+}
+
 export function renderUnboundGallerySectionBlock(
   sectionNode: Extract<BuilderNode, { kind: "section" }>,
   blockIndex: number,
@@ -32,11 +67,7 @@ export function renderUnboundGallerySectionBlock(
       data-section-type-key="custom"
       data-section-label={label}
     >
-      {renderBuilderNodes(children, {
-        ...options,
-        includeRendererStyles: false,
-        includeFontLinks: false,
-      })}
+      {renderBuilderNodes(children, nestedRootOptions(options))}
     </div>
   );
 }
@@ -57,11 +88,7 @@ export function renderUnboundRootGalleryBlock(
       data-block-index={blockIndex}
       data-cms-block-node-id={node.id}
     >
-      {renderBuilderNodes([node], {
-        ...options,
-        includeRendererStyles: false,
-        includeFontLinks: false,
-      })}
+      {renderBuilderNodes([node], nestedRootOptions(options))}
     </div>
   );
 }
@@ -90,11 +117,7 @@ export function renderFreeformPageRootTree(
         data-block-index={blockIndex}
         data-cms-block-node-id={node.id}
       >
-        {renderBuilderNodes([node], {
-          ...options,
-          includeRendererStyles: false,
-          includeFontLinks: false,
-        })}
+        {renderBuilderNodes([node], nestedRootOptions(options))}
       </div>,
     );
   }

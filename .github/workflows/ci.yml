@@ -268,6 +268,20 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run check:ci-lane-parity
 
+      # ── Builder test-lane COVERAGE ───────────────────────────────────
+      # Lane parity (above) proves ci.yml runs every lane. It says nothing
+      # about whether those lanes run every TEST. They didn't: the lanes
+      # enumerated directories one level at a time with shell globs, so 17
+      # builder test files (add-gallery panels, rich-editor transformers,
+      # collections, links, sections/directory, section-primitives,
+      # site-header, tokens, the a11y contrast corpus, + the 4 quarantined)
+      # ran in NO lane at all — written, reviewed, merged, silently dead.
+      # This guard compares the test files on disk against what the lanes
+      # actually expand to and fails on any orphan.
+      - name: verify — every builder test file is in a CI lane
+        if: ${{ !cancelled() }}
+        run: npm run check:builder-test-lane-coverage
+
       # ── Gate 5: Server-action bundle safety ──────────────────────────
       # tsc/tsx/lint are STRUCTURALLY BLIND to non-async exports and
       # value/type re-exports in "use server" files — they pass the gate yet

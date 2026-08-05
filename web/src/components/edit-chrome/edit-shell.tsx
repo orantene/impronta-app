@@ -31,7 +31,10 @@ import {
 } from "./edit-context";
 import { clipboardActionLabel } from "./builder-clipboard-toast";
 import { useHoveredSectionId } from "./hover-bridge";
-import { useBuilderTree } from "./builder-tree-bridge";
+import {
+  getBuilderTreeSnapshot,
+  useBuilderTree,
+} from "./builder-tree-bridge";
 import { useCanUndo, useCanRedo } from "./history-bridge";
 import {
   useSelectedSectionId,
@@ -549,9 +552,18 @@ function EditShellInner({
   // W2-T4 — `dirty` VALUE from the dirty-bridge (this shell threads it into the
   // topbar / exit guard; the setter stays on the context).
   const dirty = useDirty();
-  // WS2 — tree + history-depth VALUES from their micro-stores (the keyboard
-  // handler reads the tree; canUndo/canRedo feed the topbar undo/redo buttons).
-  const builderTree = useBuilderTree();
+  // WS2 — history-depth VALUES from their micro-stores (canUndo/canRedo feed
+  // the topbar undo/redo buttons).
+  //
+  // PERF (A1) — the shell deliberately does NOT `useBuilderTree()`. The tree is
+  // read by exactly one consumer here: the window keydown handler below, and
+  // only at the instant a key is pressed. Subscribing made the ROOT of the
+  // editor chrome re-render on every tree commit (nothing below it is memoized:
+  // TopBar / NavigatorPanel / InspectorDock / CommandDock / SelectionLayer are
+  // plain function components) AND tore down + re-registered the window
+  // listener on every keystroke. The handler now reads the tree
+  // NON-REACTIVELY via `getBuilderTreeSnapshot()` — the same micro-store, same
+  // value, zero subscription. Keep it that way.
   const canUndo = useCanUndo();
   const canRedo = useCanRedo();
 
@@ -900,7 +912,7 @@ function EditShellInner({
 
       if (mod && key === "c") {
         const selectedBuilderNode = findBuilderNodeById(
-          builderTree,
+          getBuilderTreeSnapshot(),
           selectedBuilderNodeId,
         );
         if (!selectedBuilderNode || selectedBuilderNode.kind === "section") return;
@@ -924,7 +936,7 @@ function EditShellInner({
 
       if (mod && key === "d") {
         const selectedBuilderNode = findBuilderNodeById(
-          builderTree,
+          getBuilderTreeSnapshot(),
           selectedBuilderNodeId,
         );
         if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
@@ -950,7 +962,7 @@ function EditShellInner({
 
       if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown") && selectedSectionId) {
         const selectedBuilderNode = findBuilderNodeById(
-          builderTree,
+          getBuilderTreeSnapshot(),
           selectedBuilderNodeId,
         );
         // Alt+arrow nudge on nested blocks is owned by selection-layer; section
@@ -972,7 +984,7 @@ function EditShellInner({
         !e.ctrlKey
       ) {
         const selectedBuilderNode = findBuilderNodeById(
-          builderTree,
+          getBuilderTreeSnapshot(),
           selectedBuilderNodeId,
         );
         if (selectedBuilderNode && selectedBuilderNode.kind !== "section") {
@@ -1001,7 +1013,9 @@ function EditShellInner({
     selectedBuilderNodeId,
     setSelectedSectionId,
     focusSectionForEdit,
-    builderTree,
+    // PERF (A1) — `builderTree` is intentionally NOT a dep: the handler reads it
+    // through `getBuilderTreeSnapshot()` at keypress time, so the listener no
+    // longer re-registers on every tree commit.
     copiedBuilderNodeKind,
     copyBuilderNode,
     pasteCopiedBuilderNode,

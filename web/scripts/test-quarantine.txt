@@ -1,41 +1,38 @@
-# test-quarantine.txt — files excluded from the glob-based builder/site-admin
-# test lanes in package.json (see the `grep -vFf scripts/test-quarantine.txt`
-# pipes in test:builder-chrome, test:builder-node-bindings, and
-# test:builder-capabilities:a).
+# test-quarantine.txt — files excluded from the recursive builder/site-admin
+# test lanes in package.json. Applied by `scripts/list-test-files.cjs`, which is
+# the single expansion used BOTH by the npm lanes and by
+# `check:builder-test-lane-coverage` — so a quarantined file is dropped from the
+# lane AND exempted from the coverage guard in one place, and the two can never
+# disagree.
 #
-# WHY THIS FILE EXISTS: those lanes used to be hardcoded file lists, so a new
-# test file silently never ran in CI (W0-B, 2026-07-09). Converting them to
-# directory globs surfaced ~90 test files that were never wired to ANY npm
-# script. Running the previously-orphaned files found 4 that fail today —
-# they are quarantined here (excluded from the glob) rather than silently
-# dropped or "fixed", per the plan in
-# web/docs/page-builder-minimal-build-plan-2026-07-09.md (lane W0-B). Each
-# is a pre-existing bug/staleness, NOT something introduced by this change.
-# Do not add new entries here without a comment explaining why, and file a
-# follow-up to actually fix (not just quarantine) the underlying test.
+# WHY THIS FILE EXISTS: the lanes used to be hardcoded file lists, so a new test
+# file silently never ran in CI (W0-B, 2026-07-09). Converting them to globs
+# surfaced ~90 orphaned test files; 4 of them failed and were parked here.
 #
-# This is matched with `grep -F` (literal substring, not a glob) against
-# `ls` output, so each line must be the exact relative path as printed by
-# `ls src/...`. Comment lines above are harmless no-op patterns (no real
-# test path contains "#").
+# STATUS 2026-08-04 (fix #6 / B2): THE QUARANTINE IS EMPTY. All four entries
+# were resolved rather than re-parked:
+#   • builder-node/style-token-bindings.test.ts — the TEST was wrong, not the
+#     catalog: `tokens/registry.ts` documents `defaultValue: ""` as the
+#     deliberate "follow the active background mode" sentinel, so asserting a
+#     hex fallback on EVERY color token contradicted the shipped design (and
+#     pinning one would force dark-mode tenants onto a white canvas).
+#     Re-pointed at the real invariant: hex OR the empty inherit sentinel.
+#   • site-admin-m1.test.ts / site-admin-m5.test.ts — fixture rot. Locale
+#     validation moved from a hardcoded ['en','es'] membership gate to BCP-47
+#     SHAPE validation (membership now lives in the `app_locales` registry), and
+#     HOMEPAGE_SLOT_KEYS is DERIVED from the homepage template meta (4 slots →
+#     12 after M7.1). Both now assert the contract that actually holds.
+#   • edit-chrome/inspectors/responsive-field-state.test.ts — not broken, just
+#     in the wrong runner's tree: it is vitest-authored and `tsx --test` cannot
+#     require the vitest package. MOVED to
+#     `test/components/edit-chrome/responsive-field-state.test.tsx` so vitest
+#     (`npm run test:components`) actually runs it.
 #
-# 1. Vitest-authored file living under src/ (node:test runner can't import
-#    the vitest package — "Vitest cannot be imported in a CommonJS module
-#    using require()"). Needs to move under test/**/*.test.tsx (the vitest
-#    include glob) or be rewritten against node:test, not silently swept in.
-src/components/edit-chrome/inspectors/responsive-field-state.test.ts
-# 2. Real product/test drift: the color-catalog derivation returns an empty
-#    string that fails the `/^#[0-9a-f]{3,6}$/i` hex assertion (1 of 2 tests
-#    in the file). Needs an actual fix to the catalog or the test, not a
-#    silent skip.
-src/lib/site-admin/builder-node/style-token-bindings.test.ts
-# 3. Stale locale allowlist assumption: 3 subtests assert an "unknown" locale
-#    is rejected by isLocale/localeSchema/identityFormSchema, but the
-#    platform's supported-locale set has since grown (see PLATFORM_LOCALES)
-#    and now accepts it. The test's fixture locale needs updating to a value
-#    that is still genuinely unsupported.
-src/lib/site-admin/site-admin-m1.test.ts
-# 4. Stale homepage-slot fixture: HOMEPAGE_SLOT_KEYS now has 12 slots: the
-#    test still hardcodes the old 4-slot set (also 1 stale-locale subtest,
-#    same root cause as #3).
-src/lib/site-admin/site-admin-m5.test.ts
+# RULES FOR ADDING AN ENTRY
+#   1. One path per line, exactly as printed relative to `web/` (e.g.
+#      `src/lib/site-admin/foo.test.ts`). Matched by exact string equality —
+#      not a glob, not a substring.
+#   2. Every entry needs a comment saying WHY, plus the follow-up that will
+#      remove it. A quarantine is a dated loan, not a resting place.
+#   3. NEVER quarantine a test that surfaced a real product bug — fix the bug.
+#      Quarantine is for runner mismatches and stale fixtures only.

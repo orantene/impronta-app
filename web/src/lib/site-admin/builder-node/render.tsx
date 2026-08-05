@@ -4777,11 +4777,42 @@ const BuilderNodeView = memo(
     Object.is(prev.node, next.node) && Object.is(prev.options, next.options),
 );
 
-export function renderBuilderNodes(
-  nodes: ReadonlyArray<BuilderNode>,
-  options: BuilderNodeRenderOptions = {},
-): ReactNode {
-  const normalizedOptions: NormalizedBuilderNodeRenderOptions = {
+/** Shared default for `renderBuilderNodes()` called with no options — a single
+ * frozen reference so the omitted-options path also hits the normalize cache
+ * instead of allocating a fresh `{}` (and therefore a fresh normalized object)
+ * on every render. */
+const EMPTY_RENDER_OPTIONS: BuilderNodeRenderOptions = Object.freeze({});
+
+/**
+ * PERF (A2) — normalized-options identity cache.
+ *
+ * `BuilderNodeView` is memoized on `Object.is(prev.options, next.options)`, but
+ * `renderBuilderNodes` used to build a FRESH `normalizedOptions` literal on
+ * every call. That made the comparator's options half always false, so every
+ * top-level node rebuilt its whole vdom on every commit — O(page) per
+ * keystroke — throwing away the carefully memoized options object that
+ * `ClientBuilderCanvas` passes in.
+ *
+ * Normalization is a pure function of the caller's options object, so the
+ * result is cached in a `WeakMap` keyed by that object. A caller that keeps a
+ * stable options reference (the canvas `useMemo`, the shared nested-options
+ * helper in `freeform-page-blocks.tsx`) now gets the SAME normalized reference
+ * across renders and the memo finally bails on unchanged subtrees. A caller
+ * that builds a new options object still gets a fresh normalize — identical
+ * output, no staleness. (Callers must not mutate an options object in place
+ * after passing it; nothing in the repo does.)
+ */
+const normalizedOptionsCache = new WeakMap<
+  BuilderNodeRenderOptions,
+  NormalizedBuilderNodeRenderOptions
+>();
+
+function normalizeBuilderNodeRenderOptions(
+  options: BuilderNodeRenderOptions,
+): NormalizedBuilderNodeRenderOptions {
+  const cached = normalizedOptionsCache.get(options);
+  if (cached) return cached;
+  const normalized: NormalizedBuilderNodeRenderOptions = {
     publicPathPrefix: options.publicPathPrefix ?? "",
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
@@ -4800,6 +4831,15 @@ export function renderBuilderNodes(
     repeatItem: null,
     repeatDepth: 0,
   };
+  normalizedOptionsCache.set(options, normalized);
+  return normalized;
+}
+
+export function renderBuilderNodes(
+  nodes: ReadonlyArray<BuilderNode>,
+  options: BuilderNodeRenderOptions = EMPTY_RENDER_OPTIONS,
+): ReactNode {
+  const normalizedOptions = normalizeBuilderNodeRenderOptions(options);
   const nodeViews = nodes
     .filter((node) => shouldRenderNode(node, normalizedOptions))
     // HYGIENE-1 Q5 — Prune top-level data-bound repeater sections whose resolved

@@ -3,7 +3,8 @@ import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import test from "node:test";
 
-import { renderBuilderNodes, type BuilderNode } from "./index";
+import { renderBuilderNodes } from "./render";
+import type { BuilderNode } from "./types";
 
 function tree(condition: unknown): BuilderNode[] {
   return [

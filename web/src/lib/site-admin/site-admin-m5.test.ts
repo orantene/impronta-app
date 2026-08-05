@@ -40,6 +40,7 @@ import {
   homepageSlotsSchema,
   rolePhase5HasCapability,
 } from "./index";
+import { homepageMeta } from "./templates/homepage/meta";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const SECTION_A = "22222222-2222-4222-8222-222222222222";
@@ -48,13 +49,25 @@ const REVISION_ID = "44444444-4444-4444-8444-444444444444";
 
 // ---- slot key tuples ------------------------------------------------------
 
-test("HOMEPAGE_SLOT_KEYS matches homepage template meta (M5 set)", () => {
-  assert.deepEqual([...HOMEPAGE_SLOT_KEYS].sort(), [
-    "footer-callout",
-    "hero",
-    "primary",
-    "secondary",
-  ]);
+// FIXTURE ROT FIX (B2, 2026-08-04) — this used to hardcode the original M5
+// 4-slot set (hero/primary/secondary/footer-callout). `HOMEPAGE_SLOT_KEYS` is
+// DERIVED from `templates/homepage/meta.ts` at module load precisely so a new
+// slot is form-visible without editing code, and M7.1 added 8 more slots. A
+// hardcoded copy therefore had to rot on the next slot — and it did, which is
+// why this file was quarantined. Assert the DERIVATION contract instead (the
+// thing that must never break), plus the legacy keys that the stored data of
+// existing tenants still references and so may never be dropped.
+test("HOMEPAGE_SLOT_KEYS is derived from the homepage template meta", () => {
+  assert.deepEqual([...HOMEPAGE_SLOT_KEYS], homepageMeta.slots.map((s) => s.key));
+  // No duplicates — the derived tuple feeds a z.enum().
+  assert.equal(new Set(HOMEPAGE_SLOT_KEYS).size, HOMEPAGE_SLOT_KEYS.length);
+  // Legacy slot keys are load-bearing for already-stored tenant homepages.
+  for (const legacy of ["hero", "primary", "secondary", "footer-callout"]) {
+    assert.ok(
+      HOMEPAGE_SLOT_KEYS.includes(legacy),
+      `legacy slot key "${legacy}" must stay in the meta (stored data references it)`,
+    );
+  }
 });
 
 test("HOMEPAGE_REQUIRED_SLOT_KEYS = ['hero'] in M5", () => {
@@ -191,9 +204,18 @@ test("homepageSaveDraftSchema rejects non-uuid tenantId", () => {
   );
 });
 
-test("homepageSaveDraftSchema rejects unknown locale", () => {
+test("homepageSaveDraftSchema rejects a malformed locale", () => {
+  // Same root cause as the m1 fixture rot: the locale universe moved to the
+  // `app_locales` registry, so `localeSchema` validates BCP-47 SHAPE, not
+  // membership in the old hardcoded ['en','es'] pair. "fr" is now a legitimate
+  // registry language; "english" is still not a locale code.
   assert.equal(
     homepageSaveDraftSchema.safeParse({ ...MIN_SAVE, locale: "fr" }).success,
+    true,
+  );
+  assert.equal(
+    homepageSaveDraftSchema.safeParse({ ...MIN_SAVE, locale: "english" })
+      .success,
     false,
   );
 });
