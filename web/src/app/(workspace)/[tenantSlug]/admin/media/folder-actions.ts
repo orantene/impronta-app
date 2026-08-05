@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -166,6 +167,15 @@ export async function actionDeleteMediaFolder(folderId: string): Promise<ActionR
     return { ok: false, error: "Could not delete folder." };
   }
 
+  scheduleWorkspaceAudit({
+    tenantId: auth.tenantId,
+    category: "media",
+    action: "media.folder.deleted",
+    summary: "Deleted a media folder",
+    targetType: "media_folder",
+    targetId: folderId,
+  });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: null };
 }
@@ -295,6 +305,18 @@ export async function actionCreateFolderShareLink(
     return { ok: false, error: "Could not create share link." };
   }
 
+  scheduleWorkspaceAudit({
+    tenantId: auth.tenantId,
+    category: "media",
+    action: "media.folder.share_link_created",
+    summary: expiryDays
+      ? `Created a folder share link expiring in ${expiryDays} day${expiryDays === 1 ? "" : "s"}`
+      : "Created a folder share link",
+    targetType: "media_folder",
+    targetId: folderId,
+    metadata: expiryDays ? { expiryDays } : undefined,
+  });
+
   const sharePath = `/share/folder/${token}`;
   const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
   // Always return a relative `sharePath` so the client can prefix with
@@ -320,6 +342,15 @@ export async function actionRevokeFolderShareLink(folderId: string): Promise<Act
     logServerError("folder.revokeLink", error);
     return { ok: false, error: "Could not revoke share link." };
   }
+
+  scheduleWorkspaceAudit({
+    tenantId: auth.tenantId,
+    category: "media",
+    action: "media.folder.share_link_revoked",
+    summary: "Revoked a folder share link",
+    targetType: "media_folder",
+    targetId: folderId,
+  });
 
   return { ok: true, data: null };
 }

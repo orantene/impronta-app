@@ -19,6 +19,10 @@
  */
 
 import { improntaLog } from "@/lib/server/structured-log";
+import {
+  scheduleWorkspaceAudit,
+  type WorkspaceAuditCategory,
+} from "@/lib/audit/workspace-audit";
 import { createHash } from "node:crypto";
 import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -55,7 +59,32 @@ function truncate(summary: string): string {
  * The RPC validates is_staff_of_tenant() + action prefix server-side and
  * writes to platform_audit_log (Zone 1 cross-tenant audit).
  */
-export async function emitAuditEvent(
+/**
+ * Dual-write into the per-tenant Workspace Activity Log. Branding / identity /
+ * design edits read as workspace settings; everything else in the site-admin
+ * surface (pages, sections, navigation, homepage) is content work.
+ */
+function workspaceCategoryFor(action: string): WorkspaceAuditCategory {
+  return action.includes(".branding.") ||
+    action.includes(".identity.") ||
+    action.includes(".design.")
+    ? "settings"
+    : "pages";
+}
+
+function mirrorToWorkspaceLog(event: Phase5AuditEvent): void {
+  scheduleWorkspaceAudit({
+    tenantId: event.tenantId,
+    category: workspaceCategoryFor(event.action),
+    action: event.action,
+    summary: event.diffSummary,
+    actorUserId: event.actorProfileId,
+    targetType: event.entityType,
+    targetId: event.entityId,
+  });
+}
+
+async function emitPlatformAuditRow(
   supabase: SupabaseClient,
   event: Phase5AuditEvent,
 ): Promise<void> {
@@ -78,6 +107,17 @@ export async function emitAuditEvent(
   }
 }
 
+export async function emitAuditEvent(
+  supabase: SupabaseClient,
+  event: Phase5AuditEvent,
+): Promise<void> {
+  // Mirror first: scheduleWorkspaceAudit captures request context (IP,
+  // country, actor) eagerly, which must happen while the request scope is
+  // still alive.
+  mirrorToWorkspaceLog(event);
+  await emitPlatformAuditRow(supabase, event);
+}
+
 /**
  * Defer the audit-log RPC until after the response is flushed via Next's
  * `after()`. The mutation has already committed by the time this runs, and
@@ -93,7 +133,10 @@ export function scheduleAuditEvent(
   supabase: SupabaseClient,
   event: Phase5AuditEvent,
 ): void {
+  // Mirror to the workspace log NOW (request scope still alive — see
+  // emitAuditEvent), but let the platform-audit RPC ride behind the response.
+  mirrorToWorkspaceLog(event);
   after(async () => {
-    await emitAuditEvent(supabase, event);
+    await emitPlatformAuditRow(supabase, event);
   });
 }

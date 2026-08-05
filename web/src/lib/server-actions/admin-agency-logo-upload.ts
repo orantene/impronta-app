@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 
 const ALLOWED_TYPES = ["image/png", "image/svg+xml", "image/jpeg", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -110,6 +111,16 @@ export async function actionUploadAgencyLogo(
       { tenant_id: tenantId, theme_json: { ...currentTheme, logo_url: logoUrl }, updated_at: new Date().toISOString() },
       { onConflict: "tenant_id" },
     );
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "settings",
+    action: "settings.logo.uploaded",
+    summary: "Uploaded a new workspace logo",
+    targetType: "agency",
+    targetId: tenantId,
+    metadata: { contentType: file.type },
+  });
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, logoUrl };

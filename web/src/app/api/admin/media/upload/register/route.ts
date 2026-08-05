@@ -21,6 +21,7 @@ import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -207,6 +208,16 @@ export async function POST(req: Request) {
       );
     }
 
+    scheduleWorkspaceAudit({
+      tenantId: scope.tenantId,
+      category: "media",
+      action: "media.uploaded",
+      summary: `Uploaded ${originalFilename ?? "an image"}`,
+      targetType: "media_asset",
+      targetId: inserted.item.id,
+      metadata: { kind },
+    });
+
     return NextResponse.json({
       ok: true,
       item: {
@@ -296,6 +307,16 @@ export async function POST(req: Request) {
   const { data: urlData } = supabase.storage
     .from(inserted.bucket_id)
     .getPublicUrl(inserted.storage_path);
+
+  scheduleWorkspaceAudit({
+    tenantId: scope.tenantId,
+    category: "media",
+    action: "media.uploaded",
+    summary: `Uploaded ${originalFilename ?? `a ${kind}`}`,
+    targetType: "media_asset",
+    targetId: inserted.id,
+    metadata: { kind },
+  });
 
   return NextResponse.json({
     ok: true,

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireStaffTenantAction, requireTalentSelfAction } from "@/lib/saas/admin-scope";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -205,6 +206,18 @@ export async function actionUploadAndAssignMedia(
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
 
+  if (tenantId) {
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "media",
+      action: "media.uploaded",
+      summary: `Uploaded ${meta.originalFilename}`,
+      targetType: "media_asset",
+      targetId: (inserted as { id: string }).id,
+      metadata: { variantKind },
+    });
+  }
+
   revalidatePath(revalidate.path, revalidate.type);
   return {
     ok: true,
@@ -303,8 +316,19 @@ export async function actionDeleteMediaAssets(
     return { ok: false, error: "Delete failed. Try again." };
   }
 
+  const deletedCount = count ?? ids.length;
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.deleted",
+    summary: `Deleted ${deletedCount} media asset${deletedCount === 1 ? "" : "s"}`,
+    targetType: "media_asset",
+    targetId: ids[0],
+    metadata: { count: deletedCount },
+  });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
-  return { ok: true, data: { count: count ?? ids.length } };
+  return { ok: true, data: { count: deletedCount } };
 }
 
 // ─── Approve / reject media assets ───────────────────────────────────────────
@@ -334,8 +358,19 @@ export async function actionSetApprovalState(
     return { ok: false, error: "Could not update. Try again." };
   }
 
+  const updatedCount = count ?? ids.length;
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.approval_changed",
+    summary: `Marked ${updatedCount} media asset${updatedCount === 1 ? "" : "s"} as ${state}`,
+    targetType: "media_asset",
+    targetId: ids[0],
+    metadata: { count: updatedCount, state },
+  });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
-  return { ok: true, data: { count: count ?? ids.length } };
+  return { ok: true, data: { count: updatedCount } };
 }
 
 // ─── Re-assign photos to a different talent ───────────────────────────────────
@@ -374,8 +409,19 @@ export async function actionReassignMediaToTalent(
     return { ok: false, error: "Could not reassign. Try again." };
   }
 
+  const movedCount = count ?? ids.length;
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.reassigned",
+    summary: `Reassigned ${movedCount} media asset${movedCount === 1 ? "" : "s"} to another talent`,
+    targetType: "media_asset",
+    targetId: ids[0],
+    metadata: { count: movedCount, talentProfileId },
+  });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
-  return { ok: true, data: { count: count ?? ids.length } };
+  return { ok: true, data: { count: movedCount } };
 }
 
 // ─── Update per-image watermark override ─────────────────────────────────────
@@ -478,6 +524,16 @@ export async function actionSetAsCardPhoto(
     .from((source as { bucket_id: string; storage_path: string }).bucket_id)
     .getPublicUrl((source as { bucket_id: string; storage_path: string }).storage_path);
 
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.card_photo_set",
+    summary: "Set a talent card photo",
+    targetType: "media_asset",
+    targetId: (inserted as { id: string }).id,
+    metadata: { talentProfileId },
+  });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { id: (inserted as { id: string }).id, publicUrl: urlData.publicUrl } };
 }
@@ -531,6 +587,16 @@ export async function actionSetAsHeroPhoto(
     logServerError("media.actions.setHeroPhoto", error);
     return { ok: false, error: "Could not set cover photo." };
   }
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.hero_photo_set",
+    summary: "Set a talent cover photo",
+    targetType: "media_asset",
+    targetId: mediaAssetId,
+    metadata: { talentProfileId },
+  });
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: null };
@@ -837,6 +903,15 @@ export async function actionBulkAssignStagedMedia(
     return { ok: false, error: "Could not save. Try again." };
   }
 
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.bulk_assigned",
+    summary: `Assigned ${rows.length} uploaded photo${rows.length === 1 ? "" : "s"} to talent`,
+    targetType: "media_asset",
+    metadata: { count: rows.length, talentCount: uniqueTalentIds.length },
+  });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, data: { count: rows.length } };
 }
@@ -948,6 +1023,16 @@ export async function actionUploadTalentDocument(
     logServerError("media.actions.uploadTalentDocument", upErr);
     return { ok: false, error: "Upload failed. Try again." };
   }
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.document.uploaded",
+    summary: `Uploaded document ${file.name || "file"}`,
+    targetType: "talent_document",
+    targetLabel: file.name || null,
+    metadata: { talentProfileId },
+  });
 
   return {
     ok: true,
@@ -1140,6 +1225,16 @@ export async function actionDeleteTalentDocument(
       });
     }
   }
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.document.deleted",
+    summary: "Deleted a talent document",
+    targetType: "talent_document",
+    targetId: documentId ?? null,
+    metadata: { talentProfileId },
+  });
 
   return { ok: true, data: null };
 }
@@ -2016,6 +2111,18 @@ export async function actionRegisterUploadedAsset(
   }
 
   const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
+
+  if (tenantId) {
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "media",
+      action: "media.uploaded",
+      summary: `Uploaded ${input.originalFilename ?? `${variantKind} photo`}`,
+      targetType: "media_asset",
+      targetId: (inserted as { id: string }).id,
+      metadata: { variantKind },
+    });
+  }
 
   revalidatePath(revalidate.path, revalidate.type);
   return {

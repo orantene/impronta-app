@@ -18,6 +18,7 @@ import {
 } from "@/lib/saas/custom-domain-actions";
 import { customDomainCanBecomePrimary } from "@/lib/saas/custom-domain-routing";
 import { logServerError } from "@/lib/server/safe-error";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -218,6 +219,15 @@ export async function connectCustomDomainAction(formData: FormData): Promise<voi
         ? " DNS token is ready, but Vercel project provisioning needs attention."
         : "";
 
+  scheduleWorkspaceAudit({
+    tenantId: scope.tenantId,
+    category: "domain",
+    action: "domain.added",
+    summary: `Connected custom domain ${hostname} and started DNS verification`,
+    targetType: "domain",
+    targetLabel: hostname,
+  });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   revalidatePath(`/${tenantSlug}/admin/site`);
   redirectWithDomainMessage(
@@ -269,6 +279,14 @@ export async function verifyCustomDomainNowAction(formData: FormData): Promise<v
     revalidatePath(`/${tenantSlug}/admin/settings`);
     revalidatePath(`/${tenantSlug}/admin/site`);
     if (transition.status === "verified") {
+      scheduleWorkspaceAudit({
+        tenantId: scope.tenantId,
+        category: "domain",
+        action: "domain.verified",
+        summary: `Custom domain ${hostname} passed DNS verification`,
+        targetType: "domain",
+        targetLabel: hostname,
+      });
       redirectWithDomainMessage(tenantSlug, `${hostname} is now verified.`, returnTo);
     }
     if (transition.status === "failed") {
@@ -336,6 +354,15 @@ export async function switchPrimaryDomainAction(formData: FormData): Promise<voi
     logServerError("workspace.settings.switchPrimaryDomain.update", switchError);
     redirectWithDomainError(tenantSlug, "The primary public URL could not be updated.", returnTo);
   }
+
+  scheduleWorkspaceAudit({
+    tenantId: scope.tenantId,
+    category: "domain",
+    action: "domain.primary_changed",
+    summary: `Set ${hostname} as the primary public URL`,
+    targetType: "domain",
+    targetLabel: hostname,
+  });
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   revalidatePath(`/${tenantSlug}/admin/site`);
@@ -443,6 +470,15 @@ export async function removeCustomDomainAction(formData: FormData): Promise<void
     });
   }
 
+  scheduleWorkspaceAudit({
+    tenantId: scope.tenantId,
+    category: "domain",
+    action: "domain.removed",
+    summary: `Removed custom domain ${hostname}`,
+    targetType: "domain",
+    targetLabel: hostname,
+  });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   revalidatePath(`/${tenantSlug}/admin/site`);
   redirectWithDomainMessage(
@@ -498,6 +534,14 @@ export async function checkCustomDomainProvisioningAction(formData: FormData): P
     revalidatePath(`/${tenantSlug}/admin/site`);
 
     if (transition.status === "active") {
+      scheduleWorkspaceAudit({
+        tenantId: scope.tenantId,
+        category: "domain",
+        action: "domain.activated",
+        summary: `Custom domain ${hostname} is now live with routing and HTTPS`,
+        targetType: "domain",
+        targetLabel: hostname,
+      });
       redirectWithDomainMessage(
         tenantSlug,
         `${hostname} is now live with routing and HTTPS on Vercel.`,

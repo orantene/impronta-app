@@ -1,4 +1,5 @@
 import { logServerError } from "@/lib/server/safe-error";
+import { scheduleWorkspaceAuditWith } from "@/lib/audit/workspace-audit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function logBookingActivity(
@@ -19,6 +20,30 @@ export async function logBookingActivity(
   if (error) {
     logServerError("commercial-audit/booking_activity_log", error);
   }
+
+  // Mirror into the per-tenant Workspace Activity Log. The booking row is the
+  // cheapest source of the tenant id, but callers `await` this function, so
+  // that lookup is deferred past the response along with the insert. Skips
+  // silently when the tenant can't be resolved (audit is best-effort).
+  scheduleWorkspaceAuditWith(async () => {
+    const { data: booking } = await supabase
+      .from("agency_bookings")
+      .select("tenant_id")
+      .eq("id", args.bookingId)
+      .maybeSingle();
+    const tenantId = (booking?.tenant_id as string | null) ?? null;
+    if (!tenantId) return null;
+    return {
+      tenantId,
+      category: "billing" as const,
+      action: `billing.${args.eventType}`,
+      summary: `Booking ${args.eventType.replace(/[._]/g, " ")}`,
+      actorUserId: args.actorUserId,
+      targetType: "booking",
+      targetId: args.bookingId,
+      metadata: { event_type: args.eventType },
+    };
+  }, `billing.${args.eventType}`);
 }
 
 /**
