@@ -4386,6 +4386,18 @@
       "rosterRatesFillAll": "Completar todos",
       "rosterRatesQuoteOnly": "Cotización a pedido",
       "rosterRatesSave": "Guardar tarifas",
+      "rosterRatesTalents": "talentos",
+      "rosterRatesWithRate": "con tarifa",
+      "rosterRatesNoRate": "sin tarifa",
+      "rosterRatesSearch": "Buscar talento…",
+      "rosterRatesNoMatches": "Ningún talento coincide con tu búsqueda.",
+      "rosterRatesApply": "Aplicar",
+      "rosterRatesWillCreate": "Al guardar se crea un servicio nuevo de \"Tarifa por día\"",
+      "rosterRatesNewBadge": "Nuevo",
+      "rosterRatesQuoteOnlyHint": "Lo define en su propio perfil, no se edita aquí",
+      "rosterRatesUnsaved": "cambios sin guardar",
+      "rosterRatesDiscard": "Descartar",
+      "rosterRatesCreatedNew": "servicios nuevos creados",
       "pricingDefaultsPerTalentPointer": "Fijar la tarifa de cada talento se hace junto al roster: Roster → Tarifas."
     },
     "adminOperations": {

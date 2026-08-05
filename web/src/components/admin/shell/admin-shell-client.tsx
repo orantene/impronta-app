@@ -264,6 +264,10 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "applications",
   // /<tenant>/admin/roster/registration — Tenant Registration Engine settings.
   (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "registration",
+  // /<tenant>/admin/roster/rates — bulk day-rate editor. Without this matcher
+  // the page rendered naked (no sidebar/top bar) with the SPA roster stacked
+  // behind it — same failure class the bookings/account matchers fixed.
+  (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "rates",
   // /talent/discover-agencies — apply-flow discovery page (L48). Talent-scoped
   // (no tenant slug — matched against the full segments because the platform
   // talent path starts with "talent").

@@ -182,6 +182,17 @@ export type RosterRateRow = {
   currency: string;
   /** True when the talent deliberately publishes "quote on request". */
   quoteOnly: boolean;
+  /**
+   * Title of the catalog row a save would edit (featured-first, else the
+   * cheapest priced public row) — shown so the operator knows WHICH service
+   * the number lands on. Null when the talent has no editable priced row.
+   */
+  targetTitle: string | null;
+  /**
+   * True when the talent has NO public catalog at all: saving a number here
+   * creates a standard "Day rate" service instead of silently doing nothing.
+   */
+  willCreate: boolean;
 };
 
 export type LoadRosterRatesResult =
@@ -189,5 +200,5 @@ export type LoadRosterRatesResult =
   | { ok: false; error: string };
 
 export type SaveRosterRatesResult =
-  | { ok: true; updated: number }
+  | { ok: true; updated: number; created: number }
   | { ok: false; error: string };

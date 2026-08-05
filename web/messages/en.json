@@ -4386,6 +4386,18 @@
       "rosterRatesFillAll": "Fill all",
       "rosterRatesQuoteOnly": "Quote on request",
       "rosterRatesSave": "Save rates",
+      "rosterRatesTalents": "talents",
+      "rosterRatesWithRate": "with a rate",
+      "rosterRatesNoRate": "without a rate",
+      "rosterRatesSearch": "Search talent…",
+      "rosterRatesNoMatches": "No talent matches your search.",
+      "rosterRatesApply": "Apply",
+      "rosterRatesWillCreate": "Saving creates a new \"Day rate\" service",
+      "rosterRatesNewBadge": "New",
+      "rosterRatesQuoteOnlyHint": "Set on their own profile, not editable here",
+      "rosterRatesUnsaved": "unsaved changes",
+      "rosterRatesDiscard": "Discard",
+      "rosterRatesCreatedNew": "new services created",
       "pricingDefaultsPerTalentPointer": "Setting a rate for individual talent lives with the roster: Roster → Rates."
     },
     "adminOperations": {

@@ -23,6 +23,9 @@
  * - a talent who deliberately publishes "quote on request" is reported as such
  *   and is SKIPPED by writes; the agency has to change that on the profile
  *   itself, not sweep over it from a bulk table
+ * - a talent with NO public catalog gets a standard "Day rate" service
+ *   CREATED on save (roster-membership re-checked server-side) — the earlier
+ *   behaviour dropped the input silently while reporting success
  * - amounts are bounded, so a fat-fingered 999999 can't publish
  *
  * Eslint note: `.from("agencies")` is the tenants table (its `id` IS the
@@ -52,6 +55,7 @@ import { pickHeadlinePrice } from "@/lib/directory/headline-price";
 type OfferingRow = {
   id: string;
   talent_profile_id: string;
+  title: string | null;
   amount_cents: number | null;
   currency: string | null;
   price_type: string;
@@ -61,6 +65,30 @@ type OfferingRow = {
   moderation_state: string;
   visibility: string;
 };
+
+/** Priced public rows a bulk save may edit (quote/custom stay untouchable). */
+function pricedEditableRows(catalog: OfferingRow[]): OfferingRow[] {
+  return catalog.filter(
+    (o) =>
+      o.price_display !== "quote" &&
+      o.price_type !== "custom" &&
+      ["public", "on_request"].includes(o.visibility),
+  );
+}
+
+/**
+ * The row a save actually writes: featured first, else the cheapest — the
+ * same precedence the directory card uses, so editing the number here changes
+ * the number a visitor sees.
+ */
+function resolveSaveTarget(priced: OfferingRow[]): OfferingRow | null {
+  const featured = priced.filter((o) => o.is_featured === true);
+  return (
+    (featured.length > 0 ? featured : priced).sort(
+      (a, b) => (a.amount_cents ?? 0) - (b.amount_cents ?? 0),
+    )[0] ?? null
+  );
+}
 
 const changeSchema = z
   .object({
@@ -120,7 +148,7 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
     tenantId,
   )
     .select(
-      "id, talent_profile_id, amount_cents, currency, price_type, price_display, is_featured, status, moderation_state, visibility",
+      "id, talent_profile_id, title, amount_cents, currency, price_type, price_display, is_featured, status, moderation_state, visibility",
     )
     .in("talent_profile_id", ids)
     .eq("status", "published")
@@ -193,6 +221,7 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
           o.amount_cents == null ||
           o.amount_cents === 0,
       );
+    const target = resolveSaveTarget(pricedEditableRows(catalog));
     return {
       talentProfileId: id,
       displayName: names.get(id) ?? "Untitled",
@@ -200,6 +229,10 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
       headlineCents: headline?.amountCents ?? null,
       currency: headline?.currency ?? "USD",
       quoteOnly,
+      targetTitle: target?.title ?? null,
+      // No public catalog at all → a save CREATES a "Day rate" service.
+      // (Quote-only talents have public rows, so they can never hit this.)
+      willCreate: publicRows.length === 0,
     };
   });
 
@@ -250,7 +283,7 @@ export async function saveRosterRates(
     tenantId,
   )
     .select(
-      "id, talent_profile_id, amount_cents, currency, price_type, price_display, is_featured, status, moderation_state, visibility",
+      "id, talent_profile_id, title, amount_cents, currency, price_type, price_display, is_featured, status, moderation_state, visibility",
     )
     .in("talent_profile_id", ids)
     .eq("status", "published")
@@ -268,24 +301,82 @@ export async function saveRosterRates(
     byTalent.set(row.talent_profile_id, list);
   }
 
+  // Membership check for creates: only talents on THIS tenant's active roster
+  // may receive a new catalog row (mirrors the loadRosterRates population).
+  // The join also carries each talent's own default currency for created rows
+  // (their currency, not a tenant-wide assumption).
+  const { data: rosterRows } = await tenantScopedQuery(
+    admin,
+    "agency_talent_roster",
+    tenantId,
+  )
+    .select("talent_profile_id, talent_profiles ( default_currency )")
+    .in("talent_profile_id", ids)
+    .eq("status", "active")
+    .is("removed_at", null);
+  type RosterCurrencyJoin = {
+    talent_profile_id: string;
+    talent_profiles:
+      | { default_currency: string | null }
+      | { default_currency: string | null }[]
+      | null;
+  };
+  const currencies = new Map<string, string>();
+  for (const row of (rosterRows ?? []) as RosterCurrencyJoin[]) {
+    const tp = Array.isArray(row.talent_profiles)
+      ? row.talent_profiles[0]
+      : row.talent_profiles;
+    currencies.set(
+      row.talent_profile_id,
+      (tp?.default_currency ?? "USD").toUpperCase(),
+    );
+  }
+  const onRoster = new Set(currencies.keys());
+
   let updated = 0;
+  let created = 0;
   for (const change of parsed.data) {
     const catalog = byTalent.get(change.talentProfileId) ?? [];
-    const priced = catalog.filter(
-      (o) =>
-        o.price_display !== "quote" &&
-        o.price_type !== "custom" &&
-        ["public", "on_request"].includes(o.visibility),
+    const publicRows = catalog.filter((o) =>
+      ["public", "on_request"].includes(o.visibility),
     );
-    if (priced.length === 0) continue; // quote-only or no catalog → never overwritten
+    const priced = pricedEditableRows(catalog);
 
-    // Same precedence the card uses, so editing the number here changes the
-    // number a visitor sees: featured row first, else the cheapest bookable.
-    const featured = priced.filter((o) => o.is_featured === true);
-    const target =
-      (featured.length > 0 ? featured : priced).sort(
-        (a, b) => (a.amount_cents ?? 0) - (b.amount_cents ?? 0),
-      )[0] ?? null;
+    if (priced.length === 0) {
+      // Quote-only stays their call: they published services and deliberately
+      // withheld every number — a bulk table never overrides that.
+      if (publicRows.length > 0) continue;
+      if (!onRoster.has(change.talentProfileId)) continue;
+
+      // No public catalog at all. The old behaviour silently dropped the
+      // input (the admin saw "Saved" while nothing happened). Create the
+      // standard "Day rate" service instead — same defaults the storefront
+      // and directory already understand (published/public/approved).
+      // tenantScopedQuery forces tenant_id onto the inserted row.
+      const { error: insErr } = await tenantScopedQuery(
+        admin,
+        "talent_offerings",
+        tenantId,
+      ).insert({
+        talent_profile_id: change.talentProfileId,
+        kind: "service",
+        title: "Day rate",
+        title_i18n: { en: "Day rate", es: "Tarifa por día" },
+        price_type: "day",
+        price_display: "exact",
+        amount_cents: change.amountCents,
+        currency: currencies.get(change.talentProfileId) ?? "USD",
+        sort_order: 0,
+      });
+      if (insErr) {
+        logServerError("admin-roster-rates.insert", insErr);
+        return { ok: false, error: CLIENT_ERROR.update };
+      }
+      created += 1;
+      continue;
+    }
+
+    const target = resolveSaveTarget(priced);
     if (!target) continue;
 
     // tenantScopedQuery applies the tenant filter itself, so a row from
@@ -305,5 +396,5 @@ export async function saveRosterRates(
   }
 
   revalidatePath(`/${tenantSlug}`, "layout");
-  return { ok: true, updated };
+  return { ok: true, updated, created };
 }
