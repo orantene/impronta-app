@@ -9,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 
 // Non-exported on purpose — a "use server" file may only *export* async
 // functions. The drawer consumes this shape via return-type inference.
@@ -133,6 +134,14 @@ export async function inviteRosterTalent(
     const originDomain = (await headers()).get("host")?.toLowerCase() ?? null;
 
     // ── Insert agency_talent_roster — tenant-scoped (helper forces tenant_id) ─
+    // Exclusivity from the resolver, never the column defaults — see the note
+    // in admin/roster/new/actions.ts.
+    const exclusivity = await resolveExclusivityForRosterAdd(
+      admin,
+      scope.tenantId,
+      talentProfileId,
+    );
+
     const { error: rosterErr } = await tenantScopedQuery(
       admin,
       "agency_talent_roster",
@@ -145,6 +154,9 @@ export async function inviteRosterTalent(
       status: "active",
       agency_visibility: "roster_only",
       added_by: session.user.id,
+      is_primary: exclusivity.shouldBeExclusive,
+      exclusivity_status: exclusivity.exclusivityStatus,
+      exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
     });
     if (rosterErr) {
       logServerError("roster-invite/roster", rosterErr);
