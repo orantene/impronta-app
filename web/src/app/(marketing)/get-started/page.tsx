@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import Link from "next/link";
 import {
   MarketingContainer,
@@ -789,7 +790,7 @@ function ladderHighlights(slug: string): string[] {
         "Inquiry → offer → booking pipeline",
         "Email + in-app notifications",
         FREE_LINK_EXAMPLE,
-        "Up to 10 people profiles",
+        `Up to ${seatCapLabel("free")} people profiles`,
         "Hub discovery (opt-in)",
       ];
     case "studio":
@@ -797,7 +798,7 @@ function ladderHighlights(slug: string): string[] {
         "Everything in Free, plus:",
         `Optional branded host: ${STUDIO_LINK_EXAMPLE}`,
         "WhatsApp inquiry notifications",
-        "Up to 50 people profiles",
+        `Up to ${seatCapLabel("studio")} people profiles`,
         "Up to 3 seats",
         "Priority email routing",
       ];

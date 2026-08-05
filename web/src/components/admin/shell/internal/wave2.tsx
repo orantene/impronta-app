@@ -25,6 +25,7 @@
  */
 
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
+import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { useRouter } from "next/navigation";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
@@ -941,11 +942,12 @@ export function TenantSwitcherDrawer() {
   }
 
   // Default seat cap per plan tier when agencies.talent_seat_limit is null.
+  // Sourced from the canonical table so this fallback can never disagree
+  // with what the product enforces (it previously said studio=15,
+  // agency=50 while the DB enforced 50 / 200).
   function defaultSeatCap(tier: string): number | "∞" {
-    if (tier === "network") return "∞";
-    if (tier === "agency")  return 50;
-    if (tier === "studio")  return 15;
-    return 5; // free
+    const cap = seatCapForPlan(tier);
+    return cap === null ? "∞" : cap;
   }
 
   return (

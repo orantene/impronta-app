@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -124,7 +125,7 @@ export async function cancelSubscription(
 
     // Apply the plan change. Phase 8 (Stripe) will hook this to cancel_at_period_end
     // for paid → free transitions. For now agencies.plan_tier is direct.
-    const seatLimit = toPlan === "free" ? 5 : toPlan === "studio" ? 50 : toPlan === "agency" ? 200 : null;
+    const seatLimit = seatCapForPlan(toPlan);
     const { error: updateErr } = await admin
       .from("agencies")
       .update({
