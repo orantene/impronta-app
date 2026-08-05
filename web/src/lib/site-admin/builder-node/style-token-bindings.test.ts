@@ -46,10 +46,29 @@ describe("style-token-bindings: catalog", () => {
     ]) {
       assert.ok(keys.includes(expected), `catalog should include ${expected}`);
     }
-    // Every color binding carries a --token-* var + a hex fallback from the registry.
+    // Every color binding carries a `--token-*` projection var. Color-scope
+    // tokens project into two families: the page palette (`--token-color-*`)
+    // and the card-kit palette (`--token-card-*`).
+    //
+    // FIXTURE ROT FIX (B2, 2026-08-04) — this used to also assert every
+    // `fallback` matched /^#[0-9a-f]{3,6}$/i, which quarantined the file. The
+    // assertion was wrong, not the catalog: `tokens/registry.ts` documents
+    // `defaultValue: ""` as the DELIBERATE "no explicit value — follow the
+    // active background mode" sentinel (color.background, card.surface,
+    // card.name-color, card.muted, card.price-color). Pinning those to a hex
+    // is the documented white-paint trap: it forces a dark-mode / editorial-noir
+    // tenant onto a white canvas. So the real invariant is: a fallback is
+    // EITHER a hex OR the empty inherit sentinel — never anything else (a
+    // typo'd rgba/keyword default would still fail here).
     for (const t of STYLE_BINDABLE_COLOR_TOKENS) {
-      assert.match(t.cssVar, /^--token-color-/);
-      assert.match(t.fallback, /^#[0-9a-f]{3,6}$/i);
+      assert.match(t.cssVar, /^--token-(color|card)-/);
+      if (t.fallback !== "") assert.match(t.fallback, /^#[0-9a-f]{3,6}$/i);
+    }
+    // …and the inherit sentinel is not a free-for-all: at least the core page
+    // palette must still ship real hex defaults.
+    const byKey = new Map(STYLE_BINDABLE_COLOR_TOKENS.map((t) => [t.key, t]));
+    for (const pinned of ["color.primary", "color.ink", "color.surface-raised"]) {
+      assert.match(byKey.get(pinned)!.fallback, /^#[0-9a-f]{3,6}$/i);
     }
   });
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { BuilderNode } from "@/lib/site-admin/builder-node";
+import type { BuilderNode } from "./types";
 import {
   layerIconKeyForKind,
   resolveLayerDisplayName,

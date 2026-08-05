@@ -26,11 +26,18 @@
  * reads the same in the tree, the canvas chip, and the inspector.
  */
 
-import {
-  BUILDER_NODE_REGISTRY,
-  type BuilderNode,
-  type BuilderNodeKind,
-} from "@/lib/site-admin/builder-node";
+// TDZ-CYCLE GUARD (B3, the #971 incident class) — this file lives INSIDE the
+// `builder-node` package, so it must import its siblings DIRECTLY, never through
+// the package barrel `@/lib/site-admin/builder-node`. It used to pull the
+// RUNTIME value `BUILDER_NODE_REGISTRY` from the barrel; the barrel does not
+// re-export this module today, so no cycle existed yet — but the moment anyone
+// adds the mechanical `export * from "./freeform-layer-name"` line, the barrel
+// and this module form an intra-package VALUE cycle, `BUILDER_NODE_REGISTRY` is
+// in its temporal dead zone at module-eval time, and the chunk throws on load
+// (prod admin down, no build/type/lint gate catches it — that is exactly #971).
+// `builder-node-barrel-cycle-guard.static.test.ts` now fails on any re-entry.
+import { BUILDER_NODE_REGISTRY } from "./registry";
+import type { BuilderNode, BuilderNodeKind } from "./types";
 
 /** Max characters of derived text before we truncate with an ellipsis. */
 export const LAYER_NAME_MAX = 56;

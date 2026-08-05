@@ -1,3 +1,15 @@
+// Vitest-authored unit tests for the inspector's responsive-field-state helpers.
+//
+// ⚠️ PATH-CRITICAL: must live under web/test/ (vitest collects only
+// `test/**/*.test.tsx`).
+//
+// B2 (2026-08-04) — this file used to sit beside its source at
+// `src/components/edit-chrome/inspectors/responsive-field-state.test.ts`, where
+// the `tsx --test` builder lanes picked it up and it exploded with "Vitest
+// cannot be imported in a CommonJS module using require()". It was quarantined
+// rather than fixed. It is not broken — it was simply in the wrong runner's
+// tree. Moved here so it actually RUNS (under `npm run test:components`)
+// instead of being excluded; the assertions are unchanged.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,7 +19,7 @@ import {
   getPresentationOverrideDevice,
   getStyleOverrideDevice,
   patchFieldForDevice,
-} from "./responsive-field-state";
+} from "@/components/edit-chrome/inspectors/responsive-field-state";
 
 describe("responsive-field-state", () => {
   it("detects presentation override device", () => {

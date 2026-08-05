@@ -40,10 +40,26 @@ test("DEFAULT_PLATFORM_LOCALE is a member of PLATFORM_LOCALES", () => {
   assert.ok((PLATFORM_LOCALES as readonly string[]).includes(DEFAULT_PLATFORM_LOCALE));
 });
 
-test("isLocale narrows to PLATFORM_LOCALES", () => {
+// FIXTURE ROT FIX (B2, 2026-08-04) — these three subtests used to assert that
+// "fr" was REJECTED, i.e. that `isLocale` / `localeSchema` gated membership
+// against the hardcoded PLATFORM_LOCALES pair. That stopped being true when the
+// locale universe moved to the platform-admin `app_locales` registry:
+// `locales.ts` now documents PLATFORM_LOCALES as "NO LONGER a gate — kept for
+// fallbacks/tests" and both helpers validate BCP-47 SHAPE only, deferring
+// membership to the registry / the tenant's `supportedLocales`. So a real
+// language like "fr" or "pt-BR" MUST now pass, and the assertions were pinned
+// to the old contract. They are re-pointed at the contract that actually holds:
+// well-formed codes pass, malformed ones fail.
+test("isLocale accepts any well-formed BCP-47 code (membership lives in the registry)", () => {
   assert.equal(isLocale("en"), true);
   assert.equal(isLocale("es"), true);
-  assert.equal(isLocale("fr"), false);
+  // Registry-defined languages are valid shapes — no hardcoded allowlist.
+  assert.equal(isLocale("fr"), true);
+  assert.equal(isLocale("pt-BR"), true);
+  // Malformed / non-string values are still rejected.
+  assert.equal(isLocale("english"), false);
+  assert.equal(isLocale("e"), false);
+  assert.equal(isLocale("en_US"), false);
   assert.equal(isLocale(""), false);
   assert.equal(isLocale(null), false);
   assert.equal(isLocale(undefined), false);
@@ -52,9 +68,13 @@ test("isLocale narrows to PLATFORM_LOCALES", () => {
 
 // ---- locale schemas -------------------------------------------------------
 
-test("localeSchema rejects unknown locales", () => {
+test("localeSchema rejects malformed locale codes (shape, not membership)", () => {
   assert.equal(localeSchema.safeParse("en").success, true);
-  assert.equal(localeSchema.safeParse("fr").success, false);
+  assert.equal(localeSchema.safeParse("fr").success, true);
+  assert.equal(localeSchema.safeParse("pt-BR").success, true);
+  assert.equal(localeSchema.safeParse("english").success, false);
+  assert.equal(localeSchema.safeParse("e").success, false);
+  assert.equal(localeSchema.safeParse("en_US").success, false);
 });
 
 test("supportedLocalesSchema rejects empty array", () => {
@@ -127,10 +147,19 @@ test("identityFormSchema rejects duplicate supported locales", () => {
   assert.equal(r.success, false);
 });
 
-test("identityFormSchema rejects unknown locale code", () => {
+test("identityFormSchema rejects a malformed locale code", () => {
+  // See the isLocale note above: membership moved to the app_locales registry,
+  // so "fr" is now a legitimate entry. The schema still enforces BCP-47 shape.
+  assert.equal(
+    identityFormSchema.safeParse({
+      ...MIN_IDENTITY,
+      supportedLocales: ["en", "fr"],
+    }).success,
+    true,
+  );
   const r = identityFormSchema.safeParse({
     ...MIN_IDENTITY,
-    supportedLocales: ["en", "fr"],
+    supportedLocales: ["en", "english"],
   });
   assert.equal(r.success, false);
 });
