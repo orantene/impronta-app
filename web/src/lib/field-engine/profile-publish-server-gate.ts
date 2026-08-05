@@ -5,6 +5,7 @@ import {
   formatPublishBlockerError,
   isResolvedFieldPublishBlocking,
   validateProfileStatusTransition,
+  type ProfilePublishRequirement,
 } from "@/lib/field-engine/profile-publish-requirements";
 import { resolveTalentFields } from "@/lib/field-engine/resolve-talent-fields";
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
@@ -142,6 +143,31 @@ async function loadPublishRequirements(input: {
     resolverMissing,
   });
   return { snapshot, requirements };
+}
+
+/**
+ * Server-computed publish requirements for a talent — the SAME list the
+ * publish gate enforces, exposed so the drawer's coach can reconcile with it.
+ * The drawer computes requirements from its local editing state for instant
+ * feedback; this is the authority (DB rows, resolver, tenant scoping). Any
+ * item the server says is missing that the client thinks is met is real
+ * drift the admin needs to see BEFORE clicking Publish, not after.
+ */
+export async function getServerPublishRequirements(input: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  talentProfileId: string;
+}): Promise<
+  | { ok: true; requirements: ProfilePublishRequirement[]; deleted: boolean }
+  | { ok: false; error: string }
+> {
+  try {
+    const { snapshot, requirements } = await loadPublishRequirements(input);
+    return { ok: true, requirements: [...requirements], deleted: !!snapshot.profile.deleted_at };
+  } catch (error) {
+    logServerError("profile-publish-server-gate.requirements", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
 }
 
 /**

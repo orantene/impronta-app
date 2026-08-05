@@ -469,17 +469,18 @@ export function computeProfileDiff(before: ProfileState | null, after: ProfileSt
 // #8 — Publish celebration modal. Pops the moment a profile goes live;
 // gives the admin a share toolkit (copy link / QR / IG-story / PDF).
 
-export function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, onCopyLink, onShare }: {
+export function PublishCelebrationModal({ stageName, slug, tenantSlug, profileUrl: profileUrlProp, onClose, onCopyLink, onShare }: {
   stageName: string;
   slug: string;
   tenantSlug: string;
+  profileUrl?: string; // REAL public URL (host + /t/<code>); slug fallback fabricates a non-route
   onClose: () => void;
   onCopyLink: () => void;
   onShare: () => void;
 }) {
   const { toast } = useAdminShell();
   const copy = useDashboardText();
-  const profileUrl = `https://tulala.digital/${tenantSlug}/t/${slug}`;
+  const profileUrl = profileUrlProp ?? `https://tulala.digital/${tenantSlug}/t/${slug}`;
   // 2026 #8 — Web Share API. Triggers the native iOS / Android / desktop
   // share sheet (Messages, WhatsApp, AirDrop, Slack, etc). Falls back
   // to clipboard copy when the API isn't available (older browsers).

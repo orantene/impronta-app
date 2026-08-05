@@ -28,6 +28,7 @@ type RosterRow = {
     last_name: string | null;
     workflow_status: string | null;
     is_publicly_listed: boolean | null;
+    deleted_at: string | null;
     height_cm: number | null;
     user_id: string | null;
     is_discoverable: boolean | null;
@@ -167,6 +168,7 @@ export async function loadWorkspaceRosterForTenant(
           last_name,
           workflow_status,
           is_publicly_listed,
+          deleted_at,
           height_cm,
           user_id,
           is_discoverable,
@@ -195,6 +197,8 @@ export async function loadWorkspaceRosterForTenant(
     for (const row of rows) {
       const profile = row.talent_profiles;
       if (!profile) continue;
+      // Soft-deleted profiles stay off the roster (see data-bridge.ts note).
+      if (profile.deleted_at) continue;
       out.push({
         id: profile.id,
         name: deriveDisplayName(profile),
@@ -263,6 +267,7 @@ export const loadWorkspaceRosterLite = cache(async function loadWorkspaceRosterL
           home_city_text,
           workflow_status,
           user_id,
+          deleted_at,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, name_i18n )
@@ -290,6 +295,7 @@ export const loadWorkspaceRosterLite = cache(async function loadWorkspaceRosterL
         home_city_text: string | null;
         workflow_status: string | null;
         user_id: string | null;
+        deleted_at: string | null;
         talent_profile_taxonomy:
           | Array<{
               relationship_type: string | null;
@@ -303,6 +309,7 @@ export const loadWorkspaceRosterLite = cache(async function loadWorkspaceRosterL
     for (const row of ((data ?? []) as unknown as LiteRow[])) {
       const p = row.talent_profiles;
       if (!p) continue;
+      if (p.deleted_at) continue;
       if (p.workflow_status === "rejected") continue;
       const name =
         p.display_name?.trim()
@@ -379,6 +386,7 @@ export async function loadWorkspaceRosterEnriched(
           home_city_text,
           short_bio,
           user_id,
+          deleted_at,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, slug, name_i18n )
@@ -494,6 +502,7 @@ export async function loadWorkspaceRosterEnriched(
     for (const row of rows) {
       const profile = row.talent_profiles;
       if (!profile) continue;
+      if (profile.deleted_at) continue;
       const p = profile as typeof profile & {
         invitation_email?: string | null;
         home_city_text?: string | null;

@@ -27,7 +27,10 @@ import {
   resolveTenantTalentTypeTermId,
 } from "@/lib/talent-taxonomy-service";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
-import { applyProfileShellStatusWithPublishGate } from "@/lib/field-engine/profile-publish-server-gate";
+import {
+  applyProfileShellStatusWithPublishGate,
+  getServerPublishRequirements,
+} from "@/lib/field-engine/profile-publish-server-gate";
 import { mergeShellSocialAndEmbedded } from "@/lib/talent/profile-shell-drawer-persist";
 import {
   syncProfileShellDynFieldValues,
@@ -847,6 +850,42 @@ export async function commitTalentProfileShellAdmin(
     });
   }
   return { ok: true };
+}
+
+/** Server-authoritative publish readiness for the drawer's coach. Same code
+ *  path the publish gate enforces (DB rows, resolver, tenant scoping), so the
+ *  coach can show real blockers BEFORE the admin clicks Publish instead of
+ *  discovering them as a failed save. Staff roster scope. */
+export async function getTalentPublishReadiness(input: {
+  talent_profile_id: string;
+}): Promise<
+  | { ok: true; missing: Array<{ id: string; label: string; groupKey?: string }>; deleted: boolean }
+  | ErrResult
+> {
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { supabase, tenantId } = auth;
+
+  const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
+  if (!check.ok) return check;
+
+  const res = await getServerPublishRequirements({
+    supabase,
+    tenantId,
+    talentProfileId: input.talent_profile_id,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  return {
+    ok: true,
+    deleted: res.deleted,
+    missing: res.requirements
+      .filter((r) => !r.met)
+      .map((r) => ({
+        id: r.id,
+        label: r.label,
+        ...("groupKey" in r && r.groupKey ? { groupKey: r.groupKey } : {}),
+      })),
+  };
 }
 
 /** Hydrate profile-shell `dynFields` (staff roster scope). T3.2 — reads canonical

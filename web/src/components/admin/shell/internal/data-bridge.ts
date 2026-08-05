@@ -450,6 +450,7 @@ type RosterRow = {
     first_name: string | null;
     last_name: string | null;
     invitation_email: string | null;
+    deleted_at: string | null;
     workflow_status: string | null;
     is_publicly_hidden: boolean | null;
     height_cm: number | null;
@@ -857,6 +858,7 @@ export async function loadWorkspaceRosterForCurrentTenant(
           first_name,
           last_name,
           invitation_email,
+          deleted_at,
           workflow_status,
           is_publicly_hidden,
           height_cm,
@@ -903,6 +905,10 @@ export async function loadWorkspaceRosterForCurrentTenant(
     for (const row of rows) {
       const profile = row.talent_profiles;
       if (!profile) continue;
+      // A soft-deleted profile must not surface as an editable roster card —
+      // one did (deleted_at set at creation), and the admin could edit and
+      // even publish it while the public listing gate rightly refused it.
+      if (profile.deleted_at) continue;
       // Phase 2 — wire the talent's primary headshot to the roster card.
       // Falls back to the deterministic tint+initial primitive when no
       // approved+non-deleted media exists.
