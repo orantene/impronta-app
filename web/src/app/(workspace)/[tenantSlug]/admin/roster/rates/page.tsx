@@ -17,8 +17,11 @@ import { RosterRateCardEditor } from "@/components/admin/account/RosterRateCardE
 export const dynamic = "force-dynamic";
 
 export default function AdminRosterRatesPage() {
+  // Hosted INSIDE the workspace shell's <main> via the canonical-route
+  // matcher in admin-shell-client.tsx — the shell supplies page padding,
+  // so this wrapper only constrains width.
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-5xl">
       <RosterRateCardEditor />
     </div>
   );
