@@ -66,6 +66,7 @@ import {
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import { createBoundCmsPageAdapter } from "@/lib/site-admin/builder-core/adapters/cms-page-adapter";
 import { createBoundSiteShellAdapter } from "@/lib/site-admin/builder-core/adapters/site-shell-adapter";
+import { AdminQuickBar } from "./admin-quick-bar";
 import { EditPill } from "./edit-pill";
 import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
@@ -219,7 +220,21 @@ export function EditChrome({
     );
   }
 
-  if (!editActive) return <EditPill autoEnter={editIntent} />;
+  // Idle storefront, viewed by a credentialed member of THIS tenant: the quick
+  // bar answers "how do I get back to my workspace" (the Edit pill only ever
+  // answered "how do I edit this page"). Both are idle-only; the editor's own
+  // topbar replaces them once edit mode engages.
+  if (!editActive) {
+    return (
+      <>
+        <AdminQuickBar
+          workspaceSlug={workspaceMembershipSlug}
+          siteLabel={tenantSiteLabel}
+        />
+        <EditPill autoEnter={editIntent} />
+      </>
+    );
+  }
 
   if (previewMode) return <PreviewPill />;
 
