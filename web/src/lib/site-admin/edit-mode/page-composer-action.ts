@@ -31,6 +31,7 @@
 import { revalidateTag } from "next/cache";
 
 import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin/cache-tags";
@@ -141,6 +142,15 @@ export async function publishPageSnapshot(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+
+  // Capability gate. This action writes DIRECTLY rather than through a
+  // capability-checked `server/*` op: service-role writes bypass RLS entirely,
+  // and the RLS that does apply is `is_staff_of_tenant()`, which is role-blind
+  // (any active membership passes). So the membership ROLE has to be checked
+  // here, or a `viewer` can ship changes to the live site.
+  if (!(await userHasCapability("agency.site_admin.pages.publish", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to publish this page." };
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server is missing service-role credentials." };

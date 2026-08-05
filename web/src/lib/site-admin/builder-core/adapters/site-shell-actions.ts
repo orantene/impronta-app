@@ -23,6 +23,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { requireTenantScope } from "@/lib/saas/scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
@@ -204,6 +205,15 @@ export async function saveSiteShellRow(input: {
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
+  // Capability gate. This action writes DIRECTLY rather than through a
+  // capability-checked `server/*` op: service-role writes bypass RLS entirely,
+  // and the RLS that does apply is `is_staff_of_tenant()`, which is role-blind
+  // (any active membership passes). So the membership ROLE has to be checked
+  // here, or a `viewer` can ship changes to the live site.
+  if (!(await userHasCapability("agency.site_admin.pages.edit", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to edit the site shell." };
+  }
+
   // Server-trusted lock enforcement on the full-tree save — re-assert every
   // admin lock against the current blocks so a crafted client can't persist an
   // edit to a locked prop.
@@ -270,6 +280,15 @@ export async function publishSiteShellRow(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
+
+  // Capability gate. This action writes DIRECTLY rather than through a
+  // capability-checked `server/*` op: service-role writes bypass RLS entirely,
+  // and the RLS that does apply is `is_staff_of_tenant()`, which is role-blind
+  // (any active membership passes). So the membership ROLE has to be checked
+  // here, or a `viewer` can ship changes to the live site.
+  if (!(await userHasCapability("agency.site_admin.pages.publish", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to publish the site shell." };
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) {
@@ -382,6 +401,15 @@ export async function restoreSiteShellRevisionAction(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
+
+  // Capability gate. This action writes DIRECTLY rather than through a
+  // capability-checked `server/*` op: service-role writes bypass RLS entirely,
+  // and the RLS that does apply is `is_staff_of_tenant()`, which is role-blind
+  // (any active membership passes). So the membership ROLE has to be checked
+  // here, or a `viewer` can ship changes to the live site.
+  if (!(await userHasCapability("agency.site_admin.pages.edit", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to edit the site shell." };
+  }
 
   const admin = createServiceRoleClient();
   if (!admin) {

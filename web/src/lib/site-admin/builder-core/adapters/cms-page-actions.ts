@@ -20,6 +20,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { requireTenantScope } from "@/lib/saas/scope";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
@@ -150,6 +151,15 @@ export async function saveCmsFreeformPage(input: {
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
+  // Capability gate. This action writes DIRECTLY rather than through a
+  // capability-checked `server/*` op: service-role writes bypass RLS entirely,
+  // and the RLS that does apply is `is_staff_of_tenant()`, which is role-blind
+  // (any active membership passes). So the membership ROLE has to be checked
+  // here, or a `viewer` can ship changes to the live site.
+  if (!(await userHasCapability("agency.site_admin.pages.edit", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to edit this page." };
+  }
+
   // C1 — server-trusted lock enforcement on the full-tree save. Load the current
   // blocks and re-assert every admin lock so a crafted client can't persist an
   // edit to a locked prop (the inspector strip alone is bypassable).
@@ -235,6 +245,15 @@ export async function publishCmsFreeformPage(input: {
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
+  // Capability gate. This action writes DIRECTLY rather than through a
+  // capability-checked `server/*` op: service-role writes bypass RLS entirely,
+  // and the RLS that does apply is `is_staff_of_tenant()`, which is role-blind
+  // (any active membership passes). So the membership ROLE has to be checked
+  // here, or a `viewer` can ship changes to the live site.
+  if (!(await userHasCapability("agency.site_admin.pages.publish", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to publish this page." };
+  }
+
   const now = new Date().toISOString();
   const { data, error } = await auth.supabase
     .from("cms_pages")
@@ -285,6 +304,15 @@ export async function restoreCmsFreeformRevisionAction(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
+
+  // Capability gate. This action writes DIRECTLY rather than through a
+  // capability-checked `server/*` op: service-role writes bypass RLS entirely,
+  // and the RLS that does apply is `is_staff_of_tenant()`, which is role-blind
+  // (any active membership passes). So the membership ROLE has to be checked
+  // here, or a `viewer` can ship changes to the live site.
+  if (!(await userHasCapability("agency.site_admin.pages.edit", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to edit this page." };
+  }
 
   // 1. Read the revision's snapshot (scoped to tenant + page).
   const { data: rev, error: revErr } = await auth.supabase
