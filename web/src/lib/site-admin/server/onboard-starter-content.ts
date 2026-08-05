@@ -31,12 +31,13 @@ import { type SectionTypeKey, getSectionType } from "@/lib/site-admin/sections/r
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  resolveCasExpectedVersion,
   resolveFreeStarterRosterSeedCount,
+  shouldSkipFreeStarterHomepageSeed,
 } from "./onboard-starter-content-policy";
 import { publishSection, upsertSection } from "./sections";
 import {
   ensureHomepageRow,
-  loadHomepageForStaff,
   publishHomepage,
   saveHomepageDraftComposition,
 } from "./homepage";
@@ -277,6 +278,12 @@ async function seedFreeStarterRosterProfiles(params: {
           talent_profile_id: inserted.id,
           taxonomy_term_id: typeTermId,
           is_primary: true,
+          // REQUIRED. Omitting this defaults the column to 'attribute', which
+          // `validate_talent_profile_taxonomy_relationship` rejects for a
+          // talent_type term — so every seeded starter profile silently ended
+          // up with no role at all (blank type label on the storefront card,
+          // invisible to the directory's type facet).
+          relationship_type: "primary_role",
         });
       if (taxonomyError) {
         logServerError("onboardStarterContent.seedRoster.insertTaxonomy", taxonomyError);
@@ -289,29 +296,93 @@ async function seedFreeStarterRosterProfiles(params: {
   return seeded;
 }
 
+/**
+ * Count the slot rows already attached to a KNOWN page id.
+ *
+ * Deliberately keyed on `page_id` (which we already hold) rather than
+ * re-resolving the homepage row: the read-after-write hazard this file guards
+ * against is specific to re-finding `cms_pages`, not to reading its children.
+ */
+async function readHomepageSlotCounts(
+  client: SupabaseClient,
+  tenantId: string,
+  pageId: string,
+): Promise<{ draftSlotCount: number; liveSlotCount: number }> {
+  const { data, error } = await client
+    .from("cms_page_sections")
+    .select("is_draft")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", pageId);
+  if (error || !data) return { draftSlotCount: 0, liveSlotCount: 0 };
+  const rows = data as Array<{ is_draft: boolean | null }>;
+  return {
+    draftSlotCount: rows.filter((row) => row.is_draft === true).length,
+    liveSlotCount: rows.filter((row) => row.is_draft === false).length,
+  };
+}
+
+/**
+ * Re-read `cms_pages.version` for a KNOWN page id, immediately before a CAS.
+ *
+ * Returns null when the read is unavailable so the caller can fall back to the
+ * version it already holds instead of hard-failing.
+ */
+async function readHomepageVersion(
+  client: SupabaseClient,
+  tenantId: string,
+  pageId: string,
+): Promise<number | null> {
+  const { data, error } = await client
+    .from("cms_pages")
+    .select("version")
+    .eq("id", pageId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ version: number }>();
+  if (error || !data) return null;
+  return typeof data.version === "number" ? data.version : null;
+}
+
 async function seedFreeStarterHomepage(params: {
   client: SupabaseClient;
   tenantId: string;
   locale: Parameters<typeof ensureHomepageRow>[1]["locale"];
   actorProfileId: string;
+  /**
+   * The homepage row `ensureHomepageRow` just created or found.
+   *
+   * FIRST-RUN CONTRACT (do not reintroduce a `loadHomepageForStaff` call here):
+   * this function used to RE-READ the homepage over a second PostgREST
+   * round-trip immediately after `ensureHomepageRow` INSERTed it. That
+   * read-after-write returned null on every observed self-serve signup, so the
+   * seed bailed with HOME_NOT_FOUND and every brand-new workspace was left with
+   * a draft, section-less, roster-less homepage that rendered "No talent
+   * published yet". The row is passed in directly instead.
+   */
+  page: {
+    id: string;
+    status: string | null;
+    title: string | null;
+    version: number;
+  };
 }): Promise<
   | { ok: true; seeded: boolean; rosterSeededCount: number }
   | { ok: false; error: string }
 > {
-  const state = await loadHomepageForStaff(
+  const { page } = params;
+
+  const existingSlotCounts = await readHomepageSlotCounts(
     params.client,
     params.tenantId,
-    params.locale,
+    page.id,
   );
-  if (!state) {
-    return { ok: false, error: "HOME_NOT_FOUND" };
-  }
-
-  const hasExistingComposition =
-    state.draftSlots.length > 0 ||
-    state.liveSlots.length > 0 ||
-    state.page.status === "published";
-  if (hasExistingComposition) {
+  // Idempotence: the signup trampoline re-enters this on later logins.
+  if (
+    shouldSkipFreeStarterHomepageSeed({
+      pageStatus: page.status,
+      draftSlotCount: existingSlotCounts.draftSlotCount,
+      liveSlotCount: existingSlotCounts.liveSlotCount,
+    })
+  ) {
     return { ok: true, seeded: false, rosterSeededCount: 0 };
   }
 
@@ -386,14 +457,26 @@ async function seedFreeStarterHomepage(params: {
     return { ok: false, error: "FREE_STARTER_EMPTY" };
   }
 
+  // CAS #1 — re-read the version immediately before the write. `ensureHomepageRow`
+  // and the section seeding above are separate round-trips; the version we
+  // captured at ensure-time can already be stale by the time we get here.
+  const saveExpectedVersion = resolveCasExpectedVersion({
+    freshVersion: await readHomepageVersion(
+      params.client,
+      params.tenantId,
+      page.id,
+    ),
+    fallbackVersion: page.version,
+  });
+
   const saved = await saveHomepageDraftComposition(params.client, {
     tenantId: params.tenantId,
     values: {
       tenantId: params.tenantId,
       locale: params.locale,
-      expectedVersion: state.page.version,
+      expectedVersion: saveExpectedVersion,
       metadata: {
-        title: state.page.title?.trim() || "Homepage",
+        title: page.title?.trim() || "Homepage",
         metaDescription: undefined,
         introTagline: undefined,
         ogTitle: undefined,
@@ -410,12 +493,25 @@ async function seedFreeStarterHomepage(params: {
     return { ok: false, error: saved.code ?? "SAVE_STARTER_FAILED" };
   }
 
+  // CAS #2 — same treatment before the publish. The draft save inserted a
+  // revision row and bumped the page; re-read rather than trusting the version
+  // the save reported, so a concurrent/interleaved write cannot turn the seed
+  // into a VERSION_CONFLICT that leaves the workspace unpublished.
+  const publishExpectedVersion = resolveCasExpectedVersion({
+    freshVersion: await readHomepageVersion(
+      params.client,
+      params.tenantId,
+      page.id,
+    ),
+    fallbackVersion: saved.data.version,
+  });
+
   const publishedHomepage = await publishHomepage(params.client, {
     tenantId: params.tenantId,
     values: {
       tenantId: params.tenantId,
       locale: params.locale,
-      expectedVersion: saved.data.version,
+      expectedVersion: publishExpectedVersion,
     },
     actorProfileId: params.actorProfileId,
   });
@@ -490,6 +586,14 @@ export async function onboardStarterContent(
       tenantId: input.tenantId,
       locale,
       actorProfileId,
+      // Hand the just-ensured row straight over. See the `page` prop doc:
+      // re-reading it here is what broke every self-serve signup.
+      page: {
+        id: ensured.data.id,
+        status: ensured.data.status,
+        title: ensured.data.title,
+        version: ensured.data.version,
+      },
     });
     if (!seeded.ok) {
       return {

@@ -8,7 +8,10 @@ import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-c
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { isReservedSlug } from "@/lib/site-admin/reserved-routes";
 import { logServerError } from "@/lib/server/safe-error";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  createServiceRoleClient,
+  createUncachedServiceRoleClient,
+} from "@/lib/supabase/admin";
 import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
 import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import {
@@ -164,7 +167,15 @@ async function ensureWorkspaceScaffold(params: {
   displayName: string;
   actorProfileId: string;
 }): Promise<void> {
-  const admin = createServiceRoleClient();
+  // READ-AFTER-WRITE: this whole trampoline executes inside a Server Component
+  // render (`/onboarding/workspace`), where Next memoizes identical fetch GETs
+  // for the lifetime of the render. The starter seed INSERTs the homepage row
+  // and then re-reads it under the same PostgREST URL several times (its own
+  // read, plus the CAS reads inside saveHomepageDraftComposition and
+  // publishHomepage). With the memoized client every one of those reads got the
+  // pre-INSERT empty body — which is why 4/4 rehearsal signups shipped an
+  // unpublished, section-less storefront. See createUncachedServiceRoleClient.
+  const admin = createUncachedServiceRoleClient();
   if (!admin) return;
 
   const publicName = params.displayName.trim() || "New Workspace";

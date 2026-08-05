@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────
 import { useEffect, useState } from "react";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
+import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
 import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
@@ -4952,15 +4953,27 @@ export function mergeWebsiteStateFromBridge(
   live: WebsiteData,
   tenantSlug: string,
   teamMembers: TeamMember[] = [],
+  planTier: string | null = null,
 ): WebsiteState {
   const memberNameById = new Map(teamMembers.map((m) => [m.id, m.name]));
-  const host =
-    live.domainSummary.primaryHost ??
-    live.domainSummary.customDomainHost ??
-    live.domainSummary.subdomainHost ??
-    `${tenantSlug}.tulala.digital`;
+  // The Website hero prints this as the workspace's LIVE URL, with a green dot
+  // and a Copy button. It must therefore be an address that actually resolves.
+  // The old `?? \`${tenantSlug}.tulala.digital\`` fallback ignored both plan
+  // eligibility and whether any agency_domains row existed, so every Free
+  // workspace advertised a host that 404s "Host not registered".
+  const address = resolveWorkspaceLiveAddress({
+    slug: tenantSlug,
+    planTier,
+    domains: live.domainSummary,
+  });
+  const host = address.primaryHost;
 
+  // A path-hosted workspace (`tulala.digital/w/<slug>`) is served by the
+  // platform apex: always reachable, always TLS. A branded host is only as good
+  // as its agency_domains row.
+  const pathHosted = address.primaryKind === "path";
   const sslOk =
+    pathHosted ||
     live.domainSummary.primaryHostStatus === "active" ||
     live.domainSummary.primaryHostStatus === "ssl_provisioned" ||
     live.domainSummary.primaryHostStatus === "verified";
@@ -5031,7 +5044,9 @@ export function mergeWebsiteStateFromBridge(
     ...WEBSITE_STATE.domain,
     primaryDomain: host,
     status:
-      live.domainSummary.primaryHostStatus === "verified" || sslOk
+      pathHosted ||
+      live.domainSummary.primaryHostStatus === "verified" ||
+      sslOk
         ? "verified"
         : "pending",
     sslStatus: sslOk ? "active" : WEBSITE_STATE.domain.sslStatus,

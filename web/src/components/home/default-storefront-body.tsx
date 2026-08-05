@@ -1,7 +1,13 @@
+import Link from "next/link";
 import {
   loadDefaultStorefrontRoster,
   type DefaultStorefrontTalent,
 } from "@/lib/home/default-storefront-roster";
+import type { Locale } from "@/i18n/config";
+import { withLocalePath } from "@/i18n/pathnames";
+import { getPublicPathPrefix } from "@/lib/saas/scope";
+import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 
 /**
  * Data-driven *default* homepage body for an agency host that has not yet
@@ -22,6 +28,7 @@ export async function DefaultStorefrontBody({
   primaryColor,
   ctaLabel,
   ctaHref,
+  locale,
 }: {
   tenantId: string;
   brandName: string;
@@ -29,9 +36,33 @@ export async function DefaultStorefrontBody({
   primaryColor: string | null;
   ctaLabel: string;
   ctaHref: string;
+  locale: Locale;
 }) {
-  const talents: DefaultStorefrontTalent[] = await loadDefaultStorefrontRoster(tenantId);
+  const [talents, publicPathPrefix, cardDesign] = await Promise.all([
+    loadDefaultStorefrontRoster(tenantId),
+    getPublicPathPrefix(),
+    resolveCardDesign(tenantId),
+  ]);
   const heroBg = primaryColor?.trim() || "oklch(0.21 0.006 285)";
+
+  // Same href formula the directory and the home featured grid use:
+  // `/t/<profileCode>`, prefixed for path-hosted tenants (tulala.digital/w/<slug>)
+  // and locale-prefixed last. See `homeCardToCanonical` in featured-talent-section.
+  const profileHref = (talent: DefaultStorefrontTalent): string | null => {
+    const code = talent.profileCode?.trim();
+    if (!code) return null;
+    return withLocalePath(
+      prefixPublicHref(`/t/${encodeURIComponent(code)}`, publicPathPrefix),
+      locale,
+    );
+  };
+
+  // `directory.card.profile-popup` is a tenant-wide CEILING. "on" (default) →
+  // a soft <Link> so the `@modal/(.)t` intercepting route opens the profile in
+  // a popup, exactly as on /directory. "off" → a plain <a> full-page load,
+  // which defeats route interception (the server-side equivalent of the
+  // directory adapter's hard-navigation capture handler).
+  const popupDisabled = cardDesign.profilePopup === "off";
 
   return (
     <>
@@ -72,35 +103,63 @@ export async function DefaultStorefrontBody({
               className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
               role="list"
             >
-              {talents.map((talent) => (
-                <li key={talent.id} className="group">
-                  <div className="overflow-hidden rounded-xl bg-muted">
-                    {talent.thumb ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={talent.thumb}
-                        alt={talent.name}
-                        className="aspect-[3/4] w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex aspect-[3/4] w-full items-center justify-center bg-muted text-muted-foreground">
-                        <span className="text-3xl font-light" aria-hidden>
-                          {talent.name.slice(0, 1)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-2 px-0.5">
-                    <p className="truncate text-sm font-medium text-foreground">{talent.name}</p>
-                    {talent.primaryTypeLabel || talent.city ? (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {[talent.primaryTypeLabel, talent.city].filter(Boolean).join(" · ")}
+              {talents.map((talent) => {
+                const href = profileHref(talent);
+                // The card body is identical whether or not we can link it —
+                // only the wrapper element changes.
+                const body = (
+                  <>
+                    <div className="overflow-hidden rounded-xl bg-muted">
+                      {talent.thumb ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={talent.thumb}
+                          alt={talent.name}
+                          className="aspect-[3/4] w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex aspect-[3/4] w-full items-center justify-center bg-muted text-muted-foreground">
+                          <span className="text-3xl font-light" aria-hidden>
+                            {talent.name.slice(0, 1)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-2 px-0.5">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {talent.name}
                       </p>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
+                      {talent.primaryTypeLabel || talent.city ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {[talent.primaryTypeLabel, talent.city]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      ) : null}
+                    </div>
+                  </>
+                );
+
+                const linkClassName =
+                  "block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current";
+
+                return (
+                  <li key={talent.id} className="group">
+                    {href == null ? (
+                      body
+                    ) : popupDisabled ? (
+                      <a href={href} className={linkClassName}>
+                        {body}
+                      </a>
+                    ) : (
+                      <Link href={href} className={linkClassName}>
+                        {body}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}
