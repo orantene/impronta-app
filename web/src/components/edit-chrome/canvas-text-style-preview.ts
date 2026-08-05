@@ -10,8 +10,13 @@
  * the undone value, which reads as "undo does nothing".
  *
  * Every stamped property is therefore tracked so an authoritative tree change
- * (undo, redo, revision restore, conflict reload) can drop the preview layer
- * and let the rendered tree be the only source of truth again.
+ * (undo, redo, revision restore, conflict reload) can restore what the overlay
+ * hid and let the tree be the only source of truth again.
+
+ * Tracking deliberately survives the tree commit: a commit does not guarantee a
+ * repaint of the node. On a surface with no client canvas mounted for it the
+ * canvas is server-rendered and undo/redo skip the RSC refresh, so React never
+ * rewrites the property and the stamp is still the only thing on screen.
  */
 
 const STYLE_PREVIEW_KEYS: Record<string, string> = {
@@ -36,16 +41,29 @@ export function findBuilderNodeElement(nodeId: string): HTMLElement | null {
   );
 }
 
-/** CSS properties this module has stamped, per builder node id. */
-const stampedPreviewProps = new Map<string, Set<string>>();
+/**
+ * Properties this module has stamped, per builder node id, each mapped to the
+ * inline value that was underneath before the first stamp ("" when the property
+ * was not set inline at all).
+ *
+ * The preview is an OVERLAY, so undoing it means restoring what was beneath,
+ * not deleting the property. Deleting would also take the value React rendered
+ * from the tree, dropping the block to its theme default, which is a different
+ * wrong answer from the one this module exists to prevent.
+ */
+const stampedPreviewProps = new Map<string, Map<string, string>>();
 
-function trackStamped(nodeId: string, cssProperty: string): void {
+function trackStamped(el: HTMLElement, nodeId: string, cssProperty: string): void {
   let props = stampedPreviewProps.get(nodeId);
   if (!props) {
-    props = new Set<string>();
+    props = new Map<string, string>();
     stampedPreviewProps.set(nodeId, props);
   }
-  props.add(cssProperty);
+  // Only the FIRST stamp sees the pre-preview value; later stamps in the same
+  // burst would otherwise record an earlier preview as the "original".
+  if (!props.has(cssProperty)) {
+    props.set(cssProperty, el.style.getPropertyValue(cssProperty));
+  }
 }
 
 function expandMarginShorthand(el: HTMLElement, nodeId: string): void {
@@ -54,8 +72,8 @@ function expandMarginShorthand(el: HTMLElement, nodeId: string): void {
   for (const side of ["top", "right", "bottom", "left"]) {
     const property = `margin-${side}`;
     if (el.style.getPropertyValue(property)) continue;
+    trackStamped(el, nodeId, property);
     el.style.setProperty(property, "0");
-    trackStamped(nodeId, property);
   }
 }
 
@@ -73,7 +91,10 @@ export function clearCanvasTextStylePreview(nodeId?: string): void {
     if (!props) continue;
     const el = findBuilderNodeElement(id);
     if (el) {
-      for (const property of props) el.style.removeProperty(property);
+      for (const [property, originalValue] of props) {
+        if (originalValue) el.style.setProperty(property, originalValue);
+        else el.style.removeProperty(property);
+      }
     }
     stampedPreviewProps.delete(id);
   }
@@ -94,11 +115,11 @@ export function applyCanvasTextStylePreview(
     if (!cssKey) continue;
     const property = cssPropertyName(cssKey);
     if (value === undefined || value === null || value === "") {
+      trackStamped(el, nodeId, property);
       el.style.removeProperty(property);
-      stampedPreviewProps.get(nodeId)?.delete(property);
       continue;
     }
+    trackStamped(el, nodeId, property);
     el.style.setProperty(property, String(value));
-    trackStamped(nodeId, property);
   }
 }

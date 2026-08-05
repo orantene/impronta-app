@@ -85,6 +85,12 @@ export function useCanvasTextStylePatch({
     await patchRef.current(targetId, {
       style: mergeTopLevelStylePatch(prevStyle, patch),
     });
+    // NOTE: tracking is deliberately NOT released on commit. A committed patch
+    // does not guarantee a repaint of this node: on a surface with no client
+    // canvas mounted for it the canvas is server-rendered, and undo/redo skip
+    // the RSC refresh, so React never rewrites the property. The stamped value
+    // would then survive the undo and the canvas would keep showing the undone
+    // size. Tracking therefore lives until something authoritative clears it.
   }, []);
 
   /**

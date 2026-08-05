@@ -10,7 +10,7 @@ import {
  * The toolbar previews style tweaks by writing inline styles straight onto the
  * canvas DOM, outside React. When the committed tree carries no explicit value
  * for a previewed property — the common case, since the original value comes
- * from the theme — a re-render never touches that property, so the stamped
+ * from the theme, a re-render never touches that property, so the stamped
  * value outlives the tree it previewed. Undo then reverts the data while the
  * canvas keeps showing the undone value.
  *
@@ -62,10 +62,11 @@ function resetDom(): void {
   installDom();
 }
 
-test("clearing the preview removes stamped properties so the tree is authoritative again", () => {
+test("clearing an uncommitted preview restores the value that was underneath", () => {
   resetDom();
   const el = makeElement("node-1");
   elements.set("node-1", el);
+  el.declared.set("font-size", "12px"); // rendered by React from the tree
 
   applyCanvasTextStylePreview("node-1", { fontSize: "13px", align: "center" });
   assert.equal(el.declared.get("font-size"), "13px");
@@ -73,10 +74,33 @@ test("clearing the preview removes stamped properties so the tree is authoritati
 
   clearCanvasTextStylePreview();
 
+  // Restored, NOT deleted: deleting would drop the block to its theme default,
+  // which is a different wrong answer from the no-op-undo bug.
+  assert.equal(el.declared.get("font-size"), "12px");
   assert.equal(
-    el.declared.size,
-    0,
-    "an undone preview must not survive on the DOM — that is the no-op-undo bug",
+    el.declared.has("text-align"),
+    false,
+    "a property with nothing underneath is removed",
+  );
+});
+
+test("a committed patch still restores correctly: a commit does not repaint every surface", () => {
+  resetDom();
+  const el = makeElement("node-committed");
+  elements.set("node-committed", el);
+  el.declared.set("font-size", "12px"); // rendered from the tree
+
+  applyCanvasTextStylePreview("node-committed", { fontSize: "13px" });
+  // The patch commits to the tree. On a surface with no client canvas mounted
+  // for this node the canvas is server-rendered and undo/redo skip the RSC
+  // refresh, so React never rewrites the property: the stamp is still the only
+  // thing on screen. Tracking must therefore survive the commit.
+  clearCanvasTextStylePreview();
+
+  assert.equal(
+    el.declared.get("font-size"),
+    "12px",
+    "undo must land on the pre-edit value, not the stamped one and not the theme default",
   );
 });
 
@@ -108,6 +132,24 @@ test("clearing twice is a no-op and never throws", () => {
   assert.equal(el.declared.size, 0);
 });
 
+test("only the first stamp records the original - a burst cannot overwrite it", () => {
+  resetDom();
+  const el = makeElement("node-burst");
+  elements.set("node-burst", el);
+  el.declared.set("font-size", "12px");
+
+  applyCanvasTextStylePreview("node-burst", { fontSize: "13px" });
+  applyCanvasTextStylePreview("node-burst", { fontSize: "14px" });
+  applyCanvasTextStylePreview("node-burst", { fontSize: "15px" });
+  clearCanvasTextStylePreview();
+
+  assert.equal(
+    el.declared.get("font-size"),
+    "12px",
+    "the pre-preview value, not an intermediate preview, is what gets restored",
+  );
+});
+
 test("clearing only removes properties this module stamped", () => {
   resetDom();
   const el = makeElement("node-3");
@@ -121,22 +163,25 @@ test("clearing only removes properties this module stamped", () => {
   assert.equal(el.declared.has("font-weight"), false);
 });
 
-test("a preview that clears a property stops tracking it", () => {
+test("a preview that clears a property is itself undone by clearing", () => {
   resetDom();
   const el = makeElement("node-4");
   elements.set("node-4", el);
+  el.declared.set("font-size", "18px"); // rendered by React from the tree
 
-  applyCanvasTextStylePreview("node-4", { fontSize: "18px" });
+  // The operator resets the field: the preview removes the property so the
+  // block shows its theme size immediately.
   applyCanvasTextStylePreview("node-4", { fontSize: undefined });
   assert.equal(el.declared.has("font-size"), false);
 
-  el.declared.set("font-size", "11px"); // now owned by the rendered tree
+  // Undo before the patch commits: the removal was only a preview, so the
+  // value it hid comes back.
   clearCanvasTextStylePreview();
 
   assert.equal(
     el.declared.get("font-size"),
-    "11px",
-    "clearing must not strip a value the tree rendered",
+    "18px",
+    "an uncommitted removal is an overlay too, and clearing restores what it hid",
   );
 });
 
