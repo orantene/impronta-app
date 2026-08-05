@@ -15,11 +15,20 @@ import { improntaLog } from "@/lib/server/structured-log";
  * from the published snapshot and the shell falls back to the idle pill.
  *
  * Auth:
- *   - `requireSession`: must be super_admin or agency_staff
+ *   - `requireSession`: signed in. (The doc used to say "super_admin or
+ *     agency_staff" — that was the old global-app_role gate, removed in the
+ *     PR #995 sweep because it locked hybrid workspace owners out of their own
+ *     builder. Membership, not `profiles.app_role`, is the boundary.)
  *   - `requireTenantScope`: caller has a resolved tenant scope matching the
- *     host. The JWT's `tid` claim is set from this scope — middleware on the
- *     tenant host re-verifies, so a cross-tenant edit attempt would silently
- *     fail even if this guard were bypassed.
+ *     host — it fails closed without an `agency_memberships` row. The JWT's
+ *     `tid` claim is set from this scope — middleware on the tenant host
+ *     re-verifies, so a cross-tenant edit attempt would silently fail even if
+ *     this guard were bypassed.
+ *   - `agency.site_admin.pages.edit` on that resolved tenant: the SAME
+ *     capability `EditChromeMount` uses to decide whether to render the Edit
+ *     pill at all. Without it the entry point and the action disagreed — a
+ *     `viewer`-role member saw no pill but could still POST this action
+ *     directly and mint a preview JWT for the tenant's unpublished drafts.
  */
 
 import { cookies } from "next/headers";
@@ -27,6 +36,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { requireTenantScope } from "@/lib/saas";
 import {
   PREVIEW_COOKIE_OPTIONS,
@@ -70,7 +80,7 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
     });
     return {
       ok: false,
-      error: "You need to be signed in as staff to enter edit mode.",
+      error: "You need to be signed in to your workspace to enter edit mode.",
     };
   }
   const scope = await requireTenantScope().catch(() => null);
@@ -79,6 +89,17 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
     return {
       ok: false,
       error: "Pick an agency workspace before opening the editor.",
+    };
+  }
+  // Same capability EditChromeMount gates the pill on, so the entry point and
+  // the action it fires can never disagree (see the AUTH note above).
+  if (!(await userHasCapability("agency.site_admin.pages.edit", scope.tenantId))) {
+    void improntaLog("site_admin_edit_mode.warn", {
+      message: "[edit-mode] enter denied: membership role lacks pages.edit",
+    });
+    return {
+      ok: false,
+      error: "Your workspace role doesn't include editing the site.",
     };
   }
 

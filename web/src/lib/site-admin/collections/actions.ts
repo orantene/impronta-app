@@ -1,12 +1,20 @@
 "use server";
 
 /**
- * Wave 5A (job #36) — staff-gated server actions for operator content
- * collections. Each action authenticates agency staff AND resolves the active
- * tenant via {@link requireStaffTenantAction} (the canonical guard used across
- * the CMS), then mutates `cms_collections` / `cms_collection_items` through the
+ * Wave 5A (job #36) — member-gated server actions for operator content
+ * collections. Each action resolves the active tenant via
+ * {@link requireStaffTenantAction} (the canonical guard used across the CMS),
+ * then mutates `cms_collections` / `cms_collection_items` through the
  * authenticated client (RLS-enforced). Validation is app-side via the pure
  * normalizers in ./types.
+ *
+ * Capability grading (2026-08-04, follow-up to PR #995): the guard's DEFAULT
+ * capability is `agency.workspace.view`, which every membership role from
+ * `viewer` up holds. That is right for the two reads, but the mutations write
+ * content that reaches the live site and RLS (`is_staff_of_tenant`) does not
+ * distinguish membership roles — so each mutation asks for
+ * `agency.site_admin.pages.edit` (editor and above) explicitly. Before #995 the
+ * global `requireStaff()` app_role gate was doing this job by accident.
  *
  * Surface: create / list / rename / delete a collection, replace its field
  * schema, and add / update / delete / reorder its rows. Returns discriminated
@@ -104,7 +112,9 @@ export async function createCollectionAction(input: {
   description?: string;
   fields?: ReadonlyArray<{ key?: string; label: string; type: string }>;
 }): Promise<CollectionActionResult<ContentCollection>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireStaffTenantAction({
+    capability: "agency.site_admin.pages.edit",
+  });
   if (!guard.ok) return fail(guard.error);
 
   const name = input.name?.trim().slice(0, COLLECTION_NAME_MAX);
@@ -171,7 +181,9 @@ export async function updateCollectionAction(input: {
   description?: string | null;
   fields?: ReadonlyArray<{ key?: string; label: string; type: string }>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireStaffTenantAction({
+    capability: "agency.site_admin.pages.edit",
+  });
   if (!guard.ok) return fail(guard.error);
 
   const patch: Record<string, unknown> = { updated_by: guard.user.id };
@@ -213,7 +225,9 @@ export async function updateCollectionAction(input: {
 export async function deleteCollectionAction(input: {
   collectionId: string;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireStaffTenantAction({
+    capability: "agency.site_admin.pages.edit",
+  });
   if (!guard.ok) return fail(guard.error);
   try {
     // Items cascade via the FK on delete.
@@ -252,7 +266,9 @@ export async function addCollectionItemAction(input: {
   collectionId: string;
   data?: Record<string, unknown>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireStaffTenantAction({
+    capability: "agency.site_admin.pages.edit",
+  });
   if (!guard.ok) return fail(guard.error);
   try {
     const fields = await loadCollectionFields(
@@ -298,7 +314,9 @@ export async function updateCollectionItemAction(input: {
   itemId: string;
   data: Record<string, unknown>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireStaffTenantAction({
+    capability: "agency.site_admin.pages.edit",
+  });
   if (!guard.ok) return fail(guard.error);
   try {
     const fields = await loadCollectionFields(
@@ -326,7 +344,9 @@ export async function updateCollectionItemAction(input: {
 export async function deleteCollectionItemAction(input: {
   itemId: string;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireStaffTenantAction({
+    capability: "agency.site_admin.pages.edit",
+  });
   if (!guard.ok) return fail(guard.error);
   try {
     const { error } = await guard.supabase
@@ -347,7 +367,9 @@ export async function reorderCollectionItemsAction(input: {
   collectionId: string;
   orderedItemIds: ReadonlyArray<string>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireStaffTenantAction({
+    capability: "agency.site_admin.pages.edit",
+  });
   if (!guard.ok) return fail(guard.error);
   try {
     // Apply the new sort_order one update per item, all tenant + collection
