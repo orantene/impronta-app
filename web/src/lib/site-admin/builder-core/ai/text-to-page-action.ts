@@ -19,6 +19,8 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
+import { requireTenantScope } from "@/lib/saas";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,
@@ -119,6 +121,18 @@ export async function composePageFromBriefAction(input: {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
+  // Real workspace scope from the actor's OWN memberships. `requireSession()`
+  // alone admitted any signed-in account, membership or not, and this action
+  // had NO tenant spend gate at all, so per-workspace caps and RPM limits never
+  // applied to "Compose with AI".
+  let tenantId: string;
+  try {
+    const scope = await requireTenantScope();
+    tenantId = scope.tenantId;
+  } catch {
+    return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };
+  }
+
   const limit = checkRate(auth.user.id);
   if (!limit.ok) {
     const minutes = Math.ceil((limit.remainingMs ?? 0) / 60000);
@@ -132,6 +146,16 @@ export async function composePageFromBriefAction(input: {
   // Only attempt the model seam when a provider is actually connected, so a
   // no-key environment skips the call entirely and stays fast/deterministic.
   const useModel = await isResolvedAiChatConfigured().catch(() => false);
+
+  // Tenant spend cap / RPM, checked BEFORE the paid ranking call. Only when a
+  // model is actually in play — the deterministic preset path costs nothing and
+  // must stay available even for a workspace that is over its cap.
+  if (useModel) {
+    const gate = await assertAiInvocationAllowed(tenantId);
+    if (!gate.ok) {
+      return { ok: false, error: gate.message, code: gate.code.toUpperCase() };
+    }
+  }
 
   const result = await composePageFromBrief({
     brief: input.brief,

@@ -16,6 +16,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
+import { requireTenantScope } from "@/lib/saas";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,
@@ -61,7 +62,12 @@ function checkRate(userId: string): { ok: boolean; remainingMs?: number } {
 type UsageEntry = { provider: string; model: string; usage: AiUsage | undefined; latencyMs: number };
 
 /** Record the whole revise (incl. a retry) as ONE usage row — mirrors the generate action. */
-function recordReviseUsageOnce(sink: UsageEntry[], actorProfileId: string | null, ok: boolean): void {
+function recordReviseUsageOnce(
+  sink: UsageEntry[],
+  actorProfileId: string | null,
+  ok: boolean,
+  tenantId: string,
+): void {
   if (sink.length === 0) return;
   const inTok = sink.reduce((s, e) => s + (e.usage?.inputTokens ?? 0), 0);
   const outTok = sink.reduce((s, e) => s + (e.usage?.outputTokens ?? 0), 0);
@@ -74,6 +80,7 @@ function recordReviseUsageOnce(sink: UsageEntry[], actorProfileId: string | null
     ok,
     scope: "revise",
     latencyMs,
+    tenantId,
   });
 }
 
@@ -140,6 +147,19 @@ export async function reviseBuilderNodeAction(input: {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
+  // Real workspace scope, resolved from the actor's OWN memberships. Doubles as
+  // the membership gate (`requireSession()` alone admitted any signed-in
+  // account, membership or not) and as the cost-attribution key for the spend
+  // cap / RPM gate and usage roll-up below, both of which used to bill a single
+  // hard-coded global tenant.
+  let tenantId: string;
+  try {
+    const scope = await requireTenantScope();
+    tenantId = scope.tenantId;
+  } catch {
+    return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };
+  }
+
   const node = parseSelectedNode(input.nodeJson);
   if (!node) return { ok: false, error: "That block could not be read.", code: "UNREADABLE_NODE" };
 
@@ -158,7 +178,7 @@ export async function reviseBuilderNodeAction(input: {
     };
   }
 
-  const gate = await assertAiInvocationAllowed();
+  const gate = await assertAiInvocationAllowed(tenantId);
   if (!gate.ok) {
     return { ok: false, error: gate.message, code: gate.code.toUpperCase() };
   }
@@ -173,7 +193,7 @@ export async function reviseBuilderNodeAction(input: {
     themePolarity,
     generateWithModel: buildModelGenerator(model, usageSink),
   });
-  recordReviseUsageOnce(usageSink, auth.user.id, revised.ok);
+  recordReviseUsageOnce(usageSink, auth.user.id, revised.ok, tenantId);
 
   if (revised.ok) {
     return { ok: true, node: revised.node, nodeCount: revised.nodeCount, source: "model" };

