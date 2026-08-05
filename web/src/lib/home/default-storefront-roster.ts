@@ -22,6 +22,14 @@ import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridg
 export type DefaultStorefrontTalent = {
   id: string;
   name: string;
+  /**
+   * `talent_profiles.profile_code` — the ONLY key the public `/t/[profileCode]`
+   * route accepts. Without it the default-storefront grid could not link to a
+   * profile at all, which is exactly why those cards used to render as dead
+   * text. Null when the row somehow has no code; the card then degrades to a
+   * non-link (never a broken href).
+   */
+  profileCode: string | null;
   primaryTypeLabel: string | null;
   city: string | null;
   thumb: string | null;
@@ -41,6 +49,7 @@ const ROSTER_SELECT = `
         talent_profile_id,
         talent_profiles!talent_profile_id (
           id,
+          profile_code,
           display_name,
           first_name,
           last_name,
@@ -87,6 +96,7 @@ type RawRosterRow = {
   status: string;
   talent_profiles: {
     id: string;
+    profile_code: string | null;
     display_name: string | null;
     first_name: string | null;
     last_name: string | null;
@@ -154,6 +164,7 @@ async function mapRosterRows(
     return {
       id: p.id,
       name,
+      profileCode: p.profile_code?.trim() || null,
       primaryTypeLabel: primaryTypeLabel ?? null,
       city: city ?? null,
       thumb: thumbMap.get(p.id) ?? null,

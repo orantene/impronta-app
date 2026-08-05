@@ -409,6 +409,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
               primaryColor={publicBranding?.primary_color ?? null}
               ctaLabel={defaultCtaLabel}
               ctaHref={defaultCtaHref}
+              locale={locale}
             />
           )}
 

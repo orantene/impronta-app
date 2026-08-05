@@ -10,6 +10,12 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { devSetTalentPlanTierForSelfAction } from "@/lib/talent-site/server/dev-plan";
+// Client-safe (no `server-only`): resolves the workspace's REAL public address
+// from plan tier + live agency_domains rows instead of synthesizing a host.
+import {
+  workspaceLiveCustomDomain,
+  workspaceLiveHost,
+} from "@/lib/saas/workspace-live-url";
 import { createTranslator } from "@/i18n/messages";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import type { ToastTone } from "../primitives";
@@ -1961,9 +1967,10 @@ export function AdminShellProvider({
   // Computed from the bridge in production; falls back to the TENANT mock
   // in standalone prototype mode. Stable reference (memoised on bridgeTenantIdentity
   // which is itself derived from the stable initialBridgeData prop).
+  const bridgeDomainRegistry = initialBridgeData?.website?.domainSummary ?? null;
   const effectiveTenant = useMemo(() => {
     if (!bridgeTenantIdentity) return TENANT;
-    const { displayName, slug, kind } = bridgeTenantIdentity;
+    const { displayName, slug, kind, planTier } = bridgeTenantIdentity;
     const words = displayName.split(/\s+/u).filter(Boolean);
     const initials =
       ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? "")).toUpperCase() ||
@@ -1971,12 +1978,23 @@ export function AdminShellProvider({
     return {
       name: displayName,
       slug,
-      domain: `${slug}.tulala.digital`,
-      customDomain: `${slug}.com`,
+      // The workspace's REAL public address. Every admin surface that says
+      // "your storefront is live at …" reads this, so it must never be the old
+      // synthesized `${slug}.tulala.digital`: branded subdomains are paid AND
+      // require an agency_domains row, so on Free that host 404s "Host not
+      // registered". Free resolves to `tulala.digital/w/<slug>`.
+      domain: workspaceLiveHost({
+        slug,
+        planTier,
+        domains: bridgeDomainRegistry,
+      }),
+      // Only a genuinely live custom-domain row, never a fabricated
+      // `${slug}.com` placeholder.
+      customDomain: workspaceLiveCustomDomain(bridgeDomainRegistry),
       initials,
       entityType: (kind === "hub" ? "hub" : "agency") as EntityType,
     };
-  }, [bridgeTenantIdentity]);
+  }, [bridgeTenantIdentity, bridgeDomainRegistry]);
 
   // Bridge the real tenant slug and signed-in user id down to module-level
   // helpers in messages.tsx (togglePin/toggleManualUnread/archiveInquiry)
@@ -2033,9 +2051,19 @@ export function AdminShellProvider({
   const effectiveWebsiteState = useMemo(
     () =>
       bridgeWebsite != null
-        ? mergeWebsiteStateFromBridge(bridgeWebsite, bridgeTenantIdentity?.slug ?? "", effectiveTeamMembers)
+        ? mergeWebsiteStateFromBridge(
+            bridgeWebsite,
+            bridgeTenantIdentity?.slug ?? "",
+            effectiveTeamMembers,
+            bridgeTenantIdentity?.planTier ?? null,
+          )
         : WEBSITE_STATE,
-    [bridgeWebsite, bridgeTenantIdentity?.slug, effectiveTeamMembers],
+    [
+      bridgeWebsite,
+      bridgeTenantIdentity?.slug,
+      bridgeTenantIdentity?.planTier,
+      effectiveTeamMembers,
+    ],
   );
 
   // Payouts surface — pass-through bridge payload consumed by the in-shell
