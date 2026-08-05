@@ -11,6 +11,12 @@ import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 
 export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_CATALOG_TEXT,
+  // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
+  'Optional "Browse all services" style link under the grid.':
+    'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',
+  'Optional "See the full roster" style link under the grid.':
+    'Enlace opcional tipo "Ver el roster completo" debajo de la cuadrícula.',
+  "Optional, short support line": "Opcional, línea de apoyo breve",
   // ── Admin quick bar (idle storefront, credentialed member only) ────────
   "Workspace quick actions": "Acciones rápidas del espacio de trabajo",
   "Signed in to {site}": "Sesión iniciada en {site}",
@@ -555,7 +561,6 @@ export const ES_TEXT: Record<string, string> = {
   "Header alignment": "Alineación del encabezado",
   "Heading": "Título",
   "Headline": "Título",
-  "Hero": "Hero",
   "Hero Content": "Contenido del hero",
   "Hide details": "Ocultar detalles",
   "Horizontal rail": "Carrusel horizontal",
