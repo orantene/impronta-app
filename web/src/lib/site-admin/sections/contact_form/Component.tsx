@@ -1,3 +1,4 @@
+import { neutralizeFormAction } from "@/lib/saas/public-hrefs";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -122,7 +123,15 @@ export function ContactFormComponent({
     (action.trim() === "internal" ||
       action.trim() === "internal:auto" ||
       action.trim().startsWith("internal:"));
-  const formAction = useInternal ? "/api/cms/forms/submit" : action;
+  // SECURITY — the operator-supplied action reaches the DOM as `<form action>`,
+  // which navigates on submit exactly like an href navigates on click. Route it
+  // through the shared scheme allowlist so a persisted
+  // `javascript:`/`data:`/`vbscript:` action can never execute for a visitor,
+  // no matter how it reached the tree (JSON import, admin Duplicate, legacy
+  // rows, direct DB write) or which surface renders these props. The
+  // `internal…` sentinel is consumed by `useInternal` above and never lands
+  // here, so the allowlist is safe to apply unconditionally on this branch.
+  const formAction = useInternal ? "/api/cms/forms/submit" : neutralizeFormAction(action);
   const formMethod = useInternal ? "POST" : method;
 
   return (

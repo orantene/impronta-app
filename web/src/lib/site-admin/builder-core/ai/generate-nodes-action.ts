@@ -18,6 +18,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
+import { requireTenantScope } from "@/lib/saas";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,
@@ -84,6 +85,7 @@ function recordGenerationUsageOnce(
   actorProfileId: string | null,
   scope: GenerateScope,
   ok: boolean,
+  tenantId: string,
 ): void {
   if (sink.length === 0) return;
   const inTok = sink.reduce((s, e) => s + (e.usage?.inputTokens ?? 0), 0);
@@ -97,6 +99,7 @@ function recordGenerationUsageOnce(
     ok,
     scope,
     latencyMs,
+    tenantId,
   });
 }
 
@@ -182,6 +185,24 @@ export async function generateBuilderNodesAction(input: {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
+  // Resolve the caller's REAL workspace before anything paid happens. Two jobs:
+  //
+  //  1. Cost attribution — the tenant spend cap / RPM gate and the usage
+  //     roll-up below were charged to a hard-coded global tenant, so per-tenant
+  //     caps never applied to builder text generation.
+  //  2. Membership gate — `requireSession()` alone let ANY signed-in account,
+  //     including one with no workspace membership at all, drive Opus
+  //     generations up to the per-user hourly limit. `requireTenantScope()`
+  //     resolves only from the actor's own memberships, so a member-less
+  //     account now stops here. Same shape the image action already uses.
+  let tenantId: string;
+  try {
+    const scope = await requireTenantScope();
+    tenantId = scope.tenantId;
+  } catch {
+    return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };
+  }
+
   const limit = checkRate(auth.user.id);
   if (!limit.ok) {
     const minutes = Math.ceil((limit.remainingMs ?? 0) / 60000);
@@ -193,7 +214,7 @@ export async function generateBuilderNodesAction(input: {
   if (useModel) {
     // Tenant-level guardrails (monthly spend cap / request limits) — a hard cap
     // stops AI spend before the (paid) model call. No controls row = no-op.
-    const gate = await assertAiInvocationAllowed();
+    const gate = await assertAiInvocationAllowed(tenantId);
     if (!gate.ok) {
       return { ok: false, error: gate.message, code: gate.code.toUpperCase() };
     }
@@ -215,7 +236,7 @@ export async function generateBuilderNodesAction(input: {
       // this schema (every other actor_profile_id writer passes session.user.id).
       generateWithModel: buildModelGenerator(model, usageSink),
     });
-    recordGenerationUsageOnce(usageSink, auth.user.id, input.scope, generated.ok);
+    recordGenerationUsageOnce(usageSink, auth.user.id, input.scope, generated.ok, tenantId);
     if (generated.ok) {
       return {
         ok: true,

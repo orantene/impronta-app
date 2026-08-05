@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isSafeFormAction } from "@/lib/saas/public-hrefs";
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
 
@@ -77,8 +78,27 @@ export const contactFormSchemaV1 = z.object({
   intro: z.string().max(400).optional(),
   fields: z.array(fieldSchema).min(1).max(15),
   submitLabel: z.string().min(1).max(60).default("Send"),
-  /** Form action URL — Formspree, Netlify, custom API, mailto:. */
-  action: z.string().min(1).max(500),
+  /**
+   * Form action URL — Formspree, Netlify, custom API, mailto:, or the
+   * `internal` / `internal:auto` sentinel that routes to Tulala's own
+   * /api/cms/forms/submit.
+   *
+   * SECURITY: refined against the shared navigational-scheme allowlist. This
+   * value renders as `<form action>` on the PUBLIC published page, and a form
+   * action navigates on submit exactly like an href navigates on click — so
+   * `javascript:`/`data:`/`vbscript:` here is visitor-executed XSS on the
+   * shared *.tulala.digital apex (parent-scoped cookies = cross-tenant
+   * exposure). This refinement blocks the write; `neutralizeFormAction`
+   * blocks the render for anything already persisted.
+   */
+  action: z
+    .string()
+    .min(1)
+    .max(500)
+    .refine(isSafeFormAction, {
+      message:
+        "Use an https:// or relative form action (mailto:, tel: and sms: are also allowed).",
+    }),
   method: z.enum(["POST", "GET"]).default("POST"),
   /** Honeypot field name (hidden, must stay empty to submit). */
   honeypot: z.string().max(60).default("website"),
