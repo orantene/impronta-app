@@ -102,7 +102,7 @@ export function ContentTab({
           <InspectorNotice tone="info">
             {t("Content fields without breakpoint overrides show desktop values on")}{" "}
             {device === "tablet" ? t("Tablet") : t("Mobile")}.{" "}
-            {t("Use the viewport rail to hide this section on a device.")}
+            {t("Use the device rail to hide this section on a specific device.")}
           </InspectorNotice>
         ) : null}
         <Curated

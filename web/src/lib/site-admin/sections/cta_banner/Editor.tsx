@@ -174,7 +174,7 @@ export function CtaBannerEditor({
           {
             value: "minimal-band",
             label: "Minimal band",
-            hint: "Flat band — no image. Great for high-density pages.",
+            hint: "Flat band, no image. Great for high-density pages.",
             schematic: "band",
           },
         ]}

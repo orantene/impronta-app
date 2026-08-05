@@ -1190,7 +1190,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         {editingOverride ? (
@@ -1358,7 +1358,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
@@ -1413,7 +1413,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <ToggleRow
@@ -1480,7 +1480,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         {panels.length > 0 ? (
@@ -1534,7 +1534,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
@@ -1604,7 +1604,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
@@ -1655,7 +1655,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -1696,7 +1696,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -1767,7 +1767,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -1804,7 +1804,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset node
+            Reset block
           </button>
         </div>
         <div className="flex flex-col gap-1.5">

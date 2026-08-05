@@ -175,13 +175,13 @@ export function PublishPreflight({
         role="alert"
         aria-live="assertive"
         aria-atomic="true"
-        className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"
+        className="rounded-md border border-blue-500/40 bg-blue-500/10 p-3 text-xs text-blue-700 dark:text-blue-300"
       >
         <p className="m-0">Publish checks could not load: {error}</p>
         <button
           type="button"
           onClick={() => setRetryNonce((n) => n + 1)}
-          className="mt-1.5 inline-flex cursor-pointer items-center rounded border border-amber-500/60 bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-amber-800 hover:bg-white dark:bg-transparent dark:text-amber-200"
+          className="mt-1.5 inline-flex cursor-pointer items-center rounded border border-blue-500/60 bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-blue-800 hover:bg-white dark:bg-transparent dark:text-blue-200"
         >
           Retry checks
         </button>
@@ -234,7 +234,7 @@ export function PublishPreflight({
       <span
         aria-hidden
         className={`mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-          issue.severity === "error" ? "bg-rose-500" : "bg-amber-500"
+          issue.severity === "error" ? "bg-rose-500" : "bg-blue-500"
         }`}
       />
       <div className="min-w-0 flex-1">
@@ -245,7 +245,7 @@ export function PublishPreflight({
               Blocker
             </span>
           ) : (
-            <span className="rounded border border-amber-300/80 bg-amber-100/50 px-1 py-0 text-[9px] font-semibold leading-[1.2] text-amber-800 dark:text-amber-200">
+            <span className="rounded border border-blue-300/80 bg-blue-100/50 px-1 py-0 text-[9px] font-semibold leading-[1.2] text-blue-800 dark:text-blue-200">
               Advisory
             </span>
           )}
@@ -337,8 +337,8 @@ export function PublishPreflight({
         </div>
       ) : null}
       {warningIssues.length > 0 ? (
-        <div className="rounded-md border border-amber-300/70 bg-amber-50/40 p-2">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+        <div className="rounded-md border border-blue-300/70 bg-blue-50/40 p-2">
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
             Advisory, non-blocking ({warningIssues.length})
           </div>
           <ul className="flex flex-col gap-1.5 text-stone-800">

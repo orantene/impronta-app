@@ -7,7 +7,7 @@ export const siteFooterMeta: SectionMeta = {
   hasLiveData: true,
   label: "Site footer",
   description:
-    "The footer that wraps every page on this tenant — brand recap, link columns, social, legal copy. Edited as a section, published as part of the site shell.",
+    "The footer that wraps every page on this tenant: brand recap, link columns, social, legal copy. Edited as a section, published as part of the site shell.",
   // Footer is the only purpose that maps cleanly today.
   businessPurpose: "footer",
   /**

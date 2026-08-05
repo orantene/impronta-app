@@ -246,7 +246,7 @@ function DeviceCluster({
   return (
     <div
       role="radiogroup"
-      aria-label="Preview viewport"
+      aria-label="Preview device"
       style={{ display: "inline-flex", gap: 2 }}
     >
       <DeviceButton

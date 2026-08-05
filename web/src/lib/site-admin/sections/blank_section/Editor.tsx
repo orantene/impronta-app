@@ -15,7 +15,7 @@ export function BlankSectionEditor({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm leading-relaxed text-[color:var(--chrome-muted,rgba(36,41,66,0.72))]">
-        This section starts empty. Add elements from the navigator or canvas —
+        This section starts empty. Add blocks from the navigator or the canvas,
         blocks persist as real nodes on the builder tree (not props-only
         placeholders).
       </p>

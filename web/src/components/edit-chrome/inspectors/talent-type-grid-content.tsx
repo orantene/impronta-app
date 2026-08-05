@@ -202,14 +202,14 @@ export function TalentTypeGridContentInspector({
     <div ref={rootRef} className="flex flex-col gap-4">
       {focusLabel ? (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
-          {t("Editing selected canvas node:")} {focusLabel}
+          {t("Editing selected block:")} {focusLabel}
         </div>
       ) : null}
-      <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
+      <div className="rounded-lg border border-violet-300/70 bg-violet-50 p-3 text-violet-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">{t("V11 talent roster preset")}</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+            <p className="mt-0.5 text-xs leading-relaxed text-violet-800">
               {t("Applies the prototype rail: large featured pod, three-row card rail, image overlays, icons, descriptions, arrows, and See all link.")}
             </p>
           </div>
@@ -710,7 +710,7 @@ function ModePreview({ mode }: { mode: SourceMode }) {
       {mode === "manual" ? (
         <>
           <span className="h-7 w-5 rounded bg-stone-800" />
-          <span className="h-7 w-5 rounded bg-amber-500" />
+          <span className="h-7 w-5 rounded bg-violet-500" />
           <span className="h-7 w-5 rounded bg-stone-500" />
         </>
       ) : (

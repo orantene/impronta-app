@@ -49,7 +49,7 @@ export function HeadingLintBadge({
         className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-semibold ${
           tone === "error"
             ? "bg-rose-500/15 text-rose-700 dark:text-rose-300"
-            : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+            : "bg-blue-500/15 text-blue-700 dark:text-blue-300"
         }`}
         style={{ width: "fit-content", maxWidth: "100%", borderRadius: 0 }}
       >
@@ -71,7 +71,7 @@ export function HeadingLintBadge({
                 <span
                   aria-hidden
                   className={`mt-0.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                    iss.severity === "error" ? "bg-rose-500" : "bg-amber-500"
+                    iss.severity === "error" ? "bg-rose-500" : "bg-blue-500"
                   }`}
                 />
                 <Tag

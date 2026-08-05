@@ -19,6 +19,7 @@ import {
 import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
 
 import { CHROME } from "../kit";
+import { useEditorLocale } from "../use-editor-locale";
 
 export function GalleryStatusBadge({
   variant,
@@ -43,12 +44,13 @@ export function GalleryStatusBadge({
             color: CHROME.muted,
           };
 
+  const { t } = useEditorLocale();
   const label =
     variant === "connected"
-      ? "Connected"
+      ? t("Connected")
       : variant === "advanced"
-        ? "Advanced"
-        : "Soon";
+        ? t("Advanced")
+        : t("Soon");
 
   return (
     <span
@@ -90,6 +92,17 @@ export function GalleryCardCopy({
 }
 
 export function useGalleryCardState(item: AddGalleryItem) {
+  // FIX #7 (i18n) — the add-block gallery CHROME (tabs, search, headings) was
+  // already translated, but the 55 item CARDS were not: `item.label` and the
+  // short description came straight off the section `meta.ts` files with no
+  // `t()`, so a Spanish operator got a fully-Spanish frame around 55 English
+  // section names. Translating here covers every card surface at once (grid
+  // cards, section cards, list rows) because they all read this hook.
+  //
+  // `editorT` passes unknown strings through unchanged, so a section whose meta
+  // copy is not in the catalog still renders its English name rather than a
+  // blank card. Tenant-authored / connected-source items rely on that.
+  const { t } = useEditorLocale();
   const comingSoon = !isAddGalleryItemAvailable(item);
   const advanced = item.availability === "advanced-hidden";
   const connected =
@@ -97,13 +110,16 @@ export function useGalleryCardState(item: AddGalleryItem) {
     item.itemKind === "connected" ||
     Boolean(item.connectedSource);
   const draggable = galleryItemSupportsDrag(item);
-  const shortDescription = getAddGalleryCardShortDescription(item);
-  const infoTooltip = getAddGalleryCardInfoTooltip(item);
+  const rawTooltip = getAddGalleryCardInfoTooltip(item);
+  const label = t(item.label);
+  const shortDescription = t(getAddGalleryCardShortDescription(item));
+  const infoTooltip = rawTooltip ? t(rawTooltip) : undefined;
   return {
     comingSoon,
     advanced,
     connected,
     draggable,
+    label,
     shortDescription,
     infoTooltip,
   };

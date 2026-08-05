@@ -24,7 +24,7 @@ export function FaqAccordionEditor({
       [
         { question: "What's included in a booking?", answer: "All sessions include scouting, scheduling, and a single revision round." },
         { question: "How quickly can you respond?", answer: "Inquiries are answered within 24 business hours." },
-        { question: "Do you travel?", answer: "Yes — domestic and international, costs billed at cost." },
+        { question: "Do you travel?", answer: "Yes, domestic and international, costs billed at cost." },
       ],
     variant: initial.variant ?? "bordered",
     defaultOpen: initial.defaultOpen ?? -1,

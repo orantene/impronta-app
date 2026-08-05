@@ -192,7 +192,7 @@ export function HeroSearchEditor({
           <p className="text-[11px] text-stone-500">
             AI mode only functions if the action href points to a real,
             tenant-safe interpret endpoint. Otherwise it behaves as a plain
-            directory query — AI is never faked.
+            directory query. AI is never faked.
           </p>
         ) : null}
       </fieldset>
@@ -272,7 +272,7 @@ export function HeroSearchEditor({
         ) : (
           <input
             className={INPUT}
-            placeholder="value|label, comma-separated — e.g. 120+|talent, 3|markets"
+            placeholder="value|label, comma-separated, e.g. 120+|talent, 3|markets"
             value={(value.statItems ?? [])
               .map((s) => `${s.value}|${s.label}`)
               .join(", ")}

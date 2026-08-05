@@ -7,7 +7,10 @@
  * (it is re-exported there) so consumers never need to know about this file.
  */
 
+import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
+
 export const ES_TEXT: Record<string, string> = {
+  ...ES_SECTION_CATALOG_TEXT,
   // ── Topbar — page picker ──────────────────────────────────────────────
   Rename: "Renombrar",
   "Click to switch page · double-click to rename":
@@ -517,7 +520,7 @@ export const ES_TEXT: Record<string, string> = {
   "Drag to reorder. First image sets the hero tile in mosaic view.": "Arrastra para reordenar. La primera imagen define la ficha principal en la vista de mosaico.",
   "Duplicate item": "Duplicar elemento",
   "Edit selection": "Editar selección",
-  "Editing selected canvas node:": "Editando el nodo del lienzo seleccionado:",
+  "Editing selected block:": "Editando el bloque seleccionado:",
   "Editorial portrait tiles with optional image + icon overlay.": "Fichas verticales editoriales con imagen y superposición de icono opcionales.",
   "Empty state text": "Texto de estado vacío",
   "Empty, won't appear on page": "Vacío, no aparecerá en la página",
@@ -700,7 +703,7 @@ export const ES_TEXT: Record<string, string> = {
   "Trust strip headline": "Título de la franja de confianza",
   "Typography": "Tipografía",
   "Uniform card grid": "Cuadrícula uniforme de tarjetas",
-  "Use the viewport rail to hide this section on a device.": "Usa la barra de vista previa para ocultar esta sección en un dispositivo.",
+  "Use the device rail to hide this section on a specific device.": "Usa la barra de dispositivos para ocultar esta sección en un dispositivo específico.",
   "Uses the tenant directory-card family and normal header.": "Usa la familia de tarjetas del directorio del tenant y el encabezado normal.",
   "V11 noir": "V11 noir",
   "V11 rail": "Carrusel V11",
@@ -723,4 +726,6 @@ export const ES_TEXT: Record<string, string> = {
   "wide": "ancho",
   "tall": "vertical",
   "square": "cuadrado",
+  // Gallery card status badges.
+  Soon: "Pronto",
 };

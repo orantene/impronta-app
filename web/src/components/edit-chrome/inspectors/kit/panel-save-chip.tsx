@@ -58,8 +58,8 @@ export function PanelSaveChip({ dirty, saving, error }: PanelSaveChipProps) {
   }
   if (dirty) {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-        <span className="size-1.5 rounded-full bg-amber-500" />
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+        <span className="size-1.5 rounded-full bg-blue-500" />
         Pending
       </span>
     );
@@ -106,8 +106,8 @@ export function InspectorDraftStatus({
   }
   if (dirty) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700">
-        <span className="size-1.5 rounded-full bg-amber-500" aria-hidden />
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-blue-700">
+        <span className="size-1.5 rounded-full bg-blue-500" aria-hidden />
         Unsaved changes
       </span>
     );

@@ -17,7 +17,7 @@ const VARIANTS: ReadonlyArray<{
 }> = [
   { value: "icon-row", label: "Icon row", hint: "Serif italic numerals (01 / 02 / 03)." },
   { value: "metrics-row", label: "Metrics row", hint: "Big stat + caption per item." },
-  { value: "logo-row", label: "Logo row", hint: "Italic serif names — press / client strip." },
+  { value: "logo-row", label: "Logo row", hint: "Italic serif names. Press / client strip." },
 ];
 
 const BACKGROUNDS: ReadonlyArray<{

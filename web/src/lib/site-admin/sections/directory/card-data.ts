@@ -72,4 +72,4 @@ export type DirectoryCardData = {
 
 /** Ratified fallback string (Discover spec §5.4 / acceptance AV-2). */
 export const AVAILABILITY_UNKNOWN =
-  "Availability unknown — ask to confirm";
+  "Availability unknown, ask to confirm";

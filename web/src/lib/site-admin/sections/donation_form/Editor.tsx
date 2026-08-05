@@ -16,7 +16,7 @@ export function DonationFormEditor({ initial, onChange, tenantId }: SectionEdito
     allowCustom: initial.allowCustom ?? true,
     checkoutUrl: initial.checkoutUrl ?? "https://buy.stripe.com/your-link",
     ctaLabel: initial.ctaLabel ?? "Donate",
-    trustNote: initial.trustNote ?? "Powered by Stripe — secure encrypted checkout.",
+    trustNote: initial.trustNote ?? "Powered by Stripe. Secure encrypted payment.",
     presentation: initial.presentation,
   };
   return (

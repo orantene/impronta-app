@@ -7,7 +7,7 @@ export const locationDiscoveryMeta: SectionMeta = {
   hasLiveData: true,
   label: "Location discovery",
   description:
-    "Markets/cities block — manual locations or tenant-roster-derived cities with optional counts and directory links. Theme-neutral; zero-data safe.",
+    "Markets/cities block: manual locations, or tenant-roster-derived cities with optional counts and directory links. Theme-neutral; zero-data safe.",
   businessPurpose: "feature",
   visibleToAgency: true,
   category: "showcase",

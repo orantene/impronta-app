@@ -263,7 +263,7 @@ export function BrandTab({ config, patch, tenantId }: Props) {
                 }
               />
               {invalid ? (
-                <p className="m-0 text-[11px] leading-4 text-amber-700">
+                <p className="m-0 text-[11px] leading-4 text-blue-700">
                   {field.invalidMessage} Invalid values are hidden from the
                   live header.
                 </p>

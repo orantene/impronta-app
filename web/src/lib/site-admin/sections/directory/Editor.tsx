@@ -496,7 +496,7 @@ export function DirectoryEditor({
             // broken product. They stay in the schema enum (DirectoryV1) so any
             // older saved value still validates; re-add a row here when built.
             options={[
-              { value: "atelier", label: "Atelier — editorial gallery" },
+              { value: "atelier", label: "Atelier (editorial gallery)" },
             ]}
           />
           <FieldToggle
@@ -788,7 +788,7 @@ export function DirectoryEditor({
             onChange={(v) => set("sidebarDefaultCollapsed", v)}
           />
           <p className={HELP}>
-            Visitors expand only the filters they care about — keeps the page
+            Visitors expand only the filters they care about, which keeps the page
             scannable when there are many facets.
           </p>
           <FieldToggle
@@ -915,8 +915,8 @@ export function DirectoryEditor({
                         liveCatalog.sidebar.fieldVisibilityOverrides[k] !== false,
                     ).length;
                   return visibleFacetCount > 8 ? (
-                    <p className="rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-400/90">
-                      {visibleFacetCount} filters will show to visitors — consider hiding low-signal ones so the sidebar stays scannable.
+                    <p className="rounded-md border border-blue-500/30 bg-blue-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-blue-400/90">
+                      {visibleFacetCount} filters will show to visitors. Consider hiding low-signal ones so the sidebar stays scannable.
                     </p>
                   ) : null;
                 })()}
@@ -1063,7 +1063,7 @@ export function DirectoryEditor({
       {tab === "Presets" ? (
         <div className="space-y-3">
           <p className={HELP}>
-            One-click starting points. Sets sensible defaults — every knob
+            One-click starting points. Sets sensible defaults, and every knob
             stays editable afterward.
           </p>
           <button

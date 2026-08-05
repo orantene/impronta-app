@@ -31,7 +31,7 @@ export function ContactFormEditor({
     action: initial.action ?? "https://formspree.io/f/your-id",
     method: initial.method ?? "POST",
     honeypot: initial.honeypot ?? "website",
-    successMessage: initial.successMessage ?? "Thanks — we'll be in touch.",
+    successMessage: initial.successMessage ?? "Thanks, we'll be in touch.",
     variant: initial.variant ?? "card",
     captcha: initial.captcha ?? "none",
     routingMode: initial.routingMode ?? "internal",

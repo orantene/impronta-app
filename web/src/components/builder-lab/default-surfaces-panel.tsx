@@ -50,7 +50,7 @@ const SURFACE_TABS: ReadonlyArray<{
     key: "talent",
     label: "Default Talent Profile",
     blurb:
-      "The fallback profile rendered for any talent without a published Max site (when the freeform default is on).",
+      "The fallback profile rendered for any talent without a published Max site (when the custom default is on).",
   },
 ];
 
@@ -147,8 +147,8 @@ export function DefaultSurfacesPanel() {
         setStatus({
           ok: true,
           msg: next
-            ? "Freeform default ON: talents without a published Max site now render the freeform default."
-            : "Freeform default OFF: those talents render the classic profile layout.",
+            ? "Custom default ON: talents without a published Max site now render the custom default profile."
+            : "Custom default OFF: those talents render the classic profile layout.",
         });
       } else {
         setStatus({ ok: false, msg: `Failed: ${r.error}` });
@@ -267,7 +267,7 @@ export function DefaultSurfacesPanel() {
                 </a>
                 <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
                   Opens the live owner-gated render of the template this surface
-                  points at, the same tree the default surface serves, not the
+                  points at, the same page the default surface serves, not the
                   built-in fallback.
                 </div>
               </>
@@ -287,12 +287,12 @@ export function DefaultSurfacesPanel() {
                     cursor: "not-allowed",
                   }}
                 >
-                  No hydrated preview available
+                  No preview available
                 </span>
                 <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
                   {isGhostPointer
                     ? "The pointer references a template that is no longer published. Re-point it to preview."
-                    : "This surface uses the built-in default (no pointer set), which has no persisted template to hydrate. Point it at a published template to preview the live render."}
+                    : "This surface uses the built-in default (no pointer set), so there is no saved template to preview. Point it at a published template to preview the live render."}
                 </div>
               </>
             )}
@@ -309,7 +309,7 @@ export function DefaultSurfacesPanel() {
                 paddingTop: 18,
               }}
             >
-              <SectionLabel>Freeform default profile</SectionLabel>
+              <SectionLabel>Custom default profile</SectionLabel>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <button
                   type="button"
@@ -349,7 +349,7 @@ export function DefaultSurfacesPanel() {
                 </span>
               </div>
               <div style={{ fontSize: 11.5, color: T.inkDim, lineHeight: 1.5 }}>
-                When on, talents without a published Max site render the freeform default
+                When on, talents without a published Max site render the custom default profile
                 profile. When off, they render the classic profile layout. This is OR-ed
                 with the legacy <code>DEFAULT_TALENT_FREEFORM_PROFILE</code> env flag, so an
                 env-enabled deploy stays on even with this toggle off.

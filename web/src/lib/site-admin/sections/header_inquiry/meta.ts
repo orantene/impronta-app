@@ -9,7 +9,7 @@ export const headerInquiryMeta: SectionMeta = {
   key: "header_inquiry",
   label: "Header inquiry",
   description:
-    "The header's inquiry-cart affordance (plane icon → inquiry drawer). Live on the published shell; a placeholder chip in the editor.",
+    "The header's inquiry lineup control (plane icon, opens the inquiry drawer). Live on the published shell; a placeholder chip in the editor.",
   businessPurpose: "conversion",
   visibleToAgency: false,
   category: "navigation",

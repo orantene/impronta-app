@@ -526,7 +526,10 @@ export function InspectorDeviceCards<T extends string>({
                   minWidth: 15,
                   height: 15,
                   borderRadius: 999,
-                  background: "#c2410c",
+                  // Issue-count badge. Was a hardcoded rust (banned in admin
+                  // chrome); rose is the chrome's error/problem role and is
+                  // what the comment above already called this badge.
+                  background: CHROME.rose,
                   color: "#fff",
                   fontSize: 9,
                   fontWeight: 700,

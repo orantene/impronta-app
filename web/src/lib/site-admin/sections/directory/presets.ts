@@ -79,7 +79,7 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   aiBehavior: "interpret",
 
   emptyStateText:
-    "No one matches yet — broaden the filters or check back as the roster grows.",
+    "No one matches yet. Broaden the filters, or check back as the roster grows.",
   structuredData: true,
 
   presentation: {

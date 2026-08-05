@@ -22,12 +22,12 @@ const LAYOUT_VARIANTS: ReadonlyArray<{
   {
     value: "grid",
     label: "Grid",
-    hint: "Uniform card grid — dense, scannable.",
+    hint: "Uniform card grid. Dense and scannable.",
   },
   {
     value: "carousel",
     label: "Carousel",
-    hint: "Horizontal rail with scroll affordance — editorial.",
+    hint: "Horizontal rail with scroll affordance. Editorial feel.",
   },
 ];
 
@@ -88,11 +88,11 @@ export function FeaturedTalentEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-amber-950 shadow-sm">
+      <div className="rounded-lg border border-violet-300/70 bg-violet-50 p-3 text-violet-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">V11 featured talent preset</p>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+            <p className="mt-0.5 text-xs leading-relaxed text-violet-800">
               Applies the prototype treatment: centered title, four-card noir
               grid, cinematic image grade, bookmark glyphs, outline actions,
               and an Explore Talent footer link.
@@ -250,10 +250,10 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="auto_featured_flag">Auto — featured flag</option>
-            <option value="auto_recent">Auto — most recent</option>
-            <option value="auto_by_service">Auto — by service</option>
-            <option value="auto_by_destination">Auto — by destination</option>
+            <option value="auto_featured_flag">Auto by featured flag</option>
+            <option value="auto_recent">Auto by most recent</option>
+            <option value="auto_by_service">Auto by service</option>
+            <option value="auto_by_destination">Auto by destination</option>
             <option value="manual_pick">Manual pick</option>
           </select>
         </label>
@@ -324,7 +324,7 @@ export function FeaturedTalentEditor({
           />
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer">
-              Advanced — paste profile codes
+              Advanced: paste profile codes
             </summary>
             <input
               className={`${INPUT} mt-1.5`}
@@ -446,7 +446,7 @@ export function FeaturedTalentEditor({
         <p className="text-[11px] text-muted-foreground">
           Secondary type and languages render real profile data when the
           source is a manual pick, service or destination. * Availability
-          and parent-category have no reliable public source yet — these
+          and parent-category have no reliable public source yet, so these
           toggles persist but never render fabricated data.
         </p>
       </fieldset>

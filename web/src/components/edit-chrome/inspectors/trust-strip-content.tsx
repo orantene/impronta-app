@@ -223,7 +223,7 @@ export function TrustStripContentInspector({
             color: "#1d4ed8",
           }}
         >
-          {t("Editing selected canvas node:")} {focusLabel}
+          {t("Editing selected block:")} {focusLabel}
         </div>
       ) : null}
 
