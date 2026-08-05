@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Minus, X } from "lucide-react";
 
@@ -43,7 +44,7 @@ const PLANS: ReadonlyArray<PlanCard> = [
     annual: 0,
     tagline: "Start your roster on a Rostra subdomain.",
     features: [
-      { text: "Up to 10 talents" },
+      { text: `Up to ${seatCapLabel("free")} talents` },
       { text: "Roster, directory, inquiries" },
       { text: "Branding & identity" },
       { text: "rostra.app subdomain" },
@@ -60,7 +61,7 @@ const PLANS: ReadonlyArray<PlanCard> = [
     annual: 490,
     tagline: "Embed your roster anywhere — your data layer.",
     features: [
-      { text: "Up to 50 talents" },
+      { text: `Up to ${seatCapLabel("studio")} talents` },
       { text: "Widgets (grid, shelf, inquiry form)" },
       { text: "Read-only public API" },
       { text: "Rostra subdomain for deep links" },
@@ -77,7 +78,7 @@ const PLANS: ReadonlyArray<PlanCard> = [
     annual: 1490,
     tagline: "Full branded site on your own domain.",
     features: [
-      { text: "Up to 200 talents" },
+      { text: `Up to ${seatCapLabel("agency")} talents` },
       { text: "Custom domain + branded site" },
       { text: "Pages, posts, nav, footer" },
       { text: "Theme library + selective import" },

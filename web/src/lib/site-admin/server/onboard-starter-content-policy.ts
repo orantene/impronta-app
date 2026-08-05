@@ -1,4 +1,5 @@
 import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
+import { PLAN_SEAT_CAPS } from "@/lib/saas/plan-seat-caps";
 
 /**
  * Public display ceiling for Free roster profiles. Mirrors the binding SaaS
@@ -6,7 +7,7 @@ import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
  * talent profiles") and `agencies.talent_seat_limit = 5` stamped by the
  * self-serve provisioner.
  */
-export const FREE_STARTER_PROFILE_CAP = 5;
+export const FREE_STARTER_PROFILE_CAP = PLAN_SEAT_CAPS.free ?? 5;
 
 /**
  * How many demo roster profiles the Free starter storefront seeds.
