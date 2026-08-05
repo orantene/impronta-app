@@ -1,6 +1,7 @@
 # Page Builder: 5/10 to 8-9/10 execution program
 
 **Created** 2026-08-05 · **Baseline** `main` @ `237113b55` (after the 9-PR remediation wave)
+**Audited** 2026-08-05, against `main` @ `b1fdf4ef3`. Every wave item below re-verified as still open. Baseline drift since writing: 5 commits, 2 touching builder/site-admin (#1005 storefront seeding, #1007 plan caps). No wave item was invalidated.
 **Status** DRAFT, NOT STARTED. Awaiting the owner's goals before any wave runs.
 **Predecessors** [`page-builder-minimal-build-plan-2026-07-09.md`](./page-builder-minimal-build-plan-2026-07-09.md) (44 PRs, done) · re-audit report artifact `da953eef-deb2-415b-b6d3-a930131da026`
 
@@ -53,7 +54,9 @@ dimension regresses. Do not claim a number without the evidence column filled in
 Each wave is independently shippable and independently valuable. Order is by value,
 not by convenience.
 
-### WAVE 0 — Spanish parity guard (PREREQUISITE, runs before everything)
+### WAVE 0 — Guardrails (PREREQUISITE, runs before everything)
+
+Two things CI cannot currently hold us to. Both must exist before a wave relies on them.
 
 **Decided by the owner 2026-08-05: Spanish is a requirement, not a nice-to-have.**
 
@@ -63,11 +66,23 @@ strings first and someone has to walk back through them. Building it first makes
 later wave carry its own Spanish automatically, enforced by CI rather than by
 discipline.
 
+**0a. Spanish parity guard** (owner decision: Spanish is a requirement)
+
 | # | Item |
 |---|---|
 | 0.1 | A static test that FAILS when a `t()`-wrapped string in `edit-chrome` has no `ES_TEXT` entry. Armed in CI, in a lane the coverage guard sees. |
 | 0.2 | A companion check for the section catalog: every `meta.ts` `label` / `description` needs an entry in `editor-i18n-es-sections.ts`. |
 | 0.3 | Print the current gap as a number when it fails, so the tail in wave 4 is measurable progress rather than a vibe. |
+| 0.4 | Note the limit honestly: only statically-analysable `t("literal")` calls can be checked. `t(variable)` and template literals cannot be, so the guard must report what it skipped rather than implying total coverage. |
+
+**0b. CI arming** — found by auditing this plan, 2026-08-05. Without this, waves 2 and 5
+would recreate the exact failure we just spent #999 fixing.
+
+| # | Item | Evidence |
+|---|---|---|
+| 0.5 | **`builder-e2e.yml` is `workflow_dispatch` ONLY.** Wave 2 mandates a new floating-toolbar e2e spec, and wave 5 fixes e2e independence. Neither would ever run in CI. That is the "test exists but never runs" class, rebuilt by hand. Arm it on PR/push (or at minimum on merge to `main`), accepting the runtime cost. | `.github/workflows/builder-e2e.yml:38` |
+| 0.6 | **`test:a11y` runs nowhere.** The lane exists in `package.json` but appears in neither `ci.yml` nor the `ci` aggregate. The audit found real a11y gaps and later waves touch a11y surfaces. `check:builder-test-lane-coverage` does not catch this because it guards builder test FILES, not npm lanes. | grep: 0 matches in both |
+| 0.7 | **Verify `admin-boot.yml` is actually running, not skipping.** It needs `E2E_SUPABASE_URL` / `ANON_KEY` / `SERVICE_ROLE_KEY` repo secrets and skips with a warning when they are absent, which reports green either way. A gate that cannot fail is not a gate. Confirm with a deliberate break. | `.github/workflows/admin-boot.yml:9,39` |
 
 **Careful**: this repo has TWO i18n systems (see `reference_i18n_two_systems`). The
 editor chrome uses `editor-i18n.ts` + `editor-i18n-es.ts` (EN-text-keyed, resolver
@@ -79,7 +94,8 @@ wrapped (99.8% of wrapped strings have ES, so it should pass immediately), and i
 fails loudly on a deliberately introduced unwrapped-or-untranslated string. Prove
 both directions.
 
-**Blocks**: every other wave. It is small, so this costs hours, not days.
+**Blocks**: every other wave. 0a is hours. 0b is small in code but needs a judgment call
+on e2e runtime cost in CI, so surface that to the owner rather than deciding it silently.
 
 ### WAVE 1 — Draft trust to 9.0
 
@@ -241,6 +257,67 @@ skips one of these produces work the integrator has to redo.
 
 ---
 
+## 3b. QA environment facts (audited 2026-08-05, before you burn a session on them)
+
+These are the things that would otherwise cost an agent half a session to rediscover.
+
+- **Spanish IS testable locally for the EDITOR.** `useEditorLocale` reads the `locale`
+  cookie directly in a `useEffect` (`use-editor-locale.ts`), so setting
+  `document.cookie = "locale=es"` and reloading flips editor chrome to Spanish on
+  localhost. This is NOT the same as `useDashboardLocale`, which memory records as
+  stuck on "en" locally. Wave 4's Spanish walkthrough is therefore achievable without
+  a deploy. Verify this on the first attempt and record the result here.
+- **The AI panels need a PAID tenant.** AI generate/revise are plan-gated, and there is
+  no paid QA tenant seeded. Wave 4 translates the AI panels; their live verification
+  either needs a paid QA tenant created first, or must be explicitly deferred and said
+  out loud rather than quietly skipped.
+- **QA tenants**: `qa-agency-244988` (Free, safe, used throughout the 08-04/05 wave),
+  `nova-crew` with `nova-qa-owner@impronta.test` (non-staff owner, the fixture that
+  proved the owner-lockout bug). Never QA on `impronta`.
+- **Dev sign-in**: `/api/dev/signin?email=qa-admin@impronta.test&next=/<slug>`,
+  passwordless for `@impronta.test`. A 404 from that route means a stale `.next`:
+  `rm -rf web/.next` and restart. This cost real time twice in the last wave.
+- **Migrations**: `npm run db:push` is documented in CLAUDE.md, but memory records the
+  history drift as back, with `scripts/apply-migration.mjs --apply-pending` as the
+  working path. Wave 5.2 is the only migration in this program. Try `db:push`, and on
+  SASL/history-drift fall back rather than fighting it.
+
+---
+
+## 3c. Abort and rollback criteria
+
+Added after auditing: nothing in the first draft said what to do when a wave goes wrong,
+and #995 already proved a fix can open a hole while closing one.
+
+- **Stop the wave** if a gate that was green before the wave goes red and the cause is
+  not understood within one attempt. Do not stack more changes onto an unexplained red.
+- **Any wave touching the save spine** (wave 1) re-runs #992's and #996's live repros
+  before its PR opens, not just their unit tests. A green suite is not evidence the
+  operator can still save.
+- **If a wave regresses another dimension's score, it does not ship** until either the
+  regression is fixed or the owner accepts the trade explicitly. Score movement is
+  reported per dimension, including the ones that went down.
+- **Rollback path**: every wave is one squashed PR, so revert is `git revert <sha>` plus
+  a production pointer that advances only on green CI. Confirm the pointer moved after
+  a revert, the same way we confirm it after a merge.
+
+---
+
+## 3d. Cross-session collision risk
+
+This repo runs many concurrent sessions (8 to 16 agents historically), and several
+non-builder workstreams were active while this plan was written (activity log, rates,
+SaaS first-run). The collision map in section 6 covers collisions WITHIN this program
+only.
+
+Before dispatching any wave: `git log --oneline origin/main -10` and check whether
+another session is mid-flight in the same files. `edit-context.tsx`,
+`selection-layer.tsx`, `composition-actions.ts` and `editor-i18n-es.ts` are the
+high-traffic files. The i18n catalog in particular has already produced one duplicate-key
+red main this week, from exactly this kind of concurrent edit.
+
+---
+
 ## 4. Per-wave gate (Definition of Done, mechanical)
 
 Every wave, before the integrator reports it complete:
@@ -251,7 +328,13 @@ NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit 2>&1 | grep -cE 'error T
 npm run lint                                                                                 # must exit 0
 npm run test:builder && npm run test:builder-chrome && npm run test:builder-capabilities
 node scripts/check-builder-test-lane-coverage.cjs                                            # every new test in a lane
+npm run test:a11y                                                                            # once wave 0.6 arms it in CI
 ```
+
+Caveat that makes this gate honest: the coverage guard checks builder test FILES are in
+a lane. It does not check that a LANE is in CI. Two lanes are currently outside CI
+entirely (`test:a11y`, and the whole e2e suite). Wave 0b fixes that; until it lands,
+"green" means less than it looks.
 
 Plus: the wave's own live-QA evidence, captured as concrete before/after values (not
 prose), and a screenshot for anything visual.
@@ -342,6 +425,29 @@ Stated so nobody re-litigates them mid-flight:
   and the keyboard model, public bundle hygiene, tenant isolation. Leave them alone.
 - **Not chasing 10/10.** 8.5 is "a professional tool a paying tenant trusts". The
   remaining 1.5 is polish with a much worse return per hour.
+- **AI builder quality is out of scope.** The July audit scored AI 4/10 and there is an
+  unmerged quality program for it. This program translates the AI panels (wave 4) and
+  scopes their cost gate (already shipped), but does not touch generation quality. If AI
+  matters for the goal, it needs its own program, not a wave bolted onto this one.
+- **Mobile is assumed held, not re-proven.** July shipped a publish-blocking mobile
+  overflow check and a one-click fix, and the 08-04 audit confirmed both still work.
+  This program adds one mobile check (the quick bar at 390px, wave 6.4). If mobile has
+  regressed since, that is a finding for a fresh audit, not a silent addition here.
+
+---
+
+## 10. Program exit criteria
+
+The program is done when all six waves meet their Definition of Done AND:
+
+1. A fresh re-audit (independent lanes, same method as 08-04) scores every dimension at
+   or above target, with evidence per dimension.
+2. The live core loop passes in BOTH languages: sign in, edit, style, check mobile,
+   publish, restore a revision.
+3. No lane, guard, or e2e spec introduced by this program is sitting unrun in CI.
+4. The ledger in section 7 is complete, including anything deferred and why.
+
+Anything less is reported as a number below target with the gap named. Do not round up.
 
 ---
 
