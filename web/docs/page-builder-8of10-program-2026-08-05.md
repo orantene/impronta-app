@@ -39,7 +39,7 @@ that can silently lose work is capped at 5 regardless of everything else.
 | Authz + security | 5.5 | 7.5 | **9.0** | Logo upload raw-FormData + unsanitized SVG |
 | Performance | 5.5 | 6.5 | **8.5** | Curated typing re-renders 72 consumers; eager 25k-line panels |
 | Code health | 6.0 | 7.0 | **8.5** | e2e serially coupled; god files unratcheted |
-| Copy + i18n | 4.0 | 5.5 | **8.5** | ~1,000 hardcoded EN on hot surfaces |
+| Copy + i18n | 4.0 | 5.5 | **8.5** | ~1,550 hardcoded EN; Spanish is a REQUIREMENT (owner, 08-05) |
 | **Overall** | **5.0** | **6.5** | **8.5** | |
 
 **Honest scoring rule** (from `feedback_paper_vs_honest_scoring`): per-dimension gains
@@ -52,6 +52,34 @@ dimension regresses. Do not claim a number without the evidence column filled in
 
 Each wave is independently shippable and independently valuable. Order is by value,
 not by convenience.
+
+### WAVE 0 — Spanish parity guard (PREREQUISITE, runs before everything)
+
+**Decided by the owner 2026-08-05: Spanish is a requirement, not a nice-to-have.**
+
+That decision changes sequencing, not just scope. If the parity guard is built at the
+end (as wave 4 originally had it), then waves 1, 2, 3, 5 and 6 all ship new English
+strings first and someone has to walk back through them. Building it first makes every
+later wave carry its own Spanish automatically, enforced by CI rather than by
+discipline.
+
+| # | Item |
+|---|---|
+| 0.1 | A static test that FAILS when a `t()`-wrapped string in `edit-chrome` has no `ES_TEXT` entry. Armed in CI, in a lane the coverage guard sees. |
+| 0.2 | A companion check for the section catalog: every `meta.ts` `label` / `description` needs an entry in `editor-i18n-es-sections.ts`. |
+| 0.3 | Print the current gap as a number when it fails, so the tail in wave 4 is measurable progress rather than a vibe. |
+
+**Careful**: this repo has TWO i18n systems (see `reference_i18n_two_systems`). The
+editor chrome uses `editor-i18n.ts` + `editor-i18n-es.ts` (EN-text-keyed, resolver
+`useEditorLocale`). The dashboard uses a separate `dashboard-i18n.ts` ES map. This
+guard covers the EDITOR system only. Do not conflate them.
+
+**Definition of Done**: guard is green on today's `main` for everything already
+wrapped (99.8% of wrapped strings have ES, so it should pass immediately), and it
+fails loudly on a deliberately introduced unwrapped-or-untranslated string. Prove
+both directions.
+
+**Blocks**: every other wave. It is small, so this costs hours, not days.
 
 ### WAVE 1 — Draft trust to 9.0
 
@@ -133,11 +161,20 @@ chunk size before/after for 3.6. No render-output change: `render-output`,
 | 4.2 | Publish preflight | ~18 | On the publish path |
 | 4.3 | AI panels (7 files) | ~38 | |
 | 4.4 | Deep inspectors (layout/style/motion/data/builder-node-content) | ~620-890 | The long tail; split across 2 agents |
-| 4.5 | **ES parity guard** | n/a | A static test that FAILS CI when a `t()`-wrapped string has no ES entry. Without this the tail regrows silently. Build this FIRST in the wave. |
+| 4.5 | Section Editor panels (55 files) | ~750 | Zero `t()` today; the "what does this section do" layer |
 
-**Definition of Done**: parity guard green and armed in CI; `useEditorLocale` reach
-above 90% of user-visible strings in `edit-chrome`; a Spanish operator can complete
-the core loop (add section, edit text, style it, publish) without meeting English.
+The parity guard that used to live here is now WAVE 0, so this wave is pure volume
+against a guard that is already armed and already counting the gap down.
+
+**Definition of Done** (owner decision: Spanish is a requirement, so this is a real
+bar, not a percentage to argue about):
+- A Spanish operator completes the FULL loop without meeting English: sign in, enter
+  edit mode, add a section from the gallery, edit text, restyle it, check mobile,
+  resolve a publish blocker, publish. Verified live with the locale cookie set, not
+  by counting strings.
+- The wave-0 guard reports a gap of 0 for `edit-chrome` and the section catalog.
+- Any string deliberately left English (a proper noun, a brand) is listed explicitly
+  in the guard's allow-list with a reason, not silently skipped.
 
 ---
 
@@ -196,6 +233,11 @@ skips one of these produces work the integrator has to redo.
 8. **House copy rules** apply to everything user-visible: no em dashes, section/block
    as the only structure nouns, never buyer/cart/pay-to-DM, no gold/rust/amber in
    admin chrome, no dead CTAs.
+9. **Spanish ships with the string, in the same commit.** Owner decision, 2026-08-05:
+   Spanish is a requirement. Every wave that adds a user-visible string wraps it in
+   `t()` AND adds its `ES_TEXT` entry in the same commit. The wave-0 guard enforces
+   this, so "I will translate it later" fails CI rather than becoming someone's
+   cleanup wave. Applies to waves 1, 2, 3, 5 and 6 exactly as much as to wave 4.
 
 ---
 
@@ -251,10 +293,11 @@ get to and why.
 
 | Wave | Agents | Parallel-safe with | Est. |
 |---|---|---|---|
+| **0 ES parity guard** | **1** | **nothing (blocks all)** | **hours** |
 | 1 Draft trust | 2 | 6 | 1 session |
 | 2 Editor UX | 2 | 6 | 1 session |
 | 3 Performance | 2 | 4, 6 | 1 session |
-| 4 Copy + i18n | 3 | 3, 5, 6 | 1 session |
+| 4 Copy + i18n | 4 | 3, 5, 6 | 1.5 sessions (~1,550 strings) |
 | 5 Security + health | 3 | 4, 6 | 1 session |
 | 6 Quick bar | 1 | all | half session |
 
@@ -273,6 +316,7 @@ session reads this table to know exactly where the program stands.
 
 | Wave | Status | Branch / PR | Landed | Live-QA evidence | Score move |
 |---|---|---|---|---|---|
+| 0 ES parity guard | NOT STARTED | | | | enables 4 |
 | 1 Draft trust | NOT STARTED | | | | 6.0 to _ |
 | 2 Editor UX | NOT STARTED | | | | 6.5 to _ |
 | 3 Performance | NOT STARTED | | | | 6.5 to _ |
@@ -305,8 +349,11 @@ Stated so nobody re-litigates them mid-flight:
 
 1. **Priority order.** The waves are sequenced by my judgment of value. If the near-term
    goal is a specific launch or a specific tenant, that should reorder them.
-2. **Spanish depth.** Wave 4's tail is large. Is full ES parity a launch requirement,
-   or is core-loop coverage enough for now?
+2. ~~**Spanish depth.**~~ **ANSWERED 2026-08-05: Spanish is a requirement.** Full ES
+   parity for the editor. Consequences already folded in: the parity guard became
+   WAVE 0 (built before anything else so later waves cannot regress it), rule 9 in
+   section 3 requires the ES entry in the same commit as the string, and wave 4's DoD
+   is now a live full-loop walkthrough in Spanish rather than a percentage.
 3. **Non-homepage pages.** Wave 1 assumes ordinary cms pages matter as much as
    homepages. If tenants overwhelmingly only edit the homepage, Wave 1 shrinks a lot.
 4. **Perf target.** Is there a device or tenant size where the editor currently feels
