@@ -30,14 +30,20 @@ export async function runProfileShellSaveSteps(
     section: string;
     run: () => Promise<ProfileShellSaveStepResult>;
   }>,
+  /** Called with each section name as it starts, then null when the run
+   *  finishes. Lets the header say which part of a multi-second save is in
+   *  flight instead of showing an undifferentiated spinner. */
+  onStep?: (section: string | null) => void,
 ): Promise<{ ok: true } | { ok: false; failures: string[] }> {
   const failures: string[] = [];
   for (const step of steps) {
+    onStep?.(step.section);
     const res = await step.run();
     if (!res.ok) {
       failures.push(profileShellStepFailure(step.section, res.error));
     }
   }
+  onStep?.(null);
   if (failures.length > 0) return { ok: false, failures };
   return { ok: true };
 }

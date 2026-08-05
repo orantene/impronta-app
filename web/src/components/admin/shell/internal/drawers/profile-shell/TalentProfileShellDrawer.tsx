@@ -99,6 +99,7 @@ import {
   addTalentToRoster,
   clearPendingReview,
   clearProfileDraft,
+  patchProfileDraft,
   commitTalentProfileShellAdmin,
   computeTrustTier,
   dbToUiProfileShellStatus,
@@ -369,6 +370,8 @@ export function TalentProfileShellDrawer() {
    *  way back to the field left admins retrying the same failing save. */
   type CreateGateTarget = { sectionId: ProfileSectionId; fieldId?: "stageName" | "homeBase" };
   const [createGateTarget, setCreateGateTarget] = useState<CreateGateTarget | null>(null);
+  /** Discard prompt for an un-created new profile — see `requestCloseDrawer`. */
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [serverProfileUpdatedAtMs, setServerProfileUpdatedAtMs] = useState<number | null>(null);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -464,6 +467,19 @@ export function TalentProfileShellDrawer() {
     setHistoryUiEpoch((x) => x + 1);
     toast(copy.t("Redone"));
   }, [copy, toast]);
+
+  // Escape dismisses the discard prompt as "keep editing" — the safe side,
+  // since discarding a half-filled profile should always be deliberate.
+  useEffect(() => {
+    if (!drawerOpen || !discardConfirmOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setDiscardConfirmOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen, discardConfirmOpen]);
 
   // Keyboard ⌘Z / ⌘⇧Z
   useEffect(() => {
@@ -930,6 +946,19 @@ export function TalentProfileShellDrawer() {
   // stateRef is declared above (near the media hydration block) — saveAll
   // reads from it so we can keep `state` out of this callback's dep array.
 
+  /** Set for the click that used "+ Add another" — read once inside saveAll's
+   *  create branch, then cleared. A ref (not state) so the value is current
+   *  for the in-flight save without re-creating the callback. */
+  const createAnotherRef = useRef(false);
+
+  /** Raised by the create-and-add-another path; consumed by the reset effect
+   *  further down, once every piece of drawer state it clears is in scope. */
+  const [pendingCreateReset, setPendingCreateReset] = useState(false);
+  /** Section currently being committed. A full create takes 10-25s server-side
+   *  (languages + taxonomy sync dominate), so the button names the step in
+   *  flight rather than spinning anonymously the whole time. */
+  const [saveStepLabel, setSaveStepLabel] = useState<string | null>(null);
+
   const saveAll = React.useCallback(async (opts?: {
     /** Persist THIS status instead of stateRef's — used by submit(), which
      *  patches the status and saves in the same tick, before React has
@@ -1298,7 +1327,7 @@ export function TalentProfileShellDrawer() {
         });
       }
 
-      const stepped = await runProfileShellSaveSteps(saveSteps);
+      const stepped = await runProfileShellSaveSteps(saveSteps, setSaveStepLabel);
       if (!stepped.ok) {
         setSaveStatus("error");
         lastSaveErrorRef.current = formatProfileShellSaveFailures(stepped.failures);
@@ -1308,6 +1337,27 @@ export function TalentProfileShellDrawer() {
           failures: stepped.failures.join(", "),
         });
         return false;
+      }
+      if (justCreated && createAnotherRef.current) {
+        // Batch add — agencies onboard talent in groups ("necesito 5 perfiles
+        // nuevos"), and the one-at-a-time loop (create → close → Add talent →
+        // re-navigate three sections) is most of the work. Carry the location
+        // and booked-as type into the next blank profile, since a batch is
+        // almost always the same city and the same category.
+        createAnotherRef.current = false;
+        const carried = stateRef.current;
+        const createdName = (carried.stageName ?? carried.identity?.stageName ?? "").trim();
+        clearProfileDraft("default");
+        patchProfileDraft("default", {
+          homeBase: (carried.serviceArea?.homeBase ?? "").trim() || undefined,
+          primaryType: carried.primaryType ?? undefined,
+        });
+        openDrawer("talent-profile-shell", { mode: "create" });
+        setPendingCreateReset(true);
+        toast(copy.isSpanish
+          ? `${createdName} creado. Perfil nuevo listo.`
+          : `${createdName} created. Blank profile ready.`);
+        return true;
       }
       if (justCreated) {
         clearProfileDraft("default");
@@ -1430,7 +1480,7 @@ export function TalentProfileShellDrawer() {
       logServerError("saveall", e);
       return false;
     }
-  }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity, tenantSlug, openDrawer]);
+  }, [payload.talentId, mode, isSelf, adminVisible, queueShellRouterRefresh, copy, bridgeTenantIdentity, tenantSlug, openDrawer, toast]);
 
   const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
     (value: string) => {
@@ -2102,6 +2152,49 @@ export function TalentProfileShellDrawer() {
     closeDrawer();
   };
 
+  // Blank the drawer for the next profile in a batch add. The drawer is a
+  // singleton — re-opening it with `mode: "create"` swaps the payload but does
+  // NOT remount, so without this the reducer would still hold the profile that
+  // was just created. Initial state is rebuilt from the draft store, which
+  // carries the city + booked-as type forward to save re-typing them.
+  useEffect(() => {
+    if (!pendingCreateReset) return;
+    setPendingCreateReset(false);
+    const fresh = makeInitialProfileState({ mode: "create" }, false, bridgeTalentSelfProfile);
+    skipHistoryRef.current = true;
+    dispatch({ type: "RESET", state: fresh });
+    historyRef.current = [fresh];
+    historyIdxRef.current = 0;
+    setHistoryUiEpoch((x) => x + 1);
+    setDirty(false);
+    setSavedAt(null);
+    setSaveStatus("idle");
+    setSaveError(null);
+    setCreateGateTarget(null);
+    setServerProfileUpdatedAtMs(null);
+    setGalleryAssets([]);
+    setAvatarPhotoUrl(null);
+    setHeroPhotoUrl(null);
+    setActiveSection("identity");
+    deferredServiceAreaTouchedRef.current = false;
+    deferredLanguagesTouchedRef.current = false;
+    allowMarkDirtyRef.current = true;
+  }, [pendingCreateReset, bridgeTalentSelfProfile]);
+
+  // Discard guard for an un-created new profile. Both close affordances (the
+  // backdrop click and the header ✕) used to dismiss the drawer outright, so a
+  // click a few pixels outside the panel wiped a half-filled profile with no
+  // warning and no undo. Only the create path needs this: an existing profile's
+  // edits are already committed section-by-section or flagged as dirty.
+  const hasUnsavedNewProfile = mode === "create" && !payload.talentId && dirty;
+  const requestCloseDrawer = () => {
+    if (hasUnsavedNewProfile) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
+    closeDrawer();
+  };
+
   // Sections still holding an unfilled create-gate field. Marked with a red
   // asterisk in the rail so "what do I have to fill in to create this?" is
   // answerable before you hit Create, not only after it fails.
@@ -2151,13 +2244,10 @@ export function TalentProfileShellDrawer() {
     }, 250);
   };
 
-  // Same jump-and-focus, aimed at the field that blocked `create`. The three
-  // gate fields (stage name / booked-as / current location) live in three
-  // different sections, so the banner needs to be able to take you there.
-  const onJumpToCreateGateField = () => {
-    if (!createGateTarget) return;
-    setActiveSection(createGateTarget.sectionId);
-    const fieldId = createGateTarget.fieldId;
+  // Open a section and land the caret in one of its fields. Section nav alone
+  // still leaves the admin hunting for the input inside a long form.
+  const jumpToSectionField = (sectionId: ProfileSectionId, fieldId?: string) => {
+    setActiveSection(sectionId);
     if (!fieldId) return;
     setTimeout(() => {
       const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
@@ -2168,6 +2258,14 @@ export function TalentProfileShellDrawer() {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 250);
+  };
+
+  // Same jump-and-focus, aimed at the field that blocked `create`. The three
+  // gate fields (stage name / booked-as / current location) live in three
+  // different sections, so the banner needs to be able to take you there.
+  const onJumpToCreateGateField = () => {
+    if (!createGateTarget) return;
+    jumpToSectionField(createGateTarget.sectionId, createGateTarget.fieldId);
   };
 
   const handleProfileStatusChange = (nextStatus: typeof state.profileStatus) => {
@@ -2209,7 +2307,7 @@ export function TalentProfileShellDrawer() {
   });
 
   return (
-    <div onClick={closeDrawer} style={{
+    <div onClick={requestCloseDrawer} style={{
       position: "fixed", inset: 0, zIndex: 200,
       background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
       // 2026 redesign — half-width side drawer instead of full-screen.
@@ -2228,6 +2326,48 @@ export function TalentProfileShellDrawer() {
         transition: pshellDragging ? "none" : "max-width .2s cubic-bezier(.4,0,.2,1)",
         boxShadow: "-12px 0 40px -12px rgba(11,11,13,0.18)",
       }}>
+        {/* Discard confirmation — only reachable while a new profile is
+            half-filled and un-created. Sits inside the panel so its own
+            clicks never bubble to the backdrop's close handler. */}
+        {discardConfirmOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={copy.t("Discard this profile?")}
+            className="absolute inset-0 z-[300] flex items-center justify-center bg-admin-ink/35 px-6"
+          >
+            <div className="w-full max-w-[340px] rounded-xl border border-admin-border bg-white p-4 shadow-xl">
+              <div className="text-admin-13 font-bold text-admin-ink">
+                {copy.t("Discard this profile?")}
+              </div>
+              <p className="mt-1.5 text-admin-11h font-medium leading-snug text-admin-ink-muted">
+                {copy.t("It hasn't been created yet — everything you filled in will be lost.")}
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setDiscardConfirmOpen(false)}
+                  className="rounded-lg border border-admin-border bg-white px-3 py-1.5 text-admin-11h font-bold text-admin-ink"
+                >
+                  {copy.t("Keep editing")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDiscardConfirmOpen(false);
+                    clearProfileDraft("default");
+                    closeDrawer();
+                  }}
+                  className="rounded-lg border border-admin-red/40 bg-admin-red/10 px-3 py-1.5 text-admin-11h font-bold text-admin-red"
+                >
+                  {copy.t("Discard")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Draggable left edge — drag to fine-tune the drawer width.
             Sits inside the panel (its overflow:hidden clips a negative
             offset) so width:6 at left:0 is the grab strip. */}
@@ -2445,7 +2585,7 @@ export function TalentProfileShellDrawer() {
           // alone can't fit, dropping them below the title.
           flexWrap: "wrap",
         }}>
-          <button type="button" onClick={closeDrawer} aria-label={copy.t("Close")} style={{
+          <button type="button" onClick={requestCloseDrawer} aria-label={copy.t("Close")} style={{
             width: 28, height: 28, borderRadius: 8, border: "none", cursor: "pointer",
             background: "transparent", color: COLORS.ink, fontSize: 14, lineHeight: 1,
           }}>✕</button>
@@ -2592,11 +2732,28 @@ export function TalentProfileShellDrawer() {
                   animation: "tulala-spin 0.8s linear infinite",
                 }} />
               )}
-              {saveStatus === "saving" ? (mode === "create" ? copy.t("Creating…") : copy.t("Saving…"))
+              {saveStatus === "saving" && saveStepLabel
+                ? `${copy.t(saveStepLabel)}…`
+                : saveStatus === "saving" ? (mode === "create" ? copy.t("Creating…") : copy.t("Saving…"))
                 : saveStatus === "error" ? `⚠ ${copy.isSpanish ? "Reintentar" : "Retry"}`
                 : mode === "create" ? copy.t("Create profile")
                 : copy.t("Save")}
               <style>{`@keyframes tulala-spin { to { transform: rotate(360deg); } }`}</style>
+            </button>
+          )}
+
+          {/* Batch add — same create, but lands on a blank profile instead of
+              the one just created. Only while creating, and only once the gate
+              is satisfied, so it never becomes a second way to fail. */}
+          {showHeaderSave && mode === "create" && !payload.talentId && createGateBlockingSections.size === 0 && (
+            <button
+              type="button"
+              onClick={() => { createAnotherRef.current = true; void saveAll(); }}
+              disabled={saveStatus === "saving"}
+              title={copy.t("Create this profile and open a blank one")}
+              className="shrink-0 whitespace-nowrap rounded-full border border-admin-border bg-white px-3 py-[7px] text-admin-12h font-bold text-admin-ink disabled:opacity-60"
+            >
+              {copy.t("+ Add another")}
             </button>
           )}
 
@@ -3145,7 +3302,10 @@ export function TalentProfileShellDrawer() {
               <div data-pshell-form-banners>
                 <FirstTimeHero
                   completeness={completeness}
-                  onStart={(sectionId) => setActiveSection(sectionId)}
+                  onStart={(sectionId) => jumpToSectionField(
+                    sectionId,
+                    sectionId === "location" ? "homeBase" : undefined,
+                  )}
                   talentId={payload.talentId ?? ""}
                 />
               </div>

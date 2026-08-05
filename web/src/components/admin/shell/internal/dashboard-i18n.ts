@@ -2869,6 +2869,18 @@ const ES_TEXT: Record<string, string> = {
   "Pick a primary talent type to continue.": "Elige un tipo de talento principal para continuar.",
   "Add a current location to continue.": "Agrega una ubicación actual para continuar.",
   "Required to create the profile": "Obligatorio para crear el perfil",
+  "Discard this profile?": "¿Descartar este perfil?",
+  "+ Add another": "+ Agregar otro",
+  "Create this profile and open a blank one": "Crea este perfil y abre uno nuevo en blanco",
+  "It hasn't been created yet — everything you filled in will be lost.":
+    "Todavía no se ha creado. Se perderá todo lo que llenaste.",
+  "Discard": "Descartar",
+  "You have unsaved changes. Click Save at the top before leaving this drawer.":
+    "Tienes cambios sin guardar. Haz clic en Guardar arriba antes de salir de este panel.",
+  "Saved when you click Save at the top of this drawer.":
+    "Se guarda cuando haces clic en Guardar arriba en este panel.",
+  "This talent owns their profile — personal fields are read-only until exclusivity is confirmed.":
+    "Este talento es dueño de su perfil. Los campos personales son de solo lectura hasta confirmar la exclusividad.",
   "Could not create the talent profile.": "No se pudo crear el perfil de talento.",
   "Resize drawer": "Redimensionar el panel",
   "Drag to resize": "Arrastra para redimensionar",
