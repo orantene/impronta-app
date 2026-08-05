@@ -387,7 +387,7 @@ export { parseTalentCsv } from "../csv-parser";
 export { updateTalentIdentity } from "@/lib/server-actions/admin-talent-identity";
 export { removeFromRoster } from "@/lib/server-actions/admin-talent-roster";
 export { getFieldPrivacyCatalog, setWorkspaceFieldVisibility, resetWorkspaceFieldVisibility, getWorkspaceFieldCatalog, setWorkspaceFieldCatalog, setWorkspaceFieldGroup } from "@/lib/server-actions/admin-workspace-field-settings";
-export { commitTalentProfileShellAdmin, getTalentProfileActivity, sendTalentClaimInvite, assignTalentTaxonomyBySlug, removeTalentTaxonomyBySlug, type ProfileActivityEntry } from "@/lib/server-actions/admin-talent-profile-sections";
+export { commitTalentProfileShellAdmin, getTalentProfileActivity, getTalentPublishReadiness, sendTalentClaimInvite, assignTalentTaxonomyBySlug, removeTalentTaxonomyBySlug, type ProfileActivityEntry } from "@/lib/server-actions/admin-talent-profile-sections";
 export { updateSelfAbout, updateSelfLocation, updateSelfRates, updateSelfAvailability, updateSelfCredits, updateSelfLimits, updateSelfSocialProof, saveSelfLanguages, updateSelfIdentity, updateSelfProfileDrawerExtras, syncSelfTalentTypeTaxonomyFromShell, updateSelfProfileWorkflowFromShell, updateSelfProfileShellDynFields, updateSelfMediaAlbums, updateSelfTalentDocuments } from "@/lib/server-actions/talent-self-profile-sections";
 export { loadTalentProfileEditorData } from "@/lib/server-actions/load-talent-profile-editor-data";
 export { dbToUiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";

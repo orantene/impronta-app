@@ -102,6 +102,7 @@ import {
   patchProfileDraft,
   commitTalentProfileShellAdmin,
   computeTrustTier,
+  getTalentPublishReadiness,
   dbToUiProfileShellStatus,
   extractShellVideoUrls,
   findShellBusinessLine,
@@ -569,6 +570,31 @@ export function TalentProfileShellDrawer() {
   const [editorHydration, setEditorHydration] =
     useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [hydrationNonce, setHydrationNonce] = useState(0);
+  /** Server-computed publish blockers (the gate's own list). The client model
+   *  gives instant feedback while editing; this is the authority — anything
+   *  here that the client thinks is met is drift the admin must see BEFORE
+   *  Publish (e.g. a language row missing its tenant scope in the DB).
+   *  Refreshed on hydration and after every successful save. */
+  const [serverMissing, setServerMissing] =
+    useState<Array<{ id: string; label: string; groupKey?: string }> | null>(null);
+  const refreshServerReadiness = useCallback(async () => {
+    const tid = payload.talentId;
+    if (!tid || isSelf || mode === "create") return;
+    try {
+      const res = await getTalentPublishReadiness({ talent_profile_id: tid });
+      if (res.ok) setServerMissing(res.missing);
+    } catch {
+      // Non-fatal: the coach falls back to the client-only list.
+    }
+  }, [payload.talentId, isSelf, mode]);
+  useEffect(() => {
+    if (editorHydration === "loaded") void refreshServerReadiness();
+  }, [editorHydration, refreshServerReadiness]);
+  // After any successful save the DB is the new truth — re-check so a blocker
+  // the admin just fixed disappears from the coach without reopening.
+  useEffect(() => {
+    if (savedAt) void refreshServerReadiness();
+  }, [savedAt, refreshServerReadiness]);
   const retryHydration = useCallback(() => {
     // The in-flight cache self-evicts on settle, so by the time the
     // error overlay's Retry is visible there's no entry — bumping the
@@ -1850,7 +1876,25 @@ export function TalentProfileShellDrawer() {
     }),
     resolverMissing: profileFieldRequiredMissing,
   });
-  const missing = required.filter(r => !r.met);
+  const clientMissing = required.filter(r => !r.met);
+  // Server-only blockers: the gate's list minus anything the client already
+  // shows. Core ids map to their home sections so jump-to-field still works;
+  // resolver items (`field:<id>`) live in the profile-fields rail.
+  const CORE_MISSING_SECTION: Record<string, "services" | "location" | "media" | "about"> = {
+    stageName: "services", primaryType: "services", homeBase: "location",
+    photos: "media", bio: "about", language: "about",
+  };
+  const clientMissingIds = new Set(clientMissing.map(r => r.id));
+  const serverOnlyMissing = (!isSelf && serverMissing ? serverMissing : [])
+    .filter(m => !clientMissingIds.has(m.id))
+    .map(m => ({
+      id: m.id,
+      label: m.label,
+      met: false as const,
+      sectionId: CORE_MISSING_SECTION[m.id] ?? ("profile_fields" as const),
+      ...(m.groupKey ? { groupKey: m.groupKey } : {}),
+    }));
+  const missing = [...clientMissing, ...serverOnlyMissing];
   const canPublishProfile = missing.length === 0;
   const completeness = getProfilePublishCompleteness(required);
 
@@ -2227,7 +2271,9 @@ export function TalentProfileShellDrawer() {
   // Uses querySelector inside the shell rather than forwardRef wiring,
   // since several controls are wrapped components.
   const onJumpToMissing = (id: string) => {
-    const r = required.find(x => x.id === id);
+    // Search the client list first, then the server-only blockers (which
+    // carry their own sectionId mapping).
+    const r = required.find(x => x.id === id) ?? serverOnlyMissing.find(x => x.id === id);
     if (!r) return;
     setActiveSection(r.sectionId);
     if (r.sectionId === "profile_fields" && "groupKey" in r && typeof r.groupKey === "string") {
@@ -4472,6 +4518,14 @@ export function TalentProfileShellDrawer() {
             stageName={state.stageName}
             slug={(state.stageName || "talent").toLowerCase().replace(/\s+/g, "-")}
             tenantSlug={effectiveTenant.slug}
+            // Real public route: /t/<profileCode> on the CURRENT host (works
+            // for custom domains and local dev alike). Falls back to the
+            // legacy fabricated link only when the code isn't known yet.
+            profileUrl={
+              payload.seed?.profileCode && typeof window !== "undefined"
+                ? `${window.location.origin}/t/${payload.seed.profileCode}`
+                : undefined
+            }
             onClose={() => { setPublishCelebrationOpen(false); closeDrawer(); }}
             onCopyLink={() => toast(copy.t("Profile link copied"))}
             onShare={() => toast(copy.t("Sharing profile…"))}
