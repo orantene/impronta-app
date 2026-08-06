@@ -8498,6 +8498,19 @@
       "rowBulkTools": "Bulk tools",
       "rowPriority": "Priority",
       "rowMultiWorkspace": "Multi-workspace",
+      "exposureTitle": "Where your talent is shown",
+      "exposurePlatformLabel": "Show our talent on Tulala Discover and hubs",
+      "exposurePlatformHelp": "On by default: every talent on your roster who has switched themselves on can be found by buyers across Tulala. Turn this off to keep your talent to your own site only. Your talent's own Discover switch still applies on top of this.",
+      "exposureOptedOut": "Your talent will not appear on Tulala Discover or on any hub. Buyers can still reach them through your own site.",
+      "exposureHubsTitle": "Hubs and networks",
+      "exposureHubsHelp": "Hubs are curated public boards run on Tulala. Choose which ones may list your talent.",
+      "exposureAllHubs": "Any hub may list our talent",
+      "exposureChosenHubs": "Only the hubs I choose",
+      "exposureNoHubs": "No public hubs are live yet.",
+      "exposureSave": "Save exposure",
+      "exposureSaving": "Saving…",
+      "exposureSaved": "Saved",
+      "exposureRefreshNote": "the public grid catches up within 15 minutes",
       "benefits": {
         "free": {
           "enrollment": "Talent opt-in (default off)",
@@ -8537,7 +8550,8 @@
       "upsellLink": "Settings → Plan",
       "linkPerformance": "View performance dashboard",
       "linkInquiries": "Discover inquiries",
-      "linkRoster": "Manage roster enrollment"
+      "linkRoster": "Manage roster enrollment",
+      "exposureLoading": "Loading…"
     },
     "adminInquiriesInspector": {
       "filterStatus": "Status: {status}",

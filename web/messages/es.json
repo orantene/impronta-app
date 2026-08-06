@@ -8498,6 +8498,19 @@
       "rowBulkTools": "Herramientas masivas",
       "rowPriority": "Prioridad",
       "rowMultiWorkspace": "Varios espacios",
+      "exposureTitle": "Dónde se muestra tu talento",
+      "exposurePlatformLabel": "Mostrar nuestro talento en Tulala Discover y en los hubs",
+      "exposurePlatformHelp": "Activado por defecto: cada talento de tu roster que se haya activado a sí mismo puede ser encontrado por clientes en todo Tulala. Desactívalo para mantener a tu talento solo en tu propio sitio. El interruptor de Discover de cada talento sigue aplicando por encima de esto.",
+      "exposureOptedOut": "Tu talento no aparecerá en Tulala Discover ni en ningún hub. Los clientes todavía pueden llegar a ellos desde tu propio sitio.",
+      "exposureHubsTitle": "Hubs y redes",
+      "exposureHubsHelp": "Los hubs son tableros públicos curados dentro de Tulala. Elige cuáles pueden listar a tu talento.",
+      "exposureAllHubs": "Cualquier hub puede listar a nuestro talento",
+      "exposureChosenHubs": "Solo los hubs que yo elija",
+      "exposureNoHubs": "Todavía no hay hubs públicos activos.",
+      "exposureSave": "Guardar visibilidad",
+      "exposureSaving": "Guardando...",
+      "exposureSaved": "Guardado",
+      "exposureRefreshNote": "la cuadrícula pública se actualiza en 15 minutos",
       "benefits": {
         "free": {
           "enrollment": "El talento opta por participar (desactivado por defecto)",
@@ -8537,7 +8550,8 @@
       "upsellLink": "Ajustes → Plan",
       "linkPerformance": "Ver panel de rendimiento",
       "linkInquiries": "Consultas de Discover",
-      "linkRoster": "Gestionar la inscripción del roster"
+      "linkRoster": "Gestionar la inscripción del roster",
+      "exposureLoading": "Cargando…"
     },
     "adminInquiriesInspector": {
       "filterStatus": "Estado: {status}",
