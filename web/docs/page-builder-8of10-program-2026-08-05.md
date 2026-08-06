@@ -236,20 +236,28 @@ skips one of these produces work the integrator has to redo.
    does: `grep -cE 'error TS[0-9]+:'` over the *whole* output, and print the count.
 3. **Rebase before you gate.** `main` moves under long-running agents. Rebase onto
    latest `origin/main`, re-run gates, then commit.
-4. **Agents die. Salvage, do not restart.** Background agents were killed 3 times
+4. **Run the WHOLE gate in section 4, not a subset.** Wave 0 shipped after
+   `test:builder-chrome` passed, but its new guard lived in `lib/site-admin` and
+   imported `edit-chrome`, violating the frozen lib→edit-chrome cycle guard,
+   which runs in `test:builder`. Main went red and another session had to
+   un-red it by allow-listing the file. The gate I wrote is the gate I skipped.
+   A test placed in `lib/site-admin/**` that imports `edit-chrome` must either
+   live in `edit-chrome/**` instead, or be a deliberate, justified allow-list
+   entry — not an accident discovered by CI.
+5. **Agents die. Salvage, do not restart.** Background agents were killed 3 times
    mid-work leaving 0 commits but real changes on disk. Before assuming a dead agent
    did nothing: `git -C <agent-worktree> status --short`. Rebase, fix what it left
    broken, gate, ship. Restarting from scratch throws away good work.
-5. **One migration timestamp per agent**, generated at the start of work. If two
+6. **One migration timestamp per agent**, generated at the start of work. If two
    collide, use the park-restore pattern and document it in the commit.
-6. **Never quarantine a test that found a real bug.** Quarantine is for runner
+7. **Never quarantine a test that found a real bug.** Quarantine is for runner
    mismatches and stale fixtures. Fix the bug.
-7. **The deploy gate is real.** Production advances only on green `main` CI. A red
+8. **The deploy gate is real.** Production advances only on green `main` CI. A red
    `main` blocks everyone. Fix red `main` before starting new work.
-8. **House copy rules** apply to everything user-visible: no em dashes, section/block
+9. **House copy rules** apply to everything user-visible: no em dashes, section/block
    as the only structure nouns, never buyer/cart/pay-to-DM, no gold/rust/amber in
    admin chrome, no dead CTAs.
-9. **Spanish ships with the string, in the same commit.** Owner decision, 2026-08-05:
+10. **Spanish ships with the string, in the same commit.** Owner decision, 2026-08-05:
    Spanish is a requirement. Every wave that adds a user-visible string wraps it in
    `t()` AND adds its `ES_TEXT` entry in the same commit. The wave-0 guard enforces
    this, so "I will translate it later" fails CI rather than becoming someone's
