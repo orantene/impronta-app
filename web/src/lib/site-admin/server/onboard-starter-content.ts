@@ -236,6 +236,12 @@ async function seedFreeStarterRosterProfiles(params: {
         short_bio: template.shortBio,
         workflow_status: "approved",
         visibility: "public",
+        // Template content: visible on THIS workspace's storefront, but never
+        // auto-enrolled into the platform hub. Without this marker
+        // `trg_talent_auto_enroll_hub` published every seeded copy to
+        // tulala.digital/directory, so each new workspace added 5 more clones
+        // of the same 5 demo people (33 accumulated before 20260806002850).
+        is_starter_seed: true,
         membership_tier: "free",
         membership_status: "active",
         is_featured: index < 2,
