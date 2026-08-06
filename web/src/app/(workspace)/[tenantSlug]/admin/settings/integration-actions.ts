@@ -22,6 +22,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import { auditEvent } from "@/lib/audit/emit";
 import {
   YOUTUBE_INTEGRATION_KEY,
   getIntegrationDef,
@@ -397,6 +398,11 @@ export async function saveIntegrationConfig(
     });
   }
 
+  auditEvent(guard.tenantId, "integration", `integration.${key}.updated`,
+    `Updated ${def.label} settings`,
+    { targetType: "integration", targetId: key, targetLabel: def.label,
+      metadata: { changedKeys: Object.keys(patch) } });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
 }
@@ -448,6 +454,13 @@ export async function setWorkspaceYouTubePublic(
     previousProfileUrl,
     actorUserId: guard.actorId,
   });
+
+  auditEvent(guard.tenantId, "integration", `integration.${YOUTUBE_INTEGRATION_KEY}.updated`,
+    showOnPublicSite
+      ? "YouTube channel is now shown on the public site"
+      : "YouTube channel is now hidden from the public site",
+    { targetType: "integration", targetId: YOUTUBE_INTEGRATION_KEY,
+      targetLabel: "YouTube", metadata: { showOnPublicSite } });
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
@@ -507,6 +520,11 @@ export async function saveIntegrationSecret(
   });
   await setCredentialMode(guard.tenantId, key, "custom", guard.actorId);
 
+  auditEvent(guard.tenantId, "integration", `integration.${key}.updated`,
+    `Saved a new ${def.label} key`,
+    { targetType: "integration", targetId: key, targetLabel: def.label,
+      metadata: { field: secretField } });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
 }
@@ -550,6 +568,13 @@ export async function setIntegrationMode(
       actorId: guard.actorId,
     });
   }
+
+  auditEvent(guard.tenantId, "integration", `integration.${key}.updated`,
+    mode === "inherit"
+      ? `Switched ${def.label} to the platform default credential`
+      : `Switched ${def.label} to custom credentials`,
+    { targetType: "integration", targetId: key, targetLabel: def.label,
+      metadata: { mode } });
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
@@ -666,6 +691,11 @@ export async function clearIntegrationSecret(
     actorId: guard.actorId,
   });
 
+  auditEvent(guard.tenantId, "integration", `integration.${key}.cleared`,
+    `Removed the ${def.label} key`,
+    { targetType: "integration", targetId: key, targetLabel: def.label,
+      metadata: { field: secretField } });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
 }
@@ -728,6 +758,10 @@ export async function removeIntegration(
       actorUserId: guard.actorId,
     });
   }
+
+  auditEvent(guard.tenantId, "integration", `integration.${key}.removed`,
+    `Disconnected ${def.label}`,
+    { targetType: "integration", targetId: key, targetLabel: def.label });
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };

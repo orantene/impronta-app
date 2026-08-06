@@ -220,6 +220,9 @@ const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
   (s) => s[0] === "admin" && s[1] === "policy",
   // /<tenant>/admin/discover-performance — A9 Discover analytics dashboard.
   (s) => s[0] === "admin" && s[1] === "discover-performance",
+  // /<tenant>/admin/activity-log — Workspace Activity Log (unified per-tenant
+  // audit trail: who changed what, when, from where).
+  (s) => s[0] === "admin" && s[1] === "activity-log",
   // /<tenant>/admin/discover-inquiries — Discover-routed inquiry list with
   // source / status / trust filter chips. Real server component, not the
   // prototype SPA.

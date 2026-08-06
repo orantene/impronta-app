@@ -29,6 +29,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -122,6 +123,17 @@ export async function leaveWorkspace(
       .update({ default_coordinator_user_id: null })
       .eq("id", tenantId)
       .eq("default_coordinator_user_id", user.id);
+
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "team",
+      action: "team.member.left",
+      summary: `${user.email ?? "A member"} left the workspace`,
+      targetType: "membership",
+      targetId: user.id,
+      targetLabel: user.email ?? null,
+      metadata: { role },
+    });
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
@@ -237,6 +249,16 @@ export async function archiveOwnedWorkspace(
         reason: "unexpected",
       };
     }
+
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "settings",
+      action: "workspace.archived",
+      summary: "Workspace archived",
+      targetType: "workspace",
+      targetId: tenantId,
+      targetLabel: tenant.slug,
+    });
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };

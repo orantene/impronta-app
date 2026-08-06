@@ -10,6 +10,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 
 // Non-exported on purpose — a "use server" file may only *export* async
 // functions. The drawer consumes this shape via return-type inference.
@@ -205,6 +206,16 @@ export async function inviteRosterTalent(
         logServerError("roster-invite/email", err);
       }
     })();
+
+    scheduleWorkspaceAudit({
+      tenantId: scope.tenantId,
+      category: "roster",
+      action: "roster.talent.invited",
+      summary: `Invited ${email} to the roster`,
+      targetType: "talent_profile",
+      targetId: talentProfileId,
+      targetLabel: displayName,
+    });
 
     // The workspace roster is loaded in the admin *layout* (a single
     // Promise.all prefetch), so a page-scoped revalidate would not refresh

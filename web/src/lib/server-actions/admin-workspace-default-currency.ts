@@ -42,6 +42,7 @@ import {
   type DefaultCurrencyCode,
 } from "@/lib/billing/currencies";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 
 const defaultCurrencySchema = z
   .object({
@@ -104,6 +105,16 @@ export async function updateAgencyDefaultCurrency(
     logServerError("admin-workspace-default-currency.update", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "settings",
+    action: "settings.currency.updated",
+    summary: `Changed default currency to ${parsed.data.default_currency}`,
+    targetType: "agency",
+    targetId: tenantId,
+    metadata: { currency: parsed.data.default_currency },
+  });
 
   revalidatePath(`/${tenantSlug}`, "layout");
   return { ok: true };

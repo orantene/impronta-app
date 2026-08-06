@@ -56,6 +56,9 @@
     },
     "src/app/api/cron/expire-free-reserves/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/cron/workspace-audit-trim/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -118,6 +121,10 @@
     {
       "path": "/api/cron/refresh-demand-scores",
       "schedule": "20 4 * * *"
+    },
+    {
+      "path": "/api/cron/workspace-audit-trim",
+      "schedule": "30 3 * * *"
     }
   ]
 }

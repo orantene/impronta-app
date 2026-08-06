@@ -13,6 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
@@ -418,6 +419,19 @@ export async function updateRosterTalentProfile(
     logServerError("roster/[id].updateRosterTalentProfile/workflowEvents", e);
   }
 
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "roster",
+    action: "roster.talent.updated",
+    summary: `Updated talent profile ${d.display_name}`,
+    targetType: "talent_profile",
+    targetId: talentId,
+    targetLabel: d.display_name,
+    metadata: {
+      changedKeys: Object.keys(profilePatch).filter((k) => k !== "updated_at"),
+    },
+  });
+
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
   return { success: true };
@@ -498,6 +512,16 @@ export async function registerRosterTalentPhoto(
 
   const publicUrl = admin.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
 
+  scheduleWorkspaceAudit({
+    tenantId: ctx.tenantId,
+    category: "media",
+    action: "media.photo.uploaded",
+    summary: "Uploaded talent photo",
+    targetType: "talent_profile",
+    targetId: talentId,
+    metadata: { mediaId: verify.id },
+  });
+
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
   return { ok: true, publicUrl, mediaId: verify.id };
@@ -567,6 +591,16 @@ export async function updateRosterTalentWorkflow(
   } catch (e) {
     logServerError("roster/[id].updateRosterTalentWorkflow/events", e);
   }
+
+  scheduleWorkspaceAudit({
+    tenantId: ctx.tenantId,
+    category: "roster",
+    action: "roster.talent.workflow_updated",
+    summary: `Changed talent workflow to ${workflow_status} and visibility to ${visibility}`,
+    targetType: "talent_profile",
+    targetId: talentId,
+    metadata: { workflow_status, visibility },
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
@@ -650,6 +684,18 @@ export async function setRosterTalentSiteVisibility(
   if (visible) {
     void notifyTalentProfileApproved({ admin, tenantId, talentProfileId: talentId });
   }
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "roster",
+    action: "roster.talent.visibility_changed",
+    summary: visible
+      ? "Talent is now shown on the public site"
+      : "Talent is now hidden from the public site",
+    targetType: "talent_profile",
+    targetId: talentId,
+    metadata: { from: currentAgencyVisibility, to: next },
+  });
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);

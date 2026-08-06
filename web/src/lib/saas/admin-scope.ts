@@ -3,6 +3,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability, type CapabilityKey } from "@/lib/access";
+import { auditFailure } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope, type TenantScope } from "./scope";
 
@@ -127,6 +128,17 @@ export async function requireStaffTenantAction(options?: {
   // ACTIVE and its role actually grants the requested surface.
   const capability: CapabilityKey = options?.capability ?? "agency.workspace.view";
   if (!(await userHasCapability(capability, scope.tenantId))) {
+    // Refusals are worth recording: the caller is a signed-in member of this
+    // tenant who tried something their role does not grant. That is exactly
+    // the "why couldn't I do this?" question support gets asked. Unauthenticated
+    // callers never reach here (requireSession above already returned).
+    auditFailure(
+      scope.tenantId,
+      "security",
+      "security.permission_denied",
+      "Attempted an action their role does not allow",
+      { targetType: "capability", targetId: capability, reason: capability },
+    );
     return { ok: false, error: "Not authorized." };
   }
   return {

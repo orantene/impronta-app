@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import { useT } from "@/i18n/use-t";
@@ -188,7 +189,8 @@ function NavItem({
 
 export function WorkspacePageView() {
   const t = useT();
-  const { state, setPage, openDrawer, openUpgrade, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant } = useAdminShell();
+  const { state, setPage, openDrawer, openUpgrade, pendingTalent, verificationRequests, profileClaims, effectiveTeamMembers, bridgeTalentSelfProfile, tenantSlug, effectiveTenant, adminBasePath } = useAdminShell();
+  const router = useRouter();
   const pendingTrustCount = verificationRequests.filter(r =>
     r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
   ).length;
@@ -800,6 +802,15 @@ export function WorkspacePageView() {
             onClick: () => openDrawer("beta-program"),
             right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
           },
+          ...(isAdmin
+            ? [{
+                key: "activity-log",
+                title: t("dashboard.adminWorkspace.activityLog"),
+                desc: t("dashboard.adminWorkspace.activityLogDesc"),
+                onClick: () => router.push(`${adminBasePath}/activity-log`),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />,
+              }]
+            : []),
           ...(isOwner
             ? [{
                 key: "danger-zone",
@@ -816,7 +827,7 @@ export function WorkspacePageView() {
     ];
     return list;
   }, [
-    t, state.plan, state.role, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug,
+    t, state.plan, state.role, planLabel, planTheme, isOwner, isAdmin, isFree, effectiveTenant.name, tenantSlug, adminBasePath, router,
     bridgeTalentSelfProfile, effectiveTeamMembers.length, pendingTrustCount, disputedClaimsCount,
     pendingTalent.length, openDrawer, openUpgrade, setPage,
   ]);
