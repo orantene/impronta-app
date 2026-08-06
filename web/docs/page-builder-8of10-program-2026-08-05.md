@@ -2,7 +2,7 @@
 
 **Created** 2026-08-05 · **Baseline** `main` @ `237113b55` (after the 9-PR remediation wave)
 **Audited** 2026-08-05, against `main` @ `b1fdf4ef3`. Every wave item below re-verified as still open. Baseline drift since writing: 5 commits, 2 touching builder/site-admin (#1005 storefront seeding, #1007 plan caps). No wave item was invalidated.
-**Status** DRAFT, NOT STARTED. Awaiting the owner's goals before any wave runs.
+**Status** RUNNING (owner green-lit the full program 2026-08-06). See the Ledger in section 7 for live state.
 **Predecessors** [`page-builder-minimal-build-plan-2026-07-09.md`](./page-builder-minimal-build-plan-2026-07-09.md) (44 PRs, done) · re-audit report artifact `da953eef-deb2-415b-b6d3-a930131da026`
 
 ---
@@ -399,13 +399,21 @@ session reads this table to know exactly where the program stands.
 
 | Wave | Status | Branch / PR | Landed | Live-QA evidence | Score move |
 |---|---|---|---|---|---|
-| 0 ES parity guard | NOT STARTED | | | | enables 4 |
-| 1 Draft trust | NOT STARTED | | | | 6.0 to _ |
+| 0a ES parity guards | **MERGED** | #1013 | 2026-08-06 | guard proven to fail on a canary AND pass on revert; found 3 real gaps + a shadowed "Hero" | enables 4 |
+| 0b CI arming | **BLOCKED on owner** | #1014 (a11y lane) | | admin-boot CONFIRMED a false green (skips every real step, reports success) | needs 3 repo secrets |
+| 1a Page-lane parity | GATED, PR OPEN | #1018 | | tests+gates complete; **live QA NOT done** | 6.0 to _ |
+| 1b Save atomicity | GATED, PR OPEN | #1020 | | tests+gates complete incl. injected-failure test; **live QA NOT done** | 6.0 to _ |
 | 2 Editor UX | NOT STARTED | | | | 6.5 to _ |
 | 3 Performance | NOT STARTED | | | | 6.5 to _ |
 | 4 Copy + i18n | NOT STARTED | | | | 5.5 to _ |
 | 5 Security + health | NOT STARTED | | | | 7.5 / 7.0 to _ |
-| 6 Quick bar | NOT STARTED | | | | n/a |
+| 6 Quick bar | GATED, PR PENDING | feat/quick-bar-sitewide | | 11 gate tests green; **live QA NOT done** | n/a |
+
+**Integrator notes (2026-08-06).** Agents were killed mid-work 3x again; all three
+worktrees were salvaged rather than restarted, which is now the documented default.
+Wave 0's own guard turned main red (see rule 4). The ES catalog produced THREE
+duplicate-key collisions in one day, so wave 6 adds a fast-lane duplicate guard
+rather than relying on a full tsc run nobody performs.
 
 **Overall: 6.5.** Update only when a dimension's DoD is met AND no other dimension
 regressed.
