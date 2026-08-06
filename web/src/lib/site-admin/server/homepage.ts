@@ -10,8 +10,8 @@
  *                     load; never mutates template_key / system_template_key
  *                     on an existing row)
  *   - SAVE DRAFT    — `saveHomepageDraftComposition`
- *                     (CAS; page-field upsert + draft-slot replace in one
- *                     transaction; revision kind='draft')
+ *                     (CAS; page-field upsert + draft-slot replace; revision
+ *                     kind='draft')
  *   - PUBLISH       — `publishHomepage`
  *                     (CAS; publish-ready gates; draft → live slot copy;
  *                     snapshot write; cache bust; revision kind='published')
@@ -53,6 +53,30 @@
  *     (server op, because Zod only sees ids).
  *   - Required slots must be non-empty at publish time. Draft saves may leave
  *     them empty.
+ *
+ * ATOMICITY — HONEST STATEMENT (WAVE1-1.5, 2026-08-05):
+ *   These ops are NOT transactional. PostgREST gives us one statement per
+ *   round-trip, so save / publish / restore are each a SEQUENCE of independent
+ *   REST calls. The header used to claim "in one transaction"; that was false
+ *   and has been removed rather than softened.
+ *
+ *   What we guarantee instead is ORDERING, via
+ *   {@link commitHomepageRevisionThenVersion}:
+ *     1. the `cms_page_revisions` row is written FIRST, at the version we are
+ *        about to claim;
+ *     2. only then does the CAS `UPDATE cms_pages ... WHERE version = expected`
+ *        bump the version;
+ *     3. if the CAS loses the race, the just-written revision is compensated
+ *        (deleted by the id we minted), so no orphan is left at a version that
+ *        never happened.
+ *
+ *   Consequence: a mid-sequence failure can never leave a BUMPED version with
+ *   no revision at it. That state was the one that actually hurt — the editor's
+ *   retry at the old version surfaced as a spurious VERSION_CONFLICT for its
+ *   OWN failed save, and the newest-revision load had nothing to read. The
+ *   remaining partial-failure state (version bumped, revision present, junction
+ *   rows stale) is recoverable: the revision snapshot is what the editor
+ *   rehydrates from, and the junction is re-synced on the next save/publish.
  */
 
 import { improntaLog } from "@/lib/server/structured-log";
@@ -260,9 +284,13 @@ async function insertHomepageRevision(
     templateSchemaVersion: number;
     snapshot: Record<string, unknown>;
     actorProfileId: string | null;
+    /** WAVE1-1.5 — client-minted id so the caller can compensate (delete) the
+     *  row when the CAS that follows it loses the race. */
+    revisionId?: string;
   },
-): Promise<void> {
+): Promise<{ ok: boolean; message?: string }> {
   const { error } = await supabase.from("cms_page_revisions").insert({
+    ...(params.revisionId ? { id: params.revisionId } : {}),
     tenant_id: params.tenantId,
     page_id: params.pageId,
     kind: params.kind,
@@ -280,7 +308,131 @@ async function insertHomepageRevision(
       version: params.version,
       error: error.message,
     });
+    return { ok: false, message: error.message };
   }
+  return { ok: true };
+}
+
+type HomepageCommitOutcome =
+  | { ok: true; page: PageRow }
+  | { ok: false; failure: Phase5Result<never> };
+
+/**
+ * WAVE1-1.5 — write the revision, THEN bump the version.
+ *
+ * The old order was `UPDATE cms_pages (version+1)` first and the revision write
+ * last, across ~4 independent REST calls with no transaction around them. A
+ * failure anywhere after the bump left a page at version N+1 with the newest
+ * revision still at N: the editor's canvas had nothing to rehydrate from, and
+ * its retry (still holding N as `expectedVersion`) came back VERSION_CONFLICT
+ * for a save that was ITS OWN.
+ *
+ * Inverting the order makes every partial failure land on the consistent OLDER
+ * state instead:
+ *   - revision write fails  → version never bumped, nothing changed, caller
+ *                             gets a real error and can retry at N.
+ *   - CAS loses the race    → the revision we minted is deleted again, and the
+ *                             caller gets the same VERSION_CONFLICT as before.
+ *
+ * The CAS itself is untouched — still `.eq("version", beforeRow.version)` with
+ * `version: beforeRow.version + 1` in the payload — so a genuine concurrent
+ * write is rejected exactly as it was.
+ *
+ * `update` must be the FULL `cms_pages` column payload (including `version`);
+ * the revision snapshot is built from `beforeRow` projected through it, which
+ * is exact because every column the snapshot reads is either carried in
+ * `update` or untouched by it.
+ */
+async function commitHomepageRevisionThenVersion(
+  supabase: SupabaseClient,
+  args: {
+    tenantId: string;
+    beforeRow: PageRow;
+    /** Column payload for the CAS UPDATE. MUST carry `version`. */
+    update: Record<string, unknown> & { version: number };
+    revision: {
+      kind: "draft" | "published" | "rollback";
+      composition: HomepageSnapshotSection[];
+      builderTree?: BuilderNodeTree | null;
+      styleClasses?: BuilderStyleClassRegistry | null;
+      stylePresets?: BuilderStylePresetRegistry | null;
+      /** Defaults to the projected row's `template_schema_version`. */
+      templateSchemaVersion?: number;
+    };
+    actorProfileId: string | null;
+  },
+): Promise<HomepageCommitOutcome> {
+  const { tenantId, beforeRow, update } = args;
+
+  // Projected post-update row. Every field `buildRevisionSnapshot` reads is
+  // either in `update` or left alone by it, so this equals what the UPDATE
+  // will return — we just do not have to wait for the UPDATE to build it.
+  const projectedPage = { ...beforeRow, ...update } as PageRow;
+
+  const revisionId = randomUUID();
+  const revWrite = await insertHomepageRevision(supabase, {
+    tenantId,
+    pageId: beforeRow.id,
+    kind: args.revision.kind,
+    version: update.version,
+    templateSchemaVersion:
+      args.revision.templateSchemaVersion ??
+      projectedPage.template_schema_version,
+    snapshot: buildRevisionSnapshot({
+      page: projectedPage,
+      composition: args.revision.composition,
+      builderTree: args.revision.builderTree,
+      styleClasses: args.revision.styleClasses,
+      stylePresets: args.revision.stylePresets,
+      kind: args.revision.kind,
+    }),
+    actorProfileId: args.actorProfileId,
+    revisionId,
+  });
+  if (!revWrite.ok) {
+    // Version NOT bumped. The caller's next attempt still holds a valid
+    // `expectedVersion`, so a retry succeeds rather than 409-ing on itself.
+    return {
+      ok: false,
+      failure: fail(
+        "FORBIDDEN",
+        `Could not record the revision for this save, so nothing was changed. ${revWrite.message ?? ""}`.trim(),
+      ),
+    };
+  }
+
+  const { data: updatedPage, error: updErr } = await supabase
+    .from("cms_pages")
+    .update(update)
+    .eq("id", beforeRow.id)
+    .eq("tenant_id", tenantId)
+    .eq("version", beforeRow.version)
+    .select(PAGE_COLUMNS)
+    .maybeSingle<PageRow>();
+
+  if (updErr || !updatedPage) {
+    // Compensate: the version we reserved never happened, so the revision at
+    // it must not linger. Best-effort — a failed cleanup only leaves an inert
+    // history row, never a missing one.
+    const { error: cleanupErr } = await supabase
+      .from("cms_page_revisions")
+      .delete()
+      .eq("id", revisionId)
+      .eq("tenant_id", tenantId);
+    if (cleanupErr) {
+      void improntaLog("site_admin_homepage.warn", {
+        message: "[site-admin/homepage] orphan revision cleanup failed",
+        tenantId,
+        pageId: beforeRow.id,
+        revisionId,
+        error: cleanupErr.message,
+      });
+    }
+    if (updErr) return { ok: false, failure: mapTriggerError(updErr) };
+    return { ok: false, failure: versionConflict(beforeRow.version + 1) };
+  }
+
+  return { ok: true, page: updatedPage };
 }
 
 /**
@@ -731,13 +883,27 @@ export async function saveHomepageDraftComposition(
      * callers (composer, older shells) omit it and the columns stay NULL.
      */
     editSession?: { id: string; seq: number };
+    /**
+     * Internal dependency-injection seam (default-bound to the real impls).
+     * IDENTICAL in shape to `restoreHomepageRevision` / `copyPublishedToDraft`.
+     * Lets the WAVE1-1.5 atomicity test drive the REAL save over a recording
+     * Supabase mock without the auth / `after()` request-scope coupling.
+     * Production call sites pass neither, so runtime behavior is unchanged.
+     */
+    __hooks?: {
+      requireCapability?: typeof requirePhase5Capability;
+      scheduleAudit?: typeof scheduleAuditEvent;
+    };
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, values, actorProfileId } = params;
   const seedCuratedDesign = params.seedCuratedDesign ?? false;
   const correlationId = params.correlationId ?? randomUUID();
+  const requireCapabilityFn =
+    params.__hooks?.requireCapability ?? requirePhase5Capability;
+  const scheduleAuditFn = params.__hooks?.scheduleAudit ?? scheduleAuditEvent;
 
-  await requirePhase5Capability("agency.site_admin.homepage.compose", tenantId);
+  await requireCapabilityFn("agency.site_admin.homepage.compose", tenantId);
 
   if (values.tenantId !== tenantId) {
     return fail("FORBIDDEN", "tenantId mismatch");
@@ -866,11 +1032,16 @@ export async function saveHomepageDraftComposition(
     }
   }
 
-  // --- apply: bump version, update page fields ---
+  // --- apply: revision FIRST, then the CAS version bump (WAVE1-1.5) ---
   const nextVersion = beforeRow.version + 1;
-  const { data: updatedPage, error: updErr } = await supabase
-    .from("cms_pages")
-    .update({
+  const draftBuilderTree = resolveBuilderTreeForComposition({
+    composition: compositionSnapshot,
+    preferredBuilderTree: values.builderTree,
+  });
+  const commit = await commitHomepageRevisionThenVersion(supabase, {
+    tenantId,
+    beforeRow,
+    update: {
       title: values.metadata.title,
       meta_title: values.metadata.metaTitle ?? null,
       meta_description: values.metadata.metaDescription ?? null,
@@ -904,16 +1075,20 @@ export async function saveHomepageDraftComposition(
             draft_seq: params.editSession.seq,
           }
         : { edit_session_id: null, draft_seq: null }),
-    })
-    .eq("id", beforeRow.id)
-    .eq("tenant_id", tenantId)
-    .eq("version", beforeRow.version)
-    .select(PAGE_COLUMNS)
-    .maybeSingle<PageRow>();
-  if (updErr) return mapTriggerError(updErr);
-  if (!updatedPage) return versionConflict(beforeRow.version + 1);
+    },
+    revision: {
+      kind: "draft",
+      composition: compositionSnapshot,
+      builderTree: draftBuilderTree,
+      styleClasses: params.styleClasses,
+      stylePresets: params.stylePresets,
+    },
+    actorProfileId,
+  });
+  if (!commit.ok) return commit.failure;
+  const updatedPage = commit.page;
 
-  // --- replace is_draft=TRUE rows atomically ---
+  // --- replace is_draft=TRUE rows ---
   // (a) delete existing draft-only rows
   const { error: delErr } = await supabase
     .from("cms_page_sections")
@@ -972,29 +1147,9 @@ export async function saveHomepageDraftComposition(
     }
   }
 
-  // --- revision snapshot (draft) ---
-  const draftBuilderTree = resolveBuilderTreeForComposition({
-    composition: compositionSnapshot,
-    preferredBuilderTree: values.builderTree,
-  });
-  await insertHomepageRevision(supabase, {
-    tenantId,
-    pageId: updatedPage.id,
-    kind: "draft",
-    version: updatedPage.version,
-    templateSchemaVersion: updatedPage.template_schema_version,
-    snapshot: buildRevisionSnapshot({
-      page: updatedPage,
-      composition: compositionSnapshot,
-      builderTree: draftBuilderTree,
-      styleClasses: params.styleClasses,
-      stylePresets: params.stylePresets,
-      kind: "draft",
-    }),
-    actorProfileId,
-  });
+  // (revision snapshot already written, ahead of the version bump — WAVE1-1.5)
 
-  scheduleAuditEvent(supabase, {
+  scheduleAuditFn(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
@@ -1585,10 +1740,11 @@ export async function publishHomepage(
     builderTree: publishedBuilderTree,
   };
 
-  // --- apply publish ---
-  const { data: afterRow, error: updErr } = await supabase
-    .from("cms_pages")
-    .update({
+  // --- apply publish: revision FIRST, then the CAS version bump (WAVE1-1.5) ---
+  const publishCommit = await commitHomepageRevisionThenVersion(supabase, {
+    tenantId,
+    beforeRow,
+    update: {
       status: "published",
       published_at: nowIso,
       published_homepage_snapshot: snapshot as unknown as Record<
@@ -1607,14 +1763,19 @@ export async function publishHomepage(
             draft_seq: params.editSession.seq,
           }
         : { edit_session_id: null, draft_seq: null }),
-    })
-    .eq("id", beforeRow.id)
-    .eq("tenant_id", tenantId)
-    .eq("version", beforeRow.version)
-    .select(PAGE_COLUMNS)
-    .maybeSingle<PageRow>();
-  if (updErr) return mapTriggerError(updErr);
-  if (!afterRow) return versionConflict(beforeRow.version + 1);
+    },
+    revision: {
+      kind: "published",
+      composition: compositionSnapshot,
+      builderTree: publishedBuilderTree,
+      // STYLE-1 — carry presets through the published revision so a reload after
+      // publish still surfaces the author's site-scoped presets.
+      stylePresets: params.stylePresets,
+    },
+    actorProfileId,
+  });
+  if (!publishCommit.ok) return publishCommit.failure;
+  const afterRow = publishCommit.page;
 
   // --- sync is_draft=FALSE rows to mirror draft composition ---
   const { error: delLiveErr } = await supabase
@@ -1656,23 +1817,7 @@ export async function publishHomepage(
     }
   }
 
-  await insertHomepageRevision(supabase, {
-    tenantId,
-    pageId: afterRow.id,
-    kind: "published",
-    version: afterRow.version,
-    templateSchemaVersion: afterRow.template_schema_version,
-    snapshot: buildRevisionSnapshot({
-      page: afterRow,
-      composition: compositionSnapshot,
-      builderTree: publishedBuilderTree,
-      // STYLE-1 — carry presets through the published revision so a reload after
-      // publish still surfaces the author's site-scoped presets.
-      stylePresets: params.stylePresets,
-      kind: "published",
-    }),
-    actorProfileId,
-  });
+  // (revision snapshot already written, ahead of the version bump — WAVE1-1.5)
 
   scheduleAuditEvent(supabase, {
     tenantId,
@@ -1827,11 +1972,12 @@ export async function restoreHomepageRevision(
     preferredBuilderTree: snap.builderTree,
   });
 
-  // Apply page-field rollback + CAS-bump version.
+  // Apply page-field rollback: revision FIRST, then the CAS bump (WAVE1-1.5).
   const nextVersion = beforeRow.version + 1;
-  const { data: updatedPage, error: updErr } = await supabase
-    .from("cms_pages")
-    .update({
+  const restoreCommit = await commitHomepageRevisionThenVersion(supabase, {
+    tenantId,
+    beforeRow,
+    update: {
       title,
       meta_description: metaDescription,
       hero,
@@ -1842,14 +1988,16 @@ export async function restoreHomepageRevision(
       // later beacon/save LWW adoption past this write.
       edit_session_id: null,
       draft_seq: null,
-    })
-    .eq("id", beforeRow.id)
-    .eq("tenant_id", tenantId)
-    .eq("version", beforeRow.version)
-    .select(PAGE_COLUMNS)
-    .maybeSingle<PageRow>();
-  if (updErr) return mapTriggerError(updErr);
-  if (!updatedPage) return versionConflict(beforeRow.version + 1);
+    },
+    revision: {
+      kind: "rollback",
+      composition: keptComposition,
+      builderTree: rollbackBuilderTree,
+    },
+    actorProfileId,
+  });
+  if (!restoreCommit.ok) return restoreCommit.failure;
+  const updatedPage = restoreCommit.page;
 
   // Replace draft rows with rolled-back composition.
   const { error: delErr } = await supabase
@@ -1889,20 +2037,7 @@ export async function restoreHomepageRevision(
     }
   }
 
-  await insertHomepageRevision(supabase, {
-    tenantId,
-    pageId: updatedPage.id,
-    kind: "rollback",
-    version: updatedPage.version,
-    templateSchemaVersion: updatedPage.template_schema_version,
-    snapshot: buildRevisionSnapshot({
-      page: updatedPage,
-      composition: keptComposition,
-      builderTree: rollbackBuilderTree,
-      kind: "rollback",
-    }),
-    actorProfileId,
-  });
+  // (revision snapshot already written, ahead of the version bump — WAVE1-1.5)
 
   const diffSuffix =
     dropped.length > 0 ? ` (${dropped.length} dropped: ${dropped.join(", ")})` : "";

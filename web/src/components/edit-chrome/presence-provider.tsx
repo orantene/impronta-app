@@ -37,6 +37,11 @@ import {
 } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import {
+  claimEditSessionLease,
+  resolveEditSessionToken,
+  type EditSessionEnv,
+} from "./edit-session-token";
 
 // ── types ──────────────────────────────────────────────────────────────────────
 
@@ -142,6 +147,9 @@ function getSessionId(): string {
 
 // ── per-TAB EDIT-SESSION token (WS1-D — beacon last-write-wins) ──────────────
 //
+// WAVE1-1.6: the tab-duplication hole in the sessionStorage-only version is
+// closed by `edit-session-token.ts`; read its header before touching this.
+//
 // A UUID-shaped, sessionStorage-backed token unique to THIS tab, minted once per
 // edit session. It is the SAME per-tab-session pattern WS1-A presence uses
 // (sessionStorage so it survives reloads but not a new tab), but kept as a
@@ -173,35 +181,58 @@ function makeUuid(): string {
   });
 }
 
+function readNavigationType(): string | null {
+  try {
+    if (typeof performance === "undefined") return null;
+    const entry = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    return entry?.type ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function browserEditSessionEnv(): EditSessionEnv {
+  return {
+    session: typeof sessionStorage !== "undefined" ? sessionStorage : null,
+    local: typeof localStorage !== "undefined" ? localStorage : null,
+    navigationType: readNavigationType(),
+    now: () => Date.now(),
+    mintUuid: makeUuid,
+  };
+}
+
 /**
- * A stable `uuid` unique to THIS browser tab's edit session (sessionStorage is
- * per-tab). Reused by every draft save and the pagehide beacon as the
- * `edit_session_id` last-write-wins key.
+ * A stable `uuid` unique to THIS browser tab's edit session.
+ *
+ * WAVE1-1.6 — sessionStorage alone was NOT per-tab: browser tab duplication
+ * copies it, so two live tabs shared one token and their cross-tab conflicts
+ * were silently "adopted" as same-session last-write-wins. The token now goes
+ * through {@link resolveEditSessionToken}, which reuses the stored token on a
+ * reload / back-forward (the W1-L2 adoption path, unchanged) but re-mints when
+ * a DIFFERENT live document is still holding it. See `edit-session-token.ts`.
  */
 export function getEditSessionId(): string {
   if (_editSessionId) return _editSessionId;
-  try {
-    const stored =
-      typeof sessionStorage !== "undefined"
-        ? sessionStorage.getItem("edit:session-id")
-        : null;
-    if (stored) {
-      _editSessionId = stored;
-      return stored;
-    }
-  } catch {
-    // sessionStorage may be blocked — fall through to an in-memory token
-  }
-  const id = makeUuid();
-  _editSessionId = id;
-  try {
-    if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem("edit:session-id", id);
-    }
-  } catch {
-    // ignore
-  }
-  return id;
+  if (typeof window === "undefined") return makeUuid();
+
+  const env = browserEditSessionEnv();
+  const { token } = resolveEditSessionToken(env);
+  _editSessionId = token;
+
+  // Hold the claim for as long as this document lives, so a tab duplicated FROM
+  // us sees the token as taken. Released on pagehide (which is also when the
+  // draft beacon fires), so an ordinary same-tab navigation reclaims it. No
+  // timer: background tabs get their timers throttled, and a throttled
+  // heartbeat would make an idle duplicate look dead.
+  const lease = claimEditSessionLease(env, token);
+  lease.claim();
+  window.addEventListener("pagehide", lease.release);
+  // bfcache restore: we are alive again and must re-assert the claim.
+  window.addEventListener("pageshow", lease.claim);
+
+  return token;
 }
 
 // ── context ───────────────────────────────────────────────────────────────────
