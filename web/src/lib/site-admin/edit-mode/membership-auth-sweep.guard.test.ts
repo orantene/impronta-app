@@ -118,14 +118,17 @@ test("public CMS page: the draft reader is membership-scoped to the storefront's
     /\brequireStaff\s*\(\)/,
     "the draft-reader gate must not key on the global profiles.app_role — it hid a hybrid owner's own unpublished draft from them",
   );
-  // Both draft reads (generateMetadata + the freeform body) must be scoped.
+  // All three membership gates must be scoped: the two draft reads
+  // (generateMetadata + the freeform body) and the wave-2 edit-canvas mount
+  // (the body-hosted ClientBuilderCanvas re-proves the editor when the
+  // PUBLISHED read succeeded and the draft gate therefore never ran).
   const hits = src.match(
     /userHasCapability\(\s*\n?\s*"agency\.site_admin\.pages\.edit",\s*\n?\s*publicScope\.tenantId,?\s*\n?\s*\)/g,
   );
   assert.equal(
     hits?.length,
-    2,
-    "both draft-reader gates (metadata + body) must check the capability against publicScope.tenantId",
+    3,
+    "all draft-reader / edit-canvas gates must check the capability against publicScope.tenantId",
   );
 });
 

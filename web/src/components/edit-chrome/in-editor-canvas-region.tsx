@@ -28,12 +28,17 @@
 
 import type { ReactNode } from "react";
 
+import { useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
 import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
 import { useBuilderTree } from "./builder-tree-bridge";
+import {
+  isStorefrontBodyCanvasMounted,
+  subscribeStorefrontBodyCanvas,
+} from "./client-builder-canvas-bridge";
 import {
   designTokensToCssVars,
   designTokensToDataAttrs,
@@ -57,6 +62,19 @@ export function InEditorCanvasRegion({
   // The live tree the provider publishes (insert/edit/reorder repaint here).
   const tree = useBuilderTree();
 
+  // Wave-2 cms-page canvas — when the STOREFRONT BODY hosts the full-page
+  // canvas (freeform `/p/[[...slug]]` in edit mode, `<StorefrontBodyCanvas>`),
+  // this region must not paint the same tree a second time below the footer.
+  // Subscribed (not read once) so the region reacts when the body canvas mounts
+  // after the shell (auto-enter engage → RSC refresh re-renders the body).
+  // Chrome-only hosts (Builder Lab / talent pages / ephemeral cms drafts whose
+  // body 404s) never set the signal, so this region keeps painting for them.
+  const bodyCanvasMounted = useSyncExternalStore(
+    subscribeStorefrontBodyCanvas,
+    isStorefrontBodyCanvasMounted,
+    () => false,
+  );
+
   // ONB-1 — empty page → the SHARED, surface-parameterized EmptyCanvasStarter
   // (the same picker the homepage uses), replacing the old passive
   // InEditorEmptyCanvas stub so no non-homepage surface falls off a blank-page
@@ -65,6 +83,13 @@ export function InEditorCanvasRegion({
   // active SurfaceAdapter (undo + autosave inherited). The canvas still mounts
   // below so the first insert / applied design paints in place.
   const isEmpty = tree.length === 0;
+
+  // Body-hosted page (freeform cms_page on the storefront): the visible canvas
+  // lives in the page body — render NOTHING here so the page never paints
+  // twice. The empty-page starter still needs this region (it reads EditContext,
+  // which the body subtree cannot), so an empty tree keeps the starter (the
+  // body canvas paints nothing for an empty tree — no duplicate either way).
+  if (bodyCanvasMounted && !isEmpty) return null;
 
   // Surface-scoped LIVE design tokens (talent_page → the talent's published
   // theme) painted on the canvas root at first paint. Same projection as the

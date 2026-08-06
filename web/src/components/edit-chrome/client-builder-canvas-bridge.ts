@@ -122,3 +122,44 @@ export function isSectionChildrenCanvasMounted(): boolean {
 export function isAnyBuilderNodeCanvasMounted(): boolean {
   return mountedCanvasCount > 0 || mountedSectionChildrenCount > 0;
 }
+
+// ── Storefront-body canvas signal (wave-2 cms-page canvas) ─────────────────
+// The freeform cms_page storefront route (`/p/[[...slug]]`) now mounts a
+// `<ClientBuilderCanvas>` IN the page body while edit mode is active — the same
+// hosting the homepage has always had. `EditShell` for the cms_page surface also
+// mounts `<InEditorCanvasRegion>` (built for the chrome-only hosts: Builder Lab,
+// talent pages), which would paint the SAME tree a second time below the
+// storefront footer. This signal is how the region knows a body canvas exists
+// for the current page and must not double-paint. It is a SEPARATE counter from
+// the full-page one above because the region's own canvas increments that one —
+// gating on it would self-suppress. Subscribable so the region reacts if the
+// body canvas mounts after the shell (auto-enter engage → RSC refresh).
+let storefrontBodyCanvasCount = 0;
+const storefrontBodyCanvasListeners = new Set<Listener>();
+
+/** Register a STOREFRONT-BODY-hosted canvas. Call from a mount effect; the
+ *  returned fn decrements on unmount. */
+export function registerStorefrontBodyCanvasMount(): () => void {
+  storefrontBodyCanvasCount += 1;
+  for (const listener of storefrontBodyCanvasListeners) listener();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    storefrontBodyCanvasCount = Math.max(0, storefrontBodyCanvasCount - 1);
+    for (const listener of storefrontBodyCanvasListeners) listener();
+  };
+}
+
+/** `useSyncExternalStore` subscribe for the storefront-body signal. */
+export function subscribeStorefrontBodyCanvas(listener: Listener): () => void {
+  storefrontBodyCanvasListeners.add(listener);
+  return () => {
+    storefrontBodyCanvasListeners.delete(listener);
+  };
+}
+
+/** True when the page body (storefront `/p` route) hosts the full-page canvas. */
+export function isStorefrontBodyCanvasMounted(): boolean {
+  return storefrontBodyCanvasCount > 0;
+}
