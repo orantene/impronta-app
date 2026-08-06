@@ -5,6 +5,8 @@ import { insertSystemMessage, type SystemEventType } from "./inquiry-system-mess
 import { notifyUsers } from "./inquiry-notifications";
 import { findCatalogEntries } from "@/lib/notifications/catalog";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
+import { scheduleWorkspaceAuditWith } from "@/lib/audit/workspace-audit";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export type EngineEventPriority = "high" | "medium" | "low";
 
@@ -248,6 +250,32 @@ export async function emitEngineEvents(
         .from("inquiries")
         .update({ has_failed_effects: true })
         .eq("id", event.inquiryId);
+      // Workspace Activity Log mirror of the durable `failed_engine_effects`
+      // row above. The insert does not carry tenant_id (a DB trigger fills it),
+      // so the tenant is resolved in the deferred callback — after the response
+      // has flushed, so no caller waits on the lookup. The RETRY sweep is
+      // deliberately NOT instrumented; it would multiply one failure by its
+      // retry count.
+      scheduleWorkspaceAuditWith(async () => {
+        const admin = createServiceRoleClient();
+        if (!admin) return null;
+        const { data } = await admin
+          .from("inquiries")
+          .select("tenant_id")
+          .eq("id", event.inquiryId)
+          .maybeSingle();
+        const tenantId = (data as { tenant_id?: string | null } | null)?.tenant_id ?? null;
+        if (!tenantId) return null;
+        return {
+          tenantId,
+          category: "system" as const,
+          action: "system.engine_effect.failed",
+          summary: `Automated step ${event.type} failed on an inquiry`,
+          targetType: "inquiry",
+          targetId: event.inquiryId,
+          metadata: { listener: `listener_${i}`, reason: err.message.slice(0, 200) },
+        };
+      }, "system.engine_effect.failed");
     }
   }
 

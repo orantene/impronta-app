@@ -37,7 +37,6 @@ import {
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
 import { isSameSessionNewerWrite } from "@/lib/site-admin/server/beacon-last-write-wins";
-import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
 import { publishSection } from "@/lib/site-admin/server/sections";
@@ -68,6 +67,7 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { auditFailure } from "@/lib/audit/emit";
 import { publishPageSnapshot } from "@/lib/site-admin/edit-mode/page-composer-action";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import type {
@@ -2073,6 +2073,20 @@ export async function publishHomepageFromEditModeAction(input: {
           code: result.code,
           currentVersion: result.currentVersion,
         };
+      }
+      // Activity Log: only the "not ready" class of refusal, which is literally
+      // "I clicked Publish and my site did not go live" (empty required slot,
+      // referenced section still draft, schema failure, deleted OG image).
+      // VERSION_CONFLICT is excluded by the early return above on purpose: it
+      // fires during normal two-tab editing and would swamp the log.
+      if (result.code === "PUBLISH_NOT_READY") {
+        auditFailure(
+          scope.tenantId,
+          "pages",
+          "pages.publish.not_ready",
+          "Homepage publish was blocked because something is not ready",
+          { reason: (result.message ?? CLIENT_ERROR.update).slice(0, 200) },
+        );
       }
       return {
         ok: false,

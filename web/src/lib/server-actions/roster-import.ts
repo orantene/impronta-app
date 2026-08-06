@@ -4,6 +4,7 @@ import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
+import { auditFailure } from "@/lib/audit/emit";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
 
@@ -163,6 +164,29 @@ async function processInlineRows(
       completed_at: new Date().toISOString(),
     })
     .eq("id", jobId);
+
+  // ONE audit row per import JOB, never per failed row: a 2,000-row CSV with a
+  // bad header would otherwise write 2,000 events. Per-row detail already lives
+  // in `roster_import_jobs.failure_details`; the log only needs the headline.
+  if (failures.length > 0) {
+    const distinctErrors: string[] = [];
+    for (const failure of failures) {
+      if (!distinctErrors.includes(failure.error)) distinctErrors.push(failure.error);
+      if (distinctErrors.length >= 3) break;
+    }
+    auditFailure(
+      tenantId,
+      "roster",
+      "roster.import.failed",
+      `Roster import added ${succeeded} of ${rows.length} rows, ${failures.length} failed`,
+      {
+        targetType: "roster_import_job",
+        targetId: jobId,
+        metadata: { total: rows.length, succeeded, failed: failures.length },
+        reason: distinctErrors.join("; ").slice(0, 200),
+      },
+    );
+  }
 }
 
 /**

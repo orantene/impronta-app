@@ -136,6 +136,15 @@ test("isFailureAction flags refusals and failures, not successes", () => {
     "auth.sign_in_failed",
     "billing.payment.failed",
     "billing.payout.failed",
+    // undelivered email, refused publish, exhausted retry chain
+    "messages.email.send_failed",
+    "messages.email.bounced",
+    "messages.email.complaint",
+    "messages.email.gave_up",
+    "pages.publish.not_ready",
+    "roster.import.failed",
+    "domain.verification_failed",
+    "system.engine_effect.failed",
   ]) {
     assert.equal(isFailureAction(a), true, `expected ${a} to be a failure`);
   }

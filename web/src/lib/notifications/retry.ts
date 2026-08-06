@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { auditFailure } from "@/lib/audit/emit";
 import { logServerError } from "@/lib/server/safe-error";
 import { sendEmailNotification } from "./channels/email";
 import { findCatalogEntryById } from "./catalog";
@@ -242,6 +243,24 @@ async function retryRow(
       error_message: (err instanceof Error ? err.message : String(err)).slice(0, 1000),
       attempts,
     });
+    // Workspace-visible, but ONLY on the terminal give-up. `attempts` already
+    // counts this attempt, so `attempts >= MAX_ATTEMPTS` means the cron will
+    // never pick this row up again. Logging every retry instead would put up to
+    // MAX_ATTEMPTS rows per dead address into the activity log on an hourly cron.
+    if (attempts >= MAX_ATTEMPTS) {
+      auditFailure(
+        row.tenant_id,
+        "messages",
+        "messages.email.gave_up",
+        `Gave up delivering an email to ${row.recipient_email} after ${MAX_ATTEMPTS} attempts`,
+        {
+          targetType: "notification_dispatch",
+          targetId: row.id,
+          targetLabel: row.recipient_email,
+          metadata: { attempts },
+        },
+      );
+    }
     return "failed";
   }
 }

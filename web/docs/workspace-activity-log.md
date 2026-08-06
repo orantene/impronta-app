@@ -126,11 +126,38 @@ Currently recorded:
 | `media.upload.failed` | signed-upload register route — rejected or unprocessable image |
 | `auth.sign_in_failed` | rejected credentials |
 | `billing.payment.failed` / `billing.payout.failed` | transaction state machine (already flows through `emitTransactionEvent`) |
+| `messages.<channel>.send_failed` | `notifications/dispatcher.ts` — the provider refused the send. Answers "why didn't the client get the email?" |
+| `messages.email.bounced` / `messages.email.complaint` | `notifications/resend-webhook.ts`, suppression branch only. Never `delivered`/`opened`/`clicked` |
+| `messages.email.gave_up` | `notifications/retry.ts`, only at the TERMINAL give-up (attempts exhausted), never per retry |
+| `roster.import.failed` | `roster-import.ts` — one row per import JOB with counts, never per failed row |
+| `domain.verification_failed` / `domain.attach_failed` | `settings/domain-actions.ts` — human-triggered, so no loop risk |
+| `pages.publish.not_ready` | homepage publish refused because content was not ready. `VERSION_CONFLICT` is excluded on purpose |
+| `system.engine_effect.failed` | mirror of a `failed_engine_effects` insert; the retry sweep is NOT mirrored |
 
-**Convention:** a failure action ends in `.failed` / `.denied` / `.rejected`,
-with either `.` or `_` before the word. `isFailureAction()` in `filter.ts`
-detects it and the table shows a red **Failed** badge and tints the row — no
-schema column, so adding a failure event never needs a migration.
+### Deliberately NOT logged
+
+These were considered and rejected — each would flood the table and burn the
+per-tenant retention cap without telling support anything new:
+
+| Not logged | Why |
+|---|---|
+| Stripe webhook catch-all | a 503 makes Stripe retry with backoff for up to 3 days, so one failure logs repeatedly. No reliable tenant either. Sentry's job |
+| Per-row CSV import errors | one bad header on a 2,000-row file = 2,000 rows. `roster_import_jobs.failure_details` already holds the detail |
+| `VERSION_CONFLICT` on any publish | that is two tabs open, not a broken promise. The UI already explains it |
+| Scheduled-publish retry failures | the sweep retries frequently and keeps the schedule, so a permanently broken page could emit ~1,440 rows/day. Needs a first-failure guard before it is safe |
+| Domain "routing not live yet" | the expected state while DNS propagates |
+| `logServerError` at large (~480 sites) | most carry no tenant, and crashes belong in Sentry |
+
+The rule of thumb: **log a broken promise a human would ask about, once per
+occurrence.** If a retry loop or a webhook can re-enter the same failure, log
+only the terminal transition, or not at all.
+
+**Convention:** a failure action ends in `.failed`, `.denied`, `.rejected`,
+`.bounced`, `.complaint`, `.not_ready` or `.gave_up`, with either `.` or `_`
+before the word. `isFailureAction()` in `filter.ts` detects it and the table
+shows a red **Failed** badge and tints the row — no schema column, so adding a
+failure event never needs a migration. If you coin a new failure suffix, add it
+to that regex AND to `filter.test.ts`, or the row will not be flagged.
 
 ### Why it costs almost nothing at request time
 
