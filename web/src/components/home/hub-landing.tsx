@@ -7,6 +7,7 @@ import { isLocale } from "@/lib/site-admin/locales";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
+import { hubMayListTalent, mapTenantDiscoverExposure } from "@/lib/saas/discover-exposure";
 
 /**
  * Root page for `kind === "hub"` — the cross-tenant hub surface
@@ -143,6 +144,7 @@ async function HubTalentDirectory({ talent }: { talent: HubTalentCard[] }) {
 }
 
 type HubRosterJoinRow = {
+  talent_profile_id: string;
   talent_profiles: {
     profile_code: string;
     display_name: string | null;
@@ -151,6 +153,60 @@ type HubRosterJoinRow = {
     deleted_at: string | null;
   } | null;
 };
+
+/**
+ * Drop talents whose primary workspace has vetoed hub exposure, or has narrowed
+ * it to a hub list this one isn't on. One extra round trip for the whole page
+ * (not per card): resolve each talent's primary roster, then that workspace's
+ * exposure config. Independent talent — no primary workspace — always pass.
+ */
+async function filterByAgencyHubExposure(
+  supabase: NonNullable<ReturnType<typeof createPublicSupabaseClient>>,
+  hubTenantId: string,
+  talentIds: string[],
+): Promise<Set<string>> {
+  const allowed = new Set(talentIds);
+  if (talentIds.length === 0) return allowed;
+
+  const { data: rosterRows } = await supabase
+    .from("agency_talent_roster")
+    .select("talent_profile_id, tenant_id, is_primary, added_at")
+    .in("talent_profile_id", talentIds)
+    // active + pending, matching the discover index's `live_roster` CTE — if a
+    // pending row didn't count here, a vetoing workspace's not-yet-active talent
+    // would still surface on hubs.
+    .in("status", ["active", "pending"])
+    .neq("tenant_id", hubTenantId);
+  if (!rosterRows || rosterRows.length === 0) return allowed;
+
+  // Primary workspace per talent — is_primary first, then oldest, mirroring the
+  // discover index's `primary_roster` ordering so both surfaces agree.
+  const primaryOf = new Map<string, string>();
+  for (const r of [...rosterRows].sort((a, b) =>
+    Number(b.is_primary) - Number(a.is_primary)
+    || String(a.added_at ?? "").localeCompare(String(b.added_at ?? "")),
+  )) {
+    const talentId = r.talent_profile_id as string;
+    if (!primaryOf.has(talentId)) primaryOf.set(talentId, r.tenant_id as string);
+  }
+
+  const tenantIds = [...new Set(primaryOf.values())];
+  const { data: agencyRows } = await supabase
+    .from("agencies")
+    .select("id, discover_exposure_enabled, hub_exposure_tenant_ids")
+    .in("id", tenantIds);
+
+  const exposureOf = new Map(
+    (agencyRows ?? []).map((a) => [a.id as string, mapTenantDiscoverExposure(a)]),
+  );
+
+  for (const [talentId, tenantId] of primaryOf) {
+    if (!hubMayListTalent(exposureOf.get(tenantId) ?? null, hubTenantId)) {
+      allowed.delete(talentId);
+    }
+  }
+  return allowed;
+}
 
 async function loadHubApprovedTalent(
   hubTenantId: string,
@@ -168,6 +224,7 @@ async function loadHubApprovedTalent(
     .from("agency_talent_roster")
     .select(
       `
+        talent_profile_id,
         talent_profiles!inner (
           profile_code, display_name,
           workflow_status, visibility, deleted_at
@@ -183,8 +240,16 @@ async function loadHubApprovedTalent(
     .limit(48);
 
   const rows = (data ?? []) as unknown as HubRosterJoinRow[];
+  // Agency-level veto: a workspace can keep its talents off hubs entirely, or
+  // allow only chosen hubs. Layered on top of the per-roster approval above.
+  const allowedIds = await filterByAgencyHubExposure(
+    supabase,
+    hubTenantId,
+    rows.map((r) => r.talent_profile_id).filter(Boolean),
+  );
   const cards = await Promise.all(
     rows
+      .filter((r) => allowedIds.has(r.talent_profile_id))
       .map((r) => r.talent_profiles)
       .filter(
         (tp): tp is NonNullable<HubRosterJoinRow["talent_profiles"]> => !!tp,

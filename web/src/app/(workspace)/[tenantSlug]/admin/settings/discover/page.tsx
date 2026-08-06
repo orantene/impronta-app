@@ -23,6 +23,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
+import { loadDiscoverExposure } from "@/lib/server-actions/admin-discover-exposure";
+import { DiscoverExposureControl } from "./DiscoverExposureControl";
 
 type Translate = (key: string) => string;
 
@@ -146,6 +148,7 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
   if (!scope) notFound();
 
   const { planTier, isDiscoverableCount, totalRosterCount } = await loadDiscoverSettings(scope.tenantId);
+  const exposure = await loadDiscoverExposure();
   const benefits = tierBenefits(planTier, t);
   const isFree = planTier === "free";
   const enrollmentPct = totalRosterCount > 0
@@ -207,6 +210,29 @@ export default async function DiscoverSettingsPage({ params }: { params: PagePar
           </div>
         </div>
       </div>
+
+      {/* Platform + hub exposure — the workspace's own veto over Discover. */}
+      {exposure.ok && (
+        <DiscoverExposureControl
+          initial={exposure.data}
+          hubs={exposure.hubs}
+          copy={{
+            sectionTitle: t("dashboard.adminDiscoverSettings.exposureTitle"),
+            platformLabel: t("dashboard.adminDiscoverSettings.exposurePlatformLabel"),
+            platformHelp: t("dashboard.adminDiscoverSettings.exposurePlatformHelp"),
+            optedOutNote: t("dashboard.adminDiscoverSettings.exposureOptedOut"),
+            hubsTitle: t("dashboard.adminDiscoverSettings.exposureHubsTitle"),
+            hubsHelp: t("dashboard.adminDiscoverSettings.exposureHubsHelp"),
+            allHubs: t("dashboard.adminDiscoverSettings.exposureAllHubs"),
+            chosenHubs: t("dashboard.adminDiscoverSettings.exposureChosenHubs"),
+            noHubsYet: t("dashboard.adminDiscoverSettings.exposureNoHubs"),
+            save: t("dashboard.adminDiscoverSettings.exposureSave"),
+            saving: t("dashboard.adminDiscoverSettings.exposureSaving"),
+            saved: t("dashboard.adminDiscoverSettings.exposureSaved"),
+            refreshNote: t("dashboard.adminDiscoverSettings.exposureRefreshNote"),
+          }}
+        />
+      )}
 
       {/* Tier-specific benefits */}
       <div style={{
