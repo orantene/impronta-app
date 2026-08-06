@@ -11,6 +11,8 @@
  */
 
 export const ES_SECTION_CATALOG_TEXT: Record<string, string> = {
+  Directory: "Directorio",
+  Hero: "Portada",
   // ── Add-block gallery — section card labels + descriptions (FIX #7) ─────
   // The gallery frame was translated but its 55 item cards were not; these are
   // the `label` / `description` strings from every `lib/site-admin/sections/
