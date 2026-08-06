@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -98,8 +98,8 @@ function renderSimpleRow(row: SimpleSettingRow) {
       {row.custom ?? (
         <>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: row.titleColor ?? COLORS.ink }}>{row.title}</div>
-            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{row.desc}</div>
+            <div style={{ "--row-title": row.titleColor ?? COLORS.ink } as CSSProperties} className="text-[13px] font-semibold text-[var(--row-title)]">{row.title}</div>
+            <div className="text-[12px] mt-0.5 text-admin-ink-muted">{row.desc}</div>
           </div>
           {row.right}
         </>
@@ -155,27 +155,31 @@ function NavItem({
       type="button"
       onClick={onClick}
       aria-current={active ? "true" : undefined}
+      // Geometry/typography live in classes; only token-derived values stay in
+      // the style attribute, as CSS custom properties.
+      //
+      // The hover wash is a real `hover:` class now, not the previous
+      // onMouseEnter/onMouseLeave pair that wrote `style.background`. Those
+      // handlers only worked because the base background was ALSO inline and
+      // React overwrote the mutation on every render. With the base moved to a
+      // class, the imperatively-set inline value outlives the state change and
+      // wins forever — a hovered item that then became active kept the faint
+      // hover tint (0.03) instead of the active tint (0.055). Verified in the
+      // browser before this rewrite. CSS hover has no such ordering problem,
+      // and the style attribute here sets no background, so nothing shadows it.
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        width: "100%",
-        padding: "9px 10px",
-        borderRadius: RADIUS.md,
-        border: "none",
-        background: active ? "rgba(11,11,13,0.055)" : "transparent",
-        cursor: "pointer",
-        textAlign: "left",
-        fontFamily: FONTS.body,
-        transition: `background ${TRANSITION.micro}`,
-      }}
-      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(11,11,13,0.03)"; }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
+        "--r": RADIUS.md,
+        "--ff": FONTS.body,
+        "--t": `background ${TRANSITION.micro}`,
+      } as CSSProperties}
+      className={`flex items-center gap-2.5 w-full py-[9px] px-2.5 rounded-[var(--r)] border-none cursor-pointer text-left font-[var(--ff)] transition-[var(--t)] ${
+        active ? "bg-[rgba(11,11,13,0.055)]" : "bg-transparent hover:bg-[rgba(11,11,13,0.03)]"
+      }`}
     >
       <SettingsSectionIcon sectionId={group.id} size={26} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span style={{ fontSize: 13, fontWeight: active ? 700 : 600, letterSpacing: -0.05 }} className="text-admin-ink">
+          <span className={`text-[13px] tracking-[-0.05px] text-admin-ink ${active ? "font-bold" : "font-semibold"}`}>
             {group.label}
           </span>
           {group.navBadge}
@@ -303,8 +307,8 @@ export function WorkspacePageView() {
                     <div className="flex items-center gap-2.5">
                       <PlanChip plan={state.plan} variant="solid" />
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{planLabel}</div>
-                        <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{planTheme}</div>
+                        <div className="text-[13px] font-semibold text-admin-ink">{planLabel}</div>
+                        <div className="text-[12px] mt-0.5 text-admin-ink-muted">{planTheme}</div>
                       </div>
                     </div>
                     <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
@@ -318,7 +322,7 @@ export function WorkspacePageView() {
                 opacity: 0.6,
                 custom: (
                   <>
-                    <span style={{ fontSize: 13 }} className="text-admin-ink-muted">{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
+                    <span className="text-[13px] text-admin-ink-muted">{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
                     <ReadOnlyChip />
                   </>
                 ),
@@ -537,18 +541,16 @@ export function WorkspacePageView() {
             onClick: () => openDrawer("trust-verification-queue"),
             custom: (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                <div className="flex items-center gap-2 flex-1">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminWorkspace.trustVerification")}</div>
-                    <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{t("dashboard.adminWorkspace.trustVerificationMeta")}</div>
+                    <div className="text-[13px] font-semibold text-admin-ink">{t("dashboard.adminWorkspace.trustVerification")}</div>
+                    <div className="text-[12px] mt-0.5 text-admin-ink-muted">{t("dashboard.adminWorkspace.trustVerificationMeta")}</div>
                   </div>
                   {pendingTrustCount > 0 && (
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
-                      background: COLORS.indigo, color: "#fff",
-                      fontSize: 10.5, fontWeight: 700, lineHeight: 1,
-                    }}>{pendingTrustCount}</span>
+                    <span
+                      style={{ "--pill-bg": COLORS.indigo } as CSSProperties}
+                      className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0 rounded-full bg-[var(--pill-bg)] text-white text-[10.5px] font-bold leading-none"
+                    >{pendingTrustCount}</span>
                   )}
                 </div>
                 <Affordance label={pendingTrustCount > 0 ? t("dashboard.adminWorkspace.affordanceReview") : t("dashboard.adminWorkspace.affordanceOpen")} />
@@ -562,13 +564,13 @@ export function WorkspacePageView() {
             onClick: () => openDrawer("trust-disputed-claims"),
             custom: (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                <div className="flex items-center gap-2 flex-1">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminWorkspace.disputedClaims")}</div>
-                    <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{t("dashboard.adminWorkspace.disputedClaimsMeta")}</div>
+                    <div className="text-[13px] font-semibold text-admin-ink">{t("dashboard.adminWorkspace.disputedClaims")}</div>
+                    <div className="text-[12px] mt-0.5 text-admin-ink-muted">{t("dashboard.adminWorkspace.disputedClaimsMeta")}</div>
                   </div>
                   {disputedClaimsCount > 0 && (
-                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999, color: "#fff", fontSize: 10.5, fontWeight: 700, lineHeight: 1 }} className="bg-admin-red">{disputedClaimsCount}</span>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0 rounded-full text-white text-[10.5px] font-bold leading-none bg-admin-red">{disputedClaimsCount}</span>
                   )}
                 </div>
                 <Affordance label={disputedClaimsCount > 0 ? t("dashboard.adminWorkspace.affordanceResolve") : t("dashboard.adminWorkspace.affordanceOpen")} />
@@ -586,20 +588,18 @@ export function WorkspacePageView() {
               <>
                 <div className="flex items-center gap-2">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminWorkspace.pendingApprovals")}</div>
-                    <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
+                    <div className="text-[13px] font-semibold text-admin-ink">{t("dashboard.adminWorkspace.pendingApprovals")}</div>
+                    <div className="text-[12px] mt-0.5 text-admin-ink-muted">
                       {pendingTalent.length === 0
                         ? t("dashboard.adminWorkspace.pendingApprovalsEmpty")
                         : t("dashboard.adminWorkspace.pendingApprovalsWaiting")}
                     </div>
                   </div>
                   {pendingTalent.length > 0 && (
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
-                      background: COLORS.amber, color: "#fff",
-                      fontSize: 10.5, fontWeight: 700,
-                    }}>{pendingTalent.length}</span>
+                    <span
+                      style={{ "--pill-bg": COLORS.amber } as CSSProperties}
+                      className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 py-0 rounded-full bg-[var(--pill-bg)] text-white text-[10.5px] font-bold"
+                    >{pendingTalent.length}</span>
                   )}
                 </div>
                 <Affordance label={pendingTalent.length === 0 ? t("dashboard.adminWorkspace.affordanceOpenQueue") : t("dashboard.adminWorkspace.affordanceReview")} />
@@ -649,7 +649,7 @@ export function WorkspacePageView() {
         ],
         extra: (
           <>
-            <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, fontStyle: "italic", lineHeight: 1.5 }} className="text-admin-ink-muted">
+            <div className="pt-2.5 px-3.5 pb-3 text-[11.5px] italic leading-[1.5] text-admin-ink-muted">
               {t("dashboard.adminWorkspace.discoverFootnote")}
             </div>
             <div className="px-[14px] pb-3">
@@ -852,8 +852,8 @@ export function WorkspacePageView() {
   const activeGroupData = visibleGroups.find((g) => g.id === activeGroup) ?? visibleGroups[0];
 
   const searchInput = (
-    <div style={{ position: "relative", marginBottom: 10 }}>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+    <div className="relative mb-2.5">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
         <circle cx="11" cy="11" r="7" stroke={COLORS.inkMuted} strokeWidth="1.8" />
         <path d="m20 20-3.5-3.5" stroke={COLORS.inkMuted} strokeWidth="1.8" strokeLinecap="round" />
       </svg>
@@ -863,16 +863,12 @@ export function WorkspacePageView() {
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t("dashboard.adminWorkspace.searchPlaceholder")}
         style={{
-          width: "100%",
-          padding: "9px 12px 9px 32px",
-          borderRadius: RADIUS.md,
-          border: `1px solid ${COLORS.border}`,
-          background: "#fff",
-          fontFamily: FONTS.body,
-          fontSize: 13,
-          color: COLORS.ink,
-          outline: "none",
-        }}
+          "--r": RADIUS.md,
+          "--bc": COLORS.border,
+          "--ff": FONTS.body,
+          "--fg": COLORS.ink,
+        } as CSSProperties}
+        className="w-full pt-[9px] pr-3 pb-[9px] pl-8 rounded-[var(--r)] border border-solid border-[var(--bc)] bg-white font-[var(--ff)] text-[13px] text-[var(--fg)] outline-none"
       />
     </div>
   );
@@ -893,11 +889,11 @@ export function WorkspacePageView() {
         />
       )}
 
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", maxWidth: 980 }}>
+      <div className="flex gap-6 items-start max-w-[980px]">
         {/* Left nav — flat list, one click per group. Collapses to a native
             <select> on phone (reuses useViewport, the same hook DrawerShell
             and the bottom-nav already use for responsive breakpoints). */}
-        <div style={{ width: isPhone ? "100%" : 240, flexShrink: 0, position: isPhone ? "static" : "sticky", top: 16 }}>
+        <div className={`shrink-0 top-4 ${isPhone ? "w-full static" : "w-60 sticky"}`}>
           {searchInput}
           {isPhone ? (
             <select
@@ -905,23 +901,19 @@ export function WorkspacePageView() {
               onChange={(e) => { setActiveGroup(e.target.value as GroupId); setQuery(""); }}
               aria-label={t("dashboard.adminWorkspace.jumpToSection")}
               style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: RADIUS.md,
-                border: `1px solid ${COLORS.border}`,
-                background: "#fff",
-                fontFamily: FONTS.body,
-                fontSize: 13.5,
-                fontWeight: 600,
-                color: COLORS.ink,
-              }}
+                "--r": RADIUS.md,
+                "--bc": COLORS.border,
+                "--ff": FONTS.body,
+                "--fg": COLORS.ink,
+              } as CSSProperties}
+              className="w-full py-2.5 px-3 rounded-[var(--r)] border border-solid border-[var(--bc)] bg-white font-[var(--ff)] text-[13.5px] font-semibold text-[var(--fg)]"
             >
               {visibleGroups.map((g) => (
                 <option key={g.id} value={g.id}>{g.label}</option>
               ))}
             </select>
           ) : (
-            <div data-tulala-settings-nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div data-tulala-settings-nav className="flex flex-col gap-0.5">
               {visibleGroups.map((g) => (
                 <NavItem key={g.id} group={g} active={!trimmedQuery && activeGroup === g.id} onClick={() => { setActiveGroup(g.id); setQuery(""); }} />
               ))}
@@ -933,7 +925,7 @@ export function WorkspacePageView() {
         <div className="flex-1 min-w-0">
           {trimmedQuery ? (
             matches.length === 0 ? (
-              <div style={{ padding: "24px 4px", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-muted">
+              <div style={{ "--ff": FONTS.body } as CSSProperties} className="font-[var(--ff)] py-6 px-1 text-[13px] text-admin-ink-muted">
                 {t("dashboard.adminWorkspace.noSearchResults")}
               </div>
             ) : (
@@ -944,11 +936,11 @@ export function WorkspacePageView() {
                     onClick={hit.onClick ?? (() => { setActiveGroup(hit.groupId); setQuery(""); })}
                   >
                     <div>
-                      <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3 }} className="text-admin-ink-muted">
+                      <div className="text-[10.5px] font-semibold uppercase tracking-[0.3px] mb-[3px] text-admin-ink-muted">
                         {hit.groupLabel}
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{hit.title}</div>
-                      {hit.desc && <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{hit.desc}</div>}
+                      <div className="text-[13px] font-semibold text-admin-ink">{hit.title}</div>
+                      {hit.desc && <div className="text-[12px] mt-0.5 text-admin-ink-muted">{hit.desc}</div>}
                     </div>
                     <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
                   </SettingsRow>
@@ -959,10 +951,10 @@ export function WorkspacePageView() {
             activeGroupData && (
               <div data-settings-section={activeGroupData.id}>
                 <div className="mb-3">
-                  <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">
+                  <div style={{ "--ff": FONTS.display } as CSSProperties} className="font-[var(--ff)] text-[17px] font-bold tracking-[-0.2px] text-admin-ink">
                     {activeGroupData.label}
                   </div>
-                  <div style={{ fontSize: 12.5, marginTop: 2 }} className="text-admin-ink-muted">{activeGroupData.desc}</div>
+                  <div className="text-[12.5px] mt-0.5 text-admin-ink-muted">{activeGroupData.desc}</div>
                 </div>
                 {activeGroupData.extraPosition === "before" && activeGroupData.extra}
                 {activeGroupData.rows.map(renderSimpleRow)}
