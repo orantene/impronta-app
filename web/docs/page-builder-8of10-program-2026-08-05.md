@@ -141,6 +141,7 @@ new tenant judges in their first five minutes.
 | 2.2 | Nested-blocks popover spawns partially behind the left dock | header and first row clipped |
 | 2.3 | Block-list labels go stale after a text edit | panel still shows the old copy after commit |
 | 2.4 | Toolbar Duplicate does not paint on canvas until reload | panel count updates, canvas does not |
+| 2.0 | **NEW, found in live QA 2026-08-06 — P1, and it BLOCKS wave 1's live verification.** A brand-new empty page cannot receive its FIRST section. The empty state says "No sections on this page yet. Open Add gallery", but the gallery's click path inserts "after the selected block" and an empty page has nothing to select, so clicking any section card silently does nothing (`builderNodes` stays 0 across multiple cards and attempts). The two affordances point at each other. Every new non-homepage page starts here, so this is the first thing a tenant meets after creating one. Fix: on an empty page, insert at root instead of requiring an anchor. |
 | 2.5 | Shortcut sheet advertises a conflict it silently resolves | `kit/shortcuts.ts` lists Alt+arrows twice with different meanings |
 
 **Definition of Done**
