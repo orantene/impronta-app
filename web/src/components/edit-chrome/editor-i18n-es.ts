@@ -24,6 +24,8 @@ export const ES_TEXT: Record<string, string> = {
   "Hide this bar": "Ocultar esta barra",
   "Hide this bar. It comes back next time you sign in.":
     "Ocultar esta barra. Vuelve a aparecer la próxima vez que inicies sesión.",
+  // Narrow-screen collapse (wave 6.4): label on the control that opens the
+  // same six destinations as the desktop link row.
   // ── Topbar — page picker ──────────────────────────────────────────────
   Rename: "Renombrar",
   "Click to switch page · double-click to rename":

@@ -14,6 +14,7 @@ import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { SpaPageViewTracker } from "@/components/analytics/spa-page-view-tracker";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
+import { AdminQuickBarMount } from "@/components/edit-chrome/admin-quick-bar-mount";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { getLocaleMetadata } from "@/i18n/config";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -242,6 +243,11 @@ export default async function RootLayout({
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />
         <EditChromeMount />
+        {/* Wave 6.1 — the admin quick bar mounts independently of the editor so
+            it reaches every public page of a tenant's own site, not just the
+            builder-owned ones. Same tenant + capability gate; renders nothing
+            for visitors, for members of a different tenant, or in edit mode. */}
+        <AdminQuickBarMount />
         <Analytics />
         <ClientSpeedInsights />
         {/* PWA — registers /sw.js in production only. No-op in dev. */}

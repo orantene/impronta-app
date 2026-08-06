@@ -4,8 +4,10 @@
  * admin-platform-workspace-ui.ts — super-admin action for the workspace-UI
  * switches (the `platform_settings` singleton) on /platform/admin/settings.
  *
- * Lets HQ show/hide the workspace shell's floating "+" quick-action button and
- * the first-run guided tour. Both ship hidden by default.
+ * Lets HQ show/hide the workspace shell's floating "+" quick-action button, the
+ * first-run guided tour, and the storefront admin quick bar. The first two ship
+ * hidden by default; the quick bar ships VISIBLE (it shipped that way in #1001,
+ * so HQ opts out of it rather than into it).
  *
  * Pattern mirrors admin-platform-payout-system.ts (platform-admin gated,
  * `{ ok, error }` result, revalidatePath on success). The DB write lives in the
@@ -25,6 +27,7 @@ const schema = z
   .object({
     fabEnabled: z.boolean(),
     tourEnabled: z.boolean(),
+    quickBarEnabled: z.boolean(),
   })
   .strict();
 

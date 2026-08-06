@@ -10,12 +10,28 @@ export type PlatformWorkspaceUi = {
   fabEnabled: boolean;
   /** Fire the first-run 4-step guided tour for new workspace admins. */
   tourEnabled: boolean;
+  /**
+   * Show the storefront admin quick bar (the thin strip a signed-in member of
+   * the tenant sees across the top of their OWN public site).
+   *
+   * Defaults TRUE, unlike the other two. The bar shipped visible in #1001, so a
+   * hidden-by-default switch would silently delete a live feature the moment
+   * this column landed. HQ opts OUT here.
+   */
+  quickBarEnabled: boolean;
 };
 
-/** Hidden by default — HQ opts each surface back in from /platform/admin/settings. */
+/**
+ * FAB + tour are hidden by default — HQ opts each back in from
+ * /platform/admin/settings. The quick bar is the exception: already-shipped
+ * behaviour, so its default preserves what tenants see today. This same object
+ * is the degrade-to-safe result when the read fails, which is why it must state
+ * the intended default rather than a blanket `false`.
+ */
 const DEFAULT_WORKSPACE_UI: PlatformWorkspaceUi = {
   fabEnabled: false,
   tourEnabled: false,
+  quickBarEnabled: true,
 };
 
 /**
@@ -30,13 +46,18 @@ export const loadPlatformWorkspaceUi = cache(
       if (!admin) return DEFAULT_WORKSPACE_UI;
       const { data } = await admin
         .from("platform_settings")
-        .select("workspace_fab_enabled, workspace_tour_enabled")
+        .select(
+          "workspace_fab_enabled, workspace_tour_enabled, workspace_quick_bar_enabled",
+        )
         .eq("id", true)
         .maybeSingle();
       if (!data) return DEFAULT_WORKSPACE_UI;
       return {
         fabEnabled: !!data.workspace_fab_enabled,
         tourEnabled: !!data.workspace_tour_enabled,
+        // `?? true` (not `!!`) so a row written before the column existed reads
+        // as visible rather than as an explicit HQ opt-out.
+        quickBarEnabled: data.workspace_quick_bar_enabled ?? true,
       };
     } catch (err) {
       logServerError("platform.loadWorkspaceUi", err);
@@ -63,6 +84,7 @@ export async function writePlatformWorkspaceUi(
       .update({
         workspace_fab_enabled: input.fabEnabled,
         workspace_tour_enabled: input.tourEnabled,
+        workspace_quick_bar_enabled: input.quickBarEnabled,
         updated_at: new Date().toISOString(),
         updated_by: updatedBy,
       })
