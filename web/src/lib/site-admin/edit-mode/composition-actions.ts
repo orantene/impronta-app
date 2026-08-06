@@ -35,6 +35,7 @@ import {
   type PullFromLiveMode,
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
 import { isSameSessionNewerWrite } from "@/lib/site-admin/server/beacon-last-write-wins";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
@@ -659,7 +660,29 @@ export async function loadHomepageCompositionAction(input: {
     draftRevisionStyleClasses = revisionExtras.styleClasses;
     draftRevisionStylePresets = revisionExtras.stylePresets;
     if (isFreeformPage) {
-      draftRevisionBuilderTree = revisionExtras.builderTree;
+      // WAVE1-1.7 — the raw newest-revision tree must clear the SAME emptiness
+      // bar the publish path uses. `parseBuilderTreeFromSnapshot` only filters
+      // `length > 0`, so a drifted revision holding exactly ONE node (a lone
+      // empty root container — the canonical "emptied" shape) came back as a
+      // real tree here, rendered an empty canvas, and then autosaved that
+      // emptiness forward over the good draft. `recoverBuilderTreeIfEmpty`
+      // counts nodes RECURSIVELY and treats <= 1 as empty, falling back to the
+      // most recent revision that actually has content. Freeform pages have no
+      // slots by definition, hence `hasSlots: false`.
+      const recoveredFreeformTree = await recoverBuilderTreeIfEmpty(
+        adminClient,
+        {
+          tenantId: scope.tenantId,
+          pageId: page.pageId,
+          pageVersion: page.version,
+          hasSlots: false,
+        },
+        revisionExtras.builderTree,
+      );
+      draftRevisionBuilderTree =
+        Array.isArray(recoveredFreeformTree) && recoveredFreeformTree.length > 0
+          ? (recoveredFreeformTree as BuilderNodeTree)
+          : undefined;
     }
     const { data: stampRow } = await adminClient
       .from("cms_pages")
