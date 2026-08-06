@@ -23,6 +23,10 @@ import { renderFreeformPageRootTree } from "@/lib/site-admin/builder-node/freefo
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
+import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
+import { StorefrontBodyCanvas } from "@/components/edit-chrome/storefront-body-canvas";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import { userHasCapability } from "@/lib/access";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
@@ -276,6 +280,50 @@ export default async function CmsPublicPage({
         tenantId: publicScope.tenantId,
         surface: "adminWorkspace",
       });
+
+      // Wave-2 cms-page canvas — while edit mode is active (and the client-canvas
+      // flag is on, same gate as the homepage at homepage-cms-sections.tsx), the
+      // page body mounts `<StorefrontBodyCanvas>` → `<ClientBuilderCanvas>`: the
+      // canvas that subscribes to the live tree the editor publishes, so every
+      // mutation (insert / duplicate / style edit) repaints IN PLACE instead of
+      // persisting invisibly until a hard reload. It renders the SAME
+      // root-section-rooted tree through the SAME `renderFreeformPageRootTree`
+      // helper (inside ClientBuilderCanvas), against server-assembled data
+      // sources + pre-rendered `section_embed` islands — first client paint is
+      // the server markup. Anonymous visitors never take this branch: their
+      // render below is byte-identical and ships no editor chunk.
+      const editModeActive = await isEditModeActiveForTenant(publicScope.tenantId);
+      // `draftReaderActive` is only computed when the PUBLISHED read missed, so
+      // a PUBLISHED page mid-edit arrives here with it false — re-prove the
+      // editor via the same membership capability the draft gate uses. The edit
+      // cookie alone is forgeable and must not decide anything; the capability
+      // (or the signed preview JWT that set draftReaderActive) is the proof.
+      let mountBodyCanvas =
+        editModeActive && isBuilderClientCanvasEnabled() && draftReaderActive;
+      if (
+        !mountBodyCanvas &&
+        editModeActive &&
+        isBuilderClientCanvasEnabled()
+      ) {
+        mountBodyCanvas = await userHasCapability(
+          "agency.site_admin.pages.edit",
+          publicScope.tenantId,
+        );
+      }
+      const editCanvasRenderData = mountBodyCanvas
+        ? await buildInEditorCanvasRenderData({
+            tree: blocks,
+            tenantId: publicScope.tenantId,
+            locale,
+            publicPathPrefix,
+            previewSubject: {
+              kind: "workspace",
+              id: publicScope.tenantId,
+              locale,
+            },
+            componentStyleDefaultsOverride: componentStyleDefaults,
+          })
+        : null;
       return (
         <>
           <SkipToContent />
@@ -298,25 +346,40 @@ export default async function CmsPublicPage({
           <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(blocks)} />
           <BuilderNodeFontLinks nodes={blocks} />
           <main id="main-content" className="w-full flex-1" data-theme-canvas-root="">
-            {/* renderFreeformPageRootTree, NOT bare renderBuilderNodes: the
-                generic freeform path renders root `section` nodes as null, so a
-                section-rooted page (every AI-generated page, any Add-Gallery
-                custom section) rendered an EMPTY main here — published AND
-                draft. The root-tree helper wraps each root section and renders
-                its children (the fix the talent pages already use). */}
-            {renderFreeformPageRootTree(blocks, {
-              publicPathPrefix,
-              mode: "freeform",
-              includeRendererStyles: false,
-              componentStyleDefaults,
-              ...experimentContext,
-              renderSectionEmbed: makeSectionEmbedRenderer({
-                tenantId: publicScope.tenantId,
-                locale,
+            {mountBodyCanvas && editCanvasRenderData ? (
+              // EDIT MODE — the live client canvas (see the wave-2 comment at the
+              // gate above). Renderer styles/fonts stay server-emitted at page
+              // level, matching the homepage contract (includeRendererStyles
+              // defaults false on ClientBuilderCanvas).
+              <StorefrontBodyCanvas
+                initialTree={blocks}
+                dataSources={editCanvasRenderData.dataSources}
+                sectionEmbedIslands={editCanvasRenderData.sectionEmbedIslands}
+                publicPathPrefix={publicPathPrefix}
+                components={{}}
+                componentStyleDefaults={editCanvasRenderData.componentStyleDefaults}
+              />
+            ) : (
+              // renderFreeformPageRootTree, NOT bare renderBuilderNodes: the
+              // generic freeform path renders root `section` nodes as null, so a
+              // section-rooted page (every AI-generated page, any Add-Gallery
+              // custom section) rendered an EMPTY main here — published AND
+              // draft. The root-tree helper wraps each root section and renders
+              // its children (the fix the talent pages already use).
+              renderFreeformPageRootTree(blocks, {
                 publicPathPrefix,
-                previewSubject: { kind: "workspace", id: publicScope.tenantId },
-              }),
-            })}
+                mode: "freeform",
+                includeRendererStyles: false,
+                componentStyleDefaults,
+                ...experimentContext,
+                renderSectionEmbed: makeSectionEmbedRenderer({
+                  tenantId: publicScope.tenantId,
+                  locale,
+                  publicPathPrefix,
+                  previewSubject: { kind: "workspace", id: publicScope.tenantId },
+                }),
+              })
+            )}
           </main>
           <PublicFooter />
           {mountChatLauncher ? (
