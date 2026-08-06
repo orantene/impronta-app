@@ -3,13 +3,6 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-// Lives in components/edit-chrome, NOT lib/site-admin/sections, even though it
-// checks section meta.ts files. `lib-edit-chrome-cycle-guard` forbids
-// lib/site-admin → components/edit-chrome imports, and this guard needs both ES
-// catalogs; siting it here keeps the dependency pointing the legal way (same
-// move the guard's own notes record for bridge-reference-identity.test.ts).
-// The section files are read from disk via SECTIONS_DIR below, not imported,
-// so nothing is lost by living on this side.
 import { ES_SECTION_CATALOG_TEXT } from "@/components/edit-chrome/editor-i18n-es-sections";
 import { ES_TEXT } from "@/components/edit-chrome/editor-i18n-es";
 
