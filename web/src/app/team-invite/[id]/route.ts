@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -113,6 +114,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         redeemed_by_user_id: session.user.id,
       })
       .eq("id", row.id);
+
+    scheduleWorkspaceAudit({
+      tenantId: row.tenant_id,
+      category: "team",
+      action: "team.invite.accepted",
+      summary: `${row.invited_email} accepted a team invite as ${row.target_role}`,
+      targetType: "invite",
+      targetId: row.id,
+      targetLabel: row.invited_email,
+      metadata: { role: row.target_role },
+    });
 
     const landing = slug ? `/${slug}/admin` : "/";
     return NextResponse.redirect(`${origin}${landing}?team_invite=redeemed`);

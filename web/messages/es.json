@@ -4398,7 +4398,9 @@
       "rosterRatesUnsaved": "cambios sin guardar",
       "rosterRatesDiscard": "Descartar",
       "rosterRatesCreatedNew": "servicios nuevos creados",
-      "pricingDefaultsPerTalentPointer": "Fijar la tarifa de cada talento se hace junto al roster: Roster → Tarifas."
+      "pricingDefaultsPerTalentPointer": "Fijar la tarifa de cada talento se hace junto al roster: Roster → Tarifas.",
+      "activityLog": "Registro de actividad",
+      "activityLogDesc": "Cada cambio en este espacio de trabajo: quién lo hizo, cuándo y desde dónde."
     },
     "adminOperations": {
       "title": "Operaciones",
@@ -10609,6 +10611,60 @@
         "rejected": "Rechazada",
         "expired": "Caducada"
       }
+    },
+    "adminActivityLog": {
+      "title": "Registro de actividad",
+      "subtitle": "Todo lo que ocurrió en este espacio de trabajo: cambios de configuración, ediciones de equipo y roster, subidas, publicaciones de páginas, pagos e inicios de sesión, con quién lo hizo y desde dónde.",
+      "searchLabel": "Buscar",
+      "searchPlaceholder": "Buscar por persona, acción, objetivo o IP",
+      "categoryLabel": "Categoría",
+      "allCategories": "Todas las categorías",
+      "actorLabel": "Quién",
+      "allActors": "Todos",
+      "dateLabel": "Cuándo",
+      "allTime": "Todo el tiempo",
+      "last24h": "Últimas 24 horas",
+      "last7d": "Últimos 7 días",
+      "last30d": "Últimos 30 días",
+      "colTime": "Hora",
+      "colActor": "Quién",
+      "colEvent": "Qué ocurrió",
+      "colTarget": "Objetivo",
+      "colLocation": "Ubicación",
+      "empty": "Aún no hay actividad registrada. Las nuevas acciones en este espacio aparecerán aquí.",
+      "emptyFiltered": "Nada coincide con estos filtros.",
+      "showing": "Mostrando {shown} de {total} eventos",
+      "loadMore": "Cargar eventos anteriores",
+      "detailAction": "Acción",
+      "detailTarget": "Objetivo",
+      "detailTime": "Hora exacta",
+      "detailIp": "Dirección IP",
+      "detailCountry": "País",
+      "detailUserAgent": "Dispositivo",
+      "detailMetadata": "Detalles",
+      "category": {
+        "settings": "Configuración",
+        "team": "Equipo",
+        "roster": "Roster",
+        "media": "Medios",
+        "pages": "Páginas y sitio",
+        "billing": "Reservas y pagos",
+        "messages": "Mensajes",
+        "auth": "Inicios de sesión",
+        "domain": "Dominios",
+        "integration": "Integraciones",
+        "security": "Seguridad",
+        "system": "Sistema"
+      },
+      "actor": {
+        "staff": "Personal",
+        "talent": "Talento",
+        "client": "Cliente",
+        "platform": "Soporte de Tulala",
+        "system": "Sistema",
+        "guest": "Invitado"
+      },
+      "failedBadge": "Fallido"
     }
   },
   "admin": {

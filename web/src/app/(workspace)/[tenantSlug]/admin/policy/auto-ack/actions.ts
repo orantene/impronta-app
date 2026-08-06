@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 
 /**
  * Update the workspace auto-acknowledgement policy. Gated on owner / admin
@@ -60,6 +61,16 @@ export async function updateAutoAckPolicy(formData: FormData): Promise<void> {
       `/${tenantSlug}/admin/policy/auto-ack?err=${encodeURIComponent("Failed to save. Try again.")}`,
     );
   }
+
+  scheduleWorkspaceAudit({
+    tenantId: auth.tenantId,
+    category: "settings",
+    action: "settings.auto_ack.updated",
+    summary: `Auto-acknowledgement ${enabled ? "enabled" : "disabled"}`,
+    targetType: "agency",
+    targetId: auth.tenantId,
+    metadata: { enabled },
+  });
 
   revalidatePath(`/${tenantSlug}/admin/policy/auto-ack`);
   redirect(`/${tenantSlug}/admin/policy/auto-ack?ok=1`);

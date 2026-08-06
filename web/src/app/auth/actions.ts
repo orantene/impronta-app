@@ -8,10 +8,18 @@ import {
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { logServerError } from "@/lib/server/safe-error";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import {
+  getCachedActorSession,
+  getCachedServerSupabase,
+} from "@/lib/server/request-cache";
+import {
+  scheduleWorkspaceAudit,
+  type WorkspaceAuditActorKind,
+} from "@/lib/audit/workspace-audit";
 import { createTranslator } from "@/i18n/messages";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 export type AuthActionState = { error?: string; message?: string } | void;
 
@@ -40,6 +48,41 @@ function mapSignUpError(error: unknown, t: ReturnType<typeof createTranslator>):
     default:
       return t("public.auth.actions.signupGeneric");
   }
+}
+
+/**
+ * Tenant id set by the proxy for tenant hosts. Auth runs before the tenant
+ * scope helpers apply, so the header is the only reliable attribution here.
+ * Returns null on the platform host (tulala.digital), where we skip auditing.
+ */
+async function auditTenantId(): Promise<string | null> {
+  try {
+    const h = await headers();
+    return h.get("x-impronta-tenant-id");
+  } catch {
+    return null;
+  }
+}
+
+function auditActorKind(appRole: string | null | undefined): WorkspaceAuditActorKind {
+  switch (appRole) {
+    case "super_admin":
+      return "platform";
+    case "agency_staff":
+      return "staff";
+    case "talent":
+      return "talent";
+    default:
+      return "client";
+  }
+}
+
+/** True only for an actual rejected email/password pair (not config/validation). */
+function isRejectedCredentials(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  if (code === "invalid_credentials") return true;
+  const message = (error as { message?: string })?.message;
+  return typeof message === "string" && message.includes("Invalid login credentials");
 }
 
 /** Unauthenticated: request Supabase to email a password reset link. */
@@ -94,6 +137,20 @@ export async function signInWithEmail(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     logServerError("auth/signInWithPassword", error);
+    if (isRejectedCredentials(error)) {
+      const tenantId = await auditTenantId();
+      if (tenantId) {
+        scheduleWorkspaceAudit({
+          tenantId,
+          category: "security",
+          action: "auth.sign_in_failed",
+          summary: "Failed sign-in attempt",
+          actorUserId: null,
+          actorLabel: email,
+          actorKind: "guest",
+        });
+      }
+    }
     return { error: t("public.auth.actions.signInGeneric") };
   }
 
@@ -104,6 +161,21 @@ export async function signInWithEmail(
   const profileData = user
     ? await loadAccessProfile(supabase, user.id)
     : null;
+
+  if (user) {
+    const tenantId = await auditTenantId();
+    if (tenantId) {
+      scheduleWorkspaceAudit({
+        tenantId,
+        category: "auth",
+        action: "auth.signed_in",
+        summary: "Signed in with email",
+        actorUserId: user.id,
+        actorLabel: user.email ?? email,
+        actorKind: auditActorKind(profileData?.app_role),
+      });
+    }
+  }
 
   revalidatePath("/", "layout");
   redirect(resolvePostAuthDestination(profileData, nextPath));
@@ -134,10 +206,38 @@ export async function signInWithEmailModal(
   if (!supabase) {
     return { ok: false, error: SUPABASE_ENV_HELP };
   }
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     logServerError("auth/signInWithEmailModal", error);
+    if (isRejectedCredentials(error)) {
+      const tenantId = await auditTenantId();
+      if (tenantId) {
+        scheduleWorkspaceAudit({
+          tenantId,
+          category: "security",
+          action: "auth.sign_in_failed",
+          summary: "Failed sign-in attempt",
+          actorUserId: null,
+          actorLabel: email,
+          actorKind: "guest",
+        });
+      }
+    }
     return { ok: false, error: t("public.auth.actions.signInGeneric") };
+  }
+
+  if (data.user) {
+    const tenantId = await auditTenantId();
+    if (tenantId) {
+      scheduleWorkspaceAudit({
+        tenantId,
+        category: "auth",
+        action: "auth.signed_in",
+        summary: "Signed in with email",
+        actorUserId: data.user.id,
+        actorLabel: data.user.email ?? email,
+      });
+    }
   }
 
   revalidatePath("/", "layout");
@@ -183,6 +283,21 @@ export async function signUpWithEmail(
   if (error) {
     logServerError("auth/signUpWithEmail", error);
     return { error: mapSignUpError(error, t) };
+  }
+
+  if (data.user) {
+    const tenantId = await auditTenantId();
+    if (tenantId) {
+      scheduleWorkspaceAudit({
+        tenantId,
+        category: "auth",
+        action: "auth.signed_up",
+        summary: "Created an account",
+        actorUserId: data.user.id,
+        actorLabel: data.user.email ?? email,
+        actorKind: signupIntent === "talent" ? "talent" : "client",
+      });
+    }
   }
 
   if (!data.session) {
@@ -253,6 +368,22 @@ export async function signUpTalentInPlace(
     logServerError("auth/signUpTalentInPlace", error);
     return { error: mapSignUpError(error, t) };
   }
+
+  if (data.user) {
+    const tenantId = await auditTenantId();
+    if (tenantId) {
+      scheduleWorkspaceAudit({
+        tenantId,
+        category: "auth",
+        action: "auth.signed_up",
+        summary: "Created an account",
+        actorUserId: data.user.id,
+        actorLabel: data.user.email ?? email,
+        actorKind: "talent",
+      });
+    }
+  }
+
   if (!data.session) {
     // Email-confirmation mode: no session yet, so the in-place profile step
     // can't run. Surface the "check your inbox" copy and stop here.
@@ -266,7 +397,36 @@ export async function signUpTalentInPlace(
 export async function signOut(): Promise<void> {
   const supabase = await getCachedServerSupabase();
   if (supabase) {
-    await supabase.auth.signOut();
+    // Resolve the actor BEFORE the session is destroyed. The request-cached
+    // session still reflects the signed-in user at this point.
+    const tenantId = await auditTenantId();
+    let actorUserId: string | null = null;
+    let actorLabel: string | null = null;
+    let actorKind: WorkspaceAuditActorKind | undefined;
+    if (tenantId) {
+      try {
+        const { user, profile } = await getCachedActorSession();
+        if (user) {
+          actorUserId = user.id;
+          actorLabel = user.email ?? null;
+          actorKind = auditActorKind(profile?.app_role);
+        }
+      } catch {
+        // Actor unresolvable — log the sign-out without attribution.
+      }
+    }
+    const { error } = await supabase.auth.signOut();
+    if (tenantId && !error) {
+      scheduleWorkspaceAudit({
+        tenantId,
+        category: "auth",
+        action: "auth.signed_out",
+        summary: "Signed out",
+        actorUserId,
+        actorLabel,
+        actorKind,
+      });
+    }
   }
   revalidatePath("/", "layout");
   redirect("/");

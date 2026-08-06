@@ -25,6 +25,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 
@@ -122,6 +123,15 @@ export async function removeFromRoster(input: {
     logServerError("admin-talent-roster.remove.update", updateErr);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "roster",
+    action: "roster.talent.removed",
+    summary: "Removed talent from the roster",
+    targetType: "talent_profile",
+    targetId: v.talent_profile_id,
+  });
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, talent_profile_id: v.talent_profile_id, keptUserAccount };
@@ -241,6 +251,16 @@ export async function setTalentCardPhoto(input: {
 
   const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(v.storage_path).data.publicUrl;
 
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "roster",
+    action: "roster.talent.card_photo_set",
+    summary: "Set talent card photo",
+    targetType: "talent_profile",
+    targetId: v.talent_profile_id,
+    metadata: { mediaId: inserted.id },
+  });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return {
     ok: true,
@@ -280,6 +300,15 @@ export async function restoreToRoster(input: {
     logServerError("admin-talent-roster.restore", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "roster",
+    action: "roster.talent.restored_to_roster",
+    summary: "Restored talent to the roster",
+    targetType: "talent_profile",
+    targetId: v.talent_profile_id,
+  });
 
   const { data: profile } = await supabase
     .from("talent_profiles")

@@ -46,6 +46,7 @@ import {
 import { assertLocaleConsistency } from "@/lib/translation-center/save/assert-locale-consistency";
 import type { Locale } from "@/i18n/config";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
+import { auditEvent } from "@/lib/audit/emit";
 
 // A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. Both shapes are `useFormState`
 // payloads (note the `| undefined` for the initial state) consumed by admin
@@ -317,6 +318,7 @@ export async function updateTalentProfile(
 
   await scheduleRebuildAiSearchDocument(supabase, id);
 
+  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.updated", display_name ? `Updated talent profile ${display_name}` : "Updated talent profile", { targetType: "talent_profile", targetId: id, targetLabel: display_name || null, metadata: { changedKeys: Object.keys(payload).filter((k) => k !== "updated_at") } });
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -393,6 +395,7 @@ export async function updateTalentWorkflowVisibilityInline(input: {
 
   await scheduleRebuildAiSearchDocument(supabase, id);
 
+  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.visibility_changed", `Changed talent workflow to ${workflow_status} and visibility to ${visibility}`, { targetType: "talent_profile", targetId: id, metadata: { from: { workflow_status: before.workflow_status, visibility: before.visibility }, to: { workflow_status, visibility } } });
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -477,6 +480,7 @@ export async function softDeleteTalentProfile(
     return { error: "Could not remove profile." };
   }
 
+  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.deleted", "Removed talent profile", { targetType: "talent_profile", targetId: id });
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -597,6 +601,7 @@ export async function adminBulkTalentAction(
     }
   }
 
+  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.bulk_action", `Applied bulk action ${parsed.data.action} to ${eligibleIds.length} talent profiles`, { targetType: "talent_profile", metadata: { action: parsed.data.action, count: eligibleIds.length } });
   revalidatePath("/admin/talent");
   for (const id of eligibleIds) revalidatePath(`/admin/talent/${id}`);
   for (const id of eligibleIds) {
@@ -634,6 +639,7 @@ export async function restoreTalentProfile(
 
   await scheduleRebuildAiSearchDocument(supabase, id);
 
+  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.restored", "Restored talent profile", { targetType: "talent_profile", targetId: id });
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -785,6 +791,7 @@ export async function createTalentProfile(
     }
   }
 
+  auditEvent(scope.tenantId, "roster", "roster.talent.created", `Created talent profile ${displayName}`, { targetType: "talent_profile", targetId: talentProfileId, targetLabel: displayName });
   await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
 
   revalidatePath("/admin/talent");

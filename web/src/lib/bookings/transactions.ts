@@ -11,6 +11,7 @@
  */
 
 import { improntaLog } from "@/lib/server/structured-log";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -1279,6 +1280,30 @@ async function emitTransactionEvent(
     payload: Record<string, unknown>;
   },
 ): Promise<void> {
+  // Mirror every transaction lifecycle event into the per-tenant Workspace
+  // Activity Log (covers ALL transitions: created, requested, paid, payout,
+  // refunded, disputed, failed — this helper is the single choke point).
+  const grossCents = opts.payload["gross_amount_cents"];
+  const currency = opts.payload["currency"];
+  const amountNote =
+    typeof grossCents === "number" && typeof currency === "string"
+      ? ` (${(grossCents / 100).toFixed(2)} ${currency})`
+      : "";
+  scheduleWorkspaceAudit({
+    tenantId: opts.sourceTenantId,
+    category: "billing",
+    action: `billing.${opts.eventType}`,
+    summary: `Transaction ${opts.eventType.replace(/[._]/g, " ")}${amountNote}`,
+    targetType: "booking_transaction",
+    targetId: opts.transactionId,
+    metadata: {
+      booking_id: opts.bookingId,
+      event_type: opts.eventType,
+      ...(typeof grossCents === "number" ? { gross_amount_cents: grossCents } : {}),
+      ...(typeof currency === "string" ? { currency } : {}),
+    },
+  });
+
   // inquiry_events.inquiry_id is NOT NULL in the schema, so booking-only
   // transactions (no sourceInquiryId) cannot produce an inquiry_event row.
   // Log them as structured server-side audit entries so the audit trail is

@@ -21,6 +21,8 @@ import { NextResponse } from "next/server";
 
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { auditFailure } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -137,6 +139,10 @@ export async function POST(req: Request) {
     });
     if (!validation.ok) {
       await supabase.storage.from(BUCKET).remove([storagePath]);
+      auditFailure(scope.tenantId, "media", "media.upload.failed", "An upload was rejected", {
+        targetType: "media_asset",
+        reason: validation.error,
+      });
       return NextResponse.json(
         { ok: false, error: validation.error },
         { status: validation.status },
@@ -172,6 +178,10 @@ export async function POST(req: Request) {
       // Image was probably hostile / corrupt — clean up + bail so we
       // don't leave a half-broken row pointing at junk.
       await supabase.storage.from(BUCKET).remove([storagePath]);
+      auditFailure(scope.tenantId, "media", "media.upload.failed", "An upload could not be processed", {
+        targetType: "media_asset",
+        reason: "image could not be processed",
+      });
       return NextResponse.json(
         { ok: false, error: "Could not process image. Try a different file." },
         { status: 400 },
@@ -206,6 +216,16 @@ export async function POST(req: Request) {
         { status: 500 },
       );
     }
+
+    scheduleWorkspaceAudit({
+      tenantId: scope.tenantId,
+      category: "media",
+      action: "media.uploaded",
+      summary: `Uploaded ${originalFilename ?? "an image"}`,
+      targetType: "media_asset",
+      targetId: inserted.item.id,
+      metadata: { kind },
+    });
 
     return NextResponse.json({
       ok: true,
@@ -296,6 +316,16 @@ export async function POST(req: Request) {
   const { data: urlData } = supabase.storage
     .from(inserted.bucket_id)
     .getPublicUrl(inserted.storage_path);
+
+  scheduleWorkspaceAudit({
+    tenantId: scope.tenantId,
+    category: "media",
+    action: "media.uploaded",
+    summary: `Uploaded ${originalFilename ?? `a ${kind}`}`,
+    targetType: "media_asset",
+    targetId: inserted.id,
+    metadata: { kind },
+  });
 
   return NextResponse.json({
     ok: true,

@@ -15,6 +15,7 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import {
   CAPTCHA_INTEGRATION_KEY,
   CUSTOM_CODE_INTEGRATION_KEY,
@@ -112,6 +113,16 @@ export async function saveCustomCode(
     return { ok: false, error: "Couldn't save. Please try again." };
   }
 
+  scheduleWorkspaceAudit({
+    tenantId: guard.tenantId,
+    category: "integration",
+    action: `integration.${CUSTOM_CODE_INTEGRATION_KEY}.updated`,
+    summary: anyPresent ? "Updated custom site code" : "Cleared custom site code",
+    targetType: "integration",
+    targetId: CUSTOM_CODE_INTEGRATION_KEY,
+    targetLabel: "Custom code",
+  });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
 }
@@ -203,6 +214,17 @@ export async function saveCaptcha(
   });
   await setCredentialMode(guard.tenantId, CAPTCHA_INTEGRATION_KEY, "custom", guard.actorId);
 
+  scheduleWorkspaceAudit({
+    tenantId: guard.tenantId,
+    category: "integration",
+    action: `integration.${CAPTCHA_INTEGRATION_KEY}.updated`,
+    summary: `Updated captcha settings (${provider})`,
+    targetType: "integration",
+    targetId: CAPTCHA_INTEGRATION_KEY,
+    targetLabel: "Captcha",
+    metadata: { provider, secretUpdated: secretKey.length > 0 },
+  });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
 }
@@ -262,6 +284,16 @@ export async function saveEmailDomain(
     return { ok: false, error: "Couldn't save. Please try again." };
   }
 
+  scheduleWorkspaceAudit({
+    tenantId: guard.tenantId,
+    category: "integration",
+    action: `integration.${EMAIL_DOMAIN_INTEGRATION_KEY}.updated`,
+    summary: `Registered email sending domain ${created.name}`,
+    targetType: "integration",
+    targetId: EMAIL_DOMAIN_INTEGRATION_KEY,
+    targetLabel: created.name,
+  });
+
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true };
 }
@@ -319,6 +351,21 @@ export async function verifyEmailDomain(
       actorId: guard.actorId,
     },
   );
+
+  if (verified) {
+    const domainLabel = typeof config.domain === "string" ? config.domain : null;
+    scheduleWorkspaceAudit({
+      tenantId: guard.tenantId,
+      category: "integration",
+      action: `integration.${EMAIL_DOMAIN_INTEGRATION_KEY}.verified`,
+      summary: domainLabel
+        ? `Email sending domain ${domainLabel} verified`
+        : "Email sending domain verified",
+      targetType: "integration",
+      targetId: EMAIL_DOMAIN_INTEGRATION_KEY,
+      targetLabel: domainLabel,
+    });
+  }
 
   revalidatePath(`/${tenantSlug}/admin/settings`);
   return { ok: true, status: fetched.status, records: fetched.records };
