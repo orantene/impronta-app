@@ -126,6 +126,17 @@ const ALLOW_LIST: Record<string, string[]> = {
   // ── builder-core / builder-node ──────────────────────────────────────────
   "builder-core/mount/BuilderEditorMount.tsx": ["@/components/edit-chrome/edit-shell"],
 
+  // ── ES parity guard (#1013, wave 0) ───────────────────────────────────────
+  // TEST-ONLY edge, and unavoidable by construction: this guard asserts that
+  // the section-catalog Spanish strings stay in parity with the edit-chrome
+  // editor-i18n catalogs, which it can only do by importing BOTH sides to
+  // compare them. Static test file — never in the runtime import graph, so it
+  // cannot form the render-time cycle this guard exists to prevent.
+  "sections/section-catalog-es-parity.static.test.ts": [
+    "@/components/edit-chrome/editor-i18n-es-sections",
+    "@/components/edit-chrome/editor-i18n-es",
+  ],
+
   // ── section Editors: inspector KIT (leaf-move backlog) ────────────────────
   "sections/contact_form/InquiryTargetTalentField.tsx": [
     "@/components/edit-chrome/inspectors/kit",
