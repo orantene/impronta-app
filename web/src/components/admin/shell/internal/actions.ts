@@ -27,6 +27,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { residenceCityPatchFromText } from "@/lib/residence-city-sync";
+import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import {
   assignTaxonomyTermToProfile,
   resolveTenantTalentTypeTermId,
@@ -153,6 +154,15 @@ export async function addTalentToRoster(
   const originDomain = (await headers()).get("host")?.toLowerCase() ?? null;
 
   // ── Insert agency_talent_roster ────────────────────────────────────────────
+  // Exclusivity from the resolver, never the column defaults — see the note in
+  // admin/roster/new/actions.ts (omitting these left is_primary=FALSE on every
+  // production row, so hub demand bypassed the agency).
+  const exclusivity = await resolveExclusivityForRosterAdd(
+    admin,
+    scope.tenantId,
+    talentProfileId,
+  );
+
   const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
     tenant_id:           scope.tenantId,
     source_workspace_id: scope.tenantId,
@@ -162,6 +172,9 @@ export async function addTalentToRoster(
     status:              "active",
     agency_visibility:   "roster_only",
     added_by:            session.user.id,
+    is_primary:                   exclusivity.shouldBeExclusive,
+    exclusivity_status:           exclusivity.exclusivityStatus,
+    exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
   });
 
   if (rosterErr) {
@@ -281,6 +294,13 @@ export async function createTalentDraft(
   const talentProfileId = inserted.id as string;
   const originDomain = (await headers()).get("host")?.toLowerCase() ?? null;
 
+  // Exclusivity from the resolver (see addTalentToRoster above).
+  const exclusivity = await resolveExclusivityForRosterAdd(
+    admin,
+    scope.tenantId,
+    talentProfileId,
+  );
+
   const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
     tenant_id:           scope.tenantId,
     source_workspace_id: scope.tenantId,
@@ -290,6 +310,9 @@ export async function createTalentDraft(
     status:              "active",
     agency_visibility:   "roster_only",
     added_by:            session.user.id,
+    is_primary:                   exclusivity.shouldBeExclusive,
+    exclusivity_status:           exclusivity.exclusivityStatus,
+    exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
   });
 
   if (rosterErr) {

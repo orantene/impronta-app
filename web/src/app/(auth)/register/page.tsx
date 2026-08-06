@@ -38,16 +38,34 @@ export default async function RegisterPage({
     intent?: string;
     lead?: string;
     next?: string;
+    /**
+     * Talent claim-invite id (sendTalentClaimInvite emails
+     * `/register?invitation=<id>&email=<e>`). This param was previously
+     * DROPPED here, which is why no invited talent could ever claim the
+     * profile an agency built for them — they signed up and silently got a
+     * second, empty profile instead. Threaded into `next` so the claim runs
+     * the moment the account is confirmed, for both the email and Google paths.
+     */
+    invitation?: string;
+    /** Prefill for the invited address (the claim requires an exact match). */
+    email?: string;
   }>;
 }) {
-  const { error, intent, lead, next } = await searchParams;
+  const { error, intent, lead, next, invitation, email } = await searchParams;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const workspaceLeadId = typeof lead === "string" && lead ? lead : null;
   const workspaceIntent = intent === WORKSPACE_SIGNUP_INTENT && workspaceLeadId;
+  // A claim invite outranks a plain `next`: the whole point of the link is to
+  // land on /claim once there's a session. normalizeNextPath keeps the query
+  // string (it only rejects non-internal paths), so the token survives.
+  const claimInvitationId =
+    typeof invitation === "string" && invitation.trim() ? invitation.trim() : null;
   const nextPath = workspaceIntent
     ? buildWorkspaceOnboardingPath(workspaceLeadId)
-    : normalizeOptionalNextPath(next);
+    : claimInvitationId
+      ? `/claim?invitation=${encodeURIComponent(claimInvitationId)}`
+      : normalizeOptionalNextPath(next);
 
   // Pre-fill the email the operator already typed in the get-started funnel
   // so the email/password path doesn't make them retype it. Resolved
@@ -113,7 +131,14 @@ export default async function RegisterPage({
         nextPath={nextPath}
         submitLabel={emailLabel}
         locale={locale}
-        defaultEmail={leadEmail ?? undefined}
+        // Claim invites carry the invited address, and the claim RPC requires
+        // an exact match — prefilling it stops the commonest failure (signing
+        // up with a different email and hitting `email_mismatch`).
+        defaultEmail={
+          (claimInvitationId && typeof email === "string" && email.trim()
+            ? email.trim()
+            : leadEmail) ?? undefined
+        }
       />
     </div>
   );

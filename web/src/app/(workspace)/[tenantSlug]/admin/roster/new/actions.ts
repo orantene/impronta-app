@@ -11,6 +11,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 
 export type CreateRosterTalentState =
   | { error: string }
@@ -182,6 +183,19 @@ export async function createRosterTalent(
   const originDomain = (await headers()).get("host")?.toLowerCase() ?? null;
 
   // ── Insert agency_talent_roster ────────────────────────────────────────────
+  // Exclusivity MUST come from the resolver, not the column defaults. Omitting
+  // these three fields is why production ended up with is_primary=FALSE on all
+  // 306 active rows: `owning-party-resolver.rowIsExclusive` short-circuits on
+  // `!isPrimary`, so an admin-added talent on an exclusive-tier plan was never
+  // actually exclusive and hub-brokered demand bypassed the agency entirely.
+  // (Free tenants correctly resolve to non-exclusive — see the spec in
+  // lib/agency/exclusivity-resolver.ts.)
+  const exclusivity = await resolveExclusivityForRosterAdd(
+    admin,
+    scope.tenantId,
+    talentProfileId,
+  );
+
   const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
     tenant_id:           scope.tenantId,
     source_workspace_id: scope.tenantId,
@@ -191,6 +205,9 @@ export async function createRosterTalent(
     status:              "active",
     agency_visibility:   d.agency_visibility,
     added_by:            session.user.id,
+    is_primary:                   exclusivity.shouldBeExclusive,
+    exclusivity_status:           exclusivity.exclusivityStatus,
+    exclusivity_auto_assigned_at: exclusivity.autoAssignedAt,
   });
 
   if (rosterErr) {

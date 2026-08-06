@@ -1049,6 +1049,16 @@ export async function sendTalentClaimInvite(input: {
   const invitationId = (row as { id: string; expires_at: string }).id;
   const expiresAt = (row as { id: string; expires_at: string }).expires_at;
 
+  // Stamp when the talent was last asked to claim, so the roster can show
+  // "invited" vs "agency-managed" without joining the invitations table.
+  // Best-effort: the invite itself is already recorded, so a failure here must
+  // not fail the send.
+  // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles has no tenant_id; update by primary key, already tenant-checked by assertOnRoster above
+  await supabase
+    .from("talent_profiles")
+    .update({ invited_to_claim_at: new Date().toISOString() })
+    .eq("id", input.talent_profile_id);
+
   // The redeem URL pattern matches the team-invite scheme so the auth
   // callback flow can land the new user, look up the talent_profile by
   // invited_email, and link user_id automatically on first sign-up.
