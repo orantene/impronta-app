@@ -186,6 +186,13 @@ const AUTH_PREFIXES = [
   // is reachable from the tenant's own canonical host.
   "/talent/register",
   "/client/register",
+  // Talent profile-claim landing (`(auth)/claim/page.tsx`). Claim-invite
+  // emails are branded per workspace and link relative to the AGENCY host
+  // (`improntamodels.com/register?invitation=…` → `/claim?invitation=…`), so
+  // the claim must resolve there. Without this entry the invited talent
+  // finished signup and landed on the storefront 404 — caught by real-browser
+  // QA on the custom domain (2026-08-05). Same class as /talent/register above.
+  "/claim",
 ] as const;
 
 const AGENCY_STOREFRONT_PREFIXES = [
