@@ -46,7 +46,7 @@ import {
 import { assertLocaleConsistency } from "@/lib/translation-center/save/assert-locale-consistency";
 import type { Locale } from "@/i18n/config";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
-import { auditEvent } from "@/lib/audit/emit";
+import { auditEvent, auditTalentEvent } from "@/lib/audit/emit";
 
 // A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. Both shapes are `useFormState`
 // payloads (note the `| undefined` for the initial state) consumed by admin
@@ -318,7 +318,7 @@ export async function updateTalentProfile(
 
   await scheduleRebuildAiSearchDocument(supabase, id);
 
-  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.updated", display_name ? `Updated talent profile ${display_name}` : "Updated talent profile", { targetType: "talent_profile", targetId: id, targetLabel: display_name || null, metadata: { changedKeys: Object.keys(payload).filter((k) => k !== "updated_at") } });
+  auditTalentEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.updated", id, (name) => `Updated the profile for ${name ?? "a talent"}`, { metadata: { changedKeys: Object.keys(payload).filter((k) => k !== "updated_at") } });
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -395,7 +395,7 @@ export async function updateTalentWorkflowVisibilityInline(input: {
 
   await scheduleRebuildAiSearchDocument(supabase, id);
 
-  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.visibility_changed", `Changed talent workflow to ${workflow_status} and visibility to ${visibility}`, { targetType: "talent_profile", targetId: id, metadata: { from: { workflow_status: before.workflow_status, visibility: before.visibility }, to: { workflow_status, visibility } } });
+  auditTalentEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.visibility_changed", id, (name) => `Changed workflow to ${workflow_status} and visibility to ${visibility} for ${name ?? "a talent"}`, { metadata: { from: { workflow_status: before.workflow_status, visibility: before.visibility }, to: { workflow_status, visibility } } });
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -480,7 +480,7 @@ export async function softDeleteTalentProfile(
     return { error: "Could not remove profile." };
   }
 
-  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.deleted", "Removed talent profile", { targetType: "talent_profile", targetId: id });
+  auditTalentEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.deleted", id, (name) => `Removed the talent profile for ${name ?? "a talent"}`);
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -639,7 +639,7 @@ export async function restoreTalentProfile(
 
   await scheduleRebuildAiSearchDocument(supabase, id);
 
-  auditEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.restored", "Restored talent profile", { targetType: "talent_profile", targetId: id });
+  auditTalentEvent((await getTenantScope())?.tenantId, "roster", "roster.talent.restored", id, (name) => `Restored the talent profile for ${name ?? "a talent"}`);
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
