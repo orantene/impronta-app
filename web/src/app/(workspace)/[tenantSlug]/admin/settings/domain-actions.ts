@@ -18,6 +18,7 @@ import {
 } from "@/lib/saas/custom-domain-actions";
 import { customDomainCanBecomePrimary } from "@/lib/saas/custom-domain-routing";
 import { logServerError } from "@/lib/server/safe-error";
+import { auditFailure } from "@/lib/audit/emit";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -210,6 +211,17 @@ export async function connectCustomDomainAction(formData: FormData): Promise<voi
       code: vercelSync.errorCode,
       message: vercelSync.errorMessage,
     });
+    auditFailure(
+      scope.tenantId,
+      "domain",
+      "domain.attach_failed",
+      `${hostname} was added but could not be attached to hosting`,
+      {
+        targetType: "domain",
+        targetLabel: hostname,
+        reason: (vercelSync.errorCode ?? vercelSync.errorMessage)?.slice(0, 200) || undefined,
+      },
+    );
   }
 
   const vercelProvisioningHint =
@@ -290,6 +302,19 @@ export async function verifyCustomDomainNowAction(formData: FormData): Promise<v
       redirectWithDomainMessage(tenantSlug, `${hostname} is now verified.`, returnTo);
     }
     if (transition.status === "failed") {
+      // Logged BEFORE the redirect: redirect() throws, so anything after it
+      // never runs.
+      auditFailure(
+        scope.tenantId,
+        "domain",
+        "domain.verification_failed",
+        `Could not verify ${hostname}`,
+        {
+          targetType: "domain",
+          targetLabel: hostname,
+          reason: transition.failureReason?.slice(0, 200) || undefined,
+        },
+      );
       redirectWithDomainError(
         tenantSlug,
         `TXT record for ${hostname} still has not been found. You can add it now and check again, or reconnect the domain for a fresh token.`,

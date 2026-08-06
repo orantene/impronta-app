@@ -2,6 +2,7 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { auditFailure } from "@/lib/audit/emit";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { buildAudienceContext, hydrateAudience } from "./audience";
@@ -198,6 +199,29 @@ export async function dispatchEventNotifications(
         } catch (err) {
           await markDispatchLogFailed(ctx.admin, logId, err);
           entryResult.failed++;
+          // Workspace-visible: a send that never landed is otherwise only in
+          // notification_dispatch_log + Sentry, neither of which a workspace
+          // admin can read. This is the row that answers "why didn't the client
+          // get the email?". Platform-level mail has no tenant, and auditFailure
+          // no-ops on a null tenantId.
+          // This catch covers every channel, not just email, so the action and
+          // wording follow the channel — an in-app failure must not read
+          // "Email to ...".
+          auditFailure(
+            enriched.tenantId,
+            "messages",
+            `messages.${channel}.send_failed`,
+            channel === "email"
+              ? `Email to ${recipient.email ?? recipientRef} could not be sent`
+              : `A ${channel.replace(/_/g, " ")} notification for ${recipient.email ?? recipientRef} could not be delivered`,
+            {
+              targetType: "notification_dispatch",
+              targetId: logId,
+              targetLabel: recipient.email,
+              metadata: { eventType: enriched.type, channel },
+              reason: err instanceof Error ? err.message.slice(0, 200) : "unknown error",
+            },
+          );
           void improntaLog(`notif.send.${channel}`, {
             eventType: enriched.type,
             eventId: enriched.eventId,

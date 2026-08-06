@@ -76,7 +76,12 @@ export function isFailureAction(action: string): boolean {
   // Both separators are in use: `media.upload.failed` (new events) and
   // `auth.sign_in_failed` / `security.permission_denied` (existing ones).
   // Anchored to the end so `media.failed_upload.retried` is not a failure.
-  return /[._](failed|denied|rejected)$/.test(action);
+  //
+  // `bounced` / `complaint` cover undelivered email (the address rejected it or
+  // the recipient marked it spam), `not_ready` a publish the system refused,
+  // and `gave_up` a retry chain that exhausted its attempts. All are "the thing
+  // you expected did not happen", which is what this flag means to a reader.
+  return /[._](failed|denied|rejected|bounced|complaint|not_ready|gave_up)$/.test(action);
 }
 
 export function matchesAuditFilters<T extends AuditFilterRow>(

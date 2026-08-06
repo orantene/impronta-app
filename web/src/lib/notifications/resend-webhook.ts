@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { auditFailure } from "@/lib/audit/emit";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -162,20 +163,26 @@ export async function applyResendEvent(
   const address = firstRecipient(event);
 
   // Stamp the matching dispatch_log row(s) and learn the recipient identity.
+  // `tenant_id` rides along on the same select so the suppression branch below
+  // can file a workspace-visible audit row without a second query.
   let matchedUserId: string | null = null;
+  let matchedTenantId: string | null = null;
   if (emailId) {
     const { data, error } = await admin
       .from("notification_dispatch_log")
       .update({ [column]: ts })
       .eq("provider_reference", emailId)
-      .select("recipient_user_id, recipient_email");
+      .select("recipient_user_id, recipient_email, tenant_id");
     if (error) {
       logServerError("notifications.webhook.stamp", error);
     } else {
-      const row = (data as Array<{ recipient_user_id: string | null }> | null)?.find(
-        (r) => r.recipient_user_id,
-      );
-      matchedUserId = row?.recipient_user_id ?? null;
+      const rows =
+        (data as Array<{
+          recipient_user_id: string | null;
+          tenant_id: string | null;
+        }> | null) ?? [];
+      matchedUserId = rows.find((r) => r.recipient_user_id)?.recipient_user_id ?? null;
+      matchedTenantId = rows.find((r) => r.tenant_id)?.tenant_id ?? null;
     }
   }
 
@@ -210,6 +217,24 @@ export async function applyResendEvent(
     logServerError("notifications.webhook.suppress", supErr);
     return { status: "unmatched", detail: `suppress-failed:${reason}` };
   }
+  // Workspace-visible: a suppressed address stops receiving mail from here on,
+  // so the workspace needs to see WHY the client stopped getting emails.
+  // Only this branch logs — delivered / opened / clicked returned `stamped`
+  // above and stay out of the activity log.
+  auditFailure(
+    matchedTenantId,
+    "messages",
+    reason === "complaint" ? "messages.email.complaint" : "messages.email.bounced",
+    reason === "complaint"
+      ? `${address} marked an email as spam`
+      : `Email to ${address} hard bounced`,
+    {
+      targetType: "email_address",
+      targetId: userId,
+      targetLabel: address,
+      metadata: { provider: "resend", suppressionReason: reason },
+    },
+  );
   return { status: "suppressed", detail: `${reason}:${address}` };
 }
 
