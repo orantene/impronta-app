@@ -41,6 +41,12 @@ import {
   resolveSnapshotBuilderTreeForPublish,
   summarizeBuilderTreeIssues,
 } from "@/lib/site-admin/builder-node/snapshot-tree";
+import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
+import {
+  buildPublishedPageRevisionSnapshot,
+  isFreeformPagePublish,
+} from "@/lib/site-admin/edit-mode/page-publish-revision";
+import { improntaLog } from "@/lib/server/structured-log";
 
 export interface ComposablePageRow {
   id: string;
@@ -191,7 +197,51 @@ export async function publishPageSnapshot(input: {
     slot_key: string;
     sort_order: number;
   }>;
-  if (draftRows.length === 0) {
+
+  // --- load the version-matched revision up front (WAVE 1.3 / 1.4) ----------
+  // Hoisted ABOVE the zero-slot guard so a genuinely FREEFORM page (all content
+  // in `builderTree`, zero curated slot rows) can be detected before we reject
+  // it. This mirrors `publishHomepage`, where the same hoist is what lets a
+  // freeform homepage publish at all.
+  const { data: revisionRow } = await admin
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", scope.tenantId)
+    .eq("page_id", input.pageId)
+    .eq("version", page.version)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ snapshot: Record<string, unknown> | null }>();
+  const versionMatchedSnapshot = revisionRow?.snapshot ?? null;
+  const versionMatchedBuilderTree =
+    versionMatchedSnapshot && "builderTree" in versionMatchedSnapshot
+      ? versionMatchedSnapshot.builderTree
+      : undefined;
+
+  // #310 self-heal guard — never freeze an EMPTY page at publish when the
+  // version pointer drifted onto an empty revision while a recent non-empty
+  // draft still exists. Homepage has had this since June; the cms-page lane did
+  // not, so any pointer drift here reproduced the incident on ordinary pages.
+  const preferredBuilderTree = await recoverBuilderTreeIfEmpty(
+    admin,
+    {
+      tenantId: scope.tenantId,
+      pageId: input.pageId,
+      pageVersion: page.version,
+      hasSlots: draftRows.length > 0,
+    },
+    versionMatchedBuilderTree,
+  );
+
+  // FREEFORM page = zero curated draft slot rows AND a non-empty builder tree.
+  // Such a page carries 100% of its content in the tree, so the zero-slot
+  // rejection below made it permanently unpublishable.
+  const isFreeformPage = isFreeformPagePublish({
+    draftSlotRowCount: draftRows.length,
+    builderTree: preferredBuilderTree,
+  });
+
+  if (draftRows.length === 0 && !isFreeformPage) {
     return {
       ok: false,
       error: "No draft sections to publish — add some via the composer first.",
@@ -233,27 +283,12 @@ export async function publishPageSnapshot(input: {
       props: f.props,
     });
   }
-  if (slots.length === 0) {
+  if (slots.length === 0 && !isFreeformPage) {
     return {
       ok: false,
       error: "Draft references only archived sections — un-archive or remove them first.",
     };
   }
-  const { data: revisionRow } = await admin
-    .from("cms_page_revisions")
-    .select("snapshot")
-    .eq("tenant_id", scope.tenantId)
-    .eq("page_id", input.pageId)
-    .eq("version", page.version)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
-  const preferredBuilderTree =
-    revisionRow?.snapshot &&
-    typeof revisionRow.snapshot === "object" &&
-    "builderTree" in revisionRow.snapshot
-      ? revisionRow.snapshot.builderTree
-      : undefined;
   const resolvedBuilderTree = resolveSnapshotBuilderTreeForPublish({
     slots,
     builderTree: preferredBuilderTree,
@@ -299,6 +334,44 @@ export async function publishPageSnapshot(input: {
     .eq("version", page.version);
   if (updErr) {
     return { ok: false, error: "Couldn't publish — version conflict, reload and retry." };
+  }
+
+  // WAVE 1.2 — write a revision AT THE NEW VERSION.
+  //
+  // The publish above bumps `cms_pages.version`. Every editor load (and the
+  // publish path itself) reads the revision whose `version` MATCHES the page
+  // row. Without this insert there is no such revision, so the very next editor
+  // load found nothing, painted an EMPTY canvas, and the following autosave
+  // persisted that emptiness forward under a perfectly valid CAS. The live site
+  // was fine; the editor was where the work disappeared. Homepage publish has
+  // written a `kind='published'` revision all along — this is the same write.
+  const { error: revInsErr } = await admin.from("cms_page_revisions").insert({
+    tenant_id: scope.tenantId,
+    page_id: input.pageId,
+    kind: "published",
+    version: page.version + 1,
+    template_schema_version: (page.template_schema_version ?? 1) as number,
+    snapshot: buildPublishedPageRevisionSnapshot({
+      title: page.title as string,
+      locale: (page.locale ?? DEFAULT_PLATFORM_LOCALE) as string,
+      metaDescription: (page.meta_description ?? null) as string | null,
+      version: page.version + 1,
+      publishedAt: snapshot.publishedAt,
+      composition: slots,
+      builderTree: resolvedBuilderTree.tree,
+      previousSnapshot: versionMatchedSnapshot,
+    }),
+    created_by: auth.user.id,
+  });
+  if (revInsErr) {
+    void improntaLog("site_admin_pages.warn", {
+      message:
+        "[site-admin/page-composer] published revision insert failed — editor may load an empty canvas until the next save",
+      tenantId: scope.tenantId,
+      pageId: input.pageId,
+      version: page.version + 1,
+      error: revInsErr.message,
+    });
   }
 
   // Replace live composition with the freshly-snapshotted draft.
