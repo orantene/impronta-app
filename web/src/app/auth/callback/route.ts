@@ -11,6 +11,10 @@ import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { redeemInvitePayload } from "@/lib/invites/redeem";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import {
+  scheduleWorkspaceAudit,
+  type WorkspaceAuditActorKind,
+} from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   cookieDomainForHost,
@@ -92,6 +96,23 @@ export async function GET(request: Request) {
       const ensuredProfile = user
         ? await loadAccessProfile(supabase, user.id)
         : null;
+
+      // Workspace activity log — tenant hosts only. The proxy stamps the
+      // tenant id on the request; on the platform host it is absent and we
+      // skip auditing entirely.
+      const auditTenantId = request.headers.get("x-impronta-tenant-id");
+      if (auditTenantId && user) {
+        scheduleWorkspaceAudit({
+          tenantId: auditTenantId,
+          category: "auth",
+          action: "auth.signed_in",
+          summary: "Signed in with Google or magic link",
+          actorUserId: user.id,
+          actorLabel: user.email ?? null,
+          actorKind: auditActorKind(ensuredProfile?.app_role),
+        });
+      }
+
       const destination = resolvePostAuthDestination(ensuredProfile, next);
       // Always redirect post-auth destinations to the app host.
       // The auth callback runs on whatever host the OAuth provider returns to
@@ -142,6 +163,19 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(`${origin}/login?error=auth`);
+}
+
+function auditActorKind(appRole: string | null | undefined): WorkspaceAuditActorKind {
+  switch (appRole) {
+    case "super_admin":
+      return "platform";
+    case "agency_staff":
+      return "staff";
+    case "talent":
+      return "talent";
+    default:
+      return "client";
+  }
 }
 
 function createPopupResponse(

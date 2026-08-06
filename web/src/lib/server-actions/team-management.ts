@@ -2,6 +2,7 @@
 import { improntaLog } from "@/lib/server/structured-log";
 
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
@@ -168,6 +169,17 @@ export async function inviteTeamMember(
       }
     })();
 
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "team",
+      action: "team.member.invited",
+      summary: `Invited ${trimmed} as ${role}`,
+      targetType: "invite",
+      targetId: inviteId,
+      targetLabel: trimmed,
+      metadata: { role },
+    });
+
     revalidatePath("/", "layout");
     return { ok: true, data: { inviteId, redeemUrl, expiresAt } };
   } catch (err) {
@@ -202,6 +214,10 @@ export async function promoteRosterTalentToAdmin(
       .eq("id", talentProfileId)
       .maybeSingle();
     const userId = (talent as { user_id?: string | null } | null)?.user_id ?? null;
+    const talentLabel =
+      (talent as { display_name?: string | null; first_name?: string | null } | null)?.display_name?.trim() ||
+      (talent as { first_name?: string | null } | null)?.first_name?.trim() ||
+      null;
     if (!userId) {
       return {
         ok: false,
@@ -245,6 +261,16 @@ export async function promoteRosterTalentToAdmin(
         logServerError("team-management.promoteRosterTalentToAdmin.update", updateErr);
         return { ok: false, error: "Couldn't update role.", reason: "unexpected" };
       }
+      scheduleWorkspaceAudit({
+        tenantId,
+        category: "team",
+        action: "team.member.promoted",
+        summary: `Promoted ${talentLabel ?? "a roster talent"} to ${role}`,
+        targetType: "membership",
+        targetId: (existing as { id: string }).id,
+        targetLabel: talentLabel,
+        metadata: { role },
+      });
       revalidatePath("/", "layout");
       return { ok: true, data: { membershipId: (existing as { id: string }).id } };
     }
@@ -267,6 +293,17 @@ export async function promoteRosterTalentToAdmin(
       logServerError("team-management.promoteRosterTalentToAdmin.insert", insertErr);
       return { ok: false, error: "Couldn't add to team.", reason: "unexpected" };
     }
+
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "team",
+      action: "team.member.promoted",
+      summary: `Promoted ${talentLabel ?? "a roster talent"} to ${role}`,
+      targetType: "membership",
+      targetId: (newMembership as { id: string }).id,
+      targetLabel: talentLabel,
+      metadata: { role },
+    });
 
     revalidatePath("/", "layout");
     return { ok: true, data: { membershipId: (newMembership as { id: string }).id } };
@@ -323,6 +360,17 @@ export async function setDefaultCoordinator(
       return { ok: false, error: "Couldn't update setting.", reason: "unexpected" };
     }
 
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "team",
+      action: "team.coordinator.default_set",
+      summary: userId
+        ? "Set the default inquiry coordinator"
+        : "Cleared the default inquiry coordinator",
+      targetType: "user",
+      targetId: userId,
+    });
+
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
   } catch (err) {
@@ -377,6 +425,15 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
       .update({ default_coordinator_user_id: null })
       .eq("id", tenantId)
       .eq("default_coordinator_user_id", profileId);
+
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "team",
+      action: "team.member.removed",
+      summary: "Removed a team member from the workspace",
+      targetType: "membership",
+      targetId: profileId,
+    });
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
@@ -456,6 +513,17 @@ export async function changeTeamMemberRole(
       logServerError("team-management.changeTeamMemberRole.update", updateErr);
       return { ok: false, error: "Couldn't update role.", reason: "unexpected" };
     }
+
+    const previousRole = (target as { role: string }).role;
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "team",
+      action: "team.member.role_changed",
+      summary: `Changed a team member's role from ${previousRole} to ${role}`,
+      targetType: "membership",
+      targetId: (target as { id: string }).id,
+      metadata: { from: previousRole, to: role },
+    });
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
@@ -553,6 +621,18 @@ export async function setInquiryCoordinatorTalent(
         return { ok: false, error: "Couldn't save coordinators.", reason: "unexpected" };
       }
     }
+
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "team",
+      action: "team.coordinator.assigned",
+      summary:
+        ids.length > 0
+          ? `Set ${ids.length} inquiry coordinator${ids.length === 1 ? "" : "s"} for new inquiries`
+          : "Cleared the inquiry coordinator list",
+      targetType: "roster_talent",
+      metadata: { count: ids.length },
+    });
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };

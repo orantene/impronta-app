@@ -4398,7 +4398,9 @@
       "rosterRatesUnsaved": "unsaved changes",
       "rosterRatesDiscard": "Discard",
       "rosterRatesCreatedNew": "new services created",
-      "pricingDefaultsPerTalentPointer": "Setting a rate for individual talent lives with the roster: Roster → Rates."
+      "pricingDefaultsPerTalentPointer": "Setting a rate for individual talent lives with the roster: Roster → Rates.",
+      "activityLog": "Activity log",
+      "activityLogDesc": "Every change in this workspace: who did it, when, and from where."
     },
     "adminOperations": {
       "title": "Operations",
@@ -10609,6 +10611,60 @@
         "rejected": "Rejected",
         "expired": "Expired"
       }
+    },
+    "adminActivityLog": {
+      "title": "Activity log",
+      "subtitle": "Everything that happened in this workspace: settings changes, team and roster edits, uploads, page publishes, payments, and sign-ins, with who did it and from where.",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Search by person, action, target, or IP",
+      "categoryLabel": "Category",
+      "allCategories": "All categories",
+      "actorLabel": "Who",
+      "allActors": "Everyone",
+      "dateLabel": "When",
+      "allTime": "All time",
+      "last24h": "Last 24 hours",
+      "last7d": "Last 7 days",
+      "last30d": "Last 30 days",
+      "colTime": "Time",
+      "colActor": "Who",
+      "colEvent": "What happened",
+      "colTarget": "Target",
+      "colLocation": "Location",
+      "empty": "No activity recorded yet. New actions in this workspace will appear here.",
+      "emptyFiltered": "Nothing matches these filters.",
+      "showing": "Showing {shown} of {total} events",
+      "loadMore": "Load older events",
+      "detailAction": "Action",
+      "detailTarget": "Target",
+      "detailTime": "Exact time",
+      "detailIp": "IP address",
+      "detailCountry": "Country",
+      "detailUserAgent": "Device",
+      "detailMetadata": "Details",
+      "category": {
+        "settings": "Settings",
+        "team": "Team",
+        "roster": "Roster",
+        "media": "Media",
+        "pages": "Pages & site",
+        "billing": "Bookings & payments",
+        "messages": "Messages",
+        "auth": "Sign-ins",
+        "domain": "Domains",
+        "integration": "Integrations",
+        "security": "Security",
+        "system": "System"
+      },
+      "actor": {
+        "staff": "Staff",
+        "talent": "Talent",
+        "client": "Client",
+        "platform": "Tulala support",
+        "system": "System",
+        "guest": "Guest"
+      },
+      "failedBadge": "Failed"
     }
   },
   "admin": {

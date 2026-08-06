@@ -30,6 +30,15 @@ import {
 import { invalidateTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { fetchLanguageSettings } from "@/lib/language-settings/fetch-language-settings";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { auditEvent } from "@/lib/audit/emit";
+
+// Audits a settings save, naming the fields that actually changed (undefined = untouched).
+function auditSettingsSave(tenantId: string, action: string, verb: string, values: object) {
+  const changedKeys = Object.entries(values).filter(([, val]) => val !== undefined).map(([k]) => k);
+  const named = changedKeys.map((key) => key.replace(/_/g, " ")).join(", ");
+  auditEvent(tenantId, "settings", action, named ? `${verb}: ${named}` : verb,
+    { targetType: "agency", targetId: tenantId, metadata: { changedKeys } });
+}
 
 // ─── Branding ────────────────────────────────────────────────────────────────
 //
@@ -164,6 +173,8 @@ export async function updateAgencyBranding(
       .upsert(publicBrandingPatch, { onConflict: "tenant_id" });
   }
 
+  auditSettingsSave(tenantId, "settings.branding.updated", "Updated branding", v);
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
 }
@@ -226,6 +237,8 @@ export async function updateWorkspaceAccount(
     logServerError("admin-workspace-settings.account.update", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  auditSettingsSave(tenantId, "settings.account.updated", "Updated workspace account", v);
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
@@ -329,6 +342,8 @@ export async function updateWorkspaceFields(
     });
     if (!languageResult.ok) return languageResult;
   }
+
+  auditSettingsSave(tenantId, "settings.fields.updated", "Updated workspace settings", v);
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
@@ -507,6 +522,12 @@ export async function updateMediaWatermarkOverride(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
+  auditEvent(tenantId, "settings", "settings.watermark.updated",
+    parsed.data.override
+      ? "Updated the watermark override for a media asset"
+      : "Cleared the watermark override for a media asset",
+    { targetType: "media_asset", targetId: parsed.data.mediaAssetId });
+
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };
 }
@@ -553,6 +574,10 @@ export async function updateAgencyAutoAck(
     logServerError("admin-workspace-settings.auto-ack.update", error);
     return { ok: false, error: CLIENT_ERROR.update };
   }
+
+  auditEvent(tenantId, "settings", "settings.auto_ack.updated",
+    `Auto-acknowledgement ${auto_ack_enabled ? "enabled" : "disabled"}`,
+    { targetType: "agency", targetId: tenantId, metadata: { enabled: auto_ack_enabled } });
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true };

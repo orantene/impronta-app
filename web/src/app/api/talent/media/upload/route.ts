@@ -22,6 +22,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
+import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -184,6 +185,17 @@ export async function POST(req: Request) {
   const { data: urlData } = supabase.storage
     .from(inserted.bucket_id)
     .getPublicUrl(inserted.storage_path);
+
+  // tenantId is guaranteed non-null here (independent talents were rejected
+  // above) — the audit table requires a tenant scope.
+  scheduleWorkspaceAudit({
+    tenantId,
+    category: "media",
+    action: "media.uploaded",
+    summary: "Talent uploaded a photo",
+    targetType: "media_asset",
+    targetId: inserted.id,
+  });
 
   return NextResponse.json({
     ok: true,
