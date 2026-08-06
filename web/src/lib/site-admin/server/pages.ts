@@ -51,6 +51,10 @@ import {
   loadBuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
 import { getTemplate } from "@/lib/site-admin/templates/registry";
+import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapshot-tree";
+import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
+import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
 import type { Locale } from "@/lib/site-admin/locales";
 import type {
   PageArchiveValues,
@@ -255,6 +259,148 @@ async function insertPageRevision(
       error: error.message,
     });
   }
+}
+
+// ---- draft-content helpers (WAVE 1 — cms-page lane parity) ----------------
+//
+// Ordinary cms pages carry their real content in TWO places the page-field
+// columns know nothing about: `cms_page_sections` (curated slot rows) and the
+// `builderTree` stored in `cms_page_revisions.snapshot`. `restorePageRevision`
+// used to rewrite the page-field columns only, which made restore both
+// INEFFECTIVE (sections/tree unchanged) and DESTRUCTIVE (the version bump moved
+// the pointer to a revision with no tree, so the next editor load painted an
+// empty canvas and autosaved the emptiness forward). These helpers give the
+// page lane the same content-restore the homepage lane has had since #310.
+
+/** One composition entry as stored in a cms-page revision snapshot. */
+interface StoredCompositionEntry {
+  slotKey: string;
+  sortOrder: number;
+  sectionId: string;
+  sectionTypeKey?: string;
+  name?: string;
+  props?: Record<string, unknown>;
+}
+
+function readStoredComposition(snapshot: unknown): StoredCompositionEntry[] {
+  if (!snapshot || typeof snapshot !== "object") return [];
+  const raw = (snapshot as { composition?: unknown }).composition;
+  if (!Array.isArray(raw)) return [];
+  const out: StoredCompositionEntry[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const e = entry as Record<string, unknown>;
+    if (typeof e.sectionId !== "string" || typeof e.slotKey !== "string") continue;
+    out.push({
+      slotKey: e.slotKey,
+      sortOrder: typeof e.sortOrder === "number" ? e.sortOrder : 0,
+      sectionId: e.sectionId,
+      sectionTypeKey:
+        typeof e.sectionTypeKey === "string" ? e.sectionTypeKey : undefined,
+      name: typeof e.name === "string" ? e.name : undefined,
+      props:
+        e.props && typeof e.props === "object"
+          ? (e.props as Record<string, unknown>)
+          : undefined,
+    });
+  }
+  return out;
+}
+
+function readStoredBuilderTree(snapshot: unknown): unknown {
+  if (!snapshot || typeof snapshot !== "object") return undefined;
+  return (snapshot as { builderTree?: unknown }).builderTree;
+}
+
+function toLegacySlots(
+  entries: ReadonlyArray<StoredCompositionEntry>,
+): LegacySnapshotSlot[] {
+  return entries.map((e) => ({
+    slotKey: e.slotKey,
+    sortOrder: e.sortOrder,
+    sectionId: e.sectionId,
+    sectionTypeKey: e.sectionTypeKey ?? "unknown",
+    name: e.name ?? "Section",
+    props: e.props ?? {},
+  }));
+}
+
+/** Read the page's CURRENT draft composition straight from the junction table. */
+async function loadDraftCompositionEntries(
+  supabase: SupabaseClient,
+  tenantId: string,
+  pageId: string,
+): Promise<StoredCompositionEntry[]> {
+  const { data } = await supabase
+    .from("cms_page_sections")
+    .select(
+      "slot_key, section_id, sort_order, cms_sections:section_id(section_type_key, name, props_jsonb)",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("page_id", pageId)
+    .eq("is_draft", true)
+    .order("slot_key")
+    .order("sort_order");
+  const rows = (data ?? []) as unknown as Array<{
+    slot_key: string;
+    section_id: string;
+    sort_order: number;
+    cms_sections: {
+      section_type_key: string;
+      name: string;
+      props_jsonb: Record<string, unknown> | null;
+    } | null;
+  }>;
+  const out: StoredCompositionEntry[] = [];
+  for (const row of rows) {
+    if (!row.cms_sections) continue;
+    out.push({
+      slotKey: row.slot_key,
+      sortOrder: row.sort_order,
+      sectionId: row.section_id,
+      sectionTypeKey: row.cms_sections.section_type_key,
+      name: row.cms_sections.name,
+      props: row.cms_sections.props_jsonb ?? {},
+    });
+  }
+  return out;
+}
+
+/** The revision whose `version` matches the page row — the one the editor loads. */
+async function loadVersionMatchedRevisionSnapshot(
+  supabase: SupabaseClient,
+  tenantId: string,
+  pageId: string,
+  version: number,
+): Promise<unknown> {
+  const { data } = await supabase
+    .from("cms_page_revisions")
+    .select("snapshot")
+    .eq("tenant_id", tenantId)
+    .eq("page_id", pageId)
+    .eq("version", version)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ snapshot: unknown }>();
+  return data?.snapshot ?? null;
+}
+
+/** Carry style extras through a revision write so a reload keeps linked styles. */
+function pickStyleExtras(
+  ...snapshots: ReadonlyArray<unknown>
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const snapshot of snapshots) {
+    if (!snapshot || typeof snapshot !== "object") continue;
+    const s = snapshot as Record<string, unknown>;
+    if (out.styleClasses === undefined && s.styleClasses) {
+      out.styleClasses = s.styleClasses;
+    }
+    if (out.stylePresets === undefined && s.stylePresets) {
+      out.stylePresets = s.stylePresets;
+    }
+  }
+  return out;
 }
 
 function bustPageTags(tenantId: string, pageId: string): void {
@@ -751,12 +897,26 @@ export async function restorePageRevision(
     values: PageRestoreRevisionValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * Internal dependency-injection seam (default-bound to the real impls),
+     * IDENTICAL in shape to `restoreHomepageRevision`'s. Lets the unit test
+     * drive the op without the auth / `after()` request-scope coupling that
+     * `requirePhase5Capability` + `scheduleAuditEvent` carry. Production call
+     * sites never pass it, so the capability check runs exactly as before.
+     */
+    __hooks?: {
+      requireCapability?: typeof requirePhase5Capability;
+      scheduleAudit?: typeof scheduleAuditEvent;
+    };
   },
 ): Promise<Phase5Result<{ id: string; version: number }>> {
   const { tenantId, values, actorProfileId } = params;
   const correlationId = params.correlationId ?? randomUUID();
+  const requireCapabilityFn =
+    params.__hooks?.requireCapability ?? requirePhase5Capability;
+  const scheduleAuditFn = params.__hooks?.scheduleAudit ?? scheduleAuditEvent;
 
-  await requirePhase5Capability("agency.site_admin.pages.edit", tenantId);
+  await requireCapabilityFn("agency.site_admin.pages.edit", tenantId);
 
   // 1. Load current page row + CAS check.
   const { data: beforeRow, error: pageErr } = await supabase
@@ -844,6 +1004,88 @@ export async function restorePageRevision(
     updated_by: actorProfileId,
   };
 
+  // 3b. Resolve the CONTENT the restore should land on.
+  //
+  // A revision written by the page editor carries `composition` (curated slot
+  // rows) + `builderTree`. A revision written by the page-metadata CRUD path
+  // carries neither. Restoring to the latter must NOT wipe the operator's
+  // sections/tree, so in that case we carry the page's CURRENT content forward
+  // into the new revision instead — the version bump would otherwise strand the
+  // editor on a revision with no tree (the empty-canvas failure).
+  const currentRevisionSnapshot = await loadVersionMatchedRevisionSnapshot(
+    supabase,
+    tenantId,
+    values.pageId,
+    beforeRow.version,
+  );
+  const snapComposition = readStoredComposition(snap);
+  const snapBuilderTree = readStoredBuilderTree(snap);
+  const revisionCarriesContent =
+    snapComposition.length > 0 ||
+    (Array.isArray(snapBuilderTree) && snapBuilderTree.length > 0);
+
+  let restoredComposition: StoredCompositionEntry[];
+  let preferredBuilderTree: unknown;
+  const droppedSections: string[] = [];
+
+  if (revisionCarriesContent) {
+    // Drop entries whose section no longer exists or is archived (mirrors
+    // restoreHomepageRevision), so the restored draft never references a
+    // section the operator can't render.
+    const kept: StoredCompositionEntry[] = [];
+    if (snapComposition.length > 0) {
+      const { data: sectionRows } = await supabase
+        .from("cms_sections")
+        .select("id, name, status")
+        .eq("tenant_id", tenantId)
+        .in("id", Array.from(new Set(snapComposition.map((e) => e.sectionId))));
+      const factsById = new Map(
+        ((sectionRows ?? []) as Array<{
+          id: string;
+          name: string;
+          status: string;
+        }>).map((r) => [r.id, r] as const),
+      );
+      for (const entry of snapComposition) {
+        const facts = factsById.get(entry.sectionId);
+        if (!facts) {
+          droppedSections.push(`${entry.sectionId} (missing)`);
+          continue;
+        }
+        if (facts.status === "archived") {
+          droppedSections.push(`${facts.name} (archived)`);
+          continue;
+        }
+        kept.push(entry);
+      }
+    }
+    restoredComposition = kept;
+    preferredBuilderTree = snapBuilderTree;
+  } else {
+    restoredComposition = await loadDraftCompositionEntries(
+      supabase,
+      tenantId,
+      values.pageId,
+    );
+    // #310 guard — never carry an EMPTY tree forward when a recent non-empty
+    // revision still exists.
+    preferredBuilderTree = await recoverBuilderTreeIfEmpty(
+      supabase,
+      {
+        tenantId,
+        pageId: values.pageId,
+        pageVersion: beforeRow.version,
+        hasSlots: restoredComposition.length > 0,
+      },
+      readStoredBuilderTree(currentRevisionSnapshot),
+    );
+  }
+
+  const restoredBuilderTree: BuilderNodeTree = resolveSnapshotBuilderTree({
+    slots: toLegacySlots(restoredComposition),
+    builderTree: preferredBuilderTree,
+  }).tree;
+
   const nextVersion = beforeRow.version + 1;
   const { data: afterRow, error: updErr } = await supabase
     .from("cms_pages")
@@ -856,18 +1098,69 @@ export async function restorePageRevision(
   if (updErr) return mapTriggerError(updErr);
   if (!afterRow) return versionConflict(beforeRow.version + 1);
 
-  // 4. Write rollback revision so the audit trail shows "restored from X".
+  // 4. Replace the DRAFT slot rows with the restored composition. Only when the
+  //    revision actually carried content — a metadata-only revision leaves the
+  //    junction table alone (see 3b).
+  if (revisionCarriesContent) {
+    const { error: delErr } = await supabase
+      .from("cms_page_sections")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("page_id", afterRow.id)
+      .eq("is_draft", true);
+    if (delErr) {
+      void improntaLog("site_admin_pages.warn", {
+        message: "[site-admin/pages] rollback draft clear failed",
+        tenantId,
+        pageId: afterRow.id,
+        error: delErr.message,
+      });
+    }
+    if (restoredComposition.length > 0) {
+      const { error: insErr } = await supabase.from("cms_page_sections").insert(
+        restoredComposition.map((entry) => ({
+          tenant_id: tenantId,
+          page_id: afterRow.id,
+          section_id: entry.sectionId,
+          slot_key: entry.slotKey,
+          sort_order: entry.sortOrder,
+          is_draft: true,
+        })),
+      );
+      if (insErr) {
+        void improntaLog("site_admin_pages.warn", {
+          message: "[site-admin/pages] rollback draft insert failed",
+          tenantId,
+          pageId: afterRow.id,
+          count: restoredComposition.length,
+          error: insErr.message,
+        });
+      }
+    }
+  }
+
+  // 5. Write rollback revision so the audit trail shows "restored from X".
+  //    CRITICAL: it is stamped at the NEW version, so it is the row the editor's
+  //    version-matched read finds on the next load. It must therefore carry the
+  //    composition + builderTree, or the reload paints an empty canvas.
   await insertPageRevision(supabase, {
     tenantId,
     pageId: afterRow.id,
     kind: "rollback",
     version: afterRow.version,
     templateSchemaVersion: afterRow.template_schema_version,
-    snapshot: snapshotFromRow(afterRow),
+    snapshot: {
+      ...snapshotFromRow(afterRow),
+      composition: restoredComposition,
+      ...(restoredBuilderTree.length > 0
+        ? { builderTree: restoredBuilderTree }
+        : {}),
+      ...pickStyleExtras(snap, currentRevisionSnapshot),
+    },
     actorProfileId,
   });
 
-  scheduleAuditEvent(supabase, {
+  scheduleAuditFn(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.pages.edit",

@@ -37,6 +37,7 @@ import {
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
 import { isSameSessionNewerWrite } from "@/lib/site-admin/server/beacon-last-write-wins";
+import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
 import { publishSection } from "@/lib/site-admin/server/sections";
@@ -517,7 +518,24 @@ export async function loadHomepageCompositionAction(input: {
           builderTree: parseBuilderTreeFromSnapshot(revisionRow.snapshot),
         }
       : await loadDraftRevisionExtras(admin, scope.tenantId, pageRow.id, pageRow.version);
-    const preferredBuilderTree = revisionExtras.builderTree;
+    // #310 self-heal guard (WAVE 1.3). The version-matched revision is trusted
+    // BLINDLY here, exactly as the homepage load did before the June incident:
+    // if the pointer drifts onto an empty (or missing) revision, the editor
+    // paints an empty canvas and the next autosave writes that emptiness
+    // forward under a valid CAS. `recoverBuilderTreeIfEmpty` falls back to the
+    // most recent revision that actually has content. Its node count is
+    // RECURSIVE, so a lone empty root container still counts as empty and
+    // recovery still fires; a root container WITH children does not.
+    const preferredBuilderTree = (await recoverBuilderTreeIfEmpty(
+      admin,
+      {
+        tenantId: scope.tenantId,
+        pageId: pageRow.id,
+        pageVersion: pageRow.version,
+        hasSlots: legacyBuilderSlots.length > 0,
+      },
+      revisionExtras.builderTree,
+    )) as BuilderNodeTree | undefined;
 
     const publishedAt =
       typeof pageRow.published_at === "string" && pageRow.published_at.trim() !== ""
