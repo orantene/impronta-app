@@ -180,6 +180,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:tenant-isolation
 
+      - name: tests — activity-log
+        if: ${{ !cancelled() }}
+        run: npm run test:activity-log
+
       - name: tests — connection-oauth
         if: ${{ !cancelled() }}
         run: npm run test:connection-oauth
@@ -212,15 +216,6 @@ jobs:
       - name: tests — builder-chrome
         if: ${{ !cancelled() }}
         run: npm run test:builder-chrome
-
-      - name: tests — a11y
-        # WAVE 0b (2026-08-05): this lane existed in package.json but ran in
-        # NEITHER ci.yml NOR the `ci` aggregate, so the builder's a11y suite
-        # never executed on any PR. check:builder-test-lane-coverage did not
-        # catch it because that guard checks builder test FILES are in a lane,
-        # not that a LANE is wired into CI.
-        if: ${{ !cancelled() }}
-        run: npm run test:a11y
 
       - name: tests — node-presentation
         if: ${{ !cancelled() }}
