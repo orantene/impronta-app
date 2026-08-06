@@ -99,7 +99,7 @@ function renderSimpleRow(row: SimpleSettingRow) {
         <>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: row.titleColor ?? COLORS.ink }}>{row.title}</div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{row.desc}</div>
+            <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{row.desc}</div>
           </div>
           {row.right}
         </>
@@ -173,12 +173,9 @@ function NavItem({
       onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
     >
       <SettingsSectionIcon sectionId={group.id} size={26} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{
-            fontSize: 13, fontWeight: active ? 700 : 600,
-            color: COLORS.ink, letterSpacing: -0.05,
-          }}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span style={{ fontSize: 13, fontWeight: active ? 700 : 600, letterSpacing: -0.05 }} className="text-admin-ink">
             {group.label}
           </span>
           {group.navBadge}
@@ -303,11 +300,11 @@ export function WorkspacePageView() {
                 onClick: () => openDrawer("plan-billing"),
                 custom: (
                   <>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div className="flex items-center gap-2.5">
                       <PlanChip plan={state.plan} variant="solid" />
                       <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{planLabel}</div>
-                        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{planTheme}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{planLabel}</div>
+                        <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{planTheme}</div>
                       </div>
                     </div>
                     <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />
@@ -321,7 +318,7 @@ export function WorkspacePageView() {
                 opacity: 0.6,
                 custom: (
                   <>
-                    <span style={{ fontSize: 13, color: COLORS.inkMuted }}>{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
+                    <span style={{ fontSize: 13 }} className="text-admin-ink-muted">{t("dashboard.adminWorkspace.ownersOnlyBilling")}</span>
                     <ReadOnlyChip />
                   </>
                 ),
@@ -542,8 +539,8 @@ export function WorkspacePageView() {
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.trustVerification")}</div>
-                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.trustVerificationMeta")}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminWorkspace.trustVerification")}</div>
+                    <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{t("dashboard.adminWorkspace.trustVerificationMeta")}</div>
                   </div>
                   {pendingTrustCount > 0 && (
                     <span style={{
@@ -567,16 +564,11 @@ export function WorkspacePageView() {
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.disputedClaims")}</div>
-                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{t("dashboard.adminWorkspace.disputedClaimsMeta")}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminWorkspace.disputedClaims")}</div>
+                    <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{t("dashboard.adminWorkspace.disputedClaimsMeta")}</div>
                   </div>
                   {disputedClaimsCount > 0 && (
-                    <span style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
-                      background: COLORS.red, color: "#fff",
-                      fontSize: 10.5, fontWeight: 700, lineHeight: 1,
-                    }}>{disputedClaimsCount}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999, color: "#fff", fontSize: 10.5, fontWeight: 700, lineHeight: 1 }} className="bg-admin-red">{disputedClaimsCount}</span>
                   )}
                 </div>
                 <Affordance label={disputedClaimsCount > 0 ? t("dashboard.adminWorkspace.affordanceResolve") : t("dashboard.adminWorkspace.affordanceOpen")} />
@@ -592,10 +584,10 @@ export function WorkspacePageView() {
             onClick: () => openDrawer("talent-approvals"),
             custom: (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="flex items-center gap-2">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t("dashboard.adminWorkspace.pendingApprovals")}</div>
-                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{t("dashboard.adminWorkspace.pendingApprovals")}</div>
+                    <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">
                       {pendingTalent.length === 0
                         ? t("dashboard.adminWorkspace.pendingApprovalsEmpty")
                         : t("dashboard.adminWorkspace.pendingApprovalsWaiting")}
@@ -657,7 +649,7 @@ export function WorkspacePageView() {
         ],
         extra: (
           <>
-            <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", lineHeight: 1.5 }}>
+            <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, fontStyle: "italic", lineHeight: 1.5 }} className="text-admin-ink-muted">
               {t("dashboard.adminWorkspace.discoverFootnote")}
             </div>
             <div className="px-[14px] pb-3">
@@ -938,10 +930,10 @@ export function WorkspacePageView() {
         </div>
 
         {/* Content pane */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           {trimmedQuery ? (
             matches.length === 0 ? (
-              <div style={{ padding: "24px 4px", fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+              <div style={{ padding: "24px 4px", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-muted">
                 {t("dashboard.adminWorkspace.noSearchResults")}
               </div>
             ) : (
@@ -952,11 +944,11 @@ export function WorkspacePageView() {
                     onClick={hit.onClick ?? (() => { setActiveGroup(hit.groupId); setQuery(""); })}
                   >
                     <div>
-                      <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3 }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3 }} className="text-admin-ink-muted">
                         {hit.groupLabel}
                       </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{hit.title}</div>
-                      {hit.desc && <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{hit.desc}</div>}
+                      <div style={{ fontSize: 13, fontWeight: 600 }} className="text-admin-ink">{hit.title}</div>
+                      {hit.desc && <div style={{ fontSize: 12, marginTop: 2 }} className="text-admin-ink-muted">{hit.desc}</div>}
                     </div>
                     <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />
                   </SettingsRow>
@@ -966,11 +958,11 @@ export function WorkspacePageView() {
           ) : (
             activeGroupData && (
               <div data-settings-section={activeGroupData.id}>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
+                <div className="mb-3">
+                  <div style={{ fontFamily: FONTS.display, fontSize: 17, fontWeight: 700, letterSpacing: -0.2 }} className="text-admin-ink">
                     {activeGroupData.label}
                   </div>
-                  <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2 }}>{activeGroupData.desc}</div>
+                  <div style={{ fontSize: 12.5, marginTop: 2 }} className="text-admin-ink-muted">{activeGroupData.desc}</div>
                 </div>
                 {activeGroupData.extraPosition === "before" && activeGroupData.extra}
                 {activeGroupData.rows.map(renderSimpleRow)}
