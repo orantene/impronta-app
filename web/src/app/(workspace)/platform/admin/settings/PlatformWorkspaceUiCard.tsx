@@ -9,23 +9,31 @@ import { interpolate } from "@/i18n/interpolate";
 
 /**
  * Super-admin switches for the workspace shell's ambient UI: the floating
- * bottom-right "+" quick-action button and the first-run guided tour. Both
- * default OFF (hidden) — flipping a switch here shows the surface again for
- * every workspace on the platform.
+ * bottom-right "+" quick-action button, the first-run guided tour, and the
+ * storefront admin quick bar.
+ *
+ * The FAB and the tour default OFF (hidden) — flipping a switch here shows the
+ * surface again for every workspace on the platform. The quick bar defaults ON,
+ * because it shipped visible in #1001 and adding a hidden-by-default switch
+ * would have silently removed a live feature.
  */
 export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspaceUi }) {
   const t = useT();
   const [fabEnabled, setFabEnabled] = useState(current.fabEnabled);
   const [tourEnabled, setTourEnabled] = useState(current.tourEnabled);
+  const [quickBarEnabled, setQuickBarEnabled] = useState(current.quickBarEnabled);
   const [pending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const dirty = fabEnabled !== current.fabEnabled || tourEnabled !== current.tourEnabled;
+  const dirty =
+    fabEnabled !== current.fabEnabled ||
+    tourEnabled !== current.tourEnabled ||
+    quickBarEnabled !== current.quickBarEnabled;
 
   const save = () => {
     setStatus(null);
     startTransition(async () => {
-      const r = await updatePlatformWorkspaceUi({ fabEnabled, tourEnabled });
+      const r = await updatePlatformWorkspaceUi({ fabEnabled, tourEnabled, quickBarEnabled });
       setStatus(
         r.ok
           ? { ok: true, msg: t("dashboard.platform.settings.workspaceUiSaved") }
@@ -51,6 +59,12 @@ export function PlatformWorkspaceUiCard({ current }: { current: PlatformWorkspac
       onChange: setTourEnabled,
       labelKey: "dashboard.platform.settings.workspaceUiTourLabel",
       hintKey: "dashboard.platform.settings.workspaceUiTourHint",
+    },
+    {
+      checked: quickBarEnabled,
+      onChange: setQuickBarEnabled,
+      labelKey: "dashboard.platform.settings.workspaceUiQuickBarLabel",
+      hintKey: "dashboard.platform.settings.workspaceUiQuickBarHint",
     },
   ];
 

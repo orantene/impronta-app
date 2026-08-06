@@ -47,37 +47,10 @@ import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities"
 import { loadTenantSiteLabelForEditChrome } from "@/lib/site-admin/edit-mode/tenant-site-label";
 import { EditChrome } from "./edit-chrome";
 import { resolvePublicSurfaceOwnershipFromPath } from "./edit-path";
-
-/**
- * Path prefixes that are never storefronts — the builder must not mount here.
- * Checked against the raw request pathname (before any rewrites).
- *
- * Important: tenant agency hosts (impronta.tulala.digital) ALLOW dashboard
- * paths so members can run the workspace from their subdomain
- * (`surface-allow-list.ts` AGENCY branch). That means /admin, /talent,
- * /client all resolve on the agency host — which would also match the
- * `agency` kind check in EditChromeMount and try to mount the editor on
- * top of dashboard chrome. Every dashboard prefix MUST appear here.
- */
-const NON_STOREFRONT_PREFIXES = [
-  "/admin",
-  "/talent",   // talent dashboard (NOT /t/<slug> public profile)
-  "/client",   // client dashboard
-  "/login",
-  "/register",
-  "/auth",
-  "/onboarding",
-  "/account",  // account settings
-  "/t/",       // talent public profiles
-  "/share/",   // share links
-  "/invite/",  // invite flows
-  "/api/",     // API routes (safety belt)
-  "/dev/",     // internal dev routes
-  "/prototypes/", // dev/staging prototype routes
-  "/update-password",
-  "/forgot-password",
-  "/waitlist",
-];
+import {
+  isNonStorefrontPath,
+  normalizeStorefrontPath,
+} from "./non-storefront-path";
 
 export async function EditChromeMount() {
   // Rule 1 — storefront-only. Read headers first (cheap) to skip all
@@ -85,35 +58,18 @@ export async function EditChromeMount() {
   const reqHeaders = await headers();
   const rawPathname = reqHeaders.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
 
-  // On tenant hosts the URL can legitimately carry the tenant slug as the
-  // first segment (e.g. `improntamodels.com/impronta/admin/roster/[id]`).
-  // The `(workspace)/[tenantSlug]` route resolves the same way for both
-  // path-based access (`tulala.digital/impronta/...`) and custom-domain
-  // access — so admins reach the dashboard with the slug in the path on
-  // BOTH host kinds. Strip a leading `/<tenantSlug>` (or the path-mode
-  // PUBLIC_PATH_PREFIX_HEADER) before the NON_STOREFRONT_PREFIXES check
-  // so admin / talent / client / auth routes are detected even when the
-  // tenant slug is in front. Without this the check would silently miss
-  // `/impronta/admin/...` and the editor would mount over the dashboard.
+  // Strip a leading `/<tenantSlug>` (or the path-mode PUBLIC_PATH_PREFIX_HEADER)
+  // before the non-storefront check — see `non-storefront-path.ts`, which owns
+  // both the prefix list and this normalisation so the quick-bar mount cannot
+  // drift from the editor mount.
   const publicPathPrefix = reqHeaders.get(PUBLIC_PATH_PREFIX_HEADER) ?? "";
   const tenantSlug = reqHeaders.get(HOST_TENANT_SLUG_HEADER) ?? "";
-  let normalizedPath = rawPathname;
-  if (publicPathPrefix && normalizedPath.startsWith(publicPathPrefix)) {
-    normalizedPath = normalizedPath.slice(publicPathPrefix.length) || "/";
-  } else if (tenantSlug) {
-    const slugPrefix = `/${tenantSlug}`;
-    if (
-      normalizedPath === slugPrefix ||
-      normalizedPath.startsWith(`${slugPrefix}/`)
-    ) {
-      normalizedPath = normalizedPath.slice(slugPrefix.length) || "/";
-    }
-  }
-
-  const isNonStorefront = NON_STOREFRONT_PREFIXES.some(
-    (prefix) => normalizedPath === prefix.replace(/\/$/, "") || normalizedPath.startsWith(prefix),
+  const normalizedPath = normalizeStorefrontPath(
+    rawPathname,
+    publicPathPrefix,
+    tenantSlug,
   );
-  if (isNonStorefront) return null;
+  if (isNonStorefrontPath(normalizedPath)) return null;
 
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "agency" && ctx.kind !== "hub") return null;

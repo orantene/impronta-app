@@ -196,3 +196,42 @@ test("the allow-list stays a decision, not a dumping ground", () => {
     "the untranslated allow-list is growing into a way to avoid translating; review it",
   );
 });
+
+test("the ES catalog has no duplicate keys", () => {
+  // TypeScript already rejects duplicate keys (TS1117), but only on a FULL
+  // tsc run, and the catalog is EN-text-keyed and append-heavy so concurrent
+  // sessions collide in it constantly: three separate collisions in one day,
+  // two of which reached main. Catching it in the fast builder lane means the
+  // feedback arrives in seconds instead of after a red main.
+  const files = [
+    "src/components/edit-chrome/editor-i18n-es.ts",
+    "src/components/edit-chrome/editor-i18n-es-sections.ts",
+  ];
+  const problems: string[] = [];
+
+  for (const rel of files) {
+    const src = readFileSync(join(process.cwd(), rel), "utf8");
+    const seen = new Map<string, number>();
+    src.split("\n").forEach((line, i) => {
+      // Top-level entries only: exactly two spaces of indent, then a key.
+      const m = /^ {2}(?:(["'])((?:\\.|(?!\1)[^\\])*?)\1|([A-Za-z_$][\w$]*))\s*:/.exec(line);
+      if (!m) return;
+      const key = m[2] !== undefined ? decodeLiteral(m[2]) : m[3]!;
+      const first = seen.get(key);
+      if (first !== undefined) {
+        problems.push(`  ${rel}: "${key}" defined at line ${first} and again at ${i + 1}`);
+      } else {
+        seen.set(key, i + 1);
+      }
+    });
+  }
+
+  assert.equal(
+    problems.length,
+    0,
+    problems.length === 0
+      ? ""
+      : `${problems.length} duplicate key(s) in the ES catalog. The later one ` +
+          `silently wins at runtime and TS1117 fails the build.\n\n${problems.join("\n")}`,
+  );
+});

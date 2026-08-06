@@ -8730,6 +8730,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           workspace_fab_enabled: boolean
+          workspace_quick_bar_enabled: boolean
           workspace_tour_enabled: boolean
         }
         Insert: {
@@ -8755,6 +8756,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           workspace_fab_enabled?: boolean
+          workspace_quick_bar_enabled?: boolean
           workspace_tour_enabled?: boolean
         }
         Update: {
@@ -8780,6 +8782,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           workspace_fab_enabled?: boolean
+          workspace_quick_bar_enabled?: boolean
           workspace_tour_enabled?: boolean
         }
         Relationships: [
