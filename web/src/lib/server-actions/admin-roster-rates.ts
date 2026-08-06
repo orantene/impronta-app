@@ -114,7 +114,7 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
     tenantId,
   )
     .select(
-      "talent_profile_id, talent_profiles ( display_name ), status, removed_at",
+      "talent_profile_id, talent_profiles ( display_name, default_currency ), status, removed_at",
     )
     .eq("status", "active")
     .is("removed_at", null);
@@ -127,16 +127,25 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
   type RosterJoin = {
     talent_profile_id: string;
     talent_profiles:
-      | { display_name: string | null }
-      | { display_name: string | null }[]
+      | { display_name: string | null; default_currency: string | null }
+      | { display_name: string | null; default_currency: string | null }[]
       | null;
   };
   const names = new Map<string, string>();
+  // The currency a CREATED "Day rate" row will carry (saveRosterRates uses the
+  // talent's own default). Surfaced so an unpriced row's label matches what a
+  // save actually writes — the old "USD" fallback showed the wrong currency
+  // for every EUR talent until the first save (caught by real-browser QA).
+  const defaultCurrencies = new Map<string, string>();
   for (const row of roster as RosterJoin[]) {
     const tp = Array.isArray(row.talent_profiles)
       ? row.talent_profiles[0]
       : row.talent_profiles;
     names.set(row.talent_profile_id, tp?.display_name ?? "Untitled");
+    defaultCurrencies.set(
+      row.talent_profile_id,
+      (tp?.default_currency ?? "USD").toUpperCase(),
+    );
   }
   const ids = [...names.keys()];
   if (ids.length === 0) return { ok: true, rows: [], currency: "USD" };
@@ -227,7 +236,8 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
       displayName: names.get(id) ?? "Untitled",
       roleLabel: roles.get(id) ?? null,
       headlineCents: headline?.amountCents ?? null,
-      currency: headline?.currency ?? "USD",
+      currency:
+        headline?.currency ?? defaultCurrencies.get(id) ?? "USD",
       quoteOnly,
       targetTitle: target?.title ?? null,
       // No public catalog at all → a save CREATES a "Day rate" service.
