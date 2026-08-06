@@ -38,6 +38,11 @@ test("agency host: storefront + workspace + auth + root + static allowed", () =>
     "/forgot-password",
     "/update-password",
     "/auth/callback",
+    // Claim-invite emails link relative to the AGENCY host; a 404 here
+    // dead-ends the invited talent right after signup (caught in prod).
+    // The matcher sees pathnames only — the ?invitation query never
+    // reaches it, so the bare path is the whole contract.
+    "/claim",
     "/api/directory",
     "/api/directory/preview/abc",
     "/api/ai/search",
