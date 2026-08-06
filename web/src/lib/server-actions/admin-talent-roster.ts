@@ -25,7 +25,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
-import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { auditTalentEvent } from "@/lib/audit/emit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 
@@ -124,14 +124,13 @@ export async function removeFromRoster(input: {
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  scheduleWorkspaceAudit({
+  auditTalentEvent(
     tenantId,
-    category: "roster",
-    action: "roster.talent.removed",
-    summary: "Removed talent from the roster",
-    targetType: "talent_profile",
-    targetId: v.talent_profile_id,
-  });
+    "roster",
+    "roster.talent.removed",
+    v.talent_profile_id,
+    (name) => `Removed ${name ?? "a talent"} from the roster`,
+  );
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return { ok: true, talent_profile_id: v.talent_profile_id, keptUserAccount };
@@ -251,15 +250,14 @@ export async function setTalentCardPhoto(input: {
 
   const publicUrl = supabase.storage.from(BUCKET).getPublicUrl(v.storage_path).data.publicUrl;
 
-  scheduleWorkspaceAudit({
+  auditTalentEvent(
     tenantId,
-    category: "roster",
-    action: "roster.talent.card_photo_set",
-    summary: "Set talent card photo",
-    targetType: "talent_profile",
-    targetId: v.talent_profile_id,
-    metadata: { mediaId: inserted.id },
-  });
+    "roster",
+    "roster.talent.card_photo_set",
+    v.talent_profile_id,
+    (name) => `Set the card photo for ${name ?? "a talent"}`,
+    { metadata: { mediaId: inserted.id } },
+  );
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
   return {
@@ -301,14 +299,13 @@ export async function restoreToRoster(input: {
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  scheduleWorkspaceAudit({
+  auditTalentEvent(
     tenantId,
-    category: "roster",
-    action: "roster.talent.restored_to_roster",
-    summary: "Restored talent to the roster",
-    targetType: "talent_profile",
-    targetId: v.talent_profile_id,
-  });
+    "roster",
+    "roster.talent.restored_to_roster",
+    v.talent_profile_id,
+    (name) => `Restored ${name ?? "a talent"} to the roster`,
+  );
 
   const { data: profile } = await supabase
     .from("talent_profiles")

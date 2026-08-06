@@ -25,7 +25,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
-import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { auditTalentEvent } from "@/lib/audit/emit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   buildTalentIdentityProfilePatch,
@@ -131,14 +131,13 @@ export async function updateTalentIdentity(
     pronouns_custom: mfv.pronouns_custom,
   });
 
-  scheduleWorkspaceAudit({
+  auditTalentEvent(
     tenantId,
-    category: "roster",
-    action: "roster.talent.identity_updated",
-    summary: "Updated talent identity details",
-    targetType: "talent_profile",
-    targetId: vId,
-  });
+    "roster",
+    "roster.talent.identity_updated",
+    vId,
+    (name) => `Updated identity details for ${name ?? "a talent"}`,
+  );
 
   revalidatePath(`/${auth.tenantSlug}`, "layout");
 

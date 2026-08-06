@@ -14,6 +14,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { auditTalentEvent } from "@/lib/audit/emit";
 import { revalidateDirectoryListing } from "@/lib/revalidate-public";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
@@ -512,15 +513,14 @@ export async function registerRosterTalentPhoto(
 
   const publicUrl = admin.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
 
-  scheduleWorkspaceAudit({
-    tenantId: ctx.tenantId,
-    category: "media",
-    action: "media.photo.uploaded",
-    summary: "Uploaded talent photo",
-    targetType: "talent_profile",
-    targetId: talentId,
-    metadata: { mediaId: verify.id },
-  });
+  auditTalentEvent(
+    ctx.tenantId,
+    "media",
+    "media.photo.uploaded",
+    talentId,
+    (name) => `Uploaded a photo for ${name ?? "a talent"}`,
+    { metadata: { mediaId: verify.id } },
+  );
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
@@ -592,15 +592,15 @@ export async function updateRosterTalentWorkflow(
     logServerError("roster/[id].updateRosterTalentWorkflow/events", e);
   }
 
-  scheduleWorkspaceAudit({
-    tenantId: ctx.tenantId,
-    category: "roster",
-    action: "roster.talent.workflow_updated",
-    summary: `Changed talent workflow to ${workflow_status} and visibility to ${visibility}`,
-    targetType: "talent_profile",
-    targetId: talentId,
-    metadata: { workflow_status, visibility },
-  });
+  auditTalentEvent(
+    ctx.tenantId,
+    "roster",
+    "roster.talent.workflow_updated",
+    talentId,
+    (name) =>
+      `Changed ${name ?? "a talent"} to workflow ${workflow_status} and visibility ${visibility}`,
+    { metadata: { workflow_status, visibility } },
+  );
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);
@@ -685,17 +685,17 @@ export async function setRosterTalentSiteVisibility(
     void notifyTalentProfileApproved({ admin, tenantId, talentProfileId: talentId });
   }
 
-  scheduleWorkspaceAudit({
+  auditTalentEvent(
     tenantId,
-    category: "roster",
-    action: "roster.talent.visibility_changed",
-    summary: visible
-      ? "Talent is now shown on the public site"
-      : "Talent is now hidden from the public site",
-    targetType: "talent_profile",
-    targetId: talentId,
-    metadata: { from: currentAgencyVisibility, to: next },
-  });
+    "roster",
+    "roster.talent.visibility_changed",
+    talentId,
+    (name) =>
+      visible
+        ? `${name ?? "A talent"} is now shown on the public site`
+        : `${name ?? "A talent"} is now hidden from the public site`,
+    { metadata: { from: currentAgencyVisibility, to: next } },
+  );
 
   revalidatePath(`/${tenantSlug}/admin/roster`);
   revalidatePath(`/${tenantSlug}/admin/roster/${talentId}`);

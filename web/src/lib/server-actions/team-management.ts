@@ -3,6 +3,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { auditMemberEvent } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
@@ -360,16 +361,22 @@ export async function setDefaultCoordinator(
       return { ok: false, error: "Couldn't update setting.", reason: "unexpected" };
     }
 
-    scheduleWorkspaceAudit({
-      tenantId,
-      category: "team",
-      action: "team.coordinator.default_set",
-      summary: userId
-        ? "Set the default inquiry coordinator"
-        : "Cleared the default inquiry coordinator",
-      targetType: "user",
-      targetId: userId,
-    });
+    if (userId) {
+      auditMemberEvent(
+        tenantId,
+        "team.coordinator.default_set",
+        userId,
+        (name) => `Set ${name ?? "a team member"} as the default inquiry coordinator`,
+      );
+    } else {
+      scheduleWorkspaceAudit({
+        tenantId,
+        category: "team",
+        action: "team.coordinator.default_set",
+        summary: "Cleared the default inquiry coordinator",
+        targetType: "user",
+      });
+    }
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
@@ -426,14 +433,12 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
       .eq("id", tenantId)
       .eq("default_coordinator_user_id", profileId);
 
-    scheduleWorkspaceAudit({
+    auditMemberEvent(
       tenantId,
-      category: "team",
-      action: "team.member.removed",
-      summary: "Removed a team member from the workspace",
-      targetType: "membership",
-      targetId: profileId,
-    });
+      "team.member.removed",
+      profileId,
+      (name) => `Removed ${name ?? "a team member"} from the workspace`,
+    );
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
@@ -515,15 +520,13 @@ export async function changeTeamMemberRole(
     }
 
     const previousRole = (target as { role: string }).role;
-    scheduleWorkspaceAudit({
+    auditMemberEvent(
       tenantId,
-      category: "team",
-      action: "team.member.role_changed",
-      summary: `Changed a team member's role from ${previousRole} to ${role}`,
-      targetType: "membership",
-      targetId: (target as { id: string }).id,
-      metadata: { from: previousRole, to: role },
-    });
+      "team.member.role_changed",
+      profileId,
+      (name) => `Changed ${name ?? "a team member"} from ${previousRole} to ${role}`,
+      { metadata: { from: previousRole, to: role, membershipId: (target as { id: string }).id } },
+    );
 
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
