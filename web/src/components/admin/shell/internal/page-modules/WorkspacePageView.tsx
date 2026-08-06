@@ -19,6 +19,7 @@ import {
   type SettingsSectionTarget,
 } from "./settings-deeplink";
 import { RegistrationSection } from "./RegistrationSection";
+import { DiscoverExposureSection } from "./DiscoverExposureSection";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
 
@@ -655,10 +656,18 @@ export function WorkspacePageView() {
           },
         ],
         extra: (
-          <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", lineHeight: 1.5 }}>
-            {t("dashboard.adminWorkspace.discoverFootnote")}
-          </div>
+          <>
+            <div style={{ padding: "10px 14px 12px 14px", fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", lineHeight: 1.5 }}>
+              {t("dashboard.adminWorkspace.discoverFootnote")}
+            </div>
+            <div className="px-[14px] pb-3">
+              <DiscoverExposureSection />
+            </div>
+          </>
         ),
+        extraSearch: [
+          { title: t("dashboard.adminDiscoverSettings.exposureTitle"), desc: t("dashboard.adminDiscoverSettings.exposurePlatformLabel") },
+        ],
       },
       {
         id: "compliance",
