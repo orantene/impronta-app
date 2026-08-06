@@ -330,6 +330,30 @@ export type Database = {
         }
         Relationships: []
       }
+      _backfill_is_primary_20260805: {
+        Row: {
+          backfilled_at: string | null
+          roster_id: string
+          talent_profile_id: string | null
+          tenant_id: string | null
+          was_is_primary: boolean | null
+        }
+        Insert: {
+          backfilled_at?: string | null
+          roster_id: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          was_is_primary?: boolean | null
+        }
+        Update: {
+          backfilled_at?: string | null
+          roster_id?: string
+          talent_profile_id?: string | null
+          tenant_id?: string | null
+          was_is_primary?: boolean | null
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           action: string
@@ -12060,6 +12084,7 @@ export type Database = {
           bio_updated_at_i18n: Json
           booking_note: string | null
           booking_terms: Json | null
+          claimed_at: string | null
           contact_policy: Json
           created_at: string
           created_by_agency_id: string | null
@@ -12088,10 +12113,12 @@ export type Database = {
           id: string
           intro_italic: string | null
           invitation_email: string | null
+          invited_to_claim_at: string | null
           is_discoverable: boolean
           is_featured: boolean
           is_publicly_hidden: boolean
           is_publicly_listed: boolean
+          is_starter_seed: boolean
           is_test_account: boolean
           languages: string[]
           last_active_at: string | null
@@ -12160,6 +12187,7 @@ export type Database = {
           bio_updated_at_i18n?: Json
           booking_note?: string | null
           booking_terms?: Json | null
+          claimed_at?: string | null
           contact_policy?: Json
           created_at?: string
           created_by_agency_id?: string | null
@@ -12188,10 +12216,12 @@ export type Database = {
           id?: string
           intro_italic?: string | null
           invitation_email?: string | null
+          invited_to_claim_at?: string | null
           is_discoverable?: boolean
           is_featured?: boolean
           is_publicly_hidden?: boolean
           is_publicly_listed?: boolean
+          is_starter_seed?: boolean
           is_test_account?: boolean
           languages?: string[]
           last_active_at?: string | null
@@ -12260,6 +12290,7 @@ export type Database = {
           bio_updated_at_i18n?: Json
           booking_note?: string | null
           booking_terms?: Json | null
+          claimed_at?: string | null
           contact_policy?: Json
           created_at?: string
           created_by_agency_id?: string | null
@@ -12288,10 +12319,12 @@ export type Database = {
           id?: string
           intro_italic?: string | null
           invitation_email?: string | null
+          invited_to_claim_at?: string | null
           is_discoverable?: boolean
           is_featured?: boolean
           is_publicly_hidden?: boolean
           is_publicly_listed?: boolean
+          is_starter_seed?: boolean
           is_test_account?: boolean
           languages?: string[]
           last_active_at?: string | null
@@ -14380,6 +14413,74 @@ export type Database = {
           },
         ]
       }
+      workspace_audit_events: {
+        Row: {
+          action: string
+          actor_kind: string
+          actor_label: string | null
+          actor_user_id: string | null
+          category: string
+          correlation_id: string | null
+          country: string | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          metadata: Json
+          summary: string | null
+          target_id: string | null
+          target_label: string | null
+          target_type: string | null
+          tenant_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          actor_kind?: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          category: string
+          correlation_id?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          summary?: string | null
+          target_id?: string | null
+          target_label?: string | null
+          target_type?: string | null
+          tenant_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          actor_kind?: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          category?: string
+          correlation_id?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json
+          summary?: string | null
+          target_id?: string | null
+          target_label?: string | null
+          target_type?: string | null
+          tenant_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_audit_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_channel_referral_config: {
         Row: {
           created_at: string
@@ -15009,6 +15110,10 @@ export type Database = {
           template_id: string
           tenant_count: number
         }[]
+      }
+      claim_talent_profile: {
+        Args: { p_email?: string; p_invitation_id: string }
+        Returns: Json
       }
       cms_page_revisions_trim: {
         Args: { p_keep?: number; p_page_id: string; p_tenant_id: string }
@@ -15819,6 +15924,7 @@ export type Database = {
         Args: { p_talent_id: string }
         Returns: boolean
       }
+      talent_onboarding_existing_profile: { Args: never; Returns: string }
       talent_profile_has_max: { Args: { profile_id: string }; Returns: boolean }
       talent_public_site_for_profile_code: {
         Args: { p_profile_code: string }
@@ -15870,6 +15976,13 @@ export type Database = {
       user_notifications_mark_read: {
         Args: { p_notification_id: string }
         Returns: undefined
+      }
+      workspace_audit_events_trim: {
+        Args: { max_rows_per_tenant?: number; retain_days?: number }
+        Returns: {
+          deleted_by_age: number
+          deleted_by_cap: number
+        }[]
       }
     }
     Enums: {
@@ -16012,6 +16125,8 @@ export type Database = {
         | "public_watermarked"
         | "watermarked"
         | "hero"
+        | "reel"
+        | "polaroid"
       membership_status:
         | "active"
         | "inactive"
@@ -16349,6 +16464,8 @@ export const Constants = {
         "public_watermarked",
         "watermarked",
         "hero",
+        "reel",
+        "polaroid",
       ],
       membership_status: [
         "active",
