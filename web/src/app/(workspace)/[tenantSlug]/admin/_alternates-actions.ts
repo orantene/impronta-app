@@ -9,11 +9,11 @@ import {
 } from "@/lib/inquiry/inquiry-engine-alternates";
 import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 
 // Deep-plan W9 — "use server" wrappers for the inquiry waitlist / alternates
-// engine. Staff-authorized (requireStaffTenantAction), tenant-scoped, and they
+// engine. Staff-authorized (requireWorkspaceStaffAction), tenant-scoped, and they
 // revalidate the admin work path. NO type exports from this module (Turbopack
 // strips type exports from "use server" files → prod build failure); shared
 // types live in @/lib/inquiry/alternates-types.
@@ -45,7 +45,7 @@ function mapAlternateEngineFailure(res: EngineErr): ActionResult {
 }
 
 export async function addAlternateAction(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -78,7 +78,7 @@ export async function addAlternateAction(formData: FormData): Promise<ActionResu
 }
 
 export async function removeAlternateAction(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -106,7 +106,7 @@ export async function removeAlternateAction(formData: FormData): Promise<ActionR
 }
 
 export async function reorderAlternatesAction(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -153,7 +153,7 @@ export async function reorderAlternatesAction(formData: FormData): Promise<Actio
 }
 
 export async function promoteAlternateAction(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }

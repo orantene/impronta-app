@@ -4,7 +4,7 @@
  * admin-discover-exposure.ts — WRITE/admin side of the per-tenant Discover and
  * hub exposure control. Powers workspace Settings → Discover.
  *
- * Auth: requireStaffTenantAction() resolves the caller's tenant from the
+ * Auth: requireWorkspaceStaffAction() resolves the caller's tenant from the
  * session; tenant_id is taken from that scope and NEVER from client input, so
  * a workspace can only ever change its own exposure.
  *
@@ -16,7 +16,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   DEFAULT_TENANT_DISCOVER_EXPOSURE,
@@ -42,7 +42,7 @@ export type SaveDiscoverExposureInput = z.infer<typeof saveSchema>;
 
 /** Current exposure config + the hubs this workspace can choose between. */
 export async function loadDiscoverExposure(): Promise<LoadDiscoverExposureResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -91,7 +91,7 @@ export async function saveDiscoverExposure(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

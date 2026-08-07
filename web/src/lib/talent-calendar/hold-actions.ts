@@ -17,7 +17,7 @@
  */
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { revalidatePath } from "next/cache";
@@ -82,12 +82,12 @@ export async function placeTalentHold(
       return { ok: false, error: "End must be after start." };
     }
 
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
     // Verify the slug in the input matches the caller's resolved tenant.
-    // (Defensive — `requireStaffTenantAction` already resolved by host;
+    // (Defensive — `requireWorkspaceStaffAction` already resolved by host;
     // this just catches a confused caller.)
     if (input.tenantSlug && input.tenantSlug !== tenantSlug) {
       return { ok: false, error: "Tenant slug mismatch." };
@@ -159,7 +159,7 @@ export async function releaseTalentHold(
 ): Promise<ServerActionResult> {
   try {
     if (!holdId) return { ok: false, error: "Missing hold id." };
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId, tenantSlug } = auth;
 

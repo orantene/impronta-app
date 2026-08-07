@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
@@ -19,7 +19,7 @@ export async function actionUploadAgencyLogo(
 ): Promise<AgencyLogoUploadResult> {
   // Branding surface — graded above the workspace baseline to the
   // membership-role capability the Phase-5 matrix assigns it (admin/owner).
-  const auth = await requireStaffTenantAction({
+  const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });
   if (!auth.ok) return { ok: false, error: auth.error };

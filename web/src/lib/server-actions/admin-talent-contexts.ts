@@ -18,7 +18,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
@@ -35,7 +35,7 @@ export async function getResolvedContexts(input: {
   | { ok: true; contexts: ResolvedContext[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -140,7 +140,7 @@ export async function getContextCatalog(): Promise<
   | { ok: true; groups: ContextCatalogGroup[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -242,7 +242,7 @@ export async function setTalentProfileContexts(
   | { ok: true; contexts: ResolvedContext[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

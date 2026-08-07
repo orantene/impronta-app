@@ -9,7 +9,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import {
   type FieldVisibility,
   effectiveFieldVisibility,
@@ -110,7 +110,7 @@ type FieldPrivacyEntry = {
 export async function getFieldPrivacyCatalog(): Promise<
   Result<{ groups: FieldPrivacyGroup[]; fields: FieldPrivacyEntry[] }>
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -274,7 +274,7 @@ export async function getFieldPrivacyCatalog(): Promise<
 export async function getWorkspaceFieldSettings(): Promise<
   Result<{ rows: WorkspaceFieldSettingRow[] }>
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -309,7 +309,7 @@ export async function setWorkspaceFieldVisibility(
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { field_definition_id, visibility } = parsed.data;
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -399,7 +399,7 @@ export async function resetWorkspaceFieldVisibility(
   const parsed = fieldIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -499,7 +499,7 @@ const catalogGroupSchema = z.object({
 export async function getWorkspaceFieldCatalog(): Promise<
   Result<{ groups: FieldCatalogGroupRow[]; fields: FieldCatalogField[] }>
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -635,7 +635,7 @@ export async function setWorkspaceFieldCatalog(
     required: parsed.data.required,
   });
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -729,7 +729,7 @@ export async function setWorkspaceFieldGroup(
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { field_group_id, is_enabled, custom_label, display_order } = parsed.data;
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 

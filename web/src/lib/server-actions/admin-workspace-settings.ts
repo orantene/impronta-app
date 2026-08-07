@@ -17,7 +17,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
@@ -90,7 +90,7 @@ export type UpdateBrandingResult =
 export async function updateAgencyBranding(
   input: UpdateBrandingInput,
 ): Promise<UpdateBrandingResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -198,7 +198,7 @@ export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
 export async function updateWorkspaceAccount(
   input: UpdateAccountInput,
 ): Promise<UpdateBrandingResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -284,7 +284,7 @@ export type UpdateWorkspaceFieldsInput = z.infer<typeof updateWorkspaceFieldsSch
 export async function updateWorkspaceFields(
   input: UpdateWorkspaceFieldsInput,
 ): Promise<UpdateBrandingResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -501,7 +501,7 @@ export type UpdateWatermarkOverrideInput = z.infer<typeof overrideSchema>;
 export async function updateMediaWatermarkOverride(
   input: UpdateWatermarkOverrideInput,
 ): Promise<UpdateBrandingResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -551,7 +551,7 @@ export type UpdateAutoAckResult = { ok: true } | { ok: false; error: string };
 export async function updateAgencyAutoAck(
   input: UpdateAutoAckInput,
 ): Promise<UpdateAutoAckResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -588,7 +588,7 @@ export type LoadAutoAckResult =
   | { ok: false; error: string };
 
 export async function loadAgencyAutoAck(): Promise<LoadAutoAckResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -651,7 +651,7 @@ export type LoadAccountResult =
   | { ok: false; error: string };
 
 export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -761,7 +761,7 @@ export type LoadBrandingResult =
   | { ok: false; error: string };
 
 export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

@@ -9,14 +9,14 @@
  * `{ ok: false, error }` shape rather than dealing with engine internals.
  *
  * Pattern (mirror of admin/messages/actions.ts):
- *   1. Resolve staff + tenant scope via requireStaffTenantAction
+ *   1. Resolve staff + tenant scope via requireWorkspaceStaffAction
  *   2. Pre-flight any cross-tenant ownership checks
  *   3. Call engine function (truly atomic where the engine uses an RPC)
  *   4. Translate `EngineResult` to a flat `{ ok, ... }` for the client
  */
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -747,7 +747,7 @@ export async function patchAgencySettingsNamespace(
   value: Record<string, unknown> | null,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -799,7 +799,7 @@ export async function loadAgencySettingsNamespace(
   namespace: "theme" | "seo" | "navigation" | "languages" | "visibility" | "filters" | "domain",
 ): Promise<PipelineActionResult<Record<string, unknown> | null>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -846,7 +846,7 @@ export async function rescheduleInquiry(
         return { ok: false, error: "Date must be YYYY-MM-DD." };
       }
     }
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1131,7 +1131,7 @@ async function setInquiryUserFlag(
   value: boolean,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1196,7 +1196,7 @@ export async function duplicateInquiryBooking(
   inquiryId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1505,7 +1505,7 @@ export async function uploadInquiryAttachment(
     if (file.size === 0) return { ok: false, error: "File is empty." };
     if (file.size > 100 * 1024 * 1024) return { ok: false, error: "File exceeds 100 MB cap." };
 
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1576,7 +1576,7 @@ export async function deleteInquiryAttachment(
   attachmentId: string,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -2041,7 +2041,7 @@ export async function bulkNudgeInquiries(
   body?: string,
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2094,7 +2094,7 @@ export async function bulkReassignInquiriesToMe(
   inquiryIds: string[],
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
 
     const { assignInquiryToCurrentStaff } = await import("@/lib/server-actions/admin-inquiries");
@@ -2128,7 +2128,7 @@ export async function bulkSetInquiryArchived(
   archived: boolean,
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2261,7 +2261,7 @@ export async function loadWorkspaceCoordinatorCandidates(
   options: { excludeUserId?: string | null } = {},
 ): Promise<PipelineActionResult<WorkspaceCoordinatorCandidate[]>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -2366,7 +2366,7 @@ export async function loadCoordinatorAssignCandidates(
   options: { excludeUserId?: string | null; inquiryId?: string | null } = {},
 ): Promise<PipelineActionResult<CoordinatorAssignCandidate[]>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -2789,7 +2789,7 @@ export async function markBookingPaymentMethodAction(
     if (!VALID_PAYMENT_METHODS.includes(method)) {
       return { ok: false, error: "Invalid payment method." };
     }
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId, tenantSlug } = auth;
 
@@ -2969,7 +2969,7 @@ export async function requestPlatformRateOverrideAction(
     if (!note || note.trim().length < 10) {
       return { ok: false, error: "Please explain the rate request (at least 10 characters)." };
     }
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -3132,7 +3132,7 @@ export async function cancelBookingAction(
   reason: string | null,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -3248,7 +3248,7 @@ export async function rescheduleBookingAction(
     if (newEndsAt && new Date(newEndsAt).getTime() <= new Date(newStartsAt).getTime()) {
       return { ok: false, error: "End must be after start." };
     }
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -3377,7 +3377,7 @@ export async function closeBookingAction(
   completionNote?: string | null,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 

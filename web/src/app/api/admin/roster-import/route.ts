@@ -21,7 +21,7 @@
  */
 
 import { NextResponse, type NextRequest } from "next/server";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   processRosterImportRow,
@@ -36,7 +36,7 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB hard cap
 const MAX_ROWS = 2000;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
   }

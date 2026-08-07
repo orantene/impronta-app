@@ -8,7 +8,7 @@
 // ============================================================================
 
 import { z } from "zod";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { resolveTalentFields } from "@/lib/field-engine/resolve-talent-fields";
@@ -42,7 +42,7 @@ export async function getTalentFieldValues(input: {
   | { ok: true; values: TalentFieldValueRow[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -230,7 +230,7 @@ function validateFieldValue(
 export async function setTalentFieldValue(
   input: z.input<typeof setValueSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -347,7 +347,7 @@ const setVisibilitySchema = z.object({
 export async function setTalentFieldVisibility(
   input: z.input<typeof setVisibilitySchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -408,7 +408,7 @@ export async function getTalentFieldValueHistory(input: {
   | { ok: true; rows: TalentFieldHistoryRow[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

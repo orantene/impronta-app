@@ -12,7 +12,7 @@
  * review, which was the previous all-or-nothing behaviour.
  *
  * Auth path: service-role write AFTER an explicit app-side staff check
- * (requireStaffTenantAction), mirroring actionSetApprovalState in
+ * (requireWorkspaceStaffAction), mirroring actionSetApprovalState in
  * web/src/app/(workspace)/[tenantSlug]/admin/media/actions.ts. This needs no new
  * RLS policy (a `talent_review_media_staff_all` policy already exists, but the
  * service-role + app-check path is the lower-risk, no-migration choice and does
@@ -22,7 +22,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -43,7 +43,7 @@ export async function setReviewMediaApprovalState(
     return { ok: false, error: "Invalid state." };
   }
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 

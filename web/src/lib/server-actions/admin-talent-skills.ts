@@ -18,7 +18,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
@@ -37,7 +37,7 @@ export async function getResolvedSkills(input: {
   | { ok: true; skills: ResolvedSkill[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -82,7 +82,7 @@ const addSkillSchema = z.object({
 export async function addSkill(
   input: z.input<typeof addSkillSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -187,7 +187,7 @@ const addSkillsSchema = z.object({
 export async function addSkills(
   input: z.input<typeof addSkillsSchema>,
 ): Promise<{ ok: true; insertedCount: number } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -328,7 +328,7 @@ export async function setTalentProfileSkills(
   | { ok: true; skills: ResolvedSkill[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -664,7 +664,7 @@ const updateSkillSchema = z.object({
 export async function updateSkill(
   input: z.input<typeof updateSkillSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -712,7 +712,7 @@ export async function removeSkill(input: {
   talent_profile_id: string;
   talent_type_term_id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -754,7 +754,7 @@ const verifySkillSchema = z.object({
 export async function verifySkill(
   input: z.input<typeof verifySkillSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -842,7 +842,7 @@ export async function unverifySkill(input: {
   talent_profile_id: string;
   talent_type_term_id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -876,7 +876,7 @@ const reorderSkillsSchema = z.object({
 export async function reorderSkills(
   input: z.input<typeof reorderSkillsSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -929,7 +929,7 @@ const setFeaturedSchema = z.object({
 export async function setFeaturedSkill(
   input: z.input<typeof setFeaturedSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1010,7 +1010,7 @@ export async function getEnabledParentCategoriesForPicker(): Promise<
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1065,7 +1065,7 @@ export async function getAgencySkillOverrides(input: {
   | { ok: true; overrides: AgencySkillOverride[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1098,7 +1098,7 @@ const upsertOverrideSchema = z.object({
 export async function upsertAgencySkillOverride(
   input: z.input<typeof upsertOverrideSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -1157,7 +1157,7 @@ export async function clearAgencySkillOverride(input: {
   talent_profile_id: string;
   taxonomy_term_id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1186,7 +1186,7 @@ const addAspirationSchema = z.object({
 export async function addAspiration(
   input: z.input<typeof addAspirationSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1223,7 +1223,7 @@ export async function removeAspiration(input: {
   talent_profile_id: string;
   taxonomy_term_id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -1251,7 +1251,7 @@ export async function getAspirations(input: {
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -1310,7 +1310,7 @@ const requestTermSchema = z.object({
 export async function requestNewTaxonomyTerm(
   input: z.input<typeof requestTermSchema>,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -1379,7 +1379,7 @@ export async function getTalentTypesUnderParent(input: {
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 

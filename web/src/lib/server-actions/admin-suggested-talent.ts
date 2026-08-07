@@ -22,7 +22,7 @@
 
 import { revalidatePath } from "next/cache";
 import { addTalentToRoster } from "@/lib/inquiry/inquiry-engine";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type AdminAddSuggestedTalentResult =
@@ -46,7 +46,7 @@ export async function adminAddSuggestedTalent(args: {
     return { ok: false, error: "Missing inquiry or talent." };
   }
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, error: auth.error };
   }

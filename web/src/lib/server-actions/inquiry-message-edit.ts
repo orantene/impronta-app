@@ -4,7 +4,7 @@ import {
   editMessage as engineEditMessage,
   deleteMessage as engineDeleteMessage,
 } from "@/lib/inquiry/inquiry-engine-messages";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "./result";
@@ -35,7 +35,7 @@ async function resolveTenantContext(): Promise<
   | { ok: false; error: string }
 > {
   // Try staff path first — common case (admin moderating a thread).
-  const staffAuth = await requireStaffTenantAction();
+  const staffAuth = await requireWorkspaceStaffAction();
   if (staffAuth.ok) {
     return { ok: true, tenantId: staffAuth.tenantId, userId: staffAuth.user.id, supabase: staffAuth.supabase };
   }

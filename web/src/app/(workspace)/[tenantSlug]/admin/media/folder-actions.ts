@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -24,7 +24,7 @@ export type MediaFolder = {
 // ─── List folders for workspace ────────────────────────────────────────────────
 
 export async function actionListMediaFolders(): Promise<ActionResult<MediaFolder[]>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -70,7 +70,7 @@ export async function actionCreateMediaFolder(
   color?: string,
   isPrivate = false,
 ): Promise<ActionResult<MediaFolder>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const trimmed = name.trim();
@@ -118,7 +118,7 @@ export async function actionRenameMediaFolder(
   name: string,
   color?: string,
 ): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const trimmed = name.trim();
@@ -150,7 +150,7 @@ export async function actionRenameMediaFolder(
 // The media_assets themselves are NOT deleted.
 
 export async function actionDeleteMediaFolder(folderId: string): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -188,7 +188,7 @@ export async function actionAddAssetsToFolder(
 ): Promise<ActionResult<{ count: number }>> {
   if (assetIds.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -232,7 +232,7 @@ export async function actionRemoveAssetsFromFolder(
 ): Promise<ActionResult<null>> {
   if (assetIds.length === 0) return { ok: true, data: null };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -258,7 +258,7 @@ export async function actionRemoveAssetsFromFolder(
 export async function actionListFolderAssets(
   folderId: string,
 ): Promise<ActionResult<string[]>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -283,7 +283,7 @@ export async function actionCreateFolderShareLink(
   folderId: string,
   expiryDays?: number,
 ): Promise<ActionResult<{ shareUrl: string; sharePath: string; token: string }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -326,7 +326,7 @@ export async function actionCreateFolderShareLink(
 }
 
 export async function actionRevokeFolderShareLink(folderId: string): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -361,7 +361,7 @@ export async function actionSetAssetTags(
   assetId: string,
   tags: string[],
 ): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const clean = [...new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))];
@@ -386,7 +386,7 @@ export async function actionSetAssetTags(
 }
 
 export async function actionGetWorkspaceTags(): Promise<ActionResult<string[]>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -432,7 +432,7 @@ export async function actionGetAssetActivity(
   assetId: string,
   limit = 20,
 ): Promise<ActionResult<Array<{ id: string; kind: string; payload: unknown; createdAt: string }>>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -466,7 +466,7 @@ export async function actionSetAssetNote(
   assetId: string,
   note: string,
 ): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();

@@ -15,7 +15,7 @@ import { revalidatePath } from "next/cache";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   upsertBookingFulfillment,
@@ -68,7 +68,7 @@ async function authorizeForBooking(bookingId: string): Promise<BookingAuth> {
   }
 
   // Staff path: tenant-scoped staff of the booking's tenant.
-  const staff = await requireStaffTenantAction();
+  const staff = await requireWorkspaceStaffAction();
   if (!staff.ok || staff.tenantId !== booking.tenant_id) return { ok: false, error: "Forbidden." };
   return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId };
 }
@@ -139,7 +139,7 @@ export async function loadTalentOrders(talentProfileId: string): Promise<TalentO
       .maybeSingle();
     const isOwner = tp?.user_id === session.user.id;
     if (!isOwner) {
-      const staff = await requireStaffTenantAction();
+      const staff = await requireWorkspaceStaffAction();
       if (!staff.ok) return [];
     }
 

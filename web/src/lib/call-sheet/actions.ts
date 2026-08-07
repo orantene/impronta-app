@@ -5,12 +5,12 @@
  * plan.
  *
  * Two writes (save full / clear) + one read.
- * Tenant-scoped via requireStaffTenantAction; the call_sheet_payload
+ * Tenant-scoped via requireWorkspaceStaffAction; the call_sheet_payload
  * column inherits agency_bookings' RLS (staff-of-tenant for writes).
  */
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
@@ -91,7 +91,7 @@ export async function saveBookingCallSheet(
   try {
     if (!bookingId) return { ok: false, error: "Missing booking id." };
 
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -195,7 +195,7 @@ export async function clearBookingCallSheet(
   try {
     if (!bookingId) return { ok: false, error: "Missing booking id." };
 
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId, tenantSlug } = auth;
 

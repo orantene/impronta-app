@@ -15,7 +15,7 @@
 // `agencies` is the tenant-root table (keyed by `id`, not `tenant_id`), so the
 // tenant-scoped-query helper does not model it — every settings writer in the
 // sibling admin-workspace-* modules accesses it the same way, gated by
-// `requireStaffTenantAction` and filtered by `.eq("id", tenantId)`.
+// `requireWorkspaceStaffAction` and filtered by `.eq("id", tenantId)`.
 //
 // NOTE: a "use server" module may export ONLY async functions — the shared
 // TenantCommercialTerms / RefundPolicyKey types live in the directive-free
@@ -23,7 +23,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import type {
   RefundPolicyKey,
@@ -82,7 +82,7 @@ type LoadTenantCommercialTermsResult =
 
 /** Read the tenant's commercial-terms config from agencies.settings. */
 export async function loadTenantCommercialTerms(): Promise<LoadTenantCommercialTermsResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -121,7 +121,7 @@ export async function updateTenantCommercialTerms(
   tenantSlug: string,
   terms: TenantCommercialTerms,
 ): Promise<UpdateTenantCommercialTermsResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

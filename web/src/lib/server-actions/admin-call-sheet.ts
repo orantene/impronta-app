@@ -20,7 +20,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -45,7 +45,7 @@ export async function updateCallSheetAsAdmin(
   fields: CallSheetFields,
 ): Promise<UpdateCallSheetResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authorised." };
     const { supabase, tenantId, user } = auth;
 

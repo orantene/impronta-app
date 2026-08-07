@@ -37,7 +37,7 @@
 // ============================================================================
 
 import { z } from "zod";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import type { ProficiencyLevel } from "./admin-talent-skills.types";
 
@@ -97,7 +97,7 @@ export async function searchTalent(
   | { ok: true; results: SearchTalentResult[]; total_count: number }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

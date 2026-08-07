@@ -14,7 +14,7 @@
 // ============================================================================
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getToken } from "@/lib/site-admin/tokens/registry";
@@ -24,7 +24,7 @@ const TOKEN_KEY = "template.profile-layout-family";
 export async function loadProfileTemplateFamily(): Promise<
   { ok: true; family: string } | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -51,7 +51,7 @@ export async function loadProfileTemplateFamily(): Promise<
 export async function setProfileTemplateFamily(
   family: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

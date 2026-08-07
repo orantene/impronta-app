@@ -81,8 +81,11 @@ for (const [rel, cap] of GRADED) {
     const src = readFileSync(join(__dirname, rel), "utf8");
     assert.match(
       src,
+      // P0 2026-08-07: these are workspace-admin surfaces, so they now grade
+      // the WORKSPACE-scoped guard (requireWorkspaceStaffAction) — same
+      // capability contract, tenant resolved from the surface not the cookie.
       new RegExp(
-        `requireStaffTenantAction\\(\\{\\s*\\n\\s*capability: "${cap.replace(/\./g, "\\.")}",`,
+        `requireWorkspaceStaffAction\\(\\{\\s*\\n\\s*capability: "${cap.replace(/\./g, "\\.")}",`,
       ),
       `${rel} must pass capability: "${cap}" so the guard grades with the action instead of leaning on RLS alone`,
     );

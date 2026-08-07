@@ -1,7 +1,7 @@
 "use server";
 import { improntaLog } from "@/lib/server/structured-log";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { auditMemberEvent } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -40,7 +40,7 @@ import type { ServerActionResult } from "./result";
  *      the roster talent who are auto-added as coordinators on every new
  *      inquiry. Replaces the full set (agency_inquiry_coordinators).
  *
- * All actions are tenant-scoped via requireStaffTenantAction.
+ * All actions are tenant-scoped via requireWorkspaceStaffAction.
  */
 
 type Role = "admin" | "manager" | "editor" | "viewer";
@@ -62,7 +62,7 @@ export async function inviteTeamMember(
   role: Role,
 ): Promise<InviteTeamMemberResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
@@ -196,7 +196,7 @@ export async function promoteRosterTalentToAdmin(
   role: Role,
 ): Promise<ServerActionResult<{ membershipId: string }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId } = auth;
 
@@ -320,7 +320,7 @@ export async function setDefaultCoordinator(
   userId: string | null,
 ): Promise<ServerActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
@@ -390,7 +390,7 @@ export async function setDefaultCoordinator(
 
 export async function removeTeamMember(profileId: string): Promise<ServerActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
@@ -455,7 +455,7 @@ export async function changeTeamMemberRole(
   role: Role,
 ): Promise<ServerActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
@@ -548,7 +548,7 @@ export async function setInquiryCoordinatorTalent(
   talentProfileIds: string[],
 ): Promise<ServerActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 

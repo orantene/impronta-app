@@ -17,7 +17,7 @@ import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { sendMessage as engineSendMessage } from "@/lib/inquiry/inquiry-engine-messages";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
@@ -70,7 +70,7 @@ export type CreateAgencyInquiryResult =
 export async function createAgencyInquiry(
   input: Record<string, string | undefined>,
 ): Promise<CreateAgencyInquiryResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -223,7 +223,7 @@ export async function updateInquiry(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -384,7 +384,7 @@ export async function updateInquiryClientInfo(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -476,7 +476,7 @@ export async function updateInquiryLocation(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -570,7 +570,7 @@ export async function updateInquiryRequestDetails(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -683,7 +683,7 @@ export async function patchInquiryEntityLinks(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -803,7 +803,7 @@ export async function createBooking(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -929,7 +929,7 @@ export async function createClientAccount(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1146,7 +1146,7 @@ export async function updateClientLocation(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1271,7 +1271,7 @@ export async function createClientAccountContact(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1420,7 +1420,7 @@ export async function assignInquiryToCurrentStaff(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1493,7 +1493,7 @@ export async function createManualInquiry(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1689,7 +1689,7 @@ const quickInquiryStatusPeekSchema = z.object({
 
 /** Status-only patch for inquiry list rows / quick actions (no navigation). */
 export async function quickPatchInquiryStatus(formData: FormData): Promise<AdminActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1792,7 +1792,7 @@ type InquiryRow = {
 };
 
 export async function duplicateInquiry(formData: FormData): Promise<void> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) redirect("/admin/inquiries");
   const { supabase, user, tenantId } = auth;
 
@@ -1934,7 +1934,7 @@ export async function sendInquiryMessageAsAdmin(
     if (trimmed.length > 10_000) return { ok: false, error: "Message is too long." };
     if (!["private", "group"].includes(threadType)) return { ok: false, error: "Invalid thread." };
 
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated." };
     const { supabase, tenantId, user } = auth;
 

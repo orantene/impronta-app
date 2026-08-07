@@ -5,7 +5,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 //
 // Server actions for every talent profile drawer section that doesn't have
 // its own action file yet. Each action:
-//   - Requires staff tenant scope (requireStaffTenantAction).
+//   - Requires staff tenant scope (requireWorkspaceStaffAction).
 //   - Verifies the talent is on the caller's roster.
 //   - Patches the relevant column(s) and revalidates.
 //
@@ -13,7 +13,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 // Limits, Social proof, Admin (roster meta), Activity log (read), Claim invite.
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
@@ -94,7 +94,7 @@ export async function updateTalentAbout(input: {
   personality_traits?: unknown;
   tagline?: string | null;
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -140,7 +140,7 @@ export async function updateTalentLocation(input: {
   work_eligibility?: string[];
   upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -209,7 +209,7 @@ export async function updateTalentRates(input: {
   travel_included?: boolean;
   lodging_included?: boolean;
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -244,7 +244,7 @@ export async function updateTalentAvailability(input: {
     vacation?: unknown;
   };
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -268,7 +268,7 @@ export async function updateTalentCredits(input: {
   talent_profile_id: string;
   credits_data: CreditEntry[];
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -290,7 +290,7 @@ export async function updateTalentLimits(input: {
   talent_profile_id: string;
   limits_data: { hardLimits?: string[]; softLimits?: string[]; customNote?: string };
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -314,7 +314,7 @@ export async function updateTalentSocialProof(input: {
   talent_profile_id: string;
   social_proof_data: PastClient[];
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -341,7 +341,7 @@ export async function updateTalentMediaAlbums(input: {
   talent_profile_id: string;
   albums: MediaAlbumEntry[];
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -380,7 +380,7 @@ export async function updateTalentDocuments(input: {
   talent_profile_id: string;
   documents: TalentDocumentEntry[];
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -405,7 +405,7 @@ export async function updateRosterMeta(input: {
   field_locks_data?: { locks: string[]; reasons: Record<string, string> };
   feature_in_directory?: boolean;
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -542,8 +542,8 @@ export async function commitTalentProfileShellAdmin(
     tPrev = now;
   };
 
-  const auth = await requireStaffTenantAction();
-  lap("requireStaffTenantAction");
+  const auth = await requireWorkspaceStaffAction();
+  lap("requireWorkspaceStaffAction");
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
   const tid = input.talent_profile_id;
@@ -862,7 +862,7 @@ export async function getTalentPublishReadiness(input: {
   | { ok: true; missing: Array<{ id: string; label: string; groupKey?: string }>; deleted: boolean }
   | ErrResult
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -894,7 +894,7 @@ export async function getTalentPublishReadiness(input: {
 export async function getTalentProfileDynFieldValuesForShell(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; values: Record<string, string> } | ErrResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -920,7 +920,7 @@ export async function getTalentProfileActivity(input: {
   talent_profile_id: string;
   limit?: number;
 }): Promise<{ ok: true; entries: ProfileActivityEntry[] } | ErrResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1005,7 +1005,7 @@ export async function sendTalentClaimInvite(input: {
   /** When true, this is a Resend operation — recorded in audit notes. */
   resend?: boolean;
 }): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -1127,7 +1127,7 @@ export async function sendTalentClaimInvite(input: {
 export async function resendTalentClaimInvite(
   talent_profile_id: string,
 ): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1180,7 +1180,7 @@ export async function assignTalentTaxonomyBySlug(input: {
   slug: string;
   relationship_type?: "primary_role" | "secondary_role" | "specialty";
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -1211,7 +1211,7 @@ export async function removeTalentTaxonomyBySlug(input: {
   talent_profile_id: string;
   slug: string;
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -1344,7 +1344,7 @@ export type ProfileEditorData = {
 export async function getTalentProfileEditorData(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | ErrResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1524,7 +1524,7 @@ export async function emitProfileEvent(input: {
   event_type: string;
   payload?: Record<string, unknown>;
 }): Promise<void> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return;
   const { supabase } = auth;
   await supabase.from("talent_workflow_events").insert({

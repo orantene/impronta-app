@@ -34,7 +34,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 
@@ -73,7 +73,7 @@ const preflightSchema = z.object({
 export async function getDowngradePreflight(input: {
   target_tier: "free" | "studio" | "agency" | "network";
 }): Promise<{ ok: true; preflight: DowngradePreflight } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -184,7 +184,7 @@ export async function commitPlanDowngrade(input: {
   target_tier: "free" | "studio" | "agency" | "network";
   talent_keep_ids: string[];
 }): Promise<CommitDowngradeResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -267,7 +267,7 @@ const restoreSchema = z.object({
 export async function restoreFromDowngradeArchive(
   input: { event_id?: string } = {},
 ): Promise<{ ok: true; restored_count: number } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

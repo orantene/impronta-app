@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -90,7 +90,7 @@ async function getOrCreateCustomerId(tenantId: string): Promise<string | null> {
 
 export async function listPaymentMethods(): Promise<ListPaymentMethodsResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured yet.", reason: "payment_required" };
@@ -137,7 +137,7 @@ export async function createSetupIntent(): Promise<
   ServerActionResult<{ clientSecret: string; customerId: string }>
 > {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };
@@ -175,7 +175,7 @@ export async function setDefaultPaymentMethod(
   paymentMethodId: string,
 ): Promise<ServerActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };
@@ -205,7 +205,7 @@ export async function detachPaymentMethod(
   paymentMethodId: string,
 ): Promise<ServerActionResult> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };

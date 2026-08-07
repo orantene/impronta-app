@@ -134,7 +134,10 @@ test("cms collections: mutations grade up from the guard's default view capabili
     const body = actionBody(src, action);
     assert.match(
       body,
-      /requireStaffTenantAction\(\{\s*capability:\s*"agency\.site_admin\.pages\.edit",?\s*\}\)/,
+      // P0 2026-08-07: collections actions moved to the WORKSPACE-scoped guard
+      // (tenant from the admin surface / branded host, not the operator's
+      // cookie) — same capability contract.
+      /requireWorkspaceStaffAction\(\{\s*capability:\s*"agency\.site_admin\.pages\.edit",?\s*\}\)/,
       `${action} must pass capability: "agency.site_admin.pages.edit" — the guard's default ` +
         `"agency.workspace.view" is held by viewer, which must not be able to write collections`,
     );
@@ -143,7 +146,7 @@ test("cms collections: mutations grade up from the guard's default view capabili
   for (const action of ["listCollectionsAction", "getCollectionAction"]) {
     assert.match(
       actionBody(src, action),
-      /requireStaffTenantAction\(\)/,
+      /requireWorkspaceStaffAction\(\)/,
       `${action} is a read — it should stay on the guard's default view capability`,
     );
   }
