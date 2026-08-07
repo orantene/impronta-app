@@ -321,8 +321,8 @@ export function PublishPreflight({
         {t("disable")}{" "}
         <span className="font-medium text-foreground">{t("Publish now")}</span>{" "}
         {t("until fixed.")}{" "}
-        <strong className="font-semibold text-foreground">{t("Advisory")}</strong>{" "}
-        {t("items are non-blocking, review them, then publish if you accept the risk.")}
+        <strong className="font-semibold text-foreground">{t("Advisory items")}</strong>{" "}
+        {t("are non-blocking, review them, then publish if you accept the risk.")}
       </p>
       {blockingIssues.length > 0 ? (
         <div className="rounded-md border border-rose-300/70 bg-rose-50/50 p-2">

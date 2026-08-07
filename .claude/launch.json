@@ -2,6 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "i18n hot-surfaces worktree (3185)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/agent-ad72cbc2cb4b6b877/web && PORT=3185 npm run dev"
+      ],
+      "port": 3185,
+      "autoPort": false
+    },
+    {
       "name": "Profile modal impronta host (3071)",
       "runtimeExecutable": "node",
       "runtimeArgs": [

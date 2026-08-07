@@ -120,7 +120,8 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   Blockers: "Los bloqueos",
   disable: "desactivan",
   "until fixed.": "hasta que se corrijan.",
-  "items are non-blocking, review them, then publish if you accept the risk.":
+  "Advisory items": "Los avisos",
+  "are non-blocking, review them, then publish if you accept the risk.":
     "no bloquean: revísalos y publica si aceptas el riesgo.",
   "Publish blockers ({count})": "Bloqueos de publicación ({count})",
   "Go to first blocker": "Ir al primer bloqueo",
