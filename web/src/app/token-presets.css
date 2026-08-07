@@ -42,6 +42,16 @@ html {
   --token-color-muted: #737373;
   --token-color-line: #e5e5e5;
   --token-color-surface-raised: #ffffff;
+  /* `--token-color-background` is deliberately NOT defaulted here. Unset is a
+   * load-bearing sentinel meaning "follow the active background mode" (see the
+   * color.background spec in tokens/registry.ts), and a dozen rules key their
+   * own literal fallback off it — the noir composition presets fall back to
+   * #100e13, the freeform mobile panel to #0b0a0d, the anchor nav to
+   * transparent. Defaulting it white here would flip all of those. Anything
+   * that needs a concrete background writes the fallback itself, exactly like
+   * `--site-page-background` and `[data-theme-canvas-root]` below. What it must
+   * never write is a fallback that references the property being declared:
+   * that is a cycle, and a cycle resolves EMPTY. */
 
   /* Derived tokens that enums below flip. */
   --site-radius-base: 0.5rem;

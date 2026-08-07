@@ -326,8 +326,24 @@ html[data-public-font-preset="editorial"] {
       var(--token-color-primary, var(--impronta-gold)) 18%,
       transparent
     );
-    --impronta-black: var(--token-color-background, var(--impronta-black));
-    --impronta-surface: var(--token-color-background, var(--impronta-surface));
+    /* NEVER write `var(--token-color-background, var(--impronta-black))` here.
+     * A custom property whose fallback references ITSELF is a cycle, so the
+     * whole declaration is invalid at computed-value time and resolves EMPTY
+     * whenever `--token-color-background` is unset (which is the default —
+     * `color.background` ships an empty default on purpose, see
+     * tokens/registry.ts). That silently emptied `--background` on every
+     * tenant that never customized its design, which in turn made the hero
+     * overlay flavors, `.site-hero__search` and the ambient layer compute to
+     * their initial values and paint nothing.
+     *
+     * The literal fallback is `#ffffff` so this chain matches the canvas the
+     * page actually paints: `[data-theme-canvas-root]` in token-presets.css
+     * uses `var(--token-color-background, #ffffff)`. Dark presets
+     * (editorial-noir / noir-or / espresso / atelier-blanc) set
+     * `--token-color-background` AND re-pin `--impronta-black` at higher
+     * specificity, so they are unaffected. */
+    --impronta-black: var(--token-color-background, #ffffff);
+    --impronta-surface: var(--token-color-background, #ffffff);
     --impronta-foreground: var(--token-color-neutral, var(--impronta-foreground));
     --impronta-muted: var(--token-color-neutral, var(--impronta-muted));
     --background: var(--impronta-black);
@@ -343,7 +359,7 @@ html[data-public-font-preset="editorial"] {
      * palette sits behind the storefront so the background reads as lived-in
      * rather than a flat dark field. Tokens supply the hues; tenants without
      * explicit accents fall back to a neutral violet glow. */
-    --site-ambient-base: var(--token-color-background, var(--impronta-black));
+    --site-ambient-base: var(--token-color-background, #ffffff);
     --site-ambient-glow-a: color-mix(
       in oklab,
       var(--token-color-primary, #a855f7) 32%,
