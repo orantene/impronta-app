@@ -69,12 +69,17 @@ interface Props {
   /** Hide Lexical's dark floating toolbar (canvas text toolbar owns formatting UI). */
   suppressFloatingToolbar?: boolean;
   /**
-   * WAVE 2.1 — when provided, the editor focuses itself on mount and drops the
-   * caret at this viewport point (the canvas overlay passes the point of the
-   * opening double-click). The ref is consumed once. Omitted by the inspector,
-   * which must not steal focus when a field renders.
+   * WAVE 2.1 — when true the editor focuses itself synchronously on mount, so
+   * one double-click on the canvas leaves the operator typing. Omitted by the
+   * inspector, which must not steal focus when a field renders.
    */
-  autoFocusCaretRef?: { current: CaretPoint | null };
+  autoFocus?: boolean;
+  /**
+   * Viewport point to drop the caret at (the canvas overlay passes the point of
+   * the opening double-click). Null focuses at the end of the text. Only read
+   * when `autoFocus` is set.
+   */
+  autoFocusCaretPoint?: CaretPoint | null;
 }
 
 /**
@@ -113,7 +118,8 @@ export function RichEditor({
   ariaLabel,
   readOnly,
   suppressFloatingToolbar,
-  autoFocusCaretRef,
+  autoFocus,
+  autoFocusCaretPoint = null,
 }: Props) {
   const [linkAnchor, setLinkAnchor] = useState<{
     rect: DOMRect;
@@ -187,8 +193,8 @@ export function RichEditor({
           <CanvasLexicalBridgePlugin onRequestLink={onRequestLink} />
         ) : null}
         {variant === "single" ? <SingleLinePlugin /> : null}
-        {autoFocusCaretRef ? (
-          <AutoFocusCaretPlugin caretPointRef={autoFocusCaretRef} />
+        {autoFocus ? (
+          <AutoFocusCaretPlugin caretPoint={autoFocusCaretPoint} />
         ) : null}
         <LinkPickerPopover
           anchor={linkAnchor}

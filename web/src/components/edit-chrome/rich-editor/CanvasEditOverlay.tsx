@@ -96,9 +96,10 @@ export function CanvasEditOverlay({
 }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
-  // Consumed once by AutoFocusCaretPlugin — a `resyncKey` remount (undo/redo
-  // mid-edit) must land the caret at the end, not back at the original click.
-  const caretPointRef = useRef<CaretPoint | null>(caretPoint);
+  // The click point applies to the FIRST mount only — a `resyncKey` remount
+  // (undo/redo mid-edit) refocuses at the end of the restored text rather than
+  // jumping the caret back to wherever the original double-click landed.
+  const initialCaretPoint: CaretPoint | null = resyncKey === 0 ? caretPoint : null;
   const [rect, setRect] = useState(() => target.getBoundingClientRect());
   // WAVE 2.1 — computed on the FIRST render, not in a layout effect. The caret
   // is placed by hit-testing the operator's double-click point against the
@@ -257,7 +258,8 @@ export function CanvasEditOverlay({
           variant={variant}
           tenantId={tenantId}
           ariaLabel="Inline canvas editor"
-          autoFocusCaretRef={caretPointRef}
+          autoFocus
+          autoFocusCaretPoint={initialCaretPoint}
           suppressFloatingToolbar
           className="outline-none"
         />

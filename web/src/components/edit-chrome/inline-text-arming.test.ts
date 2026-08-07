@@ -98,7 +98,7 @@ test("the inline overlay focuses itself synchronously, in a layout effect", () =
 
 test("the canvas overlay wires the auto-focus caret and passes the click point", () => {
   const overlay = read("rich-editor/CanvasEditOverlay.tsx");
-  assert.match(overlay, /autoFocusCaretRef=\{caretPointRef\}/);
+  assert.match(overlay, /autoFocusCaretPoint=\{initialCaretPoint\}/);
   assert.match(overlay, /caretPoint/);
 
   const editor = read("rich-editor/RichEditor.tsx");

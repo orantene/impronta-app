@@ -43,10 +43,14 @@ export interface CaretPoint {
 
 interface Props {
   /**
-   * Viewport point of the opening double-click. Read-and-cleared on the first
-   * mount so a remount does not re-apply a stale position.
+   * Viewport point of the opening double-click, or null to focus at the end of
+   * the text. Applying it is IDEMPOTENT: the overlay passes null once the edit
+   * has been remounted by an undo/redo resync, and React's dev double-invoke of
+   * effects must not change the outcome. An earlier version consumed the point
+   * out of a ref on first read, which meant the second (StrictMode) invocation
+   * saw null and the caret silently fell back to the end of the line.
    */
-  caretPointRef: { current: CaretPoint | null };
+  caretPoint: CaretPoint | null;
 }
 
 /** Cross-engine `caretRangeFromPoint`. Firefox only ships the Position form. */
@@ -72,30 +76,22 @@ function domRangeFromPoint(x: number, y: number): Range | null {
   return null;
 }
 
-export function AutoFocusCaretPlugin({ caretPointRef }: Props) {
+export function AutoFocusCaretPlugin({ caretPoint }: Props) {
   const [editor] = useLexicalComposerContext();
 
   useLayoutEffect(() => {
     const root = editor.getRootElement();
     if (!root) return;
-    const point = caretPointRef.current;
-    caretPointRef.current = null;
 
     // Focus FIRST and synchronously: from here on every keystroke is captured,
     // whatever happens to the caret position below.
     root.focus({ preventScroll: true });
 
-    const domRange = point ? domRangeFromPoint(point.x, point.y) : null;
+    const domRange = caretPoint
+      ? domRangeFromPoint(caretPoint.x, caretPoint.y)
+      : null;
     const inEditor =
       domRange !== null && root.contains(domRange.startContainer);
-    (window as unknown as Record<string, unknown>).__caretDebug = {
-      point,
-      hasRange: domRange !== null,
-      inEditor,
-      container: domRange?.startContainer.nodeName,
-      offset: domRange?.startOffset,
-      parent: domRange?.startContainer.parentElement?.outerHTML.slice(0, 120),
-    };
 
     // `discrete` forces Lexical to flush this selection before the next event
     // is processed, so the first typed character lands where the caret shows.
@@ -114,7 +110,7 @@ export function AutoFocusCaretPlugin({ caretPointRef }: Props) {
       },
       { discrete: true },
     );
-  }, [editor, caretPointRef]);
+  }, [editor, caretPoint]);
 
   return null;
 }
