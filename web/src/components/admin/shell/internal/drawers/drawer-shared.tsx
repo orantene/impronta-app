@@ -53,7 +53,6 @@ import { uploadTalentMedia } from "@/lib/client/signed-upload";
 import { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 import { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 import { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
-import { actionUploadAgencyLogo } from "@/lib/server-actions/admin-agency-logo-upload";
 import { createManualBooking, duplicateBooking } from "@/lib/server-actions/admin-bookings";
 import { createClientAccount } from "@/lib/server-actions/admin-inquiries";
 import { updateAdminClientProfile } from "@/lib/server-actions/admin-clients";
@@ -397,7 +396,9 @@ export { actionSetMediaWatermarkOverride, actionUploadAndAssignMedia, actionDele
 export { MediaGalleryDrawer } from "@/components/talent/media-gallery-drawer";
 export { setTalentAvatar, setTalentHero, registerPortfolioPhoto } from "@/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions";
 export { DEFAULT_WATERMARK_PRESET } from "@/lib/server-actions/admin-workspace-settings-constants";
-export { actionUploadAgencyLogo } from "@/lib/server-actions/admin-agency-logo-upload";
+// Wave 5.1 — logo upload rides the signed pipeline (compress -> signed PUT ->
+// finalize; SVG sanitized server-side), replacing the raw-FormData action.
+export { uploadAgencyLogo } from "@/lib/client/signed-upload";
 export { createManualBooking, duplicateBooking } from "@/lib/server-actions/admin-bookings";
 export { createClientAccount } from "@/lib/server-actions/admin-inquiries";
 export { updateAdminClientProfile } from "@/lib/server-actions/admin-clients";
