@@ -26,7 +26,7 @@ import Stripe from "stripe";
 import { getStripe } from "./stripe-checkout";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
+import { normalizePayoutCountry, payoutCountryLabel, requiresRecipientAgreement } from "@/lib/payments/payout-countries";
 
 export type ConnectAccountStatus =
   | "none"
@@ -200,13 +200,21 @@ export async function createOrGetConnectedAccount(
   const country = normalizePayoutCountry(opts.country) ?? PLATFORM_DEFAULT_COUNTRY;
 
   try {
+    // An agency in a receive-only country (e.g. a Mexican or Argentine agency
+    // workspace) can take its commission but can't be a card merchant, so we
+    // request transfers only and accept the recipient service agreement.
+    // Full-service countries keep card_payments so the agency could charge.
+    const recipientOnly = requiresRecipientAgreement(country);
     const account = await stripe.accounts.create({
       type: "express",
       country,
       capabilities: {
-        card_payments: { requested: true },
+        ...(recipientOnly ? {} : { card_payments: { requested: true } }),
         transfers: { requested: true },
       },
+      ...(recipientOnly
+        ? { tos_acceptance: { service_agreement: "recipient" as const } }
+        : {}),
       business_profile: {
         name: agency.agencyName,
         ...(opts.businessUrl ? { url: opts.businessUrl } : {}),

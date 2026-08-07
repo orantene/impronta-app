@@ -123,8 +123,9 @@ export function ConnectEmbeddedOnboarding({
       </ConnectComponentsProvider>
       <div
         style={{
-          marginTop: 10,
-          fontSize: 11,
+          marginTop: 14,
+          fontSize: 11.5,
+          lineHeight: 1.5,
           color: C.inkMuted,
           textAlign: "center",
         }}

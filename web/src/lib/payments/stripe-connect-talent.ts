@@ -29,6 +29,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizePayoutCountry,
   payoutCountryLabel,
+  requiresRecipientAgreement,
   isStablecoinPayoutCountry,
 } from "@/lib/payments/payout-countries";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
@@ -97,7 +98,15 @@ async function iso2FromCountryText(
   admin: AdminClient,
   text: string | null,
 ): Promise<string | null> {
-  const t = (text ?? "").trim();
+  // Strip flag emoji (regional-indicator pairs) and variation selectors before
+  // matching. The payouts country picker used to persist the DISPLAY label
+  // ("🇦🇷 Argentina"), which never matches countries.name_en — so a talent's
+  // country silently resolved to null and country-gated features (the USDC
+  // card, rail policy) quietly disappeared. Verified live 2026-08-09.
+  const t = (text ?? "")
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "")
+    .replace(/[️‍]/gu, "")
+    .trim();
   if (!t) return null;
   if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
   const { data } = await admin
@@ -165,15 +174,25 @@ export async function createOrGetTalentConnectedAccount(
   if (!residenceIso2 && opts.country) {
     const { data: matchedCountry } = await admin
       .from("countries")
-      .select("id")
+      .select("id, name_en")
       .eq("iso2", country)
       .maybeSingle();
     if (matchedCountry?.id) {
+      // Persist the PLAIN country name, never the flag-prefixed display label:
+      // this column is read back by name (ilike countries.name_en), and a
+      // "🇦🇷 Argentina" value matches nothing — which silently resolved the
+      // talent's country to null and hid country-gated features like the USDC
+      // card. `residence_country_id` is the reliable key, but a DB trigger
+      // clears it when the profile has no residence_city_id, so the text
+      // column is the fallback that actually has to work.
+      const countryName =
+        ((matchedCountry as { name_en?: string | null }).name_en ?? "").trim() ||
+        payoutCountryLabel(country).replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "").trim();
       await admin
         .from("talent_profiles")
         .update({
           residence_country_id: matchedCountry.id as string,
-          home_country_text: payoutCountryLabel(country),
+          home_country_text: countryName,
         })
         .eq("id", talentProfileId);
     }
@@ -201,6 +220,15 @@ export async function createOrGetTalentConnectedAccount(
         card_payments: { requested: false },
       },
       business_profile: businessUrl ? { url: businessUrl } : undefined,
+      // Receive-only countries (MX, AR and the rest of LatAm/Asia/Africa) REQUIRE
+      // the recipient service agreement — Stripe hard-errors without it:
+      // "When requesting the `transfers` capability for accounts in MX, you must
+      // specify the `recipient` service agreement". The account can then receive
+      // transfers and pay out locally, it just can't charge customers (which
+      // talent never does — the client always pays the platform).
+      ...(requiresRecipientAgreement(country)
+        ? { tos_acceptance: { service_agreement: "recipient" as const } }
+        : {}),
       metadata: {
         account_type: "talent",
         talent_profile_id: talentProfileId,

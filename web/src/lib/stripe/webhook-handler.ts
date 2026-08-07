@@ -614,8 +614,22 @@ export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
   if (!isStripeConfigured()) {
     return NextResponse.json({ error: "Stripe not configured." }, { status: 503 });
   }
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
+  // Stripe splits deliveries across TWO endpoint types and each carries its own
+  // signing secret:
+  //   • account endpoint  — platform events (payment_intent.*, charge.*, …)
+  //   • CONNECT endpoint  — connected-account events (account.updated,
+  //     capability.updated, account.external_account.*)
+  // Connected-account events are what tell us a talent finished onboarding, which
+  // is what releases their held payouts. Verified live 2026-08-09: with only the
+  // account endpoint registered, a Mexican talent completed onboarding, Stripe
+  // emitted account.updated on her account, we never received it, and her $80
+  // stayed held until the next daily cron. Accept either secret so ONE URL can
+  // serve both endpoints.
+  const webhookSecrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_WEBHOOK_SECRET_CONNECT,
+  ].filter((s): s is string => !!s && s.trim().length > 0);
+  if (webhookSecrets.length === 0) {
     logServerError("stripe-webhook", "STRIPE_WEBHOOK_SECRET not set");
     return NextResponse.json({ error: "Webhook secret not configured." }, { status: 503 });
   }
@@ -627,11 +641,18 @@ export async function handleStripeWebhook(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Missing stripe-signature header." }, { status: 400 });
   }
 
-  let event: Stripe.Event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-  } catch (err) {
-    logServerError("stripe-webhook.verify", err);
+  let event: Stripe.Event | null = null;
+  let lastVerifyError: unknown = null;
+  for (const secret of webhookSecrets) {
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature, secret);
+      break;
+    } catch (err) {
+      lastVerifyError = err;
+    }
+  }
+  if (!event) {
+    logServerError("stripe-webhook.verify", lastVerifyError);
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 

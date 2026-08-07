@@ -10,19 +10,12 @@ import {
   refreshTalentPayoutStatus,
 } from "./actions";
 
-// Countries Stripe Connect (US platform) can open a connected account in. Talents
-// elsewhere (Mexico, Argentina, most of LatAm/Asia/Africa) can ONLY be paid via
-// Global Payouts, so for them we hide the Connect rail entirely.
-const CONNECT_PAYOUT_COUNTRIES = new Set([
-  "US", "GB", "CA", "CH",
-  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
-  "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO",
-]);
-function isConnectPayoutCountry(iso2: string | null): boolean {
-  return !!iso2 && CONNECT_PAYOUT_COUNTRIES.has(iso2.toUpperCase());
-}
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
-import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
+// Single source of truth (lib/payments/payout-countries). This file used to
+// carry its OWN copy of the country set that predated Stripe's recipient
+// service agreement, so a Mexican talent was told "payouts aren't available in
+// Mexico yet" even though account creation works. Never re-inline this list.
+import { PAYOUT_COUNTRIES, isConnectPayoutCountry } from "@/lib/payments/payout-countries";
 import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
 import { StablecoinPayoutCard } from "./StablecoinPayoutCard";
@@ -268,7 +261,12 @@ export function PayoutsShell({
           {showOnboarding ? (
             <div style={card}>
               <div style={sectionLabel}>Connect your bank</div>
-              <div style={{ marginTop: 12, border: `1px solid ${C.borderSoft}`, borderRadius: 12, overflow: "hidden" }}>
+              {/* No border/radius wrapper here: Stripe's embedded component
+                  renders its OWN card chrome, so wrapping it produced a
+                  triple-border look (our card > this box > Stripe's card >
+                  Stripe's inner alerts) that read as cramped. Give it vertical
+                  breathing room instead and let Stripe's card be the only card. */}
+              <div style={{ marginTop: 14 }}>
                 <ConnectEmbeddedOnboarding fetchClientSecret={() => createTalentAccountSession(country ? { country } : {})} onExit={handleExit} />
               </div>
               <button type="button" onClick={handleExit} style={{ ...ghostBtn, marginTop: 12 }}>
