@@ -3499,7 +3499,10 @@ export function SelectionLayer() {
   // rather than buried inside the right rail. Each crumb carries its
   // id + label + a kind ("page"|"section"|node-kind) for the
   // data-selection-breadcrumb-item attribute the smoke tests assert on.
-  const canvasBreadcrumbCrumbs = useMemo(() => {
+  // NOTE (wave 4 i18n): was a manual useMemo; with t() in the body React
+  // Compiler can no longer preserve the manual memo (preserve-manual-
+  // memoization), so it is computed inline and auto-memoized by the compiler.
+  const canvasBreadcrumbCrumbs = (() => {
     type Crumb = {
       id: string;
       label: string;
@@ -3532,13 +3535,7 @@ export function SelectionLayer() {
       }
     }
     return crumbs;
-  }, [
-    selectedSectionId,
-    chipLabel,
-    selectedNodePath,
-    selectedBuilderNodeId,
-    t,
-  ]);
+  })();
 
   const selectedSiblingContext = useMemo(() => {
     if (
@@ -3594,7 +3591,11 @@ export function SelectionLayer() {
   // block has no children of its own), so the picker vanished the moment you
   // clicked into it. Fall back to the parent's child list — the operator keeps
   // the same list and can see where they are inside it.
-  const nestedPanelScope = useMemo(() => {
+  // NOTE (wave 4 i18n): this was a manual useMemo, but adding t() to this
+  // component made React Compiler unable to PRESERVE the manual memo
+  // (preserve-manual-memoization). Computed inline instead; the compiler
+  // auto-memoizes it.
+  const nestedPanelScope = (() => {
     if (!selectedCanvasNodeId) return null;
     if (selectedNodeChildren.length > 0) {
       return {
@@ -3619,13 +3620,7 @@ export function SelectionLayer() {
       nodes: siblings,
       viewingChild: true,
     };
-  }, [
-    builderTree,
-    chipLabel,
-    selectedCanvasNodeId,
-    selectedNodeChildren,
-    selectedNodeLabel,
-  ]);
+  })();
   const canManageSelectedNodeChildren =
     drag.phase === "idle" && !multiNodeSelectionActive && !!nestedPanelScope;
   // Nested-blocks panel open state — lifted out of the panel so the selection
@@ -4689,8 +4684,8 @@ export function SelectionLayer() {
               {canInsertIntoSelectedNode ? (
                 <button
                   type="button"
-                  aria-label={t("Add block inside {label}").replace("{label}", selectedNodeLabel)}
-                  title={t("Add block inside {label}").replace("{label}", selectedNodeLabel)}
+                  aria-label={t("Add block inside {label}").replace("{label}", `${selectedNodeLabel}`)}
+                  title={t("Add block inside {label}").replace("{label}", `${selectedNodeLabel}`)}
                   data-builder-node-canvas-add-trigger=""
                   onClick={() => {
                     if (!selectedCanvasNodeId || selectedNodeAllowedKinds.length === 0) {
@@ -4756,8 +4751,8 @@ export function SelectionLayer() {
               {canRemoveSelectedNode ? (
                 <button
                   type="button"
-                  aria-label={t("Remove {label}").replace("{label}", selectedNodeLabel)}
-                  title={t("Remove {label}").replace("{label}", selectedNodeLabel)}
+                  aria-label={t("Remove {label}").replace("{label}", `${selectedNodeLabel}`)}
+                  title={t("Remove {label}").replace("{label}", `${selectedNodeLabel}`)}
                   data-builder-node-canvas-remove-trigger=""
                   onClick={() => void commitNodeRemoval()}
                   style={{
