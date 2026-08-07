@@ -24,6 +24,7 @@ import { MediaProgressBar } from "@/components/media/media-progress-bar";
 
 import { CHROME, Segmented, PortaledOverlay, Z_INDEX } from "../kit";
 import { useModalFocusTrap } from "../modal-focus-trap";
+import { useEditorLocale } from "../use-editor-locale";
 import { acquireBehindDrawerInert } from "../kit/drawer-modal-inert";
 import {
   DevicePreviewFrame,
@@ -34,7 +35,9 @@ import {
 
 type Phase = "compose" | "thinking" | "preview";
 
-/** A few one-tap starting points so the empty state isn't a blank box. */
+/** A few one-tap starting points so the empty state isn't a blank box.
+ *  Rendered AND submitted through t(), so a Spanish operator both reads and
+ *  sends the Spanish instruction (the model handles either language). */
 const SUGGESTIONS = [
   "Make the copy shorter and punchier",
   "Add a clear call-to-action button",
@@ -72,6 +75,7 @@ export function AiReviseModal({
   /** Undoable insert of the candidate as a sibling directly after the original. */
   onInsertBelow: (candidate: BuilderNode) => Promise<{ ok: boolean; error?: string }>;
 }) {
+  const { t } = useEditorLocale();
   const [phase, setPhase] = useState<Phase>("compose");
   const [instruction, setInstruction] = useState("");
   const [candidate, setCandidate] = useState<BuilderNode | null>(null);
@@ -142,12 +146,12 @@ export function AiReviseModal({
       const res = kind === "replace" ? await onReplace(candidate) : await onInsertBelow(candidate);
       setCommitting(false);
       if (!res.ok) {
-        setError(res.error ?? "Could not apply the change. Try again.");
+        setError(res.error ?? t("Could not apply the change. Try again."));
         return;
       }
       onClose();
     },
-    [candidate, committing, onReplace, onInsertBelow, onClose],
+    [candidate, committing, onReplace, onInsertBelow, onClose, t],
   );
 
   const kindLabel = (node as { kind?: string }).kind ?? "block";
@@ -165,7 +169,7 @@ export function AiReviseModal({
           ref={modalRef}
           role="dialog"
           aria-modal="true"
-          aria-label="Revise this block with AI"
+          aria-label={t("Revise this block with AI")}
           className="flex max-h-[90vh] w-[min(940px,95vw)] flex-col overflow-hidden rounded-[18px] border"
           style={{
             background: CHROME.surface,
@@ -186,10 +190,13 @@ export function AiReviseModal({
             </span>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[15px] font-semibold" style={{ color: CHROME.ink }}>
-                Revise with AI
+                {t("Revise with AI")}
               </div>
               <div className="truncate text-[11px]" style={{ color: CHROME.muted }}>
-                Editing your selected {kindLabel} block. Nothing changes until you apply it.
+                {t("Editing your selected {kind} block. Nothing changes until you apply it.").replace(
+                  "{kind}",
+                  kindLabel,
+                )}
               </div>
             </div>
             {phase === "preview" ? (
@@ -198,15 +205,15 @@ export function AiReviseModal({
                 onChange={setDevice}
                 compact
                 options={[
-                  { value: "desktop", label: "Desktop", icon: <DesktopGlyph /> },
-                  { value: "mobile", label: "Mobile", icon: <MobileGlyph /> },
+                  { value: "desktop", label: t("Desktop"), icon: <DesktopGlyph /> },
+                  { value: "mobile", label: t("Mobile"), icon: <MobileGlyph /> },
                 ]}
               />
             ) : null}
             <button
               type="button"
               onClick={() => !committing && onClose()}
-              aria-label="Close"
+              aria-label={t("Close")}
               className="inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border-none bg-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40"
               style={{ color: CHROME.muted }}
               onMouseEnter={(e) => {
@@ -228,7 +235,7 @@ export function AiReviseModal({
           <div className="min-h-0 flex-1 overflow-auto p-[20px]" style={{ background: CHROME.paper }}>
             {/* Prompt field — persistent so the user can keep refining. */}
             <label className="block text-[12px] font-medium" style={{ color: CHROME.ink2 }}>
-              {candidate ? "Make another change" : "What would you like to change or add?"}
+              {candidate ? t("Make another change") : t("What would you like to change or add?")}
             </label>
             <textarea
               value={instruction}
@@ -241,7 +248,9 @@ export function AiReviseModal({
               }}
               rows={3}
               disabled={phase === "thinking" || committing}
-              placeholder="e.g. Rewrite the headline to be bolder, add a short subheading, and include a Book talent button."
+              placeholder={t(
+                "e.g. Rewrite the headline to be bolder, add a short subheading, and include a Book talent button.",
+              )}
               className="mt-[6px] w-full resize-y rounded-[10px] border px-[12px] py-[10px] text-[13px] leading-relaxed outline-none transition-colors focus:border-[#7c3aed]"
               style={{ borderColor: CHROME.lineStrong, background: CHROME.surface, color: CHROME.ink }}
             />
@@ -254,7 +263,7 @@ export function AiReviseModal({
                     key={s}
                     type="button"
                     disabled={committing}
-                    onClick={() => setInstruction(s)}
+                    onClick={() => setInstruction(t(s))}
                     className="rounded-full border px-[10px] py-[4px] text-[11px] transition-colors"
                     style={{ borderColor: CHROME.lineStrong, color: CHROME.ink2, background: CHROME.surface }}
                     onMouseEnter={(e) => {
@@ -266,7 +275,7 @@ export function AiReviseModal({
                       e.currentTarget.style.color = CHROME.ink2;
                     }}
                   >
-                    {s}
+                    {t(s)}
                   </button>
                 ))}
               </div>
@@ -281,7 +290,7 @@ export function AiReviseModal({
                 style={{ background: "#7c3aed" }}
               >
                 <SparkleGlyph size={14} />
-                {candidate ? "Revise again" : "Revise with AI"}
+                {candidate ? t("Revise again") : t("Revise with AI")}
               </button>
               {candidate ? (
                 <button
@@ -295,7 +304,7 @@ export function AiReviseModal({
                   className="text-[12px] underline-offset-2 hover:underline"
                   style={{ color: CHROME.muted }}
                 >
-                  Start from the original
+                  {t("Start from the original")}
                 </button>
               ) : (
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
@@ -320,13 +329,13 @@ export function AiReviseModal({
                 <div className="mb-[8px] flex items-center justify-between text-[12px]" style={{ color: CHROME.ink2 }}>
                   <span className="inline-flex items-center gap-[7px]">
                     <span className="inline-block h-[7px] w-[7px] animate-pulse rounded-full" style={{ background: "#7c3aed" }} />
-                    Claude is revising your block…
+                    {t("Claude is revising your block…")}
                   </span>
                   <span style={{ color: CHROME.muted }}>{Math.round(progress)}%</span>
                 </div>
                 <MediaProgressBar value={progress} />
                 <p className="mt-[10px] text-[11px]" style={{ color: CHROME.muted }}>
-                  Reading the existing content and applying your change while keeping the rest intact.
+                  {t("Reading the existing content and applying your change while keeping the rest intact.")}
                 </p>
               </div>
             ) : null}
@@ -336,10 +345,10 @@ export function AiReviseModal({
               <div className="mt-[18px]">
                 <div className="mb-[10px] flex items-center gap-[8px]">
                   <span className="text-[12px] font-semibold" style={{ color: CHROME.ink }}>
-                    Revised block preview
+                    {t("Revised block preview")}
                   </span>
                   <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                    {device === "desktop" ? "Desktop 1280px" : "Mobile 390px"}
+                    {device === "desktop" ? t("Desktop 1280px") : t("Mobile 390px")}
                   </span>
                 </div>
                 <DevicePreviewFrame node={candidate} device={device} inheritThemeFromParent />
@@ -354,7 +363,7 @@ export function AiReviseModal({
               style={{ borderColor: CHROME.line, background: CHROME.surface }}
             >
               <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                Keep tweaking above, or add it to the page.
+                {t("Keep tweaking above, or add it to the page.")}
               </span>
               <div className="flex items-center gap-[8px]">
                 <button
@@ -364,7 +373,7 @@ export function AiReviseModal({
                   className="rounded-[9px] border px-[14px] py-[8px] text-[12px] font-medium transition-colors disabled:opacity-50"
                   style={{ borderColor: CHROME.lineStrong, color: CHROME.ink, background: CHROME.surface }}
                 >
-                  {committing ? "Working…" : "Insert below original"}
+                  {committing ? t("Working…") : t("Insert below original")}
                 </button>
                 <button
                   type="button"
@@ -373,7 +382,7 @@ export function AiReviseModal({
                   className="rounded-[9px] px-[14px] py-[8px] text-[12px] font-semibold text-white transition-opacity disabled:opacity-50"
                   style={{ background: CHROME.ink }}
                 >
-                  {committing ? "Working…" : "Replace original"}
+                  {committing ? t("Working…") : t("Replace original")}
                 </button>
               </div>
             </div>

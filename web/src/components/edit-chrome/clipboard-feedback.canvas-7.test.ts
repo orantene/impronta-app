@@ -193,9 +193,11 @@ test("More-menu wiring: the chip overflow menu exposes all four clipboard action
     menuStart,
     menuEnd === -1 ? undefined : menuEnd,
   );
-  for (const label of ["Copy", "Cut", "Paste", "Duplicate"]) {
+  // Wave 4 i18n: labels render through t(). "Copy" alone collides with the ES
+  // catalog's copywriting sense of the word, so the menu says "Copy block".
+  for (const label of ["Copy block", "Cut", "Paste", "Duplicate"]) {
     assert.ok(
-      menuBody.includes(`>\n            ${label}\n`),
+      menuBody.includes(`{t("${label}")}`),
       `chip More menu renders a "${label}" action item`,
     );
   }

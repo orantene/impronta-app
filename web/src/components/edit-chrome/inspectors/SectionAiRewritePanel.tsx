@@ -23,6 +23,7 @@ import type { ReactElement } from "react";
 
 import { CHROME } from "../kit";
 import { AiRewriteButton } from "./AiRewriteButton";
+import { useEditorLocale } from "../use-editor-locale";
 import { getAiRewritableFields } from "@/lib/site-admin/edit-mode/ai-rewrite-fields";
 
 interface SectionAiRewritePanelProps {
@@ -86,6 +87,7 @@ function AiRewritePanelInner({
   siblingContext: Record<string, string>;
   onPatch: (patch: Record<string, string>) => void;
 }): ReactElement {
+  const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
 
   return (
@@ -141,7 +143,7 @@ function AiRewritePanelInner({
             <path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z" />
             <path d="M19 14l.7 1.6L21 16l-1.3.4L19 18l-.7-1.6L17 16l1.3-.4z" />
           </svg>
-          AI Rewrite
+          {t("AI Rewrite")}
         </span>
         {/* chevron */}
         <svg

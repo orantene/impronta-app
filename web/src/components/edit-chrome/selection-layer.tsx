@@ -98,6 +98,7 @@ import {
   useEditContext,
   type BuilderNodePastePreview,
 } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
   useHoveredSectionId,
@@ -653,6 +654,7 @@ const NON_EJECTABLE_SECTION_TYPE_KEYS = new Set<string>([
 ]);
 
 export function SelectionLayer() {
+  const { t } = useEditorLocale();
   const {
     setSelectedSectionId,
     focusSectionForEdit,
@@ -767,20 +769,20 @@ export function SelectionLayer() {
   // uses), so the change is snapshotted and reversible.
   const handleAiReplace = useCallback(
     async (candidate: BuilderNode): Promise<{ ok: boolean; error?: string }> => {
-      if (!aiReviseNodeId) return { ok: false, error: "No block selected." };
+      if (!aiReviseNodeId) return { ok: false, error: t("No block selected.") };
       const { tree, replaced } = replaceBuilderNodeInTree(builderTree, aiReviseNodeId, candidate);
-      if (!replaced) return { ok: false, error: "That block is no longer on the page." };
+      if (!replaced) return { ok: false, error: t("That block is no longer on the page.") };
       return applyComposedTreeWithUndo({ tree, label: "Revised block with AI" });
     },
-    [aiReviseNodeId, builderTree, applyComposedTreeWithUndo],
+    [aiReviseNodeId, builderTree, applyComposedTreeWithUndo, t],
   );
   // Insert the AI candidate as a sibling directly after the selected block
   // (undoable via the shared insert path). Section roots insert at page root.
   const handleAiInsertBelow = useCallback(
     async (candidate: BuilderNode): Promise<{ ok: boolean; error?: string }> => {
-      if (!aiReviseNodeId) return { ok: false, error: "No block selected." };
+      if (!aiReviseNodeId) return { ok: false, error: t("No block selected.") };
       const loc = findBuilderNodeParentIndex(builderTree, aiReviseNodeId);
-      if (!loc) return { ok: false, error: "That block is no longer on the page." };
+      if (!loc) return { ok: false, error: t("That block is no longer on the page.") };
       const res = await insertBuilderComponent(
         loc.parentId,
         JSON.stringify(candidate),
@@ -788,7 +790,7 @@ export function SelectionLayer() {
       );
       return { ok: res.ok, error: res.error };
     },
-    [aiReviseNodeId, builderTree, insertBuilderComponent],
+    [aiReviseNodeId, builderTree, insertBuilderComponent, t],
   );
   const [chipInspectorTab, setChipInspectorTab] = useState<"content" | "style">(
     "content",
@@ -1038,9 +1040,9 @@ export function SelectionLayer() {
     const node = buildBuilderNodeMap(builderTree).get(selectedBuilderNodeId);
     const label =
       node && node.kind !== "section"
-        ? (BUILDER_NODE_REGISTRY[node.kind]?.label ?? "Block")
-        : "Block";
-    setSelectionAnnounce(`${label} selected`);
+        ? (BUILDER_NODE_REGISTRY[node.kind]?.label ?? t("Block"))
+        : t("Block");
+    setSelectionAnnounce(t("{label} selected").replace("{label}", t(label)));
 
     let cancelled = false;
     let attempts = 0;
@@ -1101,7 +1103,7 @@ export function SelectionLayer() {
       }
       setSelectionFocused(false);
     };
-  }, [selectedBuilderNodeId, builderTree]);
+  }, [selectedBuilderNodeId, builderTree, t]);
 
   // 2026 direct-manipulation: glue the selection outline + handles to the
   // element WHILE it is dragged/resized. The resize/move/padding handles write
@@ -2894,7 +2896,7 @@ export function SelectionLayer() {
     ? builderNodeCrumbLabel(selectedBuilderNode, chipLabel)
     : chipLabel;
   const chipPrimaryType = selectedNodeIsEditableBlock
-    ? "Block"
+    ? t("Block")
     : chipType;
 
   // ── Figma-smooth overlay tracking (imperative rAF positioning) ─────────────
@@ -3497,7 +3499,10 @@ export function SelectionLayer() {
   // rather than buried inside the right rail. Each crumb carries its
   // id + label + a kind ("page"|"section"|node-kind) for the
   // data-selection-breadcrumb-item attribute the smoke tests assert on.
-  const canvasBreadcrumbCrumbs = useMemo(() => {
+  // NOTE (wave 4 i18n): was a manual useMemo; with t() in the body React
+  // Compiler can no longer preserve the manual memo (preserve-manual-
+  // memoization), so it is computed inline and auto-memoized by the compiler.
+  const canvasBreadcrumbCrumbs = (() => {
     type Crumb = {
       id: string;
       label: string;
@@ -3506,7 +3511,7 @@ export function SelectionLayer() {
     };
     if (!selectedSectionId) return [] as Crumb[];
     const crumbs: Crumb[] = [
-      { id: "page", label: "Page", kind: "page", selectable: false },
+      { id: "page", label: t("Page"), kind: "page", selectable: false },
     ];
     const sectionLabel = chipLabel;
     if (sectionLabel) {
@@ -3530,12 +3535,7 @@ export function SelectionLayer() {
       }
     }
     return crumbs;
-  }, [
-    selectedSectionId,
-    chipLabel,
-    selectedNodePath,
-    selectedBuilderNodeId,
-  ]);
+  })();
 
   const selectedSiblingContext = useMemo(() => {
     if (
@@ -3591,7 +3591,11 @@ export function SelectionLayer() {
   // block has no children of its own), so the picker vanished the moment you
   // clicked into it. Fall back to the parent's child list — the operator keeps
   // the same list and can see where they are inside it.
-  const nestedPanelScope = useMemo(() => {
+  // NOTE (wave 4 i18n): this was a manual useMemo, but adding t() to this
+  // component made React Compiler unable to PRESERVE the manual memo
+  // (preserve-manual-memoization). Computed inline instead; the compiler
+  // auto-memoizes it.
+  const nestedPanelScope = (() => {
     if (!selectedCanvasNodeId) return null;
     if (selectedNodeChildren.length > 0) {
       return {
@@ -3616,13 +3620,7 @@ export function SelectionLayer() {
       nodes: siblings,
       viewingChild: true,
     };
-  }, [
-    builderTree,
-    chipLabel,
-    selectedCanvasNodeId,
-    selectedNodeChildren,
-    selectedNodeLabel,
-  ]);
+  })();
   const canManageSelectedNodeChildren =
     drag.phase === "idle" && !multiNodeSelectionActive && !!nestedPanelScope;
   // Nested-blocks panel open state — lifted out of the panel so the selection
@@ -4289,8 +4287,8 @@ export function SelectionLayer() {
             >
               <button
                 type="button"
-                aria-label="Drag to reorder section"
-                title="Drag to reorder"
+                aria-label={t("Drag to reorder section")}
+                title={t("Drag to reorder")}
                 onPointerDown={(e) => {
                   if (!hoveredSectionId) return;
                   startDrag(e, hoveredSectionId);
@@ -4390,8 +4388,8 @@ export function SelectionLayer() {
           type="button"
           data-builder-node-hover-grip=""
           data-builder-node-id={hoveredBuilderNodeId}
-          aria-label={`Drag to move ${hoveredBlockLabel}`}
-          title="Drag to move / nest this block"
+          aria-label={t("Drag to move {label}").replace("{label}", hoveredBlockLabel)}
+          title={t("Drag to move / nest this block")}
           draggable
           onDragStart={(event) => {
             armCanvasNodeMove(
@@ -4620,7 +4618,10 @@ export function SelectionLayer() {
             <div
               data-edit-overlay="builder-node-class-badge"
               data-builder-style-class-linked={selectedLinkedStyleClass.id}
-              title={`Linked style class: ${selectedLinkedStyleClass.label}`}
+              title={t("Linked style class: {label}").replace(
+                "{label}",
+                selectedLinkedStyleClass.label,
+              )}
               style={{
                 position: "fixed",
                 top: Math.max(renderSelectedRect.top + 8, 62),
@@ -4683,8 +4684,8 @@ export function SelectionLayer() {
               {canInsertIntoSelectedNode ? (
                 <button
                   type="button"
-                  aria-label={`Add block inside ${selectedNodeLabel}`}
-                  title={`Add block inside ${selectedNodeLabel}`}
+                  aria-label={t("Add block inside {label}").replace("{label}", `${selectedNodeLabel}`)}
+                  title={t("Add block inside {label}").replace("{label}", `${selectedNodeLabel}`)}
                   data-builder-node-canvas-add-trigger=""
                   onClick={() => {
                     if (!selectedCanvasNodeId || selectedNodeAllowedKinds.length === 0) {
@@ -4733,7 +4734,7 @@ export function SelectionLayer() {
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>
-                  <span>Add</span>
+                  <span>{t("Add")}</span>
                 </button>
               ) : null}
               {canInsertIntoSelectedNode && canRemoveSelectedNode ? (
@@ -4750,8 +4751,8 @@ export function SelectionLayer() {
               {canRemoveSelectedNode ? (
                 <button
                   type="button"
-                  aria-label={`Remove ${selectedNodeLabel}`}
-                  title={`Remove ${selectedNodeLabel}`}
+                  aria-label={t("Remove {label}").replace("{label}", `${selectedNodeLabel}`)}
+                  title={t("Remove {label}").replace("{label}", `${selectedNodeLabel}`)}
                   data-builder-node-canvas-remove-trigger=""
                   onClick={() => void commitNodeRemoval()}
                   style={{
@@ -4773,7 +4774,7 @@ export function SelectionLayer() {
                   onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(196,61,61,0.22)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
-                  <span>Remove</span>
+                  <span>{t("Remove")}</span>
                 </button>
               ) : null}
             </div>
@@ -4957,11 +4958,14 @@ export function SelectionLayer() {
               const suggested =
                 contextMenuNode &&
                 BUILDER_NODE_REGISTRY[contextMenuNode.kind]?.label
-                  ? `${BUILDER_NODE_REGISTRY[contextMenuNode.kind].label} component`
-                  : "Saved component";
+                  ? t("{label} component").replace(
+                      "{label}",
+                      BUILDER_NODE_REGISTRY[contextMenuNode.kind].label,
+                    )
+                  : t("Saved component");
               const name =
                 typeof window !== "undefined"
-                  ? window.prompt("Name this reusable component", suggested)
+                  ? window.prompt(t("Name this reusable component"), suggested)
                   : suggested;
               if (name === null) {
                 closeContextMenu();
@@ -5228,8 +5232,8 @@ export function SelectionLayer() {
               }
               title={
                 selectedNodeIsEditableBlock
-                  ? "Drag to move / nest this block"
-                  : "Drag to reorder"
+                  ? t("Drag to move / nest this block")
+                  : t("Drag to reorder")
               }
               style={{
                 display: "inline-flex",
@@ -5251,7 +5255,7 @@ export function SelectionLayer() {
                *  Sequences after double-click-edit so both never appear at once. */}
               <BuilderCoachmarkTip
                 id="move-grip"
-                message="Drag this grip to reorder or nest this block on the canvas."
+                message={t("Drag this grip to reorder or nest this block on the canvas.")}
                 placement="above"
                 sequence={CANVAS_GESTURE_COACHMARK_SEQUENCE}
               >
@@ -5302,7 +5306,7 @@ export function SelectionLayer() {
                *  plus-line-insert so only one gesture tip shows at a time. */}
               <BuilderCoachmarkTip
                 id="double-click-edit"
-                message="Double-click any text on the canvas to edit it inline."
+                message={t("Double-click any text on the canvas to edit it inline.")}
                 placement="above"
                 sequence={CANVAS_GESTURE_COACHMARK_SEQUENCE}
               >
@@ -5322,7 +5326,10 @@ export function SelectionLayer() {
                *  "+N more selected — bulk actions apply to all". */}
               {additionalSelectedIds.size > 0 ? (
                 <span
-                  aria-label={`${additionalSelectedIds.size + 1} sections selected`}
+                  aria-label={t("{count} sections selected").replace(
+                    "{count}",
+                    String(additionalSelectedIds.size + 1),
+                  )}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -5800,15 +5807,21 @@ export function SelectionLayer() {
             canvasNodeDrag.sourceParentNodeId !== drop.parentNodeId;
           const status = !drop
             ? canvasNodeDrag.phase === "palette"
-              ? "Drag onto the page"
-              : "Drag to place"
+              ? t("Drag onto the page")
+              : t("Drag to place")
             : !drop.allowed
-              ? "Not allowed here"
+              ? t("Not allowed here")
               : isReparent
-                ? `Nest in ${drop.parentKind != null ? (BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)) : "container"}`
+                ? t("Nest in {parent}").replace(
+                    "{parent}",
+                    drop.parentKind != null
+                      ? (BUILDER_NODE_REGISTRY[drop.parentKind]?.label ??
+                          humanizeTypeKey(drop.parentKind))
+                      : t("container"),
+                  )
                 : canvasNodeDrag.phase === "palette"
-                  ? "Drop to place"
-                  : "Drop to move";
+                  ? t("Drop to place")
+                  : t("Drop to move");
           const statusColor = drop && !drop.allowed ? "#ff9a9a" : undefined;
           return (
             <div
@@ -6007,9 +6020,9 @@ export function SelectionLayer() {
             >
               {drag.drop
                 ? drag.drop.allowed
-                  ? "Drop to place"
-                  : "Not allowed here"
-                : "Drag to reorder"}
+                  ? t("Drop to place")
+                  : t("Not allowed here")
+                : t("Drag to reorder")}
             </div>
           </div>
         </div>
@@ -6113,15 +6126,16 @@ function SelectionContextMenu({
   onMoveNodeUp: () => void;
   onMoveNodeDown: () => void;
 }) {
+  const { t } = useEditorLocale();
   if (!state) return null;
   const canPasteBlock = !!pastePreview;
   const pasteDisabled = saving || pastePreview?.mode === "blocked";
   const pasteLabel =
     pastePreview?.mode === "blocked"
-      ? "Pasting isn't allowed here"
+      ? t("Pasting isn't allowed here")
       : pastePreview
-        ? `Paste ${pastePreview.copiedLabel}`
-        : "Paste copied block";
+        ? t("Paste {label}").replace("{label}", pastePreview.copiedLabel)
+        : t("Paste copied block");
   const viewportWidth = typeof window === "undefined" ? state.x + 230 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? state.y + 280 : window.innerHeight;
   const left = Math.max(Math.min(state.x, viewportWidth - 236), 8);
@@ -6129,7 +6143,7 @@ function SelectionContextMenu({
   return (
     <div
       role="menu"
-      aria-label={`Selection actions for ${targetLabel}`}
+      aria-label={t("Selection actions for {label}").replace("{label}", targetLabel)}
       data-selection-context-menu=""
       data-edit-overlay="selection-context-menu"
       style={{
@@ -6171,7 +6185,7 @@ function SelectionContextMenu({
             color: "rgba(255,255,255,0.55)",
           }}
         >
-          {isChildNode ? "Block actions" : "Section actions"}
+          {isChildNode ? t("Block actions") : t("Section actions")}
         </div>
         <div
           style={{
@@ -6205,23 +6219,23 @@ function SelectionContextMenu({
        *  stay live (mirrors the canvas click-guard that absorbs locked nodes). */}
       {!nodeLocked ? (
         <ContextMenuButton disabled={saving} onClick={onEdit}>
-          Edit content
+          {t("Edit content")}
         </ContextMenuButton>
       ) : null}
       {canAddInside && !nodeLocked ? (
         <ContextMenuButton disabled={saving} onClick={onAddInside}>
-          Add block inside
+          {t("Add block inside")}
         </ContextMenuButton>
       ) : null}
       {isChildNode ? (
         <>
           <ContextMenuButton disabled={saving} onClick={onCopyNode}>
-            Copy block
+            {t("Copy block")}
           </ContextMenuButton>
           {!nodeLocked ? (
             <>
               <ContextMenuButton disabled={saving} onClick={onDuplicate}>
-                Duplicate block
+                {t("Duplicate block")}
               </ContextMenuButton>
               {canPasteBlock ? (
                 <ContextMenuButton disabled={pasteDisabled} onClick={onPasteNode}>
@@ -6231,25 +6245,25 @@ function SelectionContextMenu({
               {nodeCanMoveUp || nodeCanMoveDown ? <ContextMenuSeparator /> : null}
               {nodeCanMoveUp ? (
                 <ContextMenuButton disabled={saving} onClick={onMoveNodeUp}>
-                  Move block up
+                  {t("Move block up")}
                 </ContextMenuButton>
               ) : null}
               {nodeCanMoveDown ? (
                 <ContextMenuButton disabled={saving} onClick={onMoveNodeDown}>
-                  Move block down
+                  {t("Move block down")}
                 </ContextMenuButton>
               ) : null}
               {canWrapOrConvert ? (
                 <>
                   <ContextMenuSeparator />
                   <ContextMenuButton disabled={saving} onClick={onWrap}>
-                    Wrap in container
+                    {t("Wrap in container")}
                   </ContextMenuButton>
                   <ContextMenuButton
                     disabled={saving}
                     onClick={onConvertToComponent}
                   >
-                    Convert to component
+                    {t("Convert to component")}
                   </ContextMenuButton>
                 </>
               ) : null}
@@ -6257,11 +6271,11 @@ function SelectionContextMenu({
           ) : null}
           <ContextMenuSeparator />
           <ContextMenuButton disabled={saving} onClick={onToggleLock}>
-            {nodeLocked ? "Unlock block" : "Lock block"}
+            {nodeLocked ? t("Unlock block") : t("Lock block")}
           </ContextMenuButton>
           {!nodeLocked ? (
             <ContextMenuButton disabled={saving} danger onClick={onRemoveNode}>
-              Remove block
+              {t("Remove block")}
             </ContextMenuButton>
           ) : null}
         </>
@@ -6274,16 +6288,16 @@ function SelectionContextMenu({
             </ContextMenuButton>
           ) : null}
           <ContextMenuButton disabled={saving} onClick={onMoveUp}>
-            Move section up
+            {t("Move section up")}
           </ContextMenuButton>
           <ContextMenuButton disabled={saving} onClick={onMoveDown}>
-            Move section down
+            {t("Move section down")}
           </ContextMenuButton>
           <ContextMenuButton disabled={saving} onClick={onDuplicate}>
-            Duplicate section
+            {t("Duplicate section")}
           </ContextMenuButton>
           <ContextMenuButton disabled={saving} onClick={onToggleHidden}>
-            {isSectionHidden ? "Show section" : "Hide section"}
+            {isSectionHidden ? t("Show section") : t("Hide section")}
           </ContextMenuButton>
           {canEject ? (
             <ContextMenuButton
@@ -6291,18 +6305,18 @@ function SelectionContextMenu({
               onClick={() => (isEjected ? onUneject?.() : onEject?.())}
             >
               {isEjected
-                ? "Restore curated section"
-                : "Make editable (eject to blocks)"}
+                ? t("Restore curated section")
+                : t("Make editable (eject to blocks)")}
             </ContextMenuButton>
           ) : null}
           <ContextMenuSeparator />
           <ContextMenuButton disabled={saving} danger onClick={onDeleteSection}>
-            Delete section...
+            {t("Delete section...")}
           </ContextMenuButton>
         </>
       )}
       <ContextMenuSeparator />
-      <ContextMenuButton onClick={onClose}>Close menu</ContextMenuButton>
+      <ContextMenuButton onClick={onClose}>{t("Close menu")}</ContextMenuButton>
     </div>
   );
 }
@@ -6394,6 +6408,7 @@ function CanvasNodeInsertMenu({
   onInsertSectionEmbed: (sectionTypeKey: string) => Promise<void>;
   onDismiss: () => void;
 }) {
+  const { t } = useEditorLocale();
   if (!target) return null;
   const viewportHeight =
     typeof window === "undefined" ? selectedRect.top + selectedRect.height + 260 : window.innerHeight;
@@ -6447,7 +6462,7 @@ function CanvasNodeInsertMenu({
               color: "rgba(255,255,255,0.55)",
             }}
           >
-            Add block
+            {t("Add block")}
           </div>
           <div
             style={{
@@ -6463,7 +6478,7 @@ function CanvasNodeInsertMenu({
         </div>
         <button
           type="button"
-          aria-label="Close add block menu"
+          aria-label={t("Close add block menu")}
           onClick={onDismiss}
           style={{
             width: 18,
@@ -6555,6 +6570,7 @@ function CanvasNodeChildrenPanel({
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   // Open/closed is owned by the parent so the selection chip's toggle and the
   // panel's own `×` drive the SAME state (one truth, two entry points).
+  const { t } = useEditorLocale();
   const viewportHeight =
     typeof window === "undefined" ? selectedRect.top + selectedRect.height + 220 : window.innerHeight;
   const viewportWidth =
@@ -6569,9 +6585,12 @@ function CanvasNodeChildrenPanel({
         type="button"
         data-builder-node-canvas-children-collapsed=""
         onClick={onOpen}
-        aria-label={`Show nested blocks (${nodes.length})`}
+        aria-label={t("Show nested blocks ({count})").replace(
+          "{count}",
+          String(nodes.length),
+        )}
         aria-expanded={false}
-        title="Show nested blocks"
+        title={t("Show nested blocks")}
         style={{
           position: "fixed",
           bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
@@ -6701,8 +6720,8 @@ function CanvasNodeChildrenPanel({
             onClick={() => onSelectParent?.()}
             title={
               onSelectParent
-                ? `Select the parent (${parentLabel})`
-                : "Parent is selected"
+                ? t("Select the parent ({label})").replace("{label}", parentLabel)
+                : t("Parent is selected")
             }
             style={{
               display: "flex",
@@ -6789,12 +6808,15 @@ function CanvasNodeChildrenPanel({
               color: CHROME.muted,
             }}
           >
-            {nodes.length} block{nodes.length === 1 ? "" : "s"}
+            {(nodes.length === 1 ? t("{count} block") : t("{count} blocks")).replace(
+              "{count}",
+              String(nodes.length),
+            )}
           </span>
           <button
             type="button"
-            aria-label="Hide nested blocks panel"
-            title="Hide for this selection"
+            aria-label={t("Hide nested blocks panel")}
+            title={t("Hide for this selection")}
             onClick={onClose}
             style={{
               width: 18,
@@ -6946,7 +6968,7 @@ function CanvasNodeChildrenPanel({
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {canvasChildSecondaryLabel(node)}
+                    {t(canvasChildSecondaryLabel(node))}
                   </span>
                   <span
                     style={{
@@ -6979,7 +7001,7 @@ function CanvasNodeChildrenPanel({
                 }}
               >
                 <CanvasMiniButton
-                  label={`Move ${canvasChildPrimaryLabel(node)} up`}
+                  label={t("Move {label} up").replace("{label}", canvasChildPrimaryLabel(node))}
                   disabled={index === 0}
                   onClick={() => {
                     onSelect(node.id);
@@ -6989,7 +7011,7 @@ function CanvasNodeChildrenPanel({
                   <ArrowUp size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={`Move ${canvasChildPrimaryLabel(node)} down`}
+                  label={t("Move {label} down").replace("{label}", canvasChildPrimaryLabel(node))}
                   disabled={index === nodes.length - 1}
                   onClick={() => {
                     onSelect(node.id);
@@ -6999,7 +7021,7 @@ function CanvasNodeChildrenPanel({
                   <ArrowDown size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={`Duplicate ${canvasChildPrimaryLabel(node)}`}
+                  label={t("Duplicate {label}").replace("{label}", canvasChildPrimaryLabel(node))}
                   onClick={() => {
                     onSelect(node.id);
                     void onDuplicate(node.id);
@@ -7008,7 +7030,7 @@ function CanvasNodeChildrenPanel({
                   <Files size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={`Copy ${canvasChildPrimaryLabel(node)}`}
+                  label={t("Copy {label}").replace("{label}", canvasChildPrimaryLabel(node))}
                   onClick={() => {
                     onSelect(node.id);
                     void onCopy(node.id);
@@ -7018,7 +7040,13 @@ function CanvasNodeChildrenPanel({
                 </CanvasMiniButton>
                 {copiedKind ? (
                   <CanvasMiniButton
-                    label={pastePreview?.message ?? `Paste copied ${BUILDER_NODE_REGISTRY[copiedKind].label}`}
+                    label={
+                      pastePreview?.message ??
+                      t("Paste copied {label}").replace(
+                        "{label}",
+                        BUILDER_NODE_REGISTRY[copiedKind].label,
+                      )
+                    }
                     disabled={pastePreview?.mode === "blocked"}
                     onClick={() => {
                       onSelect(node.id);
@@ -7029,13 +7057,16 @@ function CanvasNodeChildrenPanel({
                   </CanvasMiniButton>
                 ) : null}
                 <CanvasMiniButton
-                  label={`Add block near ${canvasChildPrimaryLabel(node)}`}
+                  label={t("Add block near {label}").replace(
+                    "{label}",
+                    canvasChildPrimaryLabel(node),
+                  )}
                   onClick={() => onSelect(node.id)}
                 >
                   <Plus size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={`Remove ${canvasChildPrimaryLabel(node)}`}
+                  label={t("Remove {label}").replace("{label}", canvasChildPrimaryLabel(node))}
                   onClick={() => {
                     onSelect(node.id);
                     void onRemove(node.id);
@@ -7218,6 +7249,9 @@ function ChipTextAction({
   active?: boolean;
   light?: boolean;
 }) {
+  // `label` stays the English key (icon selection below compares against it);
+  // only the rendered text goes through t().
+  const { t } = useEditorLocale();
   const lightActive = light && active;
   return (
     <button
@@ -7286,7 +7320,7 @@ function ChipTextAction({
           <path d="M18.5 5.5 12 12" />
         </svg>
       ) : null}
-      {label}
+      {t(label)}
     </button>
   );
 }
@@ -7335,10 +7369,13 @@ function ChipToolBar({
   onRemoveConfirm: () => void;
   onRemoveCancel: () => void;
 }) {
+  const { t } = useEditorLocale();
   if (confirmRemove) {
     const totalToRemove = multiCount + 1;
     const removeLabel =
-      totalToRemove > 1 ? `Remove ${totalToRemove}?` : "Remove?";
+      totalToRemove > 1
+        ? t("Remove {count}?").replace("{count}", String(totalToRemove))
+        : t("Remove?");
     return (
       <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
         <button
@@ -7377,7 +7414,7 @@ function ChipToolBar({
             cursor: "pointer",
           }}
         >
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     );
@@ -7423,9 +7460,9 @@ function ChipToolBar({
           style={{ ...btnStyle, color: CHROME.accent }}
           disabled={disabled}
           onClick={onReviseWithAi}
-          aria-label="Revise this section with AI"
+          aria-label={t("Revise this section with AI")}
           data-selection-section-action="ai"
-          title="Revise with AI"
+          title={t("Revise with AI")}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
         </ChipBtn>
@@ -7434,8 +7471,8 @@ function ChipToolBar({
         style={btnStyle}
         disabled={disabled}
         onClick={onMoveUp}
-        aria-label="Move section up"
-        title="Move up"
+        aria-label={t("Move section up")}
+        title={t("Move up")}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
       </ChipBtn>
@@ -7443,8 +7480,8 @@ function ChipToolBar({
         style={btnStyle}
         disabled={disabled}
         onClick={onMoveDown}
-        aria-label="Move section down"
-        title="Move down"
+        aria-label={t("Move section down")}
+        title={t("Move down")}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
       </ChipBtn>
@@ -7452,8 +7489,8 @@ function ChipToolBar({
         style={btnStyle}
         disabled={disabled}
         onClick={onDuplicate}
-        aria-label="Duplicate section"
-        title="Duplicate"
+        aria-label={t("Duplicate section")}
+        title={t("Duplicate")}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
@@ -7461,8 +7498,8 @@ function ChipToolBar({
         style={btnStyle}
         disabled={disabled}
         onClick={onToggleHide}
-        aria-label={isHidden ? "Show section" : "Hide section"}
-        title={isHidden ? "Show on storefront" : "Hide from storefront"}
+        aria-label={isHidden ? t("Show section") : t("Hide section")}
+        title={isHidden ? t("Show on storefront") : t("Hide from storefront")}
       >
         {isHidden ? (
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -7480,8 +7517,8 @@ function ChipToolBar({
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
-        aria-label="Remove section"
-        title="Remove"
+        aria-label={t("Remove section")}
+        title={t("Remove")}
         danger
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
@@ -7549,6 +7586,7 @@ function BlockChipToolBar({
   onRemoveConfirm: () => void;
   onRemoveCancel: () => void;
 }) {
+  const { t } = useEditorLocale();
   if (confirmRemove) {
     return (
       <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
@@ -7572,7 +7610,7 @@ function BlockChipToolBar({
             cursor: "pointer",
           }}
         >
-          Remove block?
+          {t("Remove block?")}
         </button>
         <button
           type="button"
@@ -7592,7 +7630,7 @@ function BlockChipToolBar({
             cursor: "pointer",
           }}
         >
-          Cancel
+          {t("Cancel")}
         </button>
       </div>
     );
@@ -7638,10 +7676,10 @@ function BlockChipToolBar({
           }}
           disabled={disabled}
           onClick={onToggleNested}
-          aria-label={nestedOpen ? "Hide nested blocks" : "Show nested blocks"}
+          aria-label={nestedOpen ? t("Hide nested blocks") : t("Show nested blocks")}
           aria-pressed={nestedOpen}
           data-selection-block-action="nested"
-          title={nestedOpen ? "Hide nested blocks" : "Show nested blocks"}
+          title={nestedOpen ? t("Hide nested blocks") : t("Show nested blocks")}
         >
           <FolderTree size={14} strokeWidth={2} aria-hidden />
         </ChipBtn>
@@ -7654,9 +7692,9 @@ function BlockChipToolBar({
           style={{ ...btnStyle, color: light ? CHROME.accent : "#c4b5fd" }}
           disabled={disabled}
           onClick={onReviseWithAi}
-          aria-label="Revise this block with AI"
+          aria-label={t("Revise this block with AI")}
           data-selection-block-action="ai"
-          title="Revise with AI"
+          title={t("Revise with AI")}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.8 4.9L18.7 9.7l-4.9 1.8L12 16.4l-1.8-4.9L5.3 9.7l4.9-1.8L12 3Z" /><path d="M19 14l.7 1.9 1.9.7-1.9.7L19 19.2l-.7-1.9-1.9-.7 1.9-.7L19 14Z" /></svg>
         </ChipBtn>
@@ -7668,9 +7706,9 @@ function BlockChipToolBar({
           style={btnStyle}
           disabled={disabled}
           onClick={onEdit}
-          aria-label="Edit block content"
+          aria-label={t("Edit block content")}
           data-selection-block-action="edit"
-          title="Edit"
+          title={t("Edit")}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
         </ChipBtn>
@@ -7680,9 +7718,9 @@ function BlockChipToolBar({
         style={btnStyle}
         disabled={disabled || !onAddAfter}
         onClick={() => onAddAfter?.()}
-        aria-label="Add block after"
+        aria-label={t("Add block after")}
         data-selection-block-action="add-after"
-        title="Add block"
+        title={t("Add block")}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /><path d="M7 20h10" /></svg>
       </ChipBtn>
@@ -7691,9 +7729,9 @@ function BlockChipToolBar({
         style={btnStyle}
         disabled={disabled}
         onClick={onDuplicate}
-        aria-label="Duplicate block"
+        aria-label={t("Duplicate block")}
         data-selection-block-action="duplicate"
-        title="Duplicate"
+        title={t("Duplicate")}
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" /><path d="M4 16H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
@@ -7727,9 +7765,9 @@ function BlockChipToolBar({
         style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
-        aria-label="Remove block"
+        aria-label={t("Remove block")}
         data-selection-block-action="remove"
-        title="Delete"
+        title={t("Delete")}
         danger
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
@@ -7772,6 +7810,7 @@ function BlockChipOverflowMenu({
   onPaste: (() => void) | null;
   onDuplicate: () => void;
 }) {
+  const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -7806,11 +7845,11 @@ function BlockChipOverflowMenu({
         style={btnStyle}
         disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
-        aria-label="More block actions"
+        aria-label={t("More block actions")}
         aria-haspopup="menu"
         aria-expanded={open}
         data-selection-block-action="more"
-        title="More"
+        title={t("More")}
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
       </ChipBtn>
@@ -7841,44 +7880,47 @@ function BlockChipOverflowMenu({
           }}
         >
           <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onResetPosition)}>
-            Reset position
+            {t("Reset position")}
           </ContextMenuButton>
           <ContextMenuButton
             light={light}
             disabled={disabled || !onAddBefore}
             onClick={() => onAddBefore && run(onAddBefore)}
           >
-            Add before
+            {t("Add before")}
           </ContextMenuButton>
           <ContextMenuButton
             light={light}
             disabled={disabled || !onMoveUp}
             onClick={() => onMoveUp && run(onMoveUp)}
           >
-            Move up
+            {t("Move up")}
           </ContextMenuButton>
           <ContextMenuButton
             light={light}
             disabled={disabled || !onMoveDown}
             onClick={() => onMoveDown && run(onMoveDown)}
           >
-            Move down
+            {t("Move down")}
           </ContextMenuButton>
+          {/* "Copy" alone collides with the ES catalog's copywriting sense of
+              the word ("Texto"), so this menu says "Copy block" — also matches
+              the right-click menu's wording. */}
           <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onCopy)}>
-            Copy
+            {t("Copy block")}
           </ContextMenuButton>
           <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onCut)}>
-            Cut
+            {t("Cut")}
           </ContextMenuButton>
           <ContextMenuButton
             light={light}
             disabled={disabled || !onPaste}
             onClick={() => onPaste && run(onPaste)}
           >
-            Paste
+            {t("Paste")}
           </ContextMenuButton>
           <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onDuplicate)}>
-            Duplicate
+            {t("Duplicate")}
           </ContextMenuButton>
         </div>
       ) : null}

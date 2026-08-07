@@ -205,6 +205,7 @@ test("the ES catalog has no duplicate keys", () => {
   // feedback arrives in seconds instead of after a red main.
   const files = [
     "src/components/edit-chrome/editor-i18n-es.ts",
+    "src/components/edit-chrome/editor-i18n-es-canvas.ts",
     "src/components/edit-chrome/editor-i18n-es-sections.ts",
   ];
   const problems: string[] = [];

@@ -21,6 +21,7 @@ import {
 } from "@/lib/site-admin/edit-mode/ai-rewrite-action";
 import { PortaledOverlay, useAnchoredPopover } from "../kit";
 import { useModalFocusTrap } from "../modal-focus-trap";
+import { useEditorLocale } from "../use-editor-locale";
 
 interface AiRewriteButtonProps {
   sectionTypeKey: string;
@@ -33,6 +34,10 @@ interface AiRewriteButtonProps {
   siblingContext?: Record<string, string>;
 }
 
+/**
+ * Preset labels are shown to the operator (translated); the instruction text is
+ * a prompt sent to the AI provider and deliberately stays English.
+ */
 const PRESETS: ReadonlyArray<{ label: string; instruction: string }> = [
   { label: "Polish", instruction: "Polish lightly, keep meaning, tighten phrasing." },
   { label: "Shorter", instruction: "Cut to roughly half the length, keep the most concrete details." },
@@ -47,6 +52,7 @@ export function AiRewriteButton({
   onApply,
   siblingContext,
 }: AiRewriteButtonProps): ReactElement | null {
+  const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [proposed, setProposed] = useState<string | null>(null);
@@ -98,8 +104,8 @@ export function AiRewriteButton({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title="Rewrite with AI"
-        aria-label={`Rewrite ${fieldName} with AI`}
+        title={t("Rewrite with AI")}
+        aria-label={t("Rewrite {field} with AI").replace("{field}", fieldName)}
         aria-haspopup="dialog"
         aria-expanded={open}
         className="inline-flex items-center gap-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-white hover:border-stone-300 transition-colors"
@@ -115,7 +121,7 @@ export function AiRewriteButton({
         <div
           ref={setPopoverNode}
           role="dialog"
-          aria-label={`Rewrite ${fieldName}`}
+          aria-label={t("Rewrite {field}").replace("{field}", fieldName)}
           data-edit-overlay="ai-rewrite-popover"
           className="w-[300px] rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-xs shadow-xl"
           style={{
@@ -128,7 +134,7 @@ export function AiRewriteButton({
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-            Rewrite {fieldName}
+            {t("Rewrite {field}").replace("{field}", fieldName)}
           </div>
           <div className="mb-2 flex flex-wrap gap-1">
             {PRESETS.map((p) => (
@@ -139,14 +145,14 @@ export function AiRewriteButton({
                 onClick={() => trigger(p.instruction)}
                 className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] text-stone-600 hover:bg-white hover:border-stone-300 disabled:opacity-50 transition-colors"
               >
-                {p.label}
+                {t(p.label)}
               </button>
             ))}
           </div>
           <textarea
             className="mb-2 w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2 text-[12px] text-stone-800 placeholder:text-stone-500 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
             rows={2}
-            placeholder='Or your own instruction (e.g. "translate to Spanish")'
+            placeholder={t('Or your own instruction (e.g. "translate to Spanish")')}
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
             disabled={pending}
@@ -157,7 +163,7 @@ export function AiRewriteButton({
               onClick={() => setOpen(false)}
               className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
             >
-              Close
+              {t("Close")}
             </button>
             <button
               type="button"
@@ -165,7 +171,7 @@ export function AiRewriteButton({
               onClick={() => trigger(instruction)}
               className="rounded-md border border-violet-600 bg-violet-600 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {pending ? "Thinking…" : "Rewrite"}
+              {pending ? t("Thinking…") : t("Rewrite")}
             </button>
           </div>
           {error ? (
@@ -186,7 +192,7 @@ export function AiRewriteButton({
                   }}
                   className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
                 >
-                  Discard
+                  {t("Discard")}
                 </button>
                 <button
                   type="button"
@@ -197,7 +203,7 @@ export function AiRewriteButton({
                   }}
                   className="rounded-md border border-emerald-700 bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-800"
                 >
-                  Apply
+                  {t("Apply")}
                 </button>
               </div>
             </div>
