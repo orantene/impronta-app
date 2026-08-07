@@ -18,6 +18,7 @@ import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import { useEditContext } from "./edit-context";
 import { locateCanvasNode } from "./freeform-layer-row";
 import { DrawerSkeleton } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
 
 /** W1-L2 — hard ceiling for the preflight action. A hung server action used to
  *  leave the drawer as a skeleton forever AND "Publish now" disabled with
@@ -25,6 +26,7 @@ import { DrawerSkeleton } from "./kit";
  *  failure with a Retry button. */
 const PREFLIGHT_TIMEOUT_MS = 30_000;
 
+/** English labels; render sites pass these through t() so ES resolves. */
 const CATEGORY_LABEL: Record<PreflightIssue["category"], string> = {
   headings: "Headings",
   alt_text: "Alt text",
@@ -70,6 +72,7 @@ export function PublishPreflight({
   onStatusChange,
   onFocusSection,
 }: Props) {
+  const { t } = useEditorLocale();
   const { reportMutationError } = useEditContext();
   // Held in a ref and kept OUT of the checks effect's dep list. When it was a
   // dep, any change to its identity re-ran the effect; the previous run's
@@ -112,8 +115,7 @@ export function PublishPreflight({
         timeoutMs: PREFLIGHT_TIMEOUT_MS,
         fallback: {
           ok: false as const,
-          error:
-            "Publish checks timed out. The draft is safe; retry the checks.",
+          error: t("Publish checks timed out. The draft is safe; retry the checks."),
         },
       });
       if (cancelled) return;
@@ -129,9 +131,9 @@ export function PublishPreflight({
         ).length;
         onStatusChange?.({ loading: false, blockingErrors, mobileOverflowErrors });
       } else {
-        setError(result.error ?? "Publish checks could not load.");
+        setError(result.error ?? t("Publish checks could not load."));
         reportMutationErrorRef.current(
-          result.error ?? "Publish checks could not load. Try again.",
+          result.error ?? t("Publish checks could not load. Try again."),
         );
         onStatusChange?.({ loading: false, blockingErrors: 0, mobileOverflowErrors: 0 });
       }
@@ -139,7 +141,7 @@ export function PublishPreflight({
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshKey, retryNonce, locale, pageId, onStatusChange]);
+  }, [enabled, refreshKey, retryNonce, locale, pageId, onStatusChange, t]);
 
   // Tick the elapsed counter once a second while loading.
   useEffect(() => {
@@ -156,14 +158,14 @@ export function PublishPreflight({
 
   if (loading) {
     return (
-      <div role="status" aria-live="polite" aria-label="Running publish checks">
+      <div role="status" aria-live="polite" aria-label={t("Running publish checks")}>
         <DrawerSkeleton rows={3} />
         <p className="m-0 mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <span
             aria-hidden
             className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-current"
           />
-          Running publish checks…
+          {t("Running publish checks…")}
           {elapsedSeconds >= 3 ? ` ${elapsedSeconds}s` : null}
         </p>
       </div>
@@ -177,13 +179,15 @@ export function PublishPreflight({
         aria-atomic="true"
         className="rounded-md border border-blue-500/40 bg-blue-500/10 p-3 text-xs text-blue-700 dark:text-blue-300"
       >
-        <p className="m-0">Publish checks could not load: {error}</p>
+        <p className="m-0">
+          {t("Publish checks could not load: {error}").replace("{error}", error)}
+        </p>
         <button
           type="button"
           onClick={() => setRetryNonce((n) => n + 1)}
           className="mt-1.5 inline-flex cursor-pointer items-center rounded border border-blue-500/60 bg-white/70 px-2 py-0.5 text-[11px] font-semibold text-blue-800 hover:bg-white dark:bg-transparent dark:text-blue-200"
         >
-          Retry checks
+          {t("Retry checks")}
         </button>
       </div>
     );
@@ -195,7 +199,7 @@ export function PublishPreflight({
         aria-live="polite"
         className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300"
       >
-        ✓ All publish checks passed.
+        {t("✓ All publish checks passed.")}
       </div>
     );
   }
@@ -239,14 +243,14 @@ export function PublishPreflight({
       />
       <div className="min-w-0 flex-1">
         <div className="mb-0.5 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-          <span>{CATEGORY_LABEL[issue.category]}</span>
+          <span>{t(CATEGORY_LABEL[issue.category])}</span>
           {issue.severity === "error" ? (
             <span className="rounded border border-rose-300/80 bg-rose-100/60 px-1 py-0 text-[9px] font-semibold leading-[1.2] text-rose-700">
-              Blocker
+              {t("Blocker")}
             </span>
           ) : (
             <span className="rounded border border-blue-300/80 bg-blue-100/50 px-1 py-0 text-[9px] font-semibold leading-[1.2] text-blue-800 dark:text-blue-200">
-              Advisory
+              {t("Advisory")}
             </span>
           )}
         </div>
@@ -260,7 +264,7 @@ export function PublishPreflight({
             onClick={() => locateCanvasNode(issue.nodeId!)}
             className="mt-1 inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
           >
-            Show on canvas
+            {t("Show on canvas")}
           </button>
         ) : issue.sectionId && onFocusSection ? (
           <button
@@ -271,7 +275,7 @@ export function PublishPreflight({
             }}
             className="mt-1 inline-flex cursor-pointer items-center rounded border border-border/80 bg-background px-1.5 py-0.5 text-[10px] font-semibold text-foreground hover:bg-muted"
           >
-            Show on canvas
+            {t("Show on canvas")}
           </button>
         ) : null}
       </div>
@@ -282,31 +286,52 @@ export function PublishPreflight({
     <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
       <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {errors > 0
-          ? `Publish checks: ${errors} blocking issue${errors === 1 ? "" : "s"}, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
+          ? (errors === 1
+              ? t("Publish checks: {errors} blocking issue, {warns} advisory warnings.")
+              : t("Publish checks: {errors} blocking issues, {warns} advisory warnings.")
+            )
+              .replace("{errors}", String(errors))
+              .replace("{warns}", String(warns))
           : warns > 0
-            ? `Publish checks: no blockers, ${warns} advisory warning${warns === 1 ? "" : "s"}.`
-            : "Publish checks: no issues found."}
+            ? (warns === 1
+                ? t("Publish checks: no blockers, {warns} advisory warning.")
+                : t("Publish checks: no blockers, {warns} advisory warnings.")
+              ).replace("{warns}", String(warns))
+            : t("Publish checks: no issues found.")}
       </p>
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Publish checks
+          {t("Publish checks")}
         </span>
         <span className="text-[10px] text-muted-foreground">
-          {errors > 0 ? `${errors} blocker${errors === 1 ? "" : "s"} · ` : ""}
-          {warns} advisor{warns === 1 ? "y" : "ies"}
+          {errors > 0
+            ? (errors === 1 ? t("{count} blocker · ") : t("{count} blockers · ")).replace(
+                "{count}",
+                String(errors),
+              )
+            : ""}
+          {(warns === 1 ? t("{count} advisory") : t("{count} advisories")).replace(
+            "{count}",
+            String(warns),
+          )}
         </span>
       </div>
       <p className="m-0 text-[11px] leading-snug text-muted-foreground">
-        <strong className="font-semibold text-foreground">Blockers</strong> disable{" "}
-        <span className="font-medium text-foreground">Publish now</span> until fixed.{" "}
-        <strong className="font-semibold text-foreground">Advisory</strong> items are
-        non-blocking, review them, then publish if you accept the risk.
+        <strong className="font-semibold text-foreground">{t("Blockers")}</strong>{" "}
+        {t("disable")}{" "}
+        <span className="font-medium text-foreground">{t("Publish now")}</span>{" "}
+        {t("until fixed.")}{" "}
+        <strong className="font-semibold text-foreground">{t("Advisory")}</strong>{" "}
+        {t("items are non-blocking, review them, then publish if you accept the risk.")}
       </p>
       {blockingIssues.length > 0 ? (
         <div className="rounded-md border border-rose-300/70 bg-rose-50/50 p-2">
           <div className="mb-1 flex items-center justify-between gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-              Publish blockers ({blockingIssues.length})
+              {t("Publish blockers ({count})").replace(
+                "{count}",
+                String(blockingIssues.length),
+              )}
             </span>
             {firstFocusableBlockingSectionId ? (
               <button
@@ -314,7 +339,7 @@ export function PublishPreflight({
                 onClick={() => onFocusSection?.(firstFocusableBlockingSectionId)}
                 className="inline-flex cursor-pointer items-center rounded border border-rose-300/80 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 hover:bg-rose-50"
               >
-                Go to first blocker
+                {t("Go to first blocker")}
               </button>
             ) : null}
           </div>
@@ -327,9 +352,14 @@ export function PublishPreflight({
                 <span
                   key={entry.category}
                   className="inline-flex items-center rounded border border-rose-300/70 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-rose-700"
-                  title={`${entry.count} blocker${entry.count === 1 ? "" : "s"} in ${CATEGORY_LABEL[entry.category]}`}
+                  title={(entry.count === 1
+                    ? t("{count} blocker in {category}")
+                    : t("{count} blockers in {category}")
+                  )
+                    .replace("{count}", String(entry.count))
+                    .replace("{category}", t(CATEGORY_LABEL[entry.category]))}
                 >
-                  {CATEGORY_LABEL[entry.category]} · {entry.count}
+                  {t(CATEGORY_LABEL[entry.category])} · {entry.count}
                 </span>
               ))}
             </div>
@@ -339,7 +369,10 @@ export function PublishPreflight({
       {warningIssues.length > 0 ? (
         <div className="rounded-md border border-blue-300/70 bg-blue-50/40 p-2">
           <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-            Advisory, non-blocking ({warningIssues.length})
+            {t("Advisory, non-blocking ({count})").replace(
+              "{count}",
+              String(warningIssues.length),
+            )}
           </div>
           <ul className="flex flex-col gap-1.5 text-stone-800">
             {warningIssues.map((issue, index) =>

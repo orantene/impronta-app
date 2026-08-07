@@ -809,4 +809,55 @@ export const ES_TEXT: Record<string, string> = {
   "Insert below original": "Insertar debajo del original",
   "Replace original": "Reemplazar el original",
   "Keep tweaking above, or add it to the page.": "Sigue ajustando arriba o agrégalo a la página.",
+
+  // ── WAVE 4.2 — Publish preflight ──────────────────────────────────────
+  "Publish checks timed out. The draft is safe; retry the checks.":
+    "Las verificaciones de publicación tardaron demasiado. El borrador está a salvo; reintenta las verificaciones.",
+  "Publish checks could not load.": "No se pudieron cargar las verificaciones de publicación.",
+  "Publish checks could not load. Try again.":
+    "No se pudieron cargar las verificaciones de publicación. Inténtalo de nuevo.",
+  "Publish checks could not load: {error}":
+    "No se pudieron cargar las verificaciones de publicación: {error}",
+  "Running publish checks": "Ejecutando verificaciones de publicación",
+  "Running publish checks…": "Ejecutando verificaciones de publicación...",
+  "Retry checks": "Reintentar verificaciones",
+  "✓ All publish checks passed.": "✓ Todas las verificaciones de publicación pasaron.",
+  Headings: "Encabezados",
+  "Alt text": "Texto alternativo",
+  "Image size": "Tamaño de imagen",
+  Accessibility: "Accesibilidad",
+  "CTA links": "Enlaces de CTA",
+  "Page structure": "Estructura de la página",
+  "Featured roster": "Roster destacado",
+  "Live content": "Contenido en vivo",
+  "Link checks": "Verificación de enlaces",
+  "Mobile overflow": "Desborde en móvil",
+  Performance: "Rendimiento",
+  Blocker: "Bloqueo",
+  Advisory: "Aviso",
+  "Show on canvas": "Mostrar en el lienzo",
+  "Publish checks: {errors} blocking issue, {warns} advisory warnings.":
+    "Verificaciones de publicación: {errors} problema bloqueante, {warns} avisos.",
+  "Publish checks: {errors} blocking issues, {warns} advisory warnings.":
+    "Verificaciones de publicación: {errors} problemas bloqueantes, {warns} avisos.",
+  "Publish checks: no blockers, {warns} advisory warning.":
+    "Verificaciones de publicación: sin bloqueos, {warns} aviso.",
+  "Publish checks: no blockers, {warns} advisory warnings.":
+    "Verificaciones de publicación: sin bloqueos, {warns} avisos.",
+  "Publish checks: no issues found.": "Verificaciones de publicación: sin problemas.",
+  "Publish checks": "Verificaciones de publicación",
+  "{count} blocker · ": "{count} bloqueo · ",
+  "{count} blockers · ": "{count} bloqueos · ",
+  "{count} advisory": "{count} aviso",
+  "{count} advisories": "{count} avisos",
+  Blockers: "Los bloqueos",
+  disable: "desactivan",
+  "until fixed.": "hasta que se corrijan.",
+  "items are non-blocking, review them, then publish if you accept the risk.":
+    "no bloquean: revísalos y publica si aceptas el riesgo.",
+  "Publish blockers ({count})": "Bloqueos de publicación ({count})",
+  "Go to first blocker": "Ir al primer bloqueo",
+  "{count} blocker in {category}": "{count} bloqueo en {category}",
+  "{count} blockers in {category}": "{count} bloqueos en {category}",
+  "Advisory, non-blocking ({count})": "Avisos, no bloqueantes ({count})",
 };
