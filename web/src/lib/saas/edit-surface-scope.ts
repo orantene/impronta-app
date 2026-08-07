@@ -56,12 +56,32 @@
 import { cache } from "react";
 
 import { improntaLog } from "@/lib/server/structured-log";
-import { getCurrentUserTenants } from "@/lib/saas/tenant";
+import {
+  getCurrentUserTenants,
+  type TenantMembership,
+} from "@/lib/saas/tenant";
 import {
   getPublicHostContext,
   getTenantScope,
   type TenantScope,
 } from "@/lib/saas/scope";
+
+/**
+ * The whole decision, as a pure function, so it can be pinned by a test
+ * without standing up `headers()` / Supabase. Deliberately exported: the
+ * regression suite asserts on THIS, and the async wrappers below are the only
+ * thing that has to be trusted to feed it the right inputs.
+ *
+ * Note what it does NOT do: it never scans `memberships` for a "default" when
+ * the surface tenant is missing from the list. That absent fallback is the
+ * entire fix.
+ */
+export function pickEditSurfaceMembership(
+  surfaceTenantId: string,
+  memberships: ReadonlyArray<TenantMembership>,
+): TenantMembership | null {
+  return memberships.find((m) => m.tenant_id === surfaceTenantId) ?? null;
+}
 
 /**
  * The tenant id of the storefront surface this request is rendering, or
@@ -99,7 +119,7 @@ export const getEditSurfaceTenantScope = cache(
     }
 
     const memberships = await getCurrentUserTenants();
-    const match = memberships.find((m) => m.tenant_id === surfaceTenantId);
+    const match = pickEditSurfaceMembership(surfaceTenantId, memberships);
     if (match) {
       return { tenantId: match.tenant_id, membership: match };
     }
