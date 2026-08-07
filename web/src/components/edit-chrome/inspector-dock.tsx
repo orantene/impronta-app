@@ -60,12 +60,54 @@ import {
 } from "./inspectors/builder-node-content-utils";
 import { SiteHeaderInspector } from "./inspectors/site-header/SiteHeaderInspector";
 import { isLegacySiteHeaderSelection } from "@/lib/site-admin/site-header/selection-id";
-import { LayoutPanel } from "./inspectors/layout-panel";
-import { StylePanel } from "./inspectors/style-panel";
-import { MultiSelectionStylePanel } from "./inspectors/multi-selection-style-panel";
-import { DataPanel } from "./inspectors/data-panel";
-import { MotionPanel } from "./inspectors/motion-panel";
-import { NodeMotionPanel } from "./inspectors/node-motion-panel";
+// ---------------------------------------------------------------------------
+// Wave 3 (3.6) — heavy inspector panels are lazy-loaded via next/dynamic (the
+// edit-shell drawer pattern) so their JS chunks are deferred until the
+// operator first opens the matching tab, instead of being parsed eagerly at
+// editor boot (style-panel alone is ~6k lines; the set is ~14k + transitive
+// imports). Tabs mount on demand, so `loading: () => null` shows at most one
+// empty frame on the FIRST open of a tab; after that the chunk is cached.
+// ---------------------------------------------------------------------------
+import dynamic from "next/dynamic";
+
+const LayoutPanel = dynamic(
+  () =>
+    import("./inspectors/layout-panel").then((m) => ({
+      default: m.LayoutPanel,
+    })),
+  { ssr: false, loading: () => null },
+);
+const StylePanel = dynamic(
+  () =>
+    import("./inspectors/style-panel").then((m) => ({ default: m.StylePanel })),
+  { ssr: false, loading: () => null },
+);
+const MultiSelectionStylePanel = dynamic(
+  () =>
+    import("./inspectors/multi-selection-style-panel").then((m) => ({
+      default: m.MultiSelectionStylePanel,
+    })),
+  { ssr: false, loading: () => null },
+);
+const DataPanel = dynamic(
+  () =>
+    import("./inspectors/data-panel").then((m) => ({ default: m.DataPanel })),
+  { ssr: false, loading: () => null },
+);
+const MotionPanel = dynamic(
+  () =>
+    import("./inspectors/motion-panel").then((m) => ({
+      default: m.MotionPanel,
+    })),
+  { ssr: false, loading: () => null },
+);
+const NodeMotionPanel = dynamic(
+  () =>
+    import("./inspectors/node-motion-panel").then((m) => ({
+      default: m.NodeMotionPanel,
+    })),
+  { ssr: false, loading: () => null },
+);
 import { useAdvancedMode } from "./advanced-mode";
 import { filterInspectorTabsByAdvanced } from "./advanced-mode-visibility";
 import {
