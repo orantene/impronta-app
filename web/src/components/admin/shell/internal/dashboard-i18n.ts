@@ -747,7 +747,7 @@ const ES_TEXT: Record<string, string> = {
   "Logo, voice, brand colors. What clients see across emails and storefront.": "Logo, voz y colores de marca. Lo que ven los clientes en correos y tienda.",
   "Logo & icon": "Logo e icono",
   "Wordmark": "Logotipo",
-  "PNG or SVG, up to 10 MB. Used in storefront header and emails.": "PNG o SVG, hasta 10 MB. Se usa en la cabecera de la tienda y en correos.",
+  "PNG, JPEG, WebP or SVG. Used in storefront header and emails.": "PNG, JPEG, WebP o SVG. Se usa en la cabecera de la tienda y en correos.",
   "ready to save": "listo para guardar",
   "Upload to use as watermark": "Sube uno para usarlo como marca de agua",
   "Change": "Cambiar",

@@ -27,10 +27,10 @@ import {
   WatermarkPreset,
   WatermarkPreviewCard,
   actionSetMediaWatermarkOverride,
-  actionUploadAgencyLogo,
   loadAgencyBrandingSettings,
   meetsPlan,
   updateAgencyBranding,
+  uploadAgencyLogo,
   useAdminShell,
   useQueuedRouterRefresh
 } from "./drawer-shared";
@@ -343,9 +343,7 @@ export function BrandingDrawer() {
       let logoUrl: string | undefined;
       if (logoFile) {
         setIsUploadingLogo(true);
-        const fd = new FormData();
-        fd.append("logo", logoFile);
-        const upResult = await actionUploadAgencyLogo(fd);
+        const upResult = await uploadAgencyLogo({ file: logoFile });
         setIsUploadingLogo(false);
         if (!upResult.ok) { toast(upResult.error || tt("Logo upload failed.")); setIsSaving(false); return; }
         logoUrl = upResult.logoUrl;
@@ -379,7 +377,7 @@ export function BrandingDrawer() {
       footer={<StandardFooter onSave={onSave} saveLabel={isSaving ? (isUploadingLogo ? tt("Uploading…") : tt("Saving…")) : loadingSettings ? tt("Loading…") : tt("Save")} />}
     >
       <Section title={tt("Logo & icon")}>
-        <FieldRow label={tt("Wordmark")} hint={tt("PNG or SVG, up to 10 MB. Used in storefront header and emails.")}>
+        <FieldRow label={tt("Wordmark")} hint={tt("PNG, JPEG, WebP or SVG. Used in storefront header and emails.")}>
           <div style={{
             border: `1px dashed ${COLORS.border}`, borderRadius: 10, padding: 18,
             display: "flex", alignItems: "center", gap: 14, background: "#fff",

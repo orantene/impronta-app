@@ -1443,6 +1443,11 @@
       "count": 1
     }
   },
+  "src/components/talent/site/TalentMaxSiteManager.tsx": {
+    "ratchet/no-raw-file-formdata": {
+      "count": 1
+    }
+  },
   "src/lib/access/capabilities.ts": {
     "max-lines": {
       "count": 1
@@ -1510,7 +1515,7 @@
   },
   "src/lib/server-actions/admin-agency-logo-upload.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 4
     }
   },
   "src/lib/server-actions/admin-billing.ts": {

@@ -1,5 +1,8 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { normalizeOptionalNextPath } from "@/lib/auth-flow";
@@ -11,6 +14,36 @@ import { loadWorkspaceLeadEmail } from "@/lib/saas/workspace-signup-lead.server"
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { RegisterForm } from "./register-form";
+
+/**
+ * The inviting workspace's display name for a claim invite, so the page can
+ * say "Claim your profile on Impronta Models" instead of the generic
+ * create-account pitch (which told an invited talent they would "choose
+ * whether you're Talent or a Client" — flatly wrong for this flow; owner
+ * flagged it in claim QA 2026-08-06). Best-effort: null keeps a claim-neutral
+ * headline, never blocks the form.
+ */
+async function loadClaimAgencyName(invitationId: string): Promise<string | null> {
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return null;
+    const { data: inv } = await admin
+      .from("talent_claim_invitations")
+      .select("tenant_id")
+      .eq("id", invitationId)
+      .maybeSingle();
+    const tenantId = (inv as { tenant_id?: string } | null)?.tenant_id;
+    if (!tenantId) return null;
+    const { data: agency } = await admin
+      .from("agencies")
+      .select("display_name")
+      .eq("id", tenantId)
+      .maybeSingle();
+    return (agency as { display_name?: string | null } | null)?.display_name?.trim() || null;
+  } catch {
+    return null;
+  }
+}
 
 async function loadInviterAgencyName(): Promise<string | null> {
   try {
@@ -61,6 +94,19 @@ export default async function RegisterPage({
   // string (it only rejects non-internal paths), so the token survives.
   const claimInvitationId =
     typeof invitation === "string" && invitation.trim() ? invitation.trim() : null;
+
+  // An ALREADY-SIGNED-IN visitor clicking a claim link must go straight to
+  // /claim — without this they fell through the generic authed-user path and
+  // landed on their dashboard with the token silently dropped (found in
+  // real-browser QA: the workspace owner clicked an invite and the claim
+  // never ran). /claim renders a real verdict for every signed-in case.
+  if (claimInvitationId) {
+    const session = await getCachedActorSession();
+    if (session.user) {
+      redirect(`/claim?invitation=${encodeURIComponent(claimInvitationId)}`);
+    }
+  }
+
   const nextPath = workspaceIntent
     ? buildWorkspaceOnboardingPath(workspaceLeadId)
     : claimInvitationId
@@ -80,24 +126,42 @@ export default async function RegisterPage({
   const isInviteFlow = !workspaceIntent && nextPath?.startsWith("/invite/");
   const inviterAgencyName = isInviteFlow ? await loadInviterAgencyName() : null;
 
+  // Claim invites carry their own headline: the person is here to take over a
+  // specific existing profile, not to pick a role.
+  const claimAgencyName = claimInvitationId
+    ? await loadClaimAgencyName(claimInvitationId)
+    : null;
+
   const title = workspaceIntent
     ? t("public.auth.register.operatorTitle")
-    : inviterAgencyName
-      ? t("public.auth.register.inviteTitle").replace("{agency}", inviterAgencyName)
-      : t("public.auth.register.title");
+    : claimInvitationId
+      ? claimAgencyName
+        ? t("public.auth.register.claimTitleAgency").replace("{agency}", claimAgencyName)
+        : t("public.auth.register.claimTitle")
+      : inviterAgencyName
+        ? t("public.auth.register.inviteTitle").replace("{agency}", inviterAgencyName)
+        : t("public.auth.register.title");
   const description = workspaceIntent
     ? t("public.auth.register.operatorDescription")
-    : inviterAgencyName
-      ? t("public.auth.register.inviteDescription").replace("{agency}", inviterAgencyName)
-      : t("public.auth.register.description");
+    : claimInvitationId
+      ? t("public.auth.register.claimDescription").replace(
+          "{agency}",
+          claimAgencyName ??
+            (locale === "es" ? "Tu agencia" : "Your agency"),
+        )
+      : inviterAgencyName
+        ? t("public.auth.register.inviteDescription").replace("{agency}", inviterAgencyName)
+        : t("public.auth.register.description");
   const googleLabel = workspaceIntent
     ? t("public.auth.register.googleContinue")
     : t("public.auth.register.google");
   const emailLabel = workspaceIntent
     ? t("public.auth.register.operatorSubmit")
-    : inviterAgencyName
-      ? t("public.auth.register.inviteSubmit")
-      : t("public.auth.register.emailSubmit");
+    : claimInvitationId
+      ? t("public.auth.register.claimSubmit")
+      : inviterAgencyName
+        ? t("public.auth.register.inviteSubmit")
+        : t("public.auth.register.emailSubmit");
 
   return (
     <div className="space-y-6">

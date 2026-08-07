@@ -6,6 +6,7 @@ import { getSiteUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getPublicHostContext } from "@/lib/saas";
+import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
@@ -33,7 +34,11 @@ export const metadata: Metadata = {
  * - On a non-whitelabel agency/hub host, and on app / marketing / unknown
  *   hosts, show the platform brand (Tulala).
  */
-async function resolveAuthBrand(): Promise<{ label: string; isTenant: boolean }> {
+async function resolveAuthBrand(): Promise<{
+  label: string;
+  isTenant: boolean;
+  logoUrl: string | null;
+}> {
   const ctx = await getPublicHostContext();
   if (ctx.kind === "agency" || ctx.kind === "hub") {
     const [identity, whitelabel] = await Promise.all([
@@ -41,13 +46,22 @@ async function resolveAuthBrand(): Promise<{ label: string; isTenant: boolean }>
       loadTenantWhitelabel(ctx.tenantId).catch(() => false),
     ]);
     if (whitelabel) {
+      // Same resolver the storefront header/footer use, so the auth chrome
+      // shows the tenant's REAL logo rather than a bare text wordmark. A
+      // talent arrives here from a fully-branded email and storefront; a
+      // text-only header read as "some other site" (owner feedback,
+      // 2026-08-06 claim-flow QA). Null → text wordmark fallback as before.
+      const logoUrl = await resolveShellBrandLogoUrl({
+        tenantId: ctx.tenantId,
+      }).catch(() => null);
       return {
         label: identity?.public_name?.trim() || PLATFORM_BRAND.name,
         isTenant: true,
+        logoUrl,
       };
     }
   }
-  return { label: PLATFORM_BRAND.name, isTenant: false };
+  return { label: PLATFORM_BRAND.name, isTenant: false, logoUrl: null };
 }
 
 export default async function AuthLayout({
@@ -79,7 +93,11 @@ export default async function AuthLayout({
       data-platform-surface="marketing"
       style={{ background: "var(--plt-bg)" }}
     >
-      <AuthTopBar brandLabel={brand.label} isTenant={brand.isTenant} />
+      <AuthTopBar
+        brandLabel={brand.label}
+        isTenant={brand.isTenant}
+        logoUrl={brand.logoUrl}
+      />
 
       <main className="flex flex-1 flex-col items-center justify-center px-5 py-12 sm:py-16">
         <div className="w-full max-w-[440px]">{children}</div>
@@ -105,9 +123,11 @@ export default async function AuthLayout({
 function AuthTopBar({
   brandLabel,
   isTenant,
+  logoUrl,
 }: {
   brandLabel: string;
   isTenant: boolean;
+  logoUrl: string | null;
 }) {
   return (
     <header
@@ -125,7 +145,20 @@ function AuthTopBar({
           className="inline-flex items-baseline leading-none"
           style={{ color: "var(--plt-ink)" }}
         >
-          {isTenant ? (
+          {isTenant && logoUrl ? (
+            // The tenant's canonical brand logo (same source as the public
+            // storefront header) so the auth pages read as the agency the
+            // visitor just came from. eslint: plain <img> matches the
+            // storefront header's own render of this asset.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt={brandLabel}
+              className="h-7 w-auto sm:h-8"
+              loading="eager"
+              decoding="sync"
+            />
+          ) : isTenant ? (
             <span
               className="plt-display text-[0.9rem] font-medium uppercase tracking-[0.22em]"
               style={{ color: "var(--plt-ink)" }}
