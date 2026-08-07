@@ -963,7 +963,8 @@ export function EditProvider({
   // #18 — persist `past` to localStorage: debounced off the interaction hot
   // path, flushed synchronously on unmount / pagehide / visibility→hidden.
   // Peeled to use-undo-persistence (W4-F2); behavior identical.
-  const { undoPersistDataRef, flushUndoPersist } = useUndoPersistence({
+  const { undoPersistDataRef, scheduleIdleUndoPersistFlush } =
+    useUndoPersistence({
     undoPersistKey,
     past,
     pageVersion,
@@ -2934,15 +2935,18 @@ export function EditProvider({
         setHasConflictRecovery(false);
       }
       // W1-T5(a) — re-stamp the persisted undo stack with the just-confirmed
-      // version SYNCHRONOUSLY (don't wait for the debounced re-stamp), so a
-      // reload in the window between the save and the next debounce sees the
-      // current version and a same-session undo survives. Mutating the ref then
-      // flushing writes the envelope with save.pageVersion immediately.
+      // version. The REF mutation is synchronous (so any flush — including the
+      // pagehide/visibility/unmount flush that covers a reload — writes the
+      // envelope with save.pageVersion), but Wave 3 (3.4) moved the
+      // serialize+write itself OFF the confirmed-save hot path: it used to
+      // stringify up to UNDO_PERSIST_CAP entries x 2 full tree snapshots to
+      // localStorage synchronously here, blocking the main thread right after
+      // every autosave. Now it runs at idle (500ms timeout cap).
       undoPersistDataRef.current = {
         ...undoPersistDataRef.current,
         baseVersion: save.pageVersion,
       };
-      flushUndoPersist();
+      scheduleIdleUndoPersistFlush();
       // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
       // happy path WHEN A CLIENT CANVAS IS MOUNTED for this page.
       // `setBuilderTree(nextTree)` above already published the new tree to the
@@ -2986,8 +2990,8 @@ export function EditProvider({
       refreshComposition,
       // WS1-D — stamps each save with the per-tab session token + next seq.
       nextEditSession,
-      // W1-T5(a) — synchronous undo-stack re-stamp on save success.
-      flushUndoPersist,
+      // W1-T5(a)/Wave 3 (3.4) — idle-scheduled undo-stack re-stamp on save success.
+      scheduleIdleUndoPersistFlush,
     ],
   );
 
