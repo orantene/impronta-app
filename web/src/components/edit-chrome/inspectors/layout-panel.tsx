@@ -71,6 +71,7 @@ import {
   InspectorOptionCards,
   InspectorSection,
 } from "./kit/inspector-ui";
+import { useInspectorT } from "./kit/use-inspector-t";
 import { InspectorResetFooter } from "./kit/inspector-mockup-primitives";
 import { InspectorLayoutPresetCards } from "./kit/inspector-mockup-primitives";
 import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings";
@@ -863,6 +864,7 @@ function ToggleRow({
   checked: boolean;
   onChange: (next: boolean) => void;
 }) {
+  const { t } = useInspectorT();
   return (
     <label
       className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-2"
@@ -872,8 +874,8 @@ function ToggleRow({
       }}
     >
       <span className="flex flex-col">
-        <span className="text-[11.5px] font-semibold text-stone-700">{label}</span>
-        <span className="text-[10.5px] text-stone-500">{hint}</span>
+        <span className="text-[11.5px] font-semibold text-stone-700">{t(label)}</span>
+        <span className="text-[10.5px] text-stone-500">{t(hint)}</span>
       </span>
       <Toggle on={checked} onChange={onChange} />
     </label>
@@ -887,6 +889,7 @@ function LayoutHealthCard({
   findings: ReadonlyArray<BuilderNodeLayoutFinding>;
   onApply: (patch: Record<string, unknown>) => void;
 }) {
+  const { t } = useInspectorT();
   const orderedFindings = [...findings].sort((a, b) => {
     const rank = (finding: BuilderNodeLayoutFinding): number => {
       if (isBlockingLayoutFindingId(finding.id)) return 0;
@@ -915,10 +918,10 @@ function LayoutHealthCard({
         }}
       >
         <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-          Layout checks
+          {t("Layout checks")}
         </div>
         <p className="mt-1 text-[11px] leading-snug text-emerald-700">
-          No obvious responsive layout issues found for this node.
+          {t("No obvious responsive layout issues found for this node.")}
         </p>
       </div>
     );
@@ -1095,6 +1098,7 @@ function AdvancedNodeLayoutEditor({
   /** Friendly label for the active tier (e.g. "Wide", "Compact phone"). */
   tierLabel?: string;
 }) {
+  const { t } = useInspectorT();
   const resetNodeLayout = () => onPatch(nodeLayoutResetPatch(node));
 
   if (node.kind === "container") {
@@ -1177,7 +1181,7 @@ function AdvancedNodeLayoutEditor({
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="container">
         <div className="flex items-center justify-between">
-          <span className={FIELD_LABEL}>Selected block</span>
+          <span className={FIELD_LABEL}>{t("Selected block")}</span>
           <button
             type="button"
             data-builder-node-layout-reset=""
@@ -1190,7 +1194,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         {editingOverride ? (
@@ -1358,7 +1362,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
@@ -1413,7 +1417,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <ToggleRow
@@ -1480,7 +1484,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         {panels.length > 0 ? (
@@ -1534,7 +1538,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
@@ -1604,7 +1608,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
@@ -1655,7 +1659,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -1696,7 +1700,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -1767,7 +1771,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -1804,7 +1808,7 @@ function AdvancedNodeLayoutEditor({
               padding: 0,
             }}
           >
-            Reset block
+            {t("Reset block")}
           </button>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -1832,6 +1836,7 @@ export function LayoutPanel({
   sectionDraftProps,
   onSectionPatch,
 }: LayoutPanelProps) {
+  const { t } = useInspectorT();
   const {
     patchBuilderNodeProps,
     reportMutationError,
@@ -2147,7 +2152,7 @@ export function LayoutPanel({
       {selectedBuilderNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Selected block</div>
+            <div className={SECTION_TITLE}>{t("Selected block")}</div>
             <div className="flex items-center gap-2">
               {layoutLockedPaths.length > 0 ? <LockBadge /> : null}
               <span className={INHERIT_HINT}>

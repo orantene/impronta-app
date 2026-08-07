@@ -27,6 +27,7 @@
 import { CHROME } from "../kit/tokens";
 import { Segmented } from "../kit/segmented";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "./kit/inspector-ui";
+import { useInspectorT } from "./kit/use-inspector-t";
 import type {
   FieldInheritRow,
   InheritableStyleField,
@@ -50,6 +51,7 @@ export function NodeThemeInheritancePanel({
   onInherit,
   onOverride,
 }: NodeThemeInheritancePanelProps) {
+  const { t } = useInspectorT();
   if (rows.length === 0) return null;
   return (
     <div
@@ -58,12 +60,12 @@ export function NodeThemeInheritancePanel({
       style={{ borderColor: CHROME.line }}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={FIELD_LABEL}>Theme inheritance</span>
+        <span className={FIELD_LABEL}>{t("Theme inheritance")}</span>
         <span
           className="text-[10px] font-medium"
           style={{ color: CHROME.muted2 }}
         >
-          Inherit follows the theme
+          {t("Inherit follows the theme")}
         </span>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -79,20 +81,20 @@ export function NodeThemeInheritancePanel({
                 className="truncate text-[11px] font-medium"
                 style={{ color: CHROME.ink }}
               >
-                {row.label}
+                {t(row.label)}
               </span>
               <span
                 className="truncate text-[10px]"
                 style={{ color: CHROME.muted2 }}
                 title={
                   row.state === "inherit"
-                    ? `Inherits ${row.source}`
-                    : "Overridden on this block"
+                    ? t("Inherits {base}").replace("{base}", t(row.source))
+                    : t("Overridden on this block")
                 }
               >
                 {row.state === "inherit"
-                  ? `Inherit · ${row.source}`
-                  : "Override"}
+                  ? `${t("Inherit")} · ${t(row.source)}`
+                  : t("Override")}
               </span>
             </div>
             <Segmented

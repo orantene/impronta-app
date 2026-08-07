@@ -17,6 +17,8 @@ import type { ReactNode } from "react";
 
 import { InfoTip } from "@/components/ui/info-tip";
 
+import { useInspectorT } from "./use-inspector-t";
+
 export interface ChipOption<T extends string> {
   value: T;
   label: string;
@@ -43,6 +45,7 @@ export function VisualChipGroup<T extends string>({
   density = "wide",
   columns,
 }: VisualChipGroupProps<T>) {
+  const { t, to } = useInspectorT();
   const cols = columns ?? Math.min(options.length, 3);
   const gridCls =
     density === "wide"
@@ -96,9 +99,9 @@ export function VisualChipGroup<T extends string>({
                   active ? "text-stone-900" : "text-stone-700"
                 }`}
               >
-                {opt.label}
+                {t(opt.label)}
               </span>
-              {opt.info ? <InfoTip label={opt.info} size={11} /> : null}
+              {opt.info ? <InfoTip label={to(opt.info) ?? ""} size={11} /> : null}
             </div>
           </div>
         );

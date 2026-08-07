@@ -15,6 +15,7 @@ import {
   InspectorLabel,
   InspectorOverrideBadge,
 } from "./inspector-ui";
+import { useInspectorT } from "./use-inspector-t";
 import type { OverrideDevice } from "../responsive-field-state";
 
 export function InspectorPlaceholderField({
@@ -180,6 +181,7 @@ export function InspectorLayoutPresetCards<T extends string>({
   onChange: (next: T) => void;
   options: ReadonlyArray<{ value: T; title: string; description: string }>;
 }) {
+  const { t } = useInspectorT();
   return (
     <div className="grid grid-cols-2 gap-2">
       {options.map((opt) => {
@@ -200,10 +202,10 @@ export function InspectorLayoutPresetCards<T extends string>({
               className="block text-[12px] font-semibold"
               style={{ color: active ? BUILDER_VISUAL.accent : CHROME.ink }}
             >
-              {opt.title}
+              {t(opt.title)}
             </span>
             <span className="mt-0.5 block text-[11px]" style={{ color: BUILDER_VISUAL.textMuted }}>
-              {opt.description}
+              {t(opt.description)}
             </span>
           </button>
         );
@@ -221,6 +223,7 @@ export function InspectorResetFooter({
   onClick?: () => void;
   disabled?: boolean;
 }) {
+  const { t } = useInspectorT();
   return (
     <div className="flex justify-center pt-2">
       <button
@@ -231,7 +234,7 @@ export function InspectorResetFooter({
         style={{ color: BUILDER_VISUAL.accent }}
       >
         <RotateCcw size={14} strokeWidth={2} aria-hidden />
-        {label}
+        {t(label)}
       </button>
     </div>
   );

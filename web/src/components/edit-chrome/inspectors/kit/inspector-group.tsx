@@ -17,6 +17,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { InfoTip } from "@/components/ui/info-tip";
 import { InspectorAccordion } from "./inspector-ui";
+import { useInspectorT } from "./use-inspector-t";
 import { KIT } from "./tokens";
 
 interface InspectorGroupProps {
@@ -62,6 +63,7 @@ export function InspectorGroup({
   accessory,
   children,
 }: InspectorGroupProps) {
+  const { t, to } = useInspectorT();
   const initialOpen = defaultOpen ?? !advanced;
   const [open, setOpen] = useState<boolean>(() =>
     readStoredOpen(storageKey, initialOpen),
@@ -83,8 +85,8 @@ export function InspectorGroup({
       <section className="flex flex-col gap-2.5">
         <div className="flex w-full items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5">
-            <span className={titleCls}>{title}</span>
-            {info ? <InfoTip label={info} /> : null}
+            <span className={titleCls}>{t(title)}</span>
+            {info ? <InfoTip label={t(info)} /> : null}
           </div>
           {accessory ?? null}
         </div>
@@ -99,7 +101,9 @@ export function InspectorGroup({
         {accessory ? (
           <div className="flex justify-end">{accessory}</div>
         ) : null}
-        {info ? <p className="text-[11px] leading-snug text-stone-500">{info}</p> : null}
+        {info ? (
+          <p className="text-[11px] leading-snug text-stone-500">{to(info)}</p>
+        ) : null}
         {children}
       </InspectorAccordion>
     );

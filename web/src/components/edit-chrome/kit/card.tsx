@@ -29,6 +29,7 @@
 import type { ReactNode } from "react";
 
 import { CHROME, CHROME_SHADOWS } from "./tokens";
+import { useEditorLocale } from "../use-editor-locale";
 
 type CardState = "default" | "active" | "warn" | "muted";
 
@@ -88,6 +89,10 @@ export function CardHead({
   iconAccent = "default",
   className,
 }: CardHeadProps) {
+  // WAVE 4.4 translation boundary for the card title/sub strings.
+  const { t } = useEditorLocale();
+  const tn = (node: ReactNode): ReactNode =>
+    typeof node === "string" ? t(node) : node;
   const iconStyle = iconAccentStyle(iconAccent);
   return (
     <header
@@ -123,7 +128,7 @@ export function CardHead({
               : CHROME.text,
         }}
       >
-        {title}
+        {tn(title)}
       </span>
       {sub ? (
         <span
@@ -135,7 +140,7 @@ export function CardHead({
             letterSpacing: "-0.005em",
           }}
         >
-          {sub}
+          {tn(sub)}
         </span>
       ) : null}
       {action ? <span className="shrink-0">{action}</span> : null}
