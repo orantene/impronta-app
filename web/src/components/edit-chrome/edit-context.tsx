@@ -138,6 +138,11 @@ import {
 import { resolveMobileEditModeTransition } from "./mobile-edit-mode";
 import { publishDirty } from "./dirty-bridge";
 import { publishDraftProps } from "./draft-props-bridge";
+import {
+  publishSectionHeadline,
+  resetSectionHeadlines,
+} from "./section-headline-bridge";
+import { resolveSectionHeadlineFromProps } from "@/lib/site-admin/section-display-name";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
 import {
@@ -899,6 +904,14 @@ export function EditProvider({
       publishStyleClassRegistry(null);
       publishStylePresetRegistry(null);
     };
+  }, [pageId]);
+
+  // WAVE2-2.3 — the live-headline overrides describe THIS page's sections. Drop
+  // them when the editor loads another page (and on unmount) so a stale override
+  // can never outlive the section it came from.
+  useEffect(() => {
+    resetSectionHeadlines();
+    return resetSectionHeadlines;
   }, [pageId]);
 
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
@@ -1978,6 +1991,21 @@ export function EditProvider({
             setDraftPropsState({ ...mutation.props });
             setDirty(false);
           }
+          // WAVE2-2.3 — publish the section's live headline. The navigator's
+          // row label otherwise comes only from `headingProbe`, a server read
+          // memoised on `${pageVersion}:${sectionIdSet}`; a text edit moves
+          // neither, so the probe never re-fires and the row renders a headline
+          // from before the edit. Published HERE (the one place section props
+          // are persisted) so inline commits and inspector edits both land it,
+          // and at commit granularity so the navigator stays off the wave-3
+          // per-keystroke re-render path.
+          publishSectionHeadline(
+            mutation.sectionId,
+            resolveSectionHeadlineFromProps(
+              snapshot.sectionTypeKey,
+              mutation.props,
+            ),
+          );
           syncBuilderNodeChildrenForSection({
             sectionId: mutation.sectionId,
             sectionTypeKey: snapshot.sectionTypeKey,
