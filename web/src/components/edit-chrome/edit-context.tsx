@@ -136,6 +136,7 @@ import {
 } from "./selection-bridge";
 import { resolveMobileEditModeTransition } from "./mobile-edit-mode";
 import { publishDirty } from "./dirty-bridge";
+import { publishDraftProps } from "./draft-props-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
 import {
@@ -643,6 +644,14 @@ export function EditProvider({
     string,
     unknown
   > | null>(null);
+  // Wave 3 (3.1) — publish `draftProps` to the draft-props-bridge micro-store.
+  // We KEEP the React state (setDraftProps semantics unchanged) but drop the
+  // VALUE from the value-memo deps, so a per-keystroke working-copy write no
+  // longer rebuilds the context value — only the two `useDraftProps()` readers
+  // (inspector-dock, inline-editor) wake.
+  useEffect(() => {
+    publishDraftProps(draftPropsState);
+  }, [draftPropsState]);
 
   const setDraftProps = useCallback<EditContextValue["setDraftProps"]>(
     (updater) => {
@@ -5520,7 +5529,9 @@ export function EditProvider({
       setSaving,
       loadedSection,
       setLoadedSection,
-      draftProps: draftPropsState,
+      // Wave 3 (3.1) — `draftProps` VALUE removed from `value` (lives in
+      // draft-props-bridge; readers use useDraftProps()). Setter kept so the
+      // write API is unchanged.
       setDraftProps,
 
       compositionLoaded,
@@ -5766,7 +5777,9 @@ export function EditProvider({
       // rebuilds `value`, so non-dirty consumers don't re-render on it.
       saving,
       loadedSection,
-      draftPropsState,
+      // Wave 3 (3.1) — `draftPropsState` removed from the value-memo deps: a
+      // per-keystroke working-copy write no longer rebuilds `value`, so
+      // non-draft consumers don't re-render on typing.
       setDraftProps,
       compositionLoaded,
       compositionLoading,

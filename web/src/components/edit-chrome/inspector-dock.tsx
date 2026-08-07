@@ -52,6 +52,7 @@ import {
 } from "./selection-bridge";
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useDirty } from "./dirty-bridge";
+import { useDraftProps } from "./draft-props-bridge";
 import { ContentTab } from "./inspectors/content-dispatch";
 import {
   findBuilderNodeById,
@@ -263,7 +264,6 @@ export function InspectorDock() {
     selectBuilderNode,
     loadedSection,
     setLoadedSection,
-    draftProps,
     setDraftProps,
     setDirty,
     saving,
@@ -296,6 +296,11 @@ export function InspectorDock() {
   const additionalSelectedBuilderNodeIds = useAdditionalSelectedBuilderNodeIds();
   // W2-T4 — `dirty` VALUE from the dirty-bridge (setter stays on context).
   const dirty = useDirty();
+  // Wave 3 (3.1) — `draftProps` VALUE from the draft-props-bridge (setter
+  // stays on context). The dock re-renders per working-copy write (it renders
+  // the inspector inputs + drives autosave), which is exactly correct — the
+  // other ~70 useEditContext() consumers no longer do.
+  const draftProps = useDraftProps();
 
   const selectedStandaloneBuilderNode = useMemo(
     () =>

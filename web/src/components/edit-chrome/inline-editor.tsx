@@ -41,6 +41,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
+import { useDraftProps } from "./draft-props-bridge";
 import { useSelectedSectionId } from "./selection-bridge";
 import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
@@ -101,7 +102,6 @@ const SINGLE_LINE_TAGS = new Set([
 export function InlineEditor() {
   const {
     tenantId,
-    draftProps,
     defaultLocale,
     patchBuilderNodeProps,
     reportMutationError,
@@ -111,6 +111,10 @@ export function InlineEditor() {
   } = useEditContext();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
+  // Wave 3 (3.1) — `draftProps` VALUE from the draft-props-bridge micro-store
+  // (setter stays on context). Only mirrored into `draftPropsRef` below for the
+  // long-lived DOM handlers, exactly as before.
+  const draftProps = useDraftProps();
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
 

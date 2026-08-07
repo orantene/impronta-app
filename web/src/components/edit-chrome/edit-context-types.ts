@@ -424,8 +424,13 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   loadedSection: LoadedSection | null;
   setLoadedSection: (s: LoadedSection | null) => void;
 
-  /** Working copy the inspector mutates. */
-  draftProps: Record<string, unknown> | null;
+  /**
+   * Working copy the inspector mutates. Wave 3 (3.1) — the `draftProps`
+   * VALUE now lives in the `draft-props-bridge` micro-store: read it with
+   * `useDraftProps()` from "./draft-props-bridge" (that keeps it out of the
+   * value-memo so a per-keystroke write doesn't re-render every consumer).
+   * Only the setter remains on the context.
+   */
   setDraftProps: (
     updater:
       | Record<string, unknown>
