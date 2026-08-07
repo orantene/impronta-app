@@ -16,7 +16,9 @@ import { rolePhase5HasCapability } from "../capabilities";
  * owner membership) must be able to run all of them on their own workspace.
  *
  * The pinned contract per file: no `requireStaff()` call, and an explicit
- * membership proof — `requireSession()` plus one of `requireTenantScope` /
+ * membership proof — `requireSession()` plus one of
+ * `requireEditSurfaceTenantScope` (the surface-derived resolver editor
+ * actions use since the 2026-08-07 P1) / `requireTenantScope` /
  * `getTenantScope` / `getTenantScopeBySlug` / `getCurrentUserTenants`, or a
  * direct `userHasCapability(cap, tenantId)` when the tenant arrives as an
  * argument instead of from the request.
@@ -73,7 +75,7 @@ const SCOPE_PROVEN = [
 ] as const;
 
 const MEMBERSHIP_PROOF =
-  /requireTenantScope\(|getTenantScope\(|getTenantScopeBySlug\(|getCurrentUserTenants\(|userHasCapability\(/;
+  /requireEditSurfaceTenantScope\(|getEditSurfaceTenantScope\(|requireTenantScope\(|getTenantScope\(|getTenantScopeBySlug\(|getCurrentUserTenants\(|userHasCapability\(/;
 
 for (const rel of SCOPE_PROVEN) {
   test(`${rel}: membership guard, not the global-app_role gate`, () => {
