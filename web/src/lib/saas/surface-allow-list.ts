@@ -524,6 +524,17 @@ function resolveTenantPartsToPublicPath(
  * marketing host to preserve the surface boundary.
  */
 const MARKETING_PAGE_PREFIXES = [
+  // INTENTIONALLY marketing-host only — do not add this to AUTH_PREFIXES or
+  // any agency/app/hub group. "/get-started" ("Start your business, free")
+  // creates a brand-new tenant/workspace; it is the operator-acquisition
+  // funnel for Tulala itself, not a tenant-facing surface. Showing it on an
+  // existing agency's own branded domain (e.g. improntamodels.com) would
+  // invite that agency's own visitors to go start a competing workspace.
+  // The 404 on every agency/app/hub host is the correct, checked behavior —
+  // see surface-allow-list.test.ts ("marketing host: non-marketing hosts
+  // must 404 marketing pages") and the "Auth surface matrix" section of
+  // `scripts/post-deploy-smoke-test.mjs` (P3), which asserts BOTH halves:
+  // 200 on tulala.digital, 404 on improntamodels.com.
   "/get-started",
   "/discover-agencies",
   "/operators",
