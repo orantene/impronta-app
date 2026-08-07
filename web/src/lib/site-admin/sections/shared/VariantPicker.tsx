@@ -19,6 +19,8 @@
 
 import { useState, type ReactNode } from "react";
 
+import { useSectionT } from "./section-editor-i18n";
+
 export interface VariantOption<V extends string = string> {
   value: V;
   label: string;
@@ -446,6 +448,7 @@ function VariantTile<V extends string>({
   onChange,
   sectionKey,
 }: TileProps<V>) {
+  const t = useSectionT();
   const schematicKey: SchematicKey | undefined =
     typeof option.schematic === "string"
       ? (option.schematic as SchematicKey)
@@ -501,10 +504,10 @@ function VariantTile<V extends string>({
         )}
       </span>
       <span className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium">{option.label}</span>
+        <span className="text-sm font-medium">{t(option.label)}</span>
         {option.hint ? (
           <span className="line-clamp-2 text-xs text-muted-foreground">
-            {option.hint}
+            {t(option.hint)}
           </span>
         ) : null}
       </span>
@@ -521,11 +524,12 @@ export function VariantPicker<V extends string>({
   disabled,
   sectionKey,
 }: VariantPickerProps<V>) {
+  const t = useSectionT();
   return (
     <fieldset className="flex flex-col gap-2">
       {legend ? (
         <legend className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {legend}
+          {t(legend)}
         </legend>
       ) : null}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">

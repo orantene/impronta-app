@@ -4,6 +4,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { AltTextField } from "../shared/AltTextField";
+import { useSectionT } from "../shared/section-editor-i18n";
 import type { SectionEditorProps } from "../types";
 import type { GalleryStripV1, GalleryStripItem } from "./schema";
 
@@ -17,6 +18,7 @@ export function GalleryStripEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<GalleryStripV1>) {
+  const t = useSectionT();
   const value: GalleryStripV1 = {
     eyebrow: initial.eyebrow ?? "Moments",
     headline: initial.headline ?? "",
@@ -33,7 +35,7 @@ export function GalleryStripEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             maxLength={60}
@@ -42,7 +44,7 @@ export function GalleryStripEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Headline</span>
+          <span className={LABEL}>{t("Headline")}</span>
           <input
             className={INPUT}
             maxLength={200}
@@ -54,12 +56,12 @@ export function GalleryStripEditor({
 
       <VariantPicker
         name="gallery_strip.variant"
-        legend="Variant"
+        legend={t("Variant")}
         sectionKey="gallery_strip"
         options={[
-          { value: "mosaic", label: "Mosaic", hint: "Mixed aspect ratios.", schematic: "mosaic" },
-          { value: "scroll-rail", label: "Scroll rail", hint: "Horizontal scroll on desktop.", schematic: "carousel" },
-          { value: "grid-uniform", label: "Uniform grid", hint: "Consistent tile size.", schematic: "grid" },
+          { value: "mosaic", label: t("Mosaic"), hint: t("Mixed aspect ratios."), schematic: "mosaic" },
+          { value: "scroll-rail", label: t("Scroll rail"), hint: t("Horizontal scroll on desktop."), schematic: "carousel" },
+          { value: "grid-uniform", label: t("Uniform grid"), hint: t("Consistent tile size."), schematic: "grid" },
         ]}
         value={value.variant}
         onChange={(next) => patch({ variant: next })}
@@ -67,7 +69,7 @@ export function GalleryStripEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-1">
         <label className={FIELD}>
-          <span className={LABEL}>Italic caption (optional)</span>
+          <span className={LABEL}>{t("Italic caption (optional)")}</span>
           <input
             className={INPUT}
             maxLength={240}
@@ -79,7 +81,12 @@ export function GalleryStripEditor({
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <span className={LABEL}>Images ({value.items.length} / 16)</span>
+          <span className={LABEL}>
+            {t("Images ({count} / 16)").replace(
+              "{count}",
+              String(value.items.length),
+            )}
+          </span>
           <button
             type="button"
             disabled={value.items.length >= 16}
@@ -90,7 +97,7 @@ export function GalleryStripEditor({
             }
             className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50"
           >
-            + Add
+            {t("+ Add")}
           </button>
         </div>
         {value.items.map((item, i) => (
@@ -101,7 +108,7 @@ export function GalleryStripEditor({
             <div className="flex items-center gap-2">
               <input
                 className={`${INPUT} flex-1`}
-                placeholder="Image URL"
+                placeholder={t("Image URL")}
                 value={item.src}
                 onChange={(e) => patchItem(i, { src: e.target.value })}
               />
@@ -125,10 +132,10 @@ export function GalleryStripEditor({
                 patchItem(i, { aspect: e.target.value as GalleryStripItem["aspect"] })
               }
             >
-              <option value="auto">Auto</option>
-              <option value="wide">Wide (5:3)</option>
-              <option value="tall">Tall (3:4)</option>
-              <option value="square">Square</option>
+              <option value="auto">{t("Auto")}</option>
+              <option value="wide">{t("Wide (5:3)")}</option>
+              <option value="tall">{t("Tall (3:4)")}</option>
+              <option value="square">{t("Square")}</option>
             </select>
             <button
               type="button"

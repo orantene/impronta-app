@@ -35,6 +35,24 @@ import { MESSAGES } from "./editor-i18n";
 const EDIT_CHROME = join(process.cwd(), "src/components/edit-chrome");
 
 /**
+ * WAVE 4.5 — the per-section Editor panels.
+ *
+ * They live in `lib/site-admin/sections/**` (they cannot import edit-chrome:
+ * frozen cycle guard), and get their translator from the `useSectionT()`
+ * context seam instead. Their strings resolve through the SAME `ES_TEXT`
+ * catalog, so they belong under the same parity contract.
+ *
+ * Only files that opt into `useSectionT` are scanned. That is deliberate: the
+ * PUBLIC `Component.tsx` renderers in the same tree use the OTHER i18n system
+ * (`@/i18n/messages`, semantic keys), and their `t("public.header.searchAria")`
+ * calls must not be mistaken for editor-chrome copy. Reading this file from a
+ * test in edit-chrome is a plain fs read, not an import edge, so the cycle
+ * guard is unaffected.
+ */
+const SECTION_PANELS = join(process.cwd(), "src/lib/site-admin/sections");
+const SECTION_PANEL_OPT_IN = "useSectionT";
+
+/**
  * Strings that render identically in both languages: proper nouns, brand names,
  * units, and single glyphs. Each needs a reason, so the list stays a decision
  * rather than a dumping ground.
@@ -111,7 +129,14 @@ function extract(): Extraction {
   let dynamicCount = 0;
   const dynamicFiles = new Set<string>();
 
-  for (const file of walk(EDIT_CHROME)) {
+  const files = [
+    ...walk(EDIT_CHROME),
+    ...walk(SECTION_PANELS).filter((f) =>
+      readFileSync(f, "utf8").includes(SECTION_PANEL_OPT_IN),
+    ),
+  ];
+
+  for (const file of files) {
     const src = readFileSync(file, "utf8");
     const rel = file.slice(file.indexOf("src/"));
 
@@ -197,34 +222,50 @@ test("the allow-list stays a decision, not a dumping ground", () => {
   );
 });
 
+/**
+ * Every file that contributes top-level keys to the effective `ES_TEXT`. The
+ * catalog is split purely for the 800-line `max-lines` budget; at runtime they
+ * are one flat spread, so duplicate detection has to span the whole set.
+ */
+const ES_CATALOG_FILES = [
+  "src/components/edit-chrome/editor-i18n-es.ts",
+  "src/components/edit-chrome/editor-i18n-es-canvas.ts",
+  "src/components/edit-chrome/editor-i18n-es-sections.ts",
+  "src/components/edit-chrome/editor-i18n-es-section-panels.ts",
+  "src/components/edit-chrome/editor-i18n-es-section-panels-2.ts",
+];
+
+/** Top-level `"key":` / `key:` entries of a catalog file, with line numbers. */
+function catalogKeys(rel: string): Array<{ key: string; line: number }> {
+  const src = readFileSync(join(process.cwd(), rel), "utf8");
+  const out: Array<{ key: string; line: number }> = [];
+  src.split("\n").forEach((line, i) => {
+    // Top-level entries only: exactly two spaces of indent, then a key.
+    const m = /^ {2}(?:(["'])((?:\\.|(?!\1)[^\\])*?)\1|([A-Za-z_$][\w$]*))\s*:/.exec(line);
+    if (!m) return;
+    out.push({ key: m[2] !== undefined ? decodeLiteral(m[2]) : m[3]!, line: i + 1 });
+  });
+  return out;
+}
+
 test("the ES catalog has no duplicate keys", () => {
   // TypeScript already rejects duplicate keys (TS1117), but only on a FULL
   // tsc run, and the catalog is EN-text-keyed and append-heavy so concurrent
   // sessions collide in it constantly: three separate collisions in one day,
   // two of which reached main. Catching it in the fast builder lane means the
   // feedback arrives in seconds instead of after a red main.
-  const files = [
-    "src/components/edit-chrome/editor-i18n-es.ts",
-    "src/components/edit-chrome/editor-i18n-es-canvas.ts",
-    "src/components/edit-chrome/editor-i18n-es-sections.ts",
-  ];
   const problems: string[] = [];
 
-  for (const rel of files) {
-    const src = readFileSync(join(process.cwd(), rel), "utf8");
+  for (const rel of ES_CATALOG_FILES) {
     const seen = new Map<string, number>();
-    src.split("\n").forEach((line, i) => {
-      // Top-level entries only: exactly two spaces of indent, then a key.
-      const m = /^ {2}(?:(["'])((?:\\.|(?!\1)[^\\])*?)\1|([A-Za-z_$][\w$]*))\s*:/.exec(line);
-      if (!m) return;
-      const key = m[2] !== undefined ? decodeLiteral(m[2]) : m[3]!;
+    for (const { key, line } of catalogKeys(rel)) {
       const first = seen.get(key);
       if (first !== undefined) {
-        problems.push(`  ${rel}: "${key}" defined at line ${first} and again at ${i + 1}`);
+        problems.push(`  ${rel}: "${key}" defined at line ${first} and again at ${line}`);
       } else {
-        seen.set(key, i + 1);
+        seen.set(key, line);
       }
-    });
+    }
   }
 
   assert.equal(
@@ -234,5 +275,37 @@ test("the ES catalog has no duplicate keys", () => {
       ? ""
       : `${problems.length} duplicate key(s) in the ES catalog. The later one ` +
           `silently wins at runtime and TS1117 fails the build.\n\n${problems.join("\n")}`,
+  );
+});
+
+test("no ES key is defined in two different catalog files", () => {
+  // TS1117 only sees duplicates WITHIN one object literal, so a key defined in
+  // `editor-i18n-es-sections.ts` and again in `editor-i18n-es.ts` compiles
+  // clean while one value silently shadows the other at runtime. That has
+  // already shipped three times (Structure/⌘, Workspace, and a "Hero"
+  // shadowing), and the split into five files makes it likelier, not less.
+  const owner = new Map<string, string>();
+  const problems: string[] = [];
+
+  for (const rel of ES_CATALOG_FILES) {
+    for (const { key, line } of catalogKeys(rel)) {
+      const first = owner.get(key);
+      if (first !== undefined && first !== rel) {
+        problems.push(`  "${key}": in ${first} and again in ${rel}:${line}`);
+      } else {
+        owner.set(key, rel);
+      }
+    }
+  }
+
+  assert.equal(
+    problems.length,
+    0,
+    problems.length === 0
+      ? ""
+      : `${problems.length} key(s) defined in more than one ES catalog file. ` +
+          `The spread order in editor-i18n-es.ts decides which value wins, ` +
+          `which is invisible at runtime because both look Spanish. Keep one ` +
+          `definition and delete the other.\n\n${problems.join("\n")}`,
   );
 });

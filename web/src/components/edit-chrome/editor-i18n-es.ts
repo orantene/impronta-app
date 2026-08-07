@@ -9,9 +9,16 @@
 
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
+import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
+import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
 
 export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_CATALOG_TEXT,
+  // WAVE 4.5 — the per-section Editor panel bodies + shared field primitives.
+  // Spread BEFORE the canvas/explicit keys so a hand-tuned chrome string still
+  // wins on a collision (the section-catalog parity guard pins that ordering).
+  ...ES_SECTION_PANEL_TEXT,
+  ...ES_SECTION_PANEL_TEXT_2,
   // WAVE 4 (canvas bars, preflight, AI panels) — split out for the line cap.
   ...ES_CANVAS_CHROME_TEXT,
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
@@ -330,7 +337,8 @@ export const ES_TEXT: Record<string, string> = {
   "Add page": "Agregar página",
   "Upgrade plan": "Mejorar plan",
   Home: "Inicio",
-  Directory: "Directorio",
+  // "Directory" lives in editor-i18n-es-sections.ts (same value); a second
+  // definition here is the exact cross-file shadowing the guard below pins.
   Draft: "Borrador",
   "Converting…": "Convirtiendo...",
   "Convert to editable page": "Convertir en página editable",

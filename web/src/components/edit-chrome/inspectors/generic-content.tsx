@@ -15,6 +15,7 @@
  */
 
 import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-editors";
+import { SectionEditorI18nProvider } from "@/lib/site-admin/sections/shared/section-editor-i18n";
 import { useEditorLocale } from "../use-editor-locale";
 
 interface GenericContentProps {
@@ -54,15 +55,23 @@ export function GenericContent({
         canonical) — NOT every <details>, so editors are free to use
         <details> for their own content rows without vanishing here.
       */}
-      <Editor
-        initial={draftProps as never}
-        onChange={(next) => {
-          const rest = { ...(next as Record<string, unknown>) };
-          delete rest.presentation;
-          onChange({ ...draftProps, ...rest });
-        }}
-        tenantId={tenantId}
-      />
+      {/*
+        Section Editors live in `lib/site-admin/**`, which may not import
+        edit-chrome (frozen cycle guard). They read their translator from this
+        provider instead, so the panel bodies speak the same locale as the
+        chrome around them.
+      */}
+      <SectionEditorI18nProvider t={t}>
+        <Editor
+          initial={draftProps as never}
+          onChange={(next) => {
+            const rest = { ...(next as Record<string, unknown>) };
+            delete rest.presentation;
+            onChange({ ...draftProps, ...rest });
+          }}
+          tenantId={tenantId}
+        />
+      </SectionEditorI18nProvider>
     </div>
   );
 }

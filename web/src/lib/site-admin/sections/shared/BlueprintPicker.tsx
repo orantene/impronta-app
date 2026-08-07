@@ -11,6 +11,7 @@
 
 import { useState, type ReactElement } from "react";
 import { getBlueprintsFor } from "./blueprints";
+import { useSectionT } from "./section-editor-i18n";
 
 interface Props<T extends Record<string, unknown>> {
   sectionTypeKey: string;
@@ -23,6 +24,7 @@ export function BlueprintPicker<T extends Record<string, unknown>>({
   current,
   onApply,
 }: Props<T>): ReactElement | null {
+  const t = useSectionT();
   const blueprints = getBlueprintsFor(sectionTypeKey);
   const [appliedSlug, setAppliedSlug] = useState<string | null>(null);
   if (blueprints.length === 0) return null;
@@ -30,9 +32,9 @@ export function BlueprintPicker<T extends Record<string, unknown>>({
   return (
     <details className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
       <summary className="cursor-pointer select-none text-sm font-medium">
-        Layout blueprints
+        {t("Layout blueprints")}
         <span className="ml-2 text-xs font-normal text-muted-foreground">
-          One-click shape presets
+          {t("One-click shape presets")}
         </span>
       </summary>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -51,20 +53,22 @@ export function BlueprintPicker<T extends Record<string, unknown>>({
                   ? "border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                   : "border-border/60 bg-background hover:border-zinc-400"
               }`}
-              title={bp.description}
+              title={t(bp.description)}
             >
               <span className={`text-[11px] font-semibold ${isApplied ? "text-zinc-900" : "text-foreground"}`}>
-                {bp.label}
+                {t(bp.label)}
               </span>
               <span className={`line-clamp-2 text-[10px] leading-snug ${isApplied ? "text-zinc-600" : "text-muted-foreground"}`}>
-                {bp.description}
+                {t(bp.description)}
               </span>
             </button>
           );
         })}
       </div>
       <p className="mt-2 text-[10px] text-muted-foreground">
-        Blueprints overwrite layout fields only; your copy stays. Click Save draft to persist.
+        {t(
+          "Blueprints overwrite layout fields only; your copy stays. Click Save draft to persist.",
+        )}
       </p>
     </details>
   );

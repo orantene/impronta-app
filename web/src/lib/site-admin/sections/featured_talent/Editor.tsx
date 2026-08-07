@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { coerceLegacyHref } from "../../links/link-ref";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import {
@@ -43,6 +44,7 @@ export function FeaturedTalentEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<FeaturedTalentV1>) {
+  const t = useSectionT();
   const value: FeaturedTalentV1 = {
     eyebrow: initial.eyebrow ?? "Featured collective",
     headline: initial.headline ?? "",
@@ -91,22 +93,24 @@ export function FeaturedTalentEditor({
       <div className="rounded-lg border border-violet-300/70 bg-violet-50 p-3 text-violet-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">V11 featured talent preset</p>
+            <p className="text-sm font-semibold">
+              {t("V11 featured talent preset")}
+            </p>
             <p className="mt-0.5 text-xs leading-relaxed text-violet-800">
-              Applies the prototype treatment: centered title, four-card noir
-              grid, cinematic image grade, bookmark glyphs, outline actions,
-              and an Explore Talent footer link.
+              {t(
+                "Applies the prototype treatment: centered title, four-card noir grid, cinematic image grade, bookmark glyphs, outline actions, and an Explore Talent footer link.",
+              )}
             </p>
           </div>
           <button type="button" className={BUTTON_PRIMARY} onClick={applyV11Preset}>
-            Apply full preset
+            {t("Apply full preset")}
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             maxLength={60}
@@ -115,31 +119,31 @@ export function FeaturedTalentEditor({
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>Headline</span>
+          <span className={LABEL}>{t("Headline")}</span>
           <RichEditor
             value={value.headline ?? ""}
             onChange={(next) => patch({ headline: next })}
             variant="single"
             tenantId={tenantId}
-            ariaLabel="Headline"
+            ariaLabel={t("Headline")}
           />
         </div>
       </div>
 
       <div className={FIELD}>
-        <span className={LABEL}>Copy</span>
+        <span className={LABEL}>{t("Copy")}</span>
         <RichEditor
           value={value.copy ?? ""}
           onChange={(next) => patch({ copy: next })}
           variant="multi"
           tenantId={tenantId}
-          ariaLabel="Copy"
+          ariaLabel={t("Copy")}
         />
       </div>
 
       <VariantPicker
         name="featured_talent.variant"
-        legend="Layout"
+        legend={t("Layout")}
         sectionKey="featured_talent"
         options={LAYOUT_VARIANTS}
         value={value.variant}
@@ -148,7 +152,7 @@ export function FeaturedTalentEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Section preset</span>
+          <span className={LABEL}>{t("Section preset")}</span>
           <select
             className={INPUT}
             value={value.layoutPreset ?? "standard"}
@@ -159,12 +163,12 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="standard">Standard</option>
-            <option value="v11-showcase">V11 showcase</option>
+            <option value="standard">{t("Standard")}</option>
+            <option value="v11-showcase">{t("V11 showcase")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Header alignment</span>
+          <span className={LABEL}>{t("Header alignment")}</span>
           <select
             className={INPUT}
             value={value.headerAlign ?? "split"}
@@ -175,13 +179,13 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="split">Split</option>
-            <option value="left">Left</option>
-            <option value="center">Center</option>
+            <option value="split">{t("Split")}</option>
+            <option value="left">{t("Left")}</option>
+            <option value="center">{t("Center")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Card chrome</span>
+          <span className={LABEL}>{t("Card chrome")}</span>
           <select
             className={INPUT}
             value={value.cardChrome ?? "standard"}
@@ -192,12 +196,12 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="standard">Theme default</option>
-            <option value="v11-noir">V11 noir</option>
+            <option value="standard">{t("Theme default")}</option>
+            <option value="v11-noir">{t("V11 noir")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Image treatment</span>
+          <span className={LABEL}>{t("Image treatment")}</span>
           <select
             className={INPUT}
             value={value.imageTreatment ?? "natural"}
@@ -208,12 +212,12 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="natural">Natural</option>
-            <option value="cinematic">Cinematic</option>
+            <option value="natural">{t("Natural")}</option>
+            <option value="cinematic">{t("Cinematic")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Action style</span>
+          <span className={LABEL}>{t("Action style")}</span>
           <select
             className={INPUT}
             value={value.actionStyle ?? "primary-duo"}
@@ -224,8 +228,8 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="primary-duo">Primary request</option>
-            <option value="outline-duo">Outline duo</option>
+            <option value="primary-duo">{t("Primary request")}</option>
+            <option value="outline-duo">{t("Outline duo")}</option>
           </select>
         </label>
         <label className="flex items-center gap-2 self-end text-sm">
@@ -234,13 +238,13 @@ export function FeaturedTalentEditor({
             checked={value.showBookmarkIcon === true}
             onChange={(e) => patch({ showBookmarkIcon: e.target.checked })}
           />
-          Show bookmark glyph
+          {t("Show bookmark glyph")}
         </label>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Source mode</span>
+          <span className={LABEL}>{t("Source mode")}</span>
           <select
             className={INPUT}
             value={value.sourceMode}
@@ -250,15 +254,19 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="auto_featured_flag">Auto by featured flag</option>
-            <option value="auto_recent">Auto by most recent</option>
-            <option value="auto_by_service">Auto by service</option>
-            <option value="auto_by_destination">Auto by destination</option>
-            <option value="manual_pick">Manual pick</option>
+            <option value="auto_featured_flag">
+              {t("Auto by featured flag")}
+            </option>
+            <option value="auto_recent">{t("Auto by most recent")}</option>
+            <option value="auto_by_service">{t("Auto by service")}</option>
+            <option value="auto_by_destination">
+              {t("Auto by destination")}
+            </option>
+            <option value="manual_pick">{t("Manual pick")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Limit</span>
+          <span className={LABEL}>{t("Limit")}</span>
           <input
             className={INPUT}
             type="number"
@@ -273,7 +281,7 @@ export function FeaturedTalentEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Columns (desktop)</span>
+          <span className={LABEL}>{t("Columns (desktop)")}</span>
           <input
             className={INPUT}
             type="number"
@@ -291,7 +299,7 @@ export function FeaturedTalentEditor({
 
       {value.sourceMode === "auto_by_service" ? (
         <label className={FIELD}>
-          <span className={LABEL}>Service slug</span>
+          <span className={LABEL}>{t("Service slug")}</span>
           <input
             className={INPUT}
             placeholder="bridal-makeup"
@@ -303,7 +311,7 @@ export function FeaturedTalentEditor({
 
       {value.sourceMode === "auto_by_destination" ? (
         <label className={FIELD}>
-          <span className={LABEL}>Destination slug</span>
+          <span className={LABEL}>{t("Destination slug")}</span>
           <input
             className={INPUT}
             placeholder="tulum"
@@ -315,7 +323,7 @@ export function FeaturedTalentEditor({
 
       {value.sourceMode === "manual_pick" ? (
         <div className="flex flex-col gap-2">
-          <span className={LABEL}>Pick talent</span>
+          <span className={LABEL}>{t("Pick talent")}</span>
           <TalentPicker
             selected={value.manualProfileCodes ?? []}
             onChange={(codes) =>
@@ -324,7 +332,7 @@ export function FeaturedTalentEditor({
           />
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer">
-              Advanced: paste profile codes
+              {t("Advanced: paste profile codes")}
             </summary>
             <input
               className={`${INPUT} mt-1.5`}
@@ -346,7 +354,7 @@ export function FeaturedTalentEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Footer CTA label</span>
+          <span className={LABEL}>{t("Footer CTA label")}</span>
           <input
             className={INPUT}
             value={value.footerCta?.label ?? ""}
@@ -363,7 +371,7 @@ export function FeaturedTalentEditor({
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>Footer CTA href</span>
+          <span className={LABEL}>{t("Footer CTA href")}</span>
           <LinkKindPicker
             value={value.footerCta?.href}
             onChange={(next) =>
@@ -379,7 +387,7 @@ export function FeaturedTalentEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Card variant</span>
+          <span className={LABEL}>{t("Card variant")}</span>
           <select
             className={INPUT}
             value={value.cardVariant ?? "editorial"}
@@ -390,17 +398,17 @@ export function FeaturedTalentEditor({
               })
             }
           >
-            <option value="editorial">Editorial</option>
-            <option value="compact">Compact</option>
-            <option value="minimal">Minimal</option>
-            <option value="profile">Profile</option>
+            <option value="editorial">{t("Editorial")}</option>
+            <option value="compact">{t("Compact")}</option>
+            <option value="minimal">{t("Minimal")}</option>
+            <option value="profile">{t("Profile")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Empty-state text</span>
+          <span className={LABEL}>{t("Empty-state text")}</span>
           <input
             className={INPUT}
-            placeholder="No talent to show yet."
+            placeholder={t("No talent to show yet.")}
             value={value.emptyStateText ?? ""}
             onChange={(e) => patch({ emptyStateText: e.target.value })}
           />
@@ -408,7 +416,7 @@ export function FeaturedTalentEditor({
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <span className={LABEL}>Card fields</span>
+        <span className={LABEL}>{t("Card fields")}</span>
         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
           {(
             [
@@ -429,7 +437,7 @@ export function FeaturedTalentEditor({
                   patch({ [key]: e.target.checked } as Partial<FeaturedTalentV1>)
                 }
               />
-              {label}
+              {t(label)}
             </label>
           ))}
           <label className="flex items-center gap-2">
@@ -440,23 +448,22 @@ export function FeaturedTalentEditor({
                 patch({ parentCategoryDisplay: e.target.checked })
               }
             />
-            Parent category *
+            {t("Parent category *")}
           </label>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Secondary type and languages render real profile data when the
-          source is a manual pick, service or destination. * Availability
-          and parent-category have no reliable public source yet, so these
-          toggles persist but never render fabricated data.
+          {t(
+            "Secondary type and languages render real profile data when the source is a manual pick, service or destination. * Availability and parent-category have no reliable public source yet, so these toggles persist but never render fabricated data.",
+          )}
         </p>
       </fieldset>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Request CTA label</span>
+          <span className={LABEL}>{t("Request CTA label")}</span>
           <input
             className={INPUT}
-            placeholder="Request"
+            placeholder={t("Request")}
             value={value.requestCta?.label ?? ""}
             onChange={(e) =>
               patch({
@@ -471,7 +478,7 @@ export function FeaturedTalentEditor({
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>Request CTA href</span>
+          <span className={LABEL}>{t("Request CTA href")}</span>
           <LinkKindPicker
             value={value.requestCta?.href}
             onChange={(next) =>
@@ -508,6 +515,7 @@ function TalentPicker({
   selected: string[];
   onChange: (codes: string[]) => void;
 }) {
+  const t = useSectionT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TenantTalentPick[]>([]);
   const [loading, setLoading] = useState(false);
@@ -522,11 +530,11 @@ function TalentPicker({
       if (res.ok) setResults(res.results);
       else setErr(res.error);
     } catch {
-      setErr("Could not search talent.");
+      setErr(t("Could not search talent."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const onQuery = (q: string) => {
     setQuery(q);
@@ -553,7 +561,7 @@ function TalentPicker({
               {code}
               <button
                 type="button"
-                aria-label={`Remove ${code}`}
+                aria-label={t("Remove {name}").replace("{name}", code)}
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => remove(code)}
               >
@@ -565,12 +573,12 @@ function TalentPicker({
       ) : null}
       <input
         className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm"
-        placeholder="Search roster by name, code or city…"
+        placeholder={t("Search roster by name, code or city…")}
         value={query}
         onChange={(e) => onQuery(e.target.value)}
       />
       {loading ? (
-        <p className="text-xs text-muted-foreground">Searching…</p>
+        <p className="text-xs text-muted-foreground">{t("Searching…")}</p>
       ) : err ? (
         <p className="text-xs text-destructive">{err}</p>
       ) : results.length > 0 ? (
@@ -593,7 +601,7 @@ function TalentPicker({
                     </span>
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {picked ? "Added" : "Add"}
+                    {picked ? t("Added") : t("Add")}
                   </span>
                 </button>
               </li>
@@ -601,7 +609,9 @@ function TalentPicker({
           })}
         </ul>
       ) : query.trim().length > 0 ? (
-        <p className="text-xs text-muted-foreground">No matches on roster.</p>
+        <p className="text-xs text-muted-foreground">
+          {t("No matches on roster.")}
+        </p>
       ) : null}
     </div>
   );

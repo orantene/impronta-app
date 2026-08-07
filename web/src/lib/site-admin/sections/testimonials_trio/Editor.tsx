@@ -3,6 +3,7 @@
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import type { TestimonialsTrioV1, TestimonialsTrioItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -14,6 +15,7 @@ export function TestimonialsTrioEditor({
   initial,
   onChange,
 }: SectionEditorProps<TestimonialsTrioV1>) {
+  const t = useSectionT();
   const value: TestimonialsTrioV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "",
@@ -32,23 +34,23 @@ export function TestimonialsTrioEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
-          <input className={INPUT} maxLength={60} value={value.eyebrow ?? ""} onChange={(e) => patch({ eyebrow: e.target.value })} placeholder="Couples & planners" />
+          <span className={LABEL}>{t("Eyebrow")}</span>
+          <input className={INPUT} maxLength={60} value={value.eyebrow ?? ""} onChange={(e) => patch({ eyebrow: e.target.value })} placeholder={t("Couples & planners")} />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Headline</span>
-          <input className={INPUT} maxLength={200} value={value.headline ?? ""} onChange={(e) => patch({ headline: e.target.value })} placeholder="Words from the people we work for." />
+          <span className={LABEL}>{t("Headline")}</span>
+          <input className={INPUT} maxLength={200} value={value.headline ?? ""} onChange={(e) => patch({ headline: e.target.value })} placeholder={t("Words from the people we work for.")} />
         </label>
       </div>
 
       <VariantPicker
         name="testimonials_trio.variant"
-        legend="Variant"
+        legend={t("Variant")}
         sectionKey="testimonials_trio"
         options={[
-          { value: "trio-card", label: "Trio card", hint: "Three accent cards in a row.", schematic: "grid" },
-          { value: "single-hero", label: "Single hero", hint: "One oversized pull-quote.", schematic: "overlay" },
-          { value: "carousel-row", label: "Carousel row", hint: "Horizontal scroll rail.", schematic: "carousel" },
+          { value: "trio-card", label: t("Trio card"), hint: t("Three accent cards in a row."), schematic: "grid" },
+          { value: "single-hero", label: t("Single hero"), hint: t("One oversized pull-quote."), schematic: "overlay" },
+          { value: "carousel-row", label: t("Carousel row"), hint: t("Horizontal scroll rail."), schematic: "carousel" },
         ]}
         value={value.variant}
         onChange={(next) => patch({ variant: next })}
@@ -56,20 +58,22 @@ export function TestimonialsTrioEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-1">
         <label className={FIELD}>
-          <span className={LABEL}>Default accent</span>
+          <span className={LABEL}>{t("Default accent")}</span>
           <select className={INPUT} value={value.defaultAccent} onChange={(e) => patch({ defaultAccent: e.target.value as TestimonialsTrioV1["defaultAccent"] })}>
-            <option value="auto">Auto (cycle blush → sage → champagne)</option>
-            <option value="blush">Blush</option>
-            <option value="sage">Sage</option>
-            <option value="champagne">Champagne</option>
-            <option value="ivory">Ivory</option>
+            <option value="auto">{t("Auto (cycle blush → sage → champagne)")}</option>
+            <option value="blush">{t("Blush")}</option>
+            <option value="sage">{t("Sage")}</option>
+            <option value="champagne">{t("Champagne")}</option>
+            <option value="ivory">{t("Ivory")}</option>
           </select>
         </label>
       </div>
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className={LABEL}>Items ({value.items.length} / 4)</span>
+          <span className={LABEL}>
+            {t("Items ({count} / 4)").replace("{count}", String(value.items.length))}
+          </span>
           <button
             type="button"
             onClick={() =>
@@ -79,7 +83,7 @@ export function TestimonialsTrioEditor({
             disabled={value.items.length >= 4}
             className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50"
           >
-            + Add
+            {t("+ Add")}
           </button>
         </div>
         {value.items.map((item, i) => (
@@ -89,26 +93,26 @@ export function TestimonialsTrioEditor({
               maxLength={360}
               value={item.quote}
               onChange={(e) => patchItem(i, { quote: e.target.value })}
-              placeholder="Quote"
+              placeholder={t("Quote")}
             />
             <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
               <input
                 className={INPUT}
-                placeholder="Author (e.g. Priya & Dev)"
+                placeholder={t("Author (e.g. Priya & Dev)")}
                 maxLength={80}
                 value={item.author ?? ""}
                 onChange={(e) => patchItem(i, { author: e.target.value })}
               />
               <input
                 className={INPUT}
-                placeholder="Context (e.g. Three-day celebration)"
+                placeholder={t("Context (e.g. Three-day celebration)")}
                 maxLength={120}
                 value={item.context ?? ""}
                 onChange={(e) => patchItem(i, { context: e.target.value })}
               />
               <input
                 className={INPUT}
-                placeholder="Location (e.g. Amalfi Coast)"
+                placeholder={t("Location (e.g. Amalfi Coast)")}
                 maxLength={120}
                 value={item.location ?? ""}
                 onChange={(e) => patchItem(i, { location: e.target.value })}
@@ -116,7 +120,7 @@ export function TestimonialsTrioEditor({
             </div>
             <div className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground">Accent:</span>
+                <span className="text-muted-foreground">{t("Accent:")}</span>
                 <select
                   className={INPUT}
                   value={item.accent ?? ""}
@@ -126,11 +130,11 @@ export function TestimonialsTrioEditor({
                     })
                   }
                 >
-                  <option value="">Use default</option>
-                  <option value="blush">Blush</option>
-                  <option value="sage">Sage</option>
-                  <option value="champagne">Champagne</option>
-                  <option value="ivory">Ivory</option>
+                  <option value="">{t("Use default")}</option>
+                  <option value="blush">{t("Blush")}</option>
+                  <option value="sage">{t("Sage")}</option>
+                  <option value="champagne">{t("Champagne")}</option>
+                  <option value="ivory">{t("Ivory")}</option>
                 </select>
               </label>
               <button
@@ -139,7 +143,7 @@ export function TestimonialsTrioEditor({
                 onClick={() => patch({ items: value.items.filter((_, j) => j !== i) })}
                 className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-30"
               >
-                Remove
+                {t("Remove")}
               </button>
             </div>
           </div>

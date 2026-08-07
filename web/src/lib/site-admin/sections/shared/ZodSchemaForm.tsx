@@ -44,6 +44,7 @@ import { AltTextField } from "./AltTextField";
 import { BlueprintPicker } from "./BlueprintPicker";
 import { LocalizedTextInput } from "./LocalizedTextInput";
 import type { I18nString } from "./i18n-text";
+import { useSectionT } from "./section-editor-i18n";
 import { AiRewriteButton } from "@/components/edit-chrome/inspectors/AiRewriteButton";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import {
@@ -82,6 +83,7 @@ export function ZodSchemaForm<T>({
   excludeKeys,
   sectionTypeKey,
 }: ZodSchemaFormProps<T>) {
+  const t = useSectionT();
   const fields = introspectSectionSchema(schema).filter(
     (f) => !excludeKeys?.includes(f.name),
   );
@@ -123,14 +125,14 @@ export function ZodSchemaForm<T>({
       ) : null}
 
       {primaryBlock && groups.length > 0 ? (
-        <InspectorGroup title="Content">{primaryBlock}</InspectorGroup>
+        <InspectorGroup title={t("Content")}>{primaryBlock}</InspectorGroup>
       ) : (
         primaryBlock
       )}
 
       {groups.map((f) => {
         const advanced = ADVANCED_GROUP_NAMES.has(f.name);
-        const base = GROUP_LABEL_OVERRIDES[f.name] ?? f.label;
+        const base = t(GROUP_LABEL_OVERRIDES[f.name] ?? f.label);
         const count =
           f.kind === "array_of_objects" && Array.isArray(props[f.name])
             ? (props[f.name] as unknown[]).length
@@ -222,6 +224,7 @@ function FieldNode({
   tenantId,
   sectionTypeKey,
 }: FieldNodeProps) {
+  const t = useSectionT();
   // ---- 6C structured LinkRef field (linkRefOrLegacy) ------------------
   // Checked BEFORE the legacy `href` hint so migrated fields get the
   // structured picker while plain z.string() href fields keep LinkPicker.
@@ -229,7 +232,7 @@ function FieldNode({
     return (
       <div className={KIT.field}>
         <span className={KIT.label}>
-          {field.label}
+          {t(field.label)}
           {field.optional ? "" : " *"}
         </span>
         <LinkKindPicker
@@ -238,7 +241,7 @@ function FieldNode({
           tenantId={tenantId}
         />
         {field.description ? (
-          <span className={KIT.hint}>{field.description}</span>
+          <span className={KIT.hint}>{t(field.description)}</span>
         ) : null}
       </div>
     );
@@ -249,7 +252,7 @@ function FieldNode({
     return (
       <div className={KIT.field}>
         <span className={KIT.label}>
-          {field.label}
+          {t(field.label)}
           {field.optional ? "" : " *"}
         </span>
         <LinkPicker
@@ -278,7 +281,7 @@ function FieldNode({
     return (
       <div className={KIT.field}>
         <span className={KIT.label}>
-          {field.label}
+          {t(field.label)}
           {field.optional ? "" : " *"}
         </span>
         <div className="flex items-center gap-2">
@@ -306,12 +309,12 @@ function FieldNode({
       typeof field.max === "number" ? field.max > 240 : false;
     return (
       <LocalizedTextInput
-        label={field.label + (field.optional ? "" : " *")}
+        label={t(field.label) + (field.optional ? "" : " *")}
         value={value as I18nString | undefined}
         onChange={(next) => onChange(next)}
         multiline={longish}
         maxLength={field.max}
-        hint={field.description}
+        hint={field.description ? t(field.description) : undefined}
         rich={field.hint === "rich_text"}
         tenantId={tenantId}
       />
@@ -336,7 +339,7 @@ function FieldNode({
         <label className={KIT.field}>
           <div className="flex items-center justify-between gap-2">
             <span className={KIT.label}>
-              {field.label}
+              {t(field.label)}
               {field.optional ? "" : " *"}
             </span>
             {aiEligible && sectionTypeKey ? (
@@ -357,7 +360,7 @@ function FieldNode({
               }
               variant="single"
               tenantId={tenantId}
-              ariaLabel={field.label}
+              ariaLabel={t(field.label)}
             />
           ) : (
             <input
@@ -371,7 +374,7 @@ function FieldNode({
             />
           )}
           {field.description ? (
-            <span className={KIT.hint}>{field.description}</span>
+            <span className={KIT.hint}>{t(field.description)}</span>
           ) : null}
         </label>
       );
@@ -381,7 +384,7 @@ function FieldNode({
         <label className={KIT.field}>
           <div className="flex items-center justify-between gap-2">
             <span className={KIT.label}>
-              {field.label}
+              {t(field.label)}
               {field.optional ? "" : " *"}
             </span>
             {aiEligible && sectionTypeKey ? (
@@ -402,7 +405,7 @@ function FieldNode({
               }
               variant="multi"
               tenantId={tenantId}
-              ariaLabel={field.label}
+              ariaLabel={t(field.label)}
             />
           ) : (
             <textarea
@@ -416,7 +419,7 @@ function FieldNode({
             />
           )}
           {field.description ? (
-            <span className={KIT.hint}>{field.description}</span>
+            <span className={KIT.hint}>{t(field.description)}</span>
           ) : null}
         </label>
       );
@@ -425,7 +428,7 @@ function FieldNode({
       return (
         <label className={KIT.field}>
           <span className={KIT.label}>
-            {field.label}
+            {t(field.label)}
             {field.optional ? "" : " *"}
           </span>
           <input
@@ -453,7 +456,7 @@ function FieldNode({
             checked={Boolean(value ?? field.defaultValue ?? false)}
             onChange={(e) => onChange(e.target.checked)}
           />
-          <span className={KIT.label}>{field.label}</span>
+          <span className={KIT.label}>{t(field.label)}</span>
         </label>
       );
 
@@ -467,7 +470,7 @@ function FieldNode({
         return (
           <div className={KIT.field}>
             <span className={KIT.label}>
-              {field.label}
+              {t(field.label)}
               {field.optional ? "" : " *"}
             </span>
             <div className="flex flex-wrap gap-1.5">
@@ -480,7 +483,7 @@ function FieldNode({
                     onClick={() => onChange(o)}
                     className={active ? KIT.enumChipOn : KIT.enumChipOff}
                   >
-                    {humanizeEnumValue(o)}
+                    {t(humanizeEnumValue(o))}
                   </button>
                 );
               })}
@@ -491,7 +494,7 @@ function FieldNode({
       return (
         <label className={KIT.field}>
           <span className={KIT.label}>
-            {field.label}
+            {t(field.label)}
             {field.optional ? "" : " *"}
           </span>
           <select
@@ -502,7 +505,7 @@ function FieldNode({
             {field.optional ? <option value="">—</option> : null}
             {field.options?.map((o) => (
               <option key={o} value={o}>
-                {humanizeEnumValue(o)}
+                {t(humanizeEnumValue(o))}
               </option>
             ))}
           </select>
@@ -514,7 +517,7 @@ function FieldNode({
       return (
         <label className={KIT.field}>
           <span className={KIT.label}>
-            {field.label} (one per line)
+            {t(field.label)} ({t("one per line")})
             {field.optional ? "" : " *"}
           </span>
           <textarea
@@ -553,7 +556,7 @@ function FieldNode({
       // path is the nested case only, so it keeps a light bordered card.
       return (
         <div className="flex flex-col gap-2.5 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/60 p-3">
-          <span className={KIT.groupTitle}>{field.label}</span>
+          <span className={KIT.groupTitle}>{t(field.label)}</span>
           <div className="flex flex-col gap-3">
             {field.children?.map((child) => {
               const obj = (value as Record<string, unknown>) ?? {};
@@ -575,7 +578,7 @@ function FieldNode({
     default:
       return (
         <div className="text-[11px] italic text-stone-500">
-          (unsupported field {field.name})
+          ({t("unsupported field")} {field.name})
         </div>
       );
   }
@@ -597,6 +600,7 @@ function ArrayOfObjectsField({
   tenantId,
   headerless = false,
 }: ArrayOfObjectsFieldProps) {
+  const t = useSectionT();
   const min = field.min ?? 0;
   const max = field.max ?? 50;
   const blank: Record<string, unknown> = {};
@@ -620,7 +624,7 @@ function ArrayOfObjectsField({
       {!headerless ? (
         <div className="flex items-center justify-between">
           <span className={KIT.label}>
-            {field.label} ({value.length}
+            {t(field.label)} ({value.length}
             {max ? ` / ${max}` : ""})
           </span>
         </div>
@@ -649,7 +653,7 @@ function ArrayOfObjectsField({
         onClick={() => onChange([...value, { ...blank }])}
         className={`${KIT.ghostButton} self-start disabled:cursor-not-allowed disabled:opacity-50`}
       >
-        + Add
+        + {t("Add")}
       </button>
     </div>
   );
@@ -677,8 +681,9 @@ function ArrayItemCard({
   onRemove: () => void;
   tenantId?: string;
 }) {
+  const t = useSectionT();
   const [open, setOpen] = useState(false);
-  const summary = deriveItemSummary(field.children, item, index);
+  const summary = deriveItemSummary(field.children, item, index, t("Item {n}"));
 
   return (
     <div className="overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6]">

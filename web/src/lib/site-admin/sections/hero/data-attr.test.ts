@@ -46,7 +46,13 @@ test("hero/Editor.tsx includes the layout select with a11y attributes", () => {
   const editorSrc = readFileSync(resolve(here, "Editor.tsx"), "utf-8");
   assert.ok(editorSrc.includes("hero-layout-hint"), "hint id must be 'hero-layout-hint'");
   assert.ok(editorSrc.includes('aria-describedby="hero-layout-hint"'), "select must reference the hint");
-  assert.ok(editorSrc.includes('aria-label="Hero layout variant"'), "select must have an aria-label");
+  // The label went through `t()` in the wave-4.5 Spanish pass, so match either
+  // the literal attribute or the translated form. What is being locked is that
+  // the aria-label EXISTS with this text, not how it reaches the attribute.
+  assert.ok(
+    /aria-label=(?:"Hero layout variant"|\{t\("Hero layout variant"\)\})/.test(editorSrc),
+    "select must have an aria-label",
+  );
 });
 
 test("globals.css contains data-hero-layout rules for both split variants", () => {

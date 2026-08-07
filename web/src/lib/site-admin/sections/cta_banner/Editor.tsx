@@ -6,6 +6,7 @@ import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { AltTextField } from "../shared/AltTextField";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import { coerceLegacyHref } from "../../links/link-ref";
 import type { CtaBannerV1 } from "./schema";
@@ -20,6 +21,7 @@ export function CtaBannerEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<CtaBannerV1>) {
+  const t = useSectionT();
   const value: CtaBannerV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "Tell us about your celebration.",
@@ -44,59 +46,61 @@ export function CtaBannerEditor({
       {/* ── Copy ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             maxLength={60}
-            placeholder="Ready when you are"
+            placeholder={t("Ready when you are")}
             value={value.eyebrow ?? ""}
             onChange={(e) => patch({ eyebrow: e.target.value })}
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>Headline *</span>
+          <span className={LABEL}>{t("Headline *")}</span>
           <RichEditor
             value={value.headline}
             onChange={(next) => patch({ headline: next })}
             variant="single"
             tenantId={tenantId}
-            placeholder="Tell us about your celebration."
-            ariaLabel="Headline"
+            placeholder={t("Tell us about your celebration.")}
+            ariaLabel={t("Headline")}
           />
         </div>
       </div>
 
       <div className={FIELD}>
-        <span className={LABEL}>Copy</span>
+        <span className={LABEL}>{t("Copy")}</span>
         <RichEditor
           value={value.copy ?? ""}
           onChange={(next) => patch({ copy: next || undefined })}
           variant="multi"
           tenantId={tenantId}
-          placeholder="Share a few details and your concierge will return a curated team."
-          ariaLabel="Copy"
+          placeholder={t(
+            "Share a few details and your concierge will return a curated team.",
+          )}
+          ariaLabel={t("Copy")}
         />
       </div>
 
       <div className={FIELD}>
-        <span className={LABEL}>Reassurance (italic)</span>
+        <span className={LABEL}>{t("Reassurance (italic)")}</span>
         <RichEditor
           value={value.reassurance ?? ""}
           onChange={(next) => patch({ reassurance: next || undefined })}
           variant="single"
           tenantId={tenantId}
-          placeholder="Quiet, unhurried, always in the same key."
-          ariaLabel="Reassurance"
+          placeholder={t("Quiet, unhurried, always in the same key.")}
+          ariaLabel={t("Reassurance")}
         />
       </div>
 
       {/* ── CTAs ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className={FIELD}>
-          <span className={LABEL}>Primary CTA</span>
+          <span className={LABEL}>{t("Primary CTA")}</span>
           <input
             className={INPUT}
-            placeholder="Label"
+            placeholder={t("Label")}
             value={value.primaryCta?.label ?? ""}
             onChange={(e) =>
               patch({
@@ -123,10 +127,10 @@ export function CtaBannerEditor({
           />
         </div>
         <div className={FIELD}>
-          <span className={LABEL}>Secondary CTA</span>
+          <span className={LABEL}>{t("Secondary CTA")}</span>
           <input
             className={INPUT}
-            placeholder="Label (optional)"
+            placeholder={t("Label (optional)")}
             value={value.secondaryCta?.label ?? ""}
             onChange={(e) =>
               patch({
@@ -156,25 +160,25 @@ export function CtaBannerEditor({
       {/* ── Presentation ───────────────────────────────────── */}
       <VariantPicker
         name="cta_banner.variant"
-        legend="Variant"
+        legend={t("Variant")}
         sectionKey="cta_banner"
         options={[
           {
             value: "centered-overlay",
-            label: "Centered overlay",
-            hint: "Full-bleed image, text centered over it.",
+            label: t("Centered overlay"),
+            hint: t("Full-bleed image, text centered over it."),
             schematic: "overlay",
           },
           {
             value: "split-image",
-            label: "Split image",
-            hint: "Image on one side, text + CTAs on the other.",
+            label: t("Split image"),
+            hint: t("Image on one side, text + CTAs on the other."),
             schematic: "split",
           },
           {
             value: "minimal-band",
-            label: "Minimal band",
-            hint: "Flat band, no image. Great for high-density pages.",
+            label: t("Minimal band"),
+            hint: t("Flat band, no image. Great for high-density pages."),
             schematic: "band",
           },
         ]}
@@ -184,7 +188,7 @@ export function CtaBannerEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Image side (split)</span>
+          <span className={LABEL}>{t("Image side (split)")}</span>
           <select
             className={INPUT}
             value={value.imageSide}
@@ -193,13 +197,13 @@ export function CtaBannerEditor({
               patch({ imageSide: e.target.value as CtaBannerV1["imageSide"] })
             }
           >
-            <option value="right">Right</option>
-            <option value="left">Left</option>
+            <option value="right">{t("Right")}</option>
+            <option value="left">{t("Left")}</option>
           </select>
         </label>
 
         <label className={FIELD}>
-          <span className={LABEL}>Band tone (minimal)</span>
+          <span className={LABEL}>{t("Band tone (minimal)")}</span>
           <select
             className={INPUT}
             value={value.bandTone}
@@ -208,22 +212,22 @@ export function CtaBannerEditor({
               patch({ bandTone: e.target.value as CtaBannerV1["bandTone"] })
             }
           >
-            <option value="ivory">Ivory</option>
-            <option value="champagne">Champagne</option>
-            <option value="espresso">Espresso</option>
-            <option value="blush">Blush</option>
+            <option value="ivory">{t("Ivory")}</option>
+            <option value="champagne">{t("Champagne")}</option>
+            <option value="espresso">{t("Espresso")}</option>
+            <option value="blush">{t("Blush")}</option>
           </select>
         </label>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Background image URL</span>
+          <span className={LABEL}>{t("Background image URL")}</span>
           <div className="flex items-center gap-2">
             <input
               className={`${INPUT} flex-1`}
               maxLength={2048}
-              placeholder="https://… (or leave blank)"
+              placeholder={t("https://… (or leave blank)")}
               value={value.backgroundImageUrl ?? ""}
               onChange={(e) =>
                 patch({ backgroundImageUrl: e.target.value || undefined })
@@ -233,7 +237,7 @@ export function CtaBannerEditor({
               <MediaPicker
                 tenantId={tenantId}
                 onPick={(url) => patch({ backgroundImageUrl: url })}
-                label="Library"
+                label={t("Library")}
               />
             ) : null}
           </div>
@@ -246,7 +250,7 @@ export function CtaBannerEditor({
           </div>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Overlay darkness (0–100)</span>
+          <span className={LABEL}>{t("Overlay darkness (0–100)")}</span>
           <input
             className={INPUT}
             type="number"
@@ -266,7 +270,7 @@ export function CtaBannerEditor({
             checked={value.insetCard}
             onChange={(e) => patch({ insetCard: e.target.checked })}
           />
-          <span className="text-sm">Render as inset card</span>
+          <span className="text-sm">{t("Render as inset card")}</span>
         </label>
       </div>
 

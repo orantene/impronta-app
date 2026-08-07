@@ -8,6 +8,7 @@ import { AltTextField } from "../shared/AltTextField";
 import { BlueprintPicker } from "../shared/BlueprintPicker";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { coerceLegacyHref } from "../../links/link-ref";
 import type { HeroSlide, HeroV1 } from "./schema";
 
@@ -87,6 +88,7 @@ export function HeroEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<HeroV1>) {
+  const t = useSectionT();
   const [state, setState] = useState<HeroV1>(initial);
 
   function commit(next: HeroV1) {
@@ -170,7 +172,9 @@ export function HeroEditor({
   return (
     <div className="flex flex-col gap-6 text-sm">
       <p className={`${HINT} rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-[11px] leading-relaxed`}>
-        Nested blocks are arranged on the canvas and in Structure. Use this tab for hero copy, imagery, and CTAs.
+        {t(
+          "Nested blocks are arranged on the canvas and in Structure. Use this tab for hero copy, imagery, and CTAs.",
+        )}
       </p>
       <BlueprintPicker
         sectionTypeKey="hero"
@@ -179,60 +183,60 @@ export function HeroEditor({
       />
       <div className="grid gap-4 md:grid-cols-2">
         <div className={FIELD}>
-          <span className={LABEL}>Headline</span>
+          <span className={LABEL}>{t("Headline")}</span>
           <RichEditor
             value={state.headline ?? ""}
             onChange={(next) => update("headline", next)}
             variant="single"
             tenantId={tenantId}
-            ariaLabel="Headline"
+            ariaLabel={t("Headline")}
           />
         </div>
         <div className={FIELD}>
-          <span className={LABEL}>Sub-headline</span>
+          <span className={LABEL}>{t("Sub-headline")}</span>
           <RichEditor
             value={state.subheadline ?? ""}
             onChange={(next) => update("subheadline", next || undefined)}
             variant="single"
             tenantId={tenantId}
-            ariaLabel="Sub-headline"
+            ariaLabel={t("Sub-headline")}
           />
         </div>
       </div>
 
       <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
         <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Search and category chips
+          {t("Search and category chips")}
         </legend>
         <div className="grid gap-4 md:grid-cols-3">
           <label className={`${FIELD} md:col-span-2`}>
-            <span className={LABEL}>Search placeholder</span>
+            <span className={LABEL}>{t("Search placeholder")}</span>
             <input
               type="text"
               className={INPUT}
               value={state.search?.placeholder ?? ""}
               maxLength={120}
-              placeholder="Promotional models for a boutique venue opening"
+              placeholder={t("Promotional models for a boutique venue opening")}
               onChange={(e) => updateSearch({ placeholder: e.target.value })}
             />
             <span className={HINT}>
-              Leave blank to hide the search bar for a classic hero.
+              {t("Leave blank to hide the search bar for a classic hero.")}
             </span>
           </label>
           <label className={FIELD}>
-            <span className={LABEL}>Button</span>
+            <span className={LABEL}>{t("Button")}</span>
             <input
               type="text"
               className={INPUT}
               value={state.search?.buttonLabel ?? ""}
               maxLength={40}
-              placeholder="Search"
+              placeholder={t("Search")}
               onChange={(e) => updateSearch({ buttonLabel: e.target.value })}
               disabled={!state.search}
             />
           </label>
           <label className={FIELD}>
-            <span className={LABEL}>Search path</span>
+            <span className={LABEL}>{t("Search path")}</span>
             <input
               type="text"
               className={INPUT}
@@ -246,7 +250,7 @@ export function HeroEditor({
         </div>
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
-            <span className={LABEL}>Category chips</span>
+            <span className={LABEL}>{t("Category chips")}</span>
             <button
               type="button"
               className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40"
@@ -264,13 +268,14 @@ export function HeroEditor({
                 })
               }
             >
-              Add chip
+              {t("Add chip")}
             </button>
           </div>
           {(state.categoryChips ?? []).length === 0 ? (
             <p className="rounded-md bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
-              No category chips. Add chips when this hero should guide visitors
-              into directory filters.
+              {t(
+                "No category chips. Add chips when this hero should guide visitors into directory filters.",
+              )}
             </p>
           ) : (
             <div className="grid gap-2">
@@ -280,7 +285,10 @@ export function HeroEditor({
                     className={INPUT}
                     value={chip.label}
                     maxLength={40}
-                    aria-label={`Category chip ${index + 1} label`}
+                    aria-label={t("Category chip {n} label").replace(
+                      "{n}",
+                      String(index + 1),
+                    )}
                     onChange={(e: ChangeEvent<HTMLInputElement>) =>
                       patchCategoryChip(index, { label: e.target.value })
                     }
@@ -296,7 +304,7 @@ export function HeroEditor({
                     className="rounded-md border border-destructive/40 px-2 py-1 text-xs text-destructive"
                     onClick={() => patchCategoryChip(index, { label: "" })}
                   >
-                    Remove
+                    {t("Remove")}
                   </button>
                 </div>
               ))}
@@ -307,11 +315,11 @@ export function HeroEditor({
 
       <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
         <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Visual treatment
+          {t("Visual treatment")}
         </legend>
         <div className="grid gap-4 md:grid-cols-2">
           <label className={FIELD}>
-            <span className={LABEL}>Mood</span>
+            <span className={LABEL}>{t("Mood")}</span>
             <select
               className={INPUT}
               value={state.mood ?? ""}
@@ -322,20 +330,22 @@ export function HeroEditor({
                 )
               }
             >
-              <option value="">Default (clean)</option>
+              <option value="">{t("Default (clean)")}</option>
               {MOOD_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {t(o.label)}
                 </option>
               ))}
             </select>
             <span className={HINT}>
-              {MOOD_OPTIONS.find((o) => o.value === state.mood)?.hint ??
-                "Drives type scale + spacing rhythm."}
+              {t(
+                MOOD_OPTIONS.find((o) => o.value === state.mood)?.hint ??
+                  "Drives type scale + spacing rhythm.",
+              )}
             </span>
           </label>
           <label className={FIELD}>
-            <span className={LABEL}>Layout</span>
+            <span className={LABEL}>{t("Layout")}</span>
             <select
               className={INPUT}
               value={state.layout ?? ""}
@@ -346,22 +356,24 @@ export function HeroEditor({
                 )
               }
               aria-describedby="hero-layout-hint"
-              aria-label="Hero layout variant"
+              aria-label={t("Hero layout variant")}
             >
-              <option value="">Default (centered)</option>
+              <option value="">{t("Default (centered)")}</option>
               {LAYOUT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {t(o.label)}
                 </option>
               ))}
             </select>
             <span id="hero-layout-hint" className={HINT} role="status" aria-live="polite">
-              {LAYOUT_OPTIONS.find((o) => o.value === state.layout)?.hint ??
-                "Spatial composition. Centered is the editorial default; split variants pair copy with media."}
+              {t(
+                LAYOUT_OPTIONS.find((o) => o.value === state.layout)?.hint ??
+                  "Spatial composition. Centered is the editorial default; split variants pair copy with media.",
+              )}
             </span>
           </label>
           <label className={FIELD}>
-            <span className={LABEL}>Overlay</span>
+            <span className={LABEL}>{t("Overlay")}</span>
             <select
               className={INPUT}
               value={state.overlay ?? ""}
@@ -372,16 +384,18 @@ export function HeroEditor({
                 )
               }
             >
-              <option value="">Default (gradient scrim)</option>
+              <option value="">{t("Default (gradient scrim)")}</option>
               {OVERLAY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {t(o.label)}
                 </option>
               ))}
             </select>
             <span className={HINT}>
-              {OVERLAY_OPTIONS.find((o) => o.value === state.overlay)?.hint ??
-                "Applied above slide imagery, behind copy."}
+              {t(
+                OVERLAY_OPTIONS.find((o) => o.value === state.overlay)?.hint ??
+                  "Applied above slide imagery, behind copy.",
+              )}
             </span>
           </label>
         </div>
@@ -389,17 +403,19 @@ export function HeroEditor({
 
       <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
         <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Slides: lifestyle reel
+          {t("Slides: lifestyle reel")}
         </legend>
         <p className={HINT}>
-          One slide renders as a static hero. Two or more slides trigger the
-          auto-advancing cross-fade reel. Max 8 slides.
+          {t(
+            "One slide renders as a static hero. Two or more slides trigger the auto-advancing cross-fade reel. Max 8 slides.",
+          )}
         </p>
 
         {slides.length === 0 ? (
           <p className="rounded-md bg-muted/30 px-3 py-4 text-xs text-muted-foreground">
-            No slides yet, so the hero falls back to CMS copy with the
-            tenant&rsquo;s default visual treatment.
+            {t(
+              "No slides yet, so the hero falls back to CMS copy with the tenant’s default visual treatment.",
+            )}
           </p>
         ) : (
           <ol className="flex flex-col gap-4">
@@ -410,7 +426,7 @@ export function HeroEditor({
               >
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Slide {i + 1}
+                    {t("Slide {n}").replace("{n}", String(i + 1))}
                   </span>
                   <div className="flex items-center gap-1 text-xs">
                     <button
@@ -418,7 +434,7 @@ export function HeroEditor({
                       onClick={() => moveSlide(i, -1)}
                       disabled={i === 0}
                       className="rounded border border-border/60 px-2 py-0.5 disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label="Move slide up"
+                      aria-label={t("Move slide up")}
                     >
                       ↑
                     </button>
@@ -427,7 +443,7 @@ export function HeroEditor({
                       onClick={() => moveSlide(i, 1)}
                       disabled={i === slides.length - 1}
                       className="rounded border border-border/60 px-2 py-0.5 disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label="Move slide down"
+                      aria-label={t("Move slide down")}
                     >
                       ↓
                     </button>
@@ -436,13 +452,13 @@ export function HeroEditor({
                       onClick={() => removeSlide(i)}
                       className="rounded border border-destructive/40 px-2 py-0.5 text-destructive"
                     >
-                      Remove
+                      {t("Remove")}
                     </button>
                   </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className={FIELD}>
-                    <span className={LABEL}>Background image URL</span>
+                    <span className={LABEL}>{t("Background image URL")}</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="url"
@@ -460,13 +476,14 @@ export function HeroEditor({
                           onPick={(url) =>
                             patchSlide(i, { backgroundImageUrl: url })
                           }
-                          label="Library"
+                          label={t("Library")}
                         />
                       ) : null}
                     </div>
                     <span className={HINT}>
-                      Paste an absolute URL or pick from the workspace media
-                      library.
+                      {t(
+                        "Paste an absolute URL or pick from the workspace media library.",
+                      )}
                     </span>
                     <div className="mt-2">
                       <AltTextField
@@ -479,7 +496,7 @@ export function HeroEditor({
                     </div>
                   </label>
                   <label className={FIELD}>
-                    <span className={LABEL}>Overlay opacity</span>
+                    <span className={LABEL}>{t("Overlay opacity")}</span>
                     <input
                       type="number"
                       className={INPUT}
@@ -502,12 +519,13 @@ export function HeroEditor({
                       }}
                     />
                     <span className={HINT}>
-                      0 = no scrim, 100 = solid. Leave blank to use the hero
-                      overlay default.
+                      {t(
+                        "0 = no scrim, 100 = solid. Leave blank to use the hero overlay default.",
+                      )}
                     </span>
                   </label>
                   <label className={FIELD}>
-                    <span className={LABEL}>Eyebrow</span>
+                    <span className={LABEL}>{t("Eyebrow")}</span>
                     <input
                       type="text"
                       className={INPUT}
@@ -519,25 +537,25 @@ export function HeroEditor({
                     />
                   </label>
                   <div className={FIELD}>
-                    <span className={LABEL}>Slide headline</span>
+                    <span className={LABEL}>{t("Slide headline")}</span>
                     <RichEditor
                       key={`slide-${i}-headline`}
                       value={slide.headline ?? ""}
                       onChange={(next) => patchSlide(i, { headline: next })}
                       variant="single"
                       tenantId={tenantId}
-                      ariaLabel="Slide headline"
+                      ariaLabel={t("Slide headline")}
                     />
                   </div>
                   <div className={`${FIELD} md:col-span-2`}>
-                    <span className={LABEL}>Slide sub-headline</span>
+                    <span className={LABEL}>{t("Slide sub-headline")}</span>
                     <RichEditor
                       key={`slide-${i}-subheadline`}
                       value={slide.subheadline ?? ""}
                       onChange={(next) => patchSlide(i, { subheadline: next || undefined })}
                       variant="single"
                       tenantId={tenantId}
-                      ariaLabel="Slide sub-headline"
+                      ariaLabel={t("Slide sub-headline")}
                     />
                   </div>
                 </div>
@@ -553,10 +571,10 @@ export function HeroEditor({
             disabled={slides.length >= 8}
             className="rounded-md border border-border/60 bg-background px-3 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Add slide
+            {t("Add slide")}
           </button>
           <label className={`${FIELD} max-w-[14rem]`}>
-            <span className={LABEL}>Per-slide duration (ms)</span>
+            <span className={LABEL}>{t("Per-slide duration (ms)")}</span>
             <input
               type="number"
               className={INPUT}
@@ -576,7 +594,7 @@ export function HeroEditor({
               }}
             />
             <span className={HINT}>
-              Only applies when 2+ slides are present. Defaults to 7s.
+              {t("Only applies when 2+ slides are present. Defaults to 7s.")}
             </span>
           </label>
         </div>

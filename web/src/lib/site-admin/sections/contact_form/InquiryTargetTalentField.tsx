@@ -33,6 +33,7 @@ import {
   resolveTalentByIdsAction,
   type TalentSearchHit,
 } from "@/lib/site-admin/edit-mode/talent-search";
+import { useSectionT } from "../shared/section-editor-i18n";
 import {
   buildIdentityMaps,
   pickTargetIdFromConfirmedCodes,
@@ -47,6 +48,7 @@ interface Props {
 }
 
 export function InquiryTargetTalentField({ value, onChange }: Props) {
+  const t = useSectionT();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [resolved, setResolved] = useState<TalentSearchHit | null>(null);
   const [loading, setLoading] = useState(false);
@@ -129,11 +131,11 @@ export function InquiryTargetTalentField({ value, onChange }: Props) {
 
   return (
     <div className={KIT.field}>
-      <span className={KIT.label}>Route inquiries to talent</span>
+      <span className={KIT.label}>{t("Route inquiries to talent")}</span>
       <p className={KIT.hint}>
-        Pick the roster talent this form books for. Submissions become real
-        inquiries attributed to them. Leave empty to send a general
-        &ldquo;message the agency&rdquo; inquiry instead.
+        {t(
+          "Pick the roster talent this form books for. Submissions become real inquiries attributed to them. Leave empty to send a general “message the agency” inquiry instead.",
+        )}
       </p>
 
       {error ? (
@@ -171,21 +173,21 @@ export function InquiryTargetTalentField({ value, onChange }: Props) {
             onClick={() => onChange(undefined)}
             className="rounded-md border border-[#e5e0d5] bg-white px-2 py-1 text-[11px] font-medium text-stone-600 transition hover:border-stone-300 hover:text-rose-600"
           >
-            Clear
+            {t("Clear")}
           </button>
         </div>
       ) : value ? (
         // We have an id but couldn't resolve it (off-roster / changed roster).
         <div className="flex items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2">
           <span className="min-w-0 truncate text-[11px] text-blue-800">
-            Saved talent is no longer on this roster.
+            {t("Saved talent is no longer on this roster.")}
           </span>
           <button
             type="button"
             onClick={() => onChange(undefined)}
             className="shrink-0 rounded-md border border-blue-300 bg-white px-2 py-1 text-[11px] font-medium text-blue-800 transition hover:bg-blue-100"
           >
-            Clear
+            {t("Clear")}
           </button>
         </div>
       ) : null}
@@ -195,7 +197,7 @@ export function InquiryTargetTalentField({ value, onChange }: Props) {
         onClick={() => setPickerOpen(true)}
         className={`${KIT.primaryButton} self-start`}
       >
-        {resolved || value ? "Change talent" : "Pick talent"}
+        {resolved || value ? t("Change talent") : t("Pick talent")}
       </button>
 
       <TalentPicker

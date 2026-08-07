@@ -3,6 +3,7 @@
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { MediaPicker } from "../shared/MediaPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import type { SectionEditorProps } from "../types";
 import { v11TalentTypeGridItems, v11TalentTypeGridPreset } from "./presets";
 import type { TalentTypeGridV1, TalentTypeGridItem } from "./schema";
@@ -38,6 +39,7 @@ export function TalentTypeGridEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<TalentTypeGridV1>) {
+  const t = useSectionT();
   const value: TalentTypeGridV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "Talent, by discipline",
@@ -102,11 +104,11 @@ export function TalentTypeGridEditor({
       <div className="rounded-lg border border-violet-300/70 bg-violet-50 p-3 text-violet-950 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">V11 prototype preset</p>
+            <p className="text-sm font-semibold">{t("V11 prototype preset")}</p>
             <p className="mt-0.5 text-xs leading-relaxed text-violet-800">
-              Resets this section to the prototype roster: seven cards, one
-              featured pod, rail arrows, overlays, descriptions, icons, image
-              alt text, and the prototype spacing.
+              {t(
+                "Resets this section to the prototype roster: seven cards, one featured pod, rail arrows, overlays, descriptions, icons, image alt text, and the prototype spacing.",
+              )}
             </p>
           </div>
           <button
@@ -114,18 +116,19 @@ export function TalentTypeGridEditor({
             className={BUTTON_PRIMARY}
             onClick={applyPrototypePreset}
           >
-            Apply full preset
+            {t("Apply full preset")}
           </button>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-violet-800">
-          After applying, tune images, alt text, links, and featured card in the
-          manual cards below.
+          {t(
+            "After applying, tune images, alt text, links, and featured card in the manual cards below.",
+          )}
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             value={value.eyebrow ?? ""}
@@ -133,7 +136,7 @@ export function TalentTypeGridEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Heading</span>
+          <span className={LABEL}>{t("Heading")}</span>
           <input
             className={INPUT}
             value={value.headline ?? ""}
@@ -141,7 +144,7 @@ export function TalentTypeGridEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Subheading</span>
+          <span className={LABEL}>{t("Subheading")}</span>
           <input
             className={INPUT}
             value={value.subheadline ?? ""}
@@ -152,7 +155,7 @@ export function TalentTypeGridEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Mode</span>
+          <span className={LABEL}>{t("Mode")}</span>
           <select
             className={INPUT}
             value={value.mode}
@@ -160,12 +163,12 @@ export function TalentTypeGridEditor({
               patch({ mode: e.target.value as TalentTypeGridV1["mode"] })
             }
           >
-            <option value="manual">Manual cards</option>
-            <option value="dynamic">Dynamic, from tenant roster</option>
+            <option value="manual">{t("Manual cards")}</option>
+            <option value="dynamic">{t("Dynamic, from tenant roster")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Max items</span>
+          <span className={LABEL}>{t("Max items")}</span>
           <input
             className={INPUT}
             type="number"
@@ -188,18 +191,18 @@ export function TalentTypeGridEditor({
             checked={value.parentCategoryMode === true}
             onChange={(e) => patch({ parentCategoryMode: e.target.checked })}
           />
-          Parent-category rollup
+          {t("Parent-category rollup")}
         </label>
       </div>
 
       {value.mode === "dynamic" ? (
         <label className={FIELD}>
           <span className={LABEL}>
-            Restrict to taxonomy term ids (optional, comma-separated)
+            {t("Restrict to taxonomy term ids (optional, comma-separated)")}
           </span>
           <input
             className={INPUT}
-            placeholder="empty = all roster disciplines"
+            placeholder={t("empty = all roster disciplines")}
             value={(value.selectedTermIds ?? []).join(", ")}
             onChange={(e) =>
               patch({
@@ -212,13 +215,14 @@ export function TalentTypeGridEditor({
             }
           />
           <span className="text-[11px] text-muted-foreground">
-            Visual taxonomy picker is a documented follow-up; this manual
-            term-id restrict is the safe interim. Tenant-scoped automatically.
+            {t(
+              "Visual taxonomy picker is a documented follow-up; this manual term-id restrict is the safe interim. Tenant-scoped automatically.",
+            )}
           </span>
         </label>
       ) : (
         <div className="flex flex-col gap-2">
-          <span className={LABEL}>Manual cards</span>
+          <span className={LABEL}>{t("Manual cards")}</span>
           {items.map((it, i) => (
             <div
               key={i}
@@ -226,20 +230,20 @@ export function TalentTypeGridEditor({
             >
               <input
                 className={INPUT}
-                placeholder="Label"
+                placeholder={t("Label")}
                 value={it.label}
                 onChange={(e) => setItem(i, { label: e.target.value })}
               />
               <input
                 className={INPUT}
-                placeholder="Description (optional)"
+                placeholder={t("Description (optional)")}
                 value={it.description ?? ""}
                 onChange={(e) =>
                   setItem(i, { description: e.target.value || undefined })
                 }
               />
               <label className={FIELD}>
-                <span className={LABEL}>Icon</span>
+                <span className={LABEL}>{t("Icon")}</span>
                 <select
                   className={INPUT}
                   value={it.icon ?? ""}
@@ -249,13 +253,13 @@ export function TalentTypeGridEditor({
                 >
                   {ICON_PRESETS.map((icon) => (
                     <option key={icon || "none"} value={icon}>
-                      {icon || "None"}
+                      {icon || t("None")}
                     </option>
                   ))}
                 </select>
               </label>
               <label className={FIELD}>
-                <span className={LABEL}>Image position</span>
+                <span className={LABEL}>{t("Image position")}</span>
                 <input
                   className={INPUT}
                   placeholder="50% 50%"
@@ -266,11 +270,11 @@ export function TalentTypeGridEditor({
                 />
               </label>
               <div className="flex flex-col gap-2 md:col-span-2">
-                <span className={LABEL}>Background image</span>
+                <span className={LABEL}>{t("Background image")}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     className={`${INPUT} min-w-[220px] flex-1`}
-                    placeholder="Image URL (optional)"
+                    placeholder={t("Image URL (optional)")}
                     value={it.imageUrl ?? ""}
                     onChange={(e) =>
                       setItem(i, { imageUrl: e.target.value || undefined })
@@ -279,7 +283,7 @@ export function TalentTypeGridEditor({
                   {tenantId ? (
                     <MediaPicker
                       tenantId={tenantId}
-                      label="Pick image"
+                      label={t("Pick image")}
                       onPick={(url) => setItem(i, { imageUrl: url })}
                     />
                   ) : null}
@@ -289,16 +293,16 @@ export function TalentTypeGridEditor({
                       className={BUTTON}
                       onClick={() => setItem(i, { imageUrl: undefined })}
                     >
-                      Clear
+                      {t("Clear")}
                     </button>
                   ) : null}
                 </div>
               </div>
               <label className={`${FIELD} md:col-span-2`}>
-                <span className={LABEL}>Image alt text</span>
+                <span className={LABEL}>{t("Image alt text")}</span>
                 <input
                   className={INPUT}
-                  placeholder="Describe the image for screen readers"
+                  placeholder={t("Describe the image for screen readers")}
                   value={it.imageAlt ?? ""}
                   onChange={(e) =>
                     setItem(i, { imageAlt: e.target.value || undefined })
@@ -306,10 +310,10 @@ export function TalentTypeGridEditor({
                 />
               </label>
               <label className={FIELD}>
-                <span className={LABEL}>Taxonomy term id</span>
+                <span className={LABEL}>{t("Taxonomy term id")}</span>
                 <input
                   className={INPUT}
-                  placeholder="optional → directory link"
+                  placeholder={t("optional → directory link")}
                   value={it.taxonomyTermId ?? ""}
                   onChange={(e) =>
                     setItem(i, {
@@ -319,7 +323,7 @@ export function TalentTypeGridEditor({
                 />
               </label>
               <div className={FIELD}>
-                <span className={LABEL}>Card link</span>
+                <span className={LABEL}>{t("Card link")}</span>
                 <LinkKindPicker
                   value={it.href}
                   onChange={(next) => setItem(i, { href: next })}
@@ -331,14 +335,14 @@ export function TalentTypeGridEditor({
                   checked={it.featured === true}
                   onChange={(e) => setFeaturedItem(i, e.target.checked)}
                 />
-                Feature this card in pod layouts
+                {t("Feature this card in pod layouts")}
               </label>
               <button
                 type="button"
                 className="text-xs text-destructive md:col-span-2"
                 onClick={() => removeItem(i)}
               >
-                Remove card
+                {t("Remove card")}
               </button>
             </div>
           ))}
@@ -347,14 +351,14 @@ export function TalentTypeGridEditor({
             className="self-start rounded-md border border-border/60 px-2 py-1 text-xs"
             onClick={addItem}
           >
-            + Add card
+            {t("+ Add card")}
           </button>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Desktop layout</span>
+          <span className={LABEL}>{t("Desktop layout")}</span>
           <select
             className={INPUT}
             value={value.desktopLayout}
@@ -365,15 +369,19 @@ export function TalentTypeGridEditor({
               })
             }
           >
-            <option value="featured-pod-rail">v11 featured pod rail</option>
-            <option value="horizontal-rail">Horizontal rail</option>
-            <option value="equal-grid">Equal grid</option>
-            <option value="editorial-asymmetric">Editorial asymmetric</option>
-            <option value="compact-grid">Compact grid</option>
+            <option value="featured-pod-rail">
+              {t("v11 featured pod rail")}
+            </option>
+            <option value="horizontal-rail">{t("Horizontal rail")}</option>
+            <option value="equal-grid">{t("Equal grid")}</option>
+            <option value="editorial-asymmetric">
+              {t("Editorial asymmetric")}
+            </option>
+            <option value="compact-grid">{t("Compact grid")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Mobile layout</span>
+          <span className={LABEL}>{t("Mobile layout")}</span>
           <select
             className={INPUT}
             value={value.mobileLayout}
@@ -384,13 +392,13 @@ export function TalentTypeGridEditor({
               })
             }
           >
-            <option value="stacked">Stacked</option>
-            <option value="horizontal-scroll">Horizontal scroll</option>
-            <option value="compact-grid">Compact grid</option>
+            <option value="stacked">{t("Stacked")}</option>
+            <option value="horizontal-scroll">{t("Horizontal scroll")}</option>
+            <option value="compact-grid">{t("Compact grid")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Card ratio</span>
+          <span className={LABEL}>{t("Card ratio")}</span>
           <select
             className={INPUT}
             value={value.cardRatio}
@@ -410,7 +418,7 @@ export function TalentTypeGridEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Text position</span>
+          <span className={LABEL}>{t("Text position")}</span>
           <select
             className={INPUT}
             value={value.textPosition}
@@ -421,12 +429,12 @@ export function TalentTypeGridEditor({
               })
             }
           >
-            <option value="overlay-bottom">Overlay (on image)</option>
-            <option value="below">Below image</option>
+            <option value="overlay-bottom">{t("Overlay (on image)")}</option>
+            <option value="below">{t("Below image")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Overlay strength</span>
+          <span className={LABEL}>{t("Overlay strength")}</span>
           <select
             className={INPUT}
             value={value.imageOverlayStrength}
@@ -437,14 +445,14 @@ export function TalentTypeGridEditor({
               })
             }
           >
-            <option value="none">None</option>
-            <option value="soft">Soft</option>
-            <option value="medium">Medium</option>
-            <option value="strong">Strong</option>
+            <option value="none">{t("None")}</option>
+            <option value="soft">{t("Soft")}</option>
+            <option value="medium">{t("Medium")}</option>
+            <option value="strong">{t("Strong")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Overlay opacity (0–1, optional)</span>
+          <span className={LABEL}>{t("Overlay opacity (0–1, optional)")}</span>
           <input
             className={INPUT}
             type="number"
@@ -471,7 +479,7 @@ export function TalentTypeGridEditor({
             checked={value.showImages !== false}
             onChange={(e) => patch({ showImages: e.target.checked })}
           />
-          Show background images
+          {t("Show background images")}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -482,7 +490,7 @@ export function TalentTypeGridEditor({
             }
             onChange={(e) => patch({ showDescriptions: e.target.checked })}
           />
-          Show descriptions
+          {t("Show descriptions")}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -492,7 +500,7 @@ export function TalentTypeGridEditor({
             }
             onChange={(e) => patch({ showCardIcons: e.target.checked })}
           />
-          Show card icons
+          {t("Show card icons")}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -500,7 +508,7 @@ export function TalentTypeGridEditor({
             checked={value.showRailControls !== false}
             onChange={(e) => patch({ showRailControls: e.target.checked })}
           />
-          Show rail arrows
+          {t("Show rail arrows")}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -508,7 +516,7 @@ export function TalentTypeGridEditor({
             checked={value.showCount === true}
             onChange={(e) => patch({ showCount: e.target.checked })}
           />
-          Show talent counts
+          {t("Show talent counts")}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -516,12 +524,12 @@ export function TalentTypeGridEditor({
             checked={value.showCta === true}
             onChange={(e) => patch({ showCta: e.target.checked })}
           />
-          Show card CTA
+          {t("Show card CTA")}
         </label>
         {value.showCta ? (
           <input
             className={`${INPUT} max-w-[160px]`}
-            placeholder="CTA label"
+            placeholder={t("CTA label")}
             value={value.ctaLabel ?? ""}
             onChange={(e) => patch({ ctaLabel: e.target.value })}
           />
@@ -530,7 +538,7 @@ export function TalentTypeGridEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>“See all” label</span>
+          <span className={LABEL}>{t("“See all” label")}</span>
           <input
             className={INPUT}
             value={value.seeAllLabel ?? ""}
@@ -538,7 +546,7 @@ export function TalentTypeGridEditor({
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>“See all” href</span>
+          <span className={LABEL}>{t("“See all” href")}</span>
           <LinkKindPicker
             value={value.seeAllHref}
             onChange={(next) => patch({ seeAllHref: next })}
@@ -547,10 +555,10 @@ export function TalentTypeGridEditor({
       </div>
 
       <label className={FIELD}>
-        <span className={LABEL}>Empty-state text</span>
+        <span className={LABEL}>{t("Empty-state text")}</span>
         <input
           className={INPUT}
-          placeholder="No talent disciplines to show yet."
+          placeholder={t("No talent disciplines to show yet.")}
           value={value.emptyStateText ?? ""}
           onChange={(e) => patch({ emptyStateText: e.target.value })}
         />

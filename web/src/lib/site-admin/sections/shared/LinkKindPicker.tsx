@@ -21,6 +21,7 @@ import {
   type LinkKind,
   type LinkRef,
 } from "@/lib/site-admin/links/link-ref";
+import { useSectionT } from "./section-editor-i18n";
 
 interface Props {
   value: LinkRef | string | null | undefined;
@@ -92,6 +93,7 @@ function normalize(v: Props["value"]): LinkRef {
 }
 
 export function LinkKindPicker({ value, onChange, className, tenantId }: Props) {
+  const t = useSectionT();
   void tenantId;
   const ref = useMemo(() => normalize(value), [value]);
   const hint = VALUE_HINT[ref.kind];
@@ -117,13 +119,13 @@ export function LinkKindPicker({ value, onChange, className, tenantId }: Props) 
             label: ref.label,
           });
         }}
-        aria-label="Link kind"
+        aria-label={t("Link kind")}
       >
         {KIND_GROUPS.map((g) => (
-          <optgroup key={g.group} label={g.group}>
+          <optgroup key={g.group} label={t(g.group)}>
             {g.kinds.map((k) => (
               <option key={k.kind} value={k.kind}>
-                {k.label}
+                {t(k.label)}
               </option>
             ))}
           </optgroup>
@@ -135,11 +137,11 @@ export function LinkKindPicker({ value, onChange, className, tenantId }: Props) 
           className={INPUT}
           value={ref.value ?? ""}
           onChange={(e) => patch({ value: e.target.value })}
-          aria-label="Sign-up role"
+          aria-label={t("Sign-up role")}
         >
-          <option value="">No specific role</option>
-          <option value="talent">Talent</option>
-          <option value="client">Client</option>
+          <option value="">{t("No specific role")}</option>
+          <option value="talent">{t("Talent")}</option>
+          <option value="client">{t("Client")}</option>
         </select>
       ) : showValue ? (
         <input
@@ -148,16 +150,17 @@ export function LinkKindPicker({ value, onChange, className, tenantId }: Props) 
           value={ref.value ?? ""}
           placeholder={hint?.ph}
           onChange={(e) => patch({ value: e.target.value })}
-          aria-label="Link value"
+          aria-label={t("Link value")}
         />
       ) : (
         <p className={HELP}>
-          Goes to the platform {ref.kind === "platform-auth-login" ? "login" : "page"}:
-          no value needed.
+          {ref.kind === "platform-auth-login"
+            ? t("Goes to the platform login: no value needed.")
+            : t("Goes to the platform page: no value needed.")}
         </p>
       )}
 
-      {hint?.help ? <p className={HELP}>{hint.help}</p> : null}
+      {hint?.help ? <p className={HELP}>{t(hint.help)}</p> : null}
 
       {showOpenInNew ? (
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -168,7 +171,7 @@ export function LinkKindPicker({ value, onChange, className, tenantId }: Props) 
               patch({ openInNew: e.target.checked ? true : undefined })
             }
           />
-          Open in a new tab
+          {t("Open in a new tab")}
         </label>
       ) : null}
     </div>
