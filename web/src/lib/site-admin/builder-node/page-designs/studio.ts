@@ -368,7 +368,7 @@ const studioTree: BuilderNode[] = [
             },
             children: [
               { id: "studio-work-title", kind: "heading", props: { text: "Selected work", level: 2, style: { fontFamily: FRAUNCES, fontSize: "44px", fontWeight: 600, letterSpacing: "-0.01em", textColor: INK, marginBottomFree: "0px", responsive: { mobile: { fontSize: "32px" } } } } },
-              { id: "studio-work-note", kind: "paragraph", props: { text: "2024 to 2026", style: { fontFamily: INTER, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: MUTED } } },
+              { id: "studio-work-note", kind: "paragraph", props: { text: "2024-2026", style: { fontFamily: INTER, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: MUTED } } },
             ],
           },
           {

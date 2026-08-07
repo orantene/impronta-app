@@ -260,7 +260,7 @@ const agencyTree: BuilderNode[] = [
                 id: "agency-work-note",
                 kind: "paragraph",
                 props: {
-                  text: "2024 to 2026",
+                  text: "2024-2026",
                   style: { fontFamily: RALEWAY, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: "#8a7c69" },
                 },
               },
