@@ -41,7 +41,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useEditorLocale } from "./use-editor-locale";
-import { resolveWorkspaceAdminBase } from "./workspace-admin-base";
+import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 
 /** Matches the storefront header offset applied while the bar is visible. */
 export const ADMIN_QUICK_BAR_H = 34;
@@ -113,9 +113,13 @@ export function AdminQuickBar({ workspaceSlug, siteLabel }: AdminQuickBarProps) 
     }
   }, [storageKey]);
 
+  // Resolved from the LIVE location, not from the slug alone: a `/w/<slug>`
+  // storefront is served on the marketing host, where no `/{slug}/admin/*` path
+  // is routable at all, so every same-origin link here used to 404. See
+  // `workspace-admin-base.ts` for the host cases.
   const adminBase = useMemo(() => {
     if (typeof window === "undefined") return `/${workspaceSlug}/admin`;
-    return resolveWorkspaceAdminBase(workspaceSlug, window.location.pathname);
+    return resolveWorkspaceAdminBaseForLocation(workspaceSlug, window.location);
   }, [workspaceSlug]);
 
   // Escape closes the collapsed menu. Keyboard parity with every other overlay

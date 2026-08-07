@@ -64,7 +64,7 @@ import {
 import { flushThenNavigate } from "./page-switch-flush";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { useEditorLocale } from "./use-editor-locale";
-import { resolveWorkspaceAdminBase } from "./workspace-admin-base";
+import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 import {
   CHROME,
   CHROME_RADII,
@@ -232,11 +232,16 @@ function PagePicker({
   pagesPickerOpenNonce?: number;
 }) {
   const editCtx = useMaybeEditContext();
-  const workspaceWebsiteHref =
-    editCtx?.workspaceMembershipSlug != null &&
-    editCtx.workspaceMembershipSlug !== ""
-      ? `/${editCtx.workspaceMembershipSlug}/admin/website`
-      : "/admin/site";
+  const websiteSlug = editCtx?.workspaceMembershipSlug ?? "";
+  // Same host trap the quick bar hit: on a `/w/<slug>` storefront (the free
+  // tier's default, served on the marketing host) a same-origin
+  // `/{slug}/admin/website` 404s, so the base has to be resolved from the live
+  // location and may be absolute. See `workspace-admin-base.ts`.
+  const workspaceWebsiteHref = useMemo(() => {
+    if (websiteSlug === "") return "/admin/site";
+    if (typeof window === "undefined") return `/${websiteSlug}/admin/website`;
+    return `${resolveWorkspaceAdminBaseForLocation(websiteSlug, window.location)}/website`;
+  }, [websiteSlug]);
 
   const [open, setOpen] = useState(false);
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);
@@ -2471,7 +2476,7 @@ function WorkspaceMenu({ slug }: { slug: string }) {
               onClick={() => {
                 setOpen(false);
                 window.location.assign(
-                  `${resolveWorkspaceAdminBase(slug, window.location.pathname)}${item.href}`,
+                  `${resolveWorkspaceAdminBaseForLocation(slug, window.location)}${item.href}`,
                 );
               }}
               style={{
