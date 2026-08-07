@@ -63,10 +63,22 @@ export function shouldSkipFreeStarterHomepageSeed(input: {
   pageStatus: string | null;
   draftSlotCount: number;
   liveSlotCount: number;
+  /**
+   * False when the slot-count probe FAILED (rather than legitimately returning
+   * zero). Fail closed: the seed replaces the whole homepage composition and
+   * republishes it, so "we could not tell whether this tenant has content" must
+   * never be treated as "this tenant is empty". A skipped seed leaves a
+   * workspace unstyled, which is visible and fixable; a wrongly-run seed
+   * overwrites a real storefront, which is not.
+   */
+  contentProbeOk?: boolean;
 }): boolean {
+  if (input.contentProbeOk === false) return true;
   if (input.draftSlotCount > 0) return true;
   if (input.liveSlotCount > 0) return true;
-  return input.pageStatus === "published";
+  // Anything other than a pristine draft page means someone has already worked
+  // on this homepage (published, scheduled, archived). Only seed a draft.
+  return input.pageStatus !== "draft";
 }
 
 /**

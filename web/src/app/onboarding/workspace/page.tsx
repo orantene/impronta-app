@@ -137,6 +137,21 @@ export default async function OnboardingWorkspacePage({
     redirect(result.adminPath);
   }
 
+  // "One free workspace per owner." Not an error the user can retry away:
+  // send them to the workspace they already have instead of leaving them on a
+  // dead end, and never pretend the reserved slug was created.
+  if (result.error === "free_workspace_limit" && result.existingWorkspace) {
+    return (
+      <WorkspaceStateCard
+        title="You already have a free workspace"
+        message={result.message}
+        primaryHref={result.existingWorkspace.adminPath}
+        primaryLabel={`Open ${result.existingWorkspace.displayName}`}
+        supportMailto={buildSupportMailto(leadId, result.error)}
+      />
+    );
+  }
+
   // Retryable = the provisioner hit a transient error. Send the user BACK
   // to this same route with the same lead ID — provisionWorkspaceFromLead
   // is idempotent (it reuses already-claimed tenants and owned free

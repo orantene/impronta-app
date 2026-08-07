@@ -15,6 +15,10 @@ import {
 import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
 import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import {
+  findFreeWorkspaceLimitBlocker,
+  findLeadOwnedFreeWorkspace,
+} from "./workspace-signup-free-limit";
+import {
   isNetworkWorkspaceTierInterest,
   isPaidWorkspaceTierInterest,
   isReservedWorkspaceSlug,
@@ -43,18 +47,6 @@ type MarketingLeadRow = {
 // Dedup marker + send helper live in `workspace-signup-failure-notify.ts`
 // (split out to keep this file under the 800-line cap).
 
-type OwnedWorkspaceAgency = {
-  slug: string;
-  display_name: string;
-  plan_tier: string | null;
-  settings: Record<string, unknown> | null;
-};
-
-type OwnedWorkspaceRow = {
-  tenant_id: string;
-  agencies: OwnedWorkspaceAgency | OwnedWorkspaceAgency[] | null;
-};
-
 type ExistingRoleBindings = {
   hasClientProfile: boolean;
   hasTalentProfile: boolean;
@@ -82,85 +74,20 @@ export type ProvisionWorkspaceResult =
         | "email_mismatch"
         | "claimed_elsewhere"
         | "unsupported_existing_role"
+        | "free_workspace_limit"
         | "service_unavailable"
         | "provision_failed";
       message: string;
+      /**
+       * Set on `free_workspace_limit` so the trampoline can send the owner to
+       * the workspace they ALREADY have instead of dead-ending them.
+       */
+      existingWorkspace?: {
+        slug: string;
+        displayName: string;
+        adminPath: string;
+      };
     };
-
-// Normalize a workspace tier interest string to one of {free, studio,
-// agency, network} or null. Used to decide whether reusing an owned
-// free workspace for a new lead is safe.
-function normalizeTierInterest(t: unknown): "free" | "studio" | "agency" | "network" | null {
-  if (typeof t !== "string") return null;
-  const v = t.trim().toLowerCase();
-  if (v === "free" || v === "studio" || v === "agency" || v === "network") return v;
-  return null;
-}
-
-async function findOwnedFreeWorkspace(
-  userId: string,
-  // The CURRENT lead's tier interest. Reuse is only safe when it
-  // matches the existing workspace's original signup intent — otherwise
-  // a Free-tier workspace that was created as a ghost during a failed
-  // paid signup would silently be reused for a different paid plan, with
-  // mismatched expectations on both sides (the user thinks they bought
-  // Agency, but they're sitting on the Studio-intent leftover). See
-  // ghost-cleanup audit (PR §2).
-  currentLeadTierInterest: string | null,
-): Promise<{
-  tenantId: string;
-  slug: string;
-  displayName: string;
-} | null> {
-  const admin = createServiceRoleClient();
-  if (!admin) return null;
-
-  const { data, error } = await admin
-    .from("agency_memberships")
-    .select("tenant_id, agencies:tenant_id ( slug, display_name, plan_tier, settings )")
-    .eq("profile_id", userId)
-    .eq("role", "owner")
-    .eq("status", "active");
-
-  if (error) {
-    logServerError("workspace-signup.findOwnedFreeWorkspace", error);
-    return null;
-  }
-
-  const currentTier = normalizeTierInterest(currentLeadTierInterest) ?? "free";
-
-  const rows = (data ?? []) as OwnedWorkspaceRow[];
-  for (const row of rows) {
-    const agency = Array.isArray(row.agencies) ? row.agencies[0] ?? null : row.agencies;
-    if (!agency || agency.plan_tier !== "free" || !agency.slug) continue;
-
-    // Read the existing workspace's original signup intent (stamped at
-    // agency creation time by `buildSignupSettings`). If absent or
-    // 'free', treat as a normal free workspace.
-    const existingTierRaw = (agency.settings && typeof agency.settings === "object"
-      ? (agency.settings as Record<string, unknown>)["signup_tier_interest"]
-      : null);
-    const existingTier = normalizeTierInterest(existingTierRaw) ?? "free";
-
-    // Skip rule (ghost foot-gun guard):
-    //   - Same tier → reuse (idempotent retry of a crashed paid signup).
-    //   - Existing 'free' + current 'free' → reuse (the original case
-    //     findOwnedFreeWorkspace was designed for).
-    //   - Existing paid-intent + current 'free', OR existing 'free' +
-    //     current paid-intent, OR existing paid + current different
-    //     paid → skip and let the caller create a fresh workspace, so
-    //     the orphan stays visible in the admin-side ghost audit card.
-    if (existingTier !== currentTier) continue;
-
-    return {
-      tenantId: row.tenant_id,
-      slug: agency.slug,
-      displayName: agency.display_name,
-    };
-  }
-
-  return null;
-}
 
 async function ensureWorkspaceScaffold(params: {
   tenantId: string;
@@ -365,6 +292,10 @@ function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
     signup_audience: lead.audience,
     signup_roster_size: lead.roster_size,
     signup_tier_interest: lead.tier_interest,
+    // Provenance stamp. `findLeadOwnedFreeWorkspace` uses this to recover a
+    // crashed run of THIS lead without ever reaching for an unrelated
+    // workspace the same person happens to own.
+    signup_lead_id: lead.id,
   };
   if (isNetworkWorkspaceTierInterest(lead.tier_interest)) {
     settings.network_requested_at = new Date().toISOString();
@@ -656,7 +587,21 @@ export async function provisionWorkspaceFromLead(params: {
     }
   }
 
-  const existingFree = await findOwnedFreeWorkspace(params.userId, lead.tier_interest);
+  const desiredSlug = preferredWorkspaceSlugFromLead({
+    subdomainWanted: lead.subdomain_wanted,
+    // Prefer the business name for the slug fallback (when no explicit
+    // subdomain was reserved) over the person's name.
+    name: lead.business_name?.trim() || lead.name,
+    email: lead.email,
+  });
+
+  // Crash recovery for THIS lead only (see findLeadOwnedFreeWorkspace).
+  const existingFree = await findLeadOwnedFreeWorkspace({
+    userId: params.userId,
+    leadId: lead.id,
+    desiredSlug,
+    currentLeadTierInterest: lead.tier_interest,
+  });
   if (existingFree) {
     await ensureWorkspaceScaffold({
       tenantId: existingFree.tenantId,
@@ -681,13 +626,29 @@ export async function provisionWorkspaceFromLead(params: {
     });
   }
 
-  const desiredSlug = preferredWorkspaceSlugFromLead({
-    subdomainWanted: lead.subdomain_wanted,
-    // Prefer the business name for the slug fallback (when no explicit
-    // subdomain was reserved) over the person's name.
-    name: lead.business_name?.trim() || lead.name,
-    email: lead.email,
+  // "One Free workspace per owner" (messaging-shells-handoff.md §1.4). We are
+  // about to create a SECOND one, so stop and say so. Previously this branch
+  // silently reused whatever Free workspace the person already had, which made
+  // /get-started promise a slug it never created and dropped the owner into a
+  // workspace with a different name. Paid tiers are unaffected: they fall
+  // through and get their own workspace.
+  const blocker = await findFreeWorkspaceLimitBlocker({
+    userId: params.userId,
+    currentLeadTierInterest: lead.tier_interest,
   });
+  if (blocker) {
+    return {
+      ok: false,
+      error: "free_workspace_limit",
+      message: `Your account already has a free workspace, ${blocker.displayName}. Each account gets one free workspace, so we did not create a second one. Open the workspace you have, or upgrade it to a paid plan to add another.`,
+      existingWorkspace: {
+        slug: blocker.slug,
+        displayName: blocker.displayName,
+        adminPath: `/${blocker.slug}/admin`,
+      },
+    };
+  }
+
   const slug = await generateAvailableWorkspaceSlug(desiredSlug);
   // The workspace is born named after the BUSINESS the user typed on
   // /get-started (e.g. "Riviera Maya Work"), falling back to the person's
