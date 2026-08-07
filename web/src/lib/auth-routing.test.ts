@@ -6,6 +6,7 @@ import {
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
 import { resolveAuthRoutingDecision } from "@/lib/auth-routing";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 
 const activeAdmin = {
   app_role: "super_admin",
@@ -312,4 +313,188 @@ test("logged-in user on /login with empty ?next= falls back to dashboard", () =>
     nextParam: "",
   });
   assert.equal(decision.redirectTo, "/admin");
+});
+
+// ─── Host-aware redirects: never send anyone to a path this surface 404s ───
+//
+// Live repro (2026-08-07): a brand-new signup (handle_new_user lands them as
+// app_role='client', account_status='onboarding', onboarding_completed_at=null)
+// signed in, then opened tulala.digital/get-started. Auth routing bounced them
+// to /onboarding/role, which the marketing surface allow-list 404s, so the
+// signup entry point became a hard dead end. Anonymous /get-started was fine,
+// so only an already-signed-in, mid-onboarding account hit it.
+
+const onboardingClient = {
+  app_role: "client",
+  account_status: "onboarding",
+};
+
+test("signed-in onboarding account sees /get-started on the marketing host (no 404 bounce)", () => {
+  const decision = resolveAuthRoutingDecision({
+    pathname: "/get-started",
+    userId: "fresh-signup-1",
+    sessionProfile: onboardingClient,
+    routingProfile: onboardingClient,
+    isImpersonating: false,
+    hostKind: "marketing",
+  });
+  assert.equal(decision.redirectTo, null);
+  // The destination itself is unchanged — only where we are willing to send
+  // them from this surface is.
+  assert.equal(decision.dashboardDestination, "/onboarding/role");
+});
+
+test("/get-started is never bounced for an onboarding account on ANY surface", () => {
+  for (const hostKind of ["marketing", "app", "agency", "hub"] as const) {
+    assert.equal(
+      resolveAuthRoutingDecision({
+        pathname: "/get-started",
+        userId: "fresh-signup-2",
+        sessionProfile: onboardingClient,
+        routingProfile: onboardingClient,
+        isImpersonating: false,
+        hostKind,
+      }).redirectTo,
+      null,
+      `/get-started must render on ${hostKind}`,
+    );
+  }
+});
+
+test("onboarding bounce is suppressed on surfaces without /onboarding, kept where it exists", () => {
+  const on = (pathname: string, hostKind: "marketing" | "app" | "agency" | "hub") =>
+    resolveAuthRoutingDecision({
+      pathname,
+      userId: "fresh-signup-3",
+      sessionProfile: onboardingClient,
+      routingProfile: onboardingClient,
+      isImpersonating: false,
+      hostKind,
+    }).redirectTo;
+
+  // Marketing + hub do not serve /onboarding/* — let the requested page render
+  // rather than redirect into a 404.
+  assert.equal(on("/pricing", "marketing"), null);
+  assert.equal(on("/directory", "marketing"), null);
+  assert.equal(on("/t/abc123", "hub"), null);
+
+  // App + agency serve it, so the funnel is unchanged there.
+  assert.equal(on("/", "app"), "/onboarding/role");
+  assert.equal(on("/", "agency"), "/onboarding/role");
+});
+
+test("host-blind callers (no hostKind) keep the legacy bounce", () => {
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/directory",
+      userId: "fresh-signup-4",
+      sessionProfile: onboardingClient,
+      routingProfile: onboardingClient,
+      isImpersonating: false,
+    }).redirectTo,
+    "/onboarding/role",
+  );
+});
+
+test("signed-in user on /login is not sent to a dashboard the surface 404s", () => {
+  // /login is allow-listed on marketing, but /client is not: the old bounce
+  // dead-ended an active client who reopened tulala.digital/login.
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/login",
+      userId: "user-9",
+      sessionProfile: activeClient,
+      routingProfile: activeClient,
+      isImpersonating: false,
+      hostKind: "marketing",
+    }).redirectTo,
+    "/",
+  );
+  // Same request on the app host still lands on the dashboard.
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/login",
+      userId: "user-9",
+      sessionProfile: activeClient,
+      routingProfile: activeClient,
+      isImpersonating: false,
+      hostKind: "app",
+    }).redirectTo,
+    "/client",
+  );
+});
+
+test("an unreachable ?next= on this surface degrades to / instead of a 404", () => {
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/login",
+      userId: "user-10",
+      sessionProfile: activeClient,
+      routingProfile: activeClient,
+      isImpersonating: false,
+      nextParam: "/onboarding/workspace?lead=abc-123",
+      hostKind: "marketing",
+    }).redirectTo,
+    "/",
+  );
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/login",
+      userId: "user-10",
+      sessionProfile: activeClient,
+      routingProfile: activeClient,
+      isImpersonating: false,
+      nextParam: "/onboarding/workspace?lead=abc-123",
+      hostKind: "app",
+    }).redirectTo,
+    "/onboarding/workspace?lead=abc-123",
+  );
+});
+
+test("every redirect this resolver can emit exists on the surface that emits it", () => {
+  // Blanket invariant: whatever combination of profile, path, and surface we
+  // throw at it, the answer must be a path the surface allow-list serves.
+  const profiles = [
+    activeAdmin,
+    activeAgencyStaff,
+    activeTalent,
+    activeClient,
+    onboardingUser,
+    onboardingClient,
+    null,
+  ];
+  const paths = [
+    "/",
+    "/get-started",
+    "/login",
+    "/register",
+    "/directory",
+    "/pricing",
+    "/admin",
+    "/talent",
+    "/client",
+    "/onboarding/role",
+    "/c/inq-1",
+  ];
+  for (const hostKind of ["marketing", "app", "agency", "hub"] as const) {
+    for (const profile of profiles) {
+      for (const pathname of paths) {
+        const { redirectTo } = resolveAuthRoutingDecision({
+          pathname,
+          userId: profile ? "user-x" : null,
+          sessionProfile: profile,
+          routingProfile: profile,
+          isImpersonating: false,
+          hostKind,
+        });
+        if (!redirectTo) continue;
+        const [targetPath] = redirectTo.split("?", 1);
+        assert.equal(
+          isPathAllowedForHostKind(hostKind, targetPath),
+          true,
+          `${hostKind} ${pathname} → ${redirectTo} is a 404 on this surface`,
+        );
+      }
+    }
+  }
 });

@@ -19,6 +19,7 @@ import {
 import { createTranslator } from "@/i18n/messages";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { headers } from "next/headers";
 
 export type AuthActionState = { error?: string; message?: string } | void;
@@ -178,7 +179,14 @@ export async function signInWithEmail(
   }
 
   revalidatePath("/", "layout");
-  redirect(resolvePostAuthDestination(profileData, nextPath));
+  // Host-safe: the post-auth destination (/admin, /client, /onboarding/role)
+  // does not exist on the marketing apex or the hub, where this form is also
+  // served. A relative redirect there is a hard 404.
+  redirect(
+    await hostSafeRedirectDestination(
+      resolvePostAuthDestination(profileData, nextPath),
+    ),
+  );
 }
 
 export type SignInModalState = { ok: true } | { ok: false; error: string } | null;
@@ -313,7 +321,14 @@ export async function signUpWithEmail(
   const profileData = user
     ? await loadAccessProfile(supabase, user.id)
     : null;
-  redirect(resolvePostAuthDestination(profileData, nextPath));
+  // Host-safe: the post-auth destination (/admin, /client, /onboarding/role)
+  // does not exist on the marketing apex or the hub, where this form is also
+  // served. A relative redirect there is a hard 404.
+  redirect(
+    await hostSafeRedirectDestination(
+      resolvePostAuthDestination(profileData, nextPath),
+    ),
+  );
 }
 
 /**

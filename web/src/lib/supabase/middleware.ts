@@ -16,6 +16,7 @@ import type { LanguageSettings } from "@/lib/language-settings/types";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 
+
 const GUEST_COOKIE = "impronta_guest";
 const GUEST_HEADER = "x-impronta-guest";
 const LOCALE_HEADER = "x-impronta-locale";
@@ -75,7 +76,17 @@ export type UpdateSessionResult = {
 
 export async function updateSession(
   request: NextRequest,
-  options?: { pathnameForAuth?: string; languageSettings?: LanguageSettings },
+  options?: {
+    pathnameForAuth?: string;
+    languageSettings?: LanguageSettings;
+    /**
+     * Surface serving this request (`marketing`, `app`, `agency`, `hub`, or a
+     * non-surface kind, which auth routing ignores). Needed so auth routing
+     * never redirects to a path this host kind 404s (e.g. `/onboarding/role`
+     * on the marketing apex). See `AuthRoutingInput.hostKind`.
+     */
+    hostKind?: string | null;
+  },
 ): Promise<UpdateSessionResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -337,6 +348,7 @@ export async function updateSession(
     // reach (e.g. the funnel's /onboarding/workspace?lead=…), not their
     // existing dashboard.
     nextParam: request.nextUrl.searchParams.get("next"),
+    hostKind: options?.hostKind ?? null,
   });
 
   const applyImpersonationCookieClear = (res: NextResponse) => {

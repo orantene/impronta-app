@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { logServerError } from "@/lib/server/safe-error";
@@ -49,5 +50,7 @@ export async function completeRecoveryPasswordUpdate(
   const destination = resolveAuthenticatedDestination(profile);
 
   revalidatePath("/", "layout");
-  redirect(destination);
+  // Host-safe: /update-password is reachable on the marketing apex, but the
+  // dashboard destination it resolves to is not (see host-safe-destination).
+  redirect(await hostSafeRedirectDestination(destination));
 }

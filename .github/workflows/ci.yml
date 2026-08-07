@@ -180,6 +180,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:tenant-isolation
 
+      # Auth routing decides every post-login / onboarding redirect, including
+      # the host-awareness guard that keeps those redirects off surfaces that
+      # 404 them (a signed-in, mid-onboarding account on tulala.digital/get-started
+      # used to dead-end there). The lane existed in package.json but ran in
+      # neither ci.yml nor the `ci` aggregate, so it never gated a PR.
+      - name: tests — auth-routing
+        if: ${{ !cancelled() }}
+        run: npm run test:auth-routing
+
       - name: tests — activity-log
         if: ${{ !cancelled() }}
         run: npm run test:activity-log
