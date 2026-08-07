@@ -17,7 +17,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import { sectionUpsertSchema } from "@/lib/site-admin";
@@ -55,7 +55,7 @@ export async function translateSiteWithAi(input: {
 }): Promise<TranslateSiteResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);

@@ -18,7 +18,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,
@@ -192,12 +192,12 @@ export async function generateBuilderNodesAction(input: {
   //     caps never applied to builder text generation.
   //  2. Membership gate — `requireSession()` alone let ANY signed-in account,
   //     including one with no workspace membership at all, drive Opus
-  //     generations up to the per-user hourly limit. `requireTenantScope()`
+  //     generations up to the per-user hourly limit. `requireEditSurfaceTenantScope()`
   //     resolves only from the actor's own memberships, so a member-less
   //     account now stops here. Same shape the image action already uses.
   let tenantId: string;
   try {
-    const scope = await requireTenantScope();
+    const scope = await requireEditSurfaceTenantScope();
     tenantId = scope.tenantId;
   } catch {
     return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };

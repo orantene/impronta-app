@@ -17,7 +17,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import {
@@ -53,7 +53,7 @@ export async function applyPageDesignToHomepage(
 ): Promise<ApplyPageDesignState> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Select an agency workspace first." };
   }
@@ -138,7 +138,7 @@ export async function applyPageDesignToPage(
 ): Promise<ApplyPageDesignState> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Select an agency workspace first." };
   }

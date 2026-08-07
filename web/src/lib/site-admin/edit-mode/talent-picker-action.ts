@@ -7,7 +7,7 @@
  * Tenant isolation (defence in depth):
  *   1. `requireSession()` — authenticated workspace staff only (RLS-authed
  *      client), never a public/anon client.
- *   2. `requireTenantScope()` — resolves the active workspace tenant.
+ *   2. `requireEditSurfaceTenantScope()` — resolves the active workspace tenant.
  *   3. `listAdminRosterTalentIds(tenantId)` — explicit `agency_talent_roster`
  *      filter on `tenant_id`; results restricted via `.in("id", rosterIds)`.
  *      We do NOT rely on public RLS for tenant scoping.
@@ -20,7 +20,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -67,7 +67,7 @@ export async function searchTenantTalent(input: {
 }): Promise<TenantTalentSearchResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Select an agency workspace first." };
   }

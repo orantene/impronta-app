@@ -7,7 +7,7 @@
  * The ThemeDrawer needs the same three lifecycle moves (load / save draft /
  * publish) plus preset-apply + component-style-defaults-save, but for a TALENT
  * page instead of the agency storefront. The tenant-scoped actions resolve a
- * `requireTenantScope()` and read/write `agency_branding`; a signed-in talent
+ * `requireEditSurfaceTenantScope()` and read/write `agency_branding`; a signed-in talent
  * has no such tenant scope, so those 401 ("Not authorized").
  *
  * These actions instead:

@@ -16,7 +16,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,
@@ -154,7 +154,7 @@ export async function reviseBuilderNodeAction(input: {
   // hard-coded global tenant.
   let tenantId: string;
   try {
-    const scope = await requireTenantScope();
+    const scope = await requireEditSurfaceTenantScope();
     tenantId = scope.tenantId;
   } catch {
     return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };

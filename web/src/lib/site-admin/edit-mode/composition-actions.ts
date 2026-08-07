@@ -65,7 +65,7 @@ import { homepageTemplate } from "@/lib/site-admin";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { auditFailure } from "@/lib/audit/emit";
 import { publishPageSnapshot } from "@/lib/site-admin/edit-mode/page-composer-action";
@@ -349,7 +349,7 @@ export async function loadHomepageCompositionAction(input: {
 }): Promise<CompositionLoadResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -836,7 +836,7 @@ export async function saveHomepageCompositionAction(
 ): Promise<CompositionSaveResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -1285,7 +1285,7 @@ export async function createAndInsertSectionAction(input: {
 }): Promise<CreateAndInsertResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -1539,7 +1539,7 @@ export async function duplicateSectionAction(input: {
 }): Promise<CreateAndInsertResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -1815,7 +1815,7 @@ export async function applyHomepageDraftBeaconAction(input: {
 
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -1954,7 +1954,7 @@ export async function publishHomepageFromEditModeAction(input: {
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -2205,7 +2205,7 @@ export type CopyPublishedResult =
  * DRAFT-ONLY: gates on the DRAFT capability (`agency.site_admin.homepage.compose`,
  * enforced inside the lib op), never publishes, never touches published_at /
  * published_homepage_snapshot, never busts the public cache. Mirrors
- * `publishHomepageFromEditModeAction`'s requireSession + requireTenantScope +
+ * `publishHomepageFromEditModeAction`'s requireSession + requireEditSurfaceTenantScope +
  * locale gating, but routes through the draft-reset op instead of publish.
  */
 export async function copyPublishedHomepageAction(input: {
@@ -2221,7 +2221,7 @@ export async function copyPublishedHomepageAction(input: {
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,

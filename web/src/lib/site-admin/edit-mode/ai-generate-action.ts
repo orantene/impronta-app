@@ -16,7 +16,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -76,7 +76,7 @@ export async function generateSectionWithAi(
 ): Promise<GenerateSectionResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   if (!(input.sectionTypeKey in SECTION_REGISTRY)) {
@@ -239,7 +239,7 @@ export async function generateAltTextWithAi(
 ): Promise<AltTextResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
   const limit = checkRate(scope.tenantId);
   if (!limit.ok) return { ok: false, error: "AI limit reached (50/hour).", code: "RATE_LIMITED" };

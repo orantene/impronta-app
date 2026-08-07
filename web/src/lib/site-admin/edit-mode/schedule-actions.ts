@@ -11,7 +11,7 @@
  * operator would have hit manually.
  *
  * Constraints:
- *   - `requireSession` + `requireTenantScope` gate every entry point.
+ *   - `requireSession` + `requireEditSurfaceTenantScope` gate every entry point.
  *   - The DB trigger `cms_pages_scheduled_publish_check` rejects past
  *     timestamps (with a 1-minute grace for clock skew) — we still
  *     validate client-side so the UI gives a clean error.
@@ -20,7 +20,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 
@@ -57,7 +57,7 @@ export async function schedulePublishAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -137,7 +137,7 @@ export async function cancelScheduledPublishAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -208,7 +208,7 @@ export async function loadScheduledPublishAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,

@@ -61,7 +61,7 @@ import {
   type BuilderWorkspacePlan,
 } from "@/lib/site-admin/builder-capabilities";
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { randomBytes } from "node:crypto";
 
@@ -838,7 +838,7 @@ async function loadWorkspaceStarterPlan(
 export async function loadStarterAvailability(): Promise<StarterAvailabilityResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
   const admin = createServiceRoleClient();
   if (!admin) {
@@ -901,7 +901,7 @@ export async function applyStarterComposition(
 ): Promise<StarterActionState> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Select an agency workspace first." };
   }

@@ -14,7 +14,7 @@
  *                                  references per asset id / public URL
  *
  * Both actions are staff-gated (`requireSession`) and tenant-scoped
- * (`requireTenantScope`), matching the disciplines used by the design
+ * (`requireEditSurfaceTenantScope`), matching the disciplines used by the design
  * + revisions edit-mode wrappers.
  *
  * Usage scanner: cms_sections.props_jsonb is a free-form jsonb column
@@ -35,7 +35,7 @@ import {
 } from "@/lib/site-admin/media/assets";
 import type { MediaLibraryItem } from "@/lib/site-admin/media/types";
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ── types ─────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ export async function loadAssetsLibraryAction(): Promise<LoadAssetsLibraryResult
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -100,7 +100,7 @@ export async function scanAssetUsageAction(): Promise<ScanAssetUsageResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,

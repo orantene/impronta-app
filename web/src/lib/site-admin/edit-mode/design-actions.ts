@@ -43,7 +43,8 @@ import {
 } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { requireSession } from "@/lib/server/action-guards";
-import { getTenantScope, getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getTenantScopeBySlug } from "@/lib/saas/scope";
+import { getEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ── types ─────────────────────────────────────────────────────────────────
@@ -139,10 +140,13 @@ function withDefaults(
  * `getTenantScope` would load (or fail on) the wrong tenant — leaving the
  * studio stuck on "Loading…". The slug is unambiguous.
  *
- * Without a slug (the storefront edit-chrome ThemeDrawer, where middleware
- * sets the `x-impronta-tenant-id` header from the verified host) fall back to
- * the header/cookie-based scope. Both helpers return `null` when no scope can
- * be proven; callers treat that as "no workspace selected".
+ * Without a slug (the storefront edit-chrome ThemeDrawer) resolve from the
+ * SURFACE via `getEditSurfaceTenantScope`: the host context middleware proved
+ * against `agency_domains`, verified against the actor's memberships. That is
+ * the same "the URL is authoritative, the cookie is not" rule as the slug
+ * branch, applied to host-addressed storefronts (P1, 2026-08-07). Both helpers
+ * return `null` when no scope can be proven; callers treat that as "no
+ * workspace selected".
  *
  * AUTH MODEL (2026-08-04 fix): these actions guard with `requireSession` +
  * tenant scope (membership proof), NOT `requireStaff`. `requireStaff` checks
@@ -159,7 +163,7 @@ function withDefaults(
  *   (c) RLS — `is_staff_of_tenant()` is membership-based, not app_role-based.
  */
 async function resolveDesignScope(tenantSlug: string | undefined) {
-  return tenantSlug ? getTenantScopeBySlug(tenantSlug) : getTenantScope();
+  return tenantSlug ? getTenantScopeBySlug(tenantSlug) : getEditSurfaceTenantScope();
 }
 
 // ── load ──────────────────────────────────────────────────────────────────

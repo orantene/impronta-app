@@ -13,7 +13,7 @@
  * the shell is a separate row. Same builder product, same publish trust.
  *
  * Service-role write; auth/scope check is done by the caller (the publish
- * action runs requireStaff + requireTenantScope before invoking this).
+ * action runs requireStaff + requireEditSurfaceTenantScope before invoking this).
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
