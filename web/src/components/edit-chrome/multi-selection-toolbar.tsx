@@ -25,6 +25,7 @@ import type {
   MultiNodeAlignMode,
   MultiNodeDistributeMode,
 } from "./multi-node-layout";
+import { useEditorLocale } from "./use-editor-locale";
 
 interface Rect {
   top: number;
@@ -133,6 +134,7 @@ export function MultiSelectionToolbar({
   // the common bulk action (align/distribute) stays one click away and the
   // heavier style editing is opt-in. State is local: it only governs the
   // panel's open/closed; every committed change fans out via onBulkStyle.
+  const { t } = useEditorLocale();
   const [styleOpen, setStyleOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   // Docked to the bottom control-bar stack (row 2, above the selection chip).
@@ -144,7 +146,7 @@ export function MultiSelectionToolbar({
     <>
     <BuilderCoachmarkTip
       id="multi-select-toolbar"
-      message="Shift-click to select multiple blocks: align, group, and style them together."
+      message={t("Shift-click to select multiple blocks: align, group, and style them together.")}
       placement="above"
     >
       <span
@@ -163,7 +165,7 @@ export function MultiSelectionToolbar({
       data-multi-selection-toolbar=""
       data-edit-overlay="multi-selection-toolbar"
       role="toolbar"
-      aria-label="Selected blocks"
+      aria-label={t("Selected blocks")}
       style={{
         position: "fixed",
         // Second row of the bottom control-bar stack: sits directly above the
@@ -202,12 +204,12 @@ export function MultiSelectionToolbar({
           flex: "0 0 auto",
         }}
       >
-        {count} selected
+        {t("{count} selected").replace("{count}", String(count))}
       </span>
       <Divider />
       <IconButton
         disabled={disabled}
-        label="Align left"
+        label={t("Align left")}
         action="align-left"
         onClick={() => onAlign("left")}
       >
@@ -215,7 +217,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled}
-        label="Align center"
+        label={t("Align center")}
         action="align-center"
         onClick={() => onAlign("center")}
       >
@@ -223,7 +225,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled || !canGroup}
-        label="Group selected blocks"
+        label={t("Group selected blocks")}
         action="group"
         onClick={onGroup}
       >
@@ -231,7 +233,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled}
-        label="Duplicate selected blocks"
+        label={t("Duplicate selected blocks")}
         action="duplicate"
         onClick={onDuplicate}
       >
@@ -239,7 +241,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled}
-        label="More layout actions"
+        label={t("More layout actions")}
         action="more"
         ariaExpanded={moreOpen}
         ariaHasPopup
@@ -250,7 +252,7 @@ export function MultiSelectionToolbar({
       <Divider />
       <IconButton
         disabled={disabled}
-        label="Remove selected blocks"
+        label={t("Remove selected blocks")}
         action="remove"
         tone="danger"
         onClick={onRemove}
@@ -277,7 +279,7 @@ export function MultiSelectionToolbar({
       >
       <IconButton
         disabled={disabled}
-        label="Align right"
+        label={t("Align right")}
         action="align-right"
         onClick={() => onAlign("right")}
       >
@@ -285,7 +287,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled}
-        label="Align top"
+        label={t("Align top")}
         action="align-top"
         onClick={() => onAlign("top")}
       >
@@ -293,7 +295,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled}
-        label="Align middle"
+        label={t("Align middle")}
         action="align-middle"
         onClick={() => onAlign("middle")}
       >
@@ -301,7 +303,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled}
-        label="Align bottom"
+        label={t("Align bottom")}
         action="align-bottom"
         onClick={() => onAlign("bottom")}
       >
@@ -309,7 +311,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled || !canDistribute}
-        label="Distribute horizontally"
+        label={t("Distribute horizontally")}
         action="distribute-horizontal"
         onClick={() => onDistribute("horizontal")}
       >
@@ -317,7 +319,7 @@ export function MultiSelectionToolbar({
       </IconButton>
       <IconButton
         disabled={disabled || !canDistribute}
-        label="Distribute vertically"
+        label={t("Distribute vertically")}
         action="distribute-vertical"
         onClick={() => onDistribute("vertical")}
       >
@@ -329,7 +331,7 @@ export function MultiSelectionToolbar({
           <IconButton
             disabled={disabled}
             label={
-              styleOpen ? "Hide shared style" : "Edit shared style for all"
+              styleOpen ? t("Hide shared style") : t("Edit shared style for all")
             }
             action="bulk-style"
             onClick={() => setStyleOpen((open) => !open)}
@@ -341,7 +343,7 @@ export function MultiSelectionToolbar({
       <Divider />
       <IconButton
         disabled={disabled || !canUngroup}
-        label="Ungroup selected block"
+        label={t("Ungroup selected block")}
         action="ungroup"
         onClick={onUngroup}
       >
@@ -353,7 +355,7 @@ export function MultiSelectionToolbar({
           <IconButton
             disabled={disabled}
             label={
-              styleOpen ? "Hide shared style" : "Edit shared style for all"
+              styleOpen ? t("Hide shared style") : t("Edit shared style for all")
             }
             action="bulk-style"
             onClick={() => setStyleOpen((open) => !open)}
@@ -400,6 +402,7 @@ function BulkStylePanel({
   disabled: boolean;
   onBulkStyle: (stylePatchJson: string) => void;
 }) {
+  const { t } = useEditorLocale();
   const emit = (patch: Record<string, unknown>) =>
     onBulkStyle(JSON.stringify(patch));
   return (
@@ -435,31 +438,31 @@ function BulkStylePanel({
           color: CHROME.muted3,
         }}
       >
-        Apply to all selected
+        {t("Apply to all selected")}
       </div>
       <BulkStyleRow
-        label="Text colour"
+        label={t("Text colour")}
         styleKey="textColor"
         kind="color"
         disabled={disabled}
         onEmit={emit}
       />
       <BulkStyleRow
-        label="Background"
+        label={t("Background")}
         styleKey="backgroundColor"
         kind="color"
         disabled={disabled}
         onEmit={emit}
       />
       <BulkStyleRow
-        label="Corner radius"
+        label={t("Corner radius")}
         styleKey="borderRadius"
         kind="px"
         disabled={disabled}
         onEmit={emit}
       />
       <BulkStyleRow
-        label="Opacity"
+        label={t("Opacity")}
         styleKey="opacity"
         kind="opacity"
         disabled={disabled}
@@ -482,6 +485,7 @@ function BulkStyleRow({
   disabled: boolean;
   onEmit: (patch: Record<string, unknown>) => void;
 }) {
+  const { t } = useEditorLocale();
   const [value, setValue] = useState("");
   const commit = (raw: string) => {
     const trimmed = raw.trim();
@@ -522,7 +526,7 @@ function BulkStyleRow({
           <input
             type="color"
             disabled={disabled}
-            aria-label={`${label} for all selected`}
+            aria-label={t("{label} for all selected").replace("{label}", label)}
             value={value || "#000000"}
             onChange={(e) => {
               setValue(e.target.value);
@@ -542,7 +546,7 @@ function BulkStyleRow({
           <input
             type="number"
             disabled={disabled}
-            aria-label={`${label} for all selected`}
+            aria-label={t("{label} for all selected").replace("{label}", label)}
             value={value}
             min={0}
             max={kind === "opacity" ? 1 : undefined}
@@ -572,8 +576,8 @@ function BulkStyleRow({
         <button
           type="button"
           disabled={disabled}
-          aria-label={`Clear ${label} on all selected`}
-          title={`Clear ${label}`}
+          aria-label={t("Clear {label} on all selected").replace("{label}", label)}
+          title={t("Clear {label}").replace("{label}", label)}
           onClick={() => {
             setValue("");
             onEmit({ [styleKey]: undefined });
