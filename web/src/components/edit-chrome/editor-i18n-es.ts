@@ -269,6 +269,7 @@ export const ES_TEXT: Record<string, string> = {
   template: "plantilla",
   homepage: "portada",
   page: "página",
+  "site shell": "estructura del sitio",
   "What publishing does": "Qué hace publicar",
   "Publishing to the live site. Please wait.":
     "Publicando en el sitio en vivo. Espera un momento.",

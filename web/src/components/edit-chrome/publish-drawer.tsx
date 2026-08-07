@@ -863,15 +863,25 @@ export function PublishDrawer() {
   );
 
   // Surface-aware noun: the Builder Lab edits a TEMPLATE (platform_lab, no
-  // pageSlug), the homepage edits the homepage, talent/workspace edit a page.
-  // Drives the title here and the body/success copy below so the Lab never
-  // mislabels a template publish as a "homepage" publish.
+  // pageSlug), the site shell edits the shared header/footer, the homepage
+  // surface edits the homepage ONLY when there is no page slug, and everything
+  // else edits a page. Drives the title here and the body/success copy below.
+  //
+  // The `pageSlug` check is load-bearing, not defensive: a NON-freeform cms
+  // page (a curated slot page) mounts through `buildHomepageBuilderConfig`
+  // (edit-chrome.tsx — "Homepage + system + slot pages"), so `surfaceKind` is
+  // "homepage" while the operator is demonstrably on a named cms page. Keying
+  // the noun on surfaceKind alone made the drawer announce "Publish homepage"
+  // over a cms page at the exact moment of a destructive-feeling action. The
+  // body copy below has always keyed on `pageSlug`; the title now agrees.
   const surfaceNoun =
     surfaceKind === "platform_lab"
       ? t("template")
-      : surfaceKind === "homepage"
-        ? t("homepage")
-        : t("page");
+      : surfaceKind === "site_shell"
+        ? t("site shell")
+        : surfaceKind === "homepage" && !pageSlug
+          ? t("homepage")
+          : t("page");
   const publishHeadTitle = isSuccess ? t("Published") : `${t("Publish")} ${surfaceNoun}`;
 
   return (
@@ -901,6 +911,7 @@ export function PublishDrawer() {
               (state as Extract<PublishState, { kind: "success" }>).publishedAt
             }
             surfaceKind={surfaceKind}
+            pageSlug={pageSlug}
             onClose={closePublish}
           />
         ) : (
@@ -2130,10 +2141,18 @@ function SearchPreview({
 function SuccessBody({
   publishedAt,
   surfaceKind,
+  pageSlug,
   onClose,
 }: {
   publishedAt: string;
   surfaceKind: BuilderSurfaceKind;
+  /**
+   * Non-null whenever the operator is on a named cms page. A slot cms page
+   * mounts with `surfaceKind === "homepage"` (see the surfaceNoun note above),
+   * so the success copy has to consult the slug too or it congratulates the
+   * operator on publishing a homepage they never touched.
+   */
+  pageSlug: string | null;
   onClose: () => void;
 }) {
   const { t, locale } = useEditorLocale();
@@ -2181,7 +2200,7 @@ function SuccessBody({
             {t(
               surfaceKind === "platform_lab"
                 ? "This template is now in the page-builder gallery. Keep editing. Your next publish updates it when you click Publish again."
-                : surfaceKind === "homepage"
+                : surfaceKind === "homepage" && !pageSlug
                   ? "Visitors see the new homepage now. Keep editing. Your next publish only replaces the live page when you click Publish again."
                   : "Visitors see the new page now. Keep editing. Your next publish only replaces the live page when you click Publish again.",
             )}
