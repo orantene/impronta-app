@@ -12,6 +12,19 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 const siteUrl = () =>
   (process.env.NEXT_PUBLIC_SITE_URL ?? `https://${PLATFORM_BRAND.domain}`).replace(/\/$/, "");
 
+/**
+ * Workspace paths (`/admin`, `/client`, `/talent`) live on the app host.
+ * `siteUrl()` is the MARKETING apex, which 404s all of them, so a mail link
+ * built from it lands the recipient on "Page not found". Use this for any
+ * href that points into a dashboard.
+ */
+const appUrl = () =>
+  (
+    process.env.NEXT_PUBLIC_APP_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    `https://${PLATFORM_BRAND.domain}`
+  ).replace(/\/$/, "");
+
 export interface EmailBrand {
   /** Wordmark label rendered in the header. Defaults to the platform brand. */
   wordmark?: string;
@@ -87,7 +100,7 @@ export function offerSentEmail(data: {
 }): { subject: string; html: string } {
   const name = data.clientName ?? "there";
   const event = data.contactName ?? "your inquiry";
-  const href = `${siteUrl()}/client/inquiries/${data.inquiryId}?tab=offer`;
+  const href = `${appUrl()}/client/inquiries/${data.inquiryId}?tab=offer`;
 
   return {
     subject: `Offer ready for ${event}`,
@@ -127,8 +140,8 @@ export function bookingConfirmedEmail(data: {
   const event = data.contactName ?? "your booking";
   const href =
     data.role === "client"
-      ? `${siteUrl()}/client/bookings/${data.bookingId}`
-      : `${siteUrl()}/talent/inbox`;
+      ? `${appUrl()}/client/bookings/${data.bookingId}`
+      : `${appUrl()}/talent/inbox`;
 
   const details = [data.eventDate, data.eventLocation].filter(Boolean);
 
@@ -271,7 +284,7 @@ export function inquiryReceivedEmail(data: {
   brand?: EmailBrand;
 }): { subject: string; html: string } {
   const name = data.contactName ?? "there";
-  const href = `${siteUrl()}/client/inquiries/${data.inquiryId}`;
+  const href = `${appUrl()}/client/inquiries/${data.inquiryId}`;
   const details = [data.eventDate, data.eventLocation].filter(Boolean);
 
   return {
@@ -354,7 +367,7 @@ export function coordinatorAssignedEmail(data: {
 }): { subject: string; html: string } {
   const name = data.coordinatorName ?? "there";
   const event = data.contactName ?? "a new inquiry";
-  const href = `${siteUrl()}/admin/work/${data.inquiryId}`;
+  const href = `${appUrl()}/admin/work/${data.inquiryId}`;
 
   return {
     subject: `You've been assigned to ${event}`,
@@ -387,7 +400,7 @@ export function talentInvitedEmail(data: {
 }): { subject: string; html: string } {
   const name = data.talentName ?? "there";
   const event = data.contactName ?? "a new inquiry";
-  const href = `${siteUrl()}/talent/inbox/${data.inquiryId}`;
+  const href = `${appUrl()}/talent/inbox/${data.inquiryId}`;
   const details = [data.eventDate, data.eventLocation].filter(Boolean);
 
   return {

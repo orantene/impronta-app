@@ -6,6 +6,7 @@ import {
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
+import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { redeemInvitePayload } from "@/lib/invites/redeem";
@@ -120,8 +121,16 @@ export async function GET(request: Request) {
       // /admin, /talent, /client are only allowed on the app host. Using
       // `origin` (the request host) caused a 404 when origin was the apex.
       const appUrl = getAppUrl();
+      // Both branches must leave the marketing apex: /admin, /client,
+      // /talent and /onboarding/* only exist on the app + agency surfaces.
+      // The redirect branch has always hard-coded appUrl; the popup branch
+      // used to post the RELATIVE path back to the opener, which then
+      // router.push'd it on whatever host the popup was opened from.
       const successResponse = popup
-        ? createPopupResponse(origin, { success: true, destination })
+        ? createPopupResponse(origin, {
+            success: true,
+            destination: await hostSafeRedirectDestination(destination),
+          })
         : NextResponse.redirect(`${appUrl}${destination}`);
       response.cookies.getAll().forEach((cookie) => {
         successResponse.cookies.set(cookie);

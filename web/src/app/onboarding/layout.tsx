@@ -105,8 +105,13 @@ function OnboardingFooter({ legalLine }: { legalLine: string }) {
           >
             Privacy
           </Link>
+          {/* /about, not /contact: the marketing host has no /contact page
+              (it is not in MARKETING_PAGE_PREFIXES, and the CMS clean-URL
+              rewrite that would rescue it is agency-hosts-only), so this
+              footer link 404'd on every surface. /about is the contact
+              surface. */}
           <Link
-            href={`${getSiteUrl()}/contact`}
+            href={`${getSiteUrl()}/about`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >

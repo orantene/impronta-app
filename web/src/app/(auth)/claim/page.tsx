@@ -17,6 +17,7 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getAppUrl } from "@/lib/auth-flow";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -114,9 +115,12 @@ export default async function ClaimProfilePage({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* Absolute: /claim is allow-listed on marketing + hub (claim mail is
+            branded per workspace and can be opened anywhere), but /talent
+            exists on the app + agency surfaces only. */}
         {view.showDashboard ? (
           <Link
-            href="/talent"
+            href={`${getAppUrl()}/talent`}
             className="inline-flex h-10 items-center rounded-full bg-admin-accent px-5 text-[13px] font-semibold text-white"
           >
             Go to my dashboard

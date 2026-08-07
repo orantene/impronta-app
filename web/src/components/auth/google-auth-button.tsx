@@ -1,6 +1,10 @@
 "use client";
 
-import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
+import {
+  AUTH_POPUP_MESSAGE_TYPE,
+  type AuthPopupMessage,
+  navigateToAuthPopupDestination,
+} from "@/lib/auth-popup";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -50,7 +54,7 @@ export function GoogleAuthButton({
       popupRef.current = null;
 
       if (event.data.success) {
-        router.push(event.data.destination ?? "/");
+        navigateToAuthPopupDestination(event.data.destination ?? "/", router);
         router.refresh();
       }
     }

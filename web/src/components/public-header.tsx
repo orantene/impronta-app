@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { LogOut, Search, UserRound } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { AccountMenu } from "@/components/account-menu";
+import { hostSafeDestination } from "@/lib/saas/host-safe-destination";
 import { PublicLanguageToggle } from "@/components/public-language-toggle";
 import { PublicHeaderDiscoveryTools } from "@/components/public-header-discovery-tools";
 import {
@@ -123,8 +124,18 @@ export async function PublicHeader() {
   const user = actor.user;
   const profile: AccessProfileWithDisplayName | null = actor.profile;
 
-  const headerHref = (href: string) =>
-    publicLocaleHref(pathnameWithoutLocale, href, locale);
+  // Host-safe. This header renders on `/t/*`, which is allow-listed on the
+  // marketing apex and the hub, and every account/dashboard link it builds
+  // points at `/admin`, `/client`, `/talent` or `/onboarding/role`, none of
+  // which exist on those two surfaces. Relative, the "Dashboard" link was a
+  // 404. When the current surface cannot serve the target, send the absolute
+  // app-host URL instead and skip the locale prefix (it belongs to the path,
+  // not the origin).
+  const headerHref = (href: string) => {
+    const hostSafe = hostSafeDestination(href, hostContext.kind);
+    if (hostSafe !== href) return hostSafe;
+    return publicLocaleHref(pathnameWithoutLocale, href, locale);
+  };
   const accountLink = resolveAccountHref(Boolean(user), profile);
   const destination = resolveAuthenticatedDestination(profile);
   // C3 — Desktop AccountMenu dedup: secondary action currently always
