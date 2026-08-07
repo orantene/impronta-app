@@ -20,12 +20,23 @@ export interface FreeStarterEntry {
  * `publicImagePathOrUrlSchema`.
  */
 const STARTER_IMG = {
-  hero: "/talent-templates/demo/impronta-2026/lifestyle-1.jpg",
+  /**
+   * The GENERIC Free default has to be safe for every business the funnel
+   * advertises: agencies, bands, studios, restaurants, conferences, solo
+   * pros. The first draft used a glamour/lingerie studio shot, which is the
+   * wrong first impression for almost all of them. These two read as
+   * "creative studio at work": neutral, premium, professional, and no
+   * genre lock. Category-specific starter kits can still ship imagery that
+   * fits their category; only this generic default must be universal.
+   */
+  hero: "/marketing/photos/agency-workspace-builder.jpg",
   tileMakeup: "/talent-templates/demo/impronta-2026/hero-a.jpg",
   tileHair: "/marketing/photos/case-studies/cs-salon.jpg",
   tilePhotography: "/marketing/photos/case-studies/cs-models.jpg",
   tileStyling: "/talent-templates/demo/impronta-2026/atelier-1.jpg",
-  ctaBanner: "/marketing/photos/case-studies/cs-wedding.jpg",
+  // Was cs-wedding.jpg: a sunset elopement portrait. Genre-locked to
+  // weddings, so it read as someone else's business on every other tenant.
+  ctaBanner: "/marketing/photos/hub-agency-discovery.jpg",
 } as const;
 
 /**
@@ -131,7 +142,11 @@ export function buildFreeStarterEntries(
         primaryCta: { label: "Start an inquiry", href: "/contact" },
         backgroundImageUrl: STARTER_IMG.ctaBanner,
         backgroundImageAlt: "",
-        overlayOpacity: 55,
+        // The banner copy is white-on-image. 55 left the 17px body copy at
+        // roughly 3.5:1 over the brightest part of a light studio photo;
+        // 68 keeps it above the 4.5:1 body-text floor without flattening
+        // the photograph.
+        overlayOpacity: 68,
         variant: "centered-overlay",
         // Unset the library default's Muse Bridal reassurance line
         // ("Quiet, unhurried..."), which reads off-brand for a generic
