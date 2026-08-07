@@ -155,7 +155,7 @@ const agencyTree: BuilderNode[] = [
             id: "agency-manifesto",
             kind: "rich_text",
             props: {
-              text: "Film, photography, and brand systems for people with {accent}something true to say{/accent}. We direct, produce, and finish in-house — selected work below, or [request the full index](/index).",
+              text: "Film, photography, and brand systems for people with {accent}something true to say{/accent}. We direct, produce, and finish in-house, selected work below, or [request the full index](/index).",
               style: {
                 fontFamily: RALEWAY,
                 fontSize: "18px",
@@ -260,7 +260,7 @@ const agencyTree: BuilderNode[] = [
                 id: "agency-work-note",
                 kind: "paragraph",
                 props: {
-                  text: "2024 — 2026",
+                  text: "2024 to 2026",
                   style: { fontFamily: RALEWAY, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: "#8a7c69" },
                 },
               },
@@ -507,7 +507,7 @@ const agencyTree: BuilderNode[] = [
             id: "agency-footer-copy",
             kind: "paragraph",
             props: {
-              text: "Film · Photography · Brand — Mexico City & Lisbon",
+              text: "Film · Photography · Brand, Mexico City & Lisbon",
               style: { align: "right", fontFamily: RALEWAY, fontSize: "14px", textColor: "#7d7060", responsive: { mobile: { align: "left" } } },
             },
           },

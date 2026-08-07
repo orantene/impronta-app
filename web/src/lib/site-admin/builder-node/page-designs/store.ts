@@ -134,7 +134,7 @@ const storeTree: BuilderNode[] = [
                 id: "store-buybar-meta",
                 kind: "paragraph",
                 props: {
-                  text: "Vocalist, CDMX — archival giclée · $280",
+                  text: "Vocalist, CDMX, archival giclée · $280",
                   style: {
                     fontFamily: INTER,
                     fontSize: "14px",
@@ -208,7 +208,7 @@ const storeTree: BuilderNode[] = [
                 kind: "image",
                 props: {
                   src: PHOTO.print,
-                  alt: "Vocalist, CDMX — archival giclée print",
+                  alt: "Vocalist, CDMX, archival giclée print",
                   style: {
                     width: "100%",
                     aspectRatioFree: "0.82",
@@ -273,7 +273,7 @@ const storeTree: BuilderNode[] = [
                 id: "store-eyebrow",
                 kind: "paragraph",
                 props: {
-                  text: "Limited edition — 50 prints",
+                  text: "Limited edition of 50 prints",
                   style: {
                     fontFamily: CINZEL,
                     fontSize: "12px",
@@ -319,7 +319,7 @@ const storeTree: BuilderNode[] = [
                 id: "store-desc",
                 kind: "rich_text",
                 props: {
-                  text: "A warm, available-light portrait from the {accent}Sessions{/accent} series — printed on 310gsm cotton rag with archival pigment, hand-numbered and signed. Each order includes a certificate of authenticity. See the [full printing notes](/printing).",
+                  text: "A warm, available-light portrait from the {accent}Sessions{/accent} series, printed on 310gsm cotton rag with archival pigment, hand-numbered and signed. Each order includes a certificate of authenticity. See the [full printing notes](/printing).",
                   style: {
                     fontFamily: INTER,
                     fontSize: "16px",
@@ -363,7 +363,7 @@ const storeTree: BuilderNode[] = [
                 id: "store-add",
                 kind: "button",
                 props: {
-                  label: "Add to cart — $280",
+                  label: "Add to cart · $280",
                   href: "/cart/add",
                   tone: "primary",
                   style: {
@@ -725,7 +725,7 @@ const storeTree: BuilderNode[] = [
             id: "store-footer-copy",
             kind: "paragraph",
             props: {
-              text: "Archival prints, made to order — Mexico City",
+              text: "Archival prints, made to order, Mexico City",
               style: {
                 align: "right",
                 fontFamily: INTER,

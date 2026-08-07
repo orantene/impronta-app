@@ -123,7 +123,8 @@ export async function POST(req: Request) {
       const current = bestRank.get(m.owner_talent_profile_id);
       if (current === undefined || rank < current) {
         bestRank.set(m.owner_talent_profile_id, rank);
-        const url = m.storage_path.startsWith("http")
+        const url =
+        m.storage_path.startsWith("http") || m.storage_path.startsWith("/")
           ? m.storage_path
           : admin.storage
               .from("media-public")

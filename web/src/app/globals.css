@@ -445,7 +445,12 @@ html[data-public-font-preset="editorial"] {
   font-size: clamp(2rem, 5vw, 3.75rem);
   line-height: 1.08;
   letter-spacing: -0.01em;
-  color: color-mix(in oklab, var(--foreground) 96%, white);
+  /* Ink token, not --foreground: under the storefront tenant-override,
+   * --foreground maps to the NEUTRAL token (#737373 default), which turned
+   * the hero headline muddy gray on fresh tenants. Ink is #111 by default
+   * and re-pinned light under dark background modes, so both polarities
+   * keep their intended contrast. */
+  color: color-mix(in oklab, var(--token-color-ink, var(--foreground)) 96%, white);
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
   margin: 0;
 }
@@ -459,7 +464,8 @@ html[data-public-font-preset="editorial"] {
   font-size: clamp(1rem, 1.4vw, 1.25rem);
   line-height: 1.55;
   max-width: 38rem;
-  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+  /* Ink token for the same reason as the headline above. */
+  color: color-mix(in oklab, var(--token-color-ink, var(--foreground)) 88%, transparent);
   text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
   margin: 0;
 }
@@ -572,7 +578,13 @@ html[data-public-font-preset="editorial"] {
 
 .site-hero__cta--primary {
   background: var(--token-color-primary, var(--primary));
-  color: var(--primary-foreground, #fff);
+  /* Text pairs with the RAISED SURFACE token, mirroring .site-prim-cta--primary.
+   * The old `--primary-foreground` came from the body's site-theme class (a
+   * PLATFORM setting stuck on "dark" for every tenant), so a fresh tenant got
+   * near-black text on the near-black default primary pill — an illegible CTA
+   * on an otherwise light storefront. Surface-raised tracks the tenant's real
+   * polarity: #fff default (light canvas), re-pinned dark under noir modes. */
+  color: var(--token-color-surface-raised, #ffffff);
   box-shadow:
     0 18px 45px -15px color-mix(in oklab, var(--token-color-primary, var(--primary)) 65%, transparent),
     inset 0 0 0 1px color-mix(in oklab, white 10%, transparent);

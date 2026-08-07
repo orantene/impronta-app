@@ -154,7 +154,7 @@ const studioTree: BuilderNode[] = [
             id: "studio-manifesto",
             kind: "rich_text",
             props: {
-              text: "A small studio for brands that want {accent}fewer, better things{/accent}. Strategy, identity, and websites — made with care and shipped end to end. [See selected work](/work).",
+              text: "A small studio for brands that want {accent}fewer, better things{/accent}. Strategy, identity, and websites, made with care and shipped end to end. [See selected work](/work).",
               style: {
                 fontFamily: INTER,
                 fontSize: "19px",
@@ -305,7 +305,7 @@ const studioTree: BuilderNode[] = [
                 children: [
                   { id: "studio-make-2-n", kind: "paragraph", props: { text: "02", style: { fontFamily: FRAUNCES, fontSize: "22px", fontWeight: 600, textColor: CLAY } } },
                   { id: "studio-make-2-t", kind: "heading", props: { text: "Websites", level: 3, style: { fontFamily: FRAUNCES, fontSize: "24px", fontWeight: 600, textColor: INK, marginBottomFree: "0px" } } },
-                  { id: "studio-make-2-b", kind: "paragraph", props: { text: "Fast, editorial sites you can edit yourself — built to last.", style: { fontFamily: INTER, fontSize: "15px", lineHeight: "1.6", textColor: MUTED } } },
+                  { id: "studio-make-2-b", kind: "paragraph", props: { text: "Fast, editorial sites you can edit yourself, built to last.", style: { fontFamily: INTER, fontSize: "15px", lineHeight: "1.6", textColor: MUTED } } },
                 ],
               },
               {
@@ -368,7 +368,7 @@ const studioTree: BuilderNode[] = [
             },
             children: [
               { id: "studio-work-title", kind: "heading", props: { text: "Selected work", level: 2, style: { fontFamily: FRAUNCES, fontSize: "44px", fontWeight: 600, letterSpacing: "-0.01em", textColor: INK, marginBottomFree: "0px", responsive: { mobile: { fontSize: "32px" } } } } },
-              { id: "studio-work-note", kind: "paragraph", props: { text: "2024 — 2026", style: { fontFamily: INTER, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: MUTED } } },
+              { id: "studio-work-note", kind: "paragraph", props: { text: "2024 to 2026", style: { fontFamily: INTER, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: MUTED } } },
             ],
           },
           {
@@ -475,7 +475,7 @@ const studioTree: BuilderNode[] = [
             id: "studio-quote-text",
             kind: "rich_text",
             props: {
-              text: "“They made us look like {accent}the studio we always wanted to be{/accent} — and made the whole thing feel easy.”",
+              text: "“They made us look like {accent}the studio we always wanted to be{/accent}, and made the whole thing feel easy.”",
               style: { fontFamily: FRAUNCES, fontSize: "40px", lineHeight: "1.2", fontWeight: 600, letterSpacing: "-0.01em", textColor: "#fdf6f0", maxWidthFree: "920px", align: "center", responsive: { mobile: { fontSize: "27px" } } },
             },
           },
@@ -577,7 +577,7 @@ const studioTree: BuilderNode[] = [
         },
         children: [
           { id: "studio-footer-brand", kind: "paragraph", props: { text: "Atelier Sol", style: { fontFamily: FRAUNCES, fontSize: "18px", textColor: INK } } },
-          { id: "studio-footer-copy", kind: "paragraph", props: { text: "Brand · Web · Art direction — Mexico City", style: { align: "right", fontFamily: INTER, fontSize: "14px", textColor: MUTED, responsive: { mobile: { align: "left" } } } } },
+          { id: "studio-footer-copy", kind: "paragraph", props: { text: "Brand · Web · Art direction, Mexico City", style: { align: "right", fontFamily: INTER, fontSize: "14px", textColor: MUTED, responsive: { mobile: { align: "left" } } } } },
         ],
       },
     ],

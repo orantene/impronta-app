@@ -492,7 +492,7 @@ function improntaHeroSearchLayers(): BuilderNode[] {
       id: "impronta-hf-sub",
       kind: "paragraph",
       props: {
-        text: "Search the directory by role, location or fit — agency-managed, no direct contact.",
+        text: "Search the directory by role, location or fit, agency-managed, no direct contact.",
         layerLabel: "Subtitle",
         style: {
           fontFamily: INTER,
@@ -802,7 +802,7 @@ const join: BuilderNode = band("impronta-join", INK, [
     children: [
       eyebrow("For talent"),
       { id: "impronta-join-h", kind: "heading", props: { text: "Are you a model, host, performer or creator?", level: 3, style: { fontFamily: FRAUNCES, fontSize: "34px", lineHeight: "1.1", fontWeight: 500, textColor: TEXT, textWrap: "balance", align: "center", marginBottomFree: "0px", responsive: { mobile: { fontSize: "26px" } } } } },
-      { id: "impronta-join-p", kind: "paragraph", props: { text: "Build your agency-managed profile — availability, portfolio and rates in one place — and be considered for selected opportunities across our growing network of markets.", style: { fontFamily: INTER, fontSize: "16px", lineHeight: "1.6", textColor: MUTED, marginTopFree: "16px", align: "center", maxWidthFree: "560px" } } },
+      { id: "impronta-join-p", kind: "paragraph", props: { text: "Build your agency-managed profile, availability, portfolio and rates in one place, and be considered for selected opportunities across our growing network of markets.", style: { fontFamily: INTER, fontSize: "16px", lineHeight: "1.6", textColor: MUTED, marginTopFree: "16px", align: "center", maxWidthFree: "560px" } } },
       { id: "impronta-join-actions", kind: "container", props: { layout: "row", align: "center", responsive: { mobile: { layout: "stack" } }, style: { gap: "18px", marginTopFree: "28px", justifyContent: "center" } }, children: [goldButton("impronta-join-cta", "Apply as Talent", "/join"), lineButton("impronta-join-login", "Talent Login →", "/login")] },
     ],
   },
@@ -823,7 +823,7 @@ const finalCta: BuilderNode = band(
         // over "one search away." (gold italic). Block headings, not inline spans.
         { id: "impronta-final-h", kind: "heading", props: { text: "The right talent is", level: 2, layerLabel: "Closing line 1", style: { fontFamily: FRAUNCES, fontSize: "44px", lineHeight: "1.06", fontWeight: 500, letterSpacing: "-0.01em", textColor: TEXT, textWrap: "balance", align: "center", marginBottomFree: "0px", responsive: { mobile: { fontSize: "30px" } } } } },
         { id: "impronta-final-h2", kind: "heading", props: { text: "one search away.", level: 2, layerLabel: "Closing line 2 (accent)", style: { fontFamily: FRAUNCES, fontSize: "44px", lineHeight: "1.06", fontWeight: 500, fontStyle: "italic", letterSpacing: "-0.01em", textColor: GOLD_BRIGHT, textWrap: "balance", align: "center", marginBottomFree: "0px", responsive: { mobile: { fontSize: "30px" } } } } },
-        { id: "impronta-final-p", kind: "paragraph", props: { text: "Tell us the brief and your market. We'll match the right talent — a coordinator replies personally.", style: { fontFamily: INTER, fontSize: "17px", lineHeight: "1.6", textColor: MUTED, marginTopFree: "18px", align: "center", maxWidthFree: "560px" } } },
+        { id: "impronta-final-p", kind: "paragraph", props: { text: "Tell us the brief and your market. We'll match the right talent, a coordinator replies personally.", style: { fontFamily: INTER, fontSize: "17px", lineHeight: "1.6", textColor: MUTED, marginTopFree: "18px", align: "center", maxWidthFree: "560px" } } },
         { id: "impronta-final-actions", kind: "container", props: { layout: "row", align: "center", responsive: { mobile: { layout: "stack" } }, style: { gap: "18px", marginTopFree: "30px", justifyContent: "center" } }, children: [goldButton("impronta-final-cta", "Browse the roster", "/directory"), lineButton("impronta-final-explore", "Start an inquiry", "/inquiry")] },
       ],
     },
@@ -885,7 +885,7 @@ const plate1: BuilderNode = {
   props: {
     layout: "stack",
     align: "center",
-    layerLabel: "Plate I — The Runway",
+    layerLabel: "Plate I, The Runway",
     style: {
       width: "100%",
       maxWidthFree: "none",
@@ -994,7 +994,7 @@ const statement: BuilderNode = {
   props: {
     layout: "stack",
     align: "center",
-    layerLabel: "Statement — the Impronta way",
+    layerLabel: "Statement, the Impronta way",
     style: {
       width: "100%",
       maxWidthFree: "100%",
@@ -1087,7 +1087,7 @@ const statement: BuilderNode = {
                   id: "impronta-statement-tagline",
                   kind: "paragraph",
                   props: {
-                    text: "Every name on this roster is someone we have met, vetted, and chosen to represent — a promise, not a profile.",
+                    text: "Every name on this roster is someone we have met, vetted, and chosen to represent, a promise, not a profile.",
                     layerLabel: "Gold tagline",
                     style: { fontFamily: FRAUNCES, fontSize: "19px", lineHeight: "1.5", fontStyle: "italic", fontWeight: 400, textColor: GOLD, marginTopFree: "22px", align: "left", maxWidthFree: "560px" },
                   },
@@ -1096,7 +1096,7 @@ const statement: BuilderNode = {
                   id: "impronta-statement-body",
                   kind: "paragraph",
                   props: {
-                    text: "Anyone can build a directory. We built an agency. Before a face reaches your shortlist it has been reviewed, its availability confirmed, its rates and rights agreed. When you book through Impronta, a real coordinator is answerable for every detail — from the first reply to the wrap of the shoot.",
+                    text: "Anyone can build a directory. We built an agency. Before a face reaches your shortlist it has been reviewed, its availability confirmed, its rates and rights agreed. When you book through Impronta, a real coordinator is answerable for every detail, from the first reply to the wrap of the shoot.",
                     layerLabel: "Body",
                     style: { fontFamily: INTER, fontSize: "16px", lineHeight: "1.62", textColor: MUTED, marginTopFree: "18px", align: "left", maxWidthFree: "560px" },
                   },
@@ -1136,7 +1136,7 @@ const bestFor: BuilderNode = {
   props: {
     layout: "stack",
     align: "center",
-    layerLabel: "Best for — find talent by occasion",
+    layerLabel: "Best for, find talent by occasion",
     style: {
       width: "100%",
       maxWidthFree: "100%",
@@ -1191,7 +1191,7 @@ const bestFor: BuilderNode = {
               id: "impronta-best-for-sub",
               kind: "paragraph",
               props: {
-                text: "Whatever the brief, there is a roster for it — agency-managed end to end.",
+                text: "Whatever the brief, there is a roster for it, agency-managed end to end.",
                 layerLabel: "Subtitle",
                 style: { fontFamily: "token:typography.body-font-family", fontSize: "17px", lineHeight: "1.6", textColor: "token:color.muted", marginTopFree: "18px", align: "left", maxWidthFree: "560px" },
               },
@@ -1235,7 +1235,7 @@ const inquirySentence: BuilderNode = {
   props: {
     layout: "stack",
     align: "center",
-    layerLabel: "Inquiry — say it in a sentence",
+    layerLabel: "Inquiry, say it in a sentence",
     style: {
       width: "100%",
       maxWidthFree: "100%",
@@ -1265,7 +1265,7 @@ const inquirySentence: BuilderNode = {
               id: "impronta-inquiry-sentence-h",
               kind: "heading",
               props: {
-                text: "Tell us who you’re looking for — the rest is ours to handle.",
+                text: "Tell us who you’re looking for, the rest is ours to handle.",
                 level: 2,
                 layerLabel: "Sentence",
                 style: { fontFamily: FRAUNCES, fontSize: "44px", lineHeight: "1.06", fontWeight: 500, letterSpacing: "-0.01em", textColor: TEXT, textWrap: "balance", align: "center", marginBottomFree: "0px", responsive: { mobile: { fontSize: "30px" } } },
@@ -1374,7 +1374,7 @@ const plate2: BuilderNode = {
   id: "impronta-plate-2-host",
   kind: "container",
   props: {
-    layerLabel: "Plate II — The Room (full-bleed host)",
+    layerLabel: "Plate II, The Room (full-bleed host)",
     layout: "stack",
     align: "stretch",
     style: { width: "100%", maxWidthFree: "none", gap: "0px", paddingTop: "0px", paddingRight: "0px", paddingBottom: "0px", paddingLeft: "0px", backgroundColor: INK },
@@ -1386,7 +1386,7 @@ const plate2: BuilderNode = {
       props: {
         layout: "stack",
         align: "center",
-        layerLabel: "Plate II — The Room",
+        layerLabel: "Plate II, The Room",
         style: { width: "100%", maxWidthFree: "100%", minHeight: "min(78vh,820px)", paddingTop: "0px", paddingRight: "0px", paddingBottom: "0px", paddingLeft: "0px", position: "relative", overflow: "hidden", backgroundColor: INK },
       },
       children: [
@@ -1489,10 +1489,10 @@ const improntaTree: BuilderNode[] = [
 
 export const improntaDesign: PageDesign = {
   id: "impronta",
-  title: "Impronta — Models & Image Agency",
+  title: "Impronta, Models & Image Agency",
   label: "Impronta agency",
   description:
-    "The Impronta Models flagship home, freeform (2026 Casting Issue): a dark editorial models-&-image agency site with a warm-gold accent — a directory-search hero, a discipline marquee, a featured-talent roster, browse-by-discipline, two full-bleed editorial plates, an agency statement, find-by-occasion, the process, a stats band, and inquiry/talent CTAs.",
+    "The Impronta Models flagship home, freeform (2026 Casting Issue): a dark editorial models-&-image agency site with a warm-gold accent, a directory-search hero, a discipline marquee, a featured-talent roster, browse-by-discipline, two full-bleed editorial plates, an agency statement, find-by-occasion, the process, a stats band, and inquiry/talent CTAs.",
   archetype: "agency",
   tree: improntaTree,
   dataSources,

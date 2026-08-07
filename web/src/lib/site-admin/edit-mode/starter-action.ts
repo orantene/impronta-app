@@ -52,6 +52,7 @@ import {
   resolveStarterEntryStylePatch,
 } from "@/lib/site-admin/edit-mode/starter-selection";
 import { applyThemePreset } from "@/lib/site-admin/server/design";
+import { buildFreeStarterEntries } from "@/lib/site-admin/server/onboard-starter-content";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import {
   DEFAULT_FREE_STARTER_SLUG,
@@ -142,61 +143,11 @@ const RECIPES: Record<string, Recipe> = {
     slug: DEFAULT_FREE_STARTER_SLUG,
     label: "Free Quickstart (5 profiles)",
     presetSlug: "classic",
-    entries: [
-      {
-        slotKey: "hero",
-        sectionTypeKey: "hero",
-        propsOverride: {
-          headline: "Your studio, live in one page.",
-          subheadline:
-            "A simple launch page with services, featured roster profiles, and one clear inquiry CTA.",
-          primaryCta: { label: "Book a call", href: "/contact" },
-          secondaryCta: { label: "See profiles", href: "/directory" },
-        },
-      },
-      {
-        slotKey: "services",
-        sectionTypeKey: "category_grid",
-        propsOverride: {
-          eyebrow: "Services",
-          headline: "What this studio offers",
-          items: [
-            { label: "Makeup", tagline: "Editorial + events" },
-            { label: "Hair", tagline: "Set + ceremony ready" },
-            { label: "Photography", tagline: "Portrait + campaign" },
-            { label: "Styling", tagline: "Wardrobe + direction" },
-          ],
-          columnsDesktop: 4,
-          variant: "portrait-masonry",
-        },
-      },
-      {
-        slotKey: "featured",
-        sectionTypeKey: "featured_talent",
-        propsOverride: {
-          eyebrow: "Roster",
-          headline: "Featured professionals",
-          intro:
-            "This section auto-loads real published profiles from your workspace roster (up to five on Free).",
-          sourceMode: "auto_recent",
-          limit: 5,
-          columnsDesktop: 3,
-          variant: "grid",
-        },
-      },
-      {
-        slotKey: "final_cta",
-        sectionTypeKey: "cta_banner",
-        propsOverride: {
-          eyebrow: "Ready to book",
-          headline: "Tell us your date and project.",
-          copy:
-            "Share your event details and we'll return availability with a suggested team within one business day.",
-          primaryCta: { label: "Start inquiry", href: "/contact" },
-          variant: "centered-overlay",
-        },
-      },
-    ],
+    // Shared with the signup seed (single source of truth for the Free
+    // one-pager: real editorial imagery + shippable studio copy, not
+    // template-describing meta-copy). No display name in this static
+    // context, so the builder's neutral register is used.
+    entries: [...buildFreeStarterEntries(null)],
   },
   "home-core-4": {
     slug: "home-core-4",

@@ -339,7 +339,7 @@ const restaurantTree: BuilderNode[] = [
                     id: "restaurant-story-body",
                     kind: "rich_text",
                     props: {
-                      text: "Chef Andrés Moya built the Casa Lumbre kitchen around {accent}a wood-fire grill and a weekly market run{/accent} — no freezers, no shortcuts. The menu changes when the produce does. [Read the full story](/story).",
+                      text: "Chef Andrés Moya built the Casa Lumbre kitchen around {accent}a wood-fire grill and a weekly market run{/accent}, no freezers, no shortcuts. The menu changes when the produce does. [Read the full story](/story).",
                       style: {
                         fontFamily: INTER,
                         fontSize: "18px",

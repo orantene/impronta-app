@@ -1318,7 +1318,8 @@ export async function fetchDirectoryPage(
     );
     for (const m of mediaRows) {
       if (!m.bucket_id || !m.storage_path) continue;
-      const candidate = m.storage_path.startsWith("http")
+      const candidate =
+        m.storage_path.startsWith("http") || m.storage_path.startsWith("/")
         ? m.storage_path
         : supabase.storage.from(m.bucket_id).getPublicUrl(m.storage_path).data
             .publicUrl;

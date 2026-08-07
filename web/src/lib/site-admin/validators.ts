@@ -14,3 +14,24 @@ const PG_UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}
 
 export const pgUuidSchema = () =>
   z.string().regex(PG_UUID_RE, { message: "Invalid UUID" });
+
+/**
+ * Public image reference: either an absolute http(s) URL (media library,
+ * external CDN) OR a root-relative path into the app's own `public/` assets
+ * (e.g. `/talent-templates/demo/impronta-2026/portrait-1.jpg`).
+ *
+ * Root-relative paths matter for SEEDED content: they resolve on every
+ * tenant host (custom domains + *.tulala.digital) with zero storage egress,
+ * where an absolute URL would pin the image to whichever host seeded it.
+ * Mirrors the directory section's `heroImage` contract.
+ */
+const ABSOLUTE_HTTP_URL_RE = /^https?:\/\/\S+$/;
+
+export const publicImagePathOrUrlSchema = () =>
+  z
+    .string()
+    .max(2048)
+    .refine(
+      (value) => ABSOLUTE_HTTP_URL_RE.test(value) || value.startsWith("/"),
+      { message: "Must be an absolute http(s) URL or a root-relative path" },
+    );

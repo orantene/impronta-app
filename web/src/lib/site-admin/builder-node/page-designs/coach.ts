@@ -286,7 +286,7 @@ const coachTree: BuilderNode[] = [
                     id: "coach-body",
                     kind: "rich_text",
                     props: {
-                      text: "I work with founders, directors, and team leads who are {accent}smart but stuck{/accent} — people who know what they want but can't quite see how to get there. A structured conversation changes that. [More about my practice](/about).",
+                      text: "I work with founders, directors, and team leads who are {accent}smart but stuck{/accent}, people who know what they want but can't quite see how to get there. A structured conversation changes that. [More about my practice](/about).",
                       style: {
                         fontFamily: INTER,
                         fontSize: "18px",
@@ -334,7 +334,7 @@ const coachTree: BuilderNode[] = [
                 kind: "image",
                 props: {
                   src: PHOTO.portrait,
-                  alt: "Sam Rivera — executive coach",
+                  alt: "Sam Rivera, executive coach",
                   style: {
                     width: "100%",
                     height: "100%",
@@ -410,7 +410,7 @@ const coachTree: BuilderNode[] = [
                     "coach-svc-2",
                     "🗺",
                     "Strategy advising",
-                    "Half- or full-day working sessions to map a clear path forward — where you are, where you want to be, and what stands between them.",
+                    "Half- or full-day working sessions to map a clear path forward, where you are, where you want to be, and what stands between them.",
                   ),
                   serviceCard(
                     "coach-svc-3",

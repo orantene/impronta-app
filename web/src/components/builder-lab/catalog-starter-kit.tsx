@@ -159,7 +159,9 @@ export function SiteStarterKitView({
     async (rowsToResolve: BuilderTemplateRow[]) => {
       const ids = distinctThumbnailAssetIds(rowsToResolve);
       if (ids.length === 0) {
-        setThumbUrlByRow(new Map());
+        // Still run the map builder: built-in rows resolve a STATIC fallback
+        // thumbnail by slug even when no row has a media-asset thumbnail.
+        setThumbUrlByRow(resolveTemplateThumbnailMap(rowsToResolve, new Map()));
         return;
       }
       const res = await resolveTemplateThumbnails(ids).catch(() => null);

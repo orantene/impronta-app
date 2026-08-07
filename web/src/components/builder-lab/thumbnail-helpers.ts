@@ -14,6 +14,24 @@
  */
 
 import type { UpdateTemplateDraftInput } from "@/lib/site-admin/builder-core/templates/registry-rows";
+import { PAGE_DESIGN_SUMMARIES } from "@/lib/site-admin/builder-node/page-designs/summaries";
+
+/**
+ * Static thumbnail fallback for the BUILT-IN starters. The import action keys
+ * each built-in `builder_templates` row on the deterministic slug
+ * `builtin-<design.id>`, and the client-safe design summaries carry a curated
+ * static `thumbnailUrl` (a committed `web/public` marketing photo). Those
+ * static paths cannot live in `thumbnail_asset_id` (FK → media_assets), which
+ * left EVERY built-in row rendering the empty "Set thumb" placeholder — a
+ * wall of gray boxes in a surface that is supposed to read as a visual
+ * gallery. An admin-picked media asset still wins; this only fills the gap.
+ */
+const BUILTIN_THUMB_URL_BY_SLUG: ReadonlyMap<string, string> = new Map(
+  PAGE_DESIGN_SUMMARIES.filter(
+    (s): s is typeof s & { thumbnailUrl: string } =>
+      typeof s.thumbnailUrl === "string" && s.thumbnailUrl.length > 0,
+  ).map((s) => [`builtin-${s.id}`, s.thumbnailUrl] as const),
+);
 
 /**
  * The exact `updateTemplateDraft` patch that sets (or clears) a template's
@@ -42,15 +60,25 @@ export function templateThumbnailPatch(
  * server action; this only shapes the result.
  */
 export function resolveTemplateThumbnailMap(
-  rows: ReadonlyArray<{ id: string; thumbnail_asset_id: string | null }>,
+  rows: ReadonlyArray<{
+    id: string;
+    thumbnail_asset_id: string | null;
+    /** Row slug — used for the built-in static-thumbnail fallback. */
+    slug?: string | null;
+  }>,
   assetUrlById: ReadonlyMap<string, string>,
 ): Map<string, string> {
   const out = new Map<string, string>();
   for (const row of rows) {
     const assetId = row.thumbnail_asset_id;
-    if (!assetId) continue;
-    const url = assetUrlById.get(assetId);
-    if (url && url.length > 0) out.set(row.id, url);
+    const url = assetId ? assetUrlById.get(assetId) : undefined;
+    if (url && url.length > 0) {
+      out.set(row.id, url);
+      continue;
+    }
+    // Built-in fallback: static curated thumbnail keyed by `builtin-<id>` slug.
+    const builtinUrl = row.slug ? BUILTIN_THUMB_URL_BY_SLUG.get(row.slug) : undefined;
+    if (builtinUrl) out.set(row.id, builtinUrl);
   }
   return out;
 }

@@ -25,7 +25,7 @@ const dataSources: BuilderNodeRenderDataSources = {
   collections: {
     saas_capabilities: [
       { id: "c1", index: "01", title: "Metered usage", body: "Capture every billable event once, then meter, aggregate, and gate on it without scattering pricing logic through your app.", imageUrl: pageDesignPhoto("studioScene") },
-      { id: "c2", index: "02", title: "Billing that reconciles", body: "Invoices, credits, and proration reconcile against usage automatically — close the month without a spreadsheet.", imageUrl: pageDesignPhoto("serviceProsScene") },
+      { id: "c2", index: "02", title: "Billing that reconciles", body: "Invoices, credits, and proration reconcile against usage automatically, close the month without a spreadsheet.", imageUrl: pageDesignPhoto("serviceProsScene") },
       { id: "c3", index: "03", title: "Account health, ranked", body: "Usage, billing, and support signals fold into one ranked queue so the team works the accounts that need it.", imageUrl: pageDesignPhoto("directorPortrait") },
     ],
   },
@@ -244,7 +244,7 @@ const saasTree: BuilderNode[] = [
             id: "saas-subhead",
             kind: "paragraph",
             props: {
-              text: "Meterly turns raw events into metered usage, self-reconciling invoices, and ranked account health — without spreading pricing logic through your product.",
+              text: "Meterly turns raw events into metered usage, self-reconciling invoices, and ranked account health, without spreading pricing logic through your product.",
               style: {
                 align: "center",
                 fontFamily: INTER,

@@ -487,6 +487,16 @@ async function hydrateRows(
   } else {
     for (const row of mediaRows ?? []) {
       if (thumbnailMap[row.owner_talent_profile_id] || !row.storage_path) continue;
+      // Absolute URLs and root-relative `public/` paths (free-starter demo
+      // portraits) pass through untouched — parity with the canonical
+      // talent-card-thumbs resolver; getPublicUrl() would mangle them.
+      if (
+        row.storage_path.startsWith("http") ||
+        row.storage_path.startsWith("/")
+      ) {
+        thumbnailMap[row.owner_talent_profile_id] = row.storage_path;
+        continue;
+      }
       const { data: urlData } = supabase.storage
         .from("media-public")
         .getPublicUrl(row.storage_path);

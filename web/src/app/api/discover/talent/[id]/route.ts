@@ -183,7 +183,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       .slice()
       .sort((a, b) => PHOTO_VARIANT_PRIORITY.indexOf(a.variant_kind) - PHOTO_VARIANT_PRIORITY.indexOf(b.variant_kind));
     for (const m of sorted) {
-      const url = m.storage_path.startsWith("http")
+      const url =
+        m.storage_path.startsWith("http") || m.storage_path.startsWith("/")
         ? m.storage_path
         : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
       if (!headshotUrl) headshotUrl = url;
