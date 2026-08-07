@@ -64,10 +64,17 @@ test("commitText: ambiguous original (2 occurrences) fails loudly and returns fa
   assert.match(banners[0].text, /more than once/);
 });
 
-test("commitText: no draft tree loaded yet returns false silently", () => {
-  const { deps, banners } = sectionDeps(null);
+// WAVE 2.1 — this used to return false SILENTLY, which was safe only because
+// arming refused to open the editor until the props had loaded. That gate cost
+// the operator a whole double-click (and every keystroke after it), so it is
+// gone; the commit path now has to say something when it cannot resolve the
+// field, rather than swallowing the edit.
+test("commitText: no draft tree loaded yet fails LOUDLY and returns false", () => {
+  const { deps, banners, drafts } = sectionDeps(null);
   assert.equal(runCommitText(deps, "Old", "New"), false);
-  assert.equal(banners.length, 0);
+  assert.equal(drafts.length, 0);
+  assert.equal(banners.length, 1);
+  assert.match(banners[0].text, /Couldn't find this text/);
 });
 
 // ── builder-node path ────────────────────────────────────────────────────

@@ -64,6 +64,7 @@ import {
   useInlineTextCommit,
   type InlineBuilderNodeTextTarget,
 } from "./use-inline-text-commit";
+import { resolveLegacySectionArming } from "./inline-text-arming";
 
 type Banner =
   | { kind: "none" }
@@ -75,6 +76,8 @@ interface ActiveTextEdit {
   original: string;
   variant: "single" | "multi";
   resyncKey?: number;
+  /** WAVE 2.1 — viewport point of the opening double-click, for the caret. */
+  caretPoint?: { x: number; y: number } | null;
   /** W1-L3 — shape shared with the extracted commit hook (locale semantics
    *  documented on `InlineBuilderNodeTextTarget`). */
   builderNode?: InlineBuilderNodeTextTarget;
@@ -293,6 +296,7 @@ export function InlineEditor() {
           el: editable,
           original,
           variant: builderNodeTarget.variant,
+          caretPoint: { x: e.clientX, y: e.clientY },
           builderNode: {
             id: builderNodeTarget.id,
             propKey: builderNodeTarget.propKey,
@@ -306,18 +310,27 @@ export function InlineEditor() {
         return;
       }
 
-      // ── Legacy CMS-section text — writes go through `draftProps` keyed by the
-      // currently-loaded section, so the double-clicked text must live inside
-      // the section that's actually selected. ──
+      // ── Legacy CMS-section text — writes go through `draftProps` keyed by
+      // the currently-loaded section. WAVE 2.1: arming no longer waits for the
+      // selection to settle OR for the inspector to finish loading those props.
+      // Both used to be hard gates here, and both only become true as a
+      // consequence of the operator's own click, so the FIRST double-click on a
+      // section armed nothing and every keystroke after it was dropped. The
+      // commit path (`runCommitText`) resolves the field by matching the
+      // original string against the loaded tree and fails LOUDLY when it can't,
+      // so readiness is a commit-time concern, not an open-time one. See
+      // `inline-text-arming.ts`. ──
       const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
       if (!sectionEl) return;
       const sectionId = sectionEl.getAttribute("data-section-id");
-      if (!sectionId || sectionId !== selectedIdRef.current) return;
       const original = (editable.textContent ?? "").trim();
-      if (!original) return;
-      // Legacy section text still writes through draftProps, so wait until the
-      // inspector has loaded that payload.
-      if (!draftPropsRef.current) return;
+      const arming = resolveLegacySectionArming({
+        sectionId,
+        originalText: original,
+        draftPropsLoaded: draftPropsRef.current !== null,
+        selectedSectionId: selectedIdRef.current,
+      });
+      if (!arming.arm) return;
       e.preventDefault();
       e.stopPropagation();
       const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
@@ -325,7 +338,12 @@ export function InlineEditor() {
         : "multi";
       // Same gesture-taught dismiss as the freeform builder-node path above.
       dismissCoachmark("double-click-edit");
-      setActiveEdit({ el: editable, original, variant });
+      setActiveEdit({
+        el: editable,
+        original,
+        variant,
+        caretPoint: { x: e.clientX, y: e.clientY },
+      });
     }
 
     document.addEventListener("dblclick", onDblClick, true);
@@ -659,6 +677,7 @@ export function InlineEditor() {
           initialValue={activeEdit.original}
           resyncKey={activeEdit.resyncKey}
           variant={activeEdit.variant}
+          caretPoint={activeEdit.caretPoint ?? null}
           tenantId={tenantId ?? undefined}
           commitRef={overlayCommitRef}
           onCommit={(next) => runCommit(next)}

@@ -33,6 +33,7 @@ import {
   subscribeCanvasOverlayStylePatch,
 } from "../canvas-lexical-bridge";
 import { RichEditor } from "./RichEditor";
+import type { CaretPoint } from "./plugins/AutoFocusCaretPlugin";
 
 interface Props {
   /** The rendered text element the operator dblclicked. */
@@ -62,6 +63,13 @@ interface Props {
    * `null` on unmount.
    */
   commitRef?: { current: (() => void) | null };
+  /**
+   * WAVE 2.1 — viewport point of the double-click that opened this overlay.
+   * The editor focuses itself synchronously on mount and drops the caret here,
+   * so ONE double-click leaves the operator typing. Without it the overlay
+   * mounted unfocused and every keystroke before a third click was dropped.
+   */
+  caretPoint?: CaretPoint | null;
 }
 
 const TYPE_STYLE_PROPS = [
@@ -84,11 +92,22 @@ export function CanvasEditOverlay({
   variant,
   onCommit,
   commitRef,
+  caretPoint = null,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
+  // Consumed once by AutoFocusCaretPlugin — a `resyncKey` remount (undo/redo
+  // mid-edit) must land the caret at the end, not back at the original click.
+  const caretPointRef = useRef<CaretPoint | null>(caretPoint);
   const [rect, setRect] = useState(() => target.getBoundingClientRect());
-  const [typeStyles, setTypeStyles] = useState<Record<string, string>>({});
+  // WAVE 2.1 — computed on the FIRST render, not in a layout effect. The caret
+  // is placed by hit-testing the operator's double-click point against the
+  // overlay's own glyphs, and a first render at the wrong font size puts those
+  // glyphs somewhere else, which silently dropped the caret at the end of the
+  // text instead of where they clicked.
+  const [typeStyles, setTypeStyles] = useState<Record<string, string>>(() =>
+    readTypeStyles(target),
+  );
   const valueRef = useRef<string>(initialValue);
   const committedRef = useRef(false);
 
@@ -105,12 +124,7 @@ export function CanvasEditOverlay({
   }, [target]);
 
   useLayoutEffect(() => {
-    const cs = window.getComputedStyle(target);
-    const out: Record<string, string> = {};
-    for (const key of TYPE_STYLE_PROPS) {
-      out[key] = cs.getPropertyValue(toKebab(key));
-    }
-    setTypeStyles(out);
+    setTypeStyles(readTypeStyles(target));
   }, [target, resyncKey]);
 
   useEffect(() => {
@@ -243,6 +257,7 @@ export function CanvasEditOverlay({
           variant={variant}
           tenantId={tenantId}
           ariaLabel="Inline canvas editor"
+          autoFocusCaretRef={caretPointRef}
           suppressFloatingToolbar
           className="outline-none"
         />
@@ -250,6 +265,16 @@ export function CanvasEditOverlay({
     </div>,
     document.body,
   );
+}
+
+/** The target's computed type styles, so the overlay lays text out identically. */
+function readTypeStyles(target: HTMLElement): Record<string, string> {
+  const cs = window.getComputedStyle(target);
+  const out: Record<string, string> = {};
+  for (const key of TYPE_STYLE_PROPS) {
+    out[key] = cs.getPropertyValue(toKebab(key));
+  }
+  return out;
 }
 
 function toKebab(s: string): string {

@@ -67,6 +67,10 @@ export interface InlineTextCommitApi {
   ) => Promise<boolean>;
 }
 
+/** Shared by the "no tree loaded" and "no unique match" commit failures. */
+const NOT_FOUND_BANNER_TEXT =
+  "Couldn't find this text to save. Open the inspector to edit this field.";
+
 /** Pure commit logic — legacy CMS-section path. Returns true iff applied. */
 export function runCommitText(
   deps: Pick<
@@ -78,13 +82,20 @@ export function runCommitText(
 ): boolean {
   if (next === original) return false;
   const tree = deps.draftPropsRef.current;
-  if (!tree) return false;
+  if (!tree) {
+    // WAVE 2.1 — reachable now that arming no longer waits for the inspector to
+    // load this section's props (see `inline-text-arming.ts`): it takes a
+    // commit inside that sub-second load window. "The operator typed and
+    // nothing happened, with no message" is the exact class this wave exists to
+    // kill, so it fails LOUDLY rather than returning a quiet false. Reuses the
+    // not-found copy verbatim — same operator-facing meaning (we could not
+    // resolve the field), and no new untranslated string.
+    deps.setBanner({ kind: "error", text: NOT_FOUND_BANNER_TEXT });
+    return false;
+  }
   const hit = findPathByValue(tree, original);
   if (!hit) {
-    deps.setBanner({
-      kind: "error",
-      text: "Couldn't find this text to save. Open the inspector to edit this field.",
-    });
+    deps.setBanner({ kind: "error", text: NOT_FOUND_BANNER_TEXT });
     return false;
   }
   if (hit.occurrences > 1) {
