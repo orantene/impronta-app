@@ -201,11 +201,15 @@ export async function POST(req: NextRequest) {
   const admin = createServiceRoleClient();
   if (admin) {
     const status = result.status === "sent" ? "sent" : result.status === "failed" ? "failed" : "skipped";
+    // signup/invite fire before the user confirms email, so public.users doesn't
+    // exist yet — pass null to avoid a FK constraint violation on recipient_user_id.
+    const recipientUserId =
+      action === "signup" || action === "invite" ? null : (payload.user?.id ?? null);
     await admin
       .from("notification_dispatch_log")
       .insert({
         tenant_id: null,
-        recipient_user_id: payload.user?.id ?? null,
+        recipient_user_id: recipientUserId,
         recipient_email: email,
         event_kind: `auth.${action}`,
         channel: "email",
