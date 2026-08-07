@@ -234,7 +234,29 @@ const ES_CATALOG_FILES = [
   "src/components/edit-chrome/editor-i18n-es-inspectors.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels-2.ts",
+  "src/components/edit-chrome/editor-i18n-es-registry.ts",
 ];
+
+/**
+ * The list above is load-bearing and easy to forget: a split file that is NOT
+ * listed silently stops being duplicate-checked while every test still reports
+ * green. So derive the truth from disk and fail when they disagree, rather than
+ * trusting that whoever adds the next catalog file remembers this array.
+ */
+test("every ES catalog file on disk is registered for duplicate checking", () => {
+  const onDisk = readdirSync(EDIT_CHROME)
+    .filter((f) => /^editor-i18n-es.*\.ts$/.test(f) && !/\.test\.tsx?$/.test(f))
+    .map((f) => `src/components/edit-chrome/${f}`)
+    .sort();
+
+  assert.deepEqual(
+    [...ES_CATALOG_FILES].sort(),
+    onDisk,
+    "ES_CATALOG_FILES is out of sync with the editor-i18n-es*.ts files on disk. " +
+      "An unlisted catalog file is invisible to BOTH duplicate guards below, " +
+      "which then pass green while a key silently shadows another at runtime.",
+  );
+});
 
 /** Top-level `"key":` / `key:` entries of a catalog file, with line numbers. */
 function catalogKeys(rel: string): Array<{ key: string; line: number }> {

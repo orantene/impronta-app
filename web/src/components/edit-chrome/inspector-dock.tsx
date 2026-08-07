@@ -326,6 +326,12 @@ export function InspectorDock() {
     setInspectorActiveTab,
     inspectorTabRequest,
   } = useEditContext();
+  // WAVE 4.6 — the dock header prints builder-REGISTRY node-kind labels
+  // ("Container", "CTA group"…) and composes them into "<kind> block" /
+  // "<kind> section". Those come from `lib/site-admin/builder-node/registry.ts`,
+  // which cannot import edit-chrome, so they are translated HERE at the render
+  // boundary, the same seam wave 4.4 used for the inspector kit props.
+  const { t } = useEditorLocale();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
   // W2 (selection-bridge) — selection VALUES from the micro-store. The dock
@@ -1027,28 +1033,34 @@ export function InspectorDock() {
   const sectionTypeKey =
     currentLoadedSection?.sectionTypeKey ?? skeletonHint?.typeKey ?? null;
   const sectionTitle = selectedStandaloneBuilderNode
-    ? builderNodeTitle(selectedStandaloneBuilderNode)
+    ? t(builderNodeTitle(selectedStandaloneBuilderNode))
     : sectionTypeKey
-      ? inspectorBlockTitle(sectionTypeKey)
+      ? t(inspectorBlockTitle(sectionTypeKey))
       : selectedSectionId && loadingId
-        ? "Loading…"
-        : "Select a block";
+        ? t("Loading…")
+        : t("Select a block");
   // W2-C5: a single small kind label under the header. The block/section
   // NAME itself renders once, via DrawerHead's own `title` (sectionTitle
   // below); this line only says what KIND of block it is, so the header
   // never repeats "Carousel" three times.
   const sectionMeta = isSiteHeaderSelected
-    ? "Site header"
+    ? t("Site header")
     : selectedStandaloneBuilderNode
-      ? `${BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label} block`
+      ? t("{label} block").replace(
+          "{label}",
+          t(BUILDER_NODE_REGISTRY[selectedStandaloneBuilderNode.kind].label),
+        )
       : sectionTypeKey
-        ? `${inspectorBlockTitle(sectionTypeKey)} section`
+        ? t("{label} section").replace(
+            "{label}",
+            t(inspectorBlockTitle(sectionTypeKey)),
+          )
         : undefined;
   const inspectorBreadcrumbCrumbs = useMemo<
     ReadonlyArray<InspectorBreadcrumbCrumb>
   >(() => {
     if (!selectedSectionId) return [];
-    const crumbs: InspectorBreadcrumbCrumb[] = [{ id: "page", label: "Home", selectable: false }];
+    const crumbs: InspectorBreadcrumbCrumb[] = [{ id: "page", label: t("Home"), selectable: false }];
     // The breadcrumb shows section TYPE (e.g. "Hero"), not the content-
     // derived display name (which is what `sectionTitle` carries and
     // matches across the navigator + chip + dock title per QA-2).
@@ -1060,9 +1072,9 @@ export function InspectorDock() {
     // a clear visual anchor for "what level of the tree am I in" even
     // when content-derived names collide.
     const rootLabel = isSiteHeaderSelected
-      ? "Site header"
+      ? t("Site header")
       : sectionTypeKey
-        ? inspectorBlockTitle(sectionTypeKey)
+        ? t(inspectorBlockTitle(sectionTypeKey))
         : null;
     if (rootLabel) {
       crumbs.push({
@@ -1077,7 +1089,7 @@ export function InspectorDock() {
         if (node.kind === "section") continue;
         crumbs.push({
           id: node.id,
-          label: builderNodeTitle(node),
+          label: t(builderNodeTitle(node)),
           selectable: true,
           kind: "node",
         });
@@ -1090,6 +1102,7 @@ export function InspectorDock() {
     selectedBuilderNode,
     selectedBuilderNodePath,
     selectedSectionId,
+    t,
   ]);
   const handleInspectorCrumbSelect = useCallback(
     (crumb: InspectorBreadcrumbCrumb) => {

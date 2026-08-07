@@ -16,6 +16,7 @@ import {
   type BuilderComponentRow,
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { useEditContext } from "../edit-context";
+import { useEditorLocale } from "../use-editor-locale";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { KIT } from "./kit/tokens";
 
@@ -32,6 +33,9 @@ export function MyBlocksPanel({
     saveSelectedNodeAsComponent,
     updateSelectedNodeAsComponent,
   } = useEditContext();
+  // WAVE 4.6 — this panel shipped with zero i18n. Same seam as everywhere else
+  // in edit-chrome: `useEditorLocale().t` into the one EN-text-keyed catalog.
+  const { t } = useEditorLocale();
   // W2 (selection-bridge) — selection VALUE from the micro-store.
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const [components, setComponents] = useState<
@@ -68,7 +72,7 @@ export function MyBlocksPanel({
     const result = await saveSelectedNodeAsComponent(name);
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't save the block.");
+      setError(result.error ?? t("Couldn't save the block."));
       return;
     }
     setNaming(false);
@@ -85,7 +89,7 @@ export function MyBlocksPanel({
     );
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't insert the block.");
+      setError(result.error ?? t("Couldn't insert the block."));
     }
   }
 
@@ -100,10 +104,10 @@ export function MyBlocksPanel({
     );
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't insert the linked instance.");
+      setError(result.error ?? t("Couldn't insert the linked instance."));
       return;
     }
-    setNote("Linked instance inserted. Edit the master then Sync.");
+    setNote(t("Linked instance inserted. Edit the master then Sync."));
   }
 
   async function onSyncInstances(component: BuilderComponentRow) {
@@ -116,13 +120,16 @@ export function MyBlocksPanel({
     );
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't sync instances.");
+      setError(result.error ?? t("Couldn't sync instances."));
       return;
     }
     setNote(
       result.synced
-        ? `Synced ${result.synced} instance${result.synced === 1 ? "" : "s"}.`
-        : "No linked instances of this block on the page.",
+        ? (result.synced === 1
+            ? t("Synced {count} instance.")
+            : t("Synced {count} instances.")
+          ).replace("{count}", String(result.synced))
+        : t("No linked instances of this block on the page."),
     );
   }
 
@@ -133,11 +140,13 @@ export function MyBlocksPanel({
     const result = await updateSelectedNodeAsComponent(component.id);
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't update the master.");
+      setError(result.error ?? t("Couldn't update the master."));
       return;
     }
     setNote(
-      `Updated "${component.name}" master. Published instances reflect it live; in-editor, Sync to refresh.`,
+      t(
+        'Updated "{name}" master. Published instances reflect it live; in-editor, Sync to refresh.',
+      ).replace("{name}", component.name),
     );
     void refresh();
   }
@@ -148,7 +157,7 @@ export function MyBlocksPanel({
     const result = await deleteBuilderComponent({ componentId: component.id });
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't delete the block.");
+      setError(result.error ?? t("Couldn't delete the block."));
       return;
     }
     void refresh();
@@ -160,7 +169,8 @@ export function MyBlocksPanel({
       className="rounded-lg border border-stone-200 bg-white px-3 py-2"
     >
       <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
-        My blocks{components.length > 0 ? ` (${components.length})` : ""}
+        {t("My blocks")}
+        {components.length > 0 ? ` (${components.length})` : ""}
       </summary>
       <div className="mt-2 flex flex-col gap-2">
         {/* Save the current block */}
@@ -171,7 +181,7 @@ export function MyBlocksPanel({
               type="text"
               value={nameDraft}
               maxLength={120}
-              placeholder="Name this block (e.g. Pricing card)"
+              placeholder={t("Name this block (e.g. Pricing card)")}
               className={KIT.input}
               onChange={(e) => setNameDraft(e.currentTarget.value)}
               onKeyDown={(e) => {
@@ -189,7 +199,7 @@ export function MyBlocksPanel({
                 disabled={busy || !nameDraft.trim()}
                 onClick={() => void onSave()}
               >
-                {busy ? "Saving…" : "Save block"}
+                {busy ? t("Saving…") : t("Save block")}
               </button>
               <button
                 type="button"
@@ -199,7 +209,7 @@ export function MyBlocksPanel({
                   setNameDraft("");
                 }}
               >
-                Cancel
+                {t("Cancel")}
               </button>
             </div>
           </div>
@@ -210,7 +220,7 @@ export function MyBlocksPanel({
             className={KIT.subtleButton}
             onClick={() => setNaming(true)}
           >
-            ⊕ Save this block to My blocks
+            ⊕ {t("Save this block to My blocks")}
           </button>
         )}
 
@@ -229,12 +239,13 @@ export function MyBlocksPanel({
         {/* Saved blocks list */}
         {loading ? (
           <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
-            Loading saved blocks…
+            {t("Loading saved blocks…")}
           </div>
         ) : components.length === 0 ? (
           <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
-            No saved blocks yet. Select a block and save it to reuse it
-            anywhere.
+            {t(
+              "No saved blocks yet. Select a block and save it to reuse it anywhere.",
+            )}
           </div>
         ) : (
           components.map((component) => (
@@ -248,7 +259,11 @@ export function MyBlocksPanel({
                   {component.name}
                 </span>
                 <span className="mt-0.5 inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-500">
-                  {component.rootKind} · {component.nodeCount} nodes
+                  {component.rootKind} ·{" "}
+                  {t("{count} nodes").replace(
+                    "{count}",
+                    String(component.nodeCount),
+                  )}
                 </span>
               </span>
               <span className="flex flex-col items-end gap-1">
@@ -259,18 +274,20 @@ export function MyBlocksPanel({
                   disabled={busy}
                   onClick={() => void onInsert(component)}
                 >
-                  Insert copy
+                  {t("Insert copy")}
                 </button>
                 {selectedBuilderNodeId ? (
                   <button
                     type="button"
                     data-builder-node-my-block-update-master={component.id}
-                    title="Overwrite this master with the selected block, published instances update live"
+                    title={t(
+                      "Overwrite this master with the selected block, published instances update live",
+                    )}
                     className={KIT.ghostButton}
                     disabled={busy}
                     onClick={() => void onUpdateMaster(component)}
                   >
-                    ↑ Update master
+                    ↑ {t("Update master")}
                   </button>
                 ) : null}
                 {component.rootKind === "container" ? (
@@ -278,30 +295,37 @@ export function MyBlocksPanel({
                     <button
                       type="button"
                       data-builder-node-my-block-insert-linked={component.id}
-                      title="Insert a linked instance that can be re-synced from this master"
+                      title={t(
+                        "Insert a linked instance that can be re-synced from this master",
+                      )}
                       className={KIT.subtleButton}
                       disabled={busy}
                       onClick={() => void onInsertLinked(component)}
                     >
-                      Insert linked
+                      {t("Insert linked")}
                     </button>
                     <button
                       type="button"
                       data-builder-node-my-block-sync={component.id}
-                      title="Push this master's content to every linked instance on the page"
+                      title={t(
+                        "Push this master's content to every linked instance on the page",
+                      )}
                       className={KIT.ghostButton}
                       disabled={busy}
                       onClick={() => void onSyncInstances(component)}
                     >
-                      Sync instances
+                      {t("Sync instances")}
                     </button>
                   </>
                 ) : null}
               </span>
               <button
                 type="button"
-                aria-label={`Delete ${component.name}`}
-                title="Delete block"
+                aria-label={t("Delete {name}").replace(
+                  "{name}",
+                  component.name,
+                )}
+                title={t("Delete block")}
                 className={KIT.ghostButton}
                 disabled={busy}
                 onClick={() => void onDelete(component)}

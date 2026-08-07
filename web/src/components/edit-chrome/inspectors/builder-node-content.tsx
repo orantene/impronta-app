@@ -79,6 +79,12 @@ export function BuilderNodeContentInspector({
   node,
   tenantId,
 }: BuilderNodeContentInspectorProps) {
+  // WAVE 4.6 — most of this panel's copy is translated at the inspector kit
+  // boundary (wave 4.4), but a handful of strings are COMPOSED here out of a
+  // builder-REGISTRY node-kind label ("Container blocks", "Card pattern"…).
+  // A composed string can never match a catalog key, so it is built from a
+  // `{label}` template and the label is translated on its own.
+  const { t } = useInspectorT();
   const {
     copiedBuilderNodeKind,
     builderBlockPresets,
@@ -198,8 +204,11 @@ export function BuilderNodeContentInspector({
   // INS-3: commitSavePreset now accepts the name from the inline naming overlay
   // rendered inside NestedBlocksCard (replaces window.prompt).
   const defaultPresetName = copiedBuilderNodeKind
-    ? `${BUILDER_NODE_REGISTRY[copiedBuilderNodeKind].label} pattern`
-    : "Saved block pattern";
+    ? t("{label} pattern").replace(
+        "{label}",
+        t(BUILDER_NODE_REGISTRY[copiedBuilderNodeKind].label),
+      )
+    : t("Saved block pattern");
 
   const commitSavePreset = useCallback(
     (name: string) => {
@@ -2666,7 +2675,14 @@ export function BuilderNodeContentInspector({
         </BuilderNodeFlatPanel>
 
         <NestedBlocksCard
-          title={isHero ? "Slides" : `${BUILDER_NODE_REGISTRY[node.kind].label} blocks`}
+          title={
+            isHero
+              ? t("Slides")
+              : t("{label} blocks").replace(
+                  "{label}",
+                  t(BUILDER_NODE_REGISTRY[node.kind].label),
+                )
+          }
           parentNodeId={node.id}
           helper={contentHint(node)}
           nodes={nestedChildren}
@@ -2754,7 +2770,10 @@ export function BuilderNodeContentInspector({
         ) : null}
         <VariantPicker node={node} commitPatch={(p) => void commitPatch(p)} />
         <NestedBlocksCard
-          title={`${BUILDER_NODE_REGISTRY[node.kind].label} blocks`}
+          title={t("{label} blocks").replace(
+            "{label}",
+            t(BUILDER_NODE_REGISTRY[node.kind].label),
+          )}
           parentNodeId={node.id}
           helper={contentHint(node)}
           nodes={nestedChildren}
@@ -2854,7 +2873,14 @@ export function BuilderNodeContentInspector({
             {childCount(fallbackNode) > 0 ? (
               <div className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2">
                 <div className={KIT.label}>Contains</div>
-                <p className={`${KIT.hint} mt-1`}>{childSummary(fallbackNode)}</p>
+                <p className={`${KIT.hint} mt-1`}>
+                  {/* childSummary joins registry kind labels with " • ";
+                      translate each label, not the joined sentence. */}
+                  {childSummary(fallbackNode)
+                    .split(" • ")
+                    .map((part) => t(part))
+                    .join(" • ")}
+                </p>
               </div>
             ) : null}
           </div>
@@ -3134,7 +3160,10 @@ function NestedBlocksCard({
                     : "text-[11px] font-medium text-emerald-800"
                 }
               >
-                Copied: {BUILDER_NODE_REGISTRY[copiedKind].label}
+                {t("Copied: {label}").replace(
+                  "{label}",
+                  t(BUILDER_NODE_REGISTRY[copiedKind].label),
+                )}
                 <span className="mt-0.5 block font-normal opacity-80">
                   {pastePreview.message}
                 </span>
@@ -3202,7 +3231,7 @@ function NestedBlocksCard({
                     <span className="min-w-0 text-[11px] font-medium text-stone-700">
                       <span className="block truncate">{preset.name}</span>
                       <span className="block text-[10px] font-normal text-stone-500">
-                        {BUILDER_NODE_REGISTRY[preset.node.kind].label}
+                        {t(BUILDER_NODE_REGISTRY[preset.node.kind].label)}
                       </span>
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-1">
@@ -3318,15 +3347,18 @@ function NestedBlocksCard({
                           className="h-3.5 w-3.5 accent-indigo-600"
                           checked={selectedChildIds.has(child.id)}
                           onChange={() => toggleSelectedChild(child.id)}
-                          aria-label={`Select ${childPrimaryLabel(child)}`}
+                          aria-label={t("Select {label}").replace(
+                            "{label}",
+                            t(childPrimaryLabel(child)),
+                          )}
                         />
                       </label>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[12px] font-semibold text-stone-700">
-                          {childPrimaryLabel(child)}
+                          {t(childPrimaryLabel(child))}
                         </div>
                         <div className="mt-0.5 text-[11px] leading-snug text-stone-500">
-                          {childSecondaryLabel(child)}
+                          {t(childSecondaryLabel(child))}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -3467,7 +3499,7 @@ function NestedBlocksCard({
                     void onAdd(kind);
                   }}
                 >
-                  + {BUILDER_NODE_REGISTRY[kind].label}
+                  + {t(BUILDER_NODE_REGISTRY[kind].label)}
                 </button>
               ))}
             </div>
