@@ -96,6 +96,7 @@ import {
   createEditorDispatchAuditEvent,
   createBuilderNode,
   formatBuilderNodeMutationError,
+  isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
   summarizeBuilderNodeIssues,
   isAdvancedElementLibraryEnabledForPlan,
@@ -1831,6 +1832,10 @@ export function EditProvider({
   const dispatch = useCallback(
     async (mutation: EditorMutation): Promise<DispatchResult> => {
       const recordDispatchAudit = (sectionId?: string | null) => {
+        // Wave 3 (3.3) — guard BEFORE building the event: creating it walks
+        // the full tree (metrics), which prod paid per dispatch only for the
+        // record call to discard the result.
+        if (!isBuilderMutationAuditEnabled()) return;
         recordBuilderMutationAuditEvent(
           createEditorDispatchAuditEvent({
             mutationKind: mutation.kind,
@@ -3253,20 +3258,25 @@ export function EditProvider({
       // server save is deferred/coalesced, and a rejected save surfaces async via
       // reportMutationError + rollback — so there is no sync failure to return here.
       await commitBuilderTreeMutation(operationResult.tree);
-      recordBuilderMutationAuditEvent(
-        createBuilderMutationAuditEvent({
-          operation: input.operation,
-          nodeId: input.nodeId,
-          parentId: input.parentId,
-          resultNodeId: operationResult.nodeId ?? null,
-          // W2-T4a — read selection from the refs (kept current by the effects
-          // above) so it can leave this callback's dep array.
-          activeSelectionSectionId: selectedSectionIdRef.current ?? null,
-          activeSelectionNodeId: selectedBuilderNodeIdRef.current ?? null,
-          previousTree,
-          tree: operationResult.tree,
-        }),
-      );
+      // Wave 3 (3.3) — guard BEFORE building the event: creating it runs ~5
+      // full tree walks (before/after metrics + 3× owner resolution), which
+      // prod paid per mutation only for the record call to discard the result.
+      if (isBuilderMutationAuditEnabled()) {
+        recordBuilderMutationAuditEvent(
+          createBuilderMutationAuditEvent({
+            operation: input.operation,
+            nodeId: input.nodeId,
+            parentId: input.parentId,
+            resultNodeId: operationResult.nodeId ?? null,
+            // W2-T4a — read selection from the refs (kept current by the effects
+            // above) so it can leave this callback's dep array.
+            activeSelectionSectionId: selectedSectionIdRef.current ?? null,
+            activeSelectionNodeId: selectedBuilderNodeIdRef.current ?? null,
+            previousTree,
+            tree: operationResult.tree,
+          }),
+        );
+      }
       return {
         ok: true,
         tree: operationResult.tree,

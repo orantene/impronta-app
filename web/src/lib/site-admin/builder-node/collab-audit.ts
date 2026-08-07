@@ -193,6 +193,21 @@ export function createEditorDispatchAuditEvent(input: {
   };
 }
 
+/**
+ * Wave 3 (3.3) — whether the DEV/QA mutation-audit ring buffer is active.
+ *
+ * The W4-T4(e) guard inside `recordBuilderMutationAuditEvent` sits on the
+ * wrong side of the ARGUMENT: `createBuilderMutationAuditEvent` runs ~5 full
+ * tree walks (2× collectBuilderPerformanceMetrics + 3× owner resolution)
+ * before the call, so production still paid the walks per mutation only to
+ * discard the result. Call sites must check this FIRST and skip building the
+ * event entirely when it returns false. The internal guard below stays as
+ * belt-and-suspenders.
+ */
+export function isBuilderMutationAuditEnabled(): boolean {
+  return typeof window !== "undefined" && process.env.NODE_ENV !== "production";
+}
+
 export function recordBuilderMutationAuditEvent(
   event: BuilderAuditEvent,
 ): void {
