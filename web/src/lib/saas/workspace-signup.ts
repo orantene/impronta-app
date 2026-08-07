@@ -131,32 +131,32 @@ export function isNetworkWorkspaceTierInterest(
   return tierInterest === "network";
 }
 
-export type WorkspaceSignupProfileEligibilityInput = {
-  appRole: string | null | undefined;
-  accountStatus: string | null | undefined;
-  onboardingCompletedAt?: string | null | undefined;
-  hasClientProfile: boolean;
-  hasTalentProfile: boolean;
-};
-
-export function isWorkspaceSignupProfileEligible(
-  input: WorkspaceSignupProfileEligibilityInput,
-): boolean {
-  if (!input.appRole) {
-    return true;
-  }
-
-  if (input.appRole === "agency_staff" || input.appRole === "super_admin") {
-    return true;
-  }
-
-  return (
-    (input.appRole === "client" || input.appRole === "talent") &&
-    (input.accountStatus === "onboarding" || input.accountStatus === "registered") &&
-    !input.onboardingCompletedAt &&
-    !input.hasClientProfile &&
-    !input.hasTalentProfile
-  );
+/**
+ * Which `app_role` should a fresh workspace owner end up with?
+ *
+ * `agency_staff` only when the account has no role yet. An existing client or
+ * talent KEEPS their role: workspace access is membership-based (the shell
+ * admits via `agency.workspace.view`, RLS via `is_staff_of_tenant()`), so the
+ * owner membership alone is enough, and overwriting `app_role` would move
+ * their home dashboard out from under them. A talent who opens a workspace
+ * would lose `/talent`, which the hybrid direction explicitly supports.
+ *
+ * Returns null when the profile row should keep whatever role it has.
+ *
+ * Who may provision at all: everyone with an account. There used to be an
+ * eligibility gate here that refused any client/talent who had finished
+ * onboarding, and it was permanent with no self-serve way out, because
+ * `/onboarding/role` offers exactly two choices and picking Client runs
+ * `complete_client_onboarding`. One click and the account could never own a
+ * workspace. What still stops a provision is unchanged and lives elsewhere: a
+ * lead claimed by another account, one Free workspace per owner, slug
+ * availability.
+ */
+export function resolveWorkspaceOwnerAppRole(
+  currentAppRole: string | null | undefined,
+): "agency_staff" | null {
+  if (!currentAppRole) return "agency_staff";
+  return null;
 }
 
 /**

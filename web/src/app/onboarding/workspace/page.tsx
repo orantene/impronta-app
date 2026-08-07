@@ -167,8 +167,7 @@ export default async function OnboardingWorkspacePage({
   const showSupportMailto =
     result.error === "service_unavailable" ||
     result.error === "provision_failed" ||
-    result.error === "claimed_elsewhere" ||
-    result.error === "unsupported_existing_role";
+    result.error === "claimed_elsewhere";
 
   return (
     <WorkspaceStateCard
