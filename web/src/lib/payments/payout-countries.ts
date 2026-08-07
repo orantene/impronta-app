@@ -15,11 +15,21 @@ export const PAYOUT_COUNTRIES: readonly PayoutCountry[] = [
   { iso2: "MX", label: "Mexico", flag: "🇲🇽" },
   { iso2: "US", label: "United States", flag: "🇺🇸" },
   { iso2: "AR", label: "Argentina", flag: "🇦🇷" },
-  { iso2: "BR", label: "Brazil", flag: "🇧🇷" },
+  // NOTE: Brazil is intentionally absent — Stripe rejects connected accounts in
+  // BR for US platforms ("Connected accounts in BR cannot be created by
+  // platforms in US"), verified against the live API 2026-08-09. Offering it
+  // would produce a dead-end form.
   { iso2: "CL", label: "Chile", flag: "🇨🇱" },
   { iso2: "CO", label: "Colombia", flag: "🇨🇴" },
   { iso2: "PE", label: "Peru", flag: "🇵🇪" },
   { iso2: "UY", label: "Uruguay", flag: "🇺🇾" },
+  { iso2: "CR", label: "Costa Rica", flag: "🇨🇷" },
+  { iso2: "PA", label: "Panama", flag: "🇵🇦" },
+  { iso2: "DO", label: "Dominican Republic", flag: "🇩🇴" },
+  { iso2: "EC", label: "Ecuador", flag: "🇪🇨" },
+  { iso2: "GT", label: "Guatemala", flag: "🇬🇹" },
+  { iso2: "PY", label: "Paraguay", flag: "🇵🇾" },
+  { iso2: "SV", label: "El Salvador", flag: "🇸🇻" },
   { iso2: "CA", label: "Canada", flag: "🇨🇦" },
   { iso2: "ES", label: "Spain", flag: "🇪🇸" },
   { iso2: "PT", label: "Portugal", flag: "🇵🇹" },
@@ -78,20 +88,53 @@ export function isStablecoinPayoutCountry(iso2: string | null | undefined): bool
   return STABLECOIN_PAYOUT_COUNTRIES.has(iso2.trim().toUpperCase());
 }
 
-/** Countries where Stripe Connect (Express) can open a connected account:
- *  US/UK/CA/CH + the EEA. Excludes MX and all of LatAm — those need Global
- *  Payouts. Mirrors the inline set in the talent PayoutsShell; the AGENCY payout
- *  leg is always Connect, so the agency country picker filters to this set. */
-export const CONNECT_PAYOUT_COUNTRIES: ReadonlySet<string> = new Set([
+/** FULL-SERVICE Connect countries: the payee can both charge and be paid, under
+ *  the standard (full) service agreement. US/UK/CA/CH + the EEA. */
+export const CONNECT_FULL_SERVICE_COUNTRIES: ReadonlySet<string> = new Set([
   "US", "GB", "CA", "CH",
   "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
   "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO",
+]);
+
+/** RECIPIENT-ONLY Connect countries: Stripe opens a receive-only connected
+ *  account (transfers in, payouts out, no charging) when the account is created
+ *  under the RECIPIENT service agreement. This is how a US platform pays talent
+ *  across LatAm, Asia, Africa and the Middle East.
+ *
+ *  Verified empirically against the live Stripe API on 2026-08-09 (every code
+ *  below created a real Express account with the `transfers` capability and was
+ *  then deleted). Brazil, Nicaragua and Venezuela were REJECTED for US
+ *  platforms and are deliberately absent. */
+export const CONNECT_RECIPIENT_ONLY_COUNTRIES: ReadonlySet<string> = new Set([
+  // Americas
+  "MX", "AR", "CL", "CO", "PE", "UY", "PY", "EC", "CR", "PA", "GT", "SV", "DO", "JM",
+  // Asia-Pacific
+  "AU", "NZ", "SG", "MY", "TH", "PH", "KR", "LK", "MN",
+  // Middle East + Central Asia
+  "AE", "SA", "IL", "JO", "KW", "BH", "AM", "AZ", "KZ", "UZ",
+  // Africa
+  "ZA", "KE", "GH", "MU", "TN", "BJ",
+]);
+
+/** Every country Stripe Connect can open a connected account in for us. */
+export const CONNECT_PAYOUT_COUNTRIES: ReadonlySet<string> = new Set([
+  ...CONNECT_FULL_SERVICE_COUNTRIES,
+  ...CONNECT_RECIPIENT_ONLY_COUNTRIES,
 ]);
 
 /** Can Stripe Connect open an Express account in this ISO-2 country? */
 export function isConnectPayoutCountry(iso2: string | null | undefined): boolean {
   if (!iso2) return false;
   return CONNECT_PAYOUT_COUNTRIES.has(iso2.trim().toUpperCase());
+}
+
+/** Does account creation in this country require the RECIPIENT service
+ *  agreement? Stripe hard-errors without it ("When requesting the `transfers`
+ *  capability for accounts in MX, you must specify the `recipient` service
+ *  agreement"), so this drives the accounts.create payload. */
+export function requiresRecipientAgreement(iso2: string | null | undefined): boolean {
+  if (!iso2) return false;
+  return CONNECT_RECIPIENT_ONLY_COUNTRIES.has(iso2.trim().toUpperCase());
 }
 
 /** Default local payout currency (ISO-4217, lowercase) for a payout country —

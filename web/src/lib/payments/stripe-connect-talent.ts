@@ -29,6 +29,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import {
   normalizePayoutCountry,
   payoutCountryLabel,
+  requiresRecipientAgreement,
   isStablecoinPayoutCountry,
 } from "@/lib/payments/payout-countries";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
@@ -201,6 +202,15 @@ export async function createOrGetTalentConnectedAccount(
         card_payments: { requested: false },
       },
       business_profile: businessUrl ? { url: businessUrl } : undefined,
+      // Receive-only countries (MX, AR and the rest of LatAm/Asia/Africa) REQUIRE
+      // the recipient service agreement — Stripe hard-errors without it:
+      // "When requesting the `transfers` capability for accounts in MX, you must
+      // specify the `recipient` service agreement". The account can then receive
+      // transfers and pay out locally, it just can't charge customers (which
+      // talent never does — the client always pays the platform).
+      ...(requiresRecipientAgreement(country)
+        ? { tos_acceptance: { service_agreement: "recipient" as const } }
+        : {}),
       metadata: {
         account_type: "talent",
         talent_profile_id: talentProfileId,

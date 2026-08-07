@@ -10,19 +10,12 @@ import {
   refreshTalentPayoutStatus,
 } from "./actions";
 
-// Countries Stripe Connect (US platform) can open a connected account in. Talents
-// elsewhere (Mexico, Argentina, most of LatAm/Asia/Africa) can ONLY be paid via
-// Global Payouts, so for them we hide the Connect rail entirely.
-const CONNECT_PAYOUT_COUNTRIES = new Set([
-  "US", "GB", "CA", "CH",
-  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE",
-  "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO",
-]);
-function isConnectPayoutCountry(iso2: string | null): boolean {
-  return !!iso2 && CONNECT_PAYOUT_COUNTRIES.has(iso2.toUpperCase());
-}
 import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbeddedOnboarding";
-import { PAYOUT_COUNTRIES } from "@/lib/payments/payout-countries";
+// Single source of truth (lib/payments/payout-countries). This file used to
+// carry its OWN copy of the country set that predated Stripe's recipient
+// service agreement, so a Mexican talent was told "payouts aren't available in
+// Mexico yet" even though account creation works. Never re-inline this list.
+import { PAYOUT_COUNTRIES, isConnectPayoutCountry } from "@/lib/payments/payout-countries";
 import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
 import { StablecoinPayoutCard } from "./StablecoinPayoutCard";
