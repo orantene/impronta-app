@@ -13,6 +13,7 @@
  */
 
 import type { SectionPresentation } from "./presentation";
+import { useSectionT } from "./section-editor-i18n";
 import {
   PRESENTATION_FIELD_LABELS,
   PRESENTATION_OPTIONS,
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export function PresentationPanel({ value, onChange, hideAlign }: Props) {
+  const t = useSectionT();
   const v: PresentationObj = value ?? {};
   const patch = (p: Partial<PresentationObj>) => onChange({ ...v, ...p });
 
@@ -54,9 +56,9 @@ export function PresentationPanel({ value, onChange, hideAlign }: Props) {
       open={false}
     >
       <summary className="cursor-pointer select-none text-sm font-medium">
-        Presentation
+        {t("Presentation")}
         <span className="ml-2 text-xs font-normal text-muted-foreground">
-          Background, spacing, alignment, visibility
+          {t("Background, spacing, alignment, visibility")}
         </span>
       </summary>
 
@@ -70,7 +72,7 @@ export function PresentationPanel({ value, onChange, hideAlign }: Props) {
           const current = (v[key] as string | undefined) ?? "";
           return (
             <label key={key} className={FIELD}>
-              <span className={LABEL}>{label}</span>
+              <span className={LABEL}>{t(label)}</span>
               <select
                 className={SELECT}
                 value={current}
@@ -81,10 +83,12 @@ export function PresentationPanel({ value, onChange, hideAlign }: Props) {
                   patch({ [key]: next } as Partial<PresentationObj>);
                 }}
               >
-                <option value="">{PLACEHOLDER[key] ?? "(theme default)"}</option>
+                <option value="">
+                  {t(PLACEHOLDER[key] ?? "(theme default)")}
+                </option>
                 {options.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.label)}
                   </option>
                 ))}
               </select>

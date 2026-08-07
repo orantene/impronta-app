@@ -21,6 +21,7 @@ import { loadCmsPagesForLinkPicker } from "@/lib/site-admin/edit-mode/cms-pages-
 import { loadTalentPathsForLinkPicker } from "@/lib/site-admin/edit-mode/talent-paths-action";
 import { validateLinkUrl } from "@/lib/site-admin/edit-mode/link-validate-action";
 import { MediaPicker } from "./MediaPicker";
+import { useSectionT } from "./section-editor-i18n";
 
 type LinkKind = "internal" | "external" | "email" | "tel" | "anchor" | "asset" | "talent";
 
@@ -85,6 +86,7 @@ export function LinkPicker({
   placeholder,
   tenantId,
 }: LinkPickerProps) {
+  const t = useSectionT();
   const initialKind = forceKind ?? inferKind(value);
   const [kind, setKind] = useState<LinkKind>(initialKind);
 
@@ -231,7 +233,7 @@ export function LinkPicker({
                 emit(visible);
               }}
             >
-              {KIND_LABEL[k]}
+              {t(KIND_LABEL[k])}
             </button>
           ))}
         </div>
@@ -272,14 +274,14 @@ export function LinkPicker({
               onClick={() => void runValidate()}
               disabled={validateState.kind === "checking"}
               className="rounded-md border border-border/60 bg-background px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
-              title="Test the link with a HEAD request"
+              title={t("Test the link with a HEAD request")}
             >
-              {validateState.kind === "checking" ? "…" : "Test"}
+              {validateState.kind === "checking" ? "…" : t("Test")}
             </button>
           ) : null}
           {validateState.kind === "ok" ? (
             <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-              {validateState.status} OK
+              {validateState.status} {t("OK")}
             </span>
           ) : validateState.kind === "warn" ? (
             <span className="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-300">
@@ -304,12 +306,12 @@ export function LinkPicker({
               onClick={() => emit(s.path)}
               className="rounded-md border border-border/40 bg-background px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/50"
             >
-              {s.label ?? s.path}
+              {s.label ? t(s.label) : s.path}
             </button>
           ))}
           {pagesLoading && pageOptions === null ? (
             <span className="text-[10px] text-muted-foreground/70">
-              loading pages…
+              {t("loading pages…")}
             </span>
           ) : null}
         </div>
@@ -326,12 +328,12 @@ export function LinkPicker({
             />
             <MediaPicker
               tenantId={tenantId}
-              label="Pick file"
+              label={t("Pick file")}
               onPick={(url) => onChange(url)}
             />
           </div>
           <span className="text-[10px] text-muted-foreground/70">
-            Picks from your tenant&apos;s media library. Any file type.
+            {t("Picks from your tenant's media library. Any file type.")}
           </span>
         </div>
       ) : null}
@@ -357,10 +359,10 @@ export function LinkPicker({
               </button>
             ))}
             {talentLoading && talentOptions === null ? (
-              <span className="text-[10px] text-muted-foreground/70">loading roster…</span>
+              <span className="text-[10px] text-muted-foreground/70">{t("loading roster…")}</span>
             ) : null}
             {talentOptions !== null && talentOptions.length === 0 ? (
-              <span className="text-[10px] text-muted-foreground/70">No talent on this tenant&apos;s roster.</span>
+              <span className="text-[10px] text-muted-foreground/70">{t("No talent on this tenant's roster.")}</span>
             ) : null}
           </div>
         </div>

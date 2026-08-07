@@ -4,6 +4,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { AltTextField } from "../shared/AltTextField";
+import { useSectionT } from "../shared/section-editor-i18n";
 import type { SectionEditorProps } from "../types";
 import type {
   ImageCopyAlternatingV1,
@@ -20,6 +21,7 @@ export function ImageCopyAlternatingEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<ImageCopyAlternatingV1>) {
+  const t = useSectionT();
   const value: ImageCopyAlternatingV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "",
@@ -39,7 +41,7 @@ export function ImageCopyAlternatingEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             maxLength={60}
@@ -48,7 +50,7 @@ export function ImageCopyAlternatingEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Headline</span>
+          <span className={LABEL}>{t("Headline")}</span>
           <input
             className={INPUT}
             maxLength={200}
@@ -60,11 +62,11 @@ export function ImageCopyAlternatingEditor({
 
       <VariantPicker
         name="image_copy_alternating.variant"
-        legend="Variant"
+        legend={t("Variant")}
         sectionKey="image_copy_alternating"
         options={[
-          { value: "editorial-alternating", label: "Editorial alternating", hint: "Image alternates left/right.", schematic: "split" },
-          { value: "info-forward", label: "Info forward", hint: "Text-heavy with supporting image.", schematic: "stack" },
+          { value: "editorial-alternating", label: t("Editorial alternating"), hint: t("Image alternates left/right."), schematic: "split" },
+          { value: "info-forward", label: t("Info forward"), hint: t("Text-heavy with supporting image."), schematic: "stack" },
         ]}
         value={value.variant}
         onChange={(next) => patch({ variant: next })}
@@ -72,19 +74,19 @@ export function ImageCopyAlternatingEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Gap</span>
+          <span className={LABEL}>{t("Gap")}</span>
           <select
             className={INPUT}
             value={value.gap}
             onChange={(e) => patch({ gap: e.target.value as ImageCopyAlternatingV1["gap"] })}
           >
-            <option value="tight">Tight</option>
-            <option value="standard">Standard</option>
-            <option value="airy">Airy</option>
+            <option value="tight">{t("Tight")}</option>
+            <option value="standard">{t("Standard")}</option>
+            <option value="airy">{t("Airy")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Image ratio</span>
+          <span className={LABEL}>{t("Image ratio")}</span>
           <select
             className={INPUT}
             value={value.imageRatio}
@@ -92,17 +94,22 @@ export function ImageCopyAlternatingEditor({
               patch({ imageRatio: e.target.value as ImageCopyAlternatingV1["imageRatio"] })
             }
           >
-            <option value="4/5">Portrait 4:5</option>
-            <option value="5/6">Portrait 5:6 (editorial)</option>
-            <option value="3/4">Portrait 3:4</option>
-            <option value="1/1">Square 1:1</option>
+            <option value="4/5">{t("Portrait 4:5")}</option>
+            <option value="5/6">{t("Portrait 5:6 (editorial)")}</option>
+            <option value="3/4">{t("Portrait 3:4")}</option>
+            <option value="1/1">{t("Square 1:1")}</option>
           </select>
         </label>
       </div>
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className={LABEL}>Rows ({value.items.length} / 12)</span>
+          <span className={LABEL}>
+            {t("Rows ({count} / 12)").replace(
+              "{count}",
+              String(value.items.length),
+            )}
+          </span>
           <button
             type="button"
             disabled={value.items.length >= 12}
@@ -113,7 +120,7 @@ export function ImageCopyAlternatingEditor({
             }
             className={`${KIT.ghostButton} disabled:opacity-50`}
           >
-            + Add row
+            {t("+ Add row")}
           </button>
         </div>
         {value.items.map((item, i) => (
@@ -122,24 +129,26 @@ export function ImageCopyAlternatingEditor({
             className="overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3"
           >
             <summary className="cursor-pointer select-none text-[13px] font-medium text-stone-700">
-              Row {i + 1}: {item.title || "(untitled)"}
+              {`${t("Row {n}").replace("{n}", String(i + 1))}: ${
+                item.title || t("(untitled)")
+              }`}
             </summary>
             <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
               <input
                 className={INPUT}
-                placeholder="Eyebrow"
+                placeholder={t("Eyebrow")}
                 value={item.eyebrow ?? ""}
                 onChange={(e) => patchItem(i, { eyebrow: e.target.value })}
               />
               <input
                 className={INPUT}
-                placeholder="Title"
+                placeholder={t("Title")}
                 value={item.title}
                 onChange={(e) => patchItem(i, { title: e.target.value })}
               />
               <input
                 className={INPUT}
-                placeholder="Italic tagline"
+                placeholder={t("Italic tagline")}
                 value={item.italicTagline ?? ""}
                 onChange={(e) => patchItem(i, { italicTagline: e.target.value })}
               />
@@ -147,7 +156,7 @@ export function ImageCopyAlternatingEditor({
                 <div className="flex items-center gap-2">
                   <input
                     className={`${INPUT} flex-1`}
-                    placeholder="Image URL"
+                    placeholder={t("Image URL")}
                     value={item.imageUrl ?? ""}
                     onChange={(e) =>
                       patchItem(i, { imageUrl: e.target.value || undefined })
@@ -171,12 +180,12 @@ export function ImageCopyAlternatingEditor({
               </div>
               <textarea
                 className={`${INPUT} md:col-span-2 min-h-[68px]`}
-                placeholder="Body copy"
+                placeholder={t("Body copy")}
                 value={item.body ?? ""}
                 onChange={(e) => patchItem(i, { body: e.target.value })}
               />
               <label className={FIELD}>
-                <span className={LABEL}>Image side</span>
+                <span className={LABEL}>{t("Image side")}</span>
                 <select
                   className={INPUT}
                   value={item.side}
@@ -184,16 +193,18 @@ export function ImageCopyAlternatingEditor({
                     patchItem(i, { side: e.target.value as ImageCopyAlternatingItem["side"] })
                   }
                 >
-                  <option value="auto">Auto (alternates)</option>
-                  <option value="image-left">Image left</option>
-                  <option value="image-right">Image right</option>
+                  <option value="auto">{t("Auto (alternates)")}</option>
+                  <option value="image-left">{t("Image left")}</option>
+                  <option value="image-right">{t("Image right")}</option>
                 </select>
               </label>
               <label className={FIELD}>
-                <span className={LABEL}>&ldquo;Ideal for&rdquo; items (comma-separated)</span>
+                <span className={LABEL}>
+                  {t("“Ideal for” items (comma-separated)")}
+                </span>
                 <input
                   className={INPUT}
-                  placeholder="Ceremonies, Editorial previews, Getting-ready"
+                  placeholder={t("Ceremonies, Editorial previews, Getting-ready")}
                   value={(item.listItems ?? []).join(", ")}
                   onChange={(e) =>
                     patchItem(i, {
@@ -214,7 +225,7 @@ export function ImageCopyAlternatingEditor({
               }
               className={`${KIT.ghostButton} mt-3 disabled:opacity-30`}
             >
-              Remove row
+              {t("Remove row")}
             </button>
           </details>
         ))}

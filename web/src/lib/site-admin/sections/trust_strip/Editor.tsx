@@ -3,6 +3,7 @@
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import type { TrustStripV1, TrustStripItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -43,6 +44,7 @@ export function TrustStripEditor({
   initial,
   onChange,
 }: SectionEditorProps<TrustStripV1>) {
+  const t = useSectionT();
   const value: TrustStripV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "",
@@ -73,21 +75,21 @@ export function TrustStripEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             maxLength={60}
-            placeholder="Why book us"
+            placeholder={t("Why book us")}
             value={value.eyebrow ?? ""}
             onChange={(e) => patch({ eyebrow: e.target.value })}
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Headline</span>
+          <span className={LABEL}>{t("Headline")}</span>
           <input
             className={INPUT}
             maxLength={140}
-            placeholder="A curated house of…"
+            placeholder={t("A curated house of…")}
             value={value.headline ?? ""}
             onChange={(e) => patch({ headline: e.target.value })}
           />
@@ -96,12 +98,12 @@ export function TrustStripEditor({
 
       <VariantPicker
         name="trust_strip.variant"
-        legend="Layout variant"
+        legend={t("Layout variant")}
         sectionKey="trust_strip"
         options={VARIANTS.map((v) => ({
           value: v.value as NonNullable<TrustStripV1["variant"]>,
-          label: v.label,
-          hint: v.hint,
+          label: t(v.label),
+          hint: t(v.hint),
         }))}
         value={value.variant}
         onChange={(next) => patch({ variant: next })}
@@ -109,7 +111,7 @@ export function TrustStripEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Background</span>
+          <span className={LABEL}>{t("Background")}</span>
           <select
             className={INPUT}
             value={value.background ?? "neutral"}
@@ -121,14 +123,14 @@ export function TrustStripEditor({
           >
             {BACKGROUNDS.map((b) => (
               <option key={b.value} value={b.value}>
-                {b.label}
+                {t(b.label)}
               </option>
             ))}
           </select>
         </label>
 
         <label className={FIELD}>
-          <span className={LABEL}>Density</span>
+          <span className={LABEL}>{t("Density")}</span>
           <select
             className={INPUT}
             value={value.density ?? ""}
@@ -138,10 +140,10 @@ export function TrustStripEditor({
               })
             }
           >
-            <option value="">Theme default</option>
+            <option value="">{t("Theme default")}</option>
             {DENSITIES.map((d) => (
               <option key={d.value} value={d.value}>
-                {d.label}
+                {t(d.label)}
               </option>
             ))}
           </select>
@@ -150,14 +152,16 @@ export function TrustStripEditor({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className={LABEL}>Items ({value.items.length} / 6)</span>
+          <span className={LABEL}>
+            {t("Items ({count} / 6)").replace("{count}", String(value.items.length))}
+          </span>
           <button
             type="button"
             onClick={addItem}
             disabled={value.items.length >= 6}
             className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50"
           >
-            + Add item
+            {t("+ Add item")}
           </button>
         </div>
         {value.items.map((item, i) => (
@@ -168,7 +172,7 @@ export function TrustStripEditor({
             {value.variant === "metrics-row" ? (
               <input
                 className={INPUT}
-                placeholder="Stat (e.g. 12+ years)"
+                placeholder={t("Stat (e.g. 12+ years)")}
                 maxLength={40}
                 value={item.stat ?? ""}
                 onChange={(e) => patchItem(i, { stat: e.target.value })}
@@ -176,7 +180,7 @@ export function TrustStripEditor({
             ) : (
               <input
                 className={INPUT}
-                placeholder="Label"
+                placeholder={t("Label")}
                 maxLength={80}
                 value={item.label}
                 onChange={(e) => patchItem(i, { label: e.target.value })}
@@ -184,7 +188,7 @@ export function TrustStripEditor({
             )}
             <input
               className={INPUT}
-              placeholder="Supporting detail (optional)"
+              placeholder={t("Supporting detail (optional)")}
               maxLength={200}
               value={item.detail ?? ""}
               onChange={(e) => patchItem(i, { detail: e.target.value })}
@@ -192,7 +196,7 @@ export function TrustStripEditor({
             {value.variant === "metrics-row" ? (
               <input
                 className={INPUT}
-                placeholder="Label"
+                placeholder={t("Label")}
                 maxLength={80}
                 value={item.label}
                 onChange={(e) => patchItem(i, { label: e.target.value })}
@@ -205,7 +209,7 @@ export function TrustStripEditor({
               onClick={() => removeItem(i)}
               disabled={value.items.length <= 1}
               className="rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground disabled:opacity-30"
-              aria-label="Remove item"
+              aria-label={t("Remove item")}
             >
               ×
             </button>

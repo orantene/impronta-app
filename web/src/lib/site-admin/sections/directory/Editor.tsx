@@ -15,6 +15,7 @@ import {
   type DirectoryLiveCatalogSnapshot,
 } from "@/lib/site-admin/server/directory-catalogs";
 import { DirectorySidebarItemOrderEditor } from "./DirectorySidebarItemOrderEditor";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { KIT, PanelSaveChip } from "@/components/edit-chrome/inspectors/kit";
 import { listCardKits } from "@/lib/site-admin/presets/card-kits";
 
@@ -183,12 +184,13 @@ function FieldTags({
   placeholder?: string;
   onChange: (v: string[]) => void;
 }) {
+  const t = useSectionT();
   return (
     <div className="space-y-1">
       <label className={LABEL}>{label}</label>
       <input
         className={INPUT}
-        placeholder={placeholder ?? "comma-separated"}
+        placeholder={placeholder ?? t("comma-separated")}
         value={value.join(", ")}
         onChange={(e) =>
           onChange(
@@ -219,18 +221,20 @@ function LiveFieldVisibilityList({
   itemOrder: string[];
   onToggle: (fieldKey: string, visible: boolean) => void;
 }) {
+  const t = useSectionT();
   const facetKeys = itemOrder.filter((k) => k !== "__filter_search__");
   if (facetKeys.length === 0) {
     return (
       <p className={HELP}>
-        No facet fields in the live catalog yet. Add directory facets in the
-        field definitions admin first.
+        {t(
+          "No facet fields in the live catalog yet. Add directory facets in the field definitions admin first.",
+        )}
       </p>
     );
   }
   return (
     <div className="space-y-1 pt-1">
-      <div className={LABEL}>Hide individual facets (live)</div>
+      <div className={LABEL}>{t("Hide individual facets (live)")}</div>
       <div className="rounded-md border border-border/40">
         {facetKeys.map((k) => {
           const visible = overrides[k] !== false;
@@ -246,7 +250,7 @@ function LiveFieldVisibilityList({
                   checked={visible}
                   onChange={(e) => onToggle(k, e.target.checked)}
                 />
-                visible
+                {t("visible")}
               </label>
             </div>
           );
@@ -288,6 +292,7 @@ export function DirectoryEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<DirectoryV1>) {
+  const t = useSectionT();
   const [tab, setTab] = useState<Tab>("Source");
   const p = normalizeDirectoryProps(initial);
   const set = <K extends keyof DirectoryV1>(key: K, value: DirectoryV1[K]) =>
@@ -319,12 +324,14 @@ export function DirectoryEditor({
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLiveError(err instanceof Error ? err.message : "Couldn't read live catalog.");
+        setLiveError(
+          err instanceof Error ? err.message : t("Couldn't read live catalog."),
+        );
       });
     return () => {
       cancelled = true;
     };
-  }, [tenantId]);
+  }, [tenantId, t]);
 
   /** Optimistic-then-revert helper for live catalog writes. */
   const writeLive = (
@@ -344,7 +351,7 @@ export function DirectoryEditor({
         })
         .catch((err: unknown) => {
           setLiveCatalog(previous);
-          setLiveError(err instanceof Error ? err.message : "Save failed.");
+          setLiveError(err instanceof Error ? err.message : t("Save failed."));
         });
     });
   };
@@ -363,7 +370,7 @@ export function DirectoryEditor({
                 : "text-[var(--impronta-muted)] hover:text-foreground"
             }`}
           >
-            {TAB_LABELS[tb]}
+            {t(TAB_LABELS[tb])}
           </button>
         ))}
       </div>
@@ -371,32 +378,32 @@ export function DirectoryEditor({
       {tab === "Source" ? (
         <div className="space-y-4">
           <FieldSelect
-            label="What you call them"
+            label={t("What you call them")}
             value={p.entityLabel}
             onChange={(v) => set("entityLabel", v as DirectoryV1["entityLabel"])}
             options={[
-              { value: "talent", label: "Talent" },
-              { value: "people", label: "People" },
-              { value: "members", label: "Members" },
-              { value: "professionals", label: "Professionals" },
-              { value: "providers", label: "Providers" },
-              { value: "team", label: "Team" },
+              { value: "talent", label: t("Talent") },
+              { value: "people", label: t("People") },
+              { value: "members", label: t("Members") },
+              { value: "professionals", label: t("Professionals") },
+              { value: "providers", label: t("Providers") },
+              { value: "team", label: t("Team") },
             ]}
           />
           <FieldSelect
-            label="Who appears"
+            label={t("Who appears")}
             value={p.scope}
             onChange={(v) => set("scope", v as DirectoryV1["scope"])}
             options={[
-              { value: "all", label: "Everyone (all public talent)" },
-              { value: "by_talent_type", label: "By talent type" },
-              { value: "by_tag", label: "By tag" },
-              { value: "manual", label: "Hand-picked" },
+              { value: "all", label: t("Everyone (all public talent)") },
+              { value: "by_talent_type", label: t("By talent type") },
+              { value: "by_tag", label: t("By tag") },
+              { value: "manual", label: t("Hand-picked") },
             ]}
           />
           {p.scope === "by_talent_type" ? (
             <FieldTags
-              label="Talent type keys"
+              label={t("Talent type keys")}
               value={p.talentTypeKeys}
               placeholder="chef, model, host"
               onChange={(v) => set("talentTypeKeys", v)}
@@ -404,55 +411,55 @@ export function DirectoryEditor({
           ) : null}
           {p.scope === "by_tag" ? (
             <FieldTags
-              label="Tag keys"
+              label={t("Tag keys")}
               value={p.tagKeys}
               onChange={(v) => set("tagKeys", v)}
             />
           ) : null}
           {p.scope === "manual" ? (
             <FieldTags
-              label="Hand-pick talent (by profile code)"
+              label={t("Hand-pick talent (by profile code)")}
               value={p.manualProfileCodes}
               placeholder="TAL-00014, TAL-00017"
               onChange={(v) => set("manualProfileCodes", v)}
             />
           ) : null}
           <FieldTags
-            label="Feature first (pin to top, in order)"
+            label={t("Feature first (pin to top, in order)")}
             value={p.pinnedProfileCodes}
             placeholder="TAL-00014, TAL-00017"
             onChange={(v) => set("pinnedProfileCodes", v)}
           />
           <FieldTags
-            label="Hide these talent"
+            label={t("Hide these talent")}
             value={p.excludedProfileCodes}
             placeholder="TAL-00021"
             onChange={(v) => set("excludedProfileCodes", v)}
           />
           <FieldToggle
-            label="Require a photo"
+            label={t("Require a photo")}
             checked={p.requirePhoto}
             onChange={(v) => set("requirePhoto", v)}
           />
           <FieldToggle
-            label="Hide unavailable talent"
+            label={t("Hide unavailable talent")}
             checked={p.excludeUnavailable}
             onChange={(v) => set("excludeUnavailable", v)}
           />
           <FieldSelect
-            label="Minimum trust tier"
+            label={t("Minimum trust tier")}
             value={p.minTrustTier}
             onChange={(v) => set("minTrustTier", v as DirectoryV1["minTrustTier"])}
             options={[
-              { value: "any", label: "Any" },
-              { value: "basic", label: "Basic+" },
-              { value: "verified", label: "Verified+" },
-              { value: "silver", label: "Silver+" },
-              { value: "gold", label: "Gold only" },
+              { value: "any", label: t("Any") },
+              { value: "basic", label: t("Basic+") },
+              { value: "verified", label: t("Verified+") },
+              { value: "silver", label: t("Silver+") },
+              { value: "gold", label: t("Gold only") },
             ]}
           />
           <FieldSelect
-            label="Default sort"
+            label={t("Default sort")}
             value={p.defaultSort}
             onChange={(v) => set("defaultSort", v as DirectoryV1["defaultSort"])}
             // Only shipped sorts are listed; unbuilt ones (az, availability,
@@ -460,22 +467,22 @@ export function DirectoryEditor({
             // rows — dead options read as a broken product (matches #649). The
             // schema enum keeps them for back-compat / a saved older value.
             options={[
-              { value: "recommended", label: "Recommended" },
-              { value: "newest", label: "Newest" },
+              { value: "recommended", label: t("Recommended") },
+              { value: "newest", label: t("Newest") },
             ]}
           />
           <FieldSelect
-            label="Pagination"
+            label={t("Pagination")}
             value={p.pagination}
             onChange={(v) => set("pagination", v as DirectoryV1["pagination"])}
             options={[
-              { value: "infinite", label: "Infinite scroll" },
-              { value: "load_more", label: "Load more button" },
-              { value: "paged", label: "Numbered pages" },
+              { value: "infinite", label: t("Infinite scroll") },
+              { value: "load_more", label: t("Load more button") },
+              { value: "paged", label: t("Numbered pages") },
             ]}
           />
           <FieldNumber
-            label="Per page"
+            label={t("Per page")}
             value={p.pageSize}
             min={6}
             max={60}
@@ -487,7 +494,7 @@ export function DirectoryEditor({
       {tab === "Template" ? (
         <div className="space-y-4">
           <FieldSelect
-            label="Layout template"
+            label={t("Layout template")}
             value={p.template}
             onChange={(v) => set("template", v as DirectoryV1["template"])}
             // Only shipped templates are listed. Unbuilt layouts (studio,
@@ -496,59 +503,59 @@ export function DirectoryEditor({
             // broken product. They stay in the schema enum (DirectoryV1) so any
             // older saved value still validates; re-add a row here when built.
             options={[
-              { value: "atelier", label: "Atelier (editorial gallery)" },
+              { value: "atelier", label: t("Atelier (editorial gallery)") },
             ]}
           />
           <FieldToggle
-            label="Show heading block"
+            label={t("Show heading block")}
             checked={p.showHeading}
             onChange={(v) => set("showHeading", v)}
           />
           <FieldText
-            label="Eyebrow"
+            label={t("Eyebrow")}
             value={p.eyebrow ?? ""}
-            placeholder="Roster"
+            placeholder={t("Roster")}
             onChange={(v) => set("eyebrow", v)}
           />
           <FieldText
-            label="Page label"
+            label={t("Page label")}
             value={p.headline ?? ""}
-            placeholder="People · Models · Our Chefs"
+            placeholder={t("People · Models · Our Chefs")}
             onChange={(v) => set("headline", v)}
           />
           <FieldText
-            label="Intro copy"
+            label={t("Intro copy")}
             value={p.copy ?? ""}
             area
             onChange={(v) => set("copy", v)}
           />
           <FieldSelect
-            label="Heading alignment"
+            label={t("Heading alignment")}
             value={p.headerAlign}
             onChange={(v) => set("headerAlign", v as DirectoryV1["headerAlign"])}
             options={[
-              { value: "center", label: "Center" },
-              { value: "left", label: "Left" },
-              { value: "split", label: "Split" },
+              { value: "center", label: t("Center") },
+              { value: "left", label: t("Left") },
+              { value: "split", label: t("Split") },
             ]}
           />
           <div className="grid grid-cols-3 gap-2">
             <FieldNumber
-              label="Cols ▭"
+              label={t("Cols ▭")}
               value={p.columnsDesktop}
               min={1}
               max={6}
               onChange={(v) => set("columnsDesktop", v)}
             />
             <FieldNumber
-              label="Cols ▢"
+              label={t("Cols ▢")}
               value={p.columnsTablet}
               min={1}
               max={4}
               onChange={(v) => set("columnsTablet", v)}
             />
             <FieldNumber
-              label="Cols ▯"
+              label={t("Cols ▯")}
               value={p.columnsMobile}
               min={1}
               max={2}
@@ -556,7 +563,7 @@ export function DirectoryEditor({
             />
           </div>
           <FieldSelect
-            label="Density"
+            label={t("Density")}
             value={p.density ?? ""}
             onChange={(v) =>
               // "" = clear the per-section value so this section follows
@@ -564,30 +571,30 @@ export function DirectoryEditor({
               set("density", (v === "" ? undefined : v) as DirectoryV1["density"])
             }
             options={[
-              { value: "", label: "Follow Card Design default" },
-              { value: "comfortable", label: "Comfortable" },
-              { value: "compact", label: "Compact" },
+              { value: "", label: t("Follow Card Design default") },
+              { value: "comfortable", label: t("Comfortable") },
+              { value: "compact", label: t("Compact") },
             ]}
           />
           <FieldSelect
-            label="Container width"
+            label={t("Container width")}
             value={p.containerWidth}
             onChange={(v) =>
               set("containerWidth", v as DirectoryV1["containerWidth"])
             }
             options={[
-              { value: "boxed", label: "Boxed" },
-              { value: "full", label: "Full-bleed" },
+              { value: "boxed", label: t("Boxed") },
+              { value: "full", label: t("Full-bleed") },
             ]}
           />
           <FieldSelect
-            label="Background"
+            label={t("Background")}
             value={p.background}
             onChange={(v) => set("background", v as DirectoryV1["background"])}
             options={[
-              { value: "cool_ground", label: "Cool ground" },
-              { value: "plain", label: "Plain" },
-              { value: "subtle", label: "Subtle" },
+              { value: "cool_ground", label: t("Cool ground") },
+              { value: "plain", label: t("Plain") },
+              { value: "subtle", label: t("Subtle") },
             ]}
           />
         </div>
@@ -596,7 +603,7 @@ export function DirectoryEditor({
       {tab === "Card" ? (
         <div className="space-y-3">
           <FieldSelect
-            label="Card kit (this directory only)"
+            label={t("Card kit (this directory only)")}
             value={p.cardKitOverride ?? "__inherit__"}
             onChange={(v) =>
               set(
@@ -605,7 +612,7 @@ export function DirectoryEditor({
               )
             }
             options={[
-              { value: "__inherit__", label: "Inherit workspace card design" },
+              { value: "__inherit__", label: t("Inherit workspace card design") },
               ...listCardKits().map((k) => ({
                 value: k.slug,
                 label: k.label,
@@ -613,12 +620,12 @@ export function DirectoryEditor({
             ]}
           />
           <p className={HELP}>
-            Repaints just this directory&apos;s cards with a named look. Leave on
-            &quot;Inherit&quot; to follow the workspace-wide card design set in
-            Branding.
+            {t(
+              'Repaints just this directory\'s cards with a named look. Leave on "Inherit" to follow the workspace-wide card design set in Branding.',
+            )}
           </p>
           <FieldSelect
-            label="Card style"
+            label={t("Card style")}
             value={p.cardStyle ?? ""}
             onChange={(v) =>
               // "" = clear the per-section value so this section follows
@@ -629,13 +636,13 @@ export function DirectoryEditor({
             // profile, stat, service, minimal) are omitted rather than shown as
             // disabled "coming soon" rows. Schema enum keeps them for back-compat.
             options={[
-              { value: "", label: "Follow Card Design default" },
-              { value: "portrait", label: "Portrait (editorial)" },
-              { value: "editorial", label: "Editorial (display name)" },
+              { value: "", label: t("Follow Card Design default") },
+              { value: "portrait", label: t("Portrait (editorial)") },
+              { value: "editorial", label: t("Editorial (display name)") },
             ]}
           />
           <FieldSelect
-            label="Image aspect"
+            label={t("Image aspect")}
             value={p.cardAspect ?? ""}
             onChange={(v) =>
               // "" = clear the per-section value so this section follows
@@ -643,45 +650,45 @@ export function DirectoryEditor({
               set("cardAspect", (v === "" ? undefined : v) as DirectoryV1["cardAspect"])
             }
             options={[
-              { value: "", label: "Follow Card Design default" },
-              { value: "4:5", label: "4:5 portrait" },
-              { value: "1:1", label: "1:1 square" },
+              { value: "", label: t("Follow Card Design default") },
+              { value: "4:5", label: t("4:5 portrait") },
+              { value: "1:1", label: t("1:1 square") },
               { value: "3:4", label: "3:4" },
               { value: "16:9", label: "16:9" },
             ]}
           />
           <FieldToggle
-            label="Show name"
+            label={t("Show name")}
             checked={p.showName}
             onChange={(v) => set("showName", v)}
           />
           {!p.showName ? (
             <FieldSelect
-              label="When name is hidden, show…"
+              label={t("When name is hidden, show…")}
               value={p.nameFallback}
               onChange={(v) =>
                 set("nameFallback", v as DirectoryV1["nameFallback"])
               }
               options={[
-                { value: "first_name", label: "First name only" },
-                { value: "code", label: "Profile code" },
-                { value: "role", label: "Role" },
-                { value: "hidden", label: "Nothing" },
+                { value: "first_name", label: t("First name only") },
+                { value: "code", label: t("Profile code") },
+                { value: "role", label: t("Role") },
+                { value: "hidden", label: t("Nothing") },
               ]}
             />
           ) : null}
           <FieldToggle
-            label="Show talent type"
+            label={t("Show talent type")}
             checked={p.showTalentType}
             onChange={(v) => set("showTalentType", v)}
           />
           <FieldToggle
-            label="Show location"
+            label={t("Show location")}
             checked={p.showLocation}
             onChange={(v) => set("showLocation", v)}
           />
           <FieldToggle
-            label="Show attributes"
+            label={t("Show attributes")}
             checked={p.showAttributes}
             onChange={(v) => set("showAttributes", v)}
           />
@@ -689,48 +696,48 @@ export function DirectoryEditor({
               cards; a dead toggle reads as a broken product, #649). Price-from
               shipped with the offerings-backed "From $X" chip. */}
           <FieldToggle
-            label="Show starting price"
+            label={t("Show starting price")}
             checked={p.showPriceFrom}
             onChange={(v) => set("showPriceFrom", v)}
           />
           <FieldToggle
-            label="Show availability"
+            label={t("Show availability")}
             checked={p.showAvailability}
             onChange={(v) => set("showAvailability", v)}
           />
           <FieldToggle
-            label="Show ownership badge"
+            label={t("Show ownership badge")}
             checked={p.showBadges}
             onChange={(v) => set("showBadges", v)}
           />
           <FieldToggle
-            label="Show save control"
+            label={t("Show save control")}
             checked={p.showSave}
             onChange={(v) => set("showSave", v)}
           />
           <FieldToggle
-            label="Show add-to-inquiry"
+            label={t("Show add-to-inquiry")}
             checked={p.showAddToInquiry}
             onChange={(v) => set("showAddToInquiry", v)}
           />
           <FieldToggle
-            label="Show quick view (media peek)"
+            label={t("Show quick view (media peek)")}
             checked={p.showQuickView}
             onChange={(v) => set("showQuickView", v)}
           />
           <FieldSelect
-            label="Card click opens"
+            label={t("Card click opens")}
             value={p.cardClickAction}
             onChange={(v) =>
               set("cardClickAction", v as DirectoryV1["cardClickAction"])
             }
             options={[
-              { value: "modal", label: "Profile overlay (stay on page)" },
-              { value: "page", label: "Full profile page" },
+              { value: "modal", label: t("Profile overlay (stay on page)") },
+              { value: "page", label: t("Full profile page") },
             ]}
           />
           <FieldSelect
-            label="Hover behavior"
+            label={t("Hover behavior")}
             value={p.hoverBehavior ?? ""}
             onChange={(v) =>
               // "" = clear the per-section value so this section follows
@@ -741,15 +748,15 @@ export function DirectoryEditor({
               )
             }
             options={[
-              { value: "", label: "Follow Card Design default" },
-              { value: "reveal_traits", label: "Reveal traits" },
-              { value: "zoom", label: "Image zoom" },
-              { value: "swap", label: "Swap image" },
-              { value: "none", label: "None" },
+              { value: "", label: t("Follow Card Design default") },
+              { value: "reveal_traits", label: t("Reveal traits") },
+              { value: "zoom", label: t("Image zoom") },
+              { value: "swap", label: t("Swap image") },
+              { value: "none", label: t("None") },
             ]}
           />
           <FieldNumber
-            label="Max field lines"
+            label={t("Max field lines")}
             value={p.maxFieldLines}
             min={1}
             max={6}
@@ -761,94 +768,96 @@ export function DirectoryEditor({
       {tab === "Filters" ? (
         <div className="space-y-3">
           <FieldToggle
-            label="Show filter sidebar"
+            label={t("Show filter sidebar")}
             checked={p.sidebarShow}
             onChange={(v) => set("sidebarShow", v)}
           />
           <FieldSelect
-            label="Sidebar position"
+            label={t("Sidebar position")}
             value={p.sidebarPosition}
             onChange={(v) =>
               set("sidebarPosition", v as DirectoryV1["sidebarPosition"])
             }
             options={[
-              { value: "left", label: "Left" },
-              { value: "right", label: "Right" },
+              { value: "left", label: t("Left") },
+              { value: "right", label: t("Right") },
             ]}
           />
           <FieldToggle
-            label="Sticky sidebar"
+            label={t("Sticky sidebar")}
             checked={p.sidebarSticky}
-            note="Pins the filter sidebar while the results scroll."
+            note={t("Pins the filter sidebar while the results scroll.")}
             onChange={(v) => set("sidebarSticky", v)}
           />
           <FieldToggle
-            label="Sidebar starts collapsed"
+            label={t("Sidebar starts collapsed")}
             checked={p.sidebarDefaultCollapsed}
             onChange={(v) => set("sidebarDefaultCollapsed", v)}
           />
           <p className={HELP}>
-            Visitors expand only the filters they care about, which keeps the page
-            scannable when there are many facets.
+            {t(
+              "Visitors expand only the filters they care about, which keeps the page scannable when there are many facets.",
+            )}
           </p>
           <FieldToggle
-            label="Show filter search box"
+            label={t("Show filter search box")}
             checked={p.filterSearchBox}
             onChange={(v) => set("filterSearchBox", v)}
           />
           <FieldSelect
-            label="Pill bar above results"
+            label={t("Pill bar above results")}
             value={p.topBarMode}
             onChange={(v) => set("topBarMode", v as DirectoryV1["topBarMode"])}
             options={[
-              { value: "talent_type", label: "Talent-type pills" },
-              { value: "none", label: "None" },
-              { value: "field", label: "A field facet" },
+              { value: "talent_type", label: t("Talent-type pills") },
+              { value: "none", label: t("None") },
+              { value: "field", label: t("A field facet") },
             ]}
           />
           <p className={HELP}>
-            Shows the top-5 most-populated facets as quick-tap pills with a
-            &quot;More&quot; disclosure for the rest.
+            {t(
+              'Shows the top-5 most-populated facets as quick-tap pills with a "More" disclosure for the rest.',
+            )}
           </p>
           {p.topBarMode === "field" ? (
             <FieldText
-              label="Which field powers the pill bar"
+              label={t("Which field powers the pill bar")}
               value={p.topBarFieldKey ?? ""}
               onChange={(v) => set("topBarFieldKey", v)}
             />
           ) : null}
           <FieldToggle
-            label="Show sort control"
+            label={t("Show sort control")}
             checked={p.sortControlShow}
             onChange={(v) => set("sortControlShow", v)}
           />
           <FieldToggle
-            label="Show result count"
+            label={t("Show result count")}
             checked={p.showResultCount}
             onChange={(v) => set("showResultCount", v)}
           />
           <FieldToggle
-            label="Show active-filter chips"
+            label={t("Show active-filter chips")}
             checked={p.showActiveChips}
             onChange={(v) => set("showActiveChips", v)}
           />
           <FieldSelect
-            label="Mobile filter style"
+            label={t("Mobile filter style")}
             value={p.mobileFilterStyle}
             onChange={(v) =>
               set("mobileFilterStyle", v as DirectoryV1["mobileFilterStyle"])
             }
             options={[
-              { value: "sheet", label: "Bottom sheet" },
-              { value: "drawer", label: "Side drawer" },
-              { value: "inline", label: "Inline" },
+              { value: "sheet", label: t("Bottom sheet") },
+              { value: "drawer", label: t("Side drawer") },
+              { value: "inline", label: t("Inline") },
             ]}
           />
           {/* ── Live tenant catalog (Phase 2b) ─────────────────────── */}
           <div className="mt-2 space-y-2 rounded-md border border-border/60 bg-[var(--impronta-cool-faint,transparent)] p-3">
             <div className="flex items-baseline justify-between gap-3">
               <h4 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground">
-                Live storefront sidebar
+                {t("Live storefront sidebar")}
               </h4>
               <div className="flex items-center gap-2">
                 <PanelSaveChip
@@ -857,26 +866,26 @@ export function DirectoryEditor({
                   error={liveError}
                 />
                 <span className="text-[10px] uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
-                  Tenant catalog
+                  {t("Tenant catalog")}
                 </span>
               </div>
             </div>
             <p className={HELP}>
-              These toggles write directly to your tenant&apos;s live filter
-              catalog. They take effect after the directory page&apos;s next
-              publish (or its cache TTL).
+              {t(
+                "These toggles write directly to your tenant's live filter catalog. They take effect after the directory page's next publish (or its cache TTL).",
+              )}
             </p>
 
             {liveError ? (
               <p className="text-[11px] text-rose-600">
-                Couldn&apos;t reach catalog: {liveError}
+                {t("Couldn't reach catalog:")} {liveError}
               </p>
             ) : null}
 
             {liveCatalog ? (
               <>
                 <FieldToggle
-                  label="Show filter search box (live)"
+                  label={t("Show filter search box (live)")}
                   checked={liveCatalog.sidebar.filterOptionSearchVisible}
                   onChange={(v) => {
                     const next: DirectoryLiveCatalogSnapshot = {
@@ -889,7 +898,7 @@ export function DirectoryEditor({
                   }}
                 />
                 <FieldSelect
-                  label="Top facet bar (live)"
+                  label={t("Top facet bar (live)")}
                   value={
                     liveCatalog.sidebar.topBarFacetKey === null
                       ? "__none__"
@@ -903,8 +912,8 @@ export function DirectoryEditor({
                     writeLive(next, () => setDirectoryTopBarFacetKey(key));
                   }}
                   options={[
-                    { value: "__none__", label: "None" },
-                    { value: "talent_type", label: "Talent type" },
+                    { value: "__none__", label: t("None") },
+                    { value: "talent_type", label: t("Talent type") },
                   ]}
                 />
                 {(() => {
@@ -916,7 +925,9 @@ export function DirectoryEditor({
                     ).length;
                   return visibleFacetCount > 8 ? (
                     <p className="rounded-md border border-blue-500/30 bg-blue-500/[0.06] px-3 py-2 text-[11px] leading-relaxed text-blue-400/90">
-                      {visibleFacetCount} filters will show to visitors. Consider hiding low-signal ones so the sidebar stays scannable.
+                      {t(
+                        "{count} filters will show to visitors. Consider hiding low-signal ones so the sidebar stays scannable.",
+                      ).replace("{count}", String(visibleFacetCount))}
                     </p>
                   ) : null;
                 })()}
@@ -957,7 +968,7 @@ export function DirectoryEditor({
                 />
               </>
             ) : (
-              <p className={HELP}>Loading live catalog…</p>
+              <p className={HELP}>{t("Loading live catalog…")}</p>
             )}
           </div>
         </div>
@@ -966,62 +977,62 @@ export function DirectoryEditor({
       {tab === "AI" ? (
         <div className="space-y-4">
           <FieldSelect
-            label="AI search"
+            label={t("AI search")}
             value={p.aiMode}
             onChange={(v) => set("aiMode", v as DirectoryV1["aiMode"])}
             options={[
-              { value: "hero_band", label: "Hero band (above results)" },
-              { value: "inline_strip", label: "Inline strip" },
-              { value: "floating", label: "Floating" },
-              { value: "off", label: "Off" },
+              { value: "hero_band", label: t("Hero band (above results)") },
+              { value: "inline_strip", label: t("Inline strip") },
+              { value: "floating", label: t("Floating") },
+              { value: "off", label: t("Off") },
             ]}
           />
           {p.aiMode !== "off" ? (
             <>
               <FieldSelect
-                label="Placement"
+                label={t("Placement")}
                 value={p.aiPlacement}
                 onChange={(v) =>
                   set("aiPlacement", v as DirectoryV1["aiPlacement"])
                 }
                 options={[
-                  { value: "above_center", label: "Above · center" },
-                  { value: "above_left", label: "Above · left" },
-                  { value: "in_sidebar", label: "In sidebar" },
-                  { value: "replace_heading", label: "Replace heading" },
+                  { value: "above_center", label: t("Above · center") },
+                  { value: "above_left", label: t("Above · left") },
+                  { value: "in_sidebar", label: t("In sidebar") },
+                  { value: "replace_heading", label: t("Replace heading") },
                 ]}
               />
               <FieldText
-                label="AI title"
+                label={t("AI title")}
                 value={p.aiTitle ?? ""}
                 onChange={(v) => set("aiTitle", v)}
               />
               <FieldText
-                label="AI body"
+                label={t("AI body")}
                 value={p.aiBody ?? ""}
                 area
                 onChange={(v) => set("aiBody", v)}
               />
               <FieldText
-                label="Search placeholder"
+                label={t("Search placeholder")}
                 value={p.aiPlaceholder ?? ""}
                 onChange={(v) => set("aiPlaceholder", v)}
               />
               <FieldTags
-                label="Example prompts"
+                label={t("Example prompts")}
                 value={p.aiExamplePrompts}
-                placeholder="prompt one, prompt two"
+                placeholder={t("prompt one, prompt two")}
                 onChange={(v) => set("aiExamplePrompts", v)}
               />
               <FieldSelect
-                label="Behavior"
+                label={t("Behavior")}
                 value={p.aiBehavior}
                 onChange={(v) =>
                   set("aiBehavior", v as DirectoryV1["aiBehavior"])
                 }
                 options={[
-                  { value: "interpret", label: "Interpret → set filters" },
-                  { value: "rerank", label: "AI re-rank overlay" },
+                  { value: "interpret", label: t("Interpret → set filters") },
+                  { value: "rerank", label: t("AI re-rank overlay") },
                 ]}
               />
             </>
@@ -1032,28 +1043,28 @@ export function DirectoryEditor({
       {tab === "Empty/SEO" ? (
         <div className="space-y-4">
           <FieldText
-            label="Empty-state title"
+            label={t("Empty-state title")}
             value={p.emptyStateTitle ?? ""}
             onChange={(v) => set("emptyStateTitle", v)}
           />
           <FieldText
-            label="Empty-state text"
+            label={t("Empty-state text")}
             value={p.emptyStateText ?? ""}
             area
             onChange={(v) => set("emptyStateText", v)}
           />
           <FieldText
-            label="Empty-state CTA label"
+            label={t("Empty-state CTA label")}
             value={p.emptyStateCtaLabel ?? ""}
             onChange={(v) => set("emptyStateCtaLabel", v)}
           />
           <FieldText
-            label="Empty-state CTA href"
+            label={t("Empty-state CTA href")}
             value={p.emptyStateCtaHref ?? ""}
             onChange={(v) => set("emptyStateCtaHref", v)}
           />
           <FieldToggle
-            label="Emit structured data (SEO)"
+            label={t("Emit structured data (SEO)")}
             checked={p.structuredData}
             onChange={(v) => set("structuredData", v)}
           />
@@ -1063,22 +1074,24 @@ export function DirectoryEditor({
       {tab === "Presets" ? (
         <div className="space-y-3">
           <p className={HELP}>
-            One-click starting points. Sets sensible defaults, and every knob
-            stays editable afterward.
+            {t(
+              "One-click starting points. Sets sensible defaults, and every knob stays editable afterward.",
+            )}
           </p>
           <button
             type="button"
             onClick={() => onChange({ ...fashionDirectoryPreset })}
             className="w-full rounded-md border border-border px-3 py-2 text-left text-sm text-foreground transition-colors hover:border-foreground/30"
           >
-            <span className="font-medium">Fashion / Model Agency</span>
+            <span className="font-medium">{t("Fashion / Model Agency")}</span>
             <span className={`mt-0.5 block ${HELP}`}>
-              Atelier · Portrait · photo-required · AI hero band
+              {t("Atelier · Portrait · photo-required · AI hero band")}
             </span>
           </button>
           <p className={HELP}>
-            Professional Practice · Home Services · Sports Roster · Creative
-            Studio · Boutique Spotlight arrive with the variation system.
+            {t(
+              "Professional Practice · Home Services · Sports Roster · Creative Studio · Boutique Spotlight arrive with the variation system.",
+            )}
           </p>
         </div>
       ) : null}

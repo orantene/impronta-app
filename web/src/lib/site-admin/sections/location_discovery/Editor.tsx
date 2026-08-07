@@ -2,6 +2,7 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { KIT } from "@/components/edit-chrome/inspectors/kit";
 import type { SectionEditorProps } from "../types";
 import type { LocationDiscoveryV1, LocationDiscoveryItem } from "./schema";
@@ -14,6 +15,7 @@ export function LocationDiscoveryEditor({
   initial,
   onChange,
 }: SectionEditorProps<LocationDiscoveryV1>) {
+  const t = useSectionT();
   const value: LocationDiscoveryV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "Local faces, international reach",
@@ -42,7 +44,7 @@ export function LocationDiscoveryEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             value={value.eyebrow ?? ""}
@@ -50,7 +52,7 @@ export function LocationDiscoveryEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Heading</span>
+          <span className={LABEL}>{t("Heading")}</span>
           <input
             className={INPUT}
             value={value.headline ?? ""}
@@ -58,7 +60,7 @@ export function LocationDiscoveryEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Subheading</span>
+          <span className={LABEL}>{t("Subheading")}</span>
           <input
             className={INPUT}
             value={value.subheadline ?? ""}
@@ -69,7 +71,7 @@ export function LocationDiscoveryEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Source</span>
+          <span className={LABEL}>{t("Source")}</span>
           <select
             className={INPUT}
             value={value.source}
@@ -79,15 +81,17 @@ export function LocationDiscoveryEditor({
               })
             }
           >
-            <option value="manual">Manual locations</option>
+            <option value="manual">{t("Manual locations")}</option>
             <option value="roster_cities">
-              Roster cities (tenant-derived)
+              {t("Roster cities (tenant-derived)")}
             </option>
-            <option value="service_areas">Service areas (follow-on)</option>
+            <option value="service_areas">
+              {t("Service areas (follow-on)")}
+            </option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Max items</span>
+          <span className={LABEL}>{t("Max items")}</span>
           <input
             className={INPUT}
             type="number"
@@ -105,7 +109,7 @@ export function LocationDiscoveryEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Layout</span>
+          <span className={LABEL}>{t("Layout")}</span>
           <select
             className={INPUT}
             value={value.layout}
@@ -115,18 +119,18 @@ export function LocationDiscoveryEditor({
               })
             }
           >
-            <option value="grid">Grid</option>
-            <option value="list">List</option>
-            <option value="compact">Compact</option>
+            <option value="grid">{t("Grid")}</option>
+            <option value="list">{t("List")}</option>
+            <option value="compact">{t("Compact")}</option>
           </select>
         </label>
       </div>
 
       {value.source === "service_areas" ? (
         <p className="text-[11px] text-stone-500">
-          Service-area derivation is a documented follow-on; the manual list
-          below renders as the safe interim. Roster-cities mode is
-          tenant-scoped and live now.
+          {t(
+            "Service-area derivation is a documented follow-on; the manual list below renders as the safe interim. Roster-cities mode is tenant-scoped and live now.",
+          )}
         </p>
       ) : null}
 
@@ -137,7 +141,7 @@ export function LocationDiscoveryEditor({
             checked={value.showCount === true}
             onChange={(e) => patch({ showCount: e.target.checked })}
           />
-          Show talent counts
+          {t("Show talent counts")}
         </label>
         <label className="flex items-center gap-2">
           <input
@@ -145,13 +149,13 @@ export function LocationDiscoveryEditor({
             checked={value.showMap === true}
             onChange={(e) => patch({ showMap: e.target.checked })}
           />
-          Show market map
+          {t("Show market map")}
         </label>
       </div>
 
       {value.source === "manual" ? (
         <div className="flex flex-col gap-2">
-          <span className={LABEL}>Manual locations</span>
+          <span className={LABEL}>{t("Manual locations")}</span>
           {items.map((it, i) => (
             <div
               key={i}
@@ -159,13 +163,13 @@ export function LocationDiscoveryEditor({
             >
               <input
                 className={INPUT}
-                placeholder="City / market label"
+                placeholder={t("City / market label")}
                 value={it.label}
                 onChange={(e) => setItem(i, { label: e.target.value })}
               />
               <input
                 className={INPUT}
-                placeholder="Region (optional)"
+                placeholder={t("Region (optional)")}
                 value={it.region ?? ""}
                 onChange={(e) => setItem(i, { region: e.target.value })}
               />
@@ -177,7 +181,7 @@ export function LocationDiscoveryEditor({
                 className={INPUT}
                 type="number"
                 min={0}
-                placeholder="Count (optional)"
+                placeholder={t("Count (optional)")}
                 value={typeof it.count === "number" ? it.count : ""}
                 onChange={(e) =>
                   setItem(i, {
@@ -189,7 +193,7 @@ export function LocationDiscoveryEditor({
                 }
               />
               <label className={FIELD}>
-                <span className={LABEL}>Market status</span>
+                <span className={LABEL}>{t("Market status")}</span>
                 <select
                   className={INPUT}
                   value={it.status ?? "active"}
@@ -200,8 +204,8 @@ export function LocationDiscoveryEditor({
                     })
                   }
                 >
-                  <option value="active">Active</option>
-                  <option value="coming_soon">Coming soon</option>
+                  <option value="active">{t("Active")}</option>
+                  <option value="coming_soon">{t("Coming soon")}</option>
                 </select>
               </label>
               <label className="flex items-center gap-2 text-sm">
@@ -212,7 +216,7 @@ export function LocationDiscoveryEditor({
                     setItem(i, { featured: e.target.checked })
                   }
                 />
-                Featured market
+                {t("Featured market")}
               </label>
               <button
                 type="button"
@@ -221,7 +225,7 @@ export function LocationDiscoveryEditor({
                   patch({ items: items.filter((_, idx) => idx !== i) })
                 }
               >
-                Remove location
+                {t("Remove location")}
               </button>
             </div>
           ))}
@@ -234,14 +238,14 @@ export function LocationDiscoveryEditor({
               })
             }
           >
-            + Add location
+            {t("+ Add location")}
           </button>
         </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Section CTA label</span>
+          <span className={LABEL}>{t("Section CTA label")}</span>
           <input
             className={INPUT}
             value={value.ctaLabel ?? ""}
@@ -249,7 +253,7 @@ export function LocationDiscoveryEditor({
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>Section CTA href</span>
+          <span className={LABEL}>{t("Section CTA href")}</span>
           <LinkKindPicker
             value={value.ctaHref}
             onChange={(next) => patch({ ctaHref: next })}
@@ -258,10 +262,10 @@ export function LocationDiscoveryEditor({
       </div>
 
       <label className={FIELD}>
-        <span className={LABEL}>Empty-state text</span>
+        <span className={LABEL}>{t("Empty-state text")}</span>
         <input
           className={INPUT}
-          placeholder="No locations to show yet."
+          placeholder={t("No locations to show yet.")}
           value={value.emptyStateText ?? ""}
           onChange={(e) => patch({ emptyStateText: e.target.value })}
         />

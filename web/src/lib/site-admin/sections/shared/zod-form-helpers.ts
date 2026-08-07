@@ -95,6 +95,7 @@ export function deriveItemSummary(
   children: ReadonlyArray<IntrospectedField> | undefined,
   item: Record<string, unknown>,
   index: number,
+  fallbackTemplate = "Item {n}",
 ): string {
   if (children) {
     for (const key of SUMMARY_PREFER) {
@@ -108,5 +109,8 @@ export function deriveItemSummary(
       }
     }
   }
-  return `Item ${index + 1}`;
+  // Localisable fallback: the caller passes the already-translated template so
+  // this stays a pure function with no hook / catalog dependency. `{n}` is the
+  // 1-based position, placed wherever the target language wants it.
+  return fallbackTemplate.replace("{n}", String(index + 1));
 }

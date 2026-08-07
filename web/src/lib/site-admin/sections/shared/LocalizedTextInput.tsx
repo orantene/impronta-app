@@ -33,6 +33,7 @@ import {
   type I18nString,
 } from "./i18n-text";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { useSectionT } from "./section-editor-i18n";
 
 const KNOWN_LOCALES: ReadonlyArray<{ value: string; label: string }> = [
   { value: "default", label: "Default" },
@@ -75,6 +76,7 @@ export function LocalizedTextInput({
   rich,
   tenantId,
 }: Props): ReactElement {
+  const t = useSectionT();
   const [activeLocale, setActiveLocale] = useState<string>("default");
   const populated = listI18nLocales(value);
   const isMap = value !== null && value !== undefined && typeof value === "object";
@@ -110,12 +112,14 @@ export function LocalizedTextInput({
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
+          {t(label)}
         </span>
         <span className="text-[10px] text-muted-foreground">
           {populated.length === 0
-            ? "Single language"
-            : `${populated.length} locale${populated.length === 1 ? "" : "s"}`}
+            ? t("Single language")
+            : `${populated.length} ${
+                populated.length === 1 ? t("locale") : t("locales")
+              }`}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1 border-b border-border/50">
@@ -139,7 +143,7 @@ export function LocalizedTextInput({
                 className={`size-1.5 rounded-full ${populatedHere ? "bg-emerald-500" : "bg-zinc-300"}`}
                 aria-hidden
               />
-              {meta?.label ?? loc}
+              {meta ? t(meta.label) : loc}
             </button>
           );
         })}
@@ -147,13 +151,13 @@ export function LocalizedTextInput({
           className="ml-auto rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-[10px]"
           value=""
           onChange={(e) => addLocale(e.target.value)}
-          aria-label="Add language"
-          title="Add language"
+          aria-label={t("Add language")}
+          title={t("Add language")}
         >
-          <option value="">+ Add language</option>
+          <option value="">+ {t("Add language")}</option>
           {KNOWN_LOCALES.filter((k) => !tabs.includes(k.value) && k.value !== "default").map((k) => (
             <option key={k.value} value={k.value}>
-              {k.label}
+              {t(k.label)}
             </option>
           ))}
         </select>
@@ -169,7 +173,7 @@ export function LocalizedTextInput({
           onChange={(next) => handleChange(next)}
           variant={multiline ? "multi" : "single"}
           tenantId={tenantId}
-          ariaLabel={label}
+          ariaLabel={t(label)}
         />
       ) : multiline ? (
         <textarea
@@ -187,7 +191,7 @@ export function LocalizedTextInput({
           onChange={(e) => handleChange(e.target.value)}
         />
       )}
-      {hint ? <span className="text-[10px] text-muted-foreground">{hint}</span> : null}
+      {hint ? <span className="text-[10px] text-muted-foreground">{t(hint)}</span> : null}
     </div>
   );
 }

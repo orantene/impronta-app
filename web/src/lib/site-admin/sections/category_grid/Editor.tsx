@@ -5,6 +5,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { LinkPicker } from "../shared/LinkPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import type { CategoryGridV1, CategoryGridItem } from "./schema";
 
@@ -43,6 +44,7 @@ export function CategoryGridEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<CategoryGridV1>) {
+  const t = useSectionT();
   const value: CategoryGridV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "",
@@ -77,46 +79,46 @@ export function CategoryGridEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             maxLength={60}
             value={value.eyebrow ?? ""}
             onChange={(e) => patch({ eyebrow: e.target.value })}
-            placeholder="Services"
+            placeholder={t("Services")}
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>Headline</span>
+          <span className={LABEL}>{t("Headline")}</span>
           <RichEditor
             value={value.headline ?? ""}
             onChange={(next) => patch({ headline: next })}
             variant="single"
             tenantId={tenantId}
-            placeholder="A house of beauty, image, and live experience."
-            ariaLabel="Headline"
+            placeholder={t("A house of beauty, image, and live experience.")}
+            ariaLabel={t("Headline")}
           />
         </div>
       </div>
       <div className={FIELD}>
-        <span className={LABEL}>Copy</span>
+        <span className={LABEL}>{t("Copy")}</span>
         <RichEditor
           value={value.copy ?? ""}
           onChange={(next) => patch({ copy: next })}
           variant="multi"
           tenantId={tenantId}
-          ariaLabel="Copy"
+          ariaLabel={t("Copy")}
         />
       </div>
 
       <VariantPicker
         name="category_grid.variant"
-        legend="Variant"
+        legend={t("Variant")}
         sectionKey="category_grid"
         options={VARIANTS.map((v) => ({
           value: v.value as NonNullable<CategoryGridV1["variant"]>,
-          label: v.label,
-          hint: v.hint,
+          label: t(v.label),
+          hint: t(v.hint),
         }))}
         value={value.variant}
         onChange={(next) => patch({ variant: next })}
@@ -124,7 +126,7 @@ export function CategoryGridEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Columns (desktop)</span>
+          <span className={LABEL}>{t("Columns (desktop)")}</span>
           <input
             className={INPUT}
             type="number"
@@ -137,10 +139,10 @@ export function CategoryGridEditor({
           />
         </label>
         <div className={FIELD}>
-          <span className={LABEL}>Footer CTA</span>
+          <span className={LABEL}>{t("Footer CTA")}</span>
           <input
             className={INPUT}
-            placeholder="Label (leave blank to hide)"
+            placeholder={t("Label (leave blank to hide)")}
             value={value.footerCta?.label ?? ""}
             onChange={(e) =>
               patch({
@@ -170,14 +172,19 @@ export function CategoryGridEditor({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className={LABEL}>Items ({value.items.length} / 12)</span>
+          <span className={LABEL}>
+            {t("Items ({count} / 12)").replace(
+              "{count}",
+              String(value.items.length),
+            )}
+          </span>
           <button
             type="button"
             onClick={addItem}
             disabled={value.items.length >= 12}
             className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50"
           >
-            + Add
+            {t("+ Add")}
           </button>
         </div>
         {value.items.map((item, i) => (
@@ -187,14 +194,14 @@ export function CategoryGridEditor({
           >
             <input
               className={INPUT}
-              placeholder="Label"
+              placeholder={t("Label")}
               maxLength={60}
               value={item.label}
               onChange={(e) => patchItem(i, { label: e.target.value })}
             />
             <input
               className={INPUT}
-              placeholder="Tagline (optional)"
+              placeholder={t("Tagline (optional)")}
               maxLength={120}
               value={item.tagline ?? ""}
               onChange={(e) => patchItem(i, { tagline: e.target.value })}
@@ -202,7 +209,7 @@ export function CategoryGridEditor({
             <div className="flex items-center gap-2">
               <input
                 className={`${INPUT} flex-1`}
-                placeholder="Image URL (optional)"
+                placeholder={t("Image URL (optional)")}
                 value={item.imageUrl ?? ""}
                 onChange={(e) =>
                   patchItem(i, { imageUrl: e.target.value || undefined })
@@ -226,7 +233,7 @@ export function CategoryGridEditor({
                 })
               }
             >
-              <option value="">No icon</option>
+              <option value="">{t("No icon")}</option>
               {ICONS.map((k) => (
                 <option key={k} value={k}>
                   {k}
@@ -238,7 +245,7 @@ export function CategoryGridEditor({
               onClick={() => removeItem(i)}
               disabled={value.items.length <= 1}
               className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-30"
-              aria-label="Remove"
+              aria-label={t("Remove")}
             >
               ×
             </button>

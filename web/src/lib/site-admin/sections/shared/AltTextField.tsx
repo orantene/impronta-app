@@ -16,6 +16,7 @@
 import { useState, useTransition } from "react";
 
 import { generateAltTextWithAi } from "@/lib/site-admin/edit-mode/ai-generate-action";
+import { useSectionT } from "./section-editor-i18n";
 
 interface AltTextFieldProps {
   imageUrl: string | null | undefined;
@@ -41,6 +42,7 @@ export function AltTextField({
   className,
   aiContext,
 }: AltTextFieldProps) {
+  const t = useSectionT();
   const hasImage = Boolean(imageUrl && imageUrl.trim());
   const missing = hasImage && !decorative && !value.trim();
   const [pending, startTransition] = useTransition();
@@ -63,7 +65,7 @@ export function AltTextField({
     <div className={`flex flex-col gap-1.5 ${className ?? ""}`}>
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Alt text {decorative ? "" : "*"}
+          {t("Alt text")} {decorative ? "" : "*"}
         </label>
         <div className="flex items-center gap-2">
           {hasImage && !decorative ? (
@@ -71,26 +73,28 @@ export function AltTextField({
               type="button"
               onClick={suggestAlt}
               disabled={pending}
-              title="Suggest alt text with AI"
+              title={t("Suggest alt text with AI")}
               className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
             >
-              {pending ? "…" : "AI Suggest"}
+              {pending ? "…" : t("AI Suggest")}
             </button>
           ) : null}
           {missing ? (
             <span
               className="inline-flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-300"
-              title="Screen-readers rely on alt text. Required for non-decorative images."
+              title={t(
+                "Screen-readers rely on alt text. Required for non-decorative images.",
+              )}
             >
-              Missing
+              {t("Missing")}
             </span>
           ) : decorative ? (
             <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-              Decorative
+              {t("Decorative")}
             </span>
           ) : hasImage ? (
             <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-              OK
+              {t("OK")}
             </span>
           ) : null}
           {onDecorativeChange ? (
@@ -103,7 +107,7 @@ export function AltTextField({
                   if (e.target.checked) onChange("");
                 }}
               />
-              decorative
+              {t("decorative")}
             </label>
           ) : null}
         </div>
@@ -115,8 +119,8 @@ export function AltTextField({
         disabled={decorative}
         placeholder={
           decorative
-            ? "(Decorative, alt empty)"
-            : "Describe what's in the image"
+            ? t("(Decorative, alt empty)")
+            : t("Describe what's in the image")
         }
         value={value}
         onChange={(e) => onChange(e.target.value)}

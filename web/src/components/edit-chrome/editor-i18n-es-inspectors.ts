@@ -21,7 +21,7 @@
 
 export const ES_INSPECTOR_TEXT: Record<string, string> = {
   // ── Alignment, position, direction ──────────────────────────────────────
-  Align: "Alinear",
+  Align: "Alineación",
   Baseline: "Línea base",
   Both: "Ambos",
   Bottom: "Abajo",
@@ -29,13 +29,13 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   Right: "Derecha",
   Middle: "Centro vertical",
   Start: "Inicio",
-  End: "Fin",
+  End: "Final",
   Between: "Entre",
   Around: "Alrededor",
   Evenly: "Uniforme",
   Stretch: "Estirar",
-  Up: "Arriba del todo",
-  Down: "Abajo del todo",
+  Up: "Arriba",
+  Down: "Abajo",
   Under: "Debajo",
   Back: "Atrás",
   Absolute: "Absoluta",
@@ -58,7 +58,7 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Max height": "Alto máximo",
   "Min width": "Ancho mínimo",
   "Min height": "Alto mínimo",
-  Gap: "Espacio",
+  Gap: "Espaciado",
   "Micro gap": "Espacio mínimo",
   "Section gap": "Espacio entre secciones",
   Spacing: "Espaciado",
@@ -109,7 +109,7 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   Plain: "Simple",
   Elevated: "Elevado",
   Subtle: "Sutil",
-  Muted: "Apagado",
+  Muted: "Atenuado",
   Light: "Claro",
   Dark: "Oscuro",
   Hue: "Tono",
@@ -207,7 +207,7 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "← Slide": "← Deslizar",
   Smooth: "Suave",
   Transform: "Transformación",
-  Trigger: "Disparador",
+  Trigger: "Activador",
   "On load": "Al cargar",
   "On scroll": "Al desplazar",
   Off: "Desactivado",
@@ -372,7 +372,7 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Pin header to viewport": "Fijar la cabecera a la ventana",
   "Pin top": "Fijar arriba",
   "Pin bottom": "Fijar abajo",
-  Sticky: "Fija",
+  Sticky: "Fijo",
   "Scroll behavior": "Comportamiento al desplazar",
   "Transparent over hero": "Transparente sobre la portada",
   "Transparent on hero, solid on scroll":
@@ -506,7 +506,7 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   Manual: "Manual",
   "Set manually": "Definir manualmente",
   Inherit: "Heredar",
-  Source: "Fuente",
+  Source: "Origen",
   "Keep this block manually edited, or connect it to workspace data.":
     "Mantén este bloque con edición manual, o conéctalo a los datos del espacio de trabajo.",
   "Example: featured=true, location=Cancun, category=models":
@@ -593,8 +593,6 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Reset block": "Restablecer el bloque",
   // ── Nested-block cards (builder-node content panel) ─────────────────────
   Variant: "Variante",
-  Stack: "Apilado",
-  Grid: "Cuadrícula",
   // Rendered as a Segmented chip, which truncates with an ellipsis rather
   // than wrapping. "Grupo de tarjetas" clipped to "Grupo de …" at inspector
   // width (QA 2026-08-07), so this uses the short form the sibling chips use.
@@ -706,13 +704,13 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   Highlighted: "Resaltado",
   Decorative: "Decorativo",
   "Text only": "Solo texto",
-  Default: "Por defecto",
+  Default: "Predeterminado",
   "Display mode": "Modo de visualización",
   "Link label": "Etiqueta del enlace",
   "Link href (master default)": "Href del enlace (por defecto del maestro)",
   "External URL": "URL externa",
   "Explore the roster": "Explora el elenco",
-  "Start an inquiry": "Inicia una consulta",
+  "Start an inquiry": "Iniciar una solicitud",
   "Workspace inbox": "Bandeja del espacio de trabajo",
   Message: "Mensaje",
   Email: "Correo electrónico",
@@ -732,7 +730,7 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Show controls": "Mostrar controles",
   Arrows: "Flechas",
   Dots: "Puntos",
-  Dot: "Punteado",
+  Dot: "Punto",
   Dash: "Discontinuo",
   Reverse: "Invertido",
   "Render pagination dots below the slider.":
@@ -745,7 +743,7 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   Reading: "Lectura",
 
   // ── Hover / interaction state ───────────────────────────────────────────
-  Hover: "Cursor encima",
+  Hover: "Al pasar el cursor",
   Pointer: "Puntero",
   Grab: "Agarrar",
   "Pass-through": "Dejar pasar",

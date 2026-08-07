@@ -3,6 +3,7 @@
 import { KIT } from "@/components/edit-chrome/inspectors/kit";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { coerceLegacyHref } from "../../links/link-ref";
 import type { LinkRef } from "../../links/link-ref";
 import type { SectionEditorProps } from "../types";
@@ -16,6 +17,7 @@ export function HeroSearchEditor({
   initial,
   onChange,
 }: SectionEditorProps<HeroSearchV1>) {
+  const t = useSectionT();
   const value: HeroSearchV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "Find the right talent",
@@ -43,10 +45,15 @@ export function HeroSearchEditor({
       chips: chips.map((c, idx) => (idx === i ? { ...c, ...p } : c)),
     });
 
-  const cta = (key: "primaryCta" | "secondaryCta", label: string) => (
+  const cta = (
+    key: "primaryCta" | "secondaryCta",
+    label: string,
+    labelFieldLabel: string,
+    hrefFieldLabel: string,
+  ) => (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
       <label className={FIELD}>
-        <span className={LABEL}>{label} label</span>
+        <span className={LABEL}>{labelFieldLabel}</span>
         <input
           className={INPUT}
           value={value[key]?.label ?? ""}
@@ -63,7 +70,7 @@ export function HeroSearchEditor({
         />
       </label>
       <div className={FIELD}>
-        <span className={LABEL}>{label} href</span>
+        <span className={LABEL}>{hrefFieldLabel}</span>
         <LinkKindPicker
           value={value[key]?.href}
           onChange={(next) =>
@@ -82,7 +89,7 @@ export function HeroSearchEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             value={value.eyebrow ?? ""}
@@ -90,7 +97,7 @@ export function HeroSearchEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Layout</span>
+          <span className={LABEL}>{t("Layout")}</span>
           <select
             className={INPUT}
             value={value.layout}
@@ -98,14 +105,14 @@ export function HeroSearchEditor({
               patch({ layout: e.target.value as HeroSearchV1["layout"] })
             }
           >
-            <option value="centered">Centered</option>
-            <option value="split">Split</option>
-            <option value="minimal">Minimal</option>
-            <option value="editorial">Editorial</option>
+            <option value="centered">{t("Centered")}</option>
+            <option value="split">{t("Split")}</option>
+            <option value="minimal">{t("Minimal")}</option>
+            <option value="editorial">{t("Editorial")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Headline</span>
+          <span className={LABEL}>{t("Headline")}</span>
           <input
             className={INPUT}
             value={value.headline ?? ""}
@@ -113,7 +120,7 @@ export function HeroSearchEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Highlighted phrase</span>
+          <span className={LABEL}>{t("Highlighted phrase")}</span>
           <input
             className={INPUT}
             value={value.highlight ?? ""}
@@ -123,7 +130,7 @@ export function HeroSearchEditor({
       </div>
 
       <label className={FIELD}>
-        <span className={LABEL}>Subheading</span>
+        <span className={LABEL}>{t("Subheading")}</span>
         <input
           className={INPUT}
           value={value.subheadline ?? ""}
@@ -132,18 +139,18 @@ export function HeroSearchEditor({
       </label>
 
       <fieldset className="flex flex-col gap-2 rounded-lg border border-[#e5e0d5] p-2">
-        <span className={LABEL}>Search</span>
+        <span className={LABEL}>{t("Search")}</span>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={search.enabled !== false}
             onChange={(e) => patchSearch({ enabled: e.target.checked })}
           />
-          Show search field
+          {t("Show search field")}
         </label>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
           <label className={FIELD}>
-            <span className={LABEL}>Mode</span>
+            <span className={LABEL}>{t("Mode")}</span>
             <select
               className={INPUT}
               value={search.mode ?? "directory-query"}
@@ -155,13 +162,15 @@ export function HeroSearchEditor({
                 })
               }
             >
-              <option value="directory-query">Directory query</option>
-              <option value="ai-interpret">AI interpret (needs endpoint)</option>
-              <option value="visual-only">Visual only</option>
+              <option value="directory-query">{t("Directory query")}</option>
+              <option value="ai-interpret">
+                {t("AI interpret (needs endpoint)")}
+              </option>
+              <option value="visual-only">{t("Visual only")}</option>
             </select>
           </label>
           <label className={FIELD}>
-            <span className={LABEL}>Placeholder</span>
+            <span className={LABEL}>{t("Placeholder")}</span>
             <input
               className={INPUT}
               value={search.placeholder ?? ""}
@@ -169,7 +178,7 @@ export function HeroSearchEditor({
             />
           </label>
           <label className={FIELD}>
-            <span className={LABEL}>Submit label</span>
+            <span className={LABEL}>{t("Submit label")}</span>
             <input
               className={INPUT}
               value={search.submitLabel ?? ""}
@@ -178,7 +187,9 @@ export function HeroSearchEditor({
           </label>
         </div>
         <div className={FIELD}>
-          <span className={LABEL}>Action href (default: /directory)</span>
+          <span className={LABEL}>
+            {t("Action href (default: /directory)")}
+          </span>
           <input
             className={INPUT}
             placeholder="/directory"
@@ -190,18 +201,28 @@ export function HeroSearchEditor({
         </div>
         {search.mode === "ai-interpret" ? (
           <p className="text-[11px] text-stone-500">
-            AI mode only functions if the action href points to a real,
-            tenant-safe interpret endpoint. Otherwise it behaves as a plain
-            directory query. AI is never faked.
+            {t(
+              "AI mode only functions if the action href points to a real, tenant-safe interpret endpoint. Otherwise it behaves as a plain directory query. AI is never faked.",
+            )}
           </p>
         ) : null}
       </fieldset>
 
-      {cta("primaryCta", "Primary CTA")}
-      {cta("secondaryCta", "Secondary CTA")}
+      {cta(
+        "primaryCta",
+        "Primary CTA",
+        t("Primary CTA label"),
+        t("Primary CTA href"),
+      )}
+      {cta(
+        "secondaryCta",
+        "Secondary CTA",
+        t("Secondary CTA label"),
+        t("Secondary CTA href"),
+      )}
 
       <fieldset className="flex flex-col gap-2">
-        <span className={LABEL}>Chips</span>
+        <span className={LABEL}>{t("Chips")}</span>
         <select
           className={`${INPUT} max-w-[260px]`}
           value={value.chipsSource}
@@ -211,21 +232,24 @@ export function HeroSearchEditor({
             })
           }
         >
-          <option value="manual">Manual</option>
-          <option value="service_areas">Service areas (follow-on)</option>
-          <option value="roster_cities">Roster cities (follow-on)</option>
+          <option value="manual">{t("Manual")}</option>
+          <option value="service_areas">
+            {t("Service areas (follow-on)")}
+          </option>
+          <option value="roster_cities">{t("Roster cities (follow-on)")}</option>
         </select>
         {value.chipsSource !== "manual" ? (
           <p className="text-[11px] text-stone-500">
-            Roster-derived chip sources are a documented follow-on; the
-            manual list below renders as the safe interim.
+            {t(
+              "Roster-derived chip sources are a documented follow-on; the manual list below renders as the safe interim.",
+            )}
           </p>
         ) : null}
         {chips.map((c, i) => (
           <div key={i} className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <input
               className={INPUT}
-              placeholder="Chip label"
+              placeholder={t("Chip label")}
               value={c.label}
               onChange={(e) => setChip(i, { label: e.target.value })}
             />
@@ -242,12 +266,12 @@ export function HeroSearchEditor({
             patch({ chips: [...chips, { label: "City" }].slice(0, 12) })
           }
         >
-          + Add chip
+          {t("+ Add chip")}
         </button>
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">
-        <span className={LABEL}>Stat line</span>
+        <span className={LABEL}>{t("Stat line")}</span>
         <select
           className={`${INPUT} max-w-[260px]`}
           value={value.statSource}
@@ -257,22 +281,24 @@ export function HeroSearchEditor({
             })
           }
         >
-          <option value="manual">Manual items</option>
+          <option value="manual">{t("Manual items")}</option>
           <option value="tenant_talent_count">
-            Tenant talent count (derived)
+            {t("Tenant talent count (derived)")}
           </option>
         </select>
         {value.statSource === "tenant_talent_count" ? (
           <input
             className={INPUT}
-            placeholder="Count label, e.g. represented talent"
+            placeholder={t("Count label, e.g. represented talent")}
             value={value.statCountLabel ?? ""}
             onChange={(e) => patch({ statCountLabel: e.target.value })}
           />
         ) : (
           <input
             className={INPUT}
-            placeholder="value|label, comma-separated, e.g. 120+|talent, 3|markets"
+            placeholder={t(
+              "value|label, comma-separated, e.g. 120+|talent, 3|markets",
+            )}
             value={(value.statItems ?? [])
               .map((s) => `${s.value}|${s.label}`)
               .join(", ")}

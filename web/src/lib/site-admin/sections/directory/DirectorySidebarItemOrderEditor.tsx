@@ -20,6 +20,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 
+import { useSectionT } from "../shared/section-editor-i18n";
+
 /**
  * Drag-and-drop reorder list for the directory sidebar `item_order`.
  *
@@ -56,14 +58,16 @@ export function DirectorySidebarItemOrderEditor({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const labelId = useId();
+  const t = useSectionT();
 
   if (itemOrder.length === 0) {
     return (
       <div className="space-y-1 pt-1">
-        <div className={LABEL}>Reorder sidebar facets (live)</div>
+        <div className={LABEL}>{t("Reorder sidebar facets (live)")}</div>
         <p className={HELP}>
-          No facets in the live catalog yet. Add directory facets in the
-          field definitions admin first.
+          {t(
+            "No facets in the live catalog yet. Add directory facets in the field definitions admin first.",
+          )}
         </p>
       </div>
     );
@@ -87,11 +91,12 @@ export function DirectorySidebarItemOrderEditor({
   return (
     <div className="space-y-1 pt-1">
       <div id={labelId} className={LABEL}>
-        Reorder sidebar facets (live)
+        {t("Reorder sidebar facets (live)")}
       </div>
       <p className={HELP}>
-        Drag to reorder; or use the arrows. The order here is the order
-        shoppers see on the storefront sidebar.
+        {t(
+          "Drag to reorder; or use the arrows. The order here is the order shoppers see on the storefront sidebar.",
+        )}
       </p>
       <DndContext
         sensors={sensors}
@@ -144,6 +149,7 @@ function SortableRow({
     transition,
     isDragging,
   } = useSortable({ id, disabled });
+  const t = useSectionT();
 
   const isPseudo = id === FILTER_SEARCH_KEY;
 
@@ -159,8 +165,8 @@ function SortableRow({
     >
       <button
         type="button"
-        aria-label={`Drag ${id}`}
-        title="Drag to reorder"
+        aria-label={t("Drag {name}").replace("{name}", id)}
+        title={t("Drag to reorder")}
         disabled={disabled}
         className="inline-flex h-6 w-6 cursor-grab items-center justify-center rounded text-[var(--impronta-muted)] hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         {...attributes}
@@ -172,9 +178,9 @@ function SortableRow({
         className={`flex-1 truncate font-mono text-[12px] ${
           isPseudo ? "text-[var(--impronta-muted)] italic" : ""
         }`}
-        title={isPseudo ? "Search-box slot" : id}
+        title={isPseudo ? t("Search-box slot") : id}
       >
-        {isPseudo ? "search-box slot" : id}
+        {isPseudo ? t("search-box slot") : id}
       </span>
       <span className="text-[10px] text-[var(--impronta-muted)]">
         {index + 1}/{total}
@@ -182,7 +188,7 @@ function SortableRow({
       <div className="inline-flex items-center gap-0.5">
         <button
           type="button"
-          aria-label={`Move ${id} up`}
+          aria-label={t("Move {name} up").replace("{name}", id)}
           disabled={disabled || index === 0}
           onClick={onMoveUp}
           className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--impronta-muted)] hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
@@ -191,7 +197,7 @@ function SortableRow({
         </button>
         <button
           type="button"
-          aria-label={`Move ${id} down`}
+          aria-label={t("Move {name} down").replace("{name}", id)}
           disabled={disabled || index === total - 1}
           onClick={onMoveDown}
           className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--impronta-muted)] hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"

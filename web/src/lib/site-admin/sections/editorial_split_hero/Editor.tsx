@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { useSectionT } from "../shared/section-editor-i18n";
 import { coerceLegacyHref } from "../../links/link-ref";
 import {
   searchTenantTalent,
@@ -35,6 +36,7 @@ export function EditorialSplitHeroEditor({
   initial,
   onChange,
 }: SectionEditorProps<EditorialSplitHeroV1>) {
+  const t = useSectionT();
   const value: EditorialSplitHeroV1 = {
     eyebrow: initial.eyebrow ?? "",
     headline: initial.headline ?? "Discover premium talent across",
@@ -97,10 +99,16 @@ export function EditorialSplitHeroEditor({
     });
   };
 
-  const cta = (key: "primaryCta" | "secondaryCta", label: string) => (
+  const cta = (
+    key: "primaryCta" | "secondaryCta",
+    /** Stays English: this is the persisted default CTA label, not UI copy. */
+    label: string,
+    labelFieldText: string,
+    linkFieldText: string,
+  ) => (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
       <label className={FIELD}>
-        <span className={LABEL}>{label} label</span>
+        <span className={LABEL}>{labelFieldText}</span>
         <input
           className={INPUT}
           value={value[key]?.label ?? ""}
@@ -117,7 +125,7 @@ export function EditorialSplitHeroEditor({
         />
       </label>
       <div className={FIELD}>
-        <span className={LABEL}>{label} link</span>
+        <span className={LABEL}>{linkFieldText}</span>
         <LinkKindPicker
           value={value[key]?.href}
           onChange={(next) =>
@@ -156,7 +164,7 @@ export function EditorialSplitHeroEditor({
             />
             <input
               className={INPUT}
-              placeholder="Query value"
+              placeholder={t("Query value")}
               value={option.value ?? ""}
               onChange={(e) =>
                 setDiscoveryOption(key, index, {
@@ -174,7 +182,7 @@ export function EditorialSplitHeroEditor({
                   })
                 }
               />
-              Disabled
+              {t("Disabled")}
             </label>
             <button
               type="button"
@@ -186,7 +194,7 @@ export function EditorialSplitHeroEditor({
                 )
               }
             >
-              Remove option
+              {t("Remove option")}
             </button>
           </div>
         ))}
@@ -203,7 +211,7 @@ export function EditorialSplitHeroEditor({
             )
           }
         >
-          + Add option
+          {t("+ Add option")}
         </button>
       </div>
     );
@@ -213,7 +221,7 @@ export function EditorialSplitHeroEditor({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
-          <span className={LABEL}>Eyebrow</span>
+          <span className={LABEL}>{t("Eyebrow")}</span>
           <input
             className={INPUT}
             value={value.eyebrow ?? ""}
@@ -221,7 +229,7 @@ export function EditorialSplitHeroEditor({
           />
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Highlighted phrase</span>
+          <span className={LABEL}>{t("Highlighted phrase")}</span>
           <input
             className={INPUT}
             value={value.highlight ?? ""}
@@ -230,7 +238,7 @@ export function EditorialSplitHeroEditor({
         </label>
       </div>
       <label className={FIELD}>
-        <span className={LABEL}>Headline</span>
+        <span className={LABEL}>{t("Headline")}</span>
         <input
           className={INPUT}
           value={value.headline ?? ""}
@@ -238,7 +246,7 @@ export function EditorialSplitHeroEditor({
         />
       </label>
       <label className={FIELD}>
-        <span className={LABEL}>Body</span>
+        <span className={LABEL}>{t("Body")}</span>
         <textarea
           className={INPUT}
           rows={3}
@@ -254,13 +262,13 @@ export function EditorialSplitHeroEditor({
             checked={discovery.enabled === true}
             onChange={(e) => patchDiscovery({ enabled: e.target.checked })}
           />
-          Show discovery form
+          {t("Show discovery form")}
         </label>
         {discovery.enabled === true ? (
           <>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <label className={FIELD}>
-                <span className={LABEL}>Action href</span>
+                <span className={LABEL}>{t("Action href")}</span>
                 <input
                   className={INPUT}
                   value={discovery.actionHref ?? ""}
@@ -270,7 +278,7 @@ export function EditorialSplitHeroEditor({
                 />
               </label>
               <label className={FIELD}>
-                <span className={LABEL}>Category label</span>
+                <span className={LABEL}>{t("Category label")}</span>
                 <input
                   className={INPUT}
                   value={discovery.categoryLabel ?? ""}
@@ -280,7 +288,7 @@ export function EditorialSplitHeroEditor({
                 />
               </label>
               <label className={FIELD}>
-                <span className={LABEL}>Market label</span>
+                <span className={LABEL}>{t("Market label")}</span>
                 <input
                   className={INPUT}
                   value={discovery.marketLabel ?? ""}
@@ -290,7 +298,7 @@ export function EditorialSplitHeroEditor({
                 />
               </label>
               <label className={FIELD}>
-                <span className={LABEL}>Button label</span>
+                <span className={LABEL}>{t("Button label")}</span>
                 <input
                   className={INPUT}
                   value={discovery.submitLabel ?? ""}
@@ -303,21 +311,35 @@ export function EditorialSplitHeroEditor({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {discoveryOptionList(
                 "categories",
-                "Category options",
-                "Talent type",
+                t("Category options"),
+                t("Talent type"),
               )}
-              {discoveryOptionList("markets", "Market options", "Market")}
+              {discoveryOptionList(
+                "markets",
+                t("Market options"),
+                t("Market"),
+              )}
             </div>
           </>
         ) : null}
       </div>
 
-      {cta("primaryCta", "Primary CTA")}
-      {cta("secondaryCta", "Secondary CTA")}
+      {cta(
+        "primaryCta",
+        "Primary CTA",
+        t("Primary CTA label"),
+        t("Primary CTA link"),
+      )}
+      {cta(
+        "secondaryCta",
+        "Secondary CTA",
+        t("Secondary CTA label"),
+        t("Secondary CTA link"),
+      )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <label className={FIELD}>
-          <span className={LABEL}>Media mode</span>
+          <span className={LABEL}>{t("Media mode")}</span>
           <select
             className={INPUT}
             value={value.mediaMode}
@@ -328,13 +350,13 @@ export function EditorialSplitHeroEditor({
               })
             }
           >
-            <option value="static">Static media</option>
-            <option value="selected">Selected talent (follow-on)</option>
-            <option value="dynamic">Dynamic talent (follow-on)</option>
+            <option value="static">{t("Static media")}</option>
+            <option value="selected">{t("Selected talent (follow-on)")}</option>
+            <option value="dynamic">{t("Dynamic talent (follow-on)")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Media style</span>
+          <span className={LABEL}>{t("Media style")}</span>
           <select
             className={INPUT}
             value={value.mediaStyle}
@@ -345,12 +367,12 @@ export function EditorialSplitHeroEditor({
               })
             }
           >
-            <option value="single">Single frame</option>
-            <option value="card-stack">3 talent cards</option>
+            <option value="single">{t("Single frame")}</option>
+            <option value="card-stack">{t("3 talent cards")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Media side (desktop)</span>
+          <span className={LABEL}>{t("Media side (desktop)")}</span>
           <select
             className={INPUT}
             value={value.mediaSide}
@@ -361,12 +383,12 @@ export function EditorialSplitHeroEditor({
               })
             }
           >
-            <option value="right">Right</option>
-            <option value="left">Left</option>
+            <option value="right">{t("Right")}</option>
+            <option value="left">{t("Left")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Mobile order</span>
+          <span className={LABEL}>{t("Mobile order")}</span>
           <select
             className={INPUT}
             value={value.mobileOrder}
@@ -377,21 +399,22 @@ export function EditorialSplitHeroEditor({
               })
             }
           >
-            <option value="text-first">Text first</option>
-            <option value="media-first">Media first</option>
+            <option value="text-first">{t("Text first")}</option>
+            <option value="media-first">{t("Media first")}</option>
           </select>
         </label>
       </div>
 
       {value.mediaMode !== "static" ? (
         <p className="text-[11px] text-stone-500">
-          Selected/dynamic talent media is a documented follow-on (couples to
-          the cache-trimmed featured DTO). Static media renders meanwhile.
+          {t(
+            "Selected/dynamic talent media is a documented follow-on (couples to the cache-trimmed featured DTO). Static media renders meanwhile.",
+          )}
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className={FIELD}>
-            <span className={LABEL}>Media URL</span>
+            <span className={LABEL}>{t("Media URL")}</span>
             <input
               className={INPUT}
               placeholder="https://…"
@@ -400,7 +423,7 @@ export function EditorialSplitHeroEditor({
             />
           </label>
           <label className={FIELD}>
-            <span className={LABEL}>Media alt text</span>
+            <span className={LABEL}>{t("Media alt text")}</span>
             <input
               className={INPUT}
               value={value.mediaAlt ?? ""}
@@ -421,7 +444,7 @@ export function EditorialSplitHeroEditor({
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
-          <span className={LABEL}>Media ratio</span>
+          <span className={LABEL}>{t("Media ratio")}</span>
           <select
             className={INPUT}
             value={value.mediaRatio}
@@ -439,7 +462,7 @@ export function EditorialSplitHeroEditor({
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Overlay strength</span>
+          <span className={LABEL}>{t("Overlay strength")}</span>
           <select
             className={INPUT}
             value={value.overlayStrength}
@@ -450,14 +473,14 @@ export function EditorialSplitHeroEditor({
               })
             }
           >
-            <option value="none">None</option>
-            <option value="soft">Soft</option>
-            <option value="medium">Medium</option>
-            <option value="strong">Strong</option>
+            <option value="none">{t("None")}</option>
+            <option value="soft">{t("Soft")}</option>
+            <option value="medium">{t("Medium")}</option>
+            <option value="strong">{t("Strong")}</option>
           </select>
         </label>
         <label className={FIELD}>
-          <span className={LABEL}>Overlay opacity (0–1, optional)</span>
+          <span className={LABEL}>{t("Overlay opacity (0–1, optional)")}</span>
           <input
             className={INPUT}
             type="number"
@@ -498,6 +521,7 @@ function TalentStackPicker({
   selectedCaptions: MediaStackCaption[];
   onChange: (next: SelectedStackTalent[]) => void;
 }) {
+  const t = useSectionT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TenantTalentPick[]>([]);
   const [loading, setLoading] = useState(false);
@@ -533,11 +557,11 @@ function TalentStackPicker({
         setErr(res.error);
       }
     } catch {
-      setErr("Could not search talent.");
+      setErr(t("Could not search talent."));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const onQuery = (q: string) => {
     setQuery(q);
@@ -552,7 +576,7 @@ function TalentStackPicker({
     if (selected.some((item) => item.profileCode === talent.profileCode)) return;
     if (selected.length >= 3) return;
     if (!talent.cardImageUrl) {
-      setErr("This talent does not have approved public media yet.");
+      setErr(t("This talent does not have approved public media yet."));
       return;
     }
     update([...selected, { ...talent, cardImageUrl: talent.cardImageUrl }]);
@@ -572,10 +596,11 @@ function TalentStackPicker({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3">
       <div>
-        <span className={LABEL}>Card-stack talent</span>
+        <span className={LABEL}>{t("Card-stack talent")}</span>
         <p className="mt-1 text-[11px] leading-relaxed text-stone-500">
-          Pick up to three roster talent. The first slot is the large middle
-          card shown on the homepage.
+          {t(
+            "Pick up to three roster talent. The first slot is the large middle card shown on the homepage.",
+          )}
         </p>
       </div>
 
@@ -593,7 +618,7 @@ function TalentStackPicker({
               />
               <span className="min-w-0">
                 <span className="block text-[10px] uppercase tracking-wide text-stone-500">
-                  {STACK_SLOT_LABELS[index] ?? "Support card"}
+                  {t(STACK_SLOT_LABELS[index] ?? "Support card")}
                 </span>
                 <b className="block truncate text-sm">{talent.displayName}</b>
                 <span className="block truncate text-xs text-stone-500">
@@ -607,7 +632,7 @@ function TalentStackPicker({
                   disabled={index === 0}
                   onClick={() => move(index, index - 1)}
                 >
-                  Up
+                  {t("Up")}
                 </button>
                 <button
                   type="button"
@@ -615,14 +640,14 @@ function TalentStackPicker({
                   disabled={index === selected.length - 1}
                   onClick={() => move(index, index + 1)}
                 >
-                  Down
+                  {t("Down")}
                 </button>
                 <button
                   type="button"
                   className={`${KIT.ghostButton} text-destructive`}
                   onClick={() => remove(talent.profileCode)}
                 >
-                  Remove
+                  {t("Remove")}
                 </button>
               </span>
             </div>
@@ -632,12 +657,12 @@ function TalentStackPicker({
 
       <input
         className={INPUT}
-        placeholder="Search roster by name or profile code..."
+        placeholder={t("Search roster by name or profile code...")}
         value={query}
         onChange={(e) => onQuery(e.target.value)}
       />
       {loading ? (
-        <p className="text-xs text-stone-500">Searching...</p>
+        <p className="text-xs text-stone-500">{t("Searching...")}</p>
       ) : err ? (
         <p className="text-xs text-destructive">{err}</p>
       ) : results.length > 0 ? (
@@ -674,10 +699,10 @@ function TalentStackPicker({
                   </span>
                   <span className="shrink-0 text-xs text-stone-500">
                     {picked
-                      ? "Added"
+                      ? t("Added")
                       : talent.cardImageUrl
-                        ? "Add"
-                        : "No media"}
+                        ? t("Add")
+                        : t("No media")}
                   </span>
                 </button>
               </li>
@@ -685,7 +710,7 @@ function TalentStackPicker({
           })}
         </ul>
       ) : query.trim().length > 0 ? (
-        <p className="text-xs text-stone-500">No matches on roster.</p>
+        <p className="text-xs text-stone-500">{t("No matches on roster.")}</p>
       ) : null}
     </div>
   );

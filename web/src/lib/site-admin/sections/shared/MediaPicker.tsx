@@ -16,6 +16,7 @@ import {
   MediaPickerDrawer,
   type MediaPickedItem,
 } from "@/components/edit-chrome/media-picker-drawer";
+import { useSectionT } from "./section-editor-i18n";
 
 export type { MediaPickedItem };
 
@@ -38,6 +39,7 @@ export function MediaPicker({
   multi = false,
   onMultiPick,
 }: MediaPickerProps) {
+  const t = useSectionT();
   const [open, setOpen] = useState(false);
 
   return (
@@ -50,7 +52,7 @@ export function MediaPicker({
         onClick={() => setOpen(true)}
       >
         <ImageIcon className="mr-1.5 size-3.5" />
-        {label}
+        {label ? t(label) : label}
       </Button>
 
       <MediaPickerDrawer
