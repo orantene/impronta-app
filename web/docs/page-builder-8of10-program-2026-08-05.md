@@ -369,8 +369,12 @@ entirely (`test:a11y`, and the whole e2e suite). Wave 0b fixes that; until it la
 Plus: the wave's own live-QA evidence, captured as concrete before/after values (not
 prose), and a screenshot for anything visual.
 
-After merge (owner's word required): watch `main` CI to completion, confirm the
-production pointer advanced, then `npm run deploy:smoke`.
+After EVERY merge (owner rule, 2026-08-07 — he has caught unshipped "fixes"
+repeatedly): (1) `git merge-base --is-ancestor <mergeCommit> origin/production`,
+(2) the live domain's `sentry-release` is at/after the commit,
+(3) `npm run deploy:smoke` after significant waves. If the pointer has not
+advanced, WATCH until it does; a timeout means red CI and that is the next task.
+Merged is NOT done. Live is done.
 
 ---
 
