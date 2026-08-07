@@ -24,7 +24,13 @@ import {
 } from "@/lib/site-admin/edit-mode/ai-rewrite-action";
 import { PortaledOverlay, useAnchoredPopover } from "../kit";
 import { useModalFocusTrap } from "../modal-focus-trap";
+import { useEditorLocale } from "../use-editor-locale";
 
+/**
+ * `label` is what the operator sees (translated at render). The label is ALSO
+ * sent to the AI action as `targetLocaleLabel`, where the English form keeps
+ * the prompt stable regardless of the operator's chrome language.
+ */
 const COMMON_LOCALES: ReadonlyArray<{ code: string; label: string }> = [
   { code: "es", label: "Spanish" },
   { code: "fr", label: "French" },
@@ -45,6 +51,7 @@ export function AiTranslateSectionButton({
   currentProps,
   onApply,
 }: Props): ReactElement | null {
+  const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState<string>("es");
   const [targetLabel, setTargetLabel] = useState<string>("Spanish");
@@ -95,7 +102,7 @@ export function AiTranslateSectionButton({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title="Translate this section's copy"
+        title={t("Translate this section's copy")}
         aria-haspopup="dialog"
         aria-expanded={open}
         className="inline-flex items-center gap-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500 hover:bg-white hover:border-stone-300 transition-colors"
@@ -108,14 +115,14 @@ export function AiTranslateSectionButton({
           <path d="M21 21l-3-7-3 7" />
           <path d="M16 19h4" />
         </svg>
-        Translate
+        {t("Translate")}
       </button>
       {open ? (
         <PortaledOverlay>
         <div
           ref={setPopoverNode}
           role="dialog"
-          aria-label="Translate section copy"
+          aria-label={t("Translate section copy")}
           data-edit-overlay="ai-translate-popover"
           className="w-[340px] rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-xs shadow-xl"
           style={{
@@ -128,7 +135,7 @@ export function AiTranslateSectionButton({
           onMouseDown={(e) => e.preventDefault()}
         >
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
-            Translate section copy
+            {t("Translate section copy")}
           </div>
           <div className="mb-2 flex items-center gap-2">
             <select
@@ -143,7 +150,7 @@ export function AiTranslateSectionButton({
             >
               {COMMON_LOCALES.map((l) => (
                 <option key={l.code} value={l.code}>
-                  {l.label} ({l.code})
+                  {t(l.label)} ({l.code})
                 </option>
               ))}
             </select>
@@ -153,7 +160,7 @@ export function AiTranslateSectionButton({
               onClick={trigger}
               className="rounded-md border border-violet-600 bg-violet-600 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {pending ? "Translating…" : "Translate"}
+              {pending ? t("Translating…") : t("Translate")}
             </button>
           </div>
           {error ? (
@@ -164,7 +171,10 @@ export function AiTranslateSectionButton({
           {proposed ? (
             <div className="mt-1 flex flex-col gap-2">
               <div className="text-[10px] uppercase tracking-wide text-stone-500">
-                Preview ({Object.keys(proposed).length} field{Object.keys(proposed).length === 1 ? "" : "s"})
+                {(Object.keys(proposed).length === 1
+                  ? t("Preview ({count} field)")
+                  : t("Preview ({count} fields)")
+                ).replace("{count}", String(Object.keys(proposed).length))}
               </div>
               <div className="max-h-[260px] overflow-y-auto flex flex-col gap-1.5">
                 {Object.entries(proposed).map(([k, v]) => (
@@ -187,7 +197,7 @@ export function AiTranslateSectionButton({
                   onClick={() => setProposed(null)}
                   className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
                 >
-                  Discard
+                  {t("Discard")}
                 </button>
                 <button
                   type="button"
@@ -198,7 +208,7 @@ export function AiTranslateSectionButton({
                   }}
                   className="rounded-md border border-emerald-700 bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white hover:bg-emerald-800"
                 >
-                  Apply all
+                  {t("Apply all")}
                 </button>
               </div>
             </div>
@@ -210,7 +220,7 @@ export function AiTranslateSectionButton({
                 onClick={() => setOpen(false)}
                 className="rounded-md px-2 py-1 text-[10px] text-stone-500 hover:bg-[#faf9f6]"
               >
-                Close
+                {t("Close")}
               </button>
             </div>
           ) : null}

@@ -12,6 +12,7 @@ import { useState, useTransition } from "react";
 
 import { generateNodeImageAction } from "@/lib/site-admin/builder-core/ai/generate-node-image-action";
 import { CHROME } from "../kit";
+import { useEditorLocale } from "../use-editor-locale";
 
 export function AiGenerateImageButton({
   defaultSubject,
@@ -20,6 +21,7 @@ export function AiGenerateImageButton({
   defaultSubject?: string;
   onGenerated: (result: { url: string; mediaId: string; alt: string }) => void;
 }) {
+  const { t } = useEditorLocale();
   const [subject, setSubject] = useState(defaultSubject ?? "");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function AiGenerateImageButton({
   function generate() {
     const s = subject.trim();
     if (s.length < 2) {
-      setError("Describe the image in a few words.");
+      setError(t("Describe the image in a few words."));
       return;
     }
     setError(null);
@@ -37,7 +39,12 @@ export function AiGenerateImageButton({
       const r = await generateNodeImageAction({ subject: s });
       if (r.ok) {
         onGenerated({ url: r.url, mediaId: r.mediaId, alt: s });
-        setInfo(`Added. ${r.remaining} image${r.remaining === 1 ? "" : "s"} left this month.`);
+        setInfo(
+          (r.remaining === 1
+            ? t("Added. {count} image left this month.")
+            : t("Added. {count} images left this month.")
+          ).replace("{count}", String(r.remaining)),
+        );
       } else {
         setError(r.error);
       }
@@ -56,8 +63,8 @@ export function AiGenerateImageButton({
           }}
           disabled={pending}
           maxLength={400}
-          placeholder="e.g. a model on a Tulum beach at golden hour"
-          aria-label="Describe the image to generate"
+          placeholder={t("e.g. a model on a Tulum beach at golden hour")}
+          aria-label={t("Describe the image to generate")}
           className="min-w-0 flex-1 px-2.5 py-2 text-[13px] outline-none transition placeholder:text-stone-400 disabled:opacity-60"
           style={{
             borderRadius: 8,
@@ -89,10 +96,10 @@ export function AiGenerateImageButton({
               >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              Generating…
+              {t("Generating…")}
             </>
           ) : (
-            "Generate"
+            t("Generate")
           )}
         </button>
       </div>

@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
 
 export interface AiBriefComposeOutcome {
   ok: boolean;
@@ -29,10 +30,10 @@ export function AIBriefInput({
   pending,
   disabled,
   placeholder,
-  title = "Design with AI",
-  description = "Describe it in a line and AI builds it as editable blocks, then make it yours.",
-  ctaLabel = "Design with AI",
-  pendingLabel = "Designing…",
+  title,
+  description,
+  ctaLabel,
+  pendingLabel,
   variant = "card",
   showHeader = true,
   autoFocus = false,
@@ -53,9 +54,19 @@ export function AIBriefInput({
    *  "Describe with AI" create entry lands ready to type. */
   autoFocus?: boolean;
 }) {
+  const { t } = useEditorLocale();
   const [brief, setBrief] = useState("");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Defaults resolve here (not in the destructuring) so they go through t().
+  // Hosts that pass their own copy keep full control, as before.
+  const resolvedTitle = title ?? t("Design with AI");
+  const resolvedDescription =
+    description ??
+    t("Describe it in a line and AI builds it as editable blocks, then make it yours.");
+  const resolvedCtaLabel = ctaLabel ?? t("Design with AI");
+  const resolvedPendingLabel = pendingLabel ?? t("Designing…");
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -65,13 +76,13 @@ export function AIBriefInput({
     e.preventDefault();
     const value = brief.trim();
     if (value.length < 3) {
-      setError("Add a few words describing what you want.");
+      setError(t("Add a few words describing what you want."));
       return;
     }
     setError(null);
     const result = await onCompose(value);
     if (!result.ok) {
-      setError(result.error ?? "Could not build that. Try rephrasing.");
+      setError(result.error ?? t("Could not build that. Try rephrasing."));
     }
   }
 
@@ -109,10 +120,10 @@ export function AIBriefInput({
               className="text-[14px] font-semibold"
               style={{ color: CHROME.ink, letterSpacing: "-0.01em" }}
             >
-              {title}
+              {resolvedTitle}
             </p>
             <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: CHROME.muted }}>
-              {description}
+              {resolvedDescription}
             </p>
           </div>
         </div>
@@ -132,8 +143,8 @@ export function AIBriefInput({
           }}
           disabled={locked}
           maxLength={400}
-          placeholder={placeholder ?? "e.g. a portfolio for my wedding photography"}
-          aria-label="Describe what you want"
+          placeholder={placeholder ?? t("e.g. a portfolio for my wedding photography")}
+          aria-label={t("Describe what you want")}
           className="min-w-0 flex-1 px-3.5 py-2.5 text-sm outline-none transition placeholder:text-stone-400 focus:border-[#7c3aed] focus:ring-2 focus:ring-[#7c3aed]/25 disabled:cursor-not-allowed disabled:opacity-60"
           style={{
             borderRadius: 10,
@@ -164,10 +175,10 @@ export function AIBriefInput({
               >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
-              {pendingLabel}
+              {resolvedPendingLabel}
             </>
           ) : (
-            ctaLabel
+            resolvedCtaLabel
           )}
         </button>
       </form>
