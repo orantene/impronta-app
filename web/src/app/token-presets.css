@@ -188,6 +188,7 @@ html[data-token-background-mode="editorial-ivory"] body {
   --muted: #18181b;
   --muted-foreground: #a1a1aa;
   --accent: rgba(201, 162, 39, 0.09);
+  --accent-solid: #c9a227;
   --accent-foreground: #fafafa;
   --border: rgba(255, 255, 255, 0.06);
   --input: rgba(255, 255, 255, 0.07);
@@ -220,6 +221,7 @@ html[data-token-background-mode="editorial-noir"] body.site-theme-tenant-overrid
   --primary-foreground: #0a0a0a;
   --ring: #d4af37;
   --accent: rgba(201, 162, 39, 0.14);
+  --accent-solid: #c9a227;
   --site-ambient-base: #0a0a0a;
 }
 
@@ -261,6 +263,7 @@ html[data-token-background-mode="editorial-noir"] body.site-theme-tenant-overrid
   --muted: #1b1722;
   --muted-foreground: rgba(236, 228, 211, 0.48);
   --accent: rgba(198, 161, 78, 0.1);
+  --accent-solid: #c6a14e;
   --accent-foreground: #ece4d3;
   --border: rgba(198, 161, 78, 0.18);
   --input: rgba(236, 228, 211, 0.08);
@@ -318,6 +321,7 @@ html[data-token-background-mode="noir-or"] body.site-theme-tenant-override {
   --muted: #2c221b;
   --muted-foreground: rgba(239, 231, 218, 0.5);
   --accent: rgba(196, 154, 108, 0.12);
+  --accent-solid: #c49a6c;
   --accent-foreground: #efe7da;
   --border: rgba(196, 154, 108, 0.18);
   --input: rgba(239, 231, 218, 0.08);
@@ -375,6 +379,7 @@ html[data-token-background-mode="espresso"] body.site-theme-tenant-override {
   --muted: #efe9e0;
   --muted-foreground: rgba(42, 38, 34, 0.55);
   --accent: rgba(169, 134, 67, 0.12);
+  --accent-solid: #a98643;
   --accent-foreground: #2a2622;
   --border: rgba(42, 38, 34, 0.1);
   --input: rgba(42, 38, 34, 0.08);

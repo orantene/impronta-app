@@ -61,7 +61,21 @@
   --muted: #f5f5f5;
   --muted-foreground: #6b7280;
 
+  /* ACCENT PAIR — read this before using either half.
+   *
+   *   --accent        SURFACE tint. Translucent by contract in every scope
+   *                   below (and in token-presets.css). It is the wash behind
+   *                   `bg-accent` / hover states. Using it for text, an icon
+   *                   fill, a border or a ring paints a ~6-14% alpha color and
+   *                   renders effectively invisible.
+   *   --accent-solid  FOREGROUND accent. Fully opaque sibling of the tint,
+   *                   same hue. Use this for text, icons, borders and rings.
+   *
+   * Every scope that re-pins --accent must re-pin --accent-solid with the
+   * opaque version of the same hue, so the pair never drifts apart.
+   */
   --accent: rgba(23, 23, 23, 0.06);
+  --accent-solid: var(--dir-accent);
   --accent-foreground: #171717;
 
   --destructive: #b42318;
@@ -88,6 +102,7 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
+  --color-accent-solid: var(--accent-solid);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
@@ -168,6 +183,7 @@ html[data-public-font-preset="editorial"] {
     --muted: #18181b;
     --muted-foreground: #a1a1aa;
     --accent: rgba(201, 162, 39, 0.09);
+    --accent-solid: #c9a227;
     --accent-foreground: #fafafa;
     --destructive: #991b1b;
     --destructive-foreground: #fef2f2;
@@ -198,6 +214,7 @@ html[data-public-font-preset="editorial"] {
     --muted: #f2ede2;
     --muted-foreground: #746957;
     --accent: rgba(150, 115, 26, 0.1);
+    --accent-solid: #96731a;
     --accent-foreground: #231d10;
     --destructive: #b42318;
     --destructive-foreground: #fff5f5;
@@ -232,6 +249,7 @@ html[data-public-font-preset="editorial"] {
     --muted: #e8e3d8;
     --muted-foreground: #6b766f;
     --accent: rgba(31, 74, 58, 0.08);
+    --accent-solid: #1f4a3a;
     --accent-foreground: #0f1714;
     --destructive: #b42318;
     --destructive-foreground: #fff5f5;
@@ -267,6 +285,7 @@ html[data-public-font-preset="editorial"] {
     --muted: #18181b;
     --muted-foreground: #a1a1aa;
     --accent: rgba(255, 255, 255, 0.06);
+    --accent-solid: #ffffff;
     --accent-foreground: #fafafa;
     --destructive: #991b1b;
     --destructive-foreground: #fef2f2;
@@ -297,6 +316,7 @@ html[data-public-font-preset="editorial"] {
     --muted: #f4f4f5;
     --muted-foreground: #71717a;
     --accent: rgba(24, 24, 27, 0.04);
+    --accent-solid: #18181b;
     --accent-foreground: #18181b;
     --destructive: #b42318;
     --destructive-foreground: #fff5f5;
@@ -355,6 +375,10 @@ html[data-public-font-preset="editorial"] {
       var(--token-color-accent, var(--impronta-gold)) 14%,
       transparent
     );
+    /* Opaque sibling of the tint above: same source color at full alpha, so
+     * storefront icons, badges and borders that need an accent FOREGROUND
+     * stay legible instead of painting a 14% wash. */
+    --accent-solid: var(--token-color-accent, var(--impronta-gold));
     /* Tenant storefront ambient layer: a soft aurora built from the brand
      * palette sits behind the storefront so the background reads as lived-in
      * rather than a flat dark field. Tokens supply the hues; tenants without
@@ -923,6 +947,7 @@ html[data-public-font-preset="editorial"] {
   --secondary: #f4f4f5;
   --secondary-foreground: #18181b;
   --accent: rgba(201, 162, 39, 0.08);
+  --accent-solid: #c9a227;
   --accent-foreground: #18181b;
   --ring: rgba(201, 162, 39, 0.5);
   --popover: #ffffff;
@@ -955,6 +980,7 @@ html[data-public-font-preset="editorial"] {
   --secondary-foreground: #f4f4f5;
   /* Cool slate accent fill (was gold rgba(201,162,39,…)). */
   --accent: rgba(148, 163, 184, 0.12);
+  --accent-solid: #94a3b8;
   --accent-foreground: #fafafa;
   --ring: var(--admin-gold-bright);
   --popover: #191a1d;
