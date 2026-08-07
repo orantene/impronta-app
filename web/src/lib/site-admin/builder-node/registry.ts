@@ -948,7 +948,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
     card: {
       kind: "card",
       label: "Card",
-      description: "Bounded surface for heading, copy, image, and buttons — no nested containers.",
+      description: "Bounded surface for heading, copy, image, and buttons. No nested containers.",
       children: {
         type: "allow_list",
         kinds: [...CARD_CHILD_KINDS],
@@ -1145,7 +1145,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "social_post",
       label: "Social post",
       description:
-        "Feature one Instagram or TikTok post. Paste the post URL — it renders with the provider's own embed.",
+        "Feature one Instagram or TikTok post. Paste the post URL and it renders with the provider's own embed.",
       children: { type: "none" },
       propsSchema: socialPostPropsSchema,
     },
@@ -1158,7 +1158,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
     },
     pricing_table: { kind: "pricing_table", label: "Pricing table", description: "Two to four pricing tiers with features and calls to action.", children: { type: "none" }, propsSchema: pricingTablePropsSchema },
     rich_text: { kind: "rich_text", label: "Rich text", description: "Body copy with bold, italic, and sanitized links.", children: { type: "none" }, propsSchema: richTextPropsSchema },
-    code: { kind: "code", label: "Code / HTML", description: "Raw HTML/CSS in a sandboxed iframe (owner only) — for static markup the Embed node can't cover.", children: { type: "none" }, propsSchema: codePropsSchema },
+    code: { kind: "code", label: "Code / HTML", description: "Raw HTML/CSS in a sandboxed iframe (owner only), for static markup the Embed node can't cover.", children: { type: "none" }, propsSchema: codePropsSchema },
     divider: {
       kind: "divider",
       label: "Divider",
@@ -1177,7 +1177,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "nav",
       label: "Navigation",
       description:
-        "Header navigation bar — inline links on desktop, hamburger menu on mobile. Links stay reachable at every width. Each link can open a dropdown or mega submenu.",
+        "Header navigation bar: inline links on desktop, hamburger menu on mobile. Links stay reachable at every width. Each link can open a dropdown or mega submenu.",
       children: { type: "none" },
       propsSchema: navPropsSchema,
     },
@@ -1193,7 +1193,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "form",
       label: "Form",
       description:
-        "Lead/contact form — text, email, phone, and message fields plus a submit button. Submissions land in your workspace inbox.",
+        "Lead/contact form: text, email, phone, and message fields plus a submit button. Submissions land in your workspace inbox.",
       children: { type: "none" },
       propsSchema: formPropsSchema,
     },
@@ -1201,7 +1201,7 @@ export const BUILDER_NODE_REGISTRY: Readonly<Record<BuilderNodeKind, BuilderNode
       kind: "section_embed",
       label: "Tulala component",
       description:
-        "Embed a live Tulala component — directory, featured talent, booking, or CTA — anywhere on the canvas. Connects to real workspace data on publish.",
+        "Embed a live Tulala component (directory, featured talent, booking, or CTA) anywhere on the canvas. Connects to real workspace data on publish.",
       children: { type: "none" },
       propsSchema: sectionEmbedPropsSchema,
     },

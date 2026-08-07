@@ -3482,9 +3482,13 @@ function BuilderNodeKindPill({
   role: BuilderSectionChildNode["role"];
   selected: boolean;
 }) {
-  const label = nodeKindLabel(kind);
+  // WAVE 4.6 — the kind pill prints a builder-REGISTRY label ("Container",
+  // "CTA group"…). The registry lives in `lib/site-admin` and cannot import
+  // edit-chrome, so the label is translated here, at the render boundary.
+  const { t } = useEditorLocale();
+  const label = t(nodeKindLabel(kind));
   const short = role
-    ? formatBuilderNodeRole(role)
+    ? t(formatBuilderNodeRole(role))
         .split(" ")
         .map((part) => part.charAt(0))
         .join("")
@@ -3493,7 +3497,7 @@ function BuilderNodeKindPill({
   return (
     <span
       data-navigator-node-kind-pill=""
-      title={role ? `${label} / ${formatBuilderNodeRole(role)}` : label}
+      title={role ? `${label} / ${t(formatBuilderNodeRole(role))}` : label}
       aria-hidden
       style={{
         width: 24,

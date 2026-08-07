@@ -18,6 +18,7 @@
 import type { ReactNode } from "react";
 
 import type { DragHandleProps } from "./draggable-list";
+import { useInspectorT } from "./use-inspector-t";
 
 interface InspectorItemRowProps {
   /** Handle props emitted by DraggableList. Omit for non-reorderable rows. */
@@ -91,12 +92,18 @@ export function InspectorRowDelete({
   onClick: () => void;
   ariaLabel?: string;
 }) {
+  // WAVE 4.6 — the default "Remove" (and any caller-supplied override) reaches
+  // the operator as the button's only accessible name, so it goes through the
+  // same kit boundary translator wave 4.4 introduced. #1048's render test found
+  // this one live; it was left to this lane to avoid a cross-lane conflict.
+  const { t } = useInspectorT();
+  const label = t(ariaLabel);
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={ariaLabel}
-      title={ariaLabel}
+      aria-label={label}
+      title={label}
       className="inline-flex size-7 items-center justify-center rounded-md text-stone-500 transition hover:bg-rose-50 hover:text-rose-600"
     >
       <svg

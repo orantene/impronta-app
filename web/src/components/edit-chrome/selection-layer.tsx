@@ -1841,7 +1841,7 @@ export function SelectionLayer() {
                 ? "section_embed"
                 : payload.elementKind,
           drop: null,
-          label: paletteDragLabel(payload),
+          label: t(paletteDragLabel(payload)),
           cursorX,
           cursorY,
         };
@@ -2116,7 +2116,7 @@ export function SelectionLayer() {
           payload,
           draggedKind,
           drop,
-          label: paletteDragLabel(payload),
+          label: t(paletteDragLabel(payload)),
           cursorX: phase.clientX,
           cursorY: phase.clientY,
         });
@@ -2824,10 +2824,14 @@ export function SelectionLayer() {
         : [],
     [selectedBuilderNode],
   );
+  // WAVE 4.6 — builder-REGISTRY kind labels are authored in English in
+  // `lib/site-admin/builder-node/registry.ts` (which cannot import edit-chrome),
+  // so they are translated here at the render boundary. `t` falls back to its
+  // input, so a tenant-authored chipLabel passes through unchanged.
   const selectedNodeLabel = selectedBuilderNode
     ? selectedBuilderNode.kind === "section"
       ? chipLabel
-      : BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].label
+      : t(BUILDER_NODE_REGISTRY[selectedBuilderNode.kind].label)
     : chipLabel;
   const selectedNodeIsEditableBlock =
     !!selectedBuilderNode &&
@@ -2893,7 +2897,7 @@ export function SelectionLayer() {
     deferTreeCommit: canvasInlineTextEditActive,
   });
   const chipPrimaryLabel = selectedNodeIsEditableBlock
-    ? builderNodeCrumbLabel(selectedBuilderNode, chipLabel)
+    ? t(builderNodeCrumbLabel(selectedBuilderNode, chipLabel))
     : chipLabel;
   const chipPrimaryType = selectedNodeIsEditableBlock
     ? t("Block")
@@ -3086,10 +3090,12 @@ export function SelectionLayer() {
     hoveredBuilderNode.locked !== true &&
     !resolveBuilderNodeRole(hoveredBuilderNode.id);
   const hoveredBlockLabel = hoveredBuilderNode
-    ? builderNodeCrumbLabel(
-        hoveredBuilderNode,
-        BUILDER_NODE_REGISTRY[hoveredBuilderNode.kind]?.label ??
-          humanizeTypeKey(hoveredBuilderNode.kind),
+    ? t(
+        builderNodeCrumbLabel(
+          hoveredBuilderNode,
+          BUILDER_NODE_REGISTRY[hoveredBuilderNode.kind]?.label ??
+            humanizeTypeKey(hoveredBuilderNode.kind),
+        ),
       )
     : "";
   // Show the type label only when it adds information — most sections derive
@@ -3528,7 +3534,7 @@ export function SelectionLayer() {
         if (node.kind === "section") continue;
         crumbs.push({
           id: node.id,
-          label: truncateNodeLabel(canvasChildPrimaryLabel(node), 32),
+          label: truncateNodeLabel(t(canvasChildPrimaryLabel(node)), 32),
           kind: node.kind,
           selectable: true,
         });
@@ -3616,7 +3622,7 @@ export function SelectionLayer() {
       parentLabel:
         parentNode.kind === "section"
           ? chipLabel
-          : BUILDER_NODE_REGISTRY[parentNode.kind].label,
+          : t(BUILDER_NODE_REGISTRY[parentNode.kind].label),
       nodes: siblings,
       viewingChild: true,
     };
@@ -4960,7 +4966,7 @@ export function SelectionLayer() {
                 BUILDER_NODE_REGISTRY[contextMenuNode.kind]?.label
                   ? t("{label} component").replace(
                       "{label}",
-                      BUILDER_NODE_REGISTRY[contextMenuNode.kind].label,
+                      t(BUILDER_NODE_REGISTRY[contextMenuNode.kind].label),
                     )
                   : t("Saved component");
               const name =
@@ -5708,7 +5714,15 @@ export function SelectionLayer() {
                       fill="#ffffff"
                     />
                   </svg>
-                  {`Nest in ${drop.parentKind != null ? (BUILDER_NODE_REGISTRY[drop.parentKind]?.label ?? humanizeTypeKey(drop.parentKind)) : "container"}`}
+                  {t("Nest in {parent}").replace(
+                    "{parent}",
+                    drop.parentKind != null
+                      ? t(
+                          BUILDER_NODE_REGISTRY[drop.parentKind]?.label ??
+                            humanizeTypeKey(drop.parentKind),
+                        )
+                      : t("container"),
+                  )}
                 </span>
               ) : null}
             </div>
@@ -5815,8 +5829,10 @@ export function SelectionLayer() {
                 ? t("Nest in {parent}").replace(
                     "{parent}",
                     drop.parentKind != null
-                      ? (BUILDER_NODE_REGISTRY[drop.parentKind]?.label ??
-                          humanizeTypeKey(drop.parentKind))
+                      ? t(
+                          BUILDER_NODE_REGISTRY[drop.parentKind]?.label ??
+                            humanizeTypeKey(drop.parentKind),
+                        )
                       : t("container"),
                   )
                 : canvasNodeDrag.phase === "palette"
@@ -6983,7 +6999,7 @@ function CanvasNodeChildrenPanel({
                       overflowWrap: "anywhere",
                     }}
                   >
-                    {canvasChildPrimaryLabel(node)}
+                    {t(canvasChildPrimaryLabel(node))}
                   </span>
                 </span>
               </button>
@@ -7001,7 +7017,7 @@ function CanvasNodeChildrenPanel({
                 }}
               >
                 <CanvasMiniButton
-                  label={t("Move {label} up").replace("{label}", canvasChildPrimaryLabel(node))}
+                  label={t("Move {label} up").replace("{label}", t(canvasChildPrimaryLabel(node)))}
                   disabled={index === 0}
                   onClick={() => {
                     onSelect(node.id);
@@ -7011,7 +7027,7 @@ function CanvasNodeChildrenPanel({
                   <ArrowUp size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={t("Move {label} down").replace("{label}", canvasChildPrimaryLabel(node))}
+                  label={t("Move {label} down").replace("{label}", t(canvasChildPrimaryLabel(node)))}
                   disabled={index === nodes.length - 1}
                   onClick={() => {
                     onSelect(node.id);
@@ -7021,7 +7037,7 @@ function CanvasNodeChildrenPanel({
                   <ArrowDown size={13} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={t("Duplicate {label}").replace("{label}", canvasChildPrimaryLabel(node))}
+                  label={t("Duplicate {label}").replace("{label}", t(canvasChildPrimaryLabel(node)))}
                   onClick={() => {
                     onSelect(node.id);
                     void onDuplicate(node.id);
@@ -7030,7 +7046,7 @@ function CanvasNodeChildrenPanel({
                   <Files size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={t("Copy {label}").replace("{label}", canvasChildPrimaryLabel(node))}
+                  label={t("Copy {label}").replace("{label}", t(canvasChildPrimaryLabel(node)))}
                   onClick={() => {
                     onSelect(node.id);
                     void onCopy(node.id);
@@ -7044,7 +7060,7 @@ function CanvasNodeChildrenPanel({
                       pastePreview?.message ??
                       t("Paste copied {label}").replace(
                         "{label}",
-                        BUILDER_NODE_REGISTRY[copiedKind].label,
+                        t(BUILDER_NODE_REGISTRY[copiedKind].label),
                       )
                     }
                     disabled={pastePreview?.mode === "blocked"}
@@ -7059,14 +7075,14 @@ function CanvasNodeChildrenPanel({
                 <CanvasMiniButton
                   label={t("Add block near {label}").replace(
                     "{label}",
-                    canvasChildPrimaryLabel(node),
+                    t(canvasChildPrimaryLabel(node)),
                   )}
                   onClick={() => onSelect(node.id)}
                 >
                   <Plus size={12} strokeWidth={2.1} aria-hidden />
                 </CanvasMiniButton>
                 <CanvasMiniButton
-                  label={t("Remove {label}").replace("{label}", canvasChildPrimaryLabel(node))}
+                  label={t("Remove {label}").replace("{label}", t(canvasChildPrimaryLabel(node)))}
                   onClick={() => {
                     onSelect(node.id);
                     void onRemove(node.id);

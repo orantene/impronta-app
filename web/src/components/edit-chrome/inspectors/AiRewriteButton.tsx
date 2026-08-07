@@ -13,12 +13,19 @@
  * buttons. We never auto-apply — the operator owns the call.
  */
 
-import { useCallback, useState, useTransition, type ReactElement } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactElement,
+} from "react";
 
 import {
   rewriteFieldWithAi,
   type AiRewriteResult,
 } from "@/lib/site-admin/edit-mode/ai-rewrite-action";
+import { useSectionT } from "@/lib/site-admin/sections/shared/section-editor-i18n";
 import { PortaledOverlay, useAnchoredPopover } from "../kit";
 import { useModalFocusTrap } from "../modal-focus-trap";
 import { useEditorLocale } from "../use-editor-locale";
@@ -52,7 +59,26 @@ export function AiRewriteButton({
   onApply,
   siblingContext,
 }: AiRewriteButtonProps): ReactElement | null {
-  const { t } = useEditorLocale();
+  // WAVE 4.6 — this button's ONLY mount site is `ZodSchemaForm`, i.e. inside a
+  // section Editor panel, and wave 4.5 gave those panels their translator
+  // through the `useSectionT()` context seam. This component resolved its own
+  // locale from the cookie instead, so it rendered English inside a Spanish
+  // panel anywhere the cookie read had not resolved yet (SSR, first paint, and
+  // #1048's render test, which is where it was caught). Prefer the host panel's
+  // translator and fall back to the cookie one when mounted outside a panel.
+  // Both read the SAME `ES_TEXT` catalog, so this cannot introduce a divergence.
+  const sectionT = useSectionT();
+  const { t: editorLocaleT } = useEditorLocale();
+  const t = useMemo(
+    () => (text: string) => {
+      const viaSection = sectionT(text);
+      // The seam's default is the identity function, so "unchanged" means
+      // either "no provider" or "no entry"; either way the editor translator
+      // is the right second look.
+      return viaSection === text ? editorLocaleT(text) : viaSection;
+    },
+    [sectionT, editorLocaleT],
+  );
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [proposed, setProposed] = useState<string | null>(null);

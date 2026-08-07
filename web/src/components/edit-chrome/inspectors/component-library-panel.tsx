@@ -25,6 +25,7 @@ import {
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { countComponentInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { useEditContext } from "../edit-context";
+import { useEditorLocale } from "../use-editor-locale";
 import { useBuilderTree } from "../builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { KIT } from "./kit/tokens";
@@ -42,6 +43,9 @@ export function ComponentLibraryPanel({
     updateSelectedNodeAsComponent,
     selectBuilderNode,
   } = useEditContext();
+  // WAVE 4.6 — this panel shipped with zero i18n. Same seam as everywhere else
+  // in edit-chrome: `useEditorLocale().t` into the one EN-text-keyed catalog.
+  const { t } = useEditorLocale();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
   // W2 (selection-bridge) — selection VALUE from the micro-store.
@@ -95,10 +99,15 @@ export function ComponentLibraryPanel({
     );
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't insert the linked instance.");
+      setError(result.error ?? t("Couldn't insert the linked instance."));
       return;
     }
-    setNote(`Added a linked instance of "${component.name}".`);
+    setNote(
+      t('Added a linked instance of "{name}".').replace(
+        "{name}",
+        component.name,
+      ),
+    );
   }
 
   async function onEditMaster(component: BuilderComponentRow) {
@@ -115,12 +124,16 @@ export function ComponentLibraryPanel({
     );
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't open the master for editing.");
+      setError(result.error ?? t("Couldn't open the master for editing."));
       return;
     }
     if (result.nodeId) selectBuilderNode(result.nodeId);
     setNote(
-      `Editing a copy of "${component.name}". Tweak it, then use "Update master" below to push your changes to all ${usageById[component.id] ?? 0} instance(s).`,
+      t(
+        'Editing a copy of "{name}". Tweak it, then use "Update master" below to push your changes to all {count} instance(s).',
+      )
+        .replace("{name}", component.name)
+        .replace("{count}", String(usageById[component.id] ?? 0)),
     );
   }
 
@@ -131,7 +144,7 @@ export function ComponentLibraryPanel({
     const result = await updateSelectedNodeAsComponent(component.id);
     setBusy(false);
     if (!result.ok) {
-      setError(result.error ?? "Couldn't update the master.");
+      setError(result.error ?? t("Couldn't update the master."));
       return;
     }
     // Live instances reflect the master after publish; sync refreshes in-editor.
@@ -141,8 +154,12 @@ export function ComponentLibraryPanel({
     );
     setNote(
       sync.ok && sync.synced
-        ? `Updated "${component.name}" and re-synced ${sync.synced} instance(s).`
-        : `Updated "${component.name}" master. Published instances reflect it live.`,
+        ? t('Updated "{name}" and re-synced {count} instance(s).')
+            .replace("{name}", component.name)
+            .replace("{count}", String(sync.synced))
+        : t(
+            'Updated "{name}" master. Published instances reflect it live.',
+          ).replace("{name}", component.name),
     );
     void refresh();
   }
@@ -156,9 +173,16 @@ export function ComponentLibraryPanel({
     );
     if (firstInstanceId) {
       selectBuilderNode(firstInstanceId);
-      setNote(`Selected an instance of "${component.name}".`);
+      setNote(
+        t('Selected an instance of "{name}".').replace("{name}", component.name),
+      );
     } else {
-      setNote(`"${component.name}" has no instances on this page yet.`);
+      setNote(
+        t('"{name}" has no instances on this page yet.').replace(
+          "{name}",
+          component.name,
+        ),
+      );
     }
   }
 
@@ -168,12 +192,14 @@ export function ComponentLibraryPanel({
       className="rounded-lg border border-stone-200 bg-white px-3 py-2"
     >
       <summary className="cursor-pointer text-[11px] font-semibold text-stone-700">
-        Component library{components.length > 0 ? ` (${components.length})` : ""}
+        {t("Component library")}
+        {components.length > 0 ? ` (${components.length})` : ""}
       </summary>
       <div className="mt-2 flex flex-col gap-2">
         <p className="text-[10.5px] leading-snug text-stone-500">
-          Saved components and where they’re used on this page. Insert a linked
-          instance, or edit a master to update every instance at once.
+          {t(
+            "Saved components and where they’re used on this page. Insert a linked instance, or edit a master to update every instance at once.",
+          )}
         </p>
 
         {error ? (
@@ -189,19 +215,21 @@ export function ComponentLibraryPanel({
 
         {loading ? (
           <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
-            Loading components…
+            {t("Loading components…")}
           </div>
         ) : components.length === 0 ? (
           <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
-            No saved components yet. Select a block, save it to “My blocks”, then
-            insert it linked to build a component.
+            {t(
+              "No saved components yet. Select a block, save it to “My blocks”, then insert it linked to build a component.",
+            )}
           </div>
         ) : (
           <>
             {linkableTotal === 0 ? (
               <div className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-[10.5px] text-blue-800">
-                Only container/card components can be linked instances. Save a
-                container or card block to use the library.
+                {t(
+                  "Only container/card components can be linked instances. Save a container or card block to use the library.",
+                )}
               </div>
             ) : null}
             {components.map((component) => {
@@ -222,7 +250,11 @@ export function ComponentLibraryPanel({
                       </span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <span className="inline-flex text-[10px] font-semibold uppercase tracking-[0.10em] text-stone-500">
-                          {component.rootKind} · {component.nodeCount} nodes
+                          {component.rootKind} ·{" "}
+                          {t("{count} nodes").replace(
+                            "{count}",
+                            String(component.nodeCount),
+                          )}
                         </span>
                         <span
                           data-builder-node-component-usage={component.id}
@@ -231,9 +263,9 @@ export function ComponentLibraryPanel({
                               ? "inline-flex items-center rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700"
                               : "inline-flex items-center rounded-full bg-stone-200 px-1.5 py-0.5 text-[10px] font-semibold text-stone-600"
                           }
-                          title="Linked instances on this page"
+                          title={t("Linked instances on this page")}
                         >
-                          {usage} {usage === 1 ? "instance" : "instances"}
+                          {usage} {usage === 1 ? t("instance") : t("instances")}
                         </span>
                       </span>
                     </span>
@@ -247,41 +279,45 @@ export function ComponentLibraryPanel({
                         disabled={busy}
                         onClick={() => void onInsertLinked(component)}
                       >
-                        Insert linked
+                        {t("Insert linked")}
                       </button>
                     ) : null}
                     <button
                       type="button"
                       data-builder-node-component-edit-master={component.id}
-                      title="Insert an editable copy of the master to modify it"
+                      title={t("Insert an editable copy of the master to modify it")}
                       className={KIT.subtleButton}
                       disabled={busy}
                       onClick={() => void onEditMaster(component)}
                     >
-                      Edit master
+                      {t("Edit master")}
                     </button>
                     {selectedBuilderNodeId ? (
                       <button
                         type="button"
                         data-builder-node-component-update-master={component.id}
-                        title="Push the selected block into this master, instances update live"
+                        title={t(
+                          "Push the selected block into this master, instances update live",
+                        )}
                         className={KIT.ghostButton}
                         disabled={busy}
                         onClick={() => void onUpdateMaster(component)}
                       >
-                        ↑ Update master
+                        ↑ {t("Update master")}
                       </button>
                     ) : null}
                     {usage > 0 ? (
                       <button
                         type="button"
                         data-builder-node-component-show-usage={component.id}
-                        title="Select an instance of this component on the page"
+                        title={t(
+                          "Select an instance of this component on the page",
+                        )}
                         className={KIT.ghostButton}
                         disabled={busy}
                         onClick={() => onShowUsage(component)}
                       >
-                        Find instance
+                        {t("Find instance")}
                       </button>
                     ) : null}
                   </div>

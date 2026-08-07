@@ -21,6 +21,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 
 import { CHROME } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
 
 /**
  * P3-DRAG / CANVAS-6 — the palette-drag payload contract now lives in
@@ -72,6 +73,12 @@ export function ElementLibraryInsertPicker({
   variant: "navigator" | "canvas" | "inspector";
 }) {
   const searchId = useId();
+  // WAVE 4.6 — the pill labels and category headings are builder-REGISTRY
+  // strings (`lib/site-admin/builder-node`, which cannot import edit-chrome),
+  // so they are translated here at the render boundary. Search MATCHING still
+  // runs against the English source terms, deliberately: the catalog's keys are
+  // English and matching a translated haystack would break the kind names.
+  const { t } = useEditorLocale();
   const [query, setQuery] = useState("");
 
   // Curated Tulala components (live dynamic sections) — shown only when the
@@ -231,9 +238,9 @@ export function ElementLibraryInsertPicker({
           padding: "8px 2px",
         }}
       >
-        No elements can be inserted here right now (catalog empty). Reload the page
-        or pick another section. If this persists, the builder tree may still be
-        loading.
+        {t(
+          "No elements can be inserted here right now (catalog empty). Reload the page or pick another section. If this persists, the builder tree may still be loading.",
+        )}
       </div>
     );
   }
@@ -241,14 +248,14 @@ export function ElementLibraryInsertPicker({
   return (
     <>
       <label className="sr-only" htmlFor={searchId}>
-        Search elements
+        {t("Search elements")}
       </label>
       <input
         id={searchId}
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search blocks…"
+        placeholder={t("Search blocks…")}
         autoComplete="off"
         data-element-library-search=""
         style={searchStyle}
@@ -281,7 +288,7 @@ export function ElementLibraryInsertPicker({
               {sectionEmbeds.map((preset) => (
                 <PickerPill
                   key={preset.id}
-                  label={preset.label}
+                  label={t(preset.label)}
                   tone={pillTone}
                   onClick={() => void onPickSectionEmbed?.(preset.sectionTypeKey)}
                   dragPayload={
@@ -327,7 +334,7 @@ export function ElementLibraryInsertPicker({
               gap: 8,
             }}
           >
-            <span>No elements match this search.</span>
+            <span>{t("No elements match this search.")}</span>
             {query.trim() ? (
               <button
                 type="button"
@@ -357,7 +364,7 @@ export function ElementLibraryInsertPicker({
                   cursor: "pointer",
                 }}
               >
-                Clear search
+                {t("Clear search")}
               </button>
             ) : null}
           </div>
@@ -374,7 +381,7 @@ export function ElementLibraryInsertPicker({
                   marginBottom: 6,
                 }}
               >
-                {ELEMENT_LIBRARY_CATEGORY_LABEL[group.category]}
+                {t(ELEMENT_LIBRARY_CATEGORY_LABEL[group.category])}
               </div>
               <div
                 style={{
@@ -386,7 +393,7 @@ export function ElementLibraryInsertPicker({
                 {group.kinds.map((kind) => (
                   <PickerPill
                     key={kind}
-                    label={elementLibraryPrimaryLabel(kind)}
+                    label={t(elementLibraryPrimaryLabel(kind))}
                     tone={pillTone}
                     onClick={() => void onPick(kind)}
                     dragPayload={
