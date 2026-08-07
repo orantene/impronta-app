@@ -231,6 +231,7 @@ const ES_CATALOG_FILES = [
   "src/components/edit-chrome/editor-i18n-es.ts",
   "src/components/edit-chrome/editor-i18n-es-canvas.ts",
   "src/components/edit-chrome/editor-i18n-es-sections.ts",
+  "src/components/edit-chrome/editor-i18n-es-inspectors.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels.ts",
   "src/components/edit-chrome/editor-i18n-es-section-panels-2.ts",
 ];

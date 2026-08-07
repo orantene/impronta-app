@@ -8,6 +8,7 @@
  */
 
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
+import { ES_INSPECTOR_TEXT } from "./editor-i18n-es-inspectors";
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
 import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
@@ -21,6 +22,8 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_PANEL_TEXT_2,
   // WAVE 4 (canvas bars, preflight, AI panels) — split out for the line cap.
   ...ES_CANVAS_CHROME_TEXT,
+  // WAVE 4.4 (deep inspectors: style, layout, motion, data, site header).
+  ...ES_INSPECTOR_TEXT,
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',

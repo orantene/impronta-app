@@ -29,6 +29,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
+import { useEditorLocale } from "../use-editor-locale";
 import { CHROME, CHROME_SHADOWS } from "./tokens";
 import { PortaledOverlay } from "./portaled-overlay";
 import { useAnchoredPopover } from "./use-anchored-popover";
@@ -89,6 +90,9 @@ export function NumberUnit({
   className,
   style,
 }: NumberUnitProps) {
+  // WAVE 4.4 — the placeholder is the only operator-readable copy this control
+  // owns ("Auto", "Inherit", "e.g. 1.03"); translate it at the boundary.
+  const { t } = useEditorLocale();
   const [unitOpen, setUnitOpen] = useState(false);
   // Portaled to <body> via PortaledOverlay so the unit list isn't clipped by the
   // inspector dock's overflow scroll container. Positioning + outside-click /
@@ -257,7 +261,7 @@ export function NumberUnit({
         type="text"
         inputMode="decimal"
         value={value ? String(value.value) : draft}
-        placeholder={value ? undefined : placeholder}
+        placeholder={value ? undefined : t(placeholder)}
         disabled={disabled}
         onPointerDown={onScrubPointerDown}
         onClick={(e) => {

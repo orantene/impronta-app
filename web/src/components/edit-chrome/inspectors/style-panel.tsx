@@ -51,6 +51,7 @@ import { InstanceVariantPicker } from "./instance-variant-picker";
 import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
 import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput } from "./kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, INSPECTOR_HELP_TEXT_CLASS as HINT, INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE, InspectorBody } from "./kit/inspector-ui";
+import { useInspectorT } from "./kit/use-inspector-t";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
@@ -1321,6 +1322,9 @@ export function StylePanel({
   selectedBuilderNodeId,
   onPatch,
 }: StylePanelProps) {
+  // WAVE 4.4 — the kit primitives translate their own props; these are the
+  // handful of strings this panel renders into raw JSX itself.
+  const { t } = useInspectorT();
   const {
     pageId,
     patchBuilderNodeProps,
@@ -3435,7 +3439,7 @@ export function StylePanel({
       {selectedNodeRole && selectedNodeLabel ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Selected block</div>
+            <div className={SECTION_TITLE}>{t("Selected block")}</div>
             <span className={INHERIT_HINT}>{selectedNodeLabel}</span>
           </div>
           <div
@@ -4791,7 +4795,7 @@ export function StylePanel({
       {!selectedNodeRole && selectedStandaloneStyleNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>Selected block</div>
+            <div className={SECTION_TITLE}>{t("Selected block")}</div>
             <div className="flex items-center gap-2">
               {styleLockedPaths.length > 0 ? <LockBadge /> : null}
               <span className={INHERIT_HINT}>
@@ -4804,11 +4808,20 @@ export function StylePanel({
             data-builder-node-style-panel={selectedStandaloneStyleNode.kind}
           >
             <p className={HINT}>
-              Device is controlled by the device rail above the inspector (synced to the canvas).
+              {t(
+                "Device is controlled by the device rail above the inspector (synced to the canvas).",
+              )}
               {selectedViewport !== "desktop"
-                ? ` Editing ${selectedViewport} overrides: ${selectedStandaloneViewportOverrideCount} field${
-                    selectedStandaloneViewportOverrideCount === 1 ? "" : "s"
-                  } set.`
+                ? ` ${t(
+                    selectedStandaloneViewportOverrideCount === 1
+                      ? "Editing {device} overrides: {count} field set."
+                      : "Editing {device} overrides: {count} fields set.",
+                  )
+                    .replace("{device}", t(selectedViewport))
+                    .replace(
+                      "{count}",
+                      String(selectedStandaloneViewportOverrideCount),
+                    )}`
                 : ""}
             </p>
             {selectedViewport !== "desktop" ? (
@@ -4831,7 +4844,10 @@ export function StylePanel({
                     padding: 0,
                   }}
                 >
-                  Copy desktop to {selectedViewport}
+                  {t("Copy desktop to {device}").replace(
+                    "{device}",
+                    t(selectedViewport),
+                  )}
                 </button>
               ) : null}
 
@@ -4843,7 +4859,7 @@ export function StylePanel({
                 data-builder-node-style-control="containerQueries"
                 style={{ borderColor: CHROME.line }}
               >
-                <span className={FIELD_LABEL}>Query container</span>
+                <span className={FIELD_LABEL}>{t("Query container")}</span>
                 <Segmented
                   fullWidth
                   compact

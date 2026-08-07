@@ -15,6 +15,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
+import { useEditorLocale } from "../use-editor-locale";
 import { CHROME } from "./tokens";
 
 export interface SegmentedOption<T extends string> {
@@ -45,6 +46,12 @@ export function Segmented<T extends string>({
   className,
   style,
 }: SegmentedProps<T>) {
+  // WAVE 4.4 — option labels are developer-authored property values
+  // ("Left", "Centered", "Cover"), so they translate at this boundary rather
+  // than at each of the ~200 call sites. Non-string labels pass through.
+  const { t } = useEditorLocale();
+  const label = (raw: ReactNode): ReactNode =>
+    typeof raw === "string" ? t(raw) : raw;
   return (
     <div
       role="radiogroup"
@@ -99,7 +106,7 @@ export function Segmented<T extends string>({
                 );
               btns?.[next]?.focus();
             }}
-            title={typeof opt.label === "string" ? opt.label : undefined}
+            title={typeof opt.label === "string" ? t(opt.label) : undefined}
             className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md transition-all"
             style={{
               // `min-width: 0` lets the button shrink below its content's
@@ -128,7 +135,7 @@ export function Segmented<T extends string>({
                 minWidth: 0,
               }}
             >
-              {opt.label}
+              {label(opt.label)}
             </span>
           </button>
         );
