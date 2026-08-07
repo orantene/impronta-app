@@ -11,7 +11,7 @@
  * duplicating page data stores.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +29,7 @@ import {
   quickRenamePageAction,
 } from "@/lib/server-actions/admin-site-pages-inline";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
+import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
 import { aiCreatePageHref } from "./empty-canvas-ai-front-door";
 import {
   convertLegacyHomepageToPageAction,
@@ -240,8 +241,13 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const { t } = useEditorLocale();
   const router = useRouter();
   const dirty = useDirty();
-  const { pageId, pageSlug, openRevisions, flushBuilderTreeSave } =
-    useEditContext();
+  const {
+    pageId,
+    pageSlug,
+    openRevisions,
+    flushBuilderTreeSave,
+    workspaceMembershipSlug,
+  } = useEditContext();
   const [pages, setPages] = useState<PagePickerItem[] | null>(null);
   const [availability, setAvailability] = useState<PagePickerAvailability | null>(null);
   const [loading, setLoading] = useState(false);
@@ -261,8 +267,18 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const [roles, setRoles] = useState<TenantPageRoles | null>(null);
   const [roleBusyId, setRoleBusyId] = useState<string | null>(null);
 
-  const workspaceWebsiteHref = "/admin/website/pages";
-  const workspaceBillingHref = "/admin/account";
+  // These used to be slug-less literals, which only resolve on a branded host.
+  // On a path-addressed storefront (`/w/<slug>`, the free tier's default) they
+  // 404ed, the same trap the quick bar hit. Resolve from the live location so
+  // the base carries the slug, and the app origin when this host cannot route
+  // it at all. See `workspace-admin-base.ts`.
+  const adminBase = useMemo(() => {
+    const slug = workspaceMembershipSlug ?? "";
+    if (slug === "" || typeof window === "undefined") return "/admin";
+    return resolveWorkspaceAdminBaseForLocation(slug, window.location);
+  }, [workspaceMembershipSlug]);
+  const workspaceWebsiteHref = `${adminBase}/website/pages`;
+  const workspaceBillingHref = `${adminBase}/account`;
   // W1-L6 — pure mapping from the picker's plan-gate availability to the
   // copy shown inline; null means creation is allowed (or availability
   // hasn't loaded yet), so nothing renders.
