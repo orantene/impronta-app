@@ -270,6 +270,19 @@ export function RevisionsDrawer(): ReactElement | null {
     // T4.5: otherwise branch on page type. Non-homepage uses pageId + current
     // pageVersion so the drawer loads revisions for the correct page without a
     // locale-based homepage lookup; the homepage path is unchanged.
+    //
+    // BUILDER-LEFTOVERS: the non-homepage branch must never FALL THROUGH to
+    // `loadHomepageRevisionsAction`. That action takes no pageId — it resolves
+    // the homepage row from `locale` — so a cms page whose `pageVersion` has
+    // not landed yet (composition still loading) used to render the HOMEPAGE's
+    // revision history under a cms page's drawer title, and a fast click could
+    // fire a restore against a revision id that belongs to a different page.
+    // A page we know is non-homepage waits for its own identity instead.
+    if (!loadSurfaceRevisions && isNonHomepage && (!pageId || pageVersion === null)) {
+      setLoading(true);
+      return () => { cancelled = true; };
+    }
+
     const fetchPromise = loadSurfaceRevisions
       ? loadSurfaceRevisions()
       : isNonHomepage && pageId && pageVersion !== null
