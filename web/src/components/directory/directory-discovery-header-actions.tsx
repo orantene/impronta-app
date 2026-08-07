@@ -132,7 +132,7 @@ export function DirectoryDiscoveryHeaderActions({
                 data-favorite-glyph="heart"
                 className={cn(
                   "size-5",
-                  hasFavorites && "text-[var(--accent)]",
+                  hasFavorites && "text-[var(--accent-solid)]",
                 )}
                 fill={hasFavorites ? "currentColor" : "none"}
               />
@@ -140,12 +140,12 @@ export function DirectoryDiscoveryHeaderActions({
                 data-favorite-glyph="bookmark"
                 className={cn(
                   "size-5",
-                  hasFavorites && "text-[var(--accent)]",
+                  hasFavorites && "text-[var(--accent-solid)]",
                 )}
                 fill={hasFavorites ? "currentColor" : "none"}
               />
               {favCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--accent)] bg-black px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--accent)]">
+                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--accent-solid)] bg-black px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--accent-solid)]">
                   {favCount > 99 ? "99+" : String(favCount)}
                 </span>
               ) : null}
@@ -168,7 +168,7 @@ export function DirectoryDiscoveryHeaderActions({
               className={cn(
                 "relative shrink-0 transition-[box-shadow,transform] duration-500 ease-out",
                 cueRing &&
-                  "shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--accent)] scale-105",
+                  "shadow-[0_0_0_2px_var(--background),0_0_0_4px_var(--accent-solid)] scale-105",
               )}
               onClick={() => {
                 if (inquiryModal) {
@@ -190,12 +190,12 @@ export function DirectoryDiscoveryHeaderActions({
               <Send
                 className={cn(
                   "size-5",
-                  hasCart && "text-[var(--accent)]",
+                  hasCart && "text-[var(--accent-solid)]",
                 )}
                 fill={hasCart ? "currentColor" : "none"}
               />
               {cartCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--accent)] bg-black px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--accent)]">
+                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--accent-solid)] bg-black px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--accent-solid)]">
                   {cartCount > 99 ? "99+" : String(cartCount)}
                 </span>
               ) : null}
