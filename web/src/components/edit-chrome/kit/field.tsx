@@ -23,6 +23,14 @@
 import type { ReactNode } from "react";
 
 import { CHROME } from "./tokens";
+import { useEditorLocale } from "../use-editor-locale";
+
+/** WAVE 4.4 translation boundary: plain-string children resolve through the
+ *  shared editor catalog; nodes and interpolated values pass through. */
+function useNodeT(): (node: ReactNode) => ReactNode {
+  const { t } = useEditorLocale();
+  return (node) => (typeof node === "string" ? t(node) : node);
+}
 
 interface FieldProps {
   className?: string;
@@ -65,6 +73,7 @@ export function FieldLabel({
   htmlFor,
   children,
 }: FieldLabelProps) {
+  const tn = useNodeT();
   return (
     <label
       htmlFor={htmlFor}
@@ -80,7 +89,7 @@ export function FieldLabel({
         marginBottom: 6,
       }}
     >
-      {children}
+      {tn(children)}
       {required ? (
         <span
           aria-hidden
@@ -150,6 +159,7 @@ export function Helper({
           : tone === "rose"
             ? CHROME.rose
             : CHROME.muted;
+  const tn = useNodeT();
   return (
     <div
       className={`flex items-center justify-between ${className ?? ""}`}
@@ -160,7 +170,7 @@ export function Helper({
         color,
       }}
     >
-      {children}
+      {tn(children)}
     </div>
   );
 }

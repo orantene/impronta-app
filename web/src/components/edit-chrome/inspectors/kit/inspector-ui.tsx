@@ -24,6 +24,7 @@ import {
   baseBreakpointId,
   breakpointLabelForDevice,
 } from "../../breakpoint-registry";
+import { useInspectorT } from "./use-inspector-t";
 import { BUILDER_VISUAL } from "./tokens";
 import type { OverrideDevice } from "../responsive-field-state";
 
@@ -86,10 +87,16 @@ export function InspectorSection({
   children: ReactNode;
   className?: string;
 }) {
+  const { tn, to } = useInspectorT();
   // INS-3: auto-filter from the shared search context.
   // String-only titles participate in search; ReactNode titles (icons etc.) are skipped.
-  const searchLabel = typeof title === "string" ? title : "";
-  const hidden = useInspectorSearchFilter(searchLabel ? [searchLabel, description ?? ""] : []);
+  // Search matches the RENDERED text, so a Spanish operator searches in Spanish.
+  const localizedTitle = tn(title);
+  const localizedDescription = to(description);
+  const searchLabel = typeof localizedTitle === "string" ? localizedTitle : "";
+  const hidden = useInspectorSearchFilter(
+    searchLabel ? [searchLabel, localizedDescription ?? ""] : [],
+  );
   if (hidden) return null;
 
   return (
@@ -98,9 +105,9 @@ export function InspectorSection({
       style={{ gap: INSPECTOR_SECTION_GAP }}
     >
       <div className="flex flex-col gap-0.5">
-        <h3 className={INSPECTOR_SECTION_TITLE_CLASS}>{title}</h3>
-        {description ? (
-          <p className={INSPECTOR_HELP_TEXT_CLASS}>{description}</p>
+        <h3 className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</h3>
+        {localizedDescription ? (
+          <p className={INSPECTOR_HELP_TEXT_CLASS}>{localizedDescription}</p>
         ) : null}
       </div>
       <div className="flex flex-col" style={{ gap: INSPECTOR_SECTION_GAP }}>
@@ -146,8 +153,14 @@ export function InspectorAccordion({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
+  const { t, to } = useInspectorT();
+  const localizedTitle = t(title);
+  const localizedDescription = to(description);
   // INS-3: auto-filter from the shared search context.
-  const hidden = useInspectorSearchFilter([title, description ?? ""]);
+  const hidden = useInspectorSearchFilter([
+    localizedTitle,
+    localizedDescription ?? "",
+  ]);
   const [open, setOpen] = useState(defaultOpen);
   const panelId = useId();
   if (hidden) return null;
@@ -180,9 +193,11 @@ export function InspectorAccordion({
           <ChevronRight size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
         )}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className={INSPECTOR_SECTION_TITLE_CLASS}>{title}</span>
-          {description && !open ? (
-            <span className={`truncate ${INSPECTOR_HELP_TEXT_CLASS}`}>{description}</span>
+          <span className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</span>
+          {localizedDescription && !open ? (
+            <span className={`truncate ${INSPECTOR_HELP_TEXT_CLASS}`}>
+              {localizedDescription}
+            </span>
           ) : null}
         </span>
       </button>
@@ -192,8 +207,8 @@ export function InspectorAccordion({
           className="flex flex-col border-t px-3.5 pb-3.5 pt-2"
           style={{ borderColor: CHROME.line, gap: INSPECTOR_SECTION_GAP }}
         >
-          {description && open ? (
-            <p className={INSPECTOR_HELP_TEXT_CLASS}>{description}</p>
+          {localizedDescription && open ? (
+            <p className={INSPECTOR_HELP_TEXT_CLASS}>{localizedDescription}</p>
           ) : null}
           {children}
         </div>
@@ -224,10 +239,15 @@ export function InspectorField({
   desktopOnlyMessage?: "Desktop only" | "Same as desktop";
   placeholderValue?: string;
 }) {
+  const { t, to } = useInspectorT();
   const { device } = useEditContext();
   const showPlaceholder = desktopOnly && device !== "desktop";
+  const localizedLabel = to(label);
+  const localizedHelp = to(help);
   // INS-3: field-level search filter — fields with a label participate.
-  const hidden = useInspectorSearchFilter(label ? [label, help ?? ""] : []);
+  const hidden = useInspectorSearchFilter(
+    localizedLabel ? [localizedLabel, localizedHelp ?? ""] : [],
+  );
   if (hidden) return null;
 
   return (
@@ -235,6 +255,9 @@ export function InspectorField({
       className={`flex flex-col ${className ?? ""}`}
       style={{ gap: INSPECTOR_FIELD_GAP }}
     >
+      {/* Raw copy in, not `localizedLabel`: InspectorLabel / InspectorHelpText
+          own the translation for every caller, so passing the already-resolved
+          Spanish here would run it through the resolver twice. */}
       {label ? (
         <div className="flex items-center justify-between gap-2">
           <InspectorLabel>{label}</InspectorLabel>
@@ -255,22 +278,26 @@ export function InspectorField({
             color: BUILDER_VISUAL.textMuted,
           }}
         >
-          {placeholderValue ?? desktopOnlyMessage}
+          {t(placeholderValue ?? desktopOnlyMessage)}
         </div>
       ) : (
         children
       )}
-      {help && !showPlaceholder ? <InspectorHelpText>{help}</InspectorHelpText> : null}
+      {help && !showPlaceholder ? (
+        <InspectorHelpText>{help}</InspectorHelpText>
+      ) : null}
     </div>
   );
 }
 
 export function InspectorLabel({ children }: { children: ReactNode }) {
-  return <label className={INSPECTOR_FIELD_LABEL_CLASS}>{children}</label>;
+  const { tn } = useInspectorT();
+  return <label className={INSPECTOR_FIELD_LABEL_CLASS}>{tn(children)}</label>;
 }
 
 export function InspectorHelpText({ children }: { children: ReactNode }) {
-  return <p className={INSPECTOR_HELP_TEXT_CLASS}>{children}</p>;
+  const { tn } = useInspectorT();
+  return <p className={INSPECTOR_HELP_TEXT_CLASS}>{tn(children)}</p>;
 }
 
 /** Re-export KIT input classes — panels should use KIT.input via InspectorInput wrapper. */
@@ -360,6 +387,7 @@ export function InspectorButton({
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "outline" | "ghost" | "primary";
 }) {
+  const { tn } = useInspectorT();
   const base =
     "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border text-[13px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
   const styles: Record<string, CSSProperties> = {
@@ -390,7 +418,7 @@ export function InspectorButton({
       style={styles[variant]}
       {...props}
     >
-      {children}
+      {tn(children)}
     </button>
   );
 }
@@ -422,6 +450,7 @@ export function InspectorNotice({
   children: ReactNode;
   tone?: "neutral" | "info";
 }) {
+  const { tn } = useInspectorT();
   return (
     <div
       className="rounded-xl px-3.5 py-3 text-[12px] leading-snug"
@@ -431,7 +460,7 @@ export function InspectorNotice({
         color: tone === "info" ? CHROME.blue : CHROME.muted,
       }}
     >
-      {children}
+      {tn(children)}
     </div>
   );
 }
@@ -443,6 +472,7 @@ export function InspectorEmptyState({
   title: string;
   description?: string;
 }) {
+  const { t, to } = useInspectorT();
   return (
     <div
       className="flex flex-col items-center justify-center rounded-xl px-4 py-8 text-center"
@@ -451,167 +481,22 @@ export function InspectorEmptyState({
         background: CHROME.paper,
       }}
     >
-      <p className={INSPECTOR_SECTION_TITLE_CLASS}>{title}</p>
+      <p className={INSPECTOR_SECTION_TITLE_CLASS}>{t(title)}</p>
       {description ? (
-        <p className={`mt-1.5 max-w-[240px] ${INSPECTOR_HELP_TEXT_CLASS}`}>{description}</p>
+        <p className={`mt-1.5 max-w-[240px] ${INSPECTOR_HELP_TEXT_CLASS}`}>
+          {to(description)}
+        </p>
       ) : null}
     </div>
   );
 }
 
-/** Device picker card row (Responsive tab). */
-export function InspectorDeviceCards<T extends string>({
-  value,
-  onChange,
-  options,
-}: {
-  value: T;
-  onChange: (next: T) => void;
-  options: ReadonlyArray<{
-    key: T;
-    label: string;
-    hint?: string;
-    icon: ReactNode;
-    /**
-     * RESP-2 — optional advisory count badge rendered in the top-right corner
-     * of the card. Shows when > 0. Advisory only — never blocks navigation.
-     */
-    badgeCount?: number;
-  }>;
-}) {
-  // Column count tracks the registry-driven option list (RESP-1) so adding a
-  // wide/compact editable tier keeps the cards evenly sized rather than spilling.
-  const columns = Math.min(Math.max(options.length, 1), 5);
-  return (
-    <div
-      className="grid gap-2"
-      style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-    >
-      {options.map((opt) => {
-        const active = opt.key === value;
-        const hasBadge = (opt.badgeCount ?? 0) > 0;
-        return (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => onChange(opt.key)}
-            aria-pressed={active}
-            aria-label={
-              hasBadge
-                ? `${opt.label}: ${opt.badgeCount} mobile health issue${opt.badgeCount === 1 ? "" : "s"}`
-                : opt.label
-            }
-            title={
-              // W2-C5: the red count badge on this card had no hover
-              // explanation (audit finding); the aria-label already spells it
-              // out for screen readers, mirror it as a visible tooltip too.
-              hasBadge
-                ? `${opt.badgeCount} mobile health issue${opt.badgeCount === 1 ? "" : "s"}, review in Mobile preview`
-                : undefined
-            }
-            className="relative flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors"
-            style={{
-              background: active ? "rgba(124, 58, 237, 0.08)" : CHROME.surface,
-              borderColor: active ? CHROME.accent : CHROME.line,
-              color: active ? CHROME.accent : CHROME.muted,
-            }}
-          >
-            {hasBadge ? (
-              <span
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  right: 5,
-                  minWidth: 15,
-                  height: 15,
-                  borderRadius: 999,
-                  // Issue-count badge. Was a hardcoded rust (banned in admin
-                  // chrome); rose is the chrome's error/problem role and is
-                  // what the comment above already called this badge.
-                  background: CHROME.rose,
-                  color: "#fff",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  lineHeight: "15px",
-                  textAlign: "center",
-                  padding: "0 3px",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {(opt.badgeCount ?? 0) > 99 ? "99+" : opt.badgeCount}
-              </span>
-            ) : null}
-            <span aria-hidden>{opt.icon}</span>
-            <span className="text-[11px] font-semibold">{opt.label}</span>
-            {opt.hint ? (
-              <span className="text-[9px] font-medium opacity-80">{opt.hint}</span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Animation / composition option grid (Motion / Layout tabs). */
-export function InspectorOptionCards<T extends string>({
-  value,
-  onChange,
-  options,
-  columns = 3,
-}: {
-  value: T | undefined;
-  onChange: (next: T | undefined) => void;
-  options: ReadonlyArray<{
-    value: T;
-    label: string;
-    icon?: ReactNode;
-  }>;
-  columns?: 2 | 3 | 4 | 5;
-}) {
-  const gridCols =
-    columns === 2
-      ? "grid-cols-2"
-      : columns === 4
-        ? "grid-cols-4"
-        : columns === 5
-          ? "grid-cols-5"
-          : "grid-cols-3";
-
-  const toggle = useCallback(
-    (next: T) => {
-      onChange(value === next ? undefined : next);
-    },
-    [onChange, value],
-  );
-
-  return (
-    <div className={`grid gap-2 ${gridCols}`}>
-      {options.map((opt) => {
-        const active = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => toggle(opt.value)}
-            aria-pressed={active}
-            className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2.5 text-center transition-colors"
-            style={{
-              minHeight: 64,
-              background: active ? "rgba(124, 58, 237, 0.08)" : CHROME.surface,
-              borderColor: active ? CHROME.accent : CHROME.line,
-              color: active ? CHROME.accent : CHROME.muted,
-            }}
-          >
-            {opt.icon ? <span aria-hidden>{opt.icon}</span> : null}
-            <span className="text-[10.5px] font-semibold leading-tight">{opt.label}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+/**
+ * Device picker row + option-card grid moved to `inspector-card-grids.tsx`
+ * for the 800-line cap. Re-exported here so existing import sites and the
+ * kit barrel are unchanged.
+ */
+export { InspectorDeviceCards, InspectorOptionCards } from "./inspector-card-grids";
 
 /** Cream inset well for composition / stacking blocks (Layout tab mockup). */
 export function InspectorControlWell({
@@ -646,10 +531,16 @@ export function InspectorOverrideBadge({
   onReset?: () => void;
   tooltip?: string;
 }) {
-  const label = breakpointLabelForDevice(device);
+  const { t, to } = useInspectorT();
+  const label = t(breakpointLabelForDevice(device));
   const title =
-    tooltip ??
-    `${label} override. Tap Reset to inherit ${breakpointLabelForDevice(baseBreakpointId()).toLowerCase()}`;
+    to(tooltip) ??
+    t("{device} override. Tap Reset to inherit {base}")
+      .replace("{device}", label)
+      .replace(
+        "{base}",
+        t(breakpointLabelForDevice(baseBreakpointId())).toLowerCase(),
+      );
   return (
     <span
       title={title}
@@ -667,9 +558,12 @@ export function InspectorOverrideBadge({
           onClick={onReset}
           className="cursor-pointer border-none bg-transparent p-0 text-[10px] font-semibold underline"
           style={{ color: BUILDER_VISUAL.accent }}
-          aria-label={`Reset ${label.toLowerCase()} override`}
+          aria-label={t("Reset {device} override").replace(
+            "{device}",
+            label.toLowerCase(),
+          )}
         >
-          Reset
+          {t("Reset")}
         </button>
       ) : null}
     </span>
@@ -688,11 +582,13 @@ export function InspectorMicroAction({
   title?: string;
   disabled?: boolean;
 }) {
+  const { to } = useInspectorT();
+  const localizedTitle = to(title);
   return (
     <button
       type="button"
-      title={title}
-      aria-label={title}
+      title={localizedTitle}
+      aria-label={localizedTitle}
       disabled={disabled}
       onClick={onClick}
       className="inline-flex cursor-pointer items-center justify-center rounded-md border-none bg-transparent p-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
@@ -738,6 +634,7 @@ export function InspectorMediaRow({
   onReplace?: () => void;
   replaceLabel?: string;
 }) {
+  const { t } = useInspectorT();
   return (
     <InspectorCard>
       <div className="flex items-center gap-3">
@@ -756,7 +653,7 @@ export function InspectorMediaRow({
         ) : null}
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-medium text-stone-900">{filename}</p>
-          {meta ? <p className="text-[11px] text-stone-500">{meta}</p> : null}
+          {meta ? <p className="text-[11px] text-stone-500">{t(meta)}</p> : null}
         </div>
         {onReplace ? (
           <InspectorButton variant="outline" onClick={onReplace} type="button">

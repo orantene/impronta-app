@@ -34,6 +34,7 @@ import {
 } from "./inspector-ui";
 import { Segmented, type SegmentedOption } from "../../kit/segmented";
 import { NumberUnit, type NumberUnitProps } from "../../kit/number-unit";
+import { useInspectorT } from "./use-inspector-t";
 import { KIT } from "./tokens";
 
 interface FieldShellProps {
@@ -70,6 +71,10 @@ export function InspectorFieldShell({
   className,
   children,
 }: FieldShellProps) {
+  // WAVE 4.4 translation boundary: every deep-inspector field label and hint
+  // arrives here as a plain string, so translating once here covers all of
+  // them. Non-string nodes (badges, fragments) pass through unchanged.
+  const { tn } = useInspectorT();
   return (
     <div
       className={className ?? FIELD_COLUMN_CLASS}
@@ -78,15 +83,15 @@ export function InspectorFieldShell({
     >
       {accessory !== undefined ? (
         <div className="flex items-center justify-between gap-2">
-          <span className={INSPECTOR_FIELD_LABEL_CLASS}>{label}</span>
+          <span className={INSPECTOR_FIELD_LABEL_CLASS}>{tn(label)}</span>
           {accessory}
         </div>
       ) : (
-        <span className={INSPECTOR_FIELD_LABEL_CLASS}>{label}</span>
+        <span className={INSPECTOR_FIELD_LABEL_CLASS}>{tn(label)}</span>
       )}
       {children}
       {hint !== undefined ? (
-        <span className={INSPECTOR_HELP_TEXT_CLASS}>{hint}</span>
+        <span className={INSPECTOR_HELP_TEXT_CLASS}>{tn(hint)}</span>
       ) : null}
     </div>
   );
@@ -189,6 +194,7 @@ export function SelectField({
   options,
   disabled,
 }: SelectFieldProps) {
+  const { tn } = useInspectorT();
   return (
     <InspectorFieldShell
       label={label}
@@ -206,7 +212,7 @@ export function SelectField({
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
-            {opt.label}
+            {tn(opt.label)}
           </option>
         ))}
       </select>

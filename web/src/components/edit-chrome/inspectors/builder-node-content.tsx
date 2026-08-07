@@ -39,6 +39,7 @@ import {
 } from "@/lib/site-admin/add-gallery";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Stepper, TextInput, Toggle } from "../kit";
+import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
@@ -2920,6 +2921,7 @@ function NestedBlocksCard({
   canRemove?: (node: BuilderNode, index: number) => boolean;
   extraActions?: (node: BuilderNode, index: number) => ReactNode;
 }) {
+  const { t } = useInspectorT();
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [draggingNode, setDraggingNode] = useState<{
     nodeId: string;
@@ -3110,11 +3112,13 @@ function NestedBlocksCard({
     <Card>
       <CardHead
         title={title}
-        sub={`${nodes.length} nested block${nodes.length === 1 ? "" : "s"}`}
+        sub={t(
+          nodes.length === 1 ? "{count} nested block" : "{count} nested blocks",
+        ).replace("{count}", String(nodes.length))}
       />
       <CardBody>
         <div className="flex flex-col gap-3">
-          <p className={KIT.hint}>{helper}</p>
+          <p className={KIT.hint}>{t(helper)}</p>
           {copiedKind && pastePreview ? (
             <div
               className={

@@ -31,6 +31,7 @@ import {
 } from "react";
 import { Search, X } from "lucide-react";
 import { CHROME } from "../../kit/tokens";
+import { useInspectorT } from "./use-inspector-t";
 
 // ── Context ─────────────────────────────────────────────────────────────────
 
@@ -107,11 +108,12 @@ export function InspectorSearchField({
     },
     [onChange],
   );
+  const { t } = useInspectorT();
 
   return (
     <div
       role="search"
-      aria-label="Find a setting"
+      aria-label={t("Find a setting")}
       style={{
         position: "relative",
         display: "flex",
@@ -135,8 +137,8 @@ export function InspectorSearchField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Find a setting…"
-        aria-label="Find a setting in the inspector"
+        placeholder={t("Find a setting…")}
+        aria-label={t("Find a setting in the inspector")}
         autoComplete="off"
         spellCheck={false}
         style={{
@@ -163,7 +165,7 @@ export function InspectorSearchField({
       {value ? (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={t("Clear search")}
           onClick={() => onChange("")}
           style={{
             position: "absolute",

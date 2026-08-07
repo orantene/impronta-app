@@ -19,6 +19,7 @@ import {
 import { useBuilderBreakpoints } from "../../use-builder-breakpoints";
 import { BUILDER_VISUAL } from "./tokens";
 import { InspectorDeviceCards } from "./inspector-ui";
+import { useInspectorT } from "./use-inspector-t";
 import type { ViewportDevice } from "../responsive-field-state";
 
 export interface InspectorViewportRailProps {
@@ -106,8 +107,9 @@ export function InspectorViewportRail({
 
   const baseId = baseBreakpointId(breakpoints);
   const isBase = device === baseId;
-  const baseLabel = breakpointLabelForDevice(baseId, breakpoints);
-  const deviceLabel = breakpointLabelForDevice(device, breakpoints);
+  const { t } = useInspectorT();
+  const baseLabel = t(breakpointLabelForDevice(baseId, breakpoints));
+  const deviceLabel = t(breakpointLabelForDevice(device, breakpoints));
 
   return (
     <div
@@ -135,7 +137,7 @@ export function InspectorViewportRail({
             color: BUILDER_VISUAL.textStrong,
           }}
         >
-          Hide on this device
+          {t("Hide on this device")}
         </span>
         <Toggle on={hideOnDevice} onChange={onHideChange} />
       </div>
@@ -145,10 +147,17 @@ export function InspectorViewportRail({
           style={{ fontSize: 11, color: CHROME.muted }}
         >
           <span>
-            Editing {deviceLabel}
+            {t("Editing {device}").replace("{device}", deviceLabel)}
             {overrideCount > 0
-              ? ` · ${overrideCount} override${overrideCount === 1 ? "" : "s"}`
-              : ` · Inherits ${baseLabel.toLowerCase()}`}
+              ? ` · ${t(
+                  overrideCount === 1
+                    ? "{count} override"
+                    : "{count} overrides",
+                ).replace("{count}", String(overrideCount))}`
+              : ` · ${t("Inherits {base}").replace(
+                  "{base}",
+                  baseLabel.toLowerCase(),
+                )}`}
           </span>
           {overrideCount > 0 && onResetOverrides ? (
             <button
@@ -157,13 +166,16 @@ export function InspectorViewportRail({
               className="cursor-pointer border-none bg-transparent p-0 text-[11px] font-medium"
               style={{ color: BUILDER_VISUAL.accent }}
             >
-              Reset
+              {t("Reset")}
             </button>
           ) : null}
         </div>
       ) : (
         <p style={{ fontSize: 11, color: CHROME.muted2, margin: 0, lineHeight: 1.4 }}>
-          {baseLabel} is the base, switch tiers to add overrides.
+          {t("{base} is the base, switch tiers to add overrides.").replace(
+            "{base}",
+            baseLabel,
+          )}
         </p>
       )}
     </div>

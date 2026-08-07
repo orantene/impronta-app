@@ -207,6 +207,7 @@ test("the ES catalog has no duplicate keys", () => {
     "src/components/edit-chrome/editor-i18n-es.ts",
     "src/components/edit-chrome/editor-i18n-es-canvas.ts",
     "src/components/edit-chrome/editor-i18n-es-sections.ts",
+    "src/components/edit-chrome/editor-i18n-es-inspectors.ts",
   ];
   const problems: string[] = [];
 
