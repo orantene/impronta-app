@@ -42,7 +42,7 @@ export function AppLanding() {
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:h-[72px] sm:px-8">
           <a
             href={site}
-            aria-label={`${PLATFORM_BRAND.name} — home`}
+            aria-label={`${PLATFORM_BRAND.name} home`}
             className="-mx-1 flex items-center rounded-md px-1 py-1"
           >
             <span style={{ color: "var(--plt-ink-strong)" }}>
@@ -89,8 +89,8 @@ export function AppLanding() {
             Welcome to {PLATFORM_BRAND.name}
           </h1>
           <p className="mx-auto mt-4 max-w-sm text-base" style={{ color: "var(--plt-muted)" }}>
-            Sign in to your workspace — your admin, client, or talent dashboard.
-            Everything past this point is private to your account.
+            Sign in to get to your dashboard. Everything behind it is private
+            to your account.
           </p>
 
           <div className="mt-10 flex flex-col items-center gap-3">
