@@ -35,6 +35,8 @@ import {
 } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { hostSafeDestination } from "@/lib/saas/host-safe-destination";
 import type { Locale } from "@/i18n/config";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
@@ -79,7 +81,17 @@ export async function HeaderAuthArea({
   const profile: AccessProfileWithDisplayName | null = actor.profile;
   const accountLink = resolveAccountHref(Boolean(user), profile);
   const destination = resolveAuthenticatedDestination(profile);
-  const secondaryAction = !user
+
+  // Host-safe. The published CMS shell renders this on hub hosts, where
+  // /admin, /client, /talent and /onboarding/role do not exist: relative,
+  // every account link here was a 404. Absolute app-host URLs carry no
+  // locale prefix, so only same-surface paths get withLocalePath.
+  const hostKind = (await getPublicHostContext()).kind;
+  const accountHref = (href: string) => {
+    const hostSafe = hostSafeDestination(href, hostKind);
+    return hostSafe === href ? withLocalePath(href, locale) : hostSafe;
+  };
+  const secondaryActionRaw = !user
     ? null
     : destination === "/onboarding/role"
       ? { href: "/onboarding/role", label: t("public.header.finishSetup") }
@@ -88,6 +100,11 @@ export async function HeaderAuthArea({
         : profile?.app_role === "talent"
           ? { href: "/talent", label: t("public.header.myProfile") }
           : { href: "/client", label: t("public.header.dashboard") };
+
+  // Same host-safety as the primary link: these are raw workspace paths.
+  const secondaryAction = secondaryActionRaw
+    ? { ...secondaryActionRaw, href: accountHref(secondaryActionRaw.href) }
+    : null;
 
   const [savedIds, favoriteIds] = showDiscoveryTools
     ? await Promise.all([getSavedTalentIds(), getFavoriteTalentIds()])
@@ -130,7 +147,7 @@ export async function HeaderAuthArea({
             {destination === "/onboarding/role" ? (
               <Button size="sm" variant="outline" className="ml-1" asChild>
                 <Link
-                  href={withLocalePath(accountLink.href, locale)}
+                  href={accountHref(accountLink.href)}
                   aria-label={accountLink.label}
                 >
                   {t("public.header.setup")}
@@ -146,7 +163,7 @@ export async function HeaderAuthArea({
                     : t("public.header.signedInRole")
                 }
                 dashboardAction={{
-                  href: withLocalePath(accountLink.href, locale),
+                  href: accountHref(accountLink.href),
                   label: t("public.header.dashboard"),
                 }}
                 secondaryAction={secondaryAction}
@@ -168,7 +185,7 @@ export async function HeaderAuthArea({
         ) : (
           <Button size="icon" variant="ghost" className="shrink-0" asChild>
             <Link
-              href={withLocalePath(accountLink.href, locale)}
+              href={accountHref(accountLink.href)}
               aria-label={accountLink.label}
             >
               <UserRound className="size-5" />

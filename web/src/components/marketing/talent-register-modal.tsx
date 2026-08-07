@@ -27,7 +27,11 @@ import {
   requestTenantRegistration,
   type RequestTenantRegistrationState,
 } from "@/app/onboarding/actions";
-import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
+import {
+  AUTH_POPUP_MESSAGE_TYPE,
+  type AuthPopupMessage,
+  navigateToAuthPopupDestination,
+} from "@/lib/auth-popup";
 import { getAppUrl } from "@/lib/auth-flow";
 import {
   getTalentModalCopy,
@@ -605,7 +609,7 @@ function GoogleButton({ next, t }: { next: string; t: TalentModalCopy }) {
       popupRef.current?.close();
       popupRef.current = null;
       if (event.data.success) {
-        router.push(event.data.destination ?? next);
+        navigateToAuthPopupDestination(event.data.destination ?? next, router);
         router.refresh();
       }
     }
