@@ -261,7 +261,12 @@ export function PayoutsShell({
           {showOnboarding ? (
             <div style={card}>
               <div style={sectionLabel}>Connect your bank</div>
-              <div style={{ marginTop: 12, border: `1px solid ${C.borderSoft}`, borderRadius: 12, overflow: "hidden" }}>
+              {/* No border/radius wrapper here: Stripe's embedded component
+                  renders its OWN card chrome, so wrapping it produced a
+                  triple-border look (our card > this box > Stripe's card >
+                  Stripe's inner alerts) that read as cramped. Give it vertical
+                  breathing room instead and let Stripe's card be the only card. */}
+              <div style={{ marginTop: 14 }}>
                 <ConnectEmbeddedOnboarding fetchClientSecret={() => createTalentAccountSession(country ? { country } : {})} onExit={handleExit} />
               </div>
               <button type="button" onClick={handleExit} style={{ ...ghostBtn, marginTop: 12 }}>

@@ -39,14 +39,31 @@ export const TULALA_CONNECT_APPEARANCE: {
     colorText: INK,
     colorSecondaryText: "#6B6B6E",
     colorDanger: "#A33A3A",
+    // Hairline borders instead of Stripe's heavier default — the embedded card
+    // sits inside our own card, so loud borders read as boxes-in-boxes.
+    colorBorder: "#E6E6E8",
     fontFamily: FONT_STACK,
-    borderRadius: "10px",
-    spacingUnit: "9px",
+    fontSizeBase: "15px",
+    borderRadius: "12px",
+    // Drives EVERY internal gap in the embedded component. Stripe's default (and
+    // our old 9px) crowds the LatAm forms, which stack more fields (CUIL, CLABE,
+    // CBU) than the US flow. 12px gives the form room to breathe.
+    spacingUnit: "12px",
+    // Inputs rendered with Stripe's pale-blue default fill against our warm
+    // surface. Pin them to white with our hairline border + green focus.
+    formBackgroundColor: "#ffffff",
+    formHighlightColorBorder: TULALA_GREEN,
+    formAccentColor: TULALA_GREEN,
+    // The nested "test account" / step banners sit on this tone; our faint warm
+    // grey keeps them from looking like a third stacked card.
+    offsetBackgroundColor: "#F7F7F5",
     buttonPrimaryColorBackground: TULALA_GREEN,
     buttonPrimaryColorText: "#ffffff",
     buttonSecondaryColorText: TULALA_GREEN,
     actionPrimaryColorText: TULALA_GREEN,
     badgeSuccessColorText: "#1A7348",
     badgeSuccessColorBackground: "#E7F1EC",
+    badgeNeutralColorText: "#6B6B6E",
+    badgeNeutralColorBackground: "#F1F1EF",
   },
 };
