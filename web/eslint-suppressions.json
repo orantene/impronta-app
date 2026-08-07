@@ -1515,7 +1515,7 @@
   },
   "src/lib/server-actions/admin-agency-logo-upload.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 4
     }
   },
   "src/lib/server-actions/admin-billing.ts": {
