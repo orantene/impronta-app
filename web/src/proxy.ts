@@ -731,6 +731,8 @@ export async function proxy(request: NextRequest) {
     await updateSession(innerRequest, {
       pathnameForAuth,
       languageSettings: effectiveLangSettings,
+      // Same surface the allow-list ran against: auth routing must not redirect to a path this surface 404s.
+      hostKind: effectiveHostContext.kind,
     });
 
   if (sessionRes.headers.get("location")) {

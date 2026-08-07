@@ -5,6 +5,10 @@ import {
   resolveAuthenticatedDestination,
   type AccessProfile,
 } from "@/lib/auth-flow";
+import {
+  isPathAllowedForHostKind,
+  isSurfaceHostKind,
+} from "@/lib/saas/surface-allow-list";
 
 export type AuthRoutingInput = {
   pathname: string;
@@ -24,6 +28,24 @@ export type AuthRoutingInput = {
    * /onboarding/workspace?lead=<id>, not their existing dashboard.
    */
   nextParam?: string | null | undefined;
+  /**
+   * Host kind serving this request (`marketing`, `app`, `agency`, `hub`).
+   *
+   * Auth routing used to be host-blind: it happily redirected to `/admin`,
+   * `/client`, or `/onboarding/role` no matter which surface the request
+   * arrived on. Those paths only exist on the app + agency surfaces, so on
+   * the marketing apex (tulala.digital) or the hub the redirect landed on a
+   * path the surface allow-list 404s — a hard dead end with no way forward.
+   *
+   * Live repro (2026-08-07): a brand-new signup (app_role='client',
+   * account_status='onboarding') visiting tulala.digital/get-started was
+   * bounced to /onboarding/role and got "Page not found" instead of the
+   * workspace signup form.
+   *
+   * Left optional so existing callers/tests keep their host-blind behavior;
+   * middleware always passes it.
+   */
+  hostKind?: string | null | undefined;
 };
 
 export type AuthRoutingDecision = {
@@ -53,8 +75,41 @@ function isAuthFlowPath(pathname: string): boolean {
     // auth flow paths so unauthenticated visitors can reach them directly
     // (e.g. improntamodels.com/talent/register).
     pathname === "/talent/register" ||
-    pathname === "/client/register"
+    pathname === "/client/register" ||
+    // `/get-started` is the workspace signup entry point, not a page to be
+    // bounced off. A signed-in-but-still-onboarding account (the state every
+    // brand-new signup is in) landing here from a bookmark, the back button,
+    // a marketing CTA, or an email link must SEE the form: it is the only
+    // path that leads forward for someone who wants a workspace. The page
+    // itself handles signed-in visitors (#1038).
+    pathname === "/get-started" ||
+    pathname.startsWith("/get-started/")
   );
+}
+
+/**
+ * Strip the query string so a redirect target like
+ * `/onboarding/workspace?lead=abc` is allow-list-checked as a path.
+ */
+function pathnameOfTarget(target: string): string {
+  const q = target.indexOf("?");
+  return q === -1 ? target : target.slice(0, q);
+}
+
+/**
+ * True when `target` can actually render on `hostKind`.
+ *
+ * The surface allow-list is the same gate middleware applies to the inbound
+ * request, so this answers exactly the question that matters: would
+ * redirecting there produce a 404? An unknown `hostKind` (callers that do
+ * not pass one) answers `true`, preserving the previous host-blind behavior.
+ */
+function targetExistsOnHost(
+  target: string,
+  hostKind: string | null | undefined,
+): boolean {
+  if (!hostKind || !isSurfaceHostKind(hostKind)) return true;
+  return isPathAllowedForHostKind(hostKind, pathnameOfTarget(target));
 }
 
 export function resolveAuthRoutingDecision({
@@ -64,6 +119,7 @@ export function resolveAuthRoutingDecision({
   routingProfile,
   isImpersonating,
   nextParam,
+  hostKind,
 }: AuthRoutingInput): AuthRoutingDecision {
   const authFlowPath = isAuthFlowPath(pathname);
   const dashboardDestination = userId
@@ -79,11 +135,24 @@ export function resolveAuthRoutingDecision({
   // get-started funnel intact for users who already have an account.
   const safeNextPath = normalizeOptionalNextPath(nextParam);
 
+  /**
+   * Never redirect to a path this surface 404s. When the intended target does
+   * not exist here, fall back to `/`, which every host kind serves and which
+   * always leads forward (the header carries a "Finish account setup" link).
+   */
+  const hostSafeRedirect = (target: string): string =>
+    targetExistsOnHost(target, hostKind) ? target : "/";
+
   if (
     userId &&
     dashboardDestination === "/onboarding/role" &&
     !authFlowPath &&
-    pathname !== "/onboarding/role"
+    pathname !== "/onboarding/role" &&
+    // Host-aware: `/onboarding/*` lives on the app + agency surfaces only.
+    // On marketing/hub this bounce produced a 404, so let the requested page
+    // render instead. The user keeps a working page and can still finish
+    // setup from the header link.
+    targetExistsOnHost("/onboarding/role", hostKind)
   ) {
     return {
       redirectTo: "/onboarding/role",
@@ -107,7 +176,9 @@ export function resolveAuthRoutingDecision({
       // If `?next=<safe>` was on the URL, honor it. This is the
       // get-started → "Sign in and continue to checkout" path: the user
       // explicitly asked to land somewhere specific, not the default dash.
-      redirectTo: safeNextPath ?? dashboardDestination,
+      // Host-guarded: a signed-in client hitting tulala.digital/login used to
+      // be sent to /client, which does not exist on the marketing surface.
+      redirectTo: hostSafeRedirect(safeNextPath ?? dashboardDestination),
       loginNext: null,
       dashboardDestination,
       isDashboardPath,
@@ -136,7 +207,7 @@ export function resolveAuthRoutingDecision({
 
   if (!sessionProfile || sessionProfile.account_status !== "active") {
     return {
-      redirectTo: dashboardDestination,
+      redirectTo: hostSafeRedirect(dashboardDestination),
       loginNext: null,
       dashboardDestination,
       isDashboardPath,
@@ -145,7 +216,7 @@ export function resolveAuthRoutingDecision({
 
   if (pathname.startsWith("/admin") && !isStaffRole(sessionProfile.app_role)) {
     return {
-      redirectTo: dashboardDestination,
+      redirectTo: hostSafeRedirect(dashboardDestination),
       loginNext: null,
       dashboardDestination,
       isDashboardPath,
@@ -154,7 +225,7 @@ export function resolveAuthRoutingDecision({
 
   if (isImpersonating && pathname.startsWith("/admin")) {
     return {
-      redirectTo: dashboardPathForRole(pathRole),
+      redirectTo: hostSafeRedirect(dashboardPathForRole(pathRole)),
       loginNext: null,
       dashboardDestination,
       isDashboardPath,
@@ -176,7 +247,7 @@ export function resolveAuthRoutingDecision({
     !isStaffRole(pathRole)
   ) {
     return {
-      redirectTo: dashboardPathForRole(pathRole),
+      redirectTo: hostSafeRedirect(dashboardPathForRole(pathRole)),
       loginNext: null,
       dashboardDestination,
       isDashboardPath,
@@ -184,7 +255,7 @@ export function resolveAuthRoutingDecision({
   }
   if (pathname.startsWith("/client") && pathRole !== "client") {
     return {
-      redirectTo: dashboardPathForRole(pathRole),
+      redirectTo: hostSafeRedirect(dashboardPathForRole(pathRole)),
       loginNext: null,
       dashboardDestination,
       isDashboardPath,

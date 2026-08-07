@@ -21,6 +21,8 @@
 
 import { notFound, redirect } from "next/navigation";
 
+import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
+
 import {
   getGuestThreadMessages,
   sendGuestMessageAction,
@@ -57,10 +59,16 @@ export default async function GuestFullConversationPage({
       session.user.id === clientRedirect.clientUserId &&
       clientRedirect.tenantSlug
     ) {
+      // Host-safe: `/c/<id>` resolves on every surface (the link is emailed and
+      // opened from anywhere), but `/<slug>/client/messages` only exists on the
+      // app + agency surfaces. Relative here meant the owner of the inquiry got
+      // a 404 when they opened their own thread on the marketing apex.
       redirect(
-        `/${clientRedirect.tenantSlug}/client/messages?inquiry=${encodeURIComponent(
-          inquiryId,
-        )}&tab=chat`,
+        await hostSafeRedirectDestination(
+          `/${clientRedirect.tenantSlug}/client/messages?inquiry=${encodeURIComponent(
+            inquiryId,
+          )}&tab=chat`,
+        ),
       );
     }
     // If the signed-in user is NOT the owner of this inquiry, fall through to
