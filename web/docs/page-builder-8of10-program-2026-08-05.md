@@ -276,6 +276,10 @@ These are the things that would otherwise cost an agent half a session to redisc
 - **QA tenants**: `qa-agency-244988` (Free, safe, used throughout the 08-04/05 wave),
   `nova-crew` with `nova-qa-owner@impronta.test` (non-staff owner, the fixture that
   proved the owner-lockout bug). Never QA on `impronta`.
+- **NEVER `rm -rf .next` while the dev server is RUNNING.** It corrupts the Turbopack
+  cache database (missing `.sst` files), and every subsequent request hangs with
+  `Failed to restore task data (corrupted database or bug)` rather than failing fast.
+  Order is: stop the server, delete `.next`, start the server. Cost real time twice.
 - **Dev sign-in**: `/api/dev/signin?email=qa-admin@impronta.test&next=/<slug>`,
   passwordless for `@impronta.test`. A 404 from that route means a stale `.next`:
   `rm -rf web/.next` and restart. This cost real time twice in the last wave.
