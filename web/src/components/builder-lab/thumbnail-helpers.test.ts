@@ -55,3 +55,25 @@ test("resolveTemplateThumbnailMap maps templateId → url, skipping unresolved",
   assert.equal(map.has("t5"), false);
   assert.equal(map.size, 2);
 });
+
+test("resolveTemplateThumbnailMap falls back to the built-in static thumbnail by slug", () => {
+  const rows = [
+    // Built-in with no picked media asset → static summary thumbnail.
+    { id: "t1", thumbnail_asset_id: null, slug: "builtin-impronta" },
+    // Built-in WITH a picked asset → the admin's pick wins.
+    { id: "t2", thumbnail_asset_id: "a", slug: "builtin-agency" },
+    // Non-built-in with no asset → still absent (Set thumb affordance).
+    { id: "t3", thumbnail_asset_id: null, slug: "my-custom-starter" },
+  ];
+  const map = resolveTemplateThumbnailMap(
+    rows,
+    new Map([["a", "https://cdn/picked.jpg"]]),
+  );
+  const builtinThumb = map.get("t1");
+  assert.ok(
+    builtinThumb && builtinThumb.startsWith("/"),
+    "builtin-impronta must resolve a committed static thumbnail path",
+  );
+  assert.equal(map.get("t2"), "https://cdn/picked.jpg");
+  assert.equal(map.has("t3"), false);
+});

@@ -27,8 +27,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
-import { type SectionTypeKey, getSectionType } from "@/lib/site-admin/sections/registry";
+import { getSectionType } from "@/lib/site-admin/sections/registry";
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
+import { getThemePreset } from "@/lib/site-admin/presets/theme-presets";
+import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   resolveCasExpectedVersion,
@@ -41,7 +43,16 @@ import {
   publishHomepage,
   saveHomepageDraftComposition,
 } from "./homepage";
+import { resolvePlatformDefaultStorefrontTree } from "./default-storefront-template";
+import {
+  FREE_STARTER_TALENT_SEEDS,
+  buildFreeStarterEntries,
+} from "./onboard-starter-content-entries";
 import { ensureDirectoryPage } from "./onboard-directory-page";
+
+// Re-exported so existing consumers (edit-mode starter recipe, tests) keep a
+// single import site for the seed's public surface.
+export { buildFreeStarterEntries } from "./onboard-starter-content-entries";
 
 export interface OnboardStarterContentInput {
   tenantId: string;
@@ -70,111 +81,6 @@ export interface OnboardStarterContentResult {
   error?: string;
 }
 
-interface FreeStarterEntry {
-  slotKey: string;
-  sectionTypeKey: SectionTypeKey;
-  propsOverride?: Record<string, unknown>;
-}
-
-const FREE_STARTER_ENTRIES: ReadonlyArray<FreeStarterEntry> = [
-  {
-    slotKey: "hero",
-    sectionTypeKey: "hero",
-    propsOverride: {
-      headline: "Your studio, live in one page.",
-      subheadline:
-        "A simple launch page with services, featured roster profiles, and one clear inquiry CTA.",
-      primaryCta: { label: "Book a call", href: "/contact" },
-      secondaryCta: { label: "See profiles", href: "/directory" },
-    },
-  },
-  {
-    slotKey: "services",
-    sectionTypeKey: "category_grid",
-    propsOverride: {
-      eyebrow: "Services",
-      headline: "What this studio offers",
-      items: [
-        { label: "Makeup", tagline: "Editorial + events" },
-        { label: "Hair", tagline: "Set + ceremony ready" },
-        { label: "Photography", tagline: "Portrait + campaign" },
-        { label: "Styling", tagline: "Wardrobe + direction" },
-      ],
-      columnsDesktop: 4,
-      variant: "portrait-masonry",
-    },
-  },
-  {
-    slotKey: "featured",
-    sectionTypeKey: "featured_talent",
-    propsOverride: {
-      eyebrow: "Roster",
-      headline: "Featured professionals",
-      intro:
-        "This section auto-loads real published profiles from your workspace roster (up to five on Free).",
-      sourceMode: "auto_recent",
-      limit: 5,
-      columnsDesktop: 3,
-      variant: "grid",
-    },
-  },
-  {
-    slotKey: "final_cta",
-    sectionTypeKey: "cta_banner",
-    propsOverride: {
-      eyebrow: "Ready to book",
-      headline: "Tell us your date and project.",
-      copy:
-        "Share your event details and we'll return availability with a suggested team within one business day.",
-      primaryCta: { label: "Start inquiry", href: "/contact" },
-      variant: "centered-overlay",
-    },
-  },
-];
-
-interface FreeStarterTalentSeed {
-  displayName: string;
-  firstName: string;
-  lastName: string;
-  shortBio: string;
-}
-
-const FREE_STARTER_TALENT_SEEDS: ReadonlyArray<FreeStarterTalentSeed> = [
-  {
-    displayName: "Luna Alvarez",
-    firstName: "Luna",
-    lastName: "Alvarez",
-    shortBio:
-      "Editorial makeup artist with destination and campaign experience.",
-  },
-  {
-    displayName: "Mateo Rossi",
-    firstName: "Mateo",
-    lastName: "Rossi",
-    shortBio:
-      "Wedding and lifestyle photographer focused on candid storytelling.",
-  },
-  {
-    displayName: "Sofia Bennett",
-    firstName: "Sofia",
-    lastName: "Bennett",
-    shortBio: "Bridal and event hairstylist for luxury and editorial productions.",
-  },
-  {
-    displayName: "Noah Sinclair",
-    firstName: "Noah",
-    lastName: "Sinclair",
-    shortBio:
-      "Creative stylist helping teams build cohesive wardrobe direction.",
-  },
-  {
-    displayName: "Camila Ortega",
-    firstName: "Camila",
-    lastName: "Ortega",
-    shortBio:
-      "Production coordinator keeping timelines, vendors, and on-set flow aligned.",
-  },
-];
 
 async function seedFreeStarterRosterProfiles(params: {
   client: SupabaseClient;
@@ -276,6 +182,28 @@ async function seedFreeStarterRosterProfiles(params: {
       continue;
     }
 
+    // Demo headshot: a media_assets row pointing at a root-relative
+    // `web/public` asset. approval_state=approved + variant_kind=card is
+    // exactly what the card-thumbnail resolvers rank first, so the seeded
+    // roster renders real editorial portraits instead of blank dark cards
+    // (owner rule: editorial/real photos, never placeholder boxes).
+    const { error: mediaError } = await params.client
+      .from("media_assets")
+      .insert({
+        tenant_id: params.tenantId,
+        owner_talent_profile_id: inserted.id,
+        uploaded_by_user_id: params.actorProfileId,
+        bucket_id: "media-public",
+        storage_path: template.portraitPath,
+        variant_kind: "card",
+        approval_state: "approved",
+        sort_order: 0,
+      });
+    if (mediaError) {
+      // Non-fatal: the profile still works; the card degrades to initials.
+      logServerError("onboardStarterContent.seedRoster.insertMedia", mediaError);
+    }
+
     const typeTermId = talentTypeTerms?.[index]?.id;
     if (typeTermId) {
       const { error: taxonomyError } = await params.client
@@ -300,6 +228,76 @@ async function seedFreeStarterRosterProfiles(params: {
   }
 
   return seeded;
+}
+
+/**
+ * Slug of the theme preset the Free starter publishes. Matches the
+ * edit-mode Free Quickstart recipe (`starter-action.ts`), so a signup-seeded
+ * storefront and a recipe-applied one land on the same design register.
+ */
+const FREE_STARTER_THEME_PRESET_SLUG = "classic";
+
+/**
+ * Publish the starter theme preset for a tenant whose design was never
+ * touched. Idempotent and deliberately conservative: it only writes when
+ * BOTH the live theme and the draft are empty and no preset was ever
+ * applied, so it can never clobber an operator's design work.
+ *
+ * Writes live + draft in one update (the seed publishes the homepage in the
+ * same run, so the design must be live too, not parked as a draft). Skips
+ * the tag-bust on purpose: this runs during the signup render where
+ * `updateTag` is not callable, and a brand-new tenant has no cached
+ * storefront reads yet (plus loadPublicBranding carries a 300s safety TTL).
+ */
+async function publishStarterThemeIfUnset(params: {
+  client: SupabaseClient;
+  tenantId: string;
+  actorProfileId: string;
+}): Promise<void> {
+  const preset = getThemePreset(FREE_STARTER_THEME_PRESET_SLUG);
+  if (!preset) return;
+
+  const { data: row, error } = await params.client
+    .from("agency_branding")
+    .select("tenant_id, version, theme_json, theme_json_draft, theme_preset_slug")
+    .eq("tenant_id", params.tenantId)
+    .maybeSingle<{
+      tenant_id: string;
+      version: number;
+      theme_json: Record<string, unknown> | null;
+      theme_json_draft: Record<string, unknown> | null;
+      theme_preset_slug: string | null;
+    }>();
+  if (error || !row) {
+    if (error) logServerError("onboardStarterContent.publishTheme.read", error);
+    return;
+  }
+
+  const untouched =
+    !row.theme_preset_slug &&
+    Object.keys(row.theme_json ?? {}).length === 0 &&
+    Object.keys(row.theme_json_draft ?? {}).length === 0;
+  if (!untouched) return;
+
+  // Registry gate (same treatment applyThemePreset uses): keep only the
+  // registry-accepted subset so a stale preset key can never block the seed.
+  const gate = validateThemePatch({ ...preset.tokens });
+
+  const { error: updateError } = await params.client
+    .from("agency_branding")
+    .update({
+      theme_json: gate.normalized,
+      theme_json_draft: gate.normalized,
+      theme_preset_slug: preset.slug,
+      theme_published_at: new Date().toISOString(),
+      version: row.version + 1,
+      updated_by: params.actorProfileId,
+    })
+    .eq("tenant_id", params.tenantId)
+    .eq("version", row.version);
+  if (updateError) {
+    logServerError("onboardStarterContent.publishTheme.write", updateError);
+  }
 }
 
 /**
@@ -403,13 +401,25 @@ async function seedFreeStarterHomepage(params: {
 
   // Plan tier drives the directory-page gate (Amendment A3: Free gets no
   // dedicated directory page; Studio/Agency do). Mirrors the Free-vs-paid
-  // predicate used by resolveFreeStarterRosterSeedCount.
+  // predicate used by resolveFreeStarterRosterSeedCount. Display name
+  // personalizes the seeded hero copy.
   const { data: planRow } = await params.client
     .from("agencies")
-    .select("plan_tier")
+    .select("plan_tier, display_name")
     .eq("id", params.tenantId)
-    .maybeSingle<{ plan_tier: string | null }>();
+    .maybeSingle<{ plan_tier: string | null; display_name: string | null }>();
   const planTier = planRow?.plan_tier ?? null;
+
+  // Publish a real design theme BEFORE the sections go live. A tenant with
+  // an empty theme_json renders the storefront off raw fallback tokens
+  // (near-black primary + a "dark" platform site-theme class), which is what
+  // produced the black-on-black hero CTA and ghost headings on fresh Free
+  // signups. Non-fatal: a failure here degrades styling, never the seed.
+  await publishStarterThemeIfUnset({
+    client: params.client,
+    tenantId: params.tenantId,
+    actorProfileId: params.actorProfileId,
+  });
 
   const rosterSeededCount = await seedFreeStarterRosterProfiles({
     client: params.client,
@@ -417,10 +427,86 @@ async function seedFreeStarterHomepage(params: {
     actorProfileId: params.actorProfileId,
   });
 
+  // ── Preferred source: the ADMIN-MANAGED Site Starter Kit ──────────────
+  // Builder Lab → Design → Site Starter Kit manages published full-page
+  // starter designs, and Builder Lab → Default surfaces points the platform
+  // DEFAULT storefront at one of them. When that chain resolves, seed the
+  // new tenant's homepage as an editable COPY of the admin-managed design
+  // (freeform builderTree, no curated slots — the same shape one-click
+  // starter designs persist). Admins then control what every new Free
+  // workspace looks like from the Lab, with no deploy; the hardcoded
+  // section starter below remains only as the fallback for installs where
+  // no starter template is published.
+  const starterKitTree = await resolvePlatformDefaultStorefrontTree(
+    params.client,
+  );
+  if (starterKitTree && starterKitTree.builderTree.length > 0) {
+    const kitSaveVersion = resolveCasExpectedVersion({
+      freshVersion: await readHomepageVersion(
+        params.client,
+        params.tenantId,
+        page.id,
+      ),
+      fallbackVersion: page.version,
+    });
+    const kitSaved = await saveHomepageDraftComposition(params.client, {
+      tenantId: params.tenantId,
+      values: {
+        tenantId: params.tenantId,
+        locale: params.locale,
+        expectedVersion: kitSaveVersion,
+        metadata: {
+          title: page.title?.trim() || "Homepage",
+          metaDescription: undefined,
+          introTagline: undefined,
+          ogTitle: undefined,
+          ogDescription: undefined,
+          ogImageUrl: undefined,
+          canonicalUrl: undefined,
+          noindex: false,
+        },
+        slots: {},
+        builderTree: starterKitTree.builderTree,
+      },
+      actorProfileId: params.actorProfileId,
+    });
+    if (kitSaved.ok) {
+      const kitPublishVersion = resolveCasExpectedVersion({
+        freshVersion: await readHomepageVersion(
+          params.client,
+          params.tenantId,
+          page.id,
+        ),
+        fallbackVersion: kitSaved.data.version,
+      });
+      const kitPublished = await publishHomepage(params.client, {
+        tenantId: params.tenantId,
+        values: {
+          tenantId: params.tenantId,
+          locale: params.locale,
+          expectedVersion: kitPublishVersion,
+        },
+        actorProfileId: params.actorProfileId,
+      });
+      if (kitPublished.ok) {
+        return { ok: true, seeded: true, rosterSeededCount };
+      }
+      logServerError(
+        "onboardStarterContent.starterKit.publish (falling back to section starter)",
+        new Error(kitPublished.code ?? "PUBLISH_FAILED"),
+      );
+    } else {
+      logServerError(
+        "onboardStarterContent.starterKit.save (falling back to section starter)",
+        new Error(kitSaved.code ?? "SAVE_FAILED"),
+      );
+    }
+  }
+
   const slots: Record<string, Array<{ sectionId: string; sortOrder: number }>> = {};
   const slotCounts = new Map<string, number>();
 
-  for (const entry of FREE_STARTER_ENTRIES) {
+  for (const entry of buildFreeStarterEntries(planRow?.display_name)) {
     const registry = getSectionType(entry.sectionTypeKey);
     if (!registry) continue;
 

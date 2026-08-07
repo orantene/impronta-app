@@ -60,12 +60,15 @@ export async function loadTalentCardThumbs(
     const rank = THUMB_RANK[m.variant_kind] ?? 99;
     if (rank < (bestRank.get(m.owner_talent_profile_id) ?? 99)) {
       // Some rows store an already-absolute URL (e.g. seeded i.pravatar.cc
-      // avatars). Pass those through untouched — getPublicUrl() would otherwise
-      // prepend the bucket path and mangle them. (discover.ts's old inline copy
-      // had this guard; preserved here so every surface resolves them.)
-      const url = m.storage_path.startsWith("http")
-        ? m.storage_path
-        : client.storage.from(BUCKET).getPublicUrl(m.storage_path).data.publicUrl;
+      // avatars) or a root-relative `public/` asset path (free-starter demo
+      // portraits — host-agnostic, zero storage egress). Pass those through
+      // untouched — getPublicUrl() would otherwise prepend the bucket path and
+      // mangle them. (discover.ts's old inline copy had this guard; preserved
+      // here so every surface resolves them.)
+      const url =
+        m.storage_path.startsWith("http") || m.storage_path.startsWith("/")
+          ? m.storage_path
+          : client.storage.from(BUCKET).getPublicUrl(m.storage_path).data.publicUrl;
       out.set(m.owner_talent_profile_id, url);
       bestRank.set(m.owner_talent_profile_id, rank);
     }

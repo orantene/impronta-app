@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { nodePresentationSchema } from "../shared/node-presentation";
 import { sectionPresentationSchema } from "../shared/presentation";
+import { publicImagePathOrUrlSchema } from "../../validators";
 
 /**
  * Category / service grid — portrait tiles with optional icon, image, label,
@@ -36,8 +37,8 @@ const categoryItemSchema = z.object({
   tagline: z.string().max(120).optional(),
   /** Icon rendered when image absent (or atop image for editorial mode). */
   iconKey: iconKeySchema.optional(),
-  /** Tile image URL (e.g. category cover). */
-  imageUrl: z.string().url().max(2048).optional(),
+  /** Tile image: absolute URL or root-relative `public/` path (seeded covers). */
+  imageUrl: publicImagePathOrUrlSchema().optional(),
   /** Where the tile links to. */
   href: z.string().max(500).optional(),
 });

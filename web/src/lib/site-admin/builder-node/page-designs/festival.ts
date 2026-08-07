@@ -481,7 +481,7 @@ const festivalTree: BuilderNode[] = [
             id: "festival-note",
             kind: "rich_text",
             props: {
-              text: "Three nights of {accent}live sessions{/accent} across an old printworks — intimate sets, late ensembles, and one basement that never quite closes. Doors at 7pm; full set times land two weeks out. Read the [festival guide](/guide) before you go.",
+              text: "Three nights of {accent}live sessions{/accent} across an old printworks, intimate sets, late ensembles, and one basement that never quite closes. Doors at 7pm; full set times land two weeks out. Read the [festival guide](/guide) before you go.",
               style: {
                 align: "center",
                 fontFamily: MANROPE,

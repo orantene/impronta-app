@@ -4,6 +4,11 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { existsSync } from "node:fs";
+
+import { buildFreeStarterEntries } from "./onboard-starter-content";
+import { getSectionType } from "@/lib/site-admin/sections/registry";
+import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
 import {
   FREE_STARTER_PROFILE_CAP,
   FREE_STARTER_SEAT_HEADROOM,
@@ -215,6 +220,11 @@ test("resolveCasExpectedVersion falls back when the re-read is unavailable", () 
 
 const here = dirname(fileURLToPath(import.meta.url));
 const seedSrc = readFileSync(join(here, "onboard-starter-content.ts"), "utf8");
+/** Content definitions split out to honor the 800-line cap. */
+const entriesSrc = readFileSync(
+  join(here, "onboard-starter-content-entries.ts"),
+  "utf8",
+);
 const scaffoldSrc = readFileSync(
   join(here, "..", "..", "saas", "workspace-signup.server.ts"),
   "utf8",
@@ -287,12 +297,139 @@ test("starter roster seeds attach the role with a legal relationship_type", () =
   );
 });
 
+// ── Wave 7: Free starter must look like a real premium site ───────────────
+// Owner verdict on the previous seed: "looks like disaster... not a site or
+// marketing page". Root causes: zero imagery (black tiles, blank cards, gray
+// hero), template-describing meta-copy, and no published theme (black-on-black
+// CTA). These tests pin the fixed contract.
+
+test("free starter entries parse clean against each section's registry schema", () => {
+  const entries = buildFreeStarterEntries("Vera Atelier");
+  assert.equal(entries.length, 4);
+  for (const entry of entries) {
+    const registry = getSectionType(entry.sectionTypeKey);
+    assert.ok(registry, `unregistered section type ${entry.sectionTypeKey}`);
+    const defaults = getLibraryDefault(entry.sectionTypeKey);
+    const schema = registry.schemasByVersion[registry.currentVersion];
+    assert.ok(schema, `no schema for ${entry.sectionTypeKey} current version`);
+    const parsed = schema.safeParse({
+      ...defaults.props,
+      ...(entry.propsOverride ?? {}),
+    });
+    assert.ok(
+      parsed.success,
+      `${entry.sectionTypeKey} seed props failed schema: ${
+        parsed.success ? "" : JSON.stringify(parsed.error.issues)
+      }`,
+    );
+  }
+});
+
+test("free starter seeds real imagery into hero, tiles, and final CTA", () => {
+  const entries = buildFreeStarterEntries(null);
+  const byType = new Map(
+    entries.map((e) => [e.sectionTypeKey, e.propsOverride ?? {}]),
+  );
+
+  const hero = byType.get("hero") as {
+    slides?: Array<{ backgroundImageUrl?: string }>;
+  };
+  assert.ok(
+    hero.slides?.[0]?.backgroundImageUrl?.startsWith("/"),
+    "hero must ship a root-relative background image (host-agnostic)",
+  );
+
+  const grid = byType.get("category_grid") as {
+    items?: Array<{ imageUrl?: string }>;
+  };
+  assert.ok(grid.items && grid.items.length >= 4, "expected 4 service tiles");
+  for (const item of grid.items ?? []) {
+    assert.ok(
+      item.imageUrl?.startsWith("/"),
+      "every service tile needs an editorial image (no black placeholder tiles)",
+    );
+  }
+
+  const cta = byType.get("cta_banner") as { backgroundImageUrl?: string };
+  assert.ok(
+    cta.backgroundImageUrl?.startsWith("/"),
+    "final CTA banner needs a lifestyle background image",
+  );
+});
+
+test("every image path referenced by the starter seed exists in web/public", () => {
+  const paths = new Set<string>();
+  for (const match of (seedSrc + entriesSrc).matchAll(
+    /["'](\/(?:talent-templates|marketing)\/[^"']+\.(?:jpg|jpeg|png|webp))["']/g,
+  )) {
+    paths.add(match[1]!);
+  }
+  assert.ok(
+    paths.size >= 10,
+    `expected >=10 seeded image refs, found ${paths.size}`,
+  );
+  for (const p of paths) {
+    assert.ok(
+      existsSync(
+        join(here, "..", "..", "..", "..", "public", ...p.split("/").filter(Boolean)),
+      ),
+      `seeded image missing from web/public: ${p}`,
+    );
+  }
+});
+
+test("free starter copy is a business homepage, not template documentation", () => {
+  const entries = buildFreeStarterEntries("Vera Atelier");
+  const allText = JSON.stringify(entries);
+  assert.ok(
+    !allText.includes("Your studio, live in one page"),
+    "meta-copy hero survived",
+  );
+  assert.ok(
+    !allText.includes("This section auto-loads"),
+    "meta-copy intro survived",
+  );
+  assert.ok(!allText.includes("—"), "no em dashes in user-facing seeded copy");
+  assert.ok(
+    allText.includes("Vera Atelier"),
+    "hero copy must use the workspace display name",
+  );
+  // Free tier has no /directory page; every seeded link must resolve.
+  assert.ok(
+    !allText.includes("/directory"),
+    "seeded CTA links to a page Free tenants do not have",
+  );
+});
+
+test("seeded roster profiles get approved demo headshots", () => {
+  assert.ok(
+    /variant_kind:\s*"card"/.test(seedSrc) &&
+      /approval_state:\s*"approved"/.test(seedSrc),
+    "seed must insert an approved card media_assets row per demo profile",
+  );
+  assert.ok(
+    /portraitPath/.test(entriesSrc),
+    "each talent seed template must carry a portraitPath",
+  );
+});
+
+test("the starter seed publishes the classic theme for untouched tenants", () => {
+  assert.ok(
+    /FREE_STARTER_THEME_PRESET_SLUG = "classic"/.test(seedSrc),
+    "seed must publish the same preset as the edit-mode Free Quickstart",
+  );
+  assert.ok(
+    /publishStarterThemeIfUnset\(\{/.test(seedSrc),
+    "theme publish must be wired into the free-starter homepage seed",
+  );
+});
+
 test("both starter-seed CAS writes re-read the version first", () => {
   const casCalls = seedSrc.match(/resolveCasExpectedVersion\(/g) ?? [];
   assert.equal(
     casCalls.length,
-    2,
-    "expected exactly two CAS sites (draft save + publish) to re-read the version",
+    4,
+    "expected exactly four CAS sites (starter-kit save + publish, section-fallback save + publish) to re-read the version",
   );
   assert.ok(
     /expectedVersion:\s*saveExpectedVersion/.test(seedSrc),

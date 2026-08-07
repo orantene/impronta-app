@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
-import { pgUuidSchema } from "../../validators";
+import { pgUuidSchema, publicImagePathOrUrlSchema } from "../../validators";
 import { linkRefOrLegacy } from "../../links/link-ref";
 
 /**
@@ -36,7 +36,7 @@ export const ctaBannerSchemaV1 = z.object({
 
   /** Background image — asset id or absolute URL. */
   backgroundMediaAssetId: pgUuidSchema().optional(),
-  backgroundImageUrl: z.string().url().max(2048).optional(),
+  backgroundImageUrl: publicImagePathOrUrlSchema().optional(),
   /** Phase 10 — alt text for screen-readers. */
   backgroundImageAlt: z.string().max(200).optional(),
   /** 0..100 — overlay darkness over the image. */

@@ -244,7 +244,7 @@ const conferenceTree: BuilderNode[] = [
             id: "conference-sub",
             kind: "rich_text",
             props: {
-              text: "Three days of talks, workshops, and open sessions for the people {accent}actually shipping the future{/accent} — product, design, engineering, and strategy. [See what's in store](/program).",
+              text: "Three days of talks, workshops, and open sessions for the people {accent}actually shipping the future{/accent}, product, design, engineering, and strategy. [See what's in store](/program).",
               style: {
                 align: "center",
                 fontFamily: INTER,
@@ -562,11 +562,11 @@ const conferenceTree: BuilderNode[] = [
                   },
                 },
               },
-              scheduleRow("sch-1", "09:00", "Opening Keynote — The next ten years", "Mara Lune"),
+              scheduleRow("sch-1", "09:00", "Opening Keynote: The next ten years", "Mara Lune"),
               scheduleRow("sch-2", "10:30", "Design Systems at Scale", "Diego Vega"),
               scheduleRow("sch-3", "12:00", "AI in the Creative Loop", "Cleo Park"),
               scheduleRow("sch-4", "14:30", "Shipping Products That Last", "Anya Morel"),
-              scheduleRow("sch-5", "16:00", "Open Workshop — From Prototype to Prod", "All speakers"),
+              scheduleRow("sch-5", "16:00", "Open Workshop: From Prototype to Prod", "All speakers"),
             ],
           },
         ],

@@ -113,7 +113,8 @@ export async function GET() {
       const current = bestRank.get(m.owner_talent_profile_id);
       if (current === undefined || rank < current) {
         bestRank.set(m.owner_talent_profile_id, rank);
-        const url = m.storage_path.startsWith("http")
+        const url =
+        m.storage_path.startsWith("http") || m.storage_path.startsWith("/")
           ? m.storage_path
           : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
         photoByTalent.set(m.owner_talent_profile_id, url);

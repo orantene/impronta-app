@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
-import { pgUuidSchema } from "../../validators";
+import { pgUuidSchema, publicImagePathOrUrlSchema } from "../../validators";
 import { linkRefOrLegacy, optionalLinkRefOrLegacy } from "../../links/link-ref";
 
 /**
@@ -19,8 +19,12 @@ const heroSlideSchema = z.object({
   subheadline: z.string().max(240).optional(),
   /** Media-library asset (M5). Component resolves the URL from tenant media. */
   backgroundMediaAssetId: pgUuidSchema().optional(),
-  /** Absolute URL (for seeded hosts, unsplash, etc.). Used when no asset id. */
-  backgroundImageUrl: z.string().url().max(2048).optional(),
+  /**
+   * Absolute URL (media library, unsplash, etc.) OR a root-relative path
+   * into `public/` (seeded starter imagery — host-agnostic). Used when no
+   * asset id. Widening only — every previously-valid value still parses.
+   */
+  backgroundImageUrl: publicImagePathOrUrlSchema().optional(),
   /** Phase 10 — alt text for screen-readers. Optional; empty = decorative. */
   backgroundImageAlt: z.string().max(200).optional(),
   /** 0–100; how dark the photographic scrim renders over the image. */

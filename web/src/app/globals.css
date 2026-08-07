@@ -445,8 +445,15 @@ html[data-public-font-preset="editorial"] {
   font-size: clamp(2rem, 5vw, 3.75rem);
   line-height: 1.08;
   letter-spacing: -0.01em;
-  color: color-mix(in oklab, var(--foreground) 96%, white);
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+  /* Ink token, not --foreground: under the storefront tenant-override,
+   * --foreground maps to the NEUTRAL token (#737373 default), which turned
+   * the hero headline muddy gray on fresh tenants. Ink is #111 by default
+   * and re-pinned light under dark background modes, so both polarities
+   * keep their intended contrast. */
+  color: color-mix(in oklab, var(--token-color-ink, var(--foreground)) 96%, white);
+  /* No text-shadow on the classic (image-less) hero: ink sits on the tenant
+   * canvas, and a dark shadow under dark text is a smudge, not a scrim. The
+   * photographic hero re-adds it with matching polarity below. */
   margin: 0;
 }
 
@@ -459,8 +466,8 @@ html[data-public-font-preset="editorial"] {
   font-size: clamp(1rem, 1.4vw, 1.25rem);
   line-height: 1.55;
   max-width: 38rem;
-  color: color-mix(in oklab, var(--foreground) 78%, transparent);
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+  /* Ink token for the same reason as the headline above. */
+  color: color-mix(in oklab, var(--token-color-ink, var(--foreground)) 88%, transparent);
   margin: 0;
 }
 
@@ -572,7 +579,13 @@ html[data-public-font-preset="editorial"] {
 
 .site-hero__cta--primary {
   background: var(--token-color-primary, var(--primary));
-  color: var(--primary-foreground, #fff);
+  /* Text pairs with the RAISED SURFACE token, mirroring .site-prim-cta--primary.
+   * The old `--primary-foreground` came from the body's site-theme class (a
+   * PLATFORM setting stuck on "dark" for every tenant), so a fresh tenant got
+   * near-black text on the near-black default primary pill — an illegible CTA
+   * on an otherwise light storefront. Surface-raised tracks the tenant's real
+   * polarity: #fff default (light canvas), re-pinned dark under noir modes. */
+  color: var(--token-color-surface-raised, #ffffff);
   box-shadow:
     0 18px 45px -15px color-mix(in oklab, var(--token-color-primary, var(--primary)) 65%, transparent),
     inset 0 0 0 1px color-mix(in oklab, white 10%, transparent);
@@ -710,6 +723,94 @@ html[data-public-font-preset="editorial"] {
     transparent 40%,
     color-mix(in oklab, var(--token-color-background, var(--background)) 80%, transparent) 100%
   );
+}
+
+/* ---- copy legibility scrim (photographic heroes only) -------------------
+ *
+ * WHY THIS EXISTS (Wave 7 live QA, 2026-08-06). The overlay flavors above
+ * are DECORATIVE and tenant-token driven. Their gradients are built from
+ * `--token-color-background`, which is NOT in the html token defaults, and
+ * the `var(--background)` fallback is itself invalid on a storefront
+ * (`.site-theme-tenant-override` defines `--impronta-black` in terms of
+ * itself, so the chain is a cycle). One unresolvable var makes the whole
+ * `background` shorthand invalid-at-computed-value-time, so on a fresh
+ * tenant the "scrim" painted NOTHING. Measured on qa-wave7-starter:
+ * `getComputedStyle(.site-hero__overlay).backgroundImage === "none"`, with
+ * near-black ink copy sitting straight on the photo and a DARK text-shadow
+ * under DARK text (a shadow that only ever helps LIGHT text).
+ *
+ * This layer is the legibility GUARANTEE, not decoration, so it is built
+ * from LITERAL colors and never from tenant tokens: it cannot collapse, and
+ * it holds for any photo a tenant later uploads (dark, light, or busy).
+ * It paints above the flavor overlay and below `.site-hero__inner`
+ * (z-index 1 vs 2). Worst case for the copy is a pure-white photo, which
+ * still composites to ~#3d3d3f behind the headline: ~10:1 against the
+ * on-scrim ink. Pinned by sections/hero/hero-legibility.test.ts.
+ *
+ * The radial is sized in percentages of the hero box, so the copy stays
+ * inside the dense part of the wash at 390px exactly as at 1440px. */
+.site-hero__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 92% 74% at 50% 52%,
+      rgba(9, 9, 11, 0.68) 0%,
+      rgba(9, 9, 11, 0.5) 58%,
+      rgba(9, 9, 11, 0.26) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(9, 9, 11, 0.44) 0%,
+      rgba(9, 9, 11, 0.3) 42%,
+      rgba(9, 9, 11, 0.6) 100%
+    );
+}
+
+/* On-scrim copy pair. Deliberately literal rather than
+ * `--token-color-ink` / `--token-color-surface-raised`: those flip with the
+ * tenant's CANVAS polarity, but the scrim above is always dark, so the copy
+ * must always be the light half of the pair. A noir tenant and an ivory
+ * tenant render byte-identical hero copy over a photo. */
+.site-hero[data-hero-variant="image"],
+.site-hero[data-hero-variant="slider"] {
+  --site-hero-on-scrim: #f8fafc;
+  --site-hero-on-scrim-muted: rgba(248, 250, 252, 0.92);
+}
+
+.site-hero[data-hero-variant="image"] .site-hero__headline,
+.site-hero[data-hero-variant="slider"] .site-hero__headline {
+  color: var(--site-hero-on-scrim);
+  /* Polarity now matches: a dark shadow under LIGHT text. */
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.55);
+}
+
+.site-hero[data-hero-variant="image"] .site-hero__subheadline,
+.site-hero[data-hero-variant="slider"] .site-hero__subheadline {
+  color: var(--site-hero-on-scrim-muted);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+
+.site-hero[data-hero-variant="image"] .site-hero__cta--secondary,
+.site-hero[data-hero-variant="slider"] .site-hero__cta--secondary {
+  background: rgba(248, 250, 252, 0.14);
+  border-color: rgba(248, 250, 252, 0.44);
+  color: var(--site-hero-on-scrim);
+}
+
+.site-hero[data-hero-variant="image"] .site-hero__chip,
+.site-hero[data-hero-variant="slider"] .site-hero__chip {
+  border-color: rgba(248, 250, 252, 0.4);
+  color: var(--site-hero-on-scrim-muted);
+}
+
+.site-hero[data-hero-variant="image"] .site-hero__chip:hover,
+.site-hero[data-hero-variant="slider"] .site-hero__chip:hover {
+  border-color: rgba(248, 250, 252, 0.7);
+  background: rgba(248, 250, 252, 0.12);
+  color: var(--site-hero-on-scrim);
 }
 
 /**

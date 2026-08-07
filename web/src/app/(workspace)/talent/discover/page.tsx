@@ -163,7 +163,8 @@ async function loadTalentDiscover(
       const rank = PRIORITY.indexOf(m.variant_kind);
       if (rank < 0 || rank >= bestRank) continue;
       bestRank = rank;
-      headshotUrl = m.storage_path.startsWith("http")
+      headshotUrl =
+        m.storage_path.startsWith("http") || m.storage_path.startsWith("/")
         ? m.storage_path
         : admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
     }

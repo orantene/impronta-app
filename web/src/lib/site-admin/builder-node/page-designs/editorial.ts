@@ -178,7 +178,7 @@ const editorialTree: BuilderNode[] = [
                     id: "editorial-statement",
                     kind: "rich_text",
                     props: {
-                      text: "Commissioned portraits and campaign work made with {accent}slow, available light{/accent} — unhurried sittings, honest skin, real rooms. Selected series below, or [read the full index](/index).",
+                      text: "Commissioned portraits and campaign work made with {accent}slow, available light{/accent}, unhurried sittings, honest skin, real rooms. Selected series below, or [read the full index](/index).",
                       style: {
                         fontFamily: INTER,
                         fontSize: "19px",
@@ -417,7 +417,7 @@ const editorialTree: BuilderNode[] = [
                     id: "editorial-series-meta",
                     kind: "paragraph",
                     props: {
-                      text: "{{place}} — {{year}}",
+                      text: "{{place}}, {{year}}",
                       fieldBindings: { text: "place" },
                       style: {
                         fontFamily: INTER,
@@ -525,7 +525,7 @@ const editorialTree: BuilderNode[] = [
             id: "editorial-footer-brand",
             kind: "paragraph",
             props: {
-              text: "Mara Lune — 2026",
+              text: "Mara Lune, 2026",
               style: {
                 fontFamily: FRAUNCES,
                 fontSize: "16px",

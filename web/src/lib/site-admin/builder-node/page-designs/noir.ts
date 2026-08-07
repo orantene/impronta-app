@@ -124,7 +124,7 @@ const noirTree: BuilderNode[] = [
             id: "noir-sub",
             kind: "rich_text",
             props: {
-              text: "A studio for brands with {accent}nerve{/accent} — film, photography, and identity, directed and finished in-house. [See the work](/work).",
+              text: "A studio for brands with {accent}nerve{/accent}, film, photography, and identity, directed and finished in-house. [See the work](/work).",
               style: { fontFamily: INTER, fontSize: "19px", lineHeight: "1.6", textColor: MUTED, maxWidthFree: "600px", align: "center" },
             },
           },
@@ -205,7 +205,7 @@ const noirTree: BuilderNode[] = [
             },
             children: [
               { id: "noir-work-title", kind: "heading", props: { text: "Selected work", level: 2, style: { fontFamily: FRAUNCES, fontSize: "46px", fontWeight: 600, letterSpacing: "-0.01em", textColor: BONE, marginBottomFree: "0px", responsive: { mobile: { fontSize: "32px" } } } } },
-              { id: "noir-work-note", kind: "paragraph", props: { text: "2024 — 2026", style: { fontFamily: INTER, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: GOLD } } },
+              { id: "noir-work-note", kind: "paragraph", props: { text: "2024-2026", style: { fontFamily: INTER, fontSize: "13px", fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", textColor: GOLD } } },
             ],
           },
           {
@@ -315,7 +315,7 @@ const noirTree: BuilderNode[] = [
             id: "noir-statement-text",
             kind: "rich_text",
             props: {
-              text: "We don't do safe. We make work that earns {accent}a second look{/accent} — and a third.",
+              text: "We don't do safe. We make work that earns {accent}a second look{/accent}, and a third.",
               style: { fontFamily: FRAUNCES, fontSize: "52px", lineHeight: "1.08", fontWeight: 600, letterSpacing: "-0.02em", textColor: BONE, maxWidthFree: "1000px", align: "center", responsive: { mobile: { fontSize: "32px" } } },
             },
           },
@@ -417,7 +417,7 @@ const noirTree: BuilderNode[] = [
         },
         children: [
           { id: "noir-footer-brand", kind: "paragraph", props: { text: "Studio Noir", style: { fontFamily: FRAUNCES, fontSize: "18px", textColor: BONE } } },
-          { id: "noir-footer-copy", kind: "paragraph", props: { text: "Film · Photography · Art direction — Mexico City", style: { align: "right", fontFamily: INTER, fontSize: "14px", textColor: MUTED, responsive: { mobile: { align: "left" } } } } },
+          { id: "noir-footer-copy", kind: "paragraph", props: { text: "Film · Photography · Art direction, Mexico City", style: { align: "right", fontFamily: INTER, fontSize: "14px", textColor: MUTED, responsive: { mobile: { align: "left" } } } } },
         ],
       },
     ],

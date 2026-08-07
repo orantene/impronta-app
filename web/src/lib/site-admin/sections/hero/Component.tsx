@@ -290,6 +290,19 @@ export function HeroComponent({
 
   const hasSlides = Array.isArray(slides) && slides.length > 0;
   const isSlider = hasSlides && slides!.length > 1;
+  // Shared hero legibility guarantee: any hero with a photographic backdrop
+  // gets `.site-hero__scrim`, a literal-color wash between the photo and the
+  // copy. The token-driven flavor overlays cannot be trusted for this — they
+  // collapse to `background: none` whenever `--token-color-background` is
+  // unset (the fresh-tenant case), which is exactly how a seeded Free
+  // storefront ended up with near-black copy on a bright photo.
+  const hasPhotoBackdrop = hasSlides;
+  // On a photographic hero the scrim IS the scrim, so the `gradient-scrim`
+  // flavor would only double-wash the photo. Decorative flavors (aurora,
+  // soft-vignette) still render underneath it.
+  const showFlavorOverlay =
+    effectiveOverlay !== "none" &&
+    !(hasPhotoBackdrop && effectiveOverlay === "gradient-scrim");
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
   const ctaAlign =
     nodePresentation.primaryCta?.align ?? nodePresentation.secondaryCta?.align;
@@ -368,8 +381,12 @@ export function HeroComponent({
         <HeroBackground slides={slides!} perSlideMs={perSlideMs} isSlider={isSlider} />
       ) : null}
 
-      {effectiveOverlay !== "none" ? (
+      {showFlavorOverlay ? (
         <div className="site-hero__overlay" aria-hidden />
+      ) : null}
+
+      {hasPhotoBackdrop ? (
+        <div className="site-hero__scrim" aria-hidden />
       ) : null}
 
       <div className="site-hero__inner">

@@ -118,7 +118,8 @@ export function TemplateManager() {
     async (rowsToResolve: BuilderTemplateRow[]) => {
       const ids = distinctThumbnailAssetIds(rowsToResolve);
       if (ids.length === 0) {
-        setThumbUrlByRow(new Map());
+        // Built-in rows still resolve a STATIC fallback thumbnail by slug.
+        setThumbUrlByRow(resolveTemplateThumbnailMap(rowsToResolve, new Map()));
         return;
       }
       const res = await resolveTemplateThumbnails(ids).catch(() => null);
