@@ -159,6 +159,30 @@ export function isWorkspaceSignupProfileEligible(
   );
 }
 
+/**
+ * Does this owned Free workspace belong to the signup lead being provisioned?
+ *
+ * Only a YES authorizes reuse. A NO means the person already owns an unrelated
+ * Free workspace, which is the "one Free workspace per owner" case: the
+ * provisioner must refuse rather than silently redirect them into a workspace
+ * with a different name than the one they just reserved.
+ *
+ * `signup_lead_id` is stamped into `agencies.settings` at creation. Rows
+ * created before that stamp existed fall back to an exact slug match against
+ * the slug this lead reserved.
+ */
+export function workspaceBelongsToSignupLead(input: {
+  workspaceSignupLeadId: string | null;
+  workspaceSlug: string;
+  leadId: string;
+  desiredSlug: string;
+}): boolean {
+  if (input.workspaceSignupLeadId) {
+    return input.workspaceSignupLeadId === input.leadId;
+  }
+  return Boolean(input.desiredSlug) && input.workspaceSlug === input.desiredSlug;
+}
+
 export function buildWorkspaceOnboardingPath(leadId: string): string {
   return `/onboarding/workspace?${WORKSPACE_SIGNUP_LEAD_PARAM}=${encodeURIComponent(
     leadId,
@@ -166,9 +190,15 @@ export function buildWorkspaceOnboardingPath(leadId: string): string {
 }
 
 export function buildWorkspaceRegisterPath(leadId: string): string {
+  // `next` is REQUIRED, not decoration. The middleware branch that redirects an
+  // already-signed-in visitor away from /register reads only `?next=`; without
+  // it, someone who signs in mid-funnel is bounced to /onboarding/role, the
+  // lead id is dropped, and picking "I'm a Client" there permanently
+  // disqualifies the account from workspace provisioning.
+  const next = encodeURIComponent(buildWorkspaceOnboardingPath(leadId));
   return `/register?intent=${WORKSPACE_SIGNUP_INTENT}&${WORKSPACE_SIGNUP_LEAD_PARAM}=${encodeURIComponent(
     leadId,
-  )}`;
+  )}&next=${next}`;
 }
 
 export function isWorkspaceOnboardingPath(path: string): boolean {

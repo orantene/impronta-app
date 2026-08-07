@@ -2,6 +2,10 @@ import { chooseClientRole, chooseTalentRole } from "@/app/onboarding/actions";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { normalizeOptionalNextPath, resolveAuthenticatedDestination } from "@/lib/auth-flow";
+import {
+  buildWorkspaceOnboardingPath,
+  isWorkspaceOnboardingPath,
+} from "@/lib/saas/workspace-signup";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import Link from "next/link";
@@ -20,7 +24,7 @@ function onboardingErrorMessage(code: string | undefined): string | null {
 export default async function OnboardingRolePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<{ error?: string; next?: string; lead?: string }>;
 }) {
   if (!isSupabaseConfigured()) {
     return (
@@ -81,8 +85,23 @@ export default async function OnboardingRolePage({
     redirect(destination);
   }
 
-  const { error, next } = await searchParams;
+  const { error, next, lead } = await searchParams;
   const nextPath = normalizeOptionalNextPath(next);
+
+  // Workspace signups must never be asked "talent or client". This page offers
+  // exactly those two, and choosing Client runs complete_client_onboarding,
+  // which creates a client_profiles row and flips the account to active:
+  // after that `isWorkspaceSignupProfileEligible` is false FOREVER and
+  // /onboarding/workspace refuses with "This account already belongs to a
+  // client or talent flow". A brand-new operator who reached this page with a
+  // lead in hand goes straight back to the workspace trampoline instead.
+  const workspaceLeadId = typeof lead === "string" ? lead.trim() : "";
+  if (workspaceLeadId) {
+    redirect(buildWorkspaceOnboardingPath(workspaceLeadId));
+  }
+  if (nextPath && isWorkspaceOnboardingPath(nextPath)) {
+    redirect(nextPath);
+  }
 
   return (
     <div className="mx-auto w-full max-w-[520px] px-5 py-12 sm:py-16">

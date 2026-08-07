@@ -12,6 +12,8 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { findAuthUserIdByEmail } from "@/lib/saas/find-auth-user-by-email";
+import { findOwnedFreeWorkspaceForUser } from "@/lib/saas/owned-free-workspace";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
   buildWorkspaceOnboardingPath,
@@ -283,7 +285,26 @@ export async function submitGetStartedSignup(
     .slice(0, 32);
   const userAgent = h.get("user-agent")?.slice(0, 400) ?? null;
 
-  const actorUserId = String(formData.get("actorUserId") ?? "").trim() || null;
+  // Trust the SESSION, never the hidden field: `actorUserId` is client-supplied
+  // and only used as a hint that the form rendered in a signed-in state.
+  const actorSession = await getCachedActorSession();
+  const actorUserId = actorSession.user?.id ?? null;
+
+  // "One Free workspace per owner" (messaging-shells-handoff.md §1.4). Refuse
+  // BEFORE the lead row and the subdomain reservation are written, so we never
+  // reserve a link the provisioner will not create and never show the
+  // "link reserved, one step left" screen for a workspace that cannot exist.
+  if (actorUserId && (!input.tierInterest || input.tierInterest === "free")) {
+    const ownedFree = await findOwnedFreeWorkspaceForUser(actorUserId);
+    if (ownedFree) {
+      return {
+        ok: false,
+        errors: {
+          form: `Your account already has a free workspace, ${ownedFree.displayName}. Each account gets one free workspace. Open the one you have, or pick a paid plan to add another.`,
+        },
+      };
+    }
+  }
 
   const existingAuth = await findAuthUserIdByEmail(input.email);
   if (existingAuth.error) {

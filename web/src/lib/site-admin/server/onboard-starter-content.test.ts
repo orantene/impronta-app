@@ -303,3 +303,45 @@ test("both starter-seed CAS writes re-read the version first", () => {
     "the publish CAS must use the re-read version",
   );
 });
+
+// ── Overwrite safety: the gate must FAIL CLOSED ───────────────────────────
+// The seed replaces the whole homepage composition and republishes it. A
+// slot-count read that ERRORS used to be indistinguishable from "this tenant
+// has no sections", which would authorize overwriting a real storefront.
+
+test("shouldSkipFreeStarterHomepageSeed skips when the content probe failed", () => {
+  assert.equal(
+    shouldSkipFreeStarterHomepageSeed({
+      pageStatus: "draft",
+      draftSlotCount: 0,
+      liveSlotCount: 0,
+      contentProbeOk: false,
+    }),
+    true,
+  );
+  // Probe explicitly succeeded and found nothing: seeding is still allowed.
+  assert.equal(
+    shouldSkipFreeStarterHomepageSeed({
+      pageStatus: "draft",
+      draftSlotCount: 0,
+      liveSlotCount: 0,
+      contentProbeOk: true,
+    }),
+    false,
+  );
+});
+
+test("shouldSkipFreeStarterHomepageSeed only seeds a pristine draft page", () => {
+  for (const pageStatus of ["published", "scheduled", "archived", null]) {
+    assert.equal(
+      shouldSkipFreeStarterHomepageSeed({
+        pageStatus,
+        draftSlotCount: 0,
+        liveSlotCount: 0,
+        contentProbeOk: true,
+      }),
+      true,
+      `pageStatus ${String(pageStatus)} must not be seeded over`,
+    );
+  }
+});

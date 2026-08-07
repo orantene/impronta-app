@@ -11,6 +11,7 @@ import { EditorialFrame } from "@/components/marketing/editorial-image";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { GetStartedForm } from "@/components/marketing/get-started-form";
 import { getAppUrl } from "@/lib/auth-flow";
+import { findOwnedFreeWorkspaceForUser } from "@/lib/saas/owned-free-workspace";
 import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -189,11 +190,24 @@ export default async function GetStartedPage({
       : undefined;
 
   const actor = await getCachedActorSession();
+  // "One free workspace per account." Resolved at render so the form can say so
+  // BEFORE the visitor names a business and reserves a link we would refuse to
+  // provision. See `lib/saas/owned-free-workspace.ts`.
+  const ownedFreeWorkspace = actor.user
+    ? await findOwnedFreeWorkspaceForUser(actor.user.id)
+    : null;
   const initialSignedIn = actor.user
     ? {
         userId: actor.user.id,
         email: actor.user.email ?? "",
         displayName: actor.profile?.display_name ?? null,
+        ownedFreeWorkspace: ownedFreeWorkspace
+          ? {
+              slug: ownedFreeWorkspace.slug,
+              displayName: ownedFreeWorkspace.displayName,
+              adminUrl: `${getAppUrl()}/${ownedFreeWorkspace.slug}/admin`,
+            }
+          : null,
       }
     : undefined;
 

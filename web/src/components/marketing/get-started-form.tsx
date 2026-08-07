@@ -27,6 +27,19 @@ export type GetStartedSignedIn = {
   userId: string;
   email: string;
   displayName: string | null;
+  /**
+   * The Free workspace this account already owns, when it has one.
+   *
+   * "One Free workspace per owner" is the anti-abuse rule
+   * (`web/docs/admin-prototype/messaging-shells-handoff.md` §1.4). The form
+   * has to say so BEFORE the visitor names a business and reserves a link,
+   * because the provisioner will refuse to create a second one.
+   */
+  ownedFreeWorkspace?: {
+    slug: string;
+    displayName: string;
+    adminUrl: string;
+  } | null;
 };
 
 /**
@@ -53,6 +66,7 @@ import {
   submitCtaLabel,
 } from "./get-started-form-tier-copy";
 import { getAudienceOptions, getFormCopy } from "./get-started-form-copy";
+import { GetStartedSignedInNotice } from "./get-started-signed-in-notice";
 
 type Props = {
   locale?: string;
@@ -129,6 +143,13 @@ export function GetStartedForm({
   const [slugDirty, setSlugDirty] = useState(false);
   const [rosterSize] = useState<RosterBucket>("1-5");
   const [subdomainState, setSubdomainState] = useState<SubdomainState>({ status: "idle" });
+
+  // "One free workspace per account" (messaging-shells-handoff.md §1.4). Only
+  // bites on a FREE request: paid tiers may sit alongside an existing free one.
+  const freeLimitWorkspace =
+    (!tier || tier === "free") && initialSignedIn?.ownedFreeWorkspace
+      ? initialSignedIn.ownedFreeWorkspace
+      : null;
   const [, startCheckTransition] = useTransition();
 
   const attributionRef = useRef<{
@@ -484,18 +505,11 @@ export function GetStartedForm({
       ) : null}
 
       {initialSignedIn ? (
-        <div
-          className="mb-5 rounded-xl border px-4 py-3 text-[0.8125rem] leading-[1.5]"
-          style={{
-            borderColor: "var(--plt-hairline)",
-            background: "rgba(46,107,82,0.06)",
-            color: "var(--plt-ink-soft)",
-          }}
-        >
-          You&apos;re signed in as{" "}
-          <strong style={{ color: "var(--plt-ink)" }}>{initialSignedIn.email}</strong>. This
-          workspace will be added to your account.
-        </div>
+        <GetStartedSignedInNotice
+          t={t}
+          email={initialSignedIn.email}
+          freeLimitWorkspace={freeLimitWorkspace}
+        />
       ) : null}
 
       <div className="flex items-center justify-between">
@@ -749,7 +763,7 @@ export function GetStartedForm({
 
       <button
         type="submit"
-        disabled={isPending || subdomainState.status === "unavailable"}
+        disabled={isPending || subdomainState.status === "unavailable" || !!freeLimitWorkspace}
         className="mt-8 inline-flex h-14 w-full items-center justify-center gap-2 rounded-full text-[0.95rem] font-medium transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-70 disabled:hover:translate-y-0"
         style={{
           background: "var(--plt-forest)",
@@ -774,7 +788,9 @@ export function GetStartedForm({
       </button>
 
       <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--plt-muted)" }}>
-        {tier ? formFinePrint(tier, tierPrices, tierNames) : t.ctaFinePrint}
+        {freeLimitWorkspace ? t.freeLimitFinePrint : null}
+        {!freeLimitWorkspace && tier ? formFinePrint(tier, tierPrices, tierNames) : null}
+        {!freeLimitWorkspace && !tier ? t.ctaFinePrint : null}
         {appliedDiscountLabel && <span style={{ color: "var(--plt-forest)", fontWeight: 500 }}> · {appliedDiscountLabel}</span>}
       </p>
     </form>

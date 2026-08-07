@@ -49,6 +49,13 @@ export type GetStartedFormCopy = {
   reserving: string;
   ctaFinePrint: string;
   savedSpot: string;
+  signedInAs: string;
+  signedInAdds: string;
+  freeLimitTitle: string;
+  freeLimitBody: (workspaceName: string) => string;
+  freeLimitOpen: string;
+  freeLimitPaidPlans: string;
+  freeLimitFinePrint: string;
 };
 
 export function getFormCopy(locale: string): GetStartedFormCopy {
@@ -75,6 +82,15 @@ export function getFormCopy(locale: string): GetStartedFormCopy {
       reserving: "Reserving your link…",
       ctaFinePrint: "Takes you straight to your new workspace. No card, free forever.",
       savedSpot: "We saved your spot:",
+      signedInAs: "You're signed in as",
+      signedInAdds: "This workspace will be added to your account.",
+      freeLimitTitle: "One free workspace per account.",
+      freeLimitBody: (workspaceName: string) =>
+        `Your account already owns ${workspaceName}, so we can't create a second free workspace under this email. Open the one you have, or pick a paid plan to run another business alongside it.`,
+      freeLimitOpen: "Open my workspace",
+      freeLimitPaidPlans: "See paid plans",
+      freeLimitFinePrint:
+        "Sign out and use a different email if this new business belongs to someone else.",
     },
     es: {
       eyebrow: "Empieza tu negocio",
@@ -98,6 +114,15 @@ export function getFormCopy(locale: string): GetStartedFormCopy {
       reserving: "Reservando tu link…",
       ctaFinePrint: "Te lleva directo a tu nuevo workspace. Sin tarjeta, gratis para siempre.",
       savedSpot: "Guardamos tu lugar:",
+      signedInAs: "Tienes la sesión iniciada como",
+      signedInAdds: "Este workspace se agregará a tu cuenta.",
+      freeLimitTitle: "Un workspace gratis por cuenta.",
+      freeLimitBody: (workspaceName: string) =>
+        `Tu cuenta ya tiene ${workspaceName}, así que no podemos crear un segundo workspace gratis con este correo. Abre el que ya tienes, o elige un plan de pago para llevar otro negocio en paralelo.`,
+      freeLimitOpen: "Abrir mi workspace",
+      freeLimitPaidPlans: "Ver planes de pago",
+      freeLimitFinePrint:
+        "Cierra sesión y usa otro correo si este negocio nuevo es de otra persona.",
     },
   });
 }

@@ -313,15 +313,23 @@ async function readHomepageSlotCounts(
   client: SupabaseClient,
   tenantId: string,
   pageId: string,
-): Promise<{ draftSlotCount: number; liveSlotCount: number }> {
+): Promise<{ ok: boolean; draftSlotCount: number; liveSlotCount: number }> {
   const { data, error } = await client
     .from("cms_page_sections")
     .select("is_draft")
     .eq("tenant_id", tenantId)
     .eq("page_id", pageId);
-  if (error || !data) return { draftSlotCount: 0, liveSlotCount: 0 };
+  // `ok: false` is NOT the same as "zero slots". The caller fails closed on it
+  // so a transient read error can never authorize overwriting a live homepage.
+  if (error || !data) {
+    if (error) {
+      logServerError("onboardStarterContent.readHomepageSlotCounts", error);
+    }
+    return { ok: false, draftSlotCount: 0, liveSlotCount: 0 };
+  }
   const rows = data as Array<{ is_draft: boolean | null }>;
   return {
+    ok: true,
     draftSlotCount: rows.filter((row) => row.is_draft === true).length,
     liveSlotCount: rows.filter((row) => row.is_draft === false).length,
   };
@@ -387,6 +395,7 @@ async function seedFreeStarterHomepage(params: {
       pageStatus: page.status,
       draftSlotCount: existingSlotCounts.draftSlotCount,
       liveSlotCount: existingSlotCounts.liveSlotCount,
+      contentProbeOk: existingSlotCounts.ok,
     })
   ) {
     return { ok: true, seeded: false, rosterSeededCount: 0 };
