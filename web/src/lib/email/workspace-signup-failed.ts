@@ -1,7 +1,7 @@
 // Transactional email sent when `provisionWorkspaceFromLead` fails in a
-// way that needs a human (claimed_elsewhere, unsupported_existing_role,
+// way that needs a human (claimed_elsewhere,
 // service_unavailable, provision_failed). The user has already filled in
-// /get-started and likely paid intent — they should hear from us, not
+// /get-started and likely paid intent, so they should hear from us, not
 // silently get stuck on the error card.
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -18,8 +18,7 @@ function escapeHtml(s: string): string {
 export type WorkspaceSignupFailureKind =
   | "service_unavailable"
   | "provision_failed"
-  | "claimed_elsewhere"
-  | "unsupported_existing_role";
+  | "claimed_elsewhere";
 
 const KIND_BLURB: Record<WorkspaceSignupFailureKind, string> = {
   service_unavailable:
@@ -28,8 +27,6 @@ const KIND_BLURB: Record<WorkspaceSignupFailureKind, string> = {
     "Setup didn't finish on our side. Your account is safe and nothing has been charged yet.",
   claimed_elsewhere:
     "It looks like this signup request was already claimed by another account.",
-  unsupported_existing_role:
-    "Your account is already attached to a client or talent flow, so workspace creation needs a small assist from us.",
 };
 
 export function renderWorkspaceSignupFailureEmail(args: {

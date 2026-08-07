@@ -7,7 +7,7 @@ import {
   isNetworkWorkspaceTierInterest,
   isPaidWorkspaceTierInterest,
   isSelfServeWorkspaceLeadEligible,
-  isWorkspaceSignupProfileEligible,
+  resolveWorkspaceOwnerAppRole,
   isWorkspaceOnboardingPath,
   normalizeWorkspaceSlugCandidate,
   preferredWorkspaceSlugFromLead,
@@ -81,63 +81,28 @@ test("workspace signup path helpers produce stable auth routes", () => {
   assert.equal(isWorkspaceOnboardingPath("/onboarding/role"), false);
 });
 
-test("workspace signup allows placeholder onboarding profiles", () => {
-  assert.equal(
-    isWorkspaceSignupProfileEligible({
-      appRole: "client",
-      accountStatus: "onboarding",
-      onboardingCompletedAt: null,
-      hasClientProfile: false,
-      hasTalentProfile: false,
-    }),
-    true,
-  );
+// ── Who may own a workspace ───────────────────────────────────────────────
+// Being a client or a talent no longer disqualifies an account. The old gate
+// refused any client/talent who had finished onboarding, permanently, and the
+// only self-serve route into that state was picking "I'm a Client" on
+// /onboarding/role, a two-option page. What it must NOT do is overwrite the
+// role: workspace access comes from the owner membership, and rewriting
+// app_role would move a talent's home dashboard out from under them.
 
-  assert.equal(
-    isWorkspaceSignupProfileEligible({
-      appRole: "talent",
-      accountStatus: "registered",
-      onboardingCompletedAt: null,
-      hasClientProfile: false,
-      hasTalentProfile: false,
-    }),
-    true,
-  );
+test("a role-less account becomes agency_staff when it opens a workspace", () => {
+  assert.equal(resolveWorkspaceOwnerAppRole(null), "agency_staff");
+  assert.equal(resolveWorkspaceOwnerAppRole(undefined), "agency_staff");
+  assert.equal(resolveWorkspaceOwnerAppRole(""), "agency_staff");
 });
 
-test("workspace signup blocks real client and talent accounts", () => {
-  assert.equal(
-    isWorkspaceSignupProfileEligible({
-      appRole: "client",
-      accountStatus: "onboarding",
-      onboardingCompletedAt: null,
-      hasClientProfile: true,
-      hasTalentProfile: false,
-    }),
-    false,
-  );
-
-  assert.equal(
-    isWorkspaceSignupProfileEligible({
-      appRole: "talent",
-      accountStatus: "onboarding",
-      onboardingCompletedAt: null,
-      hasClientProfile: false,
-      hasTalentProfile: true,
-    }),
-    false,
-  );
-
-  assert.equal(
-    isWorkspaceSignupProfileEligible({
-      appRole: "client",
-      accountStatus: "active",
-      onboardingCompletedAt: null,
-      hasClientProfile: false,
-      hasTalentProfile: false,
-    }),
-    false,
-  );
+test("an existing role is never overwritten by workspace provisioning", () => {
+  for (const role of ["client", "talent", "agency_staff", "super_admin"]) {
+    assert.equal(
+      resolveWorkspaceOwnerAppRole(role),
+      null,
+      `${role} must keep its app_role when it opens a workspace`,
+    );
+  }
 });
 
 // ── One Free workspace per owner ──────────────────────────────────────────

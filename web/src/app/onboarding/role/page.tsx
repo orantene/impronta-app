@@ -1,7 +1,11 @@
 import { chooseClientRole, chooseTalentRole } from "@/app/onboarding/actions";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { loadAccessProfile } from "@/lib/access-profile";
-import { normalizeOptionalNextPath, resolveAuthenticatedDestination } from "@/lib/auth-flow";
+import {
+  getSiteUrl,
+  normalizeOptionalNextPath,
+  resolveAuthenticatedDestination,
+} from "@/lib/auth-flow";
 import {
   buildWorkspaceOnboardingPath,
   isWorkspaceOnboardingPath,
@@ -88,13 +92,10 @@ export default async function OnboardingRolePage({
   const { error, next, lead } = await searchParams;
   const nextPath = normalizeOptionalNextPath(next);
 
-  // Workspace signups must never be asked "talent or client". This page offers
-  // exactly those two, and choosing Client runs complete_client_onboarding,
-  // which creates a client_profiles row and flips the account to active:
-  // after that `isWorkspaceSignupProfileEligible` is false FOREVER and
-  // /onboarding/workspace refuses with "This account already belongs to a
-  // client or talent flow". A brand-new operator who reached this page with a
-  // lead in hand goes straight back to the workspace trampoline instead.
+  // Someone mid workspace signup is never asked "talent or client": they told
+  // us what they are at /get-started, and picking Client here would run
+  // complete_client_onboarding and create a client_profiles row they did not
+  // ask for. A lead in hand goes straight back to the workspace trampoline.
   const workspaceLeadId = typeof lead === "string" ? lead.trim() : "";
   if (workspaceLeadId) {
     redirect(buildWorkspaceOnboardingPath(workspaceLeadId));
@@ -125,7 +126,8 @@ export default async function OnboardingRolePage({
         className="mx-auto mt-3 max-w-[380px] text-center text-[0.9375rem] leading-[1.5]"
         style={{ color: "var(--plt-muted)" }}
       >
-        Pick your role to get the right dashboard. You can&apos;t change this later from here.
+        Pick how you want to start. This sets your home dashboard, and you
+        can&apos;t change it later from here.
       </p>
 
       {/* Card */}
@@ -157,7 +159,7 @@ export default async function OnboardingRolePage({
             <RoleChoice
               glyph={<TalentGlyph />}
               title="I'm Talent"
-              description="Model, performer, artist, or creative — get a beautiful profile, share one link, and let bookings come to you."
+              description="Model, performer, artist, or creative. Get a profile, share one link, and let bookings come to you."
             />
           </form>
 
@@ -166,9 +168,22 @@ export default async function OnboardingRolePage({
             <RoleChoice
               glyph={<ClientGlyph />}
               title="I'm a Client"
-              description="Brand, producer, event planner, or casting director — browse the directory and send booking requests."
+              description="Brand, producer, event planner, or casting director. Browse the directory and send booking requests."
             />
           </form>
+
+          {/* Third door. Without it this page is a two-way fork with no right
+              answer for an operator, and the wrong answer used to be
+              permanent: picking Client runs complete_client_onboarding, and
+              workspace provisioning then refused the account outright. The
+              refusal is gone (see workspace-signup.ts), but an operator should
+              never have had to guess in the first place. */}
+          <RoleChoiceLink
+            href={`${getSiteUrl()}/get-started`}
+            glyph={<WorkspaceGlyph />}
+            title="I run a business"
+            description="Agency, studio, band, team, or just you. Set up a workspace with your own site, roster, bookings, and payments."
+          />
         </div>
 
         <p
@@ -182,7 +197,15 @@ export default async function OnboardingRolePage({
   );
 }
 
-function RoleChoice({
+const ROLE_CHOICE_CLASSNAME =
+  "group flex w-full items-start gap-4 rounded-2xl p-4 text-left transition-all hover:-translate-y-px";
+
+const ROLE_CHOICE_STYLE = {
+  background: "var(--plt-bg)",
+  border: "1px solid var(--plt-hairline-strong)",
+} as const;
+
+function RoleChoiceBody({
   glyph,
   title,
   description,
@@ -192,14 +215,7 @@ function RoleChoice({
   description: string;
 }) {
   return (
-    <button
-      type="submit"
-      className="group flex w-full items-start gap-4 rounded-2xl p-4 text-left transition-all hover:-translate-y-px"
-      style={{
-        background: "var(--plt-bg)",
-        border: "1px solid var(--plt-hairline-strong)",
-      }}
-    >
+    <>
       <span
         className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors"
         style={{
@@ -238,7 +254,70 @@ function RoleChoice({
           />
         </svg>
       </span>
+    </>
+  );
+}
+
+/**
+ * Same card as `RoleChoice`, but a navigation instead of a role-setting
+ * submit. Workspace signup does not set `app_role` here: it runs through
+ * /get-started, which reserves the slug first.
+ *
+ * Plain anchor, absolute, on purpose. This page renders on the app + agency
+ * hosts and /get-started is marketing-only, so a relative href would 404 on
+ * the very surface that shows this card (verified against the running app:
+ * app-host /get-started returns 404). Same reason the workspace error card
+ * builds its Start-again link with getSiteUrl().
+ */
+function RoleChoiceLink({
+  href,
+  glyph,
+  title,
+  description,
+}: {
+  href: string;
+  glyph: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <a href={href} className={ROLE_CHOICE_CLASSNAME} style={ROLE_CHOICE_STYLE}>
+      <RoleChoiceBody glyph={glyph} title={title} description={description} />
+    </a>
+  );
+}
+
+function RoleChoice({
+  glyph,
+  title,
+  description,
+}: {
+  glyph: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <button
+      type="submit"
+      className={ROLE_CHOICE_CLASSNAME}
+      style={ROLE_CHOICE_STYLE}
+    >
+      <RoleChoiceBody glyph={glyph} title={title} description={description} />
     </button>
+  );
+}
+
+function WorkspaceGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M3.5 20.5h17M5 20.5V9.2a1 1 0 0 1 .46-.84l6-3.9a1 1 0 0 1 1.08 0l6 3.9a1 1 0 0 1 .46.84V20.5M9.5 20.5v-4.2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v4.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

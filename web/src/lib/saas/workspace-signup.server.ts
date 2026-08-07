@@ -23,7 +23,7 @@ import {
   isPaidWorkspaceTierInterest,
   isReservedWorkspaceSlug,
   isSelfServeWorkspaceLeadEligible,
-  isWorkspaceSignupProfileEligible,
+  resolveWorkspaceOwnerAppRole,
   normalizeWorkspaceSlugCandidate,
   preferredWorkspaceSlugFromLead,
   WORKSPACE_SLUG_MAX_LENGTH,
@@ -47,10 +47,6 @@ type MarketingLeadRow = {
 // Dedup marker + send helper live in `workspace-signup-failure-notify.ts`
 // (split out to keep this file under the 800-line cap).
 
-type ExistingRoleBindings = {
-  hasClientProfile: boolean;
-  hasTalentProfile: boolean;
-};
 
 export type ProvisionWorkspaceResult =
   | {
@@ -73,7 +69,6 @@ export type ProvisionWorkspaceResult =
         | "invalid_lead"
         | "email_mismatch"
         | "claimed_elsewhere"
-        | "unsupported_existing_role"
         | "free_workspace_limit"
         | "service_unavailable"
         | "provision_failed";
@@ -253,38 +248,6 @@ async function attachLeadToTenant(params: {
   if (releaseError) {
     logServerError("workspace-signup.releaseReservation", releaseError);
   }
-}
-
-async function loadExistingRoleBindings(
-  userId: string,
-): Promise<ExistingRoleBindings | null> {
-  const admin = createServiceRoleClient();
-  if (!admin) return null;
-
-  const [clientResult, talentResult] = await Promise.all([
-    admin.from("client_profiles").select("id").eq("user_id", userId).limit(1),
-    admin
-      .from("talent_profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .is("deleted_at", null)
-      .limit(1),
-  ]);
-
-  if (clientResult.error) {
-    logServerError("workspace-signup.loadExistingRoleBindings.client", clientResult.error);
-    return null;
-  }
-
-  if (talentResult.error) {
-    logServerError("workspace-signup.loadExistingRoleBindings.talent", talentResult.error);
-    return null;
-  }
-
-  return {
-    hasClientProfile: (clientResult.data?.length ?? 0) > 0,
-    hasTalentProfile: (talentResult.data?.length ?? 0) > 0,
-  };
 }
 
 function buildSignupSettings(lead: MarketingLeadRow): Record<string, unknown> {
@@ -528,42 +491,6 @@ export async function provisionWorkspaceFromLead(params: {
     };
   }
 
-  const existingRoleBindings =
-    params.profile?.app_role &&
-    params.profile.app_role !== "agency_staff" &&
-    params.profile.app_role !== "super_admin"
-      ? await loadExistingRoleBindings(params.userId)
-      : {
-          hasClientProfile: false,
-          hasTalentProfile: false,
-        };
-
-  if (!existingRoleBindings) {
-    await sendProvisioningFailureEmailOnce({ lead, kind: "service_unavailable" });
-    return {
-      ok: false,
-      error: "service_unavailable",
-      message: "We couldn't verify this account yet. Please try workspace signup again in a minute.",
-    };
-  }
-
-  if (
-    !isWorkspaceSignupProfileEligible({
-      appRole: params.profile?.app_role,
-      accountStatus: params.profile?.account_status,
-      onboardingCompletedAt: params.profile?.onboarding_completed_at,
-      hasClientProfile: existingRoleBindings.hasClientProfile,
-      hasTalentProfile: existingRoleBindings.hasTalentProfile,
-    })
-  ) {
-    await sendProvisioningFailureEmailOnce({ lead, kind: "unsupported_existing_role" });
-    return {
-      ok: false,
-      error: "unsupported_existing_role",
-      message: "This account already belongs to a client or talent flow. Use a dedicated operator account for workspace creation right now.",
-    };
-  }
-
   if (lead.provisioned_tenant_id) {
     const { data, error } = await admin
       .from("agencies")
@@ -709,8 +636,9 @@ export async function provisionWorkspaceFromLead(params: {
     updated_at: now,
   };
 
-  if (params.profile?.app_role !== "super_admin") {
-    profilePatch.app_role = "agency_staff";
+  const ownerAppRole = resolveWorkspaceOwnerAppRole(params.profile?.app_role);
+  if (ownerAppRole) {
+    profilePatch.app_role = ownerAppRole;
   }
 
   // Propagate the lead's human name to the profile so the admin shell
