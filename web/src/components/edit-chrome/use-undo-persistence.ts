@@ -75,6 +75,45 @@ export function useUndoPersistence(input: {
     }
   }, []);
 
+  // Wave 3 (3.4) — idle-scheduled flush for the confirmed-save path.
+  //
+  // The save success path used to call `flushUndoPersist()` SYNCHRONOUSLY,
+  // serialising up to UNDO_PERSIST_CAP history entries (each carrying full
+  // before/after tree snapshots — up to ~20 trees) to localStorage on the
+  // main thread, right when the operator is mid-interaction. The synchronous
+  // call existed only to shrink the "reload before the next debounce sees the
+  // new baseVersion" window — but the pagehide / visibilitychange→hidden /
+  // unmount flushes below already close that window completely (they run with
+  // the ref's ALREADY-updated baseVersion). So the save path now mutates the
+  // ref synchronously and defers the serialize+write to idle time (500ms
+  // timeout cap, matching the debounce), off the interaction hot path.
+  const idleFlushHandleRef = useRef<number | null>(null);
+  const cancelIdleFlush = useCallback(() => {
+    if (idleFlushHandleRef.current === null) return;
+    if (typeof window !== "undefined" && "cancelIdleCallback" in window) {
+      window.cancelIdleCallback(idleFlushHandleRef.current);
+    } else {
+      clearTimeout(idleFlushHandleRef.current);
+    }
+    idleFlushHandleRef.current = null;
+  }, []);
+  const scheduleIdleUndoPersistFlush = useCallback(() => {
+    if (typeof window === "undefined") return;
+    cancelIdleFlush();
+    const run = () => {
+      idleFlushHandleRef.current = null;
+      flushUndoPersist();
+    };
+    idleFlushHandleRef.current =
+      "requestIdleCallback" in window
+        ? window.requestIdleCallback(run, { timeout: 500 })
+        : (setTimeout(run, 200) as unknown as number);
+  }, [cancelIdleFlush, flushUndoPersist]);
+  // flushUndoPersist (called from pagehide/unmount too) always writes the
+  // LATEST ref data, so a pending idle callback after a flush is a harmless
+  // re-write of identical data — but cancel it on unmount anyway.
+  useEffect(() => cancelIdleFlush, [cancelIdleFlush]);
+
   // Debounced write — reschedules on every `past` change OR pageVersion change;
   // the serialize+write runs ~500ms after the last edit, off the interaction hot
   // path. W1-T5(a): pageVersion is a dep so that after a draft save bumps the
@@ -120,5 +159,5 @@ export function useUndoPersistence(input: {
     };
   }, [flushUndoPersist]);
 
-  return { undoPersistDataRef, flushUndoPersist };
+  return { undoPersistDataRef, flushUndoPersist, scheduleIdleUndoPersistFlush };
 }

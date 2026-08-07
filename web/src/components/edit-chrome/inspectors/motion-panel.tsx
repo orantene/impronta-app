@@ -35,7 +35,7 @@ import {
   ANIMATION_OPTIONS,
 } from "@/lib/site-admin/sections/shared/presentation";
 
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
 import { useEditContext } from "../edit-context";
 import { useSelectedSectionId } from "../selection-bridge";
@@ -49,77 +49,12 @@ import {
   InspectorSection,
 } from "./kit/inspector-ui";
 import { triggerAnimationReplay } from "./kit/motion-animation-replay";
+import { DebouncedRangeInput } from "./kit/debounced-range-input";
 import { CHROME } from "../kit/tokens";
 
-/**
- * Debounced range slider.
- *
- * QA 2026-05-13 — the bare `<input type="range">` used to fire
- * `onCommit` on every tick (every step), which hit the server's
- * presentation-patch action per-step — dragging the slider hammered
- * the API with dozens of calls per second. Now we hold the value in
- * local state for smooth visual feedback and only commit after the
- * operator settles (200ms timer that resets on each tick + commits on
- * `pointerup` / `keyup` / `blur` as a belt-and-suspenders).
- */
-function DebouncedRangeInput({
-  min,
-  max,
-  step,
-  value,
-  onCommit,
-  ariaLabel,
-}: {
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-  onCommit: (next: number) => void;
-  ariaLabel?: string;
-}) {
-  const [local, setLocal] = useState(value);
-  const commitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Keep local mirror in sync when the server value changes from outside
-  // (undo, reset, sibling field). Doesn't fight ongoing drags because
-  // the parent doesn't re-render mid-drag unless onCommit fires.
-  useEffect(() => {
-    setLocal(value);
-  }, [value]);
-  useEffect(() => {
-    return () => {
-      if (commitTimer.current) clearTimeout(commitTimer.current);
-    };
-  }, []);
-  function scheduleCommit(next: number) {
-    if (commitTimer.current) clearTimeout(commitTimer.current);
-    commitTimer.current = setTimeout(() => onCommit(next), 200);
-  }
-  function commitNow(next: number) {
-    if (commitTimer.current) {
-      clearTimeout(commitTimer.current);
-      commitTimer.current = null;
-    }
-    onCommit(next);
-  }
-  return (
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={local}
-      aria-label={ariaLabel}
-      onChange={(e) => {
-        const next = Number(e.target.value);
-        setLocal(next);
-        scheduleCommit(next);
-      }}
-      onPointerUp={() => commitNow(local)}
-      onKeyUp={() => commitNow(local)}
-      onBlur={() => commitNow(local)}
-    />
-  );
-}
+// Wave 3 (3.2) — the debounced range slider that used to live here is now the
+// shared `DebouncedRangeInput` in ./kit (imported above), reused by every
+// inspector slider. Behavior is byte-identical to the former local copy.
 
 type AnimationKey = "entry" | "scroll" | "hover" | "reducedMotion";
 

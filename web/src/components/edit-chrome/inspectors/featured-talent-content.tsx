@@ -33,6 +33,7 @@ import {
   CtaDuoEditor,
   DraggableList,
   TalentPicker,
+  DebouncedRangeInput,
   type CtaShape,
 } from "./kit";
 import {
@@ -537,13 +538,12 @@ export function FeaturedTalentContentInspector({
       >
         <div className={KIT.field}>
           <label className={KIT.label}>{t("Maximum cards:")} {limit}</label>
-          <input
-            type="range"
+          <DebouncedRangeInput
             min={1}
             max={12}
             step={1}
             value={limit}
-            onChange={(e) => update({ limit: Number(e.target.value) })}
+            onCommit={(next) => update({ limit: next })}
             className="w-full accent-stone-900"
           />
         </div>
@@ -551,15 +551,12 @@ export function FeaturedTalentContentInspector({
           <label className={KIT.label}>
             {t("Desktop columns:")} {columnsDesktop}
           </label>
-          <input
-            type="range"
+          <DebouncedRangeInput
             min={2}
             max={4}
             step={1}
             value={columnsDesktop}
-            onChange={(e) =>
-              update({ columnsDesktop: Number(e.target.value) })
-            }
+            onCommit={(next) => update({ columnsDesktop: next })}
             className="w-full accent-stone-900"
           />
         </div>

@@ -18,6 +18,7 @@ import {
   KIT,
   MediaPickerButton,
   VisualChipGroup,
+  DebouncedRangeInput,
 } from "./kit";
 import { LinkKindPicker } from "@/lib/site-admin/sections/shared/LinkKindPicker";
 import type { LinkRef } from "@/lib/site-admin/links/link-ref";
@@ -635,12 +636,11 @@ export function TalentTypeGridContentInspector({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className={KIT.field}>
             <span className={KIT.label}>{t("Maximum items -")} {maxItems}</span>
-            <input
-              type="range"
+            <DebouncedRangeInput
               min={1}
               max={18}
               value={maxItems}
-              onChange={(event) => update({ maxItems: Number(event.target.value) })}
+              onCommit={(next) => update({ maxItems: next })}
               className="w-full accent-violet-600"
             />
           </label>

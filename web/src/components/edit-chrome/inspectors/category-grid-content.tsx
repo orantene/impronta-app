@@ -31,6 +31,7 @@ import {
   CategoryIconGlyph,
   CATEGORY_ICON_KEYS,
   CATEGORY_ICON_LABEL,
+  DebouncedRangeInput,
   type CtaShape,
   type DragHandleProps,
 } from "./kit";
@@ -276,15 +277,12 @@ export function CategoryGridContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>{t("Desktop columns:")} {columnsDesktop}</label>
-          <input
-            type="range"
+          <DebouncedRangeInput
             min={2}
             max={5}
             step={1}
             value={columnsDesktop}
-            onChange={(e) =>
-              update({ columnsDesktop: Number(e.target.value) })
-            }
+            onCommit={(next) => update({ columnsDesktop: next })}
             className="w-full accent-stone-900"
           />
         </div>

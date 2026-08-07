@@ -96,6 +96,7 @@ import {
   createEditorDispatchAuditEvent,
   createBuilderNode,
   formatBuilderNodeMutationError,
+  isBuilderMutationAuditEnabled,
   recordBuilderMutationAuditEvent,
   summarizeBuilderNodeIssues,
   isAdvancedElementLibraryEnabledForPlan,
@@ -136,6 +137,7 @@ import {
 } from "./selection-bridge";
 import { resolveMobileEditModeTransition } from "./mobile-edit-mode";
 import { publishDirty } from "./dirty-bridge";
+import { publishDraftProps } from "./draft-props-bridge";
 import { publishBuilderTree } from "./builder-tree-bridge";
 import { publishCanUndo, publishCanRedo } from "./history-bridge";
 import {
@@ -643,6 +645,14 @@ export function EditProvider({
     string,
     unknown
   > | null>(null);
+  // Wave 3 (3.1) — publish `draftProps` to the draft-props-bridge micro-store.
+  // We KEEP the React state (setDraftProps semantics unchanged) but drop the
+  // VALUE from the value-memo deps, so a per-keystroke working-copy write no
+  // longer rebuilds the context value — only the two `useDraftProps()` readers
+  // (inspector-dock, inline-editor) wake.
+  useEffect(() => {
+    publishDraftProps(draftPropsState);
+  }, [draftPropsState]);
 
   const setDraftProps = useCallback<EditContextValue["setDraftProps"]>(
     (updater) => {
@@ -953,7 +963,8 @@ export function EditProvider({
   // #18 — persist `past` to localStorage: debounced off the interaction hot
   // path, flushed synchronously on unmount / pagehide / visibility→hidden.
   // Peeled to use-undo-persistence (W4-F2); behavior identical.
-  const { undoPersistDataRef, flushUndoPersist } = useUndoPersistence({
+  const { undoPersistDataRef, scheduleIdleUndoPersistFlush } =
+    useUndoPersistence({
     undoPersistKey,
     past,
     pageVersion,
@@ -1822,6 +1833,10 @@ export function EditProvider({
   const dispatch = useCallback(
     async (mutation: EditorMutation): Promise<DispatchResult> => {
       const recordDispatchAudit = (sectionId?: string | null) => {
+        // Wave 3 (3.3) — guard BEFORE building the event: creating it walks
+        // the full tree (metrics), which prod paid per dispatch only for the
+        // record call to discard the result.
+        if (!isBuilderMutationAuditEnabled()) return;
         recordBuilderMutationAuditEvent(
           createEditorDispatchAuditEvent({
             mutationKind: mutation.kind,
@@ -2920,15 +2935,18 @@ export function EditProvider({
         setHasConflictRecovery(false);
       }
       // W1-T5(a) — re-stamp the persisted undo stack with the just-confirmed
-      // version SYNCHRONOUSLY (don't wait for the debounced re-stamp), so a
-      // reload in the window between the save and the next debounce sees the
-      // current version and a same-session undo survives. Mutating the ref then
-      // flushing writes the envelope with save.pageVersion immediately.
+      // version. The REF mutation is synchronous (so any flush — including the
+      // pagehide/visibility/unmount flush that covers a reload — writes the
+      // envelope with save.pageVersion), but Wave 3 (3.4) moved the
+      // serialize+write itself OFF the confirmed-save hot path: it used to
+      // stringify up to UNDO_PERSIST_CAP entries x 2 full tree snapshots to
+      // localStorage synchronously here, blocking the main thread right after
+      // every autosave. Now it runs at idle (500ms timeout cap).
       undoPersistDataRef.current = {
         ...undoPersistDataRef.current,
         baseVersion: save.pageVersion,
       };
-      flushUndoPersist();
+      scheduleIdleUndoPersistFlush();
       // W3 Sub-step D — skip the per-edit server refresh on the builder-tree
       // happy path WHEN A CLIENT CANVAS IS MOUNTED for this page.
       // `setBuilderTree(nextTree)` above already published the new tree to the
@@ -2972,8 +2990,8 @@ export function EditProvider({
       refreshComposition,
       // WS1-D — stamps each save with the per-tab session token + next seq.
       nextEditSession,
-      // W1-T5(a) — synchronous undo-stack re-stamp on save success.
-      flushUndoPersist,
+      // W1-T5(a)/Wave 3 (3.4) — idle-scheduled undo-stack re-stamp on save success.
+      scheduleIdleUndoPersistFlush,
     ],
   );
 
@@ -3244,20 +3262,25 @@ export function EditProvider({
       // server save is deferred/coalesced, and a rejected save surfaces async via
       // reportMutationError + rollback — so there is no sync failure to return here.
       await commitBuilderTreeMutation(operationResult.tree);
-      recordBuilderMutationAuditEvent(
-        createBuilderMutationAuditEvent({
-          operation: input.operation,
-          nodeId: input.nodeId,
-          parentId: input.parentId,
-          resultNodeId: operationResult.nodeId ?? null,
-          // W2-T4a — read selection from the refs (kept current by the effects
-          // above) so it can leave this callback's dep array.
-          activeSelectionSectionId: selectedSectionIdRef.current ?? null,
-          activeSelectionNodeId: selectedBuilderNodeIdRef.current ?? null,
-          previousTree,
-          tree: operationResult.tree,
-        }),
-      );
+      // Wave 3 (3.3) — guard BEFORE building the event: creating it runs ~5
+      // full tree walks (before/after metrics + 3× owner resolution), which
+      // prod paid per mutation only for the record call to discard the result.
+      if (isBuilderMutationAuditEnabled()) {
+        recordBuilderMutationAuditEvent(
+          createBuilderMutationAuditEvent({
+            operation: input.operation,
+            nodeId: input.nodeId,
+            parentId: input.parentId,
+            resultNodeId: operationResult.nodeId ?? null,
+            // W2-T4a — read selection from the refs (kept current by the effects
+            // above) so it can leave this callback's dep array.
+            activeSelectionSectionId: selectedSectionIdRef.current ?? null,
+            activeSelectionNodeId: selectedBuilderNodeIdRef.current ?? null,
+            previousTree,
+            tree: operationResult.tree,
+          }),
+        );
+      }
       return {
         ok: true,
         tree: operationResult.tree,
@@ -5520,7 +5543,9 @@ export function EditProvider({
       setSaving,
       loadedSection,
       setLoadedSection,
-      draftProps: draftPropsState,
+      // Wave 3 (3.1) — `draftProps` VALUE removed from `value` (lives in
+      // draft-props-bridge; readers use useDraftProps()). Setter kept so the
+      // write API is unchanged.
       setDraftProps,
 
       compositionLoaded,
@@ -5766,7 +5791,9 @@ export function EditProvider({
       // rebuilds `value`, so non-dirty consumers don't re-render on it.
       saving,
       loadedSection,
-      draftPropsState,
+      // Wave 3 (3.1) — `draftPropsState` removed from the value-memo deps: a
+      // per-keystroke working-copy write no longer rebuilds `value`, so
+      // non-draft consumers don't re-render on typing.
       setDraftProps,
       compositionLoaded,
       compositionLoading,
