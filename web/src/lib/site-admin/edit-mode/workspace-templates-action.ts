@@ -25,7 +25,7 @@
 import { randomBytes } from "node:crypto";
 
 import { requireSession, requireStaff } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
@@ -109,7 +109,7 @@ export async function saveCurrentHomepageAsTemplate(input: {
 }): Promise<SaveTemplateResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const name = input.name?.trim();
@@ -219,7 +219,7 @@ export async function listWorkspaceTemplates(input?: {
 }): Promise<ListTemplatesResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const admin = createServiceRoleClient();
@@ -257,7 +257,7 @@ export async function applyWorkspaceTemplate(input: {
 }): Promise<ApplyTemplateResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const admin = createServiceRoleClient();
@@ -387,7 +387,7 @@ export async function deleteWorkspaceTemplate(input: {
 }): Promise<SimpleResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const admin = createServiceRoleClient();

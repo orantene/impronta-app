@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
-import { requireTenantScope } from "@/lib/saas/scope";
+import { requireEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import {
@@ -110,7 +110,7 @@ export async function loadCmsFreeformPage(input: {
 }): Promise<CmsFreeformPageRow | null> {
   const auth = await requireSession();
   if (!auth.ok) return null;
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return null;
 
   const selectRow = (columns: string) =>
@@ -148,7 +148,7 @@ export async function saveCmsFreeformPage(input: {
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
   // Capability gate. This action writes DIRECTLY rather than through a
@@ -242,7 +242,7 @@ export async function publishCmsFreeformPage(input: {
 > {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
   // Capability gate. This action writes DIRECTLY rather than through a
@@ -302,7 +302,7 @@ export async function restoreCmsFreeformRevisionAction(input: {
 }): Promise<{ ok: true; updatedAt: string } | { ok: false; error: string }> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
   // Capability gate. This action writes DIRECTLY rather than through a

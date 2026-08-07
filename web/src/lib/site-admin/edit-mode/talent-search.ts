@@ -24,7 +24,7 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 
 export interface TalentSearchHit {
@@ -74,7 +74,7 @@ export async function searchAgencyTalentAction(input: {
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Tenant scope required", code: "TENANT_SCOPE" };
   }
@@ -195,7 +195,7 @@ export async function resolveTalentByCodesAction(input: {
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Tenant scope required", code: "TENANT_SCOPE" };
   }
@@ -305,7 +305,7 @@ export async function resolveTalentByIdsAction(input: {
   if (!auth.ok) {
     return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   }
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Tenant scope required", code: "TENANT_SCOPE" };
   }

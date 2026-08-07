@@ -34,7 +34,7 @@ import {
 import { loadPageRevisionsForStaff } from "@/lib/site-admin/server/pages-reads";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ── types ─────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ export async function loadHomepageRevisionsAction(input: {
 }): Promise<RevisionsLoadResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Select an agency workspace before viewing revisions." };
   }
@@ -200,7 +200,7 @@ export async function restoreHomepageRevisionAction(input: {
 }): Promise<RevisionRestoreResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -365,7 +365,7 @@ export async function loadPageRevisionsAction(input: {
 }): Promise<RevisionsLoadResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Select an agency workspace before viewing revisions." };
   }
@@ -444,7 +444,7 @@ export async function restorePageRevisionAction(input: {
 }): Promise<RevisionRestoreResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -519,7 +519,7 @@ export async function fetchNewestDraftRevisionIdAction(input: {
 }): Promise<NamedCheckpointResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Select an agency workspace first.", code: "NO_SCOPE" };
   }
@@ -568,7 +568,7 @@ export async function loadPublishDiffRevisionIdsAction(input: {
 }): Promise<PublishDiffRevisionIdsResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
   try {
@@ -615,7 +615,7 @@ export async function loadRevisionDiffAction(input: {
 }): Promise<RevisionSnapshotResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Select an agency workspace first." };
 
   try {

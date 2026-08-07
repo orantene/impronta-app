@@ -1,7 +1,7 @@
 "use server";
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 
@@ -63,7 +63,7 @@ export async function loadPublishedSnapshotRowsAction(input: {
 }): Promise<LoadPublishedSnapshotResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const { data: row, error } = await auth.supabase

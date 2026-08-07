@@ -26,7 +26,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
@@ -82,7 +82,7 @@ interface NavRow {
 export async function backfillSiteShellForCurrentTenant(): Promise<ShellBackfillResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const admin = createServiceRoleClient();

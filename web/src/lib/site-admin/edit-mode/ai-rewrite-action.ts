@@ -10,7 +10,7 @@
  * Both share the same provider adapter, allow-list, and rate limit.
  *
  * Safety:
- *   - requireSession + requireTenantScope (same gate as every other edit
+ *   - requireSession + requireEditSurfaceTenantScope (same gate as every other edit
  *     action).
  *   - Field allow-list per section (string fields only; we never let
  *     the AI rewrite numbers, enums, or URLs).
@@ -31,7 +31,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -156,7 +156,7 @@ export async function rewriteFieldWithAi(
 ): Promise<AiRewriteResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Pick an agency workspace before editing." };
   }
@@ -272,7 +272,7 @@ export async function translateSectionWithAi(
 ): Promise<AiTranslateResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return { ok: false, error: "Pick an agency workspace before editing." };
   }

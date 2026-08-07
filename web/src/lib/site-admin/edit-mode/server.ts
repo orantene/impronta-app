@@ -19,7 +19,7 @@ import { improntaLog } from "@/lib/server/structured-log";
  *     agency_staff" — that was the old global-app_role gate, removed in the
  *     PR #995 sweep because it locked hybrid workspace owners out of their own
  *     builder. Membership, not `profiles.app_role`, is the boundary.)
- *   - `requireTenantScope`: caller has a resolved tenant scope matching the
+ *   - `requireEditSurfaceTenantScope`: caller has a resolved tenant scope matching the
  *     host — it fails closed without an `agency_memberships` row. The JWT's
  *     `tid` claim is set from this scope — middleware on the tenant host
  *     re-verifies, so a cross-tenant edit attempt would silently fail even if
@@ -37,7 +37,7 @@ import { redirect } from "next/navigation";
 
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import {
   PREVIEW_COOKIE_OPTIONS,
   previewCookieNameFor,
@@ -83,7 +83,7 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
       error: "You need to be signed in to your workspace to enter edit mode.",
     };
   }
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     void improntaLog("site_admin_edit_mode.warn", { message: "[edit-mode] enter: no tenant scope" });
     return {
@@ -138,7 +138,7 @@ export async function enterEditModeAction(): Promise<EnterEditModeResult> {
 }
 
 export async function exitEditModeAction(): Promise<void> {
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return;
   const jar = await cookies();
   jar.delete(previewCookieNameFor(scope.tenantId));

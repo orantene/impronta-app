@@ -18,7 +18,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
@@ -152,7 +152,7 @@ export async function runPublishPreflight(input?: {
 }): Promise<PreflightResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
   const locale = input?.locale?.trim() || DEFAULT_PLATFORM_LOCALE;
   const workspacePlan = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {

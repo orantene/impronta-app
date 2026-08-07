@@ -19,7 +19,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import {
   isResolvedAiChatConfigured,
@@ -127,7 +127,7 @@ export async function composePageFromBriefAction(input: {
   // applied to "Compose with AI".
   let tenantId: string;
   try {
-    const scope = await requireTenantScope();
+    const scope = await requireEditSurfaceTenantScope();
     tenantId = scope.tenantId;
   } catch {
     return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };

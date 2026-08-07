@@ -5,7 +5,7 @@
  *
  * Operators thread comments on individual homepage sections from the
  * Comments drawer. Staff actions are gated on `requireSession` +
- * `requireTenantScope` and write through RLS via the per-request
+ * `requireEditSurfaceTenantScope` and write through RLS via the per-request
  * Supabase client (the `cms_section_comments_staff_all` policy permits).
  *
  * Reviewer-side authoring (share-link recipients with `comment: 'rw'`)
@@ -24,7 +24,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 
@@ -191,7 +191,7 @@ export async function listCommentsAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -265,7 +265,7 @@ export async function addCommentAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -385,7 +385,7 @@ export async function editCommentAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -472,7 +472,7 @@ export async function resolveCommentAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,
@@ -537,7 +537,7 @@ export async function deleteCommentAction(
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
 
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) {
     return {
       ok: false,

@@ -32,6 +32,12 @@ export {
 } from "./scope";
 
 export {
+  getEditSurfaceTenantId,
+  getEditSurfaceTenantScope,
+  requireEditSurfaceTenantScope,
+} from "./edit-surface-scope";
+
+export {
   resolveTenantContext,
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,

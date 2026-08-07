@@ -12,12 +12,12 @@
  *
  * Auth contract on every action:
  *   - `requireSession` (super_admin | agency_staff)
- *   - `requireTenantScope` matches the cookie-scoped tenant
+ *   - `requireEditSurfaceTenantScope` matches the cookie-scoped tenant
  *   - the incoming sectionId / tenantId must agree with scope
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { sectionUpsertSchema } from "@/lib/site-admin";
 import {
   clampFeaturedRosterLimitForPlan,
@@ -49,7 +49,7 @@ export async function loadSectionForEditAction(
 ): Promise<EditLoadResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Tenant scope required" };
 
   try {
@@ -119,7 +119,7 @@ export async function saveSectionDraftAction(
 ): Promise<EditSaveResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Tenant scope required" };
 
   let nextProps = input.props;
@@ -218,7 +218,7 @@ export async function setSectionVisibilityAction(input: {
 }): Promise<SetSectionVisibilityResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Tenant scope required" };
 
   try {

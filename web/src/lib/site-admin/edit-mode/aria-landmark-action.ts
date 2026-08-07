@@ -23,7 +23,7 @@
  */
 
 import { requireSession } from "@/lib/server/action-guards";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
@@ -85,7 +85,7 @@ const NAV_TYPES = new Set<string>(["anchor_nav"]);
 export async function runAriaLandmarkCheck(): Promise<LandmarkCheckResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);

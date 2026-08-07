@@ -32,7 +32,7 @@ import { revalidateTag } from "next/cache";
 
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
-import { requireTenantScope } from "@/lib/saas";
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
@@ -75,7 +75,7 @@ export type PublishSnapshotResult =
 export async function listComposablePages(): Promise<ListPagesResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   const admin = createServiceRoleClient();
@@ -146,7 +146,7 @@ export async function publishPageSnapshot(input: {
 }): Promise<PublishSnapshotResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const scope = await requireTenantScope().catch(() => null);
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "Pick an agency workspace first." };
 
   // Capability gate. This action writes DIRECTLY rather than through a
