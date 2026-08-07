@@ -149,6 +149,11 @@ export function FloatingPanelShell({
       data-edit-drawer={dataEditDrawer}
       data-edit-overlay={dataEditOverlay}
       data-edit-drawer-floating=""
+      // WAVE2-2.2 — which viewport edge this panel is anchored to. Floating
+      // canvas chrome (the nested-blocks popover) measures the LEFT-anchored
+      // panels to place itself clear of them, so the marker has to be on the
+      // shell, not on each caller.
+      data-edit-panel-side={side}
       data-edit-float-panel-id={panelId}
       data-testid={testId}
       role={role}

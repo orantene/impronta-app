@@ -144,12 +144,14 @@ import {
 } from "@/lib/site-admin/builder-node/replace-in-tree";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import {
+  CANVAS_CHILDREN_PANEL,
   CANVAS_FLOATING_BAR,
   CHROME,
   CHROME_RADII,
   EDIT_TOPBAR_H,
   Z_INDEX,
 } from "./kit/tokens";
+import { useCanvasPanelPlacement } from "./canvas-panel-clearance";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
@@ -6591,7 +6593,22 @@ function CanvasNodeChildrenPanel({
     typeof window === "undefined" ? selectedRect.top + selectedRect.height + 220 : window.innerHeight;
   const viewportWidth =
     typeof window === "undefined" ? selectedRect.left + 308 : window.innerWidth;
-  if (viewportWidth <= 520) return null;
+  // WAVE2-2.2 — the panel used to be pinned at a literal `left: 14`, which put
+  // its top rows underneath the left command dock (and underneath any open dock
+  // panel) whenever the viewport was short enough for the rail to reach into
+  // its band. Measure the left chrome and sit clear of it instead, so this
+  // stays correct when the dock, the navigator width, or the panel height move.
+  const placement = useCanvasPanelPlacement({
+    enabled: viewportWidth > CANVAS_CHILDREN_PANEL.minViewportWidth,
+    preferredWidth: CANVAS_CHILDREN_PANEL.width,
+    minWidth: CANVAS_CHILDREN_PANEL.minWidth,
+    height: open ? CANVAS_CHILDREN_PANEL.maxHeight : CANVAS_CHILDREN_PANEL.pillHeight,
+    bottomOffset: CANVAS_CHILDREN_PANEL.bottom,
+    homeInset: CANVAS_CHILDREN_PANEL.homeInset,
+    gap: CANVAS_CHILDREN_PANEL.gap,
+    rightGutter: CANVAS_CHILDREN_PANEL.rightGutter,
+  });
+  if (viewportWidth <= CANVAS_CHILDREN_PANEL.minViewportWidth) return null;
   // Closed → collapse to a pill in the SAME spot rather than disappearing, so
   // the panel has a visible home to come back from. Sits on the bottom-left
   // control stack directly above the zoom bar.
@@ -6609,9 +6626,9 @@ function CanvasNodeChildrenPanel({
         title={t("Show nested blocks")}
         style={{
           position: "fixed",
-          bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
-          left: 14,
-          height: 34,
+          bottom: CANVAS_CHILDREN_PANEL.bottom,
+          left: placement.left,
+          height: CANVAS_CHILDREN_PANEL.pillHeight,
           display: "inline-flex",
           alignItems: "center",
           gap: 7,
@@ -6687,11 +6704,13 @@ function CanvasNodeChildrenPanel({
         position: "fixed",
         // Docked above the zoom bar on the left rather than chasing the
         // selection, so it shares the bottom control-bar stack with the other
-        // floating chrome instead of covering the canvas mid-page.
-        bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
-        left: 14,
-        width: 332,
-        maxHeight: 208,
+        // floating chrome instead of covering the canvas mid-page. `left` and
+        // `width` are MEASURED against the left chrome (WAVE2-2.2) so the dock
+        // and any open dock panel never clip the header or the first row.
+        bottom: CANVAS_CHILDREN_PANEL.bottom,
+        left: placement.left,
+        width: placement.width,
+        maxHeight: CANVAS_CHILDREN_PANEL.maxHeight,
         padding: "10px 10px 11px",
         borderRadius: CHROME_RADII.lg,
         border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
