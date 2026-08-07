@@ -590,6 +590,97 @@ export async function uploadCmsMedia(opts: {
   };
 }
 
+// ── Agency logo (branding drawer) ───────────────────────────────────────
+
+export type AgencyLogoUploadOk = { ok: true; logoUrl: string };
+
+const LOGO_SVG_MAX_BYTES = 256 * 1024;
+const LOGO_RASTER_MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Agency logo upload (Wave 5.1): replaces the raw-FormData
+ * actionUploadAgencyLogo server action, whose 10 MB cap was unreachable
+ * behind the ~4 MB Server Action body limit and which stored SVG bytes
+ * un-sanitized into the public bucket.
+ *
+ * Raster (png/jpg/webp): compress in-browser, signed PUT direct to
+ * storage, then a finalize action that re-verifies the bytes server-side.
+ * SVG: the text rides a plain server action (small by definition) and is
+ * stored only if the strict brand-mark sanitizer accepts it.
+ *
+ * No legacy fallback on purpose — the legacy transport is the thing this
+ * replaces. `fallbackToLegacy` is always false.
+ */
+export async function uploadAgencyLogo(opts: {
+  file: File;
+  onProgress?: (p: SignedUploadProgress) => void;
+}): Promise<AgencyLogoUploadOk | FailureResult> {
+  const { file } = opts;
+  if (file.size === 0) {
+    return { ok: false, fallbackToLegacy: false, error: "File is empty." };
+  }
+
+  const actions = await import("@/lib/server-actions/admin-agency-logo-upload");
+
+  // SVG lane — sanitized server-side, text transport.
+  if (file.type === "image/svg+xml" || /\.svg$/i.test(file.name)) {
+    if (file.size > LOGO_SVG_MAX_BYTES) {
+      return {
+        ok: false,
+        fallbackToLegacy: false,
+        error: "SVG logo must be under 256 KB.",
+      };
+    }
+    const svgText = await file.text();
+    const result = await actions.actionUploadAgencyLogoSvg(svgText);
+    if (!result.ok) {
+      return { ok: false, fallbackToLegacy: false, error: result.error };
+    }
+    return { ok: true, logoUrl: result.logoUrl };
+  }
+
+  // Raster lane — compress, signed PUT, finalize.
+  opts.onProgress?.({ phase: "compressing" });
+  const compressed = await compressImage(file);
+  const ext = compressed.ext === "jpeg" ? "jpg" : compressed.ext;
+  if (ext !== "jpg" && ext !== "png" && ext !== "webp") {
+    return {
+      ok: false,
+      fallbackToLegacy: false,
+      error: "Logo must be a PNG, SVG, JPEG or WebP file.",
+    };
+  }
+  if (compressed.file.size > LOGO_RASTER_MAX_BYTES) {
+    return {
+      ok: false,
+      fallbackToLegacy: false,
+      error: "Logo must be under 8 MB after compression.",
+    };
+  }
+
+  const signed = await actions.actionCreateAgencyLogoUploadUrl(ext);
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  opts.onProgress?.({
+    phase: "uploading",
+    bytesTotal: compressed.file.size,
+    compression: compressed,
+  });
+  const putOk = await putToSignedUrl(signed.uploadUrl, compressed.file);
+  if (!putOk.ok) {
+    return { ok: false, fallbackToLegacy: false, error: putOk.error };
+  }
+
+  opts.onProgress?.({ phase: "registering", compression: compressed });
+  const finalized = await actions.actionFinalizeAgencyLogo(signed.storagePath);
+  if (!finalized.ok) {
+    return { ok: false, fallbackToLegacy: false, error: finalized.error };
+  }
+  return { ok: true, logoUrl: finalized.logoUrl };
+}
+
 // ── Shared low-level PUT ────────────────────────────────────────────────
 
 async function putToSignedUrl(

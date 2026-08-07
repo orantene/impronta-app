@@ -1839,7 +1839,7 @@ export async function TalentProfileView({
     );
 
   // Extract watermark preset + logo from agency_branding.theme_json (publicly readable).
-  // Stored there by updateAgencyBranding / actionUploadAgencyLogo server actions.
+  // Stored there by updateAgencyBranding / the agency-logo signed-upload finalize actions.
   const brandingTheme = (typeof tenantBranding?.theme_json === "object" && tenantBranding.theme_json !== null
     ? tenantBranding.theme_json as Record<string, unknown>
     : {});

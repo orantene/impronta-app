@@ -30,6 +30,7 @@
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { sanitizeSvgLogoBuffer } from "@/lib/site-admin/sanitize-svg-upload";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { assertTalentCanUseCustomBuilder } from "@/lib/server/talent-self-guard";
 import { provisionTalentMaxSite } from "./provision-max-site";
@@ -595,7 +596,10 @@ export async function uploadMaxSiteLogoAction(
       ? "svg"
       : file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
   const storagePath = `talent-site-logos/${g.talentProfileId}/${crypto.randomUUID()}.${ext}`;
-  const bytes = await file.arrayBuffer();
+  // Public-bucket SVG is stored XSS unless sanitized (Wave 5.1): store only what the allowlist sanitizer accepts.
+  const body = ext === "svg" ? sanitizeSvgLogoBuffer(await file.text()) : ({ ok: true, bytes: await file.arrayBuffer() } as const);
+  if (!body.ok) return { ok: false, code: "invalid_input", error: body.error };
+  const bytes = body.bytes;
 
   const { error: uploadErr } = await admin.storage
     .from("media-public")

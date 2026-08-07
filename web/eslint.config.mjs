@@ -185,7 +185,7 @@ const ratchetPlugin = {
         type: "problem",
         schema: [],
         messages: {
-          raw: 'Raw {{method}}("file", …) sends the un-compressed file through a body-capped transport (4 MB Server Action / ~4.5 MB Vercel). Use the signed-upload pipeline (lib/client/signed-upload.ts) or compressImage() first; legacy fallbacks are grandfathered in eslint-suppressions.json.',
+          raw: 'Raw {{method}}("{{key}}", …) sends the un-compressed file through a body-capped transport (4 MB Server Action / ~4.5 MB Vercel). Use the signed-upload pipeline (lib/client/signed-upload.ts) or compressImage() first; legacy fallbacks are grandfathered in eslint-suppressions.json.',
         },
       },
       create(context) {
@@ -202,11 +202,14 @@ const ratchetPlugin = {
               return;
             }
             const a = node.arguments[0];
-            if (a && a.type === "Literal" && a.value === "file") {
+            // "logo" joined the key set in Wave 5.1: the agency-logo upload
+            // rode a raw FormData("logo", File) server action this rule
+            // never saw. Any file-bearing key belongs on the signed pipeline.
+            if (a && a.type === "Literal" && (a.value === "file" || a.value === "logo")) {
               context.report({
                 node,
                 messageId: "raw",
-                data: { method: cal.property.name },
+                data: { method: cal.property.name, key: a.value },
               });
             }
           },
