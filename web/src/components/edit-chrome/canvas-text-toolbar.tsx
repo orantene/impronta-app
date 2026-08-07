@@ -71,6 +71,7 @@ import {
   type BuilderTextRoleId,
 } from "@/lib/site-admin/builder-node/text-role";
 import { useEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 
 export type CanvasTextKind = "heading" | "paragraph" | "rich_text" | "button";
 
@@ -270,6 +271,7 @@ function FontSizeStepper({
   onChange: (next: string) => void;
   disabled?: boolean;
 }) {
+  const { t } = useEditorLocale();
   const numeric = Number(value);
   const isNumeric = Number.isFinite(numeric);
 
@@ -298,7 +300,7 @@ function FontSizeStepper({
   return (
     <div
       data-allow-focus
-      title={`Font size: ${value}px`}
+      title={t("Font size: {value}px").replace("{value}", value)}
       style={{
         display: "inline-flex",
         alignItems: "stretch",
@@ -316,7 +318,7 @@ function FontSizeStepper({
         inputMode="numeric"
         value={value}
         disabled={disabled}
-        aria-label="Font size"
+        aria-label={t("Font size")}
         onMouseDown={(e) => e.stopPropagation()}
         onChange={(e) => {
           const raw = e.target.value.trim();
@@ -367,7 +369,7 @@ function FontSizeStepper({
       >
         <button
           type="button"
-          aria-label="Increase font size"
+          aria-label={t("Increase font size")}
           disabled={disabled || (isNumeric && numeric >= FONT_SIZE_MAX)}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => step(1)}
@@ -377,7 +379,7 @@ function FontSizeStepper({
         </button>
         <button
           type="button"
-          aria-label="Decrease font size"
+          aria-label={t("Decrease font size")}
           disabled={disabled || (isNumeric && numeric <= FONT_SIZE_MIN)}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => step(-1)}
@@ -416,6 +418,7 @@ export function CanvasTextToolbar({
   onToggleItalic,
   onChangeTextRole,
 }: CanvasTextToolbarProps) {
+  const { t } = useEditorLocale();
   const { inspectorDockOpen, device } = useEditContext();
   // Resolve to the active editable tier when the canvas is on a render-backed
   // override tier; otherwise fall back to the base tier (RESP-1 registry-driven).
@@ -453,7 +456,7 @@ export function CanvasTextToolbar({
     : null;
   const activeTextRoleLabel =
     BUILDER_TEXT_ROLE_OPTIONS.find((opt) => opt.id === activeTextRole)
-      ?.shortLabel ?? "Text";
+      ?.shortLabel ?? t("Text");
   const style = {
     ...((node.props.style ?? {}) as Record<string, unknown>),
     ...styleOverride,
@@ -468,8 +471,11 @@ export function CanvasTextToolbar({
   const usesThemeFontSize = !storedFontSizePx;
   const fontSizeTitle =
     usesThemeFontSize && activeTextRole
-      ? `Theme size: ${readThemeTypographySize(activeTextRole)}. Adjust to override.`
-      : "Custom font size on this block";
+      ? t("Theme size: {size}. Adjust to override.").replace(
+          "{size}",
+          readThemeTypographySize(activeTextRole),
+        )
+      : t("Custom font size on this block");
   const fontFamily = (style.fontFamily as string | undefined) ?? "";
   const selectedFontLabel =
     FONT_FAMILIES.find((f) => f.value === fontFamily)?.label ??
@@ -601,7 +607,7 @@ export function CanvasTextToolbar({
       ref={barRef}
       data-canvas-text-toolbar=""
       role="toolbar"
-      aria-label={`${label} text toolbar`}
+      aria-label={t("{label} text toolbar").replace("{label}", label)}
       onMouseDown={preventToolbarBlur}
       style={{
         position: "fixed",
@@ -636,7 +642,7 @@ export function CanvasTextToolbar({
           type="button"
           onClick={onOpenInspector}
           title={label}
-          aria-label={`${label}, open in inspector`}
+          aria-label={t("{label}, open in inspector").replace("{label}", label)}
           className="inline-flex cursor-pointer items-center justify-center border-none bg-transparent p-0"
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -658,8 +664,8 @@ export function CanvasTextToolbar({
         {onReviseWithAi ? (
           <button
             type="button"
-            title="Revise with AI"
-            aria-label="Revise this block with AI"
+            title={t("Revise with AI")}
+            aria-label={t("Revise this block with AI")}
             data-canvas-text-action="ai"
             disabled={disabled}
             onMouseDown={(e) => e.preventDefault()}
@@ -693,8 +699,8 @@ export function CanvasTextToolbar({
         <div style={{ position: "relative", flexShrink: 0 }}>
           <button
             type="button"
-            title="Text style"
-            aria-label="Text style"
+            title={t("Text style")}
+            aria-label={t("Text style")}
             aria-haspopup="menu"
             aria-expanded={textStyleOpen}
             disabled={disabled}
@@ -724,7 +730,7 @@ export function CanvasTextToolbar({
           {textStyleOpen ? (
             <div
               role="menu"
-              aria-label="Text style"
+              aria-label={t("Text style")}
               onMouseDown={(e) => e.stopPropagation()}
               style={{
                 position: "absolute",
@@ -760,7 +766,7 @@ export function CanvasTextToolbar({
                       borderRadius: 6,
                     }}
                   >
-                    <span>{option.label}</span>
+                    <span>{t(option.label)}</span>
                     <span
                       style={{
                         fontSize: 10,
@@ -780,7 +786,7 @@ export function CanvasTextToolbar({
 
       <div style={{ position: "relative", flexShrink: 0 }}>
         <ToolbarBtn
-          title={`Font: ${selectedFontLabel}`}
+          title={t("Font: {font}").replace("{font}", t(selectedFontLabel))}
           active={fontFamilyOpen}
           disabled={disabled}
           onClick={(e) => {
@@ -795,7 +801,7 @@ export function CanvasTextToolbar({
         {fontFamilyOpen ? (
           <div
             role="menu"
-            aria-label="Font family"
+            aria-label={t("Font family")}
             onMouseDown={(e) => e.stopPropagation()}
             style={{
               position: "absolute",
@@ -835,7 +841,7 @@ export function CanvasTextToolbar({
                     borderRadius: 6,
                   }}
                 >
-                  {family.label}
+                  {t(family.label)}
                 </button>
               );
             })}
@@ -854,7 +860,7 @@ export function CanvasTextToolbar({
       <Divider />
 
       <ToolbarBtn
-        title="Bold"
+        title={t("Bold")}
         active={boldActive}
         disabled={disabled}
         onClick={() => {
@@ -870,7 +876,7 @@ export function CanvasTextToolbar({
         B
       </ToolbarBtn>
       <ToolbarBtn
-        title="Italic"
+        title={t("Italic")}
         active={italicActive}
         disabled={disabled}
         onClick={() => {
@@ -889,7 +895,7 @@ export function CanvasTextToolbar({
       <Divider />
 
       <ToolbarBtn
-        title="Align text left (inside this block)"
+        title={t("Align text left (inside this block)")}
         active={align === "left"}
         disabled={disabled}
         onClick={() => patchAlign("left")}
@@ -897,7 +903,7 @@ export function CanvasTextToolbar({
         <AlignLeft size={15} strokeWidth={2} aria-hidden />
       </ToolbarBtn>
       <ToolbarBtn
-        title="Align text center (inside this block)"
+        title={t("Align text center (inside this block)")}
         active={align === "center"}
         disabled={disabled}
         onClick={() => patchAlign("center")}
@@ -905,7 +911,7 @@ export function CanvasTextToolbar({
         <AlignCenter size={15} strokeWidth={2} aria-hidden />
       </ToolbarBtn>
       <ToolbarBtn
-        title="Align text right (inside this block)"
+        title={t("Align text right (inside this block)")}
         active={align === "right"}
         disabled={disabled}
         onClick={() => patchAlign("right")}
@@ -914,7 +920,7 @@ export function CanvasTextToolbar({
       </ToolbarBtn>
       {showJustify ? (
         <ToolbarBtn
-          title="Justify text"
+          title={t("Justify text")}
           active={align === "justify"}
           disabled={disabled}
           onClick={() => patchAlign("justify")}
@@ -927,7 +933,7 @@ export function CanvasTextToolbar({
 
       <div style={{ position: "relative", flexShrink: 0 }}>
         <ToolbarBtn
-          title="Move this block within its section"
+          title={t("Move this block within its section")}
           active={blockPositionOpen || blockPosition !== null}
           disabled={disabled}
           onClick={(e) => {
@@ -942,7 +948,7 @@ export function CanvasTextToolbar({
         {blockPositionOpen ? (
           <div
             role="toolbar"
-            aria-label="Block position"
+            aria-label={t("Block position")}
             onMouseDown={(e) => e.stopPropagation()}
             style={{
               position: "absolute",
@@ -976,10 +982,10 @@ export function CanvasTextToolbar({
                 whiteSpace: "nowrap",
               }}
             >
-              Block
+              {t("Block")}
             </span>
             <ToolbarBtn
-              title="Move block to the left of its section"
+              title={t("Move block to the left of its section")}
               active={blockPosition === "left"}
               disabled={disabled}
               onClick={() => patchBlockPosition("left")}
@@ -987,7 +993,7 @@ export function CanvasTextToolbar({
               <AlignHorizontalJustifyStart size={15} strokeWidth={2} aria-hidden />
             </ToolbarBtn>
             <ToolbarBtn
-              title="Center block in its section"
+              title={t("Center block in its section")}
               active={blockPosition === "center"}
               disabled={disabled}
               onClick={() => patchBlockPosition("center")}
@@ -995,7 +1001,7 @@ export function CanvasTextToolbar({
               <AlignHorizontalJustifyCenter size={15} strokeWidth={2} aria-hidden />
             </ToolbarBtn>
             <ToolbarBtn
-              title="Move block to the right of its section"
+              title={t("Move block to the right of its section")}
               active={blockPosition === "right"}
               disabled={disabled}
               onClick={() => patchBlockPosition("right")}
@@ -1009,7 +1015,7 @@ export function CanvasTextToolbar({
       <Divider />
 
       <ToolbarBtn
-        title="Text color"
+        title={t("Text color")}
         disabled={disabled}
         buttonRef={colorBtnRef}
         onClick={handleColorClick}
@@ -1026,7 +1032,7 @@ export function CanvasTextToolbar({
       </ToolbarBtn>
 
       {showLink ? (
-        <ToolbarBtn title="Link" disabled={disabled} onClick={handleLinkClick}>
+        <ToolbarBtn title={t("Link")} disabled={disabled} onClick={handleLinkClick}>
           <Link2 size={15} strokeWidth={2} aria-hidden />
         </ToolbarBtn>
       ) : null}
@@ -1037,7 +1043,7 @@ export function CanvasTextToolbar({
           can reopen the panel it just closed. */}
       {onToggleNested ? (
         <ToolbarBtn
-          title={nestedOpen ? "Hide nested blocks" : "Show nested blocks"}
+          title={nestedOpen ? t("Hide nested blocks") : t("Show nested blocks")}
           active={!!nestedOpen}
           disabled={disabled}
           onClick={onToggleNested}
@@ -1046,20 +1052,20 @@ export function CanvasTextToolbar({
         </ToolbarBtn>
       ) : null}
       <ToolbarBtn
-        title="Advanced, open inspector"
+        title={t("Advanced, open inspector")}
         disabled={disabled}
         onClick={onOpenInspector}
       >
         <SlidersHorizontal size={15} strokeWidth={2} aria-hidden />
       </ToolbarBtn>
 
-      <ToolbarBtn title="Duplicate" disabled={disabled} onClick={onDuplicate}>
+      <ToolbarBtn title={t("Duplicate")} disabled={disabled} onClick={onDuplicate}>
         <Copy size={15} strokeWidth={2} aria-hidden />
       </ToolbarBtn>
 
       <div style={{ position: "relative" }}>
         <ToolbarBtn
-          title="More actions"
+          title={t("More actions")}
           disabled={disabled}
           onClick={(e) => {
             e.stopPropagation();
@@ -1088,21 +1094,21 @@ export function CanvasTextToolbar({
             }}
           >
             {[
-              { label: "Edit in inspector", action: onOpenInspector },
+              { label: t("Edit in inspector"), action: onOpenInspector },
               ...(usesThemeFontSize
                 ? []
                 : [
                     {
-                      label: "Use theme font size",
+                      label: t("Use theme font size"),
                       action: () => applyStylePatch({ fontSize: undefined }),
                     },
                   ]),
-              { label: "Copy style", action: onCopyStyle },
-              { label: "Paste style", action: onPasteStyle, disabled: !canPasteStyle },
-              { label: "Reset style", action: onResetStyle },
-              { label: "Hide on device", action: onHideOnDevice },
-              { label: locked ? "Unlock" : "Lock", action: onToggleLock },
-              { label: "Delete", action: onRemove, danger: true },
+              { label: t("Copy style"), action: onCopyStyle },
+              { label: t("Paste style"), action: onPasteStyle, disabled: !canPasteStyle },
+              { label: t("Reset style"), action: onResetStyle },
+              { label: t("Hide on device"), action: onHideOnDevice },
+              { label: locked ? t("Unlock") : t("Lock"), action: onToggleLock },
+              { label: t("Delete"), action: onRemove, danger: true },
             ]
               .filter((item) => item.action)
               .map((item) => (
