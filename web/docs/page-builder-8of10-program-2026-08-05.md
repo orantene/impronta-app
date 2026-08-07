@@ -225,6 +225,29 @@ The bar shipped in #1001 but only mounts where the editor mounts.
 
 ---
 
+## 2b. WAVE 7 (added 2026-08-07, owner feedback) — the Free starter must look like a real site
+
+The owner saw the qa-agency-244988 homepage and called it "a disaster... not a site
+or marketing page". IMPORTANT CONTEXT: that specific tenant is the QA sandbox whose
+draft has been mangled by months of e2e runs (offset hero, deleted sections,
+duplicated kickers) — it is NOT what a new signup sees. The real first-run
+storefront is seeded by #1005 (`scripts/seed-default-storefront.ts`).
+
+But the owner's underlying standard is the work item: **a brand-new Free tenant's
+storefront must read as a credible marketing page on first load.** Nobody has
+design-audited the actual seeded output against that bar.
+
+| # | Item |
+|---|---|
+| 7.1 | Create a FRESH Free tenant via the real signup path and screenshot the seeded storefront desktop + 390px, before touching anything. Judge it against the owner's standard, honestly. |
+| 7.2 | If it falls short: a design pass on the seed content (hero composition, section order, imagery per `feedback_prototype_imagery` — editorial/real photos, never placeholder boxes, no dead CTAs) and on the default theme tokens. This is DESIGN work; use real content, both themes, mobile-first. |
+| 7.3 | Separately: reset the qa-agency-244988 homepage draft to the seeded baseline so QA residue stops being mistaken for the product (and stops skewing e2e). `scripts/reset-impronta-homepage.ts` exists as a pattern. |
+
+Owner-facing rule: show screenshots BEFORE and AFTER; the owner judges the design
+bar, not us.
+
+---
+
 ## 3. Non-negotiable execution rules
 
 These are distilled from what actually went wrong in the 08-04/05 wave. An agent that
