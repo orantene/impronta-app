@@ -49,7 +49,7 @@ import { useComponentDefaultsPreview } from "../component-defaults-bridge";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InstanceVariantPicker } from "./instance-variant-picker";
 import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
-import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField } from "./kit";
+import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput } from "./kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, INSPECTOR_HELP_TEXT_CLASS as HINT, INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE, InspectorBody } from "./kit/inspector-ui";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import { Swatch } from "../kit/swatch";
@@ -5795,14 +5795,13 @@ export function StylePanel({
         </div>
         <div className="flex flex-col gap-1.5">
           <span className={FIELD_LABEL}>Dark overlay ({Math.round(videoOverlay * 100)}%)</span>
-          <input
-            type="range"
+          <DebouncedRangeInput
             min={0}
             max={100}
             step={5}
             value={Math.round(videoOverlay * 100)}
-            onChange={(e) => {
-              const v = Number(e.target.value) / 100;
+            onCommit={(next) => {
+              const v = next / 100;
               onPatch({
                 __presentation: { videoOverlay: v > 0 ? v : undefined },
               });

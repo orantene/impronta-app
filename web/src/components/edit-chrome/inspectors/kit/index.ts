@@ -94,6 +94,8 @@ export {
   useInspectorSearchFilter,
   useInspectorSearchQuery,
 } from "./inspector-search";
+// Wave 3 (3.2) — debounced range slider shared by all inspector sliders.
+export { DebouncedRangeInput } from "./debounced-range-input";
 // MOTION-1 — shared CSS editor with error hints + CSS validator
 export { CssEditorWithHints } from "./css-editor-with-hints";
 export { validateCss, type CssError } from "./css-validator";

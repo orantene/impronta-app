@@ -20,6 +20,7 @@ import {
   VisualChipGroup,
   MediaPickerButton,
   CtaDuoEditor,
+  DebouncedRangeInput,
   type CtaShape,
 } from "./kit";
 import { useEffect, useMemo, useRef } from "react";
@@ -247,15 +248,12 @@ export function CtaBannerContentInspector({
               <label className={KIT.label}>
                 {t("Overlay darkness:")} {overlayOpacity}%
               </label>
-              <input
-                type="range"
+              <DebouncedRangeInput
                 min={0}
                 max={80}
                 step={5}
                 value={overlayOpacity}
-                onChange={(e) =>
-                  update({ overlayOpacity: Number(e.target.value) })
-                }
+                onCommit={(next) => update({ overlayOpacity: next })}
                 className="w-full accent-stone-900"
               />
             </div>
