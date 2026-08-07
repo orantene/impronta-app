@@ -8,7 +8,7 @@ import {
   type CmsPostSnapshot,
 } from "@/lib/cms/revision-snapshots";
 import type { Locale } from "@/i18n/config";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 
@@ -27,7 +27,7 @@ export async function listCmsPageRevisions(
   const idParsed = uuid.safeParse(pageId);
   if (!idParsed.success) return { ok: false, error: "Invalid page." };
 
-  const session = await requireStaffTenantAction();
+  const session = await requireWorkspaceStaffAction();
   if (!session.ok) return { ok: false, error: session.error };
   const { tenantId } = session;
 
@@ -56,7 +56,7 @@ export async function listCmsPostRevisions(
   const idParsed = uuid.safeParse(postId);
   if (!idParsed.success) return { ok: false, error: "Invalid post." };
 
-  const session = await requireStaffTenantAction();
+  const session = await requireWorkspaceStaffAction();
   if (!session.ok) return { ok: false, error: session.error };
   const { tenantId } = session;
 
@@ -95,7 +95,7 @@ export async function getCmsPageRevisionForRestore(input: {
   liveSlug: string;
   liveLocale: Locale;
 }): Promise<RestorePageRevisionResult> {
-  const session = await requireStaffTenantAction();
+  const session = await requireWorkspaceStaffAction();
   if (!session.ok) return { ok: false, error: session.error };
   const { tenantId } = session;
 
@@ -142,7 +142,7 @@ export async function getCmsPostRevisionForRestore(input: {
   liveSlug: string;
   liveLocale: Locale;
 }): Promise<RestorePostRevisionResult> {
-  const session = await requireStaffTenantAction();
+  const session = await requireWorkspaceStaffAction();
   if (!session.ok) return { ok: false, error: session.error };
   const { tenantId } = session;
 

@@ -19,13 +19,13 @@ import { logServerError } from "@/lib/server/safe-error";
 import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 
 const MAX_LOGO_SIZE = 512; // px — cap logo dimension before compositing
 
 export async function POST(req: NextRequest) {
   // Auth check
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }

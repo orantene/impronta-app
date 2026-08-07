@@ -17,7 +17,7 @@
 // (already shipped in admin-talent-extras.ts).
 // ============================================================================
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 export type TalentMetrics = {
@@ -35,7 +35,7 @@ export async function getTalentMetrics(input: {
 }): Promise<
   { ok: true; metrics: TalentMetrics } | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

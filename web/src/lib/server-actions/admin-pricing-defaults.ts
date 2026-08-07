@@ -23,7 +23,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { AccessDeniedError, requireCapability } from "@/lib/access/has-capability";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -62,7 +62,7 @@ const schema = z
 export async function updateTenantPricingDefaults(
   input: TenantPricingDefaults,
 ): Promise<UpdatePricingDefaultsResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 
@@ -124,7 +124,7 @@ export async function updateTenantPricingDefaults(
 }
 
 export async function loadTenantPricingDefaultsAction(): Promise<LoadPricingDefaultsResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

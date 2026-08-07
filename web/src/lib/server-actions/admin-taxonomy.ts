@@ -9,7 +9,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { CACHE_TAG_TAXONOMY } from "@/lib/cache-tags";
 import { fetchAllTaxonomyTerms } from "@/lib/supabase/paged";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { logEngineAudit } from "./engine-audit";
 import {
@@ -88,7 +88,7 @@ function revalidateTenantTaxonomySurfaces(): void {
 // ─── Read: enabled taxonomy tree ─────────────────────────────────────────────
 
 export async function getEnabledTaxonomyTree(): Promise<GetTaxonomyTreeResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -299,7 +299,7 @@ export type GetCategoryDetailResult =
 export async function getCategoryDetail(input: {
   parent_id: string;
 }): Promise<GetCategoryDetailResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -463,7 +463,7 @@ export async function setTaxonomyEnabled(input: {
   taxonomy_term_id: string;
   is_enabled: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -558,7 +558,7 @@ const setFlagsSchema = z.object({
 export async function setTaxonomyFlags(
   input: z.infer<typeof setFlagsSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -669,7 +669,7 @@ export async function addCustomSubType(input: {
   name_es?: string | null;
   helper_text?: string | null;
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -750,7 +750,7 @@ const removeCustomSchema = z.object({
 export async function removeCustomSubType(input: {
   id: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -840,7 +840,7 @@ export type GetFieldsForTalentEnrichedResult =
 export async function getFieldsForTalent(input: {
   talent_profile_id: string;
 }): Promise<GetFieldsForTalentEnrichedResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const resolved = await resolveTalentFields({
     supabase: auth.supabase,

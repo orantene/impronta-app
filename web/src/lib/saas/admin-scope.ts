@@ -6,6 +6,7 @@ import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { auditFailure } from "@/lib/audit/emit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScope, type TenantScope } from "./scope";
+import { getAdminWorkspaceScope } from "./admin-workspace-scope";
 
 /**
  * Guard for admin server components / actions / route handlers that operate on
@@ -151,6 +152,58 @@ export async function requireStaffTenantAction(options?: {
 }
 
 /**
+ * Like {@link requireStaffTenantAction}, but the tenant is resolved from the
+ * WORKSPACE SURFACE the request is acting on (URL slug / branded host /
+ * referring admin page) via {@link getAdminWorkspaceScope}, never from the
+ * operator's preferred-tenant cookie or default membership.
+ *
+ * USE THIS from every server action / route handler reachable from a
+ * `/{workspaceSlug}/admin/*` surface (P0, 2026-08-07: a multi-workspace
+ * operator on `/nova-crew/admin/settings` with a cookie preferring another
+ * workspace had actions silently read and write THAT workspace instead —
+ * see admin-workspace-scope.ts for the full derivation and fail-closed
+ * contract). `requireStaffTenantAction` remains for non-workspace surfaces.
+ *
+ * Same anti-escalation stance as the sibling guards: the ONLY caller input
+ * is a capability to grade UP with — no tenant identifier can enter through
+ * the signature. Fails closed (returns `{ ok: false }`) when the derived
+ * workspace and the caller's memberships do not match.
+ */
+export async function requireWorkspaceStaffAction(options?: {
+  capability?: CapabilityKey;
+}): Promise<StaffTenantActionGuard | StaffTenantActionGuardFail> {
+  const [auth, scope] = await Promise.all([
+    requireSession(),
+    getAdminWorkspaceScope(),
+  ]);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!scope) {
+    return { ok: false, error: "No active tenant for this request." };
+  }
+  // Membership-role capability check, evaluated on the RESOLVED workspace —
+  // proves the membership is ACTIVE and its role grants the surface (same
+  // model as requireStaffTenantAction's AUTH MODEL note above).
+  const capability: CapabilityKey = options?.capability ?? "agency.workspace.view";
+  if (!(await userHasCapability(capability, scope.tenantId))) {
+    auditFailure(
+      scope.tenantId,
+      "security",
+      "security.permission_denied",
+      "Attempted an action their role does not allow",
+      { targetType: "capability", targetId: capability, reason: capability },
+    );
+    return { ok: false, error: "Not authorized." };
+  }
+  return {
+    ok: true,
+    supabase: auth.supabase,
+    user: auth.user,
+    tenantId: scope.tenantId,
+    tenantSlug: scope.membership.slug,
+  };
+}
+
+/**
  * Server-action guard for ANY active coordinator of a specific inquiry —
  * staff OR a roster talent appointed as coordinator (pov 'talent_coord').
  *
@@ -160,7 +213,7 @@ export async function requireStaffTenantAction(options?: {
  * RPCs (engine_convert_to_booking, RLS writes) run under the coordinator's own
  * auth.uid() — never service-role.
  *
- * Resolution: 1) try requireStaffTenantAction; if staff-on-this-tenant AND the
+ * Resolution: 1) try requireWorkspaceStaffAction; if staff-on-this-tenant AND the
  * inquiry belongs to that tenant (assertRowBelongsToTenant), return isStaff:true.
  * 2) else authorize via an ACTIVE role='coordinator' participant row on THIS
  * inquiry (RLS-readable via inquiry_participants_own_coordinator_select), take
@@ -184,8 +237,10 @@ export async function requireInquiryManagerAction(
   const trimmedInquiryId = typeof inquiryId === "string" ? inquiryId.trim() : "";
   if (!trimmedInquiryId) return { ok: false, error: "Missing inquiry." };
 
-  // 1. Staff fast-path (cross-tenant-safe).
-  const staff = await requireStaffTenantAction();
+  // 1. Staff fast-path (cross-tenant-safe). Workspace-scoped (P0 2026-08-07):
+  // the admin Messages surface lives at /{slug}/admin/messages, so the tenant
+  // must come from the surface under the operator's cursor, not their cookie.
+  const staff = await requireWorkspaceStaffAction();
   if (staff.ok) {
     const belongs = await assertRowBelongsToTenant(
       staff.supabase,

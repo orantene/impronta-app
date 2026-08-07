@@ -4,7 +4,7 @@
  * admin-guest-chat-settings.ts — WRITE/admin side of the per-tenant guest-chat
  * configuration. Powers the workspace Settings → Guest chat drawer.
  *
- * Auth: requireStaffTenantAction() resolves the caller's tenant from the session
+ * Auth: requireWorkspaceStaffAction() resolves the caller's tenant from the session
  * and gives a staff-scoped Supabase client; the tenant_guest_chat_settings RLS
  * write policy (is_staff_of_tenant) is the real boundary. tenant_id is taken
  * from the session scope — NEVER from client input.
@@ -15,7 +15,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { GUEST_CHAT_DEFAULTS, type GuestChatSettings } from "@/lib/inquiry/guest-chat-settings";
@@ -54,7 +54,7 @@ const saveSchema = z.object({
  * the all-on default when no row exists (matches the public reader's contract).
  */
 export async function loadGuestChatSettingsForAdmin(): Promise<LoadGuestChatSettingsResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -82,7 +82,7 @@ export async function loadGuestChatSettingsForAdmin(): Promise<LoadGuestChatSett
 export async function saveGuestChatSettings(
   input: SaveGuestChatSettingsInput,
 ): Promise<SaveGuestChatSettingsResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user, tenantSlug } = auth;
 

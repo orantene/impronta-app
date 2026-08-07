@@ -24,7 +24,7 @@
 // optimistic UI hydration on the client side.
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { auditTalentEvent } from "@/lib/audit/emit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
@@ -45,7 +45,7 @@ export type UpdateTalentIdentityResult =
 export async function updateTalentIdentity(
   input: UpdateTalentIdentityInput,
 ): Promise<UpdateTalentIdentityResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

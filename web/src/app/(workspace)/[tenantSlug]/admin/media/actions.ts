@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireStaffTenantAction, requireTalentSelfAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -50,7 +50,7 @@ export async function actionUploadAndAssignMedia(
   // self path, ownership (talent_profiles.user_id = caller) is the security
   // boundary (see requireTalentSelfAction). Without this, a talent editing
   // their own profile got "Not authorized" on every photo upload.
-  const staff = await requireStaffTenantAction();
+  const staff = await requireWorkspaceStaffAction();
   let tenantId: string | null;
   let isStaff: boolean;
   let revalidate: { path: string; type: "layout" | "page" };
@@ -242,7 +242,7 @@ export async function actionAssignMediaToTalent(
   storagePaths: string[],
   talentProfileId: string,
 ): Promise<ActionResult<{ count: number }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -296,7 +296,7 @@ export async function actionDeleteMediaAssets(
 ): Promise<ActionResult<{ count: number }>> {
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -339,7 +339,7 @@ export async function actionSetApprovalState(
 ): Promise<ActionResult<{ count: number }>> {
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -381,7 +381,7 @@ export async function actionReassignMediaToTalent(
 ): Promise<ActionResult<{ count: number }>> {
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -430,7 +430,7 @@ export async function actionSetMediaWatermarkOverride(
   id: string,
   override: Record<string, unknown> | null,
 ): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -462,7 +462,7 @@ export async function actionSetAsCardPhoto(
   mediaAssetId: string,
   talentProfileId: string,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -549,7 +549,7 @@ export async function actionSetAsHeroPhoto(
   mediaAssetId: string,
   talentProfileId: string,
 ): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -611,7 +611,7 @@ export async function actionSetAsHeroPhoto(
 export async function actionRevertCropToSource(
   croppedMediaAssetId: string,
 ): Promise<ActionResult<{ sourceMediaAssetId: string | null }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -656,7 +656,7 @@ export async function actionReorderMediaAssets(
 ): Promise<ActionResult<{ count: number }>> {
   if (orderedIds.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -714,7 +714,7 @@ export type StagingUploadResult = ActionResult<{
 export async function actionUploadToStagingStorage(
   formData: FormData,
 ): Promise<StagingUploadResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -790,7 +790,7 @@ export async function actionCleanupStagedObjects(
 ): Promise<ActionResult<{ count: number }>> {
   if (storagePaths.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -827,7 +827,7 @@ export async function actionBulkAssignStagedMedia(
 ): Promise<ActionResult<{ count: number }>> {
   if (assignments.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -921,7 +921,7 @@ export async function actionBulkAssignStagedMedia(
 export type RosterTalentOption = { id: string; name: string; thumbUrl: string | null };
 
 export async function actionLoadRosterTalents(): Promise<ActionResult<RosterTalentOption[]>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -989,7 +989,7 @@ export async function actionUploadTalentDocument(
   formData: FormData,
   talentProfileId: string,
 ): Promise<DocumentUploadResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1056,7 +1056,7 @@ export async function actionCreateDocumentSignedUploadUrl(
   talentProfileId: string,
   filename: string,
 ): Promise<ActionResult<{ uploadUrl: string; storagePath: string }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1098,7 +1098,7 @@ export async function actionFinalizeDocumentUpload(
   talentProfileId: string,
   storagePath: string,
 ): Promise<DocumentUploadResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1150,7 +1150,7 @@ export async function actionGetTalentDocumentSignedUrl(
   storagePath: string,
   talentProfileId: string,
 ): Promise<ActionResult<{ url: string }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1184,7 +1184,7 @@ export async function actionDeleteTalentDocument(
   talentProfileId: string,
   documentId?: string,
 ): Promise<ActionResult<null>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1280,7 +1280,7 @@ export async function actionLoadTalentGallery(
 export async function actionLoadTalentMediaBundle(
   talentProfileId: string,
 ): Promise<ActionResult<TalentMediaBundle>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1350,7 +1350,7 @@ export async function actionLoadTalentMediaBundle(
 // ─── Media count (used by drive import progress polling) ─────────────────────
 
 export async function actionGetMediaCount(): Promise<ActionResult<{ count: number }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -1375,7 +1375,7 @@ export type DriveImportResult = ActionResult<{ assets: Array<{ id: string; publi
 export async function actionListDriveFolder(
   driveUrl: string,
 ): Promise<ActionResult<{ fileIds: string[]; count: number; truncated: boolean }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const parsed = parseDriveUrl(driveUrl);
@@ -1459,7 +1459,7 @@ export async function actionImportSingleDriveFile(
   talentProfileId: string,
   sortOrder: number,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1560,7 +1560,7 @@ export async function actionImportFromGoogleDrive(
    *  threads them straight through so the two never disagree on count. */
   preResolvedFileIds?: string[],
 ): Promise<DriveImportResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1763,7 +1763,7 @@ export async function actionCreateSignedUploadUrl(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  const staff = await requireStaffTenantAction();
+  const staff = await requireWorkspaceStaffAction();
   if (staff.ok) {
     const { data: rosterRow } = await admin
       .from("agency_talent_roster")
@@ -1815,7 +1815,7 @@ export async function actionCreateSignedUploadUrl(
 export async function actionCreateStagingSignedUploadUrl(
   ext: "jpg" | "png" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -2016,7 +2016,7 @@ export async function actionRegisterUploadedAsset(
   // above): agency staff of the active tenant OR the owning talent.
   let tenantId: string | null;
   let revalidate: { path: string; type: "layout" | "page" };
-  const staff = await requireStaffTenantAction();
+  const staff = await requireWorkspaceStaffAction();
   if (staff.ok) {
     tenantId = staff.tenantId;
     revalidate = { path: `/${staff.tenantSlug}`, type: "layout" };
@@ -2146,7 +2146,7 @@ export async function actionRegisterStagedAsset(
   storagePath: string,
   originalFilename: string | null = null,
 ): Promise<StagingUploadResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 

@@ -32,7 +32,7 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -58,7 +58,7 @@ async function resolveScope(
 ): Promise<{ ok: true; scope: Scope } | { ok: false; error: string }> {
   if (!inquiryId) return { ok: false, error: "Missing inquiryId." };
 
-  const staff = await requireStaffTenantAction();
+  const staff = await requireWorkspaceStaffAction();
   if (staff.ok) {
     const { data: inq } = await tenantScopedQuery(staff.supabase, "inquiries", staff.tenantId)
       .select("id")

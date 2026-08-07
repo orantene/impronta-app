@@ -39,7 +39,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { AccessDeniedError, requireCapability } from "@/lib/access/has-capability";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -107,7 +107,7 @@ const changeSchema = z
 const saveSchema = z.array(changeSchema).min(1).max(500);
 
 export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -253,7 +253,7 @@ export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
 export async function saveRosterRates(
   changes: { talentProfileId: string; amountCents: number }[],
 ): Promise<SaveRosterRatesResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 

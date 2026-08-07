@@ -1,7 +1,7 @@
 "use server";
 
 import { loadRepresentation } from "@/lib/talent/load-representation";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -14,7 +14,7 @@ export async function loadRepresentationForAgencyAdmin(input: {
   | { ok: true; data: Awaited<ReturnType<typeof loadRepresentation>> }
   | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();

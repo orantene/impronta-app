@@ -10,7 +10,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 // sends the same list twice.
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { buildTalentLanguageRpcRows } from "@/lib/talent/talent-profile-shell-persistence";
@@ -28,7 +28,7 @@ export async function saveTalentLanguages(input: {
   talent_profile_id: string;
   languages: DrawerLanguageRowInput[];
 }): Promise<Result> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -94,7 +94,7 @@ export async function setTalentLanguages(input: {
 }): Promise<
   { ok: true; languages: TalentLanguageInput[] } | { ok: false; error: string }
 > {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
   const LOG = "[setLanguages]";
@@ -231,7 +231,7 @@ export async function setTalentLanguages(input: {
 export async function getTalentLanguages(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; languages: TalentLanguageInput[] } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 

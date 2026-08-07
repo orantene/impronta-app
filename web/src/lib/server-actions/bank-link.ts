@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -61,7 +61,7 @@ export async function createBankAccountSetupIntent(opts?: {
   type?: "us_bank_account" | "sepa_debit";
 }): Promise<ServerActionResult<{ clientSecret: string; customerId: string }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };
@@ -116,7 +116,7 @@ export async function listBankAccounts(): Promise<
   ServerActionResult<{ accounts: BankAccountSummary[] }>
 > {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };
@@ -177,7 +177,7 @@ export async function createDepositPaymentIntent(input: {
   paymentMethodId?: string;
 }): Promise<ServerActionResult<{ clientSecret: string; paymentIntentId: string }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };

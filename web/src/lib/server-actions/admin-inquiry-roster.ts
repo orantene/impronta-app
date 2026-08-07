@@ -8,7 +8,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine";
 import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaffTenantAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { Database } from "@/lib/supabase/database.types";
@@ -107,7 +107,7 @@ export async function rosterRemoveParticipant(formData: FormData): Promise<Actio
 }
 
 export async function rosterMoveParticipant(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }

@@ -3,7 +3,7 @@
 /**
  * Admin-side server-action wrappers for Stripe Connect (Express) per-tenant
  * payouts. Each action:
- *   1. Authenticates via `requireStaffTenantAction` (staff-only).
+ *   1. Authenticates via `requireWorkspaceStaffAction` (staff-only).
  *   2. Verifies `tenantSlug` matches the caller's active tenant scope —
  *      prevents a staff member of one workspace from manipulating another's
  *      Stripe binding by URL-tampering.
@@ -16,7 +16,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { getStripe } from "@/lib/stripe/client";
 import {
@@ -40,7 +40,7 @@ export type ConnectActionResult<T = void> =
 async function authorizeForSlug(
   tenantSlug: string,
 ): Promise<{ ok: true; tenantId: string } | { ok: false; error: string }> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { data: agency, error } = await auth.supabase

@@ -1,6 +1,6 @@
 "use server";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
@@ -150,7 +150,7 @@ export async function acceptProfileChangeRequests(
   requestIds: string[],
 ): Promise<ServerActionResult<{ accepted: number; failed: number }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
@@ -211,7 +211,7 @@ export async function rejectProfileChangeRequests(
   note?: string,
 ): Promise<ServerActionResult<{ rejected: number }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 

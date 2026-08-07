@@ -91,8 +91,11 @@ test("admin inquiry/booking action files delegate through requireStaffTenantActi
     const body = readFileSync(join(WEB_ROOT, rel), "utf8");
     assert.match(
       body,
-      /requireStaffTenantAction/,
-      `${rel} must call requireStaffTenantAction() — found no usage`,
+      // P0 2026-08-07: admin inquiry/booking actions moved to the
+      // workspace-scoped guard (tenant from the /{slug}/admin surface, not
+      // the operator's cookie). Either spelling proves the guard is present.
+      /require(?:WorkspaceStaff|StaffTenant)Action/,
+      `${rel} must call requireWorkspaceStaffAction() — found no usage`,
     );
   }
 });

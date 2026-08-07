@@ -17,7 +17,7 @@ import { NextResponse } from "next/server";
 
 import { listTalentScopedMediaLibrary } from "@/lib/site-admin/media/assets";
 import {
-  requireStaffTenantAction,
+  requireWorkspaceStaffAction,
   requireTalentSelfAction,
 } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
   let resolvedTenantId: string | null = self.ok ? self.tenantId : null;
 
   if (!authorized) {
-    const staff = await requireStaffTenantAction();
+    const staff = await requireWorkspaceStaffAction();
     if (staff.ok) {
       // Staff may only read media for a talent their tenant actually manages.
       const admin = createServiceRoleClient();

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
@@ -59,7 +59,7 @@ export async function cancelSubscription(
   input: CancelSubscriptionInput,
 ): Promise<ServerActionResult<{ fromPlan: string; toPlan: string; effectiveAt: string }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
@@ -174,7 +174,7 @@ export async function pauseSubscription(
   pauseUntilIso: string,
 ): Promise<ServerActionResult<{ pausedUntil: string }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 

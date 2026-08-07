@@ -1,6 +1,6 @@
 "use server";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
@@ -55,7 +55,7 @@ export async function enqueueRosterImportJob(
   input: EnqueueRosterImportInput,
 ): Promise<ServerActionResult<{ jobId: string; totalRows: number }>> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
@@ -359,7 +359,7 @@ export type RosterImportJobSummary = {
 
 export async function listRosterImportJobs(): Promise<RosterImportJobSummary[]> {
   try {
-    const auth = await requireStaffTenantAction();
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return [];
     const { tenantId, supabase } = auth;
 

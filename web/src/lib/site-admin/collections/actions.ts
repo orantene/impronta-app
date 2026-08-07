@@ -3,7 +3,7 @@
 /**
  * Wave 5A (job #36) — member-gated server actions for operator content
  * collections. Each action resolves the active tenant via
- * {@link requireStaffTenantAction} (the canonical guard used across the CMS),
+ * {@link requireWorkspaceStaffAction} (the canonical guard used across the CMS),
  * then mutates `cms_collections` / `cms_collection_items` through the
  * authenticated client (RLS-enforced). Validation is app-side via the pure
  * normalizers in ./types.
@@ -23,7 +23,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   listTenantCollections,
@@ -75,7 +75,7 @@ async function uniqueCollectionSlug(
 export async function listCollectionsAction(): Promise<
   CollectionActionResult<ContentCollection[]>
 > {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return fail(guard.error);
   try {
     const data = await listTenantCollections(guard.supabase, guard.tenantId);
@@ -89,7 +89,7 @@ export async function listCollectionsAction(): Promise<
 export async function getCollectionAction(
   collectionId: string,
 ): Promise<CollectionActionResult<ContentCollectionWithItems>> {
-  const guard = await requireStaffTenantAction();
+  const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return fail(guard.error);
   try {
     const data = await getTenantCollectionWithItems(
@@ -112,7 +112,7 @@ export async function createCollectionAction(input: {
   description?: string;
   fields?: ReadonlyArray<{ key?: string; label: string; type: string }>;
 }): Promise<CollectionActionResult<ContentCollection>> {
-  const guard = await requireStaffTenantAction({
+  const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
   if (!guard.ok) return fail(guard.error);
@@ -181,7 +181,7 @@ export async function updateCollectionAction(input: {
   description?: string | null;
   fields?: ReadonlyArray<{ key?: string; label: string; type: string }>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction({
+  const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
   if (!guard.ok) return fail(guard.error);
@@ -225,7 +225,7 @@ export async function updateCollectionAction(input: {
 export async function deleteCollectionAction(input: {
   collectionId: string;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction({
+  const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
   if (!guard.ok) return fail(guard.error);
@@ -266,7 +266,7 @@ export async function addCollectionItemAction(input: {
   collectionId: string;
   data?: Record<string, unknown>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction({
+  const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
   if (!guard.ok) return fail(guard.error);
@@ -314,7 +314,7 @@ export async function updateCollectionItemAction(input: {
   itemId: string;
   data: Record<string, unknown>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction({
+  const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
   if (!guard.ok) return fail(guard.error);
@@ -344,7 +344,7 @@ export async function updateCollectionItemAction(input: {
 export async function deleteCollectionItemAction(input: {
   itemId: string;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction({
+  const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
   if (!guard.ok) return fail(guard.error);
@@ -367,7 +367,7 @@ export async function reorderCollectionItemsAction(input: {
   collectionId: string;
   orderedItemIds: ReadonlyArray<string>;
 }): Promise<CollectionActionResult<{ id: string }>> {
-  const guard = await requireStaffTenantAction({
+  const guard = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.pages.edit",
   });
   if (!guard.ok) return fail(guard.error);

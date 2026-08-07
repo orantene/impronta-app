@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import type { WorkspacePlan } from "@/lib/dashboard/admin-workspace-summary";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 
@@ -49,7 +49,7 @@ export async function changeWorkspacePlan(
     return { ok: false, error: "Unknown plan." };
   }
 
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     return { ok: false, error: auth.error };
   }

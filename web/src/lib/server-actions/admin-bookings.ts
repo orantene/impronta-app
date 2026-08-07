@@ -18,7 +18,7 @@ import { logBookingActivity } from "@/lib/server/commercial-audit";
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { emitFieldChange, type FieldVisibility } from "@/lib/inquiry/audit-field-emit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -102,7 +102,7 @@ export async function updateBooking(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -388,7 +388,7 @@ const quickPeekBookingSchema = z.object({
 
 /** Minimal booking patch from list/peek panels (status + manager only). */
 export async function quickUpdateBookingPeek(formData: FormData): Promise<BookingActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -458,7 +458,7 @@ const assignBookingToMeSchema = z.object({
 });
 
 export async function assignBookingToCurrentStaff(formData: FormData): Promise<void> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return;
   const { supabase, user, tenantId } = auth;
 
@@ -527,7 +527,7 @@ export async function patchBookingEntityLinks(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -686,7 +686,7 @@ export async function saveBookingTalentRow(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -768,7 +768,7 @@ export async function addBookingTalentRow(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -853,7 +853,7 @@ export async function deleteBookingTalentRow(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -919,7 +919,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   // SaaS P1.B STEP 1: manual bookings have no source inquiry, so tenant_id
   // must come from the admin's active workspace (switcher cookie / primary
   // membership). Refuse if no scope is resolvable.
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     redirect(`${returnTo}?err=${encodeURIComponent(auth.error)}`);
   }
@@ -1085,7 +1085,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
 }
 
 export async function duplicateBooking(formData: FormData): Promise<void> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) redirect("/admin/bookings");
   const { supabase, user, tenantId } = auth;
 

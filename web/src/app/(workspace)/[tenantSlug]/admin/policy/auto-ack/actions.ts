@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 
@@ -17,14 +17,14 @@ import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
  * if the textarea is blank.
  */
 export async function updateAutoAckPolicy(formData: FormData): Promise<void> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) {
     redirect(`/admin/policy/auto-ack?err=${encodeURIComponent(auth.error)}`);
   }
 
   const tenantSlug = String(formData.get("tenantSlug") ?? "").trim();
 
-  // requireStaffTenantAction only confirms staff-on-this-tenant; we want
+  // requireWorkspaceStaffAction only confirms staff-on-this-tenant; we want
   // a tighter gate (owner/admin) for policy edits. Membership role lives
   // on agency_memberships keyed by (tenant_id, profile_id).
   const { data: membership } = await auth.supabase

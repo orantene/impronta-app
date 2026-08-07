@@ -25,7 +25,7 @@ import {
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { loadOfferingChildren, MAX_OPTIONS_PER_OFFERING } from "@/lib/talent/offerings-children";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -85,7 +85,7 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
   let isStaff = false;
   let staffTenantId: string | null = null;
   if (!isOwner) {
-    const staff = await requireStaffTenantAction();
+    const staff = await requireWorkspaceStaffAction();
     if (!staff.ok) return { ok: false, error: "Forbidden." };
     const adminForCheck = createServiceRoleClient();
     if (!adminForCheck) return { ok: false, error: "Server configuration error." };

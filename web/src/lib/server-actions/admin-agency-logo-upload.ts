@@ -28,7 +28,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
@@ -54,7 +54,10 @@ export type AgencyLogoSignedUrlResult =
 export async function actionCreateAgencyLogoUploadUrl(
   ext: string,
 ): Promise<AgencyLogoSignedUrlResult> {
-  const auth = await requireStaffTenantAction({
+  // The signed URL bakes `auth.tenantId` into the storage path, so this must
+  // resolve the workspace being administered, not the operator's preferred
+  // tenant — otherwise the object is minted under the wrong tenant's prefix.
+  const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -87,7 +90,9 @@ export async function actionCreateAgencyLogoUploadUrl(
 export async function actionFinalizeAgencyLogo(
   storagePath: string,
 ): Promise<AgencyLogoUploadResult> {
-  const auth = await requireStaffTenantAction({
+  // Branding surface — graded above the workspace baseline to the
+  // membership-role capability the Phase-5 matrix assigns it (admin/owner).
+  const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -145,7 +150,7 @@ export async function actionFinalizeAgencyLogo(
 export async function actionUploadAgencyLogoSvg(
   svgText: string,
 ): Promise<AgencyLogoUploadResult> {
-  const auth = await requireStaffTenantAction({
+  const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.branding.edit",
   });
   if (!auth.ok) return { ok: false, error: auth.error };

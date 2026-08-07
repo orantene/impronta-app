@@ -13,7 +13,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 // .types.ts (a "use server" file may only export async functions).
 
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   getTalentServiceAreas,
@@ -40,7 +40,7 @@ type WriteResult =
 export async function getTalentServiceAreasForTalent(input: {
   talent_profile_id: string;
 }): Promise<ReadResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -74,7 +74,7 @@ export async function getTalentServiceAreasForTalent(input: {
 export async function saveTalentServiceAreas(
   input: SaveServiceAreasInput,
 ): Promise<WriteResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
   const LOG = "[setServiceAreas]";

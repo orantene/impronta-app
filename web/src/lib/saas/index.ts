@@ -48,6 +48,7 @@ export {
   requireAdminTenantGuard,
   requireAdminTenantGuardOrThrow,
   requireStaffTenantAction,
+  requireWorkspaceStaffAction,
   assertRowBelongsToTenant,
   resolveInquiryTenantForParticipant,
   type AdminTenantGuard,

@@ -31,7 +31,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { AccessDeniedError, requireCapability } from "@/lib/access/has-capability";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
@@ -58,7 +58,7 @@ export type UpdateAgencyDefaultCurrencyResult =
 export async function updateAgencyDefaultCurrency(
   input: UpdateAgencyDefaultCurrencyInput,
 ): Promise<UpdateAgencyDefaultCurrencyResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 
@@ -125,7 +125,7 @@ export type LoadAgencyDefaultCurrencyResult =
   | { ok: false; error: string };
 
 export async function loadAgencyDefaultCurrency(): Promise<LoadAgencyDefaultCurrencyResult> {
-  const auth = await requireStaffTenantAction();
+  const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

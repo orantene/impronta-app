@@ -16,7 +16,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   ROSTER_CARD_BADGE_KEYS,
@@ -52,7 +52,7 @@ export type SetRosterCardBadgesResult =
  * `agencies` is the tenant-root table (keyed by `id`, not `tenant_id`), so the
  * tenant-scoped-query helper does not model it — every settings writer in the
  * sibling admin-workspace-settings module accesses it the same way, gated by
- * `requireStaffTenantAction` and filtered by `.eq("id", tenantId)`.
+ * `requireWorkspaceStaffAction` and filtered by `.eq("id", tenantId)`.
  *
  * AUTH (2026-08-04 sweep): the guard is MEMBERSHIP-based, not global-app_role
  * based, and is graded to `agency.site_admin.design.edit` (admin/owner) — the
@@ -63,7 +63,7 @@ export type SetRosterCardBadgesResult =
 export async function setRosterCardBadges(
   input: SetRosterCardBadgesInput,
 ): Promise<SetRosterCardBadgesResult> {
-  const auth = await requireStaffTenantAction({
+  const auth = await requireWorkspaceStaffAction({
     capability: "agency.site_admin.design.edit",
   });
   if (!auth.ok) return { ok: false, error: auth.error };
