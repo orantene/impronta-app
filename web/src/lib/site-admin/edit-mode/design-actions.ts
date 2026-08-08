@@ -31,6 +31,7 @@ import {
 import {
   applyThemePreset,
   loadDesignForStaff,
+  loadOrInitDesignForStaff,
   publishDesign,
   restoreDesignRevision,
   saveComponentStylesDraft,
@@ -188,7 +189,7 @@ export async function loadDesignAction(input?: {
   }
 
   try {
-    const row = await loadDesignForStaff(auth.supabase, scope.tenantId);
+    const row = await loadOrInitDesignForStaff(auth.supabase, scope.tenantId);
     if (!row) {
       return {
         ok: false,

@@ -7,7 +7,7 @@ import {
 } from "@/components/auth/auth-ui";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { normalizeOptionalNextPath } from "@/lib/auth-flow";
+import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { RegisterForm } from "../../register/register-form";
 
@@ -29,12 +29,18 @@ export default async function ClientRegisterPage({
   const t = createTranslator(locale);
 
   // Determine post-auth destination. On an agency host with a known slug
-  // redirect to /<slug>/client; fall back to /client for app host.
+  // redirect to /<slug>/client; on the app host, /client. On the marketing
+  // apex (tulala.digital) and hub hosts, `/client` is NOT an allowed path —
+  // the workspace lives on the app host — so a relative default 404'd
+  // ("Host not registered" class). Send those hosts to the app host
+  // absolutely; the `.tulala.digital` session cookie spans both.
   const hostCtx = await getPublicHostContext();
   const defaultNext =
     hostCtx.kind === "agency" && hostCtx.tenantSlug
       ? `/${hostCtx.tenantSlug}/client`
-      : "/client";
+      : hostCtx.kind === "app"
+        ? "/client"
+        : `${getAppUrl()}/client`;
 
   // Honour an explicit ?next= override only if it is a valid internal path.
   const nextPath = normalizeOptionalNextPath(next) ?? defaultNext;

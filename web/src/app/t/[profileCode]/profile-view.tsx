@@ -1470,7 +1470,11 @@ export async function TalentProfileView({
   ]);
 
   const platformHost = isTalentProfilePlatformHost(hostCtx.kind);
-  if (platformHost && preview !== "1") {
+  // The freeform platform site carries its own full chrome (PublicHeader +
+  // footer), which must never render inside the directory quick-open overlay —
+  // the modal falls through to the template dispatcher, whose modal variant
+  // strips page chrome.
+  if (platformHost && preview !== "1" && !isModal) {
     const siteResolved = await resolvePlatformTalentSiteForProfile(profileCode);
     if (siteResolved.kind === "not_found") {
       notFound();
@@ -1495,12 +1499,21 @@ export async function TalentProfileView({
       );
     }
   }
+  // Branding scope: agency hosts read their own tenant; platform hosts
+  // (marketing apex, app, hub) read the platform hub tenant — the workspace
+  // whose admin (Website → Profile Pages / Card Design) is documented to
+  // control the public tulala.digital surfaces. Without this, the template
+  // pick + theme tokens saved there never applied anywhere ("settings lie").
+  const brandingTenantId =
+    hostCtx.kind === "agency"
+      ? hostCtx.tenantId
+      : ((await getPlatformHubTenant())?.tenantId ?? null);
   const [tenantBrandIdentity, tenantBranding] = await Promise.all([
     hostCtx.kind === "agency"
       ? loadPublicIdentity(hostCtx.tenantId)
       : Promise.resolve(null),
-    hostCtx.kind === "agency"
-      ? loadPublicBranding(hostCtx.tenantId)
+    brandingTenantId
+      ? loadPublicBranding(brandingTenantId)
       : Promise.resolve(null),
   ]);
   const tenantBrand = tenantBrandIdentity?.public_name ?? null;

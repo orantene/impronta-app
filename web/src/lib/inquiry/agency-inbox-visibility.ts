@@ -82,6 +82,21 @@ export async function loadAgencyInboxHideSet(
 ): Promise<Set<string>> {
   if (inquiryIds.length === 0) return new Set();
   try {
+    // HUB EXCEPTION (CRUX G7): a hub-kind tenant COORDINATES every inquiry
+    // filed under it — including lanes frozen to another agency (an exclusive
+    // talent inquired about from the public directory, XTENANT_REHOME off).
+    // Hiding those left the inquiry invisible in BOTH inboxes: the owning
+    // agency filters on its own tenant_id, and the hub's hide-set dropped the
+    // lane. Until rehome files such inquiries under the owning agency, the hub
+    // inbox must show everything it coordinates.
+    const { data: tenantRow } = await supabase
+      .from("agencies")
+      .select("kind")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if ((tenantRow as { kind?: string } | null)?.kind === "hub") {
+      return new Set();
+    }
     const { data, error } = await supabase
       .from("inquiry_participants")
       .select("inquiry_id, owning_party_type, owning_party_id")

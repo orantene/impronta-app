@@ -22,16 +22,16 @@ import { MarketingDirectoryShell } from "@/components/marketing/directory/Market
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   DIRECTORY_PAGE_SIZE,
-  attachCardDesigns,
   cleanParam,
   isTruthyFlag,
   normalizeSort,
   normalizeView,
-  resolveCardDesignsForRows,
   locationLine,
   type DirectoryActiveFilters,
 } from "@/components/marketing/directory/shared";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
+import { DEFAULT_CARD_DESIGN } from "@/lib/site-admin/server/card-design-shape";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -122,18 +122,23 @@ export default async function MarketingDirectoryPage({
 
   const mapApiKey = isMap ? (readGoogleMapsBrowserKey() ?? null) : null;
 
-  // Per-row card design. The global directory is CROSS-TENANT — one page, many
-  // agencies — so the single `<html>` token cascade can't paint every row. We
-  // resolve a CardDesign once per DISTINCT agencyTenantId on the grid rows and
-  // ride it along on each row, so every card paints in its own agency's
-  // `--token-card-*` palette. Rows loaded later by the load-more action, and
-  // map points (which don't carry agencyTenantId), fall back to the platform
-  // default (see risks note).
-  const designByTenant = await resolveCardDesignsForRows(
-    gridData.items,
-    resolveCardDesign,
-  );
-  const gridItems = attachCardDesigns(gridData.items, designByTenant);
+  // ONE card design for the whole grid: the platform hub tenant's (the
+  // workspace whose admin Card Design page labels this surface "Directory ·
+  // PUBLIC"). The previous per-owning-agency resolution transplanted each
+  // agency's palette onto the light platform canvas half-applied — a tenant
+  // tuned for its own dark storefront rendered cream-on-white names and black
+  // badge boxes here, and the grid mixed card families row by row. A public
+  // marketplace grid reads as ONE product: uniform family, palette, aspect and
+  // density, all controlled from the hub workspace's Card Design admin.
+  const hub = await getPlatformHubTenant();
+  const hubDesign = hub
+    ? await resolveCardDesign(hub.tenantId)
+    : DEFAULT_CARD_DESIGN;
+  const gridItems = gridData.items.map((row) => ({ ...row, design: hubDesign }));
+  const mapPoints = mapData.points.map((point) => ({
+    ...point,
+    design: hubDesign,
+  }));
 
   const origin = `https://${PLATFORM_BRAND.domain}`;
 
@@ -241,7 +246,7 @@ export default async function MarketingDirectoryPage({
           initialItems={gridItems}
           initialTotal={gridData.total}
           pageSize={DIRECTORY_PAGE_SIZE}
-          mapPoints={mapData.points}
+          mapPoints={mapPoints}
           mapUnmappedCount={mapData.unmappedCount}
           mapApiKey={mapApiKey}
         />
