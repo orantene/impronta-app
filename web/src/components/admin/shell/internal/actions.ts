@@ -199,6 +199,7 @@ export async function addTalentToRoster(
         talentProfileId,
         taxonomyTermId: resolved.termId,
         relationshipType: "primary_role",
+        tenantId: scope.tenantId,
       });
       if (!taxRes.ok) {
         warnings.push("Talent type could not be saved — open the drawer and pick it again.");
@@ -225,6 +226,7 @@ export async function addTalentToRoster(
         talentProfileId,
         taxonomyTermId: id,
         relationshipType: "secondary_role",
+        tenantId: scope.tenantId,
       });
       if (!secTaxRes.ok) {
         warnings.push("Secondary types could not be saved — open the drawer and re-select them.");
@@ -413,6 +415,7 @@ export async function patchTalentDraft(
         talentProfileId: d.talentProfileId,
         taxonomyTermId: resolved.termId,
         relationshipType: "primary_role",
+        tenantId: scope.tenantId,
       });
     }
   }
