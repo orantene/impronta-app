@@ -348,18 +348,18 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   },
   {
     id: "move-section-up",
-    label: "Move selected section or block up",
+    label: "Move selected section up, or nudge a block",
     description:
-      "In navigator child rows, Alt+↑ reorders the selected block among its siblings.",
+      "With a section selected, moves it one place earlier on the page. With a nested block selected and focus on the canvas, nudges that block up by 1px instead, or 10px with Shift.",
     keys: ["⌥", "↑"],
     category: "editing",
     paletteAction: false,
   },
   {
     id: "move-section-down",
-    label: "Move selected section or block down",
+    label: "Move selected section down, or nudge a block",
     description:
-      "In navigator child rows, Alt+↓ reorders the selected block among its siblings.",
+      "With a section selected, moves it one place later on the page. With a nested block selected and focus on the canvas, nudges that block down by 1px instead, or 10px with Shift.",
     keys: ["⌥", "↓"],
     category: "editing",
     paletteAction: false,
