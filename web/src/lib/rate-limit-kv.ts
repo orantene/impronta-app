@@ -49,13 +49,31 @@ import type { GuestChatErrorCode } from "@/lib/inquiry/guest-chat-contract";
 // Result type
 // ---------------------------------------------------------------------------
 
+/**
+ * The only failure code this module reports. Declared as its own literal rather
+ * than `Extract<GuestChatErrorCode, "rate_limited">` so NON-guest callers (auth
+ * OTP, below) can consume the verdict without importing the guest-chat
+ * contract — the limiter is shared infrastructure, not a guest-chat detail.
+ */
+export type KvRateLimitCode = "rate_limited";
+
 export type KvRateLimitResult =
   | { ok: true }
   | {
       ok: false;
-      code: Extract<GuestChatErrorCode, "rate_limited">;
+      code: KvRateLimitCode;
       retryAfterMs: number;
     };
+
+/**
+ * Compile-time guarantee that guest-chat callers can still hand this verdict
+ * straight back as a `GuestChatFailure` (they did so when the code was typed
+ * from their contract). If `GuestChatErrorCode` ever stops including
+ * "rate_limited", this line stops compiling instead of failing at runtime.
+ */
+const _guestChatStillAcceptsKvCode: GuestChatErrorCode =
+  "rate_limited" satisfies KvRateLimitCode;
+void _guestChatStillAcceptsKvCode;
 
 // ---------------------------------------------------------------------------
 // Key builder
@@ -137,6 +155,41 @@ export function guestCreateEmailKey(tenantId: string | null | undefined, normali
 }
 
 // ---------------------------------------------------------------------------
+// Auth OTP keys (passwordless email-code sign-in)
+// ---------------------------------------------------------------------------
+
+/**
+ * Auth-OTP keys are deliberately NOT tenant-scoped.
+ *
+ * The same Supabase identity backend serves every host, and the cost being
+ * limited (a sent email, a verify attempt against one address) is global. If
+ * these keys carried a tenant segment, an abuser would get a fresh budget per
+ * tenant host — turning the limit into "N × number of tenants".
+ *
+ * Emails go through `normalizeEmailForKey` so +tag and Gmail-dot aliases share
+ * one bucket. That matters more here than for guest chat: a send COSTS an
+ * outbound email, and `a+1@gmail.com … a+99@gmail.com` all reach one inbox.
+ */
+function authKeySegment(v: string | null | undefined): string {
+  return (v?.trim() || "x").toLowerCase();
+}
+
+/** Per-address OTP SEND key (an email is dispatched — the expensive direction). */
+export function authOtpSendEmailKey(email: string | null | undefined): string {
+  return `auth_otp_send_email:${authKeySegment(normalizeEmailForKey(email))}`;
+}
+
+/** Per-IP OTP SEND key. Looser (NAT/office/household share an IP) but survives address rotation. */
+export function authOtpSendIpKey(ip: string | null | undefined): string {
+  return `auth_otp_send_ip:${authKeySegment(ip)}`;
+}
+
+/** Per-address OTP VERIFY key — the brute-force dimension (guessing a 6-digit code). */
+export function authOtpVerifyEmailKey(email: string | null | undefined): string {
+  return `auth_otp_verify_email:${authKeySegment(normalizeEmailForKey(email))}`;
+}
+
+// ---------------------------------------------------------------------------
 // Minimal local interface for the subset of @upstash/ratelimit we use.
 // Defined here so we can type-check usage without the package installed.
 // ---------------------------------------------------------------------------
@@ -164,6 +217,12 @@ interface KvLimiter {
   /** Per-email inquiry-create ceiling (tight, survives cookie rotation). */
   checkInquiryCreateByEmail(key: string): Promise<KvRateLimitResult>;
   checkMessageSend(key: string): Promise<KvRateLimitResult>;
+  /** Auth OTP: sends per normalized email address. */
+  checkAuthOtpSendByEmail(key: string): Promise<KvRateLimitResult>;
+  /** Auth OTP: sends per client IP. */
+  checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResult>;
+  /** Auth OTP: verify attempts per normalized email address. */
+  checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult>;
 }
 
 /** No-op fallback used when Upstash env vars are absent. */
@@ -178,6 +237,15 @@ const noopLimiter: KvLimiter = {
     return { ok: true };
   },
   async checkMessageSend() {
+    return { ok: true };
+  },
+  async checkAuthOtpSendByEmail() {
+    return { ok: true };
+  },
+  async checkAuthOtpSendByIp() {
+    return { ok: true };
+  },
+  async checkAuthOtpVerifyByEmail() {
     return { ok: true };
   },
 };
@@ -292,6 +360,34 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    // ── Auth OTP (passwordless email-code sign-in) ───────────────────────────
+    // Budgets intentionally MATCH the in-memory counter in app/auth/otp-actions.ts
+    // (5 sends/email, 20 sends/IP, 10 verifies/email per 15 min). The point of
+    // moving them here is not to tighten the numbers, it is to make them mean
+    // what they say: the in-memory counter is per Node/Edge instance and resets
+    // on cold start, so the real budget was silently multiplied by instance
+    // count. These windows are cross-instance and survive cold starts.
+    const authOtpSendEmailLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "15 m"),
+      prefix: "rl:auth_otp_send_email",
+      analytics: false,
+    });
+
+    const authOtpSendIpLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(20, "15 m"),
+      prefix: "rl:auth_otp_send_ip",
+      analytics: false,
+    });
+
+    const authOtpVerifyEmailLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "15 m"),
+      prefix: "rl:auth_otp_verify_email",
+      analytics: false,
+    });
+
     _limiter = {
       async checkInquiryCreate(key: string): Promise<KvRateLimitResult> {
         try {
@@ -335,6 +431,38 @@ async function getLimiter(): Promise<KvLimiter> {
           return { ok: false, code: "rate_limited", retryAfterMs };
         } catch {
           // Fail open on Redis error.
+          return { ok: true };
+        }
+      },
+
+      async checkAuthOtpSendByEmail(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await authOtpSendEmailLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch {
+          // Fail open: an Upstash outage must not lock people out of signing in.
+          // The in-memory counter in otp-actions.ts remains as the floor.
+          return { ok: true };
+        }
+      },
+
+      async checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await authOtpSendIpLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch {
+          return { ok: true };
+        }
+      },
+
+      async checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult> {
+        try {
+          const r = await authOtpVerifyEmailLimiter.limit(key);
+          if (r.success) return { ok: true };
+          return { ok: false, code: "rate_limited", retryAfterMs: Math.max(0, r.reset - Date.now()) };
+        } catch {
           return { ok: true };
         }
       },
@@ -397,6 +525,39 @@ export async function checkGuestInquiryCreateByEmail(key: string): Promise<KvRat
 export async function checkGuestMessageSend(key: string): Promise<KvRateLimitResult> {
   const limiter = await getLimiter();
   return limiter.checkMessageSend(key);
+}
+
+/**
+ * Auth OTP — can this ADDRESS be sent another code? 5 / 15 min on the
+ * normalized email. Cross-instance, unlike the in-process counter it backstops.
+ *
+ * @param key Key from `authOtpSendEmailKey(email)`.
+ */
+export async function checkAuthOtpSendByEmail(key: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkAuthOtpSendByEmail(key);
+}
+
+/**
+ * Auth OTP — can this IP send another code? 20 / 15 min. Looser than per-email
+ * (shared NAT is legitimate) but it survives address rotation.
+ *
+ * @param key Key from `authOtpSendIpKey(ip)`.
+ */
+export async function checkAuthOtpSendByIp(key: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkAuthOtpSendByIp(key);
+}
+
+/**
+ * Auth OTP — can this ADDRESS attempt another verify? 10 / 15 min. This is the
+ * brute-force ceiling on guessing a 6-digit code.
+ *
+ * @param key Key from `authOtpVerifyEmailKey(email)`.
+ */
+export async function checkAuthOtpVerifyByEmail(key: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  return limiter.checkAuthOtpVerifyByEmail(key);
 }
 
 /**

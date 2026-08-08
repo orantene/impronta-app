@@ -38,6 +38,14 @@ import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
+  authOtpSendEmailKey,
+  authOtpSendIpKey,
+  authOtpVerifyEmailKey,
+  checkAuthOtpSendByEmail,
+  checkAuthOtpSendByIp,
+  checkAuthOtpVerifyByEmail,
+} from "@/lib/rate-limit-kv";
+import {
   scheduleWorkspaceAudit,
   type WorkspaceAuditActorKind,
 } from "@/lib/audit/workspace-audit";
@@ -104,16 +112,23 @@ async function requestIp(): Promise<string> {
 }
 
 /**
- * Abuse guard. `lib/rate-limit.ts` is the limiter this codebase already has
- * (used by public API routes); auth had NONE applied at the app layer, only
- * whatever Supabase enforces per project. This adds the cheap existing
- * in-process counter rather than a new subsystem.
+ * Abuse guard — TWO LAYERS, deliberately.
  *
- * KNOWN LIMIT (follow-up, documented in the PR): the counter is per Node/Edge
- * instance and resets on cold start, so the effective budget is multiplied by
- * instance count. It raises the cost of a naive loop; it is not a global
- * guarantee. A shared store (KV/Redis, or Supabase's own auth rate limits
- * tightened in the dashboard) is the durable answer.
+ * 1. `lib/rate-limit-kv.ts` (Upstash sliding window) is the DURABLE ceiling.
+ *    It is cross-instance and survives cold starts, which is what the original
+ *    in-process counter could not do: being per Node/Edge instance, its budget
+ *    was silently multiplied by the number of live instances. Same numbers as
+ *    before — the point is that they now mean what they say.
+ * 2. `lib/rate-limit.ts` (in-process counter) stays as the WITHIN-INSTANCE
+ *    floor. It is free, needs no network hop, and keeps working when Upstash is
+ *    unreachable — the KV limiter deliberately FAILS OPEN so an Upstash outage
+ *    can never lock legitimate people out of signing in, and this floor is what
+ *    covers that window.
+ *
+ * Budgets (per 15 min): 5 sends per address, 20 sends per IP, 10 verifies per
+ * address. The KV keys normalize the address (+tag and Gmail dots collapse), so
+ * `a+1@gmail.com … a+99@gmail.com` share one send budget — they all cost real
+ * outbound email to one inbox.
  */
 const SEND_WINDOW_MS = 15 * 60 * 1000;
 const SEND_PER_EMAIL = 5;
@@ -133,13 +148,28 @@ export async function requestEmailCode(
   }
 
   const ip = await requestIp();
+  const tooMany = () =>
+    resent
+      ? ({ step: "code", error: t("public.auth.passwordless.errors.tooMany"), email } as const)
+      : ({ step: "email", error: t("public.auth.passwordless.errors.tooMany"), email } as const);
+
+  // Layer 2 — free in-process floor first, so a hot loop never even reaches the
+  // network hop.
   if (
     !tryConsumeRateLimit(`auth-otp-send:${email}`, SEND_PER_EMAIL, SEND_WINDOW_MS) ||
     !tryConsumeRateLimit(`auth-otp-send-ip:${ip}`, SEND_PER_IP, SEND_WINDOW_MS)
   ) {
-    return resent
-      ? { step: "code", error: t("public.auth.passwordless.errors.tooMany"), email }
-      : { step: "email", error: t("public.auth.passwordless.errors.tooMany"), email };
+    return tooMany();
+  }
+
+  // Layer 1 — durable cross-instance ceiling. Checked BEFORE signInWithOtp so a
+  // blocked caller costs no outbound email. Fails open on Upstash trouble.
+  const [sendByEmail, sendByIp] = await Promise.all([
+    checkAuthOtpSendByEmail(authOtpSendEmailKey(email)),
+    checkAuthOtpSendByIp(authOtpSendIpKey(ip)),
+  ]);
+  if (!sendByEmail.ok || !sendByIp.ok) {
+    return tooMany();
   }
 
   const supabase = await getCachedServerSupabase();
@@ -210,7 +240,13 @@ export async function submitEmailCode(
     };
   }
 
+  // Brute-force ceiling on guessing the 6-digit code: in-process floor first,
+  // then the durable cross-instance window (checked before verifyOtp).
   if (!tryConsumeRateLimit(`auth-otp-verify:${email}`, VERIFY_PER_EMAIL, SEND_WINDOW_MS)) {
+    return { step: "code", error: t("public.auth.passwordless.errors.tooMany"), email };
+  }
+  const verifyByEmail = await checkAuthOtpVerifyByEmail(authOtpVerifyEmailKey(email));
+  if (!verifyByEmail.ok) {
     return { step: "code", error: t("public.auth.passwordless.errors.tooMany"), email };
   }
 
