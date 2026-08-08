@@ -42,6 +42,11 @@
         "back": "Volver a {site}",
         "tenantHeading": "Tu trabajo y tus reservas, en un solo lugar.",
         "tenantLead": "Gestiona tu perfil, tus reservas y tus mensajes con {brand}.",
+        "tenantPoints": {
+          "roles": "Un solo acceso para talento y clientes",
+          "thread": "Cada reserva, mensaje y archivo en un mismo hilo",
+          "secure": "Acceso seguro con código o contraseña"
+        },
         "terms": "Términos",
         "privacy": "Privacidad",
         "contact": "Contacto"

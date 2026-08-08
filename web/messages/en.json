@@ -42,6 +42,11 @@
         "back": "Back to {site}",
         "tenantHeading": "Your work and your bookings, in one place.",
         "tenantLead": "Manage your profile, your bookings, and your messages with {brand}.",
+        "tenantPoints": {
+          "roles": "One sign-in for talent and clients",
+          "thread": "Every booking, message, and file in one thread",
+          "secure": "Secure access with a code or a password"
+        },
         "terms": "Terms",
         "privacy": "Privacy",
         "contact": "Contact"
