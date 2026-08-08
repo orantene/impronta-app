@@ -249,7 +249,11 @@
         "openInquiryCart": "Open your lineup",
         "browseMoreTalent": "Browse More Talent",
         "contactImpronta": "Contact the agency"
-      }
+      },
+      "exclusivelyRepresentedBy": "Exclusively represented by {agency}",
+      "exclusivityInfoAria": "What does exclusive representation mean?",
+      "exclusivityInfoBody": "Bookings for this talent go through {agency}. Inquiries started anywhere on Tulala are routed to them.",
+      "representedBy": "Represented by"
     },
     "reviews": {
       "sectionAria": "Client reviews",

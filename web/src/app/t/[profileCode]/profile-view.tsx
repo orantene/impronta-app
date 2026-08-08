@@ -114,6 +114,7 @@ import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
 import { TalentProfileChatLauncherMount } from "./_chat/TalentProfileChatLauncherMount";
 import { OfferingInstantMount } from "./_shared/OfferingInstantMount";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { isTalentExclusiveToTenant } from "@/lib/agency/talent-exclusivity";
 import { PlatformTalentMaxSiteView } from "@/components/talent/site/PlatformTalentMaxSiteView";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { resolvePlatformTalentSiteForProfile } from "@/lib/talent-site/resolve-platform-talent-site";
@@ -2255,6 +2256,15 @@ export async function TalentProfileView({
     ? await loadTenantWhitelabel(currentTenantId)
     : false;
 
+  // Exclusive representation. Deliberately NOT derived from `profileWhitelabel`
+  // — that is a different tier set (agency|network|legacy) and a Studio tenant
+  // is exclusive without being whitelabel. Mirrors the money path's predicate;
+  // see lib/agency/talent-exclusivity.ts.
+  const profileIsExclusive = await isTalentExclusiveToTenant(
+    profile.id,
+    currentTenantId,
+  );
+
   const profileBody = (
     <>
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
@@ -2324,6 +2334,7 @@ export async function TalentProfileView({
         }
         agencyName={tenantBrand}
         agencyDisplayName={tenantBrand}
+        isExclusive={profileIsExclusive}
         similarTalent={similarTalent}
         ui={ui}
         t={t}

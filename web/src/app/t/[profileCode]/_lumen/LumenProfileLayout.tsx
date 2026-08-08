@@ -52,6 +52,8 @@ import { TalentCardActions } from "@/components/talent-cards/talent-card-actions
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
 import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
+import { buildLumenLabels } from "./lumen-labels";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
@@ -353,33 +355,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
   if (travels) quickFacts.push({ key: "travel", label: pickLocale(locale, { en: "Travel", es: "Viajes" }), value: pickLocale(locale, { en: "Worldwide", es: "A todo el mundo" }) });
   if (startingFrom?.trim()) quickFacts.push({ key: "from", label: pickLocale(locale, { en: "From", es: "Desde" }), value: startingFrom });
 
-  const labels = {
-    aboutEyebrow: pickLocale(locale, { en: "Profile", es: "Perfil" }),
-    aboutTitle: pickLocale(locale, { en: "About", es: "Sobre" }),
-    portfolioEyebrow: pickLocale(locale, { en: "Portfolio", es: "Portafolio" }),
-    portfolioTitle: pickLocale(locale, { en: "Selected work", es: "Trabajo selecto" }),
-    viewPortfolio: pickLocale(locale, { en: "View portfolio", es: "Ver portafolio" }),
-    detailsEyebrow: pickLocale(locale, { en: "Details", es: "Detalles" }),
-    detailsTitle: detailsLabels.details,
-    skillsEyebrow: pickLocale(locale, { en: "Craft", es: "Oficio" }),
-    skillsTitle: pickLocale(locale, { en: "Skills & specialties", es: "Habilidades y especialidades" }),
-    servicesEyebrow: pickLocale(locale, { en: "Bookings", es: "Reservas" }),
-    servicesTitle: pickLocale(locale, { en: "Services & rates", es: "Servicios y tarifas" }),
-    mediaEyebrow: pickLocale(locale, { en: "Featured", es: "Destacado" }),
-    mediaTitle: pickLocale(locale, { en: "Watch & listen", es: "Mira y escucha" }),
-    reviewsEyebrow: pickLocale(locale, { en: "Word of mouth", es: "Reseñas" }),
-    reviewsTitle: pickLocale(locale, { en: "What clients say", es: "Lo que dicen los clientes" }),
-    rosterEyebrow: pickLocale(locale, { en: "The roster", es: "El roster" }),
-    rosterTitle: pickLocale(locale, { en: "More from this roster", es: "Más de este roster" }),
-    represented: pickLocale(locale, { en: "Represented", es: "Representada" }),
-    travels: pickLocale(locale, { en: "Travels worldwide", es: "Viaja a todo el mundo" }),
-    featured: ui.card.featuredLabel,
-    visitSite: pickLocale(locale, { en: "Visit my site", es: "Visita mi sitio" }),
-    availability: pickLocale(locale, { en: "Availability", es: "Disponibilidad" }),
-    booking: pickLocale(locale, { en: "Book this talent", es: "Reservar talento" }),
-    quickFacts: pickLocale(locale, { en: "Quick facts", es: "Datos rápidos" }),
-    representedBy: pickLocale(locale, { en: "Represented by", es: "Representada por" }),
-  };
+  const labels = buildLumenLabels({ locale, detailsLabels, ui });
 
   // Reusable hero chips ---------------------------------------------------
   const heroChips = (
@@ -683,6 +659,14 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
               <p className="lm-card__agency">
                 {labels.representedBy} <strong>{agency}</strong>
               </p>
+            ) : null}
+            {agency && props.isExclusive ? (
+              <ExclusiveRepresentationLine
+                agency={agency}
+                t={props.t}
+                className="-mt-2 mb-4 text-[0.8125rem] leading-relaxed"
+                style={{ color: "var(--pp-muted)" }}
+              />
             ) : null}
             <div className="lm-book__actions">{inquireButtonSidebar}</div>
             <div className="lm-book__row">

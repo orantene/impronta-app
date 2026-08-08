@@ -24,6 +24,12 @@ interface InfoTipProps {
   className?: string;
   /** Where to anchor the bubble. Defaults to "top-end". */
   placement?: "top-start" | "top-end" | "bottom-start" | "bottom-end";
+  /**
+   * Classes for the BUBBLE (not the trigger). The default is the light
+   * edit-chrome zinc palette, which is unreadable on dark public surfaces
+   * (the Noir profile is near-black). Dark templates pass their own.
+   */
+  bubbleClassName?: string;
 }
 
 export function InfoTip({
@@ -32,6 +38,7 @@ export function InfoTip({
   size = 13,
   className = "text-zinc-400 hover:text-zinc-700",
   placement = "top-end",
+  bubbleClassName = "border-zinc-200 bg-white text-zinc-700",
 }: InfoTipProps) {
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -103,7 +110,7 @@ export function InfoTip({
         <span
           id={id}
           role="tooltip"
-          className={`pointer-events-none absolute z-[140] ${bubblePos} w-[220px] rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] leading-relaxed text-zinc-700 shadow-md`}
+          className={`pointer-events-none absolute z-[140] ${bubblePos} w-[220px] rounded-md border px-2.5 py-1.5 text-[11px] normal-case leading-relaxed tracking-normal shadow-md ${bubbleClassName}`}
         >
           {label}
         </span>
