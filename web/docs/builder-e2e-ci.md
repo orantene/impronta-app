@@ -53,6 +53,29 @@ The first step, **Verify required secrets**, fails fast with a clear message if
 any required secret is missing — so a "not configured yet" state can never look
 like a green pass.
 
+## Per-test seeded baseline (2026-08-08, plan row 5.3)
+
+`e2e/builder-smoke.spec.ts` no longer shares one draft across its steps. Before
+every test, `e2e/support/builder-draft-baseline.ts` rewrites the QA tenant's
+homepage draft to a canonical, checked-in builder tree using the service role,
+and each test boots its own browser context. Tests are therefore independent and
+order-agnostic, and a new spec (for example floating-toolbar coverage) can reuse
+the same helper instead of inheriting another spec's state.
+
+What this changes for arming the workflow, honestly:
+
+- It removes the *shared-state* objection. A run can no longer leave residue that
+  poisons the next run, and a failed test cannot corrupt its neighbours.
+- It does **not** remove the *credentials* objection. The suite still publishes a
+  draft, the baseline helper still writes with a service role, and the only
+  Supabase credentials in this repo are production ones. Nothing here provisions
+  a throwaway tenant.
+
+So the trigger stays `workflow_dispatch` only. Arming it on PR or push still
+requires the dedicated sandbox Supabase project described above; the baseline
+helper's tenant allow-list (`ALLOWED_TENANT_SLUGS`) is what keeps a mistyped env
+var from pointing those writes at a real tenant.
+
 ## Notes
 
 - The seed contract matters: the test tenant must have the `impronta` slug
