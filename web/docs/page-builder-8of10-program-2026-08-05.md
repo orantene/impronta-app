@@ -2,7 +2,7 @@
 
 **Created** 2026-08-05 · **Baseline** `main` @ `237113b55` (after the 9-PR remediation wave)
 **Audited** 2026-08-05, against `main` @ `b1fdf4ef3`. Every wave item below re-verified as still open. Baseline drift since writing: 5 commits, 2 touching builder/site-admin (#1005 storefront seeding, #1007 plan caps). No wave item was invalidated.
-**Status** RUNNING since 2026-08-06. Waves 0, 1, 4, 6 and 7 are done and live; 2, 3 and 5 are partial. The current state, the remaining work and an honest score are in the Ledger (section 7) - read that first, not this header.
+**Status** RUNNING since 2026-08-06. Waves 0, 1, 2, 3, 4, 6 and 7 are done and live; 5 is all but one row. The current state, the remaining work and an honest score are in the Ledger (section 7) - read that first, not this header.
 **Predecessors** [`page-builder-minimal-build-plan-2026-07-09.md`](./page-builder-minimal-build-plan-2026-07-09.md) (44 PRs, done) · re-audit report artifact `da953eef-deb2-415b-b6d3-a930131da026`
 
 ---
@@ -409,10 +409,10 @@ session reads this table to know exactly where the program stands.
 |---|---|---|---|---|
 | 0 Guardrails | **DONE** | #1013, #1014 | yes | ES parity guards + the a11y lane armed in CI. See the honest caveat below: the guard's coverage claim was narrower than it read. 0.5 (arm `builder-e2e.yml`) was **retracted**, not done: the suite publishes drafts and only prod Supabase creds exist. |
 | 1 Draft trust | **DONE** | #1018, #1020, #1028 | yes | Restore carries `builderTree` + sections; revision written before the version bump; freeform publish carve-out; per-tab edit-session token. Proven by a live restore round-trip during #1031 QA. |
-| 2 Editor UX | **PARTIAL** | #1029, #1026, #996 | yes | 2.4 shipped (cms pages got the live canvas the homepage had; root cause of the whole "canvas lies" class). **2.1, 2.2, 2.3, 2.5 NOT started** - see Remaining. |
-| 3 Performance | **MOSTLY DONE** | #1030 | yes | 3.1-3.4 and 3.6 shipped: measured 4.9x typing improvement, sliders 6 commits to 1, style panel off the boot path. **3.5 (undo waits a server round-trip) NOT started.** |
+| 2 Editor UX | **DONE** | #1029, #1026, #996, #1067, #1065 | yes | 2.1 fixed: one double-click now puts a live caret, 4 interactions to 1, proven live with 11/11 characters landing under no-pause typing. 2.2 popover clearance derived from measured chrome. 2.3 navigator labels follow the live headline. 2.5 the sheet was not a duplicate row, both descriptions documented a sibling reorder that does not exist (nested-block Alt+arrow is a 1px nudge, 10px with Shift). |
+| 3 Performance | **DONE** | #1030, #1078 | yes | 3.1-3.4 and 3.6 shipped earlier. 3.5 fixed: 6 rapid undos went from 6 server POSTs to 1, and the DOM steps now complete before any request fires. It also turned out to be a correctness bug, not only a perf one - a one-deep queue silently DROPPED undo steps while a save was in flight. |
 | 4 Copy + i18n | **DONE** | #1032, #1047, #1048, #1049 | yes | 4.1-4.5 plus a 4.6 the plan did not anticipate (builder-registry labels). Spanish now covers floating bars, preflight, AI panels, deep inspectors, all 55 section Editor panels, and registry node kinds. |
-| 5 Security + health | **PARTIAL** | #1034 | yes | 5.1, 5.2, 5.6 shipped: logo uploads on the signed pipeline with SVG sanitize (closed a stored-XSS hole that also existed on the talent Max Site), builder writes require an ACTIVE membership, 549 lines of dead code removed. **5.3, 5.4, 5.5 NOT started.** |
+| 5 Security + health | **MOSTLY DONE** | #1034, #1076, #1077 | yes | 5.1, 5.2, 5.6 shipped earlier. 5.3: e2e tests are independent and order-agnostic (proven by running each standalone in reverse order), and the "seeded baseline" turned out never to have been seeded. 5.4: nested-panel extracted, selection-layer 8,007 to 7,277 lines, with a real two-way size ratchet. **5.5 (builder-node blanket barrel) NOT started** - held back deliberately, it touches 74 consumers and would collide with everything else in flight. |
 | 6 Quick bar | **DONE** | #1001, #1021, #1044 | yes | 6.1-6.4 shipped. #1044 later fixed a regression this wave introduced: the bar's links 404'd on free-tier storefronts. |
 | 7 Free starter design | **DONE** | #1039 | yes | Added mid-program at the owner's request. Real imagery, business copy, a hero scrim that survives any uploaded photo, kit-managed starters, gallery thumbnails. |
 
@@ -450,31 +450,46 @@ Nothing here is blocking; all of it is known and none of it is in flight.
 
 | Item | Where |
 |---|---|
-| 2.1 text editing takes 4 interactions and eats early keystrokes | the single biggest remaining UX defect |
-| 2.2 nested-blocks popover clipped behind the left dock | |
-| 2.3 block-list labels go stale after a text edit | |
-| 2.5 shortcut sheet advertises a conflict it silently resolves | |
-| 3.5 undo waits a server round-trip per step | serializes on rapid undo |
-| 5.3 e2e serial coupling (one shared draft, 3 `test.fixme`) | root cause of e2e fragility; blocks the deferred wave-2 toolbar spec |
-| 5.4 `selection-layer.tsx` is **7,988 lines** with no ratchet | extract the #908 nested-panel seam, then ratchet |
-| 5.5 `builder-node` blanket barrel drags ~12k lines into 74 consumers | |
+| 5.5 `builder-node` blanket barrel drags ~12k lines into 74 consumers | the last unstarted plan row; do it alone, it collides with everything |
+| ~106 files exempt from `max-lines` in a way that stops measuring size | see below; #1076 fixed one file, the rest are still unmeasured |
 | WebKit goldens seeded but uncommitted | cross-engine visual coverage stays off until they land |
 | `builder-fidelity.yml` `continue-on-error` false green | needs a workflow-scope push; the working PAT gets 403 |
-| Marketing-host receiving-side redirect | link *emitters* are fixed (#1044 + #1041/#1045/#1046); `tulala.digital/{slug}/admin/*` still hard-404s rather than redirecting |
+| Marketing-host receiving-side redirect | emitters fixed (#1044 + #1041/#1045/#1046); `tulala.digital/{slug}/admin/*` still hard-404s |
+| Shortcut catalog is untranslated | `shortcut-overlay.tsx` renders `label`/`description` raw, never through `t()` |
+| `builder-e2e.yml` still cannot be armed | #1077 removed the shared-state objection; the credentials one stands (the suite publishes, service-role writes, prod-only creds). Needs a sandbox Supabase project. |
+| Redo does not repaint on server-rendered curated pages | pre-existing, confirmed on main; that surface mounts no client canvas. Needs an uncontended tenant to A/B. |
 
 ## Score
 
-**Honest read: 7.5, up from 6.5.** Not 8.5.
+**Honest read: 8.5, up from 6.5.**
 
-Per-dimension: draft trust, performance, i18n, security and the quick bar all met
-their DoD and are live-verified. Editor UX did **not** - the canvas root cause shipped
-but the four interaction defects, including the 4-interaction text edit, are untouched,
-and that is the dimension an operator feels first. Code health did not either:
-`selection-layer.tsx` is still ~7,900 lines with no ratchet.
+Every dimension now meets its DoD and is live-verified. Editor UX was the last
+holdout and its headline defect is fixed: text editing went from four interactions
+that silently ate keystrokes to one double-click into a live caret. Code health
+moved too, though 5.5 is deliberately unstarted.
 
-Deliberately not summing per-lane gains into an overall number - that inflates roughly
-4x. The two open dimensions cap the total, and they are what the next session should
-take first.
+Still not claiming 9. The reasons are concrete and listed above: one plan row is
+untouched, ~106 files remain exempt from any real size measurement, cross-engine
+visual coverage is off, and a CI workflow still reports success when its gate
+fails. Per-lane gains are deliberately not summed.
+
+### The pattern worth carrying out of this program
+
+Five separate guards reported green while measuring the wrong thing:
+
+1. the ES parity guard - saw `t()` calls, missed strings arriving as **props**
+2. the same guard - missed strings **derived at render** by `ZodSchemaForm`
+3. and again - missed strings **composed at runtime** (`` `${label} blocks` ``)
+4. `max-lines` - suppressed as `{count: 1}`, which is satisfied at 801 lines or 8,001
+5. the e2e suite - asserted an "exactly one seeded layer" baseline nobody ever seeded,
+   normalised at runtime by a **label heuristic** over a drifted tenant
+
+And one still live: `builder-fidelity.yml` is `continue-on-error`, so the workflow
+reports success even when the golden job fails. `gh run list` cannot be trusted for it.
+
+The lesson is not "add more guards". It is that a guard's green means nothing until
+someone has watched it go red on purpose. Every ratchet and parity check added in the
+back half of this program was negative-tested before it was trusted.
 
 ## 8. What this program deliberately does NOT do
 
