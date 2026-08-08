@@ -1,7 +1,8 @@
 # Auth, Shells & Domains — Architecture Audit + Execution Plan (2026-08-07)
 
-**Status: PROPOSED — needs owner sign-off on Decisions D1 + D2 below, then this
-doc becomes binding for all auth-surface work.**
+**Status: EXECUTED (P1–P5 merged) — see §12 for the independent post-ship audit
+with per-phase DONE / PARTIAL verdicts and the remaining gap list. D1 + D2 are
+implemented in code; treat this doc as binding for all auth-surface work.**
 
 Owner prompt: the auth pages look disconnected from the marketing site and the
 storefronts ("the design is very poor... dead ends always come"), and it is
@@ -13,6 +14,9 @@ Honest scores today: **auth UX 3/10** (works; visually orphaned, five
 inconsistent entry pages, recurring dead ends), **domain architecture 6/10**
 (the host model is right; the execution is scattered). Target after this plan:
 **8–9/10 with LESS surface to maintain than today.**
+
+Post-ship audit verdict (2026-08-08): **auth UX 7.5/10, domain architecture
+8/10.** Evidence and the reasons it is not 8.5 are in §12.
 
 ---
 
@@ -240,3 +244,181 @@ app is actually being built:
   hosts, so this is a one-time choice, not per-tenant work.
 - Scaffold the actual native app (out of scope for this repo entirely until
   that project starts).
+
+---
+
+## 12. Post-ship audit (2026-08-08) — independent verification
+
+This section was written by an auditing pass that **did not implement any of
+P1-P5** and deliberately did not trust the phase reports. Everything below was
+re-verified from `origin/main` plus live HTTP probes and browser screenshots of
+production. Where a phase report was optimistic, that is called out.
+
+### Commits confirmed on `origin/main`
+
+All six auth-program merge commits are ancestors of `origin/main`
+(`git merge-base --is-ancestor`, checked 2026-08-08):
+
+| PR | Commit | Phase |
+|---|---|---|
+| #1053 | `dd78b0664` | P3 auth surface matrix in deploy smoke |
+| #1054 | `1d0b50bbf` | P1 Auth Shell v2 |
+| #1055 | `00ec443a8` | P1 tenant panel copy fix |
+| #1059 | `661673e24` | P2 one signup front door |
+| #1060 | `f3eea9d10` | P2 smoke matrix follow-up |
+| #1061 | `caed735df` | P4 client passwordless-first |
+| #1062 | `cd4a2dd40` | P5 mobile groundwork |
+
+### Per-phase verdicts
+
+| Phase | Verdict | What was actually verified |
+|---|---|---|
+| P0 | **DONE** | `/claim` allow-listed and reachable; claim copy + signed-in forward present in `(auth)/claim/page.tsx` and `(auth)/register/page.tsx`. |
+| P1 Auth Shell v2 | **DONE** | Shell v2 renders live on `improntamodels.com` and `tulala.digital`: the `lg:grid-cols-[minmax(0,44%)_minmax(0,56%)]` split, the sticky `lg:h-dvh` brand panel, the `rounded-[28px]` form card on `--plt-bg-elevated`, and footer parity (brand line + tagline + Terms/Privacy/Contact, EN/ES toggle on the tenant host). Platform host takes the forest gradient + three `hero.trust` proof chips; the tenant host takes the ink gradient with no chips, as specified. Desktop (1440) and mobile (375x812) both screenshot-verified — this closes the mobile geometry P2 could not check. |
+| P2 One signup front door | **PARTIAL** | The consolidation itself is correct: `/talent/register`, `/client/register`, `/join` all answer **308** into `/register?as=…` on all three hosts (`tulala.digital`, `app.tulala.digital`, `improntamodels.com`), with every query param preserved and an inbound `as`/`role` replaced rather than duplicated. Per-intent copy differs correctly for `?as=talent` / `?as=client` / `?as=operator` / `?role=talent` (legacy alias) / plain. Intent survives the register↔login cross-link for the client lane. **The gap: the locale prefix is dropped — see A1 below.** |
+| P3 Surface-matrix smoke | **DONE** | `npm run deploy:smoke` from a checkout at `main` HEAD: 18/18 auth-matrix assertions green, all sections pass, 1 pre-existing warning (`RESEND_API_KEY` absent from local shell). |
+| P4 Client passwordless-first | **DONE (code + surface); happy path still UNPROVEN** | Live on both hosts: `/register?as=client` and `/login?as=client` render the OTP card ("Email me a sign-in code", no password field, "Use a password instead" toggle); plain `/register`, `?as=talent`, `?as=operator` and plain `/login` are unchanged password-first. Redirect safety confirmed at code level. Unproven branches are listed in B1-B3. |
+| P5 Mobile groundwork | **DONE (confirmed live only after waiting out the promote)** | At first probe `#1062` was merged at `cd4a2dd40` but its `CI — structural quality gate` was still `in_progress`, so `Promote production pointer` had not run: production was serving `caed735df` (P4) and both `/.well-known/*` stubs returned **404** on all three hosts. After the promote completed, both stubs answer **200 `application/json`** on `tulala.digital`, `app.tulala.digital` and `improntamodels.com`, carrying the documented placeholder values (`TEAMID.com.tulala.app`, `paths: ["*"]`). The P5 report claimed merge, never live — had this audit stopped at the first probe it would have reported a phantom defect, and had it trusted the report it would have missed a ~35 minute window in which the claim was untrue. **`WELL_KNOWN_PREFIX` host-agnostic allow-listing is confirmed working on all three host kinds.** |
+
+### A. Real defects found by this audit
+
+**A1 — Locale prefix is dropped by the three retired signup redirects
+(regression introduced by #1059). Confirmed live.**
+
+```
+https://tulala.digital/es/talent/register  → 308 /talent/register → 308 /register?as=talent → 200 lang="en" "Join as Talent"
+https://tulala.digital/es/join             → 308 /register?as=talent                        → 200 lang="en" "Join as Talent"
+https://tulala.digital/es/register?as=talent                                                → 200 lang="es" "Unirse como Talento"
+https://improntamodels.com/es/talent/register → … → 200 lang="en" "Join as Talent"
+```
+
+The canonical page localizes correctly; only the redirects lose Spanish. Root
+cause: `buildRegisterHref()` in `web/src/lib/auth/register-intent.ts` emits a
+bare `/register?…` and never re-applies the locale segment, while
+`web/src/i18n/pathnames.ts` already exports `withLocaleHref` / `withLocalePath`
+for exactly this (the documented marketing-locale-href rule).
+
+Why it matters: `/join` is the "Apply as talent" CTA in the seeded Impronta noir
+homepage and footer presets — per #1059's own reasoning for keeping it. A
+Spanish-speaking talent clicking a Spanish CTA lands on an English signup page.
+This is the primary talent-acquisition funnel.
+
+Secondary: `/es/talent/register` costs **two** 308 hops, which #1059 explicitly
+set out to eliminate.
+
+Fix shape: make `buildRegisterHref` locale-aware (or wrap its result in
+`withLocaleHref` at the three call sites in `(auth)/talent/register/page.tsx`,
+`(auth)/client/register/page.tsx`, `(auth)/join/page.tsx`), and extend
+`register-intent.test.ts` with `/es/` cases.
+
+**A2 — `deploy:smoke` silently omits the P3 auth matrix when run from a stale
+checkout, and does not probe the promote lag either.** Run from the shared
+checkout (pinned at an older commit), the script has no auth-matrix section at
+all and still prints `✓ all checks passed`. Nothing warns that the gate the
+deploy is being judged against is an older gate. Any future "smoke is green"
+claim must state the commit the script came from.
+
+Separately, `deploy:smoke` asserts nothing about **which commit production is
+actually serving**. The P5 probe above is the concrete cost: a fully green smoke
+run coexisted with a production pointer two commits behind `main`. A cheap
+addition would be one assertion that the live deployment's commit is an ancestor
+of `origin/main` **and** contains the commit under test — that turns the
+"merged is not done" class into a red gate instead of a manual habit.
+
+### B. Genuine gaps carried forward (not regressions)
+
+- **B1** — P4's happy path (a real emailed 6-digit code → session → post-auth
+  destination, including the guest-claim relink) has never been executed. Only
+  the send / resend / reject-bad-code branches were.
+- **B2** — Whether the code is visible in the email depends on the Supabase
+  Send Email Hook (`SEND_EMAIL_HOOK_SECRET`) being enabled for the project.
+  Still unconfirmed. If it is off, only the link lane works.
+- **B3** — Auth OTP rate limiting uses `lib/rate-limit.ts`, which is
+  per-serverless-instance and resets on cold start. `deploy:smoke` confirms the
+  cross-instance Upstash limiter (`lib/rate-limit-kv.ts`) IS provisioned in
+  prod. Moving auth onto it is a concrete, not speculative, follow-up.
+- **B4** — `presentClaimOutcome` (`web/src/lib/talent/claim-outcome.ts`) is
+  still English-only (zero locale references), so `/claim` renders localized
+  chrome around English verdict copy for all 12 reasons.
+- **B5** — The whitelabel tenant brand panel has no storefront imagery and no
+  tenant accent: it is a near-black gradient whose upper ~55% is empty at
+  1440px. It reads sparse rather than abandoned, but "kill dead space" is a
+  standing quality bar, so this is unfinished rather than done.
+- **B6** — Impronta has no uploaded logo, so its auth lockup is the letterspaced
+  text wordmark fallback. **This is expected and correct behaviour**, not a bug:
+  `resolveShellBrandLogoUrl` is live and wired: uploading at
+  `improntamodels.com/admin/settings` → Branding & media swaps in the real logo
+  on all auth pages with zero code change.
+- **B7** — On a whitelabel host the auth footer's Terms / Privacy / Contact
+  links point at `https://tulala.digital/...`, revealing the platform host from
+  an otherwise fully agency-branded page. Arguably right (they are platform
+  legal documents) but it is a whitelabel leak worth an explicit ruling.
+- **B8** — PR **#1052** (branch `docs/auth-shell-domain-plan`) is still OPEN and
+  `CONFLICTING`. Its entire body is *this file*, which #1062 brought onto
+  `main`. It should be closed rather than merged, or `main` and the PR will
+  diverge into two copies of the same document.
+
+### C. Phase-report claims this audit found to be wrong
+
+- **P2 follow-up "the modal's `Got it` button is hardcoded English" is FALSE.**
+  `talent-register-modal-copy.ts:121` already carries `gotIt: "Entendido"` in
+  the `es` block (added in #903), and `talent-register-modal.tsx:445` renders
+  `{t.gotIt}`. No work needed.
+- **P2 follow-up "the host-blind talent post-auth default 404s on marketing" is
+  effectively already mitigated.** The hidden `next` value is indeed host-blind
+  (`/talent/profile/fields` on every host, and it does hard-404 on
+  `tulala.digital`), but every redirect that consumes it —
+  `auth/actions.ts:186`, `:328`, `auth/callback/route.ts:132`,
+  `auth/otp-actions.ts:276`, `auth/password-actions.ts:55` — passes through
+  `hostSafeRedirectDestination`, which rewrites a path the current host kind
+  cannot serve to the same path on `getAppUrl()`. Worth a defensive test, not a
+  P0.
+
+### D. Claim flow — re-verified end to end at code level (no regression)
+
+The freshly-shipped claim flow is intact:
+
+1. `sendTalentClaimInvite` mails `/register?invitation=<id>&email=<e>`.
+2. `(auth)/register/page.tsx` reads `?invitation=`; an **already-signed-in**
+   visitor is `redirect()`ed straight to `/claim?invitation=<id>`, and an
+   anonymous visitor gets `nextPath = /claim?invitation=<id>` threaded through
+   signup. `resolveRegisterFlow` ranks `claim` above `?as=client`, verified live
+   through the `/client/register` → `/register?as=client` redirect.
+3. The invited address is prefilled (the RPC requires an exact match).
+4. `(auth)/claim/page.tsx` calls `supabase.rpc("claim_talent_profile", …)`.
+
+The RPC and its migration (`20260805232235_talent_profile_claim_linking.sql`)
+and `claim-outcome.ts` were last touched by **#1012**, the original claim
+shipment — no auth-program PR modified them. #1054's edit to
+`claim/page.tsx` added only `getRequestLocale` + `createTranslator` and swapped
+`admin-*` tokens for `plt-*`; it changed no redirect, guard or RPC call.
+
+### E. Route × host matrix as measured in production (2026-08-08)
+
+Identical on `tulala.digital`, `app.tulala.digital`, `improntamodels.com`
+unless noted:
+
+| Path | Status |
+|---|---|
+| `/login`, `/register`, `/forgot-password` | 200 |
+| `/talent/register` | 308 → `/register?as=talent` |
+| `/client/register` | 308 → `/register?as=client` |
+| `/join` | 308 → `/register?as=talent` |
+| `/claim` (no token, no session) | 307 → `/login` |
+| `/update-password` (no recovery session) | 307 → `/forgot-password?notice=expired` |
+| `/get-started` | 200 on `tulala.digital`; **404** on agency + app hosts (intentional) |
+| `/es/login`, `/es/register`, `/es/forgot-password` | 200, `lang="es"` |
+| `/es/talent/register`, `/es/join` | 308 but **locale lost** — defect A1 |
+| `/.well-known/apple-app-site-association`, `/.well-known/assetlinks.json` | 200 `application/json` (after the #1062 promote) |
+
+Nothing 404s that should not.
+
+### F. Highest-value next thing
+
+**Fix A1.** It is the only defect in this program that a real user hits today,
+it sits on the talent-acquisition funnel, the fix is a few lines against a
+helper that already exists, and it is unit-testable without a browser.
+
+After that, in order: B1+B2 together (one real OTP round trip settles both and
+closes the last unproven auth branch), then B3 (cross-instance rate limiting on
+auth), then B4 (localize the 12 claim verdicts).
