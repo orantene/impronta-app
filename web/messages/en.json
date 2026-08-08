@@ -38,6 +38,14 @@
       "googleFailed": "Google sign-in failed.",
       "googlePopupBlocked": "Popup blocked. Allow popups for this site and try again.",
       "googleUnableToStart": "Unable to start Google sign-in.",
+      "shell": {
+        "back": "Back to {site}",
+        "tenantHeading": "Your work and your bookings, in one place.",
+        "tenantLead": "Sign in to manage your profile, your bookings, and your messages with {brand}.",
+        "terms": "Terms",
+        "privacy": "Privacy",
+        "contact": "Contact"
+      },
       "login": {
         "title": "Log in",
         "inviteTitle": "Sign in to join {agency}",
@@ -50,7 +58,8 @@
         "remember": "Keep me signed in for 30 days",
         "noAccount": "No account?",
         "signUp": "Sign up",
-        "sessionExpired": "Your session expired. Please sign in again."
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "eyebrow": "Welcome back"
       },
       "register": {
         "title": "Create your account",
@@ -71,13 +80,18 @@
         "pending": "Creating account…",
         "passwordHint": "At least 8 characters.",
         "haveAccount": "Already have an account?",
-        "logIn": "Log in"
+        "logIn": "Log in",
+        "eyebrow": "Get started",
+        "claimEyebrow": "Profile claim",
+        "inviteEyebrow": "Invitation"
       },
       "roleRegister": {
         "talentTitle": "Join as Talent",
         "talentDescription": "Create an account to join the roster, manage your profile, and receive bookings.",
         "clientTitle": "Join as a Client",
-        "clientDescription": "Create an account to discover talent, make inquiries, and manage your bookings."
+        "clientDescription": "Create an account to discover talent, make inquiries, and manage your bookings.",
+        "talentEyebrow": "For talent",
+        "clientEyebrow": "For clients"
       },
       "forgot": {
         "title": "Forgot password",
@@ -85,7 +99,8 @@
         "expired": "That reset link is no longer valid. Enter your email below to get a new one.",
         "submit": "Send reset link",
         "pending": "Sending…",
-        "back": "Back to log in"
+        "back": "Back to log in",
+        "eyebrow": "Password reset"
       },
       "update": {
         "title": "Set new password",
@@ -93,7 +108,8 @@
         "newPassword": "New password",
         "confirmPassword": "Confirm new password",
         "submit": "Update password and continue",
-        "pending": "Saving…"
+        "pending": "Saving…",
+        "eyebrow": "New password"
       },
       "form": {
         "email": "Email",
@@ -122,6 +138,13 @@
         "emailNotConfirmed": "Your email isn't confirmed yet. Check your inbox for the confirmation link.",
         "tooManyAttempts": "Too many attempts, please wait a minute and try again.",
         "network": "Connection issue, check your network and try again."
+      },
+      "claim": {
+        "eyebrow": "Claim profile",
+        "successEyebrow": "Welcome",
+        "dashboardCta": "Go to my dashboard",
+        "backToSignIn": "Back to sign in",
+        "exclusiveNote": "You can review who represents you, pause a relationship, or leave an agency from your dashboard under Agencies."
       }
     },
     "profile": {
