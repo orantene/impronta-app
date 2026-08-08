@@ -331,3 +331,49 @@ test("values are percent-encoded, so a next= deep link cannot inject params", ()
   assert.equal(params.get("next"), "/claim?invitation=abc&x=1");
   assert.equal(params.has("x"), false);
 });
+
+// ── Locale preservation across the retired-route redirects (audit A1) ────────
+// The three retired signup routes redirect through buildRegisterHref. It used
+// to emit a bare "/register?…", so /es/join landed on the ENGLISH page — on the
+// primary talent-acquisition funnel ("Apply as talent" is the seeded CTA in the
+// Impronta noir homepage + footer presets). This file previously had ZERO /es/
+// coverage, which is why nothing caught it.
+
+test("buildRegisterHref keeps the /es segment when a non-default locale is passed", () => {
+  assert.equal(
+    buildRegisterHref("talent", {}, "es"),
+    "/es/register?as=talent",
+  );
+  assert.equal(
+    buildRegisterHref("client", {}, "es"),
+    "/es/register?as=client",
+  );
+});
+
+test("the default locale stays unprefixed, so EN traffic is byte-identical", () => {
+  assert.equal(buildRegisterHref("talent", {}, "en"), "/register?as=talent");
+  // Omitting the locale entirely is the documented locale-relative form used by
+  // link-ref.ts when rewriting saved page-builder hrefs.
+  assert.equal(buildRegisterHref("talent", {}), "/register?as=talent");
+});
+
+test("locale prefixing preserves every carried query param", () => {
+  const href = buildRegisterHref(
+    "client",
+    { next: "/t/TAL-00045", intent: "inquiry", utm_source: "ig" },
+    "es",
+  );
+  assert.ok(href.startsWith("/es/register?"), `expected /es prefix, got ${href}`);
+  const qs = new URLSearchParams(href.slice(href.indexOf("?") + 1));
+  assert.equal(qs.get("as"), "client");
+  assert.equal(qs.get("next"), "/t/TAL-00045");
+  assert.equal(qs.get("intent"), "inquiry");
+  assert.equal(qs.get("utm_source"), "ig");
+});
+
+test("a locale is never prefixed twice", () => {
+  // Guards the /es/es/register class of bug if a caller ever passes an href
+  // that is already locale-relative.
+  const once = buildRegisterHref("talent", {}, "es");
+  assert.equal(once.match(/\/es\//g)?.length ?? 0, 1, once);
+});

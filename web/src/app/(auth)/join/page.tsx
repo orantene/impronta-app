@@ -1,5 +1,6 @@
 import { permanentRedirect } from "next/navigation";
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { buildRegisterHref } from "@/lib/auth/register-intent";
 
 /**
@@ -24,5 +25,9 @@ export default async function JoinPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  permanentRedirect(buildRegisterHref("talent", await searchParams));
+  // Carry the inbound locale so a Spanish visitor is not dropped onto the
+  // English page by the hop (audit A1). withLocaleHref no-ops for the
+  // default locale, so EN traffic is byte-identical to before.
+  const [params, locale] = await Promise.all([searchParams, getRequestLocale()]);
+  permanentRedirect(buildRegisterHref("talent", params, locale));
 }
