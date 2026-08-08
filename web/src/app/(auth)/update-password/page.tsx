@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AuthCard, AuthHeading } from "@/components/auth/auth-ui";
 import { UpdatePasswordForm } from "./update-password-form";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -20,14 +21,15 @@ export default async function UpdatePasswordPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">{t("public.auth.update.title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("public.auth.update.description")}
-        </p>
-      </div>
-      <UpdatePasswordForm locale={locale} />
+    <div className="w-full">
+      <AuthHeading
+        eyebrow={t("public.auth.update.eyebrow")}
+        title={t("public.auth.update.title")}
+        description={t("public.auth.update.description")}
+      />
+      <AuthCard>
+        <UpdatePasswordForm locale={locale} />
+      </AuthCard>
     </div>
   );
 }

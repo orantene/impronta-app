@@ -31,10 +31,10 @@ import {
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
+import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
 import {
   ArrowGlyph,
   CloseGlyph,
-  GoogleGlyph,
   Spinner,
 } from "./talent-register-modal-glyphs";
 import { loadWelcomeModel, type WelcomeModel } from "./welcome-actions";
@@ -456,33 +456,12 @@ function LoginModalGoogleButton({
   }
 
   return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
-        style={{
-          background: "var(--plt-bg-raised)",
-          border: "1px solid var(--plt-hairline-strong)",
-          color: "var(--plt-ink)",
-        }}
-      >
-        {pending ? <Spinner /> : <GoogleGlyph />}
-        <span>{pending ? copy.googleOpening : copy.google}</span>
-      </button>
-      {error ? (
-        <p
-          className="rounded-xl px-3 py-2 text-[0.75rem]"
-          style={{
-            background: "rgba(180, 35, 24, 0.08)",
-            color: "#9b1c14",
-            border: "1px solid rgba(180, 35, 24, 0.18)",
-          }}
-        >
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <AuthGoogleButtonSurface
+      pending={pending}
+      label={copy.google}
+      pendingLabel={copy.googleOpening}
+      error={error}
+      onClick={handleClick}
+    />
   );
 }

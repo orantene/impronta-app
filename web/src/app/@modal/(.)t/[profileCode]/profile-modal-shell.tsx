@@ -46,7 +46,12 @@ export function ProfileModalShell({
         <Dialog.Content
           aria-describedby={undefined}
           onOpenAutoFocus={(e) => e.preventDefault()}
-          className="fixed inset-0 z-[121] flex flex-col overflow-hidden bg-background outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985] data-[state=open]:duration-300 sm:inset-x-1/2 sm:inset-y-4 sm:w-[min(1200px,calc(100vw-3rem))] sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:border-white/10 sm:shadow-[0_40px_120px_-24px_rgba(0,0,0,0.7)]"
+          data-platform-surface="marketing"
+          // Light panel (`--plt-bg`), NOT `bg-background`: the body class
+          // `site-theme-dark` is the failsafe default on platform hosts, which
+          // painted this panel near-black around the light profile inside it.
+          className="fixed inset-0 z-[121] flex flex-col overflow-hidden outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[0.985] data-[state=open]:duration-300 sm:inset-x-1/2 sm:inset-y-4 sm:w-[min(1200px,calc(100vw-3rem))] sm:-translate-x-1/2 sm:rounded-2xl sm:border sm:shadow-[0_40px_120px_-24px_rgba(0,0,0,0.45)]"
+          style={{ background: "var(--plt-bg)", borderColor: "var(--plt-hairline)" }}
         >
           <Dialog.Title className="sr-only">{profileCode}</Dialog.Title>
 

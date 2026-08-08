@@ -1,31 +1,36 @@
 # Development Workflow — Tulala / Impronta
 
-**Solo-dev workflow, optimized for speed: localhost-first, push straight to
-`main`, ship fast.** Written 2026-05-21 at the `phase-1` → `main` cutover.
-This is the canonical workflow doc; `CLAUDE.md` points here.
+**Localhost-first, short-lived branches off `main`, PR back to `main`, and a
+CI-gated release.** Written 2026-05-21 at the `phase-1` → `main` cutover;
+rewritten 2026-08-08 to match the CI-gated production pointer that went live
+2026-08-04. This is the canonical workflow doc; `CLAUDE.md` points here.
 
 ---
 
 ## TL;DR
 
-- **`main` is the only branch that matters** — GitHub default, Vercel
-  production branch, and what's live. Work on it directly.
-- **Develop locally, commit clean chunks, push to `main` when a chunk is
-  solid → it auto-deploys to production.** No PR, no promote step.
-- Use a throwaway feature branch *only* for big/risky work you want to sit on
-  before shipping.
+- **`main` is canonical** — GitHub default and the single source of truth.
+  Branch off it, PR back to it. Many agents share this repo, so never commit
+  to `main` directly.
+- **`production` is the branch Vercel actually deploys.** It is a pointer,
+  not a place you work: `promote-production.yml` fast-forwards it to a `main`
+  commit only after the structural quality gate passes on that exact commit.
+  **A red `main` cannot reach production.**
+- Every other branch you push builds an SSO-gated preview (401), which
+  middleware won't render on a raw `*.vercel.app` host — see §6.
 
 ## 1. The everyday loop
 
 ```
-git pull                                      # latest main
+git fetch origin && git switch -c <type>/<topic> origin/main
 # ...edit; run locally: cd web && npm run dev...
 cd web && npx tsc --noEmit && npm run lint     # gate — must be clean
 git add -A && git commit -m "..."
-git push                                       # → Vercel builds + deploys production (~2-3 min)
+git push -u origin <type>/<topic>              # → Vercel builds an SSO-gated preview
+gh pr create --base main                       # review, then merge
 ```
 
-That's the whole loop.
+Merging the PR to `main` starts the release described in §4.
 
 ## 2. Before you commit — the gate
 
@@ -38,46 +43,84 @@ Supabase migrations are **not** auto-applied (deliberate — fewer moving
 parts). If your change includes a new migration:
 
 1. `date -u +%Y%m%d%H%M%S` → unique filename timestamp.
-2. **`cd web && npm run db:push` BEFORE you push the code** (or the
+2. **`cd web && npm run db:push` BEFORE you merge the PR** (or the
    Management-API fallback — see `CLAUDE.md`).
 3. `npm run db:check` → confirms no drift.
 
-Pushing migration-dependent code without applying the migration first =
-silent 500s in production. This is the one step you can't skip.
+Merging migration-dependent code without applying the migration first =
+silent 500s in production the moment the pointer advances. This is the one
+step you can't skip.
 
-## 4. When to push
+## 4. The release — merge to main, then the pointer advances
 
-- Push when you have a **coherent, working chunk** — not after every
-  keystroke, not half-done.
-- Every push to `main` is a production release. If it's not ready to be live,
-  don't push it — commit locally and keep going.
+Merging to `main` does **not** by itself deploy. The release is four steps,
+and only the first is yours:
 
-## 5. Feature branches — optional, risky work only
+1. **Merge the PR to `main`.** Vercel builds this ref as a *preview*
+   (`target: null`) — it is not live.
+2. **CI runs the structural quality gate on that commit** (~11 min). If it
+   fails, nothing below happens and `main-red-alert.yml` opens a pinned
+   `🔴 MAIN IS RED` issue (see §10).
+3. **`promote-production.yml` fast-forwards `production` to that commit** —
+   automatically, on green CI only. Vercel then builds `production` with
+   `target: "production"`. The workflow refuses to rewind: it promotes only
+   commits that are ancestors of `origin/main`.
+4. **`vercel-post-deploy-alias.yml` re-aliases** `tulala.digital` and
+   `app.tulala.digital` onto the new deployment, because the production
+   pointer does not reliably reassign custom domains on its own.
 
-For something big you want to preview before it's live:
+Then run the smoke test (§6).
 
+If the pointer needs moving by hand — the workflow was down, or you are
+promoting a commit CI already vetted — the fast-forward is:
+
+```bash
+git push origin origin/main:production
 ```
-git switch -c feat/<topic>     # work, commit
-git push -u origin feat/<topic>  # → Vercel gives a preview URL
-```
 
-Merge to `main` when ready. For everyday changes, skip this — straight to
-`main` is fine.
+That is a fast-forward only. **Never force-push `production` or `main`**; to
+undo a bad release, roll forward or roll back per §7 instead of rewriting the
+pointer.
+
+## 5. Feature branches
+
+Every change goes through one — there is no straight-to-`main` path. Keep them
+short-lived and branched off the *latest* `main`; with many concurrent lanes,
+a stale base is the usual cause of a semantic (non-textual) conflict, so
+re-gate per §11 before merging.
+
+One migration timestamp per agent: run `date -u +%Y%m%d%H%M%S` at the start of
+your work so two lanes can't collide on the same filename.
 
 ## 6. After a deploy
 
-`cd web && npm run deploy:smoke` — must exit 0. Probes the live site + checks
-Supabase migration drift. (Preview `*.vercel.app` URLs don't render the app —
-middleware gates on registered hosts; QA on a real domain or localhost.)
+Merging is not shipping. Once the pointer has advanced (§4):
+
+1. Confirm the release is really live: `production` should be an ancestor of
+   `main` and at the commit you expect —
+   `git fetch origin && git log --oneline -1 origin/production`.
+2. `cd web && npm run deploy:smoke` — must exit 0. Probes the live site +
+   checks Supabase migration drift.
+
+Preview `*.vercel.app` URLs don't render the app: `web/src/proxy.ts` gates
+every request against `public.agency_domains` and returns 404 "Host not
+registered" for anything unlisted. QA on localhost, or alias the preview onto
+a host that is already seeded.
 
 ## 7. Hotfix / rollback
 
-- **Fix forward:** edit, gate, `git push` — same loop, just fast.
+- **Fix forward:** branch, gate, PR, merge — the same loop, just fast. The
+  release still waits on green CI, which is the point.
 - **Roll back:** `cd web && npm run deploy:promote -- <previous-good-deploy-url>`.
+  `deploy:promote` with no URL picks the newest deployment on *any* branch, so
+  always pass the URL explicitly — an unqualified promote has shipped another
+  agent's branch to production before.
 
 ## 8. Don't
 
-- Force-push `main` (branch protection blocks it anyway).
+- Force-push `main` or `production` (branch protection blocks `main` anyway).
+  `production` only ever moves forward, by fast-forward.
+- Commit to `main` directly, or develop on `production`.
 - Commit `.env*` files (gitignored — keep it that way).
 - Develop on `phase-1` / `stable-work` — both retired.
 - **Symlink `web/node_modules` into a worktree.** Turbopack rejects it with
@@ -130,17 +173,25 @@ three branches each acting as a partial "source of truth". This collapses that
 into one: `main`.
 
 **Pipeline verified 2026-05-21** — a commit pushed to `main` auto-built and
-promoted to a production deployment on Vercel, live on all domains. The
-`main` → production sync works end to end.
+promoted to a production deployment on Vercel, live on all domains.
 
-## 10. When main is red — and how we keep it from mattering
+**Re-verified 2026-08-08 against the CI-gated topology.** Vercel's production
+branch is now `production`, not `main`: the live deployment's
+`meta.githubCommitRef` is `production` with `target: "production"`, while
+`main`-ref builds carry `target: null` (preview). `promote-production.yml` is
+the only thing that advances the pointer, and it does so on green CI without
+anyone pushing by hand.
 
-Vercel deploys **every** push to `main` in parallel with CI, so a red
-structural gate on `main` means production may already be running the broken
-commit, and every open PR fails its ratchet against it. This happened on
-2026-08-03 (#978): main sat red ~1.5h while three lanes kept merging.
+## 10. When main is red — and how the gate contains it
 
-Guard rails now in place:
+Before 2026-08-04, Vercel deployed **every** push to `main` in parallel with
+CI, so a red structural gate meant production might already be running the
+broken commit, and every open PR failed its ratchet against it. This happened
+on 2026-08-03 (#978): main sat red ~1.5h while three lanes kept merging.
+
+The production pointer closed that hole — a red `main` no longer reaches
+production, it just stops the pointer. A red `main` still blocks *everyone
+else's* merges, though, so it is still an all-hands stop. Guard rails:
 
 - **`main-red-alert.yml`** opens a pinned `🔴 MAIN IS RED` issue the moment CI
   fails on a main push, and closes it on the next green run. If that issue is
@@ -155,12 +206,12 @@ Guard rails now in place:
   (admin-shell page-modules especially), also verify locally:
   `npm run build && VERCEL_ENV=preview npx next start -p 3079` → load
   `/impronta/admin`.
-- **`promote-production.yml`** fast-forwards a `production` branch only when
-  CI succeeds on that exact main commit. Flipping the Vercel project's
-  production branch from `main` to `production` (Vercel → Settings → Git →
-  Production Branch) makes deploys CI-gated with zero workflow change for
-  developers: a red main simply stops the pointer until it is green.
-  Until the flip, the branch is an observable dry-run.
+- **`promote-production.yml`** fast-forwards the `production` branch only when
+  CI succeeds on that exact `main` commit. The Vercel project's production
+  branch was flipped from `main` to `production` on 2026-08-04, so this is the
+  live release path, not a dry run: a red `main` simply stops the pointer
+  until it is green. Nothing changes for developers — everyone still branches
+  from and merges to `main`.
 
 ## 11. Branch freshness — re-gate when main moves under you
 

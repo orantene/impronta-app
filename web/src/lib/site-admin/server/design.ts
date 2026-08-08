@@ -803,6 +803,27 @@ export async function loadDesignForStaff(
 }
 
 /**
+ * Staff read that LAZY-INITIALISES the `agency_branding` row when absent.
+ * Tenants provisioned outside the standard signup paths lack the row, and the
+ * design studio dead-ended on "Branding row missing" with no self-service fix
+ * (the Tulala hub workspace hit this). Seeds an empty row (registry defaults
+ * apply); `ignoreDuplicates` + the re-read absorb initialiser races. Staff
+ * membership RLS allows the insert.
+ */
+export async function loadOrInitDesignForStaff(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<DesignBrandingRow | null> {
+  const row = await loadRow(supabase, tenantId);
+  if (row) return row;
+  await supabase.from("agency_branding").upsert(
+    { tenant_id: tenantId, theme_json: {}, theme_json_draft: {} },
+    { onConflict: "tenant_id", ignoreDuplicates: true },
+  );
+  return loadRow(supabase, tenantId);
+}
+
+/**
  * Load design revision history (newest first), capped at `limit`. Includes
  * every kind (draft / published / rollback / pre-M6 published-equivalent).
  * The UI filters by `kind` for the "Restore as draft" list so operators

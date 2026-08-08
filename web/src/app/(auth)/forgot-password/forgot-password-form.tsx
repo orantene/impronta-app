@@ -1,10 +1,17 @@
 "use client";
 
 import { useActionState } from "react";
-import { requestPasswordReset, type AuthActionState } from "@/app/auth/actions";
-import { Button } from "@/components/ui/button";
-import { createTranslator } from "@/i18n/messages";
 import Link from "next/link";
+
+import { requestPasswordReset, type AuthActionState } from "@/app/auth/actions";
+import {
+  AUTH_INPUT_CLASS,
+  AUTH_INPUT_STYLE,
+  AuthField,
+  AuthNotice,
+  AuthSubmitButton,
+} from "@/components/auth/auth-ui";
+import { createTranslator } from "@/i18n/messages";
 
 export function ForgotPasswordForm({
   defaultEmail,
@@ -20,22 +27,15 @@ export function ForgotPasswordForm({
   >(requestPasswordReset, undefined);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-3.5">
       <input type="hidden" name="locale" value={locale} />
-      {state?.error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+
+      {state?.error ? <AuthNotice tone="error">{state.error}</AuthNotice> : null}
       {state?.message ? (
-        <p className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground">
-          {state.message}
-        </p>
+        <AuthNotice tone="success">{state.message}</AuthNotice>
       ) : null}
-      <div className="space-y-2">
-        <label htmlFor="reset-email" className="text-sm font-medium">
-          {t("public.auth.form.email")}
-        </label>
+
+      <AuthField label={t("public.auth.form.email")} htmlFor="reset-email">
         <input
           id="reset-email"
           name="email"
@@ -43,14 +43,24 @@ export function ForgotPasswordForm({
           autoComplete="email"
           required
           defaultValue={defaultEmail}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder="you@studio.com"
+          className={AUTH_INPUT_CLASS}
+          style={AUTH_INPUT_STYLE}
         />
-      </div>
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? t("public.auth.forgot.pending") : t("public.auth.forgot.submit")}
-      </Button>
-      <p className="text-center text-sm text-muted-foreground">
-        <Link href="/login" className="text-primary underline-offset-4 hover:underline">
+      </AuthField>
+
+      <AuthSubmitButton
+        pending={pending}
+        idle={t("public.auth.forgot.submit")}
+        busy={t("public.auth.forgot.pending")}
+      />
+
+      <p className="pt-1 text-center text-[0.8125rem]">
+        <Link
+          href="/login"
+          className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+          style={{ color: "var(--plt-ink-soft)" }}
+        >
           {t("public.auth.forgot.back")}
         </Link>
       </p>

@@ -17,10 +17,10 @@ import { toCanonicalCardData } from "./shared";
  * `--token-card-*` palette like every other card surface (the bespoke `--plt-*`
  * card palette is retired).
  *
- * Cross-tenant palette: the marketing directory mixes rows from many agencies
- * on one page, where the `<html>` token cascade can only carry ONE tenant. So
- * each card root carries its own agency's `--token-card-*` vars inline, resolved
- * per `agencyTenantId` by `resolveCardDesign` (see the directory page). The
+ * Palette: each card root carries `--token-card-*` vars inline from the row's
+ * attached `design`. On the marketing global directory the page attaches ONE
+ * uniform design — the platform hub tenant's, i.e. what the hub workspace's
+ * Card Design admin publishes — so the public grid reads as one product. The
  * `family` picks the editorial vs portrait render and is exposed as the same
  * `data-token-template-directory-card-family` attribute the storefront cascade
  * uses — paired with `data-card-design-scope` so the family stylesheet rules
@@ -48,7 +48,11 @@ export function DirectoryTalentCard({
 }) {
   const design = talent.design ?? DEFAULT_CARD_DESIGN;
   const data = toCanonicalCardData(talent);
-  const style = familyToTalentCardStyle(design.family);
+  // The tenant's explicit Card Design layout defaults win; the family only
+  // decides the render branch when no explicit style was published.
+  const style = design.cardStyle ?? familyToTalentCardStyle(design.family);
+  const aspect = design.cardAspect ?? "4:5";
+  const density = design.density ?? "comfortable";
   const cssVars = cardDesignToCssVars(design);
 
   const handleClickCapture =
@@ -84,7 +88,8 @@ export function DirectoryTalentCard({
           showBadges: true,
         }}
         nameFallback="first_name"
-        aspect="4:5"
+        aspect={aspect}
+        density={density}
         priority={priority}
         index={style === "editorial" ? index : undefined}
       />

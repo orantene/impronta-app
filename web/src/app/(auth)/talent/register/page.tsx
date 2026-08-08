@@ -1,70 +1,27 @@
-import { GoogleAuthButton } from "@/components/auth/google-auth-button";
-import { getRequestLocale } from "@/i18n/request-locale";
-import { createTranslator } from "@/i18n/messages";
-import { normalizeOptionalNextPath } from "@/lib/auth-flow";
-import { RegisterForm } from "../../register/register-form";
+import { permanentRedirect } from "next/navigation";
+
+import { buildRegisterHref } from "@/lib/auth/register-intent";
 
 /**
- * Phase 3.14 — Branded talent registration entry point.
+ * RETIRED — `/talent/register` is now a permanent redirect to
+ * `/register?as=talent` (P2, one signup front door).
  *
- * Lives in the (auth) route group so it is reachable by unauthenticated
- * visitors. On an agency host (e.g. improntamodels.com/talent/register),
- * post-auth destination is automatically scoped to /<slug>/talent so the
- * new talent lands in the right workspace.
+ * Kept as a real route rather than deleted, because this URL is live in the
+ * wild: marketing CTAs (`lifestyle-band-section.tsx`), saved page-builder link
+ * data, agency-host talent funnels (`improntamodels.com/talent/register`), and
+ * inbound SEO. `permanentRedirect` answers 308, so link equity and bookmarks
+ * follow, and EVERY query param is carried through unchanged (`next`, `email`,
+ * `error`, UTM tags) — dropping them is how a funnel silently loses its
+ * destination.
+ *
+ * The route must also stay in `surface-allow-list.ts` AUTH_PREFIXES and in
+ * `auth-routing.ts` isAuthFlowPath, or the redirect never runs: the host gate
+ * and the auth gate both fire before the page does.
  */
-export default async function TalentRegisterPage({
+export default async function TalentRegisterRedirect({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { error, next } = await searchParams;
-  const locale = await getRequestLocale();
-  const t = createTranslator(locale);
-
-  // Determine post-auth destination. Talent registration is account creation
-  // first; after auth, the talent lands in the live profile-field engine.
-  const defaultNext = "/talent/profile/fields";
-
-  // Honour an explicit ?next= override only if it is a valid internal path.
-  const nextPath = normalizeOptionalNextPath(next) ?? defaultNext;
-
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">
-          {t("public.auth.roleRegister.talentTitle")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("public.auth.roleRegister.talentDescription")}
-        </p>
-      </div>
-
-      {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-          {decodeURIComponent(error)}
-        </p>
-      ) : null}
-
-      <GoogleAuthButton
-        nextPath={nextPath}
-        pendingLabel={t("public.auth.googleOpening")}
-        failedLabel={t("public.auth.googleFailed")}
-        popupBlockedMessage={t("public.auth.googlePopupBlocked")}
-        unableToStartMessage={t("public.auth.googleUnableToStart")}
-      >
-        {t("public.auth.register.google")}
-      </GoogleAuthButton>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-sm uppercase">
-          <span className="bg-card px-2 text-muted-foreground">{t("public.auth.or")}</span>
-        </div>
-      </div>
-
-      <RegisterForm nextPath={nextPath} locale={locale} />
-    </div>
-  );
+  permanentRedirect(buildRegisterHref("talent", await searchParams));
 }

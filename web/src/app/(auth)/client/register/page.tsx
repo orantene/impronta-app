@@ -1,75 +1,27 @@
-import { GoogleAuthButton } from "@/components/auth/google-auth-button";
-import { getRequestLocale } from "@/i18n/request-locale";
-import { createTranslator } from "@/i18n/messages";
-import { normalizeOptionalNextPath } from "@/lib/auth-flow";
-import { getPublicHostContext } from "@/lib/saas/scope";
-import { RegisterForm } from "../../register/register-form";
+import { permanentRedirect } from "next/navigation";
+
+import { buildRegisterHref } from "@/lib/auth/register-intent";
 
 /**
- * Phase 3.14 — Branded client registration entry point.
+ * RETIRED — `/client/register` is now a permanent redirect to
+ * `/register?as=client` (P2, one signup front door).
  *
- * Lives in the (auth) route group so it is reachable by unauthenticated
- * visitors. On an agency host (e.g. improntamodels.com/client/register),
- * post-auth destination is automatically scoped to /<slug>/client so the
- * new client lands in the right workspace.
+ * This URL is live in the wild: the talent profile portal sends prospective
+ * clients here with real payload (`/client/register?intent=inquiry&next=<…>`
+ * in `app/t/[profileCode]/profile-view.tsx`), plus saved page-builder link data
+ * and agency-host client funnels. `permanentRedirect` answers 308 and carries
+ * EVERY param through unchanged, so `intent=inquiry` and the `next` deep link
+ * survive the hop.
+ *
+ * The host-aware post-auth default that used to live here (agency host →
+ * `/<slug>/client`, app host → `/client`, marketing/hub → absolute app URL,
+ * because `/client` 404s on those surfaces) moved verbatim into
+ * `(auth)/register/page.tsx` as `defaultClientNext()`.
  */
-export default async function ClientRegisterPage({
+export default async function ClientRegisterRedirect({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { error, next } = await searchParams;
-  const locale = await getRequestLocale();
-  const t = createTranslator(locale);
-
-  // Determine post-auth destination. On an agency host with a known slug
-  // redirect to /<slug>/client; fall back to /client for app host.
-  const hostCtx = await getPublicHostContext();
-  const defaultNext =
-    hostCtx.kind === "agency" && hostCtx.tenantSlug
-      ? `/${hostCtx.tenantSlug}/client`
-      : "/client";
-
-  // Honour an explicit ?next= override only if it is a valid internal path.
-  const nextPath = normalizeOptionalNextPath(next) ?? defaultNext;
-
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">
-          {t("public.auth.roleRegister.clientTitle")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("public.auth.roleRegister.clientDescription")}
-        </p>
-      </div>
-
-      {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-          {decodeURIComponent(error)}
-        </p>
-      ) : null}
-
-      <GoogleAuthButton
-        nextPath={nextPath}
-        pendingLabel={t("public.auth.googleOpening")}
-        failedLabel={t("public.auth.googleFailed")}
-        popupBlockedMessage={t("public.auth.googlePopupBlocked")}
-        unableToStartMessage={t("public.auth.googleUnableToStart")}
-      >
-        {t("public.auth.register.google")}
-      </GoogleAuthButton>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-sm uppercase">
-          <span className="bg-card px-2 text-muted-foreground">{t("public.auth.or")}</span>
-        </div>
-      </div>
-
-      <RegisterForm nextPath={nextPath} locale={locale} />
-    </div>
-  );
+  permanentRedirect(buildRegisterHref("client", await searchParams));
 }

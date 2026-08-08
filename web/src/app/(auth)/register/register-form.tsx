@@ -1,22 +1,75 @@
 "use client";
 
 import { useActionState } from "react";
-import { signUpWithEmail, type AuthActionState } from "@/app/auth/actions";
-import { Button } from "@/components/ui/button";
-import { createTranslator } from "@/i18n/messages";
 import Link from "next/link";
+
+import { signUpWithEmail, type AuthActionState } from "@/app/auth/actions";
+import {
+  AUTH_INPUT_CLASS,
+  AUTH_INPUT_STYLE,
+  AuthField,
+  AuthNotice,
+  AuthSubmitButton,
+} from "@/components/auth/auth-ui";
+import { createTranslator } from "@/i18n/messages";
+
+/**
+ * "Already have an account? Log in" — one copy, used by the password form and
+ * by the passwordless wrapper (which renders it outside both lanes so it does
+ * not appear twice).
+ *
+ * `intent` rides along as `?as=`: a client who bounces to /login should meet the
+ * same passwordless-first screen they just left, not a password box.
+ */
+export function RegisterLoginFooter({
+  nextPath,
+  locale = "en",
+  intent,
+}: {
+  nextPath?: string;
+  locale?: string;
+  intent?: string;
+}) {
+  const t = createTranslator(locale);
+  const query = new URLSearchParams();
+  if (intent) query.set("as", intent);
+  if (nextPath) query.set("next", nextPath);
+  const search = query.toString();
+
+  return (
+    <p
+      className="pt-1 text-center text-[0.8125rem]"
+      style={{ color: "var(--plt-muted)" }}
+    >
+      {t("public.auth.register.haveAccount")}{" "}
+      <Link
+        href={search ? `/login?${search}` : "/login"}
+        className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+        style={{ color: "var(--plt-ink-soft)" }}
+      >
+        {t("public.auth.register.logIn")}
+      </Link>
+    </p>
+  );
+}
 
 export function RegisterForm({
   nextPath,
   submitLabel,
   locale = "en",
   defaultEmail,
+  /**
+   * P4 — hides the "already have an account? Log in" footer, because the
+   * passwordless wrapper renders it once for BOTH lanes (code + password).
+   */
+  hideFooter = false,
 }: {
   nextPath?: string;
   submitLabel?: string;
   locale?: string;
   /** Pre-fills the email field (e.g. from the get-started lead) — editable. */
   defaultEmail?: string;
+  hideFooter?: boolean;
 }) {
   const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
@@ -25,25 +78,16 @@ export function RegisterForm({
   >(signUpWithEmail, undefined);
 
   return (
-    <form action={formAction} className="space-y-4">
-      {nextPath ? (
-        <input type="hidden" name="next" value={nextPath} />
-      ) : null}
+    <form action={formAction} className="space-y-3.5">
+      {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <input type="hidden" name="locale" value={locale} />
-      {state?.error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+
+      {state?.error ? <AuthNotice tone="error">{state.error}</AuthNotice> : null}
       {state?.message ? (
-        <p className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground">
-          {state.message}
-        </p>
+        <AuthNotice tone="success">{state.message}</AuthNotice>
       ) : null}
-      <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium">
-          {t("public.auth.form.email")}
-        </label>
+
+      <AuthField label={t("public.auth.form.email")} htmlFor="email">
         <input
           id="email"
           name="email"
@@ -51,13 +95,17 @@ export function RegisterForm({
           autoComplete="email"
           required
           defaultValue={defaultEmail}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder="you@studio.com"
+          className={AUTH_INPUT_CLASS}
+          style={AUTH_INPUT_STYLE}
         />
-      </div>
-      <div className="space-y-2">
-        <label htmlFor="password" className="text-sm font-medium">
-          {t("public.auth.form.password")}
-        </label>
+      </AuthField>
+
+      <AuthField
+        label={t("public.auth.form.password")}
+        htmlFor="password"
+        hint={t("public.auth.register.passwordHint")}
+      >
         <input
           id="password"
           name="password"
@@ -65,24 +113,21 @@ export function RegisterForm({
           autoComplete="new-password"
           required
           minLength={8}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder="••••••••"
+          className={AUTH_INPUT_CLASS}
+          style={AUTH_INPUT_STYLE}
         />
-        <p className="text-sm text-muted-foreground">
-          {t("public.auth.register.passwordHint")}
-        </p>
-      </div>
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? t("public.auth.register.pending") : submitLabel ?? t("public.auth.register.emailSubmit")}
-      </Button>
-      <p className="text-center text-sm text-muted-foreground">
-        {t("public.auth.register.haveAccount")}{" "}
-        <Link
-          href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"}
-          className="text-primary underline-offset-4 hover:underline"
-        >
-          {t("public.auth.register.logIn")}
-        </Link>
-      </p>
+      </AuthField>
+
+      <AuthSubmitButton
+        pending={pending}
+        idle={submitLabel ?? t("public.auth.register.emailSubmit")}
+        busy={t("public.auth.register.pending")}
+      />
+
+      {hideFooter ? null : (
+        <RegisterLoginFooter nextPath={nextPath} locale={locale} />
+      )}
     </form>
   );
 }

@@ -14,6 +14,15 @@
 //    payloads, one-click unsubscribe + landing page mounted, cron endpoints
 //    enforcing CRON_SECRET, and (when RESEND_API_KEY is present) the sending
 //    domain verified. HTTP-only — never sends a real email.
+// 8. Auth surface matrix (P3): a route allow-listed for a host kind in
+//    `src/lib/saas/surface-allow-list.ts` (AUTH_PREFIXES) actually renders on
+//    the REAL hosts of that kind — not just on app.tulala.digital. Three
+//    production dead ends in two days were all this bug class: /claim 404ing
+//    on branded hosts, canonical admin pages rendering naked on branded
+//    hosts, and /get-started 404ing on a branded host (that last one is
+//    intentional — see the check for why). Nothing else in this script would
+//    have caught any of them, because they all returned 200 on
+//    app.tulala.digital and only broke on a real agency domain.
 //
 // Usage:
 //   node web/scripts/post-deploy-smoke-test.mjs
@@ -27,6 +36,14 @@ const HOST =
   hostFlag !== -1 && args[hostFlag + 1] ? args[hostFlag + 1] : "https://app.tulala.digital";
 const PUBLIC_HOST =
   hostFlag !== -1 && args[hostFlag + 1] ? args[hostFlag + 1] : "https://tulala.digital";
+
+// Fixed real hosts for the auth-surface-matrix check below (not overridden by
+// --host): the whole point of that check is that app.tulala.digital hides
+// surface-boundary bugs that only show up on an actual branded agency domain.
+// improntamodels.com is a live "agency" host kind; tulala.digital doubles as
+// the live "marketing" host kind.
+const AGENCY_HOST = "https://improntamodels.com";
+const MARKETING_HOST = "https://tulala.digital";
 
 let failed = 0;
 let warned = 0;
@@ -360,6 +377,127 @@ async function check_guest_chat_antispam() {
   }
 }
 
+// 12) Auth surface matrix (P3) — probes the real hosts, not app.tulala.digital,
+//     for every `(auth)` route and asserts the status the allow-list promises.
+//
+//     Source of truth: `src/lib/saas/surface-allow-list.ts`. All 8 routes
+//     below live in AUTH_PREFIXES, which is checked on BOTH the "agency" and
+//     "marketing" host kinds (isPathAllowedForHostKind), so every route is
+//     expected to be REACHABLE (not 404) on both improntamodels.com and
+//     tulala.digital. "Reachable" allows either 200 (the page renders) or a
+//     same-app redirect the page issues for unauthenticated/tokenless
+//     requests (e.g. /claim with no invitation bounces to /login) — both
+//     prove the route is mounted and passed the surface gate. A 404 is the
+//     one outcome that always means the allow-list and reality disagree.
+const AUTH_ROUTES = [
+  // Always renders 200 for an unauthenticated visitor.
+  { path: "/login", statuses: [200] },
+  { path: "/register", statuses: [200] },
+  { path: "/forgot-password", statuses: [200] },
+  // P2 (#1059) — /register is the SINGLE signup page; these three are now
+  // permanent redirects into it carrying `?as=<intent>` plus every inbound
+  // param. A 308 is the correct, expected answer: it proves the route is
+  // mounted AND passed the surface gate. A 404 would still mean the
+  // allow-list and reality disagree; a 200 would mean the retired page came
+  // back and signup has forked into multiple designs again.
+  {
+    path: "/talent/register",
+    statuses: [308],
+    note: "retired → 308 /register?as=talent",
+  },
+  {
+    path: "/client/register",
+    statuses: [308],
+    note: "retired → 308 /register?as=client",
+  },
+  // Reachable, but the page itself redirects for an unauthenticated/tokenless
+  // GET — still proves the surface gate let the request through.
+  {
+    path: "/claim",
+    statuses: [200, 307],
+    note: "no ?invitation token or session → page redirects to /login",
+  },
+  {
+    path: "/join",
+    statuses: [308],
+    note: "talent-signup vanity URL → 308 /register?as=talent",
+  },
+  {
+    path: "/update-password",
+    statuses: [200, 307],
+    note: "no active recovery session → redirects to /forgot-password",
+  },
+];
+
+async function check_auth_surface_matrix() {
+  console.log("\nAuth surface matrix (P3)");
+  for (const host of [AGENCY_HOST, MARKETING_HOST]) {
+    for (const { path, statuses, note } of AUTH_ROUTES) {
+      try {
+        const r = await get(host + path);
+        if (statuses.includes(r.status)) {
+          pass(`${host}${path} (${r.status})`, note);
+        } else if (r.status === 404) {
+          fail(
+            `${host}${path}`,
+            `404 — surface-allow-list.ts lists "${path}" in AUTH_PREFIXES, allowed on ` +
+              `every host kind, but the deployed route is not reachable here`,
+          );
+        } else {
+          fail(
+            `${host}${path}`,
+            `expected status in [${statuses.join(", ")}], got ${r.status}`,
+          );
+        }
+      } catch (e) {
+        fail(`${host}${path}`, e.message);
+      }
+    }
+  }
+
+  // Operator-signup funnel — investigated per P3. /get-started ("Start your
+  // business, free") creates a brand-new tenant/workspace. It is deliberately
+  // NOT in AGENCY_STOREFRONT_PREFIXES or AUTH_PREFIXES — only in
+  // MARKETING_PAGE_PREFIXES, checked solely on the "marketing" host kind — so
+  // it 404s on every branded agency domain BY DESIGN: a visitor on an
+  // existing agency's storefront (e.g. improntamodels.com) must never be
+  // shown "start your own competing agency". This is already pinned by
+  // surface-allow-list.test.ts ("marketing host: non-marketing hosts must
+  // 404 marketing pages") and by a comment on the allow-list entry itself.
+  // Assert BOTH halves of the intentional split here so a regression in
+  // either direction (200 leaking onto agency hosts, or 404 breaking on the
+  // real marketing host) fails the deploy gate.
+  try {
+    const onMarketing = await get(MARKETING_HOST + "/get-started");
+    if (onMarketing.status === 200) {
+      pass(`${MARKETING_HOST}/get-started (200)`, "operator funnel — marketing-only, by design");
+    } else {
+      fail(
+        `${MARKETING_HOST}/get-started`,
+        `expected 200 on the marketing host, got ${onMarketing.status}`,
+      );
+    }
+  } catch (e) {
+    fail(`${MARKETING_HOST}/get-started`, e.message);
+  }
+  try {
+    const onAgency = await get(AGENCY_HOST + "/get-started");
+    if (onAgency.status === 404) {
+      pass(
+        `${AGENCY_HOST}/get-started (404)`,
+        "INTENTIONAL — operator signup funnel is Tulala-marketing-only, not part of AUTH_PREFIXES",
+      );
+    } else {
+      fail(
+        `${AGENCY_HOST}/get-started`,
+        `expected 404 on a branded agency host (operator funnel must stay marketing-only), got ${onAgency.status}`,
+      );
+    }
+  } catch (e) {
+    fail(`${AGENCY_HOST}/get-started`, e.message);
+  }
+}
+
 console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
 for (const check of [
   check_root_reachable,
@@ -373,6 +511,7 @@ for (const check of [
   check_notification_crons,
   check_resend_domain,
   check_guest_chat_antispam,
+  check_auth_surface_matrix,
 ]) {
   await check();
 }
