@@ -4,9 +4,24 @@
  *
  * Why it exists: nothing automatically exercised the editor before this, which
  * is how the Page Builder P0s shipped (audit 2026-07-09,
- * web/docs/page-builder-minimal-build-plan-2026-07-09.md). Every later Wave 1
- * lane runs against this spec; the `test.fixme` steps flip to real assertions as
- * the matching lane lands.
+ * web/docs/page-builder-minimal-build-plan-2026-07-09.md).
+ *
+ * INDEPENDENCE (plan row 5.3, 2026-08-08). Every test here is self-contained:
+ * `beforeEach` rewrites the QA tenant's homepage draft to the checked-in
+ * canonical baseline (`e2e/support/builder-draft-baseline.ts`) with the service
+ * role, then boots a FRESH browser context and editor. Consequences worth
+ * knowing before you add a test:
+ *   - Tests may run in ANY order, and one failing test cannot poison another.
+ *     The describe runs in `default` mode (sequential, because all tests share
+ *     one QA tenant, but NOT `serial` — no cascade-skip, and a retry re-runs
+ *     just the failed test).
+ *   - A test that needs a Hero on the page must insert one itself
+ *     (`insertHeroCentered`); nothing is inherited from an earlier step.
+ *   - Baseline node ids are STABLE constants, so nothing anchors on DOM order.
+ *   - No self-heal, no marker-revert bookkeeping: the next `beforeEach` is the
+ *     cleanup. `afterAll` resets once more so the tenant is left clean.
+ * This is the seam a new spec (for example the deferred Wave 2 floating-toolbar
+ * coverage) should reuse: import the baseline helper, `beforeEach`-reset, done.
  *
  * Runs against a LOCAL dev server only (dev-signin is dev/preview-gated and the
  * QA tenant lives on the shared prod Supabase). It is intentionally skipped
@@ -18,26 +33,31 @@
  *   PLAYWRIGHT_SKIP_WEBSERVER=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 \
  *     npx playwright test e2e/builder-smoke.spec.ts
  *
- * Editor facts encoded here (verified live on qa-agency-244988, 2026-07-09):
+ * Editor facts encoded here (verified live on qa-agency-244988):
  *   - The QA homepage draft is a freeform builder-node tree, so Page Structure
  *     renders the freeform layers tree (role="tree" aria-label="Page layers"),
  *     NOT the CMS section navigator. Page-level layers = treeitem[aria-level=1].
- *   - Seeded baseline = exactly ONE top-level layer (a container carrying the
- *     "A photograph should remember..." heading + paragraph).
+ *   - Baseline = exactly ONE top-level layer (a container carrying the seeded
+ *     heading + eyebrow paragraph).
  *   - Inline text commits on blur, repaints the canvas IMMEDIATELY (no reload —
  *     the W1-L3 optimistic-repaint guarantee), and survives a full reload.
  *     Escape now ALSO commits (keeps the typed text; the old silent-discard was
  *     the W1-L3 defect), verified in its own step below.
- *   - Delete via the layer row X removed the whole subtree cleanly in this
- *     environment; the audit saw it unwrap children into page-level orphans, so
- *     that assertion is quarantined as W1-L1 fixme until the lane lands.
- *   - The publish drawer opened and its checks resolved here; the audit saw the
- *     checks hang in a skeleton, so that assertion is quarantined as W1-L2.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Browser, type Page } from "@playwright/test";
 
-const TENANT = "qa-agency-244988"; // SAFE QA fixture on prod Supabase. NEVER "impronta".
+import {
+  BASELINE_HEADING_ID,
+  BASELINE_HEADING_TEXT,
+  BASELINE_ROOT_ID,
+  BASELINE_TOP_LAYER_COUNT,
+  QA_TENANT_SLUG,
+  canSeedBuilderBaseline,
+  resetBuilderDraftToBaseline,
+} from "./support/builder-draft-baseline";
+
+const TENANT = QA_TENANT_SLUG; // SAFE QA fixture on prod Supabase. NEVER "impronta".
 const ADMIN = "qa-admin@impronta.test"; // passwordless dev-signin fixture.
 const MARKER = "PBM_W0A_EDIT";
 
@@ -83,15 +103,6 @@ function topLayers(page: Page) {
   return page.locator(TOP_LAYER);
 }
 
-/** The seeded page-level container's builder-node id, captured once in
- *  beforeAll right after the self-heal pass confirms the tenant is back to
- *  its clean baseline (see `initialTopCount`). Every later step anchors on
- *  this id instead of a bare page-wide `.first()` query, so an inserted Hero
- *  section (test 2) can never be confused for the seeded layer — regardless
- *  of where it lands in the tree or what it's labelled. Empty until that
- *  point in the boot sequence (see `headingLocator` / `strayTopLayers`). */
-let seededTopLayerId = "";
-
 /** Wait until the topbar reports the draft is safely saved (best-effort; a
  *  missing indicator falls through to a short settle so reloads still see the
  *  committed draft). */
@@ -109,25 +120,15 @@ function overlayEditable(page: Page) {
   return page.locator('[data-edit-overlay="canvas-edit"] [contenteditable]').first();
 }
 
-/** Locates the SEEDED heading unambiguously. Once `seededTopLayerId` is known
- *  (post self-heal, see beforeAll) this scopes the query to that container's
- *  own subtree, so a Hero section inserted by test 2 — which carries its own
- *  `<h1>` title node (sec-hero-centered renders its title at `level: 1`,
- *  selection-layer's `render.tsx` maps that to an `h1` tag) — can never be
- *  picked up by a page-wide query. Before the id is known (the very first
- *  self-heal pass, recovering residue from a prior aborted run) this falls
- *  back to a bare page-wide query, which stays safe because the ONLY section
- *  template this spec ever inserts (Hero Centered) renders its title as an
- *  `h1`, never colliding with the seeded `h2`. */
+/** The seeded heading, located by its BASELINE node id. Because the baseline is
+ *  rewritten before every test, this id always exists and can never collide
+ *  with an inserted Hero's own `h1`/`h2` title. */
 function headingLocator(page: Page) {
-  const scope = seededTopLayerId
-    ? page.locator(`[data-builder-node-id="${seededTopLayerId}"]`)
-    : page;
-  return scope.locator('h2[data-builder-node-kind="heading"]').first();
+  return page.locator(`[data-builder-node-id="${BASELINE_HEADING_ID}"]`).first();
 }
 
 /** Clears any current canvas selection. A stale selection from an earlier
- *  step — e.g. the Hero section inserted in test 2 — floats its OWN chip
+ *  gesture — e.g. a Hero section inserted moments ago — floats its OWN chip
  *  (including the W3-AI1 section revise-sparkle, `aria-label="Revise this
  *  section with AI"`) at a fixed screen position; Escape drops it before we
  *  try to land a click on the seeded heading, so nothing from a prior
@@ -139,12 +140,12 @@ async function dismissCanvasSelection(page: Page) {
 
 /** Open the inline text overlay on the seeded heading. Preferred path is a
  *  plain double-click (the user gesture W1-L3 is about); once other blocks
- *  have been selected (e.g. right after test 2 inserts + selects a Hero
- *  section) a bare dblclick can be swallowed by hover/selection chrome or
- *  lose the race to a chip that's still animating out, so this retries with
- *  the selection explicitly cleared first, then falls back through two more
- *  entry points before giving up with a clear failure message. The COMMIT is
- *  always via blur below, whichever way the overlay opened.
+ *  have been selected (e.g. right after a Hero insert) a bare dblclick can be
+ *  swallowed by hover/selection chrome or lose the race to a chip that's still
+ *  animating out, so this retries with the selection explicitly cleared first,
+ *  then falls back through two more entry points before giving up with a clear
+ *  failure message. The COMMIT is always via blur below, whichever way the
+ *  overlay opened.
  *
  *  Fallback tiers, in order:
  *   1. Dismiss selection, plain double-click (x2).
@@ -164,8 +165,7 @@ async function dismissCanvasSelection(page: Page) {
  *      unlocked node (selection-layer.tsx's `SelectionContextMenu`) and calls
  *      `requestInlineEdit`, which dispatches the same dblclick
  *      programmatically — so it is the one entry point guaranteed to exist
- *      regardless of node kind, and (since selection was just cleared) it
- *      can't be mistargeted at a leftover section's revise-sparkle either. */
+ *      regardless of node kind. */
 async function openHeadingOverlay(page: Page) {
   const heading = headingLocator(page);
   await heading.scrollIntoViewIfNeeded();
@@ -239,13 +239,47 @@ async function setHeadingText(page: Page, value: string) {
   await waitDraftSaved(page);
 }
 
+/** Full page reload, waiting for the editor chrome to come back. */
+async function reloadEditor(page: Page) {
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 300_000 });
+}
+
 async function headingText(page: Page): Promise<string> {
   return ((await headingLocator(page).textContent()) ?? "").trim();
 }
 
+/** Insert one Hero Centered section through the Add gallery and wait for it to
+ *  land as a page-level layer. Any test that needs a Hero calls this itself —
+ *  no step inherits one from another step. */
+async function insertHeroCentered(page: Page) {
+  await openStructurePanel(page);
+  const before = await topLayers(page).count();
+
+  await page.locator('[data-dock-item="add"]').click();
+  const gallery = page.locator('[data-edit-drawer="add-gallery"]');
+  await expect(gallery).toBeVisible({ timeout: 20_000 });
+  const sectionsTab = gallery.getByRole("tab", { name: "Sections" });
+  if (await sectionsTab.count()) await sectionsTab.click();
+  const heroCard = page.locator('[data-add-gallery-item="rec:sec-hero-centered"]');
+  await expect(heroCard).toBeVisible({ timeout: 15_000 });
+  await heroCard.click();
+  await expect(gallery).toBeHidden({ timeout: 30_000 }).catch(() => {});
+
+  await openStructurePanel(page);
+  const heroRow = topLayers(page).filter({ hasText: /Hero Centered/i }).first();
+  await expect(heroRow).toBeVisible({ timeout: 30_000 });
+  await expect(topLayers(page)).toHaveCount(before + 1, { timeout: 30_000 });
+  await waitDraftSaved(page);
+  return before + 1;
+}
+
 /** Delete a single layer row via its inline X. The row must be selected first so
  *  its action bar (hidden by default) mounts and the Remove control is visible. */
-async function deleteLayerRow(page: Page, row = topLayers(page).filter({ hasText: /Hero/i }).first()) {
+async function deleteLayerRow(
+  page: Page,
+  row = topLayers(page).filter({ hasText: /Hero/i }).first(),
+) {
   await row.scrollIntoViewIfNeeded();
   await row.click();
   const remove = row.getByRole("button", { name: /^Remove / }).first();
@@ -254,26 +288,16 @@ async function deleteLayerRow(page: Page, row = topLayers(page).filter({ hasText
   await page.waitForTimeout(2_000);
 }
 
-/** Every top-level layer that is NOT the seeded one. Once `seededTopLayerId`
- *  is known (post self-heal — see beforeAll) this compares ids directly, so
- *  it strips ANY residual inserted section regardless of its label — not
- *  just the Stack/Row/Carousel/... signature a broken delete would leave
- *  (W1-L1) — making destructive-test cleanup tolerant of whatever a future
- *  gallery recipe happens to call itself. Before the id is known (the very
- *  first self-heal pass in beforeAll, recovering residue from a prior
- *  aborted run) this falls back to the label heuristic, since at that point
- *  there is no anchor yet to tell seeded from stray. */
+/** Every top-level layer that is NOT the baseline root. Compares ids directly,
+ *  so it strips ANY inserted section regardless of its label — not just the
+ *  Stack/Row/Carousel/... signature a broken delete would leave (W1-L1). */
 function strayTopLayers(page: Page) {
-  if (seededTopLayerId) {
-    return page.locator(
-      `${TOP_LAYER}:not([data-builder-node-id="${seededTopLayerId}"])`,
-    );
-  }
-  return topLayers(page).filter({ hasText: ORPHAN_LABEL });
+  return page.locator(
+    `${TOP_LAYER}:not([data-builder-node-id="${BASELINE_ROOT_ID}"])`,
+  );
 }
 
-/** Idempotently strip every inserted/orphaned top-level layer so the QA
- *  tenant draft ends the run in its original single seeded-section state. */
+/** Idempotently strip every inserted/orphaned top-level layer through the UI. */
 async function stripStrayLayers(page: Page) {
   await openStructurePanel(page);
   for (let i = 0; i < 12; i += 1) {
@@ -284,99 +308,102 @@ async function stripStrayLayers(page: Page) {
   await waitDraftSaved(page);
 }
 
-/** Undo a leftover marker on the seeded heading (self-heal a prior aborted run).
- *  Covers the W0-A marker AND the W1-L2 scenario markers (PBM_W1L2_*). */
-async function revertHeadingMarker(page: Page) {
-  const cur = await headingText(page).catch(() => "");
-  if (!/PBM_\w+/.test(cur)) return;
-  await setHeadingText(page, cur.replace(/\s*PBM_\w+/g, "").trim());
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 300_000 });
+/**
+ * Drive a GENUINE cross-session conflict: a second browser context (so a second
+ * per-tab edit session) edits and saves the heading, then the first session
+ * edits the stale copy so its save loses the CAS. Returns both texts.
+ * Deliberately does NOT wait for a "Draft saved" chip on the second edit — that
+ * save is expected to be refused.
+ */
+async function stageGenuineConflict(
+  page: Page,
+  browser: Browser,
+): Promise<{ mine: string; theirs: string }> {
+  const original = await headingText(page);
+  const theirs = `${original} PBM_W1L2_B2`;
+  const mine = `${original} PBM_W1L2_B1`;
+
+  const context2 = await browser.newContext();
+  const page2 = await context2.newPage();
+  page2.setDefaultTimeout(30_000);
+  page2.setDefaultNavigationTimeout(300_000);
+  try {
+    await devSignIn(page2);
+    await openEditor(page2);
+    await setHeadingText(page2, theirs);
+  } finally {
+    await page2.close().catch(() => {});
+    await context2.close().catch(() => {});
+  }
+
+  await openHeadingOverlay(page);
+  const editable = overlayEditable(page);
+  await editable.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.type(mine);
+  await page.locator("[data-edit-topbar]").click({ position: { x: 6, y: 6 } }); // blur-commit
+  return { mine, theirs };
 }
 
-// --- shared, long-lived editor session (boot once; steps run serially) --------
-let page: Page;
-let initialTopCount = 0;
+/** Boot a signed-in editor on the freshly reset baseline. */
+async function bootEditor(page: Page) {
+  page.setDefaultTimeout(30_000);
+  page.setDefaultNavigationTimeout(300_000);
+  await devSignIn(page);
+  await openEditor(page);
+  await openStructurePanel(page);
+  // Proves the DB reset reached the render before any assertion runs on it.
+  await expect(
+    topLayers(page),
+    "baseline reset should leave exactly one top-level layer",
+  ).toHaveCount(BASELINE_TOP_LAYER_COUNT, { timeout: 60_000 });
+  expect(await headingText(page)).toBe(BASELINE_HEADING_TEXT);
+}
 
 test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish", () => {
-  // Cold webpack dev compiles are slow, so every step (and the boot hook) needs
-  // a generous budget well above Playwright's 30s default.
-  test.describe.configure({ mode: "serial", timeout: 420_000 });
+  // `default` (NOT `serial`): tests share one QA tenant so they must not run
+  // concurrently, but each one seeds its own baseline, so a failure must not
+  // skip the rest and a retry must re-run only the failed test.
+  test.describe.configure({ mode: "default", timeout: 420_000 });
   test.skip(
     !IS_LOCAL_DEV,
     "Requires a local dev server (dev-signin + QA tenant). Set PLAYWRIGHT_BASE_URL=http://localhost:<port>.",
   );
+  test.skip(
+    !canSeedBuilderBaseline(),
+    "Requires NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (web/.env.local) to seed the per-test baseline.",
+  );
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(600_000);
-    page = await browser.newPage();
-    page.setDefaultTimeout(30_000);
-    page.setDefaultNavigationTimeout(300_000);
-    await devSignIn(page);
-    await openEditor(page);
-    // Self-heal any residue from an earlier aborted run BEFORE measuring the
-    // baseline, so a shared QA tenant always starts from its single seeded layer.
-    await openStructurePanel(page);
-    await revertHeadingMarker(page);
-    await stripStrayLayers(page);
-    await openStructurePanel(page);
-    initialTopCount = await topLayers(page).count();
-    // Anchor every later step on the seeded layer's own id (see
-    // `headingLocator` / `strayTopLayers`) rather than DOM-order `.first()`,
-    // so an inserted Hero section can never be confused for it.
-    seededTopLayerId =
-      (await topLayers(page).first().getAttribute("data-builder-node-id")) ?? "";
-    expect(
-      seededTopLayerId,
-      "seeded top-level layer must expose a data-builder-node-id",
-    ).not.toBe("");
+  test.beforeEach(async ({ page }) => {
+    await resetBuilderDraftToBaseline();
+    await bootEditor(page);
   });
 
   test.afterAll(async () => {
-    test.setTimeout(600_000);
-    // Best-effort restore even if a step failed mid-flow, then release the page.
-    try {
-      if (page && !page.isClosed()) {
-        await revertHeadingMarker(page).catch(() => {});
-        await stripStrayLayers(page).catch(() => {});
-      }
-    } finally {
-      await page?.close().catch(() => {});
-    }
+    // Leave the shared QA tenant on the canonical baseline, whatever happened.
+    await resetBuilderDraftToBaseline().catch(() => {});
   });
 
-  test("1. editor boots with its chrome (Publish + Add) and a seeded page layer", async () => {
+  test("1. editor boots with its chrome (Publish + Add) and the seeded page layer", async ({
+    page,
+  }) => {
     await expect(page.getByRole("button", { name: /^publish$/i })).toBeVisible();
     await expect(page.locator('[data-dock-item="add"]')).toBeVisible();
     await expect(page.locator('[data-dock-item="add"]')).toHaveAttribute("aria-label", "Add");
-    // The QA homepage seed is exactly one top-level layer.
-    expect(initialTopCount).toBeGreaterThanOrEqual(1);
-    console.log(`[builder-smoke] initial top-level layers = ${initialTopCount}`);
+    await expect(topLayers(page)).toHaveCount(BASELINE_TOP_LAYER_COUNT);
+    await expect(
+      page.locator(`${TOP_LAYER}[data-builder-node-id="${BASELINE_ROOT_ID}"]`),
+    ).toHaveCount(1);
   });
 
-  test("2. inserting Hero Centered adds exactly one page-level layer", async () => {
-    await openStructurePanel(page);
-    const before = await topLayers(page).count();
-
-    await page.locator('[data-dock-item="add"]').click();
-    const gallery = page.locator('[data-edit-drawer="add-gallery"]');
-    await expect(gallery).toBeVisible({ timeout: 20_000 });
-    const sectionsTab = gallery.getByRole("tab", { name: "Sections" });
-    if (await sectionsTab.count()) await sectionsTab.click();
-    const heroCard = page.locator('[data-add-gallery-item="rec:sec-hero-centered"]');
-    await expect(heroCard).toBeVisible({ timeout: 15_000 });
-    await heroCard.click();
-    await expect(gallery).toBeHidden({ timeout: 30_000 }).catch(() => {});
-
-    await openStructurePanel(page);
-    // The new hero lands as a page-level layer.
-    const heroRow = topLayers(page).filter({ hasText: /Hero Centered/i }).first();
-    await expect(heroRow).toBeVisible({ timeout: 30_000 });
-    await expect(topLayers(page)).toHaveCount(before + 1, { timeout: 30_000 });
-    await waitDraftSaved(page);
+  test("2. inserting Hero Centered adds exactly one page-level layer", async ({ page }) => {
+    await insertHeroCentered(page);
+    await expect(topLayers(page)).toHaveCount(BASELINE_TOP_LAYER_COUNT + 1);
   });
 
-  test("3. inline text edit commits on blur, repaints immediately (no reload), and survives a reload", async () => {
+  test("3. inline text edit commits on blur, repaints immediately (no reload), and survives a reload", async ({
+    page,
+  }) => {
     const original = await headingText(page);
     expect(original).not.toContain(MARKER);
     const next = `${original} ${MARKER}`;
@@ -414,7 +441,9 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
     expect(reverted).toBe(original);
   });
 
-  test("3b. Escape commits the typed text (keeps it, does NOT silently discard)", async () => {
+  test("3b. Escape commits the typed text (keeps it, does NOT silently discard)", async ({
+    page,
+  }) => {
     const original = await headingText(page);
     expect(original).not.toContain(MARKER);
 
@@ -434,16 +463,16 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
 
     await waitDraftSaved(page);
 
-    // The Escape-commit really saved: it survives a full reload.
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    // The Escape-commit really saved: it survives a full reload. Same bounded
+    // tolerance as scenario A — when the save is still in flight at reload time
+    // the pagehide beacon carries it, and the reload's server render can win the
+    // race by a few hundred ms. One retry, then the assertion is real.
+    await reloadEditor(page);
+    if (!(await headingText(page)).includes(MARKER)) {
+      await page.waitForTimeout(2_000);
+      await reloadEditor(page);
+    }
     expect(await headingText(page)).toContain(MARKER);
-
-    // Restore the seeded heading for the following steps / cleanup.
-    await setHeadingText(page, original);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
-    expect(await headingText(page)).toBe(original);
   });
 
   // W1-L1 (FIXED): deleting a section via the layers X removes the whole subtree
@@ -456,23 +485,33 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
   // the gallery UI) lives in the unit suites:
   //   src/lib/site-admin/builder-node/operations.test.ts
   //   src/components/edit-chrome/freeform-layers-tree.test.ts
-  test("4. deleting Hero Centered via the layers X leaves no orphan layers (W1-L1)", async () => {
-    await openStructurePanel(page);
+  test("4. deleting Hero Centered via the layers X leaves no orphan layers (W1-L1)", async ({
+    page,
+  }) => {
+    await insertHeroCentered(page);
     await deleteLayerRow(page);
-    await expect(topLayers(page)).toHaveCount(initialTopCount, { timeout: 30_000 });
+    await expect(topLayers(page)).toHaveCount(BASELINE_TOP_LAYER_COUNT, { timeout: 30_000 });
     await expect(topLayers(page).filter({ hasText: ORPHAN_LABEL })).toHaveCount(0);
+    await expect(strayTopLayers(page)).toHaveCount(0);
     await waitDraftSaved(page);
   });
 
-  test("5. cleanup: the layers X restores the QA draft to its single seeded layer", async () => {
-    // Runs whether or not step 4 was skipped: strips the inserted hero (and any
-    // orphans a broken delete would leave) so the tenant ends where it started.
+  test("5. the layers X restores the draft to its single seeded layer, and the restore persists", async ({
+    page,
+  }) => {
+    await insertHeroCentered(page);
     await stripStrayLayers(page);
-    await expect(topLayers(page)).toHaveCount(initialTopCount, { timeout: 30_000 });
+    await expect(topLayers(page)).toHaveCount(BASELINE_TOP_LAYER_COUNT, { timeout: 30_000 });
     await waitDraftSaved(page);
+
+    // The delete is not just a client-side repaint: it survives a reload.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
+    await openStructurePanel(page);
+    await expect(topLayers(page)).toHaveCount(BASELINE_TOP_LAYER_COUNT, { timeout: 60_000 });
   });
 
-  test("6. the publish drawer opens and renders", async () => {
+  test("6. the publish drawer opens and renders", async ({ page }) => {
     const drawer = page.locator('[data-edit-drawer="publish"]');
     if (!(await drawer.isVisible().catch(() => false))) {
       await page.getByRole("button", { name: /^publish$/i }).click();
@@ -487,8 +526,10 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
   // W1-L2 (SHIPPED): the publish drawer checks now carry hard timeouts +
   // failed/retry states, so they can never hang as a skeleton; the counters
   // compute from the real draft tree (freeform pages used to claim "0 sections
-  // ready" / "0 changes"). Flipped from `test.fixme` with the lane.
-  test("7. the publish drawer checks resolve without hanging and the counters are honest (W1-L2)", async () => {
+  // ready" / "0 changes").
+  test("7. the publish drawer checks resolve without hanging and the counters are honest (W1-L2)", async ({
+    page,
+  }) => {
     // Count the page's top-level layers first — the drawer's "sections ready"
     // must match them for a freeform page.
     await openStructurePanel(page);
@@ -528,7 +569,9 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
   // make the editor treat ITS OWN pagehide-beacon write as a foreign change:
   // yellow "changed in another tab or session" banner, undo wiped, publish
   // blocked. With session adoption the editor's own reload must be seamless.
-  test("8. edit -> hard reload -> edit -> publish succeeds with no conflict banner and undo intact (W1-L2 scenario A)", async () => {
+  test("8. edit -> hard reload -> edit -> publish succeeds with no conflict banner and undo intact (W1-L2 scenario A)", async ({
+    page,
+  }) => {
     const conflictToast = page.locator('[data-edit-overlay="mutation-toast"]');
     const undoButton = page.locator('button[title="Undo (⌘Z)"]');
     const marker = "PBM_W1L2_A";
@@ -590,70 +633,70 @@ test.describe("builder editor smoke: open -> insert -> edit -> delete -> publish
   // different per-tab edit sessions) must still be caught, and must surface the
   // honest two-action banner instead of silently reloading + wiping undo.
   //
-  // QUARANTINED at the Wave 1 integration gate (2026-07-10). This two-live-context
-  // scenario is environmentally fragile on a single shared dev server (one run
-  // stalled booting the second context's editor; a rerun got to the end but the
-  // "Reload latest" action did not repaint the foreign heading within the poll).
-  // The underlying conflict LOGIC is proven by unit tests -- the genuine-foreign
-  // -write refusal in server/beacon-last-write-wins.test.ts (second-tab, unstamped
-  // -writer, stale-seq, empty-over-good all refuse) and the no-rollback/no-wipe
-  // protocol in builder-node/save-conflict-protocol.test.ts -- and scenario A
-  // (self-reload publishes cleanly, no false conflict) passes here. Two open
-  // questions to resolve before un-fixme'ing: (a) is "Reload latest" reliably
-  // fetching the foreign draft, or (b) is the two-context harness the fragile part.
-  // Tracked as a Wave 1 follow-up.
-  test.fixme("9. a genuine second-session conflict shows the honest banner with both actions and does not wipe undo (W1-L2 scenario B)", async ({ browser }) => {
+  // Was `test.fixme` from the Wave 1 integration gate (2026-07-10) because it
+  // was fragile on a shared dev server: one run stalled booting the second
+  // context's editor, and a rerun had "Reload latest" fail to repaint. Both
+  // symptoms traced back to the suite's shared-draft coupling — the second
+  // context inherited whatever residue an earlier step left, and the poll
+  // compared against text an earlier step had already changed. With the per-test
+  // baseline (plan row 5.3) both contexts start from the same known draft, so
+  // this is un-fixme'd and asserted for real.
+  //
+  // ONE ASSERTION FROM THE ORIGINAL DRAFT WAS DROPPED, ON PURPOSE. It required
+  // undo to stay enabled through the conflict. That expectation predates the
+  // W3-T2 conflict-recovery protocol, which now resets the history stacks by
+  // design: `edit-context.tsx` rolls the rejected tree back, PARKS it, and
+  // explains the reset, because replaying a stack that branched off a tree the
+  // server never accepted is the dangerous option. Measured live 2026-08-08 on
+  // this suite: undo is enabled after a plain inline edit and disabled after a
+  // conflicted save, which is exactly the documented behaviour. The operator
+  // guarantee that actually matters here is that the rejected copy is
+  // RECOVERABLE ("Keep editing this copy"), and that is asserted below.
+  test("9. a genuine second-session conflict shows the honest banner with both actions and keeps the rejected copy recoverable (W1-L2 scenario B)", async ({
+    page,
+    browser,
+  }) => {
     const conflictToast = page.locator('[data-edit-overlay="mutation-toast"]');
-    const undoButton = page.locator('button[title="Undo (⌘Z)"]');
-    const original = await headingText(page);
-    const theirs = `${original} PBM_W1L2_B2`;
-    const mine = `${original} PBM_W1L2_B1`;
+    const { mine } = await stageGenuineConflict(page, browser);
 
-    // Second, independent session edits (and saves) first.
-    const context2 = await browser.newContext();
-    const page2 = await context2.newPage();
-    page2.setDefaultTimeout(30_000);
-    page2.setDefaultNavigationTimeout(180_000);
-    try {
-      await devSignIn(page2);
-      await openEditor(page2);
-      await setHeadingText(page2, theirs);
-    } finally {
-      await page2.close().catch(() => {});
-      await context2.close().catch(() => {});
-    }
-
-    // First session (now holding a stale version) edits — its save must lose
-    // the CAS to the genuinely-foreign write and raise the honest banner.
-    // (Inline edit WITHOUT waitDraftSaved: this save is expected to conflict,
-    // so the "Draft saved" chip never appears.)
-    await openHeadingOverlay(page);
-    const editable = overlayEditable(page);
-    await editable.click();
-    await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.type(mine);
-    await page.locator("[data-edit-topbar]").click({ position: { x: 6, y: 6 } }); // blur-commit
     await expect(conflictToast).toBeVisible({ timeout: 60_000 });
     await expect(conflictToast.getByRole("button", { name: /reload latest/i })).toBeVisible();
     await expect(
       conflictToast.getByRole("button", { name: /keep editing this copy/i }),
     ).toBeVisible();
-    // NOT silently reloaded: the local copy is still on the canvas and undo
-    // history is still there.
+    // The banner is honest about WHY, so the operator can tell a real conflict
+    // from a hiccup.
+    await expect(conflictToast).toContainText(/another tab or session/i);
+    // NOT silently reloaded: the operator still sees their own copy on the
+    // canvas, with an explicit choice rather than a surprise revert.
     expect(await headingText(page)).toBe(mine);
-    await expect(undoButton).toBeEnabled();
-
-    // Resolve by taking the other session's change; only now does the editor
-    // reload (and reset undo, with its own explanation toast).
-    await conflictToast.getByRole("button", { name: /reload latest/i }).click();
-    await expect
-      .poll(async () => headingText(page), { timeout: 60_000 })
-      .toBe(theirs);
-
-    // Cleanup: restore the seeded heading (fresh version, normal save).
-    await setHeadingText(page, original);
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.locator("[data-edit-topbar]")).toBeVisible({ timeout: 150_000 });
-    expect(await headingText(page)).toBe(original);
   });
+
+  // QUARANTINED, with the blocker named (2026-08-08). This is the tail of
+  // scenario B: after the honest banner, "Reload latest" should adopt the other
+  // session's draft and repaint the canvas with it.
+  //
+  // WHAT BLOCKS IT: the repaint is not reliable. Measured on this suite with the
+  // per-test baseline in place, so the old "the harness is the fragile part"
+  // explanation no longer applies — both sessions provably start from the same
+  // known draft, and the banner half of scenario B (test 9) passes on every run.
+  // Two full-suite runs on 2026-08-08: in the failing one the heading still read
+  // the LOCAL copy ("... PBM_W1L2_B1") 60s after clicking "Reload latest",
+  // instead of the foreign one ("... PBM_W1L2_B2").
+  //
+  // That points at `reloadLatestAfterConflict` in edit-context.tsx (it calls
+  // `refreshComposition({ undoResetReason: "conflict" })`, so the suspect is the
+  // composition refresh not repainting the canvas from the freshly fetched
+  // server tree, not the e2e harness). Un-fixme this the moment that path is
+  // fixed; it needs no change here beyond deleting the `.fixme`.
+  test.fixme(
+    "9b. Reload latest adopts the other session's draft (W1-L2 scenario B tail)",
+    async ({ page, browser }) => {
+      const conflictToast = page.locator('[data-edit-overlay="mutation-toast"]');
+      const { theirs } = await stageGenuineConflict(page, browser);
+      await expect(conflictToast).toBeVisible({ timeout: 60_000 });
+      await conflictToast.getByRole("button", { name: /reload latest/i }).click();
+      await expect.poll(async () => headingText(page), { timeout: 60_000 }).toBe(theirs);
+    },
+  );
 });
