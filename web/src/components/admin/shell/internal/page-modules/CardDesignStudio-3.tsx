@@ -203,7 +203,7 @@ export function PreviewCard({
   const showInquiry = rule.inquiry && appearance.showAddToInquiry;
   const FavGlyph = favoriteIcon === "bookmark" ? Bookmark : Heart;
 
-  // Same token projection as CardLivePreview: an empty token = no var = the
+  // Token projection: an empty token = no var = the
   // card inherits the theme color (the live contract).
   const d = draft ?? {};
   const previewVars: React.CSSProperties = {
