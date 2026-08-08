@@ -490,3 +490,140 @@ helper that already exists, and it is unit-testable without a browser.
 After that, in order: B1+B2 together (one real OTP round trip settles both and
 closes the last unproven auth branch), then B3 (cross-instance rate limiting on
 auth), then B4 (localize the 12 claim verdicts).
+
+### G. Second audit pass (2026-08-08) — remediation verdicts
+
+A follow-up remediation run took on A1, B1, B2, B4, B5, B7 and the retirement of
+PR #1052. This subsection records what a **skeptical re-verification** of that
+run actually found, from `origin/main` plus live probes of production. Production
+pointer at audit time: `origin/production` == `origin/main` == `135c40b2a`, and
+`improntamodels.com/login` serves
+`release=135c40b2a9b505b9901366408c4bb4301cf67725`, so every merged commit below
+is genuinely live.
+
+| Item | Verdict | What was actually verified |
+|---|---|---|
+| A1 locale drop | **PARTIAL — still broken in production** | #1068 (`135c40b2a`) is live and fixes `/es/join` only. `/es/talent/register` and `/es/client/register` still double-hop and land in English on **both** hosts. The real fix is in **PR #1073, still OPEN**. |
+| B1 real OTP round trip | **NOT DONE — owner-only** | No agent has consumed a real emailed code into a session. Nothing verifiable changed here. |
+| B2 is the code in the email | **DONE** | Answer is yes, and it exposed a truncation defect that is now fixed and live. |
+| B4 localize `/claim` verdicts | **DONE (copy); verdict screens still unrendered** | #1069 (`dec14d66e`) live. All 12 verdicts + `agencyFallback` present in `messages/es.json`; the page resolves `titleKey`/`bodyKey` through `createTranslator(getRequestLocale())`. |
+| B5 tenant brand panel | **DONE** | #1072 (`2aab86fdf`) live. Real content and a real accent, not an empty gradient. |
+| B7 footer legal-link ruling | **DONE** | #1072 live. Ruling holds on every host kind probed. |
+| PR #1052 retirement | **DONE** | PR is closed and branch `docs/auth-shell-domain-plan` is gone from `origin`. |
+
+**A1 — measured live, all three retired routes x {`/es/`, unprefixed} x both
+hosts.** `/es/join` is fixed; the other two are not:
+
+```
+tulala.digital     /es/talent/register  308 /talent/register  → 308 /register?as=talent  → 200 lang="en" "Join as Talent"
+tulala.digital     /es/client/register  308 /client/register  → 308 /register?as=client  → 200 lang="en" "Join as a Client"
+tulala.digital     /es/join             308 /es/register?as=talent                        → 200 lang="es" "Unirse como Talento"
+improntamodels.com /es/talent/register  308 /talent/register  → 308 /register?as=talent  → 200 lang="en" "Join as Talent"
+improntamodels.com /es/client/register  308 /client/register  → 308 /register?as=client  → 200 lang="en" "Join as a Client"
+improntamodels.com /es/join             308 /es/register?as=talent                        → 200 lang="es" "Unirse como Talento"
+(all six unprefixed variants: 308 → /register?as=… → 200 lang="en", unchanged and correct)
+```
+
+This audit found the aggravating detail the remediation report did not state:
+the two broken routes **do not even set the `locale=es` cookie** before
+redirecting, whereas `/es/join` does. So Spanish is lost *completely*, not just
+from the URL. Contrast the claim bounce, which is only cosmetically unprefixed
+and still lands in Spanish:
+
+```
+/es/claim?invitation=…  → 307 /login?next=%2Fclaim%3Finvitation%3D…  + Set-Cookie: locale=es
+                        → landed /login renders lang="es", h1 "Iniciar sesión"
+/es/talent/register     → 308 /talent/register                       + NO locale cookie
+```
+
+**B4 — how far the localization actually reaches.** The catalog is complete and
+the ES path is reachable: `/es/register?invitation=<id>` renders `lang="es"`,
+h1 "Reclama tu perfil", and any `/es/*` request sets `locale=es`, so the
+unprefixed `/claim` that `next=` forwards to still resolves Spanish from the
+cookie. What is **not** verified is a rendered verdict screen — that needs a real
+`talent_claim_invitations` row plus a matching session, so the 12 strings are
+pinned only by unit tests. Residual gap: the invite email link built at
+`web/src/lib/server-actions/admin-talent-profile-sections.ts:992` is a bare
+`/register?invitation=…` with no locale, so an invited Spanish talent arriving
+from email touches no `/es/` path and therefore sees the whole claim chain in
+English.
+
+**B5 — the panel markup as served** (`improntamodels.com/login`, `#d4af37`
+appears 19x in the HTML on both `/login` and `/es/login`, 0x on
+`tulala.digital/login`):
+
+- base `linear-gradient(158deg, color-mix(in srgb, #d4af37 9%, var(--plt-bg-inverse)) …)`
+- two accent radial blooms at 16% and 13%
+- brand lockup "Impronta" + tagline, headline, lead, and three accent check lines
+- ES panel carries the Spanish lines ("Un solo acceso para talento y clientes", …)
+
+The accent is a literal hex, per the token-cycle incident. The base colours are
+`var()` indirections, so this audit followed the chain in the shipped CSS to make
+sure it cannot resolve empty: `--plt-bg-inverse → --tl-surface-inverse → #111612`,
+`--plt-bg-inverse-soft → #1a201c`, `--plt-on-inverse → #f1ede3`,
+`--plt-on-inverse-soft → #f1ede37a`, `--plt-on-inverse-muted → #f1ede3ad`. All
+five terminate in literals.
+
+**B7 — footer targets as served:**
+
+| Host / path | Terms | Privacy | Contact |
+|---|---|---|---|
+| `improntamodels.com/login` | `tulala.digital/legal/terms` | `tulala.digital/legal/privacy` | `/contact` |
+| `improntamodels.com/es/login` | `tulala.digital/legal/terms` | `tulala.digital/legal/privacy` | `/es/contact` |
+| `tulala.digital/login` | `tulala.digital/legal/terms` | `tulala.digital/legal/privacy` | `tulala.digital/about` |
+
+**B2 — re-probed, not taken on trust.** An unsigned `POST` to
+`https://app.tulala.digital/api/hooks/auth-email` returns
+`401 {"error":{"http_code":401,"message":"Invalid signature"}}`. That route
+returns `503 "Auth email hook not configured"` when `SEND_EMAIL_HOOK_SECRET` is
+unset, so 401 proves the secret is live in production. `otp-flow.ts` on `main`
+now carries `OTP_CODE_MIN_LENGTH = 6` / `OTP_CODE_MAX_LENGTH = 10` and
+`normalizeOtpCode` slices at `OTP_CODE_MAX_LENGTH`, so the truncation is gone.
+This audit could **not** independently re-read `mailer_otp_length` from the
+Supabase Management API (no token in the audit environment), so the specific
+"8 digits" figure rests on the remediation run's evidence; the code is correct
+for any value in 6-10 either way.
+
+**No regression in the flows built earlier this session:**
+
+- claim chain: `/register?invitation=<id>&email=…` renders 200, h1 "Claim your
+  profile", with hidden `name="next" value="/claim?invitation=<id>"`; bare
+  `/claim` and `/claim?invitation=…` both 307 to
+  `/login?next=%2Fclaim%3Finvitation%3D…`
+- single front door: `?as=talent` → "Join as Talent", `?as=client` → "Join as a
+  Client" with "No password needed. We email you a sign-in code plus a sign-in
+  link.", `?as=operator` → "Create your operator account". `grep -c "6-digit"`
+  on the served HTML is **0**, so the old digit-count promise is gone from prod.
+- `deploy:smoke` auth surface matrix: 18/18 green.
+
+### H. Remaining real gaps after the second pass
+
+1. **A1 is not fixed in production.** PR #1073 is open with
+   `Structural quality gate` pending. Until it merges and promotes, every
+   Spanish visitor following a `/es/talent/register` or `/es/client/register`
+   link signs up in English.
+2. **`deploy:smoke` is structurally blind to the A1 class.** The auth matrix at
+   `main` has **zero `/es/` rows** and asserts only status codes, never the
+   `Location` header, so a 308 to the *wrong* place is a pass. The `/es/` rows
+   that assert `Location` exist only on unmerged #1073.
+3. **B1 is still open and owner-only.** Request a code on
+   `https://improntamodels.com/register?as=client`, count the digits, type it,
+   report whether Continue signs you in. No agent may do this.
+4. **The claim invite email is locale-blind** (see B4 above). Nothing carries the
+   recipient's language into the claim chain.
+5. **The `/claim` verdict screens have never been rendered.** Twelve verdicts,
+   all covered by unit tests only.
+6. **`legacy-talent-redirect.test.ts` runs in no CI lane.** Pre-existing: it is
+   absent from every `test:*` script in `web/package.json`, and it is the file
+   that covers the resolver behind gap 1.
+7. **The B7 ruling has no guard test.** "Terms and Privacy always point at
+   `getSiteUrl()`, on every host kind" is protected by a code comment only, and
+   is exactly what a future "fix the whitelabel leak" PR would undo.
+8. **`agency_business_identity.contact_email` is NULL platform-wide**, so the
+   middle rung of the auth-footer Contact chain is dead code in practice.
+9. **The tenant accent is verified against exactly one value** (`#d4af37`).
+   Impronta is the only whitelabel-tier tenant.
+10. **`CLAUDE.md` still describes `main` as Vercel's production branch.** The
+    real topology is `main` → CI on `main` → `promote-production.yml`
+    fast-forwards a separate `production` branch. A superseded/cancelled CI run
+    on `main` is not a broken deploy, and the next agent will misdiagnose it.
