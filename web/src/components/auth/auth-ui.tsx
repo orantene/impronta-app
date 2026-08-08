@@ -24,6 +24,8 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
+import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
+
 /* ─────────────────────────── card + headings ─────────────────────────── */
 
 /**
@@ -96,9 +98,16 @@ export function AuthHeading({
 }
 
 /** The "or" rule between the Google button and the email form. */
-export function AuthDivider({ label }: { label: string }) {
+export function AuthDivider({
+  label,
+  className = "my-4",
+}: {
+  label: string;
+  /** Spacing override — the modal sits in a `space-y-3.5` form and uses `py-1`. */
+  className?: string;
+}) {
   return (
-    <div className="my-4 flex items-center gap-3">
+    <div className={`flex items-center gap-3 ${className}`}>
       <div className="h-px flex-1" style={{ background: "var(--plt-hairline)" }} />
       <span
         className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.22em]"
@@ -208,6 +217,56 @@ export function AuthField({
   );
 }
 
+/**
+ * Label + bordered control BOX (the input lives INSIDE the border, so the
+ * focus ring is on the box). This is the shape the marketing get-started /
+ * talent-register modal uses; `AuthField` above is the same visual result
+ * composed the other way round (bare label, border on the input itself via
+ * `AUTH_INPUT_CLASS`) for the standalone pages, which need `htmlFor`
+ * associations.
+ *
+ * P2: the modal had its own private copy of this. Two copies of the field
+ * chrome is exactly how the modal and `/register` diverged before, so the
+ * modal now imports this one.
+ */
+export function AuthFieldShell({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span
+        className="plt-mono mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.16em]"
+        style={{ color: "var(--plt-muted)" }}
+      >
+        {label}
+      </span>
+      <div
+        className="flex h-12 items-center rounded-2xl px-4 transition-[border-color,box-shadow] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--plt-forest)_18%,transparent)]"
+        style={{
+          background: "var(--plt-bg)",
+          border: "1px solid var(--plt-hairline-strong)",
+        }}
+      >
+        {children}
+      </div>
+      {hint ? (
+        <span
+          className="mt-1 block text-[0.6875rem]"
+          style={{ color: "var(--plt-muted)" }}
+        >
+          {hint}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
 /* ───────────────────────────── buttons ─────────────────────────────── */
 
 /** Full-width forest primary — identical to the modal's submit button. */
@@ -235,6 +294,51 @@ export function AuthSubmitButton({
       <span>{pending ? busy : idle}</span>
       {pending ? <AuthSpinner /> : <AuthArrowGlyph />}
     </button>
+  );
+}
+
+/**
+ * The outlined Google pill + its error line. Presentation only: each caller
+ * keeps its own OAuth mechanics (the standalone pages redirect on the current
+ * host, the marketing modals drive a popup on the app host) and passes a click
+ * handler.
+ *
+ * P2: this exact markup was pasted in three places — `google-auth-button.tsx`,
+ * the talent-register modal and the sign-in modal. One of them changing (a
+ * filled shadcn button, once) is what made `/register` look unrelated to the
+ * popup the owner signed off on.
+ */
+export function AuthGoogleButtonSurface({
+  pending,
+  label,
+  pendingLabel,
+  error,
+  onClick,
+}: {
+  pending: boolean;
+  label: ReactNode;
+  pendingLabel: ReactNode;
+  error?: string | null;
+  onClick: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
+        style={{
+          background: "var(--plt-bg-raised)",
+          border: "1px solid var(--plt-hairline-strong)",
+          color: "var(--plt-ink)",
+        }}
+      >
+        {pending ? <AuthSpinner /> : <AuthGoogleGlyph />}
+        <span>{pending ? pendingLabel : label}</span>
+      </button>
+      {error ? <AuthNotice tone="error">{error}</AuthNotice> : null}
+    </div>
   );
 }
 

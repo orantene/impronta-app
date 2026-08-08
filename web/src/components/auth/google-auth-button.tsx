@@ -8,8 +8,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { AuthNotice, AuthSpinner } from "@/components/auth/auth-ui";
-import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
+import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
 
 const POPUP_WIDTH = 520;
 const POPUP_HEIGHT = 640;
@@ -114,22 +113,12 @@ export function GoogleAuthButton({
   // the standalone register pages look unrelated to the popup the owner signed
   // off on, and put two competing filled buttons in one card.
   return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
-        style={{
-          background: "var(--plt-bg-raised)",
-          border: "1px solid var(--plt-hairline-strong)",
-          color: "var(--plt-ink)",
-        }}
-      >
-        {pending ? <AuthSpinner /> : <AuthGoogleGlyph />}
-        <span>{pending ? pendingLabel : children}</span>
-      </button>
-      {error ? <AuthNotice tone="error">{error}</AuthNotice> : null}
-    </div>
+    <AuthGoogleButtonSurface
+      pending={pending}
+      label={children}
+      pendingLabel={pendingLabel}
+      error={error}
+      onClick={handleClick}
+    />
   );
 }

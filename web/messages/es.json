@@ -83,7 +83,9 @@
         "logIn": "Inicia sesión",
         "eyebrow": "Empezar",
         "claimEyebrow": "Reclamar perfil",
-        "inviteEyebrow": "Invitación"
+        "inviteEyebrow": "Invitación",
+        "operatorEyebrow": "Abre tu workspace",
+        "claimAgencyFallback": "Tu agencia"
       },
       "roleRegister": {
         "talentTitle": "Unirse como Talento",
@@ -91,7 +93,9 @@
         "clientTitle": "Unirse como Cliente",
         "clientDescription": "Crea una cuenta para descubrir talento, enviar solicitudes y gestionar tus reservas.",
         "talentEyebrow": "Para talento",
-        "clientEyebrow": "Para clientes"
+        "clientEyebrow": "Para clientes",
+        "talentSubmit": "Crear mi cuenta de talento",
+        "clientSubmit": "Crear mi cuenta de cliente"
       },
       "forgot": {
         "title": "Olvidé mi contraseña",

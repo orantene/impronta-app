@@ -83,7 +83,9 @@
         "logIn": "Log in",
         "eyebrow": "Get started",
         "claimEyebrow": "Profile claim",
-        "inviteEyebrow": "Invitation"
+        "inviteEyebrow": "Invitation",
+        "operatorEyebrow": "Open your workspace",
+        "claimAgencyFallback": "Your agency"
       },
       "roleRegister": {
         "talentTitle": "Join as Talent",
@@ -91,7 +93,9 @@
         "clientTitle": "Join as a Client",
         "clientDescription": "Create an account to discover talent, make inquiries, and manage your bookings.",
         "talentEyebrow": "For talent",
-        "clientEyebrow": "For clients"
+        "clientEyebrow": "For clients",
+        "talentSubmit": "Create my talent account",
+        "clientSubmit": "Create my client account"
       },
       "forgot": {
         "title": "Forgot password",
