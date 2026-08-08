@@ -175,11 +175,11 @@
       "passwordless": {
         "emailSubmit": "Envíame un código de acceso",
         "emailPending": "Enviando tu código",
-        "emailHint": "Sin contraseña. Te enviamos un código de 6 dígitos y un enlace de acceso a tu correo.",
+        "emailHint": "Sin contraseña. Te enviamos por correo un código de acceso y también un enlace de acceso.",
         "sentNotice": "Código enviado a {email}. Escríbelo abajo o abre el enlace del mismo correo.",
         "resentNotice": "Enviamos un código nuevo a {email}. Usa el más reciente.",
-        "codeLabel": "Código de 6 dígitos",
-        "codeHint": "De un solo uso. Si deja de funcionar, pide uno nuevo. Revisa tu carpeta de spam si no llega.",
+        "codeLabel": "Código de tu correo",
+        "codeHint": "De un solo uso. También puedes abrir el enlace de acceso del mismo correo. Revisa tu carpeta de spam si no llega.",
         "verifySubmit": "Continuar",
         "verifyPending": "Verificando tu código",
         "resend": "Enviar un código nuevo",
@@ -188,7 +188,7 @@
         "usePassword": "Usar una contraseña",
         "useCode": "Mejor envíame un código",
         "errors": {
-          "codeRequired": "Escribe el código de 6 dígitos de tu correo.",
+          "codeRequired": "Escribe el código de tu correo.",
           "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",
           "codeExpired": "Ese código caducó o ya se usó. Pide uno nuevo.",
           "tooMany": "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
