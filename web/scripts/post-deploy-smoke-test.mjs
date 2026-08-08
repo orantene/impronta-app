@@ -393,9 +393,23 @@ const AUTH_ROUTES = [
   // Always renders 200 for an unauthenticated visitor.
   { path: "/login", statuses: [200] },
   { path: "/register", statuses: [200] },
-  { path: "/talent/register", statuses: [200] },
-  { path: "/client/register", statuses: [200] },
   { path: "/forgot-password", statuses: [200] },
+  // P2 (#1059) — /register is the SINGLE signup page; these three are now
+  // permanent redirects into it carrying `?as=<intent>` plus every inbound
+  // param. A 308 is the correct, expected answer: it proves the route is
+  // mounted AND passed the surface gate. A 404 would still mean the
+  // allow-list and reality disagree; a 200 would mean the retired page came
+  // back and signup has forked into multiple designs again.
+  {
+    path: "/talent/register",
+    statuses: [308],
+    note: "retired → 308 /register?as=talent",
+  },
+  {
+    path: "/client/register",
+    statuses: [308],
+    note: "retired → 308 /register?as=client",
+  },
   // Reachable, but the page itself redirects for an unauthenticated/tokenless
   // GET — still proves the surface gate let the request through.
   {
@@ -405,8 +419,8 @@ const AUTH_ROUTES = [
   },
   {
     path: "/join",
-    statuses: [200, 307],
-    note: "unconditionally redirects to /talent/register",
+    statuses: [308],
+    note: "talent-signup vanity URL → 308 /register?as=talent",
   },
   {
     path: "/update-password",
