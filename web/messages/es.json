@@ -41,7 +41,7 @@
       "shell": {
         "back": "Volver a {site}",
         "tenantHeading": "Tu trabajo y tus reservas, en un solo lugar.",
-        "tenantLead": "Inicia sesión para gestionar tu perfil, tus reservas y tus mensajes con {brand}.",
+        "tenantLead": "Gestiona tu perfil, tus reservas y tus mensajes con {brand}.",
         "terms": "Términos",
         "privacy": "Privacidad",
         "contact": "Contacto"
