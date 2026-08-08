@@ -6,6 +6,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 export type DirectoryInquiryOrderedTalent = {
@@ -58,13 +59,29 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
   // InquiryDrawer can route its submit (`submitInquiryNowAction` is
   // slug-keyed) and render header copy.
   const hostCtx = await getPublicHostContext();
-  const tenantSlug = hostCtx.kind === "agency" ? hostCtx.tenantSlug : "";
+  // Agency hosts route to their own tenant. Platform hosts (marketing apex,
+  // app, hub) route to the platform hub tenant — the same resolution the
+  // guest-chat launcher uses — so the inquiry sheet stops rendering
+  // "Directory is not configured." for a visitor on tulala.digital.
+  let tenantSlug = "";
+  let brandTenantId: string | null = null;
   let agencyName = "the agency";
-  if (hostCtx.tenantId) {
+  if (hostCtx.kind === "agency") {
+    tenantSlug = hostCtx.tenantSlug ?? "";
+    brandTenantId = hostCtx.tenantId;
+  } else {
+    const hub = await getPlatformHubTenant();
+    if (hub) {
+      tenantSlug = hub.slug;
+      brandTenantId = hub.tenantId;
+      agencyName = hub.displayName;
+    }
+  }
+  if (brandTenantId) {
     // The storefront brand name lives in `agency_business_identity.public_name`
     // (the same source the public header uses). The `agencies` table is not
     // readable by the anon client, so resolve it via loadPublicIdentity.
-    const identity = await loadPublicIdentity(hostCtx.tenantId);
+    const identity = await loadPublicIdentity(brandTenantId);
     const publicName = identity?.public_name?.trim();
     if (publicName) agencyName = publicName;
   }

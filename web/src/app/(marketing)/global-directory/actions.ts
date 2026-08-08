@@ -15,12 +15,12 @@
 import { loadDiscoverTalents } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
 import {
   DIRECTORY_PAGE_SIZE,
-  attachCardDesigns,
-  resolveCardDesignsForRows,
   type DirectoryCardRow,
   type DirectoryQuery,
 } from "@/components/marketing/directory/shared";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
+import { DEFAULT_CARD_DESIGN } from "@/lib/site-admin/server/card-design-shape";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 
 export async function loadMoreDirectoryTalents(
   query: DirectoryQuery,
@@ -38,17 +38,17 @@ export async function loadMoreDirectoryTalents(
     offset: Math.max(offset, 0),
   });
 
-  // Enrich the incremental rows with their own agency's card design, exactly
-  // like the SSR first page (see global-directory/page.tsx). Without this,
-  // rows past the first page render in the platform-default palette while rows
-  // above the fold carry per-agency palettes — a visible inconsistency the
-  // moment a visitor clicks "Show more".
-  const designByTenant = await resolveCardDesignsForRows(
-    page.items,
-    resolveCardDesign,
-  );
+  // Same UNIFORM hub-tenant design as the SSR first page (see
+  // global-directory/page.tsx). Without this, rows past the first page would
+  // render in the platform-default palette while rows above the fold carry the
+  // hub palette — a visible inconsistency the moment a visitor clicks
+  // "Show more".
+  const hub = await getPlatformHubTenant();
+  const design = hub
+    ? await resolveCardDesign(hub.tenantId)
+    : DEFAULT_CARD_DESIGN;
   return {
-    items: attachCardDesigns(page.items, designByTenant),
+    items: page.items.map((row) => ({ ...row, design })),
     total: page.total,
   };
 }
