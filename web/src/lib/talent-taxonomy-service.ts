@@ -331,6 +331,15 @@ export async function assignTaxonomyTermToProfile(
     talentProfileId: string;
     taxonomyTermId: string;
     relationshipType?: RelationshipType;
+    /**
+     * Provenance — which tenant's surface added this term. Optional because the
+     * column is nullable and nothing gates on it, but PASS IT: rows created here
+     * used to land with `tenant_id = NULL`, and every caller that then filtered
+     * `.eq("tenant_id", …)` silently matched zero rows (see the note in
+     * `talent-self-services.ts`). Omitting it re-creates rows that look editable
+     * and aren't.
+     */
+    tenantId?: string | null;
   },
 ): Promise<TaxonomyMutationResult> {
   const termRes = await fetchTerm(supabase, params.taxonomyTermId);
@@ -351,6 +360,7 @@ export async function assignTaxonomyTermToProfile(
       taxonomy_term_id: params.taxonomyTermId,
       relationship_type: relationshipType,
       is_primary: relationshipType === "primary_role",
+      ...(params.tenantId ? { tenant_id: params.tenantId } : {}),
     },
     { onConflict: "talent_profile_id,taxonomy_term_id" },
   );

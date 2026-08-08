@@ -45,11 +45,19 @@ export async function getResolvedSkillsAsTalent(input: {
 }): Promise<{ ok: true; skills: ResolvedSkill[] } | { ok: false; error: string }> {
   const auth = await requireTalentServiceScope(input.talent_profile_id);
   if (!auth.ok) return auth;
+  // NOTE (skills are PROFILE-scoped, not tenant-scoped): the PK of
+  // `talent_profile_taxonomy` is (talent_profile_id, taxonomy_term_id) — there is
+  // exactly ONE row per skill per profile, shared by every roster the talent is
+  // on. `tenant_id` is provenance ("who first added it"), never an isolation key,
+  // and RLS here gates on roster membership / profile ownership without ever
+  // referencing it. Filtering rows by it therefore adds no isolation and only
+  // produces FALSE NEGATIVES: rows written by another roster (or legacy rows with
+  // a NULL tenant_id) silently vanish from reads and are silently skipped by
+  // writes. That is the "I save it and after refresh nothing changed" bug.
   const { data, error } = await auth.supabase
     .from("talent_skills_resolved")
     .select("*")
     .eq("talent_profile_id", input.talent_profile_id)
-    .eq("tenant_id", auth.tenantId)
     .order("relationship_type", { ascending: true })
     .order("display_order", { ascending: true });
   if (error) {
@@ -133,7 +141,6 @@ export async function setTalentProfileSkillsAsTalent(
   const { data: currentRows, error: currentError } = await auth.supabase
     .from("talent_profile_taxonomy")
     .select("taxonomy_term_id, relationship_type, proficiency_level, years_experience, display_order, is_primary")
-    .eq("tenant_id", auth.tenantId)
     .eq("talent_profile_id", tpid)
     .in("relationship_type", SKILL_RELS as unknown as string[]);
   if (currentError) {
@@ -161,7 +168,6 @@ export async function setTalentProfileSkillsAsTalent(
     const { error } = await auth.supabase
       .from("talent_profile_taxonomy")
       .delete()
-      .eq("tenant_id", auth.tenantId)
       .eq("talent_profile_id", tpid)
       .in("taxonomy_term_id", toDelete.map((r) => r.taxonomy_term_id))
       .in("relationship_type", SKILL_RELS as unknown as string[]);
@@ -202,7 +208,6 @@ export async function setTalentProfileSkillsAsTalent(
     const { error } = await auth.supabase
       .from("talent_profile_taxonomy")
       .update({ relationship_type: relOf(u.role), is_primary: u.role === "primary" })
-      .eq("tenant_id", auth.tenantId)
       .eq("talent_profile_id", tpid)
       .eq("taxonomy_term_id", u.id);
     if (error) return { ok: false, error: "Couldn't update services." };
@@ -227,14 +232,21 @@ export async function updateSkillAsTalent(input: z.input<typeof updateSkillSchem
   const updates: Record<string, unknown> = {};
   if (parsed.data.proficiency_level !== undefined) updates.proficiency_level = parsed.data.proficiency_level;
   if (parsed.data.years_experience !== undefined) updates.years_experience = parsed.data.years_experience;
-  const { error } = await auth.supabase
+  // `.select()` so a predicate that matches NOTHING is reported instead of
+  // returning ok:true. A no-match UPDATE is not an error in Postgres, so the old
+  // code told the editor "saved" while writing nothing — the level/years the
+  // operator set reappeared blank on the next refresh, with no error anywhere.
+  const { data: updated, error } = await auth.supabase
     .from("talent_profile_taxonomy")
     .update(updates)
-    .eq("tenant_id", auth.tenantId)
     .eq("talent_profile_id", parsed.data.talent_profile_id)
     .eq("taxonomy_term_id", parsed.data.talent_type_term_id)
-    .in("relationship_type", SKILL_RELS as unknown as string[]);
+    .in("relationship_type", SKILL_RELS as unknown as string[])
+    .select("taxonomy_term_id");
   if (error) return { ok: false as const, error: CLIENT_ERROR.generic };
+  if (!updated || updated.length === 0) {
+    return { ok: false as const, error: "That service is no longer on this profile — reload and try again." };
+  }
   revalidateTalent(auth.profileCode);
   return { ok: true as const };
 }
@@ -248,7 +260,6 @@ export async function setFeaturedSkillAsTalent(input: {
   const { data: rows, error: readError } = await auth.supabase
     .from("talent_profile_taxonomy")
     .select("taxonomy_term_id")
-    .eq("tenant_id", auth.tenantId)
     .eq("talent_profile_id", input.talent_profile_id)
     .in("relationship_type", SKILL_RELS as unknown as string[])
     .order("display_order", { ascending: true });
@@ -260,7 +271,6 @@ export async function setFeaturedSkillAsTalent(input: {
     const { error } = await auth.supabase
       .from("talent_profile_taxonomy")
       .update({ display_order: index === 0 ? 1 : (index + 1) * 10 })
-      .eq("tenant_id", auth.tenantId)
       .eq("talent_profile_id", input.talent_profile_id)
       .eq("taxonomy_term_id", ordered[index]);
     if (error) return { ok: false as const, error: CLIENT_ERROR.generic };

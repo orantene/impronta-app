@@ -1200,6 +1200,7 @@ export async function assignTalentTaxonomyBySlug(input: {
     talentProfileId: input.talent_profile_id,
     taxonomyTermId: resolved.termId,
     relationshipType: input.relationship_type,
+    tenantId,
   });
   if (!result.ok) return { ok: false, error: result.error };
 

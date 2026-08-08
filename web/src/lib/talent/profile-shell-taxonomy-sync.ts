@@ -93,6 +93,7 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
       talentProfileId,
       taxonomyTermId: id,
       relationshipType: "primary_role",
+      tenantId,
     });
     if (!asg.ok) return { ok: false, error: asg.error };
   }
@@ -109,6 +110,7 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
       talentProfileId,
       taxonomyTermId: resolved.termId,
       relationshipType: "secondary_role",
+      tenantId,
     });
     if (!asg.ok) return { ok: false, error: asg.error };
   }
