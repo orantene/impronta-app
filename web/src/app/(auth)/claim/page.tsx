@@ -108,9 +108,16 @@ export default async function ClaimProfilePage({
     verdict = data as ClaimVerdict;
   }
 
-  const view = presentClaimOutcome(verdict, agencyName);
+  const view = presentClaimOutcome(verdict);
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
+
+  // Same pattern as (auth)/register/page.tsx: presentClaimOutcome returns
+  // catalog keys only (pure, unit-testable), and the page fills the
+  // `{agency}` placeholder some bodies carry — real name, or the localized
+  // neutral fallback when the inviting workspace couldn't be resolved.
+  const agencyLabel = agencyName ?? t("public.auth.claim.agencyFallback");
+  const fill = (value: string): string => value.replace("{agency}", agencyLabel);
 
   return (
     <div className="w-full">
@@ -120,8 +127,8 @@ export default async function ClaimProfilePage({
             ? t("public.auth.claim.successEyebrow")
             : t("public.auth.claim.eyebrow")
         }
-        title={view.title}
-        description={view.body}
+        title={fill(t(view.titleKey))}
+        description={fill(t(view.bodyKey))}
       />
 
       <AuthCard>
