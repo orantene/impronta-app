@@ -427,15 +427,52 @@ const AUTH_ROUTES = [
     statuses: [200, 307],
     note: "no active recovery session → redirects to /forgot-password",
   },
+  // A1 (2026-08-08) — /es/ rows for the same three retired routes. Before
+  // #1068 + a proxy.ts fix (isTenantSlugCandidate misreading "es" as a legacy
+  // tenant slug, and isDashboardInnerPath misreading /talent|client/register
+  // as dashboard roots), these did a SILENT double-hop: verified live,
+  // `/es/talent/register` -> 308 -> plain `/talent/register` (locale gone
+  // before the retired page's own redirect ever ran). Both hops of that bug
+  // return 308, so a status-only check (like the three rows above) can NOT
+  // catch it — nothing before this asserted the Location header, which is
+  // why A1 shipped unnoticed. `location` below is checked verbatim against
+  // the real deployed behavior (probed on both host kinds before encoding
+  // this, not assumed): a single 308 straight to `/es/register?as=<intent>`.
+  {
+    path: "/es/talent/register",
+    statuses: [308],
+    location: "/es/register?as=talent",
+    note: "A1 — /es/ must land on /es/register directly, not bounce through /talent/register",
+  },
+  {
+    path: "/es/client/register",
+    statuses: [308],
+    location: "/es/register?as=client",
+    note: "A1 — /es/ must land on /es/register directly, not bounce through /client/register",
+  },
+  {
+    path: "/es/join",
+    statuses: [308],
+    location: "/es/register?as=talent",
+    note: "A1 — /es/ vanity URL must land on /es/register directly",
+  },
 ];
 
 async function check_auth_surface_matrix() {
   console.log("\nAuth surface matrix (P3)");
   for (const host of [AGENCY_HOST, MARKETING_HOST]) {
-    for (const { path, statuses, note } of AUTH_ROUTES) {
+    for (const { path, statuses, note, location } of AUTH_ROUTES) {
       try {
         const r = await get(host + path);
         if (statuses.includes(r.status)) {
+          if (location && r.headers["location"] !== location) {
+            fail(
+              `${host}${path}`,
+              `status ${r.status} but Location is "${r.headers["location"]}", expected ` +
+                `"${location}" — the locale prefix was likely stripped mid-redirect (A1 regression)`,
+            );
+            continue;
+          }
           pass(`${host}${path} (${r.status})`, note);
         } else if (r.status === 404) {
           fail(

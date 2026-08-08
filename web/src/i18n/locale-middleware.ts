@@ -28,6 +28,17 @@ function isDashboardSurfaceSegment(seg: string): boolean {
  * Dashboard roots must never use a non-default locale prefix — strip if present.
  * Recognizes both unprefixed (`/admin/...`) and tenant-prefixed (`/<slug>/admin/...`)
  * paths so multi-tenant workspace URLs are treated as dashboard surfaces.
+ *
+ * NOTE: left unmodified on purpose. This function is also used on genuinely
+ * unprefixed paths (e.g. `isUnprefixedPublicDefaultPath`, and the fallback
+ * branch of `resolveLocaleForPathname` below) where `/talent/register` and
+ * `/client/register` MUST keep counting as dashboard-inner so a visitor's
+ * locale cookie still applies when they land on the bare (non-`/es/`) URL —
+ * see `feedback_...` history on this file for how easy it is to silently
+ * regress cookie-based dashboard locale here. The A1 carve-out for the two
+ * retired signup-redirect stubs lives in `isDashboardInnerPathForLocalePrefix`
+ * below, applied ONLY where the caller already knows the path arrived via an
+ * explicit non-default locale prefix that was just stripped off.
  */
 export function isDashboardInnerPath(pathWithoutLeadingLocale: string): boolean {
   const p = pathWithoutLeadingLocale.startsWith("/") ? pathWithoutLeadingLocale : `/${pathWithoutLeadingLocale}`;
@@ -36,6 +47,35 @@ export function isDashboardInnerPath(pathWithoutLeadingLocale: string): boolean 
   if (isDashboardSurfaceSegment(parts[0])) return true;
   if (parts.length >= 2 && isDashboardSurfaceSegment(parts[1])) return true;
   return false;
+}
+
+/**
+ * Retired public signup redirect stubs — `(auth)/talent/register/page.tsx` and
+ * `(auth)/client/register/page.tsx` (see register-intent.ts / A1 audit). Their
+ * first path segment ("talent"/"client") collides with `isDashboardSurfaceSegment`
+ * even though they are pre-auth pages, not real dashboard shells: a fresh
+ * visitor hits them once and is immediately `permanentRedirect`ed into
+ * `/register?as=...`, they never render dashboard chrome, and they carry no
+ * cookie-derived per-user state. `/join` is unaffected: "join" is not a
+ * dashboard-surface word, so `isDashboardInnerPath` never matched it.
+ */
+const RETIRED_LOCALE_SENSITIVE_AUTH_STUBS = new Set(["/talent/register", "/client/register"]);
+
+/**
+ * `isDashboardInnerPath`, but for the locale-prefix machinery specifically:
+ * the argument here is ALWAYS the result of stripping a confirmed non-default
+ * locale prefix (callers guard this behind `isNonDefaultLocalePrefixedPath`
+ * first), so it is safe to answer "no" for the two retired stubs without
+ * touching how a genuinely unprefixed `/talent/register` resolves elsewhere.
+ * This is what lets `/es/talent/register` and `/es/client/register` keep
+ * their `/es/` segment all the way to the page (the hard 308 strip in
+ * proxy.ts, the internal-rewrite decision, and the header-locale resolution
+ * below all call this instead of `isDashboardInnerPath` directly).
+ */
+export function isDashboardInnerPathForLocalePrefix(strippedInner: string): boolean {
+  const p = strippedInner.startsWith("/") ? strippedInner : `/${strippedInner}`;
+  if (RETIRED_LOCALE_SENSITIVE_AUTH_STUBS.has(p)) return false;
+  return isDashboardInnerPath(p);
 }
 
 function nonDefaultPublicLocales(settings: LanguageSettings): Set<string> {
@@ -127,7 +167,7 @@ export function resolveLocaleForPathname(
 ): string {
   if (isNonDefaultLocalePrefixedPath(pathname, settings)) {
     const inner = stripNonDefaultLocalePrefix(pathname, settings);
-    if (!isDashboardInnerPath(inner)) {
+    if (!isDashboardInnerPathForLocalePrefix(inner)) {
       return firstSegment(pathname);
     }
   }
@@ -161,7 +201,7 @@ export function shouldRewriteLocalePublicPath(
 ): boolean {
   if (!isNonDefaultLocalePrefixedPath(pathname, settings)) return false;
   const inner = stripNonDefaultLocalePrefix(pathname, settings);
-  return !isDashboardInnerPath(inner);
+  return !isDashboardInnerPathForLocalePrefix(inner);
 }
 
 export function preferredPublicLocaleFromNegotiation(
@@ -197,7 +237,7 @@ export function syncLocaleCookieForPath(
 ): void {
   if (isNonDefaultLocalePrefixedPath(originalPathname, settings)) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, settings);
-    if (!isDashboardInnerPath(inner)) {
+    if (!isDashboardInnerPathForLocalePrefix(inner)) {
       const loc = firstSegment(originalPathname);
       res.cookies.set(LOCALE_COOKIE, loc, localeCookieOptions);
     }

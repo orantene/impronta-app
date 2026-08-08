@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { LanguageSettings } from "@/lib/language-settings/types";
 import { stripDefaultLocalePrefixFromPath } from "@/i18n/pathnames";
 import {
-  isDashboardInnerPath,
+  isDashboardInnerPathForLocalePrefix,
   isNonDefaultLocalePrefixedPath,
   resolveLocaleForPathname,
   shouldRewriteLocalePublicPath,
@@ -27,10 +27,7 @@ import {
   HOST_TENANT_SLUG_HEADER,
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
-import {
-  isTalentSiteHostPathAllowed,
-  talentSiteHostRewritePath,
-} from "@/lib/saas/talent-site-host-routing";
+import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { resolveCanonicalCustomDomainRedirectHost } from "@/lib/saas/domain-canonical";
 import {
   brandedAdminRedirectPath,
@@ -565,9 +562,10 @@ export async function proxy(request: NextRequest) {
   }
 
   const originalPathname = request.nextUrl.pathname;
-
-  // Phase 2.1 — legacy /{tenantSlug}/talent/* → platform /talent/* (HTTP redirect).
-  if (request.method === "GET" || request.method === "HEAD") {
+  // A1: isTenantSlugCandidate doesn't know locale codes, so skip below when "es" would be misread as a legacy tenant slug.
+  const originalHasLocalePrefix = isNonDefaultLocalePrefixedPath(originalPathname, effectiveLangSettings);
+  // Phase 2.1 — legacy /{tenantSlug}/talent/* → platform /talent/*.
+  if ((request.method === "GET" || request.method === "HEAD") && !originalHasLocalePrefix) {
     const legacyTalentTarget = resolveLegacyTalentPlatformPath(originalPathname);
     if (legacyTalentTarget) {
       const url = request.nextUrl.clone();
@@ -576,9 +574,9 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  if (isNonDefaultLocalePrefixedPath(originalPathname, effectiveLangSettings)) {
+  if (originalHasLocalePrefix) {
     const inner = stripNonDefaultLocalePrefix(originalPathname, effectiveLangSettings);
-    if (isDashboardInnerPath(inner)) {
+    if (isDashboardInnerPathForLocalePrefix(inner)) { // A1: carves out /talent|client/register
       const url = request.nextUrl.clone();
       url.pathname = inner;
       return NextResponse.redirect(url, 308);
