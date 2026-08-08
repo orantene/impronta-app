@@ -1,11 +1,18 @@
 "use client";
 
 import { useActionState } from "react";
+
 import {
   completeRecoveryPasswordUpdate,
   type PasswordRecoveryActionState,
 } from "@/app/auth/password-actions";
-import { Button } from "@/components/ui/button";
+import {
+  AUTH_INPUT_CLASS,
+  AUTH_INPUT_STYLE,
+  AuthField,
+  AuthNotice,
+  AuthSubmitButton,
+} from "@/components/auth/auth-ui";
 import { createTranslator } from "@/i18n/messages";
 
 export function UpdatePasswordForm({ locale = "en" }: { locale?: string }) {
@@ -16,17 +23,16 @@ export function UpdatePasswordForm({ locale = "en" }: { locale?: string }) {
   >(completeRecoveryPasswordUpdate, undefined);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-3.5">
       <input type="hidden" name="locale" value={locale} />
-      {state?.error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
-      <div className="space-y-2">
-        <label htmlFor="recovery-new" className="text-sm font-medium">
-          {t("public.auth.update.newPassword")}
-        </label>
+
+      {state?.error ? <AuthNotice tone="error">{state.error}</AuthNotice> : null}
+
+      <AuthField
+        label={t("public.auth.update.newPassword")}
+        htmlFor="recovery-new"
+        hint={t("public.auth.register.passwordHint")}
+      >
         <input
           id="recovery-new"
           name="new_password"
@@ -34,13 +40,16 @@ export function UpdatePasswordForm({ locale = "en" }: { locale?: string }) {
           autoComplete="new-password"
           required
           minLength={8}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder="••••••••"
+          className={AUTH_INPUT_CLASS}
+          style={AUTH_INPUT_STYLE}
         />
-      </div>
-      <div className="space-y-2">
-        <label htmlFor="recovery-confirm" className="text-sm font-medium">
-          {t("public.auth.update.confirmPassword")}
-        </label>
+      </AuthField>
+
+      <AuthField
+        label={t("public.auth.update.confirmPassword")}
+        htmlFor="recovery-confirm"
+      >
         <input
           id="recovery-confirm"
           name="confirm_password"
@@ -48,12 +57,17 @@ export function UpdatePasswordForm({ locale = "en" }: { locale?: string }) {
           autoComplete="new-password"
           required
           minLength={8}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          placeholder="••••••••"
+          className={AUTH_INPUT_CLASS}
+          style={AUTH_INPUT_STYLE}
         />
-      </div>
-      <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? t("public.auth.update.pending") : t("public.auth.update.submit")}
-      </Button>
+      </AuthField>
+
+      <AuthSubmitButton
+        pending={pending}
+        idle={t("public.auth.update.submit")}
+        busy={t("public.auth.update.pending")}
+      />
     </form>
   );
 }

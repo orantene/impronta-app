@@ -1,6 +1,12 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
+import {
+  AuthCard,
+  AuthDivider,
+  AuthHeading,
+  AuthNotice,
+} from "@/components/auth/auth-ui";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -163,47 +169,51 @@ export default async function RegisterPage({
         ? t("public.auth.register.inviteSubmit")
         : t("public.auth.register.emailSubmit");
 
+  // The eyebrow names the flow the person is actually in, so a claim invite
+  // never reads as a generic "create an account" page.
+  const eyebrow = claimInvitationId
+    ? t("public.auth.register.claimEyebrow")
+    : inviterAgencyName
+      ? t("public.auth.register.inviteEyebrow")
+      : t("public.auth.register.eyebrow");
+
   return (
-    <div className="space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-          {decodeURIComponent(error)}
-        </p>
-      ) : null}
-      <GoogleAuthButton
-        nextPath={nextPath}
-        pendingLabel={t("public.auth.googleOpening")}
-        failedLabel={t("public.auth.googleFailed")}
-        popupBlockedMessage={t("public.auth.googlePopupBlocked")}
-        unableToStartMessage={t("public.auth.googleUnableToStart")}
-      >
-        {googleLabel}
-      </GoogleAuthButton>
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-sm uppercase">
-          <span className="bg-card px-2 text-muted-foreground">{t("public.auth.or")}</span>
-        </div>
-      </div>
-      <RegisterForm
-        nextPath={nextPath}
-        submitLabel={emailLabel}
-        locale={locale}
-        // Claim invites carry the invited address, and the claim RPC requires
-        // an exact match — prefilling it stops the commonest failure (signing
-        // up with a different email and hitting `email_mismatch`).
-        defaultEmail={
-          (claimInvitationId && typeof email === "string" && email.trim()
-            ? email.trim()
-            : leadEmail) ?? undefined
-        }
-      />
+    <div className="w-full">
+      <AuthHeading eyebrow={eyebrow} title={title} description={description} />
+
+      <AuthCard>
+        {error ? (
+          <AuthNotice tone="error" align="center" className="mb-4">
+            {decodeURIComponent(error)}
+          </AuthNotice>
+        ) : null}
+
+        <GoogleAuthButton
+          nextPath={nextPath}
+          pendingLabel={t("public.auth.googleOpening")}
+          failedLabel={t("public.auth.googleFailed")}
+          popupBlockedMessage={t("public.auth.googlePopupBlocked")}
+          unableToStartMessage={t("public.auth.googleUnableToStart")}
+        >
+          {googleLabel}
+        </GoogleAuthButton>
+
+        <AuthDivider label={t("public.auth.or")} />
+
+        <RegisterForm
+          nextPath={nextPath}
+          submitLabel={emailLabel}
+          locale={locale}
+          // Claim invites carry the invited address, and the claim RPC requires
+          // an exact match — prefilling it stops the commonest failure (signing
+          // up with a different email and hitting `email_mismatch`).
+          defaultEmail={
+            (claimInvitationId && typeof email === "string" && email.trim()
+              ? email.trim()
+              : leadEmail) ?? undefined
+          }
+        />
+      </AuthCard>
     </div>
   );
 }

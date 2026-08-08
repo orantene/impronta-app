@@ -19,6 +19,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAppUrl } from "@/lib/auth-flow";
 
+import {
+  AuthArrowGlyph,
+  AuthCard,
+  AuthHeading,
+  AuthNotice,
+} from "@/components/auth/auth-ui";
+import { createTranslator } from "@/i18n/messages";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -101,47 +109,61 @@ export default async function ClaimProfilePage({
   }
 
   const view = presentClaimOutcome(verdict, agencyName);
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-12">
-      <div className="flex flex-col gap-2">
-        <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-admin-ink-dim">
-          {view.success ? "Welcome" : "Claim profile"}
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-admin-ink">
-          {view.title}
-        </h1>
-        <p className="text-[14px] leading-relaxed text-admin-ink-muted">{view.body}</p>
-      </div>
+    <div className="w-full">
+      <AuthHeading
+        eyebrow={
+          view.success
+            ? t("public.auth.claim.successEyebrow")
+            : t("public.auth.claim.eyebrow")
+        }
+        title={view.title}
+        description={view.body}
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Absolute: /claim is allow-listed on marketing + hub (claim mail is
-            branded per workspace and can be opened anywhere), but /talent
-            exists on the app + agency surfaces only. */}
-        {view.showDashboard ? (
-          <Link
-            href={`${getAppUrl()}/talent`}
-            className="inline-flex h-10 items-center rounded-full bg-admin-accent px-5 text-[13px] font-semibold text-white"
-          >
-            Go to my dashboard
-          </Link>
-        ) : null}
-        {view.showResendHint ? (
-          <Link
-            href="/login"
-            className="inline-flex h-10 items-center rounded-full border border-admin-border px-5 text-[13px] font-medium text-admin-ink"
-          >
-            Back to sign in
-          </Link>
-        ) : null}
-      </div>
+      <AuthCard>
+        <div className="flex flex-col gap-3">
+          {/* Absolute: /claim is allow-listed on marketing + hub (claim mail is
+              branded per workspace and can be opened anywhere), but /talent
+              exists on the app + agency surfaces only. */}
+          {view.showDashboard ? (
+            <Link
+              href={`${getAppUrl()}/talent`}
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,transform,box-shadow] duration-200"
+              style={{
+                background: "var(--plt-forest)",
+                color: "var(--plt-forest-on)",
+                boxShadow: "var(--plt-shadow-forest)",
+              }}
+            >
+              <span>{t("public.auth.claim.dashboardCta")}</span>
+              <AuthArrowGlyph />
+            </Link>
+          ) : null}
+          {view.showResendHint ? (
+            <Link
+              href="/login"
+              className="inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-[0.9375rem] font-medium leading-none transition-colors"
+              style={{
+                background: "var(--plt-bg-raised)",
+                border: "1px solid var(--plt-hairline-strong)",
+                color: "var(--plt-ink)",
+              }}
+            >
+              {t("public.auth.claim.backToSignIn")}
+            </Link>
+          ) : null}
 
-      {view.success && verdict.exclusive_confirmed ? (
-        <p className="rounded-lg border border-admin-border p-3 text-[12px] leading-relaxed text-admin-ink-muted">
-          You can review who represents you, pause a relationship, or leave an
-          agency from your dashboard under Agencies.
-        </p>
-      ) : null}
+          {view.success && verdict.exclusive_confirmed ? (
+            <AuthNotice tone="info">
+              {t("public.auth.claim.exclusiveNote")}
+            </AuthNotice>
+          ) : null}
+        </div>
+      </AuthCard>
     </div>
   );
 }

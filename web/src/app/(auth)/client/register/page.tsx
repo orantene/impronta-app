@@ -1,4 +1,10 @@
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
+import {
+  AuthCard,
+  AuthDivider,
+  AuthHeading,
+  AuthNotice,
+} from "@/components/auth/auth-ui";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { normalizeOptionalNextPath } from "@/lib/auth-flow";
@@ -34,42 +40,34 @@ export default async function ClientRegisterPage({
   const nextPath = normalizeOptionalNextPath(next) ?? defaultNext;
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">
-          {t("public.auth.roleRegister.clientTitle")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("public.auth.roleRegister.clientDescription")}
-        </p>
-      </div>
+    <div className="w-full">
+      <AuthHeading
+        eyebrow={t("public.auth.roleRegister.clientEyebrow")}
+        title={t("public.auth.roleRegister.clientTitle")}
+        description={t("public.auth.roleRegister.clientDescription")}
+      />
 
-      {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-          {decodeURIComponent(error)}
-        </p>
-      ) : null}
+      <AuthCard>
+        {error ? (
+          <AuthNotice tone="error" align="center" className="mb-4">
+            {decodeURIComponent(error)}
+          </AuthNotice>
+        ) : null}
 
-      <GoogleAuthButton
-        nextPath={nextPath}
-        pendingLabel={t("public.auth.googleOpening")}
-        failedLabel={t("public.auth.googleFailed")}
-        popupBlockedMessage={t("public.auth.googlePopupBlocked")}
-        unableToStartMessage={t("public.auth.googleUnableToStart")}
-      >
-        {t("public.auth.register.google")}
-      </GoogleAuthButton>
+        <GoogleAuthButton
+          nextPath={nextPath}
+          pendingLabel={t("public.auth.googleOpening")}
+          failedLabel={t("public.auth.googleFailed")}
+          popupBlockedMessage={t("public.auth.googlePopupBlocked")}
+          unableToStartMessage={t("public.auth.googleUnableToStart")}
+        >
+          {t("public.auth.register.google")}
+        </GoogleAuthButton>
 
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-sm uppercase">
-          <span className="bg-card px-2 text-muted-foreground">{t("public.auth.or")}</span>
-        </div>
-      </div>
+        <AuthDivider label={t("public.auth.or")} />
 
-      <RegisterForm nextPath={nextPath} locale={locale} />
+        <RegisterForm nextPath={nextPath} locale={locale} />
+      </AuthCard>
     </div>
   );
 }
