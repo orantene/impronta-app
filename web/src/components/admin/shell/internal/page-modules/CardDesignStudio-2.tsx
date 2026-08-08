@@ -190,7 +190,6 @@ export {
 export {
   RosterBadgePreviewCard,
   PublishCluster,
-  CardLivePreview,
   DesignLookSection,
   CardDesignPreviewColumn,
   CardSurfaceTabStrip,

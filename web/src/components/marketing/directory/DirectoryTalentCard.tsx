@@ -1,10 +1,14 @@
 "use client";
 
+import { useRef } from "react";
+
 import { TalentCard } from "@/components/talent-cards/TalentCard";
+import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import {
   cardDesignToCssVars,
   DEFAULT_CARD_DESIGN,
   familyToTalentCardStyle,
+  resolveCardShow,
 } from "@/lib/site-admin/server/card-design-shape";
 import type { DirectoryCardRow } from "./shared";
 import { toCanonicalCardData } from "./shared";
@@ -46,6 +50,7 @@ export function DirectoryTalentCard({
   priority?: boolean;
   index?: number;
 }) {
+  const mediaRef = useRef<HTMLDivElement>(null);
   const design = talent.design ?? DEFAULT_CARD_DESIGN;
   const data = toCanonicalCardData(talent);
   // The tenant's explicit Card Design layout defaults win; the family only
@@ -69,30 +74,69 @@ export function DirectoryTalentCard({
         }
       : undefined;
 
+  // Card Design action CEILINGS: "off" hides the control tenant-wide. Unset
+  // (the default) leaves both on — matching the admin's Directory-surface
+  // promise ("Clients can save a favorite and start an inquiry").
+  const showFavorite = design.showFavorite !== "off";
+  const showInquire = design.showInquiry !== "off";
+
   return (
     <div
+      ref={mediaRef}
       style={cssVars}
       data-token-template-directory-card-family={design.family}
       data-card-design-scope=""
       data-directory-card
+      className="group/cardwrap relative"
       onClickCapture={handleClickCapture}
     >
       <TalentCard
         data={data}
         style={style}
-        show={{
-          showName: true,
-          showTalentType: true,
-          showLocation: true,
-          showAvailability: true,
-          showBadges: true,
-        }}
+        show={resolveCardShow(design)}
         nameFallback="first_name"
         aspect={aspect}
         density={density}
         priority={priority}
         index={style === "editorial" ? index : undefined}
       />
+      {/* Favorite heart + hover-revealed Inquire pill — the same canonical
+          cluster DirectoryCardAdapter mounts on the storefront directory.
+          Both hooks are guest-capable, and the actions render null until the
+          discovery-state provider hydrates, so this stays safe on any surface
+          that omits the provider. */}
+      {showFavorite || showInquire ? (
+        <div className="absolute right-2.5 top-2.5 z-[2] flex items-center gap-2">
+          {showInquire ? (
+            <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/cardwrap:pointer-events-auto group-hover/cardwrap:translate-x-0 group-hover/cardwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
+              <TalentCardActions
+                talentProfileId={talent.id}
+                profileCode={talent.profileCode ?? ""}
+                displayName={data.name}
+                sourcePage="/directory"
+                variant="pill"
+                hideFavorite
+                portraitUrl={talent.headshotUrl ?? null}
+                getInquiryPhotoRect={() =>
+                  mediaRef.current
+                    ?.querySelector("img")
+                    ?.getBoundingClientRect() ?? null
+                }
+              />
+            </div>
+          ) : null}
+          {showFavorite ? (
+            <TalentCardActions
+              talentProfileId={talent.id}
+              profileCode={talent.profileCode ?? ""}
+              displayName={data.name}
+              sourcePage="/directory"
+              variant="compact"
+              hideInquiry
+            />
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

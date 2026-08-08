@@ -209,6 +209,17 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   // directory section merges these ceilings into showSave/showAddToInquiry.
   "directory.card.show-favorite": "data-token-card-favorite",
   "directory.card.show-inquiry": "data-token-card-inquiry",
+  // The per-line show/hide tier. These are consumed server-side (the card
+  // resolves them via `resolveCardShow`), but every agency-configurable token
+  // must also project — a data-attr keeps the contract and lets a card kit
+  // restyle around a hidden line without re-deriving the value.
+  "directory.card.show-name": "data-token-card-name",
+  "directory.card.show-talent-type": "data-token-card-talent-type",
+  "directory.card.show-location": "data-token-card-location",
+  "directory.card.show-attributes": "data-token-card-attributes",
+  "directory.card.show-availability": "data-token-card-availability",
+  "directory.card.show-badges": "data-token-card-badges",
+  "directory.card.show-rating": "data-token-card-rating",
   "directory.card.specialty-chips-max": "data-token-card-chips-max",
   "directory.card.show-standing": "data-token-card-standing",
   "directory.card.standing-style": "data-token-card-standing-style",

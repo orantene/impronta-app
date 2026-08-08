@@ -1,5 +1,6 @@
 /**
- * claim-outcome — map the `claim_talent_profile` RPC verdict to user-facing copy.
+ * claim-outcome — map the `claim_talent_profile` RPC verdict to i18n catalog
+ * keys for the outcome screen's copy.
  *
  * The RPC returns a jsonb verdict rather than throwing, because almost every
  * failure here is a NORMAL situation a real person can hit (an expired link, a
@@ -8,8 +9,17 @@
  * happened and offer the next step, instead of dumping the person on an error
  * page after they just created an account.
  *
- * Pure + exhaustively switched so a new RPC reason can't silently fall through
- * to a blank screen.
+ * PURE: no `next/*`, no server translator, no literal English/Spanish strings.
+ * This module only knows catalog KEYS under `public.auth.claim.*` (mirroring
+ * the `registerCopyKeys` pattern in `lib/auth/register-intent.ts`) — the
+ * caller resolves them with its own translator and fills the `{agency}`
+ * placeholder that some bodies carry, exactly like `(auth)/register/page.tsx`
+ * does for `claimDescription`. That keeps this module exhaustively switched
+ * and unit-testable without a request, and keeps the outcome screen's copy
+ * localized instead of hard-coded English wrapped in localized chrome.
+ *
+ * Exhaustively switched so a new RPC reason can't silently fall through to a
+ * blank screen.
  */
 
 export type ClaimReason =
@@ -39,31 +49,32 @@ export type ClaimVerdict = {
 export type ClaimPresentation = {
   /** true → celebrate; false → explain. */
   success: boolean;
-  title: string;
-  body: string;
+  /** Catalog key under `public.auth.claim.*` for the headline. */
+  titleKey: string;
+  /**
+   * Catalog key under `public.auth.claim.*` for the body. Some bodies carry a
+   * `{agency}` placeholder — the caller fills it (real name, or the
+   * `public.auth.claim.agencyFallback` catalog string when unknown), the same
+   * way `(auth)/register/page.tsx` fills `claimDescription`.
+   */
+  bodyKey: string;
   /** Show the "go to my dashboard" CTA (only when they now own a profile). */
   showDashboard: boolean;
   /** Show "ask the agency to re-send" guidance. */
   showResendHint: boolean;
 };
 
-/**
- * @param agencyName display name of the inviting workspace, when known.
- */
-export function presentClaimOutcome(
-  verdict: ClaimVerdict,
-  agencyName?: string | null,
-): ClaimPresentation {
-  const who = agencyName?.trim() || "the agency";
+const C = "public.auth.claim";
 
+export function presentClaimOutcome(verdict: ClaimVerdict): ClaimPresentation {
   switch (verdict.reason) {
     case "claimed":
       return {
         success: true,
-        title: "Your profile is yours",
-        body: verdict.exclusive_confirmed
-          ? `You now control this profile. ${who} represents you exclusively and can keep managing your details and rates. You can review or end that from your dashboard whenever you want.`
-          : `You now control this profile. ${who} can still see you on their roster, and you decide what they manage.`,
+        titleKey: `${C}.claimedTitle`,
+        bodyKey: verdict.exclusive_confirmed
+          ? `${C}.claimedExclusiveBody`
+          : `${C}.claimedSharedBody`,
         showDashboard: true,
         showResendHint: false,
       };
@@ -72,8 +83,8 @@ export function presentClaimOutcome(
     case "already_redeemed_by_you":
       return {
         success: true,
-        title: "You already own this profile",
-        body: "Nothing more to do. This link was already used by your account.",
+        titleKey: `${C}.alreadyOwnTitle`,
+        bodyKey: `${C}.alreadyOwnBody`,
         showDashboard: true,
         showResendHint: false,
       };
@@ -81,8 +92,8 @@ export function presentClaimOutcome(
     case "invite_expired":
       return {
         success: false,
-        title: "This link has expired",
-        body: `Claim links are time-limited for your security. Ask ${who} to send a fresh one.`,
+        titleKey: `${C}.expiredTitle`,
+        bodyKey: `${C}.expiredBody`,
         showDashboard: false,
         showResendHint: true,
       };
@@ -90,8 +101,8 @@ export function presentClaimOutcome(
     case "invite_revoked":
       return {
         success: false,
-        title: "This link was cancelled",
-        body: `${who} cancelled this invite. Ask them to send a new one if you still want to claim your profile.`,
+        titleKey: `${C}.revokedTitle`,
+        bodyKey: `${C}.revokedBody`,
         showDashboard: false,
         showResendHint: true,
       };
@@ -99,8 +110,8 @@ export function presentClaimOutcome(
     case "email_mismatch":
       return {
         success: false,
-        title: "This link was sent to a different email",
-        body: "For your protection a claim link only works for the address it was sent to. Sign in with that address, or ask for an invite to the email you prefer.",
+        titleKey: `${C}.emailMismatchTitle`,
+        bodyKey: `${C}.emailMismatchBody`,
         showDashboard: false,
         showResendHint: true,
       };
@@ -109,8 +120,8 @@ export function presentClaimOutcome(
     case "profile_already_claimed":
       return {
         success: false,
-        title: "This profile has already been claimed",
-        body: `Someone has already taken ownership of it. If that wasn't you, contact ${who} — they can see who claimed it.`,
+        titleKey: `${C}.alreadyClaimedTitle`,
+        bodyKey: `${C}.alreadyClaimedBody`,
         showDashboard: false,
         showResendHint: false,
       };
@@ -118,8 +129,8 @@ export function presentClaimOutcome(
     case "claimer_has_profile":
       return {
         success: false,
-        title: "Your account already has a profile",
-        body: `An account can only hold one talent profile, so we didn't touch either of them. Contact ${who} and they can merge the two — nothing has been lost.`,
+        titleKey: `${C}.claimerHasProfileTitle`,
+        bodyKey: `${C}.claimerHasProfileBody`,
         showDashboard: true,
         showResendHint: false,
       };
@@ -128,8 +139,8 @@ export function presentClaimOutcome(
     case "profile_unavailable":
       return {
         success: false,
-        title: "We couldn't find that invite",
-        body: `The link may be incomplete. Ask ${who} to send it again.`,
+        titleKey: `${C}.notFoundTitle`,
+        bodyKey: `${C}.notFoundBody`,
         showDashboard: false,
         showResendHint: true,
       };
@@ -137,8 +148,8 @@ export function presentClaimOutcome(
     case "not_authenticated":
       return {
         success: false,
-        title: "Please sign in first",
-        body: "Sign in with the email your invite was sent to, and we'll finish claiming your profile.",
+        titleKey: `${C}.notAuthenticatedTitle`,
+        bodyKey: `${C}.notAuthenticatedBody`,
         showDashboard: false,
         showResendHint: false,
       };
@@ -146,8 +157,8 @@ export function presentClaimOutcome(
     default:
       return {
         success: false,
-        title: "Something went wrong",
-        body: `We couldn't finish claiming your profile. Ask ${who} to send a fresh invite.`,
+        titleKey: `${C}.unknownTitle`,
+        bodyKey: `${C}.unknownBody`,
         showDashboard: false,
         showResendHint: true,
       };

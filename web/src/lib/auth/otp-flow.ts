@@ -24,25 +24,42 @@ import type { RegisterIntent } from "./register-intent";
 
 /* ─────────────────────────── code normalization ─────────────────────────── */
 
-/** Supabase email OTP length. */
-export const OTP_CODE_LENGTH = 6;
+/**
+ * The emailed OTP length is PROJECT CONFIG, not a constant.
+ *
+ * B2 (2026-08-07): the live project (`pluhdapdnuiulvxmyspd`) is configured with
+ * `mailer_otp_length = 8`, and Supabase allows 6-10. This module used to hardcode
+ * 6 and `slice(0, 6)` every submitted code, which meant a real 8-digit emailed
+ * code was silently TRUNCATED to its first six digits before `verifyOtp` ever
+ * saw it — so the happy path failed 100% of the time with "that code did not
+ * work", no matter how carefully the visitor typed. Accept the whole range
+ * instead and let Supabase be the authority on whether the digits are right;
+ * that keeps the lane working whether the project is set to 6, 8 or 10.
+ */
+export const OTP_CODE_MIN_LENGTH = 6;
+export const OTP_CODE_MAX_LENGTH = 10;
 
 /**
- * Digits only, capped at {@link OTP_CODE_LENGTH}.
+ * Digits only, capped at {@link OTP_CODE_MAX_LENGTH}.
  *
- * People paste "123 456", "123-456" and the whole "Your code is 123456" line
+ * People paste "123 456", "123-456" and the whole "Your code is 12345678" line
  * out of the email. Stripping everything that is not a digit is the difference
  * between "it just worked" and a bogus "that code isn't right".
  */
 export function normalizeOtpCode(raw: unknown): string {
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (typeof value !== "string" && typeof value !== "number") return "";
-  return String(value).replace(/\D+/g, "").slice(0, OTP_CODE_LENGTH);
+  return String(value).replace(/\D+/g, "").slice(0, OTP_CODE_MAX_LENGTH);
 }
 
-/** True once the normalized code is exactly {@link OTP_CODE_LENGTH} digits. */
+/**
+ * True once the normalized code could be a real emailed code, i.e. between
+ * {@link OTP_CODE_MIN_LENGTH} and {@link OTP_CODE_MAX_LENGTH} digits. This is a
+ * cheap "don't waste a verify call on an obviously empty box" gate, NOT a
+ * correctness check — Supabase decides whether the code is valid.
+ */
 export function isCompleteOtpCode(code: string): boolean {
-  return new RegExp(`^\\d{${OTP_CODE_LENGTH}}$`).test(code);
+  return new RegExp(`^\\d{${OTP_CODE_MIN_LENGTH},${OTP_CODE_MAX_LENGTH}}$`).test(code);
 }
 
 /* ────────────────────────────── email input ─────────────────────────────── */

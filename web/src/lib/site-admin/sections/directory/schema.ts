@@ -105,14 +105,18 @@ export const directorySchemaV1 = z.object({
     .optional(),
   /** UNSET = follow `directory.card.aspect`. */
   cardAspect: z.enum(["4:5", "1:1", "3:4", "16:9"]).optional(),
-  showName: z.boolean().default(true),
+  /** UNSET = follow `directory.card.show-name`. */
+  showName: z.boolean().optional(),
   /** Used when showName=false (privacy verticals). */
   nameFallback: z
     .enum(["code", "role", "first_name", "hidden"])
     .default("first_name"),
-  showTalentType: z.boolean().default(true),
-  showLocation: z.boolean().default(true),
-  showAttributes: z.boolean().default(true),
+  /** UNSET = follow `directory.card.show-talent-type`. */
+  showTalentType: z.boolean().optional(),
+  /** UNSET = follow `directory.card.show-location`. */
+  showLocation: z.boolean().optional(),
+  /** UNSET = follow `directory.card.show-attributes`. */
+  showAttributes: z.boolean().optional(),
   /**
    * @deprecated NO-OP — nothing in the render path reads this. Rating only
    * appears inside the standing chip, which is governed tenant-wide by the
@@ -120,9 +124,12 @@ export const directorySchemaV1 = z.object({
    * Kept so existing published snapshots still parse; do not wire new UI to it.
    */
   showRating: z.boolean().default(false),
-  showPriceFrom: z.boolean().default(true),
-  showAvailability: z.boolean().default(true),
-  showBadges: z.boolean().default(true),
+  /** UNSET = follow `directory.card.show-starting-from-price`. */
+  showPriceFrom: z.boolean().optional(),
+  /** UNSET = follow `directory.card.show-availability`. */
+  showAvailability: z.boolean().optional(),
+  /** UNSET = follow `directory.card.show-badges`. */
+  showBadges: z.boolean().optional(),
   showSave: z.boolean().default(true),
   showAddToInquiry: z.boolean().default(true),
   /** Card eye affordance — media quick-view lightbox, no navigation. */

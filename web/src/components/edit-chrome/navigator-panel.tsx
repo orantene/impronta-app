@@ -82,6 +82,7 @@ import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/e
 
 import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
+import { useSectionHeadlines } from "./section-headline-bridge";
 import {
   useSelectedSectionId,
   useSelectedBuilderNodeId,
@@ -609,6 +610,11 @@ export function NavigatorPanel() {
   const [headingProbe, setHeadingProbe] = useState<
     Record<string, string> | null
   >(null);
+  // WAVE2-2.3 — live per-section headlines, published by EditProvider when a
+  // section's props are persisted. Commit-granularity, so this subscription
+  // does NOT put the navigator back on the per-keystroke re-render path wave 3
+  // took it off.
+  const liveSectionHeadlines = useSectionHeadlines();
   const headingProbeRequestKeyRef = useRef<string | null>(null);
   const flatSectionIds = useMemo(
     () => flat.map((r) => r.ref.sectionId),
@@ -657,6 +663,19 @@ export function NavigatorPanel() {
   // match. Sections without a headline (site_header, marquee, etc.) keep the
   // cleanSectionName fallback. The disambiguator runs AFTER resolution so
   // two sections with identical headlines still get "(2)" / "(3)".
+  //
+  // WAVE2-2.3 — `headingProbe` is a SNAPSHOT: it is fetched once per
+  // `${pageVersion}:${sectionIdSet}` and a text edit moves neither, so on its
+  // own it keeps rendering the headline as it was before the edit. Every
+  // headline reader below therefore goes through `resolvedHeadlineFor`, which
+  // prefers the live per-section override the editor publishes on commit
+  // (section-headline-bridge) and falls back to the probe for sections this
+  // session has not touched.
+  const resolvedHeadlineFor = useCallback(
+    (sectionId: string): string | null =>
+      liveSectionHeadlines.get(sectionId) ?? headingProbe?.[sectionId] ?? null,
+    [liveSectionHeadlines, headingProbe],
+  );
   const displayNameById = useMemo(() => {
     const counts = new Map<string, number>();
     const labels = new Map<string, string>();
@@ -664,14 +683,14 @@ export function NavigatorPanel() {
       const base = sectionDisplayName({
         typeKey: row.ref.sectionTypeKey,
         rawName: row.ref.name,
-        headline: headingProbe?.[row.ref.sectionId] ?? null,
+        headline: resolvedHeadlineFor(row.ref.sectionId),
       });
       const seen = counts.get(base) ?? 0;
       counts.set(base, seen + 1);
       labels.set(row.ref.sectionId, seen === 0 ? base : `${base} (${seen + 1})`);
     }
     return labels;
-  }, [flat, headingProbe]);
+  }, [flat, resolvedHeadlineFor]);
   const newestNavigatorAddition = recentNavigatorAdditions[0] ?? null;
   useEffect(() => {
     if (!newestNavigatorAddition) return;
@@ -817,7 +836,7 @@ export function NavigatorPanel() {
     // skeleton in outline mode while the probe catches up or as a hard
     // fallback when the probe never resolves.
     const propBased = flat.map((r) => {
-      const probeText = headingProbe?.[r.ref.sectionId] ?? "";
+      const probeText = resolvedHeadlineFor(r.ref.sectionId) ?? "";
       const fallback = probeText || displayNameById.get(r.ref.sectionId) || "";
       return {
         sectionId: r.ref.sectionId,
@@ -830,7 +849,7 @@ export function NavigatorPanel() {
       };
     });
     return buildHeadingOutline(propBased);
-  }, [flat, headingProbe, displayNameById]);
+  }, [flat, resolvedHeadlineFor, displayNameById]);
 
   /** Freeform pages have no composition slots — walk builderTree instead. */
   const freeformOutlineNodes = useMemo<HeadingNode[]>(() => {
@@ -861,15 +880,17 @@ export function NavigatorPanel() {
     }));
     if (headingProbe) {
       // Props-aware: feed the loaded headline back in via a synthetic
-      // SectionLike payload that buildHeadingOutline can consume.
-      const propBased = flatLite.map((s) => ({
-        ...s,
-        props: { headline: headingProbe[s.sectionId] ?? "", eyebrow: headingProbe[s.sectionId] ?? "" },
-      }));
+      // SectionLike payload that buildHeadingOutline can consume. Reads through
+      // `resolvedHeadlineFor` so an edited-but-unprobed section lints against
+      // the copy on screen, not the copy it had when the probe last ran.
+      const propBased = flatLite.map((s) => {
+        const headline = resolvedHeadlineFor(s.sectionId) ?? "";
+        return { ...s, props: { headline, eyebrow: headline } };
+      });
       return lintHeadingOutline(buildHeadingOutline(propBased));
     }
     return lintHeadingOutline(buildStructuralHeadingOutline(flatLite));
-  }, [flat, headingProbe]);
+  }, [flat, headingProbe, resolvedHeadlineFor]);
 
   // A11Y-3 — freeform builder-tree a11y lint (heading-outline skips +
   // images missing alt). Surfaced advisory-only at the edit point for

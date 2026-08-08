@@ -5,13 +5,20 @@
  *
  * Two steps, one card:
  *   1. email  →  "Email me a sign-in code"   (requestEmailCode)
- *   2. code   →  6 digits + "Continue"       (submitEmailCode)
+ *   2. code   →  the emailed digits + "Continue" (submitEmailCode)
+ *
+ * B2 (2026-08-07) — the code really is in the email: the Supabase Send Email
+ * Hook is ENABLED and points at /api/hooks/auth-email, which renders
+ * `email_data.token` into the magiclink + signup templates. So the code box is
+ * legitimately the primary affordance here. The DIGIT COUNT is project config
+ * (`mailer_otp_length`, currently 8), which is why no copy on this screen
+ * promises a specific number of digits.
  *
  * The same email also carries the sign-in LINK, which the existing
  * /auth/confirm + /auth/callback routes already handle, so a booker who opens
- * their mail on another device just taps the link and is done. The code exists
- * for the person who stayed on this tab (and for the future mobile app, which
- * cannot receive a web redirect).
+ * their mail on another device just taps the link and is done. The code screen
+ * names that link as the alternative in `codeHint`, so the way out is visible
+ * even when a verify error has cleared the "code sent" notice.
  *
  * The password fields are NOT removed: `passwordFallback` is rendered in place
  * of this whole flow the moment the visitor picks "use a password instead", and
@@ -35,7 +42,7 @@ import {
   AuthNotice,
   AuthSubmitButton,
 } from "@/components/auth/auth-ui";
-import { OTP_CODE_LENGTH } from "@/lib/auth/otp-flow";
+import { OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { createTranslator } from "@/i18n/messages";
 
 /** The error line for a state, if it carries one (the `sent` state never does). */
@@ -177,8 +184,10 @@ export function EmailCodeForm({
               // the whole point of the screen (and saves a tap on mobile).
               autoFocus
               required
-              maxLength={OTP_CODE_LENGTH + 2}
-              placeholder="123456"
+              // The emailed length is project config (6-10 digits), so the box
+              // takes the widest code Supabase can issue and does not advertise
+              // a digit count it cannot guarantee. See lib/auth/otp-flow.ts.
+              maxLength={OTP_CODE_MAX_LENGTH}
               className={AUTH_INPUT_CLASS}
               style={{ ...AUTH_INPUT_STYLE, letterSpacing: "0.35em" }}
             />

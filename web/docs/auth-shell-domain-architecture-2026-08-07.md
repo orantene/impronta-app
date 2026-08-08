@@ -327,12 +327,15 @@ of `origin/main` **and** contains the commit under test — that turns the
 
 ### B. Genuine gaps carried forward (not regressions)
 
-- **B1** — P4's happy path (a real emailed 6-digit code → session → post-auth
+- **B1** — P4's happy path (a real emailed code → session → post-auth
   destination, including the guest-claim relink) has never been executed. Only
-  the send / resend / reject-bad-code branches were.
-- **B2** — Whether the code is visible in the email depends on the Supabase
-  Send Email Hook (`SEND_EMAIL_HOOK_SECRET`) being enabled for the project.
-  Still unconfirmed. If it is off, only the link lane works.
+  the send / resend / reject-bad-code branches were. **It could not have
+  passed** before the fix in *B2 resolved* below: the form truncated the emailed
+  code. Still owner-only to close (it needs a real inbox); the 5-step script is
+  in that subsection.
+- **B2** — **RESOLVED 2026-08-08.** The hook IS enabled and the code IS in the
+  email. See *B2 resolved* below for the evidence and for the truncation defect
+  it uncovered.
 - **B3** — Auth OTP rate limiting uses `lib/rate-limit.ts`, which is
   per-serverless-instance and resets on cold start. `deploy:smoke` confirms the
   cross-instance Upstash limiter (`lib/rate-limit-kv.ts`) IS provisioned in
@@ -357,6 +360,71 @@ of `origin/main` **and** contains the commit under test — that turns the
   `CONFLICTING`. Its entire body is *this file*, which #1062 brought onto
   `main`. It should be closed rather than merged, or `main` and the PR will
   diverge into two copies of the same document.
+
+### B2 resolved (2026-08-08) — the code IS in the email, and the form was truncating it
+
+**Answer: YES.** A visitor who requests a sign-in code today receives an email
+that contains both the sign-in link **and** the numeric code. Four independent
+checks, all read-only:
+
+1. **Project config (Supabase Management API,
+   `GET /v1/projects/pluhdapdnuiulvxmyspd/config/auth`):**
+   `hook_send_email_enabled = true`,
+   `hook_send_email_uri = https://app.tulala.digital/api/hooks/auth-email`,
+   `hook_send_email_secrets` present (64 chars). No SMTP is configured
+   (`smtp_host = null`), so the hook is not a fallback: it is the only path auth
+   mail can take. The dashboard's own `mailer_templates_*` are therefore dead
+   code for these actions, and nothing about `{{ .Token }}` in them matters.
+2. **The secret is live in production.** `POST https://app.tulala.digital/api/hooks/auth-email`
+   with an unsigned body returns **401 `{"error":{"http_code":401,"message":"Invalid signature"}}`**.
+   That route returns **503 `Auth email hook not configured`** when
+   `SEND_EMAIL_HOOK_SECRET` is unset, so 401 proves the env var is set in the
+   Vercel production environment.
+3. **The route renders the code.** `web/src/app/api/hooks/auth-email/route.ts`
+   passes `email_data.token` into `renderTemplate`, which forwards it as `code`
+   to `emails/auth/MagicLink.tsx` and `emails/auth/SignupConfirm.tsx`; both render
+   it under `codeLabel` ("Or type this code where you asked for it:"). This
+   shipped in **#1061 itself** (`caed735df`), so it is live wherever #1061 is.
+   Password reset and email change stay link-only by design.
+4. **The chain has actually delivered mail.** `notification_dispatch_log` holds
+   two `auth.recovery` rows with `status = sent` and a Resend
+   `provider_reference` (2026-06-15, EN and ES) — hook → route → Resend → log
+   end to end. Caveat: **those are the only `auth.*` rows in the table.** Zero in
+   the last 20 days, so nothing has exercised this path in ~2 months, and no
+   `auth.magiclink` / `auth.signup` row has ever been written.
+
+**Consequence: the code lane is the primary affordance and that is now honest.**
+No copy change was needed to demote it.
+
+**The defect this uncovered.** `mailer_otp_length = 8` on this project, but
+`lib/auth/otp-flow.ts` hardcoded `OTP_CODE_LENGTH = 6` and `normalizeOtpCode`
+did `.slice(0, 6)`. So an emailed `12345678` was truncated to `123456` before
+`verifyOtp` ever saw it — the happy path failed **100% of the time** with "That
+code did not work. Check the digits, or send a new code," and resending could
+never help. A unit test even enshrined it
+(`assert.equal(normalizeOtpCode("12345678"), "123456")`). Fixed: the module now
+accepts the whole range Supabase can be configured to issue (6-10 digits), the
+input's `maxLength` is 10, and no string on the screen promises a digit count
+(`codeLabel` is "Code from your email", not "6-digit code") in EN or ES. The
+`codeHint` now also names the emailed link as the alternative, so the way out
+stays visible after a failed verify clears the "code sent" notice.
+
+**Owner-only, 2 minutes, closes B1.** Not doable by an agent: it needs a real
+inbox and a real session.
+
+1. Open a private window on **`https://improntamodels.com/register?as=client`**
+   (any host in `agency_domains` works; use one you can read mail for).
+2. Enter an address you control and press **"Email me a sign-in code"**.
+3. In the email, confirm you see the button *and* a numeric code, and **count the
+   digits** — expected 8.
+4. Type that code into the box on the still-open tab and press **Continue**.
+5. Report: (a) how many digits the code had, (b) whether Continue signed you in
+   and where it landed, (c) the exact error text if it did not. Then check
+   `/platform/admin/email` for a new `auth.magiclink` or `auth.signup` row.
+
+Optional owner config change (not required by the fix, and deliberately **not**
+made by an agent): Supabase → Authentication → Emails → OTP length. Setting it to
+6 would match the original copy, but the code now works at any setting.
 
 ### C. Phase-report claims this audit found to be wrong
 

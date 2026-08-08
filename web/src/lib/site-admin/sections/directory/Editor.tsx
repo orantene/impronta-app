@@ -659,10 +659,10 @@ export function DirectoryEditor({
           />
           <FieldToggle
             label={t("Show name")}
-            checked={p.showName}
+            checked={p.showName ?? true}
             onChange={(v) => set("showName", v)}
           />
-          {!p.showName ? (
+          {p.showName === false ? (
             <FieldSelect
               label={t("When name is hidden, show…")}
               value={p.nameFallback}
@@ -679,17 +679,17 @@ export function DirectoryEditor({
           ) : null}
           <FieldToggle
             label={t("Show talent type")}
-            checked={p.showTalentType}
+            checked={p.showTalentType ?? true}
             onChange={(v) => set("showTalentType", v)}
           />
           <FieldToggle
             label={t("Show location")}
-            checked={p.showLocation}
+            checked={p.showLocation ?? true}
             onChange={(v) => set("showLocation", v)}
           />
           <FieldToggle
             label={t("Show attributes")}
-            checked={p.showAttributes}
+            checked={p.showAttributes ?? true}
             onChange={(v) => set("showAttributes", v)}
           />
           {/* Show rating is intentionally NOT listed (data not published to
@@ -697,17 +697,17 @@ export function DirectoryEditor({
               shipped with the offerings-backed "From $X" chip. */}
           <FieldToggle
             label={t("Show starting price")}
-            checked={p.showPriceFrom}
+            checked={p.showPriceFrom ?? true}
             onChange={(v) => set("showPriceFrom", v)}
           />
           <FieldToggle
             label={t("Show availability")}
-            checked={p.showAvailability}
+            checked={p.showAvailability ?? true}
             onChange={(v) => set("showAvailability", v)}
           />
           <FieldToggle
             label={t("Show ownership badge")}
-            checked={p.showBadges}
+            checked={p.showBadges ?? true}
             onChange={(v) => set("showBadges", v)}
           />
           <FieldToggle

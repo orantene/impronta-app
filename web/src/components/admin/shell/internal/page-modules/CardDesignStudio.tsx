@@ -216,6 +216,15 @@ export function CardDesignStudio() {
           : {}),
         showSave: draft["directory.card.show-favorite"] !== "off",
         showAddToInquiry: draft["directory.card.show-inquiry"] !== "off",
+        showName: draft["directory.card.show-name"] !== "off",
+        showTalentType: draft["directory.card.show-talent-type"] !== "off",
+        showLocation: draft["directory.card.show-location"] !== "off",
+        showAttributes: draft["directory.card.show-attributes"] !== "off",
+        showAvailability: draft["directory.card.show-availability"] !== "off",
+        showBadges: draft["directory.card.show-badges"] !== "off",
+        showRating: draft["directory.card.show-rating"] === "on",
+        showPriceFrom:
+          draft["directory.card.show-starting-from-price"] !== "off",
       }));
       const draftIcon = draft["favorite.icon"];
       if (draftIcon === "heart" || draftIcon === "bookmark") {
@@ -307,6 +316,15 @@ export function CardDesignStudio() {
       });
     },
     [canEdit, toast, t, saveDesignDraft],
+  );
+
+  /** Line-visibility toggle → preview state AND the persisted tenant default. */
+  const setLineDefault = useCallback(
+    (key: keyof CardAppearance, tokenKey: string, on: boolean) => {
+      patchAppearance(key, on as never);
+      if (canEdit) setTemplateToken(tokenKey, on ? "on" : "off");
+    },
+    [patchAppearance, canEdit, setTemplateToken],
   );
 
   /** Layout knob → preview state AND the persisted tenant-wide default. */
@@ -658,6 +676,7 @@ export function CardDesignStudio() {
             appearance={appearance}
             patchAppearance={patchAppearance}
             setLayoutDefault={setLayoutDefault}
+            setLineDefault={setLineDefault}
             readTemplateToken={readTemplateToken}
             setTemplateToken={setTemplateToken}
           />

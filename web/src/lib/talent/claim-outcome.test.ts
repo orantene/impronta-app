@@ -3,19 +3,25 @@
  *
  * The claim screen is the first thing a real talent sees after signing up, so
  * every RPC verdict must produce copy that (a) says what happened and (b)
- * offers a next step. These tests pin that: no reason may fall through to a
- * blank body, and the two CTAs must only appear when they make sense.
+ * offers a next step. presentClaimOutcome itself is pure and only returns
+ * catalog KEYS under `public.auth.claim.*` (mirroring registerCopyKeys in
+ * lib/auth/register-intent.ts) — the page resolves them with its translator
+ * and fills the `{agency}` placeholder. So these tests pin two things:
+ *
+ * 1. The key mapping: no reason may map to an empty/missing key, and the two
+ *    CTAs must only appear when they make sense.
+ * 2. The catalog content those keys resolve to, in BOTH messages/en.json and
+ *    messages/es.json (the register-intent.test.ts pattern) — a Spanish
+ *    talent must never see English wrapped in Spanish chrome.
  *
  * Run: npx tsx --test src/lib/talent/claim-outcome.test.ts
  */
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  presentClaimOutcome,
-  type ClaimReason,
-  type ClaimVerdict,
-} from "./claim-outcome";
+import { presentClaimOutcome, type ClaimReason } from "./claim-outcome";
+import en from "../../../messages/en.json";
+import es from "../../../messages/es.json";
 
 const ALL_REASONS: ClaimReason[] = [
   "claimed",
@@ -32,18 +38,44 @@ const ALL_REASONS: ClaimReason[] = [
   "claimer_has_profile",
 ];
 
-test("every reason yields non-empty title + body", () => {
+/* ─────────────────────── catalog lookup helpers ─────────────────────── */
+
+function lookup(catalog: unknown, key: string): unknown {
+  let node: unknown = catalog;
+  for (const part of key.split(".")) {
+    if (typeof node !== "object" || node === null) return undefined;
+    node = (node as Record<string, unknown>)[part];
+  }
+  return node;
+}
+
+const CATALOGS = [
+  ["en", en],
+  ["es", es],
+] as const;
+
+/** Resolve a key against a catalog and fill {agency}, mirroring the page. */
+function resolve(catalog: unknown, key: string, agency: string): string {
+  const value = lookup(catalog, key);
+  assert.equal(typeof value, "string", `missing catalog string at ${key}`);
+  return (value as string).replace("{agency}", agency);
+}
+
+/* ───────────────────────── key-mapping behaviour ─────────────────────── */
+
+test("every reason yields non-empty titleKey + bodyKey", () => {
   for (const reason of ALL_REASONS) {
     const p = presentClaimOutcome({ ok: reason === "claimed", reason });
-    assert.ok(p.title.length > 0, `${reason} has no title`);
-    assert.ok(p.body.length > 0, `${reason} has no body`);
+    assert.ok(p.titleKey.length > 0, `${reason} has no titleKey`);
+    assert.ok(p.bodyKey.length > 0, `${reason} has no bodyKey`);
   }
 });
 
-test("an unknown reason still explains itself instead of rendering blank", () => {
+test("an unknown reason still maps to an explanatory key instead of nothing", () => {
   const p = presentClaimOutcome({ ok: false, reason: "some_future_reason" });
   assert.equal(p.success, false);
-  assert.ok(p.title.length > 0 && p.body.length > 0);
+  assert.equal(p.titleKey, "public.auth.claim.unknownTitle");
+  assert.equal(p.bodyKey, "public.auth.claim.unknownBody");
   assert.equal(p.showResendHint, true);
 });
 
@@ -58,53 +90,164 @@ test("only the genuinely-owning outcomes are success", () => {
   ]);
 });
 
-test("exclusive claim explains the agency keeps managing, and how to exit", () => {
-  const v: ClaimVerdict = {
+test("exclusive vs non-exclusive claim map to different body keys, same title", () => {
+  const exclusive = presentClaimOutcome({
     ok: true,
     reason: "claimed",
     exclusive_confirmed: true,
-  };
-  const p = presentClaimOutcome(v, "Impronta Models");
-  assert.match(p.body, /Impronta Models/);
-  assert.match(p.body, /exclusively/i);
-  // The "visible exit" the owner asked for must be stated, not implied.
-  assert.match(p.body, /end that|whenever you want/i);
-  assert.equal(p.showDashboard, true);
+  });
+  const shared = presentClaimOutcome({
+    ok: true,
+    reason: "claimed",
+    exclusive_confirmed: false,
+  });
+  assert.equal(exclusive.titleKey, shared.titleKey);
+  assert.equal(exclusive.bodyKey, "public.auth.claim.claimedExclusiveBody");
+  assert.equal(shared.bodyKey, "public.auth.claim.claimedSharedBody");
+  assert.equal(exclusive.showDashboard, true);
 });
 
-test("non-exclusive claim does NOT claim the agency manages them", () => {
-  const p = presentClaimOutcome(
-    { ok: true, reason: "claimed", exclusive_confirmed: false },
-    "Free Studio",
-  );
-  assert.doesNotMatch(p.body, /exclusively/i);
-  assert.match(p.body, /you decide/i);
-});
-
-test("email mismatch never leaks who the invite was addressed to", () => {
-  const p = presentClaimOutcome(
-    { ok: false, reason: "email_mismatch" },
-    "Impronta Models",
-  );
-  // Copy must not echo an address — the person holding the link may not be
-  // the intended recipient.
-  assert.doesNotMatch(p.body, /@/);
-  assert.equal(p.showDashboard, false);
-});
-
-test("duplicate-profile refusal reassures nothing was destroyed", () => {
+test("duplicate-profile refusal still shows the dashboard CTA (they still have a profile)", () => {
   const p = presentClaimOutcome({
     ok: false,
     reason: "claimer_has_profile",
     existing_profile_id: "abc",
   });
-  assert.match(p.body, /nothing has been lost/i);
-  // They DO still have a profile to go to, so the dashboard CTA stays.
+  assert.equal(p.bodyKey, "public.auth.claim.claimerHasProfileBody");
   assert.equal(p.showDashboard, true);
 });
 
-test("agency name falls back to a neutral phrase when unknown", () => {
-  const p = presentClaimOutcome({ ok: false, reason: "invite_expired" }, null);
-  assert.match(p.body, /the agency/);
-  assert.doesNotMatch(p.body, /null|undefined/);
+test("shared reasons map invite_not_found/profile_unavailable to the same copy", () => {
+  const a = presentClaimOutcome({ ok: false, reason: "invite_not_found" });
+  const b = presentClaimOutcome({ ok: false, reason: "profile_unavailable" });
+  assert.equal(a.titleKey, b.titleKey);
+  assert.equal(a.bodyKey, b.bodyKey);
 });
+
+test("shared reasons map invite_already_redeemed/profile_already_claimed to the same copy", () => {
+  const a = presentClaimOutcome({ ok: false, reason: "invite_already_redeemed" });
+  const b = presentClaimOutcome({ ok: false, reason: "profile_already_claimed" });
+  assert.equal(a.titleKey, b.titleKey);
+  assert.equal(a.bodyKey, b.bodyKey);
+});
+
+/* ─────────────── every key resolves in both message catalogs ────────── */
+
+test("every reason's titleKey and bodyKey resolve in both en.json and es.json", () => {
+  for (const reason of ALL_REASONS) {
+    for (const exclusive of [true, false]) {
+      const p = presentClaimOutcome({
+        ok: reason === "claimed",
+        reason,
+        exclusive_confirmed: exclusive,
+      });
+      for (const [locale, catalog] of CATALOGS) {
+        for (const [slot, key] of [
+          ["titleKey", p.titleKey],
+          ["bodyKey", p.bodyKey],
+        ] as const) {
+          const value = lookup(catalog, key);
+          assert.equal(
+            typeof value,
+            "string",
+            `${locale}.json is missing ${key} (${reason}.${slot})`,
+          );
+          assert.ok(
+            (value as string).trim().length > 0,
+            `${locale}.json has an empty ${key}`,
+          );
+        }
+      }
+    }
+  }
+});
+
+test("the unknown-reason fallback keys resolve in both en.json and es.json", () => {
+  const p = presentClaimOutcome({ ok: false, reason: "totally_unmapped" });
+  for (const [locale, catalog] of CATALOGS) {
+    assert.equal(typeof lookup(catalog, p.titleKey), "string", locale);
+    assert.equal(typeof lookup(catalog, p.bodyKey), "string", locale);
+  }
+});
+
+/* ─────────────────────── resolved-copy behaviour (EN + ES) ───────────── */
+
+for (const [locale, catalog] of CATALOGS) {
+  test(`[${locale}] exclusive claim explains the agency keeps managing, and how to exit`, () => {
+    const p = presentClaimOutcome({
+      ok: true,
+      reason: "claimed",
+      exclusive_confirmed: true,
+    });
+    const body = resolve(catalog, p.bodyKey, "Impronta Models");
+    assert.match(body, /Impronta Models/);
+    // Localized "exclusively"/"en exclusiva" — checked per-locale below.
+    if (locale === "en") assert.match(body, /exclusively/i);
+    if (locale === "es") assert.match(body, /exclusiva/i);
+    assert.equal(p.showDashboard, true);
+  });
+
+  test(`[${locale}] non-exclusive claim does NOT claim the agency manages them`, () => {
+    const p = presentClaimOutcome({
+      ok: true,
+      reason: "claimed",
+      exclusive_confirmed: false,
+    });
+    const body = resolve(catalog, p.bodyKey, "Free Studio");
+    if (locale === "en") {
+      assert.doesNotMatch(body, /exclusively/i);
+      assert.match(body, /you decide/i);
+    }
+    if (locale === "es") {
+      assert.doesNotMatch(body, /exclusiva/i);
+      assert.match(body, /tú decides/i);
+    }
+  });
+
+  test(`[${locale}] email mismatch never leaks who the invite was addressed to`, () => {
+    const p = presentClaimOutcome({ ok: false, reason: "email_mismatch" });
+    // Copy must not echo an address — the person holding the link may not be
+    // the intended recipient. This body never even carries {agency}.
+    const body = resolve(catalog, p.bodyKey, "Impronta Models");
+    assert.doesNotMatch(body, /@/);
+    assert.equal(p.showDashboard, false);
+  });
+
+  test(`[${locale}] duplicate-profile refusal reassures nothing was destroyed`, () => {
+    const p = presentClaimOutcome({
+      ok: false,
+      reason: "claimer_has_profile",
+      existing_profile_id: "abc",
+    });
+    const body = resolve(catalog, p.bodyKey, "Impronta Models");
+    if (locale === "en") assert.match(body, /nothing has been lost/i);
+    if (locale === "es") assert.match(body, /no se ha perdido nada/i);
+    assert.equal(p.showDashboard, true);
+  });
+
+  test(`[${locale}] the agency-name fallback is a neutral, localized phrase`, () => {
+    const fallback = lookup(catalog, "public.auth.claim.agencyFallback");
+    assert.equal(typeof fallback, "string");
+    assert.ok((fallback as string).trim().length > 0);
+    if (locale === "en") assert.equal(fallback, "the agency");
+    if (locale === "es") assert.equal(fallback, "la agencia");
+
+    const p = presentClaimOutcome({ ok: false, reason: "invite_expired" });
+    const body = resolve(catalog, p.bodyKey, fallback as string);
+    assert.doesNotMatch(body, /null|undefined/);
+    if (locale === "en") assert.match(body, /the agency/);
+    if (locale === "es") assert.match(body, /la agencia/);
+  });
+
+  test(`[${locale}] no em dashes in claim outcome copy`, () => {
+    const claimNamespace = lookup(catalog, "public.auth.claim") as Record<
+      string,
+      unknown
+    >;
+    for (const [key, value] of Object.entries(claimNamespace)) {
+      if (typeof value === "string") {
+        assert.doesNotMatch(value, /—/, `${locale}.json public.auth.claim.${key} has an em dash`);
+      }
+    }
+  });
+}
