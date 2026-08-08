@@ -304,3 +304,30 @@ export const CANVAS_FLOATING_BAR = {
    */
   leftReserve: 232,
 } as const;
+
+/**
+ * Geometry for the nested-blocks popover that stacks above the zoom bar on the
+ * bottom left. `homeInset` is only its PREFERRED gutter: the panel measures the
+ * left command dock (and any open dock panel) and slides clear of them, so a
+ * change to the dock's width can never push it back underneath (WAVE2-2.2).
+ */
+export const CANVAS_CHILDREN_PANEL = {
+  /** Distance from the viewport bottom — sits directly above the zoom bar. */
+  bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
+  /** Preferred width; shrinks toward `minWidth` when space is tight. */
+  width: 332,
+  /** Below this the row labels stop being readable, so we never go narrower. */
+  minWidth: 260,
+  /** Open-panel height cap (the row list scrolls inside it). */
+  maxHeight: 208,
+  /** Collapsed-pill height. */
+  pillHeight: 34,
+  /** Preferred left gutter when nothing is in the way. */
+  homeInset: 14,
+  /** Breathing room between the panel and whatever chrome it clears. */
+  gap: 12,
+  /** Right-edge gutter the panel keeps when it slides right. */
+  rightGutter: 16,
+  /** Below this viewport width the panel is not rendered at all. */
+  minViewportWidth: 520,
+} as const;
