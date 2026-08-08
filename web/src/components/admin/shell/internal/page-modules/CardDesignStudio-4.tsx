@@ -291,7 +291,6 @@ export function CardDesignPreviewColumn({
               surface={activeSurface}
               appearance={appearance}
               favoriteIcon={favoriteIcon}
-              fieldChips={fieldChips}
               draft={draftTokens}
             />
           </div>
