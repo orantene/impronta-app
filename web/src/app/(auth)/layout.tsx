@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { getSiteUrl } from "@/lib/auth-flow";
 import { getPublicHostContext } from "@/lib/saas";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
-import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { loadPublicPageBySlug } from "@/lib/site-admin/server/pages-reads";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
@@ -24,6 +26,126 @@ import {
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
+
+/** What the layout needs beyond the brand object itself. */
+type AuthShellResolution = {
+  brand: AuthShellBrand;
+  /** Resolved "Contact" target — see {@link resolveContactHref}. */
+  contactHref: string;
+};
+
+/**
+ * A brand accent we are willing to interpolate into a CSS gradient: 3- or
+ * 6-digit hex only. Anything else (a token name, a `var()`, a function call, an
+ * operator-typed string) resolves to `null` so nothing untrusted reaches the
+ * style attribute and no malformed value can collapse the gradient.
+ */
+function normalizeHexAccent(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim();
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value) ? value : null;
+}
+
+/**
+ * The tenant's brand accent, for the whitelabel brand panel's gradient.
+ *
+ * Reads through `loadPublicBranding` — the existing cached, `branding`-tagged
+ * PUBLIC projection — so this adds no new query and no new table access. Two
+ * sources, in the order the rest of the product uses them:
+ *   1. `agency_branding.accent_color`, the column the admin-chrome whitelabel
+ *      accent (`--tulala-accent`, PR #880) reads.
+ *   2. `theme_json["color.accent"]`, the storefront theme-cascade token. This
+ *      is the one that is actually populated for the live whitelabel tenant
+ *      (Impronta: `#d4af37`), so skipping it would have shipped a "tinted"
+ *      gradient that is never tinted.
+ * `null` on any failure → the panel keeps its neutral gradient.
+ */
+async function resolveTenantAccent(tenantId: string): Promise<string | null> {
+  const branding = await loadPublicBranding(tenantId).catch(() => null);
+  if (!branding) return null;
+  const themeJson = (branding.theme_json ?? {}) as Record<string, unknown>;
+  return (
+    normalizeHexAccent(branding.accent_color) ??
+    normalizeHexAccent(themeJson["color.accent"])
+  );
+}
+
+/**
+ * ─────────────────────────── B7 RULING (2026-08-07) ───────────────────────────
+ *
+ * On a whitelabel host (improntamodels.com) the auth footer's three links used
+ * to ALL point at https://tulala.digital/…, which reads as a brand leak. The
+ * ruling splits them, and the split is intentional:
+ *
+ *   Terms + Privacy STAY on the platform host, on every host, forever.
+ *     The account being created or signed into is a Tulala platform account and
+ *     the agreement that binds the user is Tulala's, not the agency's. Pointing
+ *     these at a tenant URL would misrepresent whose terms apply — a legal
+ *     misstatement, which is strictly worse than a visible brand seam. If a
+ *     future agency wants its own client terms, that is a SEPARATE link, added
+ *     alongside these, never a replacement for them.
+ *
+ *   Contact becomes HOST-AWARE.
+ *     A talent or client who reaches for "Contact" from improntamodels.com/login
+ *     wants the AGENCY that represents them or that they are booking through.
+ *     Tulala platform support is the wrong destination and the wrong brand. So
+ *     on a whitelabel AGENCY host we point Contact at the tenant's own contact
+ *     surface, and fall back to the platform only when the tenant has none.
+ *
+ * Do not collapse these back into one rule.
+ * ──────────────────────────────────────────────────────────────────────────────
+ *
+ * Resolution order on a whitelabel agency host:
+ *   1. The tenant's published `/contact` CMS page, in the CURRENT locale.
+ *      `/contact` on an agency host is a CMS clean-URL: `proxy.ts` rewrites any
+ *      single-segment path that is not in the agency allow-list to `/p/<slug>`,
+ *      and the catch-all 404s when that slug is not PUBLISHED for that locale.
+ *      So the published page must be confirmed BEFORE linking, or we ship a
+ *      dead link — exactly the failure the platform-side `/contact` link had
+ *      (which is why the platform target is `/about`). Host-local relative URL,
+ *      never cross-host: D1 keeps auth host-local.
+ *   2. `agency_business_identity.contact_email` as a `mailto:` — still the
+ *      agency, not the platform. NOTE: no tenant has this column set today, so
+ *      this rung is unexercised in production as shipped.
+ *   3. The platform contact surface, `${getSiteUrl()}/about`.
+ *
+ * Gated to `kind === "agency"`: the CMS clean-URL rewrite in `proxy.ts` is
+ * agency-hosts-only, so `/contact` on a HUB host would 404.
+ */
+async function resolveContactHref(params: {
+  isTenant: boolean;
+  hostKind: string;
+  tenantId: string;
+  locale: string;
+  contactEmail: string | null;
+}): Promise<string> {
+  const platformContact = `${getSiteUrl()}/about`;
+  if (!params.isTenant || params.hostKind !== "agency") return platformContact;
+
+  const contactPage = await loadPublicPageBySlug(
+    params.tenantId,
+    params.locale,
+    "contact",
+  ).catch(() => null);
+  if (contactPage) {
+    // Non-default locales are served under a `/<locale>` prefix on the tenant's
+    // own host (same rule as `withLocalePath`), so a Spanish visitor must get
+    // `/es/contact`. Linking the bare path from `/es/login` would bounce
+    // through the proxy's locale canonicalization instead of landing directly.
+    const localeSettings = await loadTenantLocaleSettings(params.tenantId).catch(
+      () => null,
+    );
+    const tenantDefaultLocale = localeSettings?.defaultLocale ?? "en";
+    return params.locale && params.locale !== tenantDefaultLocale
+      ? `/${params.locale}/contact`
+      : "/contact";
+  }
+
+  const email = params.contactEmail?.trim();
+  if (email && email.includes("@")) return `mailto:${email}`;
+
+  return platformContact;
+}
 
 /**
  * Auth Shell v2 — see `auth-shell-chrome.tsx` for the layout contract and
@@ -50,7 +172,7 @@ export const metadata: Metadata = {
 async function resolveAuthBrand(
   locale: string,
   t: ReturnType<typeof createTranslator>,
-): Promise<AuthShellBrand> {
+): Promise<AuthShellResolution> {
   const copy = getMarketingCopy(locale);
   const ctx = await getPublicHostContext();
 
@@ -66,40 +188,72 @@ async function resolveAuthBrand(
       // arrives here from a fully-branded email and storefront; a text-only
       // header read as "some other site" (owner feedback, 2026-08-06 claim-flow
       // QA). Null → letterspaced wordmark fallback.
-      const logoUrl = await resolveShellBrandLogoUrl({
-        tenantId: ctx.tenantId,
-      }).catch(() => null);
+      const [logoUrl, accent, contactHref] = await Promise.all([
+        resolveShellBrandLogoUrl({ tenantId: ctx.tenantId }).catch(() => null),
+        resolveTenantAccent(ctx.tenantId).catch(() => null),
+        resolveContactHref({
+          isTenant: true,
+          hostKind: ctx.kind,
+          tenantId: ctx.tenantId,
+          locale,
+          contactEmail: identity?.contact_email ?? null,
+        }).catch(() => `${getSiteUrl()}/about`),
+      ]);
       const tagline =
         identity?.tagline?.trim() || identity?.footer_tagline?.trim() || null;
       return {
-        label,
-        isTenant: true,
-        logoUrl,
-        tagline,
-        // The agency's own tagline rides the lockup (panel eyebrow + footer);
-        // the heading stays a neutral member-access line that is true for
-        // talent AND clients, both of whom sign in here. Using the tagline as
-        // the heading printed it twice on the panel.
-        panelHeading: t("public.auth.shell.tenantHeading"),
-        panelLead: t("public.auth.shell.tenantLead").replace("{brand}", label),
-        // No proof chips on a tenant brand: we do not make claims on an
-        // agency's behalf.
-        proofChips: [],
-        backLabel: t("public.auth.shell.back").replace("{site}", label),
+        brand: {
+          label,
+          isTenant: true,
+          logoUrl,
+          accent,
+          tagline,
+          // The agency's own tagline rides the lockup (panel eyebrow + footer);
+          // the heading stays a neutral member-access line that is true for
+          // talent AND clients, both of whom sign in here. Using the tagline as
+          // the heading printed it twice on the panel.
+          panelHeading: t("public.auth.shell.tenantHeading"),
+          panelLead: t("public.auth.shell.tenantLead").replace("{brand}", label),
+          // Account-level facts, NOT agency claims — see `panelPoints` on
+          // `AuthShellBrand`. Every line here is true of the Tulala account the
+          // visitor is signing into, for talent and clients alike, so nothing
+          // is asserted on the agency's behalf. They exist because the panel
+          // was otherwise half empty (B5).
+          panelPoints: [
+            t("public.auth.shell.tenantPoints.roles"),
+            t("public.auth.shell.tenantPoints.thread"),
+            t("public.auth.shell.tenantPoints.secure"),
+          ],
+          // Still no proof chips on a tenant brand: the mobile top bar stays a
+          // compact lockup, and we do not make claims on an agency's behalf.
+          proofChips: [],
+          backLabel: t("public.auth.shell.back").replace("{site}", label),
+        },
+        contactHref,
       };
     }
   }
 
   return {
-    label: PLATFORM_BRAND.name,
-    isTenant: false,
-    logoUrl: null,
-    tagline: copy.brand.descriptor,
-    panelHeading: copy.hero.titleLine1,
-    panelLead: copy.footer.description,
-    // The exact three chips the marketing hero shows, from the same copy keys.
-    proofChips: copy.hero.trust,
-    backLabel: t("public.auth.shell.back").replace("{site}", PLATFORM_BRAND.name),
+    brand: {
+      label: PLATFORM_BRAND.name,
+      isTenant: false,
+      logoUrl: null,
+      // Platform gradient is the marketing hero's; it takes no tenant accent.
+      accent: null,
+      tagline: copy.brand.descriptor,
+      panelHeading: copy.hero.titleLine1,
+      panelLead: copy.footer.description,
+      // The exact three chips the marketing hero shows, from the same copy keys,
+      // in BOTH slots: panel bullets and mobile top bar (unchanged behaviour).
+      panelPoints: copy.hero.trust,
+      proofChips: copy.hero.trust,
+      backLabel: t("public.auth.shell.back").replace(
+        "{site}",
+        PLATFORM_BRAND.name,
+      ),
+    },
+    contactHref: `${getSiteUrl()}/about`,
   };
 }
 
@@ -114,7 +268,7 @@ export default async function AuthLayout({
     headers(),
   ]);
   const t = createTranslator(locale);
-  const brand = await resolveAuthBrand(locale, t);
+  const { brand, contactHref } = await resolveAuthBrand(locale, t);
 
   // For agency/hub hosts: use the tenant's locale settings.
   // For platform/marketing hosts: `loadTenantLocaleSettings("")` returns the
@@ -159,6 +313,7 @@ export default async function AuthLayout({
               privacy: t("public.auth.shell.privacy"),
               contact: t("public.auth.shell.contact"),
             }}
+            contactHref={contactHref}
             languageToggle={
               <AuthLanguageToggle
                 activeLocale={locale}
