@@ -1719,7 +1719,10 @@ export async function TalentProfileView({
   const portalInquiryHref =
     hostCtx.kind === "agency"
       ? prefixPublicHref(
-          `/client/register?intent=inquiry&next=${encodeURIComponent(portalInquiryNext)}`,
+          // P2: `/client/register` still resolves (permanent 308 into
+          // `/register?as=client`), but point the live CTA at the canonical page
+          // so the visitor does not pay for the extra hop.
+          `/register?as=client&intent=inquiry&next=${encodeURIComponent(portalInquiryNext)}`,
           publicPathPrefix,
         )
       : null;

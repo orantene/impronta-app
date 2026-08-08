@@ -38,9 +38,15 @@ import {
   type TalentModalCopy,
 } from "./talent-register-modal-copy";
 import {
+  AuthDivider,
+  AuthFieldShell,
+  AuthGoogleButtonSurface,
+  AuthNotice,
+  AuthSubmitButton,
+} from "@/components/auth/auth-ui";
+import {
   ArrowGlyph,
   CloseGlyph,
-  GoogleGlyph,
   MailGlyph,
   Spinner,
   TrustTick,
@@ -517,37 +523,11 @@ function ModalForm({
       <GoogleButton next={next} t={t} />
 
       {/* OR */}
-      <div className="flex items-center gap-3 py-1">
-        <div
-          className="h-px flex-1"
-          style={{ background: "var(--plt-hairline)" }}
-        />
-        <span
-          className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.22em]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {t.orEmail}
-        </span>
-        <div
-          className="h-px flex-1"
-          style={{ background: "var(--plt-hairline)" }}
-        />
-      </div>
+      <AuthDivider label={t.orEmail} className="py-1" />
 
-      {state?.error ? (
-        <p
-          className="rounded-xl px-3 py-2 text-[0.8125rem]"
-          style={{
-            background: "rgba(180, 35, 24, 0.08)",
-            color: "#9b1c14",
-            border: "1px solid rgba(180, 35, 24, 0.18)",
-          }}
-        >
-          {state.error}
-        </p>
-      ) : null}
+      {state?.error ? <AuthNotice tone="error">{state.error}</AuthNotice> : null}
 
-      <FieldShell label={t.email}>
+      <AuthFieldShell label={t.email}>
         <input
           type="email"
           name="email"
@@ -557,9 +537,9 @@ function ModalForm({
           className="w-full bg-transparent text-[0.9375rem] leading-none outline-none placeholder:text-[var(--plt-muted-soft)]"
           style={{ color: "var(--plt-ink)" }}
         />
-      </FieldShell>
+      </AuthFieldShell>
 
-      <FieldShell label={t.password} hint={t.passwordHint}>
+      <AuthFieldShell label={t.password} hint={t.passwordHint}>
         <input
           type="password"
           name="password"
@@ -570,21 +550,9 @@ function ModalForm({
           className="w-full bg-transparent text-[0.9375rem] leading-none outline-none placeholder:text-[var(--plt-muted-soft)]"
           style={{ color: "var(--plt-ink)" }}
         />
-      </FieldShell>
+      </AuthFieldShell>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="group relative mt-1 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,transform,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-80"
-        style={{
-          background: "var(--plt-forest)",
-          color: "var(--plt-forest-on)",
-          boxShadow: "var(--plt-shadow-forest)",
-        }}
-      >
-        <span>{pending ? t.creating : t.createCta}</span>
-        {!pending ? <ArrowGlyph /> : <Spinner />}
-      </button>
+      <AuthSubmitButton pending={pending} idle={t.createCta} busy={t.creating} />
     </form>
   );
 }
@@ -655,34 +623,13 @@ function GoogleButton({ next, t }: { next: string; t: TalentModalCopy }) {
   }
 
   return (
-    <div className="space-y-2">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full px-5 py-3 text-[0.9375rem] font-medium leading-none tracking-[-0.005em] transition-[background,border-color,box-shadow] duration-200 disabled:cursor-wait disabled:opacity-70"
-        style={{
-          background: "var(--plt-bg-raised)",
-          border: "1px solid var(--plt-hairline-strong)",
-          color: "var(--plt-ink)",
-        }}
-      >
-        {pending ? <Spinner /> : <GoogleGlyph />}
-        <span>{pending ? t.googleOpening : t.google}</span>
-      </button>
-      {error ? (
-        <p
-          className="rounded-xl px-3 py-2 text-[0.75rem]"
-          style={{
-            background: "rgba(180, 35, 24, 0.08)",
-            color: "#9b1c14",
-            border: "1px solid rgba(180, 35, 24, 0.18)",
-          }}
-        >
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <AuthGoogleButtonSurface
+      pending={pending}
+      label={t.google}
+      pendingLabel={t.googleOpening}
+      error={error}
+      onClick={handleClick}
+    />
   );
 }
 
@@ -733,45 +680,5 @@ function ConfirmationView({
         Got it
       </button>
     </div>
-  );
-}
-
-/* ───────────────────────── Field shell ───────────────────────── */
-
-function FieldShell({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span
-        className="plt-mono mb-1.5 block text-[0.6875rem] font-semibold uppercase tracking-[0.16em]"
-        style={{ color: "var(--plt-muted)" }}
-      >
-        {label}
-      </span>
-      <div
-        className="flex h-12 items-center rounded-2xl px-4 transition-[border-color,box-shadow] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--plt-forest)_18%,transparent)]"
-        style={{
-          background: "var(--plt-bg)",
-          border: "1px solid var(--plt-hairline-strong)",
-        }}
-      >
-        {children}
-      </div>
-      {hint ? (
-        <span
-          className="mt-1 block text-[0.6875rem]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {hint}
-        </span>
-      ) : null}
-    </label>
   );
 }

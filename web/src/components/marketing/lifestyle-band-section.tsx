@@ -22,7 +22,9 @@ const SLIDES = [
     photo: MARKETING_PHOTOS.servicePros,
     primary: {
       label: "Sell your services",
-      href: `${getAppUrl()}/talent/register?next=/talent/profile/fields`,
+      // P2: `/talent/register` still works (permanent 308 into here) but a live
+      // CTA should not pay for the extra hop.
+      href: `${getAppUrl()}/register?as=talent&next=/talent/profile/fields`,
       intent: "sell-services",
     },
     secondary: {
