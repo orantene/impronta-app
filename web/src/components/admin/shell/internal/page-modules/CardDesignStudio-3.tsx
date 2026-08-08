@@ -183,13 +183,11 @@ export function PreviewCard({
   surface,
   appearance,
   favoriteIcon,
-  fieldChips,
   draft,
 }: {
   surface: CardSurface;
   appearance: CardAppearance;
   favoriteIcon: "heart" | "bookmark";
-  fieldChips: string[];
   /** Working design draft — card token vars + family, so this demo paints
    *  EXACTLY like the live card (same component, same tokens). */
   draft?: Record<string, string>;
@@ -238,7 +236,7 @@ export function PreviewCard({
       data-card-design-scope=""
       style={{ width: 260, maxWidth: "100%", ...previewVars }}
     >
-      <div style={{ position: "relative" }}>
+      <div className="group/previewwrap" style={{ position: "relative" }}>
         {/* THE canonical <TalentCard> — the exact component every live surface
             renders — driven by the admin's layout knobs. No bespoke replica:
             what this preview shows is what the directory ships. */}
@@ -277,6 +275,10 @@ export function PreviewCard({
             }}
           >
             {showInquiry ? (
+              /* Hover-revealed, exactly like the live cluster: at rest the
+                 card shows only the favorite; the inquire pill fades in on
+                 hover/focus (and stays visible on touch devices). */
+              <div className="pointer-events-none translate-x-1 opacity-0 transition-all duration-200 focus-within:pointer-events-auto focus-within:translate-x-0 focus-within:opacity-100 group-hover/previewwrap:pointer-events-auto group-hover/previewwrap:translate-x-0 group-hover/previewwrap:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-x-0 [@media(hover:none)]:opacity-100">
               <button
                 type="button"
                 onClick={() => setDemoInquiry((v) => !v)}
@@ -284,13 +286,13 @@ export function PreviewCard({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 5,
-                  height: 28,
-                  padding: "0 10px",
+                  height: 32,
+                  padding: "0 12px",
                   borderRadius: 999,
                   border: "1px solid rgba(255,255,255,0.35)",
                   background: demoInquiry
                     ? "rgba(200,160,74,0.92)"
-                    : "rgba(0,0,0,0.45)",
+                    : "rgba(0,0,0,0.64)",
                   color: demoInquiry ? "#1c1710" : "#fff",
                   fontSize: 11,
                   fontWeight: 600,
@@ -310,6 +312,7 @@ export function PreviewCard({
                   ? t("dashboard.adminCardStudio2.previewAdded")
                   : t("dashboard.adminCardStudio2.previewInquire")}
               </button>
+              </div>
             ) : null}
             {showFavorite ? (
               <button
@@ -320,11 +323,11 @@ export function PreviewCard({
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
                   borderRadius: 999,
                   border: "1px solid rgba(255,255,255,0.35)",
-                  background: "rgba(0,0,0,0.45)",
+                  background: "rgba(0,0,0,0.64)",
                   color: "#fff",
                   backdropFilter: "blur(6px)",
                   cursor: "pointer",
@@ -342,29 +345,6 @@ export function PreviewCard({
         ) : null}
       </div>
 
-      {/* Engine field chips — mirrors the adapter's trait row BELOW the card
-          (the canonical card itself carries no chip row). */}
-      {appearance.showAttributes && fieldChips.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
-          {fieldChips.map((chip) => (
-            <span
-              key={chip}
-              data-card-chip
-              style={{
-                fontSize: 10.5,
-                fontWeight: 500,
-                color: COLORS.inkMuted,
-                background: COLORS.surfaceAlt,
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 999,
-                padding: "3px 8px",
-              }}
-            >
-              {chip}
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       {appearance.showRating ? (
         <div
@@ -465,9 +445,9 @@ export const CARD_PREVIEW_SAMPLE: DirectoryCardData = {
     "https://images.unsplash.com/photo-1492288991661-058aa541ff43?auto=format&fit=crop&w=900&q=80",
   agencyName: "Casa Noir",
   isExclusive: true,
-  availabilityLabel: "Available this month",
+  availabilityLabel: "Open 28 of next 30 days",
   availabilityKnown: true,
-  availableDaysInNext30: 12,
+  availableDaysInNext30: 28,
   // Sample price so the "Price chip" color knob has visible feedback in the
   // live preview (the chip renders only when a priceFromLabel is present).
   priceFromLabel: "From $850 / day",
