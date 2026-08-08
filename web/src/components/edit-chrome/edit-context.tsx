@@ -791,10 +791,20 @@ export function EditProvider({
   const BUILDER_SAVE_DEBOUNCE_MS = 750;
   const pendingTreeRef = useRef<BuilderNodeTree | null>(null);
   const builderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // How many optimistic builderTree history entries have been pushed since the
-  // last successful (or attempted) coalesced flush. On flush failure we pop this
-  // many so undo depth matches the reverted (last-confirmed) tree.
-  const pendingHistoryCountRef = useRef(0);
+  // Wave 3 (3.5) — history stacks as they stood when the CURRENT coalesced burst
+  // began (i.e. the state that matches `lastConfirmedTreeRef`, the tree a failed
+  // flush rolls back to). On flush failure we restore both stacks wholesale so
+  // undo depth matches the reverted tree.
+  //
+  // This replaces the older "pop N pushed entries" counter. A counter could only
+  // model a burst of forward EDITS (which only ever push onto `past`). Since 3.5
+  // an undo/redo replay also joins the coalesced burst — it POPS one stack and
+  // PUSHES the other — so the correct rollback is the pre-burst pair, not a
+  // count. Capturing the two array refs is O(1): the stacks are immutable.
+  const pendingHistoryRollbackRef = useRef<{
+    past: HistoryEntry[];
+    future: HistoryEntry[];
+  } | null>(null);
   // Last tree the SERVER has confirmed (or the tree at load). Because a burst
   // applies several optimistic local trees before a single coalesced save, the
   // correct rollback target on save failure is this last-confirmed tree, NOT the
@@ -1657,6 +1667,9 @@ export function EditProvider({
       builderSaveTimerRef.current = null;
     }
     pendingTreeRef.current = null;
+    // Wave 3 (3.5) — the discarded burst's rollback point is meaningless against
+    // this fresh authoritative state; a later flush must not restore it.
+    pendingHistoryRollbackRef.current = null;
     const normalizedSlots = normalizeCompositionSlots(data.slots);
     pageVersionRef.current = data.pageVersion;
     pageMetadataRef.current = data.metadata;
@@ -3052,7 +3065,7 @@ export function EditProvider({
       builderSaveTimerRef.current = null;
     }
     pendingTreeRef.current = null;
-    pendingHistoryCountRef.current = 0;
+    pendingHistoryRollbackRef.current = null;
     clearMutationError();
     await refreshComposition({ undoResetReason: "conflict" });
     setDirty(false);
@@ -3078,8 +3091,8 @@ export function EditProvider({
     }
     pendingTreeRef.current = null;
     const rollbackTarget = lastConfirmedTreeRef.current;
-    const burstHistoryCount = pendingHistoryCountRef.current;
-    pendingHistoryCountRef.current = 0;
+    const historyRollback = pendingHistoryRollbackRef.current;
+    pendingHistoryRollbackRef.current = null;
 
     // Supersede the previous in-flight save's AWAIT. Because saves are
     // serialized through `builderTreeSaveQueueRef` and CAS-versioned, aborting
@@ -3125,9 +3138,16 @@ export function EditProvider({
       // because the reverted history still differs from the server is moot —
       // we revert local tree to last-confirmed too).
       if (result && !result.ok) {
-        // Roll back every optimistic history entry queued during this burst.
-        if (burstHistoryCount > 0) {
-          setPast((p) => p.slice(0, -burstHistoryCount));
+        // Roll the history stacks back to where the burst started, matching the
+        // last-confirmed tree persistBuilderTree just restored. Wave 3 (3.5):
+        // restoring BOTH stacks (rather than popping N `past` entries) is what
+        // makes a failed coalesced UNDO burst honest — those undos pushed onto
+        // `future` as well as popping `past`.
+        if (historyRollback) {
+          setPast(historyRollback.past);
+          setFuture(historyRollback.future);
+          pastRef.current = historyRollback.past;
+          futureRef.current = historyRollback.future;
         }
       }
       // No more pending work → clear dirty (a later edit re-sets it).
@@ -3145,6 +3165,44 @@ export function EditProvider({
   useEffect(() => {
     flushBuilderTreeSaveRef.current = flushBuilderTreeSave;
   }, [flushBuilderTreeSave]);
+
+  // Wave 3 (3.5) — open a coalesced burst. Called BEFORE the caller mutates the
+  // history stacks, so the captured pair is the state a failed flush rolls back
+  // to. Only the FIRST caller of a burst captures; every later edit/undo in the
+  // same burst rolls back to the same pre-burst point (which is also what
+  // `lastConfirmedTreeRef` holds).
+  const beginPendingHistoryBurst = useCallback(() => {
+    if (pendingHistoryRollbackRef.current !== null) return;
+    pendingHistoryRollbackRef.current = {
+      past: pastRef.current,
+      future: futureRef.current,
+    };
+  }, []);
+
+  // Wave 3 (3.5) — THE single coalescing entry point for builder-tree persists.
+  //
+  // Applies `nextTree` to the canvas optimistically and RIGHT NOW (so the paint
+  // never waits on the network), then parks it as the tree owed to the server
+  // and re-arms the debounce. A burst of mutations - typing, slider drags, or a
+  // held ⌘Z - therefore produces exactly ONE server round-trip for the final
+  // tree, instead of one per step.
+  //
+  // Undo used to bypass this: it awaited `persistBuilderTree` directly, so N
+  // rapid undos serialized N round-trips (and, via the `saving` gate, only the
+  // last queued ⌘Z survived each one). Routing it here is the 3.5 fix.
+  const queueBuilderTreePersist = useCallback((nextTree: BuilderNodeTree) => {
+    builderTreeRef.current = nextTree;
+    setBuilderTree(nextTree);
+    pendingTreeRef.current = nextTree;
+    setDirty(true);
+    if (builderSaveTimerRef.current !== null) {
+      clearTimeout(builderSaveTimerRef.current);
+    }
+    builderSaveTimerRef.current = setTimeout(() => {
+      builderSaveTimerRef.current = null;
+      void flushBuilderTreeSaveRef.current();
+    }, BUILDER_SAVE_DEBOUNCE_MS);
+  }, []);
 
   const commitBuilderTreeMutation = useCallback(
     async (nextTree: BuilderNodeTree) => {
@@ -3169,6 +3227,11 @@ export function EditProvider({
       // publishes the new tree to the bridge (the publish effect deps on
       // `builderTree`), so the client canvas repaints REGULAR nodes instantly —
       // no network on the keystroke/commit.
+      //
+      // Wave 3 (3.5) — capture the pre-burst history pair BEFORE the push below,
+      // so a failed coalesced flush restores exactly the stacks that match the
+      // last-confirmed tree.
+      beginPendingHistoryBurst();
       builderTreeRef.current = nextTree;
       setBuilderTree(nextTree);
       // W3 Sub-step C — section_embed scoped reconcile. The client canvas can't
@@ -3217,22 +3280,21 @@ export function EditProvider({
       // Coalesce the SERVER persist: remember the latest tree and (re)arm the
       // debounce. Only the final tree of a burst is sent. `dirty` flags the
       // unsaved-changes guard so a tab close mid-debounce still prompts/flushes.
-      pendingTreeRef.current = nextTree;
-      pendingHistoryCountRef.current += 1;
-      setDirty(true);
-      if (builderSaveTimerRef.current !== null) {
-        clearTimeout(builderSaveTimerRef.current);
-      }
-      builderSaveTimerRef.current = setTimeout(() => {
-        builderSaveTimerRef.current = null;
-        void flushBuilderTreeSaveRef.current();
-      }, BUILDER_SAVE_DEBOUNCE_MS);
+      // (The optimistic `setBuilderTree` above already ran; queueing here is
+      // idempotent about that.)
+      queueBuilderTreePersist(nextTree);
       // Return optimistic success — the save is fire-and-forget from the
       // caller's perspective; failures surface via reportMutationError + a tree
       // rollback inside persistBuilderTree.
       return { ok: true as const };
     },
-    [capHistory, queueRouterRefresh, captureHistorySelection],
+    [
+      capHistory,
+      queueRouterRefresh,
+      captureHistorySelection,
+      beginPendingHistoryBurst,
+      queueBuilderTreePersist,
+    ],
   );
 
   const executeBuilderNodeOperation = useCallback(
@@ -4996,10 +5058,6 @@ export function EditProvider({
   );
 
   const undo = useCallback(async () => {
-    if (saving) {
-      historyPendingRef.current = "undo";
-      return;
-    }
     // CANVAS-7B — undo focus-routing. If an inline text editor is open (or a
     // blur-commit is still in flight), commit its pending text to node history
     // FIRST and await the push. This is the text-loss guarantee: the operator's
@@ -5024,6 +5082,53 @@ export function EditProvider({
     // ref is synced AFTER the flush await by the same effect that drives the
     // history bridge, so reading it post-flush sees the freshest stack.
     if (pastRef.current.length === 0) return;
+    const top = pastRef.current[pastRef.current.length - 1]!;
+
+    // ── Wave 3 (3.5) — COALESCED builder-tree undo ────────────────────────
+    // A `builderTree` undo is "make the tree equal `entry.pre`" and nothing
+    // else, so it can ride the exact same optimistic + debounced lane a normal
+    // edit rides. This whole branch is SYNCHRONOUS: the canvas repaints from
+    // `setBuilderTree` immediately and the server persist is coalesced, so a
+    // held ⌘Z walks the stack at UI speed and produces ONE round-trip for the
+    // tree it lands on rather than one per step.
+    //
+    // Three things make that safe, and all three are load-bearing:
+    //   1. The pending tree is SUPERSEDED, not flushed. Whatever was owed to the
+    //      server is exactly the state this undo is reverting, so sending it
+    //      first would be a wasted round-trip AND a wasted revision.
+    //   2. `pastRef`/`futureRef` are mirrored EAGERLY (like the CANVAS-7B push
+    //      in commitBuilderTreeMutation). Without the await, several undos can
+    //      run before React commits; reading `past` state would pop the same
+    //      entry N times.
+    //   3. `beginPendingHistoryBurst()` captures the pre-burst stacks so a
+    //      failed flush restores history and tree together.
+    // The `saving` gate is deliberately NOT consulted here: an in-flight save
+    // no longer blocks an undo, because the flush chains onto
+    // `builderTreeSaveQueueRef` and CAS-reconciles exactly like a keystroke
+    // landing mid-save already does.
+    if (top.kind === "builderTree") {
+      beginPendingHistoryBurst();
+      pastRef.current = pastRef.current.slice(0, -1);
+      futureRef.current = capHistory([...futureRef.current, top]);
+      setPast((p) => p.slice(0, -1));
+      setFuture((f) => capHistory([...f, top]));
+      replayingHistoryRef.current = true;
+      try {
+        queueBuilderTreePersist(top.pre);
+        restoreHistorySelection(top.selection);
+      } finally {
+        replayingHistoryRef.current = false;
+      }
+      return;
+    }
+
+    // ── Awaited lane: composition / sectionMeta / fieldEdit ───────────────
+    // These replay through slot actions rather than a tree swap, so they keep
+    // the original serialized behavior (and the `saving` queue-one-⌘Z gate).
+    if (saving) {
+      historyPendingRef.current = "undo";
+      return;
+    }
     // Commit any pending coalesced builder save first so its version bump lands
     // BEFORE this undo's own persist — preserves save-queue ordering + CAS.
     if (pendingTreeRef.current !== null) {
@@ -5100,13 +5205,12 @@ export function EditProvider({
     capHistory,
     captureHistorySelection,
     restoreHistorySelection,
+    // Wave 3 (3.5) — the coalesced builder-tree lane.
+    beginPendingHistoryBurst,
+    queueBuilderTreePersist,
   ]);
 
   const redo = useCallback(async () => {
-    if (saving) {
-      historyPendingRef.current = "redo";
-      return;
-    }
     // CANVAS-7B — mirror undo: flush any open inline text edit to node history
     // before redo reads the stack. A pending inline commit pushes to `past` and
     // CLEARS `future` (a new edit branches away from the redo path), so this
@@ -5120,6 +5224,29 @@ export function EditProvider({
     // WS2 (Step 3) — read the live `future` stack from the ref (mirror of `undo`)
     // so `redo` does not list `future` in its deps and stays stable across edits.
     if (futureRef.current.length === 0) return;
+    const top = futureRef.current[futureRef.current.length - 1]!;
+    // Wave 3 (3.5) — exact mirror of undo's coalesced builder-tree lane; see the
+    // block comment there for why superseding the pending tree is correct and
+    // why the eager ref mirror is mandatory once the await is gone.
+    if (top.kind === "builderTree") {
+      beginPendingHistoryBurst();
+      futureRef.current = futureRef.current.slice(0, -1);
+      pastRef.current = capHistory([...pastRef.current, top]);
+      setFuture((f) => f.slice(0, -1));
+      setPast((p) => capHistory([...p, top]));
+      replayingHistoryRef.current = true;
+      try {
+        queueBuilderTreePersist(top.post);
+        restoreHistorySelection(top.selection);
+      } finally {
+        replayingHistoryRef.current = false;
+      }
+      return;
+    }
+    if (saving) {
+      historyPendingRef.current = "redo";
+      return;
+    }
     // Commit any pending coalesced builder save first so its version bump lands
     // BEFORE this redo's own persist — preserves save-queue ordering + CAS.
     if (pendingTreeRef.current !== null) {
@@ -5193,6 +5320,9 @@ export function EditProvider({
     capHistory,
     captureHistorySelection,
     restoreHistorySelection,
+    // Wave 3 (3.5) — the coalesced builder-tree lane.
+    beginPendingHistoryBurst,
+    queueBuilderTreePersist,
   ]);
 
   // Flush a queued undo/redo once the in-flight save completes.
