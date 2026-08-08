@@ -180,6 +180,13 @@ export type LightProfileLayoutProps = {
   // ── Agency overlay ───────────────────────────────────────────────────────
   agencyName: string | null;
   agencyDisplayName: string | null;
+  /**
+   * Talent is EXCLUSIVELY represented by the hosting agency (primary roster
+   * row on an exclusive plan tier). Drives the quiet "Exclusively represented
+   * by X" line + its explainer. Optional so a caller that hasn't resolved it
+   * simply renders the plain "Represented by" copy.
+   */
+  isExclusive?: boolean;
 
   // ── Similar talent ───────────────────────────────────────────────────────
   /** Similar talent with href already computed via prefixPublicHref. */
@@ -331,6 +338,7 @@ export function LightProfileLayout({
   heroRating,
   agencyName,
   agencyDisplayName,
+  isExclusive = false,
   similarTalent,
   ui,
   t,
@@ -601,6 +609,8 @@ export function LightProfileLayout({
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <BookingCard
               agencyName={agencyDisplayName ?? agencyName}
+              isExclusive={isExclusive}
+              t={t}
               inquireButton={inquireButtonSidebar}
               shareMenu={shareMenuSidebar}
               discoveryCta={discoveryCta2}

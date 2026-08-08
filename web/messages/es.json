@@ -249,7 +249,11 @@
         "openInquiryCart": "Abrir tu lista",
         "browseMoreTalent": "Ver más talento",
         "contactImpronta": "Contactar a la agencia"
-      }
+      },
+      "exclusivelyRepresentedBy": "Representado en exclusiva por {agency}",
+      "exclusivityInfoAria": "¿Qué significa la representación en exclusiva?",
+      "exclusivityInfoBody": "Las reservas de este talento se gestionan a través de {agency}. Las consultas iniciadas en cualquier parte de Tulala se dirigen a ellos.",
+      "representedBy": "Representado por"
     },
     "reviews": {
       "sectionAria": "Reseñas de clientes",

@@ -56,6 +56,7 @@ import {
   heroRatingChipLabel,
   type LightProfileLayoutProps,
 } from "../_light/LightProfileLayout";
+import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
@@ -472,6 +473,15 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
               <span className="nf-chip nf-chip--gold">{labels.featured}</span>
             ) : null}
           </div>
+          {agency && props.isExclusive ? (
+            <ExclusiveRepresentationLine
+              agency={agency}
+              t={props.t}
+              className="mt-3 text-[11px] tracking-[0.02em]"
+              style={{ color: "rgba(236,228,211,0.6)" }}
+              tone="dark"
+            />
+          ) : null}
 
           {aboutText.trim() ? <p className="nf-bio">{aboutText}</p> : null}
 

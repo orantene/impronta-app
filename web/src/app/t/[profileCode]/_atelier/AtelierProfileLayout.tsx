@@ -47,6 +47,7 @@ import { TalentCardActions } from "@/components/talent-cards/talent-card-actions
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { buildAdaptiveThemeStyle } from "../_shared/profile-theme";
 import { heroRatingChipLabel, type LightProfileLayoutProps } from "../_light/LightProfileLayout";
+import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
 import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 
@@ -362,6 +363,7 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
   const nextNo = () => sectionNo(++secCounter);
 
   const chips = (
+    <>
     <div className="at-chips">
       {heroRating && meetsCredibilityFloor(heroRating.ratingCount) ? (
         <ReviewsAnchorLink className="at-chip at-chip--accent">
@@ -374,6 +376,21 @@ export function AtelierProfileLayout(props: LightProfileLayoutProps) {
       {travels ? <span className="at-chip">{labels.travels}</span> : null}
       {isFeatured ? <span className="at-chip at-chip--accent">{labels.featuredChip}</span> : null}
     </div>
+    {agency && props.isExclusive ? (
+      // Sits inside `chips` so it follows the hero into BOTH layouts (cover-led
+      // and split) without duplicating the conditional at each call site. The
+      // split hero left-aligns its chips, so inherit alignment rather than
+      // hard-centering here.
+      <div className="at-chips" style={{ marginTop: 12 }}>
+        <ExclusiveRepresentationLine
+          agency={agency}
+          t={props.t}
+          className="text-[10px] uppercase tracking-[0.16em]"
+          style={{ color: "var(--pp-muted)" }}
+        />
+      </div>
+    ) : null}
+    </>
   );
 
   const actions = (

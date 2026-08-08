@@ -11,8 +11,14 @@
 import { AvailabilityWidget } from "./AvailabilityWidget";
 import { Shield } from "lucide-react";
 
+import { ExclusiveRepresentationLine } from "../_shared/ExclusiveRepresentationLine";
+
 type BookingCardProps = {
   agencyName: string | null;
+  /** Talent is exclusive to this agency — swaps the label for the explained line. */
+  isExclusive?: boolean;
+  /** Translator — this is a server component with no `t` of its own. */
+  t: (key: string) => string;
   /** Slot: TalentProfileInquireButton */
   inquireButton: React.ReactNode;
   /** Slot: ShareProfileMenu */
@@ -26,6 +32,8 @@ type BookingCardProps = {
 
 export function BookingCard({
   agencyName,
+  isExclusive = false,
+  t,
   inquireButton,
   shareMenu,
   discoveryCta,
@@ -49,11 +57,20 @@ export function BookingCard({
             className="plt-mono text-[0.625rem] font-semibold uppercase tracking-[0.2em]"
             style={{ color: "var(--plt-muted-soft)" }}
           >
-            Represented by
+            {t("public.profile.representedBy")}
           </p>
           <p className="mt-1 text-sm font-medium" style={{ color: "var(--plt-ink)" }}>
             {agencyName}
           </p>
+          {isExclusive ? (
+            <ExclusiveRepresentationLine
+              agency={agencyName}
+              t={t}
+              className="mt-1.5 text-[0.6875rem] leading-relaxed"
+              style={{ color: "var(--plt-muted)" }}
+              iconClassName="opacity-60 transition-opacity hover:opacity-100"
+            />
+          ) : null}
         </div>
       ) : null}
 

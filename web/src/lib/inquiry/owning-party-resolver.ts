@@ -61,7 +61,13 @@ export type OwningParty = {
  * a talent. Free is intentionally excluded — Free workspaces are the
  * "friend link" tier with no commission and no exclusivity.
  */
-const EXCLUSIVE_PLAN_TIERS = new Set<string>(["studio", "agency", "network", "hub-network"]);
+/**
+ * Plan tiers on which a primary roster row means EXCLUSIVE representation.
+ * Exported so read-side surfaces (e.g. the public profile's "Exclusively
+ * represented by" line) share one definition instead of re-listing the tiers
+ * and silently drifting from the money path.
+ */
+export const EXCLUSIVE_PLAN_TIERS = new Set<string>(["studio", "agency", "network", "hub-network"]);
 
 /**
  * Roster exclusivity_status values that mean the talent is NOT (or no longer)
