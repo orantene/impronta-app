@@ -32,7 +32,8 @@ import {
   isValidAuthEmail,
   normalizeAuthEmail,
   normalizeOtpCode,
-  OTP_CODE_LENGTH,
+  OTP_CODE_MAX_LENGTH,
+  OTP_CODE_MIN_LENGTH,
   otpSendErrorKey,
   otpVerifyErrorKey,
   prefersPasswordlessFirst,
@@ -69,9 +70,15 @@ test("normalizeOtpCode keeps digits and drops everything else", () => {
   assert.equal(normalizeOtpCode(123456), "123456");
 });
 
-test("normalizeOtpCode caps at the OTP length instead of sending junk to Supabase", () => {
-  assert.equal(normalizeOtpCode("12345678"), "123456");
-  assert.equal(normalizeOtpCode("123456").length, OTP_CODE_LENGTH);
+test("normalizeOtpCode does NOT truncate a longer emailed code (B2 regression)", () => {
+  // The live project is configured with mailer_otp_length = 8. This used to
+  // slice to 6, so verifyOtp got "123456" for an emailed "12345678" and the
+  // happy path failed every single time with "that code did not work".
+  assert.equal(normalizeOtpCode("12345678"), "12345678");
+  assert.equal(normalizeOtpCode("1234 5678"), "12345678");
+  assert.equal(normalizeOtpCode("Your code is 12345678"), "12345678");
+  // Still capped, so pasted garbage never reaches Supabase unbounded.
+  assert.equal(normalizeOtpCode("1".repeat(40)).length, OTP_CODE_MAX_LENGTH);
 });
 
 test("normalizeOtpCode returns empty for anything unusable", () => {
@@ -80,10 +87,14 @@ test("normalizeOtpCode returns empty for anything unusable", () => {
   }
 });
 
-test("isCompleteOtpCode only accepts exactly six digits", () => {
-  assert.equal(isCompleteOtpCode("123456"), true);
+test("isCompleteOtpCode accepts every length Supabase can be configured to send", () => {
+  assert.equal(OTP_CODE_MIN_LENGTH, 6);
+  assert.equal(OTP_CODE_MAX_LENGTH, 10);
+  for (let n = OTP_CODE_MIN_LENGTH; n <= OTP_CODE_MAX_LENGTH; n += 1) {
+    assert.equal(isCompleteOtpCode("1".repeat(n)), true, `${n} digits must be accepted`);
+  }
   assert.equal(isCompleteOtpCode("12345"), false);
-  assert.equal(isCompleteOtpCode("1234567"), false);
+  assert.equal(isCompleteOtpCode("1".repeat(OTP_CODE_MAX_LENGTH + 1)), false);
   assert.equal(isCompleteOtpCode("12345a"), false);
   assert.equal(isCompleteOtpCode(""), false);
 });

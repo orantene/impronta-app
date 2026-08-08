@@ -11,9 +11,12 @@
  *
  * Nothing is invented: this is Supabase's built-in email OTP. The emailed
  * message carries BOTH a link (handled by the existing /auth/confirm and
- * /auth/callback routes) and a 6-digit code (typed into the form), so a booker
- * on their phone can finish in whichever way is in front of them, and a future
+ * /auth/callback routes) and the code (typed into the form), so a booker on
+ * their phone can finish in whichever way is in front of them, and a future
  * mobile app can use the code path against the same backend.
+ *
+ * Code LENGTH is project config (`mailer_otp_length`), not 6 — see the B2 note
+ * in lib/auth/otp-flow.ts. Never re-hardcode a digit count here.
  *
  * Conventions kept deliberately identical to the password actions
  * (`app/auth/actions.ts`): `next` is normalized, the post-auth destination goes
@@ -240,7 +243,7 @@ export async function submitEmailCode(
     };
   }
 
-  // Brute-force ceiling on guessing the 6-digit code: in-process floor first,
+  // Brute-force ceiling on guessing the emailed code: in-process floor first,
   // then the durable cross-instance window (checked before verifyOtp).
   if (!tryConsumeRateLimit(`auth-otp-verify:${email}`, VERIFY_PER_EMAIL, SEND_WINDOW_MS)) {
     return { step: "code", error: t("public.auth.passwordless.errors.tooMany"), email };
