@@ -144,7 +144,15 @@ export function PublishCluster({
  * back to the theme color (the inherit contract). This is the ONLY place gold
  * may appear in the studio (it's the public editorial card).
  */
-export function CardLivePreview({ draft }: { draft: Record<string, string> }) {
+export function CardLivePreview({
+  draft,
+  appearance,
+}: {
+  draft: Record<string, string>;
+  /** Layout knobs (style / aspect / density / show toggles). Optional so the
+   *  component stays drop-in; omitted = the pre-knob editorial defaults. */
+  appearance?: CardAppearance;
+}) {
   const previewVars: React.CSSProperties = {
     ...(isHex(draft["card.surface"] ?? "")
       ? { ["--token-card-surface" as string]: draft["card.surface"] }
@@ -181,17 +189,24 @@ export function CardLivePreview({ draft }: { draft: Record<string, string> }) {
     >
       <div style={{ width: 240, maxWidth: "100%", margin: "0 auto" }}>
         <TalentCard
-          data={CARD_PREVIEW_SAMPLE}
-          style="editorial"
+          data={{
+            ...CARD_PREVIEW_SAMPLE,
+            priceFromLabel:
+              !appearance || appearance.showPriceFrom
+                ? CARD_PREVIEW_SAMPLE.priceFromLabel
+                : undefined,
+          }}
+          style={appearance?.cardStyle ?? "editorial"}
           show={{
-            showName: true,
-            showTalentType: true,
-            showLocation: true,
-            showAvailability: true,
-            showBadges: true,
+            showName: appearance?.showName ?? true,
+            showTalentType: appearance?.showTalentType ?? true,
+            showLocation: appearance?.showLocation ?? true,
+            showAvailability: appearance?.showAvailability ?? true,
+            showBadges: appearance?.showBadges ?? true,
           }}
           nameFallback="role"
-          aspect="4:5"
+          aspect={appearance?.cardAspect ?? "4:5"}
+          density={appearance?.density ?? "comfortable"}
           priority
         />
       </div>
@@ -340,7 +355,7 @@ export function CardDesignPreviewColumn({
         </>
       ) : (
         <>
-          <CardLivePreview draft={draftTokens} />
+          <CardLivePreview draft={draftTokens} appearance={appearance} />
           <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
             {t("dashboard.adminCardStudio2.livePreviewHint")}
           </div>
@@ -354,6 +369,7 @@ export function CardDesignPreviewColumn({
               appearance={appearance}
               favoriteIcon={favoriteIcon}
               fieldChips={fieldChips}
+              draft={draftTokens}
             />
           </div>
           <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
