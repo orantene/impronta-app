@@ -1,21 +1,18 @@
-# CI-gated production pointer.
+# CI-gated production pointer. THIS IS THE LIVE RELEASE PATH.
 #
-# Today Vercel's production branch is `main`, and Vercel deploys every main
-# push in parallel with CI — a red gate cannot stop a bad deploy (see
-# main-red-alert.yml for the alarm that mitigates this).
+# Vercel's production branch is `production` (flipped from `main` on
+# 2026-08-04). This workflow is the only thing that advances that pointer: it
+# fast-forwards `production` to a `main` commit ONLY after the structural
+# quality gate succeeds on that exact commit. A red `main` therefore cannot
+# reach production at all — the pointer just stops advancing until main is
+# green again (main-red-alert.yml raises the alarm meanwhile).
 #
-# This workflow maintains a `production` branch that fast-forwards to main
-# ONLY after the structural quality gate succeeds on that exact commit. Once
-# the Vercel project's production branch is switched from `main` to
-# `production` (one settings change, documented in
-# web/docs/development-workflow.md → "CI-gated production"), a red main can no
-# longer reach production at all: the pointer simply stops advancing until
-# main is green again. Nothing about the developer workflow changes — everyone
-# still branches from and merges to main.
+# Nothing about the developer workflow changes: everyone still branches from
+# and merges to `main`. Merging does not deploy; the pointer advancing does.
+# Full flow in web/docs/development-workflow.md §4.
 #
-# Until that switch is made, this workflow is inert-but-observable: the
-# `production` branch advances with green CI and anyone can verify it tracks
-# only vetted commits.
+# The pointer only ever moves FORWARD, and only to commits that are ancestors
+# of origin/main — see the guards below. Never force-push it.
 
 name: Promote production pointer
 

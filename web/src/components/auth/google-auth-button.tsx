@@ -5,9 +5,10 @@ import {
   type AuthPopupMessage,
   navigateToAuthPopupDestination,
 } from "@/lib/auth-popup";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+
+import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
 
 const POPUP_WIDTH = 520;
 const POPUP_HEIGHT = 640;
@@ -107,16 +108,17 @@ export function GoogleAuthButton({
     }, 500);
   }
 
+  // Same outlined pill as the marketing sign-in modal's Google button
+  // (`login-modal.tsx`) — this used to be a filled shadcn `Button`, which made
+  // the standalone register pages look unrelated to the popup the owner signed
+  // off on, and put two competing filled buttons in one card.
   return (
-    <div className="space-y-3">
-      <Button type="button" className="w-full" disabled={pending} onClick={handleClick}>
-        {pending ? pendingLabel : children}
-      </Button>
-      {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-m text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <AuthGoogleButtonSurface
+      pending={pending}
+      label={children}
+      pendingLabel={pendingLabel}
+      error={error}
+      onClick={handleClick}
+    />
   );
 }

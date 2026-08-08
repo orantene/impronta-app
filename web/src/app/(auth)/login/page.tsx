@@ -1,10 +1,19 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
+import {
+  AuthCard,
+  AuthDivider,
+  AuthHeading,
+  AuthNotice,
+} from "@/components/auth/auth-ui";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
+import { buildRegisterHref, readRegisterIntent } from "@/lib/auth/register-intent";
+import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { LoginForm } from "./login-form";
 import { LoginGoogleButton } from "./login-google-button";
 
@@ -30,12 +39,26 @@ async function loadInviterAgencyName(nextPath: string | undefined): Promise<stri
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string; email?: string; reason?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    next?: string;
+    email?: string;
+    reason?: string;
+    /** P4 — `client` makes this screen passwordless-first (see below). */
+    as?: string;
+    role?: string;
+  }>;
 }) {
-  const { error, next, email, reason } = await searchParams;
+  const params = await searchParams;
+  const { error, next, email, reason } = params;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const nextPath = normalizeOptionalNextPath(next);
+  // P4 — a booker who arrived from the client funnel (/register?as=client, the
+  // talent-portal inquiry CTA, a client-side "sign in" link) gets the emailed
+  // code first. Operators and talent keep the password form as their default:
+  // /login with no intent is byte-identical to before.
+  const passwordlessFirst = prefersPasswordlessFirst(readRegisterIntent(params));
   // E.5 — surface inviter context when /login was reached via /invite/[token].
   const inviterAgencyName = await loadInviterAgencyName(nextPath);
 
@@ -46,66 +69,49 @@ export default async function LoginPage({
     ? t("public.auth.login.inviteDescription").replace("{agency}", inviterAgencyName)
     : t("public.auth.login.description");
 
+  // One copy of the sign-up line for both lanes. The client lane keeps its
+  // intent on the href so /register stays passwordless-first too.
+  const signUpFooter = (
+    <p
+      className="mt-5 text-center text-[0.8125rem]"
+      style={{ color: "var(--plt-muted)" }}
+    >
+      {t("public.auth.login.noAccount")}{" "}
+      <Link
+        href={
+          passwordlessFirst
+            ? buildRegisterHref("client", nextPath ? { next: nextPath } : {})
+            : nextPath
+              ? `/register?next=${encodeURIComponent(nextPath)}`
+              : "/register"
+        }
+        className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+        style={{ color: "var(--plt-ink-soft)" }}
+      >
+        {t("public.auth.login.signUp")}
+      </Link>
+    </p>
+  );
+
   return (
     <div className="w-full">
-      {/* Eyebrow */}
-      <p
-        className="plt-mono text-center text-[0.625rem] font-semibold uppercase tracking-[0.22em]"
-        style={{ color: "var(--plt-forest)" }}
-      >
-        Sign in
-      </p>
+      <AuthHeading
+        eyebrow={t("public.auth.login.eyebrow")}
+        title={title}
+        description={description}
+      />
 
-      {/* Title */}
-      <h1
-        className="plt-display mt-2 text-center text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.02em] sm:text-[2rem]"
-        style={{ color: "var(--plt-ink)" }}
-      >
-        {title}
-      </h1>
-      <p
-        className="mx-auto mt-2 max-w-[360px] text-center text-[0.9375rem] leading-[1.5]"
-        style={{ color: "var(--plt-muted)" }}
-      >
-        {description}
-      </p>
-
-      {/* Card */}
-      <div
-        className="mt-7 rounded-[28px] p-7 sm:p-9"
-        style={{
-          background: "var(--plt-bg-elevated)",
-          border: "1px solid var(--plt-hairline-strong)",
-          boxShadow:
-            "0 24px 60px -28px rgba(15,23,20,0.32), 0 2px 6px -2px rgba(15,23,20,0.06)",
-        }}
-      >
+      <AuthCard>
         {!error && reason === "session_expired" ? (
-          <p
-            role="status"
-            className="mb-4 rounded-xl px-3 py-2 text-center text-[0.8125rem]"
-            style={{
-              background: "rgba(15, 23, 20, 0.05)",
-              color: "var(--plt-ink-soft)",
-              border: "1px solid var(--plt-hairline-strong)",
-            }}
-          >
+          <AuthNotice tone="info" align="center" className="mb-4">
             {t("public.auth.login.sessionExpired")}
-          </p>
+          </AuthNotice>
         ) : null}
 
         {error ? (
-          <p
-            role="alert"
-            className="mb-4 rounded-xl px-3 py-2 text-center text-[0.8125rem]"
-            style={{
-              background: "rgba(180, 35, 24, 0.08)",
-              color: "#9b1c14",
-              border: "1px solid rgba(180, 35, 24, 0.18)",
-            }}
-          >
+          <AuthNotice tone="error" align="center" className="mb-4">
             {decodeURIComponent(error)}
-          </p>
+          </AuthNotice>
         ) : null}
 
         <LoginGoogleButton
@@ -117,43 +123,66 @@ export default async function LoginPage({
           unableToStartMessage={t("public.auth.googleUnableToStart")}
         />
 
-        <div className="my-4 flex items-center gap-3">
-          <div
-            className="h-px flex-1"
-            style={{ background: "var(--plt-hairline)" }}
-          />
-          <span
-            className="plt-mono text-[0.625rem] font-medium uppercase tracking-[0.22em]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            {t("public.auth.or")}
-          </span>
-          <div
-            className="h-px flex-1"
-            style={{ background: "var(--plt-hairline)" }}
-          />
-        </div>
+        {/*
+         * TODO(P5 mobile readiness — web/docs/auth-shell-domain-architecture-2026-08-07.md
+         * §"Mobile readiness — current state"): reserved slot for a "Sign in
+         * with Apple" button, sized/spaced to match <LoginGoogleButton />
+         * above so enabling it does not reflow this card. iOS App Store
+         * Guideline 4.8 requires offering Apple sign-in wherever a
+         * third-party sign-in (Google) is offered, so this MUST ship before
+         * a native iOS app is submitted. Left commented (not flag-gated) so
+         * there is zero runtime cost until then.
+         *
+         * To enable once a native app exists:
+         *   1. Configure the Apple provider in the Supabase Auth dashboard
+         *      (Services ID, Team ID, Key ID, private key) — see
+         *      https://supabase.com/docs/guides/auth/social-login/auth-apple
+         *   2. Add an `/auth/apple` route mirroring `/auth/google`
+         *      (web/src/app/auth/google/route.ts) plus a
+         *      `LoginAppleButton` client component mirroring
+         *      `LoginGoogleButton` (same file, same popup-message flow).
+         *   3. Add `public.auth.login.apple` to en.json + es.json.
+         *   4. Uncomment below:
+         *
+         * <LoginAppleButton
+         *   nextPath={nextPath}
+         *   label={t("public.auth.login.apple")}
+         *   pendingLabel={t("public.auth.googleOpening")}
+         *   failedLabel={t("public.auth.googleFailed")}
+         *   popupBlockedMessage={t("public.auth.googlePopupBlocked")}
+         *   unableToStartMessage={t("public.auth.googleUnableToStart")}
+         * />
+         */}
 
-        <LoginForm
-          nextPath={nextPath}
-          defaultEmail={email ? decodeURIComponent(email) : undefined}
-          locale={locale}
-        />
-      </div>
+        <AuthDivider label={t("public.auth.or")} />
 
-      <p
-        className="mt-5 text-center text-[0.8125rem]"
-        style={{ color: "var(--plt-muted)" }}
-      >
-        {t("public.auth.login.noAccount")}{" "}
-        <Link
-          href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"}
-          className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
-          style={{ color: "var(--plt-ink-soft)" }}
-        >
-          {t("public.auth.login.signUp")}
-        </Link>
-      </p>
+        {passwordlessFirst ? (
+          <EmailCodeForm
+            nextPath={nextPath}
+            locale={locale}
+            defaultEmail={email ? decodeURIComponent(email) : undefined}
+            // Sign-IN must not mint an account for a mistyped address.
+            allowCreate={false}
+            passwordFallback={
+              <LoginForm
+                nextPath={nextPath}
+                defaultEmail={email ? decodeURIComponent(email) : undefined}
+                locale={locale}
+              />
+            }
+            footer={signUpFooter}
+          />
+        ) : (
+          <>
+            <LoginForm
+              nextPath={nextPath}
+              defaultEmail={email ? decodeURIComponent(email) : undefined}
+              locale={locale}
+            />
+            {signUpFooter}
+          </>
+        )}
+      </AuthCard>
     </div>
   );
 }

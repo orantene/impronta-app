@@ -1,19 +1,44 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { GoogleAuthButton } from "@/components/auth/google-auth-button";
+import {
+  AuthCard,
+  AuthDivider,
+  AuthHeading,
+  AuthNotice,
+} from "@/components/auth/auth-ui";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { normalizeOptionalNextPath } from "@/lib/auth-flow";
+import { getAppUrl, normalizeOptionalNextPath } from "@/lib/auth-flow";
+import {
+  readRegisterIntent,
+  registerCopyKeys,
+  resolveRegisterFlow,
+} from "@/lib/auth/register-intent";
 import {
   buildWorkspaceOnboardingPath,
   WORKSPACE_SIGNUP_INTENT,
 } from "@/lib/saas/workspace-signup";
 import { loadWorkspaceLeadEmail } from "@/lib/saas/workspace-signup-lead.server";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { RegisterForm } from "./register-form";
+import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
+import { EmailCodeForm } from "@/components/auth/email-code-form";
+import { RegisterForm, RegisterLoginFooter } from "./register-form";
+
+/**
+ * P2 — THE signup page. There is no other one.
+ *
+ * `/talent/register`, `/client/register` and `/join` are permanent redirects
+ * into here carrying `?as=<intent>`; the marketing get-started modal shares the
+ * same `components/auth/auth-ui` primitives. Which audience the page addresses
+ * is decided by `lib/auth/register-intent.ts` (pure, unit-tested); this file
+ * keeps only what genuinely needs a request: the session check, the two
+ * agency-name lookups, and the host-aware post-auth destination.
+ */
 
 /**
  * The inviting workspace's display name for a claim invite, so the page can
@@ -63,6 +88,21 @@ async function loadInviterAgencyName(): Promise<string | null> {
   }
 }
 
+/**
+ * Where a brand-new CLIENT lands after auth. Carried over verbatim from the
+ * retired `/client/register`: on the marketing apex and hub hosts `/client` is
+ * NOT an allowed path (the workspace lives on the app host), so a relative
+ * default 404'd there. Those hosts get an absolute app-host URL; the
+ * `.tulala.digital` session cookie spans both.
+ */
+async function defaultClientNext(): Promise<string> {
+  const hostCtx = await getPublicHostContext();
+  if (hostCtx.kind === "agency" && hostCtx.tenantSlug) {
+    return `/${hostCtx.tenantSlug}/client`;
+  }
+  return hostCtx.kind === "app" ? "/client" : `${getAppUrl()}/client`;
+}
+
 export default async function RegisterPage({
   searchParams,
 }: {
@@ -71,6 +111,9 @@ export default async function RegisterPage({
     intent?: string;
     lead?: string;
     next?: string;
+    /** P2 intent: `talent` | `client` | `operator` (legacy alias: `role`). */
+    as?: string;
+    role?: string;
     /**
      * Talent claim-invite id (sendTalentClaimInvite emails
      * `/register?invitation=<id>&email=<e>`). This param was previously
@@ -84,11 +127,14 @@ export default async function RegisterPage({
     email?: string;
   }>;
 }) {
-  const { error, intent, lead, next, invitation, email } = await searchParams;
+  const params = await searchParams;
+  const { error, intent, lead, next, invitation, email } = params;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const workspaceLeadId = typeof lead === "string" && lead ? lead : null;
-  const workspaceIntent = intent === WORKSPACE_SIGNUP_INTENT && workspaceLeadId;
+  const workspaceSignup = Boolean(
+    intent === WORKSPACE_SIGNUP_INTENT && workspaceLeadId,
+  );
   // A claim invite outranks a plain `next`: the whole point of the link is to
   // land on /claim once there's a session. normalizeNextPath keeps the query
   // string (it only rejects non-internal paths), so the token survives.
@@ -107,23 +153,36 @@ export default async function RegisterPage({
     }
   }
 
-  const nextPath = workspaceIntent
-    ? buildWorkspaceOnboardingPath(workspaceLeadId)
-    : claimInvitationId
-      ? `/claim?invitation=${encodeURIComponent(claimInvitationId)}`
-      : normalizeOptionalNextPath(next);
+  const requestedIntent = readRegisterIntent(params);
+  const explicitNext = normalizeOptionalNextPath(next);
+
+  // Post-auth destination, per flow. Each branch is the behaviour the retired
+  // route had, unchanged — an explicit valid `?next=` always wins over the
+  // per-intent default.
+  let nextPath: string | undefined;
+  if (workspaceSignup && workspaceLeadId) {
+    nextPath = buildWorkspaceOnboardingPath(workspaceLeadId);
+  } else if (claimInvitationId) {
+    nextPath = `/claim?invitation=${encodeURIComponent(claimInvitationId)}`;
+  } else if (requestedIntent === "talent") {
+    nextPath = explicitNext ?? "/talent/profile/fields";
+  } else if (requestedIntent === "client") {
+    nextPath = explicitNext ?? (await defaultClientNext());
+  } else {
+    nextPath = explicitNext;
+  }
 
   // Pre-fill the email the operator already typed in the get-started funnel
   // so the email/password path doesn't make them retype it. Resolved
   // server-side from the lead id (never passed through the URL — it's PII).
   // Null on any miss; the field just renders empty, never blocks signup.
   const leadEmail =
-    workspaceIntent && workspaceLeadId
+    workspaceSignup && workspaceLeadId
       ? await loadWorkspaceLeadEmail(workspaceLeadId)
       : null;
 
   // E.5 — Surface inviter context when the visitor came from /invite/[token].
-  const isInviteFlow = !workspaceIntent && nextPath?.startsWith("/invite/");
+  const isInviteFlow = !workspaceSignup && nextPath?.startsWith("/invite/");
   const inviterAgencyName = isInviteFlow ? await loadInviterAgencyName() : null;
 
   // Claim invites carry their own headline: the person is here to take over a
@@ -132,78 +191,98 @@ export default async function RegisterPage({
     ? await loadClaimAgencyName(claimInvitationId)
     : null;
 
-  const title = workspaceIntent
-    ? t("public.auth.register.operatorTitle")
-    : claimInvitationId
-      ? claimAgencyName
-        ? t("public.auth.register.claimTitleAgency").replace("{agency}", claimAgencyName)
-        : t("public.auth.register.claimTitle")
-      : inviterAgencyName
-        ? t("public.auth.register.inviteTitle").replace("{agency}", inviterAgencyName)
-        : t("public.auth.register.title");
-  const description = workspaceIntent
-    ? t("public.auth.register.operatorDescription")
-    : claimInvitationId
-      ? t("public.auth.register.claimDescription").replace(
-          "{agency}",
-          claimAgencyName ??
-            (locale === "es" ? "Tu agencia" : "Your agency"),
-        )
-      : inviterAgencyName
-        ? t("public.auth.register.inviteDescription").replace("{agency}", inviterAgencyName)
-        : t("public.auth.register.description");
-  const googleLabel = workspaceIntent
-    ? t("public.auth.register.googleContinue")
-    : t("public.auth.register.google");
-  const emailLabel = workspaceIntent
-    ? t("public.auth.register.operatorSubmit")
-    : claimInvitationId
-      ? t("public.auth.register.claimSubmit")
-      : inviterAgencyName
-        ? t("public.auth.register.inviteSubmit")
-        : t("public.auth.register.emailSubmit");
+  const flow = resolveRegisterFlow({
+    workspaceSignup,
+    claimInvite: Boolean(claimInvitationId),
+    rosterInvite: Boolean(inviterAgencyName),
+    intent: requestedIntent,
+  });
+  const agencyName =
+    flow === "claim" ? claimAgencyName : flow === "invite" ? inviterAgencyName : null;
+  const keys = registerCopyKeys(flow, Boolean(agencyName));
+
+  // P4 — the CLIENT (booker) lane is passwordless-first. Only the plain
+  // `?as=client` flow: a claim or roster invite has its own contract and the
+  // operator funnel keeps password-first signup.
+  const passwordlessFirst = flow === "client" && prefersPasswordlessFirst(requestedIntent);
+
+  // Claim invites carry the invited address, and the claim RPC requires an exact
+  // match — prefilling it stops the commonest failure (signing up with a
+  // different email and hitting `email_mismatch`).
+  const defaultEmail =
+    (claimInvitationId && typeof email === "string" && email.trim()
+      ? email.trim()
+      : leadEmail) ?? undefined;
+
+  // `{agency}` is only present in the claim + invite strings. The claim
+  // description always names someone, so it falls back to a catalog phrase
+  // rather than a hardcoded locale branch.
+  const agencyLabel =
+    agencyName ??
+    (flow === "claim" ? t("public.auth.register.claimAgencyFallback") : "");
+  const fill = (value: string): string => value.replace("{agency}", agencyLabel);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </div>
-      {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
-          {decodeURIComponent(error)}
-        </p>
-      ) : null}
-      <GoogleAuthButton
-        nextPath={nextPath}
-        pendingLabel={t("public.auth.googleOpening")}
-        failedLabel={t("public.auth.googleFailed")}
-        popupBlockedMessage={t("public.auth.googlePopupBlocked")}
-        unableToStartMessage={t("public.auth.googleUnableToStart")}
-      >
-        {googleLabel}
-      </GoogleAuthButton>
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-sm uppercase">
-          <span className="bg-card px-2 text-muted-foreground">{t("public.auth.or")}</span>
-        </div>
-      </div>
-      <RegisterForm
-        nextPath={nextPath}
-        submitLabel={emailLabel}
-        locale={locale}
-        // Claim invites carry the invited address, and the claim RPC requires
-        // an exact match — prefilling it stops the commonest failure (signing
-        // up with a different email and hitting `email_mismatch`).
-        defaultEmail={
-          (claimInvitationId && typeof email === "string" && email.trim()
-            ? email.trim()
-            : leadEmail) ?? undefined
-        }
+    <div className="w-full">
+      <AuthHeading
+        eyebrow={t(keys.eyebrow)}
+        title={fill(t(keys.title))}
+        description={fill(t(keys.description))}
       />
+
+      <AuthCard>
+        {error ? (
+          <AuthNotice tone="error" align="center" className="mb-4">
+            {decodeURIComponent(error)}
+          </AuthNotice>
+        ) : null}
+
+        <GoogleAuthButton
+          nextPath={nextPath}
+          pendingLabel={t("public.auth.googleOpening")}
+          failedLabel={t("public.auth.googleFailed")}
+          popupBlockedMessage={t("public.auth.googlePopupBlocked")}
+          unableToStartMessage={t("public.auth.googleUnableToStart")}
+        >
+          {t(keys.google)}
+        </GoogleAuthButton>
+
+        <AuthDivider label={t("public.auth.or")} />
+
+        {passwordlessFirst ? (
+          // P4 — CLIENT intent leads with an emailed code. The password form is
+          // the SAME component, rendered only when the visitor asks for it.
+          <EmailCodeForm
+            nextPath={nextPath}
+            locale={locale}
+            defaultEmail={defaultEmail}
+            submitLabel={t("public.auth.passwordless.emailSubmit")}
+            passwordFallback={
+              <RegisterForm
+                nextPath={nextPath}
+                submitLabel={t(keys.submit)}
+                locale={locale}
+                defaultEmail={defaultEmail}
+                hideFooter
+              />
+            }
+            footer={
+              <RegisterLoginFooter
+                nextPath={nextPath}
+                locale={locale}
+                intent="client"
+              />
+            }
+          />
+        ) : (
+          <RegisterForm
+            nextPath={nextPath}
+            submitLabel={t(keys.submit)}
+            locale={locale}
+            defaultEmail={defaultEmail}
+          />
+        )}
+      </AuthCard>
     </div>
   );
 }

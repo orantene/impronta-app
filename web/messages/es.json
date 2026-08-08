@@ -38,6 +38,14 @@
       "googleFailed": "No se pudo iniciar sesión con Google.",
       "googlePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes para este sitio e inténtalo de nuevo.",
       "googleUnableToStart": "No se pudo iniciar el acceso con Google.",
+      "shell": {
+        "back": "Volver a {site}",
+        "tenantHeading": "Tu trabajo y tus reservas, en un solo lugar.",
+        "tenantLead": "Gestiona tu perfil, tus reservas y tus mensajes con {brand}.",
+        "terms": "Términos",
+        "privacy": "Privacidad",
+        "contact": "Contacto"
+      },
       "login": {
         "title": "Iniciar sesión",
         "inviteTitle": "Inicia sesión para unirte a {agency}",
@@ -50,7 +58,8 @@
         "remember": "Mantener mi sesión activa por 30 días",
         "noAccount": "¿No tienes cuenta?",
         "signUp": "Regístrate",
-        "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión."
+        "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
+        "eyebrow": "Bienvenido de nuevo"
       },
       "register": {
         "title": "Crea tu cuenta",
@@ -71,13 +80,22 @@
         "pending": "Creando cuenta…",
         "passwordHint": "Al menos 8 caracteres.",
         "haveAccount": "¿Ya tienes una cuenta?",
-        "logIn": "Inicia sesión"
+        "logIn": "Inicia sesión",
+        "eyebrow": "Empezar",
+        "claimEyebrow": "Reclamar perfil",
+        "inviteEyebrow": "Invitación",
+        "operatorEyebrow": "Abre tu workspace",
+        "claimAgencyFallback": "Tu agencia"
       },
       "roleRegister": {
         "talentTitle": "Unirse como Talento",
         "talentDescription": "Crea una cuenta para unirte al roster, gestionar tu perfil y recibir reservas.",
         "clientTitle": "Unirse como Cliente",
-        "clientDescription": "Crea una cuenta para descubrir talento, enviar solicitudes y gestionar tus reservas."
+        "clientDescription": "Crea una cuenta para descubrir talento, enviar solicitudes y gestionar tus reservas.",
+        "talentEyebrow": "Para talento",
+        "clientEyebrow": "Para clientes",
+        "talentSubmit": "Crear mi cuenta de talento",
+        "clientSubmit": "Crear mi cuenta de cliente"
       },
       "forgot": {
         "title": "Olvidé mi contraseña",
@@ -85,7 +103,8 @@
         "expired": "Ese enlace de restablecimiento ya no es válido. Escribe tu correo abajo para recibir uno nuevo.",
         "submit": "Enviar enlace de restablecimiento",
         "pending": "Enviando…",
-        "back": "Volver a iniciar sesión"
+        "back": "Volver a iniciar sesión",
+        "eyebrow": "Restablecer contraseña"
       },
       "update": {
         "title": "Crear nueva contraseña",
@@ -93,7 +112,8 @@
         "newPassword": "Nueva contraseña",
         "confirmPassword": "Confirmar nueva contraseña",
         "submit": "Actualizar contraseña y continuar",
-        "pending": "Guardando…"
+        "pending": "Guardando…",
+        "eyebrow": "Nueva contraseña"
       },
       "form": {
         "email": "Correo electrónico",
@@ -122,6 +142,37 @@
         "emailNotConfirmed": "Tu correo aún no está confirmado. Revisa tu bandeja de entrada para encontrar el enlace de confirmación.",
         "tooManyAttempts": "Demasiados intentos; espera un minuto e inténtalo de nuevo.",
         "network": "Problema de conexión; revisa tu red e inténtalo de nuevo."
+      },
+      "claim": {
+        "eyebrow": "Reclamar perfil",
+        "successEyebrow": "Bienvenido",
+        "dashboardCta": "Ir a mi panel",
+        "backToSignIn": "Volver a iniciar sesión",
+        "exclusiveNote": "Puedes revisar quién te representa, pausar una relación o salir de una agencia desde tu panel, en Agencias."
+      },
+      "passwordless": {
+        "emailSubmit": "Envíame un código de acceso",
+        "emailPending": "Enviando tu código",
+        "emailHint": "Sin contraseña. Te enviamos un código de 6 dígitos y un enlace de acceso a tu correo.",
+        "sentNotice": "Código enviado a {email}. Escríbelo abajo o abre el enlace del mismo correo.",
+        "resentNotice": "Enviamos un código nuevo a {email}. Usa el más reciente.",
+        "codeLabel": "Código de 6 dígitos",
+        "codeHint": "De un solo uso. Si deja de funcionar, pide uno nuevo. Revisa tu carpeta de spam si no llega.",
+        "verifySubmit": "Continuar",
+        "verifyPending": "Verificando tu código",
+        "resend": "Enviar un código nuevo",
+        "resending": "Enviando",
+        "changeEmail": "Usar otro correo",
+        "usePassword": "Usar una contraseña",
+        "useCode": "Mejor envíame un código",
+        "errors": {
+          "codeRequired": "Escribe el código de 6 dígitos de tu correo.",
+          "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",
+          "codeExpired": "Ese código caducó o ya se usó. Pide uno nuevo.",
+          "tooMany": "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+          "sendFailed": "No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+          "verifyFailed": "No pudimos iniciar tu sesión con ese código. Pide uno nuevo e inténtalo otra vez."
+        }
       }
     },
     "profile": {
