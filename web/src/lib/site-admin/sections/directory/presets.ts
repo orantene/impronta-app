@@ -39,14 +39,16 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   containerWidth: "boxed",
   background: "cool_ground",
 
-  showName: true,
+  // showName / showTalentType / showLocation / showAttributes / showPriceFrom /
+  // showAvailability are deliberately UNSET, for the same reason the layout
+  // knobs above are: a value baked in here is an EXPLICIT section choice that
+  // permanently outranks the tenant's Card Design default, so the admin's
+  // show/hide toggles would silently do nothing on any storefront seeded from
+  // this preset (exactly what happened to the Impronta directory). Unset ⇒
+  // `directory.card.show-*` applies, and those tokens default to the same
+  // values this preset used to hardcode, so zero-config tenants are unchanged.
   nameFallback: "first_name",
-  showTalentType: true,
-  showLocation: true,
-  showAttributes: true,
   showRating: false,
-  showPriceFrom: true,
-  showAvailability: true,
   // Single-agency storefront: every card is this agency's talent, so the
   // per-card ownership badge ("Impronta Models" stamped on every tile) is
   // pure repetition. Off by default for the storefront look; cross-agency
