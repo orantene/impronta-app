@@ -234,6 +234,15 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:a11y
 
+      - name: tests — size ratchet
+        # Line-count budgets for the files eslint stopped constraining. Every
+        # file already over `max-lines` 800 is grandfathered in
+        # eslint-suppressions.json as {"max-lines": {"count": 1}}, and that
+        # count is a count of violations, not of lines — so it is satisfied at
+        # 801 lines and at 8,001 alike. This lane measures the line count.
+        if: ${{ !cancelled() }}
+        run: npm run test:size-ratchet
+
       - name: tests — node-presentation
         if: ${{ !cancelled() }}
         run: npm run test:node-presentation
