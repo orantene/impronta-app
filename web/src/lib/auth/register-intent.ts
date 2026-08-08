@@ -14,6 +14,8 @@
  * post-auth destination.
  */
 
+import { withLocaleHref } from "@/i18n/pathnames";
+
 /** The three audiences the funnel serves. */
 export const REGISTER_INTENTS = ["talent", "client", "operator"] as const;
 
@@ -183,6 +185,17 @@ export function registerCopyKeys(
 export function buildRegisterHref(
   intent: RegisterIntent,
   params: Readonly<Record<string, string | string[] | undefined>> = {},
+  /**
+   * Locale of the INBOUND request. Pass it and the returned href keeps the
+   * `/es` segment, so a Spanish visitor stays in Spanish across the redirect.
+   *
+   * Why this is a parameter and not a `getRequestLocale()` call inside: this
+   * module is pure and unit-tested, and the retiring pages are the only things
+   * that know the request. Omitting it reproduces the pre-#1067 behaviour
+   * (bare `/register?…`), which is correct for callers that are already
+   * locale-relative — e.g. `link-ref.ts` rewriting saved page-builder hrefs.
+   */
+  locale?: string,
 ): string {
   const query = new URLSearchParams();
   // Intent first so the URL reads as the front door it is.
@@ -199,5 +212,8 @@ export function buildRegisterHref(
     if (typeof value === "string") query.append(key, value);
   }
 
-  return `/register?${query.toString()}`;
+  const href = `/register?${query.toString()}`;
+  // withLocaleHref is a no-op for the default locale and preserves the query
+  // string, so this is safe to apply unconditionally when a locale is known.
+  return locale ? withLocaleHref(href, locale) : href;
 }
