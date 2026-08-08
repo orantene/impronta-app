@@ -720,6 +720,83 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "Tenant-wide DEFAULT for card spacing. Sections with their own density keep it.",
   },
+  "directory.card.show-name": {
+    key: "directory.card.show-name",
+    label: "Show name on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for whether cards render the talent name. A directory section that sets its own value keeps it; sections left unset follow this.",
+  },
+  "directory.card.show-talent-type": {
+    key: "directory.card.show-talent-type",
+    label: "Show talent type on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for whether cards render the talent-type line. A directory section that sets its own value keeps it; sections left unset follow this.",
+  },
+  "directory.card.show-location": {
+    key: "directory.card.show-location",
+    label: "Show location on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for whether cards render the city / country line. A directory section that sets its own value keeps it; sections left unset follow this.",
+  },
+  "directory.card.show-attributes": {
+    key: "directory.card.show-attributes",
+    label: "Show attributes on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for whether cards render the engine field / trait row. A directory section that sets its own value keeps it; sections left unset follow this.",
+  },
+  "directory.card.show-availability": {
+    key: "directory.card.show-availability",
+    label: "Show availability on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for whether cards render the availability line. A directory section that sets its own value keeps it; sections left unset follow this.",
+  },
+  "directory.card.show-badges": {
+    key: "directory.card.show-badges",
+    label: "Show trust badges on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for whether cards render the exclusivity / trust badge. A directory section that sets its own value keeps it; sections left unset follow this.",
+  },
+  "directory.card.show-rating": {
+    key: "directory.card.show-rating",
+    label: "Show rating on cards",
+    scope: "template",
+    agencyConfigurable: true,
+    validator: z.enum(["on", "off"]),
+    defaultValue: "on",
+    group: "Template families",
+    description:
+      "Tenant-wide DEFAULT for whether cards render the review rating. A directory section that sets its own value keeps it; sections left unset follow this.",
+  },
   "directory.card.profile-popup": {
     key: "directory.card.profile-popup",
     label: "Open profiles in a popup",

@@ -169,6 +169,24 @@ export async function DirectoryComponent({
   const hoverBehavior =
     props.hoverBehavior ?? tenantCardDesign?.hover ?? "reveal_traits";
   const density = props.density ?? tenantCardDesign?.density ?? "comfortable";
+  // Same SECTION → tenant Card Design → platform resolution for the card's
+  // line visibility. Without this the Card Design toggles were decorative:
+  // the section always won because the schema defaulted every flag.
+  const onOff = (v: "on" | "off" | undefined): boolean | undefined =>
+    v === undefined ? undefined : v === "on";
+  const showName = props.showName ?? onOff(tenantCardDesign?.showName) ?? true;
+  const showTalentType =
+    props.showTalentType ?? onOff(tenantCardDesign?.showTalentType) ?? true;
+  const showLocation =
+    props.showLocation ?? onOff(tenantCardDesign?.showLocation) ?? true;
+  const showAttributes =
+    props.showAttributes ?? onOff(tenantCardDesign?.showAttributes) ?? true;
+  const showAvailability =
+    props.showAvailability ?? onOff(tenantCardDesign?.showAvailability) ?? true;
+  const showBadges =
+    props.showBadges ?? onOff(tenantCardDesign?.showBadges) ?? true;
+  const showPriceFrom =
+    props.showPriceFrom ?? onOff(tenantCardDesign?.showPriceFrom) ?? true;
 
   // Resolve scope seed: maps by_talent_type keys → taxonomy term UUIDs for
   // the SSR first-page pre-filter, surfaces manual codes for client
@@ -655,18 +673,18 @@ export async function DirectoryComponent({
             hoverBehavior={hoverBehavior}
             cardStyle={cardStyle}
             cardAspect={cardAspect}
-            showName={props.showName}
-            showTalentType={props.showTalentType}
-            showLocation={props.showLocation}
-            showAvailability={props.showAvailability}
-            showBadges={props.showBadges}
-            showAttributes={props.showAttributes}
+            showName={showName}
+            showTalentType={showTalentType}
+            showLocation={showLocation}
+            showAvailability={showAvailability}
+            showBadges={showBadges}
+            showAttributes={showAttributes}
             showSave={favoriteDisabledTenantWide ? false : props.showSave}
             showAddToInquiry={
               inquiryDisabledTenantWide ? false : props.showAddToInquiry
             }
             showQuickView={props.showQuickView}
-            showPriceFrom={props.showPriceFrom}
+            showPriceFrom={showPriceFrom}
             cardClickAction={
               popupDisabledTenantWide ? "page" : props.cardClickAction
             }

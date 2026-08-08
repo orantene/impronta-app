@@ -54,10 +54,16 @@ const MAP_POINT_CAP = 500;
 type MapCardConfig = {
   cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
   cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
-  show: Pick<
-    DirectoryV1,
-    "showName" | "showTalentType" | "showLocation" | "showAvailability" | "showBadges" | "showAttributes"
-  >;
+  /** RESOLVED line visibility — concrete booleans (section → tenant Card
+   *  Design default → platform default; resolved in Component.tsx). */
+  show: {
+    showName: boolean;
+    showTalentType: boolean;
+    showLocation: boolean;
+    showAvailability: boolean;
+    showBadges: boolean;
+    showAttributes: boolean;
+  };
   showSave: boolean;
   showAddToInquiry: boolean;
   showQuickView: boolean;

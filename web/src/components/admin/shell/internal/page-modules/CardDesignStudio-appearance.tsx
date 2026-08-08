@@ -17,7 +17,7 @@ import {
  * The Studio's Layout block.
  *
  * `cardStyle` / `cardAspect` / `hoverBehavior` persist as tenant-wide DEFAULTS
- * (via `setLayoutDefault`); the show/hide toggles below them remain preview
+ * (via `setLayoutDefault`); the show/hide toggles persist the same way
  * only, because those are genuinely per-section decisions edited on the
  * directory section itself. Extracted from CardDesignStudio.tsx to keep that
  * file under the max-lines cap.
@@ -28,6 +28,7 @@ export function CardAppearanceSection({
   appearance,
   patchAppearance,
   setLayoutDefault,
+  setLineDefault,
   readTemplateToken,
   setTemplateToken,
 }: {
@@ -37,6 +38,12 @@ export function CardAppearanceSection({
   patchAppearance: <K extends keyof CardAppearance>(
     key: K,
     value: CardAppearance[K],
+  ) => void;
+  /** Line-visibility toggle → preview state AND the persisted tenant default. */
+  setLineDefault: (
+    key: keyof CardAppearance,
+    tokenKey: string,
+    on: boolean,
   ) => void;
   setLayoutDefault: (
     key: keyof CardAppearance,
@@ -114,16 +121,14 @@ export function CardAppearanceSection({
               </label>
             </div>
             <div className="mx-0 mb-[4px] mt-[14px] h-px bg-admin-border-soft" />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowName")} on={appearance.showName} onChange={canEdit ? (v) => patchAppearance("showName", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowTalentType")} on={appearance.showTalentType} onChange={canEdit ? (v) => patchAppearance("showTalentType", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowLocation")} on={appearance.showLocation} onChange={canEdit ? (v) => patchAppearance("showLocation", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowAttributes")} on={appearance.showAttributes} onChange={canEdit ? (v) => patchAppearance("showAttributes", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowAvailability")} on={appearance.showAvailability} onChange={canEdit ? (v) => patchAppearance("showAvailability", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowTrustBadges")} on={appearance.showBadges} onChange={canEdit ? (v) => patchAppearance("showBadges", v) : undefined} disabled={!canEdit} />
-            <ToggleRow label={t("dashboard.adminCardStudio.rowRating")} on={appearance.showRating} onChange={canEdit ? (v) => patchAppearance("showRating", v) : undefined} disabled={!canEdit} />
-            {/* PREVIEW-ONLY — real control is the directory section's showPriceFrom
-                knob; a 2nd persistence path would just re-create the drift. */}
-            <ToggleRow label={t("dashboard.adminCardStudio.rowPriceFrom")} hint={t("dashboard.adminCardStudio.rowPriceFromHint")} on={appearance.showPriceFrom} onChange={canEdit ? (v) => patchAppearance("showPriceFrom", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowName")} on={appearance.showName} onChange={canEdit ? (v) => setLineDefault("showName", "directory.card.show-name", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowTalentType")} on={appearance.showTalentType} onChange={canEdit ? (v) => setLineDefault("showTalentType", "directory.card.show-talent-type", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowLocation")} on={appearance.showLocation} onChange={canEdit ? (v) => setLineDefault("showLocation", "directory.card.show-location", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowAttributes")} on={appearance.showAttributes} onChange={canEdit ? (v) => setLineDefault("showAttributes", "directory.card.show-attributes", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowAvailability")} on={appearance.showAvailability} onChange={canEdit ? (v) => setLineDefault("showAvailability", "directory.card.show-availability", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowTrustBadges")} on={appearance.showBadges} onChange={canEdit ? (v) => setLineDefault("showBadges", "directory.card.show-badges", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowRating")} on={appearance.showRating} onChange={canEdit ? (v) => setLineDefault("showRating", "directory.card.show-rating", v) : undefined} disabled={!canEdit} />
+            <ToggleRow label={t("dashboard.adminCardStudio.rowPriceFrom")} hint={t("dashboard.adminCardStudio.rowPriceFromHint")} on={appearance.showPriceFrom} onChange={canEdit ? (v) => setLineDefault("showPriceFrom", "directory.card.show-starting-from-price", v) : undefined} disabled={!canEdit} />
 
             {/* Reviews on cards — REAL persistence (template tokens; see
                 setTemplateToken). Master on/off maps show-standing off↔compact;
