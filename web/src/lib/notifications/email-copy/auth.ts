@@ -22,6 +22,9 @@ export const AUTH_EN = {
     intro: "Click the button below to sign in. This link is single-use and expires in 1 hour.",
     note: "If you didn't request this, you can safely ignore this email.",
     button: "Sign in →",
+    // P4 — the passwordless client flow shows a code box on the page it was
+    // requested from, so the same email carries the code as well as the link.
+    codeLabel: "Or type this code where you asked for it:",
   },
   "auth.signup": {
     subject: "Confirm your email",
@@ -31,6 +34,7 @@ export const AUTH_EN = {
       "Thanks for signing up. Click the button below to confirm your email address and activate your account.",
     note: "This link expires in 24 hours.",
     button: "Confirm email →",
+    codeLabel: "Or type this code where you asked for it:",
   },
   "auth.email_change": {
     subject: "Confirm your new email",
@@ -62,6 +66,7 @@ export const AUTH_ES: typeof AUTH_EN = {
       "Haz clic en el botón de abajo para iniciar sesión. El enlace es de un solo uso y caduca en 1 hora.",
     note: "Si no fuiste tú, puedes ignorar este correo sin problema.",
     button: "Iniciar sesión →",
+    codeLabel: "O escribe este código donde lo solicitaste:",
   },
   "auth.signup": {
     subject: "Confirma tu correo",
@@ -71,6 +76,7 @@ export const AUTH_ES: typeof AUTH_EN = {
       "Gracias por registrarte. Haz clic en el botón de abajo para confirmar tu correo y activar tu cuenta.",
     note: "Este enlace caduca en 24 horas.",
     button: "Confirmar correo →",
+    codeLabel: "O escribe este código donde lo solicitaste:",
   },
   "auth.email_change": {
     subject: "Confirma tu nuevo correo",

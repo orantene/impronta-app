@@ -149,6 +149,30 @@
         "dashboardCta": "Go to my dashboard",
         "backToSignIn": "Back to sign in",
         "exclusiveNote": "You can review who represents you, pause a relationship, or leave an agency from your dashboard under Agencies."
+      },
+      "passwordless": {
+        "emailSubmit": "Email me a sign-in code",
+        "emailPending": "Sending your code",
+        "emailHint": "No password needed. We send a 6-digit code and a sign-in link to your inbox.",
+        "sentNotice": "Code sent to {email}. Enter it below, or open the link in the same email.",
+        "resentNotice": "New code sent to {email}. Use the newest one.",
+        "codeLabel": "6-digit code",
+        "codeHint": "Single use. If it stops working, send a new one. Check your spam folder if nothing arrives.",
+        "verifySubmit": "Continue",
+        "verifyPending": "Checking your code",
+        "resend": "Send a new code",
+        "resending": "Sending",
+        "changeEmail": "Use a different email",
+        "usePassword": "Use a password instead",
+        "useCode": "Email me a code instead",
+        "errors": {
+          "codeRequired": "Enter the 6-digit code from your email.",
+          "codeInvalid": "That code did not work. Check the digits, or send a new code.",
+          "codeExpired": "That code has expired or was already used. Send a new one.",
+          "tooMany": "Too many attempts. Wait a minute and try again.",
+          "sendFailed": "We could not send your code. Check the address and try again.",
+          "verifyFailed": "We could not sign you in with that code. Send a new one and try again."
+        }
       }
     },
     "profile": {

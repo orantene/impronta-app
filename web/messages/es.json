@@ -149,6 +149,30 @@
         "dashboardCta": "Ir a mi panel",
         "backToSignIn": "Volver a iniciar sesión",
         "exclusiveNote": "Puedes revisar quién te representa, pausar una relación o salir de una agencia desde tu panel, en Agencias."
+      },
+      "passwordless": {
+        "emailSubmit": "Envíame un código de acceso",
+        "emailPending": "Enviando tu código",
+        "emailHint": "Sin contraseña. Te enviamos un código de 6 dígitos y un enlace de acceso a tu correo.",
+        "sentNotice": "Código enviado a {email}. Escríbelo abajo o abre el enlace del mismo correo.",
+        "resentNotice": "Enviamos un código nuevo a {email}. Usa el más reciente.",
+        "codeLabel": "Código de 6 dígitos",
+        "codeHint": "De un solo uso. Si deja de funcionar, pide uno nuevo. Revisa tu carpeta de spam si no llega.",
+        "verifySubmit": "Continuar",
+        "verifyPending": "Verificando tu código",
+        "resend": "Enviar un código nuevo",
+        "resending": "Enviando",
+        "changeEmail": "Usar otro correo",
+        "usePassword": "Usar una contraseña",
+        "useCode": "Mejor envíame un código",
+        "errors": {
+          "codeRequired": "Escribe el código de 6 dígitos de tu correo.",
+          "codeInvalid": "Ese código no funcionó. Revisa los dígitos o pide un código nuevo.",
+          "codeExpired": "Ese código caducó o ya se usó. Pide uno nuevo.",
+          "tooMany": "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+          "sendFailed": "No pudimos enviar tu código. Revisa el correo e inténtalo de nuevo.",
+          "verifyFailed": "No pudimos iniciar tu sesión con ese código. Pide uno nuevo e inténtalo otra vez."
+        }
       }
     },
     "profile": {

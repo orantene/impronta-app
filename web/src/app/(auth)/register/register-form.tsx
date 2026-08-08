@@ -13,17 +13,63 @@ import {
 } from "@/components/auth/auth-ui";
 import { createTranslator } from "@/i18n/messages";
 
+/**
+ * "Already have an account? Log in" — one copy, used by the password form and
+ * by the passwordless wrapper (which renders it outside both lanes so it does
+ * not appear twice).
+ *
+ * `intent` rides along as `?as=`: a client who bounces to /login should meet the
+ * same passwordless-first screen they just left, not a password box.
+ */
+export function RegisterLoginFooter({
+  nextPath,
+  locale = "en",
+  intent,
+}: {
+  nextPath?: string;
+  locale?: string;
+  intent?: string;
+}) {
+  const t = createTranslator(locale);
+  const query = new URLSearchParams();
+  if (intent) query.set("as", intent);
+  if (nextPath) query.set("next", nextPath);
+  const search = query.toString();
+
+  return (
+    <p
+      className="pt-1 text-center text-[0.8125rem]"
+      style={{ color: "var(--plt-muted)" }}
+    >
+      {t("public.auth.register.haveAccount")}{" "}
+      <Link
+        href={search ? `/login?${search}` : "/login"}
+        className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+        style={{ color: "var(--plt-ink-soft)" }}
+      >
+        {t("public.auth.register.logIn")}
+      </Link>
+    </p>
+  );
+}
+
 export function RegisterForm({
   nextPath,
   submitLabel,
   locale = "en",
   defaultEmail,
+  /**
+   * P4 — hides the "already have an account? Log in" footer, because the
+   * passwordless wrapper renders it once for BOTH lanes (code + password).
+   */
+  hideFooter = false,
 }: {
   nextPath?: string;
   submitLabel?: string;
   locale?: string;
   /** Pre-fills the email field (e.g. from the get-started lead) — editable. */
   defaultEmail?: string;
+  hideFooter?: boolean;
 }) {
   const t = createTranslator(locale);
   const [state, formAction, pending] = useActionState<
@@ -79,19 +125,9 @@ export function RegisterForm({
         busy={t("public.auth.register.pending")}
       />
 
-      <p
-        className="pt-1 text-center text-[0.8125rem]"
-        style={{ color: "var(--plt-muted)" }}
-      >
-        {t("public.auth.register.haveAccount")}{" "}
-        <Link
-          href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"}
-          className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
-          style={{ color: "var(--plt-ink-soft)" }}
-        >
-          {t("public.auth.register.logIn")}
-        </Link>
-      </p>
+      {hideFooter ? null : (
+        <RegisterLoginFooter nextPath={nextPath} locale={locale} />
+      )}
     </form>
   );
 }
