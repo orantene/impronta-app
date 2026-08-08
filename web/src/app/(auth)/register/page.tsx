@@ -24,6 +24,7 @@ import {
 import { loadWorkspaceLeadEmail } from "@/lib/saas/workspace-signup-lead.server";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import { hostSafeRedirectDestination } from "@/lib/saas/host-safe-destination";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
@@ -103,6 +104,32 @@ async function defaultClientNext(): Promise<string> {
   return hostCtx.kind === "app" ? "/client" : `${getAppUrl()}/client`;
 }
 
+/** First stop for a brand-new TALENT: finish the profile fields. */
+const TALENT_DEFAULT_PATH = "/talent/profile/fields";
+
+/**
+ * Where a brand-new TALENT lands after auth.
+ *
+ * Same incident class as `defaultClientNext` above (host-blind auth redirect →
+ * 404; PRs #1041/#1045/#1046) — `/talent/*` is allow-listed on agency + app
+ * only, so the previous bare `"/talent/profile/fields"` 404'd for anyone who
+ * signed up as talent on the marketing apex or a hub host.
+ *
+ * Fixed via `hostSafeRedirectDestination`, which asks the surface allow-list
+ * itself instead of re-listing host kinds here — so it self-heals if the
+ * allow-list changes.
+ *
+ * DELIBERATELY NOT a mirror of `defaultClientNext`: that one slug-prefixes on
+ * agency hosts, which would be WRONG here. `/talent/*` is excluded from
+ * branded rewriting on purpose (`lib/saas/branded-admin-url.ts`) because the
+ * talent self-surface is host-agnostic while `/<slug>/talent/*` are legacy
+ * redirectors that bounce back — slug-prefixing would reintroduce the
+ * documented infinite navigation loop, which is worse than the 404 being fixed.
+ */
+async function defaultTalentNext(): Promise<string> {
+  return hostSafeRedirectDestination(TALENT_DEFAULT_PATH);
+}
+
 export default async function RegisterPage({
   searchParams,
 }: {
@@ -165,7 +192,8 @@ export default async function RegisterPage({
   } else if (claimInvitationId) {
     nextPath = `/claim?invitation=${encodeURIComponent(claimInvitationId)}`;
   } else if (requestedIntent === "talent") {
-    nextPath = explicitNext ?? "/talent/profile/fields";
+    // Only resolved for the talent intent, so plain /register pays no host lookup.
+    nextPath = explicitNext ?? (await defaultTalentNext());
   } else if (requestedIntent === "client") {
     nextPath = explicitNext ?? (await defaultClientNext());
   } else {
