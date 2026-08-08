@@ -11,6 +11,9 @@ import { createTranslator } from "@/i18n/messages";
 import { normalizeOptionalNextPath } from "@/lib/auth-flow";
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
+import { buildRegisterHref, readRegisterIntent } from "@/lib/auth/register-intent";
+import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { LoginForm } from "./login-form";
 import { LoginGoogleButton } from "./login-google-button";
 
@@ -36,12 +39,26 @@ async function loadInviterAgencyName(nextPath: string | undefined): Promise<stri
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; next?: string; email?: string; reason?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    next?: string;
+    email?: string;
+    reason?: string;
+    /** P4 — `client` makes this screen passwordless-first (see below). */
+    as?: string;
+    role?: string;
+  }>;
 }) {
-  const { error, next, email, reason } = await searchParams;
+  const params = await searchParams;
+  const { error, next, email, reason } = params;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
   const nextPath = normalizeOptionalNextPath(next);
+  // P4 — a booker who arrived from the client funnel (/register?as=client, the
+  // talent-portal inquiry CTA, a client-side "sign in" link) gets the emailed
+  // code first. Operators and talent keep the password form as their default:
+  // /login with no intent is byte-identical to before.
+  const passwordlessFirst = prefersPasswordlessFirst(readRegisterIntent(params));
   // E.5 — surface inviter context when /login was reached via /invite/[token].
   const inviterAgencyName = await loadInviterAgencyName(nextPath);
 
@@ -51,6 +68,30 @@ export default async function LoginPage({
   const description = inviterAgencyName
     ? t("public.auth.login.inviteDescription").replace("{agency}", inviterAgencyName)
     : t("public.auth.login.description");
+
+  // One copy of the sign-up line for both lanes. The client lane keeps its
+  // intent on the href so /register stays passwordless-first too.
+  const signUpFooter = (
+    <p
+      className="mt-5 text-center text-[0.8125rem]"
+      style={{ color: "var(--plt-muted)" }}
+    >
+      {t("public.auth.login.noAccount")}{" "}
+      <Link
+        href={
+          passwordlessFirst
+            ? buildRegisterHref("client", nextPath ? { next: nextPath } : {})
+            : nextPath
+              ? `/register?next=${encodeURIComponent(nextPath)}`
+              : "/register"
+        }
+        className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+        style={{ color: "var(--plt-ink-soft)" }}
+      >
+        {t("public.auth.login.signUp")}
+      </Link>
+    </p>
+  );
 
   return (
     <div className="w-full">
@@ -84,27 +125,32 @@ export default async function LoginPage({
 
         <AuthDivider label={t("public.auth.or")} />
 
-        <LoginForm
-          nextPath={nextPath}
-          defaultEmail={email ? decodeURIComponent(email) : undefined}
-          locale={locale}
-        />
-
-        <p
-          className="mt-5 text-center text-[0.8125rem]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {t("public.auth.login.noAccount")}{" "}
-          <Link
-            href={
-              nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"
+        {passwordlessFirst ? (
+          <EmailCodeForm
+            nextPath={nextPath}
+            locale={locale}
+            defaultEmail={email ? decodeURIComponent(email) : undefined}
+            // Sign-IN must not mint an account for a mistyped address.
+            allowCreate={false}
+            passwordFallback={
+              <LoginForm
+                nextPath={nextPath}
+                defaultEmail={email ? decodeURIComponent(email) : undefined}
+                locale={locale}
+              />
             }
-            className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
-            style={{ color: "var(--plt-ink-soft)" }}
-          >
-            {t("public.auth.login.signUp")}
-          </Link>
-        </p>
+            footer={signUpFooter}
+          />
+        ) : (
+          <>
+            <LoginForm
+              nextPath={nextPath}
+              defaultEmail={email ? decodeURIComponent(email) : undefined}
+              locale={locale}
+            />
+            {signUpFooter}
+          </>
+        )}
       </AuthCard>
     </div>
   );

@@ -39,6 +39,7 @@ import { renderEmailHtml } from "@/lib/email/render";
 import { platformBrand } from "@/lib/brand/resolve-tenant-brand";
 import { getEmailCopy, normalizeEmailLocale, type EmailCopyKey } from "@/lib/notifications/email-copy";
 import { getAppUrl, normalizeNextPath } from "@/lib/auth-flow";
+import { authEmailLinkNext } from "@/lib/auth/otp-flow";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -103,14 +104,13 @@ function confirmUrl(action: string, tokenHash: string, redirectTo: string | unde
   const type =
     action === "email_change_new" ? "email_change" : action === "invite" ? "invite" : action;
   const params = new URLSearchParams({ token_hash: tokenHash, type });
-  if (redirectTo) {
-    try {
-      const next = normalizeNextPath(new URL(redirectTo).pathname);
-      if (next) params.set("next", next);
-    } catch {
-      /* redirect_to wasn't an absolute URL — let /auth/confirm use its default */
-    }
-  }
+  // P4: read the INNER `?next=` first. Every auth action in the app points
+  // `redirectTo` at `/auth/callback?next=<real destination>`, so taking the
+  // pathname verbatim (what this did) produced `next=/auth/callback` — a route
+  // that, reached without a PKCE `?code=`, bounces to /login?error=auth. See
+  // lib/auth/otp-flow.ts (pure + unit tested).
+  const next = authEmailLinkNext(redirectTo);
+  if (next) params.set("next", normalizeNextPath(next));
   return `${base}/auth/confirm?${params.toString()}`;
 }
 
@@ -119,6 +119,13 @@ function renderTemplate(
   url: string,
   newEmail: string | undefined,
   locale: "en" | "es",
+  /**
+   * P4 — Supabase's 6-digit OTP (`email_data.token`). Rendered ONLY in the two
+   * templates the passwordless client flow can produce (magiclink for a
+   * returning booker, signup for a new one), because those are the two screens
+   * that show a code box. Password reset and email change stay link-only.
+   */
+  code?: string,
 ) {
   // Platform brand carries the locale so the templates render in EN/ES.
   const brand = { ...platformBrand(), locale };
@@ -126,14 +133,14 @@ function renderTemplate(
     case "recovery":
       return React.createElement(PasswordReset, { resetUrl: url, brand });
     case "magiclink":
-      return React.createElement(MagicLink, { magicUrl: url, brand });
+      return React.createElement(MagicLink, { magicUrl: url, code, brand });
     case "email_change":
     case "email_change_new":
       return React.createElement(EmailChange, { confirmUrl: url, newEmail: newEmail ?? "", brand });
     case "signup":
     case "invite":
     default:
-      return React.createElement(SignupConfirm, { confirmUrl: url, brand });
+      return React.createElement(SignupConfirm, { confirmUrl: url, code, brand });
   }
 }
 
@@ -180,7 +187,9 @@ export async function POST(req: NextRequest) {
 
   let html: string;
   try {
-    html = await renderEmailHtml(renderTemplate(action, url, newEmail, locale));
+    html = await renderEmailHtml(
+      renderTemplate(action, url, newEmail, locale, data.token),
+    );
   } catch (err) {
     logServerError("hooks.auth-email.render", err);
     return hookError(500, "Render failed");

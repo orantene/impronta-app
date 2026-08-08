@@ -25,7 +25,9 @@ import { loadWorkspaceLeadEmail } from "@/lib/saas/workspace-signup-lead.server"
 import { readInviteFromCookieStore } from "@/lib/invites/cookie";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { RegisterForm } from "./register-form";
+import { prefersPasswordlessFirst } from "@/lib/auth/otp-flow";
+import { EmailCodeForm } from "@/components/auth/email-code-form";
+import { RegisterForm, RegisterLoginFooter } from "./register-form";
 
 /**
  * P2 — THE signup page. There is no other one.
@@ -199,6 +201,19 @@ export default async function RegisterPage({
     flow === "claim" ? claimAgencyName : flow === "invite" ? inviterAgencyName : null;
   const keys = registerCopyKeys(flow, Boolean(agencyName));
 
+  // P4 — the CLIENT (booker) lane is passwordless-first. Only the plain
+  // `?as=client` flow: a claim or roster invite has its own contract and the
+  // operator funnel keeps password-first signup.
+  const passwordlessFirst = flow === "client" && prefersPasswordlessFirst(requestedIntent);
+
+  // Claim invites carry the invited address, and the claim RPC requires an exact
+  // match — prefilling it stops the commonest failure (signing up with a
+  // different email and hitting `email_mismatch`).
+  const defaultEmail =
+    (claimInvitationId && typeof email === "string" && email.trim()
+      ? email.trim()
+      : leadEmail) ?? undefined;
+
   // `{agency}` is only present in the claim + invite strings. The claim
   // description always names someone, so it falls back to a catalog phrase
   // rather than a hardcoded locale branch.
@@ -234,19 +249,39 @@ export default async function RegisterPage({
 
         <AuthDivider label={t("public.auth.or")} />
 
-        <RegisterForm
-          nextPath={nextPath}
-          submitLabel={t(keys.submit)}
-          locale={locale}
-          // Claim invites carry the invited address, and the claim RPC requires
-          // an exact match — prefilling it stops the commonest failure (signing
-          // up with a different email and hitting `email_mismatch`).
-          defaultEmail={
-            (claimInvitationId && typeof email === "string" && email.trim()
-              ? email.trim()
-              : leadEmail) ?? undefined
-          }
-        />
+        {passwordlessFirst ? (
+          // P4 — CLIENT intent leads with an emailed code. The password form is
+          // the SAME component, rendered only when the visitor asks for it.
+          <EmailCodeForm
+            nextPath={nextPath}
+            locale={locale}
+            defaultEmail={defaultEmail}
+            submitLabel={t("public.auth.passwordless.emailSubmit")}
+            passwordFallback={
+              <RegisterForm
+                nextPath={nextPath}
+                submitLabel={t(keys.submit)}
+                locale={locale}
+                defaultEmail={defaultEmail}
+                hideFooter
+              />
+            }
+            footer={
+              <RegisterLoginFooter
+                nextPath={nextPath}
+                locale={locale}
+                intent="client"
+              />
+            }
+          />
+        ) : (
+          <RegisterForm
+            nextPath={nextPath}
+            submitLabel={t(keys.submit)}
+            locale={locale}
+            defaultEmail={defaultEmail}
+          />
+        )}
       </AuthCard>
     </div>
   );
