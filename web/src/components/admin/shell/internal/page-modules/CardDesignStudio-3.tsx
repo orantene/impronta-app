@@ -21,6 +21,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { Icon } from "../primitives";
 import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
+import { TalentCard } from "@/components/talent-cards/TalentCard";
 import type { DirectoryCardData } from "@/components/talent-cards/talent-card-shape";
 
 // ────────────────────────────────────────────────────────────────────────
@@ -183,291 +184,219 @@ export function PreviewCard({
   appearance,
   favoriteIcon,
   fieldChips,
+  draft,
 }: {
   surface: CardSurface;
   appearance: CardAppearance;
   favoriteIcon: "heart" | "bookmark";
   fieldChips: string[];
+  /** Working design draft — card token vars + family, so this demo paints
+   *  EXACTLY like the live card (same component, same tokens). */
+  draft?: Record<string, string>;
 }) {
   const t = useT();
   const rule = SURFACE_RULES[surface];
   const [demoFav, setDemoFav] = useState(false);
   const [demoInquiry, setDemoInquiry] = useState(false);
-  const sampleName = "Tina Rossi";
 
   const showFavorite = rule.favorite && appearance.showSave;
   const showInquiry = rule.inquiry && appearance.showAddToInquiry;
-  const editorial = appearance.cardStyle === "editorial";
-
   const FavGlyph = favoriteIcon === "bookmark" ? Bookmark : Heart;
 
-  const nameBlock = (
-    <>
-      {appearance.showName ? (
-        <div
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 16,
-            fontWeight: 600,
-            color: editorial ? "#fff" : COLORS.ink,
-            lineHeight: 1.2,
-          }}
-        >
-          {sampleName}
-        </div>
-      ) : null}
-      {appearance.showTalentType ? (
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 500,
-            color: editorial ? "rgba(255,255,255,0.82)" : COLORS.inkMuted,
-            marginTop: 2,
-          }}
-        >
-          {t("dashboard.adminCardStudio2.sampleTalentType")}
-        </div>
-      ) : null}
-    </>
-  );
+  // Token projection: an empty token = no var = the
+  // card inherits the theme color (the live contract).
+  const d = draft ?? {};
+  const previewVars: React.CSSProperties = {
+    ...(isHex(d["card.surface"] ?? "")
+      ? { ["--token-card-surface" as string]: d["card.surface"] }
+      : {}),
+    ...(isHex(d["card.name-color"] ?? "")
+      ? { ["--token-card-name-color" as string]: d["card.name-color"] }
+      : {}),
+    ...(isHex(d["card.muted"] ?? "")
+      ? { ["--token-card-muted" as string]: d["card.muted"] }
+      : {}),
+    ...(isHex(d["card.price-color"] ?? "")
+      ? { ["--token-card-price-color" as string]: d["card.price-color"] }
+      : {}),
+  };
+  const family = d["template.directory-card-family"] || undefined;
+
+  // The canonical card renders the price chip only when a label is present,
+  // so the "Price from" toggle maps to including/omitting the sample label.
+  const data: DirectoryCardData = {
+    ...CARD_PREVIEW_SAMPLE,
+    priceFromLabel: appearance.showPriceFrom
+      ? CARD_PREVIEW_SAMPLE.priceFromLabel
+      : undefined,
+  };
 
   return (
     <div
       data-tulala-card-design-preview-card
-      style={{
-        width: 260,
-        maxWidth: "100%",
-        background: COLORS.card,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: RADIUS.lg,
-        overflow: "hidden",
-        boxShadow: COLORS.shadowHover,
-        fontFamily: FONTS.body,
-      }}
+      data-token-template-directory-card-family={family}
+      data-card-design-scope=""
+      style={{ width: 260, maxWidth: "100%", ...previewVars }}
     >
-      {/* Image area */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: String(ASPECT_RATIO[appearance.cardAspect]),
-          background: `linear-gradient(150deg, ${COLORS.accentSoft}, ${COLORS.indigoSoft})`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <span
-          style={{
-            fontFamily: FONTS.display,
-            fontSize: 40,
-            fontWeight: 600,
-            color: "rgba(11,11,13,0.18)",
+      <div style={{ position: "relative" }}>
+        {/* THE canonical <TalentCard> — the exact component every live surface
+            renders — driven by the admin's layout knobs. No bespoke replica:
+            what this preview shows is what the directory ships. */}
+        <TalentCard
+          data={data}
+          style={appearance.cardStyle}
+          show={{
+            showName: appearance.showName,
+            showTalentType: appearance.showTalentType,
+            showLocation: appearance.showLocation,
+            showAvailability: appearance.showAvailability,
+            showBadges: appearance.showBadges,
           }}
-        >
-          TR
-        </span>
-
-        {/* Availability dot */}
-        {appearance.showAvailability ? (
-          <span
-            style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              background: "rgba(255,255,255,0.92)",
-              borderRadius: 999,
-              padding: "3px 8px",
-              fontSize: 10.5,
-              fontWeight: 600,
-              color: COLORS.successDeep,
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.success }} />
-            {t("dashboard.adminCardStudio2.previewAvailable")}
-          </span>
-        ) : null}
-
-        {/* Favorite — top-right overlay, matches TalentCardActions circle */}
-        {showFavorite ? (
-          <button
-            type="button"
-            aria-pressed={demoFav}
-            aria-label={interpolate(
-              t(
-                demoFav
-                  ? "dashboard.adminCardStudio2.previewRemoveFavoriteAria"
-                  : "dashboard.adminCardStudio2.previewSaveFavoriteAria",
-              ),
-              { name: sampleName },
-            )}
-            onClick={() => setDemoFav((v) => !v)}
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              width: 34,
-              height: 34,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              border: `1px solid ${COLORS.border}`,
-              background: "rgba(255,255,255,0.85)",
-              backdropFilter: "blur(4px)",
-              color: demoFav ? COLORS.accent : COLORS.inkMuted,
-              cursor: "pointer",
-              transition: `color ${TRANSITION.sm}`,
-            }}
-          >
-            <FavGlyph size={16} fill={demoFav ? "currentColor" : "none"} aria-hidden />
-          </button>
-        ) : null}
-
-        {/* Editorial overlay name */}
-        {editorial && (appearance.showName || appearance.showTalentType) ? (
+          nameFallback="role"
+          aspect={appearance.cardAspect}
+          density={appearance.density}
+          rootMode="button"
+          onActivate={() => {}}
+          priority
+        />
+        {/* Favorite + Inquire demo affordances in the CANONICAL position
+            (top-right over the media — where DirectoryCardAdapter mounts
+            <TalentCardActions>). Interactive so the admin can see both
+            states; on the live surface they connect to the client's real
+            favorites and inquiry list. */}
+        {showFavorite || showInquiry ? (
           <div
             style={{
               position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              padding: "28px 12px 12px",
-              background: "linear-gradient(to top, rgba(11,11,13,0.72), transparent)",
+              right: 10,
+              top: 10,
+              zIndex: 4,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            {nameBlock}
+            {showInquiry ? (
+              <button
+                type="button"
+                onClick={() => setDemoInquiry((v) => !v)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  height: 28,
+                  padding: "0 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.35)",
+                  background: demoInquiry
+                    ? "rgba(200,160,74,0.92)"
+                    : "rgba(0,0,0,0.45)",
+                  color: demoInquiry ? "#1c1710" : "#fff",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: 0.4,
+                  textTransform: "uppercase",
+                  backdropFilter: "blur(6px)",
+                  cursor: "pointer",
+                  transition: TRANSITION.sm,
+                }}
+              >
+                {demoInquiry ? (
+                  <Check size={12} aria-hidden />
+                ) : (
+                  <Send size={12} aria-hidden />
+                )}
+                {demoInquiry
+                  ? t("dashboard.adminCardStudio2.previewAdded")
+                  : t("dashboard.adminCardStudio2.previewInquire")}
+              </button>
+            ) : null}
+            {showFavorite ? (
+              <button
+                type="button"
+                aria-pressed={demoFav}
+                onClick={() => setDemoFav((v) => !v)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 28,
+                  height: 28,
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.35)",
+                  background: "rgba(0,0,0,0.45)",
+                  color: "#fff",
+                  backdropFilter: "blur(6px)",
+                  cursor: "pointer",
+                  transition: TRANSITION.sm,
+                }}
+              >
+                <FavGlyph
+                  size={14}
+                  aria-hidden
+                  fill={demoFav ? "currentColor" : "none"}
+                />
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
 
-      {/* Body */}
-      <div style={{ padding: 12 }}>
-        {!editorial ? nameBlock : null}
-
-        {appearance.showLocation ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              marginTop: 6,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-            }}
-          >
-            <Icon name="map-pin" size={12} color={COLORS.inkDim} />
-            Milano, IT
-          </div>
-        ) : null}
-
-        {appearance.showRating ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 6, fontSize: 12, color: COLORS.inkMuted }}>
-            <Icon name="star" size={12} color={COLORS.amber} />
-            {interpolate(t("dashboard.adminCardStudio2.previewRating"), { rating: "4.9", count: 32 })}
-          </div>
-        ) : null}
-
-        {appearance.showPriceFrom ? (
-          <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: COLORS.ink }}>
-            {interpolate(t("dashboard.adminCardStudio2.previewPriceFrom"), { price: "€850" })}
-          </div>
-        ) : null}
-
-        {/* Engine fields — the card-visible field_definitions */}
-        {appearance.showAttributes && fieldChips.length > 0 ? (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
-            {fieldChips.map((chip) => (
-              <span
-                key={chip}
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 500,
-                  color: COLORS.inkMuted,
-                  background: COLORS.surfaceAlt,
-                  border: `1px solid ${COLORS.borderSoft}`,
-                  borderRadius: 999,
-                  padding: "3px 8px",
-                }}
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        {appearance.showBadges ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 10 }}>
+      {/* Engine field chips — mirrors the adapter's trait row BELOW the card
+          (the canonical card itself carries no chip row). */}
+      {appearance.showAttributes && fieldChips.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
+          {fieldChips.map((chip) => (
             <span
+              key={chip}
+              data-card-chip
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
                 fontSize: 10.5,
-                fontWeight: 600,
-                color: COLORS.accentDeep,
-                background: COLORS.accentSoft,
+                fontWeight: 500,
+                color: COLORS.inkMuted,
+                background: COLORS.surfaceAlt,
+                border: `1px solid ${COLORS.borderSoft}`,
                 borderRadius: 999,
                 padding: "3px 8px",
               }}
             >
-              <Icon name="check" size={11} color={COLORS.accent} />
-              {t("dashboard.adminCardStudio2.previewVerified")}
+              {chip}
             </span>
-          </div>
-        ) : null}
+          ))}
+        </div>
+      ) : null}
 
-        {/* Inquiry CTA — matches TalentCardActions inquiry pill */}
-        {showInquiry ? (
-          <button
-            type="button"
-            aria-pressed={demoInquiry}
-            onClick={() => setDemoInquiry((v) => !v)}
-            style={{
-              marginTop: 12,
-              width: "100%",
-              height: 36,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              borderRadius: RADIUS.md,
-              border: `1px solid ${demoInquiry ? COLORS.ink : COLORS.border}`,
-              background: demoInquiry ? "rgba(11,11,13,0.06)" : "transparent",
-              color: COLORS.ink,
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: 1.2,
-              textTransform: "uppercase",
-              cursor: "pointer",
-              transition: `border-color ${TRANSITION.sm}`,
-            }}
-          >
-            {demoInquiry ? <Check size={14} aria-hidden /> : <Send size={14} aria-hidden />}
-            {t(
-              demoInquiry
-                ? "dashboard.adminCardStudio2.previewAdded"
-                : "dashboard.adminCardStudio2.previewInquire",
-            )}
-          </button>
-        ) : null}
+      {appearance.showRating ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            marginTop: 8,
+            fontSize: 12,
+            color: COLORS.inkMuted,
+          }}
+        >
+          <Icon name="star" size={12} color={COLORS.amber} />
+          {interpolate(t("dashboard.adminCardStudio2.previewRating"), {
+            rating: "4.9",
+            count: 32,
+          })}
+        </div>
+      ) : null}
 
-        {!showFavorite && !showInquiry ? (
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 11,
-              color: COLORS.inkDim,
-              fontStyle: "italic",
-            }}
-          >
-            {t("dashboard.adminCardStudio2.previewNoClientActions")}
-          </div>
-        ) : null}
-      </div>
+      {!rule.favorite && !rule.inquiry ? (
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 11,
+            color: COLORS.inkDim,
+            fontStyle: "italic",
+          }}
+        >
+          {t("dashboard.adminCardStudio2.previewNoClientActions")}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -9,8 +9,8 @@
  * stays acyclic: `-3` (leaf) ← `-4` (this) ← `-2` (barrel) ← main studio.
  *
  * Admin chrome stays neutral / cool — the ONLY place gold appears is inside the
- * right-hand <TalentCard> live preview (CardLivePreview), which is the public
- * editorial card painting from its own published tokens.
+ * right-hand <TalentCard> preview (PreviewCard, defined in `-3`), which is the
+ * public card painting from its own published tokens.
  */
 
 import { Check, Eye, Maximize2 } from "lucide-react";
@@ -19,11 +19,9 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { COLORS, FONTS, RADIUS, TRANSITION } from "../state";
 import type { RosterCardBadgePrefs } from "@/lib/talent-cards/roster-card-badges";
-import { TalentCard } from "@/components/talent-cards/TalentCard";
 
 import {
   CARD_COLOR_KNOBS,
-  CARD_PREVIEW_SAMPLE,
   CardKitChooser,
   ColorKnob,
   DesignSaveStatus,
@@ -31,7 +29,6 @@ import {
   PreviewCard,
   SURFACE_ORDER,
   SURFACE_RULES,
-  isHex,
 } from "./CardDesignStudio-3";
 import type {
   CardAppearance,
@@ -127,73 +124,6 @@ export function PublishCluster({
         }}
       >
         {line}
-      </div>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────
-// CardLivePreview
-// ────────────────────────────────────────────────────────────────────────
-
-/**
- * LIVE preview of the canonical <TalentCard>. The wrapper sets
- * `--token-card-surface / -name-color / -muted` from the working draft inline,
- * so every edit repaints the card instantly — exactly what the live storefront
- * card will look like once published. An empty token = no var = the card falls
- * back to the theme color (the inherit contract). This is the ONLY place gold
- * may appear in the studio (it's the public editorial card).
- */
-export function CardLivePreview({ draft }: { draft: Record<string, string> }) {
-  const previewVars: React.CSSProperties = {
-    ...(isHex(draft["card.surface"] ?? "")
-      ? { ["--token-card-surface" as string]: draft["card.surface"] }
-      : {}),
-    ...(isHex(draft["card.name-color"] ?? "")
-      ? { ["--token-card-name-color" as string]: draft["card.name-color"] }
-      : {}),
-    ...(isHex(draft["card.muted"] ?? "")
-      ? { ["--token-card-muted" as string]: draft["card.muted"] }
-      : {}),
-    ...(isHex(draft["card.price-color"] ?? "")
-      ? { ["--token-card-price-color" as string]: draft["card.price-color"] }
-      : {}),
-  };
-
-  // Family attr on the preview wrapper (paired with data-card-design-scope so
-  // the :is(html, [data-card-design-scope]) family CSS matches) — the preview
-  // now shows the kit's chrome, not just its colors.
-  const family = draft["template.directory-card-family"] || undefined;
-
-  return (
-    <div
-      data-token-template-directory-card-family={family}
-      data-card-design-scope=""
-      style={{
-        padding: 18,
-        borderRadius: RADIUS.xl,
-        border: `1px solid ${COLORS.border}`,
-        // Quiet ground; the card paints its own surface from the tokens so the
-        // preview reads true.
-        background: COLORS.surfaceAlt,
-        ...previewVars,
-      }}
-    >
-      <div style={{ width: 240, maxWidth: "100%", margin: "0 auto" }}>
-        <TalentCard
-          data={CARD_PREVIEW_SAMPLE}
-          style="editorial"
-          show={{
-            showName: true,
-            showTalentType: true,
-            showLocation: true,
-            showAvailability: true,
-            showBadges: true,
-          }}
-          nameFallback="role"
-          aspect="4:5"
-          priority
-        />
       </div>
     </div>
   );
@@ -340,24 +270,33 @@ export function CardDesignPreviewColumn({
         </>
       ) : (
         <>
-          <CardLivePreview draft={draftTokens} />
-          <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
-            {t("dashboard.adminCardStudio2.livePreviewHint")}
-          </div>
-          <div style={{ height: 1, background: COLORS.borderSoft, margin: "2px 0" }} />
-          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted }}>
-            {t("dashboard.adminCardStudio.actionsTitle")}
-          </div>
-          <div style={{ alignSelf: "center" }}>
+          {/* ONE preview, not two. The studio used to show a "look" card and a
+              separate "actions" card side by side — two renderings of the same
+              thing, which read as two different products and left the admin
+              unsure which one publishes. This single card is the canonical
+              <TalentCard> with the real action affordances on it: colors, kit,
+              layout, show/hide and actions all land here, and this is exactly
+              what Publish ships. */}
+          <div
+            style={{
+              padding: 18,
+              borderRadius: RADIUS.xl,
+              border: `1px solid ${COLORS.border}`,
+              background: COLORS.surfaceAlt,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
             <PreviewCard
               surface={activeSurface}
               appearance={appearance}
               favoriteIcon={favoriteIcon}
               fieldChips={fieldChips}
+              draft={draftTokens}
             />
           </div>
           <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.45 }}>
-            {t("dashboard.adminCardStudio2.actionsPreviewHint")}
+            {t("dashboard.adminCardStudio2.livePreviewHint")}
           </div>
         </>
       )}

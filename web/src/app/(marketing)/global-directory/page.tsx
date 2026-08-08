@@ -32,6 +32,8 @@ import {
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
 import { DEFAULT_CARD_DESIGN } from "@/lib/site-admin/server/card-design-shape";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
+import { PublicDiscoveryStateProvider } from "@/components/directory/public-discovery-state";
+import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -135,6 +137,13 @@ export default async function MarketingDirectoryPage({
     ? await resolveCardDesign(hub.tenantId)
     : DEFAULT_CARD_DESIGN;
   const gridItems = gridData.items.map((row) => ({ ...row, design: hubDesign }));
+  // Card actions (favorite heart + inquire pill) need the discovery-state
+  // provider; both hooks are guest-capable (localStorage mirror + guest RPCs),
+  // so a signed-out visitor's favorites/lineup persist for their session.
+  const [initialSavedIds, initialFavoriteIds] = await Promise.all([
+    getSavedTalentIds(),
+    getFavoriteTalentIds(),
+  ]);
   const mapPoints = mapData.points.map((point) => ({
     ...point,
     design: hubDesign,
@@ -238,18 +247,23 @@ export default async function MarketingDirectoryPage({
       </section>
 
       <div className="pt-8">
-        <MarketingDirectoryShell
-          view={view}
-          sort={sort}
-          facets={facets}
-          activeFilters={activeFilters}
-          initialItems={gridItems}
-          initialTotal={gridData.total}
-          pageSize={DIRECTORY_PAGE_SIZE}
-          mapPoints={mapPoints}
-          mapUnmappedCount={mapData.unmappedCount}
-          mapApiKey={mapApiKey}
-        />
+        <PublicDiscoveryStateProvider
+          initialSavedIds={initialSavedIds}
+          initialFavoriteIds={initialFavoriteIds}
+        >
+          <MarketingDirectoryShell
+            view={view}
+            sort={sort}
+            facets={facets}
+            activeFilters={activeFilters}
+            initialItems={gridItems}
+            initialTotal={gridData.total}
+            pageSize={DIRECTORY_PAGE_SIZE}
+            mapPoints={mapPoints}
+            mapUnmappedCount={mapData.unmappedCount}
+            mapApiKey={mapApiKey}
+          />
+        </PublicDiscoveryStateProvider>
       </div>
 
       {/* Floating "Message {hub}" guest-chat launcher. On the marketing apex

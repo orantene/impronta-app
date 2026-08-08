@@ -86,6 +86,20 @@ export type CardDesign = {
   cardAspect?: "4:5" | "1:1" | "3:4" | "16:9";
   hover?: "zoom" | "swap" | "reveal_traits" | "none";
   density?: "comfortable" | "compact";
+  /**
+   * Tenant-wide DEFAULTS for the card's line/element visibility, same
+   * section-override semantics as the layout knobs above: a directory section
+   * that sets its own value keeps it; sections left UNSET follow these.
+   * Undefined here = fall through to the platform default (all on).
+   */
+  showName?: "on" | "off";
+  showTalentType?: "on" | "off";
+  showLocation?: "on" | "off";
+  showAttributes?: "on" | "off";
+  showAvailability?: "on" | "off";
+  showBadges?: "on" | "off";
+  showRating?: "on" | "off";
+  showPriceFrom?: "on" | "off";
 };
 
 /** Registry token key → `CardDesign` color field. */
@@ -102,6 +116,22 @@ const PROFILE_POPUP_KEY = "directory.card.profile-popup";
 const ACTION_CEILING_KEYS = {
   showFavorite: "directory.card.show-favorite",
   showInquiry: "directory.card.show-inquiry",
+} as const;
+
+/**
+ * Registry token key → `CardDesign` line-visibility DEFAULT. Unlike the action
+ * ceilings above these are plain defaults (a section may set either value),
+ * but they project identically: only "on" / "off" are accepted.
+ */
+const LINE_VISIBILITY_KEYS = {
+  showName: "directory.card.show-name",
+  showTalentType: "directory.card.show-talent-type",
+  showLocation: "directory.card.show-location",
+  showAttributes: "directory.card.show-attributes",
+  showAvailability: "directory.card.show-availability",
+  showBadges: "directory.card.show-badges",
+  showRating: "directory.card.show-rating",
+  showPriceFrom: "directory.card.show-starting-from-price",
 } as const;
 
 /** Registry token key → `CardDesign` layout field, with its allowed values. */
@@ -164,6 +194,13 @@ export function projectCardDesign(
     if (value === "off" || value === "on") out[field] = value;
   }
 
+  for (const [field, tokenKey] of Object.entries(LINE_VISIBILITY_KEYS) as Array<
+    [keyof typeof LINE_VISIBILITY_KEYS, string]
+  >) {
+    const value = live[tokenKey];
+    if (value === "off" || value === "on") out[field] = value;
+  }
+
   for (const [field, spec] of Object.entries(LAYOUT_KEYS)) {
     const [tokenKey, allowed] = spec as unknown as [string, readonly string[]];
     const value = live[tokenKey];
@@ -221,4 +258,39 @@ export function familyToTalentCardStyle(
   family: CardDesignFamily,
 ): "portrait" | "editorial" {
   return EDITORIAL_FAMILIES.has(family) ? "editorial" : "portrait";
+}
+
+/**
+ * Resolve the canonical `<TalentCard>` `show` object from a tenant design plus
+ * optional per-section overrides. The section value ALWAYS wins when set; an
+ * undefined section value follows the tenant default; an unset tenant default
+ * falls through to `true` (the platform default). One helper so the tenant
+ * directory and the marketing directory can never drift apart again.
+ */
+export function resolveCardShow(
+  design: CardDesign,
+  section?: Partial<
+    Record<
+      "showName" | "showTalentType" | "showLocation" | "showAvailability" | "showBadges",
+      boolean | undefined
+    >
+  >,
+): {
+  showName: boolean;
+  showTalentType: boolean;
+  showLocation: boolean;
+  showAvailability: boolean;
+  showBadges: boolean;
+} {
+  const pick = (
+    sectionValue: boolean | undefined,
+    tenantValue: "on" | "off" | undefined,
+  ): boolean => sectionValue ?? (tenantValue ? tenantValue === "on" : true);
+  return {
+    showName: pick(section?.showName, design.showName),
+    showTalentType: pick(section?.showTalentType, design.showTalentType),
+    showLocation: pick(section?.showLocation, design.showLocation),
+    showAvailability: pick(section?.showAvailability, design.showAvailability),
+    showBadges: pick(section?.showBadges, design.showBadges),
+  };
 }

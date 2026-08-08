@@ -63,15 +63,20 @@ export function DirectoryCardAdapter({
   card: DirectoryCardDTO;
   cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
   cardAspect: NonNullable<DirectoryV1["cardAspect"]>;
-  show: Pick<
-    DirectoryV1,
-    | "showName"
-    | "showTalentType"
-    | "showLocation"
-    | "showAvailability"
-    | "showBadges"
-    | "showAttributes"
-  >;
+  /**
+   * RESOLVED line visibility — concrete booleans, never the raw optional
+   * section props: the section value, else the tenant Card Design default,
+   * else the platform default (see Component.tsx). Concrete here so a knob
+   * can never silently read `undefined` as "off".
+   */
+  show: {
+    showName: boolean;
+    showTalentType: boolean;
+    showLocation: boolean;
+    showAvailability: boolean;
+    showBadges: boolean;
+    showAttributes: boolean;
+  };
   nameFallback: DirectoryV1["nameFallback"];
   /** Render the favorite (save) affordance overlay. */
   showSave: boolean;
