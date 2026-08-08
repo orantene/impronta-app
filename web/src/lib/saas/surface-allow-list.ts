@@ -163,6 +163,20 @@ const COMPLIANCE_PREFIXES = [
 const PWA_PATHS = ["/offline"] as const;
 
 /**
+ * P5 mobile-app groundwork — well-known deep-link association files, reachable
+ * on every surface regardless of host kind:
+ *   - `/.well-known/apple-app-site-association` → Apple Universal Links
+ *   - `/.well-known/assetlinks.json`            → Android App Links (Digital
+ *                                                  Asset Links)
+ * Both are inert PLACEHOLDER stubs (see the route files under
+ * `app/.well-known/*`) until a native app exists — no tenant data, no auth,
+ * so host-agnostic is safe. iOS/Android verifiers fetch these over HTTPS
+ * with no session; gating them behind host resolution would 404 them on
+ * whichever host ends up hosting the real files.
+ */
+const WELL_KNOWN_PREFIX = "/.well-known" as const;
+
+/**
  * Post-checkout landing pages reachable on every surface, regardless of host
  * kind. Stripe builds `success_url` / `cancel_url` from the request origin
  * (see `client-pipeline.ts`), so after a client pays, Stripe redirects them to
@@ -616,6 +630,7 @@ export function isPathAllowedForHostKind(
   if (pathname === "/") return true;
   if (anyExact(pathname, STATIC_PATHS)) return true;
   if (anyExact(pathname, PWA_PATHS)) return true;
+  if (hasPrefix(pathname, WELL_KNOWN_PREFIX)) return true;
   if (hasPrefix(pathname, PROTOTYPE_PREFIX)) return true;
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
   if (anyPrefix(pathname, COMPLIANCE_PREFIXES)) return true;
