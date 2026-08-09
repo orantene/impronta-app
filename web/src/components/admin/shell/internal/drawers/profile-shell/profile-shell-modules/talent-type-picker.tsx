@@ -715,11 +715,28 @@ export function SiblingTopNPicker({
             // did before — every chip full contrast.)
             const disabledForTenant =
               !!tenantEnabledSlugs && !tenantEnabledSlugs.has(c.id);
+            // A type the workspace disabled must not be SELECTABLE. The fade
+            // alone was advisory — the chip stayed fully clickable, so an
+            // operator could pick a type the save would then refuse, and the
+            // refusal surfaced much later as a red banner naming a service they
+            // could no longer find. (This is how a disabled type reached the
+            // editor draft in the first place; the sync module's comment that
+            // "the Services picker hides disabled types" was never true.)
+            //
+            // Still removable when already selected: blocking that would strand
+            // any profile that picked one up earlier, which is precisely the
+            // state we are cleaning up.
+            const blockAdd = disabledForTenant && !active;
             return (
               <button
                 key={c.id}
                 type="button"
-                onClick={() => onToggle(c.id)}
+                disabled={blockAdd}
+                aria-disabled={blockAdd || undefined}
+                onClick={() => {
+                  if (blockAdd) return;
+                  onToggle(c.id);
+                }}
                 title={
                   disabledForTenant
                     ? copy.t("This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types.")
@@ -750,7 +767,7 @@ export function SiblingTopNPicker({
                   opacity: disabledForTenant ? 0.55 : 1,
                   fontSize: 11.5,
                   fontWeight: 600,
-                  cursor: "pointer",
+                  cursor: blockAdd ? "not-allowed" : "pointer",
                   fontFamily: FONTS.body,
                 }}
               >
