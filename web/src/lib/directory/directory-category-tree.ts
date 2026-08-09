@@ -73,7 +73,34 @@ async function loadCategoryTreeUncached(
   const supabase = createServiceRoleClient();
   if (!supabase) return [];
 
-  const rosterIds = await listTalentIdsOnTenantRoster(supabase, tenantId);
+  const rosterAllIds = await listTalentIdsOnTenantRoster(supabase, tenantId);
+  if (rosterAllIds.length === 0) return [];
+
+  // The chip count must be countable on the RESULT set, not the roster.
+  //
+  // `listTalentIdsOnTenantRoster` answers "on this tenant's public roster"
+  // (status/agency_visibility/talent_site_hidden). The directory listing then
+  // applies a STRICTER public gate — `deleted_at is null`, `is_publicly_hidden
+  // = false`, `is_publicly_listed = true` (fetch-directory-page). Counting on
+  // the looser set is what made a chip promise more talent than clicking it
+  // produced, and — where every talent in a category was unlisted — a chip with
+  // a number that clicked through to "No one matches yet" (2 such categories
+  // live at the time of this change).
+  //
+  // Applying the same gate here restores the invariant this module's header
+  // already claims: "a parent count matches the result of clicking it".
+  const rosterIds: string[] = [];
+  for (const ids of chunk(rosterAllIds, MAX_IN)) {
+    const { data, error } = await supabase
+      .from("talent_profiles")
+      .select("id")
+      .in("id", ids)
+      .is("deleted_at", null)
+      .eq("is_publicly_hidden", false)
+      .eq("is_publicly_listed", true);
+    if (error) return [];
+    for (const row of (data ?? []) as { id: string }[]) rosterIds.push(row.id);
+  }
   if (rosterIds.length === 0) return [];
 
   // Tenant category overrides (Settings → Roster & profile fields → Categories).
