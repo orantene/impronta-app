@@ -13,7 +13,7 @@ import {
 
 const TALENT_TYPE_KIND = "talent_type";
 
-type Result = { ok: true } | { ok: false; error: string };
+type Result = { ok: true; warnings?: string[] } | { ok: false; error: string };
 
 export async function syncTalentTypeTaxonomyFromShellSlugs(
   supabase: SupabaseClient,
@@ -80,6 +80,23 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
     }
   }
 
+  // An UNAVAILABLE talent type must not brick the whole profile save.
+  //
+  // The grandfather rule above (`enforceTenantAvailability: !currentSlugs.has`)
+  // only protects types ALREADY persisted. A type sitting in the editor's draft
+  // that the workspace has since disabled is "new" by that test, so it used to
+  // abort the entire batch — identity, bio, home base, dynamic fields and every
+  // OTHER service with it — over one entry the operator often cannot even see.
+  // Live blast radius when this was found: 42 of 57 Impronta talents hold at
+  // least one term the workspace disabled, against 353 disabled terms.
+  //
+  // Availability is a statement about ONE type, so it is now enforced per type:
+  // the offending type is skipped and NAMED in a warning, and everything else
+  // saves. This is the behaviour the grandfather comment above already promised
+  // ("must NOT be blocked from saving the rest of the profile"), and it matches
+  // the warning path the admin shell already uses for this same failure.
+  const warnings: string[] = [];
+
   if (primary) {
     const resolved = await resolveTenantTalentTypeTermId(supabase, {
       tenantId,
@@ -87,15 +104,19 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
       relationshipType: "primary_role",
       enforceTenantAvailability: !currentSlugs.has(primary),
     });
-    if (!resolved.ok) return { ok: false, error: resolved.error };
-    const id = resolved.termId;
-    const asg = await assignTaxonomyTermToProfile(supabase, {
-      talentProfileId,
-      taxonomyTermId: id,
-      relationshipType: "primary_role",
-      tenantId,
-    });
-    if (!asg.ok) return { ok: false, error: asg.error };
+    if (!resolved.ok) {
+      warnings.push(resolved.error);
+    } else {
+      const asg = await assignTaxonomyTermToProfile(supabase, {
+        talentProfileId,
+        taxonomyTermId: resolved.termId,
+        relationshipType: "primary_role",
+        tenantId,
+      });
+      // A failed WRITE stays fatal — that is a real persistence failure, not a
+      // policy decision about one type.
+      if (!asg.ok) return { ok: false, error: asg.error };
+    }
   }
 
   for (const slug of secondaries) {
@@ -105,7 +126,10 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
       relationshipType: "secondary_role",
       enforceTenantAvailability: !currentSlugs.has(slug),
     });
-    if (!resolved.ok) return { ok: false, error: resolved.error };
+    if (!resolved.ok) {
+      warnings.push(resolved.error);
+      continue;
+    }
     const asg = await assignTaxonomyTermToProfile(supabase, {
       talentProfileId,
       taxonomyTermId: resolved.termId,
@@ -115,5 +139,5 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
     if (!asg.ok) return { ok: false, error: asg.error };
   }
 
-  return { ok: true };
+  return warnings.length > 0 ? { ok: true, warnings } : { ok: true };
 }

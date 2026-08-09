@@ -36,7 +36,7 @@ import type {
   TalentDocumentEntry,
 } from "./admin-talent-profile-sections";
 
-type Result = { ok: true } | { ok: false; error: string };
+type Result = { ok: true; warnings?: string[] } | { ok: false; error: string };
 
 export async function getTalentProfileEditorDataForSelf(input: {
   talent_profile_id: string;
@@ -496,6 +496,11 @@ export async function syncSelfTalentTypeTaxonomyFromShell(input: {
       secondarySlugs: input.secondary_slugs,
     });
     if (!tax.ok) return { ok: false, error: tax.error };
+    if (tax.warnings?.length) {
+      // Skipped-but-reported, never fatal — same rule as the staff path.
+      revalidatePath(`/t/${profileCode}`, "page");
+      return { ok: true, warnings: tax.warnings };
+    }
   }
 
   revalidatePath(`/t/${profileCode}`, "page");

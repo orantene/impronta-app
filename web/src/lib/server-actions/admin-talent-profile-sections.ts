@@ -57,7 +57,7 @@ import type { UiProfileShellStatus } from "@/lib/talent/profile-shell-workflow";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
-type OkResult = { ok: true };
+type OkResult = { ok: true; warnings?: string[] };
 type ErrResult = { ok: false; error: string };
 type Result = OkResult | ErrResult;
 
@@ -532,6 +532,7 @@ export type CommitTalentProfileShellAdminInput = {
 export async function commitTalentProfileShellAdmin(
   input: CommitTalentProfileShellAdminInput,
 ): Promise<Result> {
+  const shellWarnings: string[] = [];
   const devProfileSaveTiming = process.env.NODE_ENV === "development";
   const tStart = performance.now();
   const laps: Record<string, number> = {};
@@ -795,6 +796,9 @@ export async function commitTalentProfileShellAdmin(
     });
     lap("shellTaxonomySync");
     if (!tax.ok) return { ok: false, error: tax.error };
+    // A type the workspace has disabled is skipped and reported, never fatal —
+    // the rest of the profile must still save. See the note in the sync module.
+    if (tax.warnings?.length) shellWarnings.push(...tax.warnings);
   }
 
   const dynRes = await syncProfileShellDynFieldValues(supabase, tid, input.dyn_fields, "staff");
@@ -849,7 +853,7 @@ export async function commitTalentProfileShellAdmin(
       totalMs,
     });
   }
-  return { ok: true };
+  return shellWarnings.length > 0 ? { ok: true, warnings: shellWarnings } : { ok: true };
 }
 
 /** Server-authoritative publish readiness for the drawer's coach. Same code
