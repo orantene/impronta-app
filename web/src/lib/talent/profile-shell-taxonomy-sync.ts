@@ -66,8 +66,15 @@ export async function syncTalentTypeTaxonomyFromShellSlugs(
   // one it doesn't offer) must NOT be blocked from saving the rest of the
   // profile — the whole batch (identity, bio, home base, dynamic fields)
   // otherwise fails on one stale secondary type. Tenant availability is only
-  // enforced for NEWLY-added types, mirroring the Services picker (which hides
-  // disabled types) and removeTalentTaxonomyBySlug (which never enforces).
+  // enforced for NEWLY-added types, mirroring removeTalentTaxonomyBySlug
+  // (which never enforces).
+  //
+  // CORRECTION: this comment used to claim the Services picker "hides disabled
+  // types". It never did — it faded them to 55% opacity and left them fully
+  // clickable, which is how disabled types entered editor drafts and turned
+  // every save into "No se pudo guardar: <X> is disabled for this workspace".
+  // The picker now blocks ADDING one (still removable), so this enforcement is
+  // a backstop rather than the only line of defence.
   const currentSlugs = new Set(currentTalentTypes.map((c) => c.slug));
 
   for (const { termId, slug } of currentTalentTypes) {
