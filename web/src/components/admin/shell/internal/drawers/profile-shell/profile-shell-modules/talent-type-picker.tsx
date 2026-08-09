@@ -713,8 +713,17 @@ export function SiblingTopNPicker({
             // known AND this chip's slug is NOT in the tenant's enabled set.
             // (When tenantEnabledSlugs is undefined the picker behaves as it
             // did before — every chip full contrast.)
+            // `size > 0`, not just presence. The caller seeds this as an EMPTY
+            // Set and fills it from an async `getEnabledTaxonomyTree()` — and an
+            // empty Set is truthy, so a presence check treats EVERY chip as
+            // disabled until that request lands (and forever when the tenant
+            // identity is missing and the effect early-returns). That was merely
+            // a cosmetic over-fade while this flag only controlled opacity; now
+            // that it also blocks selection, it would make every service
+            // unclickable during load. Unknown => allow.
+            const tenantSetLoaded = !!tenantEnabledSlugs && tenantEnabledSlugs.size > 0;
             const disabledForTenant =
-              !!tenantEnabledSlugs && !tenantEnabledSlugs.has(c.id);
+              tenantSetLoaded && !tenantEnabledSlugs.has(c.id);
             // A type the workspace disabled must not be SELECTABLE. The fade
             // alone was advisory — the chip stayed fully clickable, so an
             // operator could pick a type the save would then refuse, and the
