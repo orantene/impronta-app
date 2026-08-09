@@ -215,6 +215,7 @@ import { setTalentLanguages } from "@/lib/server-actions/admin-talent-languages"
 import type { TalentLanguageInput } from "@/lib/server-actions/admin-talent-languages.types";
 import {
   formatProfileShellSaveFailures,
+  reportProfileShellSaveWarnings,
   runProfileShellSaveSteps,
   type ProfileShellSaveStepResult,
 } from "@/lib/talent/profile-shell-save-feedback";
@@ -1314,9 +1315,7 @@ export function TalentProfileShellDrawer() {
                 businessLine: s.identity.businessLine ?? "",
               },
             });
-            return batchRes.ok
-              ? { ok: true as const, warnings: batchRes.warnings }
-              : { ok: false as const, error: batchRes.error };
+            return batchRes.ok ? { ok: true as const, warnings: batchRes.warnings } : { ok: false as const, error: batchRes.error };
           },
         },
       ];
@@ -1366,23 +1365,14 @@ export function TalentProfileShellDrawer() {
         });
         return false;
       }
+      // Committed, but a selection the operator made was not applied — never
+      // close on a green "Saved". See reportProfileShellSaveWarnings.
       if (stepped.warnings?.length) {
-        // The batch COMMITTED, but something the operator explicitly selected
-        // was not applied (a talent type the workspace has disabled). Surface it
-        // exactly like a failure and do NOT close on a green "Saved": the whole
-        // point of #1082 making this non-fatal was that the REST of the profile
-        // should still save — not that the dropped selection becomes invisible.
-        // Closing silently here is what made "I select it, I save, the drawer
-        // closes, nothing is saved" look like the save was broken.
-        setSaveStatus("error");
-        lastSaveErrorRef.current = formatProfileShellSaveFailures(stepped.warnings);
-        setSaveError(lastSaveErrorRef.current);
-        stepped.warnings.forEach((w) => toast(w, { tone: "error" }));
-        void improntaLog("admin_talentprofileshelldrawer.warn", {
-          message: "[saveAll] committed with unapplied selections:",
-          warnings: stepped.warnings.join(", "),
+        return reportProfileShellSaveWarnings(stepped.warnings, {
+          setStatus: setSaveStatus,
+          setError: (m) => { lastSaveErrorRef.current = m; setSaveError(m); },
+          toast,
         });
-        return false;
       }
       if (justCreated && createAnotherRef.current) {
         // Batch add — agencies onboard talent in groups ("necesito 5 perfiles
@@ -1504,16 +1494,9 @@ export function TalentProfileShellDrawer() {
         return false;
       }
       if (taxRes.warnings?.length) {
-        // Same rule as the staff path: committed, but a service the talent
-        // picked was not applied — say so instead of closing on "Saved".
-        setSaveStatus("error");
-        setSaveError(formatProfileShellSaveFailures(taxRes.warnings));
-        taxRes.warnings.forEach((w) => toast(w, { tone: "error" }));
-        void improntaLog("admin_talentprofileshelldrawer.warn", {
-          message: "[saveAll] taxonomy committed with unapplied selections:",
-          warnings: taxRes.warnings.join(", "),
+        return reportProfileShellSaveWarnings(taxRes.warnings, {
+          setStatus: setSaveStatus, setError: setSaveError, toast,
         });
-        return false;
       }
     }
 

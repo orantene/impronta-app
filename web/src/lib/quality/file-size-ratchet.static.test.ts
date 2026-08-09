@@ -93,7 +93,11 @@ const BUDGETS: Record<string, number> = {
   // builder, and the one with no decomposition program running today.
   "src/components/admin/shell/internal/drawers/drawer-shared.tsx": 5615,
   "src/components/admin/shell/internal/state/fixtures.ts": 5149,
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4687,
+  // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
+  // shared handling was extracted into profile-shell-save-feedback
+  // (reportProfileShellSaveWarnings); what remains here is two call sites and
+  // one import.
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4702,
   "src/components/admin/shell/internal/wave2.tsx": 4597,
   "src/components/admin/shell/internal/workspace.tsx": 3559,
   "src/components/admin/shell/internal/dashboard-i18n.ts": 3495,

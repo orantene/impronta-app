@@ -31,6 +31,29 @@ export function profileShellStepFailure(section: string, error: string): string 
   return `${section}: ${error}`;
 }
 
+/**
+ * Surface a committed-but-incomplete save, and report `false` so the caller does
+ * NOT close on a green "Saved".
+ *
+ * Lives here rather than inline in TalentProfileShellDrawer for two reasons: the
+ * staff batch path and the talent self-edit path must behave identically (they
+ * drifted before), and that drawer is on a hard line-count ratchet, so shared
+ * handling belongs in a module of its own.
+ */
+export function reportProfileShellSaveWarnings(
+  warnings: readonly string[],
+  handlers: {
+    setStatus: (s: "error") => void;
+    setError: (msg: string) => void;
+    toast: (msg: string, opts: { tone: "error" }) => void;
+  },
+): false {
+  handlers.setStatus("error");
+  handlers.setError(formatProfileShellSaveFailures(warnings));
+  for (const w of warnings) handlers.toast(w, { tone: "error" });
+  return false;
+}
+
 export function formatProfileShellSaveFailures(failures: readonly string[]): string {
   return failures.join(" · ");
 }
