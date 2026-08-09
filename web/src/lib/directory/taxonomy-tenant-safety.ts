@@ -5,7 +5,30 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 export type DirectoryTaxonomySafetyTerm = {
   id: string;
   parent_id: string | null;
+  term_type?: string | null;
 };
+
+/**
+ * Term types a talent is actually TAGGED with, i.e. the levels an expanded
+ * parent filter may resolve to.
+ *
+ * `specialty` is deliberately absent. Specialties (salsa, ballet, showgirl…)
+ * hang off talent_types, but they carry `kind = 'tag'` while talent_types carry
+ * `kind = 'talent_type'` — and `fetch-directory-page` groups the resolved ids BY
+ * KIND and intersects the groups ("OR within kind, AND across kinds"). So
+ * letting a parent_category expansion reach specialties silently adds a SECOND,
+ * REQUIRED filter dimension that no talent satisfies (nothing in this roster is
+ * tagged with a specialty), and the whole page returns zero — which is exactly
+ * what "Performers · 7" clicking through to "No one matches yet" was.
+ *
+ * A specialty the user picks EXPLICITLY still filters normally: requested ids
+ * are never dropped, only the automatic downward expansion is bounded.
+ */
+const TAGGABLE_DESCENDANT_TERM_TYPES: ReadonlySet<string> = new Set([
+  "parent_category",
+  "category_group",
+  "talent_type",
+]);
 
 export type DirectoryTaxonomySafetySetting = {
   taxonomy_term_id: string;
@@ -223,16 +246,21 @@ export async function resolveTenantSafeDirectoryTaxonomyTermIds(
   for (let depth = 0; depth < 8 && down.length > 0; depth += 1) {
     const { data, error } = await client
       .from("taxonomy_terms")
-      .select("id, parent_id")
+      .select("id, parent_id, term_type")
       .in("parent_id", down)
       .is("archived_at", null);
     if (error) return [];
     const next: string[] = [];
     for (const row of (data ?? []) as DirectoryTaxonomySafetyTerm[]) {
-      if (!termsById.has(row.id)) {
-        termsById.set(row.id, row);
-        next.push(row.id);
+      if (termsById.has(row.id)) continue;
+      // Stop at the levels talent are tagged at. Descending into `specialty`
+      // adds a second kind-group that the directory ANDs in, and nothing is
+      // tagged with one — see TAGGABLE_DESCENDANT_TERM_TYPES.
+      if (row.term_type && !TAGGABLE_DESCENDANT_TERM_TYPES.has(row.term_type)) {
+        continue;
       }
+      termsById.set(row.id, row);
+      next.push(row.id);
     }
     down = next;
   }
