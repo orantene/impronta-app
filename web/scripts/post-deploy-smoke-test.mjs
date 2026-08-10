@@ -217,6 +217,33 @@ async function check_migration_drift() {
   }
 }
 
+// 7b) Tenant taxonomy / directory data consistency. Two of the four root causes
+//     behind the 2026-08-09 "I save and nothing changes" incident were pure DATA
+//     states — talent holding services their own workspace had switched off, and
+//     category chips that advertised a number over an empty page. Both had
+//     existed for months with every gate green, and both reached us as a client's
+//     WhatsApp photo. HTTP probes cannot see either; this can.
+async function check_taxonomy_consistency() {
+  console.log("\nTenant taxonomy consistency");
+  const { spawnSync } = await import("node:child_process");
+  const r = spawnSync(
+    "node",
+    ["--env-file=.env.local", "scripts/check-taxonomy-consistency.mjs"],
+    { encoding: "utf8" },
+  );
+  const body = (r.stdout || r.stderr || "").trim();
+  const lines = (marker) =>
+    body.split("\n").filter((l) => l.includes(marker)).slice(0, 10).join("\n     ");
+  if (r.status !== 0) {
+    fail("taxonomy consistency", lines("✗"));
+  } else {
+    pass("every category chip resolves to the talent it advertises");
+  }
+  // Warnings ride along on a passing exit code — surfaced, never deploy-blocking.
+  const warnBody = lines("⚠");
+  if (warnBody) warn("workspaces holding a switched-off service", warnBody);
+}
+
 // 8) Notification HTTP surfaces are deployed (spec §9 / §14.4). These are
 //    HTTP-only reachability + correctness probes — they never send a real
 //    email, so they're safe to run on every deploy without RESEND_API_KEY.
@@ -544,6 +571,7 @@ for (const check of [
   check_edge_region,
   check_alias_drift,
   check_migration_drift,
+  check_taxonomy_consistency,
   check_notification_routes,
   check_notification_crons,
   check_resend_domain,
