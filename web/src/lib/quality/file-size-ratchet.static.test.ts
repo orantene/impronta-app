@@ -100,9 +100,13 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4712,
   "src/components/admin/shell/internal/wave2.tsx": 4597,
   "src/components/admin/shell/internal/workspace.tsx": 3559,
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3495,
+  // 2026-08-10 branding-media: +18 Spanish entries for the Brand identity
+  // favicon slot + Brand images manager (translations belong in this map).
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3513,
   "src/components/admin/shell/internal/help.tsx": 2968,
-  "src/components/admin/shell/internal/media-page.tsx": 2762,
+  // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
+  // brand filter, workspace-asset guards on crop/reassign/lightbox).
+  "src/components/admin/shell/internal/media-page.tsx": 2794,
   "src/components/admin/shell/internal/state/types.ts": 2747,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
@@ -111,7 +115,10 @@ const BUDGETS: Record<string, number> = {
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,
   "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3469,
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2182,
+  // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
+  // guard (logic extracted to site-admin/server/brand-library.ts; this is
+  // the import + call site + refusal message).
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2194,
   "src/app/t/[profileCode]/profile-view.tsx": 2634,
   "src/components/inquiry/InquiryDrawer.tsx": 2149,
 

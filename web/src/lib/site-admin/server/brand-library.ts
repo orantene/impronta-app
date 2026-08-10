@@ -456,6 +456,32 @@ export async function deleteBrandingAsset(
   return { ok: true, data: null };
 }
 
+/**
+ * Ids among `ids` currently serving as the workspace wordmark or favicon.
+ * Media delete paths call this to refuse removing an in-use brand slot
+ * (deleting one would 404 the storefront header logo / browser-tab icon).
+ */
+export async function listProtectedBrandAssetIds(
+  admin: SupabaseClient,
+  tenantId: string,
+  ids: string[],
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const [refs, { data: targetRows }] = await Promise.all([
+    loadBrandRefs(admin, tenantId),
+    admin.from("media_assets").select("id, public_url").in("id", ids).eq("tenant_id", tenantId),
+  ]);
+  const inUseUrls = new Set(
+    [refs.logoUrl, refs.faviconUrl].filter((u): u is string => typeof u === "string" && u.length > 0),
+  );
+  const inUseIds = new Set(
+    [refs.logoAssetId, refs.faviconAssetId].filter((v): v is string => typeof v === "string"),
+  );
+  return ((targetRows ?? []) as Array<{ id: string; public_url: string | null }>)
+    .filter((r) => inUseIds.has(r.id) || (r.public_url !== null && inUseUrls.has(r.public_url)))
+    .map((r) => r.id);
+}
+
 // ── Settings → theme bridge (colors + watermark + logo piggybacks) ──────
 
 /**

@@ -7,6 +7,7 @@ import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
 import {
   extractImageMetadata,
   isSafeImageMime,
@@ -306,35 +307,7 @@ export async function actionDeleteMediaAssets(
   // In-use guard: refuse to delete assets currently serving as the workspace
   // wordmark or favicon (Settings → Brand identity) — deleting one would 404
   // the storefront header logo / browser-tab icon.
-  const [{ data: brandingRow }, { data: agencyRow }, { data: targetRows }] = await Promise.all([
-    admin
-      .from("agency_branding")
-      .select("logo_media_asset_id, favicon_media_asset_id, theme_json")
-      .eq("tenant_id", tenantId)
-      .maybeSingle(),
-    admin.from("agencies").select("settings").eq("id", tenantId).single(),
-    admin.from("media_assets").select("id, public_url").in("id", ids).eq("tenant_id", tenantId),
-  ]);
-  const settingsObj = (typeof agencyRow?.settings === "object" && agencyRow?.settings !== null
-    ? agencyRow.settings
-    : {}) as Record<string, unknown>;
-  const settingsBranding = (typeof settingsObj.branding === "object" && settingsObj.branding !== null
-    ? settingsObj.branding
-    : {}) as Record<string, unknown>;
-  const theme = (typeof brandingRow?.theme_json === "object" && brandingRow?.theme_json !== null
-    ? brandingRow.theme_json
-    : {}) as Record<string, unknown>;
-  const inUseUrls = new Set(
-    [settingsBranding.logo_url, settingsBranding.favicon_url, theme.logo_url, theme.favicon_url]
-      .filter((u): u is string => typeof u === "string" && u.length > 0),
-  );
-  const inUseIds = new Set(
-    [brandingRow?.logo_media_asset_id, brandingRow?.favicon_media_asset_id]
-      .filter((v): v is string => typeof v === "string"),
-  );
-  const blocked = ((targetRows ?? []) as Array<{ id: string; public_url: string | null }>).filter(
-    (r) => inUseIds.has(r.id) || (r.public_url !== null && inUseUrls.has(r.public_url)),
-  );
+  const blocked = await listProtectedBrandAssetIds(admin, tenantId, ids);
   if (blocked.length > 0) {
     return {
       ok: false,
