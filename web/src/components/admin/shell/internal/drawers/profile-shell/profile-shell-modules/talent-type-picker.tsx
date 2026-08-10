@@ -724,18 +724,14 @@ export function SiblingTopNPicker({
             const tenantSetLoaded = !!tenantEnabledSlugs && tenantEnabledSlugs.size > 0;
             const disabledForTenant =
               tenantSetLoaded && !tenantEnabledSlugs.has(c.id);
-            // A type the workspace disabled must not be SELECTABLE. The fade
-            // alone was advisory — the chip stayed fully clickable, so an
-            // operator could pick a type the save would then refuse, and the
-            // refusal surfaced much later as a red banner naming a service they
-            // could no longer find. (This is how a disabled type reached the
-            // editor draft in the first place; the sync module's comment that
-            // "the Services picker hides disabled types" was never true.)
-            //
-            // Still removable when already selected: blocking that would strand
-            // any profile that picked one up earlier, which is precisely the
-            // state we are cleaning up.
-            const blockAdd = disabledForTenant && !active;
+            // Deliberately SELECTABLE even when the workspace has it disabled.
+            // #1085 blocked it; the owner's call is that an operator should be
+            // able to pick what the talent actually does, and be TOLD afterwards
+            // why it is not published — not silently prevented by a chip that
+            // merely looks faint. The save reports it per type (see
+            // profile-shell-taxonomy-sync + reportProfileShellSaveWarnings), so
+            // the explanation arrives with the reason and the fix.
+            const blockAdd = false;
             return (
               <button
                 key={c.id}

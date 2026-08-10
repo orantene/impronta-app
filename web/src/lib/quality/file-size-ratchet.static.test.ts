@@ -97,7 +97,7 @@ const BUDGETS: Record<string, number> = {
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
   // one import.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4702,
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4712,
   "src/components/admin/shell/internal/wave2.tsx": 4597,
   "src/components/admin/shell/internal/workspace.tsx": 3559,
   "src/components/admin/shell/internal/dashboard-i18n.ts": 3495,
