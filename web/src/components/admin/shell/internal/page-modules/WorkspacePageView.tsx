@@ -478,7 +478,9 @@ export function WorkspacePageView() {
             key: "brand-assets",
             title: t("dashboard.adminWorkspace.brandAssets"),
             desc: t("dashboard.adminWorkspace.brandAssetsDesc"),
-            onClick: () => openDrawer("brand-assets"),
+            // The Brand images library lives in the Branding drawer — this row
+            // used to open the light-20 "Coming soon" stub.
+            onClick: () => openDrawer("branding"),
             right: <Affordance label={t("dashboard.adminWorkspace.affordanceManage")} />,
           },
         ],

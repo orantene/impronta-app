@@ -7,6 +7,7 @@ import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
 import {
   extractImageMetadata,
   isSafeImageMime,
@@ -302,6 +303,17 @@ export async function actionDeleteMediaAssets(
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // In-use guard: refuse to delete assets currently serving as the workspace
+  // wordmark or favicon (Settings → Brand identity) — deleting one would 404
+  // the storefront header logo / browser-tab icon.
+  const blocked = await listProtectedBrandAssetIds(admin, tenantId, ids);
+  if (blocked.length > 0) {
+    return {
+      ok: false,
+      error: `${blocked.length} selected image(s) are in use as your wordmark or favicon (Settings → Brand identity). Pick a replacement there first.`,
+    };
+  }
 
   const now = new Date().toISOString();
   const { error, count } = await admin

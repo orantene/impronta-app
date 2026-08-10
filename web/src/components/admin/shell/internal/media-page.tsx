@@ -30,7 +30,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { PhotoCropperDialog } from "@/components/talent/photo-cropper-dialog";
 import { PhotoLightbox } from "@/components/media/photo-lightbox";
-import { uploadStagingMedia } from "@/lib/client/signed-upload";
+import { uploadStagingMedia, uploadBrandingMedia } from "@/lib/client/signed-upload";
 import {
   actionCreateMediaFolder,
   actionRenameMediaFolder,
@@ -64,6 +64,7 @@ type ActiveView =
   | { kind: "by-talent" }
   | { kind: "by-kind" }
   | { kind: "pending" }
+  | { kind: "brand" }
   | { kind: "analytics" };
 
 type StagingItem = {
@@ -258,6 +259,12 @@ function MediaSidebar({
     }}>
       <NavRow label={interpolate(t("dashboard.adminMedia.navAll"), { count: photos.length })} active={isActive({ kind: "all" })} onClick={() => setView({ kind: "all" })} />
       {settings.showPending && <NavRow label={t("dashboard.adminMedia.navPendingReview")} active={isActive({ kind: "pending" })} onClick={() => setView({ kind: "pending" })} badge={pendingCount} />}
+      <NavRow
+        label={`Brand & site (${photos.filter((p) => p.isWorkspaceAsset).length})`}
+        active={isActive({ kind: "brand" })}
+        onClick={() => setView({ kind: "brand" })}
+      />
+
 
       {settings.showFolders && (
         <>
@@ -698,6 +705,20 @@ function MediaLightbox({
 
     const filename = `crop-${cropMode}-${Date.now()}.webp`;
     const file = new File([blob], filename, { type: "image/webp" });
+
+    if (current.isWorkspaceAsset) {
+      // Brand & site imagery re-registers through the branding pipeline
+      // (workspace-owned row, auto-filed into the Branding folder) — the
+      // talent assign path below would roster-reject an empty talent id.
+      const res = await uploadBrandingMedia({ file, sourceMediaAssetId: current.id });
+      setCropBusy(false);
+      if (!res.ok) { toast(res.error || t("dashboard.adminMedia.errCropUploadFailed")); return; }
+      toast(t("dashboard.adminMedia.toastNewCropSaved"));
+      queueRouterRefresh();
+      onRefresh();
+      return;
+    }
+
     const fd = new FormData();
     fd.append("file", file);
 
@@ -997,8 +1018,8 @@ function MediaLightbox({
           const i = allPhotos.findIndex((p) => p.id === next.id);
           if (i >= 0) setCurrentIdx(i);
         }}
-        onSetAvatar={current.variantKind !== "card" ? setAsProfile : undefined}
-        onSetHero={current.variantKind !== "hero" ? setAsCover : undefined}
+        onSetAvatar={!current.isWorkspaceAsset && current.variantKind !== "card" ? setAsProfile : undefined}
+        onSetHero={!current.isWorkspaceAsset && current.variantKind !== "hero" ? setAsCover : undefined}
         onCropAt={(aspect) => {
           if (cropBusy) return;
           setCropMode(aspect === 1 ? "profile" : aspect === "free" ? "free" : "cover");
@@ -1674,6 +1695,7 @@ export function WorkspaceMediaPage() {
         if (!p.folderIds.includes(folderId)) return false;
       }
       if (view.kind === "pending" && p.approvalState !== "pending") return false;
+      if (view.kind === "brand" && !p.isWorkspaceAsset) return false;
       if (filterTalent !== "all" && p.talentName !== filterTalent) return false;
       if (filterStatus !== "all" && p.approvalState !== filterStatus) return false;
       if (searchQuery.trim()) {
@@ -1979,8 +2001,18 @@ export function WorkspaceMediaPage() {
 
   const runReassign = async () => {
     if (!assignTalentId || selected.size === 0) return;
+    // Workspace brand/site assets have no talent linkage — reassigning one
+    // to a talent would silently convert brand imagery into talent media.
+    const reassignable = Array.from(selected).filter(
+      (id) => !photos.find((p) => p.id === id)?.isWorkspaceAsset,
+    );
+    if (reassignable.length === 0) {
+      setUploadError(t("dashboard.adminMedia.errNoTalentOnRoster"));
+      setShowAssignModal(false);
+      return;
+    }
     setAssignBusy(true);
-    const res = await actionReassignMediaToTalent(Array.from(selected), assignTalentId);
+    const res = await actionReassignMediaToTalent(reassignable, assignTalentId);
     setAssignBusy(false);
     setShowAssignModal(false);
     if (!res.ok) { setUploadError(res.error); return; }

@@ -2,6 +2,28 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Branding media worktree (3260)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/feat-branding-media/web && PORT=3260 npm run dev"
+      ],
+      "port": 3260,
+      "autoPort": false
+    },
+    {
+      "name": "Branding media impronta host (3261)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "/Users/oranpersonal/Desktop/impronta-app/.claude/worktrees/feat-branding-media/scripts/local-host-proxy.mjs",
+        "3261",
+        "impronta.lvh.me",
+        "3260"
+      ],
+      "port": 3261,
+      "autoPort": false
+    },
+    {
       "name": "i18n hot-surfaces worktree (3185)",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
