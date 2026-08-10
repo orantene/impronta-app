@@ -40,6 +40,12 @@ export type WorkspaceMediaPhoto = {
    *  asset's id. Used to enable "Revert to original" in the lightbox. */
   sourceMediaAssetId: string | null;
   createdAt: string;
+  /** True for workspace-owned (non-talent) assets — brand & site imagery
+   *  (purpose 'branding' / 'cms'). These have no talent linkage:
+   *  talentProfileId is "" and talent-specific actions don't apply. */
+  isWorkspaceAsset?: boolean;
+  /** media_assets.purpose for workspace assets ('branding' | 'cms'). */
+  purpose?: string;
 };
 
 export type WorkspaceMediaFolder = {
@@ -122,7 +128,7 @@ export async function loadWorkspaceMediaBridge(
     // returns the *unfiltered* root-table count, not the post-join count.
     // The dedicated count query reproduces the exact filter set so the
     // page can show "Showing N of M" reliably.
-    const [photosResult, totalCountResult, foldersResult] = await Promise.all([
+    const [photosResult, totalCountResult, foldersResult, workspaceResult] = await Promise.all([
       supabase
         .from("media_assets")
         .select(`
@@ -190,6 +196,20 @@ export async function loadWorkspaceMediaBridge(
         `)
         .eq("tenant_id", tenantId)
         .order("created_at", { ascending: true }),
+
+      // Workspace-owned brand & site imagery (no talent linkage). Kept as a
+      // separate query because the main one scopes through the roster join,
+      // which these rows can never satisfy.
+      supabase
+        .from("media_assets")
+        .select(
+          "id, bucket_id, storage_path, public_url, variant_kind, approval_state, purpose, asset_kind, width, height, file_size_bytes, mime_type, original_filename, tags, metadata, source_media_asset_id, created_at",
+        )
+        .eq("tenant_id", tenantId)
+        .in("purpose", ["branding", "cms"])
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1000),
     ]);
 
     if (photosResult.error) {
@@ -262,7 +282,72 @@ export async function loadWorkspaceMediaBridge(
       createdAt: f.created_at,
     }));
 
-    return { photos, folders, errored: false, totalCount };
+    type WorkspaceRow = {
+      id: string;
+      bucket_id: string;
+      storage_path: string;
+      public_url: string | null;
+      variant_kind: string;
+      approval_state: string;
+      purpose: string;
+      asset_kind: string | null;
+      width: number | null;
+      height: number | null;
+      file_size_bytes: number | null;
+      mime_type: string | null;
+      original_filename: string | null;
+      tags: string[] | null;
+      metadata: Record<string, unknown> | null;
+      source_media_asset_id: string | null;
+      created_at: string;
+    };
+    const workspaceRows = (workspaceResult.data ?? []) as unknown as WorkspaceRow[];
+    const workspacePhotos: WorkspaceMediaPhoto[] = workspaceRows
+      // Image rows only — the grid renders <img>; documents/videos in the
+      // CMS library have their own surfaces.
+      .filter(
+        (r) =>
+          (!r.asset_kind || r.asset_kind === "image") &&
+          (!r.mime_type || r.mime_type.startsWith("image/")),
+      )
+      .map((r) => {
+        const publicUrl =
+          r.public_url ??
+          supabase.storage.from(r.bucket_id).getPublicUrl(r.storage_path).data?.publicUrl ??
+          "";
+        const meta = r.metadata ?? {};
+        return {
+          id: r.id,
+          talentProfileId: "",
+          talentName: "Brand & site",
+          url: publicUrl,
+          thumbUrl: publicUrl,
+          variantKind: r.variant_kind,
+          approvalState: r.approval_state as WorkspaceMediaPhoto["approvalState"],
+          hasOverride: false,
+          watermarkOverride: null,
+          tags: Array.isArray(r.tags) ? r.tags : [],
+          folderIds: assetFolderMap.get(r.id) ?? [],
+          width: r.width,
+          height: r.height,
+          fileSizeBytes: r.file_size_bytes,
+          mimeType: r.mime_type,
+          originalFilename: r.original_filename,
+          note: (meta.note as string | null) ?? null,
+          metadata: meta,
+          sourceMediaAssetId: r.source_media_asset_id,
+          createdAt: r.created_at,
+          isWorkspaceAsset: true,
+          purpose: r.purpose,
+        };
+      });
+
+    return {
+      photos: [...photos, ...workspacePhotos],
+      folders,
+      errored: false,
+      totalCount: totalCount === null ? null : totalCount + workspacePhotos.length,
+    };
   } catch (err) {
     logServerError("data-bridge.media.unknown", err);
     return { photos: [], folders: [], errored: true, totalCount: null };

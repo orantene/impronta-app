@@ -681,6 +681,72 @@ export async function uploadAgencyLogo(opts: {
   return { ok: true, logoUrl: finalized.logoUrl };
 }
 
+// ── Brand images (Settings → Brand identity media manager) ──────────────
+
+export type BrandingMediaUploadOk = {
+  ok: true;
+  asset: import("@/lib/server-actions/admin-branding-media").BrandingMediaAsset;
+  compression: CompressResult;
+};
+
+/**
+ * Workspace brand-image upload: compress → signed PUT → register a
+ * purpose='branding' media_assets row (auto-filed into the tenant's
+ * Branding folder). Raster only — the wordmark's SVG lane stays on
+ * uploadAgencyLogo. No legacy fallback: there is no FormData path for
+ * brand media, and the signed pipeline is the only transport that
+ * clears the 4 MB Server Action body cap.
+ */
+export async function uploadBrandingMedia(opts: {
+  file: File;
+  sourceMediaAssetId?: string | null;
+  onProgress?: (p: SignedUploadProgress) => void;
+}): Promise<BrandingMediaUploadOk | FailureResult> {
+  const { file } = opts;
+  if (file.size === 0) {
+    return { ok: false, fallbackToLegacy: false, error: "File is empty." };
+  }
+
+  opts.onProgress?.({ phase: "compressing" });
+  const compressed = await compressImage(file);
+  const ext = compressed.ext === "jpeg" ? "jpg" : compressed.ext;
+  if (ext !== "jpg" && ext !== "png" && ext !== "webp") {
+    return {
+      ok: false,
+      fallbackToLegacy: false,
+      error: "Brand images must be PNG, JPEG or WebP.",
+    };
+  }
+
+  const actions = await import("@/lib/server-actions/admin-branding-media");
+  const signed = await actions.actionCreateBrandingMediaUploadUrl(ext);
+  if (!signed.ok) {
+    return { ok: false, fallbackToLegacy: false, error: signed.error };
+  }
+
+  opts.onProgress?.({
+    phase: "uploading",
+    bytesTotal: compressed.file.size,
+    compression: compressed,
+  });
+  const putOk = await putToSignedUrl(signed.uploadUrl, compressed.file);
+  if (!putOk.ok) {
+    return { ok: false, fallbackToLegacy: false, error: putOk.error };
+  }
+
+  opts.onProgress?.({ phase: "registering", compression: compressed });
+  const registered = await actions.actionRegisterBrandingMediaUpload({
+    storagePath: signed.storagePath,
+    originalFilename: file.name || null,
+    sourceMediaAssetId: opts.sourceMediaAssetId ?? null,
+  });
+  if (!registered.ok) {
+    return { ok: false, fallbackToLegacy: false, error: registered.error };
+  }
+
+  return { ok: true, asset: registered.data, compression: compressed };
+}
+
 // ── Shared low-level PUT ────────────────────────────────────────────────
 
 async function putToSignedUrl(

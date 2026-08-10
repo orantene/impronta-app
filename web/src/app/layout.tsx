@@ -100,7 +100,7 @@ const fraunces = Fraunces({
   style: ["normal", "italic"],
 });
 
-export const metadata: Metadata = {
+const BASE_METADATA: Metadata = {
   // Marketing apex base so the inherited `opengraph-image` file-route and any
   // relative canonical resolve to tulala.digital, not the request host. Every
   // non-marketing surface overrides this in its own generateMetadata.
@@ -114,6 +114,11 @@ export const metadata: Metadata = {
   // home screen on iOS/Android. The manifest itself lives at
   // /manifest.webmanifest (public/).
   manifest: "/manifest.webmanifest",
+  // Platform icon is CONFIG-based (a public/ asset), NOT the app/icon.svg
+  // file convention: file-based icons outrank metadata icons in Next, which
+  // would make the per-tenant favicon override in (public)/layout.tsx
+  // impossible.
+  icons: { icon: [{ url: "/platform-icon.svg", type: "image/svg+xml" }] },
   appleWebApp: {
     capable: true,
     title: PLATFORM_BRAND.name,
@@ -138,6 +143,26 @@ export const metadata: Metadata = {
     description: PLATFORM_BRAND.description,
   },
 };
+
+/**
+ * Root metadata is a function (not a static export) for one reason: the
+ * per-tenant favicon. Branded-host storefront routes span several route
+ * groups, so the root — which every request passes — is the one place a
+ * tenant's uploaded favicon (Settings → Brand identity, carried as the
+ * theme_json.favicon_url piggyback) can override the platform icon without
+ * per-segment duplication. Non-tenant hosts keep BASE_METADATA verbatim.
+ * loadPublicBranding is unstable_cache'd + tag-busted, and the body below
+ * calls it too, so this adds no extra query.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const publicScope = await getPublicTenantScope();
+  if (!publicScope) return BASE_METADATA;
+  const branding = await loadPublicBranding(publicScope.tenantId);
+  const theme = (branding?.theme_json ?? {}) as Record<string, unknown>;
+  const faviconUrl = typeof theme.favicon_url === "string" ? theme.favicon_url : null;
+  if (!faviconUrl) return BASE_METADATA;
+  return { ...BASE_METADATA, icons: { icon: [{ url: faviconUrl }] } };
+}
 
 // Theme color drives the iOS/Android browser chrome tint when the app is
 // added to home screen — forest accent matches the rest of the brand.

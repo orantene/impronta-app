@@ -17,6 +17,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  readBrandThemeForSettings,
+  syncBrandSettingsToTheme,
+} from "@/lib/site-admin/server/brand-library";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -141,37 +145,14 @@ export async function updateAgencyBranding(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // Sync select fields into agency_branding so the public-readable table
-  // (agency_branding) stays consistent. agencies.settings is staff-only so
-  // storefront code cannot read it directly.
-  if (v.watermark_preset !== undefined || v.logo_url !== undefined) {
-    const { data: brandingRow } = await tenantScopedQuery(
-      supabase,
-      "agency_branding",
-      tenantId,
-    )
-      .select("theme_json")
-      .maybeSingle();
-    const branding = brandingRow as { theme_json?: unknown } | null;
-    const currentTheme: Record<string, unknown> =
-      typeof branding?.theme_json === "object" && branding.theme_json !== null
-        ? (branding.theme_json as Record<string, unknown>)
-        : {};
-    const themeUpdate: Record<string, unknown> = { ...currentTheme };
-    if (v.watermark_preset !== undefined) themeUpdate.watermark_preset = v.watermark_preset;
-    if (v.logo_url !== undefined) themeUpdate.logo_url = v.logo_url;
-    const publicBrandingPatch: Record<string, unknown> = {
-      tenant_id: tenantId,
-      theme_json: themeUpdate,
-      updated_at: new Date().toISOString(),
-    };
-    // Non-fatal if this fails — settings are still saved.
-    // (favorite_icon was removed from this writer 2026-08-04: the column fed a
-    // context no component reads — cards follow the `favorite.icon` design
-    // token, edited in Website → Card Design.)
-    await tenantScopedQuery(supabase, "agency_branding", tenantId)
-      .upsert(publicBrandingPatch, { onConflict: "tenant_id" });
-  }
+  // Mirror render-relevant fields into the public-readable agency_branding
+  // row (agencies.settings is staff-only so storefront code cannot read it).
+  // Colors write the SAME design tokens the theme editor (Website → Design)
+  // manages; see brand-library.ts for the live+draft rationale + tag busts.
+  // (favorite_icon was removed from this writer 2026-08-04: the column fed a
+  // context no component reads — cards follow the `favorite.icon` design
+  // token, edited in Website → Card Design.)
+  await syncBrandSettingsToTheme(supabase, tenantId, v);
 
   auditSettingsSave(tenantId, "settings.branding.updated", "Updated branding", v);
 
@@ -749,6 +730,7 @@ export async function loadWorkspaceAccountSettings(): Promise<LoadAccountResult>
 
 export type AgencyBrandingSettings = {
   logoUrl: string | null;
+  faviconUrl: string | null;
   primaryColor: string | null;
   accentColor: string | null;
   tagline: string | null;
@@ -765,11 +747,10 @@ export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> 
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
-  const { data: agency, error } = await supabase
-    .from("agencies")
-    .select("settings")
-    .eq("id", tenantId)
-    .single();
+  const [{ data: agency, error }, theme] = await Promise.all([
+    supabase.from("agencies").select("settings").eq("id", tenantId).single(),
+    readBrandThemeForSettings(supabase, tenantId),
+  ]);
 
   if (error) {
     logServerError("admin-workspace-settings.branding.load", error);
@@ -783,14 +764,19 @@ export async function loadAgencyBrandingSettings(): Promise<LoadBrandingResult> 
     ? settings.branding
     : {}) as Record<string, unknown>;
 
+  // Colors prefer the LIVE design tokens (theme_json) — that is what the
+  // storefront actually renders — falling back to the legacy settings copy
+  // for tenants that saved colors before the token bridge existed.
+  const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
   return {
     ok: true,
     data: {
-      logoUrl:         typeof branding.logo_url === "string" ? branding.logo_url : null,
-      primaryColor:    typeof branding.primary_color === "string" ? branding.primary_color : null,
-      accentColor:     typeof branding.accent_color === "string" ? branding.accent_color : null,
-      tagline:         typeof branding.tagline === "string" ? branding.tagline : null,
-      description:     typeof branding.description === "string" ? branding.description : null,
+      logoUrl:      str(branding.logo_url) ?? str(theme.logo_url),
+      faviconUrl:   str(branding.favicon_url) ?? str(theme.favicon_url),
+      primaryColor: str(theme["color.primary"]) ?? str(branding.primary_color),
+      accentColor:  str(theme["color.accent"]) ?? str(branding.accent_color),
+      tagline:      str(branding.tagline),
+      description:  str(branding.description),
       watermarkPreset: (branding.watermark_preset && typeof branding.watermark_preset === "object"
         ? branding.watermark_preset as WatermarkPreset
         : null),

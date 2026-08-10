@@ -35,6 +35,9 @@ import {
   useQueuedRouterRefresh
 } from "./drawer-shared";
 import { useDashboardText } from "../dashboard-i18n";
+import { uploadBrandingMedia } from "@/lib/client/signed-upload";
+import { actionSetBrandImageRole } from "@/lib/server-actions/admin-branding-media";
+import { BrandingMediaManager } from "@/components/admin/media/branding-media-manager";
 
 // Phase 1d (remediation §4): 3 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -293,6 +296,12 @@ export function BrandingDrawer() {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
+  const faviconFileRef = useRef<HTMLInputElement | null>(null);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
+  const [faviconError, setFaviconError] = useState<string | null>(null);
+  const [brandMediaRefresh, setBrandMediaRefresh] = useState(0);
+
   const [wm, setWm] = useState<WatermarkPreset>({ ...DEFAULT_WATERMARK_PRESET });
   const setWmField = <K extends keyof WatermarkPreset>(k: K, v: WatermarkPreset[K]) =>
     setWm(prev => ({ ...prev, [k]: v }));
@@ -308,6 +317,7 @@ export function BrandingDrawer() {
         if (result.ok) {
           const d = result.data;
           if (d.logoUrl) { setLogoPreview(d.logoUrl); setLogoFileName(tt("Saved logo")); }
+          if (d.faviconUrl) setFaviconUrl(d.faviconUrl);
           if (d.primaryColor) setPrimaryColor(d.primaryColor);
           if (d.accentColor) setAccentColor(d.accentColor);
           if (d.tagline) setTagline(d.tagline);
@@ -329,6 +339,32 @@ export function BrandingDrawer() {
     const reader = new FileReader();
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+  };
+
+  // Favicon uploads immediately (no Save step): signed upload into the
+  // Branding media library, then assign the favicon slot. The storefront
+  // <head> picks it up on the next request (tags busted server-side).
+  const onFaviconChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setFaviconError(null);
+    setIsUploadingFavicon(true);
+    try {
+      const up = await uploadBrandingMedia({ file });
+      if (!up.ok) { setFaviconError(up.error); return; }
+      const set = await actionSetBrandImageRole(up.asset.id, "favicon");
+      if (!set.ok) { setFaviconError(set.error); return; }
+      setFaviconUrl(set.data.publicUrl);
+      setBrandMediaRefresh((n) => n + 1);
+      toast(tt("Favicon updated"));
+      queueRouterRefresh();
+    } catch (err) {
+      logServerError("brandingdrawer_favicon", err);
+      setFaviconError(tt("Couldn't save. Try again."));
+    } finally {
+      setIsUploadingFavicon(false);
+    }
   };
 
   const onSave = async () => {
@@ -405,6 +441,33 @@ export function BrandingDrawer() {
               style={{ display: "none" }} onChange={onLogoChange} />
           </div>
         </FieldRow>
+        <FieldRow label={tt("Favicon")} hint={tt("Square PNG or WebP, at least 64×64. Shown in browser tabs on your public site.")}>
+          <div className="flex items-center gap-3 rounded-[10px] border border-dashed border-admin-border bg-white p-3">
+            {faviconUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={faviconUrl} alt="favicon preview" className="h-8 w-8 shrink-0 rounded-md bg-admin-surface-alt object-contain p-0.5" />
+            ) : (
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-admin-surface-alt text-[15px]">🌐</span>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[12.5px] font-medium text-admin-ink">
+                {isUploadingFavicon ? tt("Uploading…") : faviconUrl ? tt("Favicon set") : tt("No favicon yet")}
+              </div>
+              {faviconError ? (
+                <div className="mt-px text-[11.5px] text-admin-red">⚠ {faviconError}</div>
+              ) : (
+                <div className="mt-px text-[11.5px] text-admin-ink-muted">
+                  {tt("Applies right away. No Save needed.")}
+                </div>
+              )}
+            </div>
+            <SecondaryButton size="sm" onClick={() => { if (!isUploadingFavicon) faviconFileRef.current?.click(); }}>
+              {isUploadingFavicon ? tt("Uploading…") : faviconUrl ? tt("Change") : tt("Upload")}
+            </SecondaryButton>
+            <input ref={faviconFileRef} type="file" accept="image/png,image/webp,image/jpeg"
+              className="hidden" onChange={(e) => { void onFaviconChange(e); }} />
+          </div>
+        </FieldRow>
       </Section>
 
       <Section title={tt("Brand voice")} framed>
@@ -418,6 +481,9 @@ export function BrandingDrawer() {
       </Section>
 
       <Section title={tt("Color tokens")} framed>
+        <div className="mb-2.5 text-[11.5px] leading-relaxed text-admin-ink-muted">
+          {tt("These are your live site theme colors, the same tokens the website designer (Website → Design) edits. Saving applies them to your storefront right away.")}
+        </div>
         <FieldRow label={tt("Primary")}>
           <div className="flex items-center gap-2.5">
             <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)}
@@ -459,6 +525,15 @@ export function BrandingDrawer() {
             {tt("Open Card Design")}
           </button>
         </FieldRow>
+      </Section>
+
+      <Section title={tt("Brand images")} framed>
+        <BrandingMediaManager
+          tt={tt}
+          refreshToken={brandMediaRefresh}
+          onWordmarkChanged={(url) => { setLogoPreview(url); setLogoFileName(tt("Saved logo")); setLogoFile(null); }}
+          onFaviconChanged={(url) => setFaviconUrl(url)}
+        />
       </Section>
 
       {isStudioPlus ? (
