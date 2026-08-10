@@ -243,6 +243,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:size-ratchet
 
+      - name: tests — taxonomy guard (selftest only; the DB probe runs in deploy:smoke)
+        # Proves check:taxonomy still MEASURES the bugs it was written for —
+        # in particular that a parent-category expansion reaching `specialty`
+        # terms still resolves to ZERO. Pure, no network, no credentials: the
+        # live data probe belongs to deploy:smoke, not to a PR gate.
+        if: ${{ !cancelled() }}
+        run: npm run test:taxonomy-guard
+
       - name: tests — node-presentation
         if: ${{ !cancelled() }}
         run: npm run test:node-presentation
