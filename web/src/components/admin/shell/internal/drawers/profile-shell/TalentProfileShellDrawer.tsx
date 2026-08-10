@@ -1103,7 +1103,17 @@ export function TalentProfileShellDrawer() {
 
     const s = stateRef.current;
     const useCanonicalDeferredPanels = !!(bridgeTenantIdentity?.tenantId && tid) && !justCreated;
-    const shellSyncTaxonomy = adminVisible && !isSelf && !!tid;
+    // TWO writers on `talent_profile_taxonomy`; only one may run per save. For a
+    // real tenant SkillSlotPanel persists each add itself, then this legacy sync
+    // reconciled the SAME table against the shell's primary/secondaryTypes and
+    // DELETED anything absent from that list. Measured: panel inserted art-model
+    // (`[setSkills] inserted=1 final=8`), this sync removed it 24s later — "I
+    // select it, save, drawer closes, nothing saved", no error, both steps ok.
+    // profile-shell-taxonomy-sync.ts already promised "when SkillSlotPanel is
+    // active … skip this"; nothing implemented it. Panel is active exactly when a
+    // real tenant resolves, so this now runs only in prototype/demo mode.
+    const shellSyncTaxonomy =
+      adminVisible && !isSelf && !!tid && !bridgeTenantIdentity?.tenantId;
     const id = s.identity;
     const visibilityDraft = id.visibility;
     const visibilityPatch = visibilityDraft && (visibilityDraft.legalName || visibilityDraft.pronouns || visibilityDraft.gender || visibilityDraft.dob)

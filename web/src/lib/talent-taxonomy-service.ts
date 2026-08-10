@@ -153,7 +153,16 @@ export function evaluateTenantTalentTypeAvailability(params: {
   for (const node of chain) {
     const setting = settingsByTermId.get(node.id);
     if (setting?.is_enabled === false) {
-      return { ok: false, error: `${unavailableLabel(node)} is disabled for this workspace.` };
+      // Reads as an EXPLANATION, not a rejection: the rest of the profile saved,
+      // this one service simply will not be published until an admin enables it.
+      // Names the service AND where to turn it on, because the operator's next
+      // question is always "so what do I do about it?".
+      return {
+        ok: false,
+        error:
+          `"${unavailableLabel(node)}" was saved on the profile but will not show on this workspace — ` +
+          `it is not enabled for your agency. An admin can turn it on in Settings → Roster → Talent types.`,
+      };
     }
   }
 
