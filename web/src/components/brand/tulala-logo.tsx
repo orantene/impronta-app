@@ -118,6 +118,48 @@ export function TulalaLogo({
   );
 }
 
+const BRAND_DESCRIPTOR_EN = "The Commerce Platform for Talent";
+const BRAND_DESCRIPTOR_ES = "La Plataforma de Comercio para el Talento";
+
+/**
+ * The full brand lockup — wordmark + "The Commerce Platform for Talent"
+ * tagline, stacked. This is THE default logo: every surface (marketing,
+ * directory, auth, workspace/talent/client app shell, platform HQ) shows
+ * this unless the current tenant/user is on a plan tier that unlocks a
+ * custom logo AND has actually uploaded one — that override replaces this
+ * lockup wholesale, it never merges with it.
+ */
+export function TulalaBrandLockup({
+  wordmarkHeight = 25,
+  isSpanish = false,
+  color,
+  descriptorOpacity = 0.55,
+  className,
+}: {
+  wordmarkHeight?: number;
+  isSpanish?: boolean;
+  /** Text color for both the wordmark strokes and the tagline. */
+  color?: string;
+  descriptorOpacity?: number;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex flex-col items-start leading-none ${className ?? ""}`}
+      style={color ? { color } : undefined}
+    >
+      <TulalaWordmark height={wordmarkHeight} />
+      <span
+        className="mt-1 whitespace-nowrap text-[0.5625rem] font-medium uppercase tracking-[0.2em]"
+        style={{ opacity: descriptorOpacity }}
+      >
+        {isSpanish ? BRAND_DESCRIPTOR_ES : BRAND_DESCRIPTOR_EN}
+      </span>
+    </span>
+  );
+}
+
 export const TULALA_BRAND_COLORS = {
   orange: BRAND_ORANGE,
   forest: BRAND_FOREST,

@@ -14,7 +14,7 @@ import { useDashboardText } from "../dashboard-i18n";
 import { NotificationsBell } from "../notifications-hub";
 import { Avatar, Icon, ShortcutsModal } from "../primitives";
 import { COLORS, FAB_PALETTE_OPEN_EVENT, MY_TALENT_PROFILE, PLAN_META, meetsRole, useAdminShell } from "../state";
-import { TULALA_BRAND } from "@/lib/brand/tulala";
+import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
 import { planTierHasWhitelabel } from "@/lib/saas/workspace-public-url";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
 import { AccountMenuItem, IdentityBarIconButton, ModeTogglePill } from "./IdentityBar-2";
@@ -246,26 +246,16 @@ export function TulalaIdentityBar() {
               />
             );
           }
-          // Talent surface keeps its dedicated wordmark sizing; workspace/client
-          // fall back to the Tulala text wordmark.
-          if (inTalent) {
-            return (
-              <img
-                src="/brand/tulala-wordmark.svg"
-                alt={TULALA_BRAND.name}
-                data-tulala-brand
-                className="tulala-talent-brand-mark"
-              />
-            );
-          }
+          // No eligible agency override: every surface (workspace, talent,
+          // client) shows the same full Tulala lockup — wordmark + tagline —
+          // matching the marketing/directory header exactly.
           return (
-            <div
-              aria-label={TULALA_BRAND.name}
-              data-tulala-brand
-              className="font-admin-display text-[16px] font-medium uppercase tracking-[0.4px] text-admin-ink pr-[4px]"
-            >
-              {TULALA_BRAND.name}
-            </div>
+            <TulalaBrandLockup
+              wordmarkHeight={24}
+              isSpanish={copy.isSpanish}
+              className="text-admin-ink pr-[4px]"
+              descriptorOpacity={0.5}
+            />
           );
         })()}
 

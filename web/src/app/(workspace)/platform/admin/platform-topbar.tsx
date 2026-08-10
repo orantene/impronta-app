@@ -7,6 +7,8 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { TulalaBrandLockup } from "@/components/brand/tulala-logo";
 
 // ─── HQ design tokens (dark surface) ─────────────────────────────────────────
 
@@ -50,6 +52,7 @@ const BASE = "/platform/admin";
 export function PlatformTopbar() {
   const pathname = usePathname();
   const t = useT();
+  const locale = useDashboardLocale();
 
   // Active segment: /platform/admin/tenants → "tenants"
   const after = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : "";
@@ -77,37 +80,30 @@ export function PlatformTopbar() {
           margin: "0 auto",
         }}
       >
-        {/* Tulala HQ identity chip */}
+        {/* Tulala HQ identity chip — same wordmark + tagline lockup as every
+            other surface, plus a small "HQ" pill so platform staff can tell
+            this console apart from the tenant-facing shell at a glance. */}
         <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
+          <TulalaBrandLockup
+            wordmarkHeight={20}
+            isSpanish={locale === "es"}
+            color={HQ.ink}
+            descriptorOpacity={0.55}
+          />
           <span
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: "rgba(255,255,255,0.08)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
               fontFamily: FONT_DISPLAY,
+              fontSize: 10,
               fontWeight: 700,
-              fontSize: 13,
-              color: HQ.ink,
-              letterSpacing: -0.2,
+              letterSpacing: "0.08em",
+              color: HQ.inkMuted,
+              background: "rgba(255,255,255,0.08)",
+              borderRadius: 5,
+              padding: "3px 6px",
               flexShrink: 0,
             }}
           >
-            T
-          </span>
-          <span
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 15,
-              fontWeight: 500,
-              letterSpacing: -0.1,
-              color: HQ.ink,
-            }}
-          >
-            Tulala HQ
+            HQ
           </span>
         </div>
 
