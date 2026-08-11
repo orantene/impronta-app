@@ -411,6 +411,11 @@ async function loadDirectoryFilterSectionsUncached(
 
   const rpcClient = supabase;
   const taxArgsBase = {
+    // Scope every facet count to THIS tenant's roster. Without it the counts
+    // are platform-wide: a storefront filter bar advertised "38" while the
+    // roster (and therefore the grid) held 21. Null on the cross-tenant hub,
+    // where the unscoped overload is the correct one.
+    p_tenant_id: tenantId,
     p_location_city_slug: locSlug,
     p_height_min: rpcHeightMin,
     p_height_max: rpcHeightMax,
