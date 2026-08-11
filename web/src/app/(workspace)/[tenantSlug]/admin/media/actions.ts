@@ -1428,7 +1428,17 @@ export async function actionListDriveFolder(
     pageToken = listData.nextPageToken;
     if (!pageToken) break;
   }
-  if (fileIds.length === 0) return { ok: false, error: "No images found in this folder." };
+  if (fileIds.length === 0) {
+    // An empty image result is AMBIGUOUS: Drive answers an anonymous API-key
+    // caller with 200 + empty list for a folder that is not shared publicly,
+    // so the `!listRes.ok` branch above never catches that case. Ask Drive the
+    // follow-up questions instead of blaming the folder's contents.
+    const { diagnoseEmptyDriveFolder } = await import(
+      "@/lib/site-admin/media/drive-folder-diagnosis"
+    );
+    const diagnosis = await diagnoseEmptyDriveFolder(parsed.folderId, apiKey);
+    return { ok: false, error: diagnosis.message };
+  }
 
   const truncated = pages >= MAX_PAGES && Boolean(pageToken);
   return { ok: true, data: { fileIds, count: fileIds.length, truncated } };
