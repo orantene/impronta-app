@@ -1,4 +1,6 @@
 "use client";
+import * as Sentry from "@sentry/nextjs";
+
 import { logServerError } from "@/lib/server/safe-error";
 
 import Link from "next/link";
@@ -59,7 +61,29 @@ export default function GlobalError({
   const [isAgencyHost, setIsAgencyHost] = useState(false);
 
   useEffect(() => {
-    logServerError("", error);
+    // Report with enough context to TRIAGE, not just to count.
+    //
+    // This used to be `logServerError("", error)` — an EMPTY context string, so
+    // every client crash in the app landed in Sentry tagged `context: ""` with
+    // no route, no host and no digest. When an agency reported this card on
+    // /directory (2026-08-08) the investigation went to Vercel logs and found
+    // nothing — correctly, because a client-side throw never reaches the
+    // server — and the Sentry event that DID exist was unfindable among the
+    // untagged. Tag it so the next report is a lookup instead of a hunt.
+    try {
+      Sentry.withScope((scope) => {
+        scope.setTag("context", "app/error-boundary");
+        scope.setTag("route", typeof window !== "undefined" ? window.location.pathname : "unknown");
+        scope.setTag("host", typeof window !== "undefined" ? window.location.hostname : "unknown");
+        scope.setTag("stale_client_shape", String(isStaleClientError(error)));
+        scope.setExtra("digest", error?.digest ?? null);
+        scope.setExtra("href", typeof window !== "undefined" ? window.location.href : null);
+        Sentry.captureException(error);
+      });
+    } catch {
+      // Observability must never break the error page itself.
+    }
+    logServerError("app/error-boundary", error);
     if (typeof window !== "undefined") {
       const h = window.location.hostname;
       setIsAgencyHost(!PLATFORM_HOSTS.has(h));

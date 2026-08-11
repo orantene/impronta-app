@@ -102,7 +102,9 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/workspace.tsx": 3559,
   // 2026-08-10 branding-media: +18 Spanish entries for the Brand identity
   // favicon slot + Brand images manager (translations belong in this map).
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3513,
+  // +4: Spanish for the "some services here can't be published" notice the
+  // Services panel now shows at OPEN time (stale-draft reconciliation).
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3517,
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
