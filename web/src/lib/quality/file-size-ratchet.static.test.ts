@@ -120,7 +120,9 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2194,
+  // 2026-08-11 drive-import: +10 for the empty-folder diagnosis call site
+  // (logic lives in site-admin/media/drive-folder-diagnosis.ts).
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2204,
   "src/app/t/[profileCode]/profile-view.tsx": 2634,
   "src/components/inquiry/InquiryDrawer.tsx": 2149,
 
