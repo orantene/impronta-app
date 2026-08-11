@@ -663,6 +663,7 @@ export async function DirectoryComponent({
             showActiveChips={props.showActiveChips}
             aiSearchEnabled={aiEnabled}
             scopeLimitedHint={scopeLimitedHint}
+            scopeTaxonomyTermIds={seedTaxonomyTermIds}
             cardKitOverrideStyle={cardKitOverrideStyle}
             cardKitOverrideFamily={cardKitOverrideFamily}
             sidebarPosition={props.sidebarPosition}
