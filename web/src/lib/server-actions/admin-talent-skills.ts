@@ -1475,3 +1475,84 @@ export async function getTalentTypesUnderParent(input: {
     })),
   };
 }
+
+// ─── Stale-draft reconciliation: what on this profile can't be published here ──
+
+/**
+ * The services already ON this profile that the workspace has switched OFF.
+ *
+ * Reconciliation at OPEN time, not at save time. Before this, an operator only
+ * discovered an unavailable service by saving and reading a red banner that
+ * named it — after the fact, with no way to see which row it meant. The 2026-08
+ * incident ran exactly that way: a stale entry in the editor blocked every save
+ * on that profile, and the name in the banner pointed at a service the operator
+ * could not locate in the list.
+ *
+ * A term counts as unavailable when it, or ANY ancestor, is disabled for this
+ * tenant — the same ancestor-aware rule the directory uses. Leaf-only checks
+ * miss the common case (a whole category group switched off), which is how the
+ * first platform-wide data sweep left five tenants still broken.
+ *
+ * Read-only and best-effort: on any error it returns an EMPTY list rather than
+ * an error, because a failure to compute an advisory must never block the
+ * Services panel from rendering.
+ */
+export async function getUnpublishableSkillsForTenant(input: {
+  talent_profile_id: string;
+}): Promise<{ ok: true; unpublishable: { term_id: string; label: string }[] }> {
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) return { ok: true, unpublishable: [] };
+  const { supabase, tenantId } = auth;
+
+  const parsed = pgUuidSchema().safeParse(input.talent_profile_id);
+  if (!parsed.success) return { ok: true, unpublishable: [] };
+
+  const [{ data: held }, { data: settingRows }, { data: termRows }] = await Promise.all([
+    // eslint-disable-next-line ratchet/no-untenanted-from -- `talent_profile_taxonomy` is PROFILE-scoped: its PK is (talent_profile_id, taxonomy_term_id) and its RLS gates on roster membership, never on tenant_id. Filtering it by tenant_id is what silently dropped writes in #1081; the tenant check here is requireWorkspaceStaffAction + the roster-scoped read below.
+    supabase
+      .from("talent_profile_taxonomy")
+      .select("taxonomy_term_id")
+      .eq("talent_profile_id", parsed.data)
+      .in("relationship_type", SKILL_RELS as unknown as string[]),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- explicitly tenant-filtered on the next line; this IS the tenant's own overlay.
+    supabase
+      .from("agency_taxonomy_settings")
+      .select("taxonomy_term_id, is_enabled")
+      .eq("tenant_id", tenantId)
+      .eq("is_enabled", false),
+    // eslint-disable-next-line ratchet/no-untenanted-from -- platform taxonomy: `taxonomy_terms` has no tenant_id column at all.
+    supabase.from("taxonomy_terms").select("id, parent_id, name_i18n").is("archived_at", null),
+  ]);
+
+  if (!held?.length || !settingRows?.length || !termRows?.length) {
+    return { ok: true, unpublishable: [] };
+  }
+
+  const disabled = new Set(
+    (settingRows as { taxonomy_term_id: string }[]).map((r) => r.taxonomy_term_id),
+  );
+  const byId = new Map(
+    (termRows as { id: string; parent_id: string | null; name_i18n: Record<string, string | null> | null }[]).map(
+      (t) => [t.id, t],
+    ),
+  );
+
+  const out: { term_id: string; label: string }[] = [];
+  for (const row of held as { taxonomy_term_id: string }[]) {
+    let cur = byId.get(row.taxonomy_term_id);
+    let depth = 0;
+    while (cur && depth < 8) {
+      if (disabled.has(cur.id)) {
+        const leaf = byId.get(row.taxonomy_term_id);
+        out.push({
+          term_id: row.taxonomy_term_id,
+          label: leaf?.name_i18n?.en ?? leaf?.name_i18n?.es ?? "This service",
+        });
+        break;
+      }
+      cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+      depth += 1;
+    }
+  }
+  return { ok: true, unpublishable: out };
+}

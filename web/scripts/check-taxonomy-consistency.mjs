@@ -274,7 +274,7 @@ const [terms, settings, roster, assigns, profiles, agencies] = await Promise.all
   ),
   selectAll("talent_profile_taxonomy", "talent_profile_id,taxonomy_term_id"),
   selectAll("talent_profiles", "id,profile_code,deleted_at,is_publicly_hidden,is_publicly_listed"),
-  selectAll("agencies", "id,slug"),
+  selectAll("agencies", "id,slug,plan_tier"),
 ]);
 
 const termsById = new Map(terms.map((t) => [t.id, t]));
@@ -299,6 +299,29 @@ const PUBLIC_VIS = new Set(["site_visible", "featured"]);
 const publicRoster = roster.filter(
   (r) => r.status === "active" && PUBLIC_VIS.has(r.agency_visibility) && r.talent_site_hidden === false,
 );
+
+// Mirrors TENANT_TAXONOMY_PARENT_LIMITS in
+// src/lib/taxonomy/tenant-taxonomy-plan-limits.ts. Duplicated on purpose: this
+// probe must keep reporting the truth even if that table is edited.
+const PARENT_LIMITS = { free: 3, studio: 8, agency: 999, network: 999 };
+const planByTenant = new Map(
+  agencies.map((a) => [
+    a.id,
+    a.plan_tier === "studio" || a.plan_tier === "agency" || a.plan_tier === "network"
+      ? a.plan_tier
+      : "free",
+  ]),
+);
+const planOf = (tenantId) => planByTenant.get(tenantId) ?? "free";
+
+const allParentIds = terms
+  .filter((t) => t.term_type === "parent_category" && t.is_active !== false)
+  .map((t) => t.id);
+/** Parent categories NOT explicitly disabled — the same count the plan gate uses. */
+function enabledParentCount(tenantId) {
+  const s = settingsByTenant.get(tenantId) ?? new Map();
+  return allParentIds.filter((id) => s.get(id)?.is_enabled !== false).length;
+}
 
 const hiddenCache = new Map();
 function hiddenFor(tenantId) {
@@ -330,16 +353,36 @@ console.log("\nA. Roster holds no switched-off service");
   } else {
     for (const [tenantId, v] of perTenant) {
       const slugs = [...v.terms].map((t) => termBySlug.get(t) ?? t).sort();
+      // Is this DRIFT, or the plan boundary working as designed?
+      //
+      // A free workspace may enable 3 parent categories. When it is already at
+      // its limit, holding a service outside those 3 is EXPECTED — enabling the
+      // blocking category is a paid capability, gated by
+      // `assertCanEnableTenantParentCategory`. Reporting that as an action item
+      // invites someone to "fix" it in SQL and hand a free tenant paid
+      // categories. Classify it instead.
+      const plan = planOf(tenantId);
+      const limit = PARENT_LIMITS[plan] ?? PARENT_LIMITS.free;
+      const enabled = enabledParentCount(tenantId);
+      const atPlanLimit = enabled >= limit;
       findings.disabledTermsInUse.push({
         tenant: agencySlug.get(tenantId) ?? tenantId,
         talents: v.talents.size,
         terms: slugs,
+        plan,
+        enabledParents: enabled,
+        parentLimit: limit,
+        classification: atPlanLimit ? "expected-plan-limit" : "actionable",
       });
       warn(
         `${agencySlug.get(tenantId) ?? tenantId}`,
         `${v.talents.size} talent hold ${v.terms.size} switched-off service(s): ${slugs.slice(0, 8).join(", ")}${slugs.length > 8 ? "…" : ""}. ` +
-          `The save reports these rather than dropping them, so nothing is broken — but the workspace ` +
-          `either wants the category on (Settings → Roster → Talent types) or the service off those profiles.`,
+          (atPlanLimit
+            ? `EXPECTED — plan limit reached (${plan}: ${enabled}/${limit} category groups). Enabling the ` +
+              `blocking category is a paid capability; do NOT force it in SQL. The save reports these ` +
+              `services rather than dropping them, so nothing is broken.`
+            : `ACTIONABLE — ${plan} plan has room (${enabled}/${limit}). The workspace either wants the ` +
+              `category on (Settings → Roster → Talent types) or the service off those profiles.`),
       );
     }
   }

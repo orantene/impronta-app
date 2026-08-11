@@ -34,19 +34,7 @@ import {
   verifySkill,
 } from "@/lib/server-actions/admin-talent-skills";
 
-// ─── Module-level skills cache ─────────────────────────────────────────────
-// Keyed by talentProfileId. Survives drawer open/close within the same session
-// so re-opening the same talent is instant. Mutations always bypass it.
-type CacheEntry = {
-  skills: ResolvedSkill[];
-  aspirations: Array<{ term_id: string; slug: string; name_en: string }>;
-  ts: number;
-};
-const CACHE_TTL = 60_000;
-const _skillsCache = new Map<string, CacheEntry>();
-// In-flight dedup — prevents React Strict Mode's double-invoke from firing two
-// simultaneous server action calls for the same talentProfileId.
-const _inflight = new Map<string, Promise<void>>();
+import { CACHE_TTL, _inflight, _skillsCache } from "./skill-slot-cache";
 import {
   MAX_TOTAL_SKILLS,
   type ProficiencyLevel,
@@ -62,6 +50,7 @@ import {
   pickFeaturedSkillTermId,
 } from "./skill-helpers";
 import { SkillCategoryCard } from "./skill-row";
+import { UnpublishableServicesNotice } from "./skill-unpublishable-notice";
 import { F_BODY, T } from "./skill-tokens";
 import { VerifyConfirmDialog } from "./skill-verify-dialog";
 
@@ -502,6 +491,8 @@ export function SkillSlotPanel({
   return (
     <div style={{ fontFamily: F_BODY }}>
       {/* Header counter — only show after first skill is added */}
+      <UnpublishableServicesNotice talentProfileId={talentProfileId} enabled={viewMode === "admin"} t={copy.t} />
+
       {totalSkills > 0 && (
         <div
           style={{

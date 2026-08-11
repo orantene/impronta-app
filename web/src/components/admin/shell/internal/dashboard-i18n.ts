@@ -714,6 +714,10 @@ const ES_TEXT: Record<string, string> = {
   "Your profile": "Tu perfil",
   "Categories": "Categorías",
   "Talent Types": "Talent Types",
+  "Some services here can't be published on this site":
+    "Algunos servicios de aquí no se pueden publicar en este sitio",
+  "these stay on the profile and save normally, but won't appear publicly until the category is enabled in Settings → Roster → Talent types.":
+    "se quedan en el perfil y se guardan con normalidad, pero no aparecerán públicamente hasta que actives la categoría en Ajustes → Lista → Talent Types.",
   "Home base": "Base principal",
   "Travel": "Viajes",
   "{n} uploaded": "{n} subidas",

@@ -24,7 +24,20 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    // Tagged for triage, same reasoning as app/error.tsx: an untagged capture
+    // is a number on a dashboard, not something you can look up when an agency
+    // says "it broke on this page".
+    try {
+      Sentry.withScope((scope) => {
+        scope.setTag("context", "app/global-error-boundary");
+        scope.setTag("route", typeof window !== "undefined" ? window.location.pathname : "unknown");
+        scope.setTag("host", typeof window !== "undefined" ? window.location.hostname : "unknown");
+        scope.setExtra("digest", error?.digest ?? null);
+        Sentry.captureException(error);
+      });
+    } catch {
+      Sentry.captureException(error);
+    }
   }, [error]);
 
   return (
