@@ -656,7 +656,7 @@ export function MediaPickerDrawer({
                       </button>
                       <div className="grid gap-2 p-2">
                         {lockNote ? (
-                          <p className="text-[11px] leading-snug text-amber-700">{lockNote}</p>
+                          <p className="text-[11px] leading-snug text-[#2c5fdb]">{lockNote}</p>
                         ) : null}
                         {isTalentScope ? (
                           // Talents can't save alt text — the PATCH endpoint is
