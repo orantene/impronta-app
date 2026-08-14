@@ -79,6 +79,13 @@ export type FacetLocRow = { city_slug: string; profile_count: number | string };
 export async function rpcFacetTaxonomy(
   supabase: SupabaseClient,
   args: {
+    /**
+     * Tenant whose roster the counts must be scoped to. When set, PostgREST
+     * resolves the tenant-scoped overload (by argument names) so a storefront
+     * counts ITS roster, not the whole platform. Null on the cross-tenant hub
+     * directory, where platform-wide counts are the correct answer.
+     */
+    p_tenant_id?: string | null;
     p_kind: string;
     p_location_city_slug: string | null;
     p_height_min: number | null;
@@ -88,6 +95,7 @@ export async function rpcFacetTaxonomy(
   },
 ): Promise<FacetTaxRow[] | null> {
   const { data, error } = await supabase.rpc("directory_facet_taxonomy_counts_for_kind", {
+    ...(args.p_tenant_id ? { p_tenant_id: args.p_tenant_id } : {}),
     p_kind: args.p_kind,
     p_location_city_slug: args.p_location_city_slug,
     p_height_min: args.p_height_min,
@@ -160,6 +168,8 @@ export type FacetTextRow = { value_text: string; profile_count: number | string 
 export async function rpcFacetGenderCounts(
   supabase: SupabaseClient,
   args: {
+    /** Scope counts to this tenant's roster (see rpcFacetTaxonomy). */
+    p_tenant_id?: string | null;
     p_location_city_slug: string | null;
     p_height_min: number | null;
     p_height_max: number | null;
@@ -170,6 +180,7 @@ export async function rpcFacetGenderCounts(
   },
 ): Promise<FacetGenderRow[] | null> {
   const { data, error } = await supabase.rpc("directory_facet_gender_value_counts", {
+    ...(args.p_tenant_id ? { p_tenant_id: args.p_tenant_id } : {}),
     p_location_city_slug: args.p_location_city_slug,
     p_height_min: args.p_height_min,
     p_height_max: args.p_height_max,
@@ -194,6 +205,8 @@ export async function rpcFacetGenderCounts(
 export async function rpcFacetBooleanFieldCounts(
   supabase: SupabaseClient,
   args: {
+    /** Scope counts to this tenant's roster (see rpcFacetTaxonomy). */
+    p_tenant_id?: string | null;
     p_field_definition_id: string;
     p_location_city_slug: string | null;
     p_height_min: number | null;
@@ -206,6 +219,7 @@ export async function rpcFacetBooleanFieldCounts(
   },
 ): Promise<FacetBoolRow[] | null> {
   const { data, error } = await supabase.rpc("directory_facet_boolean_field_value_counts", {
+    ...(args.p_tenant_id ? { p_tenant_id: args.p_tenant_id } : {}),
     p_field_definition_id: args.p_field_definition_id,
     p_location_city_slug: args.p_location_city_slug,
     p_height_min: args.p_height_min,
@@ -232,6 +246,8 @@ export async function rpcFacetBooleanFieldCounts(
 export async function rpcFacetTextFieldCounts(
   supabase: SupabaseClient,
   args: {
+    /** Scope counts to this tenant's roster (see rpcFacetTaxonomy). */
+    p_tenant_id?: string | null;
     p_field_definition_id: string;
     p_location_city_slug: string | null;
     p_height_min: number | null;
@@ -244,6 +260,7 @@ export async function rpcFacetTextFieldCounts(
   },
 ): Promise<FacetTextRow[] | null> {
   const { data, error } = await supabase.rpc("directory_facet_text_field_value_counts", {
+    ...(args.p_tenant_id ? { p_tenant_id: args.p_tenant_id } : {}),
     p_field_definition_id: args.p_field_definition_id,
     p_location_city_slug: args.p_location_city_slug,
     p_height_min: args.p_height_min,

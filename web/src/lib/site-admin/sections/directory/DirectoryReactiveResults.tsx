@@ -86,6 +86,7 @@ export function DirectoryReactiveResults({
   showActiveChips,
   aiSearchEnabled = false,
   scopeLimitedHint,
+  scopeTaxonomyTermIds,
   cardKitOverrideStyle,
   cardKitOverrideFamily,
   sidebarPosition,
@@ -138,6 +139,15 @@ export function DirectoryReactiveResults({
   aiSearchEnabled?: boolean;
   /** Honest hint when `scope=by_tag` cannot project; rendered above grid. */
   scopeLimitedHint?: string;
+  /**
+   * The SECTION's own taxonomy scope (`scope="by_talent_type"`), already
+   * resolved slugs → term UUIDs on the server. Must reach the client: the grid
+   * rebuilds the seed signature from the ids it can see, so without this a
+   * scoped section never matches its own SSR seed, throws the server rows
+   * away, and refetches UNSCOPED — which is how a category page rendered an
+   * empty grid while its facet bar showed counts.
+   */
+  scopeTaxonomyTermIds?: string[];
   /**
    * P4 — inline `--token-card-*` CSS vars from a resolved per-instance card
    * kit. Set on a wrapper around the grid so THIS instance's canonical cards
@@ -204,6 +214,7 @@ export function DirectoryReactiveResults({
           showActiveChips={showActiveChips}
           aiSearchEnabled={aiSearchEnabled}
           scopeLimitedHint={scopeLimitedHint}
+          scopeTaxonomyTermIds={scopeTaxonomyTermIds}
           cardKitOverrideStyle={cardKitOverrideStyle}
           cardKitOverrideFamily={cardKitOverrideFamily}
           sidebarPosition={sidebarPosition}
@@ -262,6 +273,7 @@ function DirectoryReactiveResultsInner({
   showActiveChips,
   aiSearchEnabled,
   scopeLimitedHint,
+  scopeTaxonomyTermIds,
   cardKitOverrideStyle,
   cardKitOverrideFamily,
   sidebarPosition,
@@ -307,6 +319,8 @@ function DirectoryReactiveResultsInner({
   showActiveChips: boolean;
   aiSearchEnabled: boolean;
   scopeLimitedHint?: string;
+  /** The section's own resolved taxonomy scope — see the outer prop doc. */
+  scopeTaxonomyTermIds?: string[];
   cardKitOverrideStyle?: CSSProperties;
   /** Family slug of the per-section kit override — pairs with data-card-design-scope on the results wrapper. */
   cardKitOverrideFamily?: string;
@@ -356,7 +370,15 @@ function DirectoryReactiveResultsInner({
     return r;
   }, [sp]);
 
-  const taxonomyTermIds = parseTaxonomyParam(record.tax);
+  // Mirrors the server's precedence (Component.tsx): a visitor's URL selection
+  // wins; otherwise the section's own scope applies. Keeping these two in sync
+  // is what makes the client's seed signature match the server's, so the SSR
+  // rows are adopted instead of discarded + refetched.
+  const urlTaxonomyTermIds = parseTaxonomyParam(record.tax);
+  const taxonomyTermIds =
+    urlTaxonomyTermIds.length > 0
+      ? urlTaxonomyTermIds
+      : (scopeTaxonomyTermIds ?? []);
   // Sort: prefer URL value; else section's defaultSort mapped onto engine.
   // `parseDirectorySort` only returns an engine-valid value, never section
   // values like `az` — so falling back to `mapDefaultSort` is safe.

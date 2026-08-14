@@ -366,6 +366,20 @@ export async function DirectoryComponent({
 
   const seedItems = initialPage?.items ?? [];
   const hasResults = seedItems.length > 0;
+  // Did the VISITOR narrow this themselves? It matters for the empty state:
+  // if their own filter produced nothing, the filter bar is their only way
+  // back, so it must stay. If the section is simply empty (no filters, no
+  // talent), a filter bar above "no one matches yet" is furniture that
+  // advertises categories the visitor cannot reach from here.
+  const visitorHasActiveFilters =
+    urlFilters.taxonomyTermIds.length > 0 ||
+    urlFilters.query.trim() !== "" ||
+    urlFilters.locationSlug.trim() !== "" ||
+    urlFilters.heightMinCm != null ||
+    urlFilters.heightMaxCm != null ||
+    urlFilters.ageMin != null ||
+    urlFilters.ageMax != null ||
+    (urlFilters.fieldFacets?.length ?? 0) > 0;
   const seedFailed = initialPage === null;
 
   // SEO — schema.org ItemList of the seeded roster page. Absolute URLs on an
@@ -521,7 +535,9 @@ export async function DirectoryComponent({
               </div>
             ) : null}
 
-            {props.topBarMode !== "none" && topBarFacet ? (
+            {props.topBarMode !== "none" &&
+            topBarFacet &&
+            (hasResults || visitorHasActiveFilters) ? (
               <div className="mt-7 w-full">
                 <DirectoryBannerTopBar
                   options={topBarFacet.options}
@@ -663,6 +679,7 @@ export async function DirectoryComponent({
             showActiveChips={props.showActiveChips}
             aiSearchEnabled={aiEnabled}
             scopeLimitedHint={scopeLimitedHint}
+            scopeTaxonomyTermIds={seedTaxonomyTermIds}
             cardKitOverrideStyle={cardKitOverrideStyle}
             cardKitOverrideFamily={cardKitOverrideFamily}
             sidebarPosition={props.sidebarPosition}
