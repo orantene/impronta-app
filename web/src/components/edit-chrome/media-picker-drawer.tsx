@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/use-t";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
 import { compressImage } from "@/lib/client/image-compress";
 
@@ -49,6 +50,16 @@ export type { MediaPickerAssetKind, MediaPickerFolder, MediaPickerItem };
 
 /** Talent picker source filter (only used when on a Talent Max surface). */
 type TalentSource = "all" | "portfolio" | "mine";
+
+/**
+ * An asset the two-key rule will not let this talent use here (phase 3).
+ * Shape matches the `locked` array from /api/talent/media/library.
+ */
+type LockedAsset = {
+  assetId: string;
+  reason: "owned_by_workspace" | "master_profile_off" | null;
+  ownerName: string | null;
+};
 
 /** MEDIA-1 — library kind filter (staff/agency surfaces). */
 type KindFilter = "all" | MediaPickerAssetKind;
@@ -94,6 +105,14 @@ export function MediaPickerDrawer({
   const [activeFolderId, setActiveFolderId] = useState<string>("all");
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
   const [portfolioAssetIds, setPortfolioAssetIds] = useState<string[]>([]);
+  /**
+   * Media-ownership phase 3: assets this talent may NOT use on their master
+   * profile, with the reason. The tiles stay in the grid — a photo that just
+   * quietly is not there is the "I save and nothing changes" incident class —
+   * but they cannot be picked, and each says why.
+   */
+  const [lockedAssets, setLockedAssets] = useState<LockedAsset[]>([]);
+  const t = useT();
   const [talentSource, setTalentSource] = useState<TalentSource>("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +143,7 @@ export function MediaPickerDrawer({
       setItems(loaded);
       setFolders((body.folders ?? []) as MediaPickerFolder[]);
       setPortfolioAssetIds((body.portfolioAssetIds ?? []) as string[]);
+      setLockedAssets((body.locked ?? []) as LockedAsset[]);
       setAltDrafts(
         Object.fromEntries(loaded.map((item) => [item.id, item.alt ?? ""])),
       );
@@ -325,6 +345,22 @@ export function MediaPickerDrawer({
 
   const portfolioSet = new Set(portfolioAssetIds);
   const isPortfolio = (item: MediaPickerItem) => portfolioSet.has(item.id);
+
+  const lockByAssetId = new Map(lockedAssets.map((lock) => [lock.assetId, lock]));
+  const lockNoteFor = (item: MediaPickerItem): string | null => {
+    const lock = lockByAssetId.get(item.id);
+    if (!lock) return null;
+    if (lock.reason === "master_profile_off") {
+      return t("dashboard.mediaPickerLock.masterOff").replace(
+        "{workspace}",
+        lock.ownerName ?? t("dashboard.mediaPickerLock.aWorkspace"),
+      );
+    }
+    return t("dashboard.mediaPickerLock.ownedByWorkspace").replace(
+      "{workspace}",
+      lock.ownerName ?? t("dashboard.mediaPickerLock.aWorkspace"),
+    );
+  };
 
   const matchesKind = (item: MediaPickerItem) =>
     kindFilter === "all" || pickerKind(item) === kindFilter;
@@ -560,6 +596,7 @@ export function MediaPickerDrawer({
               {visibleItems.map((item) => {
                 const selected = multi && pending.includes(item.publicUrl);
                 const kind = pickerKind(item);
+                const lockNote = lockNoteFor(item);
                 return (
                   <li key={item.id}>
                     <div
@@ -570,14 +607,25 @@ export function MediaPickerDrawer({
                     >
                       <button
                         type="button"
+                        disabled={lockNote !== null}
+                        title={lockNote ?? undefined}
                         onClick={() => {
+                          if (lockNote) return;
                           if (multi) togglePending(item.publicUrl);
                           else pickItem(item);
                         }}
-                        className="relative block w-full bg-stone-100 text-left"
+                        className={`relative block w-full bg-stone-100 text-left ${
+                          lockNote ? "cursor-not-allowed opacity-50" : ""
+                        }`}
                         data-asset-kind={kind}
+                        data-locked={lockNote ? "true" : undefined}
                       >
                         <MediaThumb item={item} kind={kind} />
+                        {lockNote ? (
+                          <span className="absolute right-2 top-2 rounded-full bg-[#242942]/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
+                            {t("dashboard.mediaPickerLock.badge")}
+                          </span>
+                        ) : null}
                         {kind !== "image" ? (
                           <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-[#242942]/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
                             {kind === "video" ? (
@@ -607,6 +655,9 @@ export function MediaPickerDrawer({
                         ) : null}
                       </button>
                       <div className="grid gap-2 p-2">
+                        {lockNote ? (
+                          <p className="text-[11px] leading-snug text-amber-700">{lockNote}</p>
+                        ) : null}
                         {isTalentScope ? (
                           // Talents can't save alt text — the PATCH endpoint is
                           // staff-only (would 401). Show it read-only instead of

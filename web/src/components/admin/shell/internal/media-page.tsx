@@ -49,6 +49,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/media/ownership-actions";
 import { loadAgencyBrandingSettings } from "@/lib/server-actions/admin-workspace-settings";
 import { MediaOwnershipChip } from "@/components/admin/media/media-ownership-chip";
+import { MediaReleaseRequestsPanel } from "@/components/admin/media/media-release-requests-panel";
 import type {
   WorkspaceMediaPhoto as BridgeMediaPhoto,
   WorkspaceMediaFolder as BridgeMediaFolder,
@@ -70,6 +71,9 @@ type ActiveView =
   | { kind: "by-kind" }
   | { kind: "pending" }
   | { kind: "brand" }
+  // Plan §6 "Shared by talent" lane — release requests from talents who want
+  // to use photos this workspace owns somewhere else (media-ownership phase 3).
+  | { kind: "releases" }
   | { kind: "analytics" };
 
 type StagingItem = {
@@ -268,6 +272,11 @@ function MediaSidebar({
         label={`Brand & site (${photos.filter((p) => p.isWorkspaceAsset).length})`}
         active={isActive({ kind: "brand" })}
         onClick={() => setView({ kind: "brand" })}
+      />
+      <NavRow
+        label={t("dashboard.mediaReleaseRequests.title")}
+        active={isActive({ kind: "releases" })}
+        onClick={() => setView({ kind: "releases" })}
       />
 
 
@@ -2177,6 +2186,16 @@ export function WorkspaceMediaPage() {
 
   const renderGrid = () => {
     if (view.kind === "analytics") return <AnalyticsView photos={photos} folders={folders} />;
+    // The releases lane is a request queue, not a photo grid — it renders its
+    // own panel (which lives outside this shell tree, so it uses admin-* token
+    // classes rather than the inline COLORS objects used here).
+    if (view.kind === "releases") {
+      return (
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <MediaReleaseRequestsPanel />
+        </div>
+      );
+    }
 
     const showGroupedByTalent = view.kind === "by-talent";
     const showGroupedByKind = view.kind === "by-kind";

@@ -10789,6 +10789,45 @@
       "saving": "Guardando...",
       "saved": "Selección guardada.",
       "selectedCount": "{count} seleccionadas"
+    },
+    "mediaRelease": {
+      "title": "Fotos de tus agencias",
+      "body": "Estas fotos las produjo un espacio que te representa, así que son suyas. Aquí puedes verlas y siguen en el sitio de ese espacio. Para usar alguna en otro lugar, pídele al espacio que la libere.",
+      "loading": "Cargando fotos...",
+      "empty": "Todavía no hay fotos tuyas propiedad de una agencia. Todo lo que está en tu galería es tuyo y puedes usarlo donde quieras.",
+      "lockBadge": "Bloqueada",
+      "selectedBadge": "Pidiendo",
+      "statusLocked": "Propiedad de {workspace}. Solo se puede usar en su sitio.",
+      "statusPending": "Liberación solicitada. Esperando respuesta.",
+      "statusReleased": "Liberada. Puedes usarla donde quieras.",
+      "request": "Solicitar liberación",
+      "sending": "Enviando...",
+      "sent": "Solicitud enviada. El espacio recibirá una notificación.",
+      "mixedOwners": "Elige fotos de un solo espacio a la vez. Solo ese espacio puede responder.",
+      "selectedCount": "{count} seleccionadas"
+    },
+    "mediaReleaseRequests": {
+      "title": "Solicitudes de liberación de fotos",
+      "body": "Los talentos que representas pueden pedir usar fotos tuyas fuera de tu sitio. Si apruebas, podrán hacerlo; si rechazas, no cambia nada. Puedes revocar una liberación después y las fotos dejarán de aparecer fuera de tu sitio.",
+      "loading": "Cargando solicitudes...",
+      "empty": "No hay solicitudes abiertas.",
+      "heading": "{talent} pidió {count} fotos",
+      "targetNamed": "Para usar en {workspace}.",
+      "targetAnywhere": "Para usar en cualquier sitio.",
+      "approve": "Aprobar",
+      "decline": "Rechazar",
+      "revoke": "Revocar liberación",
+      "revokeHint": "Las fotos dejarán de aparecer fuera de tu sitio en la próxima carga de página.",
+      "working": "Procesando...",
+      "approved": "Se liberaron {count} fotos.",
+      "denied": "Solicitud rechazada. No cambió nada.",
+      "revoked": "Se revocaron {count} fotos."
+    },
+    "mediaPickerLock": {
+      "badge": "Bloqueada",
+      "aWorkspace": "un espacio",
+      "ownedByWorkspace": "{workspace} es dueño de esta foto, así que solo puede ir en su sitio. Pídeles que la liberen y podrás usarla aquí.",
+      "masterOff": "{workspace} es dueño de esta foto y la mantiene solo en su sitio. Pídeles que la liberen y podrás usarla aquí."
     }
   },
   "admin": {

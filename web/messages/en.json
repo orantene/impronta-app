@@ -10789,6 +10789,45 @@
       "saving": "Saving...",
       "saved": "Selection saved.",
       "selectedCount": "{count} selected"
+    },
+    "mediaRelease": {
+      "title": "Photos from your agencies",
+      "body": "These photos were produced by a workspace that represents you, so they own them. You can see them here, and they stay on that workspace's site. To use one somewhere else, ask the workspace to release it.",
+      "loading": "Loading photos...",
+      "empty": "No agency-owned photos of you yet. Everything in your gallery is yours to use anywhere.",
+      "lockBadge": "Locked",
+      "selectedBadge": "Asking",
+      "statusLocked": "Owned by {workspace}. Usable on their site only.",
+      "statusPending": "Release requested. Waiting for an answer.",
+      "statusReleased": "Released. You can use this anywhere.",
+      "request": "Request release",
+      "sending": "Sending...",
+      "sent": "Request sent. The workspace will get a notification.",
+      "mixedOwners": "Pick photos from one workspace at a time. Only that workspace can answer.",
+      "selectedCount": "{count} selected"
+    },
+    "mediaReleaseRequests": {
+      "title": "Photo release requests",
+      "body": "Talents you represent can ask to use photos you own outside your site. Approving lets them; declining changes nothing. You can revoke a release later and the photos come down everywhere outside your site.",
+      "loading": "Loading requests...",
+      "empty": "No open requests.",
+      "heading": "{talent} asked for {count} photos",
+      "targetNamed": "To use on {workspace}.",
+      "targetAnywhere": "To use anywhere.",
+      "approve": "Approve",
+      "decline": "Decline",
+      "revoke": "Revoke release",
+      "revokeHint": "The photos stop appearing outside your site on the next page load.",
+      "working": "Working...",
+      "approved": "Released {count} photos.",
+      "denied": "Request declined. Nothing changed.",
+      "revoked": "Revoked {count} photos."
+    },
+    "mediaPickerLock": {
+      "badge": "Locked",
+      "aWorkspace": "a workspace",
+      "ownedByWorkspace": "{workspace} owns this photo, so it can only go on their site. Ask them to release it and you can use it here.",
+      "masterOff": "{workspace} owns this photo and keeps it on their site only. Ask them to release it and you can use it here."
     }
   },
   "admin": {

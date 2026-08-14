@@ -97,7 +97,13 @@ const BUDGETS: Record<string, number> = {
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
   // one import.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4719,
+  // 2026-08-14 media-ownership phase 3 (two-key grants) — +8: mounting the
+  // talent-side "From your agencies" locked-tile panel in the Photos & video
+  // section, self-mode only. The panel itself is its own component
+  // (components/talent/media-release-panel.tsx) and every query lives in
+  // lib/site-admin/server/media-grants.ts; what landed here is one import and
+  // one guarded mount.
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4727,
   "src/components/admin/shell/internal/wave2.tsx": 4597,
   "src/components/admin/shell/internal/workspace.tsx": 3559,
   // 2026-08-10 branding-media: +18 Spanish entries for the Brand identity
@@ -113,7 +119,12 @@ const BUDGETS: Record<string, number> = {
   // component (components/admin/media/media-ownership-chip.tsx) and the
   // queries live in lib/site-admin/server/media-ownership.ts; what landed
   // here is the two handlers and their bulk-bar buttons.
-  "src/components/admin/shell/internal/media-page.tsx": 2866,
+  // 2026-08-14 media-ownership phase 3 (two-key grants) — +19: the plan §6
+  // "Shared by talent" lane (release requests). One ActiveView variant, one
+  // sidebar nav row and one early return; the queue UI is its own component
+  // (components/admin/media/media-release-requests-panel.tsx) and the queries
+  // live in lib/site-admin/server/media-release-requests.ts.
+  "src/components/admin/shell/internal/media-page.tsx": 2885,
   "src/components/admin/shell/internal/state/types.ts": 2747,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
