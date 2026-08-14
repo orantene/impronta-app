@@ -75,7 +75,7 @@ import {
   counterOffer,
   type OfferLineDraft,
 } from "@/lib/inquiry/inquiry-engine-offers";
-import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
+import { clientAcceptOffer, staffAcceptOfferForTalent } from "@/lib/inquiry/inquiry-engine-approvals";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
@@ -680,6 +680,125 @@ export async function approveOfferAction(
     return { ok: true };
   } catch (err) {
     logServerError("admin._pipeline-actions.approveOfferAction", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+/**
+ * Record the TALENT's approval for an agency-managed (unclaimed) profile.
+ *
+ * An offer needs every party's approval before it can convert to a booking.
+ * A roster profile nobody has claimed has no account and therefore no way to
+ * give one, which stranded those bookings permanently. Staff may record it —
+ * but ONLY while the profile is unclaimed; once the talent owns their account
+ * the decision is theirs (the engine enforces this and returns
+ * `talent_has_account`, surfaced here as a plain sentence).
+ */
+export async function acceptOfferForTalentAction(
+  _tenantSlug: string,
+  inquiryId: string,
+  /** Omit to record approval for EVERY pending agency-managed talent on the
+   *  lineup — the common case, since staff click this once for the whole
+   *  roster. Pass an id to approve a single talent. */
+  talentProfileId?: string,
+): Promise<PipelineActionResult> {
+  try {
+    const auth = await requireInquiryManagerAction(inquiryId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const { supabase, user, tenantId } = auth;
+
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
+
+    // Resolve the target set: an explicit talent, else every talent on this
+    // lineup whose approval is still pending.
+    let targets: string[] = talentProfileId ? [talentProfileId] : [];
+    if (!talentProfileId) {
+      const { data: parts } = await supabase
+        .from("inquiry_participants")
+        .select("talent_profile_id")
+        .eq("inquiry_id", inquiryId)
+        .eq("tenant_id", tenantId)
+        .eq("role", "talent");
+      targets = (parts ?? [])
+        .map((r) => (r as { talent_profile_id: string | null }).talent_profile_id)
+        .filter((id): id is string => Boolean(id));
+      if (targets.length === 0) {
+        return { ok: false, error: "No talent on this offer's lineup." };
+      }
+    }
+
+    // Approve each; the engine skips claimed profiles (talent_has_account).
+    // Re-read the inquiry version between calls — each successful approval
+    // bumps it, and a stale expectedVersion would trip the CAS guard.
+    let recorded = 0;
+    let skippedClaimed = 0;
+    let result: Awaited<ReturnType<typeof staffAcceptOfferForTalent>> = { success: true };
+    for (const id of targets) {
+      const { data: cur } = await supabase
+        .from("inquiries")
+        .select("version")
+        .eq("id", inquiryId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      result = await staffAcceptOfferForTalent(supabase, {
+        inquiryId,
+        tenantId,
+        talentProfileId: id,
+        actorUserId: user.id,
+        expectedVersion: (cur?.version as number | null) ?? (inq.version as number | null) ?? 1,
+      });
+      if (result.success) {
+        recorded += 1;
+        continue;
+      }
+      const why = (result as { reason?: string; error?: string }).reason
+        ?? (result as { error?: string }).error;
+      // A talent who owns their account must decide for themselves — that is
+      // not an error when approving the whole lineup, just a skip.
+      if (why === "talent_has_account" && !talentProfileId) {
+        skippedClaimed += 1;
+        result = { success: true };
+        continue;
+      }
+      break;
+    }
+
+    if (result.success && recorded === 0 && skippedClaimed > 0) {
+      return {
+        ok: false,
+        error:
+          "Every talent on this offer has their own account — they need to accept it themselves.",
+      };
+    }
+    if (!result.success) {
+      const reason =
+        (result as { reason?: string; error?: string }).reason ??
+        (result as { error?: string }).error ??
+        "Could not record the approval.";
+      return {
+        ok: false,
+        error:
+          reason === "talent_has_account"
+            ? "This talent has their own account — they need to accept the offer themselves."
+            : reason === "no_talent_participant"
+              ? "That talent isn't on this offer's lineup."
+              : reason === "no_active_offer"
+                ? "There's no active offer to approve."
+                : reason === "version_conflict"
+                  ? "Something changed since you opened this. Refresh and try again."
+                  : reason,
+      };
+    }
+    revalidatePath(`/${auth.tenantSlug}`, "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("admin._pipeline-actions.acceptOfferForTalentAction", err);
     return { ok: false, error: "Unexpected error." };
   }
 }

@@ -3230,7 +3230,9 @@
         "agencyFee": "Agency fee",
         "coordinatorShare": "Coordinator share ({pct}% of fee)",
         "activity": "Activity",
-        "activitySub": "Same events surface in the chat thread."
+        "activitySub": "Same events surface in the chat thread.",
+        "acceptForRoster": "Accept for roster talent",
+        "acceptForRosterTitle": "Record the approval for agency-managed talent who have no account. Talent with their own account must accept it themselves."
       },
       "reassign": {
         "assignTitle": "Assign coordinator",

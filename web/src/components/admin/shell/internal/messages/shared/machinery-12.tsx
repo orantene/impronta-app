@@ -9,7 +9,9 @@ import { loadCurrentTalentPayoutSnapshot, loadMyInquiryTakeHome, type TalentPayo
 import { type TalentTakeHome } from "@/lib/talent/inquiry-take-home";
 import { submitMyCounterRate, submitMyRateForInquiry } from "@/lib/server-actions/talent-pipeline";
 import { clientApproveCurrentOffer, clientRejectCurrentOffer } from "@/lib/server-actions/client-pipeline";
-import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState, reopenOfferAction, loadOfferDraft } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
+import { sendOfferAction, counterOfferAction, loadBookingCommissionSnapshotAction, loadInquiryPaymentState, reopenOfferAction, loadOfferDraft,
+  acceptOfferForTalentAction,
+} from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
 import { loadCoordinatorInquiryOffer } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/coordinator-offer-loader";
 import type { PersistedBookingCommissionSnapshot } from "@/lib/billing/commission";
 import { useAdminShell, COLORS, FONTS } from "../../state";
@@ -350,6 +352,25 @@ export function LiveOfferPanel({
           {status === "sent" && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span className="text-admin-ink-muted text-admin-11">{t("dashboard.adminTabs.offer.awaitingApproval")}</span>
+              {/* Agency-managed talent have no account and therefore no way to
+                  give the approval an offer needs before it can convert to a
+                  booking — without this the offer strands at "awaiting talent"
+                  forever. The action skips any talent who owns their account:
+                  that decision stays theirs. Class-only styling: inline styles
+                  are frozen under components/admin/shell by the ratchet. */}
+              <button
+                type="button"
+                disabled={pending}
+                title={t("dashboard.adminTabs.offer.acceptForRosterTitle")}
+                onClick={() =>
+                  run(t("dashboard.adminTabs.offer.acceptForRoster"), () =>
+                    acceptOfferForTalentAction(effectiveTenant.slug, inquiryId),
+                  )
+                }
+                className={`inline-flex items-center gap-1.5 rounded-full border border-admin-border bg-transparent px-3 py-[5px] text-admin-11 font-semibold text-admin-ink ${pending ? "opacity-50" : ""}`}
+              >
+                {t("dashboard.adminTabs.offer.acceptForRoster")}
+              </button>
               <button
                 type="button"
                 disabled={pending}
