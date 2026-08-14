@@ -164,7 +164,25 @@ function inferSourceKind(
   sourceType: string | null,
   sourceChannel: string | null,
   sourcePage: string | null,
+  /** inquiries.source_workspace_id — the workspace whose SURFACE the lead
+   *  entered through. Compared against the viewing tenant. */
+  sourceWorkspaceId?: string | null,
+  viewingTenantId?: string | null,
 ): WorkspaceInquiryForMessages["sourceKind"] {
+  // Channel attribution outranks every string heuristic: an inquiry whose
+  // originating workspace is a DIFFERENT tenant than the one viewing it came
+  // through that channel (e.g. the Tulala marketplace), and must never read
+  // as "direct"/"talent-page" in the managing agency's inbox — the channel is
+  // commercially meaningful (the hub-referral commission lane keys off the
+  // same source_workspace_id). Same-workspace source stays with the
+  // page-based heuristics: a lead from your own storefront IS direct.
+  if (
+    sourceWorkspaceId &&
+    viewingTenantId &&
+    sourceWorkspaceId !== viewingTenantId
+  ) {
+    return "hub";
+  }
   const t = (sourceType ?? "").toLowerCase();
   const c = (sourceChannel ?? "").toLowerCase();
   // Map Discover's two channels to "marketplace" — they're the
@@ -267,7 +285,7 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
         event_date, event_location, quantity,
         created_at, updated_at, expires_at, booked_at,
         next_action_by, priority, trust_level_at_submission,
-        source_type, source_channel, source_page,
+        source_type, source_channel, source_page, source_workspace_id,
         coordinator_id, coordinator_accepted_at,
         current_offer_id
       `)
@@ -301,6 +319,7 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       source_type: string | null;
       source_channel: string | null;
       source_page: string | null;
+      source_workspace_id: string | null;
       coordinator_id: string | null;
       coordinator_accepted_at: string | null;
       current_offer_id: string | null;
@@ -655,7 +674,13 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
 
         nextActionBy: row.next_action_by,
 
-        sourceKind: inferSourceKind(row.source_type, row.source_channel, row.source_page),
+        sourceKind: inferSourceKind(
+          row.source_type,
+          row.source_channel,
+          row.source_page,
+          row.source_workspace_id,
+          tenantId,
+        ),
         sourcePage: row.source_page,
         trustLevel: row.trust_level_at_submission,
 
