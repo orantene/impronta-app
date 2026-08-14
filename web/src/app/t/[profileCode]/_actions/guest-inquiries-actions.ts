@@ -30,7 +30,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getTypicalReplyLabel } from "@/lib/inquiry/guest-reply-latency";
-import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
+import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
@@ -278,7 +278,7 @@ export async function listGuestInquiries(input: {
     }
   }
 
-  const portraitById = await loadTalentCardThumbs(admin, talentIds);
+  const portraitById = await resolveTalentCardThumbsForHub(admin, talentIds, tenantId);
 
   // Build the per-id AvatarStackItem once, reused across every inquiry's lineup.
   const faceById = new Map<string, AvatarStackItem>();

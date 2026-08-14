@@ -29,7 +29,7 @@ import {
   describeCrossTenantContext,
 } from "@/lib/inquiry/cross-tenant-context";
 import { loadLineupStatusSummary } from "@/lib/inquiry/acceptance-summary";
-import { loadTalentCardThumbs } from "./talent-card-thumbs";
+import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { type BalanceCollectionMethod, type RefundPolicyKey, normalizeDepositPct } from "@/lib/billing/commercial-terms-types";
 
 // ─── Output shape ───────────────────────────────────────────────────────────
@@ -520,9 +520,10 @@ export async function loadClientInquiryDetails(
     // face next to who they inquired about / are about to book — not initials.
     // (Was a `photo_url: null` "Phase D" stub.) Same media pipeline + variant
     // fallback the roster/discover surfaces use, via the shared resolver.
-    const talentThumbs = await loadTalentCardThumbs(
+    const talentThumbs = await resolveTalentCardThumbsForHub(
       admin ?? readClient,
       parts.map((p) => p.talent_profile_id),
+      tenantId,
     );
     const talentLineup = parts.map((p) => {
       const tp = p.talent_profiles;

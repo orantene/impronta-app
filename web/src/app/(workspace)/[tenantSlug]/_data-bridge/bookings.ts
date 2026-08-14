@@ -3,7 +3,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadTalentCardThumbs } from "./talent-card-thumbs";
+import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { loadTransactionsForTenant } from "@/lib/bookings/transactions";
 
 /**
@@ -275,7 +275,7 @@ export async function loadClientBookings(
       // Card headshots via the shared resolver (same crop as every surface).
       const admin = createServiceRoleClient();
       const thumbs = talentIds.size > 0
-        ? await loadTalentCardThumbs(admin ?? supabase, [...talentIds])
+        ? await resolveTalentCardThumbsForHub(admin ?? supabase, [...talentIds], tenantId)
         : new Map<string, string>();
       for (const pRow of pending) {
         const list = lineupByInquiry.get(pRow.inquiryId) ?? [];

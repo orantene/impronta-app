@@ -16,7 +16,7 @@ import {
   type TalentOfferApprovalStatus,
 } from "./talent-approvals";
 import { loadCoordinatorInquiriesForUser } from "./talent-coordinator-inquiries";
-import { loadTalentCardThumbs } from "./talent-card-thumbs";
+import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -151,7 +151,8 @@ export async function loadTalentSelfProfile(
     // that missed the valid `hero` variant + carried a non-existent `portfolio`.
     const admin = createServiceRoleClient();
     const mediaClient = admin ?? supabase;
-    const headshotUrl = (await loadTalentCardThumbs(mediaClient, [p.id])).get(p.id) ?? null;
+    const headshotUrl =
+      (await resolveTalentCardThumbsForHub(mediaClient, [p.id], tenantId)).get(p.id) ?? null;
 
     // Portfolio photo count — same definition the workspace roster uses
     // (non-deleted `gallery` variants), so both surfaces agree on progress.
@@ -276,7 +277,9 @@ export async function loadTalentSelfProfileByUser(
 
     // Headshot via the shared resolver (card > hero > … — see the sibling
     // loader above), so this surface matches every other and picks up `hero`.
-    const headshotUrl = (await loadTalentCardThumbs(trusted, [p.id])).get(p.id) ?? null;
+    // No tenant in scope on the by-user (master) loader — null = master rank.
+    const headshotUrl =
+      (await resolveTalentCardThumbsForHub(trusted, [p.id], null)).get(p.id) ?? null;
 
     // Portfolio photo count — see the sibling loader above.
     const { count: galleryCount } = await trusted

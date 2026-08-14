@@ -39,6 +39,12 @@ export const SITE_ADMIN_SURFACE = [
   // for the two surfaces the <html> token cascade cannot reach (marketing
   // cross-tenant grid, client dashboard shells).
   "card-design",
+  // Per-hub talent media (media-ownership phase 2) — this tenant's curated
+  // face + gallery selection for one talent, qualified by talent profile id:
+  // "tenant:{tenantId}:talent-media:{talentProfileId}". The tenant segment is
+  // load-bearing: a talent-only key would serve one hub's curated cover on
+  // every other hub. Busted by the roster-drawer curation writes.
+  "talent-media",
 ] as const;
 
 export type SiteAdminSurface = (typeof SITE_ADMIN_SURFACE)[number];

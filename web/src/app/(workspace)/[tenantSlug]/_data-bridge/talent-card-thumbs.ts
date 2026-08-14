@@ -33,6 +33,22 @@ const THUMB_RANK: Record<string, number> = {
 const FACE_VARIANTS = Object.keys(THUMB_RANK);
 
 /**
+ * Storage path → renderable URL.
+ *
+ * Some rows store an already-absolute URL (e.g. seeded i.pravatar.cc avatars)
+ * or a root-relative `public/` asset path (free-starter demo portraits —
+ * host-agnostic, zero storage egress). Pass those through untouched:
+ * getPublicUrl() would otherwise prepend the bucket path and mangle them.
+ * (discover.ts's old inline copy had this guard; centralized here so every
+ * surface — including the phase-2 per-hub resolver — resolves them the same.)
+ */
+export function mediaPublicUrl(client: SupabaseClient, storagePath: string): string {
+  return storagePath.startsWith("http") || storagePath.startsWith("/")
+    ? storagePath
+    : client.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
+}
+
+/**
  * Returns a Map keyed by talent_profile_id → public thumbnail URL. Empty map
  * on no input or error (callers fall back to initials). Never throws.
  */
@@ -59,17 +75,7 @@ export async function loadTalentCardThumbs(
   }>) {
     const rank = THUMB_RANK[m.variant_kind] ?? 99;
     if (rank < (bestRank.get(m.owner_talent_profile_id) ?? 99)) {
-      // Some rows store an already-absolute URL (e.g. seeded i.pravatar.cc
-      // avatars) or a root-relative `public/` asset path (free-starter demo
-      // portraits — host-agnostic, zero storage egress). Pass those through
-      // untouched — getPublicUrl() would otherwise prepend the bucket path and
-      // mangle them. (discover.ts's old inline copy had this guard; preserved
-      // here so every surface resolves them.)
-      const url =
-        m.storage_path.startsWith("http") || m.storage_path.startsWith("/")
-          ? m.storage_path
-          : client.storage.from(BUCKET).getPublicUrl(m.storage_path).data.publicUrl;
-      out.set(m.owner_talent_profile_id, url);
+      out.set(m.owner_talent_profile_id, mediaPublicUrl(client, m.storage_path));
       bestRank.set(m.owner_talent_profile_id, rank);
     }
   }

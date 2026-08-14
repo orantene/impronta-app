@@ -153,6 +153,20 @@ Two-key check = `owner allows H` (owner's home hub implicit, else an unrevoked o
 
 **Phase 1 — Ownership truth (1 PR).** Stamp all writers (§5a); ownership chips on Media page; backfill default + agency claim tool with talent notification (§5b). Migration: none (columns exist). Risk: low — additive writes.
 
+**Phase 2 — Per-hub faces (SHIPPED, FLAG OFF).** Resolver `src/lib/media/talent-media-for-hub.ts`
+(`resolveTalentMediaForHub` / `resolveTalentCardThumbsForHub`, `tenantId === null` = master);
+curation panel "Photos on this site" in the roster drawer's *Photos & video* section
+(`components/admin/shell/internal/talent-hub-face-panel.tsx` → actions
+`lib/server-actions/admin-talent-hub-face.ts` → queries `lib/site-admin/server/talent-hub-face.ts`);
+all 13 `loadTalentCardThumbs` call-sites routed through the resolver. **Flag:
+`MEDIA_PER_HUB_FACES_ENABLED`, default OFF** — with it off the card output is byte-identical to
+phase 1 and the curation tables are never queried. No migration (every column already existed).
+Cache tag: `tenant:{tenantId}:talent-media:{talentProfileId}` (`hubTalentMediaTag`), busted by both
+write actions. Punted to phase 3: two-key enforcement, talent-side locked tiles, per-photo captions
+and the `is_visible_on_agency_site` toggle in the panel, profile-page/pitch/page-builder call-sites.
+
+*Original scope note:*
+
 **Phase 2 — Per-hub faces (1-2 PRs).** Tenant-aware `resolveTalentMediaForHub` v1 (curation-aware, two-key not yet enforced beyond today's defaults); roster-drawer curation tab wiring `agency_talent_media` + `overlay.cover_media_asset_id`; swap the 5 `loadTalentCardThumbs` call-sites. QA: one talent on Impronta + hub + a QA workspace shows three different curated faces. Risk: medium (touches every card surface) — ship behind a flag defaulting to current behavior, flip after visual QA (the Card-Design cache lesson: verify with cold keys).
 
 **Phase 3 — Two-key grants (2 PRs).** `media_grants` migration + SQL predicate + resolver enforcement; locked-tile UX in talent studio; release request/approve/revoke flows on the permission-request rail; master-profile picker filter. This is the fire-dancer milestone. Risk: the revocation path must un-publish everywhere — covered by the single resolver + tag busts; add an e2e that revokes and re-reads all five surfaces.

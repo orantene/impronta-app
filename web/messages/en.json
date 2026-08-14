@@ -10774,6 +10774,21 @@
         "guest": "Guest"
       },
       "failedBadge": "Failed"
+    },
+    "talentHubFace": {
+      "title": "Photos on this site",
+      "body": "Pick which photos represent this talent on your site, and set the cover. This is your workspace's own selection: it points at photos, it never copies them, and it does not change how this talent looks on any other site.",
+      "loading": "Loading photos...",
+      "empty": "No photos available yet. Upload photos for this talent, then choose the ones your site should show.",
+      "addToSite": "Show on this site",
+      "removeFromSite": "Remove from this site",
+      "makeCover": "Make cover",
+      "clearCover": "Cover",
+      "coverBadge": "Cover",
+      "save": "Save selection",
+      "saving": "Saving...",
+      "saved": "Selection saved.",
+      "selectedCount": "{count} selected"
     }
   },
   "admin": {

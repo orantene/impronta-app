@@ -17,7 +17,7 @@
  */
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
+import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 
 export type DefaultStorefrontTalent = {
   id: string;
@@ -85,7 +85,7 @@ export async function loadDefaultStorefrontRoster(
       return [];
     }
 
-    return mapRosterRows(sb, data);
+    return mapRosterRows(sb, data, tenantId);
   } catch (err) {
     logServerError("home.defaultStorefront.loadRoster", err);
     return [];
@@ -124,6 +124,7 @@ type RawRosterRow = {
 async function mapRosterRows(
   sb: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   data: unknown,
+  tenantId: string,
 ): Promise<DefaultStorefrontTalent[]> {
   const talentIds: string[] = [];
   const rows = (data ?? []) as unknown as RawRosterRow[];
@@ -137,7 +138,7 @@ async function mapRosterRows(
     talentIds.push(p.id);
   }
 
-  const thumbMap = await loadTalentCardThumbs(sb, talentIds);
+  const thumbMap = await resolveTalentCardThumbsForHub(sb, talentIds, tenantId);
 
   return eligible.map((row) => {
     const p = row.talent_profiles!;
@@ -204,7 +205,7 @@ export async function loadRosterPortraitsByIds(
       return [];
     }
 
-    return mapRosterRows(sb, data);
+    return mapRosterRows(sb, data, tenantId);
   } catch (err) {
     logServerError("home.defaultStorefront.loadPortraitsByIds", err);
     return [];
