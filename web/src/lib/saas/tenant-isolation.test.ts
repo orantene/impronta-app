@@ -108,7 +108,9 @@ test("site-admin data access is kind-agnostic (M1 abstraction gate)", () => {
   // behavior belongs in a render-time dispatch (page.tsx), not in data
   // access code. If a future slice legitimately needs kind branching here,
   // add the file to the allow-list below and document the reason.
-  const hits = gitGrepLines("kind[[:space:]]*===[[:space:]]*['\\\"](hub|agency)['\\\"]", {
+  // `kind` must stand alone (org kind) — `ownership_kind === "agency"` is the
+  // media-assets ownership enum, not an org-kind branch, and must not trip this.
+  const hits = gitGrepLines("(^|[^_[:alnum:]])kind[[:space:]]*===[[:space:]]*['\\\"](hub|agency)['\\\"]", {
     extraArgs: ["--"],
   }).filter((line) => {
     const path = line.split(":")[0];
