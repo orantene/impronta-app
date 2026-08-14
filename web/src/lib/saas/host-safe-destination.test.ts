@@ -47,3 +47,35 @@ test("unknown host kinds and absolute destinations are left alone", () => {
   // Protocol-relative is never rewritten into an app-host URL.
   assert.equal(hostSafeDestination("//evil.example/admin", "marketing"), "//evil.example/admin");
 });
+
+// ── Talent post-auth default (register ?as=talent) ────────────────────────────
+// Regression guard for the host-blind default in (auth)/register/page.tsx: it
+// shipped as a bare "/talent/profile/fields", which 404s wherever /talent/* is
+// not allow-listed. `defaultTalentNext()` now routes through this helper.
+test("talent post-auth default stays relative where /talent/* is served", () => {
+  for (const kind of ["app", "agency"]) {
+    assert.equal(
+      hostSafeDestination("/talent/profile/fields", kind),
+      "/talent/profile/fields",
+    );
+  }
+});
+
+test("talent post-auth default crosses to the app host on marketing and hub", () => {
+  for (const kind of ["marketing", "hub"]) {
+    assert.equal(
+      hostSafeDestination("/talent/profile/fields", kind),
+      `${APP}/talent/profile/fields`,
+    );
+  }
+});
+
+test("the talent default is NEVER slug-prefixed on agency hosts", () => {
+  // /talent/* is deliberately excluded from branded rewriting: /<slug>/talent/*
+  // are legacy redirectors that bounce back to /talent/*, so prefixing would
+  // create an infinite navigation loop (branded-admin-url.ts). The client
+  // default DOES slug-prefix — these two must not be "unified".
+  const out = hostSafeDestination("/talent/profile/fields", "agency");
+  assert.equal(out, "/talent/profile/fields");
+  assert.doesNotMatch(out, /^\/[^/]+\/talent\//);
+});
