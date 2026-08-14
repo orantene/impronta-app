@@ -28,15 +28,17 @@ jobs:
     name: Fidelity goldens
     runs-on: macos-14
     timeout-minutes: 15
-    # TEMPORARY (platform-health WS-E): non-blocking until the WebKit goldens are
-    # re-seeded. The WebKit cross-engine snapshots are unseeded and Chromium
-    # pixel diffs flake on essentially every PR, so this job was red-by-default —
-    # which trained everyone to merge through red. `continue-on-error: true`
-    # keeps the job RUNNING and visible (diffs still upload as artifacts) but a
-    # failure no longer reds/blocks the PR. Remove this line once the goldens are
-    # re-seeded via the `workflow_dispatch` + update_snapshots=true path below and
-    # the diffs are stable. Do NOT delete the workflow.
-    continue-on-error: true
+    # `continue-on-error: true` used to live here (added when the Chromium
+    # goldens were red-by-default and WebKit was unseeded). The Chromium
+    # goldens were reseeded in #937 (fix(fidelity): impronta frames timed out
+    # on a lazy image; reseed goldens) and have been genuinely green on `main`
+    # since — see `gh run view <id> --json jobs` job-level conclusions, not
+    # just the (previously misleading) workflow conclusion. This job is
+    # blocking again: a fidelity regression now fails the workflow. WebKit
+    # still only runs in the seeding path (`--project=webkit` isn't added to
+    # the blocking test step yet); do not add it here until webkit goldens are
+    # committed, or a missing-snapshot failure will block PRs for the wrong
+    # reason.
     defaults:
       run:
         working-directory: web
@@ -81,41 +83,6 @@ jobs:
         id: fidelity
         if: ${{ env.SHOULD_SEED != 'true' }}
         run: npx playwright test e2e/fidelity/fidelity.spec.ts --project=chromium
-
-      # `continue-on-error` above keeps this job non-blocking, but it also makes
-      # the WORKFLOW conclusion report `success` — so `gh run list` shows green
-      # while the job is red. That mismatch is why ~6 weeks of real failures went
-      # unnoticed, and why a reviewer this week nearly blamed an unrelated PR for
-      # the inherited red. Restate the truth where it cannot be missed: the run
-      # summary and a run-level annotation.
-      - name: Report fidelity failure honestly (non-blocking)
-        if: ${{ failure() && steps.fidelity.outcome == 'failure' }}
-        run: |
-          echo "::warning title=Fidelity goldens FAILED (non-blocking)::The visual regression gate failed. The workflow still reports success because this job is continue-on-error. Do NOT read a green 'Builder fidelity' run as passing."
-          {
-            echo "## ❌ Fidelity goldens FAILED — non-blocking"
-            echo ""
-            echo "This job is \`continue-on-error: true\`, so the **workflow conclusion says \`success\`**."
-            echo "It did not pass. \`gh run list\` cannot be trusted for this workflow."
-            echo ""
-            echo "Check job-level status instead:"
-            echo ""
-            echo '```'
-            echo "gh run view \${{ github.run_id }} --json jobs --jq '.jobs[] | \"\\(.name): \\(.conclusion)\"'"
-            echo '```'
-            echo ""
-            echo "Or: \`npm run ci:fidelity-status\` (from \`web/\`)."
-            echo ""
-            echo "**Before blaming this PR:** the gate has been red on \`main\` independently"
-            echo "since 2026-06-14 (intentional redesigns whose goldens were never reseeded)."
-            echo "Run the command above against a recent \`main\` run first. Only treat it as"
-            echo "your regression if \`main\` is green or your change touches builder render code."
-            echo ""
-            echo "Reseed path: run this workflow via \`workflow_dispatch\` with"
-            echo "\`update_snapshots=true\`, download the \`fidelity-goldens-seeded\` artifact,"
-            echo "and commit its PNGs. Note the 5 impronta frames **time out**, they do not"
-            echo "diff — reseeding will not fix a timeout."
-          } >> "$GITHUB_STEP_SUMMARY"
 
       # Manual seeding path. Goldens are macos-14-specific; new/updated frames
       # (e.g. the motion frames, or the webkit cross-engine set) can only be
