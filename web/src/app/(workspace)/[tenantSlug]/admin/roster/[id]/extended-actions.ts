@@ -20,6 +20,7 @@ import {
 } from "@/lib/talent-service-areas-service";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { workspaceOwnedStamp } from "@/lib/media/ownership";
 
 type Result<T = null> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -441,7 +442,9 @@ export async function registerPortfolioPhoto(
       .insert({
         tenant_id: r.scope.tenantId,
         owner_talent_profile_id: talentId,
-        uploaded_by_user_id: me,
+        // Ownership truth (plan §5a) — a staff-side portfolio upload is
+        // workspace-owned; the talent stays the subject.
+        ...workspaceOwnedStamp(r.scope.tenantId, me),
         bucket_id: "media-public",
         storage_path: input.storagePath,
         variant_kind: "gallery",

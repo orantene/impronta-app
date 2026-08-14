@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { derivedOwnershipStamp } from "@/lib/media/ownership";
 
 const MAX_LOGO_SIZE = 512; // px — cap logo dimension before compositing
 
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }
   const { supabase, tenantId } = auth;
+  const actorUserId = auth.user?.id ?? null;
 
   let mediaAssetId: string;
   try {
@@ -43,7 +45,9 @@ export async function POST(req: NextRequest) {
   // ─── 1. Load asset record ────────────────────────────────────────────────
   const { data: asset, error: assetErr } = await supabase
     .from("media_assets")
-    .select("id, storage_path, bucket_id, owner_talent_profile_id, watermark_override_json, variant_kind")
+    .select(
+      "id, storage_path, bucket_id, owner_talent_profile_id, watermark_override_json, variant_kind, ownership_kind, owner_tenant_id",
+    )
     .eq("id", mediaAssetId)
     .single();
 
@@ -102,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
     // Use fallback
     const result = await composeAndStore({
-      supabase, asset, logoUrl, preset, tenantId,
+      supabase, asset, logoUrl, preset, tenantId, actorUserId,
       sourceBytes: Buffer.from(await fallbackBlob.arrayBuffer()),
       existingPath: existing?.storage_path,
     });
@@ -110,7 +114,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await composeAndStore({
-    supabase, asset, logoUrl, preset, tenantId,
+    supabase, asset, logoUrl, preset, tenantId, actorUserId,
     sourceBytes: Buffer.from(await srcBlob.arrayBuffer()),
     existingPath: existing?.storage_path,
   });
@@ -120,7 +124,7 @@ export async function POST(req: NextRequest) {
 // ─── Composite helper ────────────────────────────────────────────────────────
 
 async function composeAndStore({
-  supabase, asset, logoUrl, preset, tenantId, sourceBytes, existingPath,
+  supabase, asset, logoUrl, preset, tenantId, actorUserId, sourceBytes, existingPath,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any;
@@ -130,6 +134,7 @@ async function composeAndStore({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   preset: any;
   tenantId: string;
+  actorUserId: string | null;
   sourceBytes: Buffer;
   existingPath?: string;
 }): Promise<{ ok: boolean; publicUrl?: string; error?: string }> {
@@ -196,9 +201,14 @@ async function composeAndStore({
       // Already exists — just updated in storage, no new row needed
     } else {
       await supabase.from("media_assets").insert({
+        tenant_id: tenantId,
         bucket_id: "media-public",
         storage_path: wmPath,
         owner_talent_profile_id: asset.owner_talent_profile_id,
+        // A baked watermark is a DERIVATIVE — it inherits the original's
+        // owner (plan §5a). Stamping it to the baking workspace would let
+        // "add a watermark" silently transfer someone else's photo.
+        ...derivedOwnershipStamp(asset, actorUserId),
         variant_kind: "watermarked",
         source_media_asset_id: asset.id,
         approval_state: "approved",

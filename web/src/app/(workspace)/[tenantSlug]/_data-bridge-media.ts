@@ -2,6 +2,10 @@ import "server-only";
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  normalizeOwnershipKind,
+  type MediaOwnershipKind,
+} from "@/lib/media/ownership";
 
 /**
  * _data-bridge-media.ts — server-side loader for the workspace Media page.
@@ -46,6 +50,19 @@ export type WorkspaceMediaPhoto = {
   isWorkspaceAsset?: boolean;
   /** media_assets.purpose for workspace assets ('branding' | 'cms'). */
   purpose?: string;
+  /**
+   * Ownership truth (plan §5a/§6). Who controls this asset: the talent, a
+   * workspace, or the platform. Drives the ownership chip on every tile.
+   */
+  ownershipKind: MediaOwnershipKind;
+  /**
+   * True when `ownership_kind='agency'` AND `owner_tenant_id` is the tenant
+   * this page is loaded for. Resolved here so the client never needs a
+   * tenant id to render "yours" vs "another workspace".
+   */
+  ownedByThisWorkspace: boolean;
+  /** Provenance: the user who physically uploaded the bytes, when known. */
+  uploadedByUserId: string | null;
 };
 
 export type WorkspaceMediaFolder = {
@@ -78,6 +95,9 @@ type MediaRow = {
   metadata: Record<string, unknown> | null;
   source_media_asset_id: string | null;
   created_at: string;
+  ownership_kind: string | null;
+  owner_tenant_id: string | null;
+  uploaded_by_user_id: string | null;
   talent_profiles: {
     id: string;
     display_name: string | null;
@@ -149,6 +169,9 @@ export async function loadWorkspaceMediaBridge(
           metadata,
           source_media_asset_id,
           created_at,
+          ownership_kind,
+          owner_tenant_id,
+          uploaded_by_user_id,
           talent_profiles!owner_talent_profile_id (
             id,
             display_name,
@@ -203,7 +226,7 @@ export async function loadWorkspaceMediaBridge(
       supabase
         .from("media_assets")
         .select(
-          "id, bucket_id, storage_path, public_url, variant_kind, approval_state, purpose, asset_kind, width, height, file_size_bytes, mime_type, original_filename, tags, metadata, source_media_asset_id, created_at",
+          "id, bucket_id, storage_path, public_url, variant_kind, approval_state, purpose, asset_kind, width, height, file_size_bytes, mime_type, original_filename, tags, metadata, source_media_asset_id, created_at, ownership_kind, owner_tenant_id, uploaded_by_user_id",
         )
         .eq("tenant_id", tenantId)
         .in("purpose", ["branding", "cms"])
@@ -267,6 +290,10 @@ export async function loadWorkspaceMediaBridge(
           metadata: meta,
           sourceMediaAssetId: r.source_media_asset_id,
           createdAt: r.created_at,
+          ownershipKind: normalizeOwnershipKind(r.ownership_kind),
+          ownedByThisWorkspace:
+            r.ownership_kind === "agency" && r.owner_tenant_id === tenantId,
+          uploadedByUserId: r.uploaded_by_user_id,
         };
       });
 
@@ -300,6 +327,9 @@ export async function loadWorkspaceMediaBridge(
       metadata: Record<string, unknown> | null;
       source_media_asset_id: string | null;
       created_at: string;
+      ownership_kind: string | null;
+      owner_tenant_id: string | null;
+      uploaded_by_user_id: string | null;
     };
     const workspaceRows = (workspaceResult.data ?? []) as unknown as WorkspaceRow[];
     const workspacePhotos: WorkspaceMediaPhoto[] = workspaceRows
@@ -339,6 +369,10 @@ export async function loadWorkspaceMediaBridge(
           createdAt: r.created_at,
           isWorkspaceAsset: true,
           purpose: r.purpose,
+          ownershipKind: normalizeOwnershipKind(r.ownership_kind),
+          ownedByThisWorkspace:
+            r.ownership_kind === "agency" && r.owner_tenant_id === tenantId,
+          uploadedByUserId: r.uploaded_by_user_id,
         };
       });
 

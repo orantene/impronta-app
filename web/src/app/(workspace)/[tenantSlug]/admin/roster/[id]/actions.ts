@@ -25,6 +25,7 @@ import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { residenceCityPatchFromText } from "@/lib/residence-city-sync";
 import { notifyTalentProfileApproved } from "@/lib/notifications/producers/talent-profile-approved-notify";
 import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-publish-server-gate";
+import { workspaceOwnedStamp } from "@/lib/media/ownership";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -480,7 +481,9 @@ export async function registerRosterTalentPhoto(
     .insert({
       tenant_id: ctx.tenantId,
       owner_talent_profile_id: talentId,
-      uploaded_by_user_id: ctx.userId,
+      // Ownership truth (plan §5a) — staff uploading for a roster talent
+      // produces workspace-owned media.
+      ...workspaceOwnedStamp(ctx.tenantId, ctx.userId),
       bucket_id: BUCKET,
       storage_path: storagePath,
       variant_kind: "card",

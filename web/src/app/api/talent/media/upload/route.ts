@@ -31,6 +31,7 @@ import {
   MAX_UPLOAD_BYTES,
 } from "@/lib/server/media-resize";
 import { validateImageUpload } from "@/lib/site-admin/media/validation";
+import { talentOwnedStamp } from "@/lib/media/ownership";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -152,7 +153,10 @@ export async function POST(req: Request) {
       {
         tenant_id: tenantId,
         owner_talent_profile_id: talentProfileId,
-        uploaded_by_user_id: self.user.id,
+        // Ownership truth (plan §5a) — this route is gated by
+        // requireTalentSelfAction, so the uploader IS the subject: the
+        // asset is talent-owned and travels with them.
+        ...talentOwnedStamp(self.user.id),
         bucket_id: BUCKET,
         storage_path: storagePath,
         variant_kind: "original",
