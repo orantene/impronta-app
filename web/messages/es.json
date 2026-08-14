@@ -3230,7 +3230,9 @@
         "agencyFee": "Comision de la Agency",
         "coordinatorShare": "Parte del coordinador ({pct}% de la comision)",
         "activity": "Actividad",
-        "activitySub": "Los mismos eventos aparecen en el hilo del chat."
+        "activitySub": "Los mismos eventos aparecen en el hilo del chat.",
+        "acceptForRoster": "Aceptar por el talento del roster",
+        "acceptForRosterTitle": "Registra la aprobación del talento gestionado por la agencia que no tiene cuenta. El talento con cuenta propia debe aceptarla él mismo."
       },
       "reassign": {
         "assignTitle": "Asignar coordinador",

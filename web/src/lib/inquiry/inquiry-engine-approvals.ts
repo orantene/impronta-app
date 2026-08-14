@@ -284,3 +284,83 @@ export async function talentRespondToOffer(
 
   return result;
 }
+
+/**
+ * Staff records the TALENT's approval for an agency-managed profile.
+ *
+ * Why this exists: an offer only reaches `accepted` (and therefore only becomes
+ * convertible to a booking) once EVERY party has approved — the client and each
+ * assigned talent. `talentRespondToOffer` resolves the talent participant from
+ * the actor's `talent_profiles.user_id`, so it can only ever be satisfied by a
+ * talent who has an account. An agency-managed roster profile that nobody has
+ * claimed has NO account, so its approval could never be recorded and the
+ * booking dead-ended at "awaiting talent" forever. On a roster where most
+ * profiles are agency-created that blocks essentially every booking at the
+ * final step.
+ *
+ * The boundary that keeps this honest: this path is allowed ONLY while the
+ * talent profile is unclaimed (`talent_profiles.user_id IS NULL`). The moment a
+ * talent owns their account, the decision is theirs and staff must not click it
+ * for them — we return `talent_has_account` so the caller can say so plainly.
+ * The approval row is stamped with a note recording who accepted on whose
+ * behalf, so the audit trail never implies the talent themselves clicked.
+ */
+export async function staffAcceptOfferForTalent(
+  supabase: SupabaseClient,
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    talentProfileId: string;
+    actorUserId: string;
+    expectedVersion: number;
+    decision?: "accepted" | "rejected";
+  },
+): Promise<EngineResult> {
+  // Only unclaimed, agency-managed profiles may be approved on behalf of.
+  const { data: talent } = await supabase
+    .from("talent_profiles")
+    .select("id, user_id, display_name")
+    .eq("id", ctx.talentProfileId)
+    .maybeSingle();
+  if (!talent) return { success: false, error: "talent_not_found" };
+  if ((talent as { user_id: string | null }).user_id) {
+    return { success: false, error: "talent_has_account" };
+  }
+
+  // The talent must actually be on this inquiry's lineup for this tenant.
+  const { data: part } = await supabase
+    .from("inquiry_participants")
+    .select("id")
+    .eq("inquiry_id", ctx.inquiryId)
+    .eq("tenant_id", ctx.tenantId)
+    .eq("role", "talent")
+    .eq("talent_profile_id", ctx.talentProfileId)
+    .maybeSingle();
+  if (!part) return { success: false, error: "no_talent_participant" };
+
+  // Resolve the live offer the same way the talent path does: the current
+  // pointer, else the latest SENT offer for this inquiry.
+  const { data: off } = await supabase
+    .from("inquiry_offers")
+    .select("id")
+    .eq("inquiry_id", ctx.inquiryId)
+    .eq("tenant_id", ctx.tenantId)
+    .eq("status", "sent")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const offerId = (off?.id as string | null) ?? null;
+  if (!offerId) return { success: false, error: "no_active_offer" };
+
+  const who = (talent as { display_name: string | null }).display_name?.trim() || "talent";
+  return submitApproval(supabase, {
+    inquiryId: ctx.inquiryId,
+    tenantId: ctx.tenantId,
+    offerId,
+    participantId: part.id as string,
+    actorUserId: ctx.actorUserId,
+    expectedVersion: ctx.expectedVersion,
+    decision: ctx.decision ?? "accepted",
+    notes: `Recorded by agency staff on behalf of ${who} (agency-managed profile, no talent account).`,
+  });
+}
