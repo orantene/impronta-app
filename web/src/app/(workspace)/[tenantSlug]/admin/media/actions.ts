@@ -21,6 +21,12 @@ import {
   readBlobFieldValuesFromCatalog,
   syncBlobFieldValuesToCatalog,
 } from "@/lib/talent/blob-field-values-catalog";
+import {
+  derivedOwnershipStamp,
+  uploadOwnershipStamp,
+  workspaceOwnedStamp,
+  type MediaOwnershipStamp,
+} from "@/lib/media/ownership";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -55,16 +61,30 @@ export async function actionUploadAndAssignMedia(
   let tenantId: string | null;
   let isStaff: boolean;
   let revalidate: { path: string; type: "layout" | "page" };
+  // Ownership truth (plan §5a): the guard that passed decides the owner —
+  // staff upload = workspace-owned, self upload = talent-owned. Never a
+  // caller-supplied field.
+  let ownership: MediaOwnershipStamp;
   if (staff.ok) {
     tenantId = staff.tenantId;
     isStaff = true;
     revalidate = { path: `/${staff.tenantSlug}`, type: "layout" };
+    ownership = uploadOwnershipStamp({
+      actor: "workspace_staff",
+      tenantId,
+      uploaderUserId: staff.user.id,
+    });
   } else {
     const self = await requireTalentSelfAction(talentProfileId);
     if (!self.ok) return { ok: false, error: self.error };
     tenantId = self.tenantId;
     isStaff = false;
     revalidate = { path: `/t/${self.profileCode}`, type: "page" };
+    ownership = uploadOwnershipStamp({
+      actor: "talent_self",
+      tenantId,
+      uploaderUserId: self.user.id,
+    });
   }
 
   const admin = createServiceRoleClient();
@@ -165,6 +185,7 @@ export async function actionUploadAndAssignMedia(
     .insert({
       tenant_id: tenantId,
       owner_talent_profile_id: talentProfileId,
+      ...ownership,
       bucket_id: "media-public",
       storage_path: storagePath,
       variant_kind: variantKind,
@@ -270,9 +291,13 @@ export async function actionAssignMediaToTalent(
     .maybeSingle();
   let nextOrder = ((maxRow as { sort_order: number } | null)?.sort_order ?? 0) + 1;
 
+  // Staff-only path (requireWorkspaceStaffAction above) — workspace-owned.
+  const ownership = workspaceOwnedStamp(tenantId, auth.user.id);
+
   const rows = storagePaths.map((sp) => ({
     tenant_id: tenantId,
     owner_talent_profile_id: talentProfileId,
+    ...ownership,
     bucket_id: "media-public",
     storage_path: sp,
     variant_kind: "gallery" as const,
@@ -491,10 +516,12 @@ export async function actionSetAsCardPhoto(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
-  // Fetch the source gallery photo
+  // Fetch the source gallery photo. Ownership columns come along so the new
+  // card row inherits the owner — promoting a photo to the card slot is a
+  // presentation change, never a transfer of ownership.
   const { data: source } = await admin
     .from("media_assets")
-    .select("bucket_id, storage_path")
+    .select("bucket_id, storage_path, ownership_kind, owner_tenant_id")
     .eq("id", mediaAssetId)
     .eq("tenant_id", tenantId)
     .is("deleted_at", null)
@@ -518,6 +545,10 @@ export async function actionSetAsCardPhoto(
     .insert({
       tenant_id: tenantId,
       owner_talent_profile_id: talentProfileId,
+      ...derivedOwnershipStamp(
+        source as { ownership_kind?: unknown; owner_tenant_id?: string | null },
+        auth.user.id,
+      ),
       bucket_id: (source as { bucket_id: string; storage_path: string }).bucket_id,
       storage_path: (source as { bucket_id: string; storage_path: string }).storage_path,
       variant_kind: "card",
@@ -891,11 +922,14 @@ export async function actionBulkAssignStagedMedia(
     }),
   );
 
+  const ownership = workspaceOwnedStamp(tenantId, auth.user.id);
+
   const rows = assignments.map((a) => {
     const meta = a.meta;
     return {
       tenant_id: tenantId,
       owner_talent_profile_id: a.talentProfileId,
+      ...ownership,
       bucket_id: "media-public",
       storage_path: a.storagePath,
       variant_kind: "gallery" as const,
@@ -1551,6 +1585,7 @@ export async function actionImportSingleDriveFile(
       storage_path: storagePath,
       variant_kind: "gallery",
       approval_state: "approved",
+      ...workspaceOwnedStamp(tenantId, auth.user.id),
       sort_order: sortOrder,
       width: storedWidth,
       height: storedHeight,
@@ -1681,6 +1716,7 @@ export async function actionImportFromGoogleDrive(
         storage_path: storagePath,
         variant_kind: "gallery",
         approval_state: "approved",
+        ...workspaceOwnedStamp(tenantId, auth.user.id),
         sort_order: nextOrder++,
         width: driveMetaWidth,
         height: driveMetaHeight,
@@ -2038,10 +2074,18 @@ export async function actionRegisterUploadedAsset(
   // above): agency staff of the active tenant OR the owning talent.
   let tenantId: string | null;
   let revalidate: { path: string; type: "layout" | "page" };
+  // Same ownership split as actionUploadAndAssignMedia — the guard that
+  // passed is the owner signal, so the two upload pipelines agree.
+  let ownership: MediaOwnershipStamp;
   const staff = await requireWorkspaceStaffAction();
   if (staff.ok) {
     tenantId = staff.tenantId;
     revalidate = { path: `/${staff.tenantSlug}`, type: "layout" };
+    ownership = uploadOwnershipStamp({
+      actor: "workspace_staff",
+      tenantId,
+      uploaderUserId: staff.user.id,
+    });
     const { data: rosterRow } = await admin
       .from("agency_talent_roster")
       .select("id")
@@ -2055,6 +2099,11 @@ export async function actionRegisterUploadedAsset(
     if (!self.ok) return { ok: false, error: self.error };
     tenantId = self.tenantId;
     revalidate = { path: `/t/${self.profileCode}`, type: "page" };
+    ownership = uploadOwnershipStamp({
+      actor: "talent_self",
+      tenantId,
+      uploaderUserId: self.user.id,
+    });
   }
 
   // Reel videos skip the sharp re-verify: there's nothing to resize, and
@@ -2081,6 +2130,23 @@ export async function actionRegisterUploadedAsset(
 
   const isSingleton = variantKind === "card" || variantKind === "hero";
 
+  // A crop is a derivative: it inherits the ORIGINAL's owner, so staff
+  // re-cropping a talent's own photo doesn't quietly transfer it to the
+  // workspace. Only a fresh upload takes the caller-context stamp.
+  if (sourceMediaAssetId) {
+    const { data: sourceRow } = await admin
+      .from("media_assets")
+      .select("ownership_kind, owner_tenant_id")
+      .eq("id", sourceMediaAssetId)
+      .maybeSingle();
+    if (sourceRow) {
+      ownership = derivedOwnershipStamp(
+        sourceRow as { ownership_kind?: unknown; owner_tenant_id?: string | null },
+        ownership.uploaded_by_user_id,
+      );
+    }
+  }
+
   const { data: maxRow } = await admin
     .from("media_assets")
     .select("sort_order")
@@ -2097,6 +2163,7 @@ export async function actionRegisterUploadedAsset(
     .insert({
       tenant_id: tenantId,
       owner_talent_profile_id: talentProfileId,
+      ...ownership,
       bucket_id: "media-public",
       storage_path: storagePath,
       variant_kind: variantKind,

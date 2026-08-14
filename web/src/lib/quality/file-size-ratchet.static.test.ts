@@ -108,7 +108,12 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
-  "src/components/admin/shell/internal/media-page.tsx": 2794,
+  // 2026-08-14 media-ownership phase 1: +72 for the ownership chip on every
+  // tile plus the claim / release bulk actions. The chip itself is a separate
+  // component (components/admin/media/media-ownership-chip.tsx) and the
+  // queries live in lib/site-admin/server/media-ownership.ts; what landed
+  // here is the two handlers and their bulk-bar buttons.
+  "src/components/admin/shell/internal/media-page.tsx": 2866,
   "src/components/admin/shell/internal/state/types.ts": 2747,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
@@ -122,7 +127,10 @@ const BUDGETS: Record<string, number> = {
   // the import + call site + refusal message).
   // 2026-08-11 drive-import: +10 for the empty-folder diagnosis call site
   // (logic lives in site-admin/media/drive-folder-diagnosis.ts).
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2204,
+  // 2026-08-14 media-ownership phase 1: +67 for the ownership stamp on all
+  // six writers in this file (legacy upload, bulk assign, staged assign,
+  // card promotion, both Drive imports, signed register + crop inheritance).
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2271,
   "src/app/t/[profileCode]/profile-view.tsx": 2634,
   "src/components/inquiry/InquiryDrawer.tsx": 2149,
 

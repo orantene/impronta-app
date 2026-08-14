@@ -28,6 +28,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { auditTalentEvent } from "@/lib/audit/emit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
+import { workspaceOwnedStamp } from "@/lib/media/ownership";
 
 // ─── Remove from roster (NOT account deletion) ───────────────────────────────
 //
@@ -230,7 +231,9 @@ export async function setTalentCardPhoto(input: {
     .from("media_assets")
     .insert({
       owner_talent_profile_id: v.talent_profile_id,
-      uploaded_by_user_id: user.id,
+      // Ownership truth (plan §5a) — staff set the card photo, so the row
+      // is workspace-owned with the acting user recorded.
+      ...workspaceOwnedStamp(tenantId, user.id),
       bucket_id: BUCKET,
       storage_path: v.storage_path,
       variant_kind: "card",

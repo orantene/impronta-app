@@ -31,6 +31,7 @@ import {
 } from "@/lib/server/media-resize";
 import { insertTenantImageAsset } from "@/lib/site-admin/media/assets";
 import { validateImageUpload } from "@/lib/site-admin/media/validation";
+import { workspaceOwnedStamp } from "@/lib/media/ownership";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -257,8 +258,8 @@ export async function POST(req: Request) {
   // asset_kind + kind-purpose, then asset_kind + 'cms', then neither.
   const baseRow = {
     tenant_id: scope.tenantId,
-    uploaded_by_user_id: auth.user.id,
-    created_by: auth.user.id,
+    // Ownership truth (plan §5a) — CMS library uploads are workspace-owned.
+    ...workspaceOwnedStamp(scope.tenantId, auth.user.id),
     bucket_id: BUCKET,
     storage_path: storagePath,
     public_url: storedPublicUrl,

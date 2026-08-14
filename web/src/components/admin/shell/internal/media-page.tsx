@@ -43,7 +43,12 @@ import {
   actionSetAssetNote,
   actionGetAssetActivity,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/folder-actions";
+import {
+  actionClaimMediaOwnership,
+  actionReleaseMediaOwnership,
+} from "@/app/(workspace)/[tenantSlug]/admin/media/ownership-actions";
 import { loadAgencyBrandingSettings } from "@/lib/server-actions/admin-workspace-settings";
+import { MediaOwnershipChip } from "@/components/admin/media/media-ownership-chip";
 import type {
   WorkspaceMediaPhoto as BridgeMediaPhoto,
   WorkspaceMediaFolder as BridgeMediaFolder,
@@ -1428,9 +1433,17 @@ function PhotoCard({
         </button>
       </div>
 
-      {/* Footer — talent name only */}
+      {/* Footer — talent name + who owns the photo. The ownership chip is
+          never conditional: "no chip" would read as "no answer", and the
+          whole point of phase 1 is that the page can always answer. */}
       <div style={{ padding: "7px 9px 9px" }}>
         <div style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{photo.talentName}</div>
+        <div className="mt-1 flex">
+          <MediaOwnershipChip
+            ownershipKind={photo.ownershipKind}
+            ownedByThisWorkspace={photo.ownedByThisWorkspace}
+          />
+        </div>
       </div>
 
       <style jsx>{`
@@ -2075,6 +2088,44 @@ export function WorkspaceMediaPage() {
     queueRouterRefresh();
   };
 
+  // ── Ownership claim / release (plan §5b) ─────────────────────────
+  // Only talent media participates: brand & site assets are already
+  // workspace-owned by construction (phase 0).
+  const [isOwnershipBusy, setIsOwnershipBusy] = useState(false);
+  const selectedPhotos = useMemo(
+    () => photos.filter((p) => selected.has(p.id)),
+    [photos, selected],
+  );
+  const selClaimable = selectedPhotos.filter(
+    (p) => !p.isWorkspaceAsset && p.ownershipKind === "talent",
+  ).length;
+  const selReleasable = selectedPhotos.filter(
+    (p) => !p.isWorkspaceAsset && p.ownedByThisWorkspace,
+  ).length;
+
+  const handleClaimSelected = async () => {
+    if (selClaimable === 0 || isOwnershipBusy) return;
+    if (!confirm(interpolate(t("dashboard.adminMedia.confirmClaimOwnership"), { count: selClaimable }))) return;
+    setIsOwnershipBusy(true);
+    const res = await actionClaimMediaOwnership(Array.from(selected));
+    setIsOwnershipBusy(false);
+    if (!res.ok) { setUploadError(res.error); return; }
+    toast(interpolate(t("dashboard.adminMedia.toastOwnershipClaimed"), { count: res.data.claimed }));
+    setSelected(new Set());
+    queueRouterRefresh();
+  };
+
+  const handleReleaseSelected = async () => {
+    if (selReleasable === 0 || isOwnershipBusy) return;
+    setIsOwnershipBusy(true);
+    const res = await actionReleaseMediaOwnership(Array.from(selected));
+    setIsOwnershipBusy(false);
+    if (!res.ok) { setUploadError(res.error); return; }
+    toast(interpolate(t("dashboard.adminMedia.toastOwnershipReleased"), { count: res.data.released }));
+    setSelected(new Set());
+    queueRouterRefresh();
+  };
+
   const selHasPending = selCount > 0 && Array.from(selected).some((id) => photos.find((p) => p.id === id)?.approvalState === "pending");
   const currentFolder = view.kind === "folder" ? folders.find((f) => f.id === (view as { folderId: string }).folderId) : undefined;
 
@@ -2266,6 +2317,27 @@ export function WorkspaceMediaPage() {
                 </div>
               )}
               <BulkBarSep />
+
+              {/* Ownership (plan §5b) — say who produced these photos. Does
+                  not change where anything appears; it records the truth the
+                  later per-hub phases read. */}
+              {selClaimable > 0 && (
+                <BulkBtn
+                  icon="🏷"
+                  label={isOwnershipBusy ? "…" : interpolate(t("dashboard.adminMedia.claimOwnershipN"), { count: selClaimable })}
+                  disabled={isOwnershipBusy}
+                  onClick={() => void handleClaimSelected()}
+                />
+              )}
+              {selReleasable > 0 && (
+                <BulkBtn
+                  icon="↩"
+                  label={isOwnershipBusy ? "…" : interpolate(t("dashboard.adminMedia.releaseOwnershipN"), { count: selReleasable })}
+                  disabled={isOwnershipBusy}
+                  onClick={() => void handleReleaseSelected()}
+                />
+              )}
+              {(selClaimable > 0 || selReleasable > 0) && <BulkBarSep />}
 
               {/* Review */}
               {selHasPending && (

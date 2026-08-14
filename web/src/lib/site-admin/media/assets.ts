@@ -14,6 +14,7 @@ import {
   isSafeMediaUrl,
   normalizeAltText,
 } from "./validation";
+import { workspaceOwnedStamp } from "@/lib/media/ownership";
 
 // MEDIA-1 — `asset_kind` ships in migration 20261102000000 and may be absent on
 // a pre-migration read (PostgREST errors the whole select on a missing column),
@@ -483,8 +484,10 @@ export async function insertTenantImageAsset(input: {
     .insert([
       {
         tenant_id: input.tenantId,
-        uploaded_by_user_id: input.createdByUserId,
-        created_by: input.createdByUserId,
+        // Ownership truth (plan §5a) — every caller of this helper is a
+        // workspace surface (CMS library, builder thumbnails, AI imagery),
+        // so the row is workspace-owned with the uploader recorded.
+        ...workspaceOwnedStamp(input.tenantId, input.createdByUserId),
         bucket_id: MEDIA_PUBLIC_BUCKET,
         storage_path: input.storagePath,
         public_url: publicUrl,

@@ -243,6 +243,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:size-ratchet
 
+      - name: tests — media ownership stamps
+        # The ownership stamp helpers every media writer now spreads into its
+        # INSERT (lib/media/ownership.ts). A regression here silently mislabels
+        # who owns a photo, which is the input to every later per-hub phase.
+        if: ${{ !cancelled() }}
+        run: npm run test:media-ownership
+
       - name: tests — taxonomy guard (selftest only; the DB probe runs in deploy:smoke)
         # Proves check:taxonomy still MEASURES the bugs it was written for —
         # in particular that a parent-category expansion reaching `specialty`

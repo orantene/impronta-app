@@ -49,6 +49,7 @@ import {
   buildFreeStarterEntries,
 } from "./onboard-starter-content-entries";
 import { ensureDirectoryPage } from "./onboard-directory-page";
+import { platformOwnedStamp } from "@/lib/media/ownership";
 
 // Re-exported so existing consumers (edit-mode starter recipe, tests) keep a
 // single import site for the seed's public surface.
@@ -192,7 +193,10 @@ async function seedFreeStarterRosterProfiles(params: {
       .insert({
         tenant_id: params.tenantId,
         owner_talent_profile_id: inserted.id,
-        uploaded_by_user_id: params.actorProfileId,
+        // Ownership truth (plan §5a / P1) — seeded demo imagery ships with
+        // the platform, so it is 'platform'-owned, not the workspace's and
+        // not the demo talent's.
+        ...platformOwnedStamp(params.actorProfileId),
         bucket_id: "media-public",
         storage_path: template.portraitPath,
         variant_kind: "card",
