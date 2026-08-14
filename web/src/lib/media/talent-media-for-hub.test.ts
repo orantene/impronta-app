@@ -17,8 +17,10 @@ import { test } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  filterPresentableAssetIds,
   hubTalentMediaTag,
   isPerHubFacesEnabled,
+  isTwoKeyGrantsEnabled,
   pickHubCoverAssetIds,
   resolveTalentCardThumbsForHub,
   resolveTalentMediaForHub,
@@ -50,8 +52,9 @@ type StubTables = {
   media_assets?: unknown[];
 };
 
-function makeClient(tables: StubTables) {
+function makeClient(tables: StubTables, options: RpcOptions = {}) {
   const queried: string[] = [];
+  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const builder = (rows: unknown[]) => {
     const chain: Record<string, unknown> = {};
     for (const method of ["select", "eq", "in", "is", "order", "neq"]) {
@@ -67,6 +70,21 @@ function makeClient(tables: StubTables) {
       queried.push(table);
       return builder((tables as Record<string, unknown[] | undefined>)[table] ?? []);
     },
+    /**
+     * The two-key predicate lives in SQL, so the resolver reaches it by RPC.
+     * `presentable` lists the ids the rule allows; `rpcError` simulates the
+     * predicate being unavailable, which must FAIL OPEN.
+     */
+    rpc(fn: string, args: Record<string, unknown>) {
+      rpcCalls.push({ fn, args });
+      if (options.rpcError) return Promise.resolve({ data: null, error: { message: "boom" } });
+      const ids = (args.p_asset_ids as string[]) ?? [];
+      const allowed = options.presentable ?? ids;
+      return Promise.resolve({
+        data: ids.filter((id) => allowed.includes(id)).map((asset_id) => ({ asset_id })),
+        error: null,
+      });
+    },
     storage: {
       from() {
         return {
@@ -75,7 +93,23 @@ function makeClient(tables: StubTables) {
       },
     },
   };
-  return { client: client as unknown as SupabaseClient, queried };
+  return { client: client as unknown as SupabaseClient, queried, rpcCalls };
+}
+
+type RpcOptions = { presentable?: string[]; rpcError?: boolean };
+
+const GRANTS_FLAG = "MEDIA_TWO_KEY_GRANTS_ENABLED";
+
+function withGrantsFlag<T>(value: string | undefined, fn: () => T): T {
+  const prev = process.env[GRANTS_FLAG];
+  if (value === undefined) delete process.env[GRANTS_FLAG];
+  else process.env[GRANTS_FLAG] = value;
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env[GRANTS_FLAG];
+    else process.env[GRANTS_FLAG] = prev;
+  }
 }
 
 // ─── 1. the flag ────────────────────────────────────────────────────────────
@@ -219,4 +253,157 @@ test("empty input short-circuits", async () => {
   });
   assert.equal(out.size, 0);
   assert.deepEqual(queried, []);
+});
+
+// ─── 4. phase 3 — the two-key rule ──────────────────────────────────────────
+
+test("the grants flag is OFF unless explicitly enabled", () => {
+  withGrantsFlag(undefined, () => assert.equal(isTwoKeyGrantsEnabled(), false));
+  withGrantsFlag("0", () => assert.equal(isTwoKeyGrantsEnabled(), false));
+  withGrantsFlag("yes", () => assert.equal(isTwoKeyGrantsEnabled(), false));
+  withGrantsFlag("1", () => assert.equal(isTwoKeyGrantsEnabled(), true));
+  withGrantsFlag("true", () => assert.equal(isTwoKeyGrantsEnabled(), true));
+});
+
+test("both flags OFF ⇒ the predicate is never consulted", async () => {
+  const { client, rpcCalls } = makeClient({
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+
+  const out = await withFlag(undefined, () =>
+    withGrantsFlag(undefined, () => resolveTalentCardThumbsForHub(client, [TALENT], TENANT_A)),
+  );
+
+  assert.equal(out.get(TALENT), "https://cdn.test/d.jpg");
+  assert.deepEqual(rpcCalls, [], "production today must not call the predicate at all");
+});
+
+test("enforcement ON with NO grant rows still shows today's media", async () => {
+  // The whole non-breaking claim: the SQL predicate's IMPLICIT defaults pass
+  // every asset that renders today, so an empty media_grants table is a no-op.
+  // Modelled here by the predicate allowing everything it is asked about.
+  const { client } = makeClient({
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+
+  const out = await withGrantsFlag("1", () =>
+    resolveTalentCardThumbsForHub(client, [TALENT], TENANT_A),
+  );
+
+  assert.equal(out.get(TALENT), "https://cdn.test/d.jpg", "no grants must not blank a card");
+});
+
+test("a forbidden candidate falls through to the next allowed variant", async () => {
+  // 'card' outranks 'hero', but the rule forbids the card crop on this hub —
+  // the talent must get their allowed hero shot, NOT a blank card.
+  const { client } = makeClient(
+    {
+      media_assets: [
+        { id: "card-1", owner_talent_profile_id: TALENT, storage_path: "card.jpg", variant_kind: "card" },
+        { id: "hero-1", owner_talent_profile_id: TALENT, storage_path: "hero.jpg", variant_kind: "hero" },
+      ],
+    },
+    { presentable: ["hero-1"] },
+  );
+
+  const out = await withGrantsFlag("1", () =>
+    resolveTalentCardThumbsForHub(client, [TALENT], TENANT_A),
+  );
+
+  assert.equal(out.get(TALENT), "https://cdn.test/hero.jpg");
+});
+
+test("REVOCATION un-publishes on every surface at once", async () => {
+  // The phase 3 risk in the plan: a revoke must un-publish EVERYWHERE. It does,
+  // because every surface reads this one resolver. Same asset, three surfaces,
+  // one predicate answer — before and after the grant is pulled.
+  const tables: StubTables = {
+    media_assets: [
+      { id: "released-1", owner_talent_profile_id: TALENT, storage_path: "impronta.jpg", variant_kind: "card" },
+    ],
+  };
+  const surfaces: Array<string | null> = [TENANT_A, TENANT_B, null];
+
+  // While the grant is live, the photo resolves on every surface.
+  for (const surface of surfaces) {
+    const { client } = makeClient(tables, { presentable: ["released-1"] });
+    const out = await withGrantsFlag("1", () =>
+      resolveTalentCardThumbsForHub(client, [TALENT], surface),
+    );
+    assert.equal(
+      out.get(TALENT),
+      "https://cdn.test/impronta.jpg",
+      `granted photo should resolve on ${surface ?? "master"}`,
+    );
+  }
+
+  // After the revoke the predicate allows nothing — and no surface keeps it.
+  for (const surface of surfaces) {
+    const { client } = makeClient(tables, { presentable: [] });
+    const out = await withGrantsFlag("1", () =>
+      resolveTalentCardThumbsForHub(client, [TALENT], surface),
+    );
+    assert.equal(
+      out.get(TALENT),
+      undefined,
+      `revoked photo must NOT resolve on ${surface ?? "master"}`,
+    );
+  }
+});
+
+test("a curated pick the rule forbids falls back instead of blanking", async () => {
+  // Staff curation does not override the subject: a curated-but-forbidden
+  // asset drops out, and the talent falls back to a photo they MAY show.
+  const { client } = makeClient(
+    {
+      agency_talent_overlays: [{ talent_profile_id: TALENT, cover_media_asset_id: "curated-1" }],
+      agency_talent_media: [
+        { talent_profile_id: TALENT, agency_media_id: "curated-1", display_order: 10 },
+      ],
+      media_assets: [
+        { id: "own-1", owner_talent_profile_id: TALENT, storage_path: "own.jpg", variant_kind: "card" },
+      ],
+    },
+    { presentable: ["own-1"] },
+  );
+
+  const out = await withFlag("1", () =>
+    withGrantsFlag("1", () =>
+      resolveTalentMediaForHub(client, { tenantId: TENANT_A, talentProfileIds: [TALENT] }),
+    ),
+  );
+
+  assert.equal(out.get(TALENT)?.source, "default");
+  assert.equal(out.get(TALENT)?.coverUrl, "https://cdn.test/own.jpg");
+});
+
+test("the predicate is asked about the RIGHT surface", async () => {
+  const { client, rpcCalls } = makeClient({
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+
+  await withGrantsFlag("1", () => resolveTalentCardThumbsForHub(client, [TALENT], null));
+
+  assert.equal(rpcCalls[0]?.fn, "media_assets_presentable_on_tenant");
+  assert.equal(rpcCalls[0]?.args.p_tenant_id, null, "master surface must be asked as null");
+});
+
+test("filterPresentableAssetIds FAILS OPEN when the predicate errors", async () => {
+  // A broken query must never blank a live storefront — the same stance the
+  // rest of this resolver takes.
+  const { client } = makeClient({}, { rpcError: true });
+  const allowed = await filterPresentableAssetIds(client, ["a", "b"], TENANT_A);
+  assert.deepEqual([...allowed].sort(), ["a", "b"]);
+});
+
+test("filterPresentableAssetIds drops what the predicate rejects", async () => {
+  const { client } = makeClient({}, { presentable: ["a"] });
+  const allowed = await filterPresentableAssetIds(client, ["a", "b"], TENANT_A);
+  assert.deepEqual([...allowed], ["a"]);
 });

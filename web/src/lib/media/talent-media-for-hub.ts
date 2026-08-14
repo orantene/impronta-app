@@ -18,9 +18,17 @@ import "server-only";
  * `tenantId === null` means the master surface (Tulala Digital / global
  * Discover): no hub curation applies, so step 2 answers alone.
  *
- * TWO-KEY RULE IS **NOT** ENFORCED HERE. Phase 3 adds `media_grants` and the
- * owner/subject predicate. Phase 2 deliberately keeps today's defaults so this
- * slice can ship without changing who can see what.
+ * TWO-KEY RULE (phase 3) — an asset appears on hub H only if the OWNER allows H
+ * AND the SUBJECT allows H. The rule itself lives in ONE place, the SQL
+ * function `media_asset_presentable_on_tenant()` (migration
+ * 20261115000000_media_grants_two_key.sql); this module only calls it. Do not
+ * re-derive the predicate here or anywhere else — the 2026-08
+ * `is_publicly_listed` incidents are exactly what happens when readers
+ * disagree.
+ *
+ * It filters BOTH paths: curated ids and the ranked default candidates. A
+ * candidate that fails the rule falls through to the next-best variant rather
+ * than blanking the card.
  *
  * KIND-AGNOSTIC
  * ─────────────
@@ -28,21 +36,41 @@ import "server-only";
  * a hub (the M1 gate in `src/lib/saas/tenant-isolation.test.ts`): a hub that
  * curates a face gets the curated face, exactly like an agency.
  *
- * FLAGGED
- * ───────
- * Everything past the flag check is inert unless `MEDIA_PER_HUB_FACES_ENABLED`
- * is "1"/"true". With the flag OFF, `resolveTalentCardThumbsForHub` delegates
- * straight to `loadTalentCardThumbs` and returns a byte-identical Map — the
- * ~13 card call-sites can be swapped with zero visible change, then the flag
- * flipped after visual QA (the Card-Design cache lesson: verify with cold
- * keys, since card surfaces sit behind tenant-keyed `unstable_cache` layers).
+ * TWO FLAGS, BOTH DEFAULT OFF
+ * ───────────────────────────
+ * `MEDIA_PER_HUB_FACES_ENABLED` — phase 2 curation.
+ * `MEDIA_TWO_KEY_GRANTS_ENABLED` — phase 3 grant enforcement.
+ *
+ * They are INDEPENDENT on purpose. Curation is a presentation change; the
+ * two-key rule is a visibility change, and the two carry very different blast
+ * radii. Flipping per-hub faces alone leaves output byte-identical to phase 2,
+ * so the phase-2 flip can still be QA'd on its own merits without silently
+ * dragging enforcement along with it.
+ *
+ * With BOTH flags off (production today) `resolveTalentCardThumbsForHub`
+ * delegates straight to `loadTalentCardThumbs` and returns a byte-identical
+ * Map — the ~13 card call-sites keep working with zero visible change.
+ *
+ * NON-BREAKING BY CONSTRUCTION: with enforcement ON and ZERO rows in
+ * `media_grants`, today's media still renders, because the defaults are
+ * IMPLICIT grants baked into the SQL predicate (owner's home hub, the managing
+ * hub's representation of a rostered talent, and the subject's own master
+ * profile all pass with no row). Grant rows are only ever needed to reach a
+ * THIRD hub. See the predicate's header comment for the full table.
+ *
+ * FAIL-OPEN: if the predicate call errors we keep the unfiltered candidates.
+ * A broken query must never blank a live storefront — the same stance the rest
+ * of this resolver takes.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  loadTalentCardThumbCandidates,
   loadTalentCardThumbs,
   mediaPublicUrl,
+  pickBestThumbs,
+  type TalentThumbCandidate,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 
@@ -53,6 +81,39 @@ export type HubTenantId = string | null;
 export function isPerHubFacesEnabled(): boolean {
   const raw = process.env.MEDIA_PER_HUB_FACES_ENABLED;
   return raw === "1" || raw === "true";
+}
+
+/** Env flag — default OFF. Only "1" / "true" enforces the two-key rule. */
+export function isTwoKeyGrantsEnabled(): boolean {
+  const raw = process.env.MEDIA_TWO_KEY_GRANTS_ENABLED;
+  return raw === "1" || raw === "true";
+}
+
+/**
+ * Filter asset ids to those the two-key rule permits on this surface, by
+ * calling the ONE SQL predicate. `tenantId === null` = master surface.
+ *
+ * Fail-open: on any error the input is returned unchanged.
+ */
+export async function filterPresentableAssetIds(
+  client: SupabaseClient,
+  assetIds: readonly string[],
+  tenantId: HubTenantId,
+): Promise<Set<string>> {
+  if (assetIds.length === 0) return new Set();
+  const all = new Set(assetIds);
+
+  const { data, error } = await client.rpc("media_assets_presentable_on_tenant", {
+    p_asset_ids: [...all],
+    p_tenant_id: tenantId,
+  });
+
+  if (error || !Array.isArray(data)) return all;
+  return new Set(
+    (data as Array<{ asset_id: string } | string>).map((row) =>
+      typeof row === "string" ? row : row.asset_id,
+    ),
+  );
 }
 
 /**
@@ -132,6 +193,7 @@ export async function resolveTalentMediaForHub(
   if (ids.length === 0) return out;
 
   const curationOn = isPerHubFacesEnabled() && !!input.tenantId;
+  const enforcing = isTwoKeyGrantsEnabled();
   const tenantId = input.tenantId;
 
   let coverByTalent = new Map<string, string>();
@@ -141,6 +203,26 @@ export async function resolveTalentMediaForHub(
     const curation = await loadHubCuration(client, tenantId, ids);
     coverByTalent = curation.coverByTalent;
     orderedByTalent = curation.orderedByTalent;
+  }
+
+  // Two-key pass 1 — a curated pick the rule forbids is dropped here, so the
+  // talent falls through to a default they ARE allowed to show rather than to
+  // a blank card. Staff curating a photo does not override the subject.
+  if (enforcing && (coverByTalent.size > 0 || orderedByTalent.size > 0)) {
+    const curatedIds = new Set<string>(coverByTalent.values());
+    for (const list of orderedByTalent.values()) for (const id of list) curatedIds.add(id);
+
+    const allowed = await filterPresentableAssetIds(client, [...curatedIds], tenantId);
+
+    for (const [talentId, assetId] of [...coverByTalent]) {
+      if (!allowed.has(assetId)) coverByTalent.delete(talentId);
+    }
+    for (const [talentId, list] of [...orderedByTalent]) {
+      orderedByTalent.set(
+        talentId,
+        list.filter((assetId) => allowed.has(assetId)),
+      );
+    }
   }
 
   // Resolve the curated asset ids to public URLs in one round trip.
@@ -162,7 +244,7 @@ export async function resolveTalentMediaForHub(
   }
 
   if (needsDefault.length > 0) {
-    const fallback = await loadTalentCardThumbs(client, needsDefault);
+    const fallback = await loadDefaultThumbs(client, needsDefault, tenantId, enforcing);
     for (const id of needsDefault) {
       out.set(id, {
         coverUrl: fallback.get(id) ?? null,
@@ -173,6 +255,31 @@ export async function resolveTalentMediaForHub(
   }
 
   return out;
+}
+
+/**
+ * Two-key pass 2 — the global rank, with forbidden candidates removed BEFORE
+ * the rank picks a winner. Without enforcement this is `loadTalentCardThumbs`
+ * unchanged (one query, same shape).
+ */
+async function loadDefaultThumbs(
+  client: SupabaseClient,
+  talentProfileIds: string[],
+  tenantId: HubTenantId,
+  enforcing: boolean,
+): Promise<Map<string, string>> {
+  if (!enforcing) return loadTalentCardThumbs(client, talentProfileIds);
+
+  const candidates = await loadTalentCardThumbCandidates(client, talentProfileIds);
+  if (candidates.length === 0) return new Map();
+
+  const allowed = await filterPresentableAssetIds(
+    client,
+    candidates.map((c) => c.id),
+    tenantId,
+  );
+  const permitted: TalentThumbCandidate[] = candidates.filter((c) => allowed.has(c.id));
+  return pickBestThumbs(client, permitted);
 }
 
 /**
@@ -187,7 +294,10 @@ export async function resolveTalentCardThumbsForHub(
   talentProfileIds: (string | null | undefined)[],
   tenantId: HubTenantId,
 ): Promise<Map<string, string>> {
-  if (!isPerHubFacesEnabled() || !tenantId) {
+  // Both flags off ⇒ the pre-phase-2 path, byte for byte. Note enforcement is
+  // NOT gated on a tenant: the master surface has a two-key answer too
+  // (an agency photo with visible_on_master_profile=false must not show there).
+  if (!isTwoKeyGrantsEnabled() && (!isPerHubFacesEnabled() || !tenantId)) {
     return loadTalentCardThumbs(client, talentProfileIds);
   }
 
