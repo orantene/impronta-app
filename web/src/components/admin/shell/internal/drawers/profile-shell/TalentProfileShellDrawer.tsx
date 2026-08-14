@@ -10,6 +10,7 @@ import {
   canApplyProfileStatusTransition,
   getProfilePublishCompleteness,
 } from "@/lib/field-engine/profile-publish-requirements";
+import { TalentHubFacePanel } from "@/components/admin/shell/internal/talent-hub-face-panel";
 import type { ResolvedField } from "@/lib/field-engine/resolve-talent-fields";
 import { resolveDynamicFieldsForParent } from "@/lib/field-engine/client-field-source-select";
 import {
@@ -3821,6 +3822,12 @@ export function TalentProfileShellDrawer() {
               <FieldRow label={copy.t("Video / social links")} optional catalogId="links" tenantId={workspaceScopeTenantId}>
                 <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks ?? []} onChange={patchVideoLinks} />
               </FieldRow>
+              {/* PHOTOS ON THIS SITE — per-hub curation (media-ownership phase
+                  2). Staff-only: it edits THIS workspace's selection, which is
+                  a pointer list, not a copy of the talent's media. */}
+              {adminVisible && payload.talentId && bridgeTenantIdentity?.tenantId && (
+                <TalentHubFacePanel talentProfileId={payload.talentId} />
+              )}
             </ProfileAccordionSection>
 
             {/* ALBUMS */}

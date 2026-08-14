@@ -10774,6 +10774,21 @@
         "guest": "Invitado"
       },
       "failedBadge": "Fallido"
+    },
+    "talentHubFace": {
+      "title": "Fotos en este sitio",
+      "body": "Elige qué fotos representan a este talento en tu sitio y define la portada. Es la selección propia de tu espacio: apunta a las fotos, nunca las copia, y no cambia cómo se ve este talento en otros sitios.",
+      "loading": "Cargando fotos...",
+      "empty": "Aún no hay fotos disponibles. Sube fotos de este talento y luego elige las que mostrará tu sitio.",
+      "addToSite": "Mostrar en este sitio",
+      "removeFromSite": "Quitar de este sitio",
+      "makeCover": "Usar como portada",
+      "clearCover": "Portada",
+      "coverBadge": "Portada",
+      "save": "Guardar selección",
+      "saving": "Guardando...",
+      "saved": "Selección guardada.",
+      "selectedCount": "{count} seleccionadas"
     }
   },
   "admin": {

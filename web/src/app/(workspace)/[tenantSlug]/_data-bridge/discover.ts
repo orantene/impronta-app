@@ -2,7 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { loadTalentCardThumbs } from "./talent-card-thumbs";
+import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { byLabel } from "@/lib/field-engine/sort-comparators";
 
 /**
@@ -274,7 +274,7 @@ export async function loadDiscoverTalents(
   //   - geo coords: live on locations.{latitude,longitude} via the
   //     residence_city_id FK; can be added to the view later if map-view
   //     callers become hot. For now we batch-fetch them in one go.
-  const photoByTalent = await loadTalentCardThumbs(admin, ids);
+  const photoByTalent = await resolveTalentCardThumbsForHub(admin, ids, null);
   const coordsByCityId = new Map<string, { lat: number | null; lng: number | null }>();
 
   if (ids.length > 0) {
@@ -512,7 +512,7 @@ export async function loadDiscoverMapPoints(
   const rows = (data ?? []) as unknown as Row[];
   const ids = rows.map((r) => r.id);
 
-  const photoByTalent = await loadTalentCardThumbs(admin, ids);
+  const photoByTalent = await resolveTalentCardThumbsForHub(admin, ids, null);
   const coordsByCityId = new Map<string, { lat: number | null; lng: number | null }>();
 
   if (ids.length > 0) {
@@ -730,7 +730,7 @@ export async function loadClientShortlistsForUser(
     }
   }
 
-  const photoByTalent = await loadTalentCardThumbs(admin, Array.from(allTalentIds));
+  const photoByTalent = await resolveTalentCardThumbsForHub(admin, Array.from(allTalentIds), null);
 
   return rows.map((r) => ({
     id: r.id,
@@ -900,7 +900,7 @@ export async function loadAdminDiscoverInquiries(
     }
   }
 
-  const photoByTalent = await loadTalentCardThumbs(admin, Array.from(talentIds));
+  const photoByTalent = await resolveTalentCardThumbsForHub(admin, Array.from(talentIds), tenantId);
 
   return rows.map((r) => {
     const talents = (r.inquiry_participants ?? [])
@@ -1011,7 +1011,7 @@ export async function loadClientFavoritesForUser(
 
   // Batch-fetch photos.
   const ids = rows.map((r) => r.talent_profile_id);
-  const photoByTalent = await loadTalentCardThumbs(admin, ids);
+  const photoByTalent = await resolveTalentCardThumbsForHub(admin, ids, null);
 
   return rows
     .map((row): DiscoverShortlistTalent | null => {

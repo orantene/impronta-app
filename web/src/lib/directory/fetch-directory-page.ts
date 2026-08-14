@@ -14,7 +14,7 @@ import {
 import type { FieldValueRow } from "@/lib/directory/format-card-attribute-value";
 import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-card-dto";
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
-import { loadTalentCardThumbs } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
+import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
 import { fetchDirectoryCardValues } from "@/lib/field-engine/read-source-directory-card-values";
 import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
@@ -1075,7 +1075,10 @@ export async function fetchDirectoryPage(
     audit,
     timings,
     "thumbUrlResolveMs",
-    () => chunkAndMergeThumbs(profileIds, (chunk) => loadTalentCardThumbs(supabase, chunk)),
+    () =>
+      chunkAndMergeThumbs(profileIds, (chunk) =>
+        resolveTalentCardThumbsForHub(supabase, chunk, tenantScopeId),
+      ),
   );
 
   // "From $X" chip source + demand-ranking signal, fetched concurrently for
