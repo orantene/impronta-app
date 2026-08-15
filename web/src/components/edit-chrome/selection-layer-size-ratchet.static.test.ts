@@ -97,7 +97,7 @@ const BUDGETS: Record<string, number> = {
   // the ratchet moving DOWN, which is the direction it exists to encourage —
   // the budget below is the measured value after that extraction lands on top
   // of the rotate/resize/z-order growth itemised above.
-  "selection-layer.tsx": 0,  // PLACEHOLDER — set to measured
+  "selection-layer.tsx": 7588,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
