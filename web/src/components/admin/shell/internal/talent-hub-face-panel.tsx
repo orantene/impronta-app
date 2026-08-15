@@ -126,16 +126,14 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
 
   const toggle = (assetId: string) => {
     setSaveState("idle");
-    setSelected((prev) => {
-      const next = prev.includes(assetId)
-        ? prev.filter((id) => id !== assetId)
-        : [...prev, assetId];
-      // A cover outside the selection is not a state the server will keep
-      // (`setHubMediaSelection` clears it), so the draft must not pretend
-      // otherwise. Drop the cover the moment its tile leaves the selection.
-      if (!next.includes(assetId)) setCover((c) => (c === assetId ? null : c));
-      return next;
-    });
+    const removing = selected.includes(assetId);
+    setSelected(
+      removing ? selected.filter((id) => id !== assetId) : [...selected, assetId],
+    );
+    // A cover outside the selection is not a state the server will keep
+    // (`setHubMediaSelection` clears it), so the draft must not pretend
+    // otherwise. Drop the cover the moment its tile leaves the selection.
+    if (removing && cover === assetId) setCover(null);
   };
 
   /**
@@ -146,9 +144,7 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
   const chooseCover = (assetId: string | null) => {
     setSaveState("idle");
     setCover(assetId);
-    if (assetId) {
-      setSelected((prev) => (prev.includes(assetId) ? prev : [...prev, assetId]));
-    }
+    if (assetId && !selected.includes(assetId)) setSelected([...selected, assetId]);
   };
 
   const saveSelection = async () => {
