@@ -299,4 +299,11 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Add before": "Agregar antes",
   Cut: "Cortar",
   "Revise this section with AI": "Revisar esta sección con IA",
+  // ── canvas rotation handle (direct manipulation pack) ────────────────────
+  "Reset rotation": "Restablecer rotación",
+  "Drag to rotate (double-click to reset)":
+    "Arrastra para rotar (doble clic para restablecer)",
+  "Drag to rotate · double-click to reset":
+    "Arrastra para rotar · doble clic para restablecer",
+  "⌘ free · ⇧ 15°": "⌘ libre · ⇧ 15°",
 };

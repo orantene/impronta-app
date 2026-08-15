@@ -112,6 +112,14 @@ import {
 } from "./selection-bridge";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
+import { CanvasRotateHandle } from "./canvas-rotate-handle";
+import {
+  normalizeAngleDeg,
+  parseRotateDeg,
+  parseScalePair,
+  rotatedVisualBox,
+} from "./canvas-transform-geometry";
+import { useMaybeCanvasViewport } from "./canvas-viewport";
 import {
   BoxModelHoverBands,
   CanvasSpacingHandles,
@@ -879,6 +887,7 @@ export function SelectionLayer() {
   const resizeOverlayRef = useRef<HTMLDivElement | null>(null);
   const spacingOverlayRef = useRef<HTMLDivElement | null>(null);
   const gapOverlayRef = useRef<HTMLDivElement | null>(null);
+  const rotateOverlayRef = useRef<HTMLDivElement | null>(null);
   const overlayTrackRafRef = useRef<number | null>(null);
   // W3-T4 — rAF handle for the multi-select SECONDARY rings (mirrors the primary
   // ring's tracking loop so they follow their blocks on scroll/resize instead of
@@ -892,6 +901,17 @@ export function SelectionLayer() {
   // it's false → ~0 forced reflows while idle. Starts true so the first frame
   // (and every re-selection) always writes.
   const geometryDirtyRef = useRef(true);
+  // ROTATION — canvas zoom feeds the rotated-overlay geometry (layout px →
+  // visual px). Kept in a ref so the rAF sync loop reads the live value
+  // without the zoom level churning the effect; a zoom change re-primes the
+  // dirty flag so the overlays re-measure on the next frame.
+  const canvasViewport = useMaybeCanvasViewport();
+  const canvasZoom = canvasViewport?.zoom ?? 1;
+  const canvasZoomRef = useRef(canvasZoom);
+  useEffect(() => {
+    canvasZoomRef.current = canvasZoom;
+    geometryDirtyRef.current = true;
+  }, [canvasZoom]);
 
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
@@ -2941,10 +2961,39 @@ export function SelectionLayer() {
       const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const top = r.top;
-      const left = r.left;
-      const width = r.width;
-      const height = r.height;
+      let top = r.top;
+      let left = r.left;
+      let width = r.width;
+      let height = r.height;
+      // ROTATED GEOMETRY — when the element carries a `rotate` escape, its
+      // bounding rect is the AABB of the tilted quad. Recover the unrotated
+      // box (layout size × zoom × scale, centred on the AABB centre) and give
+      // the ring + handle overlays the SAME rotation transform, so the
+      // selection chrome visually tracks the tilt instead of drawing an
+      // axis-aligned box around it. Marquee hit-testing and sibling snapping
+      // deliberately stay AABB-based (documented scope).
+      const computed = getComputedStyle(el);
+      const rotationDeg = normalizeAngleDeg(parseRotateDeg(computed.rotate));
+      const overlayTransform =
+        rotationDeg === 0 ? "" : `rotate(${rotationDeg}deg)`;
+      if (rotationDeg !== 0) {
+        const scale = parseScalePair(computed.scale);
+        const box = rotatedVisualBox({
+          rectLeft: r.left,
+          rectTop: r.top,
+          rectWidth: r.width,
+          rectHeight: r.height,
+          offsetWidth: el.offsetWidth,
+          offsetHeight: el.offsetHeight,
+          zoom: canvasZoomRef.current,
+          scaleX: scale.x,
+          scaleY: scale.y,
+        });
+        top = box.top;
+        left = box.left;
+        width = box.width;
+        height = box.height;
+      }
 
       const ring = ringRef.current;
       if (ring) {
@@ -2952,6 +3001,7 @@ export function SelectionLayer() {
         ring.style.left = `${left}px`;
         ring.style.width = `${width}px`;
         ring.style.height = `${height}px`;
+        ring.style.transform = overlayTransform;
       }
       // The chip is docked to the bottom control-bar line (see its style block)
       // rather than tracking the element, so this loop deliberately leaves its
@@ -2964,6 +3014,7 @@ export function SelectionLayer() {
         resizeOverlayRef,
         spacingOverlayRef,
         gapOverlayRef,
+        rotateOverlayRef,
       ]) {
         const box = ref.current;
         if (!box) continue;
@@ -2971,6 +3022,7 @@ export function SelectionLayer() {
         box.style.left = `${left}px`;
         box.style.width = `${width}px`;
         box.style.height = `${height}px`;
+        box.style.transform = overlayTransform;
       }
     };
 
@@ -3334,6 +3386,39 @@ export function SelectionLayer() {
         delete nextStyle.translate;
       } else {
         nextStyle.translate = `${rx}px ${ry}px`;
+      }
+      void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+    },
+    [
+      selectedBuilderNodeId,
+      builderTree,
+      patchBuilderNodeProps,
+      getSelectedBuilderNodeEl,
+    ],
+  );
+  // ROTATION — persist the canvas rotate handle's final angle as the
+  // non-destructive `style.rotate` escape (same prop the Style panel's
+  // transform field sets). Rotating back to 0 DELETES the escape entirely,
+  // mirroring how the translate commit drops at 0,0 — so an untouched block
+  // never carries a redundant "0deg".
+  const commitSelectedNodeRotate = useCallback(
+    (deg: number) => {
+      if (!selectedBuilderNodeId) return;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return;
+      const normalized = normalizeAngleDeg(deg);
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      const nextStyle: Record<string, unknown> = { ...currentStyle };
+      if (normalized === 0) {
+        delete nextStyle.rotate;
+        // Clear the inline drag preview so the deletion is visible now rather
+        // than after the next refresh (same pattern as the size reset).
+        const liveEl = getSelectedBuilderNodeEl();
+        if (liveEl) liveEl.style.rotate = "";
+      } else {
+        nextStyle.rotate = `${normalized}deg`;
       }
       void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
     },
@@ -3961,6 +4046,14 @@ export function SelectionLayer() {
     ? findBuilderNodePath(builderTree, contextMenuBuilderNodeId)
     : [];
   const contextMenuNodeLocked = contextMenuNode?.locked === true;
+  // ROTATION — "Reset rotation" only renders when the block actually carries
+  // a rotate escape (a reset on an unrotated block would be a no-op row).
+  const contextMenuNodeHasRotation = !!(
+    contextMenuNode &&
+    contextMenuNode.kind !== "section" &&
+    (contextMenuNode.props as { style?: { rotate?: unknown } } | undefined)
+      ?.style?.rotate
+  );
   const contextMenuNodeIsRoleBound =
     !!contextMenuNode && resolveBuilderNodeRole(contextMenuNode.id) !== null;
   // Wrap / Convert only make sense for a genuinely editable freeform block.
@@ -4603,6 +4696,17 @@ export function SelectionLayer() {
             />
           ) : null}
 
+          {/* Direct manipulation — drag just outside a corner to ROTATE
+              (Figma corner-zone pattern; writes the style.rotate escape). */}
+	          {canResizeSelectedNode && !dragChromeSuppressed ? (
+	            <CanvasRotateHandle
+	              rect={renderSelectedRect}
+	              liveEl={getSelectedBuilderNodeEl()}
+	              onCommitRotate={commitSelectedNodeRotate}
+	              overlayRef={rotateOverlayRef}
+	            />
+	          ) : null}
+
           {/* Direct manipulation — drag the centre grip to move (translate). */}
 	          {canResizeSelectedNode && !dragChromeSuppressed ? (
 	            <CanvasMoveHandle
@@ -5008,6 +5112,34 @@ export function SelectionLayer() {
               void moveBuilderNodeWithinParent(id, "down").then((result) => {
                 if (!result.ok && result.error) reportMutationError(result.error);
               });
+              closeContextMenu();
+            }}
+            nodeHasRotation={contextMenuNodeHasRotation}
+            onResetRotation={() => {
+              // ROTATION — drop the rotate escape entirely (same deletion the
+              // rotate handle performs when dragged back to 0).
+              const id = contextMenu?.builderNodeId;
+              if (!id) {
+                closeContextMenu();
+                return;
+              }
+              const node = findBuilderNodeById(builderTree, id);
+              if (!node || node.kind === "section") {
+                closeContextMenu();
+                return;
+              }
+              const currentStyle =
+                ((node.props as { style?: Record<string, unknown> } | undefined)
+                  ?.style ?? {}) as Record<string, unknown>;
+              const nextStyle: Record<string, unknown> = { ...currentStyle };
+              delete nextStyle.rotate;
+              void patchBuilderNodeProps(id, { style: nextStyle }).then(
+                (result) => {
+                  if (!result.ok && result.error) {
+                    reportMutationError(result.error);
+                  }
+                },
+              );
               closeContextMenu();
             }}
           />
@@ -6118,6 +6250,8 @@ function SelectionContextMenu({
   onConvertToComponent,
   onMoveNodeUp,
   onMoveNodeDown,
+  nodeHasRotation = false,
+  onResetRotation,
 }: {
   state: SelectionContextMenuState | null;
   targetLabel: string;
@@ -6152,6 +6286,9 @@ function SelectionContextMenu({
   onConvertToComponent: () => void;
   onMoveNodeUp: () => void;
   onMoveNodeDown: () => void;
+  /** ROTATION — the targeted block carries a `rotate` escape. */
+  nodeHasRotation?: boolean;
+  onResetRotation?: () => void;
 }) {
   const { t } = useEditorLocale();
   if (!state) return null;
@@ -6278,6 +6415,11 @@ function SelectionContextMenu({
               {nodeCanMoveDown ? (
                 <ContextMenuButton disabled={saving} onClick={onMoveNodeDown}>
                   {t("Move block down")}
+                </ContextMenuButton>
+              ) : null}
+              {nodeHasRotation && onResetRotation ? (
+                <ContextMenuButton disabled={saving} onClick={onResetRotation}>
+                  {t("Reset rotation")}
                 </ContextMenuButton>
               ) : null}
               {canWrapOrConvert ? (

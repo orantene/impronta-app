@@ -66,7 +66,12 @@ const REBASELINE_SLACK = 60;
  */
 const BUDGETS: Record<string, number> = {
   // Row 5.4 baseline. 8,007 lines before the #908 nested-blocks panel came out.
-  "selection-layer.tsx": 7277,
+  // +142 (canvas rotate/resize pack): rotation-handle wiring — commit callback,
+  // rotated-overlay geometry in the rAF sync loop, context-menu Reset rotation.
+  // The rotation MATH + component live in their own modules
+  // (canvas-transform-geometry.ts, canvas-rotate-handle.tsx); this is the thin
+  // wiring the guard's own procedure asks to be bumped visibly.
+  "selection-layer.tsx": 7419,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

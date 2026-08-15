@@ -281,6 +281,15 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
   {
+    id: "rotate-block",
+    label: "Rotate selected block",
+    description:
+      "Drag just outside a corner of the selection box. Snaps to 45-degree angles; hold ⇧ for 15-degree steps, hold ⌘ to rotate freely. Double-click a corner zone (or right-click → Reset rotation) to reset.",
+    keys: [],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
     id: "lock-block",
     label: "Lock / unlock selected block",
     description: "Right-click a block (canvas or layers) for the full action menu.",
