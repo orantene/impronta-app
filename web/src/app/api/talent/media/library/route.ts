@@ -15,6 +15,7 @@
 
 import { NextResponse } from "next/server";
 
+import { readTalentMediaUsage } from "@/lib/media/talent-storage-usage";
 import { listTalentScopedMediaLibrary } from "@/lib/site-admin/media/assets";
 import { classifyTalentMediaUsability } from "@/lib/site-admin/server/media-grants";
 import {
@@ -86,19 +87,32 @@ export async function GET(req: Request) {
     );
   }
 
-  // No managing tenant resolved (e.g. an independent self-registered talent on
-  // no roster) → no agency-scoped library to show. Return empty rather than run
-  // an unscoped (cross-tenant) query.
-  if (!resolvedTenantId) {
-    return NextResponse.json({ ok: true, items: [], portfolioAssetIds: [] });
-  }
-
   const admin = createServiceRoleClient();
   if (!admin) {
     return NextResponse.json(
       { ok: false, error: "Server configuration error." },
       { status: 500 },
     );
+  }
+
+  // B13 — plan usage, so a surface can say "N of M photos" before the cap first
+  // shows itself by refusing an upload. Talent-scoped (the cap is), one count
+  // per load, and deliberately ahead of the managing-tenant early return: how
+  // full your own library is does not depend on who represents you.
+  //
+  // `?quotaOnly=1` short-circuits the rest for surfaces that want the line and
+  // not the grid (the talent Media section, the workspace Media header). Same
+  // auth, one query instead of a library read plus the usability RPC.
+  const quota = await readTalentMediaUsage(admin, talentProfileId);
+  if (url.searchParams.get("quotaOnly") === "1") {
+    return NextResponse.json({ ok: true, quota, items: [], portfolioAssetIds: [], locked: [] });
+  }
+
+  // No managing tenant resolved (e.g. an independent self-registered talent on
+  // no roster) → no agency-scoped library to show. Return empty rather than run
+  // an unscoped (cross-tenant) query.
+  if (!resolvedTenantId) {
+    return NextResponse.json({ ok: true, items: [], portfolioAssetIds: [], quota });
   }
 
   const { items, portfolioAssetIds } = await listTalentScopedMediaLibrary(
@@ -128,5 +142,5 @@ export async function GET(req: Request) {
       ownerName: u.ownerTenantName,
     }));
 
-  return NextResponse.json({ ok: true, items, portfolioAssetIds, locked });
+  return NextResponse.json({ ok: true, items, portfolioAssetIds, locked, quota });
 }

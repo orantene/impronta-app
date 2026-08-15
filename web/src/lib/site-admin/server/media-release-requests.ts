@@ -26,6 +26,7 @@ import {
   isMediaReleaseRequest,
   loadActiveGrants,
   loadSubjectAssets,
+  loadTalentNames,
   loadTenantNames,
   logGrantActivity,
   notifyTalentUsers,
@@ -36,6 +37,7 @@ import {
   type MediaGrantBustKey,
   type MediaGrantResult,
 } from "./media-grants-shared";
+import { loadPendingReleaseAssetIds } from "./media-release-withdraw";
 
 // ─── 2. The talent asks (writes the SUBJECT key) ────────────────────────────
 
@@ -82,7 +84,26 @@ export async function requestMediaRelease(
     return { ok: false, error: "These photos already appear on that site." };
   }
 
-  const eligibleIds = eligible.map((a) => a.id);
+  // B11 — the duplicate guard was CLIENT-ONLY: the panel greys out a tile that
+  // already has an open ask, and nothing else checked. A stale panel, a second
+  // tab, or any direct call therefore filed a second card in the workspace
+  // queue for photos already waiting on an answer, and staff had to guess
+  // whether the two cards meant the same thing.
+  //
+  // Narrow the ask to the photos that are NOT already pending for the same
+  // target rather than refusing the whole call: asking for A+B when B is
+  // already pending should still get A moving. Only a fully duplicate ask is
+  // refused, and it says so in words.
+  const alreadyPending = await loadPendingReleaseAssetIds(admin, {
+    talentProfileId: input.talentProfileId,
+    ownerTenantId: input.ownerTenantId,
+    targetTenantId: input.targetTenantId,
+  });
+  const eligibleIds = eligible.map((a) => a.id).filter((id) => !alreadyPending.has(id));
+  if (eligibleIds.length === 0) {
+    return { ok: false, error: "You have already asked for these photos." };
+  }
+
   const { data: inserted, error } = await admin
     .from("talent_agency_permission_requests")
     .insert({
@@ -272,22 +293,6 @@ export async function listMediaReleaseRequests(
       status: row.status,
     })),
   };
-}
-
-async function loadTalentNames(
-  admin: SupabaseClient,
-  talentIds: readonly string[],
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  if (talentIds.length === 0) return out;
-  const { data } = await admin
-    .from("talent_profiles")
-    .select("id, display_name")
-    .in("id", talentIds as string[]);
-  for (const row of (data ?? []) as Array<{ id: string; display_name: string | null }>) {
-    if (row.display_name) out.set(row.id, row.display_name);
-  }
-  return out;
 }
 
 export type ReleaseDecisionOutcome = {

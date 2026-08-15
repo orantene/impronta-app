@@ -10843,8 +10843,6 @@
       "saving": "Saving...",
       "saved": "Selection saved.",
       "selectedCount": "{count} selected",
-      "declinedBadge": "Declined",
-      "statusDenied": "Not released. You can ask again.",
       "captionPlaceholder": "Add a caption for this site…",
       "captionSaving": "Saving caption…",
       "captionSaved": "Caption saved.",
@@ -10886,7 +10884,13 @@
       "sending": "Sending...",
       "sent": "Request sent. The workspace will get a notification.",
       "mixedOwners": "Pick photos from one workspace at a time. Only that workspace can answer.",
-      "selectedCount": "{count} selected"
+      "selectedCount": "{count} selected",
+      "declinedBadge": "Declined",
+      "statusDenied": "Not released. You can ask again.",
+      "withdraw": "Withdraw request",
+      "withdrawHint": "Takes back the whole request, including any other photos asked for in it. You can ask again later.",
+      "withdrawing": "Withdrawing...",
+      "withdrawn": "Request withdrawn. The photo is locked again."
     },
     "mediaReleaseRequests": {
       "activeRelease": "Release active. The talent can use these photos anywhere.",
@@ -10908,7 +10912,15 @@
       "watermarkLabel": "Require a watermark",
       "watermarkHint": "Released photos appear elsewhere with your logo on them. Set the logo and its placement under Settings, Branding.",
       "approvedWatermarked": "Released {count} photo(s) with your watermark.",
-      "watermarkPermanentHint": "This choice is fixed for this release. To change it later you revoke the release and approve a new one."
+      "watermarkPermanentHint": "This choice is fixed for this release. To change it later you revoke the release and approve a new one.",
+      "historyTitle": "Past decisions",
+      "historyHint": "What you already answered. Nothing here is live.",
+      "historyLoading": "Loading past decisions...",
+      "historyEmpty": "Nothing decided yet.",
+      "historyEntry": "{talent} · {count} photos",
+      "outcomeDeclined": "Declined",
+      "outcomeWithdrawn": "Withdrawn by the talent",
+      "outcomeRevoked": "Release ended"
     },
     "mediaPickerLock": {
       "badge": "Locked",
@@ -10920,6 +10932,14 @@
     "mediaPicker": {
       "quotaLimitReached": "You have reached your plan photo limit. Remove a few photos you no longer need, or upgrade your plan to add more.",
       "quotaApproachingLimit": "You have room for {count} more photos on your plan. Remove photos you no longer need, or upgrade for more space."
+    },
+    "mediaQuota": {
+      "usage": "{used} of {cap} photos used on your plan.",
+      "unlimited": "Your plan has no photo limit.",
+      "roomLeft": "Room for {remaining} more.",
+      "full": "No room left. Remove photos you no longer need, or upgrade your plan.",
+      "forTalent": "{talent}: {used} of {cap} photos used on their plan.",
+      "forTalentUnlimited": "{talent} has no photo limit on their plan."
     }
   },
   "admin": {

@@ -274,6 +274,30 @@ export async function notifyWorkspaceStaff(
   return userIds.length;
 }
 
+/**
+ * Display names for talents, for the workspace-facing request cards.
+ *
+ * Lives here rather than next to its first caller because BOTH halves of the
+ * release queue need it now: the open-requests list and the "past decisions"
+ * history (B15). Two copies of a name lookup is exactly how two surfaces end up
+ * calling the same person different things.
+ */
+export async function loadTalentNames(
+  admin: SupabaseClient,
+  talentIds: readonly string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (talentIds.length === 0) return out;
+  const { data } = await admin
+    .from("talent_profiles")
+    .select("id, display_name")
+    .in("id", talentIds as string[]);
+  for (const row of (data ?? []) as Array<{ id: string; display_name: string | null }>) {
+    if (row.display_name) out.set(row.id, row.display_name);
+  }
+  return out;
+}
+
 export async function loadTenantNames(
   admin: SupabaseClient,
   tenantIds: readonly string[],

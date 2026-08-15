@@ -20,8 +20,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import {
   actionDecideMediaReleaseRequest,
+  actionListMediaReleaseHistory,
   actionListMediaReleaseRequests,
   actionRevokeMediaRelease,
+  type MediaReleaseHistoryEntry,
   type MediaReleaseRequestSummary,
 } from "@/lib/server-actions/admin-media-release";
 
@@ -45,6 +47,17 @@ export function MediaReleaseRequestsPanel() {
    * checkbox would silently carry a decision across cards.
    */
   const [watermark, setWatermark] = useState<Record<string, boolean>>({});
+  /**
+   * B15 — what this workspace already answered. Declines, releases it later
+   * ended, and asks the talent withdrew all used to vanish without a trace, so
+   * "did we already say no to this?" had no answer anywhere in the product.
+   *
+   * Loaded separately from the open queue and collapsed by default: the
+   * actionable half must not wait on history, and a failed history read must
+   * not take the approve/decline buttons down with it.
+   */
+  const [history, setHistory] = useState<MediaReleaseHistoryEntry[] | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const load = useCallback(async () => {
     setRequests(null);
@@ -58,6 +71,12 @@ export function MediaReleaseRequestsPanel() {
     setRequests(res.data);
   }, []);
 
+  const loadHistory = useCallback(async () => {
+    setHistory(null);
+    const res = await actionListMediaReleaseHistory();
+    setHistory(res.ok ? res.data : []);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -67,6 +86,14 @@ export function MediaReleaseRequestsPanel() {
       cancelled = true;
     };
   }, [load]);
+
+  // Fetch the history only once the reader asks for it, then keep it fresh
+  // after every decision — a decline that does not appear under "Past
+  // decisions" is the same disappearing act this section exists to end.
+  useEffect(() => {
+    if (!historyOpen) return;
+    void loadHistory();
+  }, [historyOpen, loadHistory, done]);
 
   const decide = async (request: MediaReleaseRequestSummary, approve: boolean) => {
     setBusy({ requestId: request.requestId, kind: approve ? "approve" : "deny" });
@@ -272,6 +299,68 @@ export function MediaReleaseRequestsPanel() {
       {warning && !error && (
         <div className="text-[11.5px] leading-snug text-[#2c5fdb]">{warning}</div>
       )}
+
+      {/* B15 — past decisions. Read-only by design: there is no un-decline and
+          no un-revoke, and re-approving means the talent asks again. */}
+      <details
+        className="rounded-lg border border-admin-border-soft bg-admin-surface"
+        open={historyOpen}
+        onToggle={(e) => setHistoryOpen((e.currentTarget as HTMLDetailsElement).open)}
+      >
+        <summary className="cursor-pointer px-3 py-2 text-[12px] font-semibold text-admin-ink">
+          {t("dashboard.mediaReleaseRequests.historyTitle")}
+        </summary>
+        <div className="border-t border-admin-border-soft px-3 py-2">
+          <div className="mb-2 text-[11px] text-admin-ink-muted">
+            {t("dashboard.mediaReleaseRequests.historyHint")}
+          </div>
+          {history === null && (
+            <div className="text-[11.5px] text-admin-ink-muted">
+              {t("dashboard.mediaReleaseRequests.historyLoading")}
+            </div>
+          )}
+          {history !== null && history.length === 0 && (
+            <div className="text-[11.5px] text-admin-ink-muted">
+              {t("dashboard.mediaReleaseRequests.historyEmpty")}
+            </div>
+          )}
+          {history !== null && history.length > 0 && (
+            <ul className="flex flex-col gap-2">
+              {history.map((entry) => (
+                <li
+                  key={entry.requestId}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-admin-border-soft pb-2 last:border-b-0 last:pb-0"
+                >
+                  <span className="text-[11.5px] text-admin-ink">
+                    {t("dashboard.mediaReleaseRequests.historyEntry")
+                      .replace("{talent}", entry.talentName)
+                      .replace("{count}", String(entry.assetCount))}
+                    <span className="ml-1 text-admin-ink-muted">
+                      {entry.targetTenantName
+                        ? t("dashboard.mediaReleaseRequests.targetNamed").replace(
+                            "{workspace}",
+                            entry.targetTenantName,
+                          )
+                        : t("dashboard.mediaReleaseRequests.targetAnywhere")}
+                    </span>
+                  </span>
+                  <span className="text-[11px] text-admin-ink-muted">
+                    {t(
+                      entry.outcome === "declined"
+                        ? "dashboard.mediaReleaseRequests.outcomeDeclined"
+                        : entry.outcome === "withdrawn"
+                          ? "dashboard.mediaReleaseRequests.outcomeWithdrawn"
+                          : "dashboard.mediaReleaseRequests.outcomeRevoked",
+                    )}
+                    {" · "}
+                    {entry.decidedAt.slice(0, 10)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
     </div>
   );
 }

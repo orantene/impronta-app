@@ -49,6 +49,12 @@ export type TalentMediaLock = {
   /** A release request is already awaiting an answer. */
   pending: boolean;
   /**
+   * The open request covering this photo, so the talent can WITHDRAW it (B11).
+   * Null unless `pending`. One request usually covers several photos: taking it
+   * back takes all of them back, and the UI says so before the click.
+   */
+  pendingRequestId: string | null;
+  /**
    * When the most recent request covering this photo was DECLINED, ISO string;
    * null when it was never asked for (or the ask is still open / approved).
    *
@@ -94,9 +100,9 @@ export async function loadTalentMediaLocks(
   if (rows.length === 0) return { ok: true, data: [] };
 
   const assetIds = rows.map((r) => r.id);
-  const [grants, pendingIds, deniedAtByAsset, names] = await Promise.all([
+  const [grants, pendingRequestIdByAsset, deniedAtByAsset, names] = await Promise.all([
     loadActiveGrants(admin, assetIds),
-    loadPendingRequestAssetIds(admin, talentProfileId),
+    loadPendingRequestIdsByAsset(admin, talentProfileId),
     loadDeniedRequestAssetIds(admin, talentProfileId),
     loadTenantNames(admin, [...new Set(rows.map((r) => r.owner_tenant_id))]),
   ]);
@@ -114,11 +120,12 @@ export async function loadTalentMediaLocks(
       ownerTenantId: row.owner_tenant_id,
       ownerTenantName: names.get(row.owner_tenant_id) ?? "a workspace",
       released: releasedAssetIds.has(row.id),
-      pending: pendingIds.has(row.id),
+      pending: pendingRequestIdByAsset.has(row.id),
+      pendingRequestId: pendingRequestIdByAsset.get(row.id) ?? null,
       // A still-open or already-granted ask outranks an older decline: the
       // most recent state is the one the talent needs to act on.
       deniedAt:
-        pendingIds.has(row.id) || releasedAssetIds.has(row.id)
+        pendingRequestIdByAsset.has(row.id) || releasedAssetIds.has(row.id)
           ? null
           : deniedAtByAsset.get(row.id) ?? null,
     })),
@@ -141,22 +148,34 @@ function publicUrl(
 }
 
 
-async function loadPendingRequestAssetIds(
+/**
+ * Asset id → the OPEN request covering it. The id (not just a boolean) is what
+ * makes "Withdraw request" possible on the tile: the talent sees a photo, and
+ * the thing they take back is the request that photo rides in (B11).
+ *
+ * Newest-first with `if (!out.has(id))` so a photo covered by two open asks
+ * shows the most recent one, matching the decline map below.
+ */
+async function loadPendingRequestIdsByAsset(
   admin: SupabaseClient,
   talentProfileId: string,
-): Promise<Set<string>> {
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
   const { data, error } = await admin
     .from("talent_agency_permission_requests")
-    .select("requested_scopes")
+    .select("id, requested_scopes, requested_at")
     .eq("talent_profile_id", talentProfileId)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .order("requested_at", { ascending: false })
+    .limit(200);
   if (error) {
     logServerError("media-grants.loadPending", error);
-    return new Set();
+    return out;
   }
-  const out = new Set<string>();
-  for (const row of (data ?? []) as Array<{ requested_scopes: string[] | null }>) {
-    for (const id of parseReleaseScopes(row.requested_scopes).assetIds) out.add(id);
+  for (const row of (data ?? []) as Array<{ id: string; requested_scopes: string[] | null }>) {
+    for (const id of parseReleaseScopes(row.requested_scopes).assetIds) {
+      if (!out.has(id)) out.set(id, row.id);
+    }
   }
   return out;
 }
@@ -328,3 +347,14 @@ export {
   type ReleaseDecisionOutcome,
   type ReleaseRevokeOutcome,
 } from "./media-release-requests";
+
+export {
+  withdrawMediaReleaseRequest,
+  type ReleaseWithdrawOutcome,
+} from "./media-release-withdraw";
+
+export {
+  listMediaReleaseHistory,
+  type MediaReleaseHistoryEntry,
+  type MediaReleaseOutcome,
+} from "./media-release-history";
