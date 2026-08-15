@@ -55,41 +55,53 @@ function fmtPublishDate(iso: string): string {
 export function PublishCluster({
   canPublish,
   dirty,
+  driftCount,
   publishState,
   publishedAt,
   onPublish,
 }: {
   canPublish: boolean;
   dirty: boolean;
+  /** Draft↔live differences OUTSIDE this page's tokens (publish ships them too). */
+  driftCount: number;
   publishState: DesignPublishState;
   publishedAt: string | null;
   onPublish: () => void;
 }) {
   const t = useT();
   const publishing = publishState.kind === "publishing";
+  // Publish promotes the ENTIRE draft. The button goes quiet when there is
+  // truly nothing to ship, and the drift note warns when the draft carries
+  // changes made outside this page — a one-swatch publish must never silently
+  // repaint the whole site (the 2026-08-15 stale-draft incident).
+  const hasChanges = dirty || driftCount > 0;
+  const upToDate = !hasChanges && publishState.kind !== "error";
   let line: string;
   if (publishState.kind === "error") {
     line = publishState.message;
-  } else if (publishState.kind === "published") {
+  } else if (!canPublish) {
+    line = t("dashboard.adminCardStudio2.publishNeedsAccess");
+  } else if (publishState.kind === "published" && !hasChanges) {
     line = interpolate(t("dashboard.adminCardStudio2.publishedVersionLive"), {
       version: publishState.version,
     });
-  } else if (!canPublish) {
-    line = t("dashboard.adminCardStudio2.publishNeedsAccess");
   } else if (dirty) {
     line = t("dashboard.adminCardStudio2.unpublishedChanges");
+  } else if (hasChanges) {
+    line = t("dashboard.adminCardStudio2.draftChangesPending");
   } else if (publishedAt) {
-    line = interpolate(t("dashboard.adminCardStudio2.liveLastPublished"), {
+    line = interpolate(t("dashboard.adminCardStudio2.liveUpToDateLastPublished"), {
       date: fmtPublishDate(publishedAt),
     });
   } else {
     line = t("dashboard.adminCardStudio2.nothingPublishedYet");
   }
+  const disabled = !canPublish || publishing || upToDate;
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
       <button
         type="button"
-        disabled={!canPublish || publishing}
+        disabled={disabled}
         onClick={onPublish}
         style={{
           display: "inline-flex",
@@ -99,19 +111,24 @@ export function PublishCluster({
           fontSize: 13,
           fontWeight: 700,
           fontFamily: FONTS.body,
-          border: "none",
+          border: upToDate ? `1px solid ${COLORS.border}` : "none",
           borderRadius: RADIUS.md,
-          background: canPublish ? COLORS.accent : "rgba(11,11,13,0.18)",
-          color: "#fff",
-          cursor: !canPublish || publishing ? "default" : "pointer",
+          background: upToDate
+            ? "transparent"
+            : canPublish
+              ? COLORS.accent
+              : "rgba(11,11,13,0.18)",
+          color: upToDate ? COLORS.inkMuted : "#fff",
+          cursor: disabled ? "default" : "pointer",
           opacity: publishing ? 0.7 : 1,
         }}
       >
-        {t(
-          publishing
-            ? "dashboard.adminCardStudio2.publishing"
-            : "dashboard.adminCardStudio2.publish",
-        )}
+        {upToDate ? <Check size={13} strokeWidth={2.5} /> : null}
+        {publishing
+          ? t("dashboard.adminCardStudio2.publishing")
+          : upToDate
+            ? t("dashboard.adminCardStudio2.publishedUpToDate")
+            : t("dashboard.adminCardStudio2.publish")}
       </button>
       <div
         role="status"
@@ -125,6 +142,18 @@ export function PublishCluster({
       >
         {line}
       </div>
+      {hasChanges && driftCount > 0 ? (
+        <div
+          role="note"
+          className="max-w-[240px] rounded-admin-md bg-admin-amber-soft px-[9px] py-[5px] text-right text-admin-11 font-semibold leading-[1.4] text-admin-amber-deep"
+        >
+          {driftCount === 1
+            ? t("dashboard.adminCardStudio2.publishDriftWarningOne")
+            : interpolate(t("dashboard.adminCardStudio2.publishDriftWarningMany"), {
+                count: driftCount,
+              })}
+        </div>
+      ) : null}
     </div>
   );
 }

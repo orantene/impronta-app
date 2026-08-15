@@ -49,6 +49,11 @@ import {
   saveCardDesignTokensFromEditAction,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { CardAppearanceSection } from "./CardDesignStudio-appearance";
+import {
+  computeDesignDirty,
+  computeDriftCount,
+  STANDING_DEFAULTS,
+} from "./card-design-drift";
 import { EmptyState, Icon, SecondaryButton, Toggle } from "../primitives";
 import { COLORS, meetsRole, useAdminShell } from "../state";
 import {
@@ -81,14 +86,6 @@ import {
 // Main studio
 // ────────────────────────────────────────────────────────────────────────
 
-// Registry defaults for the reviews-on-cards template tokens. Module scope so
-// readTemplateToken's dependency array can stay honest (only draftTokens varies).
-const STANDING_DEFAULTS: Record<string, string> = {
-  "directory.card.show-standing": "compact",
-  "directory.card.standing-style": "both",
-  "profile.reviews-visibility": "visible",
-};
-
 export function CardDesignStudio() {
   const { state, toast, rosterCardBadges, setRosterCardBadge, tenantSlug } =
     useAdminShell();
@@ -120,6 +117,10 @@ export function CardDesignStudio() {
   );
   const [draftTokens, setDraftTokens] = useState<Record<string, string>>({});
   const [liveTokens, setLiveTokens] = useState<Record<string, string>>({});
+  // FULL draft/live token maps (not just the card slice) — Publish promotes the
+  // ENTIRE draft, so drift beyond this page must be visible (see card-design-drift.ts).
+  const [fullDraft, setFullDraft] = useState<Record<string, string>>({});
+  const [fullLive, setFullLive] = useState<Record<string, string>>({});
   const [designVersion, setDesignVersion] = useState(0);
   const [designPublishedAt, setDesignPublishedAt] = useState<string | null>(null);
   const [designReady, setDesignReady] = useState(false);
@@ -195,6 +196,8 @@ export function CardDesignStudio() {
       const draft = pick(res.snapshot.themeDraft);
       setDraftTokens(draft);
       setLiveTokens(pick(res.snapshot.themeLive));
+      setFullDraft(res.snapshot.themeDraft);
+      setFullLive(res.snapshot.themeLive);
       setDesignVersion(res.snapshot.version);
       setDesignPublishedAt(res.snapshot.themePublishedAt);
       // Hydrate the preview `appearance` from the persisted tenant defaults so
@@ -240,8 +243,17 @@ export function CardDesignStudio() {
 
   // Has the working draft diverged from what's live? Drives the publish hint.
   const designDirty = useMemo(
-    () => CARD_DESIGN_TOKEN_KEYS.some((k) => (draftTokens[k] ?? "") !== (liveTokens[k] ?? "")),
+    () => computeDesignDirty(draftTokens, liveTokens),
     [draftTokens, liveTokens],
+  );
+  // Draft↔live differences OUTSIDE this page's tokens (they ship on Publish too).
+  const pageOwnedKeys = useMemo(
+    () => new Set<string>([...CARD_DESIGN_TOKEN_KEYS, ...Object.keys(STANDING_DEFAULTS)]),
+    [],
+  );
+  const driftCount = useMemo(
+    () => computeDriftCount(fullDraft, fullLive, pageOwnedKeys),
+    [fullDraft, fullLive, pageOwnedKeys],
   );
   const activeFamily = draftTokens[CARD_FAMILY_TOKEN_KEY] ?? "";
 
@@ -264,6 +276,8 @@ export function CardDesignStudio() {
       }
       setDesignVersion(res.version);
       setSaveState({ kind: "saved", version: res.version });
+      // Keep the full-draft mirror in sync so driftCount stays honest.
+      setFullDraft((prev) => ({ ...prev, ...next }));
     },
     [tenantSlug],
   );
@@ -358,6 +372,7 @@ export function CardDesignStudio() {
         // Reflect the kit's tokens in the working draft so the preview repaints
         // immediately without a round-trip.
         setDraftTokens((prev) => ({ ...prev, ...kit.tokens }));
+        setFullDraft((prev) => ({ ...prev, ...kit.tokens }));
         setDesignVersion(res.version);
         setSaveState({ kind: "saved", version: res.version });
       })();
@@ -381,14 +396,11 @@ export function CardDesignStudio() {
       setDesignVersion(res.version);
       setDesignPublishedAt(new Date().toISOString());
       setPublishState({ kind: "published", version: res.version });
-      // Re-seed live from the now-published draft so `designDirty` clears.
-      setLiveTokens((prev) => {
-        const next = { ...prev };
-        for (const k of CARD_DESIGN_TOKEN_KEYS) next[k] = draftTokens[k] ?? "";
-        return next;
-      });
+      // Publish promoted EVERYTHING — clear both designDirty and driftCount.
+      setLiveTokens({ ...draftTokens });
+      setFullLive({ ...fullDraft });
     })();
-  }, [canPublish, designVersion, draftTokens, tenantSlug]);
+  }, [canPublish, designVersion, draftTokens, fullDraft, tenantSlug]);
 
   const handleToggleField = useCallback(
     (key: string, next: boolean) => {
@@ -487,6 +499,7 @@ export function CardDesignStudio() {
           <PublishCluster
             canPublish={canPublish}
             dirty={designDirty}
+            driftCount={driftCount}
             publishState={publishState}
             publishedAt={designPublishedAt}
             onPublish={handlePublish}
