@@ -61,6 +61,7 @@ import {
   type EditDevice,
   type PreviewFrameOverride,
 } from "./edit-context";
+import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { flushThenNavigate } from "./page-switch-flush";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { useEditorLocale } from "./use-editor-locale";
@@ -874,6 +875,44 @@ function formatSavedAgo(isoOrEpoch: string): string {
 }
 
 /**
+ * Perf spine — leaf Save-draft button. Subscribes to `saving` HERE so the
+ * double-submit guard (an explicit manual save while one is in flight) keeps
+ * working without the whole topbar re-rendering on every save flip. This gate
+ * is KEPT deliberately: it is a pressed-state affordance on an action that
+ * writes, not a stale-fragility gate.
+ */
+function SaveDraftButton({
+  onSaveDraft,
+}: {
+  onSaveDraft: () => void | Promise<unknown>;
+}) {
+  const saving = useSaving();
+  return (
+    <TbOutlineBtn
+      onClick={() => void onSaveDraft()}
+      disabled={saving}
+      title="Save draft (⌘S)"
+    >
+      <span
+        className="inline-flex shrink-0 items-center justify-center rounded-full"
+        style={{
+          width: 18,
+          height: 18,
+          background: CHROME.green,
+          color: CHROME.surface,
+        }}
+        aria-hidden
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      </span>
+      Save
+    </TbOutlineBtn>
+  );
+}
+
+/**
  * #18 — SaveStatus: surfaces the autosave state with a relative "Saved Xs ago"
  * timestamp (from `lastDraftSavedAt`) so operators always know when the last
  * checkpoint was written, and shows an amber "Unpublished changes" pill when
@@ -882,17 +921,17 @@ function formatSavedAgo(isoOrEpoch: string): string {
  */
 function SaveStatus({
   dirty,
-  saving,
-  lastDraftSavedAt,
   liveSitePublishedAt,
 }: {
   dirty: boolean;
-  saving: boolean;
-  /** ISO timestamp of the last successful draft save (from edit-context). */
-  lastDraftSavedAt?: string | null;
   /** ISO timestamp when the page was last published, or null if never. */
   liveSitePublishedAt?: string | null;
 }) {
+  // Perf spine (save-cycle bridge) — `saving` / `lastDraftSavedAt` are read
+  // HERE via the micro-store (not prop-drilled from the shell), so a save
+  // cycle re-renders only this status chip, not the whole topbar/shell.
+  const saving = useSaving();
+  const lastDraftSavedAt = useLastDraftSavedAt();
   // W3-T2(a) — surface a persistent SAVE-FAILURE state in the topbar status,
   // not just the transient mutation toast. A draft that didn't persist
   // (SAVE_FAILED) or lost a CAS race (VERSION_CONFLICT) flips the status chip to
@@ -1752,14 +1791,15 @@ type PublishMenuOption =
   | "pull-from-live:above"
   | "pull-from-live:below";
 
+// Perf spine — the `disabled` (was `saving`) prop is gone: this control and
+// its menu only open surfaces or fire queue-riding actions, so greying it
+// during routine autosaves was pure friction (see the render-site comment).
 function PublishSplitButton({
   onPublish,
   onMenuSelect,
-  disabled,
 }: {
   onPublish: () => void;
   onMenuSelect: (opt: PublishMenuOption) => void;
-  disabled?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const publishMenuId = useId();
@@ -1811,7 +1851,6 @@ function PublishSplitButton({
         <button
           type="button"
           onClick={onPublish}
-          disabled={disabled}
           title="Review publish checks in the drawer, then publish your draft to the live site"
           className="inline-flex cursor-pointer items-center gap-[8px] border-none text-[14px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
           style={{ padding: "0 18px 0 20px", background: "transparent" }}
@@ -2554,8 +2593,11 @@ function ExitButton() {
  * is mid-flight. `preventDefault` short-circuits the React 19 server-
  * action pipeline the same way it cancels native submits.
  */
-function ExitForm({ dirty, saving }: { dirty: boolean; saving: boolean }) {
+function ExitForm({ dirty }: { dirty: boolean }) {
   const editCtx = useMaybeEditContext();
+  // Perf spine (save-cycle bridge) — read `saving` here so only this form
+  // wakes on a save flip (it decides whether exit must flush first).
+  const saving = useSaving();
   // CANVAS-2 — flush the autosave queue before tearing down the EditProvider
   // instead of prompting with a blocking confirm(). When there are un-persisted
   // edits (or a save is mid-flight) we intercept the submit, AWAIT the shared
@@ -2845,7 +2887,9 @@ export interface TopBarProps {
   previewing: boolean;
   setPreviewing: (next: boolean) => void;
   dirty: boolean;
-  saving: boolean;
+  // Perf spine — `saving` / `lastDraftSavedAt` props removed: the leaf
+  // components that need them (SaveStatus, ExitForm, SaveDraftButton)
+  // subscribe to the save-cycle bridge directly.
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -2912,13 +2956,6 @@ export interface TopBarProps {
    * Null/undefined = never published for this row.
    */
   liveSitePublishedAt?: string | null;
-  /**
-   * #18 — ISO timestamp of the most recent successful draft save (from edit-context
-   * `lastDraftSavedAt`). Drives the "Saved Xs ago" display and the "Unpublished
-   * changes" pill (compare against `liveSitePublishedAt` to determine if the draft
-   * is ahead of the live site).
-   */
-  lastDraftSavedAt?: string | null;
 
   // ── WS3 — Publish dropdown wiring ────────────────────────────────────────
 
@@ -3014,7 +3051,6 @@ export function TopBar({
   previewing,
   setPreviewing,
   dirty,
-  saving,
   canUndo,
   canRedo,
   onUndo,
@@ -3033,7 +3069,6 @@ export function TopBar({
   defaultLocale = DEFAULT_PLATFORM_LOCALE,
   availableLocales = [],
   liveSitePublishedAt = null,
-  lastDraftSavedAt = null,
   onRevisions,
   onPageSettings,
   onDuplicatePage,
@@ -3212,7 +3247,7 @@ export function TopBar({
         <LabExitButton onExit={onExit} exitLabel={exitLabel} />
       ) : (
         <>
-          <ExitForm dirty={dirty} saving={saving} />
+          <ExitForm dirty={dirty} />
           {workspaceSlug ? <WorkspaceMenu slug={workspaceSlug} /> : null}
         </>
       )}
@@ -3287,41 +3322,24 @@ export function TopBar({
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
 
       {onSaveDraft ? (
-        <TbOutlineBtn
-          onClick={() => void onSaveDraft()}
-          disabled={saving}
-          title="Save draft (⌘S)"
-        >
-          <span
-            className="inline-flex shrink-0 items-center justify-center rounded-full"
-            style={{
-              width: 18,
-              height: 18,
-              background: CHROME.green,
-              color: CHROME.surface,
-            }}
-            aria-hidden
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </span>
-          Save
-        </TbOutlineBtn>
+        <SaveDraftButton onSaveDraft={onSaveDraft} />
       ) : null}
       <TopBarPresence />
       <SaveStatus
         dirty={dirty}
-        saving={saving}
-        lastDraftSavedAt={lastDraftSavedAt}
         liveSitePublishedAt={liveSitePublishedAt}
       />
 
       {/* ── Publish split (primary CTA) ── */}
+      {/* Perf spine — no `disabled={saving}` here: the button and its menu
+          only OPEN surfaces (publish drawer, schedule, revisions, settings) or
+          fire actions that ride the coalesced save queue (save-draft opens the
+          named-checkpoint modal, which has its own pending state; pull-from-live
+          rides the optimistic tree lane). Greying the primary CTA during
+          routine autosaves was pure friction. */}
       <PublishSplitButton
         onPublish={onPublish}
         onMenuSelect={handleMenuSelect}
-        disabled={saving}
       />
       </div>
 

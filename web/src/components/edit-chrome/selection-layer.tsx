@@ -110,6 +110,7 @@ import {
   useAdditionalSelectedIds,
   useAdditionalSelectedBuilderNodeIds,
 } from "./selection-bridge";
+import { getSavingSnapshot, usePageVersion, useSaving } from "./save-cycle-bridge";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import { CanvasRotateHandle } from "./canvas-rotate-handle";
@@ -718,9 +719,6 @@ export function SelectionLayer() {
     pasteCopiedBuilderNode,
     saveSelectedNodeAsComponent,
     setSectionVisibility,
-    saving,
-    /** Bumps after persisted mutations — canvas DOM may lag until RSC refresh completes. */
-    pageVersion,
     loadedSection,
     slots,
     slotDefs,
@@ -763,6 +761,9 @@ export function SelectionLayer() {
   const selectedBuilderNodeId = useSelectedBuilderNodeId();
   const additionalSelectedIds = useAdditionalSelectedIds();
   const additionalSelectedBuilderNodeIds = useAdditionalSelectedBuilderNodeIds();
+  // Perf spine — CAS version via the save-cycle bridge; `saving` is NOT
+  // subscribed here (leaf components / getSavingSnapshot cover the gates).
+  const pageVersion = usePageVersion();
   const styleClassRegistry = useSyncExternalStore(
     subscribeStyleClassRegistry,
     getStyleClassRegistrySnapshot,
@@ -3983,22 +3984,23 @@ export function SelectionLayer() {
         return;
       }
 
+      // Perf spine — node-op shortcuts are ungated (optimistic lane, safe
+      // mid-save); only the SECTION-duplicate branch keeps a snapshot gate.
       if (mod && !e.altKey && !e.shiftKey && key === "x") {
-        if (!blockClipboardActive || hasNativeTextSelection() || saving) return;
+        if (!blockClipboardActive || hasNativeTextSelection()) return;
         e.preventDefault();
         void cutSelectedBuilderNodes().then(reportResult);
         return;
       }
 
       if (mod && !e.altKey && !e.shiftKey && key === "v") {
-        if (!pasteTargetNodeId || hasNativeTextSelection() || saving) return;
+        if (!pasteTargetNodeId || hasNativeTextSelection()) return;
         e.preventDefault();
         void pasteBuilderNodeClipboard(pasteTargetNodeId).then(reportResult);
         return;
       }
 
       if (mod && !e.altKey && !e.shiftKey && key === "d") {
-        if (saving) return;
         e.preventDefault();
         if (multiNodeSelectionActive) {
           void duplicateSelectedBuilderNodes().then(reportResult);
@@ -4008,12 +4010,13 @@ export function SelectionLayer() {
           void duplicateBuilderNode(selectedBuilderNodeId).then(reportResult);
           return;
         }
+        // Section duplicate = AWAITED dispatch lane; keep the in-flight gate.
+        if (getSavingSnapshot()) return;
         void duplicateSelectedSections();
         return;
       }
 
       if (!mod && !e.altKey && !e.shiftKey && (e.key === "Backspace" || e.key === "Delete")) {
-        if (saving) return;
         if (multiNodeSelectionActive) {
           e.preventDefault();
           void removeSelectedBuilderNodes().then(reportResult);
@@ -4039,7 +4042,14 @@ export function SelectionLayer() {
         !e.shiftKey &&
         (e.code === "BracketRight" || e.code === "BracketLeft")
       ) {
-        if (saving) return;
+        // MERGE RESOLUTION (#1119 z-order × #1120 perf spine): the z-order
+        // branch landed with `if (saving) return;`, matching the convention
+        // that existed when it was written. The perf spine then removed that
+        // gate from every sibling node op — see the `disabled={false}` sites
+        // below — because those mutations ride the optimistic lane and
+        // CAS-reconcile if a save is in flight. Z-order is the same kind of
+        // node op on the same lane, so it is ungated too rather than being
+        // the one command that still blocks mid-autosave.
         const forward = e.code === "BracketRight";
         const command: ZOrderCommand = e.altKey
           ? forward
@@ -4135,7 +4145,6 @@ export function SelectionLayer() {
     pasteBuilderNodeClipboard,
     removeSelectedBuilderNodes,
     reportMutationError,
-    saving,
     selectBuilderNode,
     selectedBuilderNodeId,
     selectedBuilderNodeRects,
@@ -5115,7 +5124,6 @@ export function SelectionLayer() {
             isChildNode={contextMenuIsChildNode}
             canAddInside={canInsertIntoSelectedNode}
             isSectionHidden={isHidden}
-            saving={saving}
             nodeLocked={contextMenuNodeLocked}
             canWrapOrConvert={contextMenuCanWrapOrConvert}
             nodeCanMoveUp={contextMenuMoveContext.canMoveUp}
@@ -5348,7 +5356,7 @@ export function SelectionLayer() {
 	            <MultiSelectionToolbar
 	              rect={renderSelectedRect}
 	              count={Math.max(1, selectedBuilderNodeRects.length)}
-		              disabled={saving}
+		              disabled={false /* Perf spine — node ops ride the optimistic lane; no saving gate */}
 		              canGroup={multiNodeSelectionActive}
 		              canUngroup={canUngroupSelectedNode}
 		              canDistribute={selectedBuilderNodeRects.length >= 3}
@@ -5414,7 +5422,7 @@ export function SelectionLayer() {
 	                height: renderSelectedRect.height,
 	                bottom: renderSelectedRect.top + renderSelectedRect.height,
 	              }}
-	              disabled={saving}
+	              disabled={false /* Perf spine — text-style patches ride the optimistic lane; no saving gate */}
 	              locked={selectedBuilderNode.locked === true}
 	              nestedOpen={nestedPanelOpen}
 	              onToggleNested={
@@ -5753,7 +5761,7 @@ export function SelectionLayer() {
                     ? () => setNestedPanelOpen((open) => !open)
                     : null
                 }
-                disabled={saving}
+                disabled={false /* Perf spine — node ops ride the optimistic lane; no saving gate */}
                 confirmRemove={confirmRemove}
                 canEditText={selectedNodeHasInlineTextTarget}
                 onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
@@ -5824,7 +5832,6 @@ export function SelectionLayer() {
               />
             ) : (
               <ChipToolBar
-                disabled={saving}
                 confirmRemove={confirmRemove}
                 isHidden={isHidden}
                 multiCount={additionalSelectedIds.size}
@@ -6424,7 +6431,6 @@ function SelectionContextMenu({
   isChildNode,
   canAddInside,
   isSectionHidden,
-  saving,
   nodeLocked = false,
   canWrapOrConvert = false,
   nodeCanMoveUp = false,
@@ -6460,7 +6466,6 @@ function SelectionContextMenu({
   isChildNode: boolean;
   canAddInside: boolean;
   isSectionHidden: boolean;
-  saving: boolean;
   /** #30 — the targeted freeform block is locked → only Unlock + Copy are live. */
   nodeLocked?: boolean;
   /** #30 — block is a genuinely editable freeform node (wrap/convert eligible). */
@@ -6496,9 +6501,12 @@ function SelectionContextMenu({
   onZOrder?: (command: ZOrderCommand) => void;
 }) {
   const { t } = useEditorLocale();
+  // Perf spine — leaf subscription; NODE rows ungated (optimistic lane),
+  // SECTION rows keep the gate (awaited dispatch lane, real CAS race).
+  const saving = useSaving();
   if (!state) return null;
   const canPasteBlock = !!pastePreview;
-  const pasteDisabled = saving || pastePreview?.mode === "blocked";
+  const pasteDisabled = pastePreview?.mode === "blocked";
   const pasteLabel =
     pastePreview?.mode === "blocked"
       ? t("Pasting isn't allowed here")
@@ -6587,23 +6595,23 @@ function SelectionContextMenu({
       {/* #30 — a LOCKED block is inert to structure edits: only Unlock + Copy
        *  stay live (mirrors the canvas click-guard that absorbs locked nodes). */}
       {!nodeLocked ? (
-        <ContextMenuButton disabled={saving} onClick={onEdit}>
+        <ContextMenuButton onClick={onEdit}>
           {t("Edit content")}
         </ContextMenuButton>
       ) : null}
       {canAddInside && !nodeLocked ? (
-        <ContextMenuButton disabled={saving} onClick={onAddInside}>
+        <ContextMenuButton onClick={onAddInside}>
           {t("Add block inside")}
         </ContextMenuButton>
       ) : null}
       {isChildNode ? (
         <>
-          <ContextMenuButton disabled={saving} onClick={onCopyNode}>
+          <ContextMenuButton onClick={onCopyNode}>
             {t("Copy block")}
           </ContextMenuButton>
           {!nodeLocked ? (
             <>
-              <ContextMenuButton disabled={saving} onClick={onDuplicate}>
+              <ContextMenuButton onClick={onDuplicate}>
                 {t("Duplicate block")}
               </ContextMenuButton>
               {canPasteBlock ? (
@@ -6613,12 +6621,12 @@ function SelectionContextMenu({
               ) : null}
               {nodeCanMoveUp || nodeCanMoveDown ? <ContextMenuSeparator /> : null}
               {nodeCanMoveUp ? (
-                <ContextMenuButton disabled={saving} onClick={onMoveNodeUp}>
+                <ContextMenuButton onClick={onMoveNodeUp}>
                   {t("Move block up")}
                 </ContextMenuButton>
               ) : null}
               {nodeCanMoveDown ? (
-                <ContextMenuButton disabled={saving} onClick={onMoveNodeDown}>
+                <ContextMenuButton onClick={onMoveNodeDown}>
                   {t("Move block down")}
                 </ContextMenuButton>
               ) : null}
@@ -6667,11 +6675,10 @@ function SelectionContextMenu({
               {canWrapOrConvert ? (
                 <>
                   <ContextMenuSeparator />
-                  <ContextMenuButton disabled={saving} onClick={onWrap}>
+                  <ContextMenuButton onClick={onWrap}>
                     {t("Wrap in container")}
                   </ContextMenuButton>
                   <ContextMenuButton
-                    disabled={saving}
                     onClick={onConvertToComponent}
                   >
                     {t("Convert to component")}
@@ -6681,11 +6688,11 @@ function SelectionContextMenu({
             </>
           ) : null}
           <ContextMenuSeparator />
-          <ContextMenuButton disabled={saving} onClick={onToggleLock}>
+          <ContextMenuButton onClick={onToggleLock}>
             {nodeLocked ? t("Unlock block") : t("Lock block")}
           </ContextMenuButton>
           {!nodeLocked ? (
-            <ContextMenuButton disabled={saving} danger onClick={onRemoveNode}>
+            <ContextMenuButton danger onClick={onRemoveNode}>
               {t("Remove block")}
             </ContextMenuButton>
           ) : null}
@@ -7015,7 +7022,6 @@ function ChipTextAction({
 }
 
 function ChipToolBar({
-  disabled,
   confirmRemove,
   isHidden,
   multiCount = 0,
@@ -7032,7 +7038,6 @@ function ChipToolBar({
   onRemoveConfirm,
   onRemoveCancel,
 }: {
-  disabled: boolean;
   confirmRemove: boolean;
   isHidden: boolean;
   /** Sprint 4 — number of ADDITIONAL sections in the multi-select.
@@ -7059,6 +7064,8 @@ function ChipToolBar({
   onRemoveCancel: () => void;
 }) {
   const { t } = useEditorLocale();
+  // Perf spine — SECTION chip actions = awaited dispatch lane; gate stays.
+  const disabled = useSaving();
   if (confirmRemove) {
     const totalToRemove = multiCount + 1;
     const removeLabel =

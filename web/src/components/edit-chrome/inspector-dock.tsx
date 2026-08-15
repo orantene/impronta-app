@@ -53,6 +53,7 @@ import {
 import { useInspectorRailCoupling } from "./use-inspector-rail-coupling";
 import { useDirty } from "./dirty-bridge";
 import { useDraftProps } from "./draft-props-bridge";
+import { useSaving } from "./save-cycle-bridge";
 import { ContentTab } from "./inspectors/content-dispatch";
 import {
   findBuilderNodeById,
@@ -308,7 +309,6 @@ export function InspectorDock() {
     setLoadedSection,
     setDraftProps,
     setDirty,
-    saving,
     setSaving,
     recordFieldEdit,
     syncBuilderNodeChildrenForSection,
@@ -344,6 +344,10 @@ export function InspectorDock() {
   const additionalSelectedBuilderNodeIds = useAdditionalSelectedBuilderNodeIds();
   // W2-T4 — `dirty` VALUE from the dirty-bridge (setter stays on context).
   const dirty = useDirty();
+  // Perf spine (save-cycle bridge) — the dock shows draft status (dirty /
+  // saving / error), so it is a legitimate reactive reader; subscribing here
+  // keeps that behavior while the CONTEXT no longer rebuilds on save flips.
+  const saving = useSaving();
   // Wave 3 (3.1) — `draftProps` VALUE from the draft-props-bridge (setter
   // stays on context). The dock re-renders per working-copy write (it renders
   // the inspector inputs + drives autosave), which is exactly correct — the
@@ -1467,7 +1471,7 @@ export function InspectorDock() {
                 <MultiSelectionStylePanel
                   nodes={multiSelectedNodes}
                   bucket={multiSelectionBucket}
-                  disabled={saving}
+                  disabled={false /* Perf spine — bulk style patches ride the optimistic lane; no saving gate */}
                   onBulkStylePatch={(stylePatchJson, bucket) => {
                     void patchSelectedBuilderNodesStyle(
                       stylePatchJson,

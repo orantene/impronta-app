@@ -206,6 +206,34 @@ test("undo and redo stay consistent across a coalesced burst", () => {
   assert.deepEqual(m.saves[m.saves.length - 1], { size: 2 }, "server matches the stack");
 });
 
+test("an edit right after an undo supersedes the undone tree and kills redo", () => {
+  // Perf-spine regression: undo is optimistic and its persist is debounced, so
+  // an edit landing INSIDE that debounce window must (a) supersede the owed
+  // undone tree (never resurrect the undone state on the server), and (b) clear
+  // `future` so the abandoned branch is unreachable.
+  const m = new CoalescingHarness();
+  m.edit({ size: 1 });
+  m.edit({ size: 2 });
+  m.flush(); // server confirmed {2}
+  assert.equal(m.undo(), true); // optimistic {1}; {1} owed to the server
+  // The operator types again IMMEDIATELY — before the undo's debounce fires.
+  m.edit({ size: 7 });
+  assert.deepEqual(m.tree, { size: 7 });
+  assert.equal(m.futureRef.length, 0, "a new edit branches away from redo");
+  assert.equal(m.redo(), false, "the undone {2} can never be resurrected");
+  m.flush();
+  assert.deepEqual(
+    m.saves,
+    [{ size: 2 }, { size: 7 }],
+    "ONE persist since the confirmed {2}: the new edit — the intermediate undone tree never hit the server",
+  );
+  assert.deepEqual(m.lastConfirmed, { size: 7 });
+  // History is coherent: the new edit's `pre` is the undone-to state, so a
+  // further undo steps back to {1}, not to the abandoned branch.
+  assert.equal(m.undo(), true);
+  assert.deepEqual(m.tree, { size: 1 });
+});
+
 test("a failed flush restores BOTH stacks, not just a count of past entries", () => {
   const m = new CoalescingHarness();
   m.edit({ size: 1 });

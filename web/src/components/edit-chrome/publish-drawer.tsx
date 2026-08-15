@@ -79,6 +79,7 @@ import {
 import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useDirty } from "./dirty-bridge";
+import { useSaving } from "./save-cycle-bridge";
 import { PublishPreflight } from "./PublishPreflight";
 import { MobileHealthPanel } from "./MobileHealthPanel";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
@@ -252,7 +253,6 @@ export function PublishDrawer() {
     getCompositionCasVersion,
     pageId,
     pageSlug,
-    saving,
     locale,
     refreshComposition,
     savePageMetadata,
@@ -272,6 +272,10 @@ export function PublishDrawer() {
   const builderTree = useBuilderTree();
   // W2-T4 — `dirty` VALUE from the dirty-bridge.
   const dirty = useDirty();
+  // Perf spine (save-cycle bridge) — publish flows genuinely race an
+  // in-flight save (CAS versions), so this drawer KEEPS all its `saving`
+  // gates — the value just comes from the micro-store now.
+  const saving = useSaving();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
   // "Copy from live" — overwrite the draft with the published snapshot. Local

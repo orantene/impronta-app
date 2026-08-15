@@ -80,6 +80,14 @@ import { getSelectedBuilderNodeIdSnapshot } from "@/components/edit-chrome/selec
 // provider publishes them from effects; we assert against the bridge snapshots
 // after the flushing act(), mirroring the selection-bridge precedent above.
 import { getBuilderTreeSnapshot } from "@/components/edit-chrome/builder-tree-bridge";
+// `saving` and `pageVersion` no longer live on the context value — they moved
+// to the save-cycle bridge so a routine autosave stops re-rendering every
+// consumer. Read them the same way this file already reads selection and tree
+// state: through the bridge's non-reactive snapshot.
+import {
+  getPageVersionSnapshot,
+  getSavingSnapshot,
+} from "@/components/edit-chrome/save-cycle-bridge";
 import {
   getCanUndoSnapshot,
   getCanRedoSnapshot,
@@ -272,8 +280,8 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     expect(saveDraftMock).toHaveBeenCalledTimes(1);
     // The mocked action received the CAS expectedVersion = the loaded version.
     expect(saveDraftMock.mock.calls[0][0]).toMatchObject({ expectedVersion: 5 });
-    expect(ctx().pageVersion).toBe(6);
-    expect(ctx().saving).toBe(false);
+    expect(getPageVersionSnapshot()).toBe(6);
+    expect(getSavingSnapshot()).toBe(false);
   });
 
   it("VERSION_CONFLICT recovery: rolls back the optimistic tree, refreshes composition, WIPES both undo+redo stacks, clears saving, and refreshes the version", async () => {
@@ -303,8 +311,8 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     expect(getCanUndoSnapshot()).toBe(false);
     expect(getCanRedoSnapshot()).toBe(false);
     // No stuck spinner; version advanced to the server's.
-    expect(ctx().saving).toBe(false);
-    expect(ctx().pageVersion).toBe(9);
+    expect(getSavingSnapshot()).toBe(false);
+    expect(getPageVersionSnapshot()).toBe(9);
     // W3-T2(c/d) — the operator's rejected tree is parked, so the conflict is
     // recoverable rather than silently discarded.
     expect(ctx().hasConflictRecovery).toBe(true);
@@ -330,7 +338,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     // Conflict: rolled back + recovery armed at the reloaded version (9).
     expect(headingStyle()?.textColor).toBeUndefined();
     expect(ctx().hasConflictRecovery).toBe(true);
-    expect(ctx().pageVersion).toBe(9);
+    expect(getPageVersionSnapshot()).toBe(9);
 
     // Keep my version → re-apply the parked tree on top of the fresh base.
     await act(async () => {
@@ -343,7 +351,7 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     expect(saveDraftMock).toHaveBeenCalledTimes(2);
     expect(saveDraftMock.mock.calls[1][0]).toMatchObject({ expectedVersion: 9 });
     // The save landed, version advanced, and the recovery is cleared.
-    expect(ctx().pageVersion).toBe(10);
+    expect(getPageVersionSnapshot()).toBe(10);
     expect(ctx().hasConflictRecovery).toBe(false);
   });
 
@@ -363,9 +371,9 @@ describe("W0-T4 undo/redo + CAS (REAL EditProvider)", () => {
     expect(saveDraftMock).toHaveBeenCalledTimes(1);
     expect(loadCompositionMock).not.toHaveBeenCalled(); // NO refresh on network error
     expect(headingStyle()?.textColor).toBeUndefined(); // rolled back
-    expect(ctx().saving).toBe(false);
+    expect(getSavingSnapshot()).toBe(false);
     // Version unchanged — the conflict path is the only one that re-versions.
-    expect(ctx().pageVersion).toBe(5);
+    expect(getPageVersionSnapshot()).toBe(5);
   });
 
   it("undo history PERSISTS to localStorage and REHYDRATES across a remount (undo-survives-reload)", async () => {

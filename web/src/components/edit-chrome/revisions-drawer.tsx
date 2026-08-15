@@ -53,6 +53,7 @@ import {
   DrawerSkeleton,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { usePageVersion } from "./save-cycle-bridge";
 import {
   loadHomepageRevisionsAction,
   loadPageRevisionsAction,
@@ -157,12 +158,14 @@ export function RevisionsDrawer(): ReactElement | null {
     locale,
     pageSlug,
     pageId,
-    pageVersion,
     pageMetadata,
     restoreRevision,
     loadSurfaceRevisions,
     surfaceKind,
   } = useEditContext();
+  // Perf spine (save-cycle bridge) — draft CAS version via the micro-store
+  // (this drawer reloads its revision list when a save lands).
+  const pageVersion = usePageVersion();
 
   // REV-1 — per-surface label key so named versions don't bleed across surfaces
   // sharing one browser (e.g. storefront homepage vs talent-site shell).

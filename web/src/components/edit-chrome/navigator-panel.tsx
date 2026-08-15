@@ -82,6 +82,7 @@ import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/e
 
 import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
+import { usePageVersion } from "./save-cycle-bridge";
 import { useSectionHeadlines } from "./section-headline-bridge";
 import {
   useSelectedSectionId,
@@ -265,7 +266,6 @@ export function NavigatorPanel() {
     renameSection,
     slots,
     slotDefs,
-    pageVersion,
     pageMetadata,
     moveSectionTo,
     moveBuilderNodeWithinParent,
@@ -295,6 +295,9 @@ export function NavigatorPanel() {
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
   } = useEditContext();
+  // Perf spine (save-cycle bridge) — draft CAS version via the micro-store
+  // (keys the headline prefetch; a landed save re-runs it).
+  const pageVersion = usePageVersion();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge). The navigator
   // renders the tree, so this subscription is exactly the intended re-render.
   const builderTree = useBuilderTree();
