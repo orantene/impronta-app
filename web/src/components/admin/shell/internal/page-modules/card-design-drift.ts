@@ -1,0 +1,48 @@
+/**
+ * Draft↔live delta helpers for the Card Design studio's Publish cluster.
+ *
+ * Publish promotes the ENTIRE design draft — not just the card slice this page
+ * edits — so the studio must know two things:
+ *
+ *   - `computeDesignDirty`: has anything THIS PAGE touches diverged from live?
+ *     (union of keys, so template tokens like reviews/standing count too)
+ *   - `computeDriftCount`: how many draft↔live differences exist OUTSIDE the
+ *     page's own tokens? Those ship on Publish as well; surfacing the count is
+ *     the guardrail against the 2026-08-15 incident where a one-swatch publish
+ *     silently carried a stale site-wide theme draft live.
+ */
+
+// Registry defaults for the reviews-on-cards template tokens. Module scope so
+// readTemplateToken's dependency array can stay honest (only draftTokens varies).
+export const STANDING_DEFAULTS: Record<string, string> = {
+  "directory.card.show-standing": "compact",
+  "directory.card.standing-style": "both",
+  "profile.reviews-visibility": "visible",
+};
+
+/** Union-key inequality between two token maps ("" and absent are equal). */
+export function computeDesignDirty(
+  draft: Record<string, string>,
+  live: Record<string, string>,
+): boolean {
+  const keys = new Set([...Object.keys(draft), ...Object.keys(live)]);
+  for (const k of keys) {
+    if ((draft[k] ?? "") !== (live[k] ?? "")) return true;
+  }
+  return false;
+}
+
+/** Count of draft↔live differences whose key is NOT owned by this page. */
+export function computeDriftCount(
+  fullDraft: Record<string, string>,
+  fullLive: Record<string, string>,
+  pageOwnedKeys: ReadonlySet<string>,
+): number {
+  const keys = new Set([...Object.keys(fullDraft), ...Object.keys(fullLive)]);
+  let n = 0;
+  for (const k of keys) {
+    if (pageOwnedKeys.has(k)) continue;
+    if ((fullDraft[k] ?? "") !== (fullLive[k] ?? "")) n += 1;
+  }
+  return n;
+}
