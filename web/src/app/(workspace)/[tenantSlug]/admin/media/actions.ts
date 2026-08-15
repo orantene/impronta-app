@@ -7,6 +7,7 @@ import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
 import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
 import {
   extractImageMetadata,
@@ -1203,6 +1204,10 @@ export async function actionGetTalentDocumentSignedUrl(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
+  if (!isTalentDocumentRef(bucketId, storagePath, talentProfileId)) {
+    return { ok: false, error: "That file doesn't belong to this talent." };
+  }
+
   // Roster guard.
   const { data: rosterRow } = await admin
     .from("agency_talent_roster")
@@ -1236,6 +1241,12 @@ export async function actionDeleteTalentDocument(
 
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // Same hole as the signed-URL action, but for a DELETE — a crafted
+  // bucket + path could remove another tenant's object.
+  if (!isTalentDocumentRef(bucketId, storagePath, talentProfileId)) {
+    return { ok: false, error: "That file doesn't belong to this talent." };
+  }
 
   // Roster guard.
   const { data: rosterRow } = await admin
