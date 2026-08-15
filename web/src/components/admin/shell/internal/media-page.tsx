@@ -52,6 +52,7 @@ import { MediaOwnershipChip } from "@/components/admin/media/media-ownership-chi
 import { MediaDownloadRow } from "@/components/admin/media/media-download-row";
 import { collectionNavLabel, splitFolderCollections } from "@/lib/media/collections";
 import { MediaReleaseRequestsPanel } from "@/components/admin/media/media-release-requests-panel";
+import { TalentMediaQuotaLine } from "@/components/talent/media-quota-line";
 import type {
   WorkspaceMediaPhoto as BridgeMediaPhoto,
   WorkspaceMediaFolder as BridgeMediaFolder,
@@ -1750,6 +1751,16 @@ export function WorkspaceMediaPage() {
   // ── Filtering / sorting ──────────────────────────────────────────
   const allTalentNames = useMemo(() => Array.from(new Set(photos.map((p) => p.talentName))).sort(), [photos]);
 
+  // B13 — the talent behind the name in the filter dropdown, so the header can
+  // show THAT talent's plan usage. Null while the filter is "all": the quota is
+  // per talent and a workspace-wide fraction would be a number we made up.
+  // Workspace brand/site assets carry an empty talentProfileId and are skipped.
+  const filteredTalentProfileId = useMemo(() => {
+    if (filterTalent === "all") return null;
+    const match = photos.find((p) => p.talentName === filterTalent && !!p.talentProfileId);
+    return match?.talentProfileId ?? null;
+  }, [photos, filterTalent]);
+
   const filtered = useMemo(() => {
     let list = photos.filter((p) => {
       if (view.kind === "folder") {
@@ -2565,6 +2576,18 @@ export function WorkspaceMediaPage() {
               {withPluralization(t)("dashboard.adminMedia.nFolders", folders.length)}
               {mediaSettings.showWatermark && wsWatermarkEnabled && wsLogoUrl && <span style={{ marginLeft: 8 }} className="text-admin-success">{" · "}{t("dashboard.adminMedia.watermarkOn")}</span>}
             </p>
+            {/* B13 — plan usage for the talent currently filtered. The cap is
+                PER TALENT, so a workspace-wide fraction would be invented;
+                narrowing the talent filter is what makes the number real.
+                Staff hit this cap on someone else's behalf when they bulk
+                assign, and until now only saw it as a refusal. */}
+            {filteredTalentProfileId && (
+              <TalentMediaQuotaLine
+                talentProfileId={filteredTalentProfileId}
+                talentName={filterTalent}
+                className="mt-1"
+              />
+            )}
           </div>
           <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", position: "relative" }}>
             {/* Settings gear */}

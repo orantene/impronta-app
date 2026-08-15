@@ -10843,8 +10843,6 @@
       "saving": "Guardando...",
       "saved": "Selección guardada.",
       "selectedCount": "{count} seleccionadas",
-      "declinedBadge": "Rechazada",
-      "statusDenied": "No liberada. Puedes volver a pedirla.",
       "captionPlaceholder": "Añade un pie de foto para este sitio…",
       "captionSaving": "Guardando pie de foto…",
       "captionSaved": "Pie de foto guardado.",
@@ -10886,7 +10884,13 @@
       "sending": "Enviando...",
       "sent": "Solicitud enviada. El espacio recibirá una notificación.",
       "mixedOwners": "Elige fotos de un solo espacio a la vez. Solo ese espacio puede responder.",
-      "selectedCount": "{count} seleccionadas"
+      "selectedCount": "{count} seleccionadas",
+      "declinedBadge": "Rechazada",
+      "statusDenied": "No liberada. Puedes volver a pedirla.",
+      "withdraw": "Retirar solicitud",
+      "withdrawHint": "Retira la solicitud completa, incluidas las demás fotos que pediste en ella. Puedes volver a pedirla más adelante.",
+      "withdrawing": "Retirando...",
+      "withdrawn": "Solicitud retirada. La foto vuelve a estar bloqueada."
     },
     "mediaReleaseRequests": {
       "activeRelease": "Liberación activa. El talento puede usar estas fotos en cualquier lugar.",
@@ -10908,7 +10912,15 @@
       "watermarkLabel": "Exigir marca de agua",
       "watermarkHint": "Las fotos liberadas aparecen en otros sitios con tu logo. Configura el logo y su posición en Ajustes, Marca.",
       "approvedWatermarked": "Liberaste {count} foto(s) con tu marca de agua.",
-      "watermarkPermanentHint": "Esta elección queda fija para esta liberación. Para cambiarla más tarde, revoca la liberación y aprueba una nueva."
+      "watermarkPermanentHint": "Esta elección queda fija para esta liberación. Para cambiarla más tarde, revoca la liberación y aprueba una nueva.",
+      "historyTitle": "Decisiones anteriores",
+      "historyHint": "Lo que ya respondiste. Nada de esto está activo.",
+      "historyLoading": "Cargando decisiones anteriores...",
+      "historyEmpty": "Todavía no decidiste nada.",
+      "historyEntry": "{talent} · {count} fotos",
+      "outcomeDeclined": "Rechazada",
+      "outcomeWithdrawn": "Retirada por el talento",
+      "outcomeRevoked": "Liberación terminada"
     },
     "mediaPickerLock": {
       "badge": "Bloqueada",
@@ -10920,6 +10932,14 @@
     "mediaPicker": {
       "quotaLimitReached": "Has alcanzado el limite de fotos de tu plan. Elimina algunas fotos que ya no necesites o mejora tu plan para agregar mas.",
       "quotaApproachingLimit": "Te quedan {count} fotos disponibles en tu plan. Elimina fotos que ya no necesites o mejora tu plan para tener mas espacio."
+    },
+    "mediaQuota": {
+      "usage": "{used} de {cap} fotos usadas en tu plan.",
+      "unlimited": "Tu plan no tiene límite de fotos.",
+      "roomLeft": "Te caben {remaining} más.",
+      "full": "No queda espacio. Elimina fotos que ya no necesites o mejora tu plan.",
+      "forTalent": "{talent}: {used} de {cap} fotos usadas en su plan.",
+      "forTalentUnlimited": "{talent} no tiene límite de fotos en su plan."
     }
   },
   "admin": {

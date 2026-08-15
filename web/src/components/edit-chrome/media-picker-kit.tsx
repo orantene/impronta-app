@@ -33,6 +33,25 @@ export interface MediaPickerFolder {
   assetIds: string[];
 }
 
+/**
+ * `t()` returns the KEY itself when a catalog has no entry, so a bare
+ * `t(key) || fallback` never reaches the fallback. Compare against the key to
+ * tell "missing" from "translated", and fall back to the server's own
+ * plain-language English rather than showing a raw dotted key to a talent.
+ *
+ * Lives in the kit rather than in the drawer because the drawer sits ON the
+ * 800-line lint cap, and this is presentation glue holding no drawer state.
+ */
+export function translateOr(
+  t: (key: string) => string,
+  key: string,
+  fallback: string | null | undefined,
+): string {
+  const translated = t(key);
+  if (translated && translated !== key) return translated;
+  return fallback ?? translated;
+}
+
 /** Resolve a picker item's kind, defaulting legacy/absent values to image. */
 export function pickerKind(item: MediaPickerItem): MediaPickerAssetKind {
   return item.assetKind === "video" || item.assetKind === "document"

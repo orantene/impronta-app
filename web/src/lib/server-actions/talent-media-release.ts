@@ -26,8 +26,10 @@ import {
   loadTalentDisplayName,
   loadTalentMediaLocks,
   requestMediaRelease,
+  withdrawMediaReleaseRequest,
   MAX_RELEASE_ASSETS,
   type ReleaseRequestOutcome,
+  type ReleaseWithdrawOutcome,
   type TalentMediaLock,
 } from "@/lib/site-admin/server/media-grants";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -104,6 +106,53 @@ export async function actionRequestMediaRelease(input: {
   // The subject key moved, so the lock state the tiles render is stale even
   // though nothing is presentable yet.
   for (const key of bustKeysFor(input.talentProfileId, input.ownerTenantId, input.targetTenantId)) {
+    revalidateTag(hubTalentMediaTag(key.tenantId, key.talentProfileId), "default");
+    revalidateTag(tagFor(key.tenantId, "storefront"), "default");
+  }
+
+  return result;
+}
+
+/**
+ * Take back an ask that has not been answered yet (B11).
+ *
+ * The talent's own consent is theirs to withdraw, so this needs no workspace
+ * involvement — but it is still `requireTalentSelfAction`, and the query below
+ * re-asserts `talent_profile_id` on the row, so a request id belonging to
+ * someone else is simply "no longer open".
+ *
+ * One request usually covers several photos; withdrawing ends the whole ask.
+ */
+export async function actionWithdrawMediaReleaseRequest(input: {
+  talentProfileId: string;
+  requestId: string;
+}): Promise<ActionResult<ReleaseWithdrawOutcome>> {
+  if (!UUID_RE.test(input.talentProfileId)) return { ok: false, error: "Invalid request." };
+  if (!UUID_RE.test(input.requestId)) return { ok: false, error: "Invalid request." };
+
+  const auth = await requireTalentSelfAction(input.talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const talentName = await loadTalentDisplayName(admin, input.talentProfileId);
+
+  const result = await withdrawMediaReleaseRequest(admin, {
+    talentProfileId: input.talentProfileId,
+    talentName,
+    requestId: input.requestId,
+    actorUserId: auth.user.id,
+  });
+  if (!result.ok) return result;
+
+  // The subject key was revoked with the ask, so the lock state on every tile
+  // it covered is stale — same bust set the request path uses.
+  for (const key of bustKeysFor(
+    input.talentProfileId,
+    result.data.ownerTenantId,
+    result.data.targetTenantId,
+  )) {
     revalidateTag(hubTalentMediaTag(key.tenantId, key.talentProfileId), "default");
     revalidateTag(tagFor(key.tenantId, "storefront"), "default");
   }

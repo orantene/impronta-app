@@ -18,6 +18,8 @@ import { RequestReleaseButton } from "./media-picker-request-release";
 import { useT } from "@/i18n/use-t";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
 import { compressImage } from "@/lib/client/image-compress";
+import { TalentMediaQuotaLine } from "@/components/talent/media-quota-line";
+import { advanceMediaQuota, type MediaQuotaSnapshot } from "@/lib/media/quota-line";
 
 import {
   CHROME,
@@ -41,6 +43,7 @@ import {
   StatePanel,
   StatusNotice,
   TagEditor,
+  translateOr,
   type MediaPickerAssetKind,
   type MediaPickerFolder,
   type MediaPickerItem,
@@ -86,22 +89,6 @@ interface MediaPickerDrawerProps {
 
 const TITLE_ID = "media-picker-drawer-title";
 
-/**
- * `t()` returns the KEY itself when a catalog has no entry, so a bare
- * `t(key) || fallback` never reaches the fallback. Compare against the key to
- * tell "missing" from "translated", and fall back to the server's own
- * plain-language English rather than showing a raw dotted key to a talent.
- */
-function translateOr(
-  t: (key: string) => string,
-  key: string,
-  fallback: string | null | undefined,
-): string {
-  const translated = t(key);
-  if (translated && translated !== key) return translated;
-  return fallback ?? translated;
-}
-
 export function MediaPickerDrawer({
   tenantId,
   open,
@@ -137,6 +124,8 @@ export function MediaPickerDrawer({
   const [uploadError, setUploadError] = useState<string | null>(null);
   /** Soft 80% plan-quota warning. Not an error: the upload went through. */
   const [quotaNotice, setQuotaNotice] = useState<string | null>(null);
+  /** Plan usage, returned WITH the library payload (B13) — no extra fetch. */
+  const [quota, setQuota] = useState<MediaQuotaSnapshot | null>(null);
   const [pending, setPending] = useState<string[]>([]);
   const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
   const [savingAltId, setSavingAltId] = useState<string | null>(null);
@@ -163,6 +152,7 @@ export function MediaPickerDrawer({
       setFolders((body.folders ?? []) as MediaPickerFolder[]);
       setPortfolioAssetIds((body.portfolioAssetIds ?? []) as string[]);
       setLockedAssets((body.locked ?? []) as LockedAsset[]);
+      setQuota((body.quota as MediaQuotaSnapshot | null) ?? null);
       setAltDrafts(
         Object.fromEntries(loaded.map((item) => [item.id, item.alt ?? ""])),
       );
@@ -232,6 +222,7 @@ export function MediaPickerDrawer({
               ).replace("{count}", String(body.quotaRemaining ?? 0))
             : null,
         );
+        setQuota(advanceMediaQuota); // the photo that just landed counts
         item = body.item as MediaPickerItem;
       } else {
         // MEDIA-1 — route by the file's kind so staff can add video/doc assets,
@@ -610,6 +601,12 @@ export function MediaPickerDrawer({
               ))}
             </div>
           ) : null}
+
+          {/* B13 — the plan's photo count, BEFORE anything refuses. This drawer
+              was the only surface that ever mentioned the cap, and only as an
+              80% notice AFTER a successful upload. Talent scope only: the cap
+              is per talent, so staff see nothing rather than a made-up one. */}
+          {isTalentScope ? <TalentMediaQuotaLine quota={quota} className="mb-3" /> : null}
 
           {uploadError || altError ? (
             <StatusNotice message={uploadError ?? altError ?? ""} />

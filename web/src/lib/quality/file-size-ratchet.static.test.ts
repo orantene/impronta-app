@@ -103,7 +103,12 @@ const BUDGETS: Record<string, number> = {
   // (components/talent/media-release-panel.tsx) and every query lives in
   // lib/site-admin/server/media-grants.ts; what landed here is one import and
   // one guarded mount.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4727,
+  // 2026-08-15 media UX deferred pass (B13) — +9: the plan-usage line above
+  // the Photos & video section, self-mode only. The line itself is
+  // components/talent/media-quota-line.tsx and the numbers come from
+  // lib/media/talent-storage-usage.ts; what landed here is one import and one
+  // guarded mount.
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4736,
   "src/components/admin/shell/internal/wave2.tsx": 4597,
   "src/components/admin/shell/internal/workspace.tsx": 3559,
   // 2026-08-10 branding-media: +18 Spanish entries for the Brand identity
@@ -135,7 +140,13 @@ const BUDGETS: Record<string, number> = {
   // mounting the download control. The download UI is a separate component
   // (components/admin/media/media-download-row.tsx) and the originals policy
   // lives in lib/media/originals-policy.ts.
-  "src/components/admin/shell/internal/media-page.tsx": 2925,
+  // 2026-08-15 media UX deferred pass (B13) — +23: the per-talent plan-usage
+  // line in the page header, shown only while the talent filter names one
+  // person (the cap is per talent, so a workspace-wide fraction would be
+  // invented). One import, one memo resolving the filtered name to a profile
+  // id, and one guarded mount; the line and its copy live in
+  // components/talent/media-quota-line.tsx + lib/media/quota-line.ts.
+  "src/components/admin/shell/internal/media-page.tsx": 2948,
   "src/components/admin/shell/internal/state/types.ts": 2747,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,

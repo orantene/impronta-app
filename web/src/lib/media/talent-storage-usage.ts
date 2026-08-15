@@ -30,9 +30,25 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   checkTalentAssetCountAllowance,
   normalizeTalentMediaPlanKey,
+  talentMediaStorageQuota,
   type AssetCountVerdict,
   type TalentMediaPlanKey,
 } from "@/lib/billing/media-entitlements";
+
+/**
+ * What a surface needs to say "N of M photos" BEFORE anyone hits the wall
+ * (execution-plan-2026-08-15 §3 B13).
+ *
+ * `cap === null` is Portfolio (or an unknown plan key degrading to it) and MUST
+ * render as "no limit" — never as a fraction with a null denominator.
+ */
+export type TalentMediaUsage = {
+  used: number;
+  /** null = unmetered. Read from MEDIA_ENTITLEMENT_CONFIG, never invented. */
+  cap: number | null;
+  /** null when `cap` is null. Never negative: someone already over keeps it. */
+  remaining: number | null;
+};
 
 /**
  * Live count of media assets a talent owns. Returns null when the query fails,
@@ -64,6 +80,36 @@ export async function readTalentMediaPlanKey(
     .maybeSingle();
   if (error || !data) return normalizeTalentMediaPlanKey(null);
   return normalizeTalentMediaPlanKey((data as { talent_plan_key: unknown }).talent_plan_key);
+}
+
+/**
+ * THE read behind every "N of M photos" line (B13).
+ *
+ * Until this existed the cap was invisible until it refused an upload, and the
+ * only warning anywhere fired at 80% AFTER a successful upload, on one surface.
+ * A quota nobody can see is indistinguishable from a bug when it finally bites.
+ *
+ * ONE COUNT PER CALL, deliberately: the same two round trips the upload gate
+ * already makes (`checkTalentUploadQuota`), and never per tile. Callers hand
+ * the result down; nothing re-reads it per asset.
+ *
+ * Returns null when the count read fails — callers render NOTHING rather than
+ * a made-up number. Showing "0 of 150" to a talent with 90 photos would be
+ * worse than showing no line at all.
+ */
+export async function readTalentMediaUsage(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<TalentMediaUsage | null> {
+  const used = await countLiveTalentAssets(supabase, talentProfileId);
+  if (used === null) return null;
+  const planKey = await readTalentMediaPlanKey(supabase, talentProfileId);
+  const cap = talentMediaStorageQuota(planKey).maxAssets;
+  return {
+    used,
+    cap,
+    remaining: cap === null ? null : Math.max(0, cap - used),
+  };
 }
 
 /**

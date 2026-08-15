@@ -28,10 +28,11 @@ import { useT } from "@/i18n/use-t";
 import {
   actionLoadTalentMediaLocks,
   actionRequestMediaRelease,
+  actionWithdrawMediaReleaseRequest,
   type TalentMediaLock,
 } from "@/lib/server-actions/talent-media-release";
 
-type RequestState = "idle" | "sending" | "sent" | "error";
+type RequestState = "idle" | "sending" | "sent" | "error" | "withdrawn";
 
 export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string }) {
   const t = useT();
@@ -40,6 +41,8 @@ export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string
   const [selected, setSelected] = useState<string[]>([]);
   const [state, setState] = useState<RequestState>("idle");
   const [error, setError] = useState<string | null>(null);
+  /** The request currently being withdrawn — no silent waits (B11). */
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLocks(null);
@@ -105,6 +108,28 @@ export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string
       return;
     }
     setState("sent");
+    await load();
+  };
+
+  /**
+   * B11 — take back an ask that has not been answered.
+   *
+   * A pending ask used to be a dead end: the only way out was the workspace
+   * answering it. One request usually covers several photos, so withdrawing
+   * ends the whole request — the button's tooltip says exactly that before the
+   * click, rather than surprising the talent afterwards.
+   */
+  const withdraw = async (requestId: string) => {
+    setWithdrawingId(requestId);
+    setError(null);
+    const res = await actionWithdrawMediaReleaseRequest({ talentProfileId, requestId });
+    setWithdrawingId(null);
+    if (!res.ok) {
+      setState("error");
+      setError(res.error);
+      return;
+    }
+    setState("withdrawn");
     await load();
   };
 
@@ -198,8 +223,23 @@ export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string
                   </span>
                 )}
 
-                <div className="border-t border-admin-border-soft bg-admin-surface px-2 py-1 text-[10.5px] leading-snug text-admin-ink-dim">
+                {/* `-dim` is 0.38 alpha and `-muted` is 0.72: the status is the
+                    only text explaining the tile, so it gets the readable one. */}
+                <div className="border-t border-admin-border-soft bg-admin-surface px-2 py-1 text-[10.5px] leading-snug text-admin-ink-muted">
                   {status}
+                  {lock.pending && lock.pendingRequestId && (
+                    <button
+                      type="button"
+                      onClick={() => withdraw(lock.pendingRequestId!)}
+                      disabled={withdrawingId !== null}
+                      title={t("dashboard.mediaRelease.withdrawHint")}
+                      className="mt-1 block cursor-pointer font-semibold text-admin-indigo-deep underline underline-offset-2 disabled:cursor-not-allowed disabled:text-admin-ink-dim disabled:no-underline"
+                    >
+                      {withdrawingId === lock.pendingRequestId
+                        ? t("dashboard.mediaRelease.withdrawing")
+                        : t("dashboard.mediaRelease.withdraw")}
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -224,10 +264,12 @@ export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string
               ? t("dashboard.mediaRelease.mixedOwners")
               : state === "sent"
                 ? t("dashboard.mediaRelease.sent")
-                : t("dashboard.mediaRelease.selectedCount").replace(
-                    "{count}",
-                    String(selected.length),
-                  )}
+                : state === "withdrawn"
+                  ? t("dashboard.mediaRelease.withdrawn")
+                  : t("dashboard.mediaRelease.selectedCount").replace(
+                      "{count}",
+                      String(selected.length),
+                    )}
           </span>
           {error && <span className="text-[11.5px] text-admin-red">{error}</span>}
         </div>

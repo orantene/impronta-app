@@ -12,6 +12,7 @@ import {
 } from "@/lib/field-engine/profile-publish-requirements";
 import { TalentHubFacePanel } from "@/components/admin/shell/internal/talent-hub-face-panel";
 import { MediaReleasePanel } from "@/components/talent/media-release-panel";
+import { TalentMediaQuotaLine } from "@/components/talent/media-quota-line";
 import type { ResolvedField } from "@/lib/field-engine/resolve-talent-fields";
 import { resolveDynamicFieldsForParent } from "@/lib/field-engine/client-field-source-select";
 import {
@@ -3815,6 +3816,14 @@ export function TalentProfileShellDrawer() {
               open={activeSection === "media"}
               onToggle={() => setActiveSection(activeSection === "media" ? "" : "media")}
             >
+              {/* PLAN USAGE (B13) — "N of M photos used on your plan", above
+                  everything that adds one. The cap used to be invisible until
+                  an upload was refused. Self-mode only: the first-person copy
+                  is the talent's, and staff read the same number, named, in
+                  the workspace Media header. */}
+              {isSelf && payload.talentId && (
+                <TalentMediaQuotaLine talentProfileId={payload.talentId} className="mb-2" />
+              )}
               <HelloReelEditor
                 reel={state.helloReel}
                 onChange={patchHelloReel}

@@ -41,11 +41,13 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
   decideMediaReleaseRequest,
+  listMediaReleaseHistory,
   listMediaReleaseRequests,
   revokeMediaRelease,
   rollBackFailedReleaseBakes,
   MAX_RELEASE_ASSETS,
   type MediaGrantBustKey,
+  type MediaReleaseHistoryEntry,
   type MediaReleaseRequestSummary,
   type ReleaseDecisionOutcome,
   type ReleaseRevokeOutcome,
@@ -57,7 +59,10 @@ type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export type { MediaReleaseRequestSummary } from "@/lib/site-admin/server/media-grants";
+export type {
+  MediaReleaseHistoryEntry,
+  MediaReleaseRequestSummary,
+} from "@/lib/site-admin/server/media-grants";
 
 function bust(keys: readonly MediaGrantBustKey[], tenantSlug: string): void {
   for (const key of keys) {
@@ -78,6 +83,27 @@ export async function actionListMediaReleaseRequests(): Promise<
   if (!admin) return { ok: false, error: "Server configuration error." };
 
   return listMediaReleaseRequests(admin, auth.tenantId);
+}
+
+/**
+ * What this workspace already decided (B15) — declined, withdrawn by the
+ * talent, or a release it later ended. Read-only: there is no un-decline, and
+ * re-approving means the talent asks again.
+ *
+ * A separate call from the open queue on purpose. It is collapsed by default,
+ * so the panel can render its actionable half without waiting on history, and
+ * a history read that fails never takes the decide buttons down with it.
+ */
+export async function actionListMediaReleaseHistory(): Promise<
+  ActionResult<MediaReleaseHistoryEntry[]>
+> {
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  return listMediaReleaseHistory(admin, auth.tenantId);
 }
 
 /** Approve or decline one release request. */
