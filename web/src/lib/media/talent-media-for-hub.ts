@@ -65,6 +65,19 @@ import "server-only";
  * profile all pass with no row). Grant rows are only ever needed to reach a
  * THIRD hub. See the predicate's header comment for the full table.
  *
+ * A THIRD FLAG — `MEDIA_PRIVATE_ACCESS_ENABLED` (P0-1), ALSO DEFAULT OFF
+ * ────────────────────────────────────────────────────────────────────
+ * Everything above decides which URL is RENDERED. None of it decides who may
+ * fetch the bytes: the bucket is world-readable, so a saved URL survives a
+ * revocation forever. With the third flag on, the URLs this resolver emits
+ * point at `/api/media/asset/<id>` instead of at storage, and the same
+ * predicate runs again per request. See `private-access.ts`.
+ *
+ * It is deliberately subordinate to enforcement: gating is only applied on the
+ * paths where `MEDIA_TWO_KEY_GRANTS_ENABLED` is already deciding something.
+ * With enforcement off there is no rule for the gate to apply, and a proxy hop
+ * that always answers "yes" is pure cost.
+ *
  * FAIL-CLOSED ON THE PRIVACY PREDICATE (Batch A / A3)
  * ───────────────────────────────────────────────────
  * This module used to keep the unfiltered candidates when the predicate call
@@ -87,7 +100,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   loadTalentCardThumbCandidates,
   loadTalentCardThumbs,
-  mediaPublicUrl,
+  mediaUrlForAsset,
   pickBestThumbs,
   type TalentThumbCandidate,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
@@ -271,8 +284,8 @@ export async function resolveTalentMediaForHub(
     ? await resolveWatermarkPolicy(client, curatedIds, tenantId)
     : EMPTY_WATERMARK_POLICY;
 
-  // Resolve the curated asset ids to public URLs in one round trip.
-  const urlByAssetId = await loadAssetUrls(client, curatedIds, watermark);
+  // Resolve the curated asset ids to renderable URLs in one round trip.
+  const urlByAssetId = await loadAssetUrls(client, curatedIds, watermark, enforcing ? tenantId : undefined);
 
   const needsDefault: string[] = [];
   for (const id of ids) {
@@ -341,7 +354,11 @@ async function loadDefaultThumbs(
     servable.push(path === candidate.storage_path ? candidate : { ...candidate, storage_path: path });
   }
 
-  return pickBestThumbs(client, servable);
+  // Surface passed only on the enforcing path (the early return above covers
+  // the other one): gating and the two-key rule are the same decision seen
+  // from two sides, and a gate in front of a rule nobody is enforcing would
+  // cost a Function invocation per image to answer "yes" every time.
+  return pickBestThumbs(client, servable, tenantId);
 }
 
 /**
@@ -410,6 +427,7 @@ async function loadAssetUrls(
   client: SupabaseClient,
   assetIds: string[],
   watermark: WatermarkPolicy,
+  surface?: HubTenantId,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (assetIds.length === 0) return out;
@@ -427,7 +445,11 @@ async function loadAssetUrls(
     // original the workspace said may not travel unmarked.
     const path = applyWatermarkPath(watermark, row.id, row.storage_path);
     if (!path) continue;
-    out.set(row.id, mediaPublicUrl(client, path));
+    // The gated URL carries the ORIGINAL's id, not the derivative's: the route
+    // re-runs the same watermark policy for the same surface and lands on the
+    // same substitution, so the swap stays a per-request decision rather than
+    // something baked into a URL that outlives the condition.
+    out.set(row.id, mediaUrlForAsset(client, { assetId: row.id, storagePath: path, surface }));
   }
   return out;
 }

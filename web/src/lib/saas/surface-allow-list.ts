@@ -118,6 +118,20 @@ const PROTOTYPE_PREFIX = "/prototypes" as const;
  *                              the `impronta_guest` cookie (no DB writes) and
  *                              404s (never 403) when neither gate passes, so
  *                              listing it here does not advertise a capability.
+ *   - `/api/media/asset/*`   → gated media reads (execution plan 2026-08-15
+ *                              §1 P0-1). Host-agnostic on purpose: the surface
+ *                              a photo is being requested FOR is HMAC-signed
+ *                              into the URL, not inferred from the Host, so
+ *                              that a tenant reached at `tulala.digital/<slug>`
+ *                              and a `next/image` server-side refetch both
+ *                              evaluate against the right surface. The gate is
+ *                              the two-key predicate inside the route; an
+ *                              unsigned or tampered URL 404s, and the whole
+ *                              route 404s while `MEDIA_PRIVATE_ACCESS_ENABLED`
+ *                              is off. Scoped to `/asset` rather than
+ *                              `/api/media` so the staff-only
+ *                              `/api/media/bake-watermark` keeps exactly the
+ *                              reachability it has today.
  * These never leak tenant data and have their own gates.
  */
 const SHARED_API_PREFIXES = [
@@ -126,6 +140,7 @@ const SHARED_API_PREFIXES = [
   "/api/stripe",
   "/api/health",
   "/api/dev/reset-guest",
+  "/api/media/asset",
 ] as const;
 
 /**
