@@ -96,8 +96,8 @@ export function TalentCareerAnalyticsDrawer() {
       <DrawerShell
         open={open}
         onClose={closeDrawer}
-        title={t("dashboard.talentDrawers.analytics.careerAnalyticsTitle")}
-        description={t("dashboard.talentDrawers.analytics.careerAnalyticsDesc")}
+        title={t("dashboard.talentDrawers.analytics.careerTitle")}
+        description={t("dashboard.talentDrawers.analytics.careerDesc")}
       >
         <AnalyticsNotAvailableYet
           body={copy.t("Your career stats appear here once you have completed bookings. Your earnings and pipeline are live on the Money page today.")}
