@@ -147,7 +147,12 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-14 media-ownership phase 1: +67 for the ownership stamp on all
   // six writers in this file (legacy upload, bulk assign, staged assign,
   // card promotion, both Drive imports, signed register + crop inheritance).
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2282,
+  // +102 (2026-08-15): plan count-quota gates on the six net-add upload paths
+  // in this file, per the accepted media pricing pass (web/docs/media-pricing-
+  // pass-2026-08-15.md §3a). Each gate is a call to checkTalentUploadQuota plus
+  // the comment explaining why that path is or is not a net add; the logic
+  // itself lives in lib/media/talent-storage-usage.ts, not here.
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2384,
   "src/app/t/[profileCode]/profile-view.tsx": 2634,
   "src/components/inquiry/InquiryDrawer.tsx": 2149,
 

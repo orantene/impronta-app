@@ -28,12 +28,33 @@ import {
   workspaceOwnedStamp,
   type MediaOwnershipStamp,
 } from "@/lib/media/ownership";
+import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 
 type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string };
 
 // ─── Upload and immediately register under a talent ───────────────────────────
 
-export type RegisterMediaResult = ActionResult<{ id: string; publicUrl: string; sourceMediaAssetId: string | null; sortOrder: number }>;
+export type RegisterMediaResult =
+  | {
+      ok: true;
+      data: {
+        id: string;
+        publicUrl: string;
+        sourceMediaAssetId: string | null;
+        sortOrder: number;
+      };
+    }
+  | {
+      ok: false;
+      error: string;
+      /**
+       * Set when the refusal is a plan quota block rather than a transport
+       * failure. The signed-upload client wrapper retries a failed register
+       * through the legacy pipeline; a quota refusal must NOT be retried, or
+       * the talent sees an unrelated error and we do the work twice.
+       */
+      quotaBlocked?: boolean;
+    };
 
 export type UploadVariant = "gallery" | "card" | "hero" | "lightbox" | "polaroid" | "reel";
 
@@ -116,6 +137,25 @@ export async function actionUploadAndAssignMedia(
       .neq("status", "removed")
       .maybeSingle();
     if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  }
+
+  // Plan count quota (media pricing pass 2026-08-15 §3a). Card and hero are
+  // SINGLETONS: the insert below is paired with a soft-delete of the previous
+  // row, so it is a swap and not a net add. Gating it would leave a talent at
+  // their cap unable to change their profile photo, which is a worse outcome
+  // than the zero storage the swap costs. Gallery and every other variant is
+  // a real +1 and is gated.
+  //
+  // The cap is the TALENT's, whether the talent or workspace staff uploaded:
+  // the row carries `owner_talent_profile_id` either way, so it is the
+  // talent's photo and counts against the talent's plan.
+  if (variantKind !== "card" && variantKind !== "hero") {
+    const quota = await checkTalentUploadQuota({
+      supabase: admin,
+      talentProfileId,
+      incomingAssets: 1,
+    });
+    if (!quota.allowed) return { ok: false, error: quota.message };
   }
 
   const inputBytes = await file.arrayBuffer();
@@ -280,6 +320,16 @@ export async function actionAssignMediaToTalent(
     .neq("status", "removed")
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+
+  // Plan count quota (media pricing pass §3a) — the whole batch is charged to
+  // the talent's plan at once, so a batch that would straddle the cap is
+  // refused whole rather than half-inserted.
+  const quota = await checkTalentUploadQuota({
+    supabase: admin,
+    talentProfileId,
+    incomingAssets: storagePaths.length,
+  });
+  if (!quota.allowed) return { ok: false, error: quota.message };
 
   const { data: maxRow } = await admin
     .from("media_assets")
@@ -890,6 +940,21 @@ export async function actionBulkAssignStagedMedia(
   const validIds = new Set((rosterRows ?? []).map((r) => r.talent_profile_id as string));
   if (!uniqueTalentIds.every((id) => validIds.has(id))) {
     return { ok: false, error: "One or more talents not on this roster." };
+  }
+
+  // Plan count quota (media pricing pass §3a). One batch can span several
+  // talents on different plans, so each talent is checked against their own
+  // cap for their own share of the batch. Refuse the whole batch if any one
+  // talent would go over: a partial insert would leave the operator guessing
+  // which photos landed.
+  for (const talentId of uniqueTalentIds) {
+    const share = assignments.filter((a) => a.talentProfileId === talentId).length;
+    const quota = await checkTalentUploadQuota({
+      supabase: admin,
+      talentProfileId: talentId,
+      incomingAssets: share,
+    });
+    if (!quota.allowed) return { ok: false, error: quota.message };
   }
 
   // Allocate sort_order via an atomic RPC so concurrent batches can't collide.
@@ -1542,6 +1607,15 @@ export async function actionImportSingleDriveFile(
     .maybeSingle();
   if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
+  // Plan count quota (media pricing pass §3a) — checked before the Drive
+  // download so a blocked import does not burn the fetch.
+  const quota = await checkTalentUploadQuota({
+    supabase: admin,
+    talentProfileId,
+    incomingAssets: 1,
+  });
+  if (!quota.allowed) return { ok: false, error: quota.message };
+
   const downloaded = await downloadDriveFile(fileId);
   if (!downloaded) return { ok: false, error: "Could not download — make sure the file is shared as \"Anyone with the link\"." };
 
@@ -1653,6 +1727,17 @@ export async function actionImportFromGoogleDrive(
     fileIds = list.data.fileIds;
   }
   if (fileIds.length === 0) return { ok: false, error: "Nothing to import." };
+
+  // Plan count quota (media pricing pass §3a). A folder import is the single
+  // biggest way to blow past a cap, so the WHOLE folder is checked up front
+  // rather than per file: importing 40 of 60 photos and stopping would leave
+  // the operator to work out which 20 are missing.
+  const quota = await checkTalentUploadQuota({
+    supabase: admin,
+    talentProfileId,
+    incomingAssets: fileIds.length,
+  });
+  if (!quota.allowed) return { ok: false, error: quota.message };
 
   const { data: maxRow } = await admin
     .from("media_assets")
@@ -2115,6 +2200,23 @@ export async function actionRegisterUploadedAsset(
       tenantId,
       uploaderUserId: self.user.id,
     });
+  }
+
+  // Plan count quota (media pricing pass §3a). Same singleton carve-out as
+  // actionUploadAndAssignMedia: card / hero replace the previous row further
+  // down, so they are swaps and cost no slot. Everything else is a net add.
+  if (variantKind !== "card" && variantKind !== "hero") {
+    const quota = await checkTalentUploadQuota({
+      supabase: admin,
+      talentProfileId,
+      incomingAssets: 1,
+    });
+    if (!quota.allowed) {
+      // `quotaBlocked` tells the client wrapper NOT to retry through the
+      // legacy pipeline — see lib/client/signed-upload.ts. Without it a
+      // refusal here would silently fall back and re-run the same upload.
+      return { ok: false, error: quota.message, quotaBlocked: true };
+    }
   }
 
   // Reel videos skip the sharp re-verify: there's nothing to resize, and

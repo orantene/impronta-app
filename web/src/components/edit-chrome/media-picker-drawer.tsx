@@ -85,6 +85,22 @@ interface MediaPickerDrawerProps {
 
 const TITLE_ID = "media-picker-drawer-title";
 
+/**
+ * `t()` returns the KEY itself when a catalog has no entry, so a bare
+ * `t(key) || fallback` never reaches the fallback. Compare against the key to
+ * tell "missing" from "translated", and fall back to the server's own
+ * plain-language English rather than showing a raw dotted key to a talent.
+ */
+function translateOr(
+  t: (key: string) => string,
+  key: string,
+  fallback: string | null | undefined,
+): string {
+  const translated = t(key);
+  if (translated && translated !== key) return translated;
+  return fallback ?? translated;
+}
+
 export function MediaPickerDrawer({
   tenantId,
   open,
@@ -118,6 +134,8 @@ export function MediaPickerDrawer({
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  /** Soft 80% plan-quota warning. Not an error: the upload went through. */
+  const [quotaNotice, setQuotaNotice] = useState<string | null>(null);
   const [pending, setPending] = useState<string[]>([]);
   const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
   const [savingAltId, setSavingAltId] = useState<string | null>(null);
@@ -190,8 +208,29 @@ export function MediaPickerDrawer({
         });
         const body = await res.json();
         if (!res.ok || !body.ok) {
+          // A plan-quota refusal is the one upload failure with a localized
+          // message: the server's plain-English text is the fallback, but the
+          // talent should read this in their own language. Everything else
+          // stays raw because it is diagnostic, not actionable.
+          if (body.errorCode === "limit_reached") {
+            setQuotaNotice(null);
+            throw new Error(
+              translateOr(t, "dashboard.mediaPicker.quotaLimitReached", body.error),
+            );
+          }
           throw new Error(body.error ?? `HTTP ${res.status}`);
         }
+        // Soft warn at 80% of the plan cap. The upload succeeded, so this is a
+        // notice and not an error: never a silent state, never a blocked one.
+        setQuotaNotice(
+          body.quotaWarning
+            ? translateOr(
+                t,
+                "dashboard.mediaPicker.quotaApproachingLimit",
+                body.quotaWarning,
+              ).replace("{count}", String(body.quotaRemaining ?? 0))
+            : null,
+        );
         item = body.item as MediaPickerItem;
       } else {
         // MEDIA-1 — route by the file's kind so staff can add video/doc assets,
@@ -573,6 +612,8 @@ export function MediaPickerDrawer({
 
           {uploadError || altError ? (
             <StatusNotice message={uploadError ?? altError ?? ""} />
+          ) : quotaNotice ? (
+            <StatusNotice message={quotaNotice} />
           ) : null}
 
           {loading ? (

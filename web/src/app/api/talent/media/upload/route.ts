@@ -32,6 +32,7 @@ import {
 } from "@/lib/server/media-resize";
 import { validateImageUpload } from "@/lib/site-admin/media/validation";
 import { talentOwnedStamp } from "@/lib/media/ownership";
+import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,6 +112,22 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { ok: false, error: "Server is missing service-role credentials." },
       { status: 500 },
+    );
+  }
+
+  // Plan count quota (media pricing pass 2026-08-15 §3a). Checked BEFORE the
+  // storage write, not just before the insert, so a refused upload does not
+  // leave an orphaned object behind. Blocks at 100% of the cap; the `warn`
+  // branch at 80% is returned alongside a successful upload below.
+  const quota = await checkTalentUploadQuota({
+    supabase,
+    talentProfileId,
+    incomingAssets: 1,
+  });
+  if (!quota.allowed) {
+    return NextResponse.json(
+      { ok: false, error: quota.message, errorCode: quota.code },
+      { status: 409 },
     );
   }
 
@@ -210,5 +227,9 @@ export async function POST(req: Request) {
       publicUrl: urlData?.publicUrl ?? "",
       createdAt: inserted.created_at,
     },
+    // Soft warn at 80% of the plan cap. The upload succeeded; this is the
+    // "no silent state" half of the quota (feedback_admin_edit_ux).
+    quotaWarning: quota.warn ? quota.message : null,
+    quotaRemaining: quota.remainingAssets,
   });
 }

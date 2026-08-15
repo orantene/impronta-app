@@ -59,6 +59,18 @@ const LARGE_MEDIA_CRITICAL = 500;
 const ORPHAN_MEDIA_WARN = 100;
 const ORPHAN_MEDIA_CRITICAL = 1000;
 
+/**
+ * Release-request volume — media pricing pass 2026-08-15 §3c.
+ *
+ * There is NO cap on release requests and this does not add one. The pricing
+ * pass declined to invent a limit for a feature with zero recorded uses, and
+ * committed instead to two revisit triggers. These are those triggers, made
+ * observable: the counter is what makes an eventual cap defensible instead of
+ * invented. If either fires, go build the cap.
+ */
+const RELEASE_REQUESTS_TENANT_30D_WARN = 100;
+const RELEASE_REQUESTS_PLATFORM_MONTH_WARN = 1000;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -391,6 +403,80 @@ async function auditTenantQuotas(
 }
 
 // ---------------------------------------------------------------------------
+// Release-request volume probe (media pricing pass 2026-08-15 §3c).
+//
+// NOT a cap and not enforcement — `releaseRequestsPerMonth` is null on every
+// tier by decision. This only counts, so the two revisit triggers the pricing
+// pass committed to are observable instead of theoretical:
+//   • any single workspace over 100 release requests in a rolling 30 days;
+//   • platform-wide over 1,000 release requests in the trailing month.
+// Findings ride the existing platform_alerts + email path like every other
+// check here, so there is no new delivery mechanism to maintain.
+//
+// Both counts are OK-severity while the numbers are small, which is the point:
+// at 0 requests today this reports a quiet "0" line and nothing else.
+// ---------------------------------------------------------------------------
+async function auditReleaseRequestVolume(
+  supabase: SupabaseClient,
+): Promise<Finding[]> {
+  const now = Date.now();
+  const since30d = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("talent_agency_permission_requests")
+    .select("requesting_tenant_id")
+    .gte("requested_at", since30d);
+  if (error) {
+    logServerError("cron/usage-audit.release_requests", error);
+    return [];
+  }
+
+  const rows = (data ?? []) as Array<{ requesting_tenant_id: string | null }>;
+  const platformTotal = rows.length;
+
+  const perTenant = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.requesting_tenant_id) continue;
+    perTenant.set(
+      r.requesting_tenant_id,
+      (perTenant.get(r.requesting_tenant_id) ?? 0) + 1,
+    );
+  }
+
+  const overTenants = [...perTenant.entries()]
+    .filter(([, count]) => count > RELEASE_REQUESTS_TENANT_30D_WARN)
+    .sort((a, b) => b[1] - a[1])
+    .map(([tenantId, count]) => ({ tenant_id: tenantId, count }));
+
+  const busiest = [...perTenant.values()].reduce((max, c) => (c > max ? c : max), 0);
+
+  return [
+    {
+      category: "release_requests_platform",
+      severity:
+        platformTotal > RELEASE_REQUESTS_PLATFORM_MONTH_WARN ? "warn" : "ok",
+      message: `Release requests (platform, last 30d): ${platformTotal} — cap revisit trigger at ${RELEASE_REQUESTS_PLATFORM_MONTH_WARN}`,
+      details: {
+        count: platformTotal,
+        warn_at: RELEASE_REQUESTS_PLATFORM_MONTH_WARN,
+        window_days: 30,
+      },
+    },
+    {
+      category: "release_requests_tenant",
+      severity: overTenants.length > 0 ? "warn" : "ok",
+      message: `Release requests (busiest workspace, last 30d): ${busiest} — cap revisit trigger at ${RELEASE_REQUESTS_TENANT_30D_WARN}`,
+      details: {
+        busiest_tenant_count: busiest,
+        tenants_over_trigger: overTenants,
+        warn_at: RELEASE_REQUESTS_TENANT_30D_WARN,
+        window_days: 30,
+      },
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // Route handler
 // ---------------------------------------------------------------------------
 export async function GET(request: Request) {
@@ -434,8 +520,12 @@ export async function GET(request: Request) {
         }
         const metrics = rawMetrics as Metrics;
 
-        // 2) Classify each check.
+        // 2) Classify each check. The release-request probe needs its own
+        // queries (the metrics RPC has no notion of it), so it appends to the
+        // same findings list and inherits the same alert + report handling.
         const findings = evaluate(metrics);
+        const releaseRequests = await auditReleaseRequestVolume(supabase);
+        findings.push(...releaseRequests);
         const alerts = findings.filter((f) => f.severity !== "ok");
         const auditDate = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
 
@@ -453,6 +543,9 @@ export async function GET(request: Request) {
             durationMs: Date.now() - startedAt,
             seatAudit,
             quotaAudit,
+            // Always reported, alert or not — at 0 requests the whole point is
+            // to watch the number climb toward the cap revisit triggers.
+            releaseRequests,
             metrics,
           });
         }
@@ -516,6 +609,7 @@ export async function GET(request: Request) {
           alerts,
           seatAudit,
           quotaAudit,
+          releaseRequests,
           metrics,
         });
       } catch (error) {
