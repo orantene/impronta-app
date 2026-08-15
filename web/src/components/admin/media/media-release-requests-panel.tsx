@@ -34,6 +34,10 @@ export function MediaReleaseRequestsPanel() {
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /** Partial-success detail from an approval whose watermark bake failed for
+   *  some photos (A4). The count in `done` is already correct; without this the
+   *  reason those photos are missing is dropped on the floor. */
+  const [warning, setWarning] = useState<string | null>(null);
   /**
    * Per-request "require watermark" ticks (phase 4). Kept per request id
    * rather than as one panel-wide toggle: releasing editorial to one hub with
@@ -68,6 +72,7 @@ export function MediaReleaseRequestsPanel() {
     setBusy({ requestId: request.requestId, kind: approve ? "approve" : "deny" });
     setError(null);
     setDone(null);
+    setWarning(null);
     const watermarkRequired = approve && watermark[request.requestId] === true;
     const res = await actionDecideMediaReleaseRequest({
       requestId: request.requestId,
@@ -87,6 +92,7 @@ export function MediaReleaseRequestsPanel() {
           ).replace("{count}", String(res.data.granted))
         : t("dashboard.mediaReleaseRequests.denied"),
     );
+    if (res.data.warning) setWarning(res.data.warning);
     await load();
   };
 
@@ -94,9 +100,14 @@ export function MediaReleaseRequestsPanel() {
     setBusy({ requestId: request.requestId, kind: "revoke" });
     setError(null);
     setDone(null);
+    setWarning(null);
     const res = await actionRevokeMediaRelease({
       talentProfileId: request.talentProfileId,
       assetIds: request.assetIds,
+      // Scope the revoke to the hub this card names (A6/D-6). Without it the
+      // action falls back to the legacy revoke-everywhere semantic and ending
+      // a release to hub B silently kills the live releases to C and D.
+      targetTenantId: request.targetTenantId,
     });
     setBusy(null);
     if (!res.ok) {
@@ -256,6 +267,10 @@ export function MediaReleaseRequestsPanel() {
         <div className={`text-[11.5px] ${error ? "text-admin-red" : "text-admin-ink-muted"}`}>
           {error ?? done}
         </div>
+      )}
+
+      {warning && !error && (
+        <div className="text-[11.5px] leading-snug text-[#2c5fdb]">{warning}</div>
       )}
     </div>
   );
