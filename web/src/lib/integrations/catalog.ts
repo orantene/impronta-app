@@ -1,3 +1,5 @@
+import { SOCIAL_FEED_INTEGRATIONS } from "./catalog-social";
+
 /**
  * Tenant Integrations — typed catalog (registry).
  *
@@ -125,6 +127,8 @@ export const CUSTOM_CODE_INTEGRATION_KEY = "custom_code" as const;
 export const CAPTCHA_INTEGRATION_KEY = "captcha" as const;
 export const EMAIL_DOMAIN_INTEGRATION_KEY = "email_domain" as const;
 export const YOUTUBE_INTEGRATION_KEY = "youtube" as const;
+export const INSTAGRAM_INTEGRATION_KEY = "instagram" as const;
+export const TIKTOK_INTEGRATION_KEY = "tiktok" as const;
 
 // Surfaced (link-only) integrations — no drawer, no credential here; the hub
 // renders them as cards that navigate to an existing in-app settings route.
@@ -542,6 +546,7 @@ export const INTEGRATION_CATALOG: Record<string, IntegrationDef> = {
   // fallback when OAuth is not configured. On connect/disconnect the verified
   // channel is mirrored into agency_business_identity.social_youtube so the
   // public site header/footer can render it.
+  ...SOCIAL_FEED_INTEGRATIONS,
   [YOUTUBE_INTEGRATION_KEY]: {
     key: YOUTUBE_INTEGRATION_KEY,
     label: "YouTube",

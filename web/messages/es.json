@@ -4439,7 +4439,11 @@
         "proofStatMedia": "Medios públicos seleccionados",
         "proofStatTrust": "Prueba de confianza del cliente",
         "proofYes": "Sí",
-        "proofReauthTag": "reautenticar"
+        "proofReauthTag": "reautenticar",
+        "connect": "Conectar",
+        "setupRequired": "Configuración requerida",
+        "reconnectNeeded": "Vuelve a conectar",
+        "providerNotConfigured": "Este proveedor aún no está configurado en esta instalación."
       },
       "planNameFree": "Gratis",
       "planNameStudio": "Estudio",
@@ -8744,7 +8748,9 @@
         "inherited": "Usando el valor predeterminado de la plataforma",
         "actionNeeded": "Acción requerida",
         "error": "Necesita atención",
-        "locked": "Mejora para desbloquear"
+        "locked": "Mejora para desbloquear",
+        "setupRequired": "Configuración requerida",
+        "reconnect": "Vuelve a conectar"
       },
       "items": {
         "google_maps": {
@@ -8904,6 +8910,30 @@
         "ai_provider": {
           "label": "Proveedor de IA",
           "description": "Usa tu propia clave de proveedor de IA para importaciones asistidas y redacción. Se administra en Configuración."
+        },
+        "instagram": {
+          "label": "Instagram",
+          "description": "Conecta la cuenta de Instagram del espacio de trabajo para mostrar tus últimas publicaciones y reels en el sitio público.",
+          "steps": {
+            "s1": "Tu cuenta de Instagram debe ser Empresa o Creador: las cuentas personales no se pueden conectar.",
+            "s2": "Usa la conexión en un clic para iniciar sesión en Instagram y aprobar el acceso de lectura a tus publicaciones.",
+            "s3": "Tulala guarda un token cifrado de larga duración y lo renueva automáticamente para que el feed siga actualizándose."
+          },
+          "fields": {
+            "profile_url": "URL del perfil de Instagram o @usuario"
+          }
+        },
+        "tiktok": {
+          "label": "TikTok",
+          "description": "Conecta la cuenta de TikTok del espacio de trabajo para mostrar tus últimos vídeos en el sitio público.",
+          "steps": {
+            "s1": "Usa la conexión en un clic para iniciar sesión en TikTok y aprobar el acceso de lectura a tus vídeos.",
+            "s2": "TikTok solo comparte la imagen de portada y el enlace de cada vídeo, así que las piezas del feed enlazan a TikTok en vez de reproducirse dentro.",
+            "s3": "Tulala guarda tokens cifrados y los renueva automáticamente."
+          },
+          "fields": {
+            "profile_url": "URL del perfil de TikTok o @usuario"
+          }
         }
       }
     },

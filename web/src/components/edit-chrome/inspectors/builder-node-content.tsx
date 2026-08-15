@@ -976,6 +976,277 @@ export function BuilderNodeContentInspector({
     );
   }
 
+  // ── social_feed ───────────────────────────────────────────────────────────
+  // Items editor + the presentation controls that make the feed feel like a
+  // paid plugin: layout preset, columns, spacing, aspect, hover, load-more.
+  if (node.kind === "social_feed") {
+    const feed = node.props;
+    const feedItems = feed.items;
+    const patchItem = (
+      index: number,
+      patch: Partial<(typeof feedItems)[number]>,
+    ) => {
+      const next = feedItems.map((it, i) =>
+        i === index ? { ...it, ...patch } : it,
+      );
+      void commitPatch({ items: next });
+    };
+    const moveItem = (index: number, dir: -1 | 1) => {
+      const j = index + dir;
+      if (j < 0 || j >= feedItems.length) return;
+      const next = [...feedItems];
+      const [it] = next.splice(index, 1);
+      next.splice(j, 0, it!);
+      void commitPatch({ items: next });
+    };
+    const select = (
+      label: string,
+      value: string,
+      options: Array<[string, string]>,
+      onPick: (v: string) => void,
+    ) => (
+      <Field flush>
+        <FieldLabel>{label}</FieldLabel>
+        <select
+          className={KIT.select}
+          value={value}
+          onChange={(e) => onPick(e.currentTarget.value)}
+        >
+          {options.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </Field>
+    );
+    return (
+      <BuilderNodeFlatPanel>
+        <BuilderNodeSection title="Feed">
+          <div className="flex flex-col gap-3">
+            {select("Posts come from", feed.source ?? "manual", [
+              ["manual", "Posts I add below"],
+              ["connected", "My connected account (auto-updates)"],
+            ], (v) => void commitPatch({ source: v }))}
+            {feed.source === "connected" ? (
+              <p className={KIT.hint}>
+                Pulls your latest posts from the account connected in Settings,
+                Integrations. Until that account is connected, the posts you add
+                below are shown instead.
+              </p>
+            ) : null}
+            {select("Layout", feed.layout ?? "grid", [
+              ["grid", "Grid"],
+              ["masonry", "Masonry"],
+              ["slider", "Slider"],
+              ["stories", "Reels strip"],
+            ], (v) => void commitPatch({ layout: v }))}
+            {select("Network", feed.provider ?? "instagram", [
+              ["instagram", "Instagram"],
+              ["tiktok", "TikTok"],
+              ["mixed", "Mixed"],
+            ], (v) => void commitPatch({ provider: v }))}
+            <Field flush>
+              <FieldLabel>Handle (shown above the feed)</FieldLabel>
+              <input
+                key={`${node.id}:handle:${feed.handle ?? ""}`}
+                defaultValue={feed.handle ?? ""}
+                className={KIT.input}
+                placeholder="e.g. impronta_models"
+                onBlur={(e) => {
+                  const next = e.currentTarget.value.trim().replace(/^@/, "");
+                  if (next === (feed.handle ?? "")) return;
+                  void commitPatch({ handle: next || undefined });
+                }}
+              />
+            </Field>
+            {select("Columns", String(feed.columns ?? 3), [
+              ["2", "2"],
+              ["3", "3"],
+              ["4", "4"],
+              ["5", "5"],
+              ["6", "6"],
+            ], (v) => void commitPatch({ columns: Number(v) }))}
+            {select("Spacing", feed.gap ?? "sm", [
+              ["none", "None"],
+              ["sm", "Small"],
+              ["md", "Medium"],
+              ["lg", "Large"],
+            ], (v) => void commitPatch({ gap: v }))}
+            {select("Tile shape", feed.aspect ?? "square", [
+              ["square", "Square"],
+              ["portrait", "Portrait 4:5"],
+              ["video", "Wide 16:9"],
+              ["auto", "Natural (masonry)"],
+            ], (v) => void commitPatch({ aspect: v }))}
+            {select("On hover", feed.hover ?? "zoom-caption", [
+              ["none", "Nothing"],
+              ["zoom", "Zoom"],
+              ["caption", "Show caption"],
+              ["zoom-caption", "Zoom + caption"],
+            ], (v) => void commitPatch({ hover: v }))}
+            {select("More posts", feed.loadMore ?? "button", [
+              ["button", "Load more button"],
+              ["auto", "Load while scrolling"],
+              ["none", "Show first batch only"],
+            ], (v) => void commitPatch({ loadMore: v }))}
+            <Field flush>
+              <FieldLabel>Posts shown at first</FieldLabel>
+              <input
+                key={`${node.id}:initial:${feed.initialCount ?? 6}`}
+                type="number"
+                min={2}
+                max={48}
+                defaultValue={feed.initialCount ?? 6}
+                className={KIT.input}
+                onBlur={(e) => {
+                  const next = Math.max(2, Math.min(48, Number(e.currentTarget.value) || 6));
+                  if (next === (feed.initialCount ?? 6)) return;
+                  void commitPatch({ initialCount: next });
+                }}
+              />
+            </Field>
+            <label className="flex items-center gap-2 text-[12px] text-stone-600">
+              <input
+                type="checkbox"
+                checked={feed.lightbox ?? true}
+                onChange={(e) => void commitPatch({ lightbox: e.currentTarget.checked })}
+              />
+              <span>Open posts in a viewer (lightbox)</span>
+            </label>
+            <label className="flex items-center gap-2 text-[12px] text-stone-600">
+              <input
+                type="checkbox"
+                checked={feed.autoplayVideos ?? true}
+                onChange={(e) =>
+                  void commitPatch({ autoplayVideos: e.currentTarget.checked })
+                }
+              />
+              <span>Auto-play videos while visible</span>
+            </label>
+          </div>
+        </BuilderNodeSection>
+        <BuilderNodeSection title={`Posts (${feedItems.length})`}>
+          <div className="flex flex-col gap-3">
+            <p className={KIT.hint}>
+              Add the photo or video for each post, then paste the post link so
+              visitors can open it. Live account sync arrives once the workspace
+              connects Instagram or TikTok.
+            </p>
+            {feedItems.map((item, index) => (
+              <div
+                key={item.id}
+                className="flex flex-col gap-2 rounded-[10px] border border-stone-200 p-2.5"
+              >
+                <MediaPickerButton
+                  tenantId={tenantId}
+                  value={item.mediaUrl}
+                  onChange={(next) => {
+                    if (!next) return;
+                    patchItem(index, { mediaUrl: next });
+                  }}
+                  onPickItem={(picked) => {
+                    patchItem(index, {
+                      mediaUrl: picked.publicUrl,
+                      mediaType: /\.(mp4|webm|mov)(\?|$)/i.test(picked.publicUrl)
+                        ? "video"
+                        : "image",
+                      caption: item.caption ?? picked.alt ?? undefined,
+                    });
+                  }}
+                />
+                {select("Type", item.mediaType ?? "image", [
+                  ["image", "Photo"],
+                  ["video", "Video / Reel"],
+                ], (v) =>
+                  patchItem(index, { mediaType: v as "image" | "video" }),
+                )}
+                <Field flush>
+                  <FieldLabel>Post link</FieldLabel>
+                  <input
+                    key={`${item.id}:permalink:${item.permalink ?? ""}`}
+                    defaultValue={item.permalink ?? ""}
+                    className={KIT.input}
+                    placeholder="https://www.instagram.com/p/…"
+                    onBlur={(e) => {
+                      const next = e.currentTarget.value.trim();
+                      if (next === (item.permalink ?? "")) return;
+                      patchItem(index, { permalink: next || undefined });
+                    }}
+                  />
+                </Field>
+                <Field flush>
+                  <FieldLabel>Caption</FieldLabel>
+                  <input
+                    key={`${item.id}:caption:${item.caption ?? ""}`}
+                    defaultValue={item.caption ?? ""}
+                    className={KIT.input}
+                    placeholder="Shown on hover and in the viewer"
+                    onBlur={(e) => {
+                      const next = e.currentTarget.value.trim();
+                      if (next === (item.caption ?? "")) return;
+                      patchItem(index, { caption: next || undefined });
+                    }}
+                  />
+                </Field>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={KIT.ghostButton}
+                    disabled={index === 0}
+                    onClick={() => moveItem(index, -1)}
+                  >
+                    Move up
+                  </button>
+                  <button
+                    type="button"
+                    className={KIT.ghostButton}
+                    disabled={index === feedItems.length - 1}
+                    onClick={() => moveItem(index, 1)}
+                  >
+                    Move down
+                  </button>
+                  <button
+                    type="button"
+                    className={KIT.ghostButton}
+                    onClick={() => {
+                      void commitPatch({
+                        items: feedItems.filter((_, i) => i !== index),
+                      });
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button
+              type="button"
+              className={KIT.subtleButton}
+              disabled={feedItems.length >= 48}
+              onClick={() => {
+                void commitPatch({
+                  items: [
+                    ...feedItems,
+                    {
+                      id: `sf-${Date.now().toString(36)}-${Math.random()
+                        .toString(36)
+                        .slice(2, 6)}`,
+                      mediaUrl: "",
+                      mediaType: "image",
+                    },
+                  ],
+                });
+              }}
+            >
+              Add post
+            </button>
+          </div>
+        </BuilderNodeSection>
+      </BuilderNodeFlatPanel>
+    );
+  }
+
   // ── pricing_table ─────────────────────────────────────────────────────────
   // Pattern: tier array editor (nested-list UX mirroring accordion/tabs).
   // Each tier has: name, price, period, description, ctaLabel, ctaHref,
@@ -3631,6 +3902,10 @@ function childSecondaryLabel(node: BuilderNode): string {
       return node.props.provider === "tiktok"
         ? "TikTok post"
         : "Instagram post";
+    case "social_feed":
+      return node.props.provider === "tiktok"
+        ? "TikTok feed"
+        : "Instagram feed";
     case "heading":
       return `Heading · H${node.props.level}`;
     case "paragraph":

@@ -23,6 +23,7 @@ export const MVP_ELEMENT_LIBRARY_KINDS: ReadonlyArray<BuilderNodeKind> = [
   // it takes a pasted public post URL, needs no credentials, and is a normal
   // authoring tool rather than a raw-HTML escape hatch like `code`.
   "social_post",
+  "social_feed",
   "icon",
   "pricing_table",
   "rich_text",
@@ -89,6 +90,7 @@ const KIND_ELEMENT_CATEGORY: Readonly<Record<BuilderNodeKind, ElementLibraryCate
   {
     section: "layout",
     social_post: "utility",
+    social_feed: "utility",
     container: "layout",
     card: "layout",
     cta_group: "actions",

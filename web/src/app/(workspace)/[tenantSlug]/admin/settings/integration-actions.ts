@@ -18,6 +18,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { isConnectionOAuthConfigured } from "@/lib/connection-oauth/providers";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
@@ -107,6 +108,12 @@ export type IntegrationView = {
    * second round-trip. Never contains secrets.
    */
   config: Record<string, unknown>;
+  /**
+   * OAuth integrations only: whether THIS DEPLOYMENT has the provider's client
+   * credentials. False → the card shows "Setup required" (a platform gap the
+   * operator cannot fix) instead of "Action needed" (which implies they can).
+   */
+  providerConfigured?: boolean;
 };
 
 export type LoadIntegrationsResult =
@@ -237,6 +244,12 @@ export async function loadTenantIntegrations(
       locked,
       href: null,
       config,
+      providerConfigured:
+        def.connection === "oauth"
+          ? isConnectionOAuthConfigured(
+              def.key as Parameters<typeof isConnectionOAuthConfigured>[0],
+            )
+          : undefined,
     });
   }
 

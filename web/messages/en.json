@@ -4439,7 +4439,11 @@
         "proofStatMedia": "Selected public media",
         "proofStatTrust": "Client trust proof",
         "proofYes": "Yes",
-        "proofReauthTag": "re-auth"
+        "proofReauthTag": "re-auth",
+        "connect": "Connect",
+        "setupRequired": "Setup required",
+        "reconnectNeeded": "Reconnect needed",
+        "providerNotConfigured": "This provider is not set up on this deployment yet."
       },
       "planNameFree": "Free",
       "planNameStudio": "Studio",
@@ -8744,7 +8748,9 @@
         "inherited": "Using platform default",
         "actionNeeded": "Action needed",
         "error": "Needs attention",
-        "locked": "Upgrade to unlock"
+        "locked": "Upgrade to unlock",
+        "setupRequired": "Setup required",
+        "reconnect": "Reconnect needed"
       },
       "items": {
         "google_maps": {
@@ -8904,6 +8910,30 @@
         "ai_provider": {
           "label": "AI provider",
           "description": "Bring your own AI provider key for assisted imports and copy. Managed in Settings."
+        },
+        "instagram": {
+          "label": "Instagram",
+          "description": "Connect the workspace Instagram account to show your latest posts and reels on the public site.",
+          "steps": {
+            "s1": "Your Instagram must be a Business or Creator account: personal accounts cannot be connected.",
+            "s2": "Use one-click connect to sign in with Instagram and approve read access to your posts.",
+            "s3": "Tulala stores an encrypted long-lived token and refreshes it automatically so the feed keeps updating."
+          },
+          "fields": {
+            "profile_url": "Instagram profile URL or @handle"
+          }
+        },
+        "tiktok": {
+          "label": "TikTok",
+          "description": "Connect the workspace TikTok account to show your latest videos on the public site.",
+          "steps": {
+            "s1": "Use one-click connect to sign in with TikTok and approve read access to your videos.",
+            "s2": "TikTok only shares each video's cover image and share link, so feed tiles link out to TikTok rather than playing inline.",
+            "s3": "Tulala stores encrypted tokens and refreshes them automatically."
+          },
+          "fields": {
+            "profile_url": "TikTok profile URL or @handle"
+          }
         }
       }
     },

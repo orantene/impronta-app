@@ -69,7 +69,10 @@ const BUDGETS: Record<string, number> = {
   "selection-layer.tsx": 7277,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
-  "canvas-node-children-panel.tsx": 773,
+  // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
+  // names the network the feed pulls from rather than repeating "Social feed".
+  // Still far under the eslint 800 cap.
+  "canvas-node-children-panel.tsx": 778,
 };
 
 function lineCount(relativePath: string): number {

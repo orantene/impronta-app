@@ -42,7 +42,10 @@ import {
 import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talent/schema";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
-import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
+import {
+  isPaidBuilderPlan,
+  loadBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
 import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import {
   collectBuilderPerformanceIssues,
@@ -495,6 +498,30 @@ export async function runPublishPreflight(input?: {
           validation.tree,
         )) {
           issues.push(overflowIssue);
+        }
+
+        // Paid-plan blocks: social_feed is gated to paid workspaces. The Add
+        // gallery already refuses the insert on free plans; this is the
+        // server-side backstop (a downgraded workspace, an imported tree, or a
+        // bypassed client all land here).
+        if (!isPaidBuilderPlan(workspacePlan)) {
+          const found: string[] = [];
+          const walk = (nodes: ReadonlyArray<{ kind: string; children?: unknown }>) => {
+            for (const n of nodes) {
+              if (n.kind === "social_feed") found.push(n.kind);
+              if (Array.isArray((n as { children?: unknown }).children)) {
+                walk((n as { children: ReadonlyArray<{ kind: string }> }).children);
+              }
+            }
+          };
+          walk(validation.tree as ReadonlyArray<{ kind: string }>);
+          if (found.length > 0) {
+            issues.push({
+              severity: "error",
+              category: "builder_payload",
+              message: `This page uses ${found.length === 1 ? "a Social feed block" : `${found.length} Social feed blocks`}, which is available on paid plans. Upgrade in Settings, Plan & billing, or remove the block to publish.`,
+            });
+          }
         }
 
         if (

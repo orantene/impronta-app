@@ -59,6 +59,12 @@
     },
     "src/app/api/cron/workspace-audit-trim/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/refresh-social-tokens/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/refresh-social-feeds/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -125,6 +131,14 @@
     {
       "path": "/api/cron/workspace-audit-trim",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-social-tokens",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-social-feeds",
+      "schedule": "40 * * * *"
     }
   ]
 }

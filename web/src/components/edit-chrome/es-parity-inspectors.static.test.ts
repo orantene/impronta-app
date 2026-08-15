@@ -106,6 +106,7 @@ const INTENTIONALLY_UNTRANSLATED: ReadonlyMap<string, string> = new Map([
   ["Noir", "preset name, a French loanword used in both languages"],
   ["Ken Burns zoom", "named after the film-maker; the effect keeps his name"],
   ["Zoom", "loanword, identical in Spanish"],
+  ["Feed", "loanword, identical in Spanish"],
 ]);
 
 /** Regex-shaped exemptions: pure symbols, hex colors, bare URLs and paths. */

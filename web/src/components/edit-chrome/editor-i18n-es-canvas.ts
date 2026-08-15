@@ -277,6 +277,8 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Embed block": "Bloque incrustado",
   "TikTok post": "Publicación de TikTok",
   "Instagram post": "Publicación de Instagram",
+  "TikTok feed": "Feed de TikTok",
+  "Instagram feed": "Feed de Instagram",
   "Button link": "Enlace del botón",
   "Raw HTML (sandboxed)": "HTML sin procesar (aislado)",
   Divider: "Divisor",

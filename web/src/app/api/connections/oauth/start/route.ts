@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAppUrl } from "@/lib/auth-flow";
 import { userHasCapability } from "@/lib/access";
 import { resolveClientConnectionTenant } from "@/lib/connection-oauth/ownership";
-import { getConnectionOAuthProvider } from "@/lib/connection-oauth/providers";
+import {
+  buildConnectionAuthorizationUrl,
+  getConnectionOAuthProvider,
+} from "@/lib/connection-oauth/providers";
 import { createConnectionOAuthState } from "@/lib/connection-oauth/state";
 import { buildGoogleConnectionAuthorizationUrl } from "@/lib/connection-oauth/youtube";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
@@ -29,11 +32,11 @@ export async function GET(request: NextRequest) {
   const owner = searchParams.get("owner");
   const tenantSlug = searchParams.get("tenantSlug");
   const provider = getConnectionOAuthProvider(providerKey);
-  // The REGISTRY knows about instagram/tiktok, but only vendors with a built
-  // callback may actually start a flow. This gate is what keeps a half-built
-  // provider unreachable: adding the entry to providers.ts does not expose it
-  // until its `/callback/{vendor}` route lands. Widen deliberately, per vendor.
-  if (!provider || provider.oauthProvider !== "google") {
+  // Only vendors with a built `/callback/{vendor}` route may start a flow, so a
+  // registry entry alone can never expose a half-built provider. Widen this
+  // deliberately, per vendor, as each callback lands.
+  const VENDORS_WITH_CALLBACK = new Set(["google", "instagram", "tiktok"]);
+  if (!provider || !VENDORS_WITH_CALLBACK.has(provider.oauthProvider)) {
     return failureRedirect("/", "unsupported_provider");
   }
 
@@ -57,8 +60,12 @@ export async function GET(request: NextRequest) {
     });
     if (!state.ok) return failureRedirect(returnTo, "oauth_setup");
 
-    const redirectUri = `${getAppUrl()}/api/connections/oauth/callback/google`;
-    const auth = buildGoogleConnectionAuthorizationUrl({
+    // Redirect URI is per-VENDOR (each has its own callback route), and the
+    // authorization URL is built by the vendor-generic builder so instagram /
+    // tiktok cannot drift from the proven YouTube shape.
+    const redirectUri = `${getAppUrl()}/api/connections/oauth/callback/${provider.oauthProvider}`;
+    const auth = buildConnectionAuthorizationUrl({
+      provider,
       state: state.token,
       redirectUri,
     });

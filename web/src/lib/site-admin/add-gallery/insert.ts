@@ -449,6 +449,33 @@ export function applyNativeVariant(
     // One node kind, two gallery entries: the variant is what makes an
     // "Instagram Post" insert already set to Instagram rather than making the
     // operator pick a provider after inserting.
+    case "feed-grid":
+    case "feed-masonry":
+    case "feed-slider":
+    case "feed-stories":
+      if (node.kind === "social_feed") {
+        const layout =
+          variant === "feed-grid"
+            ? "grid"
+            : variant === "feed-masonry"
+              ? "masonry"
+              : variant === "feed-slider"
+                ? "slider"
+                : "stories";
+        return {
+          ...node,
+          props: {
+            ...node.props,
+            layout,
+            // Reels strip: video-first defaults.
+            ...(layout === "stories"
+              ? { provider: "tiktok" as const, aspect: "portrait" as const, columns: 4 }
+              : {}),
+            ...(layout === "masonry" ? { aspect: "auto" as const } : {}),
+          },
+        };
+      }
+      break;
     case "instagram":
     case "tiktok":
       if (node.kind === "social_post") {

@@ -390,6 +390,10 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Social links": "Enlaces a redes",
   "Sync from workspace social profiles":
     "Sincronizar desde los perfiles sociales del espacio de trabajo",
+  // ── Social feed block (Instagram / TikTok gallery) ────────────────────
+  "e.g. impronta_models": "p. ej. impronta_models",
+  "Shown on hover and in the viewer":
+    "Se muestra al pasar el cursor y en el visor",
   "Your brand or site name": "El nombre de tu marca o de tu sitio",
   "Optional, e.g. Models & image agency":
     "Opcional, p. ej. Agencia de modelos e imagen",

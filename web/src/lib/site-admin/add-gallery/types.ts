@@ -80,7 +80,11 @@ export type AddGalleryNativeVariant =
   | "breadcrumb"
   | "youtube"
   | "instagram"
-  | "tiktok";
+  | "tiktok"
+  | "feed-grid"
+  | "feed-masonry"
+  | "feed-slider"
+  | "feed-stories";
 
 export interface AddGalleryItem {
   id: string;
@@ -133,6 +137,12 @@ export interface AddGalleryItem {
   /** Builder Studio — admin per-prop locks (dot-paths) stamped onto the
    *  inserted node so a tenant can't edit them. */
   lockedProps?: ReadonlyArray<string>;
+  /**
+   * Paid-plan feature. Free workspaces see the card but inserting reports an
+   * upgrade message instead of silently failing; publish preflight is the
+   * server-side backstop.
+   */
+  requiresPaidPlan?: boolean;
   /** Builder Studio — default data binding (filterQuery/maxItems/pinnedIds)
    *  baked into a connected component at insert. */
   dataSourceDefaults?: Record<string, unknown> | null;

@@ -182,6 +182,27 @@ function createTabPanel(
 
 export function createBuilderNode(kind: BuilderNodeKind): BuilderNode {
   switch (kind) {
+    case "social_feed":
+      // Seeded EMPTY (same rule as social_post): placeholder posts would put
+      // someone else's content on the page. The editor renders a designed
+      // empty state until items are added.
+      return {
+        id: makeId("social_feed"),
+        kind: "social_feed",
+        props: {
+          layout: "grid",
+          provider: "instagram",
+          columns: 3,
+          initialCount: 6,
+          gap: "sm",
+          aspect: "square",
+          hover: "zoom-caption",
+          lightbox: true,
+          loadMore: "button",
+          autoplayVideos: true,
+          items: [],
+        },
+      };
     case "social_post":
       // Seeded EMPTY on purpose: a placeholder post URL would render someone
       // else's content on the operator's page until they noticed. The inspector
