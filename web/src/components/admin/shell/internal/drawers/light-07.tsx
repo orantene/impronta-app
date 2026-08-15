@@ -27,6 +27,7 @@ import {
   useAdminShell
 } from "./drawer-shared";
 import { formatRecentActivity, groupRecentActivityByDay } from "../state";
+import { notificationDrawerFields } from "../notification-drawer-targets";
 import { useDashboardText } from "../dashboard-i18n";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
@@ -342,8 +343,7 @@ export function NotificationsDrawer() {
           actorName: "",
           actorInitials: n.actorInitials ?? "·",
           surface: "workspace" as const,
-          targetDrawer: (n.targetDrawer ?? "notifications") as NotificationItem["targetDrawer"],
-          targetPayload: n.originInquiryId ? { inquiryId: n.originInquiryId } : undefined,
+          ...notificationDrawerFields(n.targetDrawer, n.originInquiryId), // alias-resolved once, for BOTH dispatch sites below
         }));
     }
     return NOTIFICATIONS.filter((n) => n.surface === "workspace");

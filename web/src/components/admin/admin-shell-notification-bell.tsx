@@ -16,7 +16,7 @@ import type { MyNotification } from "@/lib/notifications/self-types";
 import {
   fireOpenShellDrawer,
 } from "@/components/admin/shell/internal/open-drawer-bridge";
-import type { DrawerId } from "@/components/admin/shell/internal/state";
+import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -207,8 +207,12 @@ export function TopBarNotificationBell() {
                         className="min-w-0 flex-1 text-left"
                         onClick={() => {
                           void markOneRead(n.id);
-                          if (n.targetDrawer) {
-                            fireOpenShellDrawer(n.targetDrawer as DrawerId);
+                          // Stored target_drawer strings are not all drawer
+                          // ids — resolve aliases (e.g. "talent-media" → the
+                          // profile shell's media section) in one place.
+                          const target = resolveNotificationDrawerTarget(n.targetDrawer);
+                          if (target) {
+                            fireOpenShellDrawer(target.drawerId, target.payload);
                             setOpen(false);
                             return;
                           }

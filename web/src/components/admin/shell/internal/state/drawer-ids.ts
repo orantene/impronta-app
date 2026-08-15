@@ -268,7 +268,15 @@ export type DrawerId =
   | "watermark-editor"          // per-image watermark position/opacity/size editor
   | "workspace-media-gallery"   // full-screen agency media grid (Agency tier)
   // ── Reviews moderation (STANDING) ────────────────────────────────────
-  | "reviews-moderation";       // staff reported-review queue + rating-integrity panel
+  | "reviews-moderation"        // staff reported-review queue + rating-integrity panel
+  // ── Media ownership / two-key release ────────────────────────────────
+  // Emitted as `targetDrawer` by the media-grant notifications
+  // (`media-grants-shared.ts`). It used to resolve to nothing, so the
+  // workspace half of the two-key flow opened the "Coming up next" stub at its
+  // moment of highest attention. The talent half (`talent-media`) is an ALIAS
+  // rather than an id — see `notification-drawer-targets.ts` for the
+  // resolution table and the static test that keeps every emitted id honest.
+  | "media-releases";           // workspace queue of photo-release requests
 
 export type DrawerContext = {
   drawerId: DrawerId | null;

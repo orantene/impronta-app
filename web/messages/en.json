@@ -10303,7 +10303,7 @@
       "moveToTalent": "Move to talent",
       "reassignHint": "Photos will be re-assigned and appear under the new talent.",
       "bulkWatermark": "Watermark…",
-      "confirmClaimOwnership": "Mark {count} photo(s) as produced by your workspace? The talent is told, and you can undo it for 14 days.",
+      "confirmClaimOwnership": "Mark {count} photo(s) as produced by your workspace? The talent is told, and you can hand them back at any time.",
       "toastOwnershipClaimed": "Marked {count} photo(s) as workspace-owned.",
       "toastOwnershipReleased": "Gave {count} photo(s) back to the talent.",
       "claimOwnershipN": "Mark {count} as ours",
@@ -10485,7 +10485,8 @@
       "downloadOriginal": "Download",
       "downloadWorking": "Preparing...",
       "downloadGotOriginal": "Original file.",
-      "downloadGotWebSize": "Web-size file."
+      "downloadGotWebSize": "Web-size file.",
+      "downloadWatermarkNote": "No watermark on this file. Watermarks are applied only to photos you release to another site with the watermark condition."
     },
     "adminPitchCompose": {
       "drawerTitle": "Send pitch",
@@ -10837,6 +10838,8 @@
       "saving": "Saving...",
       "saved": "Selection saved.",
       "selectedCount": "{count} selected",
+      "declinedBadge": "Declined",
+      "statusDenied": "Not released. You can ask again.",
       "captionPlaceholder": "Add a caption for this site…",
       "captionSaving": "Saving caption…",
       "captionSaved": "Caption saved.",
@@ -10849,7 +10852,20 @@
       "moveDownAria": "Move down",
       "orderSaving": "Saving order…",
       "orderSaved": "Order saved.",
-      "orderError": "Could not save the new order."
+      "orderError": "Could not save the new order.",
+      "coverVsBannerHint": "Two different covers exist. The Profile banner (16:9) and Profile photo (1:1) are the talent's own page. The card face you pick here is what your roster cards show on this site, and it wins on those cards.",
+      "coverButtonHint": "Sets the card face for this site. Saved with the selection.",
+      "flagOffTitle": "Per-site photo selection is not switched on yet.",
+      "flagOffBody": "You can prepare a selection now; it will apply when it is enabled. Until then your site keeps showing the default selection.",
+      "defaultSelectionTitle": "Showing the default selection.",
+      "defaultSelectionBody": "These are the first photos from this talent's gallery. Your site is not blank. Pick photos below to choose your own.",
+      "defaultSelectionOutlineHint": "The dashed tile is the photo your cards are using right now.",
+      "defaultFaceBadge": "Default",
+      "noneSelectedShowingDefault": "Nothing picked yet, showing the default selection.",
+      "unsavedCount": "{count} picked, not saved yet.",
+      "saveFirstHint": "Save the selection to caption and order these.",
+      "hiddenKeepsHint": "Hidden from the site. Caption and position are kept.",
+      "captionPlaceholderLocked": "Save the selection first"
     },
     "mediaRelease": {
       "title": "Photos from your agencies",
@@ -10886,13 +10902,15 @@
       "revoked": "Revoked {count} photos.",
       "watermarkLabel": "Require a watermark",
       "watermarkHint": "Released photos appear elsewhere with your logo on them. Set the logo and its placement under Settings, Branding.",
-      "approvedWatermarked": "Released {count} photo(s) with your watermark."
+      "approvedWatermarked": "Released {count} photo(s) with your watermark.",
+      "watermarkPermanentHint": "This choice is fixed for this release. To change it later you revoke the release and approve a new one."
     },
     "mediaPickerLock": {
       "badge": "Locked",
       "aWorkspace": "a workspace",
       "ownedByWorkspace": "{workspace} owns this photo, so it can only go on their site. Ask them to release it and you can use it here.",
-      "masterOff": "{workspace} owns this photo and keeps it on their site only. Ask them to release it and you can use it here."
+      "masterOff": "{workspace} owns this photo and keeps it on their site only. Ask them to release it and you can use it here.",
+      "requestRelease": "Request release"
     },
     "mediaPicker": {
       "quotaLimitReached": "You have reached your plan photo limit. Remove a few photos you no longer need, or upgrade your plan to add more.",

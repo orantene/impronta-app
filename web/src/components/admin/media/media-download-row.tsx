@@ -64,6 +64,18 @@ export function MediaDownloadRow({ assetId }: { assetId: string }) {
           {link.message}
         </p>
       ) : null}
+      {/*
+        B17 — the row explained original-vs-web-size and never said a word
+        about watermarks, so a downloader could not tell whether the file
+        carries a mark. Watermarking is a RELEASE condition baked into a
+        separate derivative; downloads here always hand back the workspace's
+        own unmarked file. Say it once, up front.
+      */}
+      {link ? (
+        <p className="text-[11px] leading-snug text-white/40">
+          {t("dashboard.adminMedia.downloadWatermarkNote")}
+        </p>
+      ) : null}
       {error ? <p className="text-[11px] leading-snug text-white/70">{error}</p> : null}
     </div>
   );

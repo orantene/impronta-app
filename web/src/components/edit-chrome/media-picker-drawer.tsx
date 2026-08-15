@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RequestReleaseButton } from "./media-picker-request-release";
 import { useT } from "@/i18n/use-t";
 import { uploadCmsMedia } from "@/lib/client/signed-upload";
 import { compressImage } from "@/lib/client/image-compress";
@@ -698,6 +699,12 @@ export function MediaPickerDrawer({
                       <div className="grid gap-2 p-2">
                         {lockNote ? (
                           <p className="text-[11px] leading-snug text-[#2c5fdb]">{lockNote}</p>
+                        ) : null}
+                        {/* B9 — "ask them to release it" now has a door. */}
+                        {lockNote && isTalentScope ? (
+                          <RequestReleaseButton
+                            label={t("dashboard.mediaPickerLock.requestRelease")}
+                          />
                         ) : null}
                         {isTalentScope ? (
                           // Talents can't save alt text — the PATCH endpoint is

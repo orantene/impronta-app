@@ -10303,7 +10303,7 @@
       "moveToTalent": "Mover a otro talento",
       "reassignHint": "Las fotos se reasignarán y aparecerán bajo el nuevo talento.",
       "bulkWatermark": "Marca de agua…",
-      "confirmClaimOwnership": "¿Marcar {count} foto(s) como producidas por tu espacio de trabajo? Se avisa al talento y puedes deshacerlo durante 14 días.",
+      "confirmClaimOwnership": "¿Marcar {count} foto(s) como producidas por tu espacio de trabajo? Se avisa al talento y puedes devolverlas cuando quieras.",
       "toastOwnershipClaimed": "{count} foto(s) marcadas como propiedad del espacio de trabajo.",
       "toastOwnershipReleased": "{count} foto(s) devueltas al talento.",
       "claimOwnershipN": "Marcar {count} como nuestras",
@@ -10485,7 +10485,8 @@
       "downloadOriginal": "Descargar",
       "downloadWorking": "Preparando...",
       "downloadGotOriginal": "Archivo original.",
-      "downloadGotWebSize": "Archivo en tamaño web."
+      "downloadGotWebSize": "Archivo en tamaño web.",
+      "downloadWatermarkNote": "Este archivo no lleva marca de agua. Las marcas de agua solo se aplican a las fotos que liberas a otro sitio con esa condición."
     },
     "adminPitchCompose": {
       "drawerTitle": "Enviar propuesta",
@@ -10837,6 +10838,8 @@
       "saving": "Guardando...",
       "saved": "Selección guardada.",
       "selectedCount": "{count} seleccionadas",
+      "declinedBadge": "Rechazada",
+      "statusDenied": "No liberada. Puedes volver a pedirla.",
       "captionPlaceholder": "Añade un pie de foto para este sitio…",
       "captionSaving": "Guardando pie de foto…",
       "captionSaved": "Pie de foto guardado.",
@@ -10849,7 +10852,20 @@
       "moveDownAria": "Bajar",
       "orderSaving": "Guardando el orden…",
       "orderSaved": "Orden guardado.",
-      "orderError": "No se pudo guardar el nuevo orden."
+      "orderError": "No se pudo guardar el nuevo orden.",
+      "coverVsBannerHint": "Existen dos portadas distintas. El banner de perfil (16:9) y la foto de perfil (1:1) son la página del propio talento. La cara de tarjeta que eliges aquí es lo que muestran las tarjetas de tu sitio, y manda en esas tarjetas.",
+      "coverButtonHint": "Define la cara de tarjeta para este sitio. Se guarda junto con la selección.",
+      "flagOffTitle": "La selección de fotos por sitio todavía no está activada.",
+      "flagOffBody": "Puedes preparar una selección ahora; se aplicará cuando se active. Mientras tanto tu sitio sigue mostrando la selección por defecto.",
+      "defaultSelectionTitle": "Mostrando la selección por defecto.",
+      "defaultSelectionBody": "Son las primeras fotos de la galería de este talento. Tu sitio no está vacío. Elige fotos abajo para usar las tuyas.",
+      "defaultSelectionOutlineHint": "La foto con borde punteado es la que están usando tus tarjetas ahora mismo.",
+      "defaultFaceBadge": "Por defecto",
+      "noneSelectedShowingDefault": "Nada elegido todavía, mostrando la selección por defecto.",
+      "unsavedCount": "{count} elegidas, sin guardar.",
+      "saveFirstHint": "Guarda la selección para poner texto y orden a estas fotos.",
+      "hiddenKeepsHint": "Oculta del sitio. Se conservan el texto y la posición.",
+      "captionPlaceholderLocked": "Guarda la selección primero"
     },
     "mediaRelease": {
       "title": "Fotos de tus agencias",
@@ -10886,13 +10902,15 @@
       "revoked": "Se revocaron {count} fotos.",
       "watermarkLabel": "Exigir marca de agua",
       "watermarkHint": "Las fotos liberadas aparecen en otros sitios con tu logo. Configura el logo y su posición en Ajustes, Marca.",
-      "approvedWatermarked": "Liberaste {count} foto(s) con tu marca de agua."
+      "approvedWatermarked": "Liberaste {count} foto(s) con tu marca de agua.",
+      "watermarkPermanentHint": "Esta elección queda fija para esta liberación. Para cambiarla más tarde, revoca la liberación y aprueba una nueva."
     },
     "mediaPickerLock": {
       "badge": "Bloqueada",
       "aWorkspace": "un espacio",
       "ownedByWorkspace": "{workspace} es dueño de esta foto, así que solo puede ir en su sitio. Pídeles que la liberen y podrás usarla aquí.",
-      "masterOff": "{workspace} es dueño de esta foto y la mantiene solo en su sitio. Pídeles que la liberen y podrás usarla aquí."
+      "masterOff": "{workspace} es dueño de esta foto y la mantiene solo en su sitio. Pídeles que la liberen y podrás usarla aquí.",
+      "requestRelease": "Pedir liberación"
     },
     "mediaPicker": {
       "quotaLimitReached": "Has alcanzado el limite de fotos de tu plan. Elimina algunas fotos que ya no necesites o mejora tu plan para agregar mas.",

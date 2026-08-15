@@ -48,6 +48,16 @@ export type TalentMediaLock = {
   released: boolean;
   /** A release request is already awaiting an answer. */
   pending: boolean;
+  /**
+   * When the most recent request covering this photo was DECLINED, ISO string;
+   * null when it was never asked for (or the ask is still open / approved).
+   *
+   * Without this a declined photo renders byte-identically to one nobody ever
+   * asked about (execution-plan-2026-08-15 §3 B10), so the talent has no way to
+   * tell "they said no" from "you have not asked yet" and re-asks blindly.
+   * A decline is not permanent — the UI says so — but it must be VISIBLE.
+   */
+  deniedAt: string | null;
 };
 
 /**
@@ -84,9 +94,10 @@ export async function loadTalentMediaLocks(
   if (rows.length === 0) return { ok: true, data: [] };
 
   const assetIds = rows.map((r) => r.id);
-  const [grants, pendingIds, names] = await Promise.all([
+  const [grants, pendingIds, deniedAtByAsset, names] = await Promise.all([
     loadActiveGrants(admin, assetIds),
     loadPendingRequestAssetIds(admin, talentProfileId),
+    loadDeniedRequestAssetIds(admin, talentProfileId),
     loadTenantNames(admin, [...new Set(rows.map((r) => r.owner_tenant_id))]),
   ]);
 
@@ -104,6 +115,12 @@ export async function loadTalentMediaLocks(
       ownerTenantName: names.get(row.owner_tenant_id) ?? "a workspace",
       released: releasedAssetIds.has(row.id),
       pending: pendingIds.has(row.id),
+      // A still-open or already-granted ask outranks an older decline: the
+      // most recent state is the one the talent needs to act on.
+      deniedAt:
+        pendingIds.has(row.id) || releasedAssetIds.has(row.id)
+          ? null
+          : deniedAtByAsset.get(row.id) ?? null,
     })),
   };
 }
@@ -140,6 +157,45 @@ async function loadPendingRequestAssetIds(
   const out = new Set<string>();
   for (const row of (data ?? []) as Array<{ requested_scopes: string[] | null }>) {
     for (const id of parseReleaseScopes(row.requested_scopes).assetIds) out.add(id);
+  }
+  return out;
+}
+
+/**
+ * Most recent DECLINE per asset, for this talent's own requests.
+ *
+ * Read-only companion to `loadPendingRequestAssetIds`: same table, same scope
+ * helper, different status. Ordered newest-first and written with `if
+ * (!out.has(id))` so the first row wins — i.e. the LATEST decline, not an
+ * arbitrary one. Errors degrade to an empty map: a missing decline badge is a
+ * cosmetic loss, a thrown read would take the whole locked-tile grid down.
+ */
+async function loadDeniedRequestAssetIds(
+  admin: SupabaseClient,
+  talentProfileId: string,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const { data, error } = await admin
+    .from("talent_agency_permission_requests")
+    .select("requested_scopes, responded_at, requested_at")
+    .eq("talent_profile_id", talentProfileId)
+    .eq("status", "denied")
+    .order("responded_at", { ascending: false, nullsFirst: false })
+    .limit(200);
+  if (error) {
+    logServerError("media-grants.loadDenied", error);
+    return out;
+  }
+  for (const row of (data ?? []) as Array<{
+    requested_scopes: string[] | null;
+    responded_at: string | null;
+    requested_at: string | null;
+  }>) {
+    const at = row.responded_at ?? row.requested_at;
+    if (!at) continue;
+    for (const id of parseReleaseScopes(row.requested_scopes).assetIds) {
+      if (!out.has(id)) out.set(id, at);
+    }
   }
   return out;
 }

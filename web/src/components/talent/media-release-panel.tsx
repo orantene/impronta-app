@@ -142,14 +142,20 @@ export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string
           {locks.map((lock) => {
             const isSelected = selected.includes(lock.assetId);
             const actionable = !lock.pending && !lock.released;
+            // B10 — a declined photo used to render byte-identically to one
+            // nobody ever asked about. It is still askable (a decline is not
+            // permanent), so the copy says both halves: what happened, and
+            // that asking again is allowed.
             const status = lock.released
               ? t("dashboard.mediaRelease.statusReleased")
               : lock.pending
                 ? t("dashboard.mediaRelease.statusPending")
-                : t("dashboard.mediaRelease.statusLocked").replace(
-                    "{workspace}",
-                    lock.ownerTenantName,
-                  );
+                : lock.deniedAt
+                  ? t("dashboard.mediaRelease.statusDenied")
+                  : t("dashboard.mediaRelease.statusLocked").replace(
+                      "{workspace}",
+                      lock.ownerTenantName,
+                    );
             return (
               <div
                 key={lock.assetId}
@@ -181,7 +187,9 @@ export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string
                     aria-hidden="true"
                     className="pointer-events-none absolute left-1.5 top-1.5 rounded bg-admin-ink-dim px-1.5 py-0.5 text-[10px] font-bold text-white"
                   >
-                    {t("dashboard.mediaRelease.lockBadge")}
+                    {lock.deniedAt
+                      ? t("dashboard.mediaRelease.declinedBadge")
+                      : t("dashboard.mediaRelease.lockBadge")}
                   </span>
                 )}
                 {isSelected && (
@@ -205,7 +213,7 @@ export function MediaReleasePanel({ talentProfileId }: { talentProfileId: string
             type="button"
             onClick={sendRequest}
             disabled={selected.length === 0 || mixedOwners || state === "sending"}
-            className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-muted"
+            className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-dim"
           >
             {state === "sending"
               ? t("dashboard.mediaRelease.sending")

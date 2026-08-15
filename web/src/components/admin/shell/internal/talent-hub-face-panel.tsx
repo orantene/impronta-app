@@ -15,6 +15,30 @@
  *
  * The panel always shows explicit load / save / error state (admin edit-UX
  * rule: never a silent wait, never a save that looks like nothing happened).
+ *
+ * ── UX honesty pass, 2026-08-15 (execution plan §3 B2-B8) ──────────────────
+ * The panel worked; it lied by omission. Four things changed and each one is
+ * load-bearing:
+ *
+ *  • ONE COMMIT MODEL. "Make cover" used to write immediately while the photo
+ *    selection was deferred behind "Save selection", so clicking it during a
+ *    dirty selection changed the live site with no save and no confirmation —
+ *    and `setHubMediaSelection` would then clear that very cover if it fell
+ *    outside the saved list. Cover now auto-selects its tile and rides the
+ *    same deferred save. Caption / visibility / reorder still write
+ *    immediately, but they are only reachable on ALREADY-SAVED photos, so
+ *    they can never straddle an unsaved selection.
+ *  • NO FALSE EMPTY. "0 selected" reads as "nothing on my site". With no
+ *    curation the site serves the DEFAULT RANK, so the panel now says that,
+ *    and outlines the tile the default is actually picking.
+ *  • NO SILENT NO-OP. With MEDIA_PER_HUB_FACES_ENABLED off, every write here
+ *    succeeds and changes nothing visible. The banner says so; the writes stay
+ *    on so a selection can be prepared ahead of the flip.
+ *  • NO INVERTED CONTRAST. The disabled tokens used to be LOUDER than the
+ *    enabled ones (`admin-ink-dim` = 0.38 alpha, `admin-ink-muted` = 0.72), so
+ *    dead buttons shouted and live ones whispered. Enabled controls are
+ *    `text-admin-ink-muted`, disabled ones `text-admin-ink-dim`. Keep it that
+ *    way — the token names read backwards and this trap will recur.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -40,6 +64,15 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  /**
+   * What the LIVE site is serving, straight from the storefront resolver. When
+   * this is "default" the site is showing the default rank, which is a real
+   * face — not an empty site. See `HubFaceState.source`.
+   */
+  const [liveSource, setLiveSource] = useState<"curation" | "default">("default");
+  const [defaultCoverAssetId, setDefaultCoverAssetId] = useState<string | null>(null);
+  /** MEDIA_PER_HUB_FACES_ENABLED — off means every write below is invisible. */
+  const [facesEnabled, setFacesEnabled] = useState(true);
 
   // Per-photo state for the immediate-write controls (caption, visibility,
   // reorder) — these bypass the "Save selection" button entirely, so each
@@ -64,6 +97,9 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
     setPhotos(res.data.photos);
     setSelected(res.data.selectedAssetIds);
     setCover(res.data.coverAssetId);
+    setLiveSource(res.data.source);
+    setDefaultCoverAssetId(res.data.defaultCoverAssetId);
+    setFacesEnabled(res.data.perHubFacesEnabled);
     setCaptionDrafts(
       Object.fromEntries(res.data.photos.map((p) => [p.assetId, p.caption ?? ""])),
     );
@@ -79,43 +115,63 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
     };
   }, [load]);
 
-  const dirty =
-    photos !== null &&
-    JSON.stringify(selected) !==
-      JSON.stringify(photos.filter((p) => p.selected).map((p) => p.assetId));
+  const persistedSelected = photos?.filter((p) => p.selected).map((p) => p.assetId) ?? [];
+  const persistedCover = photos?.find((p) => p.isCover)?.assetId ?? null;
+  const selectionDirty =
+    photos !== null && JSON.stringify(selected) !== JSON.stringify(persistedSelected);
+  const coverDirty = photos !== null && cover !== persistedCover;
+  // ONE commit model: the button is live when EITHER half of the draft differs
+  // from what the server holds. Cover used to write behind the user's back.
+  const dirty = selectionDirty || coverDirty;
 
   const toggle = (assetId: string) => {
     setSaveState("idle");
-    setSelected((prev) =>
-      prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId],
+    const removing = selected.includes(assetId);
+    setSelected(
+      removing ? selected.filter((id) => id !== assetId) : [...selected, assetId],
     );
+    // A cover outside the selection is not a state the server will keep
+    // (`setHubMediaSelection` clears it), so the draft must not pretend
+    // otherwise. Drop the cover the moment its tile leaves the selection.
+    if (removing && cover === assetId) setCover(null);
+  };
+
+  /**
+   * Draft-only. Choosing a cover auto-SELECTS its tile — a cover that is not in
+   * the selection cannot survive the save, and offering it would be a control
+   * that silently undoes itself. Nothing is written until "Save selection".
+   */
+  const chooseCover = (assetId: string | null) => {
+    setSaveState("idle");
+    setCover(assetId);
+    if (assetId && !selected.includes(assetId)) setSelected([...selected, assetId]);
   };
 
   const saveSelection = async () => {
     setSaveState("saving");
     setSaveError(null);
+    // Order matters: the selection write clears a cover that sits outside the
+    // list, so the selection lands FIRST and the cover second.
     const res = await actionSetTalentHubSelection(talentProfileId, selected);
     if (!res.ok) {
       setSaveState("error");
       setSaveError(res.error);
       return;
     }
-    setCover(res.data.coverAssetId);
+    if (cover !== res.data.coverAssetId) {
+      const coverRes = await actionSetTalentHubCover(talentProfileId, cover);
+      if (!coverRes.ok) {
+        setSaveState("error");
+        setSaveError(coverRes.error);
+        await load();
+        return;
+      }
+      setCover(coverRes.data.coverAssetId);
+    } else {
+      setCover(res.data.coverAssetId);
+    }
     setSaveState("saved");
     await load();
-  };
-
-  const makeCover = async (assetId: string | null) => {
-    setSaveState("saving");
-    setSaveError(null);
-    const res = await actionSetTalentHubCover(talentProfileId, assetId);
-    if (!res.ok) {
-      setSaveState("error");
-      setSaveError(res.error);
-      return;
-    }
-    setCover(res.data.coverAssetId);
-    setSaveState("saved");
   };
 
   const saveCaption = async (assetId: string) => {
@@ -186,7 +242,30 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
         <div className="mt-1 text-[11.5px] leading-relaxed text-admin-ink-muted">
           {t("dashboard.talentHubFace.body")}
         </div>
+        {/*
+          B8 — two different "Cover" concepts live on this one screen: the
+          profile banner further up (16:9, the talent's own page) and the card
+          face chosen here (1:1-ish, this site's roster cards). The per-hub one
+          silently outranks the profile one on cards, so the difference is
+          named rather than left to be discovered.
+        */}
+        <div className="mt-2 text-[11px] leading-relaxed text-admin-ink-muted">
+          {t("dashboard.talentHubFace.coverVsBannerHint")}
+        </div>
       </div>
+
+      {/*
+        P0-4 — with MEDIA_PER_HUB_FACES_ENABLED off, everything below still
+        saves, audits and busts caches while the live site stays byte-identical.
+        Say so instead of printing "Selection saved." over an unchanged site.
+        Cool attention colour (indigo), never amber/gold — admin chrome rule.
+      */}
+      {!facesEnabled && photos !== null && (
+        <div className="rounded-lg border border-admin-indigo-deep bg-admin-indigo-soft p-3 text-[11.5px] leading-relaxed text-admin-indigo-deep">
+          <span className="font-semibold">{t("dashboard.talentHubFace.flagOffTitle")}</span>{" "}
+          {t("dashboard.talentHubFace.flagOffBody")}
+        </div>
+      )}
 
       {photos === null && (
         <div className="text-[12px] text-admin-ink-muted">
@@ -218,6 +297,11 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
             const canMoveDown = photo.selected && orderIndex >= 0 && orderIndex < orderedSelectedIds.length - 1;
             const captionSave = captionState[photo.assetId] ?? "idle";
             const visibilitySave = visibilityState[photo.assetId] ?? "idle";
+            // P0-3 — the tile the DEFAULT rank is currently serving, when
+            // nothing is curated. Outlined so "showing the default selection"
+            // points at a photo instead of being an abstract claim.
+            const isDefaultFace =
+              liveSource === "default" && defaultCoverAssetId === photo.assetId;
             return (
               <div
                 key={photo.assetId}
@@ -226,7 +310,9 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
                     ? "border-admin-accent"
                     : isSelected
                       ? "border-admin-indigo-deep"
-                      : "border-admin-border-soft"
+                      : isDefaultFace
+                        ? "border-dashed border-admin-indigo-deep"
+                        : "border-admin-border-soft"
                 }`}
               >
                 <button
@@ -259,27 +345,61 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
                     {t("dashboard.talentHubFace.coverBadge")}
                   </span>
                 )}
+                {isDefaultFace && !isSelected && (
+                  <span className="pointer-events-none absolute right-1.5 top-1.5 rounded bg-admin-indigo-deep px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {t("dashboard.talentHubFace.defaultFaceBadge")}
+                  </span>
+                )}
 
-                <button
-                  type="button"
-                  onClick={() => makeCover(isCover ? null : photo.assetId)}
-                  disabled={!isSelected || saveState === "saving"}
-                  className="w-full cursor-pointer border-t border-admin-border-soft bg-admin-surface px-2 py-1 text-[10.5px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
-                >
-                  {isCover
-                    ? t("dashboard.talentHubFace.clearCover")
-                    : t("dashboard.talentHubFace.makeCover")}
-                </button>
+                {/*
+                  B4 — the cover control is HIDDEN, not greyed, until the tile
+                  is selected. A permanently visible "Make cover" that does
+                  nothing on 90% of tiles is exactly the dead-looking chrome
+                  the pass is removing. Enabled ink is `-muted` (0.72) and
+                  disabled is `-dim` (0.38): the token names read backwards.
+                */}
+                {isSelected && (
+                  <button
+                    type="button"
+                    onClick={() => chooseCover(isCover ? null : photo.assetId)}
+                    disabled={saveState === "saving"}
+                    title={t("dashboard.talentHubFace.coverButtonHint")}
+                    className="w-full cursor-pointer border-t border-admin-border-soft bg-admin-surface px-2 py-1 text-[10.5px] font-semibold text-admin-ink-muted disabled:cursor-not-allowed disabled:text-admin-ink-dim"
+                  >
+                    {isCover
+                      ? t("dashboard.talentHubFace.clearCover")
+                      : t("dashboard.talentHubFace.makeCover")}
+                  </button>
+                )}
 
-                {photo.selected && (
+                {/*
+                  B6 — the strip used to gate on the SERVER-persisted
+                  `photo.selected`, so caption / order / visibility were
+                  invisible until you saved once and looked like missing
+                  features. It now appears as soon as the tile is selected in
+                  the DRAFT, with the controls disabled and an explicit reason
+                  until the selection is saved (they write immediately and the
+                  server refuses a photo with no curation row).
+                */}
+                {isSelected && (
                   <div className="flex flex-col gap-1 border-t border-admin-border-soft bg-admin-surface p-1.5">
+                    {!photo.selected && (
+                      <span className="text-[10px] leading-snug text-admin-ink-dim">
+                        {t("dashboard.talentHubFace.saveFirstHint")}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => moveMedia(photo.assetId, -1)}
                         disabled={!canMoveUp || orderState === "saving"}
                         aria-label={t("dashboard.talentHubFace.moveUpAria")}
-                        className="flex-1 cursor-pointer rounded border border-admin-border-soft bg-admin-surface-alt py-0.5 text-[10px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                        title={
+                          photo.selected
+                            ? t("dashboard.talentHubFace.moveUpAria")
+                            : t("dashboard.talentHubFace.saveFirstHint")
+                        }
+                        className="flex-1 cursor-pointer rounded border border-admin-border-soft bg-admin-surface-alt py-0.5 text-[10px] font-semibold text-admin-ink-muted disabled:cursor-not-allowed disabled:text-admin-ink-dim"
                       >
                         ↑
                       </button>
@@ -288,34 +408,54 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
                         onClick={() => moveMedia(photo.assetId, 1)}
                         disabled={!canMoveDown || orderState === "saving"}
                         aria-label={t("dashboard.talentHubFace.moveDownAria")}
-                        className="flex-1 cursor-pointer rounded border border-admin-border-soft bg-admin-surface-alt py-0.5 text-[10px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                        title={
+                          photo.selected
+                            ? t("dashboard.talentHubFace.moveDownAria")
+                            : t("dashboard.talentHubFace.saveFirstHint")
+                        }
+                        className="flex-1 cursor-pointer rounded border border-admin-border-soft bg-admin-surface-alt py-0.5 text-[10px] font-semibold text-admin-ink-muted disabled:cursor-not-allowed disabled:text-admin-ink-dim"
                       >
                         ↓
                       </button>
+                      {/*
+                        B7 — one label everywhere. The old control used ◉ / ◎
+                        glyphs with a tooltip and an aria-label that disagreed,
+                        and the semantic that actually matters (a hidden photo
+                        KEEPS its caption and position) lived only in a server
+                        type comment. Eye-slash icon + one string, used as both
+                        title and aria-label so they cannot drift again.
+                      */}
                       <button
                         type="button"
                         onClick={() => toggleVisibility(photo)}
-                        disabled={visibilitySave === "saving"}
-                        aria-pressed={photo.visible}
+                        disabled={!photo.selected || visibilitySave === "saving"}
+                        aria-pressed={!photo.visible}
                         aria-label={
                           photo.visible
                             ? t("dashboard.talentHubFace.hideAria")
                             : t("dashboard.talentHubFace.showAria")
                         }
                         title={
-                          photo.visible
-                            ? t("dashboard.talentHubFace.visible")
-                            : t("dashboard.talentHubFace.hidden")
+                          photo.selected
+                            ? photo.visible
+                              ? t("dashboard.talentHubFace.hideAria")
+                              : t("dashboard.talentHubFace.showAria")
+                            : t("dashboard.talentHubFace.saveFirstHint")
                         }
-                        className={`flex-1 cursor-pointer rounded border py-0.5 text-[10px] font-semibold disabled:cursor-not-allowed ${
+                        className={`flex flex-1 cursor-pointer items-center justify-center rounded border py-0.5 text-[10px] font-semibold disabled:cursor-not-allowed disabled:text-admin-ink-dim ${
                           photo.visible
-                            ? "border-admin-indigo-deep bg-admin-indigo-soft text-admin-indigo-deep"
-                            : "border-admin-border-soft bg-admin-surface-alt text-admin-ink-muted"
+                            ? "border-admin-border-soft bg-admin-surface-alt text-admin-ink-muted"
+                            : "border-admin-indigo-deep bg-admin-indigo-soft text-admin-indigo-deep"
                         }`}
                       >
-                        {photo.visible ? "◉" : "◎"}
+                        {photo.visible ? <EyeIcon /> : <EyeOffIcon />}
                       </button>
                     </div>
+                    {!photo.visible && photo.selected && (
+                      <span className="text-[10px] leading-snug text-admin-indigo-deep">
+                        {t("dashboard.talentHubFace.hiddenKeepsHint")}
+                      </span>
+                    )}
 
                     <input
                       type="text"
@@ -328,8 +468,16 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
                           void saveCaption(photo.assetId);
                         }
                       }}
-                      placeholder={t("dashboard.talentHubFace.captionPlaceholder")}
-                      className="w-full rounded border border-admin-border-soft bg-admin-surface-alt px-1.5 py-1 text-[10.5px] text-admin-ink focus:border-admin-indigo-deep focus:outline-none"
+                      disabled={!photo.selected}
+                      title={
+                        photo.selected ? undefined : t("dashboard.talentHubFace.saveFirstHint")
+                      }
+                      placeholder={
+                        photo.selected
+                          ? t("dashboard.talentHubFace.captionPlaceholder")
+                          : t("dashboard.talentHubFace.captionPlaceholderLocked")
+                      }
+                      className="w-full rounded border border-admin-border-soft bg-admin-surface-alt px-1.5 py-1 text-[10.5px] text-admin-ink focus:border-admin-indigo-deep focus:outline-none disabled:cursor-not-allowed disabled:text-admin-ink-dim"
                     />
                     {captionSave === "saving" && (
                       <span className="text-[10px] text-admin-ink-muted">
@@ -341,11 +489,35 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
                         {captionError[photo.assetId] ?? t("dashboard.talentHubFace.captionError")}
                       </span>
                     )}
+                    {captionSave === "saved" && (
+                      <span className="text-[10px] text-admin-ink-muted">
+                        {t("dashboard.talentHubFace.captionSaved")}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/*
+        P0-3 — the honest empty state. With nothing curated the site is NOT
+        blank: it serves the default rank. `liveSource` comes from the
+        storefront resolver, so this cannot drift from what visitors see.
+      */}
+      {photos !== null && photos.length > 0 && liveSource === "default" && (
+        <div className="rounded-lg border border-dashed border-admin-border bg-admin-surface-alt p-3 text-[11.5px] leading-relaxed text-admin-ink-muted">
+          <span className="font-semibold text-admin-ink">
+            {t("dashboard.talentHubFace.defaultSelectionTitle")}
+          </span>{" "}
+          {t("dashboard.talentHubFace.defaultSelectionBody")}
+          {defaultCoverAssetId && (
+            <span className="mt-1 block text-admin-ink-muted">
+              {t("dashboard.talentHubFace.defaultSelectionOutlineHint")}
+            </span>
+          )}
         </div>
       )}
 
@@ -355,7 +527,7 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
             type="button"
             onClick={saveSelection}
             disabled={!dirty || saveState === "saving"}
-            className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-muted"
+            className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-dim"
           >
             {saveState === "saving"
               ? t("dashboard.talentHubFace.saving")
@@ -364,10 +536,17 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
           <span className="text-[11.5px] text-admin-ink-muted">
             {saveState === "saved" && !dirty
               ? t("dashboard.talentHubFace.saved")
-              : t("dashboard.talentHubFace.selectedCount").replace(
-                  "{count}",
-                  String(selected.length),
-                )}
+              : dirty
+                ? t("dashboard.talentHubFace.unsavedCount").replace(
+                    "{count}",
+                    String(selected.length),
+                  )
+                : selected.length === 0
+                  ? t("dashboard.talentHubFace.noneSelectedShowingDefault")
+                  : t("dashboard.talentHubFace.selectedCount").replace(
+                      "{count}",
+                      String(selected.length),
+                    )}
           </span>
           {saveError && <span className="text-[11.5px] text-admin-red">{saveError}</span>}
           {orderState === "saving" && (
@@ -381,5 +560,54 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Eye / eye-slash for the include-exclude toggle (B7). Replaces the ◉ / ◎
+ * glyph pair, which nobody could read as "on the site" vs "kept but hidden".
+ * Inline SVG rather than an icon package: this tree is frozen against new
+ * inline styles, not against markup, and the shell has no icon dependency.
+ * `currentColor` so the button's own token drives the stroke.
+ */
+function EyeIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a18.3 18.3 0 0 1-3 4.1" />
+      <path d="M6.2 6.2A18.3 18.3 0 0 0 2 12s3.5 7 10 7a10.7 10.7 0 0 0 5.1-1.2" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="m2 2 20 20" />
+    </svg>
   );
 }
