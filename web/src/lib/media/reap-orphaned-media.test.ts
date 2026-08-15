@@ -504,16 +504,16 @@ describe("reaper alerting", () => {
   it("reads the threshold from env, falling back to the measured default", () => {
     assert.equal(reapAlertThreshold({} as NodeJS.ProcessEnv), DEFAULT_REAP_ALERT_THRESHOLD);
     assert.equal(
-      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "10" } as NodeJS.ProcessEnv),
+      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "10" } as unknown as NodeJS.ProcessEnv),
       10,
     );
     // Nonsense and non-positive values must not silently disable alerting.
     assert.equal(
-      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "0" } as NodeJS.ProcessEnv),
+      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "0" } as unknown as NodeJS.ProcessEnv),
       DEFAULT_REAP_ALERT_THRESHOLD,
     );
     assert.equal(
-      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "lots" } as NodeJS.ProcessEnv),
+      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "lots" } as unknown as NodeJS.ProcessEnv),
       DEFAULT_REAP_ALERT_THRESHOLD,
     );
   });
