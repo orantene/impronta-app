@@ -16,11 +16,10 @@
  * settings path. Zero business logic duplicated here.
  *
  * Patch semantics: the lib op replaces theme_json_draft entirely with the
- * normalised patch — partial-patch semantics invite stale-field bugs (the
- * UI always submits the full set of operator-edited tokens, so a missing
- * key means the operator cleared it back to the registry default). The
- * drawer calls `loadDesign` once on open to seed the working copy, then
- * sends every subsequent save with the FULL working copy.
+ * normalised patch — partial-patch semantics invite stale-field bugs (a
+ * missing key means the operator cleared it back to the registry default).
+ * The drawer seeds its working copy from `loadDesign` on open, then sends
+ * every subsequent save with the FULL working copy.
  */
 
 import {
@@ -43,6 +42,7 @@ import {
   type ComponentStyleDefaults,
 } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
+import { splitLegacyThemeKeys } from "@/lib/site-admin/tokens/legacy-passthrough";
 import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
@@ -112,10 +112,9 @@ export type DesignPublishResult =
 
 /**
  * Merge platform defaults under the operator's stored map so the UI always
- * has a value to render for every agency-configurable key. The drawer can
- * still tell which keys are "set" (operator-edited) vs "default" by
- * comparing against `tokenDefaults()` — the merge is purely a render
- * convenience.
+ * has a value to render for every agency-configurable key. The drawer tells
+ * "set" vs "default" by comparing against `tokenDefaults()` — the merge is
+ * purely a render convenience.
  */
 function withDefaults(
   raw: Record<string, unknown> | null | undefined,
@@ -499,10 +498,12 @@ export async function applyCardKitFromEditAction(input: {
       };
     }
 
-    const merged: Record<string, string> = {
+    // Strip legacy passthrough keys before validation (not registry tokens);
+    // `saveDesignDraft` re-attaches the stored values on write.
+    const merged: Record<string, string> = splitLegacyThemeKeys({
       ...row.theme_json_draft,
       ...kit.tokens,
-    };
+    }).registryCandidate as Record<string, string>;
 
     const parsed = designSaveDraftSchema.safeParse({
       tenantId: scope.tenantId,
@@ -575,8 +576,7 @@ export async function applyCardKitFromEditAction(input: {
  * revision discipline stay identical.
  *
  * An empty-string value in the patch is an explicit "clear back to theme
- * default" (the registry's hex-or-empty validators accept it), so cleared
- * knobs still clear — they just no longer take the rest of the theme along.
+ * default", so cleared knobs still clear without taking the theme along.
  */
 export async function saveCardDesignTokensFromEditAction(input: {
   patch: Record<string, string>;
@@ -602,10 +602,11 @@ export async function saveCardDesignTokensFromEditAction(input: {
       };
     }
 
-    const merged: Record<string, string> = {
+    // Same legacy-key strip as applyCardKitFromEditAction.
+    const merged: Record<string, string> = splitLegacyThemeKeys({
       ...row.theme_json_draft,
       ...input.patch,
-    };
+    }).registryCandidate as Record<string, string>;
 
     const parsed = designSaveDraftSchema.safeParse({
       tenantId: scope.tenantId,
