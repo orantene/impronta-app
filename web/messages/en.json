@@ -4831,6 +4831,7 @@
       "subtitle": "{domain} · pages, posts, redirects, code, tracking, SEO",
       "readOnly": "Read-only",
       "viewLive": "View live",
+      "siteDesign": "Site design",
       "editHomepage": "Edit homepage",
       "addPage": "Add page",
       "subviewSite": "Site",
