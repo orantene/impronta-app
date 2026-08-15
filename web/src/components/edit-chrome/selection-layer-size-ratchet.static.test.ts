@@ -75,7 +75,10 @@ const BUDGETS: Record<string, number> = {
   // compensation translate so a west/north resize commits as ONE undo step.
   // The resize math + component live in canvas-resize-geometry.ts /
   // canvas-resize-handles.tsx.
-  "selection-layer.tsx": 7435,
+  // +216 (z-order commands): overlapping-sibling snapshot + ⌘]/⌘[ keyboard
+  // branches + context-menu Bring/Send rows. The stacking MATH lives in
+  // canvas-z-order.ts (unit-tested).
+  "selection-layer.tsx": 7651,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

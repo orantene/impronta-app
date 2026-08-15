@@ -318,4 +318,9 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
     "Arrastra para cambiar el ancho y el alto (doble clic para restablecer)",
   "Drag to resize · double-click to reset":
     "Arrastra para cambiar el tamaño · doble clic para restablecer",
+  // ── z-order commands (⌘] / ⌘[) ───────────────────────────────────────────
+  "Bring forward": "Traer adelante",
+  "Send backward": "Enviar atrás",
+  "Bring to front": "Traer al frente",
+  "Send to back": "Enviar al fondo",
 };

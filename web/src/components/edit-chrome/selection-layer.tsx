@@ -121,6 +121,12 @@ import {
 } from "./canvas-transform-geometry";
 import { useMaybeCanvasViewport } from "./canvas-viewport";
 import {
+  computeZOrderTarget,
+  effectiveZIndex,
+  type ZOrderCommand,
+  type ZOrderSibling,
+} from "./canvas-z-order";
+import {
   BoxModelHoverBands,
   CanvasSpacingHandles,
   type MarginSide,
@@ -177,6 +183,7 @@ import {
   autoscrollDeltaForY,
   filterMarqueeHits,
   marqueeRectFromPoints,
+  rectsIntersect,
   resolveSectionDropTarget,
   type Rect,
   type SectionDropItem,
@@ -3445,6 +3452,104 @@ export function SelectionLayer() {
       getSelectedBuilderNodeEl,
     ],
   );
+  // Z-ORDER (⌘] / ⌘[) — snapshot the selected block's OVERLAPPING siblings
+  // (effective z-index + DOM order) for the pure stacking math in
+  // canvas-z-order.ts. DOM rects are read once per command, not per frame.
+  const collectZOrderSiblings = useCallback(
+    (
+      nodeId: string,
+    ): { current: number; siblings: ZOrderSibling[] } | null => {
+      const node = findBuilderNodeById(builderTree, nodeId);
+      if (!node || node.kind === "section") return null;
+      const path = findBuilderNodePath(builderTree, nodeId);
+      const parentNode = path[path.length - 2];
+      if (!parentNode) return null;
+      const children =
+        (parentNode as { children?: BuilderNode[] }).children ?? [];
+      const myIndex = children.findIndex((child) => child.id === nodeId);
+      if (myIndex < 0) return null;
+      const el = getBuilderNodeEl(nodeId);
+      if (!el) return null;
+      const mr = el.getBoundingClientRect();
+      const myRect = {
+        top: mr.top,
+        left: mr.left,
+        width: mr.width,
+        height: mr.height,
+      };
+      const siblings: ZOrderSibling[] = [];
+      children.forEach((sib, i) => {
+        if (sib.id === nodeId) return;
+        const sibEl = getBuilderNodeEl(sib.id);
+        if (!sibEl) return;
+        const sr = sibEl.getBoundingClientRect();
+        if (sr.width === 0 && sr.height === 0) return;
+        if (
+          !rectsIntersect(myRect, {
+            top: sr.top,
+            left: sr.left,
+            width: sr.width,
+            height: sr.height,
+          })
+        ) {
+          return;
+        }
+        siblings.push({
+          z: effectiveZIndex(
+            (sib.props as { style?: unknown } | undefined)?.style,
+          ),
+          domAfter: i > myIndex,
+        });
+      });
+      return {
+        current: effectiveZIndex(
+          (node.props as { style?: unknown } | undefined)?.style,
+        ),
+        siblings,
+      };
+    },
+    [builderTree, getBuilderNodeEl],
+  );
+  // Returns true when the selection OWNS the chord (an editable unlocked
+  // block), so the keyboard handler preventDefaults even on a no-op — ⌘[ is
+  // browser Back, and history-navigating the editor mid-edit is never right.
+  const applySelectedNodeZOrder = useCallback(
+    (command: ZOrderCommand): boolean => {
+      if (
+        !selectedBuilderNodeId ||
+        !selectedNodeIsEditableBlock ||
+        selectedNodeIsLocked ||
+        multiNodeSelectionActive
+      ) {
+        return false;
+      }
+      const snapshot = collectZOrderSiblings(selectedBuilderNodeId);
+      if (!snapshot) return false;
+      const target = computeZOrderTarget({ ...snapshot, command });
+      if (target === null) return true;
+      const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+      if (!node || node.kind === "section") return true;
+      const currentStyle =
+        ((node.props as { style?: Record<string, unknown> } | undefined)
+          ?.style ?? {}) as Record<string, unknown>;
+      void patchBuilderNodeProps(selectedBuilderNodeId, {
+        style: { ...currentStyle, zIndex: target },
+      }).then((result) => {
+        if (!result.ok && result.error) reportMutationError(result.error);
+      });
+      return true;
+    },
+    [
+      selectedBuilderNodeId,
+      selectedNodeIsEditableBlock,
+      selectedNodeIsLocked,
+      multiNodeSelectionActive,
+      collectZOrderSiblings,
+      builderTree,
+      patchBuilderNodeProps,
+      reportMutationError,
+    ],
+  );
   // #32 — keyboard nudge moves the selected freeform block/set by translate
   // (Alt+arrow = 1px, Alt+Shift+arrow = 10px). It now lives under ALT so PLAIN
   // arrows are free to NAVIGATE the selection through the tree (the tree-nav
@@ -3916,6 +4021,27 @@ export function SelectionLayer() {
         return;
       }
 
+      // Z-ORDER — ⌘] bring forward / ⌘[ send backward, ⌥⌘] to front /
+      // ⌥⌘[ to back. e.code (not e.key) because macOS ⌥ rewrites the
+      // character the bracket keys produce.
+      if (
+        mod &&
+        !e.shiftKey &&
+        (e.code === "BracketRight" || e.code === "BracketLeft")
+      ) {
+        if (saving) return;
+        const forward = e.code === "BracketRight";
+        const command: ZOrderCommand = e.altKey
+          ? forward
+            ? "front"
+            : "back"
+          : forward
+            ? "forward"
+            : "backward";
+        if (applySelectedNodeZOrder(command)) e.preventDefault();
+        return;
+      }
+
       if (!mod && !e.altKey && !e.shiftKey && e.key === "[") {
         const parentNode = selectedNodePath[selectedNodePath.length - 2];
         if (!parentNode) return;
@@ -3979,6 +4105,7 @@ export function SelectionLayer() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [
+    applySelectedNodeZOrder,
     canRemoveSelectedNode,
     canUngroupSelectedNode,
     commitNodeRemoval,
@@ -4070,6 +4197,25 @@ export function SelectionLayer() {
     (contextMenuNode.props as { style?: { rotate?: unknown } } | undefined)
       ?.style?.rotate
   );
+  // Z-ORDER — availability computed once per menu open (DOM rect snapshot),
+  // so the menu never shows a stacking row that would be a silent no-op.
+  const contextMenuZOrder = useMemo(() => {
+    if (!contextMenuIsChildNode || !contextMenuBuilderNodeId) return null;
+    if (contextMenuNodeLocked) return null;
+    const snapshot = collectZOrderSiblings(contextMenuBuilderNodeId);
+    if (!snapshot) return null;
+    const canForward =
+      computeZOrderTarget({ ...snapshot, command: "forward" }) !== null;
+    const canBackward =
+      computeZOrderTarget({ ...snapshot, command: "backward" }) !== null;
+    if (!canForward && !canBackward) return null;
+    return { canForward, canBackward };
+  }, [
+    contextMenuIsChildNode,
+    contextMenuBuilderNodeId,
+    contextMenuNodeLocked,
+    collectZOrderSiblings,
+  ]);
   const contextMenuNodeIsRoleBound =
     !!contextMenuNode && resolveBuilderNodeRole(contextMenuNode.id) !== null;
   // Wrap / Convert only make sense for a genuinely editable freeform block.
@@ -5128,6 +5274,34 @@ export function SelectionLayer() {
               void moveBuilderNodeWithinParent(id, "down").then((result) => {
                 if (!result.ok && result.error) reportMutationError(result.error);
               });
+              closeContextMenu();
+            }}
+            zOrder={contextMenuZOrder}
+            onZOrder={(command) => {
+              // Z-ORDER — same snapshot + pure-math path as the ⌘]/⌘[ keys.
+              const id = contextMenu?.builderNodeId;
+              if (!id) {
+                closeContextMenu();
+                return;
+              }
+              const snapshot = collectZOrderSiblings(id);
+              const node = findBuilderNodeById(builderTree, id);
+              if (snapshot && node && node.kind !== "section") {
+                const target = computeZOrderTarget({ ...snapshot, command });
+                if (target !== null) {
+                  const currentStyle =
+                    ((node.props as
+                      | { style?: Record<string, unknown> }
+                      | undefined)?.style ?? {}) as Record<string, unknown>;
+                  void patchBuilderNodeProps(id, {
+                    style: { ...currentStyle, zIndex: target },
+                  }).then((result) => {
+                    if (!result.ok && result.error) {
+                      reportMutationError(result.error);
+                    }
+                  });
+                }
+              }
               closeContextMenu();
             }}
             nodeHasRotation={contextMenuNodeHasRotation}
@@ -6268,6 +6442,8 @@ function SelectionContextMenu({
   onMoveNodeDown,
   nodeHasRotation = false,
   onResetRotation,
+  zOrder = null,
+  onZOrder,
 }: {
   state: SelectionContextMenuState | null;
   targetLabel: string;
@@ -6305,6 +6481,9 @@ function SelectionContextMenu({
   /** ROTATION — the targeted block carries a `rotate` escape. */
   nodeHasRotation?: boolean;
   onResetRotation?: () => void;
+  /** Z-ORDER — stacking availability against OVERLAPPING siblings; null hides the rows. */
+  zOrder?: { canForward: boolean; canBackward: boolean } | null;
+  onZOrder?: (command: ZOrderCommand) => void;
 }) {
   const { t } = useEditorLocale();
   if (!state) return null;
@@ -6437,6 +6616,43 @@ function SelectionContextMenu({
                 <ContextMenuButton disabled={saving} onClick={onResetRotation}>
                   {t("Reset rotation")}
                 </ContextMenuButton>
+              ) : null}
+              {zOrder && onZOrder ? (
+                <>
+                  <ContextMenuSeparator />
+                  {zOrder.canForward ? (
+                    <ContextMenuButton
+                      disabled={saving}
+                      onClick={() => onZOrder("forward")}
+                    >
+                      {t("Bring forward")}
+                    </ContextMenuButton>
+                  ) : null}
+                  {zOrder.canBackward ? (
+                    <ContextMenuButton
+                      disabled={saving}
+                      onClick={() => onZOrder("backward")}
+                    >
+                      {t("Send backward")}
+                    </ContextMenuButton>
+                  ) : null}
+                  {zOrder.canForward ? (
+                    <ContextMenuButton
+                      disabled={saving}
+                      onClick={() => onZOrder("front")}
+                    >
+                      {t("Bring to front")}
+                    </ContextMenuButton>
+                  ) : null}
+                  {zOrder.canBackward ? (
+                    <ContextMenuButton
+                      disabled={saving}
+                      onClick={() => onZOrder("back")}
+                    >
+                      {t("Send to back")}
+                    </ContextMenuButton>
+                  ) : null}
+                </>
               ) : null}
               {canWrapOrConvert ? (
                 <>

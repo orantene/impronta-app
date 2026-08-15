@@ -299,6 +299,38 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
   {
+    id: "bring-forward",
+    label: "Bring block forward",
+    description:
+      "Raise the selected block one step above the next overlapping sibling (writes its z-index).",
+    keys: ["⌘", "]"],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "send-backward",
+    label: "Send block backward",
+    description:
+      "Lower the selected block one step below the nearest overlapping sibling.",
+    keys: ["⌘", "["],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "bring-to-front",
+    label: "Bring block to front",
+    keys: ["⌥", "⌘", "]"],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "send-to-back",
+    label: "Send block to back",
+    keys: ["⌥", "⌘", "["],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
     id: "lock-block",
     label: "Lock / unlock selected block",
     description: "Right-click a block (canvas or layers) for the full action menu.",
