@@ -761,13 +761,19 @@ export async function applyThemePreset(
   // `gate.normalized` is the registry-accepted subset in both the ok and
   // rejected cases, so reading it unconditionally drops the stale keys and
   // applies the preset's valid tokens.
-  const gate = validateThemePatch(merged);
+  const mergedSplit = splitLegacyThemeKeys(merged as Record<string, unknown>);
+  const gate = validateThemePatch(mergedSplit.registryCandidate);
 
+  // Legacy passthrough keys survive the preset. Writing `gate.normalized`
+  // alone deleted logo_url / favicon_url / watermark_preset from the draft,
+  // and the operator's next Publish then carried the logo-less draft live —
+  // the 2026-08-15 incident where applying a site preset dropped Impronta's
+  // logo and favicon.
   const nextVersion = beforeRow.version + 1;
   const { data: updatedRow, error: updateError } = await supabase
     .from("agency_branding")
     .update({
-      theme_json_draft: gate.normalized,
+      theme_json_draft: { ...gate.normalized, ...mergedSplit.legacy },
       theme_preset_slug: preset.slug,
       version: nextVersion,
       updated_by: actorProfileId,

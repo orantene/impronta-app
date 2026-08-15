@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { WorkspaceMediaPage } from "../media-page";
+import { useSiteDesignUrl } from "./use-site-design-url";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, Icon, useRovingTabindex } from "../primitives";
 import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
@@ -197,6 +198,10 @@ function WorkspaceSidebarShell() {
   const copy = useDashboardText();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Sidebar entry point for the site-wide theme panel (see the hook).
+  const siteDesignUrl = useSiteDesignUrl();
+
   // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
   const sidebarNavRef = useRef<HTMLElement | null>(null);
   useRovingTabindex(sidebarNavRef, "button");
@@ -222,10 +227,23 @@ function WorkspaceSidebarShell() {
     overviewMetrics !== null ? (overviewMetrics.pendingApprovals ?? 0) : livePendingCount;
   const subItemsFor = (
     p: WorkspacePage,
-  ): Array<{ label: string; href: string; exact?: boolean; count?: number }> | null => {
+  ): Array<{
+    label: string;
+    href: string;
+    exact?: boolean;
+    count?: number;
+    /** Opens in a new tab instead of routing (the visual editor is the storefront). */
+    external?: boolean;
+  }> | null => {
     if (p === "website") {
       return [
         { label: "Overview", href: websiteBase, exact: true },
+        // Site-wide theme (colors, fonts, spacing, header/footer). It lives in
+        // a drawer inside the storefront editor, so the only way in used to be
+        // "enter the editor and go hunting" — this is the direct route.
+        ...(siteDesignUrl
+          ? [{ label: "Design", href: siteDesignUrl, external: true }]
+          : []),
         { label: "Card Design", href: `${websiteBase}/card-design` },
         { label: "Profile Pages", href: `${websiteBase}/profile-pages` },
       ];
@@ -299,14 +317,20 @@ function WorkspaceSidebarShell() {
         {active && subItemsFor(p) && (
           <div className="mb-[3px] mt-[2px] flex flex-col gap-px pl-[25px]">
             {(subItemsFor(p) ?? []).map((sub) => {
-              const subActive = sub.exact
-                ? pathname === sub.href
-                : (pathname ?? "").startsWith(sub.href);
+              const subActive = sub.external
+                ? false
+                : sub.exact
+                  ? pathname === sub.href
+                  : (pathname ?? "").startsWith(sub.href);
               return (
                 <button
                   key={sub.href}
                   type="button"
-                  onClick={() => router.push(sub.href)}
+                  onClick={() =>
+                    sub.external
+                      ? window.open(sub.href, "_blank", "noopener,noreferrer")
+                      : router.push(sub.href)
+                  }
                   aria-current={subActive ? "page" : undefined}
                   className={`flex cursor-pointer items-center gap-[8px] border-y-0 border-r-0 border-l-2 border-solid bg-transparent px-[10px] py-[5px] text-left font-admin-body text-[12.5px] hover:text-admin-ink [transition:color_var(--transition-admin-micro),border-color_var(--transition-admin-micro)] ${
                     subActive
@@ -317,6 +341,11 @@ function WorkspaceSidebarShell() {
                   <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
                     {copy.t(sub.label)}
                   </span>
+                  {sub.external && (
+                    <span aria-hidden className="text-[10px] leading-none opacity-70">
+                      ↗
+                    </span>
+                  )}
                   {sub.count != null && sub.count > 0 && (
                     <span className="inline-flex h-[15px] min-w-[16px] items-center justify-center rounded-full bg-admin-amber-soft px-[4px] text-[9.5px] font-bold leading-none text-admin-amber-deep">
                       {sub.count > 99 ? "99+" : sub.count}

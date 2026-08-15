@@ -5,6 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import {
+  buildEditorPanelUrl,
+  resolveWebsiteEditorBaseUrl,
+  resolveWebsiteLiveOrigin,
+} from "@/lib/admin/website-editor-links";
 import { interpolate } from "@/i18n/interpolate";
 import { buildPostPublicPathname, buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
@@ -28,45 +33,6 @@ import { PageHeader } from "./pages-shared";
 // ════════════════════════════════════════════════════════════════════
 
 /** Same host + scheme rules as legacy storefront redirects — http on lvh/local. */
-function resolveWebsiteLiveOrigin(
-  primaryDomain: string | undefined,
-  windowOriginFallback: string,
-): string {
-  const host = primaryDomain?.trim() ?? "";
-  const proto =
-    host.endsWith(".lvh.me") ||
-    host.startsWith("localhost") ||
-    host.startsWith("127.")
-      ? "http"
-      : "https";
-  if (host.length > 0) return `${proto}://${host}`;
-  return windowOriginFallback;
-}
-
-function isLocalWebsiteOrigin(origin: string): boolean {
-  try {
-    const { hostname } = new URL(origin);
-    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  } catch {
-    return false;
-  }
-}
-
-function resolveWebsiteEditorBaseUrl({
-  liveOrigin,
-  tenantSlug,
-  windowOrigin,
-}: {
-  liveOrigin: string;
-  tenantSlug: string | undefined;
-  windowOrigin: string;
-}): string {
-  if (windowOrigin && tenantSlug && isLocalWebsiteOrigin(windowOrigin)) {
-    return `${windowOrigin}/${tenantSlug}`;
-  }
-  return liveOrigin;
-}
-
 /** Website → Pages grid filter — matches `WebsitePageRow["status"]` plus All. */
 type WebsitePagesTabId = "all" | WebsitePageRow["status"];
 
@@ -277,6 +243,14 @@ export function WebsitePage() {
     () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin }),
     [liveOrigin, tenantSlug, windowOrigin],
   );
+  const siteDesignUrl = useMemo(
+    () => buildEditorPanelUrl({ editorBaseUrl, panel: "theme" }),
+    [editorBaseUrl],
+  );
+  const openSiteDesign = useCallback(() => {
+    if (!siteDesignUrl) return;
+    window.open(siteDesignUrl, "_blank", "noopener,noreferrer");
+  }, [siteDesignUrl]);
 
   const openPageVisualEditor = useCallback(
     (page: WebsitePageRow) => {
@@ -449,6 +423,15 @@ export function WebsitePage() {
             <SecondaryButton size="sm" disabled={!liveOrigin} onClick={openHomepageEditor}>
               <span className="inline-flex items-center gap-1.5">
                 <Icon name="pencil" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.editHomepage")}
+              </span>
+            </SecondaryButton>
+            {/* Site design (theme tokens: colors, fonts, spacing, shell).
+                It lives in a drawer INSIDE the visual editor, which made it
+                effectively undiscoverable from the admin — this is the direct
+                way in. Mirrored in the sidebar's Website → Design item. */}
+            <SecondaryButton size="sm" disabled={!siteDesignUrl} onClick={openSiteDesign}>
+              <span className="inline-flex items-center gap-1.5">
+                <Icon name="sparkle" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.siteDesign")}
               </span>
             </SecondaryButton>
             {websiteUsesLiveCms && canEdit ? (
