@@ -78,7 +78,11 @@ const BUDGETS: Record<string, number> = {
   // +216 (z-order commands): overlapping-sibling snapshot + ⌘]/⌘[ keyboard
   // branches + context-menu Bring/Send rows. The stacking MATH lives in
   // canvas-z-order.ts (unit-tested).
-  "selection-layer.tsx": 7651,
+  // +10 (block-move auto-scroll): the hook call + import only. The rAF loop
+  // itself was written inline first, tripped this guard at +59, and was
+  // extracted to use-canvas-node-autoscroll.ts — which is the remedy this
+  // guard asks for first. What remains here is the call site.
+  "selection-layer.tsx": 7661,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
