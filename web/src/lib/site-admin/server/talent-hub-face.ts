@@ -31,6 +31,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isPerHubFacesEnabled, resolveTalentMediaForHub } from "@/lib/media/talent-media-for-hub";
 import { logServerError } from "@/lib/server/safe-error";
 import { listTalentScopedMediaLibrary } from "@/lib/site-admin/media/assets";
 
@@ -64,6 +65,34 @@ export type HubFaceState = {
   selectedAssetIds: string[];
   /** Everything staff can pick from, selected first, then the rest. */
   photos: HubFacePhoto[];
+  /**
+   * What this hub is ACTUALLY serving right now, straight from the storefront
+   * resolver (`resolveTalentMediaForHub`) rather than re-derived here.
+   *
+   * `"default"` means nothing is curated and the site is showing the default
+   * rank — which is NOT the same as an empty site. The panel used to print
+   * "0 selected" for that case, which reads as "nothing on your site" and made
+   * staff panic-curate (execution-plan-2026-08-15 §1 P0-3). One gate, one
+   * source: the resolver already computes this and nothing consumed it.
+   */
+  source: "curation" | "default";
+  /**
+   * The asset the default rank is currently picking, when `source` is
+   * `"default"` — so the panel can outline the tile the site is really using.
+   * Null when the resolver served a different derivative (watermarked bake) or
+   * nothing at all; the panel simply skips the outline in that case rather
+   * than guessing.
+   */
+  defaultCoverAssetId: string | null;
+  /**
+   * `MEDIA_PER_HUB_FACES_ENABLED`. With the flag OFF every curation write
+   * still succeeds, audits, busts caches and prints "Selection saved." while
+   * the live site is byte-identical — the exact "save that looks like nothing
+   * happened" class this program exists to kill (P0-4). The panel renders a
+   * banner instead of pretending. The WRITES stay enabled on purpose: staff
+   * can prepare a selection that applies the moment the flag flips.
+   */
+  perHubFacesEnabled: boolean;
 };
 
 type CurationRow = {
@@ -81,7 +110,7 @@ export async function loadHubFaceState(
   talentProfileId: string,
 ): Promise<HubFaceResult<HubFaceState>> {
   try {
-    const [overlayRes, curationRes, library] = await Promise.all([
+    const [overlayRes, curationRes, library, resolved] = await Promise.all([
       supabase
         .from("agency_talent_overlays")
         .select("cover_media_asset_id")
@@ -95,6 +124,14 @@ export async function loadHubFaceState(
         .eq("talent_profile_id", talentProfileId)
         .order("display_order", { ascending: true }),
       listTalentScopedMediaLibrary(supabase, talentProfileId, tenantId),
+      // Ask the STOREFRONT resolver what this hub is actually serving, rather
+      // than re-deriving it. Re-derivation is how "0 selected" came to
+      // contradict the live site in the first place; the resolver never
+      // throws and degrades to the default rank, so this is safe to await.
+      resolveTalentMediaForHub(supabase, {
+        tenantId,
+        talentProfileIds: [talentProfileId],
+      }),
     ]);
 
     if (overlayRes.error) {
@@ -134,7 +171,28 @@ export async function loadHubFaceState(
       }))
       .sort((a, b) => (a.position ?? 9999) - (b.position ?? 9999));
 
-    return { ok: true, data: { coverAssetId, selectedAssetIds, photos } };
+    // Which tile is the default rank picking? Matched by URL because the
+    // resolver returns a renderable URL, not an id, and may have substituted a
+    // watermarked derivative. No match ⇒ null, and the panel skips the
+    // outline rather than pointing at the wrong photo.
+    const live = resolved.get(talentProfileId);
+    const source: "curation" | "default" = live?.source ?? "default";
+    const defaultCoverAssetId =
+      source === "default" && live?.coverUrl
+        ? photos.find((p) => p.url === live.coverUrl)?.assetId ?? null
+        : null;
+
+    return {
+      ok: true,
+      data: {
+        coverAssetId,
+        selectedAssetIds,
+        photos,
+        source,
+        defaultCoverAssetId,
+        perHubFacesEnabled: isPerHubFacesEnabled(),
+      },
+    };
   } catch (err) {
     logServerError("loadHubFaceState", err);
     return { ok: false, error: "Could not load the photo selection." };

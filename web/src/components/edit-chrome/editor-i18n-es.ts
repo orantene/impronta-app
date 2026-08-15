@@ -36,6 +36,9 @@ export const ES_TEXT: Record<string, string> = {
     "{workspace} es dueño de esta foto, así que solo puede aparecer en su sitio. Pídeles que la liberen y podrás usarla aquí.",
   "dashboard.mediaPickerLock.masterOff":
     "{workspace} es dueño de esta foto y la mantiene solo en su sitio. Pídeles que la liberen y podrás usarla aquí.",
+  // B9 (2026-08-15) — the lock note told talents to "ask them to release it"
+  // and gave them nowhere to do it. This is that door.
+  "dashboard.mediaPickerLock.requestRelease": "Pedir liberación",
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',

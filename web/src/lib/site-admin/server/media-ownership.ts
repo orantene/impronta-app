@@ -279,13 +279,19 @@ export async function claimMediaAsWorkspaceOwned(
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  const deadlineLabel = deadlineDate.toISOString().slice(0, 10);
+  // D-3a (execution-plan-2026-08-15 §5): the copy used to name a hard
+  // objection deadline. NOTHING enforced it — no sweep, no talent-side
+  // objection action, no state that changes when the date passes — so the
+  // sentence was a promise the product could not keep. The undo itself is
+  // real and unbounded (`releaseMediaToTalent`), so the copy now says exactly
+  // that. The deadline is still WRITTEN to the activity row: it is a record of
+  // when the claim happened, not a user-facing commitment.
   const notified = await notifyTalents(admin, {
     tenantId: input.tenantId,
     talentIds: affectedTalents,
     actorUserId: input.actorUserId,
     title: `${input.workspaceName} marked some of your photos as theirs`,
-    body: `${input.workspaceName} recorded that they produced ${eligible.length} photo${eligible.length === 1 ? "" : "s"} on your profile. They stay on your profile. If that is wrong, tell them before ${deadlineLabel} and they can undo it.`,
+    body: `${input.workspaceName} recorded that they produced ${eligible.length} photo${eligible.length === 1 ? "" : "s"} on your profile. They stay on your profile. If that is wrong, tell them and they can hand them back.`,
   });
 
   return {

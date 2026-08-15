@@ -100,8 +100,14 @@ export function ThreeSlotPhotoBlock({
       />
       {/* Avatar + gallery strip in a row below */}
       <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+        {/*
+          B8 — "Cover" used to name two different things on one screen: this
+          16:9 profile banner, and the per-site card face picked in "Photos on
+          this site" (which silently outranks this one on roster cards). Each
+          slot is now named by WHERE it shows.
+        */}
         <PhotoSlot
-          label={copy.t("Profile")}
+          label={copy.t("Profile photo")}
           hint={`1:1 ${copy.t("square")}`}
           imageUrl={avatarUrl}
           aspectRatio="1 / 1"
@@ -179,7 +185,10 @@ export function CoverPhotoSlot({
       </button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: 2 }}>
         <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 500 }} className="text-admin-ink-muted">
-          {copy.t("Cover")} <span className="text-admin-ink-dim">· 16:9 {copy.t("banner")}</span>
+          {copy.t("Profile banner")}{" "}
+          <span className="text-admin-ink-dim">
+            · 16:9 · {copy.t("shows on this talent's own page")}
+          </span>
         </span>
         {imageUrl && (
           <button type="button" onClick={onClick} style={{

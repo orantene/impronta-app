@@ -3291,6 +3291,11 @@ const ES_TEXT: Record<string, string> = {
   "No activity recorded yet.": "Aún no hay actividad registrada.",
   "square": "cuadrado",
   "banner": "banner",
+  // B8 — "Cover" named two different things on one screen (this 16:9 profile
+  // banner, and the per-site card face). Each is now named by where it shows.
+  "Profile banner": "Banner del perfil",
+  "Profile photo": "Foto de perfil",
+  "shows on this talent's own page": "se ve en la página de este talento",
   "Add cover photo": "Agregar foto de portada",
   "Change cover photo": "Cambiar la foto de portada",
   "Set cover photo": "Elegir foto de portada",

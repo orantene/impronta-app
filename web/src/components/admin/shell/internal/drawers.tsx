@@ -23,6 +23,7 @@ import { PlatformTodayPulseDrawer, PlatformTenantDetailDrawer, PlatformTenantImp
 import { PaymentDetailDrawer, PaymentsSetupDrawer, PayoutReceiverPickerDrawer } from "./drawers/drawer-shared";
 import { TalentProfileShellDrawer, NewTalentDrawer } from "./drawers/profile-shell";
 import { ReviewModerationQueue } from "./drawers/profile-shell/profile-shell-modules/review-moderation-queue";
+import { MediaReleaseRequestsPanel } from "@/components/admin/media/media-release-requests-panel";
 import { TenantSummaryDrawer, SiteSetupDrawer, PlanBillingDrawer } from "./drawers/light-01";
 import { TeamDrawer, TalentTypesDrawer } from "./drawers/light-02";
 import { TalentRegistrationDrawer } from "./drawers/light-03";
@@ -589,6 +590,16 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
     case "reviews-moderation":
       return <ReviewModerationQueueDrawer />;
 
+    // ── Media ownership / two-key release ─────────────────────────────
+    // The workspace half of the two-key rule. The `media-releases`
+    // notification (media-grants-shared.ts) used to fall through to the
+    // "Coming up next" stub — execution plan P0-2. The talent half
+    // (`talent-media`) is an alias, rewritten to `talent-profile-edit` +
+    // section "media" by notification-drawer-targets.ts, so it needs no case
+    // of its own.
+    case "media-releases":
+      return <MediaReleasesDrawer />;
+
     default:
       return <SimpleStubDrawer title="Coming up next" description="This drawer's full design lands in the next iteration." sections={[]} />;
   }
@@ -602,6 +613,34 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
 // self-loads (staff-gated at the server-action boundary) and shows empty lists
 // for a non-staff or tenant-less session rather than erroring.
 // ════════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════════
+// Media release requests drawer — the workspace half of the two-key rule.
+// The approve/decline/revoke notification (media-grants-shared.ts
+// notifyWorkspaceStaff → targetDrawer: "media-releases") opens this. Before
+// this case existed the notification opened the "Coming up next" stub
+// (execution-plan-2026-08-15 §1 P0-2). The panel self-loads and is staff-gated
+// at the server-action boundary, so a non-staff session sees an empty list
+// rather than an error — same contract as ReviewModerationQueue.
+// ════════════════════════════════════════════════════════════════════
+
+function MediaReleasesDrawer() {
+  const { state, closeDrawer } = useAdminShell();
+  const open = state.drawer.drawerId === "media-releases";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Photo release requests"
+      description="Talents you represent asking to use photos you own outside your site."
+      defaultSize="half"
+    >
+      <div className="p-[16px]">
+        <MediaReleaseRequestsPanel />
+      </div>
+    </DrawerShell>
+  );
+}
 
 function ReviewModerationQueueDrawer() {
   const { state, closeDrawer, bridgeTenantIdentity } = useAdminShell();

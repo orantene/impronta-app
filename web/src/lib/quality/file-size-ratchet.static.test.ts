@@ -110,7 +110,12 @@ const BUDGETS: Record<string, number> = {
   // favicon slot + Brand images manager (translations belong in this map).
   // +4: Spanish for the "some services here can't be published" notice the
   // Services panel now shows at OPEN time (stale-draft reconciliation).
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3517,
+  // +5 (2026-08-15, media UX honesty pass B8): three ES_TEXT entries plus a
+  // two-line comment, renaming the profile "Cover" slots so they no longer
+  // collide with the per-site card face. ES_TEXT is a flat literal map keyed
+  // by the English string — new user-facing copy in this tree has nowhere
+  // else to live.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3522,
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).

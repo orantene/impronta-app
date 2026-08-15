@@ -192,6 +192,15 @@ export function MediaReleaseRequestsPanel() {
                     <span className="block text-admin-ink-muted">
                       {t("dashboard.mediaReleaseRequests.watermarkHint")}
                     </span>
+                    {/*
+                      B14 — the tick is a ONE-WAY decision per release. There
+                      is no "edit the watermark on an approved release": the
+                      only way back is revoke-and-redo. That was true before
+                      and said nowhere.
+                    */}
+                    <span className="mt-1 block font-medium text-admin-indigo-deep">
+                      {t("dashboard.mediaReleaseRequests.watermarkPermanentHint")}
+                    </span>
                   </span>
                 </label>
               )}
@@ -202,7 +211,7 @@ export function MediaReleaseRequestsPanel() {
                     type="button"
                     onClick={() => decide(request, true)}
                     disabled={pendingHere}
-                    className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-muted"
+                    className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-dim"
                   >
                     {pendingHere && busy?.kind === "approve"
                       ? t("dashboard.mediaReleaseRequests.working")
@@ -214,7 +223,11 @@ export function MediaReleaseRequestsPanel() {
                     type="button"
                     onClick={() => decide(request, false)}
                     disabled={pendingHere}
-                    className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                    /* B4 — the token names read backwards: `-dim` is 0.38
+                       alpha and `-muted` is 0.72, so the old pair made the
+                       DISABLED state twice as loud as the live one. Enabled
+                       `-muted`, disabled `-dim`. */
+                    className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-ink-muted disabled:cursor-not-allowed disabled:text-admin-ink-dim"
                   >
                     {pendingHere && busy?.kind === "deny"
                       ? t("dashboard.mediaReleaseRequests.working")
@@ -226,7 +239,7 @@ export function MediaReleaseRequestsPanel() {
                     type="button"
                     onClick={() => revoke(request)}
                     disabled={pendingHere}
-                    className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-red disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                    className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-red disabled:cursor-not-allowed disabled:text-admin-ink-dim"
                     title={t("dashboard.mediaReleaseRequests.revokeHint")}
                   >
                     {pendingHere && busy?.kind === "revoke"
