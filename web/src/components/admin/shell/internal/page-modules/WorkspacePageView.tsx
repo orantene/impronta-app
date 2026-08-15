@@ -351,7 +351,16 @@ export function WorkspacePageView() {
           },
         ],
         extra: <DefaultCurrencySettingsRow />,
-        extraSearch: [{ title: t("dashboard.adminWorkspace.defaultCurrency"), desc: "" }],
+        extraSearch: [
+          {
+            // The row this indexes is `DefaultCurrencySettingsRow`; mirror ITS
+            // own title/desc keys. `dashboard.adminWorkspace.defaultCurrency` is
+            // an object node (only `.desc` under it), so passing it to `t()`
+            // rendered the raw dotted key in settings search results.
+            title: t("admin.account.currency.label"),
+            desc: t("dashboard.adminWorkspace.defaultCurrency.desc"),
+          },
+        ],
       },
       {
         id: "commercial-terms",

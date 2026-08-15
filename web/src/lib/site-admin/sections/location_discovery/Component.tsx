@@ -182,16 +182,16 @@ function MarketMap({ locs, showCount }: { locs: Loc[]; showCount?: boolean }) {
 function buildLocationSectionCopy(locale: string) {
   const t = createTranslator(locale);
   return {
-    sectionKicker: t("home.location.sectionKicker"),
-    sectionTitle: t("home.location.sectionTitle"),
-    talentCountOne: t("home.location.talentCountOne"),
-    talentCountMany: t("home.location.talentCountMany"),
-    viewTalents: t("home.location.viewTalents"),
-    mapLoadErrorTitle: t("home.location.mapLoadErrorTitle"),
-    mapLoadErrorBody: t("home.location.mapLoadErrorBody"),
-    mapLoadErrorOpenConsole: t("home.location.mapLoadErrorOpenConsole"),
-    mapPinPreviewAria: t("home.location.mapPinPreviewAria"),
-    mapPinPreviewPhotoAlt: t("home.location.mapPinPreviewPhotoAlt"),
+    sectionKicker: t("public.home.location.sectionKicker"),
+    sectionTitle: t("public.home.location.sectionTitle"),
+    talentCountOne: t("public.home.location.talentCountOne"),
+    talentCountMany: t("public.home.location.talentCountMany"),
+    viewTalents: t("public.home.location.viewTalents"),
+    mapLoadErrorTitle: t("public.home.location.mapLoadErrorTitle"),
+    mapLoadErrorBody: t("public.home.location.mapLoadErrorBody"),
+    mapLoadErrorOpenConsole: t("public.home.location.mapLoadErrorOpenConsole"),
+    mapPinPreviewAria: t("public.home.location.mapPinPreviewAria"),
+    mapPinPreviewPhotoAlt: t("public.home.location.mapPinPreviewPhotoAlt"),
   };
 }
 
