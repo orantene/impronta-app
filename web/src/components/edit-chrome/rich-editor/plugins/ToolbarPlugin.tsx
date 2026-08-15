@@ -55,7 +55,7 @@ import { $applyColor, $clearColor } from "./setColor";
 interface Props {
   /** Called when user clicks the Link button. Caller mounts LinkPicker. */
   onRequestLink: (rect: DOMRect, currentUrl: string | null) => void;
-  /** When true, the dark floating Lexical toolbar is hidden (canvas toolbar owns UI). */
+  /** When true, the floating Lexical toolbar is hidden (canvas toolbar owns UI). */
   suppressChrome?: boolean;
 }
 
@@ -281,7 +281,10 @@ export function ToolbarPlugin({ onRequestLink, suppressChrome = false }: Props) 
         opacity: 1,
         transform: "translateY(0)",
       }}
-      className="pointer-events-auto inline-flex items-center gap-0.5 rounded-full border border-[#2e3452] bg-[#242942]/95 px-1.5 py-1 text-white shadow-xl backdrop-blur"
+      // Light control language (2026-08-15 unification) — was the v1 dark
+      // navy pill. White surface, dark text, hairline border, soft shadow —
+      // same family as the canvas text toolbar / command palette.
+      className="pointer-events-auto inline-flex items-center gap-0.5 rounded-full border border-black/10 bg-white/95 px-1.5 py-1 text-[#18181b] shadow-xl backdrop-blur"
     >
       <ToolbarButton
         active={Boolean(state?.isBold)}
@@ -332,13 +335,15 @@ export function ToolbarPlugin({ onRequestLink, suppressChrome = false }: Props) 
         }}
         className={[
           "inline-flex h-7 items-center gap-1 rounded-full pl-2 pr-1.5 transition",
-          state?.color || paletteRect ? "bg-white/15" : "hover:bg-white/10",
+          state?.color || paletteRect
+            ? "bg-[#7c3aed]/10 text-[#7c3aed]"
+            : "hover:bg-black/5",
         ].join(" ")}
       >
         <span className="flex flex-col items-center justify-center leading-none">
           <span className="text-[11px] font-bold leading-none">A</span>
           <span
-            className="mt-[2px] block h-[3.5px] w-[15px] rounded-sm ring-1 ring-inset ring-white/30"
+            className="mt-[2px] block h-[3.5px] w-[15px] rounded-sm ring-1 ring-inset ring-black/15"
             style={{ backgroundColor: swatchHex }}
           />
         </span>
@@ -351,14 +356,14 @@ export function ToolbarPlugin({ onRequestLink, suppressChrome = false }: Props) 
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-white/70"
+          className="text-[#57575f]"
           aria-hidden
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
-      <span className="mx-0.5 h-4 w-px bg-white/15" />
+      <span className="mx-0.5 h-4 w-px bg-black/10" />
       <ToolbarButton
         active={Boolean(state?.isLink)}
         title="Link (⌘K)"
@@ -390,16 +395,16 @@ export function ToolbarPlugin({ onRequestLink, suppressChrome = false }: Props) 
         <div
           role="dialog"
           aria-label="Text color palette"
-          className="absolute left-1/2 top-full z-10 mt-2 w-[244px] -translate-x-1/2 rounded-xl border border-[#2e3452] bg-[#242942] p-2.5 shadow-2xl"
+          className="absolute left-1/2 top-full z-10 mt-2 w-[244px] -translate-x-1/2 rounded-xl border border-black/10 bg-white p-2.5 shadow-2xl"
         >
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/55">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#6b6b73]">
               Text color
             </span>
             <button
               type="button"
               onClick={removeColor}
-              className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white/55 transition hover:bg-white/10 hover:text-white"
+              className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#6b6b73] transition hover:bg-black/5 hover:text-[#18181b]"
             >
               Remove
             </button>
@@ -417,8 +422,8 @@ export function ToolbarPlugin({ onRequestLink, suppressChrome = false }: Props) 
                   className={[
                     "h-7 w-7 rounded-md border transition",
                     selected
-                      ? "border-white ring-2 ring-white/40"
-                      : "border-white/15 hover:border-white/40",
+                      ? "border-[#18181b] ring-2 ring-[#7c3aed]/35"
+                      : "border-black/10 hover:border-black/40",
                   ].join(" ")}
                   style={{ backgroundColor: s.hex }}
                 />
@@ -427,13 +432,13 @@ export function ToolbarPlugin({ onRequestLink, suppressChrome = false }: Props) 
           </div>
           <label
             data-allow-focus
-            className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5"
+            className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-black/10 bg-black/[0.03] px-2 py-1.5"
           >
-            <span className="text-[11px] font-medium text-white/75">
+            <span className="text-[11px] font-medium text-[#3f3f46]">
               Custom
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="font-mono text-[10px] uppercase text-white/45">
+              <span className="font-mono text-[10px] uppercase text-[#6b6b73]">
                 {swatchHex}
               </span>
               <input
@@ -468,7 +473,9 @@ function ToolbarButton({ active, title, onClick, children }: ToolbarButtonProps)
       onClick={onClick}
       className={[
         "inline-flex h-7 w-7 items-center justify-center rounded-full transition",
-        active ? "bg-white text-stone-900" : "text-white hover:bg-white/10",
+        active
+          ? "bg-[#7c3aed]/10 text-[#7c3aed]"
+          : "text-[#57575f] hover:bg-black/5 hover:text-[#18181b]",
       ].join(" ")}
     >
       {children}

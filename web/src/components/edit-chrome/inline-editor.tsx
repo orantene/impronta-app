@@ -614,7 +614,7 @@ export function InlineEditor() {
             zIndex: 114,
             pointerEvents: "none",
           }}
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#242942]/80 px-3 py-1.5 text-[11px] font-medium text-white/80 shadow-md backdrop-blur"
+          className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-[#3f3f46] shadow-md backdrop-blur"
         >
           {/* Text-cursor icon */}
           <svg
@@ -651,7 +651,7 @@ export function InlineEditor() {
             left: imgHover.rect.right - 110,
             zIndex: 115,
           }}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-[#242942]/95 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg backdrop-blur transition hover:bg-[#2e3452]"
+          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-[#18181b] shadow-lg backdrop-blur transition hover:bg-[#f3f0e8]"
         >
           <svg
             width="12"

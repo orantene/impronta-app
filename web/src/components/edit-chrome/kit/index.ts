@@ -91,6 +91,19 @@ export { useAnchoredPopover, type AnchoredPosition } from "./use-anchored-popove
 export { SaveChip, type SaveChipStatus } from "./savechip";
 export { Kbd, KbdSequence } from "./kbd";
 export { SectionTypeIcon } from "./section-type-icon";
+export {
+  FLOATING_PILL_STYLE,
+  MENU_DANGER_HOVER_FILL,
+  MENU_DANGER_TEXT,
+  MENU_EYEBROW_COLOR,
+  MENU_FOCUS_RING_CLASS,
+  MENU_HOVER_FILL,
+  MENU_SURFACE_ELEVATED_STYLE,
+  MENU_SURFACE_STYLE,
+  MenuItem,
+  MenuSeparator,
+  MenuSurface,
+} from "./menu-surface";
 
 export {
   SHORTCUTS,

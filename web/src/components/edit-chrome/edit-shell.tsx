@@ -1412,16 +1412,14 @@ function FirstPaintTip() {
       data-edit-overlay="first-paint-tip"
       className="pointer-events-none fixed left-1/2 z-[88] flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2"
       style={{
-        // QA-8 partial — first-paint tip used to render as a near-black pill
-        // (rgba(11,11,13,0.92)) which on a dark-brand tenant added another
-        // void-tone surface to a screen that already feels chrome-dense at
-        // first paint. Tip now uses the editor's slate accent at 92% so it
-        // reads as the same operator-tool family as the chip + Publish CTA,
-        // and the operator absorbs it as one coherent voice instead of
-        // "another black floating thing."
+        // 2026-08-15 light unification — the tip was the last slate-dark
+        // pill left over from the v1 operator chrome. It now wears the same
+        // light control language as the chip / command palette / menus
+        // (white surface, dark text, popover shadow) so first paint shows
+        // ONE chrome voice.
         top: 70,
-        background: "rgba(42, 49, 71, 0.94)",
-        color: "rgba(255, 255, 255, 0.94)",
+        background: "rgba(255, 255, 255, 0.96)",
+        color: CHROME.text,
         fontSize: 11.5,
         fontWeight: 500,
         letterSpacing: "-0.005em",
@@ -1450,9 +1448,9 @@ function FirstPaintTip() {
         type="button"
         onClick={dismiss}
         aria-label="Dismiss tip"
-        className="pointer-events-auto ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-white/15"
+        className="pointer-events-auto ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-black/5"
         style={{
-          color: "rgba(255, 255, 255, 0.6)",
+          color: CHROME.muted,
           background: "transparent",
           border: "none",
         }}

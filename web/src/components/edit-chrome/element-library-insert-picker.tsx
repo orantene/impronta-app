@@ -166,14 +166,16 @@ export function ElementLibraryInsertPicker({
             boxSizing: "border-box" as const,
           }
         : {
+            // Canvas variant — light menu language (2026-08-15 unification;
+            // was white-on-dark for the retired navy insert popovers).
             width: "100%" as const,
             marginBottom: 8,
             padding: "6px 8px",
             fontSize: 11,
             borderRadius: 6,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(255,255,255,0.06)",
-            color: "white",
+            border: `1px solid ${CHROME.line}`,
+            background: CHROME.paper,
+            color: CHROME.text,
             outline: "none" as const,
             boxSizing: "border-box" as const,
           };
@@ -182,13 +184,13 @@ export function ElementLibraryInsertPicker({
     ? CHROME.muted
     : isInspector
       ? "rgb(87 83 78)"
-      : "rgba(255,255,255,0.62)";
+      : CHROME.muted;
 
   const categoryLabelColor = isNavigator
     ? CHROME.muted2
     : isInspector
       ? "rgb(79 70 229)"
-      : "rgba(255,255,255,0.45)";
+      : CHROME.muted2;
 
   // Per-variant pill tone. Drives the new hover/press affordance so each
   // element reads as a real, tappable button (the picker had no hover state
@@ -214,12 +216,14 @@ export function ElementLibraryInsertPicker({
           radius: 7,
         }
       : {
-          bg: "rgba(255,255,255,0.07)",
-          border: "rgba(255,255,255,0.12)",
-          text: "white",
-          hoverBg: "rgba(255,255,255,0.16)",
-          hoverBorder: "rgba(255,255,255,0.34)",
-          hoverText: "white",
+          // Canvas variant — same light pill tone as the navigator, with the
+          // canvas radius. Dark white-alpha pills retired 2026-08-15.
+          bg: CHROME.paper,
+          border: CHROME.line,
+          text: CHROME.text,
+          hoverBg: "rgba(42,49,71,0.07)",
+          hoverBorder: "rgba(42,49,71,0.28)",
+          hoverText: CHROME.text,
           radius: 7,
         };
 
@@ -346,21 +350,11 @@ export function ElementLibraryInsertPicker({
                   fontWeight: 600,
                   padding: "4px 10px",
                   borderRadius: 6,
-                  border: isNavigator
-                    ? `1px solid ${CHROME.line}`
-                    : isInspector
-                      ? "1px solid rgb(199 210 254)"
-                      : "1px solid rgba(255,255,255,0.22)",
-                  background: isNavigator
-                    ? CHROME.paper
-                    : isInspector
-                      ? "white"
-                      : "rgba(255,255,255,0.1)",
-                  color: isNavigator
-                    ? CHROME.text
-                    : isInspector
-                      ? "rgb(67 56 202)"
-                      : "white",
+                  border: isInspector
+                    ? "1px solid rgb(199 210 254)"
+                    : `1px solid ${CHROME.line}`,
+                  background: isInspector ? "white" : CHROME.paper,
+                  color: isInspector ? "rgb(67 56 202)" : CHROME.text,
                   cursor: "pointer",
                 }}
               >

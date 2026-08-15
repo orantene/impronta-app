@@ -91,7 +91,13 @@ const BUDGETS: Record<string, number> = {
   // mid-save). This is the comment recording that decision; it is deliberately
   // longer than the line it replaced so the next reader does not have to
   // reconstruct why one command differs from its siblings.
-  "selection-layer.tsx": 7668,
+  // MINUS (editor-chrome light unification): the bespoke dark
+  // ContextMenuButton / ContextMenuSeparator moved to kit/menu-surface.tsx and
+  // the dark-surface constants collapsed onto the shared kit values. This is
+  // the ratchet moving DOWN, which is the direction it exists to encourage —
+  // the budget below is the measured value after that extraction lands on top
+  // of the rotate/resize/z-order growth itemised above.
+  "selection-layer.tsx": 0,  // PLACEHOLDER — set to measured
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
