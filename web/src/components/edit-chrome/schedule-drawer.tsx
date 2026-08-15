@@ -46,6 +46,11 @@ import {
   DrawerFoot,
   DrawerHead,
 } from "./kit";
+import {
+  scheduleDrawerControlState,
+  scheduleLoadKey,
+  shouldRunScheduleLoad,
+} from "./schedule-drawer-load-gate";
 import { useEditContext } from "./edit-context";
 
 type FormState =
@@ -138,18 +143,26 @@ export function ScheduleDrawer() {
     iso: string | null;
     byName: string | null;
   }>({ iso: null, byName: null });
-  const lastOpenRef = useRef(false);
+  // The identity the currently-loaded schedule belongs to. NOT a bare "have I
+  // opened yet" boolean: cms pages hand `pageId` / `pageSlug` down a tick
+  // AFTER the drawer opens, and a boolean latch made that second effect run
+  // early-return after its own cleanup had already cancelled the first load —
+  // stranding the drawer in "loading" with every control, including Escape and
+  // Close, disabled. Keying on identity re-loads for the settled page instead.
+  // See `schedule-drawer-load-gate.ts`.
+  const loadedKeyRef = useRef<string | null>(null);
+  const loadKey = scheduleLoadKey({ open, locale, pageId, pageSlug });
 
-  // Reload schedule state every time the drawer opens. Avoids a stale form
-  // when the operator opens → closes → re-opens after another teammate
-  // changed the schedule from another tab.
+  // Reload schedule state whenever the drawer opens or the page it points at
+  // changes. Avoids a stale form when the operator opens → closes → re-opens
+  // after another teammate changed the schedule from another tab.
   useEffect(() => {
     if (!open) {
-      lastOpenRef.current = false;
+      loadedKeyRef.current = null;
       return;
     }
-    if (lastOpenRef.current) return;
-    lastOpenRef.current = true;
+    if (!shouldRunScheduleLoad(loadedKeyRef.current, loadKey)) return;
+    loadedKeyRef.current = loadKey;
     // Refresh the earliest-valid datetime when the drawer opens so a
     // long-lived session doesn't carry a stale "min" from the original
     // mount.
@@ -184,7 +197,7 @@ export function ScheduleDrawer() {
     return () => {
       cancelled = true;
     };
-  }, [open, locale, pageId, pageSlug]);
+  }, [open, locale, pageId, pageSlug, loadKey]);
 
   const handleSchedule = useCallback(async () => {
     const iso = localInputValueToIso(pickerValue);
@@ -231,7 +244,11 @@ export function ScheduleDrawer() {
 
   if (!open) return null;
 
-  const isSaving = state.kind === "saving" || state.kind === "loading";
+  // `formDisabled` covers the picker and the write buttons; `exitDisabled` is
+  // narrower ON PURPOSE — only a real in-flight write may block an exit. These
+  // used to be one flag that folded in `loading`, so a load that never
+  // resolved locked Escape, the backdrop and Close along with the form.
+  const { formDisabled, exitDisabled } = scheduleDrawerControlState(state.kind);
   const errorMessage = state.kind === "error" ? state.message : null;
   const justSucceeded = state.kind === "success";
 
@@ -241,7 +258,7 @@ export function ScheduleDrawer() {
       open={open}
       ariaLabelledBy="schedule-drawer-title"
       modal
-      onRequestClose={isSaving ? undefined : onClose}
+      onRequestClose={exitDisabled ? undefined : onClose}
     >
       <DrawerHead
         titleId="schedule-drawer-title"
@@ -289,7 +306,7 @@ export function ScheduleDrawer() {
             value={pickerValue}
             min={isoToLocalInputValue(minPublishIso)}
             onChange={(e) => setPickerValue(e.target.value)}
-            disabled={isSaving}
+            disabled={formDisabled}
             style={{
               width: "100%",
               padding: "10px 12px",
@@ -363,7 +380,7 @@ export function ScheduleDrawer() {
             <button
               type="button"
               onClick={handleCancelSchedule}
-              disabled={isSaving}
+              disabled={formDisabled}
               style={{
                 padding: "8px 12px",
                 fontSize: 13,
@@ -372,7 +389,7 @@ export function ScheduleDrawer() {
                 background: "transparent",
                 border: `1px solid ${CHROME.roseLine}`,
                 borderRadius: 8,
-                cursor: isSaving ? "not-allowed" : "pointer",
+                cursor: formDisabled ? "not-allowed" : "pointer",
               }}
             >
               Cancel scheduled publish
@@ -384,7 +401,9 @@ export function ScheduleDrawer() {
             <button
               type="button"
               onClick={onClose}
-              disabled={isSaving}
+              // Deliberately `exitDisabled`, NOT `formDisabled`: a load in
+              // flight must never be able to trap the operator in the drawer.
+              disabled={exitDisabled}
               style={{
                 padding: "8px 14px",
                 fontSize: 13,
@@ -393,7 +412,7 @@ export function ScheduleDrawer() {
                 background: "transparent",
                 border: `1px solid ${CHROME.lineMid}`,
                 borderRadius: 8,
-                cursor: isSaving ? "not-allowed" : "pointer",
+                cursor: exitDisabled ? "not-allowed" : "pointer",
               }}
             >
               Close
@@ -401,7 +420,7 @@ export function ScheduleDrawer() {
             <button
               type="button"
               onClick={handleSchedule}
-              disabled={isSaving || !pickerValue}
+              disabled={formDisabled || !pickerValue}
               style={{
                 padding: "8px 14px",
                 fontSize: 13,
@@ -410,8 +429,8 @@ export function ScheduleDrawer() {
                 background: CHROME.accent,
                 border: `1px solid ${CHROME.accent}`,
                 borderRadius: 8,
-                cursor: isSaving || !pickerValue ? "not-allowed" : "pointer",
-                opacity: isSaving || !pickerValue ? 0.6 : 1,
+                cursor: formDisabled || !pickerValue ? "not-allowed" : "pointer",
+                opacity: formDisabled || !pickerValue ? 0.6 : 1,
               }}
             >
               {state.kind === "saving" ? "Saving\u2026" : currentSchedule.iso ? "Update schedule" : "Schedule publish"}
