@@ -28,6 +28,14 @@ const STYLE_PREVIEW_KEYS: Record<string, string> = {
   fontStyle: "fontStyle",
   marginLeftFree: "marginLeft",
   marginRightFree: "marginRight",
+  // The rotate handle stamps its live angle straight onto the DOM for the same
+  // reason the text toolbar does: instant paint, outside React. It must be
+  // tracked HERE so undo/redo's `clearCanvasTextStylePreview()` takes it down
+  // with every other preview. Registering it directly (rather than a private
+  // stamp inside the handle) is the whole fix for the #996 class: a stamp that
+  // no restore path knows about survives a reverted tree and makes undo look
+  // like a no-op.
+  rotate: "rotate",
 };
 
 function cssPropertyName(key: string): string {

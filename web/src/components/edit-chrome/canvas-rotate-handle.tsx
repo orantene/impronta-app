@@ -32,6 +32,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { applyCanvasTextStylePreview } from "./canvas-text-style-preview";
 import {
   normalizeAngleDeg,
   parseRotateDeg,
@@ -113,7 +114,19 @@ export function CanvasRotateHandle({
       // Instant preview; the committed prop re-applies the same value on
       // release, so there is no visible jump. Style-attribute mutation also
       // primes the selection-layer geometry loop, so the rotated ring tracks.
-      if (liveEl) liveEl.style.rotate = `${snap.deg}deg`;
+      //
+      // Routed through the shared preview tracker rather than assigning
+      // `liveEl.style.rotate` directly. That module records the value
+      // underneath the first stamp, and undo/redo already call
+      // `clearCanvasTextStylePreview()` to take every stamp back down. An
+      // untracked stamp is precisely the #996 failure: the tree reverts, the
+      // stamp keeps painting the old angle, and undo reads as a no-op.
+      const previewNodeId = liveEl?.getAttribute("data-builder-node-id");
+      if (previewNodeId) {
+        applyCanvasTextStylePreview(previewNodeId, {
+          rotate: `${snap.deg}deg`,
+        });
+      }
     };
     const onUp = () => {
       onCommitRotate(latestRef.current);
