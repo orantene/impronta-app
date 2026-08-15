@@ -42,6 +42,7 @@
  */
 
 import { improntaLog } from "@/lib/server/structured-log";
+import { splitLegacyThemeKeys } from "@/lib/site-admin/tokens/legacy-passthrough";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -289,8 +290,11 @@ export async function saveDesignDraft(
 
   // Re-validate here as well — `values.patch` is already normalised by the
   // Zod schema, but belt-and-braces catches a mutated import path or a
-  // caller that bypassed the schema layer.
-  const gate = validateThemePatch(values.patch);
+  // caller that bypassed the schema layer. Legacy passthrough keys are split
+  // out first: they are not registry tokens and must never fail the gate.
+  const gate = validateThemePatch(
+    splitLegacyThemeKeys(values.patch as Record<string, unknown>).registryCandidate,
+  );
   if (!gate.ok) {
     return fail(
       "TOKEN_NOT_OVERRIDABLE",
@@ -298,11 +302,18 @@ export async function saveDesignDraft(
     );
   }
 
+  // Carry the STORED draft's legacy keys (logo_url / favicon_url /
+  // watermark_preset) through unchanged — the design pipeline never edits
+  // them, and dropping them breaks the public shell logo on publish.
+  const storedDraftLegacy = splitLegacyThemeKeys(
+    (beforeRow.theme_json_draft ?? {}) as Record<string, unknown>,
+  ).legacy;
+
   const nextVersion = beforeRow.version + 1;
   const { data: updatedRow, error: updateError } = await supabase
     .from("agency_branding")
     .update({
-      theme_json_draft: gate.normalized,
+      theme_json_draft: { ...gate.normalized, ...storedDraftLegacy },
       version: nextVersion,
       updated_by: actorProfileId,
     })
@@ -467,14 +478,31 @@ export async function publishDesign(
 
   // Re-validate the current draft against the CURRENT registry so a
   // registry lockdown (token removed / downgraded to platform-only) blocks
-  // the publish rather than leaking a stale token into the live row.
-  const gate = validateThemePatch(beforeRow.theme_json_draft);
+  // the publish rather than leaking a stale token into the live row. Legacy
+  // passthrough keys are split out first — they are not registry tokens.
+  const draftSplit = splitLegacyThemeKeys(
+    (beforeRow.theme_json_draft ?? {}) as Record<string, unknown>,
+  );
+  const gate = validateThemePatch(draftSplit.registryCandidate);
   if (!gate.ok) {
     return fail(
       "PUBLISH_NOT_READY",
       `Design draft has rejected tokens (${gate.rejected.join(", ")}). Re-save the draft with valid tokens before publishing.`,
     );
   }
+
+  // Preserve legacy keys on the LIVE row across the publish. They are
+  // mirrored into `theme_json` by the settings/brand-library save paths
+  // (often onto the live row only), so replacing the live map with the
+  // normalized draft silently deleted the shell logo + favicon + watermark
+  // config until the next settings save (2026-08-15 incident). Draft wins
+  // where it carries a value; the live row fills the gaps.
+  const liveLegacy = {
+    ...splitLegacyThemeKeys(
+      (beforeRow.theme_json ?? {}) as Record<string, unknown>,
+    ).legacy,
+    ...draftSplit.legacy,
+  };
 
   const nextVersion = beforeRow.version + 1;
   const now = new Date().toISOString();
@@ -488,7 +516,7 @@ export async function publishDesign(
   const { data: updatedRow, error: updateError } = await supabase
     .from("agency_branding")
     .update({
-      theme_json: gate.normalized,
+      theme_json: { ...gate.normalized, ...liveLegacy },
       component_styles_json: componentStylesLive,
       theme_published_at: now,
       version: nextVersion,
@@ -585,8 +613,12 @@ export async function restoreDesignRevision(
     revRow.snapshot.theme_json_draft ??
     revRow.snapshot.theme_json ??
     {};
-  const gate = validateThemePatch(source);
-  const rebuiltDraft = gate.ok ? gate.normalized : {};
+  const sourceSplit = splitLegacyThemeKeys(source as Record<string, unknown>);
+  const gate = validateThemePatch(sourceSplit.registryCandidate);
+  // `normalized` always carries the registry-accepted subset (even when the
+  // gate fails), so a snapshot with retired tokens restores everything else
+  // instead of wiping the draft to {}. Legacy passthrough keys ride along.
+  const rebuiltDraft = { ...gate.normalized, ...sourceSplit.legacy };
   if (!gate.ok) {
     void improntaLog("site_admin_design.warn", {
       message: "[site-admin/design] restore dropped unknown/non-configurable tokens",
