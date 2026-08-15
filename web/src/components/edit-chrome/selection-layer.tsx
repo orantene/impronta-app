@@ -4042,7 +4042,14 @@ export function SelectionLayer() {
         !e.shiftKey &&
         (e.code === "BracketRight" || e.code === "BracketLeft")
       ) {
-        if (saving) return;
+        // MERGE RESOLUTION (#1119 z-order × #1120 perf spine): the z-order
+        // branch landed with `if (saving) return;`, matching the convention
+        // that existed when it was written. The perf spine then removed that
+        // gate from every sibling node op — see the `disabled={false}` sites
+        // below — because those mutations ride the optimistic lane and
+        // CAS-reconcile if a save is in flight. Z-order is the same kind of
+        // node op on the same lane, so it is ungated too rather than being
+        // the one command that still blocks mid-autosave.
         const forward = e.code === "BracketRight";
         const command: ZOrderCommand = e.altKey
           ? forward

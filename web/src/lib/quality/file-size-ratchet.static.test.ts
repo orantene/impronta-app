@@ -72,15 +72,27 @@ const BUDGETS: Record<string, number> = {
   // ── src/components/edit-chrome/** over the 800-line cap ──────────────────
   // The builder chrome. Live decomposition target of the page-builder 8/10
   // program, so these budgets should move down often and never up quietly.
-  "src/components/edit-chrome/edit-context.tsx": 6148,
+  // PERF SPINE (save-cycle bridge): `saving` / `pageVersion` /
+  // `lastDraftSavedAt` moved OFF the context value into a micro-store, so a
+  // routine autosave stops re-rendering every useEditContext consumer. Two
+  // shapes of growth come out of that, both recorded here rather than absorbed
+  // silently:
+  //   +54 edit-context.tsx — the publish plumbing (wrapped setter that mirrors
+  //       into a ref + publishes synchronously, three publish effects) and the
+  //       comments explaining why undo/redo read the ref instead of the state.
+  //   +3..+18 per CONSUMER — each swaps a context read for a bridge hook,
+  //       which costs an import line and a hook call. Extraction is not the
+  //       remedy for a three-line delta; the point of the guard is that the
+  //       growth is visible, and it is.
+  "src/components/edit-chrome/edit-context.tsx": 6202,
   "src/components/edit-chrome/inspectors/style-panel.tsx": 5896,
-  "src/components/edit-chrome/navigator-panel.tsx": 4502,
-  "src/components/edit-chrome/topbar.tsx": 3453,
+  "src/components/edit-chrome/navigator-panel.tsx": 4505,
+  "src/components/edit-chrome/topbar.tsx": 3471,
   "src/components/edit-chrome/edit-shell.tsx": 2718,
   "src/components/edit-chrome/inspectors/layout-panel.tsx": 2532,
-  "src/components/edit-chrome/publish-drawer.tsx": 2250,
-  "src/components/edit-chrome/inspector-dock.tsx": 1822,
-  "src/components/edit-chrome/page-settings-drawer.tsx": 1459,
+  "src/components/edit-chrome/publish-drawer.tsx": 2254,
+  "src/components/edit-chrome/inspector-dock.tsx": 1826,
+  "src/components/edit-chrome/page-settings-drawer.tsx": 1463,
   "src/components/edit-chrome/theme-drawer.tsx": 1423,
   "src/components/edit-chrome/command-palette.tsx": 1287,
   "src/components/edit-chrome/assets-drawer.tsx": 1244,

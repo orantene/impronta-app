@@ -82,7 +82,16 @@ const BUDGETS: Record<string, number> = {
   // itself was written inline first, tripped this guard at +59, and was
   // extracted to use-canvas-node-autoscroll.ts — which is the remedy this
   // guard asks for first. What remains here is the call site.
-  "selection-layer.tsx": 7661,
+  // +7 (perf spine × z-order merge resolution): #1119's z-order shortcut
+  // landed with an `if (saving) return;` guard; #1120 moved `saving` off the
+  // context value, so the rebase produced code that referenced a name that no
+  // longer existed — a CLEAN rebase that did not compile. The guard was
+  // dropped rather than rewired, because #1120 removed that same gate from
+  // every sibling node op (they ride the optimistic lane and CAS-reconcile
+  // mid-save). This is the comment recording that decision; it is deliberately
+  // longer than the line it replaced so the next reader does not have to
+  // reconstruct why one command differs from its siblings.
+  "selection-layer.tsx": 7668,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
