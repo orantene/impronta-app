@@ -11,6 +11,7 @@ import {
   getProfilePublishCompleteness,
 } from "@/lib/field-engine/profile-publish-requirements";
 import { TalentHubFacePanel } from "@/components/admin/shell/internal/talent-hub-face-panel";
+import { MediaReleasePanel } from "@/components/talent/media-release-panel";
 import type { ResolvedField } from "@/lib/field-engine/resolve-talent-fields";
 import { resolveDynamicFieldsForParent } from "@/lib/field-engine/client-field-source-select";
 import {
@@ -3827,6 +3828,13 @@ export function TalentProfileShellDrawer() {
                   a pointer list, not a copy of the talent's media. */}
               {adminVisible && payload.talentId && bridgeTenantIdentity?.tenantId && (
                 <TalentHubFacePanel talentProfileId={payload.talentId} />
+              )}
+              {/* FROM YOUR AGENCIES — locked tiles for agency-owned photos of
+                  this talent (media-ownership phase 3, the two-key rule).
+                  Talent-side only: it is their consent to give, and staff
+                  already see ownership on the Media page. */}
+              {isSelf && payload.talentId && (
+                <MediaReleasePanel talentProfileId={payload.talentId} />
               )}
             </ProfileAccordionSection>
 

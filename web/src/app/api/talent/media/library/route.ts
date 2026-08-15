@@ -16,6 +16,7 @@
 import { NextResponse } from "next/server";
 
 import { listTalentScopedMediaLibrary } from "@/lib/site-admin/media/assets";
+import { classifyTalentMediaUsability } from "@/lib/site-admin/server/media-grants";
 import {
   requireWorkspaceStaffAction,
   requireTalentSelfAction,
@@ -105,5 +106,27 @@ export async function GET(req: Request) {
     talentProfileId,
     resolvedTenantId,
   );
-  return NextResponse.json({ ok: true, items, portfolioAssetIds });
+
+  // Media-ownership phase 3 (plan §6): the picker must not offer a photo the
+  // talent may not actually use, AND must never drop one silently. So the
+  // items list is returned WHOLE and each unusable asset is reported with a
+  // reason — the picker greys the tile and says why.
+  //
+  // The surface asked about is the MASTER profile (`tenantId: null`): this is
+  // the talent's own global page, the strictest of the surfaces they pick for.
+  // The verdict comes from the one SQL predicate, never re-derived here.
+  const usability = await classifyTalentMediaUsability(admin, {
+    talentProfileId,
+    assetIds: items.map((item) => item.id),
+    tenantId: null,
+  });
+  const locked = usability
+    .filter((u) => !u.usable)
+    .map((u) => ({
+      assetId: u.assetId,
+      reason: u.reason,
+      ownerName: u.ownerTenantName,
+    }));
+
+  return NextResponse.json({ ok: true, items, portfolioAssetIds, locked });
 }

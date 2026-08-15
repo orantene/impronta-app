@@ -29,6 +29,13 @@ export const ES_TEXT: Record<string, string> = {
   // library, "My blocks" / "Component library"). Disjoint from every other
   // catalog by construction, enforced by the cross-file duplicate guard.
   ...ES_BUILDER_REGISTRY_TEXT,
+  // ── Media picker two-key locks (phase 3, 2026-08-14) ──────────────────
+  "dashboard.mediaPickerLock.badge": "Bloqueada",
+  "dashboard.mediaPickerLock.aWorkspace": "un espacio de trabajo",
+  "dashboard.mediaPickerLock.ownedByWorkspace":
+    "{workspace} es dueño de esta foto, así que solo puede aparecer en su sitio. Pídeles que la liberen y podrás usarla aquí.",
+  "dashboard.mediaPickerLock.masterOff":
+    "{workspace} es dueño de esta foto y la mantiene solo en su sitio. Pídeles que la liberen y podrás usarla aquí.",
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',

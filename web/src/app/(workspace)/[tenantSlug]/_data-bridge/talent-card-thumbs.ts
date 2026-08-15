@@ -48,6 +48,56 @@ export function mediaPublicUrl(client: SupabaseClient, storagePath: string): str
     : client.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
 }
 
+/** One ranked face candidate. `id` is what phase 3's two-key filter needs. */
+export type TalentThumbCandidate = {
+  id: string;
+  owner_talent_profile_id: string;
+  storage_path: string;
+  variant_kind: string;
+};
+
+/**
+ * The raw ranked candidates behind `loadTalentCardThumbs`, WITH asset ids.
+ *
+ * Phase 3 needs the ids: the two-key rule filters candidates before the rank
+ * picks a winner, so a photo the talent may not use on this hub falls through
+ * to the next-best variant instead of blanking the card. Kept here rather than
+ * in the resolver so there is still exactly one place that knows the rank.
+ */
+export async function loadTalentCardThumbCandidates(
+  client: SupabaseClient,
+  talentProfileIds: (string | null | undefined)[],
+): Promise<TalentThumbCandidate[]> {
+  const ids = [...new Set(talentProfileIds.filter((x): x is string => !!x))];
+  if (ids.length === 0) return [];
+
+  const { data } = await client
+    .from("media_assets")
+    .select("id, owner_talent_profile_id, storage_path, variant_kind")
+    .in("owner_talent_profile_id", ids)
+    .in("variant_kind", FACE_VARIANTS)
+    .is("deleted_at", null);
+
+  return (data ?? []) as unknown as TalentThumbCandidate[];
+}
+
+/** Rank-reduce candidates to one URL per talent. Pure; shared by both paths. */
+export function pickBestThumbs(
+  client: SupabaseClient,
+  candidates: readonly TalentThumbCandidate[],
+): Map<string, string> {
+  const out = new Map<string, string>();
+  const bestRank = new Map<string, number>();
+  for (const m of candidates) {
+    const rank = THUMB_RANK[m.variant_kind] ?? 99;
+    if (rank < (bestRank.get(m.owner_talent_profile_id) ?? 99)) {
+      out.set(m.owner_talent_profile_id, mediaPublicUrl(client, m.storage_path));
+      bestRank.set(m.owner_talent_profile_id, rank);
+    }
+  }
+  return out;
+}
+
 /**
  * Returns a Map keyed by talent_profile_id → public thumbnail URL. Empty map
  * on no input or error (callers fall back to initials). Never throws.
@@ -56,28 +106,7 @@ export async function loadTalentCardThumbs(
   client: SupabaseClient,
   talentProfileIds: (string | null | undefined)[],
 ): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
   const ids = [...new Set(talentProfileIds.filter((x): x is string => !!x))];
-  if (ids.length === 0) return out;
-
-  const { data } = await client
-    .from("media_assets")
-    .select("owner_talent_profile_id, storage_path, variant_kind")
-    .in("owner_talent_profile_id", ids)
-    .in("variant_kind", FACE_VARIANTS)
-    .is("deleted_at", null);
-
-  const bestRank = new Map<string, number>();
-  for (const m of (data ?? []) as Array<{
-    owner_talent_profile_id: string;
-    storage_path: string;
-    variant_kind: string;
-  }>) {
-    const rank = THUMB_RANK[m.variant_kind] ?? 99;
-    if (rank < (bestRank.get(m.owner_talent_profile_id) ?? 99)) {
-      out.set(m.owner_talent_profile_id, mediaPublicUrl(client, m.storage_path));
-      bestRank.set(m.owner_talent_profile_id, rank);
-    }
-  }
-  return out;
+  if (ids.length === 0) return new Map();
+  return pickBestThumbs(client, await loadTalentCardThumbCandidates(client, ids));
 }
