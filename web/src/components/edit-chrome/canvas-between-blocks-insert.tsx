@@ -37,16 +37,23 @@ import {
   type BuilderNodeKind,
 } from "@/lib/site-admin/builder-node";
 import { ElementLibraryInsertPicker } from "./element-library-insert-picker";
+import { CHROME } from "./kit/tokens";
+import {
+  MENU_EYEBROW_COLOR,
+  MENU_HOVER_FILL,
+  MENU_SURFACE_ELEVATED_STYLE,
+  MENU_SURFACE_STYLE,
+} from "./kit/menu-surface";
 import { collectPageBlockBoundaries } from "./page-block-dom";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import { CANVAS_GESTURE_COACHMARK_SEQUENCE } from "./builder-coachmarks";
 
-// Visual constants — mirror selection-layer.tsx chip tokens exactly so the
-// two surfaces look identical without coupling the file.
-const CHIP_BG =
-  "linear-gradient(180deg, rgba(44,50,76,0.97) 0%, rgba(30,36,59,0.97) 100%)";
-const CHIP_SHADOW =
-  "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
+// Visual constants — derive from the shared light menu kit so this surface
+// stays identical to the selection-layer menus without coupling the file.
+// (2026-08-15: was a bespoke dark-navy gradient; unified on the light
+// control language via `kit/menu-surface`.)
+const CHIP_BG = MENU_SURFACE_STYLE.background as string;
+const CHIP_SHADOW = MENU_SURFACE_ELEVATED_STYLE.boxShadow as string;
 const CANVAS_CHROME_RADIUS = 8;
 
 /** Half-height of the hover band around the section boundary, in pixels. */
@@ -257,7 +264,7 @@ export function CanvasBetweenBlocksInsert({
                 gap: 5,
                 padding: "4px 10px",
                 background: CHIP_BG,
-                color: "rgba(255,255,255,0.92)",
+                color: CHROME.text,
                 border: "none",
                 borderRadius: 14,
                 boxShadow: CHIP_SHADOW,
@@ -381,9 +388,8 @@ function BetweenBlocksPickerPopover({
         overflowY: "auto",
         padding: "10px 10px 11px",
         borderRadius: CANVAS_CHROME_RADIUS,
-        border: "1px solid rgba(255,255,255,0.09)",
         background: CHIP_BG,
-        color: "white",
+        color: CHROME.text,
         boxShadow: CHIP_SHADOW,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
@@ -408,7 +414,7 @@ function BetweenBlocksPickerPopover({
             fontWeight: 700,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: "rgba(255,255,255,0.55)",
+            color: MENU_EYEBROW_COLOR,
           }}
         >
           Insert block here
@@ -423,7 +429,7 @@ function BetweenBlocksPickerPopover({
             border: "none",
             borderRadius: CANVAS_CHROME_RADIUS,
             background: "transparent",
-            color: "rgba(255,255,255,0.72)",
+            color: CHROME.muted,
             cursor: "pointer",
             padding: 0,
             flexShrink: 0,
@@ -432,7 +438,7 @@ function BetweenBlocksPickerPopover({
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.background =
-              "rgba(255,255,255,0.12)";
+              MENU_HOVER_FILL;
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.background = "transparent";

@@ -167,6 +167,17 @@ import {
   EDIT_TOPBAR_H,
   Z_INDEX,
 } from "./kit/tokens";
+import {
+  FLOATING_PILL_STYLE,
+  MENU_DANGER_HOVER_FILL,
+  MENU_DANGER_TEXT,
+  MENU_EYEBROW_COLOR,
+  MENU_HOVER_FILL,
+  MENU_SURFACE_ELEVATED_STYLE,
+  MENU_SURFACE_STYLE,
+  MenuItem as ContextMenuButton,
+  MenuSeparator as ContextMenuSeparator,
+} from "./kit/menu-surface";
 import { useCanvasPanelPlacement } from "./canvas-panel-clearance";
 import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
@@ -312,30 +323,22 @@ const SELECTION_LAYER_KEYFRAMES = `
 }
 `;
 
-// ── Operator-chrome surfaces (Sprint 3.2) ─────────────────────────────────
+// ── Operator-chrome surfaces ──────────────────────────────────────────────
 //
-// The chip / rail / drag-ghost used to be near-black gradients
-// (rgba(11,11,13,0.97) → rgba(24,24,27,0.97)). On a black-brand tenant
-// every operator surface ended up indistinguishable from the storefront,
-// and the editor read as "void on void." We retired pure-ink for chrome
-// and switched to a warm graphite that signals "this is a tool, not the
-// site." CHROME.chipInk / chipInkDeep are the single source of truth so
-// chip + rail + drag-ghost stay visually unified.
-const CHIP_BG =
-  `linear-gradient(180deg, ${CHROME.chipInk} 0%, ${CHROME.chipInkDeep} 100%)`;
-// Slight downstep of the chip for the smaller rail — same surface family,
-// quieter weight so the rail reads as "secondary affordance" beside the
-// chip rather than a duplicate pill.
-const RAIL_BG =
-  `linear-gradient(180deg, rgba(36,41,66,0.94) 0%, rgba(26,31,53,0.94) 100%)`;
-const CHIP_SHADOW =
-  "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
-/** Canvas-first mockup — light floating toolbar for section selections. */
-const LIGHT_CHIP_BG = CHROME.surface;
-const LIGHT_CHIP_SHADOW =
-  "0 8px 28px -8px rgba(0,0,0,0.14), 0 0 0 1px rgba(24,24,27,0.08)";
-const RAIL_SHADOW =
-  "0 8px 22px -8px rgba(0,0,0,0.32), 0 1px 3px rgba(0,0,0,0.16), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.10)";
+// 2026-08-15 light unification (owner escalation): the chip / rail / drag
+// ghost / context menu wore the v1 dark-navy operator gradients while the
+// rest of the chrome (command palette, slash menu, inspector dock) had
+// moved to the light control language. Every floating surface now derives
+// from `kit/menu-surface.tsx` — the single source of truth — so the dark
+// treatment cannot drift back one surface at a time. The names below are
+// kept for the many usage sites; the VALUES all route to the kit.
+const CHIP_BG = MENU_SURFACE_STYLE.background as string;
+const RAIL_BG = FLOATING_PILL_STYLE.background as string;
+const CHIP_SHADOW = MENU_SURFACE_ELEVATED_STYLE.boxShadow as string;
+/** Light floating toolbar for section/block selections (kit-derived). */
+const LIGHT_CHIP_BG = MENU_SURFACE_STYLE.background as string;
+const LIGHT_CHIP_SHADOW = MENU_SURFACE_STYLE.boxShadow as string;
+const RAIL_SHADOW = FLOATING_PILL_STYLE.boxShadow as string;
 // Rounded to match the rest of the editor chrome (topbar popovers + drawers
 // are 8–10px). Were both 0, which left every canvas surface — selection
 // chip, context menu, breadcrumb, insert menu, children panel — hard-square
@@ -4559,7 +4562,7 @@ export function SelectionLayer() {
                 display: "inline-flex",
                 alignItems: "stretch",
                 background: RAIL_BG,
-                color: "white",
+                color: CHROME.muted,
                 borderRadius: CANVAS_CHROME_RADIUS,
                 boxShadow: RAIL_SHADOW,
                 backdropFilter: "blur(12px)",
@@ -4591,7 +4594,7 @@ export function SelectionLayer() {
                   alignItems: "center",
                   justifyContent: "center",
                   background: "transparent",
-                  color: "rgba(255,255,255,0.78)",
+                  color: CHROME.muted,
                   border: "none",
                   cursor: "grab",
                   touchAction: "none",
@@ -4599,7 +4602,7 @@ export function SelectionLayer() {
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.background =
-                    "rgba(255,255,255,0.10)";
+                    MENU_HOVER_FILL;
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.background =
@@ -4710,7 +4713,7 @@ export function SelectionLayer() {
             borderRadius: 6,
             border: "none",
             background: RAIL_BG,
-            color: "rgba(255,255,255,0.82)",
+            color: CHROME.muted,
             boxShadow: RAIL_SHADOW,
             backdropFilter: "blur(10px)",
             WebkitBackdropFilter: "blur(10px)",
@@ -4934,7 +4937,7 @@ export function SelectionLayer() {
                 alignItems: "center",
                 padding: "0 10px",
                 background: RAIL_BG,
-                color: "rgba(255,255,255,0.92)",
+                color: CHROME.text,
                 borderRadius: CANVAS_CHROME_RADIUS,
                 boxShadow: RAIL_SHADOW,
                 backdropFilter: "blur(12px)",
@@ -4970,7 +4973,7 @@ export function SelectionLayer() {
                 display: "inline-flex",
                 alignItems: "stretch",
                 background: RAIL_BG,
-                color: "white",
+                color: CHROME.text,
                 borderRadius: CANVAS_CHROME_RADIUS,
                 boxShadow: RAIL_SHADOW,
                 backdropFilter: "blur(12px)",
@@ -5011,7 +5014,7 @@ export function SelectionLayer() {
                     gap: 4,
                     padding: "0 10px",
                     background: "transparent",
-                    color: "rgba(255,255,255,0.92)",
+                    color: CHROME.text,
                     border: "none",
                     cursor: "pointer",
                     fontSize: 11,
@@ -5019,7 +5022,7 @@ export function SelectionLayer() {
                     letterSpacing: "0.01em",
                     transition: "background 110ms ease",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(24,24,27,0.06)"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = MENU_HOVER_FILL; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <svg
@@ -5044,7 +5047,7 @@ export function SelectionLayer() {
                   aria-hidden
                   style={{
                     width: 1,
-                    background: "rgba(255,255,255,0.16)",
+                    background: CHROME.line,
                     alignSelf: "stretch",
                     margin: "5px 0",
                   }}
@@ -5065,7 +5068,7 @@ export function SelectionLayer() {
                     gap: 4,
                     padding: "0 10px",
                     background: "transparent",
-                    color: "rgba(255,255,255,0.86)",
+                    color: MENU_DANGER_TEXT,
                     border: "none",
                     cursor: "pointer",
                     fontSize: 11,
@@ -5073,7 +5076,7 @@ export function SelectionLayer() {
                     letterSpacing: "0.01em",
                     transition: "background 110ms ease",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(196,61,61,0.22)"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = MENU_DANGER_HOVER_FILL; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 >
                   <span>{t("Remove")}</span>
@@ -6188,7 +6191,7 @@ export function SelectionLayer() {
                 : canvasNodeDrag.phase === "palette"
                   ? t("Drop to place")
                   : t("Drop to move");
-          const statusColor = drop && !drop.allowed ? "#ff9a9a" : undefined;
+          const statusColor = drop && !drop.allowed ? MENU_DANGER_TEXT : undefined;
           return (
             <div
               data-edit-overlay="canvas-node-drag-ghost"
@@ -6203,11 +6206,10 @@ export function SelectionLayer() {
                   : "rotate(-1deg) translateZ(0)",
                 willChange: reduceMotion ? undefined : "transform",
                 background: CHIP_BG,
-                color: "white",
+                color: CHROME.ink,
                 padding: "10px 14px",
                 borderRadius: CANVAS_CHROME_RADIUS,
-                boxShadow:
-                  "0 28px 64px -14px rgba(0,0,0,0.44), 0 6px 16px -4px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.09), inset 0 1px 0 rgba(255,255,255,0.16)",
+                boxShadow: CHIP_SHADOW,
                 display: "flex",
                 alignItems: "center",
                 gap: 11,
@@ -6229,13 +6231,13 @@ export function SelectionLayer() {
                   borderRadius: CANVAS_CHROME_RADIUS,
                   background:
                     canvasNodeDrag.phase === "palette"
-                      ? "rgba(58,123,255,0.20)"
-                      : "rgba(255,255,255,0.10)",
+                      ? CHROME.blueBg
+                      : CHROME.paper2,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                  color: "rgba(255,255,255,0.92)",
+                  color: CHROME.muted,
                 }}
               >
                 {/* "+" for an insert from the palette, grip-dots for a move. */}
@@ -6243,7 +6245,7 @@ export function SelectionLayer() {
                   <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden>
                     <path
                       d="M12 5v14M5 12h14"
-                      stroke="#ffffff"
+                      stroke={CHROME.blue}
                       strokeWidth="2.4"
                       strokeLinecap="round"
                     />
@@ -6313,11 +6315,10 @@ export function SelectionLayer() {
             transform: reduceMotion ? "translateZ(0)" : "rotate(-1deg) translateZ(0)",
             willChange: reduceMotion ? undefined : "transform",
             background: CHIP_BG,
-            color: "white",
+            color: CHROME.ink,
             padding: "12px 16px",
             borderRadius: CANVAS_CHROME_RADIUS,
-            boxShadow:
-              "0 28px 64px -14px rgba(0,0,0,0.44), 0 6px 16px -4px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(255,255,255,0.09), inset 0 1px 0 rgba(255,255,255,0.16)",
+            boxShadow: CHIP_SHADOW,
             display: "flex",
             alignItems: "center",
             gap: 12,
@@ -6339,7 +6340,7 @@ export function SelectionLayer() {
               width: 36,
               height: 36,
               borderRadius: CANVAS_CHROME_RADIUS,
-              background: "rgba(255,255,255,0.10)",
+              background: CHROME.paper2,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -6530,9 +6531,8 @@ function SelectionContextMenu({
         width: 228,
         padding: 6,
         borderRadius: CANVAS_CHROME_RADIUS,
-        border: "1px solid rgba(255,255,255,0.10)",
         background: CHIP_BG,
-        color: "white",
+        color: CHROME.text,
         boxShadow: CHIP_SHADOW,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
@@ -6549,7 +6549,7 @@ function SelectionContextMenu({
       <div
         style={{
           padding: "7px 8px 8px",
-          borderBottom: "1px solid rgba(255,255,255,0.10)",
+          borderBottom: `1px solid ${CHROME.line}`,
           marginBottom: 4,
         }}
       >
@@ -6559,7 +6559,7 @@ function SelectionContextMenu({
             fontWeight: 700,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: "rgba(255,255,255,0.55)",
+            color: MENU_EYEBROW_COLOR,
           }}
         >
           {isChildNode ? t("Block actions") : t("Section actions")}
@@ -6582,10 +6582,9 @@ function SelectionContextMenu({
               marginTop: 5,
               fontSize: 10.5,
               lineHeight: 1.35,
+              // Attention = cool blue (owner rule: never gold/amber); ok = green.
               color:
-                pastePreview.mode === "blocked"
-                  ? "rgba(255,220,155,0.84)"
-                  : "rgba(198,255,221,0.84)",
+                pastePreview.mode === "blocked" ? CHROME.blue : CHROME.green,
             }}
           >
             {pastePreview.message}
@@ -6739,79 +6738,10 @@ function SelectionContextMenu({
   );
 }
 
-function ContextMenuSeparator() {
-  return (
-    <div
-      aria-hidden
-      style={{
-        height: 1,
-        margin: "4px 5px",
-        background: "rgba(255,255,255,0.10)",
-      }}
-    />
-  );
-}
-
-function ContextMenuButton({
-  children,
-  disabled = false,
-  danger = false,
-  light = false,
-  onClick,
-}: {
-  children: string;
-  disabled?: boolean;
-  danger?: boolean;
-  /** Light menu surface — matches the docked canvas control bars. */
-  light?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        width: "100%",
-        minHeight: 30,
-        display: "flex",
-        alignItems: "center",
-        padding: "0 9px",
-        borderRadius: CANVAS_CHROME_RADIUS,
-        border: "none",
-        background: "transparent",
-        color: danger
-          ? light
-            ? "#b91c1c"
-            : "rgba(255,195,195,0.95)"
-          : light
-            ? CHROME.ink
-            : "rgba(255,255,255,0.86)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.45 : 1,
-        fontSize: 12,
-        fontWeight: 650,
-        textAlign: "left",
-      }}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.background = danger
-          ? light
-            ? "rgba(196,61,61,0.10)"
-            : "rgba(196,61,61,0.22)"
-          : light
-            ? "rgba(24,24,27,0.05)"
-            : "rgba(255,255,255,0.09)";
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.background = "transparent";
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
+// ContextMenuButton / ContextMenuSeparator now come from `kit/menu-surface`
+// (imported above as aliases of MenuItem / MenuSeparator) — the one light
+// menu language shared with every other popover, so this menu can no longer
+// drift back to a bespoke dark treatment.
 
 function CanvasNodeInsertMenu({
   selectedRect,
@@ -6849,9 +6779,8 @@ function CanvasNodeInsertMenu({
         width: 248,
         padding: "10px 10px 11px",
         borderRadius: CANVAS_CHROME_RADIUS,
-        border: `1px solid rgba(255,255,255,0.09)`,
         background: CHIP_BG,
-        color: "white",
+        color: CHROME.text,
         boxShadow: CHIP_SHADOW,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
@@ -6877,7 +6806,7 @@ function CanvasNodeInsertMenu({
               fontWeight: 700,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: "rgba(255,255,255,0.55)",
+              color: MENU_EYEBROW_COLOR,
             }}
           >
             {t("Add block")}
@@ -6904,13 +6833,13 @@ function CanvasNodeInsertMenu({
             border: "none",
             borderRadius: CANVAS_CHROME_RADIUS,
             background: "transparent",
-            color: "rgba(255,255,255,0.72)",
+            color: CHROME.muted,
             cursor: "pointer",
             padding: 0,
             flexShrink: 0,
             transition: "background 110ms ease",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = MENU_HOVER_FILL; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
           ×
@@ -7088,7 +7017,7 @@ function ChipToolBar({
             background: "rgba(196,61,61,0.90)",
             color: "white",
             border: "none",
-            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            borderLeft: `1px solid ${CHROME.line}`,
             cursor: "pointer",
           }}
         >
@@ -7104,9 +7033,9 @@ function ChipToolBar({
             fontSize: 11,
             fontWeight: 500,
             background: "transparent",
-            color: "rgba(255,255,255,0.72)",
+            color: CHROME.muted,
             border: "none",
-            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            borderLeft: `1px solid ${CHROME.line}`,
             cursor: "pointer",
           }}
         >
@@ -7562,38 +7491,30 @@ function BlockChipOverflowMenu({
             zIndex: 10,
             minWidth: 168,
             padding: 5,
+            // One light menu language (kit/menu-surface) — no dark fallback.
+            ...MENU_SURFACE_STYLE,
             borderRadius: CANVAS_CHROME_RADIUS,
-            background: light ? CHROME.surface : "rgba(24,24,27,0.97)",
-            border: light
-              ? `1px solid ${BUILDER_VISUAL.panelBorder}`
-              : "1px solid rgba(255,255,255,0.12)",
-            boxShadow: light
-              ? BUILDER_VISUAL.toolbarShadow
-              : "0 12px 32px rgba(0,0,0,0.42)",
             display: "flex",
             flexDirection: "column",
             gap: 1,
           }}
         >
-          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onResetPosition)}>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onResetPosition)}>
             {t("Reset position")}
           </ContextMenuButton>
           <ContextMenuButton
-            light={light}
             disabled={disabled || !onAddBefore}
             onClick={() => onAddBefore && run(onAddBefore)}
           >
             {t("Add before")}
           </ContextMenuButton>
           <ContextMenuButton
-            light={light}
             disabled={disabled || !onMoveUp}
             onClick={() => onMoveUp && run(onMoveUp)}
           >
             {t("Move up")}
           </ContextMenuButton>
           <ContextMenuButton
-            light={light}
             disabled={disabled || !onMoveDown}
             onClick={() => onMoveDown && run(onMoveDown)}
           >
@@ -7602,20 +7523,19 @@ function BlockChipOverflowMenu({
           {/* "Copy" alone collides with the ES catalog's copywriting sense of
               the word ("Texto"), so this menu says "Copy block" — also matches
               the right-click menu's wording. */}
-          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onCopy)}>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onCopy)}>
             {t("Copy block")}
           </ContextMenuButton>
-          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onCut)}>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onCut)}>
             {t("Cut")}
           </ContextMenuButton>
           <ContextMenuButton
-            light={light}
             disabled={disabled || !onPaste}
             onClick={() => onPaste && run(onPaste)}
           >
             {t("Paste")}
           </ContextMenuButton>
-          <ContextMenuButton light={light} disabled={disabled} onClick={() => run(onDuplicate)}>
+          <ContextMenuButton disabled={disabled} onClick={() => run(onDuplicate)}>
             {t("Duplicate")}
           </ContextMenuButton>
         </div>
