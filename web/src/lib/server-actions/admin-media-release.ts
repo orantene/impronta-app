@@ -13,11 +13,19 @@
  * The tenant is ALWAYS the caller's own workspace, never client-supplied — a
  * workspace can only release photos it owns.
  *
- * REVOCATION IS THE RISKY PATH (plan §8): it has to un-publish everywhere.
- * That works because there is exactly one resolver, and because every write
- * below busts `tenant:{tenantId}:talent-media:{talentId}` plus the storefront
- * tag for BOTH the owner and the target hub. Forget a tag and a revoked photo
- * stays up until the cache expires.
+ * REVOCATION IS A PRESENTATION CONTROL, NOT AN ACCESS CONTROL (D-4a).
+ * Clearing the owner key makes the single resolver stop SELECTING the photo,
+ * so it comes off cards and galleries on the next resolve. It does not take
+ * the bytes away: every live media object sits in a `public = true` bucket at
+ * a stable URL, so anyone who already saved, copied or embedded that URL can
+ * still fetch it. Real takedown needs a private bucket plus a per-request
+ * proxy (plan P0-1 option b) and is not built. Never tell a customer this
+ * "un-publishes everywhere".
+ *
+ * What it DOES need to get right is the cache: every write below busts
+ * `tenant:{tenantId}:talent-media:{talentId}` plus the storefront tag for the
+ * owner AND every affected hub. Forget a tag and a revoked photo stays on
+ * screen until the cache expires on its own.
  */
 
 import { revalidatePath, revalidateTag } from "next/cache";
@@ -35,6 +43,7 @@ import {
   decideMediaReleaseRequest,
   listMediaReleaseRequests,
   revokeMediaRelease,
+  rollBackFailedReleaseBakes,
   MAX_RELEASE_ASSETS,
   type MediaGrantBustKey,
   type MediaReleaseRequestSummary,
@@ -120,9 +129,15 @@ export async function actionDecideMediaReleaseRequest(input: {
   // mean the release silently shows nothing until someone visited the right
   // page. Sequential on purpose: sharp is memory-hungry and the cap is
   // MAX_RELEASE_ASSETS.
+  //
+  // A4 — the results are COLLECTED, not discarded. A bake can fail on download,
+  // logo fetch, sharp or upload; the grant already exists and says the photo
+  // may only travel marked, so a failure used to leave an approved, notified,
+  // permanently invisible release with nothing retrying it.
+  const failedAssetIds: string[] = [];
   if (wantsWatermark && result.data.grantedAssetIds.length > 0) {
     for (const assetId of result.data.grantedAssetIds) {
-      await bakeWatermarkedVariant(admin, {
+      const baked = await bakeWatermarkedVariant(admin, {
         assetId,
         tenantId: auth.tenantId,
         actorUserId: auth.user.id,
@@ -131,38 +146,84 @@ export async function actionDecideMediaReleaseRequest(input: {
         // unwatermarked release.
         requirePresetEnabled: false,
       });
+      if (!baked.ok) failedAssetIds.push(assetId);
     }
   }
+
+  // Roll the un-bakeable photos back out of the approval so the stored state
+  // matches what is actually servable. The ones that baked stay released.
+  let rolledBack = 0;
+  if (failedAssetIds.length > 0) {
+    rolledBack = await rollBackFailedReleaseBakes(admin, {
+      tenantId: auth.tenantId,
+      assetIds: failedAssetIds,
+      targetTenantId: result.data.targetTenantId,
+      talentProfileId: result.data.talentProfileId,
+      actorUserId: auth.user.id,
+    });
+  }
+
+  const grantedNow = Math.max(0, result.data.granted - failedAssetIds.length);
 
   scheduleWorkspaceAudit({
     tenantId: auth.tenantId,
     category: "media",
     action: input.approve ? "media.release_approved" : "media.release_denied",
     summary: input.approve
-      ? `Released ${result.data.granted} photo${result.data.granted === 1 ? "" : "s"} for use elsewhere`
+      ? `Released ${grantedNow} photo${grantedNow === 1 ? "" : "s"} for use elsewhere`
       : "Declined a photo release request",
     targetType: "media_release_request",
     targetId: input.requestId,
     metadata: {
-      granted: result.data.granted,
+      granted: grantedNow,
       notified: result.data.notified,
       watermark_required: wantsWatermark,
+      watermark_failed: failedAssetIds.length,
+      rolled_back_grants: rolledBack,
     },
   });
 
   bust(result.data.bustKeys, auth.tenantSlug);
-  return result;
+
+  if (failedAssetIds.length === 0) return result;
+
+  // Partial success. Naming the count and the reason beats a green tick over a
+  // release that shows nothing.
+  return {
+    ok: true,
+    data: {
+      ...result.data,
+      granted: grantedNow,
+      warning: `${failedAssetIds.length} photo${failedAssetIds.length === 1 ? "" : "s"} could not be watermarked and ${failedAssetIds.length === 1 ? "was" : "were"} left unreleased. Check the workspace logo under Settings, Branding, then approve again to retry.`,
+      failedAssetIds,
+    },
+  };
 }
 
 /**
- * End a live release. The photos come down everywhere outside this workspace
- * on the next resolve.
+ * End a live release.
+ *
+ * SCOPE (A6 / D-6). `targetTenantId` names the hub whose release is ending, so
+ * ending a release to hub B leaves the live releases to C and D alone. Omit it
+ * (or pass null) to end an `all_hubs` release, where everywhere IS the target.
+ *
+ * The photos stop being SHOWN on the affected sites at the next resolve. They
+ * do not become unreachable — see this module's header.
  */
 export async function actionRevokeMediaRelease(input: {
   talentProfileId: string;
   assetIds: string[];
+  /** The hub to end the release to. Null/omitted = end it everywhere. */
+  targetTenantId?: string | null;
 }): Promise<ActionResult<ReleaseRevokeOutcome>> {
   if (!UUID_RE.test(input.talentProfileId)) return { ok: false, error: "Invalid request." };
+  if (
+    input.targetTenantId !== undefined &&
+    input.targetTenantId !== null &&
+    !UUID_RE.test(input.targetTenantId)
+  ) {
+    return { ok: false, error: "Invalid request." };
+  }
   if (!Array.isArray(input.assetIds) || input.assetIds.length === 0) {
     return { ok: false, error: "Select at least one photo." };
   }
@@ -184,6 +245,7 @@ export async function actionRevokeMediaRelease(input: {
     talentProfileId: input.talentProfileId,
     assetIds: input.assetIds,
     actorUserId: auth.user.id,
+    targetTenantId: input.targetTenantId ?? null,
   });
   if (!result.ok) return result;
 
@@ -194,7 +256,11 @@ export async function actionRevokeMediaRelease(input: {
     summary: `Ended a photo release for ${result.data.revoked} photo${result.data.revoked === 1 ? "" : "s"}`,
     targetType: "talent_profile",
     targetId: input.talentProfileId,
-    metadata: { revoked: result.data.revoked, notified: result.data.notified },
+    metadata: {
+      revoked: result.data.revoked,
+      notified: result.data.notified,
+      target_tenant_id: result.data.revokedTargetTenantId,
+    },
   });
 
   bust(result.data.bustKeys, auth.tenantSlug);

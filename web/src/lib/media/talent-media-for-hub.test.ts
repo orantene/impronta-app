@@ -409,12 +409,52 @@ test("the predicate is asked about the RIGHT surface", async () => {
   assert.equal(rpcCalls[0]?.args.p_tenant_id, null, "master surface must be asked as null");
 });
 
-test("filterPresentableAssetIds FAILS OPEN when the predicate errors", async () => {
-  // A broken query must never blank a live storefront — the same stance the
-  // rest of this resolver takes.
+test("filterPresentableAssetIds FAILS CLOSED when the predicate errors", async () => {
+  // Batch A / A3. This assertion used to say the opposite. The privacy
+  // predicate is the only thing between an un-consented photo and a third hub,
+  // and Supabase throttling is chronic on this tier — failing open meant a
+  // transient blip PUBLISHED photos nobody released, with no trace. A blank
+  // card is recoverable; a leaked photo is not.
   const { client } = makeClient({}, { rpcError: true });
   const allowed = await filterPresentableAssetIds(client, ["a", "b"], TENANT_A);
-  assert.deepEqual([...allowed].sort(), ["a", "b"]);
+  assert.deepEqual([...allowed], [], "an unavailable predicate must permit nothing");
+});
+
+test("a predicate outage degrades a card to initials, never to a leak", async () => {
+  // The whole-resolver view of the same rule: with the predicate down, the
+  // candidate rank has nothing left to pick from, so the card resolves no URL
+  // rather than serving an unvetted photo.
+  const { client } = makeClient(
+    {
+      media_assets: [
+        { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+      ],
+    },
+    { rpcError: true },
+  );
+
+  const out = await withGrantsFlag("1", () =>
+    resolveTalentCardThumbsForHub(client, [TALENT], TENANT_B),
+  );
+
+  assert.equal(out.get(TALENT), undefined);
+});
+
+test("the watermark path still fails OPEN — only the privacy path closed", async () => {
+  // The two must not be conflated. A watermark-predicate outage means "no
+  // conditions known", which leaves an already-permitted photo rendering. Only
+  // the two-key predicate blanks on error.
+  const { client } = makeClient({
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+
+  const out = await withGrantsFlag("1", () =>
+    resolveTalentCardThumbsForHub(client, [TALENT], TENANT_A),
+  );
+
+  assert.equal(out.get(TALENT), "https://cdn.test/d.jpg");
 });
 
 test("filterPresentableAssetIds drops what the predicate rejects", async () => {

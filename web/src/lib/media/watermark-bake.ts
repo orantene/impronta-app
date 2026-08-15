@@ -38,6 +38,7 @@ import "server-only";
 import sharp from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isAllowedLogoUrl } from "@/lib/media/logo-url-allowlist";
 import { derivedOwnershipStamp } from "@/lib/media/ownership";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -46,6 +47,7 @@ const MAX_LOGO_SIZE = 512;
 
 const PUBLIC_BUCKET = "media-public";
 const ORIGINALS_BUCKET = "media-originals";
+
 
 /**
  * The workspace watermark preset. Structurally identical to the Zod shape in
@@ -244,7 +246,12 @@ async function composeAndStore(
     const srcImg = sharp(sourceBytes);
     const { width: imgW = 1920, height: imgH = 1080 } = await srcImg.metadata();
 
-    const logoResp = await fetch(logoUrl);
+    // A7 — never dial a tenant-supplied URL unchecked. See isAllowedLogoUrl.
+    if (!isAllowedLogoUrl(logoUrl)) {
+      logServerError("watermark-bake.logoUrl", `refused non-allowlisted logo host: ${logoUrl}`);
+      return { ok: false, error: "Workspace logo is not a valid uploaded image." };
+    }
+    const logoResp = await fetch(logoUrl, { redirect: "error" });
     if (!logoResp.ok) throw new Error("Failed to fetch logo");
     const logoBytes = Buffer.from(await logoResp.arrayBuffer());
 

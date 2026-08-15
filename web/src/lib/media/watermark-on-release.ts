@@ -37,6 +37,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { grantPredicateClient } from "@/lib/media/grant-predicate-client";
 import { logServerError } from "@/lib/server/safe-error";
 
 /** `null` tenant = the master surface (Tulala Digital / global Discover). */
@@ -67,10 +68,16 @@ export async function resolveWatermarkPolicy(
 ): Promise<WatermarkPolicy> {
   if (assetIds.length === 0) return EMPTY_WATERMARK_POLICY;
 
-  const { data, error } = await client.rpc("media_assets_watermark_required_on_tenant", {
-    p_asset_ids: [...new Set(assetIds)],
-    p_tenant_id: tenantId,
-  });
+  // The RPC (not the table read below) goes through the service-role client:
+  // `anon` lost EXECUTE in 20261117000000 and the public directory reaches
+  // this path with an anon-key client. See `grant-predicate-client.ts`.
+  const { data, error } = await grantPredicateClient(client).rpc(
+    "media_assets_watermark_required_on_tenant",
+    {
+      p_asset_ids: [...new Set(assetIds)],
+      p_tenant_id: tenantId,
+    },
+  );
 
   if (error || !Array.isArray(data)) return EMPTY_WATERMARK_POLICY;
 

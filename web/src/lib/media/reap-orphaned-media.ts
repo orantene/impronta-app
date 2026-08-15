@@ -484,6 +484,64 @@ export function storagePathFromPublicUrl(
 /** Recursively harvest every storage reference inside an arbitrary JSON blob
  *  (theme_json, page-builder bindings, document entry lists). Handles both the
  *  full-public-URL shape and the `{ bucketId, storagePath }` entry shape. */
+// ---------------------------------------------------------------------------
+// Reporting thresholds (Batch A / A10) — pure, so the cron route's alerting
+// decision is testable without a database or a notification stack.
+//
+// The reaper's full report used to exist ONLY in the HTTP response body, which
+// Vercel discards for a scheduled invocation. A run that would delete 40,000
+// objects looked exactly like one that would delete none. These helpers decide
+// when a report has to page a human instead of being filed.
+// ---------------------------------------------------------------------------
+
+/**
+ * Default alert threshold. The measured baseline is ~381 orphaned objects
+ * across the whole project (2026-08-15), so 250 fires on today's real backlog.
+ * That is intentional: the first report is the one that must be read, because
+ * D-1's live run is gated on someone having read it.
+ */
+export const DEFAULT_REAP_ALERT_THRESHOLD = 250;
+
+export function reapAlertThreshold(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = Number.parseInt(env.MEDIA_REAPER_ALERT_THRESHOLD ?? "", 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_REAP_ALERT_THRESHOLD;
+}
+
+/** The report shape the alerting rules need — structural, so both a dry-run
+ *  and an executed report satisfy it. */
+export type ReapAlertSignal = {
+  wouldDelete: { count: number; bytes: number };
+  cappedByLimit: boolean;
+};
+
+/**
+ * PURE — does this report deserve a human's attention?
+ *
+ * `cappedByLimit` alerts regardless of count: it means there was MORE to delete
+ * than the run was allowed to touch, so a small-looking number is hiding a big
+ * one.
+ */
+export function shouldAlertOnReapReport(report: ReapAlertSignal, threshold: number): boolean {
+  return report.wouldDelete.count >= threshold || report.cappedByLimit;
+}
+
+/** PURE — the line a platform admin actually reads. */
+export function reapAlertBody(report: {
+  dryRun: boolean;
+  maxDeletions: number;
+  wouldDelete: { count: number; bytes: number };
+  cappedByLimit: boolean;
+  deleted: { count: number; bytes: number } | null;
+}): string {
+  const mb = Math.round((report.wouldDelete.bytes / (1024 * 1024)) * 10) / 10;
+  const mode = report.dryRun ? "Dry run" : "Live run";
+  const acted = report.deleted ? ` ${report.deleted.count} were deleted.` : " Nothing was deleted.";
+  const capped = report.cappedByLimit
+    ? ` The per-run cap of ${report.maxDeletions} was reached, so more remain.`
+    : "";
+  return `${mode}: ${report.wouldDelete.count} storage objects (${mb} MB) are referenced by nothing.${acted}${capped} Review the run before raising the cap.`;
+}
+
 export function collectStorageRefsFromJson(
   value: unknown,
   source: string,

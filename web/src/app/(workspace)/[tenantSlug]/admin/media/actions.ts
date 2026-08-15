@@ -1937,6 +1937,27 @@ export async function actionCreateSignedUploadUrl(
   if (isVideoExt && variantKind !== "reel") {
     return { ok: false, error: "Video upload is only supported for the hello reel." };
   }
+
+  // A8 — the count quota is checked HERE, before a signed URL exists. It used
+  // to run only in `actionRegisterUploadedAsset`, i.e. after the browser had
+  // already PUT the bytes: a talent at cap could keep uploading, be refused at
+  // register time, and leave a real storage object behind with no media_assets
+  // row to tie it to. Repeat that and a capped talent burns unbounded storage
+  // on a project that sits near the free-tier ceiling.
+  //
+  // Same singleton carve-out as the register path: card / hero replace the
+  // previous row, so they are swaps and cost no slot. The register-time check
+  // stays as well — a signed URL is one-shot but the two calls are separate
+  // round trips, and the count can move between them.
+  if (variantKind !== "card" && variantKind !== "hero") {
+    const quota = await checkTalentUploadQuota({
+      supabase: admin,
+      talentProfileId,
+      incomingAssets: 1,
+    });
+    if (!quota.allowed) return { ok: false, error: quota.message };
+  }
+
   const safeExt = isVideoExt ? ext : ext === "png" ? "png" : "jpg";
   const storagePath = `${talentProfileId}/${variantKind}/${randomUUID()}.${safeExt}`;
 
@@ -2205,6 +2226,11 @@ export async function actionRegisterUploadedAsset(
   // Plan count quota (media pricing pass §3a). Same singleton carve-out as
   // actionUploadAndAssignMedia: card / hero replace the previous row further
   // down, so they are swaps and cost no slot. Everything else is a net add.
+  //
+  // The PRIMARY gate now runs in `actionCreateSignedUploadUrl`, before any
+  // bytes exist (A8). This one is the backstop for the window between the two
+  // calls — and unlike before, a refusal here removes the object it is
+  // refusing, so the storage side cannot drift past the cap either way.
   if (variantKind !== "card" && variantKind !== "hero") {
     const quota = await checkTalentUploadQuota({
       supabase: admin,
@@ -2212,6 +2238,14 @@ export async function actionRegisterUploadedAsset(
       incomingAssets: 1,
     });
     if (!quota.allowed) {
+      // A8 — the object is already in storage at this point and no row will
+      // ever reference it. Delete it rather than leave an orphan the dry-run
+      // reaper will not touch. Best effort: a failed delete must not turn a
+      // quota refusal into a server error.
+      const { error: removeErr } = await admin.storage
+        .from("media-public")
+        .remove([storagePath]);
+      if (removeErr) logServerError("media.actions.registerUploaded.quotaOrphan", removeErr);
       // `quotaBlocked` tells the client wrapper NOT to retry through the
       // legacy pipeline — see lib/client/signed-upload.ts. Without it a
       // refusal here would silently fall back and re-run the same upload.

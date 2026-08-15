@@ -65,9 +65,21 @@ import "server-only";
  * profile all pass with no row). Grant rows are only ever needed to reach a
  * THIRD hub. See the predicate's header comment for the full table.
  *
- * FAIL-OPEN: if the predicate call errors we keep the unfiltered candidates.
- * A broken query must never blank a live storefront — the same stance the rest
- * of this resolver takes.
+ * FAIL-CLOSED ON THE PRIVACY PREDICATE (Batch A / A3)
+ * ───────────────────────────────────────────────────
+ * This module used to keep the unfiltered candidates when the predicate call
+ * errored, on the "a broken query must never blank a storefront" reasoning the
+ * rest of the resolver follows. That stance was backwards for THIS call. The
+ * predicate is the only thing standing between an un-consented photo and a
+ * third hub, and Supabase throttling is chronic on this project's tier — so
+ * "fail open" meant a transient blip PUBLISHES photos nobody released, quietly
+ * and with no way to notice after the fact.
+ *
+ * The cosmetic path (watermark substitution) still fails open, because the
+ * worst case there is an unmarked photo on a surface that was already allowed
+ * to show it. The privacy path fails closed: cards fall back to a default the
+ * talent may show, or to initials. A blank card is recoverable; a leaked photo
+ * is not.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -79,6 +91,8 @@ import {
   pickBestThumbs,
   type TalentThumbCandidate,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
+import { logServerError } from "@/lib/server/safe-error";
+import { grantPredicateClient } from "@/lib/media/grant-predicate-client";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
   applyWatermarkPath,
@@ -106,7 +120,9 @@ export function isTwoKeyGrantsEnabled(): boolean {
  * Filter asset ids to those the two-key rule permits on this surface, by
  * calling the ONE SQL predicate. `tenantId === null` = master surface.
  *
- * Fail-open: on any error the input is returned unchanged.
+ * FAILS CLOSED (A3): on any error the result is EMPTY, not the input. See the
+ * module header for why this one call does not follow the resolver's usual
+ * fail-open stance. The caller degrades to a default photo or to initials.
  */
 export async function filterPresentableAssetIds(
   client: SupabaseClient,
@@ -116,12 +132,21 @@ export async function filterPresentableAssetIds(
   if (assetIds.length === 0) return new Set();
   const all = new Set(assetIds);
 
-  const { data, error } = await client.rpc("media_assets_presentable_on_tenant", {
-    p_asset_ids: [...all],
-    p_tenant_id: tenantId,
-  });
+  const { data, error } = await grantPredicateClient(client).rpc(
+    "media_assets_presentable_on_tenant",
+    {
+      p_asset_ids: [...all],
+      p_tenant_id: tenantId,
+    },
+  );
 
-  if (error || !Array.isArray(data)) return all;
+  if (error || !Array.isArray(data)) {
+    // Loud on purpose: a fail-closed resolver degrades silently from the
+    // outside (cards just look uncurated), so the only signal that the
+    // predicate is down is this line.
+    logServerError("talent-media-for-hub.filterPresentable", error ?? "predicate returned no rows");
+    return new Set();
+  }
   return new Set(
     (data as Array<{ asset_id: string } | string>).map((row) =>
       typeof row === "string" ? row : row.asset_id,

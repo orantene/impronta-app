@@ -31,6 +31,7 @@ import {
   notifyTalentUsers,
   notifyWorkspaceStaff,
   parseReleaseScopes,
+  resolveAllHubsBustTenantIds,
   MAX_RELEASE_ASSETS,
   type MediaGrantBustKey,
   type MediaGrantResult,
@@ -300,6 +301,16 @@ export type ReleaseDecisionOutcome = {
    * ownership filter this function already ran.
    */
   grantedAssetIds: string[];
+  /** The talent the request was about — needed to repair a failed bake (A4). */
+  talentProfileId: string;
+  /** The hub the release points at; null = every hub. */
+  targetTenantId: string | null;
+  /**
+   * Set by the action layer when the approval succeeded but some photos could
+   * not be watermarked and were rolled back out of it (A4). Absent = clean run.
+   */
+  warning?: string;
+  failedAssetIds?: string[];
 };
 
 /**
@@ -403,31 +414,136 @@ export async function decideMediaReleaseRequest(
       : `${input.workspaceName} kept ${assetIds.length} photo${assetIds.length === 1 ? "" : "s"} to their own site. Your own uploads are unaffected. You can ask again or upload your own photos.`,
   });
 
+  // An `all_hubs` approval has no target tenant to bust (A5) — resolve the hubs
+  // that can now start showing the photo and bust each.
+  const extraHubIds =
+    input.approve && targetTenantId === null && eligibleIds.length > 0
+      ? await resolveAllHubsBustTenantIds(admin, {
+          talentProfileId: row.talent_profile_id,
+          assetIds: eligibleIds,
+        })
+      : [];
+
   return {
     ok: true,
     data: {
       granted: input.approve ? count : 0,
       notified,
-      bustKeys: bustKeysFor(row.talent_profile_id, input.tenantId, targetTenantId),
+      bustKeys: bustKeysFor(row.talent_profile_id, input.tenantId, targetTenantId, extraHubIds),
       grantedAssetIds: input.approve ? eligibleIds : [],
+      talentProfileId: row.talent_profile_id,
+      targetTenantId,
     },
   };
 }
 
-// ─── 4. Revoke — un-publish everywhere ──────────────────────────────────────
+/**
+ * Undo the owner key on assets whose watermark bake failed (A4).
+ *
+ * THE STATE THIS PREVENTS. Approval writes the owner grant with
+ * `watermark_required = true`, then bakes. When a bake fails — a storage blip,
+ * a sharp OOM on a large file, a logo URL that 404s — the grant stays, and the
+ * resolver correctly refuses to serve a watermark-required asset with no
+ * derivative. The result was a release that both parties had been told
+ * succeeded, showing nothing, forever, with nothing retrying it.
+ *
+ * Rolling the failed assets out of the approval makes the stored state match
+ * what is actually servable: the photos that baked stay released, the ones that
+ * did not are simply not released, and staff get told which. Re-approving after
+ * fixing the cause is the retry — grants are insert-on-approve, so nothing has
+ * to be cleaned up first.
+ */
+export async function rollBackFailedReleaseBakes(
+  admin: SupabaseClient,
+  input: {
+    tenantId: string;
+    assetIds: readonly string[];
+    targetTenantId: string | null;
+    talentProfileId: string;
+    actorUserId: string;
+  },
+): Promise<number> {
+  if (input.assetIds.length === 0) return 0;
+
+  const affected = selectGrantsToRevoke(
+    await loadActiveGrants(admin, input.assetIds),
+    input.targetTenantId,
+  );
+  if (affected.length === 0) return 0;
+
+  const { error } = await admin
+    .from("media_grants")
+    .update({ revoked_at: new Date().toISOString() })
+    .in(
+      "id",
+      affected.map((g) => g.id),
+    )
+    .is("revoked_at", null);
+
+  if (error) {
+    logServerError("media-grants.rollBackFailedBakes", error);
+    return 0;
+  }
+
+  await logGrantActivity(admin, input.tenantId, input.assetIds, "grant.release_bake_failed", {
+    talent_profile_id: input.talentProfileId,
+    target_tenant_id: input.targetTenantId,
+    actor_user_id: input.actorUserId,
+    rolled_back_grants: affected.length,
+  });
+
+  return affected.length;
+}
+
+// ─── 4. Revoke — stop showing the photo, per target ─────────────────────────
 
 export type ReleaseRevokeOutcome = {
   revoked: number;
   notified: number;
   bustKeys: MediaGrantBustKey[];
+  /** Null when the revoke was an "everywhere" one. Echoes the scope acted on. */
+  revokedTargetTenantId: string | null;
 };
 
+/** PURE — which of these active owner grants does a revoke of `target` end?
+ *
+ * `target === null` is the "everywhere" revoke: it ends every owner grant on
+ * the asset, including tenant-scoped ones. A named target ends only grants
+ * pointed at THAT hub — an `all_hubs` grant is deliberately left alone,
+ * because narrowing "anywhere" down to "anywhere except B" is not a state the
+ * table can hold, and silently ending it would take the photo off C and D too
+ * (that is the A6 bug, in the other direction).
+ */
+export function selectGrantsToRevoke<T extends { grant_kind: string; tenant_id: string | null }>(
+  grants: readonly T[],
+  target: string | null,
+): T[] {
+  const owner = grants.filter((g) => g.grant_kind === "owner");
+  if (target === null) return owner;
+  return owner.filter((g) => g.tenant_id === target);
+}
+
 /**
- * Pull a release back. Sets `revoked_at` on this workspace's OWNER grants for
- * these assets, which is enough on its own: the predicate needs both keys, so
- * dropping the owner key un-publishes the photo on the next resolve on EVERY
- * surface, because there is only one resolver. The caller then busts the tags
- * so "next resolve" means now rather than whenever the cache expires.
+ * Pull a release back.
+ *
+ * WHAT REVOCATION ACTUALLY DOES (D-4a). It is a PRESENTATION control, not an
+ * access control. Clearing the owner key means the one resolver stops
+ * SELECTING that photo, so it disappears from cards and galleries on the next
+ * resolve. It does not make the bytes unreachable: all live media sits in a
+ * `public = true` bucket at a stable URL, so anyone who already saved, copied
+ * or embedded that URL keeps being able to fetch it. Real takedown needs a
+ * private bucket plus a per-request proxy (plan P0-1 option b), which is not
+ * built. Do not describe this as "un-publishes everywhere" anywhere a customer
+ * can read it.
+ *
+ * SCOPE (A6 / D-6). `targetTenantId` names the hub to end the release to,
+ * matching the per-hub card the staff member clicked. Before this, the UPDATE
+ * carried no tenant filter at all, so ending a release to hub B also revoked
+ * the live releases to C and D, silently, with a success message.
+ *
+ * `targetTenantId: null` (or omitted) keeps the old "everywhere" behaviour,
+ * which is the correct semantic for revoking an `all_hubs` release: everywhere
+ * IS its target.
  *
  * The subject's own key is deliberately left alone — it is not this
  * workspace's to withdraw.
@@ -440,9 +556,20 @@ export async function revokeMediaRelease(
     talentProfileId: string;
     assetIds: readonly string[];
     actorUserId: string;
+    /**
+     * The hub whose release is ending. Omit or pass null to end the release
+     * everywhere (the right call for an `all_hubs` grant).
+     */
+    targetTenantId?: string | null;
   },
 ): Promise<MediaGrantResult<ReleaseRevokeOutcome>> {
-  if (input.assetIds.length === 0) return { ok: true, data: { revoked: 0, notified: 0, bustKeys: [] } };
+  const target = input.targetTenantId ?? null;
+  if (input.assetIds.length === 0) {
+    return {
+      ok: true,
+      data: { revoked: 0, notified: 0, bustKeys: [], revokedTargetTenantId: target },
+    };
+  }
   if (input.assetIds.length > MAX_RELEASE_ASSETS) {
     return { ok: false, error: `Revoke at most ${MAX_RELEASE_ASSETS} photos at a time.` };
   }
@@ -455,15 +582,21 @@ export async function revokeMediaRelease(
     .map((a) => a.id);
   if (ownedIds.length === 0) return { ok: false, error: "Those photos are not yours to revoke." };
 
-  const affected = (await loadActiveGrants(admin, ownedIds)).filter(
-    (g) => g.grant_kind === "owner",
-  );
+  const affected = selectGrantsToRevoke(await loadActiveGrants(admin, ownedIds), target);
+  if (affected.length === 0) {
+    return { ok: false, error: "There is no live release to end for that site." };
+  }
 
+  // Scoped by id rather than by (asset, kind) so the UPDATE touches exactly the
+  // rows the pure selector just picked. A tenant filter alone could not express
+  // "this target, but not the all_hubs row".
   const { error } = await admin
     .from("media_grants")
     .update({ revoked_at: new Date().toISOString() })
-    .in("asset_id", ownedIds)
-    .eq("grant_kind", "owner")
+    .in(
+      "id",
+      affected.map((g) => g.id),
+    )
     .is("revoked_at", null);
 
   if (error) {
@@ -471,27 +604,54 @@ export async function revokeMediaRelease(
     return { ok: false, error: "Could not revoke. Try again." };
   }
 
-  await logGrantActivity(admin, input.tenantId, ownedIds, "grant.release_revoked", {
+  const revokedAssetIds = [...new Set(affected.map((g) => g.asset_id))];
+  await logGrantActivity(admin, input.tenantId, revokedAssetIds, "grant.release_revoked", {
     talent_profile_id: input.talentProfileId,
     actor_user_id: input.actorUserId,
+    target_tenant_id: target,
     revoked_grants: affected.length,
   });
 
+  // Name the hub when there is one. "Ended everywhere" and "ended on Impronta"
+  // are very different messages to receive, and the old copy sent the first one
+  // for both.
+  const targetName = target ? (await loadTenantNames(admin, [target])).get(target) : null;
+  const where = target
+    ? `on ${targetName ?? "that site"}`
+    : `on sites outside ${input.workspaceName}`;
+  const count = affected.length;
   const notified = await notifyTalentUsers(admin, {
     talentProfileId: input.talentProfileId,
     tenantId: input.tenantId,
     actorUserId: input.actorUserId,
     title: `${input.workspaceName} ended a photo release`,
-    body: `${affected.length} photo${affected.length === 1 ? "" : "s"} owned by ${input.workspaceName} no longer appear outside their site. Your own photos are not affected.`,
+    body: `${count} photo${count === 1 ? "" : "s"} owned by ${input.workspaceName} will stop being shown ${where}. Your own photos are not affected. Copies anyone already saved or linked to are outside this control.`,
   });
 
-  const targets = [...new Set(affected.map((g) => g.tenant_id))];
+  // Cache busting. A tenant-scoped grant names its hub; an `all_hubs` grant
+  // carries tenant_id NULL by check constraint, so the hubs that were showing
+  // the photo have to be resolved (A5) or they keep serving it until their own
+  // cache expires.
+  const namedTargets = [...new Set(affected.map((g) => g.tenant_id))];
+  const extraHubIds = namedTargets.includes(null)
+    ? await resolveAllHubsBustTenantIds(admin, {
+        talentProfileId: input.talentProfileId,
+        assetIds: revokedAssetIds,
+      })
+    : [];
+
+  const seen = new Set<string>();
   const bustKeys: MediaGrantBustKey[] = [];
-  for (const target of targets) {
-    for (const key of bustKeysFor(input.talentProfileId, input.tenantId, target)) {
+  for (const named of namedTargets) {
+    for (const key of bustKeysFor(input.talentProfileId, input.tenantId, named, extraHubIds)) {
+      if (seen.has(key.tenantId)) continue;
+      seen.add(key.tenantId);
       bustKeys.push(key);
     }
   }
 
-  return { ok: true, data: { revoked: affected.length, notified, bustKeys } };
+  return {
+    ok: true,
+    data: { revoked: count, notified, bustKeys, revokedTargetTenantId: target },
+  };
 }

@@ -116,7 +116,6 @@ type GrantRow = {
   grant_kind: string;
   scope: string;
   tenant_id: string | null;
-  expires_at: string | null;
 };
 
 export async function loadSubjectAssets(
@@ -146,7 +145,9 @@ export async function loadActiveGrants(
   if (assetIds.length === 0) return [];
   const { data, error } = await admin
     .from("media_grants")
-    .select("id, asset_id, grant_kind, scope, tenant_id, expires_at")
+    // `expires_at` was dropped in 20261117000000 (D-7a): nothing ever wrote it,
+    // no sweep enforced it, and no cache bust fired at expiry.
+    .select("id, asset_id, grant_kind, scope, tenant_id")
     .in("asset_id", assetIds as string[])
     .is("revoked_at", null);
   if (error) {
@@ -289,17 +290,101 @@ export async function loadTenantNames(
 /**
  * Which (tenant, talent) media caches a grant change invalidates.
  *
- * Always includes the OWNER's hub as well as the target: an `all_hubs` grant
- * has no single target, and the owner's own curation panel shows release state
- * either way. A missed tag here is a photo that stays visible after a revoke,
- * so this errs toward busting one tag too many.
+ * Always includes the OWNER's hub as well as the target: the owner's own
+ * curation panel shows release state either way. A missed tag here is a photo
+ * that stays visible after a revoke, so this errs toward busting one tag too
+ * many.
+ *
+ * `targetTenantId === null` means scope `all_hubs`, which by the table's check
+ * constraint carries NO tenant id. This function CANNOT know which hubs were
+ * showing the photo — pass the extra ids in via `extraTenantIds`, resolved by
+ * `resolveAllHubsBustTenantIds` (A5). Calling it with a null target and no
+ * extras busts the owner alone, which is right only for a write that never
+ * reached a third hub.
  */
 export function bustKeysFor(
   talentProfileId: string,
   ownerTenantId: string,
   targetTenantId: string | null,
+  extraTenantIds: readonly string[] = [],
 ): MediaGrantBustKey[] {
   const tenantIds = new Set<string>([ownerTenantId]);
   if (targetTenantId) tenantIds.add(targetTenantId);
+  for (const id of extraTenantIds) if (id) tenantIds.add(id);
   return [...tenantIds].map((tenantId) => ({ tenantId, talentProfileId }));
+}
+
+/**
+ * PURE — the hub ids an `all_hubs` grant change has to reach, given the two
+ * sources that can be showing the photo.
+ *
+ * Split from the queries so the fan-out rule is testable without a database.
+ * The owner hub is added by `bustKeysFor`, so it is not required here.
+ */
+export function mergeAffectedHubIds(
+  rosterTenantIds: readonly (string | null | undefined)[],
+  curationTenantIds: readonly (string | null | undefined)[],
+): string[] {
+  const out = new Set<string>();
+  for (const id of [...rosterTenantIds, ...curationTenantIds]) {
+    if (id) out.add(id);
+  }
+  return [...out];
+}
+
+/**
+ * Which hubs could be serving these assets under an `all_hubs` grant?
+ *
+ * THE BUG THIS EXISTS FOR (A5). `bustKeysFor` was called with the grant's
+ * `tenant_id`, which is NULL for every `all_hubs` row by check constraint. So
+ * revoking an "anywhere" release busted the owner's tag and nothing else, and
+ * every third hub that had been showing the photo kept serving it until its
+ * cache expired on its own. The revoke reported success the whole time.
+ *
+ * Two sources, union:
+ *   • every hub with an ACTIVE roster row for this talent — the implicit
+ *     representation path, i.e. anywhere a card can render them at all;
+ *   • every hub with a curation row naming one of these assets — a hub that
+ *     picked the photo explicitly, including one whose roster row has since
+ *     lapsed but whose cached page still shows the pick.
+ *
+ * Errs wide on purpose: an extra `revalidateTag` costs one cache miss, a
+ * missed one is a revoked photo still on someone's site.
+ */
+export async function resolveAllHubsBustTenantIds(
+  admin: SupabaseClient,
+  input: { talentProfileId: string; assetIds: readonly string[] },
+): Promise<string[]> {
+  const assetIds = [...new Set(input.assetIds)];
+
+  const [rosterRes, curatedRes, overlayRes] = await Promise.all([
+    admin
+      .from("agency_talent_roster")
+      .select("tenant_id")
+      .eq("talent_profile_id", input.talentProfileId)
+      .eq("status", "active"),
+    assetIds.length > 0
+      ? admin.from("agency_talent_media").select("tenant_id").in("agency_media_id", assetIds)
+      : Promise.resolve({ data: [], error: null }),
+    assetIds.length > 0
+      ? admin
+          .from("agency_talent_overlays")
+          .select("tenant_id")
+          .in("cover_media_asset_id", assetIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  // A source that failed to answer must not silently shrink the bust set — log
+  // it and keep whatever the other sources found.
+  if (rosterRes.error) logServerError("media-grants.bustHubs.roster", rosterRes.error);
+  if (curatedRes.error) logServerError("media-grants.bustHubs.curation", curatedRes.error);
+  if (overlayRes.error) logServerError("media-grants.bustHubs.overlay", overlayRes.error);
+
+  const ids = (rows: unknown) =>
+    ((rows ?? []) as Array<{ tenant_id: string | null }>).map((r) => r.tenant_id);
+
+  return mergeAffectedHubIds(ids(rosterRes.data), [
+    ...ids(curatedRes.data),
+    ...ids(overlayRes.data),
+  ]);
 }

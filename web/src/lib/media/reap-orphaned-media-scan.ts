@@ -170,6 +170,13 @@ async function loadTalentDocumentRefs(
       .from("talent_profile_field_values")
       .select("value, profile_field_definitions!inner(field_key)")
       .eq("profile_field_definitions.field_key", "documents")
+      // A9 — .range() without ORDER BY is an UNSTABLE window: Postgres may
+      // return page 2 in a different order than it "would have", so a row can
+      // be skipped entirely between pages. A skipped REFERENCE here is a live
+      // object this run believes nothing points at, i.e. a real file deleted.
+      // Every source fits one page today; this detonates the first time one
+      // does not, with MEDIA_REAPER_ENABLED=true.
+      .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) return fail("talent_documents", error);
 
@@ -218,10 +225,16 @@ async function loadBrandingRefs(admin: SupabaseClient): Promise<Result<ExternalR
 //
 //    3d. Non-media_assets tables that own their own storage paths.
 // ---------------------------------------------------------------------------
-type JsonSource = { table: string; columns: string[] };
+type JsonSource = {
+  table: string;
+  columns: string[];
+  /** Stable pagination key (A9). Defaults to "id"; PK-by-tenant tables differ. */
+  orderBy?: string;
+};
 
 /** Blobs and URL columns that can pin a storage object. Adding a new builder
- *  surface that stores raw image URLs MUST add its table here. */
+ *  surface that stores raw image URLs MUST add its table here — and must have
+ *  a stable `orderBy` key, or its pages can skip rows (see A9 below). */
 const JSON_REFERENCE_SOURCES: JsonSource[] = [
   { table: "cms_pages", columns: ["hero", "og_image_url", "published_page_snapshot", "published_homepage_snapshot"] },
   { table: "cms_sections", columns: ["props_jsonb"] },
@@ -233,7 +246,9 @@ const JSON_REFERENCE_SOURCES: JsonSource[] = [
   { table: "talent_sites", columns: ["logo_url", "shell_tree", "draft_snapshot", "published_snapshot"] },
   { table: "talent_pages", columns: ["og_image_url"] },
   { table: "profiles", columns: ["avatar_url"] },
-  { table: "agency_branding", columns: ["theme_json"] },
+  // agency_branding is keyed by tenant_id — it has no `id` column at all, so
+  // ordering by "id" would fail the whole query and abort every run.
+  { table: "agency_branding", columns: ["theme_json"], orderBy: "tenant_id" },
 ];
 
 async function loadJsonSourceRefs(
@@ -245,6 +260,10 @@ async function loadJsonSourceRefs(
     const { data, error } = await admin
       .from(source.table)
       .select(source.columns.join(", "))
+      // A9 — stable pagination. Without it a >1-page table can drop a row
+      // between windows, and a dropped reference means a referenced object is
+      // classified as an orphan and deleted.
+      .order(source.orderBy ?? "id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) return fail(`json_refs:${source.table}`, error);
 
@@ -272,6 +291,8 @@ async function loadReviewMediaRefs(
     const { data, error } = await admin
       .from("talent_review_media")
       .select("bucket_id, storage_path")
+      // A9 — stable pagination; see loadJsonSourceRefs.
+      .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) return fail("talent_review_media", error);
 
