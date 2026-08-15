@@ -12,16 +12,13 @@
  *     every rendered card. This persistence is REAL and immediate.
  *
  *   - Per-surface appearance (style / aspect / show-toggles) mirrors the
- *     `directorySchemaV1` vocabulary. In this release it is an interactive
- *     PREVIEW only — a workspace-level appearance store needs a migration and
- *     is deferred. The honesty banner says so; we never imply a silent save.
+ *     `directorySchemaV1` vocabulary; the honesty banner states exactly what
+ *     saves now vs what is preview-only. We never imply a silent save.
  *
- *   - Favorite + inquiry affordances follow per-surface rules (the user's
- *     explicit decision): Roster = neither (internal grid), Pitch = inquiry
- *     only (the favorite is redundant once a shortlist is sent), Directory +
- *     Embedded = both (public buyer surfaces). The preview faithfully
- *     replicates `<TalentCardActions>` so what an admin sees here is what a
- *     client gets. The favorite glyph honours the tenant `favoriteIcon` token.
+ *   - Favorite + inquiry affordances follow per-surface rules: Roster =
+ *     neither (internal grid), Pitch = inquiry only, Directory + Embedded =
+ *     both (public buyer surfaces). The preview replicates
+ *     `<TalentCardActions>`, so what an admin sees here is what a client gets.
  *
  * Presentational parts + the surface/appearance vocabulary live in
  * `CardDesignStudio-2.tsx`; this file owns state + engine wiring.
@@ -49,6 +46,7 @@ import {
   saveCardDesignTokensFromEditAction,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { CardAppearanceSection } from "./CardDesignStudio-appearance";
+import { useSiteDesignUrl } from "./use-site-design-url";
 import {
   computeDesignDirty,
   computeDriftCount,
@@ -90,6 +88,8 @@ export function CardDesignStudio() {
   const { state, toast, rosterCardBadges, setRosterCardBadge, tenantSlug } =
     useAdminShell();
   const t = useT();
+  // Destination for the drift warning's link (same as the sidebar's item).
+  const siteDesignUrl = useSiteDesignUrl();
   const canEdit = meetsRole(state.role, "admin");
   // Publishing the card design to every live surface is an owner/admin move;
   // the action layer re-checks `agency.site_admin.design.publish` server-side.
@@ -503,6 +503,7 @@ export function CardDesignStudio() {
             publishState={publishState}
             publishedAt={designPublishedAt}
             onPublish={handlePublish}
+            reviewSiteDesignHref={siteDesignUrl}
           />
         ) : null}
       </div>

@@ -59,6 +59,7 @@ export function PublishCluster({
   publishState,
   publishedAt,
   onPublish,
+  reviewSiteDesignHref,
 }: {
   canPublish: boolean;
   dirty: boolean;
@@ -67,6 +68,9 @@ export function PublishCluster({
   publishState: DesignPublishState;
   publishedAt: string | null;
   onPublish: () => void;
+  /** Deep link to the site-design (theme) panel. Null when no live origin
+   * can be resolved — the link is then simply not rendered. */
+  reviewSiteDesignHref?: string | null;
 }) {
   const t = useT();
   const publishing = publishState.kind === "publishing";
@@ -151,7 +155,17 @@ export function PublishCluster({
             ? t("dashboard.adminCardStudio2.publishDriftWarningOne")
             : interpolate(t("dashboard.adminCardStudio2.publishDriftWarningMany"), {
                 count: driftCount,
-              })}
+              })}{" "}
+          {reviewSiteDesignHref ? (
+            <a
+              href={reviewSiteDesignHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-admin-amber-deep underline underline-offset-2"
+            >
+              {t("dashboard.adminCardStudio2.publishDriftReviewLink")}
+            </a>
+          ) : null}
         </div>
       ) : null}
     </div>

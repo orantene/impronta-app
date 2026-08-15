@@ -42,7 +42,10 @@ import {
   type ComponentStyleDefaults,
 } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
-import { splitLegacyThemeKeys } from "@/lib/site-admin/tokens/legacy-passthrough";
+import {
+  LEGACY_THEME_PASSTHROUGH_KEYS,
+  splitLegacyThemeKeys,
+} from "@/lib/site-admin/tokens/legacy-passthrough";
 import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
@@ -122,6 +125,11 @@ function withDefaults(
   const out: Record<string, string> = { ...tokenDefaults() };
   if (!raw || typeof raw !== "object") return out;
   for (const [key, value] of Object.entries(raw)) {
+    // Legacy passthrough keys (logo_url / favicon_url / watermark_preset) are
+    // stored inside theme_json but are NOT tokens. Letting them into a
+    // drawer's working copy means the drawer submits them back in its full
+    // patch, and the registry gate then rejects the whole save.
+    if (LEGACY_THEME_PASSTHROUGH_KEYS.has(key)) continue;
     if (typeof value === "string" && value.length > 0) {
       out[key] = value;
     }
@@ -248,8 +256,12 @@ export async function saveDesignDraftFromEditAction(input: {
   // Filter out empty-string values up front. The registry validator wouldn't
   // accept them anyway and we want operators to be able to clear a field
   // without seeing a confusing error.
+  // Legacy passthrough keys are stripped too: they are not registry tokens,
+  // so leaving them in the patch fails the gate for the WHOLE save.
+  // `saveDesignDraft` re-attaches the stored values on write.
   const cleaned: Record<string, string> = {};
   for (const [key, value] of Object.entries(input.patch)) {
+    if (LEGACY_THEME_PASSTHROUGH_KEYS.has(key)) continue;
     if (typeof value === "string" && value.length > 0) {
       cleaned[key] = value;
     }
@@ -442,6 +454,65 @@ export async function applyThemePresetFromEditAction(input: {
 // ── apply card kit (P2.2) ───────────────────────────────────────────────────
 
 /**
+ * Shared read → merge → validate → save for the two Card Design writers
+ * (kit apply + token patch). Both merge a partial map onto the STORED draft;
+ * neither may use the full-replacement path, which would strip every
+ * orthogonal token. Legacy passthrough keys are split out before validation
+ * and re-attached by `saveDesignDraft` on write.
+ */
+async function mergeSaveCardDesignDraft(
+  auth: { supabase: Parameters<typeof saveDesignDraft>[0]; user: { id: string } },
+  tenantId: string,
+  patch: Record<string, string>,
+  copy: { missingRow: string; invalid: string; failed: string; logKey: string },
+): Promise<DesignSaveResult> {
+  try {
+    const row = await loadDesignForStaff(auth.supabase, tenantId);
+    if (!row) return { ok: false, error: copy.missingRow, code: "NOT_FOUND" };
+
+    const merged = splitLegacyThemeKeys({
+      ...row.theme_json_draft,
+      ...patch,
+    }).registryCandidate as Record<string, string>;
+
+    const parsed = designSaveDraftSchema.safeParse({
+      tenantId,
+      expectedVersion: row.version,
+      patch: merged,
+    });
+    if (!parsed.success) {
+      const fieldErrors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const path = issue.path.join(".");
+        if (path && !fieldErrors[path]) fieldErrors[path] = issue.message;
+      }
+      return { ok: false, error: copy.invalid, code: "VALIDATION_FAILED", fieldErrors };
+    }
+
+    const result = await saveDesignDraft(auth.supabase, {
+      tenantId,
+      values: parsed.data,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      if (result.code === "VERSION_CONFLICT") {
+        return {
+          ok: false,
+          error: "Theme changed elsewhere; reload and try again.",
+          code: result.code,
+          currentVersion: result.currentVersion,
+        };
+      }
+      return { ok: false, error: result.message ?? copy.failed, code: result.code };
+    }
+    return { ok: true, version: result.data.version, themeDraft: result.data.themeDraft };
+  } catch (error) {
+    logServerError(copy.logKey, error);
+    return { ok: false, error: copy.failed };
+  }
+}
+
+/**
  * Apply a one-click talent-card KIT (editorial-noir / magazine /
  * minimal-portrait) to `theme_json_draft`. A kit is a NAMED SUBSET of
  * card-family token keys (template.directory-card-family + card.surface /
@@ -484,77 +555,12 @@ export async function applyCardKitFromEditAction(input: {
     };
   }
 
-  try {
-    // Read the operator's current working copy so we can MERGE the kit on top
-    // (kit wins on its keys only) rather than replacing the whole draft — this
-    // preserves any orthogonal card/theme tokens the operator already set.
-    // loadDesignForStaff doubles as the CAS read: its version seeds the save.
-    const row = await loadDesignForStaff(auth.supabase, scope.tenantId);
-    if (!row) {
-      return {
-        ok: false,
-        error: "Branding row missing. Initialise branding before applying a card kit.",
-        code: "NOT_FOUND",
-      };
-    }
-
-    // Strip legacy passthrough keys before validation (not registry tokens);
-    // `saveDesignDraft` re-attaches the stored values on write.
-    const merged: Record<string, string> = splitLegacyThemeKeys({
-      ...row.theme_json_draft,
-      ...kit.tokens,
-    }).registryCandidate as Record<string, string>;
-
-    const parsed = designSaveDraftSchema.safeParse({
-      tenantId: scope.tenantId,
-      expectedVersion: row.version,
-      patch: merged,
-    });
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const path = issue.path.join(".");
-        if (path && !fieldErrors[path]) {
-          fieldErrors[path] = issue.message;
-        }
-      }
-      return {
-        ok: false,
-        error: "This card kit could not be applied.",
-        code: "VALIDATION_FAILED",
-        fieldErrors,
-      };
-    }
-
-    const result = await saveDesignDraft(auth.supabase, {
-      tenantId: scope.tenantId,
-      values: parsed.data,
-      actorProfileId: auth.user.id,
-    });
-    if (!result.ok) {
-      if (result.code === "VERSION_CONFLICT") {
-        return {
-          ok: false,
-          error: "Theme changed elsewhere; reload and try again.",
-          code: result.code,
-          currentVersion: result.currentVersion,
-        };
-      }
-      return {
-        ok: false,
-        error: result.message ?? "Could not apply card kit.",
-        code: result.code,
-      };
-    }
-    return {
-      ok: true,
-      version: result.data.version,
-      themeDraft: result.data.themeDraft,
-    };
-  } catch (error) {
-    logServerError("edit-mode/apply-card-kit", error);
-    return { ok: false, error: "Could not apply card kit." };
-  }
+  return mergeSaveCardDesignDraft(auth, scope.tenantId, kit.tokens, {
+    missingRow: "Branding row missing. Initialise branding before applying a card kit.",
+    invalid: "This card kit could not be applied.",
+    failed: "Could not apply card kit.",
+    logKey: "edit-mode/apply-card-kit",
+  });
 }
 
 // ── save card-design tokens (merge-on-save) ─────────────────────────────────
@@ -592,72 +598,13 @@ export async function saveCardDesignTokensFromEditAction(input: {
     };
   }
 
-  try {
-    const row = await loadDesignForStaff(auth.supabase, scope.tenantId);
-    if (!row) {
-      return {
-        ok: false,
-        error: "Branding row missing. Initialise branding before editing the card design.",
-        code: "NOT_FOUND",
-      };
-    }
-
-    // Same legacy-key strip as applyCardKitFromEditAction.
-    const merged: Record<string, string> = splitLegacyThemeKeys({
-      ...row.theme_json_draft,
-      ...input.patch,
-    }).registryCandidate as Record<string, string>;
-
-    const parsed = designSaveDraftSchema.safeParse({
-      tenantId: scope.tenantId,
-      expectedVersion: row.version,
-      patch: merged,
-    });
-    if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const path = issue.path.join(".");
-        if (path && !fieldErrors[path]) {
-          fieldErrors[path] = issue.message;
-        }
-      }
-      return {
-        ok: false,
-        error: "These card-design changes could not be saved.",
-        code: "VALIDATION_FAILED",
-        fieldErrors,
-      };
-    }
-
-    const result = await saveDesignDraft(auth.supabase, {
-      tenantId: scope.tenantId,
-      values: parsed.data,
-      actorProfileId: auth.user.id,
-    });
-    if (!result.ok) {
-      if (result.code === "VERSION_CONFLICT") {
-        return {
-          ok: false,
-          error: "Theme changed elsewhere; reload and try again.",
-          code: result.code,
-          currentVersion: result.currentVersion,
-        };
-      }
-      return {
-        ok: false,
-        error: result.message ?? "Could not save the card design.",
-        code: result.code,
-      };
-    }
-    return {
-      ok: true,
-      version: result.data.version,
-      themeDraft: result.data.themeDraft,
-    };
-  } catch (error) {
-    logServerError("edit-mode/save-card-design-tokens", error);
-    return { ok: false, error: "Could not save the card design." };
-  }
+  return mergeSaveCardDesignDraft(auth, scope.tenantId, input.patch, {
+    missingRow:
+      "Branding row missing. Initialise branding before editing the card design.",
+    invalid: "These card-design changes could not be saved.",
+    failed: "Could not save the card design.",
+    logKey: "edit-mode/save-card-design-tokens",
+  });
 }
 
 // ── restore revision (P2.2) ─────────────────────────────────────────────────
