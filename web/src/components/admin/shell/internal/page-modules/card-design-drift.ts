@@ -20,6 +20,8 @@ export const STANDING_DEFAULTS: Record<string, string> = {
   "profile.reviews-visibility": "visible",
 };
 
+import { LEGACY_THEME_PASSTHROUGH_KEYS } from "@/lib/site-admin/tokens/legacy-passthrough";
+
 /** Union-key inequality between two token maps ("" and absent are equal). */
 export function computeDesignDirty(
   draft: Record<string, string>,
@@ -32,7 +34,13 @@ export function computeDesignDirty(
   return false;
 }
 
-/** Count of draft↔live differences whose key is NOT owned by this page. */
+/**
+ * Count of draft↔live differences whose key is NOT owned by this page.
+ * Legacy passthrough keys (logo_url / favicon_url / watermark_preset) are
+ * excluded: publish PRESERVES the live row's values for them (see
+ * `publishDesign`), so a live↔draft difference there never ships and must
+ * not light the drift warning.
+ */
 export function computeDriftCount(
   fullDraft: Record<string, string>,
   fullLive: Record<string, string>,
@@ -41,7 +49,7 @@ export function computeDriftCount(
   const keys = new Set([...Object.keys(fullDraft), ...Object.keys(fullLive)]);
   let n = 0;
   for (const k of keys) {
-    if (pageOwnedKeys.has(k)) continue;
+    if (pageOwnedKeys.has(k) || LEGACY_THEME_PASSTHROUGH_KEYS.has(k)) continue;
     if ((fullDraft[k] ?? "") !== (fullLive[k] ?? "")) n += 1;
   }
   return n;

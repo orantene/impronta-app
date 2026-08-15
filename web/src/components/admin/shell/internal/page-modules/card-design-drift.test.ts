@@ -42,7 +42,18 @@ test("computeDriftCount: zero when only page-owned tokens differ", () => {
   );
 });
 
-test("computeDriftCount: live-only key (draft dropped it) counts as drift", () => {
+test("computeDriftCount: live-only REGISTRY key (draft dropped it) counts as drift", () => {
   const owned = new Set<string>();
-  assert.equal(computeDriftCount({}, { logo_url: "https://x/logo.png" }, owned), 1);
+  assert.equal(computeDriftCount({}, { "background.mode": "editorial-noir" }, owned), 1);
+});
+
+test("computeDriftCount: legacy passthrough keys never count (publish preserves them)", () => {
+  const owned = new Set<string>();
+  const live = {
+    logo_url: "https://x/new-logo.png",
+    favicon_url: "https://x/fav.png",
+    watermark_preset: "{}",
+  };
+  assert.equal(computeDriftCount({}, live, owned), 0);
+  assert.equal(computeDriftCount({ logo_url: "https://x/old-logo.png" }, live, owned), 0);
 });
