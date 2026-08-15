@@ -421,8 +421,12 @@ export interface EditContextChromeAndSessionValue {
    * nothing pending (resolves once the save queue is idle).
    */
   flushBuilderTreeSave: () => Promise<unknown>;
-  /** ISO timestamp of the most recent successful Save draft press; null when clear. */
-  lastDraftSavedAt: string | null;
+  /**
+   * Perf spine — the `lastDraftSavedAt` VALUE (ISO stamp of the most recent
+   * successful draft save; auto-clears after 4s) now lives in the
+   * `save-cycle-bridge` micro-store: read it with `useLastDraftSavedAt()`.
+   * Only the clear callback remains on the context.
+   */
   clearDraftSavedToast: () => void;
 
   // ── CANVAS-4 — transient toast after a template/starter design is applied ──

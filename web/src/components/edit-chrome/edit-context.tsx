@@ -137,6 +137,11 @@ import {
 } from "./selection-bridge";
 import { resolveMobileEditModeTransition } from "./mobile-edit-mode";
 import { publishDirty } from "./dirty-bridge";
+import {
+  publishLastDraftSavedAt,
+  publishPageVersion,
+  publishSaving,
+} from "./save-cycle-bridge";
 import { publishDraftProps } from "./draft-props-bridge";
 import {
   publishSectionHeadline,
@@ -642,7 +647,30 @@ export function EditProvider({
   useEffect(() => {
     publishDirty(dirty);
   }, [dirty]);
-  const [saving, setSaving] = useState(false);
+  // Perf spine (save-cycle bridge) — `saving` is REMOVED from the context value
+  // and its value-memo deps: every save cycle flipped it 2× (plus pageVersion +
+  // lastDraftSavedAt churn), rebuilding the whole context value and re-rendering
+  // every `useEditContext()` consumer on every routine autosave. We KEEP the
+  // React state (the beforeunload nudge + queued-history flush effects below
+  // must re-run on the change) but readers use `useSaving()` from
+  // "./save-cycle-bridge". The wrapped setter publishes to the bridge
+  // SYNCHRONOUSLY (not via an effect) and mirrors into `savingRef`, so
+  // imperative lanes (undo/redo's awaited branch, keyboard shortcuts) read the
+  // exact current value with zero effect-lag — which is what lets undo/redo
+  // drop `saving` from their deps and stay identity-stable across save flips.
+  const [saving, setSavingState] = useState(false);
+  const savingRef = useRef(false);
+  const setSaving = useCallback((s: boolean) => {
+    savingRef.current = s;
+    publishSaving(s);
+    setSavingState(s);
+  }, []);
+  // Belt-and-braces mount/state sync (the bridge is a process singleton — a
+  // previous provider unmounting mid-save must not leave `true` stuck for the
+  // next session). `publishSaving` no-ops on an unchanged value.
+  useEffect(() => {
+    publishSaving(saving);
+  }, [saving]);
   const [loadedSection, setLoadedSection] = useState<LoadedSection | null>(
     null,
   );
@@ -842,6 +870,11 @@ export function EditProvider({
 
   useEffect(() => {
     pageVersionRef.current = pageVersion;
+    // Perf spine (save-cycle bridge) — `pageVersion` is no longer on the
+    // context value (it bumped once per landed save, rebuilding the value).
+    // Readers (device-preview iframe key, navigator prefetch key, revisions
+    // drawer, selection-layer deps) use `usePageVersion()`.
+    publishPageVersion(pageVersion);
   }, [pageVersion]);
   useEffect(() => {
     pageMetadataRef.current = pageMetadata;
@@ -1135,6 +1168,13 @@ export function EditProvider({
   } = useEditorToasts({
     onDismissMutationError: dropConflictRecoveryOnErrorDismiss,
   });
+  // Perf spine (save-cycle bridge) — `lastDraftSavedAt` is transient toast
+  // state (set on save, auto-cleared 4s later), so it flipped the value memo
+  // TWICE per save. It is no longer on the context value; readers (topbar
+  // SaveStatus, the draft-saved toast) use `useLastDraftSavedAt()`.
+  useEffect(() => {
+    publishLastDraftSavedAt(lastDraftSavedAt);
+  }, [lastDraftSavedAt]);
 
   // beforeunload guard. When the inspector has un-persisted section edits
   // (`dirty`) or a save is in flight (`saving`), nudge the operator with
@@ -5125,7 +5165,11 @@ export function EditProvider({
     // ── Awaited lane: composition / sectionMeta / fieldEdit ───────────────
     // These replay through slot actions rather than a tree swap, so they keep
     // the original serialized behavior (and the `saving` queue-one-⌘Z gate).
-    if (saving) {
+    // Perf spine — read via `savingRef` (synced by the wrapped setSaving) so
+    // `undo` does not dep on `saving` and stays identity-stable across save
+    // flips (its presence in the value-memo deps otherwise rebuilt the whole
+    // context value twice per autosave). The ref is exact at call time.
+    if (savingRef.current) {
       historyPendingRef.current = "undo";
       return;
     }
@@ -5196,7 +5240,7 @@ export function EditProvider({
     }
   }, [
     // WS2 (Step 3) — `past` dropped; read via pastRef.current (see body comment).
-    saving,
+    // Perf spine — `saving` dropped; read via savingRef.current (see body).
     currentSnapshot,
     restoreSnapshot,
     persistBuilderTree,
@@ -5243,7 +5287,9 @@ export function EditProvider({
       }
       return;
     }
-    if (saving) {
+    // Perf spine — mirror undo: `savingRef` keeps `redo` identity-stable
+    // across save flips (no `saving` dep).
+    if (savingRef.current) {
       historyPendingRef.current = "redo";
       return;
     }
@@ -5311,7 +5357,7 @@ export function EditProvider({
     }
   }, [
     // WS2 (Step 3) — `future` dropped; read via futureRef.current (see body).
-    saving,
+    // Perf spine — `saving` dropped; read via savingRef.current (see body).
     currentSnapshot,
     restoreSnapshot,
     persistBuilderTree,
@@ -5697,7 +5743,8 @@ export function EditProvider({
       // W2-T4 — `dirty` VALUE removed from `value` (lives in dirty-bridge; the 4
       // readers use useDirty()). Setter kept so the public API is unchanged.
       setDirty,
-      saving,
+      // Perf spine — `saving` VALUE removed from `value` (lives in
+      // save-cycle-bridge; readers use useSaving()). Setter kept.
       setSaving,
       loadedSection,
       setLoadedSection,
@@ -5709,7 +5756,9 @@ export function EditProvider({
       compositionLoaded,
       compositionLoading,
       compositionError,
-      pageVersion,
+      // Perf spine — `pageVersion` VALUE removed from `value` (lives in
+      // save-cycle-bridge; readers use usePageVersion(); imperative readers
+      // keep getCompositionCasVersion()).
       liveSitePublishedAt,
       getCompositionCasVersion,
       pageMetadata,
@@ -5873,7 +5922,8 @@ export function EditProvider({
       saveDraft,
       saveNamedCheckpoint,
       flushBuilderTreeSave,
-      lastDraftSavedAt,
+      // Perf spine — `lastDraftSavedAt` VALUE removed from `value` (lives in
+      // save-cycle-bridge; readers use useLastDraftSavedAt()).
       clearDraftSavedToast,
       templateAppliedToast,
       clearTemplateAppliedToast,
@@ -5947,7 +5997,8 @@ export function EditProvider({
       fixAllMobileIssues,
       // W2-T4 — `dirty` removed from the value-memo deps: a dirty flip no longer
       // rebuilds `value`, so non-dirty consumers don't re-render on it.
-      saving,
+      // Perf spine — `saving` removed from the value-memo deps: a save-cycle
+      // flip no longer rebuilds `value` (readers use useSaving()).
       loadedSection,
       // Wave 3 (3.1) — `draftPropsState` removed from the value-memo deps: a
       // per-keystroke working-copy write no longer rebuilds `value`, so
@@ -5956,7 +6007,8 @@ export function EditProvider({
       compositionLoaded,
       compositionLoading,
       compositionError,
-      pageVersion,
+      // Perf spine — `pageVersion` removed from the value-memo deps (readers
+      // use usePageVersion()); a landed save no longer rebuilds `value`.
       liveSitePublishedAt,
       getCompositionCasVersion,
       publishViaSurfaceAdapter,
@@ -6114,7 +6166,9 @@ export function EditProvider({
       saveDraft,
       saveNamedCheckpoint,
       flushBuilderTreeSave,
-      lastDraftSavedAt,
+      // Perf spine — `lastDraftSavedAt` removed from the value-memo deps
+      // (readers use useLastDraftSavedAt()); the saved-toast set + 4s
+      // auto-clear no longer rebuild `value` twice per save.
       clearDraftSavedToast,
       templateAppliedToast,
       clearTemplateAppliedToast,

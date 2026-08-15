@@ -53,6 +53,7 @@ import {
   Toggle,
 } from "./kit";
 import { useEditContext, type PageMetadata } from "./edit-context";
+import { useSaving } from "./save-cycle-bridge";
 import { MediaPickerButton } from "./inspectors/kit";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
@@ -225,12 +226,15 @@ export function PageSettingsDrawer() {
     closePageSettings,
     pageMetadata,
     savePageMetadata,
-    saving,
     pageId,
     pageSlug,
     tenantSiteLabel,
     tenantId,
   } = useEditContext();
+  // Perf spine (save-cycle bridge) — this drawer's submit serializes against
+  // the global save cycle (metadata save + composition save share the page
+  // row), so it stays a reactive `saving` reader — via the micro-store.
+  const saving = useSaving();
 
   const [tab, setTab] = useState<TabKey>("basics");
   const [draft, setDraft] = useState<PageMetadata | null>(pageMetadata);

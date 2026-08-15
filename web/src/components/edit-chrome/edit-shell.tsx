@@ -41,6 +41,7 @@ import {
   useSelectedBuilderNodeId,
 } from "./selection-bridge";
 import { useDirty } from "./dirty-bridge";
+import { useLastDraftSavedAt, usePageVersion } from "./save-cycle-bridge";
 import { PresenceProvider, usePagePresence } from "./presence-provider";
 import { isBuilderPresenceEnabled } from "@/lib/site-admin/edit-mode/presence-flag";
 import { RemoteCursorsLayer } from "./remote-cursors-layer";
@@ -481,7 +482,6 @@ function EditShellInner({
     device,
     setDevice,
     previewFrame,
-    saving,
     undo,
     redo,
     openPublish,
@@ -521,7 +521,6 @@ function EditShellInner({
     closeShortcutOverlay,
     saveDraft,
     saveNamedCheckpoint,
-    lastDraftSavedAt,
     pagesPickerOpenNonce,
     requestPagesPickerOpen,
     searchPanelOpen,
@@ -553,7 +552,6 @@ function EditShellInner({
     defaultLocale,
     availableLocales,
     pageSlug,
-    pageVersion,
     liveSitePublishedAt,
     compositionLoaded,
   } = useEditContext();
@@ -1136,7 +1134,6 @@ function EditShellInner({
           previewing={previewing}
           setPreviewing={setPreviewing}
           dirty={dirty}
-          saving={saving}
           canUndo={canUndo}
           canRedo={canRedo}
           onUndo={() => void undo()}
@@ -1161,7 +1158,6 @@ function EditShellInner({
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
           liveSitePublishedAt={liveSitePublishedAt}
-          lastDraftSavedAt={lastDraftSavedAt}
           onRevisions={openRevisions}
           onPageSettings={openPageSettings}
           onDuplicatePage={requestPagesPickerOpen}
@@ -1280,7 +1276,6 @@ function EditShellInner({
           device={device}
           previewFrame={previewFrame}
           pageSlug={pageSlug}
-          pageVersion={pageVersion}
           navigatorOpen={navigatorOpen}
           navigatorWidth={navigatorWidth}
           inspectorOpen={inspectorDockOpen}
@@ -1861,7 +1856,10 @@ function BodyPaddingController({
 
 function DraftSavedToast() {
   const { t } = useEditorLocale();
-  const { lastDraftSavedAt, clearDraftSavedToast } = useEditContext();
+  const { clearDraftSavedToast } = useEditContext();
+  // Perf spine (save-cycle bridge) — subscribe here so only this toast wakes
+  // on the saved-stamp set / 4s auto-clear.
+  const lastDraftSavedAt = useLastDraftSavedAt();
   if (!lastDraftSavedAt) return null;
   const savedAt = new Date(lastDraftSavedAt);
   const stamp = savedAt.toLocaleTimeString(undefined, {
@@ -2295,7 +2293,6 @@ function DeviceFrameSurface({
   device,
   previewFrame,
   pageSlug,
-  pageVersion,
   navigatorOpen,
   navigatorWidth,
   inspectorOpen,
@@ -2304,12 +2301,14 @@ function DeviceFrameSurface({
   /** Job #17 — custom width / landscape override layered over the device width. */
   previewFrame: PreviewFrameOverride;
   pageSlug?: string | null;
-  /** Draft CAS version — bumps on successful mutations; included in iframe `key` so device preview reloads. */
-  pageVersion: number | null;
   navigatorOpen: boolean;
   navigatorWidth: number;
   inspectorOpen: boolean;
 }) {
+  // Perf spine (save-cycle bridge) — draft CAS version, read here (not
+  // prop-drilled) so a landed save re-renders only this surface, not the
+  // whole shell. Included in the iframe `key` so the device preview reloads.
+  const pageVersion = usePageVersion();
   // Job #18 — canvas drag-resize setters. DeviceFrameSurface is rendered
   // inside EditProvider so useEditContext is valid here.
   const { setDevice: ctxSetDevice, setPreviewFrameWidth } = useEditContext();

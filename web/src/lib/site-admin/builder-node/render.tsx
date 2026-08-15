@@ -2610,13 +2610,40 @@ function nodeChildren(node: BuilderNode): BuilderNode[] {
   return Array.isArray(kids) ? (kids as BuilderNode[]) : [];
 }
 
+/**
+ * PERF (A3) — per-NODE memo boundary for descendants.
+ *
+ * `BuilderNodeView` at the top level (renderBuilderNodes) only made the memo
+ * granularity per-ROOT-BLOCK: a patch to one deep node re-created the node
+ * identities along its ancestor path, the root's `BuilderNodeView` re-rendered,
+ * and `renderChildren` then rebuilt the ENTIRE root subtree because it called
+ * `renderBuilderNode(child, options)` directly with no memo boundary between
+ * siblings. Emitting each child through `BuilderNodeView` makes the bail
+ * per-node: an immutable tree patch re-renders exactly the ancestor path of the
+ * patched node — unchanged sibling subtrees keep their previous vdom.
+ *
+ * Output is byte-identical: `BuilderNodeView` renders EXACTLY what
+ * `renderBuilderNode(child, options)` returns (no wrapper element), and the
+ * `key={child.id}` on the boundary matches the `key={node.id}` the rendered
+ * root element carried before, so list reconciliation is unchanged.
+ *
+ * Repaint guarantees (audited — see canvas-render-granularity.test.tsx):
+ *   - node changes → immutable ops re-identify the ancestor path → repaint.
+ *   - theme/style-class/component-default/locale/dataSources changes → the
+ *     canvas options useMemo re-identifies `options` → EVERY boundary's
+ *     `Object.is(options)` half fails → full repaint.
+ *   - React context updates propagate THROUGH memo components by design, so a
+ *     context-driven child never goes stale behind this boundary.
+ */
 function renderChildren(
   node: BuilderNode & { children: BuilderNode[] },
   options: NormalizedBuilderNodeRenderOptions,
 ): ReactNode {
   return nodeChildren(node)
     .filter((child) => shouldRenderNode(child, options))
-    .map((child) => renderBuilderNode(child, options));
+    .map((child) => (
+      <BuilderNodeView key={child.id} node={child} options={options} />
+    ));
 }
 
 function renderRepeatContainerChildren(
@@ -2631,7 +2658,9 @@ function renderRepeatContainerChildren(
     : [];
   const items = resolveBuilderDataBindingCollection(binding, records);
   if (items.length === 0 || options.repeatDepth >= MAX_REPEAT_RENDER_DEPTH) {
-    return renderBuilderNode(template, options);
+    return (
+      <BuilderNodeView key={template.id} node={template} options={options} />
+    );
   }
   return items.map((item) => {
     const namespace = `${node.id}__repeat_${item.key}`;
@@ -2759,9 +2788,15 @@ function renderDataBoundContainerChildren(
   if (node.props.instanceOf) {
     const resolved = resolveInstanceChildren(node, options.components);
     if (resolved) {
+      // PERF (A3) — same per-node boundary as renderChildren. Instance-resolved
+      // children are re-derived per render (fresh identities), so the memo
+      // rarely bails here — but routing through the boundary keeps one code
+      // path and lets a memoized resolver bail in the future.
       return resolved
         .filter((child) => shouldRenderNode(child, options))
-        .map((child) => renderBuilderNode(child, options));
+        .map((child) => (
+          <BuilderNodeView key={child.id} node={child} options={options} />
+        ));
     }
   }
   if (isBuilderDataBindingRepeater(getBuilderNodeDataBinding(node))) {
@@ -2796,7 +2831,9 @@ function renderFeaturedTalentChildren(
 
   return (
     <>
-      {editableIntroChildren.map((child) => renderBuilderNode(child, options))}
+      {editableIntroChildren.map((child) => (
+        <BuilderNodeView key={child.id} node={child} options={options} />
+      ))}
       <div
         className="site-builder-node--live-talent-grid"
         data-builder-live-data-grid="featured_talent_profiles"
@@ -2835,7 +2872,9 @@ function renderTalentLocationChildren(
 
   return (
     <>
-      {introChildren.map((child) => renderBuilderNode(child, options))}
+      {introChildren.map((child) => (
+        <BuilderNodeView key={child.id} node={child} options={options} />
+      ))}
       <div
         className="site-builder-node--live-chip-grid"
         data-builder-live-data-grid="talent_locations"
@@ -2854,7 +2893,9 @@ function renderTalentLocationChildren(
           </a>
         ))}
       </div>
-      {mapPlaceholder.map((child) => renderBuilderNode(child, options))}
+      {mapPlaceholder.map((child) => (
+        <BuilderNodeView key={child.id} node={child} options={options} />
+      ))}
     </>
   );
 }
@@ -2872,7 +2913,9 @@ function renderDirectorySearchChildren(
 
   return (
     <>
-      {introChildren.map((child) => renderBuilderNode(child, options))}
+      {introChildren.map((child) => (
+        <BuilderNodeView key={child.id} node={child} options={options} />
+      ))}
       <form
         action={prefixPublicHref("/directory", options.publicPathPrefix)}
         className="site-builder-node--live-search-shell"
@@ -3555,7 +3598,13 @@ function renderBuilderNodeElement(
               );
             })}
           </div>
-          {activePanel ? renderBuilderNode(activePanel, options) : null}
+          {activePanel ? (
+            <BuilderNodeView
+              key={activePanel.id}
+              node={activePanel}
+              options={options}
+            />
+          ) : null}
         </div>
       );
     }
@@ -3882,7 +3931,7 @@ function renderBuilderNodeElement(
             id={`${node.id}-slide-${index + 1}`}
             className="site-builder-node--carousel-slide"
           >
-            {renderBuilderNode(child, options)}
+            <BuilderNodeView key={child.id} node={child} options={options} />
           </div>
         ));
       return (
@@ -4905,6 +4954,13 @@ function renderBuilderNodeElement(
  * The comparator skips re-render only when BOTH the node reference and the
  * single shared `options` reference are unchanged — so any edit that produces a
  * new node (immutable tree updates) repaints exactly that node's subtree.
+ *
+ * PERF (A3) — since the per-node granularity pass, this boundary is ALSO
+ * emitted for every child inside `renderChildren` (and the data-bound /
+ * instance / carousel / tabs child paths), not just top-level nodes. Those
+ * call sites reference this const before its declaration in file order; that
+ * is safe because the reference is evaluated lazily at render time, never
+ * during module evaluation (no TDZ).
  */
 const BuilderNodeView = memo(
   function BuilderNodeView({

@@ -417,7 +417,13 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
    * re-render every consumer). Only the setter remains on the context.
    */
   setDirty: (d: boolean) => void;
-  saving: boolean;
+  /**
+   * Perf spine — the `saving` VALUE now lives in the `save-cycle-bridge`
+   * micro-store: read it with `useSaving()` from "./save-cycle-bridge" (event
+   * handlers can read `getSavingSnapshot()` non-reactively). Keeping it here
+   * rebuilt the whole context value twice per autosave. Only the setter
+   * remains on the context.
+   */
   setSaving: (s: boolean) => void;
 
   /** Server-truth payload for the selected section. */
@@ -442,7 +448,11 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   compositionLoaded: boolean;
   compositionLoading: boolean;
   compositionError: string | null;
-  pageVersion: number | null;
+  /**
+   * Perf spine — the `pageVersion` VALUE now lives in the `save-cycle-bridge`
+   * micro-store: read it with `usePageVersion()` from "./save-cycle-bridge".
+   * Imperative readers keep `getCompositionCasVersion()` below.
+   */
   /**
    * Visitor site last publish time for this page (`cms_pages.published_at`), or
    * `null` if never published. Refreshes with `refreshComposition` after Publish.
