@@ -672,12 +672,26 @@ export async function publishPage(
     values: PagePublishValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * Scheduled-publish cron escape hatch, mirroring `publishHomepage`'s flag
+     * of the same name. When `true`, skips the `requirePhase5Capability`
+     * check that would otherwise block a service-role caller with no
+     * user-context membership row.
+     *
+     * ONLY `/api/cron/publish-scheduled` should set this. It gates on a
+     * `CRON_SECRET` bearer, runs every other validation gate below unchanged
+     * (CAS, template schema, OG image), and passes `actorProfileId` as the
+     * operator who scheduled the publish so the audit row still names a human.
+     */
+    bypassCapabilityCheck?: boolean;
   },
 ): Promise<Phase5Result<{ id: string; version: number; publishedAt: string }>> {
   const { tenantId, values, actorProfileId } = params;
   const correlationId = params.correlationId ?? randomUUID();
 
-  await requirePhase5Capability("agency.site_admin.pages.publish", tenantId);
+  if (!params.bypassCapabilityCheck) {
+    await requirePhase5Capability("agency.site_admin.pages.publish", tenantId);
+  }
 
   const { data: beforeRow, error: loadErr } = await supabase
     .from("cms_pages")

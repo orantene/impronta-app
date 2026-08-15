@@ -405,11 +405,20 @@ function CanvasViewportProviderWrapper({ children }: { children: React.ReactNode
 }
 
 async function handleShareClick(
-  opts: { label?: string; ttlSeconds?: number },
+  opts: {
+    label?: string;
+    ttlSeconds?: number;
+    /** Page identity of the surface being edited — see `share-actions.ts`.
+     *  Without it the action falls back to the homepage, which is what made
+     *  a share link minted from an inner page hand over the homepage draft. */
+    pageId?: string | null;
+    pageSlug?: string | null;
+    locale?: string;
+  },
   setMutationError: (msg: string) => void,
 ): Promise<string | null> {
-  // Phase 9 — mint a share JWT bound to the most recent revision and
-  // return a fully qualified URL. Forwards optional `label` + `ttlSeconds`
+  // Phase 9 — mint a share JWT bound to the edited page's most recent revision
+  // and return a fully qualified URL. Forwards optional `label` + `ttlSeconds`
   // from the topbar popover; the server action (and the underlying JWT
   // module) clamp `ttlSeconds` into the [1h, 30d] band so any client-side
   // tampering is normalized before signing. Errors surface through the
@@ -427,6 +436,9 @@ async function handleShareClick(
     const result = await createShareLinkAction({
       label: opts.label,
       ttlHours,
+      locale: opts.locale,
+      pageId: opts.pageId ?? null,
+      pageSlug: opts.pageSlug ?? null,
     });
     if (!result.ok) {
       setMutationError(result.error);
@@ -879,7 +891,11 @@ function EditShellInner({
       // matches ⌘K palette + `copySharePreviewLinkToClipboard`).
       if (mod && e.shiftKey && key === "s") {
         e.preventDefault();
-        void copySharePreviewLinkToClipboard(reportMutationError);
+        void copySharePreviewLinkToClipboard(reportMutationError, {
+          pageId,
+          pageSlug,
+          locale,
+        });
         return;
       }
 
@@ -1055,6 +1071,11 @@ function EditShellInner({
     openShortcutOverlay,
     closeShortcutOverlay,
     saveDraft,
+    // ⌘⇧S mints a share link for the page currently under edit — without these
+    // the listener would close over a stale identity and share the wrong page.
+    pageId,
+    pageSlug,
+    locale,
   ]);
 
   return (
@@ -1127,7 +1148,12 @@ function EditShellInner({
           onOpenShortcuts={openShortcutOverlay}
           onSaveDraft={() => void saveDraft()}
           onSaveNamedDraft={(label) => saveNamedCheckpoint(label)}
-          onShare={(opts) => handleShareClick(opts, reportMutationError)}
+          onShare={(opts) =>
+            handleShareClick(
+              { ...opts, pageId, pageSlug, locale },
+              reportMutationError,
+            )
+          }
           pageTitle={pageMetadata?.title ?? undefined}
           pageId={pageId}
           pagesPickerOpenNonce={pagesPickerOpenNonce}

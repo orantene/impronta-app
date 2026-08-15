@@ -67,7 +67,17 @@ const SHARE_TTL_CHOICES = [
 ] as const;
 const SHARE_TTL_DEFAULT = "7d" as const;
 
-export function PreviewPill() {
+export interface PreviewPillProps {
+  /** Slug of the page under preview, or null/undefined for the homepage.
+   *  Threaded from EditChrome (parsed from the URL by EditChromeMount) —
+   *  preview mode has no EditContext to read it from. It is what binds the
+   *  minted share token to THIS page instead of the tenant's homepage. */
+  pageSlug?: string | null;
+  /** Effective storefront locale for the current request. */
+  locale?: string;
+}
+
+export function PreviewPill({ pageSlug = null, locale }: PreviewPillProps = {}) {
   const [device, setDevice] = useState<PreviewDevice>("desktop");
   const [shareOpen, setShareOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +128,8 @@ export function PreviewPill() {
           open={shareOpen}
           setOpen={setShareOpen}
           onError={setError}
+          pageSlug={pageSlug}
+          locale={locale}
         />
         <BackToEditButton />
       </div>
@@ -327,10 +339,14 @@ function ShareButton({
   open,
   setOpen,
   onError,
+  pageSlug,
+  locale,
 }: {
   open: boolean;
   setOpen: (o: boolean) => void;
   onError: (msg: string | null) => void;
+  pageSlug: string | null;
+  locale: string | undefined;
 }) {
   const [label, setLabel] = useState("");
   const [ttlChoice, setTtlChoice] =
@@ -369,6 +385,8 @@ function ShareButton({
       const res = await createShareLinkAction({
         label: label.trim() || undefined,
         ttlHours,
+        locale,
+        pageSlug,
       });
       if (!res.ok) {
         onError(res.error);

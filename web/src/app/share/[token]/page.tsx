@@ -1,12 +1,26 @@
 /**
  * Phase 9 — public share-link viewer.
  *
- * Token-gated, no-auth view of a frozen homepage revision. Operators
- * mint these from the topbar Share button: the JWT carries `tid`,
- * `pid`, `rev`, `iat`, `exp`, plus an optional human label. This route
- * verifies the token, loads the matching `cms_page_revisions` row via
- * the service-role client, and renders the snapshot through the same
- * `HomepageCmsSections` dispatcher that drives the published storefront.
+ * Token-gated, no-auth view of a frozen page revision. Operators mint these
+ * from the topbar Share button: the JWT carries `tid`, `pid`, `rev`, `iat`,
+ * `exp`, plus an optional human label. This route verifies the token, loads
+ * the matching `cms_page_revisions` row via the service-role client, and
+ * renders the snapshot through the same dispatcher that drives the published
+ * storefront.
+ *
+ * TWO SNAPSHOT SHAPES, because the platform has two page engines and a share
+ * link can now point at either (it used to always be the homepage):
+ *
+ *   - slot-composed (homepage, legacy cms pages): `snapshot.slots` →
+ *     `HomepageCmsSections`, one mount per slot entry in sortOrder.
+ *   - freeform cms pages: `snapshot.builderTree` (the shared REV-1 key) →
+ *     `renderFreeformPageRootTree`, the same helper `/p/<slug>` uses. Bare
+ *     `renderBuilderNodes` is NOT interchangeable here: it renders root
+ *     `section` nodes as null, which would show an empty page for every
+ *     AI-generated or section-rooted page.
+ *
+ * A snapshot matching neither shape falls through to the "empty" error rather
+ * than rendering a blank page with live chrome around it.
  *
  * Tenant scoping defence-in-depth:
  *   1. Middleware resolves the host to a tenant via `agency_domains`
@@ -28,12 +42,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { getPublicHostContext } from "@/lib/saas/scope";
+import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import {
+  loadPublicComponentStyleDefaults,
+  loadPublicIdentity,
+} from "@/lib/site-admin/server/reads";
 import { verifyShareJwt } from "@/lib/site-admin/share-link/jwt";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
+import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
+import { renderFreeformPageRootTree } from "@/lib/site-admin/builder-node/freeform-page-blocks";
+import {
+  BuilderNodeFontLinks,
+  BuilderNodeRendererStyles,
+  collectPresentNodeKinds,
+} from "@/lib/site-admin/builder-node/render";
+import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 
 export const dynamic = "force-dynamic";
 
@@ -86,8 +111,16 @@ export default async function ShareTokenPage({ params }: SharePageParams) {
     return <ShareError reason="not_found" />;
   }
 
-  const snapshot = revRow.snapshot as unknown as HomepageSnapshot | null;
-  if (!snapshot || !snapshot.slots) {
+  const rawSnapshot = revRow.snapshot as unknown;
+  const slotSnapshot = (rawSnapshot ?? null) as HomepageSnapshot | null;
+  const hasSlots = Boolean(slotSnapshot?.slots);
+  // REV-1 shares the `builderTree` key across every freeform surface, so this
+  // one parse covers freeform cms pages and any future freeform snapshot.
+  const builderTree = hasSlots
+    ? undefined
+    : parseBuilderTreeFromSnapshot(rawSnapshot);
+
+  if (!hasSlots && !builderTree) {
     return <ShareError reason="empty" />;
   }
 
@@ -96,9 +129,28 @@ export default async function ShareTokenPage({ params }: SharePageParams) {
   const identity = await loadPublicIdentity(claims.tenantId);
   const brandLabel = identity?.public_name?.trim() || "this draft";
 
-  const locale = snapshot.locale ?? "en";
-  const sortedSlots = [...snapshot.slots].sort(
-    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+  // The freeform snapshot carries no locale, so read it off the page row the
+  // token is bound to. Tenant-scoped like every other read on this route.
+  const { data: pageRow } = await supabase
+    .from("cms_pages")
+    .select("locale")
+    .eq("id", claims.pageId)
+    .eq("tenant_id", claims.tenantId)
+    .maybeSingle<{ locale: string }>();
+  const locale = slotSnapshot?.locale ?? pageRow?.locale ?? "en";
+
+  const body = builderTree ? (
+    <FreeformShareBody
+      tree={builderTree}
+      tenantId={claims.tenantId}
+      locale={locale}
+    />
+  ) : (
+    <SlotShareBody
+      snapshot={slotSnapshot as HomepageSnapshot}
+      tenantId={claims.tenantId}
+      locale={locale}
+    />
   );
 
   return (
@@ -109,30 +161,92 @@ export default async function ShareTokenPage({ params }: SharePageParams) {
         brandLabel={brandLabel}
         revisionKind={revRow.kind as "draft" | "published" | "rollback"}
       />
-      <main className="flex flex-1 flex-col">
-        {sortedSlots.map((entry) => (
-          <HomepageCmsSections
-            key={`share-slot-${entry.slotKey}-${entry.sectionId}-${entry.sortOrder}`}
-            snapshot={snapshot}
-            onlySectionId={entry.sectionId}
-            tenantId={claims.tenantId}
-            locale={locale}
-          />
-        ))}
-        {sortedSlots.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center px-6 py-24">
-            <p className="text-sm text-zinc-500">
-              This revision has no published sections.
-            </p>
-          </div>
-        ) : null}
-      </main>
+      <main className="flex flex-1 flex-col">{body}</main>
       <ShareFooter
         brandLabel={brandLabel}
         expiresAt={claims.expiresAt}
         issuedAt={claims.issuedAt}
       />
     </div>
+  );
+}
+
+// ── bodies ─────────────────────────────────────────────────────────────────
+
+/** Slot-composed revision (homepage + legacy cms pages). Unchanged behaviour. */
+function SlotShareBody({
+  snapshot,
+  tenantId,
+  locale,
+}: {
+  snapshot: HomepageSnapshot;
+  tenantId: string;
+  locale: string;
+}) {
+  const sortedSlots = [...(snapshot.slots ?? [])].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+  );
+  if (sortedSlots.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-6 py-24">
+        <p className="text-sm text-zinc-500">
+          This revision has no published sections.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <>
+      {sortedSlots.map((entry) => (
+        <HomepageCmsSections
+          key={`share-slot-${entry.slotKey}-${entry.sectionId}-${entry.sortOrder}`}
+          snapshot={snapshot}
+          onlySectionId={entry.sectionId}
+          tenantId={tenantId}
+          locale={locale}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Freeform revision (`cms_pages.blocks` tree). Composed exactly like the
+ * public `/p/<slug>` render: renderer styles + font links emitted once at this
+ * level, `renderFreeformPageRootTree` (not bare `renderBuilderNodes`) for the
+ * tree, and the section-embed renderer so embedded sections paint instead of
+ * collapsing to nothing.
+ */
+async function FreeformShareBody({
+  tree,
+  tenantId,
+  locale,
+}: {
+  tree: NonNullable<ReturnType<typeof parseBuilderTreeFromSnapshot>>;
+  tenantId: string;
+  locale: string;
+}) {
+  const publicPathPrefix = await getPublicPathPrefix();
+  const componentStyleDefaults = await loadPublicComponentStyleDefaults(tenantId);
+  return (
+    <>
+      <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(tree)} />
+      <BuilderNodeFontLinks nodes={tree} />
+      <div className="w-full flex-1" data-theme-canvas-root="">
+        {renderFreeformPageRootTree(tree, {
+          publicPathPrefix,
+          mode: "freeform",
+          includeRendererStyles: false,
+          componentStyleDefaults,
+          renderSectionEmbed: makeSectionEmbedRenderer({
+            tenantId,
+            locale,
+            publicPathPrefix,
+            previewSubject: { kind: "workspace", id: tenantId },
+          }),
+        })}
+      </div>
+    </>
   );
 }
 

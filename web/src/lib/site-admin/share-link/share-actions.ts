@@ -3,10 +3,24 @@
 /**
  * Phase 9 — share-link generation server action.
  *
- * Issues a signed share JWT bound to the current homepage's most recent
- * revision id. The operator presses "Share" in the topbar; the action
- * returns a public URL like `/share/<token>` that any client can open
- * to view the bound revision without staff authentication.
+ * Issues a signed share JWT bound to the EDITED page's most recent revision
+ * id. The operator presses "Share" in the topbar; the action returns a public
+ * URL like `/share/<token>` that any client can open to view the bound
+ * revision without staff authentication.
+ *
+ * PAGE-SCOPED, NOT HOMEPAGE-ONLY. This action used to call
+ * `loadDraftHomepage()` unconditionally, so a share link minted while editing
+ * an inner page handed the recipient the HOMEPAGE draft — silently, with no
+ * error anywhere. The three entry points (topbar Share popover, the ⌘⇧S bind,
+ * and the ⌘K palette row) now forward the editor's page identity
+ * (`EditContext.pageId` / `pageSlug`), and `resolveEditorPage` turns it into
+ * the right `cms_pages` row. With neither field the homepage is still the
+ * answer (the storefront homepage mounts with no slug), so an old client
+ * bundle keeps working.
+ *
+ * The public `/share/<token>` route needed no token-format change: the JWT
+ * already carried `pid`, it was just always the homepage's id. The route does
+ * now render both snapshot shapes (slot-composed and freeform BuilderNode).
  *
  * Why bind to "most recent revision" by default:
  *   - The autosave pipeline writes a `cms_page_revisions` row of
@@ -14,9 +28,10 @@
  *     snapshot.
  *   - Operators who want to share an older state can rewind through
  *     the Revisions drawer first; the share action then captures
- *     whatever's now the latest revision row. (A Phase 9 follow-up
- *     adds an explicit `revisionId` parameter — for v1, the implicit
- *     "latest" is what the topbar Share button surfaces.)
+ *     whatever's now the latest revision row.
+ *   - The chosen revision id is baked into the token at mint time, so the
+ *     link renders that exact snapshot for its whole life — later saves
+ *     never drift into an already-sent link.
  *
  * Capability gate: requireSession + requireTenantScope, mirroring every
  * other edit-mode action wrapper. The JWT itself carries `tenantId` so
@@ -27,7 +42,7 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
-import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { resolveEditorPage } from "@/lib/site-admin/server/editor-page-ref";
 import {
   signShareJwt,
   SHARE_JWT_DEFAULT_TTL_SECONDS,
@@ -37,8 +52,16 @@ import {
 } from "./jwt";
 
 export interface CreateShareLinkInput {
-  /** Locale of the homepage to share. Defaults to "en" if omitted. */
+  /** Locale of the page to share. Defaults to "en" if omitted. */
   locale?: string;
+  /**
+   * `cms_pages.id` of the page being edited. Authoritative when present.
+   * Untrusted (client-supplied) — `resolveEditorPage` scopes the lookup to
+   * the caller's tenant, so a crafted id cannot reach another workspace.
+   */
+  pageId?: string | null;
+  /** `cms_pages.slug` of the page being edited. Used when no id is available. */
+  pageSlug?: string | null;
   /**
    * Lifetime in hours, clamped to [1, 720]. Default: 168 (7 days).
    * The JWT layer also clamps; double-clamping is intentional so an
@@ -94,11 +117,15 @@ export async function createShareLinkAction(
   }
 
   try {
-    const page = await loadDraftHomepage(scope.tenantId, locale);
+    const page = await resolveEditorPage(auth.supabase, scope.tenantId, {
+      pageId: input.pageId,
+      pageSlug: input.pageSlug,
+      locale,
+    });
     if (!page) {
       return {
         ok: false,
-        error: "Homepage not seeded for this locale.",
+        error: "Page not found for this locale.",
         code: "NOT_FOUND",
       };
     }
@@ -111,7 +138,8 @@ export async function createShareLinkAction(
     const { data: latestRev, error: revErr } = await auth.supabase
       .from("cms_page_revisions")
       .select("id, created_at, kind, version")
-      .eq("page_id", page.pageId)
+      .eq("tenant_id", scope.tenantId)
+      .eq("page_id", page.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -146,7 +174,7 @@ export async function createShareLinkAction(
     const signed = signShareJwt(
       {
         tenantId: scope.tenantId,
-        pageId: page.pageId,
+        pageId: page.id,
         revisionId: (latestRev as { id: string }).id,
         issuerProfileId: auth.user.id,
         label,
@@ -159,7 +187,7 @@ export async function createShareLinkAction(
       ok: true,
       path: `/share/${signed.token}`,
       token: signed.token,
-      pageId: page.pageId,
+      pageId: page.id,
       revisionId: (latestRev as { id: string }).id,
       expiresAt: signed.expiresAt.toISOString(),
       label: label ?? null,
