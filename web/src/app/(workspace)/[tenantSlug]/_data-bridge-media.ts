@@ -75,6 +75,10 @@ export type WorkspaceMediaFolder = {
   shareViewCount: number;
   assetIds: string[];
   createdAt: string;
+  /** Phase 4 collections sugar — a folder that is also a per-shoot collection. */
+  isCollection: boolean;
+  /** ISO day the shoot happened, or null. Only meaningful when isCollection. */
+  shootDate: string | null;
 };
 
 type MediaRow = {
@@ -115,6 +119,8 @@ type FolderRow = {
   share_expires_at: string | null;
   share_view_count: number;
   created_at: string;
+  is_collection: boolean | null;
+  shoot_date: string | null;
   media_folder_items: { asset_id: string }[];
 };
 
@@ -215,6 +221,8 @@ export async function loadWorkspaceMediaBridge(
           share_expires_at,
           share_view_count,
           created_at,
+          is_collection,
+          shoot_date,
           media_folder_items ( asset_id )
         `)
         .eq("tenant_id", tenantId)
@@ -307,6 +315,8 @@ export async function loadWorkspaceMediaBridge(
       shareViewCount: f.share_view_count,
       assetIds: f.media_folder_items.map((i) => i.asset_id),
       createdAt: f.created_at,
+      isCollection: f.is_collection === true,
+      shootDate: f.shoot_date,
     }));
 
     type WorkspaceRow = {

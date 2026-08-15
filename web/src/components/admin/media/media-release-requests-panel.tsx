@@ -34,6 +34,13 @@ export function MediaReleaseRequestsPanel() {
   const [busy, setBusy] = useState<Busy>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  /**
+   * Per-request "require watermark" ticks (phase 4). Kept per request id
+   * rather than as one panel-wide toggle: releasing editorial to one hub with
+   * a mark and to another without is a normal thing to want, and a shared
+   * checkbox would silently carry a decision across cards.
+   */
+  const [watermark, setWatermark] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setRequests(null);
@@ -61,9 +68,11 @@ export function MediaReleaseRequestsPanel() {
     setBusy({ requestId: request.requestId, kind: approve ? "approve" : "deny" });
     setError(null);
     setDone(null);
+    const watermarkRequired = approve && watermark[request.requestId] === true;
     const res = await actionDecideMediaReleaseRequest({
       requestId: request.requestId,
       approve,
+      watermarkRequired,
     });
     setBusy(null);
     if (!res.ok) {
@@ -72,7 +81,10 @@ export function MediaReleaseRequestsPanel() {
     }
     setDone(
       approve
-        ? t("dashboard.mediaReleaseRequests.approved").replace("{count}", String(res.data.granted))
+        ? (watermarkRequired
+            ? t("dashboard.mediaReleaseRequests.approvedWatermarked")
+            : t("dashboard.mediaReleaseRequests.approved")
+          ).replace("{count}", String(res.data.granted))
         : t("dashboard.mediaReleaseRequests.denied"),
     );
     await load();
@@ -157,6 +169,31 @@ export function MediaReleaseRequestsPanel() {
                 <div className="mt-1 text-[11.5px] font-semibold text-admin-green">
                   {t("dashboard.mediaReleaseRequests.activeRelease")}
                 </div>
+              )}
+
+              {isOpen && (
+                <label className="mt-3 flex cursor-pointer items-start gap-2 text-[11.5px] text-admin-ink-dim">
+                  <input
+                    type="checkbox"
+                    checked={watermark[request.requestId] === true}
+                    disabled={pendingHere}
+                    onChange={(e) =>
+                      setWatermark((prev) => ({
+                        ...prev,
+                        [request.requestId]: e.target.checked,
+                      }))
+                    }
+                    className="mt-0.5 cursor-pointer accent-admin-indigo-deep"
+                  />
+                  <span>
+                    <span className="font-semibold text-admin-ink">
+                      {t("dashboard.mediaReleaseRequests.watermarkLabel")}
+                    </span>
+                    <span className="block text-admin-ink-muted">
+                      {t("dashboard.mediaReleaseRequests.watermarkHint")}
+                    </span>
+                  </span>
+                </label>
               )}
 
               <div className="mt-3 flex flex-wrap items-center gap-2">

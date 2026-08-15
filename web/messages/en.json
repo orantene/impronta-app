@@ -10448,8 +10448,14 @@
         "hintExternal": "Another workspace owns this photo. It stays on their site unless they release it.",
         "hintTalent": "The talent owns this photo. It travels with them to any workspace they join.",
         "hintPlatform": "Platform starter imagery, shipped with your workspace. Replace it with your own photos when you are ready."
-      }
-    },
+      },
+      "sectionCollections": "Collections",
+      "shootDate": "Shoot date (optional)",
+      "shootDateHint": "Give this folder a date and it becomes a collection: one shoot, grouped and listed newest first.",
+      "downloadOriginal": "Download",
+      "downloadWorking": "Preparing...",
+      "downloadGotOriginal": "Original file.",
+      "downloadGotWebSize": "Web-size file."    },
     "adminPitchCompose": {
       "drawerTitle": "Send pitch",
       "drawerDescSent": "Your pitch is live, share the link with your client",
@@ -10846,7 +10852,10 @@
       "working": "Working...",
       "approved": "Released {count} photos.",
       "denied": "Request declined. Nothing changed.",
-      "revoked": "Revoked {count} photos."
+      "revoked": "Revoked {count} photos.",
+      "watermarkLabel": "Require a watermark",
+      "watermarkHint": "Released photos appear elsewhere with your logo on them. Set the logo and its placement under Settings, Branding.",
+      "approvedWatermarked": "Released {count} photo(s) with your watermark."
     },
     "mediaPickerLock": {
       "badge": "Locked",

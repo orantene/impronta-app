@@ -23,7 +23,12 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { checkWatermarkOnReleaseEntitlement } from "@/lib/billing/media-entitlements";
 import { hubTalentMediaTag } from "@/lib/media/talent-media-for-hub";
+import {
+  bakeWatermarkedVariant,
+  loadWatermarkBakeReadiness,
+} from "@/lib/media/watermark-bake";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
@@ -80,6 +85,25 @@ export async function actionDecideMediaReleaseRequest(input: {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
+  const wantsWatermark = input.approve && input.watermarkRequired === true;
+
+  // Pre-flight BEFORE the decision is recorded. A half-approved release that
+  // then fails in the image pipeline would leave the photo travelling
+  // unmarked — the opposite of what the staff member just asked for. Both
+  // refusals below are fixable in one place each, so they say where.
+  if (wantsWatermark) {
+    const readiness = await loadWatermarkBakeReadiness(admin, auth.tenantId);
+    const entitled = checkWatermarkOnReleaseEntitlement(readiness.planTier);
+    if (!entitled.allowed) return { ok: false, error: entitled.message };
+    if (!readiness.logoUrl) {
+      return {
+        ok: false,
+        error:
+          "Add your workspace logo under Settings, Branding before releasing photos with a watermark.",
+      };
+    }
+  }
+
   const workspaceName = await loadWorkspaceDisplayName(admin, auth.tenantId);
   const result = await decideMediaReleaseRequest(admin, {
     tenantId: auth.tenantId,
@@ -91,6 +115,25 @@ export async function actionDecideMediaReleaseRequest(input: {
   });
   if (!result.ok) return result;
 
+  // Bake at APPROVAL time, not at request time. The resolver refuses to serve
+  // a watermark-required asset that has no derivative, so baking lazily would
+  // mean the release silently shows nothing until someone visited the right
+  // page. Sequential on purpose: sharp is memory-hungry and the cap is
+  // MAX_RELEASE_ASSETS.
+  if (wantsWatermark && result.data.grantedAssetIds.length > 0) {
+    for (const assetId of result.data.grantedAssetIds) {
+      await bakeWatermarkedVariant(admin, {
+        assetId,
+        tenantId: auth.tenantId,
+        actorUserId: auth.user.id,
+        // Ticking "require watermark" IS the enable — refusing here because a
+        // workspace-level preset says `enabled: false` would approve an
+        // unwatermarked release.
+        requirePresetEnabled: false,
+      });
+    }
+  }
+
   scheduleWorkspaceAudit({
     tenantId: auth.tenantId,
     category: "media",
@@ -100,7 +143,11 @@ export async function actionDecideMediaReleaseRequest(input: {
       : "Declined a photo release request",
     targetType: "media_release_request",
     targetId: input.requestId,
-    metadata: { granted: result.data.granted, notified: result.data.notified },
+    metadata: {
+      granted: result.data.granted,
+      notified: result.data.notified,
+      watermark_required: wantsWatermark,
+    },
   });
 
   bust(result.data.bustKeys, auth.tenantSlug);

@@ -49,6 +49,8 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/media/ownership-actions";
 import { loadAgencyBrandingSettings } from "@/lib/server-actions/admin-workspace-settings";
 import { MediaOwnershipChip } from "@/components/admin/media/media-ownership-chip";
+import { MediaDownloadRow } from "@/components/admin/media/media-download-row";
+import { collectionNavLabel, splitFolderCollections } from "@/lib/media/collections";
 import { MediaReleaseRequestsPanel } from "@/components/admin/media/media-release-requests-panel";
 import type {
   WorkspaceMediaPhoto as BridgeMediaPhoto,
@@ -253,6 +255,9 @@ function MediaSidebar({
 }) {
   const t = useT();
   const pendingCount = photos.filter((p) => p.approvalState === "pending").length;
+  // Phase 4 sugar: shoots get their own heading, newest first. Ordinary
+  // folders keep the order the bridge sent them in.
+  const { collections, plainFolders } = splitFolderCollections(folders);
 
   const isActive = (v: ActiveView) => {
     if (v.kind !== view.kind) return false;
@@ -280,10 +285,25 @@ function MediaSidebar({
       />
 
 
+      {settings.showFolders && collections.length > 0 && (
+        <>
+          <SectionLabel text={t("dashboard.adminMedia.sectionCollections")} />
+          {collections.map((f) => (
+            <NavRow
+              key={f.id}
+              label={collectionNavLabel(f)}
+              active={isActive({ kind: "folder", folderId: f.id })}
+              onClick={() => setView({ kind: "folder", folderId: f.id })}
+              dot={f.color ?? FOLDER_PALETTE[0]}
+            />
+          ))}
+        </>
+      )}
+
       {settings.showFolders && (
         <>
           <SectionLabel text={t("dashboard.adminMedia.sectionFolders")} />
-          {folders.map((f) => (
+          {plainFolders.map((f) => (
             <NavRow
               key={f.id}
               label={f.name}
@@ -331,6 +351,9 @@ function FolderModal({
   const queueRouterRefresh = useQueuedRouterRefresh();
   const [name, setName] = useState(folder?.name ?? "");
   const [color, setColor] = useState(folder?.color ?? FOLDER_PALETTE[0]!);
+  // A shoot date is the whole of "this folder is a collection". Empty = an
+  // ordinary folder; clearing it on an existing collection demotes it back.
+  const [shootDate, setShootDate] = useState(folder?.shootDate ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(folder?.shareToken ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/folder/${folder.shareToken}` : null);
@@ -341,10 +364,10 @@ function FolderModal({
     if (!name.trim()) { setErr(t("dashboard.adminMedia.errNameRequired")); return; }
     setBusy(true);
     if (folder) {
-      const r = await actionRenameMediaFolder(folder.id, name, color);
+      const r = await actionRenameMediaFolder(folder.id, name, color, shootDate);
       if (!r.ok) { setErr(r.error); setBusy(false); return; }
     } else {
-      const r = await actionCreateMediaFolder(name, color);
+      const r = await actionCreateMediaFolder(name, color, false, shootDate);
       if (!r.ok) { setErr(r.error); setBusy(false); return; }
     }
     setBusy(false);
@@ -442,6 +465,19 @@ function FolderModal({
                   outlineOffset: 2,
                 }} />
               ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-admin-ink mb-[5px] text-[12px] font-semibold">{t("dashboard.adminMedia.shootDate")}</div>
+            <input
+              type="date"
+              value={shootDate}
+              onChange={(e) => setShootDate(e.target.value)}
+              className="text-admin-ink box-border w-full rounded-lg border border-admin-border px-3 py-2 text-[13px]"
+            />
+            <div className="text-admin-ink-muted mt-1 text-[11.5px] leading-snug">
+              {t("dashboard.adminMedia.shootDateHint")}
             </div>
           </div>
 
@@ -922,6 +958,10 @@ function MediaLightbox({
           {current.mimeType && <MetaRow label={t("dashboard.adminMedia.metaType")} value={current.mimeType} />}
         </div>
       </div>
+
+      {/* Download — owner-only originals (plan §9 decision 2). The control
+          itself lives outside this frozen tree. */}
+      <MediaDownloadRow assetId={current.id} />
 
       {/* Tags */}
       <div>

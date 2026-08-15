@@ -124,7 +124,13 @@ const BUDGETS: Record<string, number> = {
   // sidebar nav row and one early return; the queue UI is its own component
   // (components/admin/media/media-release-requests-panel.tsx) and the queries
   // live in lib/site-admin/server/media-release-requests.ts.
-  "src/components/admin/shell/internal/media-page.tsx": 2885,
+  // 2026-08-14 media-ownership phase 4 — +40: the Collections heading in the
+  // sidebar (grouping logic itself is pure and lives in lib/media/
+  // collections.ts), the shoot-date field in the folder modal, and one line
+  // mounting the download control. The download UI is a separate component
+  // (components/admin/media/media-download-row.tsx) and the originals policy
+  // lives in lib/media/originals-policy.ts.
+  "src/components/admin/shell/internal/media-page.tsx": 2925,
   "src/components/admin/shell/internal/state/types.ts": 2747,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
