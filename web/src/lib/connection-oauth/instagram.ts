@@ -130,21 +130,36 @@ export async function exchangeInstagramCode(input: {
 }
 
 /** Refresh a long-lived token. Valid while unexpired and >24h old. */
+/**
+ * `status` is the vendor HTTP status when there was one, and is ABSENT for a
+ * network/transport failure. The refresh cron needs that distinction: a 4xx
+ * means the token is genuinely dead (reconnect), while a 5xx or an unreachable
+ * host is transient and must be retried, not treated as a dead integration.
+ */
 export async function refreshInstagramToken(
   accessToken: string,
 ): Promise<
-  { ok: true; accessToken: string; expiresAt: string | null } | { ok: false; error: string }
+  | { ok: true; accessToken: string; expiresAt: string | null }
+  | { ok: false; error: string; status?: number }
 > {
   const url = new URL(`${GRAPH}/refresh_access_token`);
   url.searchParams.set("grant_type", "ig_refresh_token");
   url.searchParams.set("access_token", accessToken);
   try {
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return { ok: false, error: `Instagram refresh failed (${res.status}).` };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: `Instagram refresh failed (${res.status}).`,
+        status: res.status,
+      };
+    }
     const json = (await res.json().catch(() => null)) as {
       access_token?: string;
       expires_in?: number;
     } | null;
+    // A 200 with no token is a malformed vendor response, not a dead token —
+    // leave `status` unset so the caller treats it as retryable.
     if (!json?.access_token) return { ok: false, error: "No token in refresh response." };
     return {
       ok: true,
