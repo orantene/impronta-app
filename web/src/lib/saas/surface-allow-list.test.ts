@@ -509,3 +509,26 @@ test("team-invite + template-preview reachable on agency + app workspace hosts",
   assert.equal(isPathAllowedForHostKind("agency", "/template-preview/editorial-lux"), true);
   assert.equal(isPathAllowedForHostKind("app", "/template-preview/editorial-lux"), true);
 });
+
+test("staff watermark-bake repair route lives under /api/admin and is reachable on staff hosts", () => {
+  // Regression (2026-08-15): the route was at `/api/media/bake-watermark`, a
+  // namespace no allow-list covers, so the edge proxy 404'd it on all four
+  // host kinds before Next routing could run the staff-gated handler. It is
+  // the A4 repair path for a release approval whose watermark bake failed
+  // (execution-plan-2026-08-15 Batch A / A4), so an unreachable route means
+  // that repair path does not exist. Moved under `/api/admin/media/` where
+  // every other staff media route already lives and the `/api/admin` prefix
+  // already grants reachability — rather than widening `/api/media`, which
+  // P0-1 is establishing as the PUBLIC gated-read namespace.
+  assert.equal(isPathAllowedForHostKind("agency", "/api/admin/media/bake-watermark"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/api/admin/media/bake-watermark"), true);
+  // Staff-only: never reachable on the public-facing host kinds.
+  assert.equal(isPathAllowedForHostKind("hub", "/api/admin/media/bake-watermark"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/admin/media/bake-watermark"), false);
+  // `/api/media` itself stays un-allow-listed on every kind — the fix must not
+  // have opened the whole namespace as a side effect.
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    assert.equal(isPathAllowedForHostKind(kind, "/api/media"), false, kind);
+    assert.equal(isPathAllowedForHostKind(kind, "/api/media/bake-watermark"), false, kind);
+  }
+});

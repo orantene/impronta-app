@@ -10,7 +10,7 @@
 // loader so this stays pure and cache-friendly.
 //
 // Soft rendering only (CSS overlay). For baked PNG exports use the
-// /api/media/bake-watermark route instead.
+// /api/admin/media/bake-watermark route instead.
 
 import Image from "next/image";
 
