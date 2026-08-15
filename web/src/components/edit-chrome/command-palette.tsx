@@ -525,7 +525,11 @@ export function CommandPalette({
           // background. The topbar Share button shows the same
           // confirmation chip path; from the palette we just route the
           // URL to the clipboard and surface failures via the toast.
-          void copySharePreviewLinkToClipboard(ctx.reportMutationError);
+          void copySharePreviewLinkToClipboard(ctx.reportMutationError, {
+            pageId: ctx.pageId ?? null,
+            pageSlug: ctx.pageSlug ?? null,
+            locale: ctx.locale,
+          });
           onClose();
         },
       ),

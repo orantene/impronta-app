@@ -231,7 +231,11 @@ export function EditChrome({
     return <EditPill autoEnter={editIntent} />;
   }
 
-  if (previewMode) return <PreviewPill />;
+  // The pill's "Generate link" mints a share token; without the page identity
+  // it would mint one for the HOMEPAGE no matter which page is on screen.
+  // Preview mode has no EditContext, so the identity comes from the same props
+  // EditChromeMount parsed out of the URL.
+  if (previewMode) return <PreviewPill pageSlug={pageSlug} locale={locale} />;
 
   return (
     <>
