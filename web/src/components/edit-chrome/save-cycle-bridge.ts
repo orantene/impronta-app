@@ -75,6 +75,8 @@ export function useSaving(): boolean {
 
 /** Publish the CAS page version. No-op (no notify) when unchanged. */
 export const publishPageVersion = pageVersionSlice.publish;
+/** Non-reactive read for event handlers / imperative lanes and for tests. */
+export const getPageVersionSnapshot = pageVersionSlice.getSnapshot;
 
 /** Subscribe to the live CAS page version (bumps once per landed save). */
 export function usePageVersion(): number | null {
