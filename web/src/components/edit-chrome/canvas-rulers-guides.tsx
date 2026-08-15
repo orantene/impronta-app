@@ -419,6 +419,10 @@ export function CanvasGuides({
           <div
             key={guide.id}
             data-edit-overlay={`guide-${guide.id}`}
+            // Machine-readable axis so drag gestures (move/resize handles) can
+            // snapshot every guide's exact viewport position from the DOM —
+            // see canvas-guide-snap.ts.
+            data-canvas-guide-axis={guide.axis}
             aria-hidden
             style={lineStyle}
             onPointerDown={(e) => {

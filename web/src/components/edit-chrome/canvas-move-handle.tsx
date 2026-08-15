@@ -26,6 +26,12 @@ import {
   type GuideBox,
   type SpacingGuide,
 } from "./canvas-align-guides";
+import {
+  collectGuideViewportLines,
+  GUIDE_SNAP_HIGHLIGHT,
+  snapToGuideLines,
+  type GuideViewportLines,
+} from "./canvas-guide-snap";
 
 interface Rect {
   top: number;
@@ -96,7 +102,11 @@ export function CanvasMoveHandle({
     h: number | null;
     parent: Box | null;
     spacing: ReadonlyArray<SpacingGuide>;
-  }>({ v: null, h: null, parent: null, spacing: [] });
+    // Operator-placed ruler guides the block is currently snapped to
+    // (viewport px), highlighted full-viewport in the guides' own blue.
+    userV: number | null;
+    userH: number | null;
+  }>({ v: null, h: null, parent: null, spacing: [], userV: null, userH: null });
   const startRef = useRef<{
     px: number;
     py: number;
@@ -121,6 +131,8 @@ export function CanvasMoveHandle({
     // Full sibling boxes (captured once on grab — siblings don't move) for the
     // equal-spacing distribution maths.
     sibBoxes: GuideBox[];
+    // Operator-placed ruler guides, snapshotted in viewport px (#31 wiring).
+    guideLines: GuideViewportLines;
   } | null>(null);
   const latestRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -140,6 +152,8 @@ export function CanvasMoveHandle({
       // coordinate, drawing a guide at the match. Closest wins (⌘ skips).
       let gv: number | null = null;
       let gh: number | null = null;
+      let uv: number | null = null;
+      let uh: number | null = null;
       if (!free) {
         // The block's edge anchor positions as a function of translate 0.
         const xAnchors = [
@@ -178,6 +192,38 @@ export function CanvasMoveHandle({
           y = Math.round(bestY.ty);
           gh = bestY.guide;
         }
+        // #31 wiring — operator-placed ruler guides as snap targets (via the
+        // previously dead findGuideSnap). Sibling/parent edge alignment wins
+        // (the stronger, content-derived cue); an unclaimed axis then snaps
+        // any of the block's three edge anchors to the nearest guide line.
+        if (gv === null && start.guideLines.v.length > 0) {
+          let best: { tx: number; line: number; d: number } | null = null;
+          for (const anchor of xAnchors) {
+            const p = anchor + x;
+            const s = snapToGuideLines(p, start.guideLines.v, "y", ALIGN);
+            if (s.guide === null) continue;
+            const d = Math.abs(s.pos - p);
+            if (!best || d < best.d) best = { tx: x + (s.pos - p), line: s.guide, d };
+          }
+          if (best) {
+            x = Math.round(best.tx);
+            uv = best.line;
+          }
+        }
+        if (gh === null && start.guideLines.h.length > 0) {
+          let best: { ty: number; line: number; d: number } | null = null;
+          for (const anchor of yAnchors) {
+            const p = anchor + y;
+            const s = snapToGuideLines(p, start.guideLines.h, "x", ALIGN);
+            if (s.guide === null) continue;
+            const d = Math.abs(s.pos - p);
+            if (!best || d < best.d) best = { ty: y + (s.pos - p), line: s.guide, d };
+          }
+          if (best) {
+            y = Math.round(best.ty);
+            uh = best.line;
+          }
+        }
       }
       // 4A #8 — equal-spacing (distribution). On an axis NOT already claimed by
       // a hard edge alignment, softly pull toward the position where the gaps
@@ -191,7 +237,7 @@ export function CanvasMoveHandle({
           width: start.width,
           height: start.height,
         });
-        if (gv === null) {
+        if (gv === null && uv === null) {
           const delta = equalSpacingSnapDelta({
             dragged: boxAt(x, y),
             siblings: start.sibBoxes,
@@ -200,7 +246,7 @@ export function CanvasMoveHandle({
           });
           if (delta !== null) x = Math.round(x + delta);
         }
-        if (gh === null) {
+        if (gh === null && uh === null) {
           const delta = equalSpacingSnapDelta({
             dragged: boxAt(x, y),
             siblings: start.sibBoxes,
@@ -224,13 +270,27 @@ export function CanvasMoveHandle({
       }
       latestRef.current = { x, y };
       setLive({ x, y });
-      setGuides({ v: gv, h: gh, parent: start.parent, spacing });
+      setGuides({
+        v: gv,
+        h: gh,
+        parent: start.parent,
+        spacing,
+        userV: uv,
+        userH: uh,
+      });
       if (liveEl) liveEl.style.translate = `${x}px ${y}px`;
     };
     const onUp = () => {
       onCommitTranslate(latestRef.current.x, latestRef.current.y);
       setDragging(false);
-      setGuides({ v: null, h: null, parent: null, spacing: [] });
+      setGuides({
+        v: null,
+        h: null,
+        parent: null,
+        spacing: [],
+        userV: null,
+        userH: null,
+      });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp, { once: true });
@@ -306,10 +366,20 @@ export function CanvasMoveHandle({
       snapX,
       snapY,
       sibBoxes,
+      // #31 wiring — operator-placed guides can't move mid-drag, so one
+      // viewport snapshot at grab is exact for the whole gesture.
+      guideLines: collectGuideViewportLines(),
     };
     latestRef.current = current;
     setLive({ x: Math.round(current.x), y: Math.round(current.y) });
-    setGuides({ v: null, h: null, parent: null, spacing: [] });
+    setGuides({
+      v: null,
+      h: null,
+      parent: null,
+      spacing: [],
+      userV: null,
+      userH: null,
+    });
     setDragging(true);
   }
 
@@ -343,6 +413,41 @@ export function CanvasMoveHandle({
           height: 0,
           width: guides.parent.width,
           borderTop: `1px dashed ${accent}`,
+          pointerEvents: "none",
+          zIndex: 97,
+        }}
+      />
+    ) : null}
+    {/* #31 wiring — operator-guide snap highlight: a solid full-viewport line
+     *  in the guides' own active blue, drawn over the guide the block is
+     *  snapped to so the capture reads unmistakably as "your guide". */}
+    {guides.userV !== null ? (
+      <div
+        aria-hidden
+        data-canvas-user-guide-snap="v"
+        style={{
+          position: "fixed",
+          left: guides.userV,
+          top: 0,
+          width: 0,
+          height: "100vh",
+          borderLeft: `1px solid ${GUIDE_SNAP_HIGHLIGHT}`,
+          pointerEvents: "none",
+          zIndex: 97,
+        }}
+      />
+    ) : null}
+    {guides.userH !== null ? (
+      <div
+        aria-hidden
+        data-canvas-user-guide-snap="h"
+        style={{
+          position: "fixed",
+          top: guides.userH,
+          left: 0,
+          height: 0,
+          width: "100vw",
+          borderTop: `1px solid ${GUIDE_SNAP_HIGHLIGHT}`,
           pointerEvents: "none",
           zIndex: 97,
         }}

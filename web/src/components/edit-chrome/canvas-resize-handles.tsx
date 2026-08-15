@@ -40,6 +40,11 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import {
+  collectGuideViewportLines,
+  snapToGuideLines,
+  type GuideViewportLines,
+} from "./canvas-guide-snap";
 import { parseTranslate } from "./canvas-move-handle";
 import {
   computeResizeDims,
@@ -148,6 +153,8 @@ export function CanvasResizeHandles({
     /** Sibling/parent edge coords (viewport px) for the moving edges. */
     edgeX: number[];
     edgeY: number[];
+    /** Operator-placed ruler guides, snapshotted in viewport px (#31 wiring). */
+    guideLines: GuideViewportLines;
     /** Anchor viewport positions at grab: opposite-edge and centre. */
     anchorEdge: { x: number; y: number };
     anchorCenter: { x: number; y: number };
@@ -223,6 +230,25 @@ export function CanvasResizeHandles({
               );
               guideVx = best.coord;
             }
+            // #31 wiring — operator-placed vertical guides as snap targets for
+            // the moving edge (via findGuideSnap), when no sibling edge won.
+            if (!best && start.guideLines.v.length > 0) {
+              const snap = snapToGuideLines(
+                movingX,
+                start.guideLines.v,
+                "y",
+                RESIZE_EDGE_SNAP,
+              );
+              if (snap.guide !== null) {
+                w = Math.max(
+                  RESIZE_MIN_SIZE,
+                  Math.round(
+                    (dir * (snap.guide - start.anchorEdge.x)) / start.zoom,
+                  ),
+                );
+                guideVx = snap.guide;
+              }
+            }
           }
         }
         if (dims.affectsY) {
@@ -242,6 +268,24 @@ export function CanvasResizeHandles({
                 Math.round((dir * (best.coord - start.anchorEdge.y)) / start.zoom),
               );
               guideHy = best.coord;
+            }
+            // #31 wiring — horizontal guides for the moving edge.
+            if (!best && start.guideLines.h.length > 0) {
+              const snap = snapToGuideLines(
+                movingY,
+                start.guideLines.h,
+                "x",
+                RESIZE_EDGE_SNAP,
+              );
+              if (snap.guide !== null) {
+                h = Math.max(
+                  RESIZE_MIN_SIZE,
+                  Math.round(
+                    (dir * (snap.guide - start.anchorEdge.y)) / start.zoom,
+                  ),
+                );
+                guideHy = snap.guide;
+              }
             }
           }
         }
@@ -348,6 +392,8 @@ export function CanvasResizeHandles({
       parentW,
       edgeX,
       edgeY,
+      // #31 wiring — guides can't move mid-drag; one snapshot is exact.
+      guideLines: collectGuideViewportLines(),
       anchorEdge: {
         x: er.left + af.fx * er.width,
         y: er.top + af.fy * er.height,
