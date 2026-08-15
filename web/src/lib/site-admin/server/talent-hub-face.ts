@@ -41,12 +41,21 @@ export type HubFacePhoto = {
   assetId: string;
   url: string;
   alt: string | null;
-  /** Selected for this hub (an `agency_talent_media` row exists and is visible). */
+  /** Selected for this hub (an `agency_talent_media` row exists). */
   selected: boolean;
   /** This hub's cover — the face cards render when the flag is on. */
   isCover: boolean;
   /** Position among the selected photos (1-based); null when not selected. */
   position: number | null;
+  /**
+   * Include/exclude toggle. A selected photo can stay in the curation list
+   * (keeps its caption + order) while being hidden from the live site — the
+   * resolver in `talent-media-for-hub.ts` gates on this column directly.
+   * Meaningless (always `true`) when `selected` is `false`.
+   */
+  visible: boolean;
+  /** Per-photo caption for this hub, or null. Meaningless when not selected. */
+  caption: string | null;
 };
 
 export type HubFaceState = {
@@ -62,6 +71,7 @@ type CurationRow = {
   agency_media_id: string;
   display_order: number | null;
   is_visible_on_agency_site: boolean | null;
+  caption: string | null;
 };
 
 /** Reads this hub's current curation plus the pickable library, in one go. */
@@ -80,7 +90,7 @@ export async function loadHubFaceState(
         .maybeSingle(),
       supabase
         .from("agency_talent_media")
-        .select("id, agency_media_id, display_order, is_visible_on_agency_site")
+        .select("id, agency_media_id, display_order, is_visible_on_agency_site, caption")
         .eq("tenant_id", tenantId)
         .eq("talent_profile_id", talentProfileId)
         .order("display_order", { ascending: true }),
@@ -97,14 +107,19 @@ export async function loadHubFaceState(
     }
 
     const rows = (curationRes.data ?? []) as CurationRow[];
-    const selectedAssetIds = rows
-      .filter((r) => r.is_visible_on_agency_site !== false)
-      .map((r) => r.agency_media_id);
+    // Curation membership is row EXISTENCE, not the visibility flag — a hidden
+    // photo stays in the selection (keeps its caption + order) so staff can
+    // re-show it without re-picking it. See `HubFacePhoto.visible`.
+    const selectedAssetIds = rows.map((r) => r.agency_media_id);
     const coverAssetId =
       (overlayRes.data as { cover_media_asset_id: string | null } | null)
         ?.cover_media_asset_id ?? null;
 
     const position = new Map(selectedAssetIds.map((id, i) => [id, i + 1]));
+    const captionByAsset = new Map(rows.map((r) => [r.agency_media_id, r.caption ?? null]));
+    const visibleByAsset = new Map(
+      rows.map((r) => [r.agency_media_id, r.is_visible_on_agency_site !== false]),
+    );
     const photos: HubFacePhoto[] = library.items
       .filter((item) => item.assetKind === "image")
       .map((item) => ({
@@ -114,6 +129,8 @@ export async function loadHubFaceState(
         selected: position.has(item.id),
         isCover: item.id === coverAssetId,
         position: position.get(item.id) ?? null,
+        caption: captionByAsset.get(item.id) ?? null,
+        visible: visibleByAsset.get(item.id) ?? true,
       }))
       .sort((a, b) => (a.position ?? 9999) - (b.position ?? 9999));
 
@@ -219,10 +236,14 @@ export async function setHubMediaSelection(
       const assetId = wanted[i];
       const displayOrder = (i + 1) * 10;
       const rowId = idByAsset.get(assetId);
+      // Reordering/re-saving an EXISTING row only touches `display_order` — it
+      // must never silently flip a photo staff hid back to visible, and it
+      // must not clobber a caption they set on it (both live outside the
+      // checkbox flow now, in `setHubMediaVisibility` / `setHubMediaCaption`).
       const { error } = rowId
         ? await supabase
             .from("agency_talent_media")
-            .update({ display_order: displayOrder, is_visible_on_agency_site: true })
+            .update({ display_order: displayOrder })
             .eq("id", rowId)
             .eq("tenant_id", tenantId)
             .eq("talent_profile_id", talentProfileId)
@@ -261,6 +282,115 @@ export async function setHubMediaSelection(
   } catch (err) {
     logServerError("setHubMediaSelection", err);
     return { ok: false, error: "Could not save the photo selection." };
+  }
+}
+
+/**
+ * Sets (or clears, with `null`) one selected photo's caption for this hub.
+ * Requires an existing `agency_talent_media` row — a photo must be added to
+ * the site's selection (`setHubMediaSelection`) before it can be captioned,
+ * so this never creates a row on its own.
+ */
+export async function setHubMediaCaption(
+  supabase: SupabaseClient,
+  tenantId: string,
+  talentProfileId: string,
+  assetId: string,
+  caption: string | null,
+): Promise<HubFaceResult<{ caption: string | null }>> {
+  try {
+    const { data, error } = await supabase
+      .from("agency_talent_media")
+      .update({ caption })
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .eq("agency_media_id", assetId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      logServerError("setHubMediaCaption", error);
+      return { ok: false, error: "Could not save the caption." };
+    }
+    if (!data) return { ok: false, error: "Add the photo to this site before captioning it." };
+    return { ok: true, data: { caption } };
+  } catch (err) {
+    logServerError("setHubMediaCaption", err);
+    return { ok: false, error: "Could not save the caption." };
+  }
+}
+
+/**
+ * Include/exclude toggle for one selected photo. Unlike removing a photo from
+ * the selection (`setHubMediaSelection`, which deletes the row), this keeps
+ * the row — and its caption + position — and only flips
+ * `is_visible_on_agency_site`, which is exactly what the storefront resolver
+ * (`talent-media-for-hub.ts`) gates on. Requires an existing row, same reason
+ * as `setHubMediaCaption`.
+ */
+export async function setHubMediaVisibility(
+  supabase: SupabaseClient,
+  tenantId: string,
+  talentProfileId: string,
+  assetId: string,
+  visible: boolean,
+): Promise<HubFaceResult<{ visible: boolean }>> {
+  try {
+    const { data, error } = await supabase
+      .from("agency_talent_media")
+      .update({ is_visible_on_agency_site: visible })
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .eq("agency_media_id", assetId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      logServerError("setHubMediaVisibility", error);
+      return { ok: false, error: "Could not save the visibility." };
+    }
+    if (!data) return { ok: false, error: "Add the photo to this site before hiding it." };
+    return { ok: true, data: { visible } };
+  } catch (err) {
+    logServerError("setHubMediaVisibility", err);
+    return { ok: false, error: "Could not save the visibility." };
+  }
+}
+
+/**
+ * Re-numbers `display_order` for already-selected photos, one update per id.
+ * A simple up/down reorder (no drag-drop, per the plan) always submits the
+ * FULL current order, so this assigns dense `(i+1) * 10` gaps the same way
+ * `setHubMediaSelection` does — the two never disagree on spacing. Ids
+ * without an existing row are silently skipped rather than erroring: the
+ * panel only ever offers reorder controls on photos already in the
+ * selection, so a mismatch here would mean stale client state, not a real
+ * failure worth blocking the rest of the reorder over.
+ */
+export async function setHubMediaOrder(
+  supabase: SupabaseClient,
+  tenantId: string,
+  talentProfileId: string,
+  orderedAssetIds: string[],
+): Promise<HubFaceResult<{ orderedAssetIds: string[] }>> {
+  try {
+    const wanted = [...new Set(orderedAssetIds)];
+    for (let i = 0; i < wanted.length; i++) {
+      const { error } = await supabase
+        .from("agency_talent_media")
+        .update({ display_order: (i + 1) * 10 })
+        .eq("tenant_id", tenantId)
+        .eq("talent_profile_id", talentProfileId)
+        .eq("agency_media_id", wanted[i]);
+      if (error) {
+        logServerError("setHubMediaOrder", error);
+        return { ok: false, error: "Could not save the new order." };
+      }
+    }
+    return { ok: true, data: { orderedAssetIds: wanted } };
+  } catch (err) {
+    logServerError("setHubMediaOrder", err);
+    return { ok: false, error: "Could not save the new order." };
   }
 }
 

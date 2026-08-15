@@ -16,8 +16,10 @@ import {
   uploadOwnershipStamp,
   workspaceOwnedStamp,
 } from "./ownership";
+import { createTranslator } from "../../i18n/messages";
 
 const TENANT = "11111111-1111-1111-1111-111111111111";
+const t = createTranslator("en");
 const USER = "22222222-2222-2222-2222-222222222222";
 
 test("a talent stamp never claims a tenant", () => {
@@ -95,18 +97,24 @@ test("unknown kinds read as talent-owned, matching the column default", () => {
 });
 
 test("the chip distinguishes MY workspace from ANOTHER workspace", () => {
-  const mine = describeMediaOwnership({
-    ownershipKind: "agency",
-    ownedByThisWorkspace: true,
-    workspaceName: "Impronta",
-  });
+  const mine = describeMediaOwnership(
+    {
+      ownershipKind: "agency",
+      ownedByThisWorkspace: true,
+      workspaceName: "Impronta",
+    },
+    t,
+  );
   assert.equal(mine.tone, "workspace");
   assert.match(mine.label, /Impronta/);
 
-  const theirs = describeMediaOwnership({
-    ownershipKind: "agency",
-    ownedByThisWorkspace: false,
-  });
+  const theirs = describeMediaOwnership(
+    {
+      ownershipKind: "agency",
+      ownedByThisWorkspace: false,
+    },
+    t,
+  );
   assert.equal(theirs.tone, "external");
   assert.notEqual(theirs.label, mine.label);
 });
@@ -114,7 +122,7 @@ test("the chip distinguishes MY workspace from ANOTHER workspace", () => {
 test("every chip explains itself — a tile is never a silent absence", () => {
   for (const kind of ["talent", "agency", "platform", null]) {
     for (const ownedByThisWorkspace of [true, false]) {
-      const chip = describeMediaOwnership({ ownershipKind: kind, ownedByThisWorkspace });
+      const chip = describeMediaOwnership({ ownershipKind: kind, ownedByThisWorkspace }, t);
       assert.ok(chip.label.length > 0, `empty label for ${String(kind)}`);
       assert.ok(chip.hint.length > 20, `weak hint for ${String(kind)}`);
     }

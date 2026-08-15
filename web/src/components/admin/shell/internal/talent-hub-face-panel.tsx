@@ -22,7 +22,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import {
   actionLoadTalentHubFace,
+  actionReorderTalentHubMedia,
   actionSetTalentHubCover,
+  actionSetTalentHubMediaCaption,
+  actionSetTalentHubMediaVisibility,
   actionSetTalentHubSelection,
   type HubFacePhoto,
 } from "@/lib/server-actions/admin-talent-hub-face";
@@ -38,6 +41,17 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Per-photo state for the immediate-write controls (caption, visibility,
+  // reorder) — these bypass the "Save selection" button entirely, so each
+  // gets its own explicit status keyed by asset id (admin edit-UX rule: never
+  // a silent wait).
+  const [captionDrafts, setCaptionDrafts] = useState<Record<string, string>>({});
+  const [captionState, setCaptionState] = useState<Record<string, SaveState>>({});
+  const [captionError, setCaptionError] = useState<Record<string, string>>({});
+  const [visibilityState, setVisibilityState] = useState<Record<string, SaveState>>({});
+  const [orderState, setOrderState] = useState<SaveState>("idle");
+  const [orderError, setOrderError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setPhotos(null);
     setLoadError(null);
@@ -50,6 +64,9 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
     setPhotos(res.data.photos);
     setSelected(res.data.selectedAssetIds);
     setCover(res.data.coverAssetId);
+    setCaptionDrafts(
+      Object.fromEntries(res.data.photos.map((p) => [p.assetId, p.caption ?? ""])),
+    );
   }, [talentProfileId]);
 
   useEffect(() => {
@@ -101,6 +118,65 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
     setSaveState("saved");
   };
 
+  const saveCaption = async (assetId: string) => {
+    const draft = captionDrafts[assetId] ?? "";
+    setCaptionState((prev) => ({ ...prev, [assetId]: "saving" }));
+    setCaptionError((prev) => {
+      const next = { ...prev };
+      delete next[assetId];
+      return next;
+    });
+    const res = await actionSetTalentHubMediaCaption(talentProfileId, assetId, draft);
+    if (!res.ok) {
+      setCaptionState((prev) => ({ ...prev, [assetId]: "error" }));
+      setCaptionError((prev) => ({ ...prev, [assetId]: res.error }));
+      return;
+    }
+    setCaptionState((prev) => ({ ...prev, [assetId]: "saved" }));
+    setPhotos((prev) =>
+      prev ? prev.map((p) => (p.assetId === assetId ? { ...p, caption: res.data.caption } : p)) : prev,
+    );
+  };
+
+  const toggleVisibility = async (photo: HubFacePhoto) => {
+    const nextVisible = !photo.visible;
+    setVisibilityState((prev) => ({ ...prev, [photo.assetId]: "saving" }));
+    const res = await actionSetTalentHubMediaVisibility(talentProfileId, photo.assetId, nextVisible);
+    if (!res.ok) {
+      setVisibilityState((prev) => ({ ...prev, [photo.assetId]: "error" }));
+      setSaveError(res.error);
+      return;
+    }
+    setVisibilityState((prev) => ({ ...prev, [photo.assetId]: "saved" }));
+    setPhotos((prev) =>
+      prev
+        ? prev.map((p) => (p.assetId === photo.assetId ? { ...p, visible: res.data.visible } : p))
+        : prev,
+    );
+  };
+
+  const moveMedia = async (assetId: string, direction: -1 | 1) => {
+    if (!photos) return;
+    const orderedSelectedIds = photos.filter((p) => p.selected).map((p) => p.assetId);
+    const index = orderedSelectedIds.indexOf(assetId);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= orderedSelectedIds.length) return;
+
+    const next = [...orderedSelectedIds];
+    [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+
+    setOrderState("saving");
+    setOrderError(null);
+    const res = await actionReorderTalentHubMedia(talentProfileId, next);
+    if (!res.ok) {
+      setOrderState("error");
+      setOrderError(res.error);
+      return;
+    }
+    setOrderState("saved");
+    await load();
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-lg border border-admin-border-soft bg-admin-indigo-soft p-3">
@@ -136,6 +212,12 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
             const index = selected.indexOf(photo.assetId);
             const isSelected = index >= 0;
             const isCover = cover === photo.assetId;
+            const orderedSelectedIds = photos.filter((p) => p.selected).map((p) => p.assetId);
+            const orderIndex = orderedSelectedIds.indexOf(photo.assetId);
+            const canMoveUp = photo.selected && orderIndex > 0;
+            const canMoveDown = photo.selected && orderIndex >= 0 && orderIndex < orderedSelectedIds.length - 1;
+            const captionSave = captionState[photo.assetId] ?? "idle";
+            const visibilitySave = visibilityState[photo.assetId] ?? "idle";
             return (
               <div
                 key={photo.assetId}
@@ -188,6 +270,79 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
                     ? t("dashboard.talentHubFace.clearCover")
                     : t("dashboard.talentHubFace.makeCover")}
                 </button>
+
+                {photo.selected && (
+                  <div className="flex flex-col gap-1 border-t border-admin-border-soft bg-admin-surface p-1.5">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveMedia(photo.assetId, -1)}
+                        disabled={!canMoveUp || orderState === "saving"}
+                        aria-label={t("dashboard.talentHubFace.moveUpAria")}
+                        className="flex-1 cursor-pointer rounded border border-admin-border-soft bg-admin-surface-alt py-0.5 text-[10px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveMedia(photo.assetId, 1)}
+                        disabled={!canMoveDown || orderState === "saving"}
+                        aria-label={t("dashboard.talentHubFace.moveDownAria")}
+                        className="flex-1 cursor-pointer rounded border border-admin-border-soft bg-admin-surface-alt py-0.5 text-[10px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleVisibility(photo)}
+                        disabled={visibilitySave === "saving"}
+                        aria-pressed={photo.visible}
+                        aria-label={
+                          photo.visible
+                            ? t("dashboard.talentHubFace.hideAria")
+                            : t("dashboard.talentHubFace.showAria")
+                        }
+                        title={
+                          photo.visible
+                            ? t("dashboard.talentHubFace.visible")
+                            : t("dashboard.talentHubFace.hidden")
+                        }
+                        className={`flex-1 cursor-pointer rounded border py-0.5 text-[10px] font-semibold disabled:cursor-not-allowed ${
+                          photo.visible
+                            ? "border-admin-indigo-deep bg-admin-indigo-soft text-admin-indigo-deep"
+                            : "border-admin-border-soft bg-admin-surface-alt text-admin-ink-muted"
+                        }`}
+                      >
+                        {photo.visible ? "◉" : "◎"}
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={captionDrafts[photo.assetId] ?? ""}
+                      onChange={(e) =>
+                        setCaptionDrafts((prev) => ({ ...prev, [photo.assetId]: e.target.value }))
+                      }
+                      onBlur={() => {
+                        if ((captionDrafts[photo.assetId] ?? "") !== (photo.caption ?? "")) {
+                          void saveCaption(photo.assetId);
+                        }
+                      }}
+                      placeholder={t("dashboard.talentHubFace.captionPlaceholder")}
+                      className="w-full rounded border border-admin-border-soft bg-admin-surface-alt px-1.5 py-1 text-[10.5px] text-admin-ink focus:border-admin-indigo-deep focus:outline-none"
+                    />
+                    {captionSave === "saving" && (
+                      <span className="text-[10px] text-admin-ink-muted">
+                        {t("dashboard.talentHubFace.captionSaving")}
+                      </span>
+                    )}
+                    {captionSave === "error" && (
+                      <span className="text-[10px] text-admin-red">
+                        {captionError[photo.assetId] ?? t("dashboard.talentHubFace.captionError")}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -215,6 +370,14 @@ export function TalentHubFacePanel({ talentProfileId }: { talentProfileId: strin
                 )}
           </span>
           {saveError && <span className="text-[11.5px] text-admin-red">{saveError}</span>}
+          {orderState === "saving" && (
+            <span className="text-[11.5px] text-admin-ink-muted">
+              {t("dashboard.talentHubFace.orderSaving")}
+            </span>
+          )}
+          {orderState === "error" && orderError && (
+            <span className="text-[11.5px] text-admin-red">{orderError}</span>
+          )}
         </div>
       )}
     </div>

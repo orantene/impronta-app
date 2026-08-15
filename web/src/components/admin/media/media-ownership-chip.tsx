@@ -4,6 +4,7 @@ import {
   describeMediaOwnership,
   type MediaOwnershipTone,
 } from "@/lib/media/ownership";
+import { useT } from "@/i18n/use-t";
 
 /**
  * media-ownership-chip.tsx — "who owns this photo?", on the tile.
@@ -37,11 +38,15 @@ export function MediaOwnershipChip({
   workspaceName?: string | null;
   className?: string;
 }) {
-  const chip = describeMediaOwnership({
-    ownershipKind,
-    ownedByThisWorkspace,
-    workspaceName,
-  });
+  const t = useT();
+  const chip = describeMediaOwnership(
+    {
+      ownershipKind,
+      ownedByThisWorkspace,
+      workspaceName,
+    },
+    t,
+  );
 
   return (
     <span
