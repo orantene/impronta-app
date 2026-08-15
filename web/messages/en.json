@@ -10437,6 +10437,17 @@
         "review": "Review",
         "profile": "Profile",
         "cover": "Cover"
+      },
+      "ownershipChip": {
+        "labelOwnedByYou": "Owned by you",
+        "labelOwnedByName": "Owned by {name}",
+        "labelTalentOwn": "Talent's own",
+        "labelAnotherWorkspace": "Another workspace",
+        "labelStarter": "Starter",
+        "hintWorkspace": "Your workspace uploaded this. You control where it appears and who may reuse it.",
+        "hintExternal": "Another workspace owns this photo. It stays on their site unless they release it.",
+        "hintTalent": "The talent owns this photo. It travels with them to any workspace they join.",
+        "hintPlatform": "Platform starter imagery, shipped with your workspace. Replace it with your own photos when you are ready."
       }
     },
     "adminPitchCompose": {
@@ -10788,7 +10799,20 @@
       "save": "Save selection",
       "saving": "Saving...",
       "saved": "Selection saved.",
-      "selectedCount": "{count} selected"
+      "selectedCount": "{count} selected",
+      "captionPlaceholder": "Add a caption for this site…",
+      "captionSaving": "Saving caption…",
+      "captionSaved": "Caption saved.",
+      "captionError": "Could not save the caption.",
+      "visible": "Visible on site",
+      "hidden": "Hidden from site",
+      "showAria": "Include on this site",
+      "hideAria": "Exclude from this site",
+      "moveUpAria": "Move up",
+      "moveDownAria": "Move down",
+      "orderSaving": "Saving order…",
+      "orderSaved": "Order saved.",
+      "orderError": "Could not save the new order."
     },
     "mediaRelease": {
       "title": "Photos from your agencies",

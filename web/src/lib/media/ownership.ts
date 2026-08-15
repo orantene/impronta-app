@@ -32,7 +32,15 @@
  *
  * This module is deliberately pure (no `server-only`, no Supabase import) so
  * the Media page's ownership chips read the same vocabulary the writers use.
+ *
+ * i18n: `describeMediaOwnership` takes a translator (the same `t` the Media
+ * page gets from `useT()`) and resolves labels/hints from the
+ * `dashboard.adminMedia.ownershipChip.*` keys in `messages/en.json` /
+ * `messages/es.json`, rather than hardcoding English — this module has no
+ * React import, so the translator is threaded in instead of read from a hook.
  */
+
+import { withInterpolation, type Translator } from "@/i18n/interpolate";
 
 export const MEDIA_OWNERSHIP_KINDS = ["talent", "agency", "platform"] as const;
 
@@ -161,20 +169,24 @@ export type MediaOwnershipChip = {
  * in words, because "why can't I use this photo?" is the exact question phase 3
  * turns into a release request.
  */
-export function describeMediaOwnership(input: {
-  ownershipKind: unknown;
-  ownedByThisWorkspace: boolean;
-  /** Optional workspace display name, for "Owned by Impronta". */
-  workspaceName?: string | null;
-}): MediaOwnershipChip {
+export function describeMediaOwnership(
+  input: {
+    ownershipKind: unknown;
+    ownedByThisWorkspace: boolean;
+    /** Optional workspace display name, for "Owned by Impronta". */
+    workspaceName?: string | null;
+  },
+  t: Translator,
+): MediaOwnershipChip {
+  const tt = withInterpolation(t);
   const kind = normalizeOwnershipKind(input.ownershipKind);
 
   if (kind === "platform") {
     return {
       kind,
       tone: "platform",
-      label: "Starter",
-      hint: "Platform starter imagery, shipped with your workspace. Replace it with your own photos when you are ready.",
+      label: tt("dashboard.adminMedia.ownershipChip.labelStarter"),
+      hint: tt("dashboard.adminMedia.ownershipChip.hintPlatform"),
     };
   }
 
@@ -184,22 +196,24 @@ export function describeMediaOwnership(input: {
       return {
         kind,
         tone: "workspace",
-        label: name ? `Owned by ${name}` : "Owned by you",
-        hint: "Your workspace uploaded this. You control where it appears and who may reuse it.",
+        label: name
+          ? tt("dashboard.adminMedia.ownershipChip.labelOwnedByName", { name })
+          : tt("dashboard.adminMedia.ownershipChip.labelOwnedByYou"),
+        hint: tt("dashboard.adminMedia.ownershipChip.hintWorkspace"),
       };
     }
     return {
       kind,
       tone: "external",
-      label: "Another workspace",
-      hint: "Another workspace owns this photo. It stays on their site unless they release it.",
+      label: tt("dashboard.adminMedia.ownershipChip.labelAnotherWorkspace"),
+      hint: tt("dashboard.adminMedia.ownershipChip.hintExternal"),
     };
   }
 
   return {
     kind,
     tone: "talent",
-    label: "Talent's own",
-    hint: "The talent owns this photo. It travels with them to any workspace they join.",
+    label: tt("dashboard.adminMedia.ownershipChip.labelTalentOwn"),
+    hint: tt("dashboard.adminMedia.ownershipChip.hintTalent"),
   };
 }
