@@ -258,28 +258,53 @@ export async function setSecret(
   secretField: string,
   plaintext: string,
 ): Promise<boolean> {
+  return setSecrets(tenantId, key, [{ secretField, plaintext }]);
+}
+
+/**
+ * ATOMIC multi-field variant of `setSecret` — every field lands in ONE upsert
+ * statement, so either all of them are stored or none are.
+ *
+ * This exists because of the TikTok refresh path. TikTok ROTATES the refresh
+ * token: the moment a refresh succeeds, the refresh token we sent is dead and
+ * only the new one works. Writing `access_token` and `refresh_token` as two
+ * separate upserts meant a failure between them left the row holding a refresh
+ * token the vendor had already invalidated — every future refresh then fails
+ * with an invalid grant and the integration is permanently dead, with no way
+ * back except an operator reconnect. One statement removes that window.
+ *
+ * Returns false if any entry is empty/blank or the write fails; no partial
+ * write is possible.
+ */
+export async function setSecrets(
+  tenantId: string,
+  key: string,
+  entries: ReadonlyArray<{ secretField: string; plaintext: string }>,
+): Promise<boolean> {
   const supabase = service();
   if (!supabase) return false;
-  const trimmed = plaintext.trim();
-  if (!trimmed) return false;
+  if (entries.length === 0) return false;
 
-  const ciphertext = encryptSecret(trimmed);
-  // maskApiKey returns "••••<last4>"; persist only the trailing 4 chars.
-  const masked = maskApiKey(trimmed);
-  const last4 = masked.replace(/[^0-9A-Za-z]/g, "").slice(-4) || null;
+  const rows = [];
+  for (const entry of entries) {
+    const trimmed = entry.plaintext.trim();
+    // Refuse the WHOLE batch on a blank value — a partial rotation is exactly
+    // the failure mode this function exists to prevent.
+    if (!trimmed) return false;
+    // maskApiKey returns "••••<last4>"; persist only the trailing 4 chars.
+    const masked = maskApiKey(trimmed);
+    rows.push({
+      tenant_id: tenantId,
+      integration_key: key,
+      secret_field: entry.secretField,
+      ciphertext: encryptSecret(trimmed),
+      last4: masked.replace(/[^0-9A-Za-z]/g, "").slice(-4) || null,
+    });
+  }
 
   const { error } = await supabase
     .from("tenant_integration_secrets")
-    .upsert(
-      {
-        tenant_id: tenantId,
-        integration_key: key,
-        secret_field: secretField,
-        ciphertext,
-        last4,
-      },
-      { onConflict: "tenant_id,integration_key,secret_field" },
-    );
+    .upsert(rows, { onConflict: "tenant_id,integration_key,secret_field" });
   return !error;
 }
 

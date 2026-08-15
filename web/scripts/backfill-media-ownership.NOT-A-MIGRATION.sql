@@ -1,6 +1,18 @@
 -- ============================================================================
 -- backfill-media-ownership.NOT-A-MIGRATION.sql
 --
+-- ✅  STATUS: ALREADY RUN AGAINST PRODUCTION ON 2026-08-15. DO NOT RE-RUN.
+--     Verified after-state (SECTION 0 re-run on the live project):
+--       · 6 rows provenance-mirrored (uploaded_by_user_id <-> created_by)
+--       · 1,933 rows tagged `ownership_backfill`
+--       · ownership split UNCHANGED — legacy media stayed talent-owned, as
+--         decided (plan §9, decision №1)
+--     The script is idempotent, so a re-run would report 0 rows and change
+--     nothing — but there is no reason to run it, and a future agent finding
+--     an un-annotated backfill has to spend an hour proving that. This header
+--     is that hour, already spent. If you need to verify, run SECTION 0 (read
+--     only) and compare against the numbers above.
+--
 -- ⚠️  THIS IS NOT A MIGRATION. Do not move it into supabase/migrations/.
 --     It is a one-time, hand-run, idempotent data pass. `db push` must never
 --     pick it up: a data backfill that reruns on every environment is how you

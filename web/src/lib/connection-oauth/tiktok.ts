@@ -33,9 +33,17 @@ function expiresAtFromSeconds(seconds: unknown): string | null {
   return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
+/**
+ * `status` is the vendor HTTP status when there was one, and is ABSENT for a
+ * network/transport failure. The refresh cron needs that distinction: a 4xx
+ * means the grant is genuinely dead (reconnect), while a 5xx or an unreachable
+ * host is transient and must be retried, not treated as a dead integration.
+ */
 async function postTokenRequest(
   body: URLSearchParams,
-): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; json: Record<string, unknown> } | { ok: false; error: string; status?: number }
+> {
   const provider = getConnectionOAuthProvider("tiktok");
   if (!provider) return { ok: false, error: "TikTok provider missing." };
   try {
@@ -47,7 +55,11 @@ async function postTokenRequest(
     });
     const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
     if (!res.ok || !json) {
-      return { ok: false, error: `TikTok token request failed (${res.status}).` };
+      return {
+        ok: false,
+        error: `TikTok token request failed (${res.status}).`,
+        status: res.status,
+      };
     }
     return { ok: true, json };
   } catch {
@@ -92,7 +104,9 @@ export async function exchangeTikTokCode(input: {
 
 export async function refreshTikTokToken(
   refreshToken: string,
-): Promise<{ ok: true; token: TikTokTokenResult } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; token: TikTokTokenResult } | { ok: false; error: string; status?: number }
+> {
   const provider = getConnectionOAuthProvider("tiktok");
   if (!provider) return { ok: false, error: "TikTok provider missing." };
   const creds = getConnectionOAuthClientConfig(provider);

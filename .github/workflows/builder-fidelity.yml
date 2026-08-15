@@ -136,15 +136,17 @@ jobs:
       # images / DOM nodes / total transfer). Deterministic + offline — no browser
       # needed. Rationale + change-discipline: web/docs/builder-perf-budget.md.
       #
-      # TEMPORARY (platform-health WS-E): this enforcement step is currently
-      # red-by-default on most PRs, which trains people to merge through red.
-      # `continue-on-error: true` keeps the budget RUNNING + reported (the report
-      # still uploads below) but a breach no longer blocks the PR. The self-test
-      # step right after stays BLOCKING, so the "the gate can still fail" property
-      # is preserved. Remove this line once the budget ceilings are re-tuned to
-      # the current page weights. Do NOT delete the step.
+      # ARMED 2026-08-15 (batch C / C1). `continue-on-error: true` lived here from
+      # the platform-health WS-E pass because the renderer-CSS ceiling (70 KB, set
+      # when the sheet was ~57 KB) had been breached by ~15 KB of legitimate
+      # renderer growth since June, making the step red-by-default and training
+      # people to merge through red. The ceilings are now re-tuned to the measured
+      # reality and a second, tighter budget measures the SCOPED sheet a visitor
+      # actually downloads (see the BUDGETS comments in
+      # web/scripts/fidelity/perf-budget.ts for the per-commit diagnosis). The
+      # step is blocking again: a breach fails the PR. Re-tune deliberately with a
+      # recorded measurement — never re-add continue-on-error.
       - name: Enforce perf budget
-        continue-on-error: true
         run: npm run perf:builder-budget
 
       # Prove the gate still REJECTS bloat. A budget that can never fail is worse

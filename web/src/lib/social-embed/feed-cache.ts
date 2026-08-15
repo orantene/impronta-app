@@ -159,26 +159,39 @@ export async function refreshTenantFeed(
     }));
   }
 
-  if (rows.length === 0) return { ...base, ok: true, written: 0 };
-
-  // Upsert (not delete-then-insert): the conflict target preserves `hidden`, so
-  // an operator's moderation choice survives every refresh.
-  const { error } = await admin
-    .from("tenant_social_feed_items")
-    .upsert(rows, { onConflict: "tenant_id,provider,external_id" });
-  if (error) {
-    return { ...base, ok: false, written: 0, error: error.message };
+  // NOTE: an EMPTY `rows` here means the vendor call SUCCEEDED and the account
+  // genuinely has no posts (every failure path above already returned). This
+  // used to return early, which meant a wiped account's old posts rendered on
+  // the public page forever. Fall through to the prune below instead.
+  if (rows.length > 0) {
+    // Upsert (not delete-then-insert): the conflict target preserves `hidden`,
+    // so an operator's moderation choice survives every refresh.
+    const { error } = await admin
+      .from("tenant_social_feed_items")
+      .upsert(rows, { onConflict: "tenant_id,provider,external_id" });
+    if (error) {
+      return { ...base, ok: false, written: 0, error: error.message };
+    }
   }
 
-  // Drop rows the account no longer returns (deleted posts) so the feed does
-  // not show content the operator has removed from the network.
-  const keep = rows.map((r) => r.external_id);
-  await admin
-    .from("tenant_social_feed_items")
-    .delete()
-    .eq("tenant_id", input.tenantId)
-    .eq("provider", input.provider)
-    .not("external_id", "in", `(${keep.map((k) => `"${k}"`).join(",")})`);
+  // Drop rows the account no longer returns (deleted posts) so the feed does not
+  // show content the operator has removed from the network.
+  const pruned = await pruneStaleFeedItems(admin, {
+    tenantId: input.tenantId,
+    provider: input.provider,
+    keepExternalIds: rows.map((r) => r.external_id),
+  });
+  if (pruned.error) {
+    // Not fatal — the fresh posts are already written and the page renders. But
+    // this used to be discarded entirely, so a permanently failing prune was
+    // invisible; surface it on the result the cron logs.
+    return {
+      ...base,
+      ok: false,
+      written: rows.length,
+      error: `Wrote ${rows.length} item(s) but stale-item prune failed: ${pruned.error}`,
+    };
+  }
 
   await setIntegrationConfig(
     input.tenantId,
@@ -188,6 +201,56 @@ export async function refreshTenantFeed(
   );
 
   return { ...base, ok: true, written: rows.length };
+}
+
+/** Delete-by-id batch size — keeps the PostgREST request URL well inside limits. */
+const PRUNE_DELETE_CHUNK = 100;
+
+/**
+ * Delete the cached items for a tenant+provider whose `external_id` is NOT in
+ * `keepExternalIds` (an empty keep-list prunes everything — the emptied-account
+ * case).
+ *
+ * Why read-then-delete-by-id instead of one `.not("external_id","in",…)`: that
+ * filter had to be assembled by STRING-INTERPOLATING vendor-supplied post ids
+ * into PostgREST filter syntax, so an id containing a quote, comma or paren
+ * would either break the filter or silently change which rows it matched — on a
+ * DELETE. Here the only values that ever reach a filter are `id` UUIDs we read
+ * back from our own table, so no vendor string is ever parsed as syntax.
+ */
+async function pruneStaleFeedItems(
+  admin: SupabaseClient,
+  input: {
+    tenantId: string;
+    provider: "instagram" | "tiktok";
+    keepExternalIds: ReadonlyArray<string>;
+  },
+): Promise<{ deleted: number; error?: string }> {
+  const { data, error } = await admin
+    .from("tenant_social_feed_items")
+    .select("id, external_id")
+    .eq("tenant_id", input.tenantId)
+    .eq("provider", input.provider);
+  if (error) return { deleted: 0, error: error.message };
+  if (!data || data.length === 0) return { deleted: 0 };
+
+  const keep = new Set(input.keepExternalIds);
+  const staleIds = (data as Array<{ id: string; external_id: string }>)
+    .filter((row) => !keep.has(row.external_id))
+    .map((row) => row.id);
+  if (staleIds.length === 0) return { deleted: 0 };
+
+  let deleted = 0;
+  for (let i = 0; i < staleIds.length; i += PRUNE_DELETE_CHUNK) {
+    const chunk = staleIds.slice(i, i + PRUNE_DELETE_CHUNK);
+    const { error: deleteError } = await admin
+      .from("tenant_social_feed_items")
+      .delete()
+      .in("id", chunk);
+    if (deleteError) return { deleted, error: deleteError.message };
+    deleted += chunk.length;
+  }
+  return { deleted };
 }
 
 /** Sweep every connected social account. Used by the cron. */
