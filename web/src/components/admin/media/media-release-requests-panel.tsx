@@ -129,6 +129,7 @@ export function MediaReleaseRequestsPanel() {
       {requests !== null &&
         requests.map((request) => {
           const pendingHere = busy?.requestId === request.requestId;
+          const isOpen = request.status === "pending";
           const where = request.targetTenantName
             ? t("dashboard.mediaReleaseRequests.targetNamed").replace(
                 "{workspace}",
@@ -152,38 +153,50 @@ export function MediaReleaseRequestsPanel() {
                 </div>
               )}
 
+              {!isOpen && (
+                <div className="mt-1 text-[11.5px] font-semibold text-admin-green">
+                  {t("dashboard.mediaReleaseRequests.activeRelease")}
+                </div>
+              )}
+
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => decide(request, true)}
-                  disabled={pendingHere}
-                  className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-muted"
-                >
-                  {pendingHere && busy?.kind === "approve"
-                    ? t("dashboard.mediaReleaseRequests.working")
-                    : t("dashboard.mediaReleaseRequests.approve")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => decide(request, false)}
-                  disabled={pendingHere}
-                  className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
-                >
-                  {pendingHere && busy?.kind === "deny"
-                    ? t("dashboard.mediaReleaseRequests.working")
-                    : t("dashboard.mediaReleaseRequests.decline")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => revoke(request)}
-                  disabled={pendingHere}
-                  className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-red disabled:cursor-not-allowed disabled:text-admin-ink-muted"
-                  title={t("dashboard.mediaReleaseRequests.revokeHint")}
-                >
-                  {pendingHere && busy?.kind === "revoke"
-                    ? t("dashboard.mediaReleaseRequests.working")
-                    : t("dashboard.mediaReleaseRequests.revoke")}
-                </button>
+                {isOpen && (
+                  <button
+                    type="button"
+                    onClick={() => decide(request, true)}
+                    disabled={pendingHere}
+                    className="cursor-pointer rounded-lg bg-admin-indigo-deep px-3 py-1.5 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:bg-admin-fill disabled:text-admin-ink-muted"
+                  >
+                    {pendingHere && busy?.kind === "approve"
+                      ? t("dashboard.mediaReleaseRequests.working")
+                      : t("dashboard.mediaReleaseRequests.approve")}
+                  </button>
+                )}
+                {isOpen && (
+                  <button
+                    type="button"
+                    onClick={() => decide(request, false)}
+                    disabled={pendingHere}
+                    className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-ink-dim disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                  >
+                    {pendingHere && busy?.kind === "deny"
+                      ? t("dashboard.mediaReleaseRequests.working")
+                      : t("dashboard.mediaReleaseRequests.decline")}
+                  </button>
+                )}
+                {!isOpen && (
+                  <button
+                    type="button"
+                    onClick={() => revoke(request)}
+                    disabled={pendingHere}
+                    className="cursor-pointer rounded-lg border border-admin-border bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-admin-red disabled:cursor-not-allowed disabled:text-admin-ink-muted"
+                    title={t("dashboard.mediaReleaseRequests.revokeHint")}
+                  >
+                    {pendingHere && busy?.kind === "revoke"
+                      ? t("dashboard.mediaReleaseRequests.working")
+                      : t("dashboard.mediaReleaseRequests.revoke")}
+                  </button>
+                )}
               </div>
             </div>
           );

@@ -10807,6 +10807,7 @@
       "selectedCount": "{count} seleccionadas"
     },
     "mediaReleaseRequests": {
+      "activeRelease": "Liberación activa. El talento puede usar estas fotos en cualquier lugar.",
       "title": "Solicitudes de liberación de fotos",
       "body": "Los talentos que representas pueden pedir usar fotos tuyas fuera de tu sitio. Si apruebas, podrán hacerlo; si rechazas, no cambia nada. Puedes revocar una liberación después y las fotos dejarán de aparecer fuera de tu sitio.",
       "loading": "Cargando solicitudes...",

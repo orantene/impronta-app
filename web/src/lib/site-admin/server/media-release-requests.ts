@@ -184,7 +184,12 @@ export type MediaReleaseRequestSummary = {
   status: string;
 };
 
-/** Pending release requests addressed to this workspace. */
+/**
+ * Release requests addressed to this workspace: pending ones (to decide) plus
+ * approved ones whose owner grant is still active (to revoke). Without the
+ * approved rows the revoke path would be UI-orphaned the moment a request is
+ * approved — the backend can revoke, but nothing on screen offers it.
+ */
 export async function listMediaReleaseRequests(
   admin: SupabaseClient,
   tenantId: string,
@@ -195,7 +200,7 @@ export async function listMediaReleaseRequests(
       "id, talent_profile_id, requested_scopes, request_message, requested_at, status",
     )
     .eq("requesting_tenant_id", tenantId)
-    .eq("status", "pending")
+    .in("status", ["pending", "approved"])
     .order("requested_at", { ascending: false })
     .limit(100);
 
@@ -217,7 +222,31 @@ export async function listMediaReleaseRequests(
 
   if (rows.length === 0) return { ok: true, data: [] };
 
-  const parsed = rows.map((r) => ({ row: r, scopes: parseReleaseScopes(r.requested_scopes) }));
+  let parsed = rows.map((r) => ({ row: r, scopes: parseReleaseScopes(r.requested_scopes) }));
+
+  // An approved request is only actionable while its owner grant is live —
+  // once revoked it is history, not a card.
+  const approvedAssetIds = [
+    ...new Set(
+      parsed.filter((p) => p.row.status === "approved").flatMap((p) => p.scopes.assetIds),
+    ),
+  ];
+  if (approvedAssetIds.length > 0) {
+    const { data: liveGrants } = await admin
+      .from("media_grants")
+      .select("asset_id")
+      .in("asset_id", approvedAssetIds)
+      .eq("grant_kind", "owner")
+      .is("revoked_at", null);
+    const liveIds = new Set(
+      ((liveGrants ?? []) as Array<{ asset_id: string }>).map((g) => g.asset_id),
+    );
+    parsed = parsed.filter(
+      (p) => p.row.status !== "approved" || p.scopes.assetIds.some((id) => liveIds.has(id)),
+    );
+  }
+
+  if (parsed.length === 0) return { ok: true, data: [] };
   const [talentNames, tenantNames] = await Promise.all([
     loadTalentNames(admin, [...new Set(parsed.map((p) => p.row.talent_profile_id))]),
     loadTenantNames(

@@ -10807,6 +10807,7 @@
       "selectedCount": "{count} selected"
     },
     "mediaReleaseRequests": {
+      "activeRelease": "Release active. The talent can use these photos anywhere.",
       "title": "Photo release requests",
       "body": "Talents you represent can ask to use photos you own outside your site. Approving lets them; declining changes nothing. You can revoke a release later and the photos come down everywhere outside your site.",
       "loading": "Loading requests...",
