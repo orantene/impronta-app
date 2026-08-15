@@ -21,10 +21,12 @@ export async function POST(req: NextRequest) {
   }
 
   let mediaAssetId: string;
+  let repair = false;
   try {
-    const body = (await req.json()) as { mediaAssetId?: unknown };
+    const body = (await req.json()) as { mediaAssetId?: unknown; repair?: unknown };
     if (typeof body.mediaAssetId !== "string") throw new Error("bad input");
     mediaAssetId = body.mediaAssetId;
+    repair = body.repair === true;
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid request body." }, { status: 400 });
   }
@@ -36,7 +38,14 @@ export async function POST(req: NextRequest) {
     // A manual bake still respects "watermark off" — the operator asked for a
     // preview of a feature they may not have turned on. The release path
     // passes false, because ticking "require watermark" IS the enable.
-    requirePresetEnabled: true,
+    //
+    // `repair: true` is the exception (A4). This route is the only way to
+    // rebuild a derivative that a release approval failed to bake, and the
+    // approval path itself passes `requirePresetEnabled: false` — so with the
+    // default the route refused EXACTLY the disabled-preset case it exists to
+    // repair. Staff auth is already required above; opting in explicitly keeps
+    // the "preview" default honest while making the repair reachable.
+    requirePresetEnabled: !repair,
   });
 
   // Errors here are configuration or source problems, not server faults; the

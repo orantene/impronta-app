@@ -152,7 +152,12 @@ const BUDGETS: Record<string, number> = {
   // pass-2026-08-15.md §3a). Each gate is a call to checkTalentUploadQuota plus
   // the comment explaining why that path is or is not a net add; the logic
   // itself lives in lib/media/talent-storage-usage.ts, not here.
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2384,
+  // +34 (2026-08-15): Batch A / A8 — the signed-upload quota gate moves BEFORE
+  // the signed URL is minted (it ran only after the bytes were already in
+  // storage, so a capped talent could burn unbounded storage on refusals), and
+  // the register-time backstop now deletes the orphan it refuses. Two call
+  // sites plus the comments explaining the ordering; no new logic lands here.
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2418,
   "src/app/t/[profileCode]/profile-view.tsx": 2634,
   "src/components/inquiry/InquiryDrawer.tsx": 2149,
 

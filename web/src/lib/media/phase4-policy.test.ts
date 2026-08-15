@@ -6,6 +6,7 @@ import {
   normalizeShootDate,
   splitFolderCollections,
 } from "./collections";
+import { isAllowedLogoUrl } from "./logo-url-allowlist";
 import { mayDownloadOriginal, resolveOriginalsAccess } from "./originals-policy";
 import {
   applyWatermarkPath,
@@ -373,4 +374,51 @@ test("watermark-on-release is available on every tier today, including free", ()
 test("release requests are unmetered on every tier", () => {
   assert.equal(workspaceReleaseRequestAllowance("free"), null);
   assert.equal(workspaceReleaseRequestAllowance(undefined), null);
+});
+
+// ─── Batch A / A7 — the watermark bake's logo fetch (blind SSRF) ────────────
+//
+// `agencies.settings.branding.logo_url` is tenant-admin-controlled and went
+// straight into fetch(). Allowlist, never denylist: the only place this product
+// stores a logo is its own Supabase project's storage.
+
+const PROJECT = "https://abcdefgh.supabase.co";
+
+test("a real uploaded logo on the project's storage host is allowed", () => {
+  assert.equal(
+    isAllowedLogoUrl(`${PROJECT}/storage/v1/object/public/media-public/t/logo.png`, PROJECT),
+    true,
+  );
+});
+
+test("the cloud metadata endpoint and other internal hosts are refused", () => {
+  // The payload this fix exists for. Blind SSRF still leaks through timing and
+  // can have effects of its own on the target.
+  assert.equal(isAllowedLogoUrl("http://169.254.169.254/latest/meta-data/", PROJECT), false);
+  assert.equal(isAllowedLogoUrl("http://localhost:3000/api/cron/reap-orphaned-media", PROJECT), false);
+  assert.equal(isAllowedLogoUrl("https://10.0.0.5/internal", PROJECT), false);
+});
+
+test("non-https schemes are refused outright", () => {
+  assert.equal(isAllowedLogoUrl(`http://abcdefgh.supabase.co/storage/v1/x.png`, PROJECT), false);
+  assert.equal(isAllowedLogoUrl("file:///etc/passwd", PROJECT), false);
+  assert.equal(isAllowedLogoUrl("not a url at all", PROJECT), false);
+});
+
+test("a look-alike host does not pass", () => {
+  // Substring matching would let these through; host equality does not.
+  assert.equal(isAllowedLogoUrl("https://abcdefgh.supabase.co.evil.test/storage/v1/x.png", PROJECT), false);
+  assert.equal(isAllowedLogoUrl("https://evil.test/abcdefgh.supabase.co/storage/v1/x.png", PROJECT), false);
+  assert.equal(isAllowedLogoUrl("https://ijklmnop.supabase.co/storage/v1/x.png", PROJECT), false);
+});
+
+test("the right host but a non-storage path does not pass", () => {
+  assert.equal(isAllowedLogoUrl(`${PROJECT}/rest/v1/media_assets?select=*`, PROJECT), false);
+  assert.equal(isAllowedLogoUrl(`${PROJECT}/auth/v1/admin/users`, PROJECT), false);
+});
+
+test("an unconfigured project URL refuses everything rather than allowing anything", () => {
+  // With no host to compare against, nothing can be proven safe.
+  assert.equal(isAllowedLogoUrl(`${PROJECT}/storage/v1/object/public/x.png`, undefined), false);
+  assert.equal(isAllowedLogoUrl(`${PROJECT}/storage/v1/object/public/x.png`, ""), false);
 });

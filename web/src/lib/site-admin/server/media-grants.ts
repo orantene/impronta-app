@@ -265,6 +265,8 @@ export {
   listMediaReleaseRequests,
   decideMediaReleaseRequest,
   revokeMediaRelease,
+  rollBackFailedReleaseBakes,
+  selectGrantsToRevoke,
   type ReleaseRequestOutcome,
   type MediaReleaseRequestSummary,
   type ReleaseDecisionOutcome,

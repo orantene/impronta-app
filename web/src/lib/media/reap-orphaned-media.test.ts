@@ -3,9 +3,13 @@ import { describe, it } from "node:test";
 
 import {
   DEFAULT_GRACE_DAYS,
+  DEFAULT_REAP_ALERT_THRESHOLD,
   classifyStorageObjects,
   collectStorageRefsFromJson,
   matchProtectedRule,
+  reapAlertBody,
+  reapAlertThreshold,
+  shouldAlertOnReapReport,
   storagePathFromPublicUrl,
   type ClassifyInput,
   type MediaAssetRow,
@@ -451,5 +455,89 @@ describe("storagePathFromPublicUrl", () => {
       "agency_branding",
     );
     assert.deepEqual(paths(refs).sort(), ["agency-logos/t/fav.png", "agency-logos/t/logo.png"]);
+  });
+});
+
+// ─── Batch A / A10 — the report has to reach a human ────────────────────────
+//
+// The reaper's full report only ever existed in the HTTP response body, which
+// Vercel discards for a cron invocation. These rules decide when a run pages
+// the platform admins instead of vanishing.
+
+describe("reaper alerting", () => {
+  const report = (over: Partial<Parameters<typeof reapAlertBody>[0]> = {}) => ({
+    dryRun: true,
+    maxDeletions: 500,
+    wouldDelete: { count: 0, bytes: 0 },
+    cappedByLimit: false,
+    deleted: null,
+    ...over,
+  });
+
+  it("stays quiet below the threshold", () => {
+    assert.equal(
+      shouldAlertOnReapReport(report({ wouldDelete: { count: 9, bytes: 1 } }), 250),
+      false,
+    );
+  });
+
+  it("alerts at the threshold, not one past it", () => {
+    assert.equal(
+      shouldAlertOnReapReport(report({ wouldDelete: { count: 250, bytes: 1 } }), 250),
+      true,
+    );
+  });
+
+  it("alerts whenever the per-run cap bit, however small the count looks", () => {
+    // cappedByLimit means there was MORE than the run was allowed to touch.
+    // Judging on the capped number alone would hide exactly the big backlog
+    // the alert exists for.
+    assert.equal(
+      shouldAlertOnReapReport(
+        report({ wouldDelete: { count: 3, bytes: 1 }, cappedByLimit: true }),
+        250,
+      ),
+      true,
+    );
+  });
+
+  it("reads the threshold from env, falling back to the measured default", () => {
+    assert.equal(reapAlertThreshold({} as NodeJS.ProcessEnv), DEFAULT_REAP_ALERT_THRESHOLD);
+    assert.equal(
+      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "10" } as unknown as NodeJS.ProcessEnv),
+      10,
+    );
+    // Nonsense and non-positive values must not silently disable alerting.
+    assert.equal(
+      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "0" } as unknown as NodeJS.ProcessEnv),
+      DEFAULT_REAP_ALERT_THRESHOLD,
+    );
+    assert.equal(
+      reapAlertThreshold({ MEDIA_REAPER_ALERT_THRESHOLD: "lots" } as unknown as NodeJS.ProcessEnv),
+      DEFAULT_REAP_ALERT_THRESHOLD,
+    );
+  });
+
+  it("says whether anything was actually deleted", () => {
+    const dry = reapAlertBody(report({ wouldDelete: { count: 381, bytes: 85 * 1024 * 1024 } }));
+    assert.match(dry, /^Dry run: 381 storage objects \(85 MB\)/);
+    assert.match(dry, /Nothing was deleted\./);
+
+    const live = reapAlertBody(
+      report({
+        dryRun: false,
+        wouldDelete: { count: 25, bytes: 1024 },
+        deleted: { count: 25, bytes: 1024 },
+      }),
+    );
+    assert.match(live, /^Live run/);
+    assert.match(live, /25 were deleted\./);
+  });
+
+  it("names the cap when it bit, so the number is not read as the whole picture", () => {
+    const body = reapAlertBody(
+      report({ wouldDelete: { count: 25, bytes: 0 }, cappedByLimit: true, maxDeletions: 25 }),
+    );
+    assert.match(body, /per-run cap of 25 was reached/);
   });
 });
