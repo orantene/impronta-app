@@ -323,4 +323,9 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Send backward": "Enviar atrás",
   "Bring to front": "Traer al frente",
   "Send to back": "Enviar al fondo",
+  // ── Lane E (2026) — slash-command "/" insert menu ─────────────────────
+  "Insert block": "Insertar bloque",
+  "No blocks match “{query}”": "Ningún bloque coincide con “{query}”",
+  "Type to search blocks…": "Escribe para buscar bloques…",
+  "Search blocks to insert": "Buscar bloques para insertar",
 };

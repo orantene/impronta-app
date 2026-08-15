@@ -12,6 +12,14 @@
  * the original Phase-C cap — inline free color, added under the "mimic any
  * design" directive. Anything further is a new amendment, not a drive-by.
  *
+ * 2026 page-builder batch (Lane E) adds one more: `SlashCommandPlugin`, a
+ * "/" insert menu inside `CanvasEditOverlay`'s text editing (see its own
+ * header doc). It's a NEW INSERT SURFACE, not a formatting shortcut, so it
+ * is deliberately outside the "⌘B / ⌘I / ⌘K only" formatting-shortcut cap
+ * above — that cap lives in `KeyboardShortcutsPlugin.tsx` and was left
+ * untouched. No new Lexical packages were added; the plugin uses only
+ * `lexical` core commands, already inside the allow-list.
+ *
  * Public render path is unchanged — `shared/rich-text.tsx`'s
  * `renderInlineRich()` continues to handle public visitors. This module
  * is edit-mode-only.

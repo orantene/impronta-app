@@ -47,6 +47,10 @@ import {
   AutoFocusCaretPlugin,
   type CaretPoint,
 } from "./plugins/AutoFocusCaretPlugin";
+import {
+  SlashCommandPlugin,
+  type SlashCommandInsertConfig,
+} from "./plugins/SlashCommandPlugin";
 
 export type RichEditorVariant = "single" | "multi";
 
@@ -80,6 +84,16 @@ interface Props {
    * when `autoFocus` is set.
    */
   autoFocusCaretPoint?: CaretPoint | null;
+  /**
+   * Lane E (2026) — typing "/" opens a floating insert menu that inserts a
+   * new builder block after the current one. Omitted (the default) at every
+   * mount that isn't editing a freeform canvas block — the inspector's plain
+   * text fields don't have a "block after me" to insert. See
+   * `SlashCommandPlugin.tsx`.
+   */
+  slashCommandInsert?: SlashCommandInsertConfig;
+  /** Fires as the slash menu opens/closes — see `CanvasEditOverlay`'s guard. */
+  onSlashMenuOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -120,6 +134,8 @@ export function RichEditor({
   suppressFloatingToolbar,
   autoFocus,
   autoFocusCaretPoint = null,
+  slashCommandInsert,
+  onSlashMenuOpenChange,
 }: Props) {
   const [linkAnchor, setLinkAnchor] = useState<{
     rect: DOMRect;
@@ -195,6 +211,12 @@ export function RichEditor({
         {variant === "single" ? <SingleLinePlugin /> : null}
         {autoFocus ? (
           <AutoFocusCaretPlugin caretPoint={autoFocusCaretPoint} />
+        ) : null}
+        {slashCommandInsert ? (
+          <SlashCommandPlugin
+            config={slashCommandInsert}
+            onOpenChange={onSlashMenuOpenChange}
+          />
         ) : null}
         <LinkPickerPopover
           anchor={linkAnchor}
