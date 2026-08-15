@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { normalizeShootDate } from "@/lib/media/collections";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -65,10 +66,17 @@ export async function actionListMediaFolders(): Promise<ActionResult<MediaFolder
 
 // ─── Create folder ─────────────────────────────────────────────────────────────
 
+/**
+ * `shootDate` (ISO day) is the whole of the phase 4 "collections" feature: a
+ * folder with one IS a per-shoot collection, and the Media page groups it
+ * accordingly. An unparseable value is dropped rather than rejected — a bad
+ * date must not cost someone their folder.
+ */
 export async function actionCreateMediaFolder(
   name: string,
   color?: string,
   isPrivate = false,
+  shootDate?: string | null,
 ): Promise<ActionResult<MediaFolder>> {
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -88,6 +96,8 @@ export async function actionCreateMediaFolder(
       color: color ?? null,
       is_private: isPrivate,
       created_by: auth.user.id,
+      shoot_date: normalizeShootDate(shootDate),
+      is_collection: normalizeShootDate(shootDate) !== null,
     })
     .select("id, name, color, is_private, share_token, share_expires_at, share_view_count, created_at")
     .single();
@@ -117,6 +127,7 @@ export async function actionRenameMediaFolder(
   folderId: string,
   name: string,
   color?: string,
+  shootDate?: string | null,
 ): Promise<ActionResult<null>> {
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -129,6 +140,13 @@ export async function actionRenameMediaFolder(
 
   const patch: Record<string, unknown> = { name: trimmed, updated_at: new Date().toISOString() };
   if (color !== undefined) patch.color = color;
+  // `undefined` = the caller is not editing the shoot date. `null` / "" =
+  // clear it, which also demotes the collection back to an ordinary folder.
+  if (shootDate !== undefined) {
+    const day = normalizeShootDate(shootDate);
+    patch.shoot_date = day;
+    patch.is_collection = day !== null;
+  }
 
   const { error } = await admin
     .from("media_folders")

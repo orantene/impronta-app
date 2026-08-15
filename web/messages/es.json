@@ -10448,8 +10448,14 @@
         "hintExternal": "Otro espacio de trabajo es dueño de esta foto. Permanece en su sitio a menos que la liberen.",
         "hintTalent": "El talento es dueño de esta foto. Lo acompaña a cualquier espacio de trabajo al que se una.",
         "hintPlatform": "Imágenes iniciales de la plataforma, incluidas con tu espacio de trabajo. Reemplázalas con tus propias fotos cuando estés listo."
-      }
-    },
+      },
+      "sectionCollections": "Colecciones",
+      "shootDate": "Fecha de la sesión (opcional)",
+      "shootDateHint": "Ponle una fecha a esta carpeta y se convierte en una colección: una sesión, agrupada y ordenada de más reciente a más antigua.",
+      "downloadOriginal": "Descargar",
+      "downloadWorking": "Preparando...",
+      "downloadGotOriginal": "Archivo original.",
+      "downloadGotWebSize": "Archivo en tamaño web."    },
     "adminPitchCompose": {
       "drawerTitle": "Enviar propuesta",
       "drawerDescSent": "Tu propuesta está activa, comparte el enlace con tu cliente",
@@ -10846,7 +10852,10 @@
       "working": "Procesando...",
       "approved": "Se liberaron {count} fotos.",
       "denied": "Solicitud rechazada. No cambió nada.",
-      "revoked": "Se revocaron {count} fotos."
+      "revoked": "Se revocaron {count} fotos.",
+      "watermarkLabel": "Exigir marca de agua",
+      "watermarkHint": "Las fotos liberadas aparecen en otros sitios con tu logo. Configura el logo y su posición en Ajustes, Marca.",
+      "approvedWatermarked": "Liberaste {count} foto(s) con tu marca de agua."
     },
     "mediaPickerLock": {
       "badge": "Bloqueada",

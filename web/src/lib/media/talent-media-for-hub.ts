@@ -30,6 +30,13 @@ import "server-only";
  * candidate that fails the rule falls through to the next-best variant rather
  * than blanking the card.
  *
+ * WATERMARK-ON-RELEASE (phase 4) — a release approved with "require watermark"
+ * may only be served as the baked derivative. That swap rides the same two
+ * passes as the two-key filter and lives in `watermark-on-release.ts`; see its
+ * header for why a missing derivative HIDES the photo instead of failing open.
+ * It only runs while `MEDIA_TWO_KEY_GRANTS_ENABLED` is on, because a grant
+ * that is not being enforced has no conditions to enforce either.
+ *
  * KIND-AGNOSTIC
  * ─────────────
  * `tenantId` is opaque. This module never asks whether the org is an agency or
@@ -73,6 +80,12 @@ import {
   type TalentThumbCandidate,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import {
+  applyWatermarkPath,
+  EMPTY_WATERMARK_POLICY,
+  resolveWatermarkPolicy,
+  type WatermarkPolicy,
+} from "@/lib/media/watermark-on-release";
 
 /** Opaque tenant id, or `null` for the master (non-hub) surface. */
 export type HubTenantId = string | null;
@@ -225,8 +238,16 @@ export async function resolveTalentMediaForHub(
     }
   }
 
+  // Watermark-on-release (phase 4): a release approved with "require
+  // watermark" may only be served as the baked derivative. Same shape as the
+  // two-key pass — resolve once, substitute or drop.
+  const curatedIds = [...new Set(coverByTalent.values())];
+  const watermark = enforcing
+    ? await resolveWatermarkPolicy(client, curatedIds, tenantId)
+    : EMPTY_WATERMARK_POLICY;
+
   // Resolve the curated asset ids to public URLs in one round trip.
-  const urlByAssetId = await loadAssetUrls(client, [...new Set(coverByTalent.values())]);
+  const urlByAssetId = await loadAssetUrls(client, curatedIds, watermark);
 
   const needsDefault: string[] = [];
   for (const id of ids) {
@@ -279,7 +300,23 @@ async function loadDefaultThumbs(
     tenantId,
   );
   const permitted: TalentThumbCandidate[] = candidates.filter((c) => allowed.has(c.id));
-  return pickBestThumbs(client, permitted);
+
+  // Phase 4: swap in the baked derivative BEFORE the rank picks a winner, and
+  // drop a candidate whose watermark was never baked, so the rank falls
+  // through to the next-best photo instead of serving an unmarked original.
+  const watermark = await resolveWatermarkPolicy(
+    client,
+    permitted.map((c) => c.id),
+    tenantId,
+  );
+  const servable: TalentThumbCandidate[] = [];
+  for (const candidate of permitted) {
+    const path = applyWatermarkPath(watermark, candidate.id, candidate.storage_path);
+    if (!path) continue;
+    servable.push(path === candidate.storage_path ? candidate : { ...candidate, storage_path: path });
+  }
+
+  return pickBestThumbs(client, servable);
 }
 
 /**
@@ -347,6 +384,7 @@ async function loadHubCuration(
 async function loadAssetUrls(
   client: SupabaseClient,
   assetIds: string[],
+  watermark: WatermarkPolicy,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (assetIds.length === 0) return out;
@@ -359,7 +397,12 @@ async function loadAssetUrls(
 
   for (const row of (data ?? []) as Array<{ id: string; storage_path: string | null }>) {
     if (!row.storage_path) continue;
-    out.set(row.id, mediaPublicUrl(client, row.storage_path));
+    // null = watermark required, none baked. Leaving it out of the map makes
+    // the caller fall through to a default photo rather than serving the bare
+    // original the workspace said may not travel unmarked.
+    const path = applyWatermarkPath(watermark, row.id, row.storage_path);
+    if (!path) continue;
+    out.set(row.id, mediaPublicUrl(client, path));
   }
   return out;
 }

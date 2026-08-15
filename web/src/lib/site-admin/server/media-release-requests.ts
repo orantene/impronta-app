@@ -293,6 +293,13 @@ export type ReleaseDecisionOutcome = {
   granted: number;
   notified: number;
   bustKeys: MediaGrantBustKey[];
+  /**
+   * The asset ids the owner key was just written for. Empty on a decline.
+   * Phase 4 needs them: watermark-on-release bakes the derivative at approval
+   * time, and the caller cannot re-derive this list without re-running the
+   * ownership filter this function already ran.
+   */
+  grantedAssetIds: string[];
 };
 
 /**
@@ -402,6 +409,7 @@ export async function decideMediaReleaseRequest(
       granted: input.approve ? count : 0,
       notified,
       bustKeys: bustKeysFor(row.talent_profile_id, input.tenantId, targetTenantId),
+      grantedAssetIds: input.approve ? eligibleIds : [],
     },
   };
 }

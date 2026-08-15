@@ -79,6 +79,16 @@ function makeClient(tables: StubTables, options: RpcOptions = {}) {
       rpcCalls.push({ fn, args });
       if (options.rpcError) return Promise.resolve({ data: null, error: { message: "boom" } });
       const ids = (args.p_asset_ids as string[]) ?? [];
+      // Phase 4: a SECOND predicate rides the same resolver. It answers about
+      // watermark conditions, and defaults to "no conditions" so every
+      // pre-phase-4 expectation in this file still describes today's product.
+      if (fn === "media_assets_watermark_required_on_tenant") {
+        const marked = options.watermarkRequired ?? [];
+        return Promise.resolve({
+          data: ids.filter((id) => marked.includes(id)).map((asset_id) => ({ asset_id })),
+          error: null,
+        });
+      }
       const allowed = options.presentable ?? ids;
       return Promise.resolve({
         data: ids.filter((id) => allowed.includes(id)).map((asset_id) => ({ asset_id })),
@@ -96,7 +106,12 @@ function makeClient(tables: StubTables, options: RpcOptions = {}) {
   return { client: client as unknown as SupabaseClient, queried, rpcCalls };
 }
 
-type RpcOptions = { presentable?: string[]; rpcError?: boolean };
+type RpcOptions = {
+  presentable?: string[];
+  rpcError?: boolean;
+  /** Phase 4 — asset ids an active owner grant says may only travel marked. */
+  watermarkRequired?: string[];
+};
 
 const GRANTS_FLAG = "MEDIA_TWO_KEY_GRANTS_ENABLED";
 
@@ -406,4 +421,80 @@ test("filterPresentableAssetIds drops what the predicate rejects", async () => {
   const { client } = makeClient({}, { presentable: ["a"] });
   const allowed = await filterPresentableAssetIds(client, ["a", "b"], TENANT_A);
   assert.deepEqual([...allowed], ["a"]);
+});
+
+// ─── 5. phase 4 — watermark-on-release ──────────────────────────────────────
+
+test("a release with no watermark condition is untouched", async () => {
+  const { client, rpcCalls } = makeClient({
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+
+  const out = await withGrantsFlag("1", () =>
+    resolveTalentCardThumbsForHub(client, [TALENT], TENANT_A),
+  );
+
+  assert.equal(out.get(TALENT), "https://cdn.test/d.jpg");
+  assert.ok(
+    rpcCalls.some((c) => c.fn === "media_assets_watermark_required_on_tenant"),
+    "the watermark condition must be asked about, never assumed absent",
+  );
+});
+
+test("a watermark-required photo serves the BAKED derivative, not the original", async () => {
+  const { client } = makeClient(
+    {
+      media_assets: [
+        { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+        // The bake that ran at approval time.
+        {
+          id: "wm1",
+          source_media_asset_id: "a1",
+          storage_path: "wm/a1.jpg",
+          variant_kind: "watermarked",
+        },
+      ],
+    },
+    { watermarkRequired: ["a1"] },
+  );
+
+  const out = await withGrantsFlag("1", () =>
+    resolveTalentCardThumbsForHub(client, [TALENT], TENANT_B),
+  );
+
+  assert.equal(out.get(TALENT), "https://cdn.test/wm/a1.jpg");
+});
+
+test("a watermark-required photo with NO bake is not served at all", async () => {
+  // Fails CLOSED on purpose: serving the bare original would break the promise
+  // the owning workspace made when it required a watermark.
+  const { client } = makeClient(
+    {
+      media_assets: [
+        { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+      ],
+    },
+    { watermarkRequired: ["a1"] },
+  );
+
+  const out = await withGrantsFlag("1", () =>
+    resolveTalentCardThumbsForHub(client, [TALENT], TENANT_B),
+  );
+
+  assert.equal(out.get(TALENT), undefined);
+});
+
+test("the watermark predicate is asked about the SAME surface as the two-key one", async () => {
+  const { client, rpcCalls } = makeClient({
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+
+  await withGrantsFlag("1", () => resolveTalentCardThumbsForHub(client, [TALENT], null));
+
+  const surfaces = new Set(rpcCalls.map((c) => c.args.p_tenant_id));
+  assert.deepEqual([...surfaces], [null], "the master surface must not leak a tenant id");
 });
