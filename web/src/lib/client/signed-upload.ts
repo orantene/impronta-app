@@ -118,7 +118,9 @@ export async function uploadTalentMedia(opts: {
     originalFilename: file.name || null,
   });
   if (!registered.ok) {
-    return { ok: false, fallbackToLegacy: true, error: registered.error };
+    // A quota refusal is a decision, not a transport failure: never retry it.
+    const fallbackToLegacy = registered.quotaBlocked !== true;
+    return { ok: false, fallbackToLegacy, error: registered.error };
   }
 
   return {

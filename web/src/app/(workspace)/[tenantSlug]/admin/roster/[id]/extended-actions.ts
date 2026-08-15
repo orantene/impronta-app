@@ -21,6 +21,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
+import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 
 type Result<T = null> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -423,6 +424,16 @@ export async function registerPortfolioPhoto(
     if (!(await rosterMatch(r.admin, r.scope.tenantId, talentId))) {
       return { ok: false, error: "Talent not on this roster." };
     }
+
+    // Plan count quota (media pricing pass 2026-08-15 §3a). A portfolio photo
+    // is a net add, charged to the talent's plan because the row is
+    // talent-owned regardless of which side of the workspace uploaded it.
+    const quota = await checkTalentUploadQuota({
+      supabase: r.admin,
+      talentProfileId: talentId,
+      incomingAssets: 1,
+    });
+    if (!quota.allowed) return { ok: false, error: quota.message };
 
     const me = (await r.supabase?.auth.getUser())?.data.user?.id ?? null;
 

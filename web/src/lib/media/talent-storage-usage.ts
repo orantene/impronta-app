@@ -1,0 +1,94 @@
+/**
+ * talent-storage-usage.ts — the live half of the talent media count quota.
+ *
+ * `lib/billing/media-entitlements.ts` decides IF a count is over the cap; this
+ * module is the only thing that reads WHAT the count currently is. Splitting
+ * them keeps the entitlements module pure (no Supabase, testable with plain
+ * numbers) while giving every upload entry point one import to gate on.
+ *
+ * WHAT COUNTS
+ * ───────────
+ * Every live `media_assets` row the talent owns: `owner_talent_profile_id = $1
+ * AND deleted_at IS NULL`. Deliberately NOT filtered by `purpose` or
+ * `variant_kind` — the talent-owned insert sites across the codebase do not set
+ * `purpose` consistently, so filtering on it would undercount and let the cap
+ * be walked past through whichever entry point happens to omit the column.
+ * This unfiltered definition is also the one the pricing pass measured against
+ * (`web/docs/media-pricing-pass-2026-08-15.md` §2): it reproduces the doc's
+ * numbers exactly, max 108 photos and zero talents over the 150 cap.
+ *
+ * NO CACHING, on purpose. The count has to be read-after-write correct or two
+ * uploads in the same render can both see the pre-upload number and both pass
+ * a cap they jointly break. See `incident_next_fetch_memoization_render_writes`.
+ *
+ * Cheap: `idx_media_assets_owner` is already a partial btree on
+ * `owner_talent_profile_id WHERE deleted_at IS NULL`. No migration needed.
+ */
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import {
+  checkTalentAssetCountAllowance,
+  normalizeTalentMediaPlanKey,
+  type AssetCountVerdict,
+  type TalentMediaPlanKey,
+} from "@/lib/billing/media-entitlements";
+
+/**
+ * Live count of media assets a talent owns. Returns null when the query fails,
+ * which callers MUST treat as "unknown, do not block" — a transient Supabase
+ * error must never present as a quota refusal to a talent who is under cap.
+ */
+export async function countLiveTalentAssets(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<number | null> {
+  const { count, error } = await supabase
+    .from("media_assets")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_talent_profile_id", talentProfileId)
+    .is("deleted_at", null);
+  if (error) return null;
+  return count ?? 0;
+}
+
+/** The talent's plan key, degrading to the permissive entry when unreadable. */
+export async function readTalentMediaPlanKey(
+  supabase: SupabaseClient,
+  talentProfileId: string,
+): Promise<TalentMediaPlanKey> {
+  const { data, error } = await supabase
+    .from("talent_profiles")
+    .select("talent_plan_key")
+    .eq("id", talentProfileId)
+    .maybeSingle();
+  if (error || !data) return normalizeTalentMediaPlanKey(null);
+  return normalizeTalentMediaPlanKey((data as { talent_plan_key: unknown }).talent_plan_key);
+}
+
+/**
+ * THE gate every talent-owned upload entry point calls before its
+ * `media_assets` insert. One round trip for the count, one for the plan key.
+ *
+ * FAILS OPEN by design. If either read errors we return an allowing verdict
+ * rather than a refusal: the caps are an abuse backstop that no current talent
+ * can reach (doc §3a), so wrongly blocking a real upload during a Supabase
+ * blip is strictly worse than wrongly allowing one photo past a cap.
+ */
+export async function checkTalentUploadQuota(input: {
+  supabase: SupabaseClient;
+  talentProfileId: string;
+  /** How many rows this operation is about to insert. Bulk paths pass > 1. */
+  incomingAssets: number;
+}): Promise<AssetCountVerdict> {
+  const used = await countLiveTalentAssets(input.supabase, input.talentProfileId);
+  if (used === null) {
+    return { allowed: true, remainingAssets: null, warn: false, message: "", code: "ok" };
+  }
+  const planKey = await readTalentMediaPlanKey(input.supabase, input.talentProfileId);
+  return checkTalentAssetCountAllowance({
+    planKey,
+    usedAssets: used,
+    incomingAssets: input.incomingAssets,
+  });
+}

@@ -10455,7 +10455,8 @@
       "downloadOriginal": "Descargar",
       "downloadWorking": "Preparando...",
       "downloadGotOriginal": "Archivo original.",
-      "downloadGotWebSize": "Archivo en tamaño web."    },
+      "downloadGotWebSize": "Archivo en tamaño web."
+    },
     "adminPitchCompose": {
       "drawerTitle": "Enviar propuesta",
       "drawerDescSent": "Tu propuesta está activa, comparte el enlace con tu cliente",
@@ -10862,6 +10863,10 @@
       "aWorkspace": "un espacio",
       "ownedByWorkspace": "{workspace} es dueño de esta foto, así que solo puede ir en su sitio. Pídeles que la liberen y podrás usarla aquí.",
       "masterOff": "{workspace} es dueño de esta foto y la mantiene solo en su sitio. Pídeles que la liberen y podrás usarla aquí."
+    },
+    "mediaPicker": {
+      "quotaLimitReached": "Has alcanzado el limite de fotos de tu plan. Elimina algunas fotos que ya no necesites o mejora tu plan para agregar mas.",
+      "quotaApproachingLimit": "Te quedan {count} fotos disponibles en tu plan. Elimina fotos que ya no necesites o mejora tu plan para tener mas espacio."
     }
   },
   "admin": {
