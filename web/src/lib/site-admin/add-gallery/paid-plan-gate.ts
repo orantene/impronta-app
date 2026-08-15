@@ -1,3 +1,5 @@
+import { isPaidBuilderPlan } from "@/lib/site-admin/builder-capabilities";
+
 import type { AddGalleryItem } from "./types";
 
 /**
@@ -10,9 +12,12 @@ import type { AddGalleryItem } from "./types";
  */
 export function paidPlanInsertBlockMessage(
   item: Pick<AddGalleryItem, "requiresPaidPlan">,
-  workspacePlan: string,
+  workspacePlan: string | null | undefined,
 ): string | null {
   if (!item.requiresPaidPlan) return null;
-  if (workspacePlan !== "free") return null;
+  // Fail CLOSED: `isPaidBuilderPlan` normalizes first, so an unknown/empty/null
+  // plan collapses to `free` and the block stays gated. Do NOT inline this as
+  // `workspacePlan !== "free"` — that reads any unexpected value as paid.
+  if (isPaidBuilderPlan(workspacePlan)) return null;
   return "This block is available on paid plans. Upgrade in Settings, Plan & billing.";
 }

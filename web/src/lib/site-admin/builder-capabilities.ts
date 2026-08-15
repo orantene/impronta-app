@@ -133,6 +133,23 @@ export function getBuilderPlanPolicy(
   return BUILDER_PLAN_POLICY[normalizeBuilderWorkspacePlan(planTier)];
 }
 
+/**
+ * Single source of truth for "is this workspace on a paid plan?".
+ *
+ * Normalizes first, so an unknown / empty / null plan string collapses to
+ * `free` and the predicate returns **false** — paid-plan gates must fail
+ * CLOSED. Comparing a raw string against `"free"` does the opposite (any
+ * garbage value reads as paid), which is why call sites must use this helper
+ * rather than an inline comparison.
+ *
+ * `legacy` counts as paid: its policy row grants every paid capability.
+ */
+export function isPaidBuilderPlan(
+  planTier: string | null | undefined,
+): boolean {
+  return normalizeBuilderWorkspacePlan(planTier) !== "free";
+}
+
 export function builderPlanAllows(
   planTier: string | null | undefined,
   capability: BuilderCapabilityKey,

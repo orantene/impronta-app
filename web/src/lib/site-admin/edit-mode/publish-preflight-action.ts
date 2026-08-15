@@ -42,7 +42,10 @@ import {
 import { featuredTalentSchemaV1 } from "@/lib/site-admin/sections/featured_talent/schema";
 import { fetchFeaturedTalentForSection } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin";
-import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
+import {
+  isPaidBuilderPlan,
+  loadBuilderWorkspacePlan,
+} from "@/lib/site-admin/builder-capabilities";
 import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import {
   collectBuilderPerformanceIssues,
@@ -501,7 +504,7 @@ export async function runPublishPreflight(input?: {
         // gallery already refuses the insert on free plans; this is the
         // server-side backstop (a downgraded workspace, an imported tree, or a
         // bypassed client all land here).
-        if (workspacePlan === "free") {
+        if (!isPaidBuilderPlan(workspacePlan)) {
           const found: string[] = [];
           const walk = (nodes: ReadonlyArray<{ kind: string; children?: unknown }>) => {
             for (const n of nodes) {

@@ -28,7 +28,7 @@ export const SOCIAL_FEED_INTEGRATIONS: Record<string, IntegrationDef> = {
       "Connect the workspace Instagram account to show your latest posts and reels on the public site.",
     descriptionKey: `${NS}.instagram.description`,
     instructions: [
-      "Your Instagram must be a Business or Creator account — personal accounts cannot be connected.",
+      "Your Instagram must be a Business or Creator account: personal accounts cannot be connected.",
       "Use one-click connect to sign in with Instagram and approve read access to your posts.",
       "Tulala stores an encrypted long-lived token and refreshes it automatically so the feed keeps updating.",
     ],
