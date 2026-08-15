@@ -47,6 +47,7 @@ import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
 import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
+import { useInlineEditorSlashCommand } from "./use-inline-editor-slash-command";
 import { isAnyBuilderNodeCanvasMounted } from "./client-builder-canvas-bridge";
 import { applyOptimisticInlineRepaint } from "./inline-editor-repaint";
 import { useInlineEditorCommitHandoff } from "./use-inline-editor-commit-handoff";
@@ -111,6 +112,11 @@ export function InlineEditor() {
     selectBuilderNode,
     setDraftProps,
     setDirty,
+    insertBuilderNode,
+    insertBuilderSectionEmbed,
+    insertBuilderComponent,
+    advancedElementLibraryEnabled,
+    canInsertRawHtmlElements,
   } = useEditContext();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge).
   const builderTree = useBuilderTree();
@@ -399,6 +405,21 @@ export function InlineEditor() {
     endActiveEdit,
   });
 
+  // Lane E (2026) — "/" insert menu while editing a freeform builder-node's
+  // text (the primary 2026 full-page path). Extracted to its own hook (max-
+  // lines budget) — see its header doc for the gating + anchor rationale.
+  const slashCommandInsert = useInlineEditorSlashCommand({
+    target: activeEdit?.builderNode,
+    builderTree,
+    advancedElementLibraryEnabled,
+    canInsertRawHtmlElements,
+    insertBuilderNode,
+    insertBuilderSectionEmbed,
+    insertBuilderComponent,
+    reportMutationError,
+    selectBuilderNode,
+  });
+
   // Undo/redo while inline edit is open — remount the overlay from stored copy.
   // WS5 — for a secondary-locale edit the stored copy is the overlay entry, so
   // re-seed through the same locale-aware resolver the open-time path uses.
@@ -681,6 +702,7 @@ export function InlineEditor() {
           tenantId={tenantId ?? undefined}
           commitRef={overlayCommitRef}
           onCommit={(next) => runCommit(next)}
+          slashCommandInsert={slashCommandInsert}
         />
       ) : null}
 

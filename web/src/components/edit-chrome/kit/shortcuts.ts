@@ -372,6 +372,15 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
   {
+    id: "slash-command-insert",
+    label: "Insert a block with \"/\"",
+    description:
+      "Type \"/\" at the start of a line while editing text, or with a text block selected, to search and insert a block after it.",
+    keys: ["/"],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
     id: "nav-tree-arrows",
     label: "Move selection between blocks",
     description:

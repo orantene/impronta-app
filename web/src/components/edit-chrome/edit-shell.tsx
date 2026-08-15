@@ -71,6 +71,7 @@ import { InEditorCanvasRegion } from "./in-editor-canvas-region";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { InspectorDock } from "./inspector-dock";
 import { InlineEditor } from "./inline-editor";
+import { SlashCommandCanvasTrigger } from "./slash-command-canvas-trigger";
 import { MobileEditPanel } from "./mobile-edit-panel";
 import { NavigatorPanel } from "./navigator-panel";
 import { AddGalleryPanel } from "./add-gallery/add-gallery-panel";
@@ -1205,6 +1206,10 @@ function EditShellInner({
           <DesignPanel open={brandPanelOpen} onClose={closeBrandPanel} />
         ) : null}
         <InlineEditor />
+        {/* Lane E (2026) — "/" insert menu when a prose block is selected but
+            not in text-edit mode (InlineEditor owns the in-text trigger).
+            Suppressed in preview so the operator sees the real page. */}
+        {!previewing ? <SlashCommandCanvasTrigger /> : null}
         <NavigatorPanel />
         <InspectorDock />
         {/* Heavy drawers — each is gated by an "ever opened" flag so the

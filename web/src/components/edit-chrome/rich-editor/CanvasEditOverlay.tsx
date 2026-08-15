@@ -25,7 +25,7 @@
  * changes.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -34,6 +34,7 @@ import {
 } from "../canvas-lexical-bridge";
 import { RichEditor } from "./RichEditor";
 import type { CaretPoint } from "./plugins/AutoFocusCaretPlugin";
+import type { SlashCommandInsertConfig } from "./plugins/SlashCommandPlugin";
 
 interface Props {
   /** The rendered text element the operator dblclicked. */
@@ -70,6 +71,13 @@ interface Props {
    * mounted unfocused and every keystroke before a third click was dropped.
    */
   caretPoint?: CaretPoint | null;
+  /**
+   * Lane E (2026) — when set, typing "/" opens the insert-block menu inside
+   * this overlay. Wrapped here (not passed straight through) so every pick
+   * first commits the current — by then "/query"-stripped — text via this
+   * overlay's own `commit()`, exactly like leaving the field normally would.
+   */
+  slashCommandInsert?: SlashCommandInsertConfig;
 }
 
 const TYPE_STYLE_PROPS = [
@@ -93,9 +101,17 @@ export function CanvasEditOverlay({
   onCommit,
   commitRef,
   caretPoint = null,
+  slashCommandInsert,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const fieldRef = useRef<HTMLDivElement | null>(null);
+  // Lane E — while the slash-command menu is open, the document-capture
+  // Escape/Enter handlers below step aside so Lexical's own command system
+  // (registered inside `SlashCommandPlugin`) owns those two keys instead.
+  const slashMenuOpenRef = useRef(false);
+  const onSlashMenuOpenChange = useCallback((open: boolean) => {
+    slashMenuOpenRef.current = open;
+  }, []);
   // The click point applies to the FIRST mount only — a `resyncKey` remount
   // (undo/redo mid-edit) refocuses at the end of the restored text rather than
   // jumping the caret back to wherever the original double-click landed.
@@ -180,7 +196,11 @@ export function CanvasEditOverlay({
       t.closest('[data-edit-overlay="rich-toolbar"]') ||
         t.closest('[data-edit-overlay="rich-link-popover"]') ||
         t.closest("[data-canvas-text-toolbar]") ||
-        t.closest('[data-edit-overlay="color-picker-popover"]'),
+        t.closest('[data-edit-overlay="color-picker-popover"]') ||
+        // Lane E — the slash-command menu is portalled to document.body, same
+        // as the pieces above, so a click on one of its rows must not read as
+        // an "outside click" that commits/closes the field out from under it.
+        t.closest('[data-edit-overlay="slash-command-menu"]'),
     );
   }
 
@@ -191,6 +211,16 @@ export function CanvasEditOverlay({
       commit();
     }
     function onKey(e: KeyboardEvent) {
+      // Lane E — while the slash-command menu is open, Escape and Enter are
+      // its keys (close-and-keep-literal-"/", commit the highlighted entry).
+      // Step aside so the keydown keeps propagating to Lexical's own command
+      // system, registered inside `SlashCommandPlugin`.
+      if (
+        slashMenuOpenRef.current &&
+        (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey))
+      ) {
+        return;
+      }
       if (e.key === "Escape") {
         // W1-L3 — Escape COMMITS (keeps the typed text), identical to blur.
         // Previously Escape discarded silently, destroying work with no warning
@@ -227,6 +257,33 @@ export function CanvasEditOverlay({
     return () => root.removeEventListener("focusout", onFocusOut);
   }, [commit]);
 
+  // Lane E — wrap every pick so it commits the (by then "/query"-stripped)
+  // text into node history FIRST, exactly like leaving the field normally
+  // would, before the caller performs the actual block insert one level up
+  // (`inline-editor.tsx`, the only place with `useEditContext()`).
+  const wrappedSlashCommandInsert = useMemo(() => {
+    if (!slashCommandInsert) return undefined;
+    return {
+      ...slashCommandInsert,
+      onPickElement: (kind: Parameters<typeof slashCommandInsert.onPickElement>[0]) => {
+        commit();
+        slashCommandInsert.onPickElement(kind);
+      },
+      onPickSectionEmbed: slashCommandInsert.onPickSectionEmbed
+        ? (sectionTypeKey: string) => {
+            commit();
+            slashCommandInsert.onPickSectionEmbed?.(sectionTypeKey);
+          }
+        : undefined,
+      onPickSavedBlock: slashCommandInsert.onPickSavedBlock
+        ? (block: Parameters<NonNullable<typeof slashCommandInsert.onPickSavedBlock>>[0]) => {
+            commit();
+            slashCommandInsert.onPickSavedBlock?.(block);
+          }
+        : undefined,
+    };
+  }, [slashCommandInsert, commit]);
+
   return createPortal(
     <div
       ref={overlayRef}
@@ -262,6 +319,8 @@ export function CanvasEditOverlay({
           autoFocusCaretPoint={initialCaretPoint}
           suppressFloatingToolbar
           className="outline-none"
+          slashCommandInsert={wrappedSlashCommandInsert}
+          onSlashMenuOpenChange={onSlashMenuOpenChange}
         />
       </div>
     </div>,
