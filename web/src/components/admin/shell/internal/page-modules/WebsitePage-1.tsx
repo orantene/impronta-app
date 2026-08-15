@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { usePathname, useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { buildPostPublicPathname, buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
 import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
@@ -13,7 +14,7 @@ import type { WebsitePageRow, WebsitePost } from "../state";
 import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
-import { ConfigStatusRow, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
+import { ConfigStatusRow, formatShortDate, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
 import { PageHeader } from "./pages-shared";
 
 
@@ -228,6 +229,9 @@ function WebsiteSubviewTabs({
 
 export function WebsitePage() {
   const t = useT();
+  // Operator's UI display locale — distinct from `locale` below (the site
+  // CONTENT locale off useAdminShell, used for building editor page URLs).
+  const dashboardLocale = useDashboardLocale();
   // t() is called inside useCallback closures below; keep a ref so we can read
   // the latest translator without listing `t` in the callbacks' dep arrays.
   const tRef = useRef(t);
@@ -377,6 +381,14 @@ export function WebsitePage() {
     activeRedirects: w.redirects.filter(r => r.active).length,
   };
 
+  // Earliest upcoming fire time among scheduled pages, for the hero's
+  // "Scheduled" stat sub-label. `scheduledFor` is always set on a page
+  // whose derived status is "scheduled" (mergeWebsiteStateFromBridge).
+  const nextScheduledAt = w.pages
+    .filter(p => p.status === "scheduled" && p.scheduledFor)
+    .map(p => p.scheduledFor as string)
+    .sort()[0];
+
   const pagesTabCounts = useMemo(
     (): Record<WebsitePagesTabId, number> => ({
       all: w.pages.length,
@@ -478,7 +490,7 @@ export function WebsitePage() {
           <HeroStat label={t("dashboard.adminWebsite.heroPagesLive")}      value={totals.publishedPages.toString()} sub={interpolate(t("dashboard.adminWebsite.heroDraftCount"), { count: totals.draftPages })} />
           <HeroStat label={t("dashboard.adminWebsite.heroPosts")}            value={totals.publishedPosts.toString()} sub={interpolate(t("dashboard.adminWebsite.heroUnpublishedCount"), { count: w.posts.length - totals.publishedPosts })} />
           <HeroStat label={t("dashboard.adminWebsite.heroRedirects")}    value={totals.activeRedirects.toString()} sub={interpolate(t("dashboard.adminWebsite.heroPausedCount"), { count: w.redirects.length - totals.activeRedirects })} />
-          <HeroStat label={t("dashboard.adminWebsite.heroScheduled")}        value={totals.scheduledPages.toString()} sub={totals.scheduledPages > 0 ? t("dashboard.adminWebsite.heroNextScheduled") : t("dashboard.adminWebsite.heroNone")} />
+          <HeroStat label={t("dashboard.adminWebsite.heroScheduled")}        value={totals.scheduledPages.toString()} sub={nextScheduledAt ? interpolate(t("dashboard.adminWebsite.heroNextScheduled"), { date: formatShortDate(nextScheduledAt, dashboardLocale) }) : t("dashboard.adminWebsite.heroNone")} />
         </div>
       </section>
 

@@ -34,6 +34,14 @@ export type WebsitePageItem = {
   updatedBy: string | null;
   /** cms_pages.template_key — drives the Website surface card label. */
   templateKey: string | null;
+  /**
+   * `cms_pages.scheduled_publish_at` — future fire time set from the
+   * editor's Schedule drawer, null when unscheduled. `status` above stays
+   * whatever it already was until the cron sweep flips it; the Website →
+   * Pages grid derives a UI-only "scheduled" status from this column (see
+   * `state/website-page-status.ts`).
+   */
+  scheduledPublishAt: string | null;
 };
 
 export type WebsitePostItem = {
@@ -151,6 +159,7 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
           updatedAt: p.updated_at ?? null,
           updatedBy: p.updated_by ?? null,
           templateKey: p.template_key ?? null,
+          scheduledPublishAt: p.scheduled_publish_at ?? null,
         })),
       posts: ((postsRes.data ?? []) as unknown as PostRow[]).map((p) => ({
         id: p.id,
