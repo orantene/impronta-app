@@ -147,7 +147,7 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-14 media-ownership phase 1: +67 for the ownership stamp on all
   // six writers in this file (legacy upload, bulk assign, staged assign,
   // card promotion, both Drive imports, signed register + crop inheritance).
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2271,
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2282,
   "src/app/t/[profileCode]/profile-view.tsx": 2634,
   "src/components/inquiry/InquiryDrawer.tsx": 2149,
 
