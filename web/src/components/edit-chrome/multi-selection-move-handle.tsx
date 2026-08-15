@@ -41,8 +41,11 @@ export function MultiSelectionMoveHandle({
     const onMove = (event: PointerEvent) => {
       const start = startRef.current;
       if (!start) return;
+      // ⌘ = free (shared modifier convention across the handle set).
       const snap = (value: number) =>
-        event.shiftKey ? Math.round(value) : Math.round(value / GRID) * GRID;
+        event.metaKey || event.ctrlKey
+          ? Math.round(value)
+          : Math.round(value / GRID) * GRID;
       const dx = snap(event.clientX - start.x);
       const dy = snap(event.clientY - start.y);
       setLiveDelta({ x: dx, y: dy });

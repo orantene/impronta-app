@@ -281,6 +281,56 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
   {
+    id: "resize-block",
+    label: "Resize selected block",
+    description:
+      "Drag any of the 8 edge/corner handles. Hold ⇧ on a corner to lock the aspect ratio, ⌥ to resize from the centre, ⌘ to disable snapping. Double-click a handle to reset that dimension to auto.",
+    keys: [],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "rotate-block",
+    label: "Rotate selected block",
+    description:
+      "Drag just outside a corner of the selection box. Snaps to 45-degree angles; hold ⇧ for 15-degree steps, hold ⌘ to rotate freely. Double-click a corner zone (or right-click → Reset rotation) to reset.",
+    keys: [],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "bring-forward",
+    label: "Bring block forward",
+    description:
+      "Raise the selected block one step above the next overlapping sibling (writes its z-index).",
+    keys: ["⌘", "]"],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "send-backward",
+    label: "Send block backward",
+    description:
+      "Lower the selected block one step below the nearest overlapping sibling.",
+    keys: ["⌘", "["],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "bring-to-front",
+    label: "Bring block to front",
+    keys: ["⌥", "⌘", "]"],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "send-to-back",
+    label: "Send block to back",
+    keys: ["⌥", "⌘", "["],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
     id: "lock-block",
     label: "Lock / unlock selected block",
     description: "Right-click a block (canvas or layers) for the full action menu.",

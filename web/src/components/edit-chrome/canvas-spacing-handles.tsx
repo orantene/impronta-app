@@ -19,7 +19,8 @@
  * differently. Same mechanism as the resize handles: read the live computed
  * value on grab, preview by writing the element's inline style during the
  * drag, and commit once on release through the normal patch flow (so undo/redo
- * + persistence are inherited). 8px grid snap by default; hold Shift for free.
+ * + persistence are inherited). 8px grid snap by default; hold ⌘ for free
+ * (the shared modifier convention across the handle set).
  *
  * `BoxModelHoverBands` is the passive (non-draggable) sibling used on the
  * HOVERED block — same devtools tinting, no controls — so the box model is
@@ -27,6 +28,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+
+import { useEditorLocale } from "./use-editor-locale";
 
 interface Rect {
   top: number;
@@ -102,6 +105,7 @@ export function CanvasSpacingHandles({
    */
   overlayRef?: React.Ref<HTMLDivElement>;
 }) {
+  const { t } = useEditorLocale();
   const [active, setActive] = useState<ActiveDrag | null>(null);
   const [liveVal, setLiveVal] = useState<number>(0);
   // Live per-side margin sizes (px), read on mount + while dragging, so the
@@ -157,7 +161,11 @@ export function CanvasSpacingHandles({
         else raw = start.val + (e.clientY - start.y);
       }
       raw = Math.max(0, raw);
-      const next = e.shiftKey ? Math.round(raw) : Math.round(raw / GRID) * GRID;
+      // ⌘ = free (shared modifier convention across the handle set).
+      const next =
+        e.metaKey || e.ctrlKey
+          ? Math.round(raw)
+          : Math.round(raw / GRID) * GRID;
       latestRef.current = next;
       setLiveVal(next);
       if (liveEl) {
@@ -513,7 +521,7 @@ export function CanvasSpacingHandles({
         >
           <span>{`${active.side} ${active.kind} ${liveVal}px`}</span>
           <span style={{ fontWeight: 600, opacity: 0.78, fontSize: 9 }}>
-            ⇧ free
+            {t("⌘ free")}
           </span>
         </span>
       ) : null}

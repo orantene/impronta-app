@@ -200,3 +200,53 @@ test("stamped margin-side expansion is cleared too", () => {
   assert.equal(el.declared.has("margin-left"), false);
   assert.equal(el.declared.has("margin-right"), false);
 });
+
+/**
+ * Rotation joined this module because the rotate handle stamps its live angle
+ * onto the DOM for the same reason the text toolbar does. Found in live QA of
+ * the direct-manipulation pack: the handle owned a PRIVATE stamp, so undo
+ * reverted the tree while the canvas kept painting the old angle — the #996
+ * class exactly, in a new lane.
+ *
+ * Worth recording why the obvious fix is wrong: clearing the stamp on COMMIT
+ * (rather than tracking it) was tried first and made the rotation vanish the
+ * moment the pointer was released, because React does not rewrite `rotate`
+ * from the prop on this surface. The stamp has to survive the commit and come
+ * down only when a restore says so.
+ */
+test("a rotate stamp is tracked, so undo restores the angle underneath it", () => {
+  resetDom();
+  const el = makeElement("node-rotate");
+  elements.set("node-rotate", el);
+  // The angle the committed tree already renders inline.
+  el.declared.set("rotate", "45deg");
+
+  applyCanvasTextStylePreview("node-rotate", { rotate: "90deg" });
+  assert.equal(el.declared.get("rotate"), "90deg", "the drag previews live");
+
+  clearCanvasTextStylePreview();
+
+  assert.equal(
+    el.declared.get("rotate"),
+    "45deg",
+    "undo must land on the pre-drag angle — leaving 90deg is the no-op-undo bug this fixes",
+  );
+});
+
+test("rotating a never-rotated block clears back to no rotation at all", () => {
+  resetDom();
+  const el = makeElement("node-rotate-fresh");
+  elements.set("node-rotate-fresh", el);
+  // Nothing underneath: the block has never carried a rotate escape.
+
+  applyCanvasTextStylePreview("node-rotate-fresh", { rotate: "45deg" });
+  assert.equal(el.declared.get("rotate"), "45deg");
+
+  clearCanvasTextStylePreview();
+
+  assert.equal(
+    el.declared.has("rotate"),
+    false,
+    "with nothing underneath the property is removed, not left at 0deg",
+  );
+});

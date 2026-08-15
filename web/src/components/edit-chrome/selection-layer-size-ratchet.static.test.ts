@@ -66,7 +66,23 @@ const REBASELINE_SLACK = 60;
  */
 const BUDGETS: Record<string, number> = {
   // Row 5.4 baseline. 8,007 lines before the #908 nested-blocks panel came out.
-  "selection-layer.tsx": 7277,
+  // +142 (canvas rotate/resize pack): rotation-handle wiring — commit callback,
+  // rotated-overlay geometry in the rAF sync loop, context-menu Reset rotation.
+  // The rotation MATH + component live in their own modules
+  // (canvas-transform-geometry.ts, canvas-rotate-handle.tsx); this is the thin
+  // wiring the guard's own procedure asks to be bumped visibly.
+  // +16 (8-handle resize pack): commitSelectedNodeSize accepts the anchor-
+  // compensation translate so a west/north resize commits as ONE undo step.
+  // The resize math + component live in canvas-resize-geometry.ts /
+  // canvas-resize-handles.tsx.
+  // +216 (z-order commands): overlapping-sibling snapshot + ⌘]/⌘[ keyboard
+  // branches + context-menu Bring/Send rows. The stacking MATH lives in
+  // canvas-z-order.ts (unit-tested).
+  // +10 (block-move auto-scroll): the hook call + import only. The rAF loop
+  // itself was written inline first, tripped this guard at +59, and was
+  // extracted to use-canvas-node-autoscroll.ts — which is the remedy this
+  // guard asks for first. What remains here is the call site.
+  "selection-layer.tsx": 7661,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
