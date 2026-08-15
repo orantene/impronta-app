@@ -96,6 +96,15 @@ export interface PageRow {
   updated_by: string | null;
   created_at: string;
   updated_at: string;
+  /** Future publish-fire time set from the editor's Schedule drawer. Null
+   *  when the page isn't scheduled. `status` stays as-is (typically
+   *  `draft`) until the cron sweep in `/api/cron/publish-scheduled` fires
+   *  and flips it to `published` — see WebsitePageRow status derivation
+   *  in `state/website-page-status.ts` for how the admin Pages grid
+   *  surfaces this as a UI-only "scheduled" status. */
+  scheduled_publish_at: string | null;
+  /** Profile id of whoever set `scheduled_publish_at`. Null when unset. */
+  scheduled_by: string | null;
 }
 
 export interface PageRevisionRow {
@@ -137,7 +146,9 @@ const PAGE_COLUMNS = `
   created_by,
   updated_by,
   created_at,
-  updated_at
+  updated_at,
+  scheduled_publish_at,
+  scheduled_by
 `;
 
 const REVISION_COLUMNS = `

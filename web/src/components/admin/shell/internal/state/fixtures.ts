@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { seatCapLabel } from "@/lib/saas/plan-seat-caps";
 import type { WebsiteData } from "@/app/(workspace)/[tenantSlug]/_data-bridge/website";
 import { resolveWorkspaceLiveAddress } from "@/lib/saas/workspace-live-url";
+import { deriveWebsitePageStatus } from "./website-page-status";
 import type { AgencyReliability, AvailabilityBlock, BioTone, BookingPaymentStatus, ChannelEntry, Client, ClientBooking, ClientBrand, ClientInquiry, ClientPage, ClientPlan, ClientProfile, ClientProfileId, ClientTrustLevel, DiscoverTalent, EarningsPaymentMethod, EarningsRow, EntityType, ExposurePreset, FeatureFlag, FieldVisibility, GenderOption, HqRole, HubSubmission, Inquiry, InquiryCoordinatorRef, InquiryOwnershipResolution, InquiryRecord, InquirySource, InquiryStage, InquiryStatus, InquiryTalentInvite, LocaleCode, ModerationItem, MyTalentProfile, NotificationItem, ParsedVideoUrl, PaymentSummary, PayoutConnectionStatus, PayoutReceiver, PayoutReceiverKind, PendingReviewRecord, PendingTalent, PhotoTag, Plan, PlanLadderRow, PlatformIncident, PlatformInvoice, PlatformPage, PlatformTenant, PlatformUser, Polaroid, ProfileClaimInvitation, ProfileClaimStatus, ProfileFieldId, ProfileTemplate, ProfileVerification, Pronouns, RateUnit, RegField, RepresentationStatus, RequirementRole, RichInquiry, Role, Shortlist, SitePage, SkillProficiency, SupportTicket, Surface, SystemJob, TalentAgency, TalentBooking, TalentContactGate, TalentContactPolicy, TalentInvite, TalentLanguage, TalentPage, TalentPageTemplate, TalentProfile, TalentRequest, TalentSpecialty, TalentSubscriptionTier, TalentTierCatalogRow, TalentTierFeature, TalentTierGroup, TaxonomyParent, TaxonomyParentId, TeamMember, TrackEvent, TrackProps, TrustTier, VerificationMethodAuditEntry, VerificationMethodConfig, VerificationRequest, VerificationType, Verifications, WebsiteAnalytics, WebsiteDomain, WebsitePageMetrics, WebsitePageRow, WebsitePeriodMetrics, WebsitePost, WebsiteRedirect, WebsiteSeoDefaults, WebsiteState, WorkspacePage, WorkspacePaymentRow, WorkspacePayout, WorkspaceTaxonomySetting } from "./types";
 import type { DrawerId } from "./drawer-ids";
 
@@ -4979,12 +4980,6 @@ export function mergeWebsiteStateFromBridge(
     live.domainSummary.primaryHostStatus === "ssl_provisioned" ||
     live.domainSummary.primaryHostStatus === "verified";
 
-  const mapRowStatus = (raw: string): WebsitePageRow["status"] => {
-    if (raw === "published") return "published";
-    if (raw === "archived") return "archived";
-    return "draft";
-  };
-
   const pages: WebsitePageRow[] = live.pages.map((p) => {
     const rawSlug = (p.slug ?? "").trim();
     const slug =
@@ -4993,12 +4988,16 @@ export function mergeWebsiteStateFromBridge(
         : rawSlug.startsWith("/")
           ? rawSlug
           : `/${rawSlug}`;
+    // UI-only "scheduled" status — see website-page-status.ts for why
+    // `cms_pages.status` alone can never produce it.
+    const status = deriveWebsitePageStatus(p.status, p.scheduledPublishAt);
     return {
       id: p.id,
       title: p.title?.trim() ? p.title : "Untitled",
       slug,
-      status: mapRowStatus(p.status),
+      status,
       updatedAt: p.updatedAt ?? new Date().toISOString(),
+      scheduledFor: status === "scheduled" ? p.scheduledPublishAt ?? undefined : undefined,
       // Resolve the raw profile UUID to a display name. Unresolvable (member
       // left, or no author recorded) → "" so the card renders nothing
       // instead of a raw UUID.
