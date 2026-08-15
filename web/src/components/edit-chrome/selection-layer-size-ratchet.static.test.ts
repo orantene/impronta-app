@@ -71,7 +71,11 @@ const BUDGETS: Record<string, number> = {
   // The rotation MATH + component live in their own modules
   // (canvas-transform-geometry.ts, canvas-rotate-handle.tsx); this is the thin
   // wiring the guard's own procedure asks to be bumped visibly.
-  "selection-layer.tsx": 7419,
+  // +16 (8-handle resize pack): commitSelectedNodeSize accepts the anchor-
+  // compensation translate so a west/north resize commits as ONE undo step.
+  // The resize math + component live in canvas-resize-geometry.ts /
+  // canvas-resize-handles.tsx.
+  "selection-layer.tsx": 7435,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

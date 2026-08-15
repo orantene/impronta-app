@@ -306,4 +306,16 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Drag to rotate · double-click to reset":
     "Arrastra para rotar · doble clic para restablecer",
   "⌘ free · ⇧ 15°": "⌘ libre · ⇧ 15°",
+  // ── canvas resize handles (8-handle pack, shared modifier convention) ────
+  "⌘ free": "⌘ libre",
+  "⌘ free · ⇧ aspect · ⌥ center": "⌘ libre · ⇧ proporción · ⌥ centro",
+  "⌘ free · ⌥ center": "⌘ libre · ⌥ centro",
+  "Drag to resize width (double-click to reset)":
+    "Arrastra para cambiar el ancho (doble clic para restablecer)",
+  "Drag to resize height (double-click to reset)":
+    "Arrastra para cambiar el alto (doble clic para restablecer)",
+  "Drag to resize width and height (double-click to reset)":
+    "Arrastra para cambiar el ancho y el alto (doble clic para restablecer)",
+  "Drag to resize · double-click to reset":
+    "Arrastra para cambiar el tamaño · doble clic para restablecer",
 };

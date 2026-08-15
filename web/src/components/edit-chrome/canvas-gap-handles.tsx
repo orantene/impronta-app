@@ -14,7 +14,8 @@
  * Same mechanism as the resize/spacing handles: read the live computed gap on
  * grab, preview by writing the container's inline `gap`/`columnGap`/`rowGap`
  * during the drag, commit once on release through the normal patch flow (so
- * undo/redo + persistence are inherited). 8px grid snap; Shift = free.
+ * undo/redo + persistence are inherited). 8px grid snap; ⌘ = free
+ * (the shared modifier convention across the handle set).
  *
  * Orientation is derived from the children's RENDERED positions (robust across
  * flex-direction:row|column, wrap, and grid): a pair laid out side-by-side
@@ -168,7 +169,11 @@ export function CanvasGapHandles({
       // the felt motion matches the gesture. Use the raw delta for a 1:1 feel.
       let raw = start.gap + delta;
       raw = Math.max(0, raw);
-      const next = e.shiftKey ? Math.round(raw) : Math.round(raw / GRID) * GRID;
+      // ⌘ = free (shared modifier convention across the handle set).
+      const next =
+        e.metaKey || e.ctrlKey
+          ? Math.round(raw)
+          : Math.round(raw / GRID) * GRID;
       latestRef.current = next;
       setLiveGap(next);
       if (liveEl) {

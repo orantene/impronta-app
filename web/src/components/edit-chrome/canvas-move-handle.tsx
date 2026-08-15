@@ -11,10 +11,14 @@
  *
  * Same mechanism as the resize + spacing handles: read the live translate on
  * grab, preview by writing the element's inline style during the drag, commit
- * once on release through the normal patch flow. 8px grid snap; Shift = free.
+ * once on release through the normal patch flow. 8px grid snap; ⌘ = free
+ * (the shared modifier convention across the handle set — see
+ * canvas-resize-geometry.ts).
  */
 
 import { useEffect, useRef, useState } from "react";
+
+import { useEditorLocale } from "./use-editor-locale";
 
 import {
   equalSpacingSnapDelta,
@@ -82,6 +86,7 @@ export function CanvasMoveHandle({
    */
   overlayRef?: React.Ref<HTMLDivElement>;
 }) {
+  const { t } = useEditorLocale();
   const [dragging, setDragging] = useState(false);
   const [live, setLive] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   // Alignment-guide lines + equal-spacing pills (viewport coords) shown while
@@ -124,16 +129,18 @@ export function CanvasMoveHandle({
     const onMove = (e: PointerEvent) => {
       const start = startRef.current;
       if (!start) return;
+      // ⌘ = free (shared modifier convention across the handle set).
+      const free = e.metaKey || e.ctrlKey;
       const snap = (v: number) =>
-        e.shiftKey ? Math.round(v) : Math.round(v / GRID) * GRID;
+        free ? Math.round(v) : Math.round(v / GRID) * GRID;
       let x = snap(start.x + (e.clientX - start.px));
       let y = snap(start.y + (e.clientY - start.py));
       // Align any of the block's three edges (left/centre/right on X,
       // top/middle/bottom on Y) to any parent- or sibling-derived snap
-      // coordinate, drawing a guide at the match. Closest wins (Shift skips).
+      // coordinate, drawing a guide at the match. Closest wins (⌘ skips).
       let gv: number | null = null;
       let gh: number | null = null;
-      if (!e.shiftKey) {
+      if (!free) {
         // The block's edge anchor positions as a function of translate 0.
         const xAnchors = [
           start.natCx - start.halfW,
@@ -177,7 +184,7 @@ export function CanvasMoveHandle({
       // to the nearest siblings on each side are equal, and draw teal gap pills
       // there. Edge alignment (above) takes priority — it's the stronger cue.
       const spacing: SpacingGuide[] = [];
-      if (!e.shiftKey && start.sibBoxes.length > 0) {
+      if (!free && start.sibBoxes.length > 0) {
         const boxAt = (tx: number, ty: number): GuideBox => ({
           left: start.natLeft + tx,
           top: start.natTop + ty,
@@ -487,12 +494,12 @@ export function CanvasMoveHandle({
               'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
           }}
         >
-          {/* live offset + a one-line modifier hint (W3-T6). Shift bypasses the
+          {/* live offset + a one-line modifier hint (W3-T6). ⌘ bypasses the
            *  grid snap + sibling align ("free") — the only modifier this handle
            *  implements, so the only one advertised. */}
           <span>{`move ${live.x}, ${live.y}`}</span>
           <span style={{ fontWeight: 600, opacity: 0.78, fontSize: 9 }}>
-            ⇧ free
+            {t("⌘ free")}
           </span>
         </span>
       ) : null}

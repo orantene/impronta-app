@@ -3212,7 +3212,13 @@ export function SelectionLayer() {
     !!selectedBuilderNode &&
     BUILDER_GAP_LAYOUT_KINDS.has(selectedBuilderNode.kind);
   const commitSelectedNodeSize = useCallback(
-    (dims: { width?: number | null; height?: number | null }) => {
+    (dims: {
+      width?: number | null;
+      height?: number | null;
+      // West/north-handle anchor compensation (keep the opposite edge
+      // planted) rides in the SAME patch as the size — one undo step.
+      translate?: { x: number; y: number };
+    }) => {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
       if (!node || node.kind === "section") return;
@@ -3236,6 +3242,16 @@ export function SelectionLayer() {
       } else if (dims.height === null) {
         delete nextStyle.height;
         if (liveEl) liveEl.style.height = "";
+      }
+      if (dims.translate) {
+        const rx = Math.round(dims.translate.x);
+        const ry = Math.round(dims.translate.y);
+        // 0,0 → drop the escape entirely (mirrors commitSelectedNodeTranslate).
+        if (rx === 0 && ry === 0) {
+          delete nextStyle.translate;
+        } else {
+          nextStyle.translate = `${rx}px ${ry}px`;
+        }
       }
       void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
     },

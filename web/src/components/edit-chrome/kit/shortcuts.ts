@@ -281,6 +281,15 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
   {
+    id: "resize-block",
+    label: "Resize selected block",
+    description:
+      "Drag any of the 8 edge/corner handles. Hold ⇧ on a corner to lock the aspect ratio, ⌥ to resize from the centre, ⌘ to disable snapping. Double-click a handle to reset that dimension to auto.",
+    keys: [],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
     id: "rotate-block",
     label: "Rotate selected block",
     description:
