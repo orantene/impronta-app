@@ -867,6 +867,9 @@ export function SelectionLayer() {
     armed: boolean;
   } | null>(null);
   const autoscrollRafRef = useRef<number | null>(null);
+  // Auto-scroll rAF handle for the pointer-driven BLOCK move gesture (the
+  // section reorder loop above has its own; the two never run together).
+  const canvasNodeAutoscrollRafRef = useRef<number | null>(null);
   const selectionScrollRetryRef = useRef<number | null>(null);
 
   // P3-PERF (marquee): candidate index cached for the marquee gesture, the
@@ -2658,6 +2661,62 @@ export function SelectionLayer() {
     // the rAF loop each paint — the jitter the old suppression guarded against
     // came from computeDrop being a fresh inline fn every render.
   }, [drag, computeDrop]);
+
+  // BLOCK-MOVE auto-scroll — parity with the section-reorder loop above. The
+  // pointer-driven block move (W1-L7) had no edge-band scrolling, so a block
+  // could never be dragged to an off-screen drop target. Same band/ramp math
+  // (autoscrollDeltaForY); while the window scrolls under a stationary cursor
+  // the drop target is recomputed so the indicator follows the content, not
+  // the pre-scroll snapshot. The capture-phase scroll listener in the
+  // canvasDragGestureKey effect keeps the drop-candidate index fresh.
+  useEffect(() => {
+    if (canvasNodeDrag.phase !== "move") return;
+    const CHROME_SELECTOR =
+      "[data-edit-topbar],[data-edit-drawer],[data-edit-overlay],[data-selection-chip],[data-selection-chip-grip]";
+    let cancelled = false;
+    function tick() {
+      if (cancelled || canvasNodeDrag.phase !== "move") return;
+      const delta = autoscrollDeltaForY(
+        canvasNodeDrag.cursorY,
+        window.innerHeight,
+      );
+      if (delta !== 0) {
+        window.scrollBy(0, delta);
+        const overEl = document.elementFromPoint(
+          canvasNodeDrag.cursorX,
+          canvasNodeDrag.cursorY,
+        );
+        const overChrome = Boolean(
+          overEl instanceof Element && overEl.closest(CHROME_SELECTOR),
+        );
+        const fresh = overChrome
+          ? null
+          : computeCanvasNodeDrop(
+              canvasNodeDrag.cursorX,
+              canvasNodeDrag.cursorY,
+              canvasNodeDrag.draggedKind,
+              canvasNodeDrag.nodeId,
+              null,
+            );
+        if (
+          fresh?.parentNodeId !== canvasNodeDrag.drop?.parentNodeId ||
+          fresh?.index !== canvasNodeDrag.drop?.index ||
+          fresh?.indicatorY !== canvasNodeDrag.drop?.indicatorY
+        ) {
+          setCanvasNodeDrag({ ...canvasNodeDrag, drop: fresh });
+        }
+      }
+      canvasNodeAutoscrollRafRef.current = requestAnimationFrame(tick);
+    }
+    canvasNodeAutoscrollRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      if (canvasNodeAutoscrollRafRef.current !== null) {
+        cancelAnimationFrame(canvasNodeAutoscrollRafRef.current);
+        canvasNodeAutoscrollRafRef.current = null;
+      }
+    };
+  }, [canvasNodeDrag, computeCanvasNodeDrop]);
 
   /**
    * Sprint 3.1 — drag start now accepts an optional explicit section
