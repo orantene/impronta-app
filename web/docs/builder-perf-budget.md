@@ -48,7 +48,8 @@ bloat, not to fit today's (deliberately light, placeholder-imagery) designs.
 | Budget | Ceiling | Rationale |
 |---|---|---|
 | Renderer CSS blocks | **= 1** | PERF-1. A duplicate doubles a fixed per-page cost; zero breaks every page's styling. Locked here *and* in `render-perf-budget.test.ts`. |
-| Renderer CSS size | **≤ 70 KB** | The global sheet is ~57 KB today and grows as node kinds / escapes are added. ~20% headroom makes the next jump a conscious, reviewed decision instead of a silent one. |
+| Renderer CSS size (full sheet) | **≤ 95 KB** | The worst case — the unscoped sheet, emitted when a caller cannot name the node-kinds on the page (Lab canvas, dev previews). Measured **88.5 KB on 2026-08-15** (was ~57 KB when the original 70 KB ceiling was written on 2026-06-01). See "The 2026-08-15 re-tune" below. ~7% headroom. |
+| Renderer CSS size (scoped, shipped) | **≤ 88 KB** | What a **visitor** actually downloads. REND-2 scopes the sheet to the kinds present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`), and every public render path passes it. Measured 2026-08-15: 68.9 KB (trivial) to 81.3 KB (store). This is the budget that attributes growth to the kinds a page really uses; the full-sheet number cannot. ~8% headroom. |
 | Rendered HTML size | **≤ 220 KB** | Rich pages reference images *externally*, so the document itself stays small (~60–120 KB). A balloon here means inlined `data:` payloads or runaway markup. |
 | DOM node count | **≤ 2,500** | A complex marketing page is ~500–1,200 nodes. 2,500 catches a repeater wired to an unbounded source without tripping on legitimately rich layouts. |
 | Font files requested | **≤ 6** | Each webfont blocks text paint. 2–4 faces is tasteful; 6 is a hard ceiling. |
@@ -56,6 +57,41 @@ bloat, not to fit today's (deliberately light, placeholder-imagery) designs.
 | Image payload | **≤ 3 MB** | Editorial photography is heavy *by design*: a hero + ~6 gallery crops at ~300 KB source each ≈ 2 MB. 3 MB honors that and still catches bloat. |
 | Largest single image | **≤ 900 KB** | Real optimized web JPEGs are ~200–450 KB. Anything past 900 KB is unoptimized. |
 | Total transfer weight | **≤ 3.8 MB** | The headline page weight (uncompressed source bytes). Generous for image-rich editorial pages; well under it for everything else. |
+
+## The 2026-08-15 re-tune (and why the gate was soft)
+
+The renderer-CSS ceiling was 70 KB, written on 2026-06-01 (`619b895d0`) when the
+sheet measured ~57 KB. By 2026-08-15 the sheet measured **88.5 KB (90,666 bytes)**
+— *identical for all seven fidelity designs*, which is the signature of one shared
+sheet growing, not a per-design regression. Because the step had been red for
+weeks, `builder-fidelity.yml` carried `continue-on-error: true`, so the gate ran
+but never blocked.
+
+The growth is cumulative and is **not dead weight**. Measured additions to the CSS
+source constants in `render.tsx` *after* the ceiling was set:
+
+| Δ | commit | what |
+|---|---|---|
+| +4.9 KB | `408f17492` | nav dropdown / mega menu + `social_links` (2026-06-15) |
+| +2.4 KB | `77b261745` | interactive header embeds + mobile nav (2026-06-15) |
+| +9.6 KB | `e4edfa09b` | Noir & Or `carousel_hero` system (2026-06-21) |
+| +2.3 KB | `e2abfd486` | flexible grid / slider display (2026-06-24) |
+| +3.9 KB | `1196c14ee` | `social_feed` widget, #947 (2026-08-15) |
+
+`social_feed` was the prime suspect and is **not** the cause: subtracting it still
+leaves ~84.8 KB, so the gate was already red by ~15 KB before #947 merged. Roughly
+23.6 KB of the sheet is generated `@container` breakpoint escapes and 27.9 KB is
+`@media` blocks — the freeform responsive system, shared by every design.
+
+Nothing here is deletable without re-architecting the renderer, so the ceiling was
+**re-tuned to the measured reality** rather than trimmed, a second **scoped** budget
+was added to measure what actually ships, and `continue-on-error` was removed so
+the step blocks again.
+
+**If you breach either ceiling:** do not bump the number in isolation. Establish
+*what* grew (the per-constant history above is reproducible with a byte-count over
+`git log -- src/lib/site-admin/builder-node/render.tsx`), decide trim-vs-re-tune,
+and record the measurement, the date, and the reason in the `BUDGETS` comment.
 
 ## Running it
 

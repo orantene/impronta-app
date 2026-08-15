@@ -43,6 +43,12 @@ import { fileURLToPath } from "node:url";
 import { fidelityDesigns } from "./designs";
 import { buildFidelityHtml, renderFidelityMarkup, type FidelityDesign } from "./html";
 import type { BuilderNode } from "../../src/lib/site-admin/builder-node/types";
+// Pure (no React) — the same two helpers every public render path uses to scope
+// the renderer sheet, so the scoped budget measures exactly what ships.
+import {
+  buildScopedRendererCss,
+  collectPresentNodeKinds,
+} from "../../src/lib/site-admin/builder-node/renderer-css-scope";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const FONTS_DIR = resolve(SCRIPT_DIR, "fonts");
@@ -77,9 +83,40 @@ interface Budget {
 export const BUDGETS: readonly Budget[] = [
   // PERF-1 regression lock: the global renderer sheet must appear once per page.
   { key: "rendererCssBlocks", label: "Renderer CSS blocks (PERF-1: exactly 1)", max: 1, unit: "exact" },
-  // The renderer sheet is global — every published page pays its weight, so its
-  // growth must be a conscious choice, never silent. ~57 KB today; ~20% headroom.
-  { key: "rendererCssBytes", label: "Renderer CSS size", max: 70 * KB, unit: "bytes" },
+  // The FULL renderer sheet — the worst case, emitted when a caller cannot tell
+  // the renderer which node-kinds are on the page (Lab canvas, dev previews).
+  //
+  // RE-TUNED 2026-08-15: 70 KB → 95 KB. Measured 88.5 KB (90,666 B) at
+  // daead02b8, identical for all 7 fidelity designs — i.e. one shared sheet, not
+  // a per-design regression. The 70 KB ceiling was written on 2026-06-01
+  // (619b895d0) when the sheet was ~57 KB, and the sheet has grown monotonically
+  // since as the freeform escape system and new node kinds landed. Measured
+  // additions to the CSS source constants after the ceiling was set:
+  //   +4.9 KB  408f17492  nav dropdown/mega + social_links   (2026-06-15)
+  //   +2.4 KB  77b261745  header embeds + mobile nav         (2026-06-15)
+  //   +9.6 KB  e4edfa09b  Noir & Or carousel_hero system     (2026-06-21)
+  //   +2.3 KB  e2abfd486  flexible grid/slider display       (2026-06-24)
+  //   +3.9 KB  1196c14ee  social_feed widget (#947)          (2026-08-15)
+  // The gate was therefore ALREADY red by ~15 KB before social_feed merged;
+  // #947 is the last straw, not the cause. None of this is dead weight — it is
+  // live renderer surface for shipped node kinds, plus 23.6 KB of generated
+  // `@container` breakpoint escapes. Trimming it means re-architecting the
+  // renderer, not deleting bloat, so the ceiling is re-tuned to the measured
+  // reality (~7% headroom) and the gate is armed (continue-on-error removed from
+  // builder-fidelity.yml in the same commit).
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 95 * KB, unit: "bytes" },
+  // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
+  // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
+  // and every public render path passes it. This is the number that matters for
+  // page weight, and unlike the full-sheet ceiling it attributes growth to the
+  // kinds a page really uses. Measured 2026-08-15: 68.9 KB (trivial) → 81.3 KB
+  // (store, the heaviest design); 88 KB ceiling ≈ 8% headroom.
+  {
+    key: "rendererCssScopedBytes",
+    label: "Renderer CSS size (scoped, shipped)",
+    max: 88 * KB,
+    unit: "bytes",
+  },
   // The HTML document itself. Rich pages reference images externally, so the
   // document stays small; a balloon here means inlined data or runaway markup.
   { key: "htmlBytes", label: "Rendered HTML size", max: 220 * KB, unit: "bytes" },
@@ -103,6 +140,7 @@ export const BUDGETS: readonly Budget[] = [
 export interface Metrics {
   htmlBytes: number;
   rendererCssBytes: number;
+  rendererCssScopedBytes: number;
   rendererCssBlocks: number;
   domNodeCount: number;
   fontFileCount: number;
@@ -179,12 +217,28 @@ export function measureDesign(
   html: string,
   markup: string,
   sizers: AssetSizers,
+  /**
+   * The REND-2 scoped sheet this design's tree would ship on a public render
+   * (`buildScopedRendererCss(full, collectPresentNodeKinds(tree))`). The CLI
+   * supplies it; callers that cannot compute it (the self-test's synthetic
+   * metrics) omit it and the full-sheet size is used, which is the conservative
+   * direction — scoping can only ever shrink the sheet.
+   */
+  scopedRendererCss?: string | null,
 ): { metrics: Metrics; notes: string[] } {
   const notes: string[] = [];
 
   // ── HTML + renderer stylesheet (PERF-1) ────────────────────────────────────
   const rendererBlocks = [...html.matchAll(RENDERER_STYLE_RE)];
   const rendererCssBytes = rendererBlocks.length > 0 ? byteLength(rendererBlocks[0][1]) : 0;
+  const rendererCssScopedBytes =
+    typeof scopedRendererCss === "string" ? byteLength(scopedRendererCss) : rendererCssBytes;
+  if (rendererCssScopedBytes > rendererCssBytes) {
+    notes.push(
+      `Scoped renderer sheet (${rendererCssScopedBytes} B) is LARGER than the full sheet ` +
+        `(${rendererCssBytes} B) — buildScopedRendererCss must only ever shrink it.`,
+    );
+  }
   if (rendererBlocks.length === 0) {
     notes.push("No renderer stylesheet found — BuilderNodeRendererStyles did not emit.");
   } else if (rendererBlocks.length > 1) {
@@ -284,6 +338,7 @@ export function measureDesign(
     metrics: {
       htmlBytes,
       rendererCssBytes,
+      rendererCssScopedBytes,
       rendererCssBlocks: rendererBlocks.length,
       domNodeCount,
       fontFileCount,
@@ -363,7 +418,14 @@ function safeSize(path: string): number | null {
 function measureRegisteredDesign(design: FidelityDesign): DesignReport {
   const html = buildFidelityHtml(design);
   const markup = renderFidelityMarkup(design.tree);
-  const { metrics, notes } = measureDesign(html, markup, diskSizers);
+  // The harness renders unscoped (no `kinds`), so the emitted sheet is the FULL
+  // one. Re-derive the scoped sheet the public paths would ship for this exact
+  // tree, using the same two helpers they call.
+  const fullSheetMatch = [...html.matchAll(RENDERER_STYLE_RE)][0];
+  const scopedRendererCss = fullSheetMatch
+    ? buildScopedRendererCss(fullSheetMatch[1], collectPresentNodeKinds(design.tree))
+    : null;
+  const { metrics, notes } = measureDesign(html, markup, diskSizers, scopedRendererCss);
   return { id: design.id, title: design.title, metrics, notes };
 }
 
@@ -455,7 +517,13 @@ function runSelfTest(): void {
   };
   const html = buildFidelityHtml(huge);
   const markup = renderFidelityMarkup(huge.tree);
-  const { metrics } = measureDesign(html, markup, diskSizers);
+  const hugeSheet = [...html.matchAll(RENDERER_STYLE_RE)][0];
+  const { metrics } = measureDesign(
+    html,
+    markup,
+    diskSizers,
+    hugeSheet ? buildScopedRendererCss(hugeSheet[1], collectPresentNodeKinds(huge.tree)) : null,
+  );
   const e2eViolations = evaluateBudgets(huge.id, metrics);
   const breachedKeys = new Set(e2eViolations.map((v) => v.key));
   if (!breachedKeys.has("domNodeCount")) failures.push("synthetic design did not breach domNodeCount");
@@ -499,6 +567,7 @@ function zeroMetrics(): Metrics {
   return {
     htmlBytes: 0,
     rendererCssBytes: 0,
+    rendererCssScopedBytes: 0,
     rendererCssBlocks: 1,
     domNodeCount: 0,
     fontFileCount: 0,
