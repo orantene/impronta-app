@@ -17,17 +17,15 @@
  * works without the slot system's `cms_pages.version` machinery.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { requireEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import {
-  buildFreeformRevisionSnapshot,
-  nextFreeformRevisionVersion,
-} from "./freeform-revision-snapshot";
+  publishCmsFreeformPageWithClient,
+  writeCmsFreeformRevision,
+} from "./cms-freeform-publish-core";
 import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 
 // STYLE-1 — the style registry columns are selected/written through a graceful
@@ -37,68 +35,6 @@ import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 const BASE_ROW_COLUMNS =
   "id, slug, title, status, blocks, is_freeform, version, published_at, updated_at";
 const ROW_COLUMNS = `${BASE_ROW_COLUMNS}, style_classes, style_presets`;
-
-/**
- * REV-1 — resolve the next `cms_page_revisions.version` for a freeform page: max
- * existing version + 1 (defaults to 1 for the first revision). Best-effort — a
- * read failure falls back to 1, which never blocks a save/publish (the revision
- * insert is itself best-effort).
- */
-async function nextCmsRevisionVersion(
-  supabase: SupabaseClient,
-  tenantId: string,
-  pageId: string,
-): Promise<number> {
-  const { data } = await supabase
-    .from("cms_page_revisions")
-    .select("version")
-    .eq("tenant_id", tenantId)
-    .eq("page_id", pageId)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ version: number }>();
-  return nextFreeformRevisionVersion(data?.version);
-}
-
-/**
- * REV-1 — write a `cms_page_revisions` row capturing a freeform page's `blocks`
- * tree. Best-effort: a failure is swallowed (the page is already saved/published
- * once the row commits), mirroring `writeShellRevision` for the agency shell.
- * The snapshot carries the freeform tree under the shared `builderTree` key so
- * the existing revisions-drawer / diff / `parseBuilderTreeFromSnapshot` read it.
- * Uses the caller's tenant-scoped client (cms_page_revisions RLS backs it).
- */
-async function writeCmsFreeformRevision(input: {
-  supabase: SupabaseClient;
-  tenantId: string;
-  pageId: string;
-  title: string;
-  blocks: unknown;
-  kind: "draft" | "published" | "rollback";
-  actorProfileId: string | null;
-}): Promise<void> {
-  try {
-    const version = await nextCmsRevisionVersion(
-      input.supabase,
-      input.tenantId,
-      input.pageId,
-    );
-    await input.supabase.from("cms_page_revisions").insert({
-      tenant_id: input.tenantId,
-      page_id: input.pageId,
-      kind: input.kind,
-      version,
-      snapshot: buildFreeformRevisionSnapshot({
-        title: input.title,
-        blocks: input.blocks,
-      }),
-      created_by: input.actorProfileId,
-    });
-  } catch {
-    // Non-fatal: the page is already persisted; a missing revision row only
-    // means this checkpoint isn't restorable, never that the save/publish failed.
-  }
-}
 
 /** Load a freeform cms_pages row by (locale, slug) within the caller's tenant.
  *  cms_pages is unique on (tenant_id, locale, slug); filtering by locale is
@@ -254,33 +190,16 @@ export async function publishCmsFreeformPage(input: {
     return { ok: false, error: "You don't have permission to publish this page." };
   }
 
-  const now = new Date().toISOString();
-  const { data, error } = await auth.supabase
-    .from("cms_pages")
-    .update({ status: "published", published_at: now, updated_at: now })
-    .eq("id", input.pageId)
-    .eq("tenant_id", scope.tenantId)
-    .eq("is_freeform", true)
-    .select("title, blocks, published_at, updated_at")
-    .maybeSingle()
-    .returns<{ title: string; blocks: unknown; published_at: string; updated_at: string }>();
-  if (error || !data) {
-    return { ok: false, error: error?.message ?? "Could not publish the page." };
-  }
-
-  // REV-1 — checkpoint the just-published freeform tree as a restorable
-  // `cms_page_revisions` row (kind=published). Best-effort, never blocks.
-  await writeCmsFreeformRevision({
+  // The write + REV-1 published-revision checkpoint live in
+  // `cms-freeform-publish-core.ts` so the scheduled-publish cron (which has no
+  // session and therefore cannot call this action) publishes freeform pages
+  // through the identical sequence instead of a second implementation.
+  return publishCmsFreeformPageWithClient({
     supabase: auth.supabase,
     tenantId: scope.tenantId,
     pageId: input.pageId,
-    title: data.title ?? "Page",
-    blocks: data.blocks,
-    kind: "published",
     actorProfileId: auth.user.id,
   });
-
-  return { ok: true, publishedAt: data.published_at ?? now, updatedAt: data.updated_at };
 }
 
 /**

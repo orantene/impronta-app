@@ -15,6 +15,13 @@
  * `schedulePublishAction({ publishAt })`. Cancel calls
  * `cancelScheduledPublishAction()` and closes.
  *
+ * PAGE SCOPE: every call carries `pageId` + `pageSlug` from `EditContext`, the
+ * same identity pair the revisions drawer routes on. Without them the actions
+ * fall back to the tenant's homepage row — which is correct for the storefront
+ * homepage (it mounts with no slug) and was silently WRONG for every other
+ * surface before this: an operator scheduling an inner page scheduled the
+ * homepage instead, and this drawer reported the homepage's fire time back.
+ *
  * The actual cron firing is handled outside this drawer — see
  * `/api/cron/publish-scheduled` (follow-up). The drawer only owns the
  * "what time should this publish?" contract.
@@ -116,6 +123,8 @@ export function ScheduleDrawer() {
   const open = ctx.scheduleOpen;
   const onClose = ctx.closeSchedule;
   const locale = ctx.locale;
+  const pageId = ctx.pageId ?? null;
+  const pageSlug = ctx.pageSlug ?? null;
 
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [pickerValue, setPickerValue] = useState<string>("");
@@ -147,7 +156,7 @@ export function ScheduleDrawer() {
     setMinPublishIso(new Date(Date.now() + 60_000).toISOString());
     let cancelled = false;
     setState({ kind: "loading" });
-    loadScheduledPublishAction({ locale })
+    loadScheduledPublishAction({ locale, pageId, pageSlug })
       .then((res) => {
         if (cancelled) return;
         if (!res.ok) {
@@ -175,7 +184,7 @@ export function ScheduleDrawer() {
     return () => {
       cancelled = true;
     };
-  }, [open, locale]);
+  }, [open, locale, pageId, pageSlug]);
 
   const handleSchedule = useCallback(async () => {
     const iso = localInputValueToIso(pickerValue);
@@ -188,7 +197,7 @@ export function ScheduleDrawer() {
     // if the network drops mid-call. Returns a typed error envelope the
     // existing render path already handles.
     const res = await safeAction(
-      () => schedulePublishAction({ locale, publishAt: iso }),
+      () => schedulePublishAction({ locale, pageId, pageSlug, publishAt: iso }),
       {
         name: "schedulePublishAction",
         fallback: { ok: false as const, error: "Network error. Try again." },
@@ -200,12 +209,12 @@ export function ScheduleDrawer() {
     }
     setCurrentSchedule({ iso: res.publishAt, byName: null });
     setState({ kind: "success" });
-  }, [pickerValue, locale]);
+  }, [pickerValue, locale, pageId, pageSlug]);
 
   const handleCancelSchedule = useCallback(async () => {
     setState({ kind: "saving" });
     const res = await safeAction(
-      () => cancelScheduledPublishAction({ locale }),
+      () => cancelScheduledPublishAction({ locale, pageId, pageSlug }),
       {
         name: "cancelScheduledPublishAction",
         fallback: { ok: false as const, error: "Network error. Try again." },
@@ -218,7 +227,7 @@ export function ScheduleDrawer() {
     setCurrentSchedule({ iso: null, byName: null });
     setPickerValue(defaultPickerValue());
     setState({ kind: "idle" });
-  }, [locale]);
+  }, [locale, pageId, pageSlug]);
 
   if (!open) return null;
 

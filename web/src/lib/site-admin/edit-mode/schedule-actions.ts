@@ -3,12 +3,20 @@
 /**
  * Phase 12 — scheduled-publish server actions.
  *
- * Operators set/cancel a future fire time on the homepage row from the
- * Schedule drawer in the editor. The cron route under
- * `/api/cron/publish-scheduled` (Vercel cron, secret-gated) sweeps every
- * minute, finds rows whose `scheduled_publish_at <= now()` and whose
- * `status='draft'`, then calls the same `publishHomepage()` flow the
- * operator would have hit manually.
+ * Operators set/cancel a future fire time on the page they are editing, from
+ * the Schedule drawer. The cron route under `/api/cron/publish-scheduled`
+ * (Vercel cron, secret-gated) sweeps every minute, finds rows whose
+ * `scheduled_publish_at <= now()`, and runs the publish path that page kind
+ * needs (homepage / freeform / template).
+ *
+ * PAGE-SCOPED, NOT HOMEPAGE-ONLY. These actions used to resolve the tenant's
+ * homepage row unconditionally, so an operator who opened Schedule while
+ * editing an inner page silently scheduled a HOMEPAGE publish, and the drawer
+ * showed the homepage's schedule under the inner page's title. The drawer now
+ * passes the editor's page identity (`EditContext.pageId` / `pageSlug`) and
+ * `resolveEditorPage` turns it into the right row; with neither, the homepage
+ * is still the answer (the storefront homepage mounts with no slug), so any
+ * legacy caller keeps its old behaviour.
  *
  * Constraints:
  *   - `requireSession` + `requireEditSurfaceTenantScope` gate every entry point.
@@ -23,9 +31,22 @@ import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
+import { resolveEditorPage } from "@/lib/site-admin/server/editor-page-ref";
 
-export interface SchedulePublishInput {
-  /** Locale of the homepage to schedule. Defaults to "en" if omitted. */
+/**
+ * Page identity forwarded by the Schedule drawer. Both fields are optional and
+ * untrusted (they come from a client component); `resolveEditorPage` scopes
+ * every lookup to the caller's tenant. Omitting both selects the homepage.
+ */
+export interface SchedulePageRefInput {
+  /** `cms_pages.id` of the page being edited. Authoritative when present. */
+  pageId?: string | null;
+  /** `cms_pages.slug` of the page being edited. Used when no id is available. */
+  pageSlug?: string | null;
+}
+
+export interface SchedulePublishInput extends SchedulePageRefInput {
+  /** Locale of the page to schedule. Defaults to "en" if omitted. */
   locale?: string;
   /** ISO8601 UTC timestamp at which the cron sweep should publish the page. */
   publishAt: string;
@@ -87,17 +108,16 @@ export async function schedulePublishAction(
   const { supabase, user } = auth;
   const { tenantId } = scope;
 
-  const { data: pageRow, error: pageErr } = await supabase
-    .from("cms_pages")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("locale", locale)
-    .eq("is_system_owned", true)
-    .eq("system_template_key", "homepage")
-    .maybeSingle<{ id: string }>();
-  if (pageErr || !pageRow) {
-    if (pageErr) logServerError("schedule-publish/load-homepage", pageErr);
-    return { ok: false, error: "Homepage row not found.", code: "NOT_FOUND" };
+  const pageRow = await resolveEditorPage(supabase, tenantId, {
+    pageId: input.pageId,
+    pageSlug: input.pageSlug,
+    locale,
+  }).catch((err) => {
+    logServerError("schedule-publish/resolve-page", err);
+    return null;
+  });
+  if (!pageRow) {
+    return { ok: false, error: "Page not found.", code: "NOT_FOUND" };
   }
 
   const { error: updateErr } = await supabase
@@ -130,9 +150,9 @@ export type CancelScheduledPublishResult =
   | { ok: true; pageId: string }
   | { ok: false; error: string; code?: string };
 
-/** Clear the scheduled fire time on the homepage row. Idempotent. */
+/** Clear the scheduled fire time on the edited page's row. Idempotent. */
 export async function cancelScheduledPublishAction(
-  input: { locale?: string } = {},
+  input: SchedulePageRefInput & { locale?: string } = {},
 ): Promise<CancelScheduledPublishResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
@@ -152,17 +172,16 @@ export async function cancelScheduledPublishAction(
   const { supabase } = auth;
   const { tenantId } = scope;
 
-  const { data: pageRow, error: pageErr } = await supabase
-    .from("cms_pages")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("locale", locale)
-    .eq("is_system_owned", true)
-    .eq("system_template_key", "homepage")
-    .maybeSingle<{ id: string }>();
-  if (pageErr || !pageRow) {
-    if (pageErr) logServerError("schedule-publish/cancel-load", pageErr);
-    return { ok: false, error: "Homepage row not found.", code: "NOT_FOUND" };
+  const pageRow = await resolveEditorPage(supabase, tenantId, {
+    pageId: input.pageId,
+    pageSlug: input.pageSlug,
+    locale,
+  }).catch((err) => {
+    logServerError("schedule-publish/cancel-resolve-page", err);
+    return null;
+  });
+  if (!pageRow) {
+    return { ok: false, error: "Page not found.", code: "NOT_FOUND" };
   }
 
   const { error: updateErr } = await supabase
@@ -198,12 +217,12 @@ export type LoadScheduledPublishResult =
   | { ok: false; error: string; code?: string };
 
 /**
- * Read the current schedule state for the homepage row. The drawer calls
+ * Read the current schedule state for the edited page's row. The drawer calls
  * this on open so a previously-set fire time round-trips without
  * re-rendering the whole EditContext.
  */
 export async function loadScheduledPublishAction(
-  input: { locale?: string } = {},
+  input: SchedulePageRefInput & { locale?: string } = {},
 ): Promise<LoadScheduledPublishResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
@@ -223,13 +242,23 @@ export async function loadScheduledPublishAction(
   const { supabase } = auth;
   const { tenantId } = scope;
 
+  const resolved = await resolveEditorPage(supabase, tenantId, {
+    pageId: input.pageId,
+    pageSlug: input.pageSlug,
+    locale,
+  }).catch((err) => {
+    logServerError("schedule-publish/load-state-resolve", err);
+    return null;
+  });
+  if (!resolved) {
+    return { ok: false, error: "Page not found.", code: "NOT_FOUND" };
+  }
+
   const { data: pageRow, error: pageErr } = await supabase
     .from("cms_pages")
     .select("id, scheduled_publish_at, scheduled_by")
+    .eq("id", resolved.id)
     .eq("tenant_id", tenantId)
-    .eq("locale", locale)
-    .eq("is_system_owned", true)
-    .eq("system_template_key", "homepage")
     .maybeSingle<{
       id: string;
       scheduled_publish_at: string | null;
@@ -237,7 +266,7 @@ export async function loadScheduledPublishAction(
     }>();
   if (pageErr || !pageRow) {
     if (pageErr) logServerError("schedule-publish/load-state", pageErr);
-    return { ok: false, error: "Homepage row not found.", code: "NOT_FOUND" };
+    return { ok: false, error: "Page not found.", code: "NOT_FOUND" };
   }
 
   let scheduledByName: string | null = null;
