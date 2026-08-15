@@ -1,4 +1,4 @@
-// /api/media/bake-watermark — server-side logo compositing via sharp.
+// /api/admin/media/bake-watermark — server-side logo compositing via sharp.
 //
 // POST { mediaAssetId: string }
 //

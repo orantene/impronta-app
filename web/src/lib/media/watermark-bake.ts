@@ -5,7 +5,7 @@ import "server-only";
  *
  * WHY THIS FILE EXISTS
  * ────────────────────
- * The sharp compositing pipeline was written for `/api/media/bake-watermark`
+ * The sharp compositing pipeline was written for `/api/admin/media/bake-watermark`
  * (phase 5 of the 2026-05 watermark plan) and then sat there with no caller for
  * three months. Phase 4 of the media-ownership plan needs the SAME pipeline
  * from a server action (bake on release approval), and a second copy of
