@@ -7,6 +7,7 @@ import { clientDirectoryHref } from "@/i18n/client-directory-href";
 import { useOptionalDirectoryInquiryModal } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryStateOptional } from "@/components/directory/public-discovery-state";
 import { Button } from "@/components/ui/button";
+import { CountBadge } from "@/components/ui/count-badge";
 import {
   Tooltip,
   TooltipContent,
@@ -144,11 +145,7 @@ export function DirectoryDiscoveryHeaderActions({
                 )}
                 fill={hasFavorites ? "currentColor" : "none"}
               />
-              {favCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--accent-solid)] bg-black px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--accent-solid)]">
-                  {favCount > 99 ? "99+" : String(favCount)}
-                </span>
-              ) : null}
+              <CountBadge count={favCount} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-[220px]">
@@ -194,11 +191,7 @@ export function DirectoryDiscoveryHeaderActions({
                 )}
                 fill={hasCart ? "currentColor" : "none"}
               />
-              {cartCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--accent-solid)] bg-black px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--accent-solid)]">
-                  {cartCount > 99 ? "99+" : String(cartCount)}
-                </span>
-              ) : null}
+              <CountBadge count={cartCount} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-[240px]">

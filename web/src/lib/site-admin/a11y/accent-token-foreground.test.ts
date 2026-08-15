@@ -8,17 +8,33 @@
  * `color-mix(in oklab, var(--token-color-accent) 14%, transparent)`). It exists
  * to back `bg-accent` washes and hover states.
  *
- * The directory header's favorites / inquiry count badge read it as a
- * FOREGROUND: `text-[var(--accent)]` + `border-[var(--accent)]` on a `bg-black`
- * pill. Measured live on a seeded storefront, the digit painted
+ * The directory header's favorites / inquiry count badge originally read it as
+ * a FOREGROUND: `text-[var(--accent)]` + `border-[var(--accent)]` on a
+ * `bg-black` pill. Measured live on a seeded storefront, the digit painted
  * `oklab(0.684673 -0.0798082 -0.12445 / 0.14)` — a 14%-alpha color on solid
- * black, i.e. an invisible number inside a 20x30px black blob. The owner
- * reported it as a design bug that "keeps occurring everywhere", because any
- * consumer reading the tint as a foreground disappears the same way.
+ * black, i.e. an invisible number inside a 20x30px black blob.
  *
- * The fix is a named pair: `--accent` stays the tint, `--accent-solid` is its
- * fully opaque sibling for text / icons / borders / rings. These tests keep the
- * two halves from drifting back together.
+ * PR #1043 introduced `--accent-solid` (the opaque sibling) and moved the
+ * badge's text/border onto it, but left the pill itself hardcoded `bg-black`.
+ * `--accent-solid` is an ARBITRARY per-tenant hue (`.site-theme-tenant-override`
+ * maps it straight to the operator's chosen `--token-color-accent`, with no
+ * coordination to any background), so a hardcoded black pill still fails AA
+ * for plenty of real tenant colors — measured against a real reported case
+ * (sky blue `rgb(14,165,233)`, the "dark blob" tenant), it actually verifies
+ * a bright badge digit yet still reads as a jarring, theme-mismatched blob
+ * because the fill never adapts to the tenant's canvas. There is also no
+ * token in this codebase that computes a guaranteed-contrast foreground for
+ * an arbitrary tenant hex, so "solid tenant-accent pill + fixed digit color"
+ * is unsafe in EITHER direction (accent-as-text needs a fixed-contrast bg,
+ * accent-as-bg needs a fixed-contrast text, and neither exists for an
+ * unbounded hue).
+ *
+ * The follow-up fix (`CountBadge`, `src/components/ui/count-badge.tsx`) stops
+ * using the tenant accent for the pill's fill or text entirely. It uses
+ * `bg-background` + `text-foreground` — the same pair every other piece of
+ * body copy on the page already depends on for AA contrast in every theme
+ * scope — and confines `--accent-solid` to the border ring only, which is
+ * decorative brand identity, not a legibility-critical AA target.
  *
  * Pure static analysis over the CSS + component sources: no DOM, no React, no
  * Supabase, and no import of `edit-chrome` (this file lives under
@@ -41,32 +57,14 @@ const CSS_SOURCES = [
 ] as const;
 
 const HEADER_ACTIONS = "src/components/directory/directory-discovery-header-actions.tsx";
-
-/** The pill the count badge paints itself on (`bg-black`). */
-const BADGE_BACKGROUND = "#000000";
-
-/**
- * Contrast floor for the badge digit against its own pill. 3.0:1 is the WCAG
- * non-text / large-text floor; the digit is 10px bold mono, so this is a
- * legibility floor rather than a full AA text claim. The point of the number is
- * that 0.14-alpha-on-black scored ~1.1:1 and shipped.
- */
-const BADGE_CONTRAST_FLOOR = 3;
+const SAVED_ENTRY_BUTTON = "src/components/directory/saved-entry-button.tsx";
+const COUNT_BADGE = "src/components/ui/count-badge.tsx";
 
 /**
- * Scopes whose `--accent-solid` can actually paint the count badge: the public
- * storefront themes and background-mode presets. Admin / dashboard / platform
- * scopes are light-canvas surfaces that never render this header, so their
- * accent is correctly a dark ink and is not measured against a black pill.
+ * AA floor for the badge digit (10px semibold — not "large text" by the
+ * WCAG size exemption, so the small-text 4.5:1 threshold applies).
  */
-const STOREFRONT_SCOPE_HINTS = [
-  "site-theme-dark",
-  "site-theme-tenant-override",
-  "editorial-noir",
-  "noir-or",
-  "espresso",
-  "atelier-blanc",
-];
+const BADGE_AA_FLOOR = 4.5;
 
 type Declaration = { selector: string; property: string; value: string; file: string };
 
@@ -141,7 +139,7 @@ test("every scope that defines --accent also defines --accent-solid", () => {
   );
 });
 
-// ── 2. --accent-solid is SOLID. This is the root-cause pin. ──────────────────
+// ── 2. --accent-solid is SOLID. Still the root-cause pin for the tint bug. ───
 
 test("every --accent-solid value is fully opaque", () => {
   const solids = blocksDeclaring("--accent-solid");
@@ -164,75 +162,114 @@ test("every --accent-solid value is fully opaque", () => {
   assert.deepStrictEqual(
     translucent,
     [],
-    `--accent-solid must be opaque; it is the FOREGROUND half of the pair. Translucent values reintroduce the invisible-badge bug:\n  ${translucent.join("\n  ")}`,
+    `--accent-solid must be opaque; consumers (e.g. a badge border) still expect a solid ring, not a wash. Translucent values reintroduce that failure mode:\n  ${translucent.join("\n  ")}`,
   );
 });
 
-// ── 3. The badge digit is legible on its own pill ───────────────────────────
+// ── 3. The pair CountBadge actually relies on clears real AA everywhere ──────
 
-test("storefront --accent-solid values clear the badge contrast floor on black", () => {
-  const measured = blocksDeclaring("--accent-solid").filter(
-    (d) =>
-      STOREFRONT_SCOPE_HINTS.some((hint) => d.selector.includes(hint)) &&
-      d.value.startsWith("#"),
+test("every --background / --foreground scope pair clears AA (4.5:1)", () => {
+  const backgrounds = blocksDeclaring("--background");
+  const foregrounds = new Map(
+    blocksDeclaring("--foreground").map((d) => [`${d.file}::${d.selector}`, d]),
   );
 
+  const literalBackgrounds = backgrounds.filter((d) => /^#[0-9a-f]{3,8}$/i.test(d.value.trim()));
   assert.ok(
-    measured.length >= 4,
-    `expected several literal storefront accent colors to measure, found ${measured.length}`,
+    literalBackgrounds.length >= 3,
+    `expected several literal --background scopes to measure, found ${literalBackgrounds.length}`,
   );
 
-  for (const d of measured) {
-    const ratio = contrastRatio(d.value, BADGE_BACKGROUND);
-    assert.ok(ratio !== null, `could not parse ${d.value} in ${d.selector}`);
+  const failures: string[] = [];
+  for (const bg of literalBackgrounds) {
+    const fg = foregrounds.get(`${bg.file}::${bg.selector}`);
+    if (!fg || !/^#[0-9a-f]{3,8}$/i.test(fg.value.trim())) continue; // var()-chained, skip: not a literal pair to score here
+    const ratio = contrastRatio(fg.value.trim(), bg.value.trim());
+    if (ratio === null || ratio < BADGE_AA_FLOOR) {
+      failures.push(
+        `${bg.file} { ${bg.selector} } --foreground: ${fg.value} on --background: ${bg.value} scores ${ratio?.toFixed(2) ?? "?"}:1, below the ${BADGE_AA_FLOOR}:1 AA floor`,
+      );
+    }
+  }
+
+  assert.deepStrictEqual(
+    failures,
+    [],
+    `CountBadge (src/components/ui/count-badge.tsx) paints its digit with bg-background + text-foreground specifically because this pair is guaranteed AA in every scope. A failure here means that guarantee broke:\n  ${failures.join("\n  ")}`,
+  );
+});
+
+// ── 4. Nothing in the count-badge chain reads the accent TINT as a foreground
+
+test("the count-badge chain never reads the accent tint as a foreground", () => {
+  for (const file of [HEADER_ACTIONS, SAVED_ENTRY_BUTTON, COUNT_BADGE]) {
+    const source = readFileSync(path.join(WEB_ROOT, file), "utf8");
+    for (const pattern of [
+      "text-[var(--accent)]",
+      "border-[var(--accent)]",
+      "fill-[var(--accent)]",
+      "ring-[var(--accent)]",
+      "bg-[var(--accent)]",
+    ]) {
+      assert.ok(
+        !source.includes(pattern),
+        `${file} uses ${pattern}. --accent is a ~6-14% alpha surface tint; use var(--accent-solid) for foregrounds/borders.`,
+      );
+    }
+  }
+});
+
+// ── 5. The call site that shipped the bug cannot regress ────────────────────
+
+test("the count badge never paints a hardcoded black pill", () => {
+  for (const file of [HEADER_ACTIONS, SAVED_ENTRY_BUTTON, COUNT_BADGE]) {
+    const source = readFileSync(path.join(WEB_ROOT, file), "utf8");
     assert.ok(
-      ratio! >= BADGE_CONTRAST_FLOOR,
-      `${d.file} { ${d.selector} } --accent-solid: ${d.value} scores ${ratio!.toFixed(2)}:1 on the black count-badge pill, below the ${BADGE_CONTRAST_FLOOR}:1 floor.`,
+      !source.includes("bg-black"),
+      `${file} uses bg-black on the count badge. A hardcoded black pill ignores the tenant's theme and has no guaranteed contrast against an arbitrary --accent-solid hue (measured: sky blue rgb(14,165,233) is only 2.77:1 against white but 7.58:1 against black — no single fixed fill is safe for every tenant). Use the CountBadge primitive's bg-background instead.`,
     );
   }
 });
 
-// ── 4. The call site that shipped the bug cannot regress ────────────────────
-
-test("the directory header never reads the accent tint as a foreground", () => {
-  const source = readFileSync(path.join(WEB_ROOT, HEADER_ACTIONS), "utf8");
-
-  for (const pattern of [
-    "text-[var(--accent)]",
-    "border-[var(--accent)]",
-    "fill-[var(--accent)]",
-    "ring-[var(--accent)]",
-  ]) {
+test("the header/saved-entry badges route through the shared CountBadge primitive", () => {
+  for (const file of [HEADER_ACTIONS, SAVED_ENTRY_BUTTON]) {
+    const source = readFileSync(path.join(WEB_ROOT, file), "utf8");
     assert.ok(
-      !source.includes(pattern),
-      `${HEADER_ACTIONS} uses ${pattern}. --accent is a ~6-14% alpha surface tint; use var(--accent-solid) for foregrounds.`,
+      source.includes("<CountBadge"),
+      `${file} no longer renders <CountBadge>. This class of bug (per-site bespoke badge styling) is meant to be fixed once in src/components/ui/count-badge.tsx and reused, not patched inline per call site.`,
     );
   }
 });
 
-test("the count badge paints its digit and border with the opaque accent", () => {
-  const source = readFileSync(path.join(WEB_ROOT, HEADER_ACTIONS), "utf8");
-
-  // Both badges (favorites count and inquiry count) share one class string.
-  const badges = source.match(/className="absolute -right-0\.5 -top-0\.5[^"]*"/g) ?? [];
-  assert.strictEqual(
-    badges.length,
-    2,
-    "expected the favorites and inquiry count badges; the class string moved, re-point this guard",
+test("CountBadge paints its fill and digit with the guaranteed-contrast background/foreground pair, accent stays on the border", () => {
+  const source = readFileSync(path.join(WEB_ROOT, COUNT_BADGE), "utf8");
+  assert.ok(source.includes("bg-background"), `${COUNT_BADGE} must fill with bg-background.`);
+  assert.ok(source.includes("text-foreground"), `${COUNT_BADGE} must paint its digit with text-foreground.`);
+  assert.ok(
+    source.includes("border-[var(--accent-solid)]"),
+    `${COUNT_BADGE} must default the border ring to the tenant accent (border-[var(--accent-solid)]) for brand identity — only the border, never the fill or text.`,
   );
+  // The accent must not show up as a fill or text color anywhere in this file.
+  assert.ok(
+    !/\btext-\[var\(--accent-solid\)\]/.test(source),
+    `${COUNT_BADGE} must not paint the digit with the tenant accent (unbounded-hue AA risk) — text-foreground instead.`,
+  );
+  assert.ok(
+    !/\bbg-\[var\(--accent-solid\)\]/.test(source),
+    `${COUNT_BADGE} must not fill the pill with the tenant accent (unbounded-hue AA risk) — bg-background instead.`,
+  );
+});
 
-  for (const badge of badges) {
-    assert.ok(
-      badge.includes("text-[var(--accent-solid)]"),
-      `count badge digit must use the opaque accent, got: ${badge}`,
-    );
-    assert.ok(
-      badge.includes("border-[var(--accent-solid)]"),
-      `count badge border must use the opaque accent, got: ${badge}`,
-    );
-    assert.ok(
-      badge.includes("bg-black"),
-      `count badge is expected to sit on the black pill this guard measures against, got: ${badge}`,
-    );
-  }
+// ── 6. Shape regression guard — the oval-badge bug ───────────────────────────
+
+test("CountBadge sets a fixed height matching its min-width so a single digit renders a circle", () => {
+  const source = readFileSync(path.join(WEB_ROOT, COUNT_BADGE), "utf8");
+  assert.ok(
+    /\bh-5\b/.test(source) && /\bmin-w-5\b/.test(source),
+    `${COUNT_BADGE} must pair a fixed height (h-5) with min-w-5 — min-width alone (the original bug) lets vertical padding + the app's line-height inflate the box into an oval instead of a circle.`,
+  );
+  assert.ok(
+    /\bleading-none\b/.test(source),
+    `${COUNT_BADGE} must reset line-height (leading-none) — the app's global body line-height (1.65) otherwise inflates a fixed-height box's content past its bounds.`,
+  );
 });

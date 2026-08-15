@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CountBadge } from "@/components/ui/count-badge";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { cn } from "@/lib/utils";
 
@@ -37,11 +38,7 @@ export function SavedEntryButton({
     >
       <Link href={href} aria-label={ariaLabel}>
         <Bookmark className="size-5" />
-        {count > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-5 items-center justify-center rounded-full border border-[var(--dir-accent-line)] bg-background px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--dir-accent)]">
-            {count > 99 ? "99+" : String(count)}
-          </span>
-        ) : null}
+        <CountBadge count={count} accentClassName="border-[var(--dir-accent-line)]" />
       </Link>
     </Button>
   );
