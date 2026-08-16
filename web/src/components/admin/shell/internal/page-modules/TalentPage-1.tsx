@@ -17,7 +17,7 @@ import { Grid, PageHeader } from "./pages-shared";
 import {
   resolveRosterCardTaxonomy,
   rosterMatchesParentFilter,
-  rosterParentFilterOf,
+  rosterParentFiltersOf,
 } from "./roster-card-taxonomy";
 import { rosterSortComparator } from "./roster-sort";
 import type { RosterSortKey } from "./roster-sort";
@@ -98,7 +98,7 @@ export function TalentPage() {
       if (stateFilter === "all") return true;
       return stateFilter === "visible" ? isPubliclyVisible(p) : !isPubliclyVisible(p);
     })
-    .filter((p) => typeFilter === "all" || rosterMatchesParentFilter(p, typeFilter))
+    .filter((p) => typeFilter === "all" || rosterMatchesParentFilter(p, typeFilter, locale))
     .filter((p) => {
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
@@ -129,8 +129,11 @@ export function TalentPage() {
   const usedTypes: RosterTypeFilterOption[] = (() => {
     const byId = new Map<string, RosterTypeFilterOption>();
     for (const r of roster) {
-      const opt = rosterParentFilterOf(r, locale);
-      if (opt && !byId.has(opt.id)) byId.set(opt.id, opt);
+      // A talent contributes EVERY parent they span, so a chip exists for
+      // each bucket present on the roster (not just primary-type buckets).
+      for (const opt of rosterParentFiltersOf(r, locale)) {
+        if (!byId.has(opt.id)) byId.set(opt.id, opt);
+      }
     }
     return Array.from(byId.values());
   })();

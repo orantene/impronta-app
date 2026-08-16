@@ -743,7 +743,9 @@ function deriveTypeChips(
   // Performers AND Influencers), and the card groups by parent — so reading
   // the parent off the primary type alone would drop the other buckets.
   const enrich = (
-    term: NonNullable<RosterRow["talent_profiles"]>["talent_profile_taxonomy"][number]["taxonomy_terms"],
+    term: NonNullable<
+      NonNullable<RosterRow["talent_profiles"]>["talent_profile_taxonomy"]
+    >[number]["taxonomy_terms"],
   ): RosterTaxonomyChip | undefined => {
     const chip = term ? toTaxonomyChip(term) : undefined;
     if (!chip || !term) return chip;
@@ -752,8 +754,10 @@ function deriveTypeChips(
     return {
       ...chip,
       ...(parentChip ? { parent: parentChip } : {}),
-      // Absent overlay row = enabled, matching getEnabledTaxonomyTree().
-      supported: !disabledTermIds.has(term.id),
+      // Absent overlay row = enabled, matching getEnabledTaxonomyTree(). A
+      // term with no id can't be looked up, so it counts as supported —
+      // never dim a type on missing data.
+      supported: term.id ? !disabledTermIds.has(term.id) : true,
     };
   };
 

@@ -239,7 +239,7 @@ test("the primary type is starred and unsupported types are flagged", () => {
   );
   assert.match(
     bridgeSrc,
-    /supported: !disabledTermIds\.has\(term\.id\)/,
-    "missing overlay row = enabled (never dim on a failed read)",
+    /supported: term\.id \? !disabledTermIds\.has\(term\.id\) : true/,
+    "missing overlay row (or a term with no id) = enabled; never dim on missing data",
   );
 });

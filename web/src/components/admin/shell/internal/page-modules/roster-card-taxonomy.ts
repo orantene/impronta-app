@@ -141,3 +141,63 @@ export function resolveRosterCardTaxonomy(
 
   return { secondaryLabels: [], groups: [] };
 }
+
+/**
+ * Parent-category filter options for the roster filter bar — ALL of a
+ * talent's parents, not just the primary type's.
+ *
+ * A talent who models AND dances belongs in both buckets; returning only the
+ * primary's parent left them unreachable from the "Performers" chip. Returns
+ * an empty array for a talent with no resolvable parent (they always pass the
+ * "all" filter).
+ */
+export function rosterParentFiltersOf(
+  profile: Pick<
+    TalentProfile,
+    "primaryType" | "primaryTypeInfo" | "parentCategory" | "secondaryTypes"
+  >,
+  locale: string,
+): Array<{ id: string; label: string; emoji?: string }> {
+  const view = resolveRosterCardTaxonomy(profile, locale);
+  const out: Array<{ id: string; label: string; emoji?: string }> = [];
+  for (const group of view.groups) {
+    if (!group.parentId || !group.parentLabel) continue;
+    out.push({
+      id: group.parentId,
+      label: group.parentLabel,
+      ...(group.parentEmoji ? { emoji: group.parentEmoji } : {}),
+    });
+  }
+  return out;
+}
+
+/**
+ * Does a talent belong to the given parent-category filter? Matches on ANY
+ * parent they span, and accepts BOTH id spaces (live parent slug / static
+ * TAXONOMY parent id) so saved views keep working whichever data source
+ * populated them.
+ */
+export function rosterMatchesParentFilter(
+  profile: Pick<
+    TalentProfile,
+    "primaryType" | "primaryTypeInfo" | "parentCategory" | "secondaryTypes"
+  >,
+  filterId: string,
+  locale = "en",
+): boolean {
+  if (profile.parentCategory?.slug === filterId) return true;
+  // Any OTHER parent the talent spans (secondary types in other categories).
+  if (
+    resolveRosterCardTaxonomy(profile, locale).groups.some(
+      (group) => group.parentId === filterId,
+    )
+  ) {
+    return true;
+  }
+  const fixtureParent = TAXONOMY.find((p) => p.id === filterId);
+  if (!fixtureParent) return false;
+  return (
+    profile.primaryType !== undefined &&
+    fixtureParent.children.some((c) => c.id === profile.primaryType)
+  );
+}
