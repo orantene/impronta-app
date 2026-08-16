@@ -123,7 +123,15 @@ const BUDGETS: Record<string, number> = {
   // anchored toolbar re-primes its dirty flag while a floating panel is being
   // dragged. The publish side (the actual notify calls) lives in
   // floating-panel.tsx; the registry lives in use-workspace-panels.ts.
-  "selection-layer.tsx": 7735,
+  // +18 (item 1 hotfix — live-QA #1146): a tablet nudge was committing a
+  // top-level translate with no responsive.tablet bucket anywhere — `onNudge`
+  // was reading the `device` variable closed over by the effect's last
+  // (re-)subscription, which could go stale. Fixed with a `deviceRef` synced
+  // in its own `useEffect` (never written during render — that trips
+  // react-hooks/refs, already grandfathered exactly once in this file, at
+  // scheduleRectRecomputeRef); `device` dropped from the nudge effect's own
+  // deps since it no longer needs to re-subscribe for freshness.
+  "selection-layer.tsx": 7753,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

@@ -756,6 +756,20 @@ export function SelectionLayer() {
     inspectorDockOpen,
     registerCanvasGeometryDirtyListener,
   } = useEditContext();
+  // Latest-value ref for `device` — the keyboard NUDGE effect (below) reads
+  // this at keydown time instead of closing over `device` directly. A window
+  // `keydown` listener re-subscribes only when its effect's deps change; on
+  // this page's duplicate-canvas-copy path (a separate repaint bug, PR #1145)
+  // a QA pass caught the listener still writing the BASE style while the
+  // topbar showed Tablet selected — the effect's own re-subscribe was not a
+  // reliable enough signal. Synced in an effect (never written during
+  // render, matching canvasZoomRef below and the ref-discipline lint) so
+  // `deviceRef.current` refreshes on every device change, fully decoupled
+  // from the nudge effect's own re-subscription timing.
+  const deviceRef = useRef(device);
+  useEffect(() => {
+    deviceRef.current = device;
+  }, [device]);
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge). selection-layer
   // reads the tree heavily (overlays, drop candidates, context menu) so it
   // subscribes here; an edit re-renders this layer, which is exactly intended.
@@ -3673,7 +3687,9 @@ export function SelectionLayer() {
       const step = nudgeStepForRepeatCount(baseStep, nudgeRepeatCountRef.current);
       const dx = delta[0] * step;
       const dy = delta[1] * step;
-      const bucket = resolveNudgeBucket(device);
+      // Read the LATEST device via the ref, not the closed-over `device` —
+      // see deviceRef's doc comment above.
+      const bucket = resolveNudgeBucket(deviceRef.current);
       if (multiNodeSelectionActive) {
         // P3-LOCK: skip locked nodes from multi-nudge.
         const nodeIds = selectedBuilderNodeRects
@@ -3715,7 +3731,9 @@ export function SelectionLayer() {
   }, [
     builderTree,
     canNudgeSelectedNode,
-    device,
+    // NOT `device` — the handler reads deviceRef.current at keydown time
+    // (see the ref's doc comment above), so this effect's own re-subscribe
+    // no longer needs to be a signal for a fresh device value.
     getBuilderNodeEl,
     getSelectedBuilderNodeEl,
     commitSelectedNodeTranslate,
