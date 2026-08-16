@@ -16,7 +16,15 @@
 import { NextResponse } from "next/server";
 
 import { readTalentMediaUsage } from "@/lib/media/talent-storage-usage";
-import { listTalentScopedMediaLibrary } from "@/lib/site-admin/media/assets";
+import { queryTenantMediaLibrary } from "@/lib/media/library-query";
+import {
+  toMediaLibraryWireFolder,
+  toMediaLibraryWireItem,
+} from "@/lib/media/library-wire";
+import {
+  MEDIA_LIBRARY_MAX_PAGE_SIZE,
+  MEDIA_LIBRARY_PAGE_SIZE,
+} from "@/lib/media/library-item";
 import { classifyTalentMediaUsability } from "@/lib/site-admin/server/media-grants";
 import {
   requireWorkspaceStaffAction,
@@ -112,14 +120,40 @@ export async function GET(req: Request) {
   // no roster) → no agency-scoped library to show. Return empty rather than run
   // an unscoped (cross-tenant) query.
   if (!resolvedTenantId) {
-    return NextResponse.json({ ok: true, items: [], portfolioAssetIds: [], quota });
+    return NextResponse.json({
+      ok: true,
+      items: [],
+      folders: [],
+      portfolioAssetIds: [],
+      locked: [],
+      nextCursor: null,
+      totalCount: 0,
+      pendingCount: 0,
+      quota,
+    });
   }
 
-  const { items, portfolioAssetIds } = await listTalentScopedMediaLibrary(
-    admin,
+  // 2026-08-16 (library unification, seam 1) — the talent lane now reads the
+  // SAME query layer as the staff library and the workspace Media page. Its
+  // scope semantics are unchanged: a talent sees their OWN uploads plus the
+  // photos linked to their profile (which may be agency-owned originals), and
+  // never the rest of the agency library. `queryTenantMediaLibrary` enforces
+  // the tenant scope in the app layer because this is a service-role client.
+  const parsedLimit = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
+  const result = await queryTenantMediaLibrary({
+    supabase: admin,
+    tenantId: resolvedTenantId,
+    scope: "talent",
     talentProfileId,
-    resolvedTenantId,
-  );
+    search: url.searchParams.get("q"),
+    folderId: url.searchParams.get("folderId"),
+    cursor: url.searchParams.get("cursor"),
+    limit:
+      Number.isFinite(parsedLimit) && parsedLimit > 0
+        ? Math.min(parsedLimit, MEDIA_LIBRARY_MAX_PAGE_SIZE)
+        : MEDIA_LIBRARY_PAGE_SIZE,
+  });
+  const { items, portfolioAssetIds } = result;
 
   // Media-ownership phase 3 (plan §6): the picker must not offer a photo the
   // talent may not actually use, AND must never drop one silently. So the
@@ -142,5 +176,15 @@ export async function GET(req: Request) {
       ownerName: u.ownerTenantName,
     }));
 
-  return NextResponse.json({ ok: true, items, portfolioAssetIds, locked, quota });
+  return NextResponse.json({
+    ok: true,
+    items: items.map((photo) => toMediaLibraryWireItem(photo, resolvedTenantId)),
+    folders: result.folders.map(toMediaLibraryWireFolder),
+    portfolioAssetIds,
+    locked,
+    nextCursor: result.nextCursor,
+    totalCount: result.totalCount,
+    pendingCount: result.pendingCount,
+    quota,
+  });
 }

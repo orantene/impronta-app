@@ -112,8 +112,13 @@ export function isSanitizedSvgRow(row: Pick<MediaAssetRow, "metadata">): boolean
  * exact bytes now in storage. The check runs BEFORE the `asset_kind` branch on
  * purpose: a future writer that sets asset_kind='image' on an unsanitized SVG
  * must not be able to re-open this hole.
+ *
+ * EXPORTED (2026-08-16, library unification) so `lib/media/library-query.ts`
+ * resolves kind through this exact function rather than re-deriving the SVG
+ * rule as a PostgREST predicate. A second implementation of an XSS gate is a
+ * second thing that can be wrong; there is one.
  */
-function resolveAssetKind(row: MediaAssetRow): MediaAssetKind | null {
+export function resolveAssetKind(row: MediaAssetRow): MediaAssetKind | null {
   const rawMime = (row.mime ?? row.mime_type ?? "").toLowerCase();
   const isSvg =
     rawMime === "image/svg+xml" ||
