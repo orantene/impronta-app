@@ -105,6 +105,7 @@ import {
   type TalentThumbCandidate,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
 import { logServerError } from "@/lib/server/safe-error";
+import { isPrivateMediaAccessEnabled } from "@/lib/platform/gated-media";
 import { grantPredicateClient } from "@/lib/media/grant-predicate-client";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
@@ -247,6 +248,12 @@ export async function resolveTalentMediaForHub(
   const enforcing = isTwoKeyGrantsEnabled();
   const tenantId = input.tenantId;
 
+  // Resolved ONCE for the whole resolver and threaded down, so a page with 60
+  // cards costs zero extra queries rather than 60. Only asked on the enforcing
+  // path: that is the only path that passes a surface, and without a surface
+  // `mediaUrlForAsset` returns the public URL whatever this says.
+  const gatingEnabled = enforcing ? await isPrivateMediaAccessEnabled() : false;
+
   let coverByTalent = new Map<string, string>();
   let orderedByTalent = new Map<string, string[]>();
 
@@ -285,7 +292,13 @@ export async function resolveTalentMediaForHub(
     : EMPTY_WATERMARK_POLICY;
 
   // Resolve the curated asset ids to renderable URLs in one round trip.
-  const urlByAssetId = await loadAssetUrls(client, curatedIds, watermark, enforcing ? tenantId : undefined);
+  const urlByAssetId = await loadAssetUrls(
+    client,
+    curatedIds,
+    watermark,
+    enforcing ? tenantId : undefined,
+    gatingEnabled,
+  );
 
   const needsDefault: string[] = [];
   for (const id of ids) {
@@ -303,7 +316,13 @@ export async function resolveTalentMediaForHub(
   }
 
   if (needsDefault.length > 0) {
-    const fallback = await loadDefaultThumbs(client, needsDefault, tenantId, enforcing);
+    const fallback = await loadDefaultThumbs(
+      client,
+      needsDefault,
+      tenantId,
+      enforcing,
+      gatingEnabled,
+    );
     for (const id of needsDefault) {
       out.set(id, {
         coverUrl: fallback.get(id) ?? null,
@@ -326,6 +345,7 @@ async function loadDefaultThumbs(
   talentProfileIds: string[],
   tenantId: HubTenantId,
   enforcing: boolean,
+  gatingEnabled: boolean,
 ): Promise<Map<string, string>> {
   if (!enforcing) return loadTalentCardThumbs(client, talentProfileIds);
 
@@ -358,7 +378,7 @@ async function loadDefaultThumbs(
   // the other one): gating and the two-key rule are the same decision seen
   // from two sides, and a gate in front of a rule nobody is enforcing would
   // cost a Function invocation per image to answer "yes" every time.
-  return pickBestThumbs(client, servable, tenantId);
+  return pickBestThumbs(client, servable, tenantId, gatingEnabled);
 }
 
 /**
@@ -427,7 +447,8 @@ async function loadAssetUrls(
   client: SupabaseClient,
   assetIds: string[],
   watermark: WatermarkPolicy,
-  surface?: HubTenantId,
+  surface: HubTenantId | undefined,
+  gatingEnabled: boolean,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (assetIds.length === 0) return out;
@@ -449,7 +470,10 @@ async function loadAssetUrls(
     // re-runs the same watermark policy for the same surface and lands on the
     // same substitution, so the swap stays a per-request decision rather than
     // something baked into a URL that outlives the condition.
-    out.set(row.id, mediaUrlForAsset(client, { assetId: row.id, storagePath: path, surface }));
+    out.set(
+      row.id,
+      mediaUrlForAsset(client, { assetId: row.id, storagePath: path, surface, gatingEnabled }),
+    );
   }
   return out;
 }

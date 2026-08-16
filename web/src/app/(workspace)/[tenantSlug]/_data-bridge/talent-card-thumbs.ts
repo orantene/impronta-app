@@ -53,11 +53,18 @@ export function mediaPublicUrl(client: SupabaseClient, storagePath: string): str
 /**
  * THE one place a rendered media URL is chosen (P0-1).
  *
- * With `MEDIA_PRIVATE_ACCESS_ENABLED` off — production today — this is
- * `mediaPublicUrl()` and nothing else: same string, same characters. With it
- * on, and only for callers that know which surface is asking, the URL points
- * at `/api/media/asset/<id>`, where the two-key predicate and the watermark
- * condition are re-run per request before any bytes are handed over.
+ * With gating off — production today — this is `mediaPublicUrl()` and nothing
+ * else: same string, same characters. With it on, and only for callers that
+ * know which surface is asking, the URL points at `/api/media/asset/<id>`,
+ * where the two-key predicate and the watermark condition are re-run per
+ * request before any bytes are handed over.
+ *
+ * `gatingEnabled` is a PARAMETER and defaults to `false`. This function runs
+ * once per rendered image, so it must not do a settings lookup: the caller
+ * resolves the state once for the whole request (see
+ * `isPrivateMediaAccessEnabled()` in `@/lib/platform/gated-media`) and threads
+ * the boolean down. Defaulting to `false` also means a caller that forgets it
+ * falls back to today's public URL rather than to a broken gate.
  *
  * `surface === undefined` means "the caller does not know the surface" — the
  * workspace-internal thumb callers (`loadTalentCardThumbs`, admin bridges) are
@@ -71,14 +78,19 @@ export function mediaPublicUrl(client: SupabaseClient, storagePath: string): str
  */
 export function mediaUrlForAsset(
   client: SupabaseClient,
-  input: { assetId: string; storagePath: string; surface?: MediaSurface },
+  input: {
+    assetId: string;
+    storagePath: string;
+    surface?: MediaSurface;
+    gatingEnabled?: boolean;
+  },
 ): string {
-  const { assetId, storagePath, surface } = input;
+  const { assetId, storagePath, surface, gatingEnabled = false } = input;
   if (surface === undefined) return mediaPublicUrl(client, storagePath);
   if (storagePath.startsWith("http") || storagePath.startsWith("/")) {
     return mediaPublicUrl(client, storagePath);
   }
-  return gatedMediaPath(assetId, surface) ?? mediaPublicUrl(client, storagePath);
+  return gatedMediaPath(assetId, surface, gatingEnabled) ?? mediaPublicUrl(client, storagePath);
 }
 
 /** One ranked face candidate. `id` is what phase 3's two-key filter needs. */
@@ -120,11 +132,15 @@ export async function loadTalentCardThumbCandidates(
  * `surface` is threaded, not defaulted: omitting it (every pre-P0-1 caller)
  * yields the public URL exactly as before, while the hub resolver — which does
  * know the surface — can opt into the gated route.
+ *
+ * `gatingEnabled` is likewise passed in by the async caller that already
+ * resolved it once, so this stays a pure reduce with no query inside the loop.
  */
 export function pickBestThumbs(
   client: SupabaseClient,
   candidates: readonly TalentThumbCandidate[],
   surface?: MediaSurface,
+  gatingEnabled = false,
 ): Map<string, string> {
   const out = new Map<string, string>();
   const bestRank = new Map<string, number>();
@@ -133,7 +149,12 @@ export function pickBestThumbs(
     if (rank < (bestRank.get(m.owner_talent_profile_id) ?? 99)) {
       out.set(
         m.owner_talent_profile_id,
-        mediaUrlForAsset(client, { assetId: m.id, storagePath: m.storage_path, surface }),
+        mediaUrlForAsset(client, {
+          assetId: m.id,
+          storagePath: m.storage_path,
+          surface,
+          gatingEnabled,
+        }),
       );
       bestRank.set(m.owner_talent_profile_id, rank);
     }

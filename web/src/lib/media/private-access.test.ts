@@ -4,8 +4,12 @@
  * Run: NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' \
  *      node_modules/.bin/tsx --test src/lib/media/private-access.test.ts
  *
- * The four things that must never regress:
- *   1. FLAG OFF ⇒ every URL is byte-identical to the pre-P0-1 public URL, and
+ * The five things that must never regress:
+ *   0. The PRECEDENCE between the platform setting, the env override, and the
+ *      signing secret — all 18 combinations, because the on/off decision moved
+ *      out of the environment and a wrong cell here either blanks every photo
+ *      on the platform or leaves revocation unenforced.
+ *   1. GATING OFF ⇒ every URL is byte-identical to the pre-P0-1 public URL, and
  *      no call site can accidentally opt in.
  *   2. The surface in a gated URL is UNFORGEABLE — otherwise the two-key
  *      predicate is asked the attacker's question instead of the page's.
@@ -31,8 +35,10 @@ import {
   GATED_MEDIA_CDN_MAX_AGE_SECONDS,
   GATED_MEDIA_ROUTE,
   GATED_MEDIA_SIGNED_URL_TTL_SECONDS,
+  __resetPrivateMediaWarning,
   gatedMediaPath,
-  isPrivateMediaAccessEnabled,
+  readPrivateMediaEnvOverride,
+  resolvePrivateMediaAccess,
   verifyGatedMediaRequest,
 } from "./private-access";
 
@@ -62,9 +68,17 @@ function withEnv<T>(vars: Record<string, string | undefined>, fn: () => T): T {
   }
 }
 
-/** Gating ON, with a signing secret present. */
-function withGating<T>(fn: () => T): T {
-  return withEnv({ [FLAG]: "1", [SECRET]: "test-secret-do-not-ship" }, fn);
+/**
+ * Gating ON the way the owner turns it on: the PLATFORM SETTING is true, the
+ * env override is unset, and a signing secret is configured. `fn` receives the
+ * resolved boolean, which is what render paths thread down to `gatedMediaPath`.
+ */
+function withGating<T>(fn: (enabled: boolean) => T): T {
+  return withEnv({ [FLAG]: undefined, [SECRET]: "test-secret-do-not-ship" }, () => {
+    const state = resolvePrivateMediaAccess(true);
+    assert.equal(state.enabled, true, "fixture is meant to resolve ON");
+    return fn(state.enabled);
+  });
 }
 
 /** Enough of a Supabase client for URL building. */
@@ -78,70 +92,235 @@ const urlClient = {
   },
 } as unknown as SupabaseClient;
 
-// ─── 1. the flag ────────────────────────────────────────────────────────────
+// ─── 0. the precedence table ────────────────────────────────────────────────
+//
+// The on/off decision moved out of the environment and into
+// `platform_settings.media_private_access_enabled`, with the env var kept as a
+// two-way override. Every cell of setting × env × secret is asserted below,
+// because a wrong cell either blanks every photo on the platform or leaves
+// revocation quietly unenforced. The table is the module header's, verbatim.
 
-test("the flag is OFF unless explicitly enabled", () => {
-  const secret = { [SECRET]: "s" };
-  withEnv({ ...secret, [FLAG]: undefined }, () =>
-    assert.equal(isPrivateMediaAccessEnabled(), false),
-  );
-  withEnv({ ...secret, [FLAG]: "" }, () => assert.equal(isPrivateMediaAccessEnabled(), false));
-  withEnv({ ...secret, [FLAG]: "0" }, () => assert.equal(isPrivateMediaAccessEnabled(), false));
-  withEnv({ ...secret, [FLAG]: "yes" }, () => assert.equal(isPrivateMediaAccessEnabled(), false));
-  withEnv({ ...secret, [FLAG]: "1" }, () => assert.equal(isPrivateMediaAccessEnabled(), true));
-  withEnv({ ...secret, [FLAG]: "true" }, () => assert.equal(isPrivateMediaAccessEnabled(), true));
+/** `resolvePrivateMediaAccess` under a specific environment. */
+function resolveWith(
+  setting: boolean,
+  env: string | undefined,
+  secret: string | undefined,
+): ReturnType<typeof resolvePrivateMediaAccess> {
+  return withEnv({ [FLAG]: env, [SECRET]: secret }, () => resolvePrivateMediaAccess(setting));
+}
+
+const ENV_UNSET = [undefined, "", "yes", "maybe"] as const;
+const ENV_ON = ["1", "true", "TRUE", " true "] as const;
+const ENV_OFF = ["0", "false", "FALSE", " 0 "] as const;
+
+test("env override parsing: on, off, and everything else means 'not my call'", () => {
+  for (const v of ENV_ON) {
+    assert.equal(withEnv({ [FLAG]: v }, readPrivateMediaEnvOverride), true, v);
+  }
+  for (const v of ENV_OFF) {
+    assert.equal(withEnv({ [FLAG]: v }, readPrivateMediaEnvOverride), false, v);
+  }
+  for (const v of ENV_UNSET) {
+    assert.equal(withEnv({ [FLAG]: v }, readPrivateMediaEnvOverride), null, String(v));
+  }
 });
 
-test("a flag with no signing secret degrades to today's behavior, not to a blank site", () => {
-  withEnv({ [FLAG]: "1", [SECRET]: undefined }, () => {
-    assert.equal(isPrivateMediaAccessEnabled(), false);
-    assert.equal(gatedMediaPath(ASSET, TENANT_A), null);
+test("env unset: the PLATFORM SETTING decides, and the secret can veto it", () => {
+  for (const env of ENV_UNSET) {
+    // setting ON + secret present ⇒ the only ON row.
+    assert.deepEqual(resolveWith(true, env, "s"), {
+      enabled: true,
+      settingEnabled: true,
+      secretConfigured: true,
+      envOverride: null,
+      reason: "active",
+    });
+    // setting ON + secret MISSING ⇒ off, and named as such. This is production.
+    assert.deepEqual(resolveWith(true, env, undefined), {
+      enabled: false,
+      settingEnabled: true,
+      secretConfigured: false,
+      envOverride: null,
+      reason: "missing_secret",
+    });
+    // setting OFF ⇒ off whatever the secret says.
+    for (const secret of ["s", undefined]) {
+      assert.deepEqual(resolveWith(false, env, secret), {
+        enabled: false,
+        settingEnabled: false,
+        secretConfigured: secret !== undefined,
+        envOverride: null,
+        reason: "setting_off",
+      });
+    }
+  }
+});
+
+test("env=1 force-ENABLES regardless of the setting (the pre-existing contract)", () => {
+  for (const env of ENV_ON) {
+    for (const setting of [true, false]) {
+      assert.deepEqual(resolveWith(setting, env, "s"), {
+        enabled: true,
+        settingEnabled: setting,
+        secretConfigured: true,
+        envOverride: true,
+        reason: "active",
+      });
+      // …but a forced-on flag still cannot mint unsigned URLs.
+      assert.deepEqual(resolveWith(setting, env, undefined), {
+        enabled: false,
+        settingEnabled: setting,
+        secretConfigured: false,
+        envOverride: true,
+        reason: "missing_secret",
+      });
+    }
+  }
+});
+
+test("env=0 is a kill switch: off regardless of the setting or the secret", () => {
+  for (const env of ENV_OFF) {
+    for (const setting of [true, false]) {
+      for (const secret of ["s", undefined]) {
+        assert.deepEqual(resolveWith(setting, env, secret), {
+          enabled: false,
+          settingEnabled: setting,
+          secretConfigured: secret !== undefined,
+          envOverride: false,
+          reason: "forced_off_by_env",
+        });
+      }
+    }
+  }
+});
+
+test("the setting alone never mints a URL without a signing secret", () => {
+  // The whole degrade-to-today's-behavior property, from the caller's side.
+  withEnv({ [FLAG]: undefined, [SECRET]: undefined }, () => {
+    const state = resolvePrivateMediaAccess(true);
+    assert.equal(state.enabled, false);
+    assert.equal(gatedMediaPath(ASSET, TENANT_A, state.enabled), null);
+    // Even a caller that ignores the resolver and hard-codes `true` gets null,
+    // rather than an unverifiable URL.
+    assert.equal(gatedMediaPath(ASSET, TENANT_A, true), null);
   });
 });
 
-// ─── 2. flag-off equivalence (the ship-safety guarantee) ────────────────────
+test("the missing-secret warning fires once, and only when someone asked for gating", () => {
+  const warnings: unknown[][] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]) => void warnings.push(args);
+  try {
+    __resetPrivateMediaWarning();
+    // Nobody asked ⇒ silence. A log on every cold start of a feature that is
+    // off would train everyone to ignore it.
+    resolveWith(false, undefined, undefined);
+    assert.equal(warnings.length, 0);
 
-test("flag OFF: mediaUrlForAsset is byte-identical to mediaPublicUrl", () => {
-  const paths = [
-    "tenant/abc/photo.jpg",
-    "nested/deep/path with space.png",
-    "https://i.pravatar.cc/300",
-    "/demo/portrait-01.jpg",
-  ];
-  withEnv({ [FLAG]: undefined, [SECRET]: "s" }, () => {
-    for (const path of paths) {
+    resolveWith(true, undefined, undefined);
+    resolveWith(true, "1", undefined);
+    assert.equal(warnings.length, 1, "warn-once must stay once");
+    assert.match(String(warnings[0]?.[0]), /MEDIA_URL_SIGNING_SECRET/);
+  } finally {
+    console.warn = original;
+    __resetPrivateMediaWarning();
+  }
+});
+
+// ─── 2. gating-off equivalence (the ship-safety guarantee) ──────────────────
+
+const PATHS = [
+  "tenant/abc/photo.jpg",
+  "nested/deep/path with space.png",
+  "https://i.pravatar.cc/300",
+  "/demo/portrait-01.jpg",
+];
+
+test("PRODUCTION TODAY (no setting row, no env vars): the public URL, unchanged", () => {
+  // The exact shape production is in: the column defaults to false, neither
+  // MEDIA_PRIVATE_ACCESS_ENABLED nor MEDIA_URL_SIGNING_SECRET is set. Nothing
+  // about moving the switch into the database may change a single character.
+  withEnv({ [FLAG]: undefined, [SECRET]: undefined }, () => {
+    const state = resolvePrivateMediaAccess(false);
+    assert.deepEqual(
+      { enabled: state.enabled, reason: state.reason },
+      { enabled: false, reason: "setting_off" },
+    );
+    for (const path of PATHS) {
       assert.equal(
-        mediaUrlForAsset(urlClient, { assetId: ASSET, storagePath: path, surface: TENANT_A }),
+        mediaUrlForAsset(urlClient, {
+          assetId: ASSET,
+          storagePath: path,
+          surface: TENANT_A,
+          gatingEnabled: state.enabled,
+        }),
         mediaPublicUrl(urlClient, path),
-        `flag-off URL drifted for ${path}`,
+        `default-off URL drifted for ${path}`,
       );
     }
   });
 });
 
-test("flag ON but no surface known: still byte-identical to mediaPublicUrl", () => {
-  // The workspace-internal thumb callers are in this position. Gating them
-  // against a surface nobody resolved would blank the admin UI.
+test("gating OFF: mediaUrlForAsset is byte-identical to mediaPublicUrl", () => {
+  withEnv({ [FLAG]: undefined, [SECRET]: "s" }, () => {
+    for (const path of PATHS) {
+      assert.equal(
+        mediaUrlForAsset(urlClient, {
+          assetId: ASSET,
+          storagePath: path,
+          surface: TENANT_A,
+          gatingEnabled: false,
+        }),
+        mediaPublicUrl(urlClient, path),
+        `gating-off URL drifted for ${path}`,
+      );
+    }
+  });
+});
+
+test("a caller that forgets to thread the flag falls back to the public URL", () => {
+  // `gatingEnabled` defaults to false on purpose: forgetting it must land on
+  // today's behavior, never on a half-configured gate.
   withGating(() => {
     assert.equal(
-      mediaUrlForAsset(urlClient, { assetId: ASSET, storagePath: "t/a.jpg" }),
+      mediaUrlForAsset(urlClient, {
+        assetId: ASSET,
+        storagePath: "t/a.jpg",
+        surface: TENANT_A,
+      }),
       mediaPublicUrl(urlClient, "t/a.jpg"),
     );
   });
 });
 
-test("flag ON: absolute and root-relative paths are never gated", () => {
-  withGating(() => {
+test("gating ON but no surface known: still byte-identical to mediaPublicUrl", () => {
+  // The workspace-internal thumb callers are in this position. Gating them
+  // against a surface nobody resolved would blank the admin UI.
+  withGating((on) => {
+    assert.equal(
+      mediaUrlForAsset(urlClient, { assetId: ASSET, storagePath: "t/a.jpg", gatingEnabled: on }),
+      mediaPublicUrl(urlClient, "t/a.jpg"),
+    );
+  });
+});
+
+test("gating ON: absolute and root-relative paths are never gated", () => {
+  withGating((on) => {
     for (const path of ["https://i.pravatar.cc/300", "/demo/portrait-01.jpg"]) {
       assert.equal(
-        mediaUrlForAsset(urlClient, { assetId: ASSET, storagePath: path, surface: TENANT_A }),
+        mediaUrlForAsset(urlClient, {
+          assetId: ASSET,
+          storagePath: path,
+          surface: TENANT_A,
+          gatingEnabled: on,
+        }),
         path,
       );
     }
   });
 });
 
-test("pickBestThumbs without a surface is byte-identical with the flag on or off", () => {
+test("pickBestThumbs without a surface is byte-identical with gating on or off", () => {
   const candidates: TalentThumbCandidate[] = [
     { id: ASSET, owner_talent_profile_id: TALENT, storage_path: "t/card.jpg", variant_kind: "card" },
     { id: "x", owner_talent_profile_id: TALENT, storage_path: "t/hero.jpg", variant_kind: "hero" },
@@ -149,16 +328,16 @@ test("pickBestThumbs without a surface is byte-identical with the flag on or off
   const off = withEnv({ [FLAG]: undefined, [SECRET]: "s" }, () =>
     pickBestThumbs(urlClient, candidates),
   );
-  const on = withGating(() => pickBestThumbs(urlClient, candidates));
+  const on = withGating((enabled) => pickBestThumbs(urlClient, candidates, undefined, enabled));
   assert.deepEqual([...on], [...off]);
   assert.equal(off.get(TALENT), "https://cdn.test/t/card.jpg");
 });
 
-test("pickBestThumbs WITH a surface routes through the gate once the flag is on", () => {
+test("pickBestThumbs WITH a surface routes through the gate once gating is on", () => {
   const candidates: TalentThumbCandidate[] = [
     { id: ASSET, owner_talent_profile_id: TALENT, storage_path: "t/card.jpg", variant_kind: "card" },
   ];
-  const url = withGating(() => pickBestThumbs(urlClient, candidates, TENANT_A).get(TALENT));
+  const url = withGating((on) => pickBestThumbs(urlClient, candidates, TENANT_A, on).get(TALENT));
   assert.ok(url?.startsWith(`${GATED_MEDIA_ROUTE}/${ASSET}?`), url);
   assert.ok(url?.includes(`s=${TENANT_A}`), url);
 });
@@ -166,8 +345,8 @@ test("pickBestThumbs WITH a surface routes through the gate once the flag is on"
 // ─── 3. the surface is unforgeable ──────────────────────────────────────────
 
 test("a minted URL verifies back to the surface it was minted for", () => {
-  withGating(() => {
-    const url = gatedMediaPath(ASSET, TENANT_A);
+  withGating((on) => {
+    const url = gatedMediaPath(ASSET, TENANT_A, on);
     assert.ok(url);
     const params = new URLSearchParams(url.split("?")[1]);
     assert.deepEqual(
@@ -178,8 +357,8 @@ test("a minted URL verifies back to the surface it was minted for", () => {
 });
 
 test("the master surface round-trips as null and does not collide with a tenant", () => {
-  withGating(() => {
-    const url = gatedMediaPath(ASSET, null);
+  withGating((on) => {
+    const url = gatedMediaPath(ASSET, null, on);
     assert.ok(url);
     const params = new URLSearchParams(url.split("?")[1]);
     assert.equal(params.get("s"), null, "master surface must not carry a tenant param");
@@ -196,8 +375,10 @@ test("the master surface round-trips as null and does not collide with a tenant"
 });
 
 test("swapping the surface, the asset, or the signature is refused", () => {
-  withGating(() => {
-    const signature = new URLSearchParams(gatedMediaPath(ASSET, TENANT_A)!.split("?")[1]).get("k");
+  withGating((on) => {
+    const signature = new URLSearchParams(
+      gatedMediaPath(ASSET, TENANT_A, on)!.split("?")[1],
+    ).get("k");
 
     // The whole point: an attacker naming the OWNING tenant is the trivial
     // bypass an unsigned query param would have handed over.
@@ -214,7 +395,7 @@ test("swapping the surface, the asset, or the signature is refused", () => {
 
 test("a URL minted under one secret does not verify under another", () => {
   const url = withEnv({ [FLAG]: "1", [SECRET]: "secret-one" }, () =>
-    gatedMediaPath(ASSET, TENANT_A),
+    gatedMediaPath(ASSET, TENANT_A, true),
   );
   const signature = new URLSearchParams(url!.split("?")[1]).get("k");
   withEnv({ [FLAG]: "1", [SECRET]: "secret-two" }, () => {

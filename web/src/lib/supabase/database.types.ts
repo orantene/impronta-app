@@ -8725,6 +8725,7 @@ export type Database = {
           default_theme_updated_by: string | null
           id: boolean
           instant_book_default: boolean
+          media_private_access_enabled: boolean
           multi_currency_display_enabled: boolean
           operating_currency: string
           updated_at: string
@@ -8751,6 +8752,7 @@ export type Database = {
           default_theme_updated_by?: string | null
           id?: boolean
           instant_book_default?: boolean
+          media_private_access_enabled?: boolean
           multi_currency_display_enabled?: boolean
           operating_currency?: string
           updated_at?: string
@@ -8777,6 +8779,7 @@ export type Database = {
           default_theme_updated_by?: string | null
           id?: boolean
           instant_book_default?: boolean
+          media_private_access_enabled?: boolean
           multi_currency_display_enabled?: boolean
           operating_currency?: string
           updated_at?: string
