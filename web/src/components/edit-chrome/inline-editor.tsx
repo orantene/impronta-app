@@ -40,6 +40,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditContext } from "./edit-context";
+import { resolveHoverAttributedNodeId } from "./canvas-hover-attribution";
 import { useCanvasHelpers } from "./canvas-helpers-mode";
 import {
   InlineReplaceImagePill,
@@ -140,7 +141,13 @@ export function InlineEditor() {
   const [imgHover, setImgHover] = useState<{
     img: HTMLImageElement;
     rect: DOMRect;
+    /** The block the image belongs to — declared on the "Replace image" pill. */
+    nodeId: string | null;
   } | null>(null);
+  // Mirror of `imgHover.nodeId` for the pointermove listener, which is
+  // subscribed once ([] deps) and so cannot read the state. Its only writer is
+  // that same listener.
+  const imgHoverNodeRef = useRef<string | null>(null);
   const [textHover, setTextHover] = useState<{
     el: HTMLElement;
     rect: DOMRect;
@@ -468,6 +475,14 @@ export function InlineEditor() {
     function onPointerMove(e: PointerEvent) {
       if (!(e.target instanceof HTMLElement)) return;
 
+      // Reaching for the "Replace image" pill is not leaving the image. The
+      // pill is pointer-events: auto and lives in the overlay layer, so the
+      // section/img lookups below saw "no image here" and unmounted it out
+      // from under the pointer. An affordance that DECLARES its owner block is
+      // part of that block (canvas-hover-attribution.ts) — hold the hover.
+      const pillOwner = resolveHoverAttributedNodeId(e.target);
+      if (pillOwner !== null && pillOwner === imgHoverNodeRef.current) return;
+
       // ── image hover (existing) — scoped to selected CMS sections ─────
       const sectionEl = e.target.closest<HTMLElement>("[data-cms-section]");
       const sectionId = sectionEl?.getAttribute("data-section-id") ?? null;
@@ -477,6 +492,7 @@ export function InlineEditor() {
         sectionId === selectedIdRef.current;
 
       if (!inSelectedSection) {
+        imgHoverNodeRef.current = null;
         setImgHover(null);
       } else {
         const img =
@@ -484,11 +500,17 @@ export function InlineEditor() {
             ? e.target
             : (e.target.closest("img") as HTMLImageElement | null);
         if (img && sectionEl!.contains(img)) {
-          setImgHover({ img, rect: img.getBoundingClientRect() });
+          const nodeId =
+            img
+              .closest<HTMLElement>("[data-builder-node-id]")
+              ?.getAttribute("data-builder-node-id") ?? null;
+          imgHoverNodeRef.current = nodeId;
+          setImgHover({ img, rect: img.getBoundingClientRect(), nodeId });
           // Image takes priority — suppress text hint while on an image.
           setTextHover(null);
           return;
         }
+        imgHoverNodeRef.current = null;
         setImgHover(null);
       }
 
@@ -515,7 +537,9 @@ export function InlineEditor() {
     }
     function onScrollOrResize() {
       setImgHover((cur) =>
-        cur ? { img: cur.img, rect: cur.img.getBoundingClientRect() } : cur,
+        cur
+          ? { img: cur.img, rect: cur.img.getBoundingClientRect(), nodeId: cur.nodeId }
+          : cur,
       );
       setTextHover((cur) =>
         cur ? { el: cur.el, rect: cur.el.getBoundingClientRect() } : cur,
@@ -627,6 +651,7 @@ export function InlineEditor() {
       <InlineReplaceImagePill
         show={showImgHint}
         rect={imgHover?.rect ?? null}
+        nodeId={imgHover?.nodeId ?? null}
         onReplace={() => {
           if (imgHover) handleReplaceClick(imgHover.img);
         }}
