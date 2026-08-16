@@ -61,6 +61,8 @@ import {
 } from "./inspectors/builder-node-content-utils";
 import { SiteHeaderInspector } from "./inspectors/site-header/SiteHeaderInspector";
 import { isLegacySiteHeaderSelection } from "@/lib/site-admin/site-header/selection-id";
+import { SiteFooterInspector } from "./inspectors/site-footer/SiteFooterInspector";
+import { isSiteFooterSectionSelection } from "@/lib/site-admin/site-footer/selection-id";
 // ---------------------------------------------------------------------------
 // Wave 3 (3.6) — heavy inspector panels are lazy-loaded via next/dynamic (the
 // edit-shell drawer pattern) so their JS chunks are deferred until the
@@ -1006,6 +1008,20 @@ export function InspectorDock() {
       currentLoadedSection?.sectionTypeKey === "site_header" ||
       currentLoadedSection?.sectionTypeKey === "site_footer");
 
+  // ---- footer → <SiteFooterInspector> --------------------------------------
+  // The mirror of the site-header special-case above, on the one axis where the
+  // footer genuinely differs: the footer IS a real `cms_page_sections` row, so
+  // there is no synthetic id to branch on and the routing keys off the LOADED
+  // row's type instead. Same shell-surface inertness (the predicate owns it), so
+  // on the freeform surface the landmark stays a selectable node.
+  //
+  // Ordered AFTER `shellSectionLocked` in the render tree below, so a free-plan
+  // operator still gets ShellLockedState rather than a drawer they cannot save.
+  const isSiteFooterSelected = isSiteFooterSectionSelection({
+    loadedSectionTypeKey: currentLoadedSection?.sectionTypeKey ?? null,
+    surfaceKind,
+  });
+
   /** P3-LOCK — the selected standalone builder node has the lock flag set. */
   const selectedStandaloneBuilderNodeIsLocked =
     selectedStandaloneBuilderNode?.locked === true;
@@ -1319,6 +1335,8 @@ export function InspectorDock() {
         />
       ) : isSiteHeaderSelected ? (
         <SiteHeaderInspector tenantId={tenantId} />
+      ) : isSiteFooterSelected ? (
+        <SiteFooterInspector tenantId={tenantId} />
       ) : loadError ? (
         <div
           className="flex-1 overflow-y-auto px-4 py-6 text-xs"

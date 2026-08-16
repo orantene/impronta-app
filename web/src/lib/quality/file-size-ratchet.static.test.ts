@@ -116,7 +116,19 @@ const BUDGETS: Record<string, number> = {
   "src/components/edit-chrome/edit-shell.tsx": 2730,
   "src/components/edit-chrome/inspectors/layout-panel.tsx": 2532,
   "src/components/edit-chrome/publish-drawer.tsx": 2254,
-  "src/components/edit-chrome/inspector-dock.tsx": 1826,
+  // 1826 → 1844 (+18), 2026-08-16, footer inspector parity.
+  //   +2  import of <SiteFooterInspector> and its routing predicate
+  //   +14 the `isSiteFooterSelected` block: a 4-line const plus the comment
+  //       explaining why the footer routes on the LOADED section's type where
+  //       the header routes on a synthetic id, and why both go inert on the
+  //       freeform site_shell surface
+  //   +2  the JSX branch that renders the drawer
+  // Not extracted: the routing decision itself already lives in
+  // `lib/site-admin/site-footer/selection-id.ts` (pure + tested). What remains
+  // here is the dock's own wiring, which is what this file is for; moving two
+  // lines of JSX into a module would hide the dispatch table rather than
+  // shrink it.
+  "src/components/edit-chrome/inspector-dock.tsx": 1844,
   "src/components/edit-chrome/page-settings-drawer.tsx": 1463,
   "src/components/edit-chrome/theme-drawer.tsx": 1423,
   "src/components/edit-chrome/command-palette.tsx": 1287,

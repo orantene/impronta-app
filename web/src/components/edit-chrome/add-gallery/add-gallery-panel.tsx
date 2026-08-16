@@ -19,6 +19,7 @@ import {
 import { fetchSurfaceGalleryItems } from "@/lib/site-admin/add-gallery/gallery-fetch-action";
 import { listCatalogStructure } from "@/lib/site-admin/add-gallery/catalog-structure-actions";
 import { performAddGalleryInsert } from "@/lib/site-admin/add-gallery/perform-insert";
+import { applyShellVariantToWorkspaceAction } from "@/lib/site-admin/builder-core/templates/apply-shell-variant-action";
 import {
   armAddGalleryPointerDrag,
   clearAddGalleryDrag,
@@ -34,6 +35,7 @@ import {
 import { useEditContext } from "../edit-context";
 import { paidPlanInsertBlockMessage } from "@/lib/site-admin/add-gallery/paid-plan-gate";
 import { TabBar } from "./add-gallery-tab-bar";
+import { GalleryCard } from "./add-gallery-cards";
 import { useBuilderTree } from "../builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
 import { DockFloatingPanel } from "../dock-floating-panel";
@@ -130,292 +132,6 @@ function CategoryRail({
  * drop + commits the insert on pointerup. Returns the row-handle props (or null
  * when the card isn't draggable) to spread onto the card button.
  */
-function useGalleryCardPointerDrag(
-  item: AddGalleryItem,
-  enabled: boolean,
-) {
-  const droppedRef = useRef(false);
-  const { getHandleProps } = usePointerDrag<AddGalleryItem>({
-    // Cards don't reorder among themselves — the canvas is the drop target, so
-    // the hook's local row lookup is unused. The canvas drop is driven by the
-    // palette pointer-drag channel (emitPalettePointerDrag) below.
-    rowSelector: "[data-add-gallery-item]",
-    onDragStart: (dragItem) => {
-      droppedRef.current = false;
-      armAddGalleryPointerDrag(dragItem);
-    },
-    onDragMove: ({ clientX, clientY }) => {
-      emitPalettePointerDrag({ type: "move", clientX, clientY });
-    },
-    onDrop: ({ clientX, clientY }) => {
-      droppedRef.current = true;
-      emitPalettePointerDrag({ type: "drop", clientX, clientY });
-    },
-    onDragEnd: () => {
-      // The canvas commits on the "drop" phase and clears the payload; only
-      // emit a cancel (and clear) when the gesture ended WITHOUT a drop.
-      if (!droppedRef.current) {
-        emitPalettePointerDrag({ type: "cancel" });
-        clearAddGalleryDrag();
-      }
-    },
-  });
-  if (!enabled) return null;
-  return getHandleProps(item);
-}
-
-function ElementCard({
-  item,
-  onInsert,
-  onPreview,
-  pending,
-}: {
-  item: AddGalleryItem;
-  onInsert: (item: AddGalleryItem) => void;
-  onPreview: (item: AddGalleryItem) => void;
-  pending: boolean;
-}) {
-  const { comingSoon, advanced, draggable, label, shortDescription, infoTooltip } =
-    useGalleryCardState(item);
-  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
-
-  return (
-    <button
-      type="button"
-      disabled={pending || comingSoon}
-      onPointerDown={dragProps?.onPointerDown}
-      onClick={() => onInsert(item)}
-      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-center transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
-      style={{
-        borderColor: CHROME.line,
-        background: CHROME.surface,
-        minHeight: 108,
-        ...(dragProps?.style ?? null),
-      }}
-      onMouseEnter={(e) => {
-        if (comingSoon) return;
-        e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.45)";
-        e.currentTarget.style.boxShadow =
-          "0 4px 14px -8px rgba(124, 58, 237, 0.35)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = CHROME.line;
-        e.currentTarget.style.boxShadow = "none";
-      }}
-      data-add-gallery-item={item.id}
-    >
-      <GalleryPreviewTrigger item={item} onPreview={onPreview} />
-      {infoTooltip ? (
-        <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
-      ) : null}
-      <div className="flex min-h-[48px] flex-1 items-center justify-center px-[8px] pt-[10px]">
-        <AddGalleryIcon name={item.icon} size="xl" tone="accent" />
-      </div>
-      <div className="px-[8px] pb-[10px] pt-[4px]">
-        <GalleryCardCopy label={label} description={shortDescription} />
-      </div>
-      {comingSoon ? (
-        <span className="absolute left-[8px] top-[8px]">
-          <GalleryStatusBadge variant="soon" />
-        </span>
-      ) : advanced ? (
-        <span className="absolute left-[8px] top-[8px]">
-          <GalleryStatusBadge variant="advanced" />
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
-function SectionCard({
-  item,
-  onInsert,
-  onPreview,
-  pending,
-}: {
-  item: AddGalleryItem;
-  onInsert: (item: AddGalleryItem) => void;
-  onPreview: (item: AddGalleryItem) => void;
-  pending: boolean;
-}) {
-  const { comingSoon, advanced, connected, draggable, label, shortDescription, infoTooltip } =
-    useGalleryCardState(item);
-  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
-
-  return (
-    <button
-      type="button"
-      disabled={pending || comingSoon}
-      onPointerDown={dragProps?.onPointerDown}
-      onClick={() => onInsert(item)}
-      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
-      style={{
-        borderColor: CHROME.line,
-        background: CHROME.surface,
-        minHeight: 156,
-        ...(dragProps?.style ?? null),
-      }}
-      onMouseEnter={(e) => {
-        if (comingSoon) return;
-        e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.45)";
-        e.currentTarget.style.boxShadow =
-          "0 6px 18px -10px rgba(124, 58, 237, 0.4)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = CHROME.line;
-        e.currentTarget.style.boxShadow = "none";
-      }}
-      data-add-gallery-item={item.id}
-    >
-      <GalleryPreviewTrigger item={item} onPreview={onPreview} />
-      {infoTooltip ? (
-        <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
-      ) : null}
-      <div
-        className="relative h-[96px] w-full shrink-0 overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(180deg, #f5f3ff 0%, #ede9fe 55%, #faf5ff 100%)",
-        }}
-      >
-        <AddGallerySectionPreview itemId={item.id} />
-        {connected ? (
-          <span className="absolute left-[8px] top-[8px]">
-            <GalleryStatusBadge variant="connected" />
-          </span>
-        ) : null}
-        {comingSoon ? (
-          <span className="absolute right-[8px] top-[8px]">
-            <GalleryStatusBadge variant="soon" />
-          </span>
-        ) : advanced ? (
-          <span className="absolute right-[8px] top-[8px]">
-            <GalleryStatusBadge variant="advanced" />
-          </span>
-        ) : null}
-      </div>
-      <div className="px-[10px] pb-[10px] pt-[8px]">
-        <GalleryCardCopy
-          label={label}
-          description={shortDescription}
-          align="left"
-        />
-      </div>
-    </button>
-  );
-}
-
-function ConnectedCard({
-  item,
-  onInsert,
-  onPreview,
-  pending,
-}: {
-  item: AddGalleryItem;
-  onInsert: (item: AddGalleryItem) => void;
-  onPreview: (item: AddGalleryItem) => void;
-  pending: boolean;
-}) {
-  const { comingSoon, advanced, draggable, label, shortDescription, infoTooltip } =
-    useGalleryCardState(item);
-  const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
-
-  return (
-    <button
-      type="button"
-      disabled={pending || comingSoon}
-      onPointerDown={dragProps?.onPointerDown}
-      onClick={() => onInsert(item)}
-      className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
-      style={{
-        borderColor: CHROME.line,
-        background: CHROME.surface,
-        minHeight: 112,
-        ...(dragProps?.style ?? null),
-      }}
-      onMouseEnter={(e) => {
-        if (comingSoon) return;
-        e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.45)";
-        e.currentTarget.style.boxShadow =
-          "0 4px 14px -8px rgba(124, 58, 237, 0.35)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = CHROME.line;
-        e.currentTarget.style.boxShadow = "none";
-      }}
-      data-add-gallery-item={item.id}
-    >
-      <GalleryPreviewTrigger item={item} onPreview={onPreview} />
-      {infoTooltip ? (
-        <AddGalleryCardInfo tooltip={infoTooltip} rightOffset={32} />
-      ) : null}
-      <div className="flex gap-[10px] px-[10px] pt-[10px]">
-        <div
-          className="flex h-[40px] w-[40px] shrink-0 items-center justify-center rounded-[10px]"
-          style={{
-            background: "rgba(124, 58, 237, 0.08)",
-          }}
-        >
-          <AddGalleryIcon name={item.icon} size="lg" tone="accent" />
-        </div>
-        <div className="min-w-0 flex-1 pr-[16px]">
-          <div className="flex items-start gap-[6px]">
-            <span
-              className="min-w-0 flex-1 text-[12px] font-semibold leading-tight"
-              style={{ color: CHROME.ink }}
-            >
-              {label}
-            </span>
-            <GalleryStatusBadge variant="connected" className="mt-[1px]" />
-          </div>
-          {item.connectedSource ? (
-            <span
-              className="mt-[3px] block line-clamp-1 text-[9px] font-medium"
-              style={{ color: CHROME.muted }}
-            >
-              Source: {item.connectedSource}
-            </span>
-          ) : null}
-          <span
-            className="mt-[2px] block line-clamp-1 text-[10px] leading-snug"
-            style={{ color: CHROME.muted }}
-          >
-            {shortDescription}
-          </span>
-        </div>
-      </div>
-      <div className="h-[10px]" aria-hidden />
-      {comingSoon ? (
-        <span className="absolute left-[8px] top-[8px]">
-          <GalleryStatusBadge variant="soon" />
-        </span>
-      ) : advanced ? (
-        <span className="absolute left-[8px] top-[8px]">
-          <GalleryStatusBadge variant="advanced" />
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
-function GalleryCard(props: {
-  item: AddGalleryItem;
-  tab: AddGalleryTab;
-  onInsert: (item: AddGalleryItem) => void;
-  onPreview: (item: AddGalleryItem) => void;
-  pending: boolean;
-}) {
-  // WS-A A7 — shell templates use the richer template-card look like sections.
-  if (props.tab === "sections" || props.tab === "page_templates" || props.tab === "shell") {
-    return <SectionCard {...props} />;
-  }
-  if (props.tab === "connected") {
-    return <ConnectedCard {...props} />;
-  }
-  // layout and elements both use the icon-card grid
-  return <ElementCard {...props} />;
-}
-
 export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
   const { t, locale } = useEditorLocale();
   const {
@@ -427,6 +143,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     notifyTemplateApplied,
     gallerySurface,
     workspacePlan,
+    queueRouterRefresh,
   } = useEditContext();
   // WS2 — read tree from micro-store so edits don't re-render this panel.
   const builderTree = useBuilderTree();
@@ -551,11 +268,81 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     });
   }, [mergedItems, tab, activeCategoryId, query]);
 
+  // ── Shell variants: REPLACE, not insert ───────────────────────────────────
+  // A shell template rewrites a landmark's children. The normal gallery path
+  // INSERTS a subtree at an anchor, which on the shell surface would nest a
+  // second header inside the existing one. So the shell tab is routed to
+  // `applyShellVariantToWorkspaceAction`, behind a two-click confirm because the
+  // apply discards whatever the landmark currently holds.
+  //
+  // `armedShellItemId` is the confirm state: first click arms the card, second
+  // click applies. It auto-disarms after 4s and whenever another card is
+  // clicked, so a forgotten armed card can't be triggered by a later stray
+  // click.
+  const [armedShellItemId, setArmedShellItemId] = useState<string | null>(null);
+  const disarmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
+    };
+  }, []);
+  // Closing the panel must clear the arm — reopening it later with a card still
+  // armed would turn an ordinary first click into a destructive one.
+  useEffect(() => {
+    if (!open) setArmedShellItemId(null);
+  }, [open]);
+
+  const armShellItem = useCallback((itemId: string) => {
+    setArmedShellItemId(itemId);
+    if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
+    disarmTimerRef.current = setTimeout(() => setArmedShellItemId(null), 4000);
+  }, []);
+
+  const handleApplyShellVariant = useCallback(
+    async (item: AddGalleryItem) => {
+      if (!item.dbTemplateId) {
+        reportMutationError(
+          t("This template has no saved layout, so it can't be applied."),
+        );
+        return;
+      }
+      setPending(true);
+      try {
+        const result = await applyShellVariantToWorkspaceAction(item.dbTemplateId);
+        if (!result.ok) {
+          reportMutationError(result.error);
+          return;
+        }
+        notifyTemplateApplied(item.label);
+        // The shell tree changed underneath the canvas; a refresh is the only
+        // way the operator sees the new landmark.
+        await queueRouterRefresh();
+        onClose();
+      } finally {
+        setPending(false);
+        setArmedShellItemId(null);
+      }
+    },
+    [reportMutationError, t, notifyTemplateApplied, queueRouterRefresh, onClose],
+  );
+
   const handleInsert = useCallback(
     async (item: AddGalleryItem) => {
       if (pending || !isAddGalleryItemAvailable(item)) return;
       const paidGate = paidPlanInsertBlockMessage(item, workspacePlan);
       if (paidGate) return reportMutationError(t(paidGate));
+
+      if (item.tab === "shell") {
+        if (armedShellItemId === item.id) {
+          await handleApplyShellVariant(item);
+        } else {
+          armShellItem(item.id);
+        }
+        return;
+      }
+      // Clicking anything else abandons a pending shell confirm.
+      if (armedShellItemId) setArmedShellItemId(null);
+
       setPending(true);
       try {
         // W1-L4 — selection → viewport section → end-of-tree; never the far bottom.
@@ -590,6 +377,9 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
     },
     [
       pending,
+      armedShellItemId,
+      armShellItem,
+      handleApplyShellVariant,
       builderTree,
       selectedBuilderNodeId,
       insertBuilderNode,
@@ -735,6 +525,7 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
                     onInsert={handleInsert}
                     onPreview={setPreviewItem}
                     pending={pending}
+                    armed={armedShellItemId === item.id}
                   />
                 ))}
               </div>
