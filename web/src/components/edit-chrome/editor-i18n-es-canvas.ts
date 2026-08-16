@@ -328,6 +328,38 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "No blocks match “{query}”": "Ningún bloque coincide con “{query}”",
   "Type to search blocks…": "Escribe para buscar bloques…",
   "Search blocks to insert": "Buscar bloques para insertar",
+  // ── Keyboard shortcuts overlay (kit/shortcuts.ts) — builder-leftovers
+  // sweep, item 2: documenting shortcuts that already worked but weren't
+  // advertised, plus disambiguating the ⌥+arrow (nudge vs section-move)
+  // entries. NOTE: shortcut-overlay.tsx does not currently call t() on
+  // SHORTCUTS entries (a pre-existing gap, out of scope here) — these
+  // entries are added for catalog parity per the lane's brief and are ready
+  // the moment the overlay is wired up. "Ungroup selected block" above
+  // (multi-selection-toolbar.tsx's button label) already covers that shared
+  // English source string.
+  "Dissolves a group container, promoting its children back to its parent.":
+    "Deshace un contenedor de grupo y devuelve sus hijos a su elemento padre.",
+  "Align selected blocks right": "Alinear bloques seleccionados a la derecha",
+  "Align selected blocks centre": "Alinear bloques seleccionados al centro",
+  "Requires 2+ blocks selected.": "Requiere 2 o más bloques seleccionados.",
+  "Distribute selected blocks horizontally":
+    "Distribuir bloques seleccionados horizontalmente",
+  "Spaces the middle blocks evenly between the outer two. Requires 3+ blocks selected.":
+    "Espacia los bloques intermedios de forma uniforme entre los dos extremos. Requiere 3 o más bloques seleccionados.",
+  "Move selected section up": "Mover la sección seleccionada hacia arriba",
+  "With a section (not a nested block) selected, moves it one place earlier on the page. Selecting a block instead nudges it up (see \"Nudge selected block(s)\").":
+    "Con una sección (no un bloque anidado) seleccionada, la mueve un lugar antes en la página. Si seleccionas un bloque en su lugar, lo desplaza hacia arriba (ver \"Mover bloque(s) seleccionado(s)\").",
+  "Move selected section down": "Mover la sección seleccionada hacia abajo",
+  "With a section (not a nested block) selected, moves it one place later on the page. Selecting a block instead nudges it down (see \"Nudge selected block(s)\").":
+    "Con una sección (no un bloque anidado) seleccionada, la mueve un lugar después en la página. Si seleccionas un bloque en su lugar, lo desplaza hacia abajo (ver \"Mover bloque(s) seleccionado(s)\").",
+  "With a nested block (not a section) selected and focus on the canvas, hold ⌥ and arrow to move it by 1px; add ⇧ for 10px. Also works on tablet/mobile preview, moving the block on that breakpoint only. Selecting a section instead reorders it (see \"Move section up/down\").":
+    "Con un bloque anidado (no una sección) seleccionado y el foco en el lienzo, mantén ⌥ y una flecha para moverlo 1px; añade ⇧ para 10px. También funciona en la vista previa de tablet/móvil, y mueve el bloque solo en ese punto de quiebre. Si seleccionas una sección en su lugar, la reordena (ver \"Mover sección arriba/abajo\").",
+  "Move selected block": "Mover el bloque seleccionado",
+  "Drag the centre grip on a selected block to reposition it freely. Double-click the grip to snap it back to its natural position.":
+    "Arrastra la asa central de un bloque seleccionado para reposicionarlo libremente. Haz doble clic en la asa para que vuelva a su posición natural.",
+  "Step through blocks in document order": "Recorrer los bloques en el orden del documento",
+  "Tab selects the next block in document order (a flat complement to the arrow keys' parent/child/sibling nav); Shift+Tab selects the previous. Wraps at the ends.":
+    "Tab selecciona el siguiente bloque en el orden del documento (un complemento lineal a la navegación de padre/hijo/hermano con las flechas); Shift+Tab selecciona el anterior. Da la vuelta en los extremos.",
   // ── Quick-style popover (selection toolbar, 2026-08-15) ───────────────
   // Fill / Shadow / Default / Sharp / Pill already live in
   // editor-i18n-es-inspectors.ts (the popover reuses the inspector's shared

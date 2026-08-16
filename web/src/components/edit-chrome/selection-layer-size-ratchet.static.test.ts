@@ -116,7 +116,34 @@ const BUDGETS: Record<string, number> = {
   // quick-style-popover.tsx + quick-style-logic.ts (unit-tested) — the
   // component reads selection/device/patch from context precisely so this
   // file's diff stays this thin.
-  "selection-layer.tsx": 7689,
+  // +39 (builder-leftovers sweep, item 1 — breakpoint-aware nudge): the
+  // responsive-bucket resolution, the next-style computation, and the
+  // key-repeat acceleration curve all live in the new kit/nudge.ts (pure,
+  // unit-tested); what's here is the handler wiring the guard's procedure
+  // asks for — the nudge gate dropping its desktop-only clause (+ a comment
+  // explaining why), a ref tracking consecutive OS key-repeats, the nudge
+  // effect's onKeyUp listener + bucket-aware calls into
+  // commitSelectedNodeTranslate/translateSelectedBuilderNodes, and that
+  // commit fn's new optional `bucket` param + doc comment.
+  // +13 (item 5 — toolbar re-clamp during a panel drag): subscribe to the new
+  // `registerCanvasGeometryDirtyListener` context signal on mount so the
+  // anchored toolbar re-primes its dirty flag while a floating panel is being
+  // dragged. The publish side (the actual notify calls) lives in
+  // floating-panel.tsx; the registry lives in use-workspace-panels.ts.
+  // +18 (item 1 hotfix — live-QA #1146): a tablet nudge was committing a
+  // top-level translate with no responsive.tablet bucket anywhere — `onNudge`
+  // was reading the `device` variable closed over by the effect's last
+  // (re-)subscription, which could go stale. Fixed with a `deviceRef` synced
+  // in its own `useEffect` (never written during render — that trips
+  // react-hooks/refs, already grandfathered exactly once in this file, at
+  // scheduleRectRecomputeRef); `device` dropped from the nudge effect's own
+  // deps since it no longer needs to re-subscribe for freshness.
+  // Merge resolution (this PR over origin/main): both lanes grew this file and
+  // both raised the budget. The additions are disjoint — main's quick-style
+  // chip button (+6) and this branch's nudge/toolbar/device work (+66 over the
+  // pre-lane 7687) — so the merged budget is the sum, 7753 + 6, and the file
+  // measures exactly that. No re-baselining, no allowance beyond the two.
+  "selection-layer.tsx": 7759,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

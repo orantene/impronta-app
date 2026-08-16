@@ -355,6 +355,18 @@ export interface EditContextChromeAndSessionValue {
     panelId: string,
   ) => ReadonlyArray<{ left: number; top: number; width: number; height: number }>;
   /**
+   * Canvas-geometry dirty signal (PR #1136 leftover) — the anchored selection
+   * toolbar re-clamps around occluders (inspector dock, floating panels) only
+   * on a scroll/resize/selection signal, so it goes stale while a floating
+   * panel is being DRAGGED (no such signal fires mid-drag). `useFloatingDrag`
+   * calls `notifyCanvasGeometryDirty` on every drag tick; `selection-layer.tsx`
+   * subscribes once via `registerCanvasGeometryDirtyListener` to re-prime its
+   * dirty flag, which drives the SAME next-frame re-measure that scroll/resize
+   * already trigger (no polling loop, no duplicated placement logic).
+   */
+  registerCanvasGeometryDirtyListener: (listener: () => void) => () => void;
+  notifyCanvasGeometryDirty: () => void;
+  /**
    * Short-lived selection feedback for freshly inserted/duplicated content.
    * The navigator uses this to open, scroll, expand, and tier-highlight the
    * most recent rows so operators can immediately see what changed.

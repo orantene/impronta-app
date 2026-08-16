@@ -396,21 +396,6 @@ export function MultiSelectionToolbar({
       >
         <Ungroup size={14} aria-hidden />
       </IconButton>
-      {canBulkStyle ? (
-        <>
-          <Divider />
-          <IconButton
-            disabled={disabled}
-            label={
-              styleOpen ? t("Hide shared style") : t("Edit shared style for all")
-            }
-            action="bulk-style"
-            onClick={() => setStyleOpen((open) => !open)}
-          >
-            <Paintbrush size={14} aria-hidden />
-          </IconButton>
-        </>
-      ) : null}
       </div>
     ) : null}
     {/* Rendered as a SIBLING of the toolbar (not a child) so the toolbar's
