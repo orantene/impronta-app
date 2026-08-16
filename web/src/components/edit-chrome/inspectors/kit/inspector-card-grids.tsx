@@ -93,10 +93,12 @@ export function InspectorDeviceCards<T extends string>({
                   minWidth: 15,
                   height: 15,
                   borderRadius: 999,
-                  // Issue-count badge. Was a hardcoded rust (banned in admin
-                  // chrome); rose is the chrome's error/problem role and is
-                  // what the comment above already called this badge.
-                  background: CHROME.rose,
+                  // Advisory-count badge. Rust (banned) → rose → BLUE: the
+                  // count is page-wide ADVISORY mobile-health findings, not an
+                  // error state, and it sits on a navigation control (D6 —
+                  // Inspector Reset P2). Blue is the chrome's calm
+                  // attention/pending role; errors keep rose elsewhere.
+                  background: CHROME.blue,
                   color: "#fff",
                   fontSize: 9,
                   fontWeight: 700,
