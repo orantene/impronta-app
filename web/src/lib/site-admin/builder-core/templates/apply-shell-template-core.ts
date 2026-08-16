@@ -151,6 +151,13 @@ export function applyShellTemplateToTree(input: {
           slotKey: slot,
           children: newChildren,
           label: existing?.props.label ?? null,
+          // Preserve the existing landmark's slot address across the apply.
+          // Without it the freshly-applied template children are un-addressable
+          // and never paint on the published site.
+          sectionId:
+            typeof existing?.props.sectionId === "string"
+              ? existing.props.sectionId
+              : null,
         }),
       );
     } else if (existing) {
