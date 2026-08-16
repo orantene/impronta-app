@@ -349,6 +349,13 @@ export {
 } from "./media-release-requests";
 
 export {
+  loadReleaseBakeRepairPlan,
+  reinstateRepairedReleaseGrants,
+  type ReleaseBakeRepairOutcome,
+  type ReleaseBakeRepairPlan,
+} from "./media-release-bake-repair";
+
+export {
   withdrawMediaReleaseRequest,
   type ReleaseWithdrawOutcome,
 } from "./media-release-withdraw";
