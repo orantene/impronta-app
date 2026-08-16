@@ -52,6 +52,11 @@ export function Segmented<T extends string>({
   const { t } = useEditorLocale();
   const label = (raw: ReactNode): ReactNode =>
     typeof raw === "string" ? t(raw) : raw;
+  // Roving tabindex needs exactly ONE tab stop per group. When no option is
+  // selected (value matches nothing — common for "theme default" fields whose
+  // value is ""), the old `active ? 0 : -1` left the whole group with NO tab
+  // stop, making it unreachable by keyboard. Fall back to the first option.
+  const hasActiveOption = options.some((opt) => opt.value === value);
   return (
     <div
       role="radiogroup"
@@ -75,7 +80,7 @@ export function Segmented<T extends string>({
         ...style,
       }}
     >
-      {options.map((opt) => {
+      {options.map((opt, index) => {
         const active = opt.value === value;
         return (
           <button
@@ -85,7 +90,8 @@ export function Segmented<T extends string>({
             aria-checked={active}
             // Roving tabindex — only the active radio is a tab stop; arrows move
             // selection within the group (the correct ARIA radiogroup model).
-            tabIndex={active ? 0 : -1}
+            // With nothing selected, the first radio is the tab stop.
+            tabIndex={active || (!hasActiveOption && index === 0) ? 0 : -1}
             onClick={() => onChange(opt.value)}
             onKeyDown={(e) => {
               if (
@@ -98,7 +104,14 @@ export function Segmented<T extends string>({
               e.preventDefault();
               const idx = options.findIndex((o) => o.value === value);
               const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1;
-              const next = (idx + dir + options.length) % options.length;
+              // With no selection (idx === -1), arrows enter the group at the
+              // corresponding end instead of landing on a modulo artefact.
+              const next =
+                idx === -1
+                  ? dir === 1
+                    ? 0
+                    : options.length - 1
+                  : (idx + dir + options.length) % options.length;
               onChange(options[next].value);
               const btns =
                 e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
