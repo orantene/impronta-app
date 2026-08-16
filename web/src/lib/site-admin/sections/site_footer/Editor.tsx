@@ -7,6 +7,7 @@
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { ZodSchemaForm } from "../shared/ZodSchemaForm";
 import { siteFooterSchemaV1 } from "./schema";
+import { withSiteFooterEditorDefaults } from "./editor-value";
 import type { SectionEditorProps } from "../types";
 import type { SiteFooterV1 } from "./schema";
 
@@ -15,16 +16,10 @@ export function SiteFooterEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<SiteFooterV1>) {
-  const value: SiteFooterV1 = {
-    brand: initial.brand ?? {},
-    brandDisplay: initial.brandDisplay ?? "image-and-text",
-    columns: initial.columns ?? [],
-    social: initial.social ?? [],
-    legal: initial.legal ?? { links: [] },
-    variant: initial.variant ?? "standard",
-    tone: initial.tone ?? "follow",
-    presentation: initial.presentation,
-  };
+  // F5 — the defaults layer SPREADS `initial` so `nodePresentation` (and any
+  // future schema field) survives the `{ ...value, ...next }` merges below.
+  // Pure + node-tested in `editor-value.test.ts`.
+  const value: SiteFooterV1 = withSiteFooterEditorDefaults(initial);
   return (
     <div className="flex flex-col gap-4">
       <ZodSchemaForm
