@@ -9,6 +9,7 @@ import {
   subscribeCoachmarkDismissed,
   type CoachmarkId,
 } from "./builder-coachmarks";
+import { useCanvasHelpers } from "./canvas-helpers-mode";
 import { CHROME, CHROME_SHADOWS } from "./kit/tokens";
 
 /**
@@ -41,6 +42,10 @@ export function BuilderCoachmarkTip({
   children: ReactNode;
 }) {
   const [visible, setVisible] = useState(false);
+  // Topbar (i) switch. Read as a live value rather than folded into `visible`
+  // so flipping helpers back ON restores any tip that is still undismissed,
+  // instead of leaving it suppressed for the rest of the session.
+  const { helpers } = useCanvasHelpers();
 
   useEffect(() => {
     if (isCoachmarkDismissed(id)) return;
@@ -69,7 +74,7 @@ export function BuilderCoachmarkTip({
   return (
     <span className="relative inline-flex" style={wrapperStyle}>
       {children}
-      {visible ? (
+      {visible && helpers ? (
         <div
           role="status"
           data-edit-overlay={`coachmark-${id}`}

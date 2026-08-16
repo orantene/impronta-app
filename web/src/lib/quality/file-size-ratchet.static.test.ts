@@ -101,7 +101,7 @@ const BUDGETS: Record<string, number> = {
   // reduction in; the guard can never drift back up silently.
   "src/components/edit-chrome/inspectors/style-panel.tsx": 5809,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
-  "src/components/edit-chrome/topbar.tsx": 3471,
+  "src/components/edit-chrome/topbar.tsx": 3375,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
   // plugin, trigger detection, catalog/matcher and menu component all live in
   // their own modules (SlashCommandPlugin, slash-command-trigger,

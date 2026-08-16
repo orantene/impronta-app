@@ -40,6 +40,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditContext } from "./edit-context";
+import { useCanvasHelpers } from "./canvas-helpers-mode";
+import {
+  InlineReplaceImagePill,
+  InlineTextHintPill,
+} from "./inline-hover-pills";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useDraftProps } from "./draft-props-bridge";
 import { useSelectedSectionId } from "./selection-bridge";
@@ -127,6 +132,8 @@ export function InlineEditor() {
   const draftProps = useDraftProps();
   // W2 (selection-bridge) — selected-section VALUE from the micro-store.
   const selectedSectionId = useSelectedSectionId();
+  // Topbar (i) switch — hides the pills, never the gestures.
+  const { helpers: canvasHelpers } = useCanvasHelpers();
 
   const [mediaOpen, setMediaOpen] = useState(false);
   const targetImgRef = useRef<TargetImageEdit | null>(null);
@@ -605,82 +612,25 @@ export function InlineEditor() {
   // Only render the hover pill when a section is selected and we're hovering
   // an image inside it. The dialog itself is independent of hover.
   const showImgHint =
-    selectedSectionId !== null && imgHover !== null && !mediaOpen;
+    canvasHelpers && selectedSectionId !== null && imgHover !== null && !mediaOpen;
 
   // Show the text hint when hovering an editable text node, but not while an
   // edit overlay is already open (that would be distracting).
   const showTextHint =
-    textHover !== null && activeEdit === null && !mediaOpen;
+    canvasHelpers && textHover !== null && activeEdit === null && !mediaOpen;
 
   return (
     <>
-      {showTextHint && textHover ? (
-        <div
-          data-edit-overlay="inline-text-hint"
-          style={{
-            position: "fixed",
-            top: Math.max(textHover.rect.top + 6, 60),
-            left: textHover.rect.right - 132,
-            zIndex: 114,
-            pointerEvents: "none",
-          }}
-          className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-[#3f3f46] shadow-md backdrop-blur"
-        >
-          {/* Text-cursor icon */}
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M17 6H7M17 18H7M12 6v12" />
-            <path d="M10 6 Q12 4 14 6" />
-            <path d="M10 18 Q12 20 14 18" />
-          </svg>
-          Double-click to edit
-        </div>
-      ) : null}
-
-      {showImgHint && imgHover ? (
-        <button
-          type="button"
-          data-edit-overlay="inline-replace"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleReplaceClick(imgHover.img);
-          }}
-          style={{
-            position: "fixed",
-            top: Math.max(imgHover.rect.top + 8, 60),
-            left: imgHover.rect.right - 110,
-            zIndex: 115,
-          }}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white/95 px-3 py-1.5 text-[11px] font-medium text-[#18181b] shadow-lg backdrop-blur transition hover:bg-[#f3f0e8]"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <path d="m21 15-5-5L5 21" />
-          </svg>
-          Replace image
-        </button>
-      ) : null}
+      {/* Hover pills anchor BESIDE the hovered box, never over it — see
+          inline-hover-pills.tsx for the placement rules and the bug they fix. */}
+      <InlineTextHintPill show={showTextHint} rect={textHover?.rect ?? null} />
+      <InlineReplaceImagePill
+        show={showImgHint}
+        rect={imgHover?.rect ?? null}
+        onReplace={() => {
+          if (imgHover) handleReplaceClick(imgHover.img);
+        }}
+      />
 
       {banner.kind !== "none" ? (
         <div

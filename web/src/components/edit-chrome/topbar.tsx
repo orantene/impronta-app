@@ -12,6 +12,8 @@ import {
   type BuilderBreakpoint,
 } from "./breakpoint-registry";
 import { useAdvancedMode } from "./advanced-mode";
+import { CanvasHelpersToggle } from "./canvas-helpers-toggle";
+import { TB_ICON_PX, TbIconBtn } from "./topbar-icon-button";
 import { visibleViewportTiers } from "./advanced-mode-visibility";
 
 /**
@@ -87,7 +89,6 @@ import {
 const TOPBAR_H = EDIT_TOPBAR_H;
 /** Shared control sizing — mockup breathing-room pass. */
 const TB_CONTROL_H = 40;
-const TB_ICON_PX = 18;
 const TB_FONT_PX = 14;
 const TB_RADIUS = 10;
 
@@ -106,104 +107,6 @@ function TbDivider() {
         opacity: 0.5,
       }}
     />
-  );
-}
-
-interface TbIconBtnProps {
-  title: string;
-  ariaLabel?: string;
-  id?: string;
-  ariaExpanded?: boolean;
-  ariaHaspopup?: boolean | "menu" | "dialog";
-  ariaControls?: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  badge?: number;
-  /**
-   * #14 — optional short text label shown below the icon (10px, muted).
-   * Pass a 1–2 word label for right-cluster action buttons where the glyph
-   * alone is ambiguous. Omit for undo/redo and other utility buttons where
-   * the tooltip is sufficient and horizontal space is tight.
-   */
-  label?: string;
-  children: React.ReactNode;
-}
-
-function TbIconBtn({
-  title,
-  ariaLabel,
-  id,
-  ariaExpanded,
-  ariaHaspopup,
-  ariaControls,
-  onClick,
-  disabled,
-  badge,
-  label,
-  children,
-}: TbIconBtnProps) {
-  return (
-    <button
-      type="button"
-      id={id}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={ariaLabel ?? title}
-      aria-expanded={ariaExpanded}
-      aria-haspopup={ariaHaspopup}
-      aria-controls={ariaControls}
-      className="relative inline-flex shrink-0 cursor-pointer items-center rounded-[10px] border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/45 disabled:cursor-not-allowed"
-      style={{
-        width: label ? 48 : 40,
-        height: 40,
-        flexDirection: label ? "column" : "row",
-        justifyContent: "center",
-        gap: label ? 1 : undefined,
-        background: "transparent",
-        color: CHROME.muted,
-      }}
-      onMouseEnter={(e) => {
-        if (!disabled) {
-          e.currentTarget.style.background = CHROME.paper2;
-          e.currentTarget.style.color = CHROME.ink;
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.color = disabled ? CHROME.muted3 : CHROME.muted;
-      }}
-    >
-      {children}
-      {label ? (
-        <span
-          aria-hidden
-          style={{
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            lineHeight: 1,
-            color: "inherit",
-            pointerEvents: "none",
-          }}
-        >
-          {label}
-        </span>
-      ) : null}
-      {badge != null && badge > 0 ? (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute right-[1px] top-[1px] inline-flex min-w-[14px] items-center justify-center rounded-[7px] px-[3px] text-[9px] font-bold text-white"
-          style={{
-            height: 14,
-            background: CHROME.rose,
-            border: `1.5px solid ${CHROME.surface}`,
-          }}
-        >
-          {badge}
-        </span>
-      ) : null}
-    </button>
   );
 }
 
@@ -3319,6 +3222,7 @@ export function TopBar({
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </TbIconBtn>
+      <CanvasHelpersToggle />
       <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
 
       {onSaveDraft ? (
