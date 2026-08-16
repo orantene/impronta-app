@@ -21,6 +21,7 @@ import { NextResponse } from "next/server";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import { contactFormSchemaV1 } from "@/lib/site-admin/sections/contact_form/schema";
@@ -308,6 +309,13 @@ export async function POST(req: Request) {
     }
 
     let captchaOk = false;
+    // Provider error codes are kept and logged on failure. They are the ONLY
+    // way to tell a MISCONFIGURED SECRET ('invalid-input-secret') apart from an
+    // ordinary bad/expired token ('invalid-input-response') — the visitor sees
+    // the same "Captcha failed" either way, so without this an operator whose
+    // secret is wrong watches every real enquiry get rejected with nothing to
+    // debug. Codes are fixed provider strings and contain NO secret material.
+    let captchaErrorCodes: string[] = [];
     try {
       if (tenantCaptcha.provider === "hcaptcha") {
         const r = await fetch("https://api.hcaptcha.com/siteverify", {
@@ -315,19 +323,32 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ secret, response: token }),
         });
-        const j = (await r.json()) as { success?: boolean };
+        const j = (await r.json()) as { success?: boolean; "error-codes"?: string[] };
         captchaOk = j.success === true;
+        captchaErrorCodes = j["error-codes"] ?? [];
       } else {
         const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ secret, response: token, remoteip: ip === "unknown" ? "" : ip }),
         });
-        const j = (await r.json()) as { success?: boolean };
+        const j = (await r.json()) as { success?: boolean; "error-codes"?: string[] };
         captchaOk = j.success === true;
+        captchaErrorCodes = j["error-codes"] ?? [];
       }
     } catch {
       captchaOk = false;
+      captchaErrorCodes = ["verification_request_failed"];
+    }
+    if (!captchaOk) {
+      void improntaLog("cms_forms.captcha_failed", {
+        message: "[cms-forms/submit] captcha verification failed",
+        tenantId: section.tenant_id,
+        provider: tenantCaptcha.provider,
+        tenantOwned: tenantCaptcha.tenantOwned,
+        // e.g. 'invalid-input-secret' → the configured secret is wrong.
+        errorCodes: captchaErrorCodes.join(","),
+      });
     }
 
     if (!captchaOk) {
