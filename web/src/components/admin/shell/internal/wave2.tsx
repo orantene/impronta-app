@@ -31,6 +31,14 @@ import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-acti
 import { interpolate } from "@/i18n/interpolate";
 import { useT } from "@/i18n/use-t";
 import { setNotificationPrefs, getNotificationPrefs } from "@/lib/server-actions/user-prefs";
+import {
+  MOCK_TALENT_NOTIFS,
+  NOTIF_CATEGORY_META,
+  parseAge,
+  talentNotifsFromBridge,
+  type NotifCategory,
+  type TalentNotif,
+} from "./talent-notification-rows";
 import { actionLoadUserWorkspaces, type UserWorkspace } from "@/lib/server-actions/admin-user-workspaces";
 import { updateWorkspaceAccount } from "@/lib/server-actions/admin-workspace-settings";
 import {
@@ -1890,84 +1898,9 @@ export function WorkspaceProfileDrawer() {
 // "Notification settings" section underneath. Bell-icon click target.
 // ════════════════════════════════════════════════════════════════════
 
-// ─── Notifications data model ──────────────────────────────────────
-//
-// Three categories, each with its own behavior contract:
-//
-//   action  — inquiry pipeline events that need a response. Sticky until
-//             the action is taken (offer accepted, hold confirmed, etc.).
-//             Coral tone (your-move signal). Shows when-stamp.
-//   system  — onboarding / setup / account-level guidance. Sticky until
-//             the milestone is reached. Optional progress meter. Indigo
-//             tone (informational). Persistent — clears itself when done.
-//   update  — informational events already resolved. Dismissible × .
-//             Sage (success) or indigo (neutral) tone. Auto-archive after
-//             N days in production.
-//
-// A `sticky` notification has no dismiss button — it lives until the
-// underlying state resolves. This is deliberate: it's the difference
-// between "a thing happened" (dismissible) and "you have an open loop"
-// (stays until closed). Mixing them visually = lost signal.
-
-type NotifCategory = "action" | "system" | "update";
-
-type TalentNotif = {
-  id: string;
-  category: NotifCategory;
-  icon: "mail" | "user" | "calendar" | "team" | "bolt" | "sparkle" | "check";
-  tone?: "ink" | "coral" | "indigo" | "success" | "caution";
-  title: string;
-  sub?: string;
-  when?: string;
-  unread?: boolean;
-  /** Sticky = no dismiss. Stays until the underlying action/state resolves. */
-  sticky?: boolean;
-  /** Optional progress (e.g. 84% profile complete, 1/4 setup steps). */
-  progress?: { done: number; total: number; label?: string };
-  /**
-   * Optional @-mention. When set, the row shows a coral "@ you" pill
-   * after the title — surfaces moments where someone tagged the talent
-   * in a chat thread (coordinator pinging, client asking directly, etc.).
-   * The mention.from field names who tagged them.
-   */
-  mention?: { from: string };
-};
-
-const MOCK_TALENT_NOTIFS: TalentNotif[] = [
-  // Action needed — sticky, coral, your move.
-  { id: "tn1", category: "action", icon: "mail", tone: "coral", title: "Mango · Spring lookbook · new offer", sub: "€1,800 · awaiting your reply", when: "5h", unread: true, sticky: true },
-  { id: "tn2", category: "action", icon: "calendar", tone: "coral", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry · May 18-20", when: "2h", unread: true, sticky: true },
-  // @-mention from coordinator — talent was tagged in a chat thread.
-  // Action-needed because someone asked them directly.
-  { id: "tn-m1", category: "action", icon: "mail", tone: "coral", title: "Ana Vega tagged you on Mango thread", sub: "\"@Marta, confirm wardrobe brief by EOD please\"", when: "1h", unread: true, sticky: true, mention: { from: "Ana Vega" } },
-  // System / setup — sticky, indigo, has progress.
-  { id: "tn3", category: "system", icon: "sparkle", tone: "indigo", title: "4 steps to get booked", sub: "Complete your profile to enter the inquiry pipeline", unread: true, sticky: true, progress: { done: 0, total: 4, label: "0 of 4 steps" } },
-  { id: "tn4", category: "system", icon: "user", tone: "indigo", title: "Profile 84% complete", sub: "3 fields left · polaroids, rate card, showreel", unread: true, sticky: true, progress: { done: 84, total: 100, label: "84%" } },
-  // Updates — dismissible × on hover.
-  { id: "tn5", category: "update", icon: "check", tone: "success", title: "Vogue Italia booking confirmed", sub: "Tue, May 6 · €1,800", when: "1d" },
-  { id: "tn6", category: "update", icon: "team", tone: "indigo", title: "Mango site referred 12 new views", sub: "+8 vs prior week", when: "2d" },
-  // @-mention as informational — Carla thanked Marta in a closed thread.
-  // Not action-needed but the talent should know they were tagged.
-  { id: "tn-m2", category: "update", icon: "mail", tone: "indigo", title: "Carla Vega tagged you on Loewe thread", sub: "\"@Marta, thanks for bringing me on, was a dream day 🙏\"", when: "3d", mention: { from: "Carla Vega" } },
-];
-
-const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }> = {
-  action: { label: "Action needed", hint: "stays here until you respond" },
-  system: { label: "Setup", hint: "auto-clears when complete" },
-  update: { label: "Updates", hint: "dismissible" },
-};
-
-/** Parse rough age strings ("5h", "2h", "1d", "2d", "today") to a numeric
- *  hours value for sorting. Closer values = lower number. */
-function parseAge(s: string): number {
-  if (!s) return 0;
-  const lower = s.toLowerCase();
-  if (lower === "today" || lower === "now") return 0;
-  const match = lower.match(/(\d+)\s*([hd])/);
-  if (!match) return 0;
-  const n = parseInt(match[1]!, 10);
-  return match[2] === "d" ? n * 24 : n;
-}
+// The data model (categories, the `TalentNotif` shape, the standalone mock,
+// and the bridge → row mapping) lives in `talent-notification-rows.ts`.
+// This file keeps only the rendering.
 
 // Compact notification row — ~52px tall. Single-line title with
 // time-stamp on the right, optional sub on a second line, optional
@@ -2166,21 +2099,65 @@ const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
 ];
 
 export function TalentNotificationsDrawer() {
-  const { state, closeDrawer, toast } = useAdminShell();
+  const { state, closeDrawer, openDrawer, toast, bridgeUserNotifications, adminBasePath } = useAdminShell();
+  const t = useT();
   const open = state.drawer.drawerId === "talent-notifications";
   // A9: deep-link from Settings → opens with settings pane expanded
   const [settingsOpen, setSettingsOpen] = useState(
     state.drawer.payload?.expanded === "settings",
+  );
+  // Real `user_notifications` rows when the shell provides the bridge (even an
+  // EMPTY array — that means "no notifications yet", not "show the demo").
+  // Only a null bridge (standalone/prototype harness) falls back to the mock.
+  const isLive = bridgeUserNotifications !== null;
+  const sourceNotifs = useMemo(
+    () =>
+      bridgeUserNotifications !== null
+        ? talentNotifsFromBridge(bridgeUserNotifications, adminBasePath)
+        : MOCK_TALENT_NOTIFS,
+    [bridgeUserNotifications, adminBasePath],
   );
   // Recent / Archive tab state — Archive shows previously-dismissed
   // updates so the talent can find a notification they cleared by mistake.
   const [view, setView] = useState<"recent" | "archive">("recent");
   // Read state — drives the unread dot. "Mark all read" clears it.
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const markAllRead = () => {
-    setReadIds(new Set(MOCK_TALENT_NOTIFS.map((n) => n.id)));
-    toast("All notifications marked as read");
-  };
+  const [marking, setMarking] = useState(false);
+  // Mark one row read server-side. Same `@/lib/notifications/actions` path the
+  // workspace notifications drawer uses; imported lazily so the drawer does not
+  // pull a server-action module into its own chunk.
+  const markOneRead = useCallback((id: string) => {
+    setReadIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    if (!isLive) return Promise.resolve({ ok: true });
+    return import("@/lib/notifications/actions")
+      .then((m) => m.markNotificationRead(id))
+      .catch(() => ({ ok: false }));
+  }, [isLive]);
+  const markAllRead = useCallback(async () => {
+    const unreadIds = sourceNotifs
+      .filter((n) => n.unread && !readIds.has(n.id))
+      .map((n) => n.id);
+    setReadIds(new Set(sourceNotifs.map((n) => n.id)));
+    if (!isLive) {
+      toast(t("dashboard.talentNotifications.allMarkedRead"));
+      return;
+    }
+    setMarking(true);
+    try {
+      // Per-row rather than `markAllNotificationsRead(tenantId)`: talent rows
+      // are loaded across every agency the talent is on, so a single tenant id
+      // could not cover what is on screen. This marks exactly what is shown.
+      const { markNotificationRead } = await import("@/lib/notifications/actions");
+      const results = await Promise.all(unreadIds.map((id) => markNotificationRead(id)));
+      toast(
+        results.every((r) => r.ok)
+          ? t("dashboard.talentNotifications.allMarkedRead")
+          : t("dashboard.talentNotifications.markAllFailed"),
+      );
+    } finally {
+      setMarking(false);
+    }
+  }, [sourceNotifs, readIds, isLive, toast, t]);
   // Notification prefs — loaded from DB on open, auto-saved on toggle.
   const [prefs, setPrefs] = useState<Record<string, { email: boolean; push: boolean }>>(NOTIF_DEFAULTS);
 
@@ -2211,7 +2188,7 @@ export function TalentNotificationsDrawer() {
       next.delete(id);
       return next;
     });
-  const visible = MOCK_TALENT_NOTIFS.filter((n) =>
+  const visible = sourceNotifs.filter((n) =>
     view === "recent" ? !dismissed.has(n.id) : dismissed.has(n.id),
   );
   // Apply readIds to dim the unread dot for items the user marked read
@@ -2230,8 +2207,8 @@ export function TalentNotificationsDrawer() {
     if (items.length === 0) return null;
     const withWhen = items.filter((n) => n.when);
     if (withWhen.length === 0) return null;
-    // Whens are mock strings ("5h", "2h", "1d") — pick the longest one
-    // by simple character + numeric heuristic.
+    // Whens are relative strings ("5h", "2h ago", "1d ago") — rank them by
+    // the numeric age `parseAge` extracts and take the oldest.
     const ranked = withWhen.sort((a, b) => {
       const av = parseAge(a.when ?? "");
       const bv = parseAge(b.when ?? "");
@@ -2248,7 +2225,11 @@ export function TalentNotificationsDrawer() {
       open={open}
       onClose={closeDrawer}
       title="Notifications"
-      description="What's waiting on you, and what's running through email + push."
+      description={
+        isLive
+          ? "What's waiting on you, and what's running through email + push."
+          : t("dashboard.talentNotifications.demoNotice")
+      }
     >
       {/* Tab strip: Recent | Archive. Tabs sit above the list so the
           talent can flip between active items and previously-dismissed
@@ -2268,7 +2249,7 @@ export function TalentNotificationsDrawer() {
           {(["recent", "archive"] as const).map((v) => {
             const active = view === v;
             const archiveCount = dismissed.size;
-            const recentCount = MOCK_TALENT_NOTIFS.length - dismissed.size;
+            const recentCount = sourceNotifs.length - dismissed.size;
             const count = v === "archive" ? archiveCount : recentCount;
             return (
               <button
@@ -2309,6 +2290,7 @@ export function TalentNotificationsDrawer() {
           <button
             type="button"
             onClick={markAllRead}
+            disabled={marking}
             style={{
               background: "transparent",
               border: "none",
@@ -2316,11 +2298,16 @@ export function TalentNotificationsDrawer() {
               fontFamily: FONTS.body,
               fontSize: 11.5,
               fontWeight: 500,
+              // Same ink in both states on purpose: `inkDim` (0.38 alpha) is
+              // FAINTER than `inkMuted` (0.72), so a "disabled" style built
+              // from muted would render louder than the enabled one.
               color: COLORS.inkMuted,
-              cursor: "pointer",
+              cursor: marking ? "default" : "pointer",
             }}
           >
-            Mark all read
+            {marking
+              ? t("dashboard.talentNotifications.marking")
+              : t("dashboard.talentNotifications.markAllRead")}
           </button>
         )}
       </div>
@@ -2360,11 +2347,24 @@ export function TalentNotificationsDrawer() {
                   <NotifRow
                     key={n.id}
                     notif={n}
-                    onOpen={() =>
-                      view === "archive"
-                        ? restore(n.id)
-                        : closeDrawer()
-                    }
+                    onOpen={() => {
+                      if (view === "archive") { restore(n.id); return; }
+                      if (n.unread) void markOneRead(n.id);
+                      // Page targets (payout reversed/held → /talent/payouts,
+                      // application approved → /talent/money) navigate; drawer
+                      // targets open in place. A row with no stored
+                      // `target_drawer` has no destination, so it just closes.
+                      if (n.target?.targetHref) {
+                        closeDrawer();
+                        window.location.assign(n.target.targetHref);
+                        return;
+                      }
+                      if (n.target) {
+                        openDrawer(n.target.targetDrawer, n.target.targetPayload);
+                        return;
+                      }
+                      closeDrawer();
+                    }}
                     onDismiss={
                       view === "archive"
                         ? () => restore(n.id)
@@ -2385,7 +2385,9 @@ export function TalentNotificationsDrawer() {
         })}
         {visible.length === 0 && (
           <div style={{ padding: "24px 12px", textAlign: "center", fontSize: 13, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-            All clear. No notifications right now.
+            {view === "archive"
+              ? t("dashboard.talentNotifications.emptyArchive")
+              : t("dashboard.talentNotifications.empty")}
           </div>
         )}
       </div>
