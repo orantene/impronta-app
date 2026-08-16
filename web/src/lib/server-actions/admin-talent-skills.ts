@@ -375,43 +375,10 @@ export async function setTalentProfileSkills(
     };
   }
 
-  // Validate ALL desired terms in one query.
-  if (desiredIds.length > 0) {
-    const { data: terms, error: termsErr } = await supabase
-      .from("taxonomy_terms")
-      .select("id, slug, term_type, is_active, is_generic_fallback")
-      .in("id", desiredIds);
-    if (termsErr) {
-      logServerError("setTalentProfileSkills.terms", termsErr);
-      return {
-        ok: false,
-        error: "Couldn't validate the selected skills. Try again.",
-      };
-    }
-    const byId = new Map((terms ?? []).map((t) => [t.id, t]));
-    const invalid: string[] = [];
-    for (const id of desiredIds) {
-      const t = byId.get(id);
-      if (!t || t.term_type !== "talent_type" || !t.is_active || t.is_generic_fallback) {
-        invalid.push(t?.slug ?? id);
-      }
-    }
-    if (invalid.length > 0) {
-      void improntaLog("admin_talent_skills.warn", {
-        message: `${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`,
-      });
-      return {
-        ok: false,
-        error:
-          "Some selected skills are invalid for this profile (not a real skill, inactive, or a generic placeholder).",
-      };
-    }
-    void improntaLog("admin_talent_skills.info", {
-      message: `${LOG} validated terms=${desiredIds.length}`,
-    });
-  }
-
   // Current skill rows (capture full data for a compensating restore).
+  // Read BEFORE validation: the client sends the whole membership set, not a
+  // delta, so we need to know which ids are already persisted before we can
+  // decide which of them the "new pick" rules may legitimately reject.
   const { data: currentRows, error: curErr } = await supabase
     .from("talent_profile_taxonomy")
     .select(
@@ -428,6 +395,58 @@ export async function setTalentProfileSkills(
   }
   const current = currentRows ?? [];
   const currentByTerm = new Map(current.map((r) => [r.taxonomy_term_id, r]));
+
+  // Validate the desired terms in one query.
+  //
+  // GRANDFATHERING (2026-08-16): the `is_active` / `is_generic_fallback` rules
+  // gate what may be NEWLY PICKED — they must never be applied to a term the
+  // profile already carries. The editor resubmits the full membership set on
+  // every add and every remove, so applying them to persisted rows made any
+  // talent whose seeded role happens to be a generic fallback (Dancer, Model,
+  // Influencer, Content Creator, …) permanently unable to save ANY skill
+  // change, including deleting the offending role. 19 profiles were locked out
+  // this way. Terms already on the profile only have to still exist and still
+  // be a talent_type (the DB trigger enforces the latter on write anyway).
+  if (desiredIds.length > 0) {
+    const { data: terms, error: termsErr } = await supabase
+      .from("taxonomy_terms")
+      .select("id, slug, term_type, is_active, is_generic_fallback")
+      .in("id", desiredIds);
+    if (termsErr) {
+      logServerError("setTalentProfileSkills.terms", termsErr);
+      return {
+        ok: false,
+        error: "Couldn't validate the selected skills. Try again.",
+      };
+    }
+    const byId = new Map((terms ?? []).map((t) => [t.id, t]));
+    const invalid: string[] = [];
+    for (const id of desiredIds) {
+      const t = byId.get(id);
+      if (!t || t.term_type !== "talent_type") {
+        invalid.push(t?.slug ?? id);
+        continue;
+      }
+      // Already on the profile → keep it, whatever the catalog says today.
+      if (currentByTerm.has(id)) continue;
+      if (!t.is_active || t.is_generic_fallback) invalid.push(t.slug);
+    }
+    if (invalid.length > 0) {
+      void improntaLog("admin_talent_skills.warn", {
+        message: `${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`,
+      });
+      return {
+        ok: false,
+        error:
+          "Some selected skills are invalid for this profile (not a real skill, inactive, or a generic placeholder).",
+      };
+    }
+    void improntaLog("admin_talent_skills.info", {
+      message: `${LOG} validated terms=${desiredIds.length} ` +
+        `(grandfathered=${desiredIds.filter((id) => currentByTerm.has(id)).length})`,
+    });
+  }
+
   const relOf = (role: "primary" | "secondary") =>
     role === "primary" ? "primary_role" : "secondary_role";
 

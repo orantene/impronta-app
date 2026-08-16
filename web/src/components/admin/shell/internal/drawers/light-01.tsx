@@ -18,18 +18,19 @@ import {
   SecondaryButton,
   Section,
   StateChipMini,
-  StatusPill,
   TRANSITION,
   UsageRow,
   getTeam,
   meetsPlan,
   nextPlan,
-  openSupportEmail,
   planPrice,
   teamCap,
   useAdminShell
 } from "./drawer-shared";
 import { useDashboardText } from "../dashboard-i18n";
+// Real workspace billing. `openSubscriptionPortal` is capability-gated on
+// `manage_billing` server-side, so this import cannot widen access.
+import { openSubscriptionPortal } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 
 // Phase 1d (remediation §4): 4 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -325,16 +326,37 @@ export function SiteSetupDrawer() {
 
 
 export function PlanBillingDrawer() {
-  const { state, closeDrawer, openUpgrade, toast } = useAdminShell();
+  const { state, closeDrawer, openUpgrade, toast, tenantSlug, adminBasePath } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
+  const router = useRouter();
   const planMeta = PLAN_META[state.plan];
+  const [portalPending, setPortalPending] = useState(false);
 
-  const invoices = [
-    { id: "i1", date: "Apr 1", amount: planPrice(state.plan), status: "Paid" },
-    { id: "i2", date: "Mar 1", amount: planPrice(state.plan), status: "Paid" },
-    { id: "i3", date: "Feb 1", amount: planPrice(state.plan), status: "Paid" },
-  ];
+  // Invoices + payment method used to be INVENTED here: a three-row list of
+  // "Paid" invoices synthesized from the current month backwards, and a card
+  // reading "Visa ending 4242" — Stripe's test number — shown to real
+  // workspaces. Both are gone. Real invoices, the real payment method, and
+  // cancellation all live in the Stripe Billing Portal, opened below through
+  // `openSubscriptionPortal` (capability-gated on `manage_billing`).
+  const openPortal = () => {
+    if (!tenantSlug) return;
+    setPortalPending(true);
+    void openSubscriptionPortal(tenantSlug)
+      .then((res) => {
+        if (res.ok) {
+          // Full navigation, not router.push — the portal is on Stripe's origin.
+          window.location.href = res.redirectUrl;
+          return;
+        }
+        setPortalPending(false);
+        toast(res.error);
+      })
+      .catch(() => {
+        setPortalPending(false);
+        toast(tt("Could not open the billing portal."));
+      });
+  };
 
   return (
     <DrawerShell
@@ -388,8 +410,11 @@ export function PlanBillingDrawer() {
         </div>
       </Section>
 
+      {/* Payment method + invoices — Stripe is the only source of truth for
+          both, so this section opens the Billing Portal instead of restating
+          (or, as before, inventing) what Stripe already holds. */}
       {state.plan !== "free" && (
-        <Section title={tt("Payment method")}>
+        <Section title={tt("Payment method and invoices")}>
           <div
             style={{
               background: "#fff",
@@ -406,72 +431,51 @@ export function PlanBillingDrawer() {
             </IconChip>
             <div className="flex-1">
               <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
-                {tt("Visa ending {last4}").replace("{last4}", "4242")}
+                {tt("Managed in Stripe")}
               </div>
               <div style={{ fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
-                {tt("Expires {date}").replace("{date}", "09 / 2028")}
+                {tt("Card on file, invoice history, and cancellation.")}
               </div>
             </div>
-            <GhostButton
-              size="sm"
-              onClick={() => {
-                openSupportEmail(
-                  "Tulala billing payment method update",
-                  "Please help me update the payment method for this workspace.",
-                );
-                toast(tt("Opening billing support email"));
-              }}
-            >
-              {tt("Update")}
+            <GhostButton size="sm" onClick={openPortal} disabled={portalPending || !tenantSlug}>
+              {portalPending ? tt("Opening…") : tt("Open")}
             </GhostButton>
           </div>
         </Section>
       )}
 
-      {state.plan !== "free" && (
-        <Section title={tt("Recent invoices")}>
-          <div
-            style={{
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              overflow: "hidden",
-            }}
-          >
-            {invoices.map((inv, idx) => (
-              <div
-                key={inv.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 80px 60px",
-                  alignItems: "center",
-                  padding: "10px 14px",
-                  borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                }}
-              >
-                <span className="text-admin-ink">{inv.date}</span>
-                <span className="text-admin-ink-muted">{inv.amount}</span>
-                <StateChipMini label={tt(inv.status)} tone="green" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    openSupportEmail(
-                      `Tulala invoice request ${inv.id}`,
-                      `Please send the PDF for invoice ${inv.id} dated ${inv.date} (${inv.amount}).`,
-                    );
-                    toast(tt("Opening invoice support email"));
-                  }}
-                  style={{ color: COLORS.inkMuted, fontSize: 12, textDecoration: "none", justifySelf: "end", background: "transparent", border: "none", padding: 0, cursor: "pointer", fontFamily: FONTS.body }}
-                >
-                  {tt("PDF")}
-                </button>
-              </div>
-            ))}
+      <Section title={tt("Account and billing")}>
+        <button
+          type="button"
+          onClick={() => {
+            closeDrawer();
+            router.push(`${adminBasePath}/account`);
+          }}
+          style={{
+            width: "100%",
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            cursor: "pointer",
+            textAlign: "left",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div className="flex-1">
+            <div style={{ fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
+              {tt("Subscription details")}
+            </div>
+            <div style={{ fontSize: 11.5 }} className="text-admin-ink-muted">
+              {tt("Live plan status, renewal date, and roster usage.")}
+            </div>
           </div>
-        </Section>
-      )}
+          <StateChipMini label={tt("Open")} tone="dim" />
+        </button>
+      </Section>
     </DrawerShell>
   );
 }

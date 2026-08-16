@@ -123,21 +123,11 @@ export async function setTalentProfileSkillsAsTalent(
   for (const s of parsed.data.skills) desiredByTerm.set(s.taxonomy_term_id, s.role);
   const desiredIds = [...desiredByTerm.keys()];
 
-  if (desiredIds.length > 0) {
-    const { data: terms, error } = await auth.supabase
-      .from("taxonomy_terms")
-      .select("id, slug, term_type, is_active, is_generic_fallback")
-      .in("id", desiredIds);
-    if (error) return { ok: false, error: "Couldn't validate selected services." };
-    const byId = new Map((terms ?? []).map((t) => [t.id, t]));
-    for (const id of desiredIds) {
-      const t = byId.get(id);
-      if (!t || t.term_type !== "talent_type" || !t.is_active || t.is_generic_fallback) {
-        return { ok: false, error: "Some selected services are no longer available." };
-      }
-    }
-  }
-
+  // Read the current rows BEFORE validating: the editor resubmits the whole
+  // membership set on every change, so persisted terms must be exempt from the
+  // "new pick" rules below. See the grandfathering note in
+  // admin-talent-skills.ts — the same defect locked 19 profiles out of every
+  // skill edit on the admin path.
   const { data: currentRows, error: currentError } = await auth.supabase
     .from("talent_profile_taxonomy")
     .select("taxonomy_term_id, relationship_type, proficiency_level, years_experience, display_order, is_primary")
@@ -150,6 +140,26 @@ export async function setTalentProfileSkillsAsTalent(
 
   const current = currentRows ?? [];
   const currentByTerm = new Map(current.map((r) => [r.taxonomy_term_id, r]));
+
+  if (desiredIds.length > 0) {
+    const { data: terms, error } = await auth.supabase
+      .from("taxonomy_terms")
+      .select("id, slug, term_type, is_active, is_generic_fallback")
+      .in("id", desiredIds);
+    if (error) return { ok: false, error: "Couldn't validate selected services." };
+    const byId = new Map((terms ?? []).map((t) => [t.id, t]));
+    for (const id of desiredIds) {
+      const t = byId.get(id);
+      if (!t || t.term_type !== "talent_type") {
+        return { ok: false, error: "Some selected services are no longer available." };
+      }
+      // Already on the profile → keep it, whatever the catalog says today.
+      if (currentByTerm.has(id)) continue;
+      if (!t.is_active || t.is_generic_fallback) {
+        return { ok: false, error: "Some selected services are no longer available." };
+      }
+    }
+  }
   const relOf = (role: "primary" | "secondary") => role === "primary" ? "primary_role" : "secondary_role";
   const primaryIds = desiredIds.filter((id) => desiredByTerm.get(id) === "primary");
   if (primaryIds.length > 1) {
