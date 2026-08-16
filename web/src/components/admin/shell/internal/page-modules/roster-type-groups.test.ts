@@ -69,8 +69,8 @@ test("each parent carries its emoji anchor", () => {
     "en",
     "fashion-model",
   );
-  assert.equal(groups[0]?.parentEmoji, "\u{1F464}");
-  assert.equal(groups[1]?.parentEmoji, "\u2728");
+  assert.equal(groups[0]?.parentEmoji, "👤");
+  assert.equal(groups[1]?.parentEmoji, "✨");
 });
 
 test("exactly one type carries the primary star", () => {
