@@ -327,6 +327,38 @@ export function WorkspacePageView() {
                   </>
                 ),
               },
+          // Account & billing — the REAL subscription surface
+          // (/<tenant>/admin/account): live Stripe subscription state, Checkout
+          // upgrade, and the Billing Portal for invoices + payment method.
+          // Nothing linked to it before this row, so the only billing UI a
+          // workspace could reach was the `plan-billing` drawer, which used to
+          // fabricate its invoices and card. Gate matches the server action's
+          // own `manage_billing` capability (admin+), not owner.
+          ...(isAdmin
+            ? [{
+                key: "account-billing",
+                title: t("dashboard.adminWorkspace.accountBillingTitle"),
+                desc: t("dashboard.adminWorkspace.accountBillingDesc"),
+                onClick: () => router.push(`${adminBasePath}/account`),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />,
+              }]
+            : []),
+          // Payout bank account — Stripe Connect onboarding. The `payouts`
+          // page has always rendered, but NOTHING navigated to it: the
+          // integrations card that pointed at it (SURFACED_INTEGRATIONS) has
+          // no consumer, and the activation-checklist CTA self-hides for any
+          // established tenant (roster + custom domain). Owner-only, matching
+          // `agency.payout_account.manage` in OWNER_CAPS — a non-owner would
+          // land on the surface's own "ask your owner" state.
+          ...(isOwner
+            ? [{
+                key: "payout-bank",
+                title: t("dashboard.adminWorkspace.payoutBankTitle"),
+                desc: t("dashboard.adminWorkspace.payoutBankDesc"),
+                onClick: () => setPage("payouts"),
+                right: <Affordance label={t("dashboard.adminWorkspace.affordanceOpen")} />,
+              }]
+            : []),
         ],
       },
       {

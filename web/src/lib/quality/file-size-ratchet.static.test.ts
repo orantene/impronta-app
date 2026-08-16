@@ -173,7 +173,7 @@ const BUDGETS: Record<string, number> = {
   // new user-facing string the Branding drawer's Remove buttons add
   // ("Favicon removed"). ES_TEXT is a flat literal map — a new string has
   // nowhere else to live.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3523,
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3531,
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
