@@ -32,8 +32,6 @@ import {
   reorderMaxSitePagesAction,
   setMaxSiteHomePageAction,
   setMaxSiteSlugAction,
-  uploadMaxSiteLogoAction,
-  removeMaxSiteLogoAction,
   publishMaxSiteAction,
   applyMaxSiteTemplateAction,
 } from "@/lib/talent-site/server/site-management-actions";
@@ -46,6 +44,8 @@ import { toUnifiedTemplateDef } from "@/lib/site-admin/builder-core/templates/te
 import { TemplatePickerPanel } from "@/components/edit-chrome/template-picker-panel";
 import { TalentMaxSiteTemplateThumb } from "@/components/talent/site/TalentMaxSiteTemplateThumb";
 import { TalentSiteDomainPanel } from "@/components/talent/site/TalentSiteDomainPanel";
+import { uploadTalentMaxSiteLogo } from "@/lib/client/signed-upload";
+import { removeMaxSiteLogoAction } from "@/lib/talent-site/server/site-logo-actions";
 import {
   PageAddForm,
   PageDeleteConfirm,
@@ -293,17 +293,28 @@ function LogoPanel({ state, onSaved }: { state: MaxSiteManagerState; onSaved: ()
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const fd = new FormData();
-    fd.append("logo", file);
     start(async () => {
       setErr(null);
-      const res = await uploadMaxSiteLogoAction(fd);
-      if (!res.ok) {
-        setErr(res.error);
-        return;
+      // D7: the await used to be bare inside startTransition. A rejected
+      // promise (the 413 the old Server-Action transport threw for any
+      // real logo) escaped into React's transition error path and the
+      // panel showed nothing at all — no error, no spinner change. Every
+      // failure now lands in `err`.
+      try {
+        const res = await uploadTalentMaxSiteLogo({ file });
+        if (!res.ok) {
+          setErr(res.error);
+          return;
+        }
+        if (inputRef.current) inputRef.current.value = "";
+        await onSaved();
+      } catch (cause) {
+        setErr(
+          cause instanceof Error && cause.message
+            ? cause.message
+            : "Upload failed. Try again.",
+        );
       }
-      if (inputRef.current) inputRef.current.value = "";
-      await onSaved();
     });
   }
 

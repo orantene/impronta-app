@@ -26,6 +26,7 @@ import { randomUUID } from "node:crypto";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { validateMediaUploadSize } from "@/lib/site-admin/media/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,6 +95,23 @@ export async function POST(req: Request) {
       { ok: false, error: `Unsupported ${kind} extension "${extRaw}".` },
       { status: 415 },
     );
+  }
+
+  // Size gate #1 — refuse before minting a signed URL, using the size the
+  // client declares. This is a courtesy refusal only (a lying client just
+  // gets caught at register time), but it saves a doomed 200 MB PUT.
+  // `byteSize` is optional for back-compat with an older client bundle
+  // still in a warm browser tab; register enforces the real number.
+  const declaredSize =
+    typeof body.byteSize === "number" ? body.byteSize : null;
+  if (declaredSize !== null) {
+    const sizeCheck = validateMediaUploadSize({ kind, byteSize: declaredSize });
+    if (!sizeCheck.ok) {
+      return NextResponse.json(
+        { ok: false, error: sizeCheck.error },
+        { status: sizeCheck.status },
+      );
+    }
   }
 
   const supabase = createServiceRoleClient();

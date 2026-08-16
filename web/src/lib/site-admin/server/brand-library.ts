@@ -499,13 +499,16 @@ export async function syncBrandSettingsToTheme(
   tenantId: string,
   v: {
     watermark_preset?: unknown;
-    logo_url?: string;
+    logo_url?: string | null;
+    favicon_url?: string | null;
     primary_color?: string;
     accent_color?: string;
   },
 ): Promise<void> {
   const colorsChanged = v.primary_color !== undefined || v.accent_color !== undefined;
-  if (v.watermark_preset === undefined && v.logo_url === undefined && !colorsChanged) return;
+  const brandMarkChanged =
+    v.logo_url !== undefined || v.favicon_url !== undefined;
+  if (v.watermark_preset === undefined && !brandMarkChanged && !colorsChanged) return;
 
   const { data: brandingRow } = await db
     .from("agency_branding")
@@ -517,7 +520,26 @@ export async function syncBrandSettingsToTheme(
   const themeUpdate: Record<string, unknown> = { ...currentTheme };
   const draftUpdate: Record<string, unknown> = { ...currentDraft };
   if (v.watermark_preset !== undefined) themeUpdate.watermark_preset = v.watermark_preset;
-  if (v.logo_url !== undefined) themeUpdate.logo_url = v.logo_url;
+
+  // D4 — logo_url / favicon_url are LEGACY_THEME_PASSTHROUGH_KEYS: they live
+  // in theme_json but are NOT registry tokens, and publishDesign resolves
+  // them as `{ ...liveLegacy, ...draftLegacy }` — the DRAFT slice wins.
+  //
+  // So an explicit clear MUST write `null` into the draft as well. Writing
+  // it to live only means the very next publish copies the stale draft URL
+  // back over the cleared value and the logo reappears — the mirror image
+  // of the 2026-08-15 incident where an omission deleted the logo. Here an
+  // omission would RESURRECT it. Either way the rule is the same: never let
+  // these keys be decided by absence. Always write the value explicitly to
+  // both slices.
+  if (v.logo_url !== undefined) {
+    themeUpdate.logo_url = v.logo_url;
+    draftUpdate.logo_url = v.logo_url;
+  }
+  if (v.favicon_url !== undefined) {
+    themeUpdate.favicon_url = v.favicon_url;
+    draftUpdate.favicon_url = v.favicon_url;
+  }
   if (v.primary_color !== undefined) {
     themeUpdate["color.primary"] = v.primary_color;
     draftUpdate["color.primary"] = v.primary_color;
@@ -531,13 +553,19 @@ export async function syncBrandSettingsToTheme(
     theme_json: themeUpdate,
     updated_at: new Date().toISOString(),
   };
-  if (colorsChanged) {
+  if (colorsChanged || brandMarkChanged) {
     patch.theme_json_draft = draftUpdate;
     // Keep the M1 typed columns coherent — the admin chrome accent
     // (_layout-identity.ts) and guest-thread email branding read these.
     if (v.primary_color !== undefined) patch.primary_color = v.primary_color;
     if (v.accent_color !== undefined) patch.accent_color = v.accent_color;
   }
+  // D4 — clearing a brand mark must also drop the typed FK, or
+  // `loadBrandRefs` + the Brand images manager keep showing the asset as
+  // still assigned to the role that no longer has a URL.
+  if (v.logo_url === null) patch.logo_media_asset_id = null;
+  if (v.favicon_url === null) patch.favicon_media_asset_id = null;
+
   // Non-fatal if this fails — agencies.settings is already saved.
   await db.from("agency_branding").upsert(patch, { onConflict: "tenant_id" });
 
@@ -545,7 +573,7 @@ export async function syncBrandSettingsToTheme(
   // theme_json through tagged unstable_cache entries (reads.ts,
   // card-design-resolver.ts) — bust them or a saved color takes up to
   // 300 s to appear.
-  if (colorsChanged || v.logo_url !== undefined) {
+  if (colorsChanged || brandMarkChanged) {
     updateTag(tagFor(tenantId, "branding"));
     updateTag(tagFor(tenantId, "storefront"));
     updateTag(tagFor(tenantId, "card-design"));
