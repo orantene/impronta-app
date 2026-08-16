@@ -10,11 +10,13 @@
  * the newest 60 is reachable` and `[library-folder] a folder filter reaches
  * past the first page` are that bug, pinned.
  *
- * node:test + node:assert only — no DB, no network. The fake Supabase below is
- * a small in-memory PostgREST: it applies the filters the query layer sends
- * (including the keyset `or(...)` cursor) rather than ignoring them, because a
- * stub that ignores filters would pass while the real query returned the wrong
- * rows — which is exactly the failure mode being fixed.
+ * node:test + node:assert only — no DB, no network. The fake Supabase lives in
+ * `library-query-fixtures.ts` (extracted 2026-08-16 when the per-talent filter
+ * pushed this file past the 800-line cap): a small in-memory PostgREST that
+ * APPLIES the filters the query layer sends, including the keyset `or(...)`
+ * cursor and Postgres NULL semantics, rather than ignoring them. A stub that
+ * ignored filters would pass while the real query returned the wrong rows —
+ * exactly the failure mode being fixed.
  */
 
 import assert from "node:assert/strict";
@@ -29,210 +31,13 @@ import {
 } from "./library-item";
 import { queryTenantMediaLibrary } from "./library-query";
 
-const TENANT_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
-const TENANT_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
-const TALENT = "11111111-1111-1111-1111-111111111111";
-
-type Row = Record<string, unknown>;
-
-type Recorded = {
-  table: string;
-  filters: Array<[string, string, unknown]>;
-  ors: string[];
-};
-
-/**
- * Minimal in-memory PostgREST. Supports the operators the query layer uses:
- * eq / neq / is / in / not(in|is) / or(...) / order / limit, plus
- * `{ count: "exact", head: true }`.
- */
-function makeFakeSupabase(tables: Record<string, Row[]>) {
-  const recorded: Recorded[] = [];
-
-  function evalOr(row: Row, expression: string): boolean {
-    // `or(a,b,and(c,d))` → split on top-level commas.
-    const inner = expression.startsWith("or(")
-      ? expression.slice(3, -1)
-      : expression;
-    const parts: string[] = [];
-    let depth = 0;
-    let current = "";
-    for (const ch of inner) {
-      if (ch === "(") depth += 1;
-      if (ch === ")") depth -= 1;
-      if (ch === "," && depth === 0) {
-        parts.push(current);
-        current = "";
-        continue;
-      }
-      current += ch;
-    }
-    if (current) parts.push(current);
-    return parts.some((part) => evalClause(row, part));
-  }
-
-  function evalClause(row: Row, clause: string): boolean {
-    if (clause.startsWith("and(")) {
-      const inner = clause.slice(4, -1);
-      return inner.split(",").every((sub) => evalClause(row, sub));
-    }
-    if (clause.startsWith("or(")) return evalOr(row, clause);
-    const first = clause.indexOf(".");
-    const column = clause.slice(0, first);
-    const rest = clause.slice(first + 1);
-    // `not.in` is the one two-word operator this fake sees.
-    const op = rest.startsWith("not.in.")
-      ? "not.in"
-      : rest.slice(0, rest.indexOf("."));
-    const raw = rest.slice(op.length + 1);
-    const value = row[column];
-    switch (op) {
-      case "eq":
-        return String(value) === raw;
-      case "is":
-        return raw === "null" ? value === null || value === undefined : false;
-      case "lt":
-        return String(value) < raw;
-      case "in": {
-        const list = raw.replace(/^\(|\)$/g, "").split(",");
-        return list.includes(String(value));
-      }
-      case "not.in": {
-        // Postgres semantics on purpose: `NULL NOT IN (…)` is NULL, i.e. NOT
-        // TRUE. A fake that returned `true` here would hide the exact bug the
-        // brand-asset test below pins.
-        if (value === null || value === undefined) return false;
-        const list = raw.replace(/^\(|\)$/g, "").split(",");
-        return !list.includes(String(value));
-      }
-      case "ilike": {
-        const needle = raw.replace(/\*/g, "").toLowerCase();
-        return typeof value === "string" && value.toLowerCase().includes(needle);
-      }
-      default:
-        return false;
-    }
-  }
-
-  function from(table: string) {
-    const rec: Recorded = { table, filters: [], ors: [] };
-    recorded.push(rec);
-    let head = false;
-    let wantCount = false;
-    const orders: Array<[string, boolean]> = [];
-    let cap = Number.POSITIVE_INFINITY;
-
-    function run() {
-      let rows = (tables[table] ?? []).filter((row) =>
-        rec.filters.every(([column, op, value]) => {
-          const actual = row[column];
-          if (op === "eq") return actual === value;
-          if (op === "neq") return actual !== value;
-          if (op === "is") return value === null ? actual == null : actual === value;
-          if (op === "in") return (value as unknown[]).map(String).includes(String(actual));
-          if (op === "not-in") {
-            const list = String(value).replace(/^\(|\)$/g, "").split(",");
-            return actual == null || !list.includes(String(actual));
-          }
-          if (op === "not-is") return value === null ? actual != null : actual !== value;
-          return true;
-        }),
-      );
-      rows = rows.filter((row) => rec.ors.every((expr) => evalOr(row, expr)));
-      for (const [column, ascending] of [...orders].reverse()) {
-        rows = [...rows].sort((a, b) => {
-          const av = String(a[column] ?? "");
-          const bv = String(b[column] ?? "");
-          return ascending ? av.localeCompare(bv) : bv.localeCompare(av);
-        });
-      }
-      const count = rows.length;
-      if (head) return { data: null, error: null, count };
-      return {
-        data: rows.slice(0, cap),
-        error: null,
-        count: wantCount ? count : null,
-      };
-    }
-
-    const builder: Record<string, unknown> = {
-      select: (_columns: string, options?: { count?: string; head?: boolean }) => {
-        head = options?.head === true;
-        wantCount = !!options?.count;
-        return builder;
-      },
-      eq: (c: string, v: unknown) => (rec.filters.push([c, "eq", v]), builder),
-      neq: (c: string, v: unknown) => (rec.filters.push([c, "neq", v]), builder),
-      is: (c: string, v: unknown) => (rec.filters.push([c, "is", v]), builder),
-      in: (c: string, v: unknown) => (rec.filters.push([c, "in", v]), builder),
-      not: (c: string, op: string, v: unknown) => (
-        rec.filters.push([c, `not-${op}`, v]), builder
-      ),
-      or: (expression: string) => (rec.ors.push(expression), builder),
-      order: (c: string, o: { ascending: boolean }) => (
-        orders.push([c, o.ascending]), builder
-      ),
-      limit: (n: number) => {
-        cap = n;
-        return builder;
-      },
-      then: (resolve: (v: unknown) => void) => resolve(run()),
-    };
-    return builder;
-  }
-
-  return {
-    supabase: {
-      from,
-      storage: {
-        from: () => ({
-          getPublicUrl: (path: string) => ({
-            data: { publicUrl: `https://cdn.test/${path}` },
-          }),
-        }),
-      },
-    } as never,
-    recorded,
-  };
-}
-
-/** `count` assets, newest first: asset-000 is the newest, asset-N-1 the oldest. */
-function makeAssets(count: number, overrides: (i: number) => Row = () => ({})): Row[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: `asset-${String(i).padStart(3, "0")}`,
-    tenant_id: TENANT_A,
-    owner_talent_profile_id: null,
-    bucket_id: "media-public",
-    storage_path: `library/photo-${String(i).padStart(3, "0")}.jpg`,
-    public_url: `https://cdn.test/photo-${String(i).padStart(3, "0")}.jpg`,
-    variant_kind: "original",
-    approval_state: "approved",
-    purpose: "cms",
-    asset_kind: "image",
-    watermark_override_json: null,
-    sort_order: i,
-    width: 800,
-    height: 1000,
-    file_size: 1000,
-    file_size_bytes: 1000,
-    byte_size: 1000,
-    mime: "image/jpeg",
-    mime_type: "image/jpeg",
-    original_filename: `photo-${String(i).padStart(3, "0")}.jpg`,
-    alt: null,
-    tags: [],
-    metadata: {},
-    source_media_asset_id: null,
-    // Descending id order == descending created_at order.
-    created_at: `2026-01-01T00:00:${String(99 - i).padStart(2, "0")}.000Z`,
-    deleted_at: null,
-    ownership_kind: "agency",
-    owner_tenant_id: TENANT_A,
-    uploaded_by_user_id: null,
-    talent_profiles: null,
-    ...overrides(i),
-  }));
-}
+import {
+  makeAssets,
+  makeFakeSupabase,
+  TALENT,
+  TENANT_A,
+  TENANT_B,
+} from "./library-query-fixtures";
 
 // ── cursor ──────────────────────────────────────────────────────────────────
 
@@ -456,6 +261,260 @@ test("[library-scope] a removed talent's media leaves — but brand assets do NO
     ids.includes("brand-logo"),
     "a workspace-owned brand asset has no owner talent and must survive the exclusion",
   );
+});
+
+// ── filter by talent ────────────────────────────────────────────────────────
+
+test("[library-talent] filtering to one talent is NULL-correct: brand assets drop out, and come back when it is cleared", async () => {
+  // The #1169 class, in its POSITIVE form. `owner_talent_profile_id IN (…)` is
+  // NULL — i.e. NOT TRUE — for a workspace-owned brand asset, so the logo must
+  // be absent while a talent is selected. What must NOT happen is the mirror
+  // failure: the same NULL silently surviving the filter, which would make
+  // "Ana's photos" show the agency's logo.
+  const OTHER = "22222222-2222-2222-2222-222222222222";
+  const rows = makeAssets(6, (i) => ({
+    owner_talent_profile_id: i < 2 ? TALENT : i < 4 ? OTHER : null,
+    ...(i >= 4 ? { purpose: "branding" } : {}),
+  }));
+  const { supabase } = makeFakeSupabase({
+    media_assets: rows,
+    media_folders: [],
+    agency_talent_roster: [],
+  });
+
+  const filtered = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+    talentProfileIds: [TALENT],
+  });
+  assert.deepEqual(
+    filtered.items.map((item) => item.id),
+    ["asset-000", "asset-001"],
+    "only the selected talent's assets",
+  );
+  assert.equal(
+    filtered.totalCount,
+    2,
+    "the count reflects the talent filter, not the library",
+  );
+  assert.ok(
+    filtered.items.every((item) => item.talentProfileId === TALENT),
+    "a NULL owner (brand & site asset) is NOT TRUE for IN(…) and must not appear",
+  );
+
+  const cleared = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+    talentProfileIds: null,
+  });
+  assert.equal(cleared.items.length, 6, "clearing the filter restores everything");
+  assert.equal(
+    cleared.items.filter((item) => item.talentProfileId === "").length,
+    2,
+    "…including the two brand assets that have no owner talent",
+  );
+
+  // An empty array is "no filter", not "match nothing" — a select that has not
+  // been touched must never silently empty the library.
+  const emptyArray = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+    talentProfileIds: [],
+  });
+  assert.equal(emptyArray.items.length, 6);
+});
+
+test("[library-talent] composes with kind + folder + search, all at once", async () => {
+  const OTHER = "22222222-2222-2222-2222-222222222222";
+  const rows = makeAssets(12, (i) => ({
+    owner_talent_profile_id: i % 2 === 0 ? TALENT : OTHER,
+    // asset-000 and asset-004 are the two the composed query should be choosing
+    // between; only 004 is a video, only 000 carries the search term.
+    ...(i === 2
+      ? { asset_kind: "video", mime_type: "video/mp4", mime: "video/mp4" }
+      : {}),
+    ...(i === 0 ? { original_filename: "editorial-lookbook.jpg" } : {}),
+    ...(i === 6 ? { original_filename: "editorial-lookbook-b.jpg" } : {}),
+  }));
+  const { supabase } = makeFakeSupabase({
+    media_assets: rows,
+    media_folders: [
+      {
+        id: "folder-1",
+        name: "Editorial",
+        color: null,
+        is_private: false,
+        share_token: null,
+        share_expires_at: null,
+        share_view_count: 0,
+        created_at: "2026-01-01T00:00:00.000Z",
+        is_collection: false,
+        shoot_date: null,
+        tenant_id: TENANT_A,
+        // The folder holds one asset from each talent plus one that the search
+        // will reject, so no single filter alone produces the answer.
+        media_folder_items: [
+          { asset_id: "asset-000" },
+          { asset_id: "asset-001" },
+          { asset_id: "asset-004" },
+          { asset_id: "asset-006" },
+        ],
+      },
+    ],
+    agency_talent_roster: [],
+  });
+
+  const result = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+    talentProfileIds: [TALENT],
+    kind: "image",
+    folderId: "folder-1",
+    search: "lookbook",
+  });
+
+  assert.deepEqual(
+    result.items.map((item) => item.id),
+    ["asset-000", "asset-006"],
+    "talent AND kind AND folder AND search — every predicate is ANDed",
+  );
+
+  // Drop the talent and asset-001 (the other talent's, in the folder) is still
+  // excluded by the search: proof the talent filter is what removed it above,
+  // not one of the others doing double duty.
+  const withoutTalent = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+    kind: "image",
+    folderId: "folder-1",
+    search: "lookbook",
+  });
+  assert.deepEqual(
+    withoutTalent.items.map((item) => item.id),
+    ["asset-000", "asset-006"],
+  );
+});
+
+test("[library-talent] the talent LANE never accepts a talentProfileIds filter", async () => {
+  // Talent scope already pins `owner_talent_profile_id` to the one talent (plus
+  // their portfolio links). Letting a second predicate at the same column in
+  // would be two rules for one thing, and the caller of that lane is a
+  // service-role client, so "harmless" is not the assumption to make.
+  const OTHER = "22222222-2222-2222-2222-222222222222";
+  const { supabase } = makeFakeSupabase({
+    media_assets: makeAssets(4, () => ({ owner_talent_profile_id: TALENT })),
+    media_folders: [],
+    agency_talent_roster: [],
+    agency_talent_media: [],
+  });
+
+  const result = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+    scope: "talent",
+    talentProfileId: TALENT,
+    talentProfileIds: [OTHER],
+  });
+  assert.equal(
+    result.items.length,
+    4,
+    "the talent's own library is unaffected by a staff-lane filter",
+  );
+});
+
+test("[library-talent] the select's options are the non-removed roster, de-duped and sorted", async () => {
+  const OTHER = "22222222-2222-2222-2222-222222222222";
+  const GONE = "33333333-3333-3333-3333-333333333333";
+  const { supabase } = makeFakeSupabase({
+    media_assets: makeAssets(2),
+    media_folders: [],
+    agency_talent_roster: [
+      {
+        tenant_id: TENANT_A,
+        status: "active",
+        talent_profile_id: OTHER,
+        talent_profiles: {
+          id: OTHER,
+          display_name: "Zoe Marchetti",
+          first_name: null,
+          last_name: null,
+          profile_code: "TL-2",
+        },
+      },
+      {
+        tenant_id: TENANT_A,
+        status: "pending",
+        talent_profile_id: TALENT,
+        talent_profiles: {
+          id: TALENT,
+          display_name: null,
+          first_name: "Ana",
+          last_name: "Ruiz",
+          profile_code: "TL-1",
+        },
+      },
+      // A rejoin: same talent, second roster row. One option, not two.
+      {
+        tenant_id: TENANT_A,
+        status: "active",
+        talent_profile_id: TALENT,
+        talent_profiles: {
+          id: TALENT,
+          display_name: null,
+          first_name: "Ana",
+          last_name: "Ruiz",
+          profile_code: "TL-1",
+        },
+      },
+      // Removed: their media is excluded from the library entirely, so an
+      // option for them could only ever return nothing.
+      {
+        tenant_id: TENANT_A,
+        status: "removed",
+        talent_profile_id: GONE,
+        talent_profiles: {
+          id: GONE,
+          display_name: "Removed Person",
+          first_name: null,
+          last_name: null,
+          profile_code: "TL-3",
+        },
+      },
+      // Another tenant's roster row must never leak into this select.
+      {
+        tenant_id: TENANT_B,
+        status: "active",
+        talent_profile_id: "44444444-4444-4444-4444-444444444444",
+        talent_profiles: {
+          id: "44444444-4444-4444-4444-444444444444",
+          display_name: "Other Tenant Talent",
+          first_name: null,
+          last_name: null,
+          profile_code: "TL-4",
+        },
+      },
+    ],
+  });
+
+  const withOptions = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+    includeTalentOptions: true,
+  });
+  assert.deepEqual(
+    withOptions.talents.map((option) => option.name),
+    ["Ana Ruiz", "Zoe Marchetti"],
+    "non-removed, de-duped, name-sorted, this tenant only",
+  );
+  assert.equal(withOptions.talents[0].profileCode, "TL-1");
+
+  // Opt-in: the workspace Media page composes two reads per render and neither
+  // wants a roster query attached to it.
+  const withoutOptions = await queryTenantMediaLibrary({
+    supabase,
+    tenantId: TENANT_A,
+  });
+  assert.deepEqual(withoutOptions.talents, []);
 });
 
 // ── private folders ─────────────────────────────────────────────────────────
