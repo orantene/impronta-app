@@ -1,13 +1,4 @@
 import type { Metadata } from "next";
-import {
-  Cinzel,
-  Fraunces,
-  Geist,
-  Geist_Mono,
-  Inter,
-  Playfair_Display,
-  Raleway,
-} from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { ClientSpeedInsights } from "@/components/analytics/client-speed-insights";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
@@ -34,6 +25,15 @@ import {
   TenantCustomCodeHead,
 } from "@/components/integrations/tenant-custom-code";
 import { GoogleFontsLink } from "./google-fonts-link";
+import {
+  bodySans,
+  cinzel,
+  fraunces,
+  geistMono,
+  geistSans,
+  interBody,
+  playfairDisplay,
+} from "./fonts";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
 import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
@@ -42,63 +42,6 @@ import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakp
 import { PwaServiceWorkerRegister } from "@/components/pwa/sw-register";
 
 import "./globals.css";
-
-const bodySans = Raleway({
-  variable: "--font-body-sans",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-/** Platform surface display + UI typography. Scoped to the marketing site via `--plt-font-*`. */
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
-
-const cinzel = Cinzel({
-  variable: "--font-cinzel",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-/** Legacy editorial preset used by non-marketing public surfaces. */
-const interBody = Inter({
-  variable: "--font-inter-body",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
-
-const playfairDisplay = Playfair_Display({
-  variable: "--font-playfair-display",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
-
-/**
- * M7 — editorial variable serif used by the `editorial-serif` heading preset
- * and by any storefront that opts into the Editorial Bridal theme. Hidden
- * behind a CSS var so legacy tenants on Raleway/Playfair don't pay for the
- * payload unless their heading preset references it.
- */
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  display: "swap",
-  axes: ["opsz", "SOFT"],
-  style: ["normal", "italic"],
-});
 
 const BASE_METADATA: Metadata = {
   // Marketing apex base so the inherited `opengraph-image` file-route and any
