@@ -134,7 +134,11 @@ const BUDGETS: Record<string, number> = {
   "src/components/edit-chrome/command-palette.tsx": 1287,
   "src/components/edit-chrome/assets-drawer.tsx": 1244,
   "src/components/edit-chrome/comments-drawer.tsx": 1144,
-  "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": 949,
+  // +34 (WF-6): a fourth tab, "Arrange", plus the `patchRegions` entry on the
+  // save bus. The tab's own ~1,040 lines went into four NEW modules under
+  // `tabs/` (RegionsTab / regions-zone / regions-item-row / regions-controls /
+  // regions-meta), each under the 800-line cap, rather than into this file.
+  "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": 983,
   "src/components/edit-chrome/inspectors/featured-talent-content.tsx": 900,
 
   // ── everything else on the suppression list at 2,000+ lines ──────────────

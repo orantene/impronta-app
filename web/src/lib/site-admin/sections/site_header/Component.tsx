@@ -515,14 +515,24 @@ export async function SiteHeaderComponent({
             <a key={key} {...attrs} className="site-header__ritem site-header__cta site-btn site-btn--primary" href={href}>{label}</a>
           );
         }
-        case "social":
-          return social.length > 0 ? (
+        case "social": {
+          // WF-6 — an explicit `platforms` list picks WHICH links show and in
+          // what order. Unset (every pre-WF-6 value) falls through to the full
+          // configured list, unchanged. A platform the tenant hasn't filled in
+          // is skipped rather than rendered as a dead icon.
+          const socialShown = item.platforms?.length
+            ? item.platforms.flatMap(
+                (p) => social.filter((s) => s.platform === p),
+              )
+            : social;
+          return socialShown.length > 0 ? (
             <div key={key} {...attrs} className="site-header__ritem site-header__ritem-social">
-              {social.map((s, i) => (
+              {socialShown.map((s, i) => (
                 <a key={i} className="site-header__social" href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label ?? s.platform} title={s.label ?? s.platform}><ClusterIcon name={s.platform} /></a>
               ))}
             </div>
           ) : null;
+        }
         case "phone": {
           const phone = contacts.find((c) => c.type === "phone");
           if (!phone) return null;

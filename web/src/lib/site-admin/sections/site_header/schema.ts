@@ -109,7 +109,21 @@ const headerItemSchema = z.discriminatedUnion("type", [
     href: z.string().max(500).optional(),
     ...headerItemBase,
   }),
-  z.object({ type: z.literal("social"), ...headerItemBase }),
+  z.object({
+    type: z.literal("social"),
+    /**
+     * WF-6 — which platforms this cluster shows, and in what order.
+     *
+     * ADDITIVE and OPTIONAL by design: the identity store holds one column
+     * per platform (no order of its own), and every `regions` value written
+     * before this field existed omits it. Undefined therefore keeps the
+     * previous behaviour verbatim — every configured social link, in the
+     * order `socialLinks` already has. Only an operator who opens the item's
+     * settings and picks an order writes the array.
+     */
+    platforms: z.array(z.enum(HEADER_SOCIAL_PLATFORMS)).max(7).optional(),
+    ...headerItemBase,
+  }),
   z.object({ type: z.literal("phone"), ...headerItemBase }),
   z.object({
     type: z.literal("inquiry"),

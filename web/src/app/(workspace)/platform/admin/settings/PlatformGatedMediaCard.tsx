@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { updatePlatformGatedMedia } from "@/lib/server-actions/admin-platform-gated-media";
 import type { PrivateMediaAccessState } from "@/lib/media/private-access";
 import { useT } from "@/i18n/use-t";
@@ -24,6 +25,24 @@ import { interpolate } from "@/i18n/interpolate";
  * write, `=1` forces it on). When it does, the checkbox stays editable so the
  * intended value can be recorded for when the override is removed, and a
  * banner says plainly that the switch is not the thing deciding right now.
+ *
+ * WHY THE DEPTH IS IN A POPOVER. The full explanation (public addresses
+ * outliving a revoke, the 5-minute lag, "this does not change who may see
+ * what", the secret, the env override) is five paragraphs, and five paragraphs
+ * sitting open in a settings grid is a wall nobody reads. It now lives behind
+ * the small info button in the status row. What must NOT move behind a click is
+ * the honest-state signal: the status pill and its reason line stay on the card
+ * face, because a card that has to be opened to admit it is doing nothing is
+ * the same lie as a green check.
+ *
+ * The popover is the shared `@/components/ui/popover` (Radix) that
+ * `AdminHelpPopover` is built on, so click, tap, Enter/Space, Escape,
+ * click-outside, focus return and `aria-expanded`/`aria-controls` all come from
+ * the primitive rather than from a hand-rolled hover box. Only the skin is
+ * local: `AdminHelpPopover`'s own skin is a gold icon on shadcn `text-
+ * foreground`/`bg-popover`, and this surface is the HQ dark card, where those
+ * tokens render ink-on-ink. Radix portals the content to `document.body`, which
+ * is also what keeps it out of the card's clipping box.
  */
 
 /**
@@ -42,7 +61,139 @@ const TONE = {
   overrideBg: "rgba(44,95,219,0.14)",
   overrideBorder: "rgba(44,95,219,0.38)",
   hint: "#8A8A96",
+  // Info affordance. Deliberately quieter than the pill it sits next to: it is
+  // a way to read more, not a state, and a secondary control must never shout
+  // louder than the primary one.
+  infoInk: "#9AA6B8",
+  infoInkLit: "#C7D3E6",
+  infoBorder: "rgba(255,255,255,0.16)",
+  infoBorderLit: "rgba(44,95,219,0.70)",
+  // Popover skin. Portalled to document.body, so it cannot inherit the HQ card
+  // and has to carry its own ground.
+  sheetBg: "#1C1C21",
+  sheetBorder: "rgba(255,255,255,0.13)",
+  sheetInk: "#F5F2EB",
+  sheetInkMuted: "rgba(245,242,235,0.70)",
 } as const;
+
+/**
+ * The "what is this" affordance: a 20px round button carrying an "i", opening
+ * the long explanation.
+ *
+ * Open on CLICK, not hover. A hover-only tip is unreachable on a touch screen
+ * and awkward with a keyboard, and Radix's Popover gives click, tap, Enter,
+ * Space and Escape for free. The visible glyph is drawn with `aria-hidden` SVG
+ * and the button carries a real text label, so a screen reader announces the
+ * purpose rather than the letter "i".
+ */
+function GatedMediaExplainer({ minutes }: { minutes: number }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
+  const lit = open || hover;
+
+  const paragraph = {
+    margin: 0,
+    fontSize: 12,
+    lineHeight: 1.55,
+    color: TONE.sheetInkMuted,
+  } as const;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        type="button"
+        aria-label={t("dashboard.platform.settings.gatedMediaExplainerOpen")}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocus={() => setHover(true)}
+        onBlur={() => setHover(false)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 20,
+          height: 20,
+          flexShrink: 0,
+          borderRadius: 999,
+          border: `1px solid ${lit ? TONE.infoBorderLit : TONE.infoBorder}`,
+          background: lit ? TONE.overrideBg : "transparent",
+          color: lit ? TONE.infoInkLit : TONE.infoInk,
+          cursor: "pointer",
+          padding: 0,
+          lineHeight: 0,
+        }}
+      >
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4" />
+          <path
+            d="M8 7.1v4.1"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <circle cx="8" cy="4.7" r="0.95" fill="currentColor" />
+        </svg>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={8}
+        collisionPadding={16}
+        className="w-[360px] max-w-[calc(100vw-32px)] rounded-xl p-0 shadow-xl"
+        style={{
+          background: TONE.sheetBg,
+          border: `1px solid ${TONE.sheetBorder}`,
+          fontFamily: '"Inter", system-ui, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 9,
+            padding: 14,
+            // Radix hands us the space actually left between the trigger and
+            // the viewport edge on whichever side it chose. Clamping to it is
+            // what stops the panel running off the bottom of a short window:
+            // measured open at 1280x720 with the card mid-page, the unclamped
+            // panel ended 85px past the fold. Below that height it scrolls
+            // instead of being cut off. The 520 ceiling keeps it from becoming
+            // a full-height column on a tall monitor.
+            maxHeight: "min(520px, var(--radix-popover-content-available-height, 520px))",
+            overflowY: "auto",
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              fontWeight: 600,
+              color: TONE.sheetInk,
+              lineHeight: 1.35,
+            }}
+          >
+            {t("dashboard.platform.settings.gatedMediaExplainerTitle")}
+          </p>
+          <p style={paragraph}>
+            {t("dashboard.platform.settings.gatedMediaExplainerToday")}
+          </p>
+          <p style={paragraph}>
+            {interpolate(t("dashboard.platform.settings.gatedMediaExplainerOn"), { minutes })}
+          </p>
+          <p style={paragraph}>
+            {t("dashboard.platform.settings.gatedMediaExplainerScope")}
+          </p>
+          <p style={paragraph}>
+            {t("dashboard.platform.settings.gatedMediaExplainerSecret")}
+          </p>
+          <p style={paragraph}>
+            {t("dashboard.platform.settings.gatedMediaExplainerOverride")}
+          </p>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function PlatformGatedMediaCard({
   current,
@@ -127,6 +278,7 @@ export function PlatformGatedMediaCard({
         >
           {badge.label}
         </span>
+        <GatedMediaExplainer minutes={revocationLagMinutes} />
         <span style={{ color: TONE.hint, fontSize: 12, lineHeight: 1.45, flex: 1, minWidth: 200 }}>
           {interpolate(detail, { minutes: revocationLagMinutes })}
         </span>
@@ -159,6 +311,8 @@ export function PlatformGatedMediaCard({
           <span style={{ fontWeight: 600 }}>
             {t("dashboard.platform.settings.gatedMediaLabel")}
           </span>
+          {/* One line only. The rest of the story is behind the info button
+              above, so this card stays scannable. */}
           <span style={{ color: TONE.hint, lineHeight: 1.45, fontSize: 12 }}>
             {interpolate(t("dashboard.platform.settings.gatedMediaHint"), {
               minutes: revocationLagMinutes,
