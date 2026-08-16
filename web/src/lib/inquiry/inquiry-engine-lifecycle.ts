@@ -13,6 +13,7 @@ import {
 } from "./inquiry-events";
 import { inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
 import { buildInquiryBells } from "./inquiry-notifications";
+import { COORDINATOR_STALE_ANCHOR_EVENT, classifyStaleAlert } from "./coordinator-stale-policy";
 import { logServerError } from "@/lib/server/safe-error";
 import type { EngineResult } from "./inquiry-engine.types";
 
@@ -260,10 +261,28 @@ export async function clientCancelInquiry(
   });
 }
 
-/** Cron: coordinator assignment timeout (Contract 13). Tenant-less by design. */
-export async function processCoordinatorTimeouts(supabase: SupabaseClient): Promise<{ processed: number }> {
+/**
+ * Cron: coordinator assignment timeout (Contract 13). Tenant-less by design.
+ *
+ * Shares its idempotency anchor and staleness cutoff with the sibling sweep
+ * `/api/cron/flag-unassigned-inquiries` — see `coordinator-stale-policy.ts` for
+ * why both rules exist. In short:
+ *
+ *   - This sweep unassigns a coordinator who never accepted. That makes the
+ *     inquiry *unassigned*, which is exactly what the sibling sweep alerts on.
+ *     Writing the shared `inquiry_events` anchor here is what stops the sibling
+ *     from raising a second alert an hour later. `emitStandardEngineEvent` does
+ *     NOT write that row, so the anchor is an explicit RPC call.
+ *   - The unassign itself always happens (it is the correctness action). Only
+ *     the ALERT is governed by the policy, so a months-old backlog is recorded
+ *     and anchored without firing a burst of staff email.
+ */
+export async function processCoordinatorTimeouts(
+  supabase: SupabaseClient,
+): Promise<{ processed: number; notified: number; drained: number; skipped: number }> {
   const hours = await getCoordinatorTimeoutHours(supabase);
-  const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+  const nowMs = Date.now();
+  const cutoff = new Date(nowMs - hours * 60 * 60 * 1000).toISOString();
 
   const { data: rows } = await supabase
     .from("inquiries")
@@ -273,39 +292,117 @@ export async function processCoordinatorTimeouts(supabase: SupabaseClient): Prom
     .lt("coordinator_assigned_at", cutoff);
 
   let processed = 0;
+  let notified = 0;
+  let drained = 0;
+  let skipped = 0;
+
   for (const row of rows ?? []) {
+    const inquiryId = row.id as string;
+
     const { error } = await supabase
       .from("inquiries")
       .update({
         coordinator_id: null,
         version: (row.version as number) + 1,
       })
-      .eq("id", row.id as string)
+      .eq("id", inquiryId)
       .eq("status", "submitted" as never)
       .not("coordinator_id", "is", null)
       .lt("coordinator_assigned_at", cutoff);
 
-    if (!error) {
-      processed += 1;
-      await emitStandardEngineEvent(supabase, {
-        type: ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNMENT_TIMED_OUT,
-        inquiryId: row.id as string,
-        actorUserId: (row.coordinator_id as string) ?? null,
-        data: { automated: true },
-        notifications: await buildInquiryBells({
-          inquiryId: row.id as string,
-          tenantId: row.tenant_id as string,
-          audiences: ["workspaceAdmins"],
-          title: "Inquiry needs a coordinator",
-          body: "A coordinator assignment timed out. Please reassign this inquiry.",
-        }),
-      });
+    if (error) continue;
+    processed += 1;
+
+    // Shared anchor lookup — the sibling sweep runs the identical query.
+    const { data: existingAnchor, error: anchorLookupErr } = await supabase
+      .from("inquiry_events")
+      .select("id")
+      .eq("inquiry_id", inquiryId)
+      .eq("event_type", COORDINATOR_STALE_ANCHOR_EVENT)
+      .limit(1)
+      .maybeSingle();
+
+    if (anchorLookupErr) {
+      // A failed dedupe lookup must never cause a spam-fire. Leave the alert to
+      // the next sweep; the unassign above already landed.
+      logServerError("inquiry-engine-lifecycle/processCoordinatorTimeouts.anchor", anchorLookupErr);
+      skipped += 1;
+      continue;
     }
+
+    const action = classifyStaleAlert({
+      alreadyAnchored: Boolean(existingAnchor),
+      staleSinceIso: row.coordinator_assigned_at as string | null,
+      nowMs,
+    });
+
+    if (action === "skip") {
+      skipped += 1;
+      continue;
+    }
+
+    // Write the shared anchor + timeline row for BOTH remaining branches. This
+    // is what the sibling sweep reads; skipping it on the drain path would let
+    // it re-alert the very rows we just chose to keep quiet.
+    const { error: anchorErr } = await supabase.rpc("engine_emit_system_event", {
+      p_inquiry_id: inquiryId,
+      p_event_type: COORDINATOR_STALE_ANCHOR_EVENT,
+      p_payload: {
+        automated: true,
+        reason: "assignment_not_accepted",
+        ...(action === "drain" ? { notificationsSuppressed: "stale_backlog" } : {}),
+      },
+    });
+
+    if (anchorErr) {
+      // No anchor written → do not dispatch side-effects, or the alert would be
+      // un-deduped. The next sweep retries this inquiry.
+      logServerError("inquiry-engine-lifecycle/processCoordinatorTimeouts.emit", anchorErr);
+      skipped += 1;
+      continue;
+    }
+
+    if (action === "drain") {
+      // Backlog drift, not a live signal: anchored and on the timeline, but no
+      // bell and no email. Self-clearing — once anchored it never returns here.
+      drained += 1;
+      continue;
+    }
+
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNMENT_TIMED_OUT,
+      inquiryId,
+      actorUserId: (row.coordinator_id as string) ?? null,
+      data: { automated: true, reason: "assignment_not_accepted" },
+      notifications: await buildInquiryBells({
+        inquiryId,
+        tenantId: row.tenant_id as string,
+        audiences: ["workspaceAdmins"],
+        title: "Inquiry needs a coordinator",
+        body: "A coordinator assignment timed out. Please reassign this inquiry.",
+      }),
+    });
+    notified += 1;
   }
 
-  return { processed };
+  return { processed, notified, drained, skipped };
 }
 
+/**
+ * Cron: expire inquiries past `expires_at`.
+ *
+ * DEAD CODE AS OF 2026-08-15 — verified read-only against production: NO row in
+ * `inquiries` has a non-null `expires_at` (0 of 82), and no write path anywhere
+ * in the app sets that column. `getInquiryExpiryHours` is read and then
+ * discarded (`void hours`), so nothing derives a deadline either. This sweep
+ * therefore selects zero rows on every run and is a no-op.
+ *
+ * Left in place deliberately rather than built out or deleted: wiring it up is a
+ * product decision (should an unanswered inquiry auto-expire at all, and on what
+ * clock?) that belongs with the owner, not a cron-enablement change. If the
+ * answer is no, delete this function, the `expires_at` column read, and
+ * `getInquiryExpiryHours` together.
+ */
 export async function processExpirations(supabase: SupabaseClient): Promise<{ processed: number }> {
   const hours = await getInquiryExpiryHours(supabase);
   const now = new Date().toISOString();

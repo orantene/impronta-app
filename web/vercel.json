@@ -146,6 +146,18 @@
     {
       "path": "/api/cron/refresh-social-feeds",
       "schedule": "40 * * * *"
+    },
+    {
+      "path": "/api/cron/publish-scheduled",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/domain-verification",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/inquiry-engine",
+      "schedule": "50 * * * *"
     }
   ]
 }
