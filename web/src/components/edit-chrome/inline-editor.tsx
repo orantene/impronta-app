@@ -18,7 +18,7 @@
  *      the edit is visible immediately, not after the deferred refresh.
  *
  *   2. Hover an `<img>` → a floating "Replace" pill appears near the top-
- *      right of the image. Click it → MediaPickerDialog opens. On pick we
+ *      right of the image. Click it → the media picker drawer opens. On pick we
  *      match the <img>'s `src` back to a prop path the same way, and
  *      rewrite it to the new public URL.
  *
@@ -43,7 +43,7 @@ import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useDraftProps } from "./draft-props-bridge";
 import { useSelectedSectionId } from "./selection-bridge";
-import { MediaPickerDialog, type MediaPickedItem } from "./media-picker-dialog";
+import { MediaPickerDrawer, type MediaPickedItem } from "./media-picker-drawer";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
 import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
@@ -716,12 +716,15 @@ export function InlineEditor() {
         />
       ) : null}
 
-      <MediaPickerDialog
-        tenantId={tenantId ?? null}
+      {/* Was MediaPickerDialog — a 27-line alias whose only job was to pass
+          this title. Folded into the drawer it always rendered (2026-08-16). */}
+      <MediaPickerDrawer
+        tenantId={tenantId ?? ""}
         open={mediaOpen}
+        title="Replace image"
         // All logic lives in `onPickItem` (needs the asset id for `mediaId`,
-        // see D1 fix above). `onPick` still fires on every pick — the drawer
-        // calls both unconditionally — so it must stay a no-op to avoid a
+        // see the D1 fix above). `onPick` still fires on every pick — the
+        // drawer calls both unconditionally — so it stays a no-op to avoid a
         // second, duplicate patch.
         onPick={() => {}}
         onPickItem={handleImagePicked}
