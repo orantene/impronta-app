@@ -22,6 +22,7 @@ import {
   actionDecideMediaReleaseRequest,
   actionListMediaReleaseHistory,
   actionListMediaReleaseRequests,
+  actionRetryReleaseWatermarkBake,
   actionRevokeMediaRelease,
   type MediaReleaseHistoryEntry,
   type MediaReleaseRequestSummary,
@@ -40,6 +41,21 @@ export function MediaReleaseRequestsPanel() {
    *  some photos (A4). The count in `done` is already correct; without this the
    *  reason those photos are missing is dropped on the floor. */
   const [warning, setWarning] = useState<string | null>(null);
+  /**
+   * A4 — what a "Retry watermark" click would re-bake. Set from the SAME
+   * approval response that produced `warning`, because that response is the
+   * only place the failed ids exist: the rollback records them in the media
+   * activity log, not as queryable state, so there is nothing to re-read them
+   * from after a reload. Reloading the page therefore loses the retry, which is
+   * the honest shape of the data rather than a re-derivation that would also
+   * scoop up every photo staff revoked on purpose.
+   */
+  const [retryTarget, setRetryTarget] = useState<{
+    requestId: string;
+    assetIds: string[];
+  } | null>(null);
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [retryMessage, setRetryMessage] = useState<{ text: string; failed: boolean } | null>(null);
   /**
    * Per-request "require watermark" ticks (phase 4). Kept per request id
    * rather than as one panel-wide toggle: releasing editorial to one hub with
@@ -100,6 +116,8 @@ export function MediaReleaseRequestsPanel() {
     setError(null);
     setDone(null);
     setWarning(null);
+    setRetryTarget(null);
+    setRetryMessage(null);
     const watermarkRequired = approve && watermark[request.requestId] === true;
     const res = await actionDecideMediaReleaseRequest({
       requestId: request.requestId,
@@ -120,6 +138,57 @@ export function MediaReleaseRequestsPanel() {
         : t("dashboard.mediaReleaseRequests.denied"),
     );
     if (res.data.warning) setWarning(res.data.warning);
+    if (res.data.failedAssetIds && res.data.failedAssetIds.length > 0) {
+      setRetryTarget({ requestId: request.requestId, assetIds: res.data.failedAssetIds });
+    }
+    await load();
+  };
+
+  /**
+   * Re-bake the photos the approval could not watermark, and put their owner
+   * key back if it works. Safe to click twice: the bake overwrites its own
+   * derivative and the grant insert is idempotent, so a photo that already
+   * repaired just costs a round trip. The target is deliberately NOT narrowed
+   * after a partial repair, because the action reports counts and not which
+   * ids failed a second time.
+   */
+  const retryWatermark = async () => {
+    if (!retryTarget) return;
+    setRetryBusy(true);
+    setRetryMessage(null);
+    const res = await actionRetryReleaseWatermarkBake(retryTarget);
+    setRetryBusy(false);
+    if (!res.ok) {
+      setRetryMessage({ text: res.error, failed: true });
+      return;
+    }
+    const { repaired, stillFailing } = res.data;
+    if (stillFailing === 0) {
+      setRetryMessage({
+        text: t("dashboard.mediaReleaseRequests.retryRepaired").replace(
+          "{count}",
+          String(repaired),
+        ),
+        failed: false,
+      });
+      setRetryTarget(null);
+      setWarning(null);
+    } else if (repaired > 0) {
+      setRetryMessage({
+        text: t("dashboard.mediaReleaseRequests.retryPartial")
+          .replace("{count}", String(repaired))
+          .replace("{failed}", String(stillFailing)),
+        failed: true,
+      });
+    } else {
+      setRetryMessage({
+        text: t("dashboard.mediaReleaseRequests.retryAllFailed").replace(
+          "{count}",
+          String(stillFailing),
+        ),
+        failed: true,
+      });
+    }
     await load();
   };
 
@@ -128,6 +197,8 @@ export function MediaReleaseRequestsPanel() {
     setError(null);
     setDone(null);
     setWarning(null);
+    setRetryTarget(null);
+    setRetryMessage(null);
     const res = await actionRevokeMediaRelease({
       talentProfileId: request.talentProfileId,
       assetIds: request.assetIds,
@@ -296,8 +367,41 @@ export function MediaReleaseRequestsPanel() {
         </div>
       )}
 
-      {warning && !error && (
-        <div className="text-[11.5px] leading-snug text-[#2c5fdb]">{warning}</div>
+      {/* A4 — partial success. The warning names what did not bake; the button
+          next to it is the only in-product way to try again, because the
+          request is `approved` by now and the approve path only answers PENDING
+          rows. Cool attention colour, never amber: this is a "do something",
+          not a fault. */}
+      {(warning || retryMessage) && !error && (
+        <div className="flex flex-col gap-2 rounded-lg border border-admin-border-soft bg-admin-surface-alt p-3">
+          {warning && (
+            <div className="text-[11.5px] leading-snug text-[#2c5fdb]">{warning}</div>
+          )}
+          {retryTarget && (
+            <div>
+              <button
+                type="button"
+                onClick={retryWatermark}
+                disabled={retryBusy}
+                className="cursor-pointer rounded-lg border border-[#2c5fdb] bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-[#2c5fdb] disabled:cursor-not-allowed disabled:border-admin-border disabled:text-admin-ink-dim"
+                title={t("dashboard.mediaReleaseRequests.retryHint")}
+              >
+                {retryBusy
+                  ? t("dashboard.mediaReleaseRequests.retryWorking")
+                  : t("dashboard.mediaReleaseRequests.retryWatermark")}
+              </button>
+            </div>
+          )}
+          {retryMessage && (
+            <div
+              className={`text-[11.5px] leading-snug ${
+                retryMessage.failed ? "text-admin-red" : "text-admin-green"
+              }`}
+            >
+              {retryMessage.text}
+            </div>
+          )}
+        </div>
       )}
 
       {/* B15 — past decisions. Read-only by design: there is no un-decline and

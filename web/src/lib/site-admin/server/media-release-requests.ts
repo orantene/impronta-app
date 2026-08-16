@@ -161,8 +161,13 @@ export async function requestMediaRelease(
  * Insert grants, ignoring rows that already exist. The partial unique index
  * `media_grants_live_uniq` makes a duplicate a 23505 rather than a second
  * live grant, so re-asking is idempotent instead of piling up rows.
+ *
+ * Exported for `media-release-bake-repair.ts` only, which re-writes the owner
+ * key after a failed watermark bake is repaired. Deliberately NOT re-exported
+ * from `media-grants.ts`: every grant write should go through a named step of
+ * the rail (request / decide / repair / revoke), not through this directly.
  */
-async function insertGrants(
+export async function insertGrants(
   admin: SupabaseClient,
   input: {
     assetIds: readonly string[];

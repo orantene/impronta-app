@@ -43,6 +43,8 @@ import {
   decideMediaReleaseRequest,
   listMediaReleaseHistory,
   listMediaReleaseRequests,
+  loadReleaseBakeRepairPlan,
+  reinstateRepairedReleaseGrants,
   revokeMediaRelease,
   rollBackFailedReleaseBakes,
   MAX_RELEASE_ASSETS,
@@ -220,10 +222,127 @@ export async function actionDecideMediaReleaseRequest(input: {
     data: {
       ...result.data,
       granted: grantedNow,
-      warning: `${failedAssetIds.length} photo${failedAssetIds.length === 1 ? "" : "s"} could not be watermarked and ${failedAssetIds.length === 1 ? "was" : "were"} left unreleased. Check the workspace logo under Settings, Branding, then approve again to retry.`,
+      warning: `${failedAssetIds.length} photo${failedAssetIds.length === 1 ? "" : "s"} could not be watermarked and ${failedAssetIds.length === 1 ? "was" : "were"} left unreleased. Check the workspace logo under Settings, Branding, then use Retry watermark below.`,
       failedAssetIds,
     },
   };
+}
+
+export type ReleaseBakeRetryOutcome = {
+  /** Photos whose watermark baked this time and are released again. */
+  repaired: number;
+  /** Photos that failed again and are still not released. */
+  stillFailing: number;
+};
+
+/**
+ * A4 — retry the watermark bake for photos an approval could not bake.
+ *
+ * WHY THIS EXISTS AS ITS OWN ACTION. The approval path bakes, and on failure
+ * rolls the un-bakeable photos back out of the release so the stored state
+ * matches what is servable. That left no way forward inside the product:
+ * `decideMediaReleaseRequest` only answers a PENDING request, and the request
+ * is `approved` by then, so the "approve again" the old warning suggested was
+ * not a thing anyone could do. If every photo failed, the card also drops out
+ * of the queue entirely (an approved row is only listed while an owner grant is
+ * live), so even the manual route was gone.
+ *
+ * WHAT IS AND IS NOT PERSISTED. Which assets failed is NOT stored as state —
+ * `rollBackFailedReleaseBakes` writes a `grant.release_bake_failed` activity
+ * row, but that is an audit trail, not a queryable "needs repair" queue. The
+ * only live copy of that list is the `failedAssetIds` this action's sibling
+ * just returned to the caller, so the retry is offered on the partial-success
+ * banner while it is on screen. It is deliberately NOT re-derived from "an
+ * approved asset with no live grant", which would also match every photo a
+ * staff member intentionally revoked. Surviving a page reload needs a real
+ * repair-queue column on the request row; that is a schema change, not
+ * something to fake here.
+ *
+ * Ids are re-validated server-side against the stored `approved_scopes` and
+ * current ownership — see `loadReleaseBakeRepairPlan`.
+ */
+export async function actionRetryReleaseWatermarkBake(input: {
+  requestId: string;
+  assetIds: string[];
+}): Promise<ActionResult<ReleaseBakeRetryOutcome>> {
+  if (!UUID_RE.test(input.requestId)) return { ok: false, error: "Invalid request." };
+  if (!Array.isArray(input.assetIds) || input.assetIds.length === 0) {
+    return { ok: false, error: "Nothing to retry." };
+  }
+  if (input.assetIds.length > MAX_RELEASE_ASSETS) {
+    return { ok: false, error: `Retry at most ${MAX_RELEASE_ASSETS} photos at a time.` };
+  }
+  if (input.assetIds.some((id) => !UUID_RE.test(id))) return { ok: false, error: "Invalid request." };
+
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const plan = await loadReleaseBakeRepairPlan(admin, {
+    tenantId: auth.tenantId,
+    requestId: input.requestId,
+    assetIds: input.assetIds,
+  });
+  if (!plan.ok) return plan;
+
+  // Same pre-flight as the approval. A missing logo is the most common cause of
+  // the failure being retried, and saying so beats N identical bake failures.
+  const readiness = await loadWatermarkBakeReadiness(admin, auth.tenantId);
+  const entitled = checkWatermarkOnReleaseEntitlement(readiness.planTier);
+  if (!entitled.allowed) return { ok: false, error: entitled.message };
+  if (!readiness.logoUrl) {
+    return {
+      ok: false,
+      error:
+        "Add your workspace logo under Settings, Branding before retrying the watermark.",
+    };
+  }
+
+  const baked: string[] = [];
+  let stillFailing = 0;
+  for (const assetId of plan.data.assetIds) {
+    const result = await bakeWatermarkedVariant(admin, {
+      assetId,
+      tenantId: auth.tenantId,
+      actorUserId: auth.user.id,
+      // The release already decided the photo may only travel marked, so a
+      // workspace preset that says `enabled: false` must not veto the repair —
+      // same reasoning as the approval path, and the same reason the repair
+      // route passes `repair: true`.
+      requirePresetEnabled: false,
+    });
+    if (result.ok) baked.push(assetId);
+    else stillFailing += 1;
+  }
+
+  const outcome = await reinstateRepairedReleaseGrants(admin, {
+    tenantId: auth.tenantId,
+    requestId: input.requestId,
+    talentProfileId: plan.data.talentProfileId,
+    targetTenantId: plan.data.targetTenantId,
+    assetIds: baked,
+    actorUserId: auth.user.id,
+  });
+
+  scheduleWorkspaceAudit({
+    tenantId: auth.tenantId,
+    category: "media",
+    action: "media.release_bake_retried",
+    summary: `Retried the watermark for ${plan.data.assetIds.length} photo${plan.data.assetIds.length === 1 ? "" : "s"}`,
+    targetType: "media_release_request",
+    targetId: input.requestId,
+    metadata: {
+      attempted: plan.data.assetIds.length,
+      repaired: outcome.repaired,
+      still_failing: stillFailing,
+    },
+  });
+
+  if (outcome.repaired > 0) bust(outcome.bustKeys, auth.tenantSlug);
+
+  return { ok: true, data: { repaired: outcome.repaired, stillFailing } };
 }
 
 /**
