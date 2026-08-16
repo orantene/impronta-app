@@ -168,7 +168,7 @@ test("after syncComponentInstances, a previously-stale instance reads fresh", ()
 
 test("sync preserves the instance's instanceOverrides map verbatim", () => {
   const overrides: Record<string, BuilderNodeInstanceOverride> = {
-    "m-h": { text: "Custom title", style: { color: "#111827" } },
+    "m-h": { text: "Custom title", style: { textColor: "#111827" } },
   };
   const tree = [
     container("inst", [container("stale-old")], {
