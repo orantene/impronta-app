@@ -65,13 +65,21 @@ import "server-only";
  * profile all pass with no row). Grant rows are only ever needed to reach a
  * THIRD hub. See the predicate's header comment for the full table.
  *
- * A THIRD FLAG — `MEDIA_PRIVATE_ACCESS_ENABLED` (P0-1), ALSO DEFAULT OFF
- * ────────────────────────────────────────────────────────────────────
+ * A THIRD SWITCH — GATED MEDIA ACCESS (P0-1), ALSO DEFAULT OFF
+ * ───────────────────────────────────────────────────────────
  * Everything above decides which URL is RENDERED. None of it decides who may
  * fetch the bytes: the bucket is world-readable, so a saved URL survives a
- * revocation forever. With the third flag on, the URLs this resolver emits
+ * revocation forever. With the third switch on, the URLs this resolver emits
  * point at `/api/media/asset/<id>` instead of at storage, and the same
- * predicate runs again per request. See `private-access.ts`.
+ * predicate runs again per request.
+ *
+ * Unlike the two above it is NOT an env flag: it lives in
+ * `platform_settings.media_private_access_enabled` so the owner can flip it
+ * without a deploy, with `MEDIA_PRIVATE_ACCESS_ENABLED` kept as a two-way env
+ * override. `private-access.ts` holds the precedence table;
+ * `@/lib/platform/gated-media` does the (memoised) read. This resolver asks
+ * ONCE per call and threads the boolean down, so the per-image URL builder
+ * stays synchronous and query-free.
  *
  * It is deliberately subordinate to enforcement: gating is only applied on the
  * paths where `MEDIA_TWO_KEY_GRANTS_ENABLED` is already deciding something.

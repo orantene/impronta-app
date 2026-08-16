@@ -127,8 +127,9 @@ const PROTOTYPE_PREFIX = "/prototypes" as const;
  *                              evaluate against the right surface. The gate is
  *                              the two-key predicate inside the route; an
  *                              unsigned or tampered URL 404s, and the whole
- *                              route 404s while `MEDIA_PRIVATE_ACCESS_ENABLED`
- *                              is off. Scoped to `/asset` rather than
+ *                              route 404s while gated media access is off
+ *                              (`platform_settings.media_private_access_enabled`,
+ *                              default false). Scoped to `/asset` rather than
  *                              `/api/media` so the staff-only
  *                              `/api/media/bake-watermark` keeps exactly the
  *                              reachability it has today.
