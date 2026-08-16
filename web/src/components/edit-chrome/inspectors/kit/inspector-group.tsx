@@ -97,7 +97,11 @@ export function InspectorGroup({
 
   if (collapsible) {
     return (
-      <InspectorAccordion title={title} defaultOpen={open}>
+      // `onToggle` closes the persistence loop: the accordion is uncontrolled,
+      // so without it `setOpen` was never called and the sessionStorage entry
+      // only ever held the initial default — "restore the operator's last
+      // layout choice" silently measured nothing.
+      <InspectorAccordion title={title} defaultOpen={open} onToggle={setOpen}>
         {accessory ? (
           <div className="flex justify-end">{accessory}</div>
         ) : null}
