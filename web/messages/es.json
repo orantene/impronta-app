@@ -1256,6 +1256,10 @@
       "filesAttachAria": "Adjuntar archivos",
       "filesAttachButton": "Adjuntar archivos",
       "filesLimitHint": "PDF, imágenes, documentos, hasta 20 MB cada uno, {count} máx",
+      "filesUploading": "Adjuntando tus archivos… {done} de {total}",
+      "filesAttached": "{count} archivo(s) adjuntado(s).",
+      "filesFailedTitle": "No se pudieron adjuntar {count} archivo(s)",
+      "filesFailedHint": "Tu consulta se envió. Puedes añadir estos archivos desde el hilo de mensajes.",
       "filesOversizedOne": "{names} supera los 20 MB y no se subirá.",
       "filesOversizedOther": "{names} superan los 20 MB y no se subirán.",
       "filesRemoveAria": "Quitar {name}",
@@ -1302,6 +1306,10 @@
       "relativeMinuteOther": "hace {count} minutos",
       "relativeHourOne": "hace 1 hora",
       "relativeHourOther": "hace {count} horas"
+    },
+    "siteShellSurface": {
+      "title": "Encabezado y pie de página del sitio",
+      "body": "Este marcador indica dónde aparece el contenido de cada página. Los cambios que hagas aquí en el encabezado y el pie se aplican a todas las páginas de tu sitio."
     }
   },
   "dashboard": {
@@ -4967,7 +4975,8 @@
       "referrerDirect": "Directo / ninguno",
       "topEmptyPages": "Aún no hay datos de páginas para este periodo.",
       "topEmptyTalent": "Aún no hay datos de talent para este periodo.",
-      "topEmptyReferrers": "Aún no hay datos de referentes para este periodo."
+      "topEmptyReferrers": "Aún no hay datos de referentes para este periodo.",
+      "siteShell": "Encabezado y pie de página"
     },
     "adminCardStudio": {
       "title": "Diseño de tarjeta",
@@ -5585,6 +5594,20 @@
         "workspaceUiQuickBarLabel": "Barra rápida de administración del sitio",
         "workspaceUiQuickBarHint": "La franja delgada en la parte superior del sitio público del inquilino, visible solo para miembros de ese inquilino con sesión iniciada. Activada por defecto. Apagada la oculta en toda la plataforma.",
         "workspaceUiSaved": "Guardado. Se aplica a todos los workspaces.",
+        "gatedMediaTitle": "Acceso a las fotos",
+        "gatedMediaSubtitle": "Si las fotos se cargan directamente desde el almacenamiento o a través de una ruta que comprueba el permiso en cada solicitud.",
+        "gatedMediaLabel": "Comprobar el permiso antes de servir una foto",
+        "gatedMediaHint": "Ahora mismo la dirección web de una foto sigue funcionando para siempre en cuanto alguien la guarda o la comparte, incluso después de revocar la autorización con la que llegó. Al activar esto, las fotos se sirven a través de una ruta que vuelve a comprobar el permiso cada vez, así que una foto revocada deja de cargarse en unos {minutes} minutos. Esto no cambia quién puede ver qué, solo si la regla se aplica al archivo en sí.",
+        "gatedMediaStatusActive": "Activo",
+        "gatedMediaStatusNotActive": "Sin efecto",
+        "gatedMediaStatusOff": "Apagado",
+        "gatedMediaDetailActive": "Las fotos se sirven a través de la ruta comprobada. Revocar una autorización detiene el archivo en unos {minutes} minutos.",
+        "gatedMediaDetailMissingSecret": "MEDIA_URL_SIGNING_SECRET no está configurado, así que las fotos siguen cargándose desde sus direcciones públicas igual que antes. Alguien con acceso a la configuración del despliegue tiene que añadir ese valor para que este interruptor haga algo. No se puede definir desde aquí, porque quien pudiera escribirlo podría falsificar enlaces de fotos.",
+        "gatedMediaDetailOff": "Las fotos se cargan directamente desde el almacenamiento. Una dirección guardada sigue funcionando después de revocar una autorización.",
+        "gatedMediaDetailForcedOff": "Las fotos se cargan directamente desde el almacenamiento.",
+        "gatedMediaOverrideOn": "MEDIA_PRIVATE_ACCESS_ENABLED está activado en el entorno. Eso anula este interruptor, así que las fotos siguen comprobándose aunque la casilla esté sin marcar.",
+        "gatedMediaOverrideOff": "MEDIA_PRIVATE_ACCESS_ENABLED está apagado en el entorno. Eso anula este interruptor, así que marcar la casilla no cambia nada hasta que se quite.",
+        "gatedMediaSaved": "Guardado. Se aplica en toda la plataforma en 30 segundos.",
         "depositFieldLabel": "Depósito predeterminado (%)",
         "refundPolicyFieldLabel": "Política de reembolso predeterminada",
         "instantBookLabel": "Reserva instantánea activada por defecto",
@@ -10366,6 +10389,8 @@
       "emptyNoMatch": "Ninguna foto coincide. Prueba a limpiar los filtros o a subir fotos.",
       "emptyNoPhotos": "Todavía no hay fotos, arrastra imágenes o pulsa Subir.",
       "dropPhotosHere": "Suelta las fotos aquí",
+      "dropBrandImagesHere": "Suelta las imágenes de marca aquí",
+      "brandUploadProgress": "Subiendo imágenes de marca… {done} de {total}",
       "bridgeLoadError": "No pudimos cargar tu biblioteca de medios. Prueba a actualizar la página; si sigue fallando, la consulta del puente está rota.",
       "showingNofM": "Mostrando {shown} de {total} fotos. Usa filtros o carpetas para acotar lo que ves.",
       "settings": "Ajustes",

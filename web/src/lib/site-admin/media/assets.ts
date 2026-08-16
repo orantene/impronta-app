@@ -11,6 +11,7 @@ import type {
 import {
   MEDIA_LIBRARY_MAX_ITEMS,
   MEDIA_PUBLIC_BUCKET,
+  SVG_SANITIZED_METADATA_KEY,
   isSafeMediaUrl,
   normalizeAltText,
 } from "./validation";
@@ -89,21 +90,42 @@ function resolvePublicUrl(
   return isSafeMediaUrl(data?.publicUrl) ? data.publicUrl : "";
 }
 
+/** True only when the register lane stamped the row after the strict
+ *  brand-mark sanitizer accepted the bytes it wrote to storage. */
+export function isSanitizedSvgRow(row: Pick<MediaAssetRow, "metadata">): boolean {
+  const meta = row.metadata;
+  if (!meta || typeof meta !== "object") return false;
+  return (meta as Record<string, unknown>)[SVG_SANITIZED_METADATA_KEY] === true;
+}
+
 /**
  * MEDIA-1 — resolve the library kind for a row. Prefers the persisted
  * `asset_kind` discriminant (migration 20261102000000); when that column is
  * absent (pre-migration) or NULL (legacy row), infers from MIME, then from the
  * storage-path extension. Anything that resolves to none of image/video/document
- * (e.g. SVG — excluded for XSS) returns `null` and is dropped from the library.
+ * returns `null` and is dropped from the library.
+ *
+ * SVG is the one MIME that does NOT follow the persisted-first rule. An SVG in
+ * the public bucket is stored XSS the moment its public URL is opened, so it
+ * only counts as an image when this row carries the `svg_sanitized` stamp that
+ * /api/admin/media/upload/svg writes after `sanitizeSvgLogoBuffer` accepted the
+ * exact bytes now in storage. The check runs BEFORE the `asset_kind` branch on
+ * purpose: a future writer that sets asset_kind='image' on an unsanitized SVG
+ * must not be able to re-open this hole.
  */
 function resolveAssetKind(row: MediaAssetRow): MediaAssetKind | null {
+  const rawMime = (row.mime ?? row.mime_type ?? "").toLowerCase();
+  const isSvg =
+    rawMime === "image/svg+xml" ||
+    (!rawMime && row.storage_path.toLowerCase().endsWith(".svg"));
+  if (isSvg) return isSanitizedSvgRow(row) ? "image" : null;
+
   const persisted = row.asset_kind;
   if (persisted === "image" || persisted === "video" || persisted === "document") {
     return persisted;
   }
 
-  const mime = (row.mime ?? row.mime_type ?? "").toLowerCase();
-  if (mime === "image/svg+xml") return null; // SVG stays excluded (XSS).
+  const mime = rawMime;
   if (mime.startsWith("image/")) return "image";
   if (mime.startsWith("video/")) return "video";
   if (

@@ -318,9 +318,12 @@ export async function publishSiteShellRow(input: {
   });
   if (!republish.ok) return { ok: false, error: republish.error };
 
-  // 3. Overlay the freeform draft tree onto the freshly-baked snapshot so
-  //    `<PublishedShell>` renders the edited tree. Read-modify-write the
-  //    snapshot's `builderTree` only — `slots[]` + slot rows stay untouched.
+  // 3. F2 — `republishSiteShellSnapshot` now bakes the freeform `blocks` tree
+  //    itself (see `resolveShellSnapshotBuilderTree`), so this overlay writes
+  //    the SAME tree back and is redundant for correctness. It is kept because
+  //    it is also what bumps `updated_at`, which is the CAS epoch this adapter
+  //    derives `pageVersion` from and which this action returns to the client.
+  //    Removing it would silently break optimistic concurrency on the shell.
   const nowIso = new Date().toISOString();
   if (draftTree.length > 0) {
     const { data: baked } = await admin

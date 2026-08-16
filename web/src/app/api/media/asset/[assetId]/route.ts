@@ -10,10 +10,12 @@
  * `resolveGatedMediaAccess()`, redirect or refuse. The verdict itself is a
  * library function so it can be tested without an HTTP server.
  *
- * DARK UNLESS SWITCHED ON. With `MEDIA_PRIVATE_ACCESS_ENABLED` off — which is
- * the default and production today — nothing mints these URLs and this route
- * 404s. The mechanism ships proven and inert; flipping it is a separate,
- * reversible decision.
+ * DARK UNLESS SWITCHED ON. With gating off — which is the default and
+ * production today — nothing mints these URLs and this route 404s. The switch
+ * is `platform_settings.media_private_access_enabled`, flipped from
+ * /platform/admin/settings, with `MEDIA_PRIVATE_ACCESS_ENABLED` kept as an env
+ * override in both directions; see `@/lib/media/private-access` for the
+ * precedence table. Flipping it is a separate, reversible decision.
  *
  * WHY A REDIRECT AND NOT A STREAM
  * ───────────────────────────────
@@ -44,9 +46,9 @@ import {
   GATED_MEDIA_SIGNED_URL_TTL_SECONDS,
   MEDIA_SIGNATURE_PARAM,
   MEDIA_SURFACE_PARAM,
-  isPrivateMediaAccessEnabled,
   verifyGatedMediaRequest,
 } from "@/lib/media/private-access";
+import { isPrivateMediaAccessEnabled } from "@/lib/platform/gated-media";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 /** Bodies here are read by machines, not people; both locales say the same thing. */
@@ -79,7 +81,12 @@ export async function GET(
 ) {
   // Off ⇒ the route does not exist. Not 403: an endpoint that answers
   // differently when a feature is dark advertises the feature.
-  if (!isPrivateMediaAccessEnabled()) return refuse("asset_not_found", 404);
+  //
+  // The switch now lives in platform_settings, so this is a memoised read
+  // (30 s per instance) rather than an env lookup. It runs before the
+  // signature check only because it is cache-hot in the common case; a miss
+  // still costs one small query, which is inside this route's existing budget.
+  if (!(await isPrivateMediaAccessEnabled())) return refuse("asset_not_found", 404);
 
   const { assetId } = await context.params;
   if (!assetId) return refuse("asset_not_found", 404);

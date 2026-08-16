@@ -294,6 +294,11 @@ export function BrandingDrawer() {
   const [logoFile, setLogoFile]         = useState<File | null>(null);
   const [logoFileName, setLogoFileName] = useState<string>(tt("No logo uploaded"));
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  // D4 — staged wordmark removal. The wordmark is a deferred (Save-gated)
+  // field, so Remove can't write immediately the way the favicon does; it
+  // arms an explicit `logo_url: null` for the next save. Distinct from
+  // "no logo was ever set", which must send `undefined` instead.
+  const [logoCleared, setLogoCleared] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
   const faviconFileRef = useRef<HTMLInputElement | null>(null);
@@ -336,6 +341,7 @@ export function BrandingDrawer() {
     if (!file) return;
     setLogoFile(file);
     setLogoFileName(file.name);
+    setLogoCleared(false);
     const reader = new FileReader();
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -367,6 +373,38 @@ export function BrandingDrawer() {
     }
   };
 
+  // D4 — arm the wordmark clear (written on Save, alongside the rest).
+  const onLogoRemove = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setLogoFileName(tt("No logo uploaded"));
+    setLogoCleared(true);
+    if (logoFileRef.current) logoFileRef.current.value = "";
+  };
+
+  // D4 — the favicon writes immediately (matching its upload), so Remove
+  // does too. `favicon_url: null` is the explicit clear; the server writes
+  // it into BOTH the live and draft theme slices so the next design
+  // publish can't resurrect it from a stale draft.
+  const onFaviconRemove = async () => {
+    if (isUploadingFavicon) return;
+    setFaviconError(null);
+    setIsUploadingFavicon(true);
+    try {
+      const result = await updateAgencyBranding({ favicon_url: null });
+      if (!result.ok) { setFaviconError(result.error); return; }
+      setFaviconUrl(null);
+      setBrandMediaRefresh((n) => n + 1);
+      toast(tt("Favicon removed"));
+      queueRouterRefresh();
+    } catch (err) {
+      logServerError("brandingdrawer_favicon_remove", err);
+      setFaviconError(tt("Couldn't save. Try again."));
+    } finally {
+      setIsUploadingFavicon(false);
+    }
+  };
+
   const onSave = async () => {
     if (isSaving) return;
     if (!tenantSlug) {
@@ -389,7 +427,8 @@ export function BrandingDrawer() {
         description: description.trim() || undefined,
         primary_color: /^#[0-9a-fA-F]{6}$/u.test(primaryColor) ? primaryColor : undefined,
         accent_color: /^#[0-9a-fA-F]{6}$/u.test(accentColor) ? accentColor : undefined,
-        logo_url: logoUrl,
+        // undefined = untouched · null = explicit D4 removal · string = new upload.
+        logo_url: logoUrl ?? (logoCleared ? null : undefined),
         watermark_preset: isStudioPlus ? wm : undefined,
       });
       if (!result.ok) { toast(result.error || tt("Couldn't save. Try again.")); return; }
@@ -437,6 +476,11 @@ export function BrandingDrawer() {
             <SecondaryButton size="sm" onClick={() => logoFileRef.current?.click()}>
               {logoFile ? tt("Change") : tt("Upload")}
             </SecondaryButton>
+            {logoPreview ? (
+              <SecondaryButton size="sm" onClick={onLogoRemove}>
+                {tt("Remove")}
+              </SecondaryButton>
+            ) : null}
             <input ref={logoFileRef} type="file" accept="image/png,image/svg+xml,image/jpeg,image/webp"
               style={{ display: "none" }} onChange={onLogoChange} />
           </div>
@@ -464,6 +508,11 @@ export function BrandingDrawer() {
             <SecondaryButton size="sm" onClick={() => { if (!isUploadingFavicon) faviconFileRef.current?.click(); }}>
               {isUploadingFavicon ? tt("Uploading…") : faviconUrl ? tt("Change") : tt("Upload")}
             </SecondaryButton>
+            {faviconUrl && !isUploadingFavicon ? (
+              <SecondaryButton size="sm" onClick={() => { void onFaviconRemove(); }}>
+                {tt("Remove")}
+              </SecondaryButton>
+            ) : null}
             <input ref={faviconFileRef} type="file" accept="image/png,image/webp,image/jpeg"
               className="hidden" onChange={(e) => { void onFaviconChange(e); }} />
           </div>

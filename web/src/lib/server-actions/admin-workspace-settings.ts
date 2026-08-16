@@ -75,7 +75,12 @@ const updateBrandingSchema = z
     description:      z.string().max(500).optional(),
     primary_color:    HEX_COLOR.optional(),
     accent_color:     HEX_COLOR.optional(),
-    logo_url:         z.string().url().optional(),
+    // D4 — `.nullable()` is what makes REMOVAL expressible. `undefined`
+    // still means "leave it alone"; an explicit `null` means "clear it".
+    // Before this the schema had no way to say the second thing, so the
+    // Branding drawer could set a wordmark and never take one off.
+    logo_url:         z.string().url().nullable().optional(),
+    favicon_url:      z.string().url().nullable().optional(),
     sender_email:     z.string().email().optional(),
     watermark_preset: watermarkPresetSchema,
   })
@@ -128,6 +133,11 @@ export async function updateAgencyBranding(
       ? (currentSettings.branding as Record<string, unknown>)
       : {};
 
+  // `undefined` = untouched, anything else (including an explicit `null`
+  // from a D4 clear) is written through. Deleting the key instead of
+  // writing null would leave `loadAgencyBrandingSettings` falling back to
+  // the theme_json mirror, i.e. the "removed" logo would come straight
+  // back on the next load.
   const nextBranding: Record<string, unknown> = { ...currentBranding };
   for (const [k, val] of Object.entries(v)) {
     if (val !== undefined) nextBranding[k] = val;

@@ -65,13 +65,21 @@ import "server-only";
  * profile all pass with no row). Grant rows are only ever needed to reach a
  * THIRD hub. See the predicate's header comment for the full table.
  *
- * A THIRD FLAG — `MEDIA_PRIVATE_ACCESS_ENABLED` (P0-1), ALSO DEFAULT OFF
- * ────────────────────────────────────────────────────────────────────
+ * A THIRD SWITCH — GATED MEDIA ACCESS (P0-1), ALSO DEFAULT OFF
+ * ───────────────────────────────────────────────────────────
  * Everything above decides which URL is RENDERED. None of it decides who may
  * fetch the bytes: the bucket is world-readable, so a saved URL survives a
- * revocation forever. With the third flag on, the URLs this resolver emits
+ * revocation forever. With the third switch on, the URLs this resolver emits
  * point at `/api/media/asset/<id>` instead of at storage, and the same
- * predicate runs again per request. See `private-access.ts`.
+ * predicate runs again per request.
+ *
+ * Unlike the two above it is NOT an env flag: it lives in
+ * `platform_settings.media_private_access_enabled` so the owner can flip it
+ * without a deploy, with `MEDIA_PRIVATE_ACCESS_ENABLED` kept as a two-way env
+ * override. `private-access.ts` holds the precedence table;
+ * `@/lib/platform/gated-media` does the (memoised) read. This resolver asks
+ * ONCE per call and threads the boolean down, so the per-image URL builder
+ * stays synchronous and query-free.
  *
  * It is deliberately subordinate to enforcement: gating is only applied on the
  * paths where `MEDIA_TWO_KEY_GRANTS_ENABLED` is already deciding something.
@@ -105,6 +113,7 @@ import {
   type TalentThumbCandidate,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-card-thumbs";
 import { logServerError } from "@/lib/server/safe-error";
+import { isPrivateMediaAccessEnabled } from "@/lib/platform/gated-media";
 import { grantPredicateClient } from "@/lib/media/grant-predicate-client";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
@@ -247,6 +256,12 @@ export async function resolveTalentMediaForHub(
   const enforcing = isTwoKeyGrantsEnabled();
   const tenantId = input.tenantId;
 
+  // Resolved ONCE for the whole resolver and threaded down, so a page with 60
+  // cards costs zero extra queries rather than 60. Only asked on the enforcing
+  // path: that is the only path that passes a surface, and without a surface
+  // `mediaUrlForAsset` returns the public URL whatever this says.
+  const gatingEnabled = enforcing ? await isPrivateMediaAccessEnabled() : false;
+
   let coverByTalent = new Map<string, string>();
   let orderedByTalent = new Map<string, string[]>();
 
@@ -285,7 +300,13 @@ export async function resolveTalentMediaForHub(
     : EMPTY_WATERMARK_POLICY;
 
   // Resolve the curated asset ids to renderable URLs in one round trip.
-  const urlByAssetId = await loadAssetUrls(client, curatedIds, watermark, enforcing ? tenantId : undefined);
+  const urlByAssetId = await loadAssetUrls(
+    client,
+    curatedIds,
+    watermark,
+    enforcing ? tenantId : undefined,
+    gatingEnabled,
+  );
 
   const needsDefault: string[] = [];
   for (const id of ids) {
@@ -303,7 +324,13 @@ export async function resolveTalentMediaForHub(
   }
 
   if (needsDefault.length > 0) {
-    const fallback = await loadDefaultThumbs(client, needsDefault, tenantId, enforcing);
+    const fallback = await loadDefaultThumbs(
+      client,
+      needsDefault,
+      tenantId,
+      enforcing,
+      gatingEnabled,
+    );
     for (const id of needsDefault) {
       out.set(id, {
         coverUrl: fallback.get(id) ?? null,
@@ -326,6 +353,7 @@ async function loadDefaultThumbs(
   talentProfileIds: string[],
   tenantId: HubTenantId,
   enforcing: boolean,
+  gatingEnabled: boolean,
 ): Promise<Map<string, string>> {
   if (!enforcing) return loadTalentCardThumbs(client, talentProfileIds);
 
@@ -358,7 +386,7 @@ async function loadDefaultThumbs(
   // the other one): gating and the two-key rule are the same decision seen
   // from two sides, and a gate in front of a rule nobody is enforcing would
   // cost a Function invocation per image to answer "yes" every time.
-  return pickBestThumbs(client, servable, tenantId);
+  return pickBestThumbs(client, servable, tenantId, gatingEnabled);
 }
 
 /**
@@ -427,7 +455,8 @@ async function loadAssetUrls(
   client: SupabaseClient,
   assetIds: string[],
   watermark: WatermarkPolicy,
-  surface?: HubTenantId,
+  surface: HubTenantId | undefined,
+  gatingEnabled: boolean,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (assetIds.length === 0) return out;
@@ -449,7 +478,10 @@ async function loadAssetUrls(
     // re-runs the same watermark policy for the same surface and lands on the
     // same substitution, so the swap stays a per-request decision rather than
     // something baked into a URL that outlives the condition.
-    out.set(row.id, mediaUrlForAsset(client, { assetId: row.id, storagePath: path, surface }));
+    out.set(
+      row.id,
+      mediaUrlForAsset(client, { assetId: row.id, storagePath: path, surface, gatingEnabled }),
+    );
   }
   return out;
 }

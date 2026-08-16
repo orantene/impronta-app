@@ -41,6 +41,10 @@ import {
   submitInquiryNowAction,
   type InquiryIntentActionState,
 } from "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions";
+import {
+  uploadInquirySubmitAttachments,
+  type InquirySubmitAttachmentResult,
+} from "@/lib/client/signed-upload";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -207,6 +211,40 @@ export function InquiryDrawer({
     }
   }, [bindToInquiryCart, submitted, cart]);
 
+  // T4 — attachment upload, phase 2. The inquiry exists by now, so each
+  // file goes browser → storage over its own signed URL (no Server Action
+  // body cap) and gets its own reported outcome. Previously a failed file
+  // was `continue`d server-side and the user was told everything sent.
+  const [attachmentPhase, setAttachmentPhase] = useState<
+    | { kind: "idle" }
+    | { kind: "uploading"; done: number; total: number }
+    | { kind: "done"; uploaded: number; failed: InquirySubmitAttachmentResult[] }
+  >({ kind: "idle" });
+  const attachmentsStartedRef = useRef(false);
+  const submittedInquiryId =
+    submitState.kind === "submitted" ? submitState.inquiryId : null;
+  useEffect(() => {
+    if (!submittedInquiryId || attachmentsStartedRef.current) return;
+    if (stagedFiles.length === 0) return;
+    attachmentsStartedRef.current = true;
+    const files = stagedFiles;
+    setAttachmentPhase({ kind: "uploading", done: 0, total: files.length });
+    void (async () => {
+      const results = await uploadInquirySubmitAttachments({
+        tenantSlug,
+        inquiryId: submittedInquiryId,
+        files,
+        onFileDone: (done, total) =>
+          setAttachmentPhase({ kind: "uploading", done, total }),
+      });
+      setAttachmentPhase({
+        kind: "done",
+        uploaded: results.filter((r) => r.ok).length,
+        failed: results.filter((r) => !r.ok),
+      });
+    })();
+  }, [submittedInquiryId, stagedFiles, tenantSlug]);
+
   // ─ Autosave (logged-in only) ──────────────────────────────────────────────
   const autosaveEnabled = (enableDraftAutosave ?? !!client?.user_id) && !!client?.user_id;
   const [saveState, saveAction] = useActionState<InquiryIntentActionState, FormData>(
@@ -268,7 +306,10 @@ export function InquiryDrawer({
     const fd = new FormData();
     fd.set("tenantSlug", tenantSlug);
     fd.set("intent", JSON.stringify(intent));
-    stagedFiles.forEach((f) => fd.append("files[]", f));
+    // T4 — the binaries deliberately do NOT ride this FormData any more.
+    // A Server Action body caps at ~4 MB, so appending a single phone photo
+    // failed the whole inquiry submit. Files go up separately, against the
+    // created inquiry id, in the effect below.
     submitFormAction(fd);
   };
 
@@ -379,7 +420,10 @@ export function InquiryDrawer({
         {/* Body */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px 24px" }}>
           {submitState.kind === "submitted" ? (
-            <SubmittedView state={submitState} agencyName={agencyName} />
+            <>
+              <SubmittedView state={submitState} agencyName={agencyName} />
+              <AttachmentStatus phase={attachmentPhase} />
+            </>
           ) : step === "compose" ? (
             <Compose
               intent={intent}
@@ -1600,6 +1644,85 @@ function budgetPreferenceLabel(pref: string, t: (key: string) => string): string
 // ─────────────────────────────────────────────────────────────────────────────
 // Submitted step — in-drawer confirmation (works for guest + authed client).
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * T4 — per-file attachment outcome, shown under the confirmation.
+ *
+ * The point of this component is the FAILURE branch. The old server-side
+ * loop swallowed a failed upload with `continue`, so a user whose 18 MB
+ * deck never landed was told the inquiry sent and nothing else. Now every
+ * file that didn't make it is named, with its reason.
+ */
+function AttachmentStatus({
+  phase,
+}: {
+  phase:
+    | { kind: "idle" }
+    | { kind: "uploading"; done: number; total: number }
+    | { kind: "done"; uploaded: number; failed: InquirySubmitAttachmentResult[] };
+}) {
+  const t = useT();
+  if (phase.kind === "idle") return null;
+
+  const box: React.CSSProperties = {
+    width: "100%",
+    maxWidth: 420,
+    margin: "14px auto 0",
+    padding: "10px 13px",
+    borderRadius: 10,
+    border: `1px solid ${C.borderSoft}`,
+    background: C.card,
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: C.inkMuted,
+    textAlign: "left",
+  };
+
+  if (phase.kind === "uploading") {
+    return (
+      <div style={box} role="status" aria-live="polite">
+        {interpolate(t("public.inquiryDrawer.filesUploading"), {
+          done: String(phase.done),
+          total: String(phase.total),
+        })}
+      </div>
+    );
+  }
+
+  if (phase.failed.length === 0) {
+    return (
+      <div style={box} role="status" aria-live="polite">
+        {interpolate(t("public.inquiryDrawer.filesAttached"), {
+          count: String(phase.uploaded),
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{ ...box, borderColor: C.amber, color: C.amber, background: C.amberSoft }}
+      role="alert"
+    >
+      <div style={{ fontWeight: 600 }}>
+        {interpolate(t("public.inquiryDrawer.filesFailedTitle"), {
+          count: String(phase.failed.length),
+        })}
+      </div>
+      <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+        {phase.failed.map((f) => (
+          <li key={f.filename}>
+            {f.filename}
+            {f.error ? ` — ${f.error}` : ""}
+          </li>
+        ))}
+      </ul>
+      <div style={{ marginTop: 6, color: C.inkMuted }}>
+        {t("public.inquiryDrawer.filesFailedHint")}
+      </div>
+    </div>
+  );
+}
 
 type SubmittedState = Extract<InquiryIntentActionState, { kind: "submitted" }>;
 

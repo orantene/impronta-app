@@ -26,26 +26,36 @@ import type {
   StagedMediaMeta,
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { compressImage, type CompressResult } from "@/lib/client/image-compress";
+import {
+  SVG_LIBRARY_MAX_BYTES,
+  SVG_MIME,
+  passthroughCompressed,
+  putToSignedUrl,
+  safeJson,
+  stringifyError,
+  type CmsMediaItem,
+  type FailureResult,
+  type SignedUploadPhase,
+  type SignedUploadProgress,
+} from "@/lib/client/signed-upload-core";
 
-export type SignedUploadPhase = "compressing" | "uploading" | "registering";
-
-export type SignedUploadProgress = {
-  phase: SignedUploadPhase;
-  /** Bytes already on the wire. Only populated for the "uploading"
-   *  phase when the runtime exposes upload progress. */
-  bytesSent?: number;
-  /** Total bytes being uploaded (post-compression). */
-  bytesTotal?: number;
-  /** Compression info — set on every phase once compression has run. */
-  compression?: CompressResult;
-};
-
-type FailureResult = {
-  ok: false;
-  /** Caller may retry through the legacy server-upload path. */
-  fallbackToLegacy: boolean;
-  error: string;
-};
+// Shared vocabulary + transport primitives moved to ./signed-upload-core
+// and the brand-mark lanes to ./signed-upload-logos when this file crossed
+// the 800-line max-lines budget. Both are re-exported here so every
+// existing `from "@/lib/client/signed-upload"` import is unchanged.
+export type {
+  CmsMediaItem,
+  SignedUploadPhase,
+  SignedUploadProgress,
+} from "@/lib/client/signed-upload-core";
+export {
+  uploadAgencyLogo,
+  uploadBrandingMedia,
+  uploadTalentMaxSiteLogo,
+  type AgencyLogoUploadOk,
+  type BrandingMediaUploadOk,
+  type MaxSiteLogoUploadOk,
+} from "@/lib/client/signed-upload-logos";
 
 // ── Talent uploads (per-talent gallery / card / hero / etc.) ────────────
 
@@ -399,6 +409,76 @@ export async function uploadInquiryAttachmentSigned(opts: {
   return { ok: true, ...registered.data };
 }
 
+// ── Inquiry-drawer attachments (submitter scope, guests included) ───────
+
+export type InquirySubmitAttachmentResult = {
+  filename: string;
+  ok: boolean;
+  error?: string;
+};
+
+/**
+ * T4 — upload the files staged in the InquiryDrawer AFTER the inquiry has
+ * been created. The drawer used to append them to the submit action's
+ * FormData, which put the whole inquiry behind the ~4 MB Server Action
+ * body cap despite advertising 10 x 20 MB.
+ *
+ * Sequential on purpose: these are the submitter's own files on a public
+ * surface, and a serial loop keeps the reported progress truthful. Every
+ * file gets its own result — nothing is dropped silently the way the old
+ * server-side `continue` did.
+ */
+export async function uploadInquirySubmitAttachments(opts: {
+  tenantSlug: string;
+  inquiryId: string;
+  files: File[];
+  onFileDone?: (done: number, total: number) => void;
+}): Promise<InquirySubmitAttachmentResult[]> {
+  const { tenantSlug, inquiryId, files } = opts;
+  const actions = await import(
+    "@/app/(workspace)/[tenantSlug]/client/_actions/inquiry-intent-actions"
+  );
+
+  const results: InquirySubmitAttachmentResult[] = [];
+  let done = 0;
+  for (const file of files) {
+    const name = file.name || "file";
+    const signed = await actions.createInquiryAttachmentUploadUrlAction({
+      tenantSlug,
+      inquiryId,
+      filename: name,
+      mimeType: file.type || "application/octet-stream",
+      byteSize: file.size,
+    });
+    if (!signed.ok) {
+      results.push({ filename: name, ok: false, error: signed.error });
+      opts.onFileDone?.(++done, files.length);
+      continue;
+    }
+
+    const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+    if (!putOk.ok) {
+      results.push({ filename: name, ok: false, error: putOk.error });
+      opts.onFileDone?.(++done, files.length);
+      continue;
+    }
+
+    const registered = await actions.registerInquiryAttachmentAction({
+      tenantSlug,
+      inquiryId,
+      storagePath: signed.data.storagePath,
+      filename: name,
+    });
+    results.push(
+      registered.ok
+        ? { filename: name, ok: true }
+        : { filename: name, ok: false, error: registered.error },
+    );
+    opts.onFileDone?.(++done, files.length);
+  }
+  return results;
+}
+
 // ── Staging uploads (tenant parking lot for bulk drop) ──────────────────
 
 export type StagingUploadOk = {
@@ -464,19 +544,6 @@ export async function uploadStagingMedia(opts: {
 
 // ── CMS library uploads (page-builder assets) ───────────────────────────
 
-export type CmsMediaItem = {
-  id: string;
-  variantKind: string;
-  /** MEDIA-1 — image (default) | video | document. */
-  assetKind?: "image" | "video" | "document" | null;
-  storagePath: string;
-  publicUrl: string;
-  createdAt: string;
-  width: number | null;
-  height: number | null;
-  alt?: string | null;
-};
-
 export type CmsUploadOk = {
   ok: true;
   item: CmsMediaItem;
@@ -491,6 +558,15 @@ export async function uploadCmsMedia(opts: {
 }): Promise<CmsUploadOk | FailureResult> {
   const { file, tenantId } = opts;
   const kind = opts.kind ?? "image";
+
+  // SVG lane — never rides the signed PUT. A signed URL would put the raw
+  // caller-supplied markup into the PUBLIC bucket the moment it lands (and
+  // a caller that simply never calls register leaves it there), which is
+  // stored XSS. The text goes to a server route that sanitizes first and
+  // stores only what the sanitizer returned. Mirrors uploadAgencyLogo.
+  if (kind === "image" && (file.type === SVG_MIME || /\.svg$/i.test(file.name))) {
+    return uploadCmsSvg(file, tenantId);
+  }
 
   // Only images get the compression pass; documents + videos PUT
   // their original bytes through the same signed-URL pipeline (no
@@ -512,7 +588,15 @@ export async function uploadCmsMedia(opts: {
     initRes = await fetch("/api/admin/media/upload/init", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tenantId, kind, ext }),
+      // byteSize is the post-compression size we are about to PUT. The
+      // server treats it as a hint only (register re-measures storage),
+      // but it lets an over-cap file be refused before the bytes fly.
+      body: JSON.stringify({
+        tenantId,
+        kind,
+        ext,
+        byteSize: compressed.file.size,
+      }),
     });
   } catch (e) {
     return {
@@ -592,209 +676,69 @@ export async function uploadCmsMedia(opts: {
   };
 }
 
-// ── Agency logo (branding drawer) ───────────────────────────────────────
-
-export type AgencyLogoUploadOk = { ok: true; logoUrl: string };
-
-const LOGO_SVG_MAX_BYTES = 256 * 1024;
-const LOGO_RASTER_MAX_BYTES = 8 * 1024 * 1024;
-
 /**
- * Agency logo upload (Wave 5.1): replaces the raw-FormData
- * actionUploadAgencyLogo server action, whose 10 MB cap was unreachable
- * behind the ~4 MB Server Action body limit and which stored SVG bytes
- * un-sanitized into the public bucket.
- *
- * Raster (png/jpg/webp): compress in-browser, signed PUT direct to
- * storage, then a finalize action that re-verifies the bytes server-side.
- * SVG: the text rides a plain server action (small by definition) and is
- * stored only if the strict brand-mark sanitizer accepts it.
- *
- * No legacy fallback on purpose — the legacy transport is the thing this
- * replaces. `fallbackToLegacy` is always false.
+ * SVG library upload: the markup rides a JSON POST (SVGs are text and
+ * capped at 256 KB) so the server can sanitize BEFORE anything reaches
+ * the public bucket. Never falls back to legacy — the legacy multipart
+ * route rejects SVG outright and always has.
  */
-export async function uploadAgencyLogo(opts: {
-  file: File;
-  onProgress?: (p: SignedUploadProgress) => void;
-}): Promise<AgencyLogoUploadOk | FailureResult> {
-  const { file } = opts;
+async function uploadCmsSvg(
+  file: File,
+  tenantId: string,
+): Promise<CmsUploadOk | FailureResult> {
   if (file.size === 0) {
     return { ok: false, fallbackToLegacy: false, error: "File is empty." };
   }
-
-  const actions = await import("@/lib/server-actions/admin-agency-logo-upload");
-
-  // SVG lane — sanitized server-side, text transport.
-  if (file.type === "image/svg+xml" || /\.svg$/i.test(file.name)) {
-    if (file.size > LOGO_SVG_MAX_BYTES) {
-      return {
-        ok: false,
-        fallbackToLegacy: false,
-        error: "SVG logo must be under 256 KB.",
-      };
-    }
-    const svgText = await file.text();
-    const result = await actions.actionUploadAgencyLogoSvg(svgText);
-    if (!result.ok) {
-      return { ok: false, fallbackToLegacy: false, error: result.error };
-    }
-    return { ok: true, logoUrl: result.logoUrl };
-  }
-
-  // Raster lane — compress, signed PUT, finalize.
-  opts.onProgress?.({ phase: "compressing" });
-  const compressed = await compressImage(file);
-  const ext = compressed.ext === "jpeg" ? "jpg" : compressed.ext;
-  if (ext !== "jpg" && ext !== "png" && ext !== "webp") {
+  if (file.size > SVG_LIBRARY_MAX_BYTES) {
     return {
       ok: false,
       fallbackToLegacy: false,
-      error: "Logo must be a PNG, SVG, JPEG or WebP file.",
-    };
-  }
-  if (compressed.file.size > LOGO_RASTER_MAX_BYTES) {
-    return {
-      ok: false,
-      fallbackToLegacy: false,
-      error: "Logo must be under 8 MB after compression.",
+      error: `SVG must be under ${Math.round(SVG_LIBRARY_MAX_BYTES / 1024)} KB.`,
     };
   }
 
-  const signed = await actions.actionCreateAgencyLogoUploadUrl(ext);
-  if (!signed.ok) {
-    return { ok: false, fallbackToLegacy: false, error: signed.error };
-  }
-
-  opts.onProgress?.({
-    phase: "uploading",
-    bytesTotal: compressed.file.size,
-    compression: compressed,
-  });
-  const putOk = await putToSignedUrl(signed.uploadUrl, compressed.file);
-  if (!putOk.ok) {
-    return { ok: false, fallbackToLegacy: false, error: putOk.error };
-  }
-
-  opts.onProgress?.({ phase: "registering", compression: compressed });
-  const finalized = await actions.actionFinalizeAgencyLogo(signed.storagePath);
-  if (!finalized.ok) {
-    return { ok: false, fallbackToLegacy: false, error: finalized.error };
-  }
-  return { ok: true, logoUrl: finalized.logoUrl };
-}
-
-// ── Brand images (Settings → Brand identity media manager) ──────────────
-
-export type BrandingMediaUploadOk = {
-  ok: true;
-  asset: import("@/lib/server-actions/admin-branding-media").BrandingMediaAsset;
-  compression: CompressResult;
-};
-
-/**
- * Workspace brand-image upload: compress → signed PUT → register a
- * purpose='branding' media_assets row (auto-filed into the tenant's
- * Branding folder). Raster only — the wordmark's SVG lane stays on
- * uploadAgencyLogo. No legacy fallback: there is no FormData path for
- * brand media, and the signed pipeline is the only transport that
- * clears the 4 MB Server Action body cap.
- */
-export async function uploadBrandingMedia(opts: {
-  file: File;
-  sourceMediaAssetId?: string | null;
-  onProgress?: (p: SignedUploadProgress) => void;
-}): Promise<BrandingMediaUploadOk | FailureResult> {
-  const { file } = opts;
-  if (file.size === 0) {
-    return { ok: false, fallbackToLegacy: false, error: "File is empty." };
-  }
-
-  opts.onProgress?.({ phase: "compressing" });
-  const compressed = await compressImage(file);
-  const ext = compressed.ext === "jpeg" ? "jpg" : compressed.ext;
-  if (ext !== "jpg" && ext !== "png" && ext !== "webp") {
-    return {
-      ok: false,
-      fallbackToLegacy: false,
-      error: "Brand images must be PNG, JPEG or WebP.",
-    };
-  }
-
-  const actions = await import("@/lib/server-actions/admin-branding-media");
-  const signed = await actions.actionCreateBrandingMediaUploadUrl(ext);
-  if (!signed.ok) {
-    return { ok: false, fallbackToLegacy: false, error: signed.error };
-  }
-
-  opts.onProgress?.({
-    phase: "uploading",
-    bytesTotal: compressed.file.size,
-    compression: compressed,
-  });
-  const putOk = await putToSignedUrl(signed.uploadUrl, compressed.file);
-  if (!putOk.ok) {
-    return { ok: false, fallbackToLegacy: false, error: putOk.error };
-  }
-
-  opts.onProgress?.({ phase: "registering", compression: compressed });
-  const registered = await actions.actionRegisterBrandingMediaUpload({
-    storagePath: signed.storagePath,
-    originalFilename: file.name || null,
-    sourceMediaAssetId: opts.sourceMediaAssetId ?? null,
-  });
-  if (!registered.ok) {
-    return { ok: false, fallbackToLegacy: false, error: registered.error };
-  }
-
-  return { ok: true, asset: registered.data, compression: compressed };
-}
-
-// ── Shared low-level PUT ────────────────────────────────────────────────
-
-async function putToSignedUrl(
-  uploadUrl: string,
-  blob: Blob,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  let svgText: string;
   try {
-    const res = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": blob.type || "application/octet-stream" },
-      body: blob,
-    });
-    if (!res.ok) {
-      return { ok: false, error: `signed PUT failed: HTTP ${res.status}` };
-    }
-    return { ok: true };
+    svgText = await file.text();
   } catch (e) {
-    return { ok: false, error: `signed PUT threw: ${stringifyError(e)}` };
+    return {
+      ok: false,
+      fallbackToLegacy: false,
+      error: `Could not read SVG: ${stringifyError(e)}`,
+    };
   }
-}
 
-function passthroughCompressed(file: File): CompressResult {
-  const extFromName = file.name.split(".").pop()?.toLowerCase() ?? "";
-  const extFromMime = (file.type.split("/")[1] ?? "").replace(/^x-/, "");
-  const ext = (extFromName || extFromMime || "bin").replace(/[^a-z0-9]/g, "");
+  let res: Response;
+  try {
+    res = await fetch("/api/admin/media/upload/svg", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId,
+        svg: svgText,
+        originalFilename: file.name || null,
+      }),
+    });
+  } catch (e) {
+    return {
+      ok: false,
+      fallbackToLegacy: false,
+      error: `SVG upload failed: ${stringifyError(e)}`,
+    };
+  }
+
+  const body = await safeJson(res);
+  if (!res.ok || !body?.ok || !body.item) {
+    return {
+      ok: false,
+      fallbackToLegacy: false,
+      error: body?.error ?? `HTTP ${res.status}`,
+    };
+  }
   return {
-    file,
-    skipped: true,
-    reason: "not_image",
-    originalSize: file.size,
-    compressedSize: file.size,
-    compressionRatio: 1,
-    mimeType: file.type || "application/octet-stream",
-    ext: ext || "bin",
+    ok: true,
+    item: body.item,
+    compression: passthroughCompressed(file),
   };
 }
 
-async function safeJson(res: Response): Promise<{ ok?: boolean; error?: string; item?: CmsMediaItem } | null> {
-  try {
-    return (await res.json()) as { ok?: boolean; error?: string; item?: CmsMediaItem };
-  } catch {
-    return null;
-  }
-}
-
-function stringifyError(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  return String(e);
-}

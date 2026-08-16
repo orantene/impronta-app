@@ -10,7 +10,7 @@ import type { LocationDiscoveryV1 } from "./schema";
 import { fetchTenantRosterCities } from "./fetch";
 import { LocationSection } from "@/components/home/location-section";
 import { getHomepageData } from "@/lib/home-data";
-import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
+import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
 
@@ -225,7 +225,8 @@ export async function LocationDiscoveryComponent({
   // orbiting each city pin (LocationSection / LocationMapPinPreview). Sources
   // live roster cities + featured talent for the tenant, regardless of `source`.
   if (mapStyle === "talent_orbit") {
-    const mapsApiKey = readGoogleMapsBrowserKey();
+    // Resolver (tenant → HQ → env), not raw env — see global-directory.
+    const mapsApiKey = await resolveGoogleMapsKeyForClient(tenantId ?? null);
     const { locations } = mapsApiKey
       ? await getHomepageData({ tenantId })
       : { locations: [] as Awaited<ReturnType<typeof getHomepageData>>["locations"] };

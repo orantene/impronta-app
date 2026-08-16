@@ -30,7 +30,10 @@ import {
   shouldResize,
 } from "@/lib/server/media-resize";
 import { insertTenantImageAsset } from "@/lib/site-admin/media/assets";
-import { validateImageUpload } from "@/lib/site-admin/media/validation";
+import {
+  validateImageUpload,
+  validateMediaUploadSize,
+} from "@/lib/site-admin/media/validation";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
 
 export const runtime = "nodejs";
@@ -132,6 +135,24 @@ export async function POST(req: Request) {
     storedType && storedType !== "application/octet-stream"
       ? storedType
       : originalMime;
+
+  // Size gate #2 — the authoritative one. `storedSize` is what storage
+  // actually holds, so a client that under-declared at init (or PUT to a
+  // signed URL it minted for a smaller file) is caught here. Over-cap
+  // objects are deleted, not merely un-registered: leaving them would
+  // hand the caller free unreferenced storage.
+  const sizeCheck = validateMediaUploadSize({ kind, byteSize: storedSize });
+  if (!sizeCheck.ok) {
+    await supabase.storage.from(BUCKET).remove([storagePath]);
+    auditFailure(scope.tenantId, "media", "media.upload.failed", "An upload was rejected", {
+      targetType: "media_asset",
+      reason: sizeCheck.error,
+    });
+    return NextResponse.json(
+      { ok: false, error: sizeCheck.error },
+      { status: sizeCheck.status },
+    );
+  }
 
   if (kind === "image") {
     const validation = validateImageUpload({

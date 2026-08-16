@@ -1633,6 +1633,10 @@ export function WorkspaceMediaPage() {
   // ── Upload flow ──────────────────────────────────────────────────
   const uploadFileRef = useRef<HTMLInputElement | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // T2 — brand-lane uploads bypass the assign modal, so they need their own
+  // visible progress; a silent multi-second upload reads as a dead drop.
+  const [brandUploadProgress, setBrandUploadProgress] =
+    useState<{ done: number; total: number } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [stagingItems, setStagingItems] = useState<StagingItem[]>([]);
   const [stagingSelected, setStagingSelected] = useState<Set<string>>(new Set());
@@ -1864,7 +1868,48 @@ export function WorkspaceMediaPage() {
   const selCount = selected.size;
 
   // ── File processing ──────────────────────────────────────────────
-  const processFiles = useCallback(async (files: FileList | File[]) => {
+  //
+  // T2 — upload PURPOSE is explicit. Every drop used to be forced through
+  // the talent-assign modal, which meant `processFiles` aborted outright
+  // with "No talent on roster to assign to." on a workspace with no roster
+  // — including in the "Brand & site" lane, where a talent has nothing to
+  // do with the asset. The lane now decides: brand-lane drops land as
+  // workspace-owned branding assets (same write shape the Brand images
+  // manager uses), talent lanes keep the assign flow untouched.
+  type UploadPurpose = "talent" | "brand";
+
+  /** Brand-lane upload: no talent, no assign modal. Sequential so a big
+   *  drop can't stampede the branding register action; per-file failures
+   *  are collected and shown rather than swallowed. */
+  const uploadBrandFiles = useCallback(
+    async (imageFiles: File[]) => {
+      setBrandUploadProgress({ done: 0, total: imageFiles.length });
+      const failures: string[] = [];
+      let done = 0;
+      for (const file of imageFiles) {
+        const res = await uploadBrandingMedia({ file });
+        if (!res.ok) failures.push(`${file.name}: ${res.error}`);
+        done += 1;
+        setBrandUploadProgress({ done, total: imageFiles.length });
+      }
+      setBrandUploadProgress(null);
+      if (failures.length > 0) {
+        setUploadError(
+          `${t("dashboard.adminMedia.errUploadFailed")} — ${failures.join(" · ")}`,
+        );
+      }
+      queueRouterRefresh();
+    },
+    [t, queueRouterRefresh],
+  );
+
+  /** The purpose a drop / picker choice carries in the current lane. */
+  const uploadPurpose: UploadPurpose = view.kind === "brand" ? "brand" : "talent";
+
+  const processFiles = useCallback(async (
+    files: FileList | File[],
+    purpose: UploadPurpose = "talent",
+  ) => {
     setUploadError(null);
     const rawFiles = Array.from(files);
     const zips = rawFiles.filter((f) => f.name.toLowerCase().endsWith(".zip"));
@@ -1918,6 +1963,14 @@ export function WorkspaceMediaPage() {
 
     if (imageFiles.length === 0) return;
     if (imageFiles.length > 200) { setUploadError(t("dashboard.adminMedia.errMaxBatch")); return; }
+
+    // Brand & site lane — workspace-owned assets, no talent involved. Must
+    // branch BEFORE the roster load below, which is the line that used to
+    // abort the whole upload with errNoTalentToAssign.
+    if (purpose === "brand") {
+      await uploadBrandFiles(imageFiles);
+      return;
+    }
 
     const result = await actionLoadRosterTalents();
     if (!result.ok || result.data.length === 0) { setUploadError(t("dashboard.adminMedia.errNoTalentToAssign")); return; }
@@ -2038,7 +2091,7 @@ export function WorkspaceMediaPage() {
       };
       tryNext();
     });
-  }, [t]);
+  }, [t, uploadBrandFiles]);
 
   const confirmStaging = async () => {
     const ready = stagingItems.filter((it) => it.status === "ready" && it.storagePath);
@@ -2527,11 +2580,14 @@ export function WorkspaceMediaPage() {
       style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}
       onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
       onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => { e.preventDefault(); setIsDragOver(false); void processFiles(e.dataTransfer.files); }}
+      // T2 — the ACTIVE LANE decides what a drop means. In "Brand & site"
+      // the files are workspace assets; everywhere else they are talent
+      // media and keep the assign flow.
+      onDrop={(e) => { e.preventDefault(); setIsDragOver(false); void processFiles(e.dataTransfer.files, uploadPurpose); }}
     >
       {/* Hidden file input */}
       <input ref={uploadFileRef} type="file" accept="image/*,.zip" multiple hidden
-        onChange={(e) => { void processFiles(e.target.files ?? []); e.target.value = ""; }} />
+        onChange={(e) => { void processFiles(e.target.files ?? [], uploadPurpose); e.target.value = ""; }} />
 
       {/* Drag-drop overlay */}
       {isDragOver && (
@@ -2540,7 +2596,7 @@ export function WorkspaceMediaPage() {
           background: `${COLORS.fill}12`, border: `3px dashed ${COLORS.fill}`,
           borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none",
         }}>
-          <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700 }} className="text-admin-fill">{t("dashboard.adminMedia.dropPhotosHere")}</div>
+          <div style={{ fontFamily: FONTS.body, fontSize: 18, fontWeight: 700 }} className="text-admin-fill">{t(uploadPurpose === "brand" ? "dashboard.adminMedia.dropBrandImagesHere" : "dashboard.adminMedia.dropPhotosHere")}</div>
         </div>
       )}
 
@@ -2558,6 +2614,14 @@ export function WorkspaceMediaPage() {
             {interpolate(t("dashboard.adminMedia.showingNofM"), {
               shown: photos.length.toLocaleString(),
               total: bridgeMediaTotalCount.toLocaleString(),
+            })}
+          </div>
+        )}
+        {brandUploadProgress && (
+          <div className="mb-[10px] rounded-lg border border-admin-border-soft bg-admin-surface-alt px-[13px] py-2 text-[12.5px] text-admin-ink" role="status" aria-live="polite">
+            {interpolate(t("dashboard.adminMedia.brandUploadProgress"), {
+              done: String(brandUploadProgress.done),
+              total: String(brandUploadProgress.total),
             })}
           </div>
         )}

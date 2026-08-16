@@ -16,6 +16,7 @@ import {
   BUILDER_NODE_COMPOSITION_PRESETS,
   BUILDER_NODE_REGISTRY,
   gateNestedInsertKinds,
+  type BuilderIconDefinition,
   type BuilderIconName,
   type BuilderNode,
   type BuilderNodeCompositionPresetId,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/site-admin/add-gallery";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Stepper, TextInput, Toggle } from "../kit";
+import type { LengthUnit } from "../kit/number-unit";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { MediaPickerButton } from "./kit";
@@ -53,6 +55,14 @@ import {
   removeItemAt,
   resolveClearableMediaSrc,
 } from "./builder-node-content-utils";
+import {
+  GlyphTiles,
+  PresetNumberRow,
+  ICON_SIZE_PRESETS,
+  SPACER_PRESETS,
+  type FieldValue,
+  type GlyphTileOption,
+} from "./field-kit";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -78,6 +88,179 @@ function BuilderNodeSection({
     </section>
   );
 }
+
+// ═══ Inspector Reset P3 — field-kit helpers for this panel ═════════════════
+//
+// D8 audit note: most of this file's per-kind controls are structural content
+// config (tree operations, item lists, data bindings) with no Style-tab
+// equivalent, so they stay put. The controls migrated below are the D9-shaped
+// violations the audit actually found in Content: preset scales that never
+// showed their resolved value (icon size, spacer size, social icon size) and
+// visual choices rendered as plain words instead of a glyph (the icon picker
+// itself, divider tone, social icon shape). See the PR body for the full
+// census.
+
+/**
+ * Parse a "Free" CSS-length string (e.g. "26px", "1.5rem") into the
+ * `{value, unit}` shape `NumberUnit` / `PresetNumberRow` speak. Mirrors the
+ * convention `builderNodeStyleSchema` already uses for fields like
+ * `marginTopFree` — a plain CSS string, not a structured value — so
+ * `sizeFree` round-trips the same way every other "Free" escape does.
+ */
+function parseFreeLength(
+  raw: string | undefined,
+): { value: number; unit: LengthUnit } | null {
+  if (!raw) return null;
+  const match = /^(-?\d+(?:\.\d+)?)(px|rem|em|%|vw|vh)$/.exec(raw.trim());
+  if (!match) return null;
+  return { value: Number(match[1]), unit: match[2] as LengthUnit };
+}
+
+function formatFreeLength(
+  numeric: { value: number; unit: LengthUnit } | null,
+): string | undefined {
+  return numeric ? `${numeric.value}${numeric.unit}` : undefined;
+}
+
+/**
+ * The icon glyph itself — the same path/circle/polygon data
+ * `render.tsx` draws on the live canvas, at tile scale. Owner: "i need you to
+ * add icons... example for things" — a control that PICKS an icon should show
+ * the icon, not its name in a `<select>`.
+ */
+function BuilderIconTileGlyph({
+  icon,
+  color,
+}: {
+  icon: BuilderIconDefinition;
+  color: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={18}
+      height={18}
+      fill="none"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable="false"
+    >
+      {icon.paths.map((path) => (
+        <path key={path} d={path} />
+      ))}
+      {icon.circles?.map((circle) => (
+        <circle
+          key={`${circle.cx}-${circle.cy}-${circle.r}`}
+          cx={circle.cx}
+          cy={circle.cy}
+          r={circle.r}
+        />
+      ))}
+      {icon.polygons?.map((points) => (
+        <polygon key={points} points={points} />
+      ))}
+    </svg>
+  );
+}
+
+/** Divider tone has a look — a fainter rule — so D9 rule 3 puts it on a
+ * glyph, not just a word, even though it isn't a numeric preset. */
+function DividerToneGlyph({ muted, color }: { muted: boolean; color: string }) {
+  return (
+    <svg viewBox="0 0 26 26" width={26} height={26} aria-hidden focusable="false">
+      <line
+        x1={4}
+        y1={13}
+        x2={22}
+        y2={13}
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        opacity={muted ? 0.35 : 1}
+      />
+    </svg>
+  );
+}
+
+/** Social-link icon shape has a look — bare / circle / square chip — so it is
+ * glyphed rather than named (D9 rule 3). */
+function SocialShapeGlyph({
+  shape,
+  color,
+}: {
+  shape: "bare" | "circle" | "square";
+  color: string;
+}) {
+  if (shape === "bare") {
+    return (
+      <svg viewBox="0 0 26 26" width={26} height={26} aria-hidden focusable="false">
+        <circle cx="13" cy="13" r="3" fill={color} />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 26 26" width={26} height={26} aria-hidden focusable="false">
+      {shape === "circle" ? (
+        <circle cx="13" cy="13" r="8" fill="none" stroke={color} strokeWidth={1.8} />
+      ) : (
+        <rect x={5} y={5} width={16} height={16} rx={4} fill="none" stroke={color} strokeWidth={1.8} />
+      )}
+      <circle cx="13" cy="13" r="2.5" fill={color} />
+    </svg>
+  );
+}
+
+/**
+ * Social-link icon SIZE has no schema-level "Free" companion yet — the chip
+ * diameter lives inside `render.tsx`'s inline CSS-string block (28/36/44px
+ * per `data-bn-size`), not a `const NAME = {...} as const` map, so it cannot
+ * be mirrored by the mechanical `preset-values.ts` parity guard the way
+ * ICON_SIZE / SPACER_BY_SIZE are. Captions below are hand-verified against
+ * those literal CSS lines; see the PR body for the explicit "custom number"
+ * gap this leaves (deferred, not silently dropped).
+ */
+function SocialSizeGlyph({ diameter, color }: { diameter: number; color: string }) {
+  return (
+    <svg viewBox="0 0 26 26" width={26} height={26} aria-hidden focusable="false">
+      <circle cx="13" cy="13" r={diameter / 2} fill="none" stroke={color} strokeWidth={1.8} />
+    </svg>
+  );
+}
+
+const SOCIAL_ICON_SIZE_OPTIONS: ReadonlyArray<GlyphTileOption> = [
+  {
+    id: "sm",
+    label: "Small",
+    valueCaption: "28",
+    glyph: (ink) => <SocialSizeGlyph diameter={11} color={ink} />,
+  },
+  {
+    id: "md",
+    label: "Medium",
+    valueCaption: "36",
+    glyph: (ink) => <SocialSizeGlyph diameter={15} color={ink} />,
+  },
+  {
+    id: "lg",
+    label: "Large",
+    valueCaption: "44",
+    glyph: (ink) => <SocialSizeGlyph diameter={19} color={ink} />,
+  },
+];
+
+const SOCIAL_ICON_SHAPE_OPTIONS: ReadonlyArray<GlyphTileOption> = [
+  { id: "bare", label: "Bare", glyph: (ink) => <SocialShapeGlyph shape="bare" color={ink} /> },
+  { id: "circle", label: "Circle", glyph: (ink) => <SocialShapeGlyph shape="circle" color={ink} /> },
+  { id: "square", label: "Square", glyph: (ink) => <SocialShapeGlyph shape="square" color={ink} /> },
+];
+
+const DIVIDER_TONE_OPTIONS: ReadonlyArray<GlyphTileOption> = [
+  { id: "default", label: "Default", glyph: (ink) => <DividerToneGlyph muted={false} color={ink} /> },
+  { id: "muted", label: "Muted", glyph: (ink) => <DividerToneGlyph muted color={ink} /> },
+];
 
 export function BuilderNodeContentInspector({
   node,
@@ -534,52 +717,53 @@ export function BuilderNodeContentInspector({
   }
 
   if (node.kind === "icon") {
+    const iconOptions: GlyphTileOption[] = BUILDER_ICON_REGISTRY.map((def) => ({
+      id: def.name,
+      label: def.label,
+      glyph: (ink: string) => <BuilderIconTileGlyph icon={def} color={ink} />,
+    }));
+    const iconSizeCustom = parseFreeLength(node.props.sizeFree);
+    const iconSizeValue: FieldValue = iconSizeCustom
+      ? { kind: "custom", numeric: iconSizeCustom }
+      : { kind: "preset", id: node.props.size ?? "md" };
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
           <CardHead title="Icon" sub="Inline SVG" iconAccent="blue" />
           <CardBody>
             <div className="flex flex-col gap-3">
-              <Field flush>
-                <FieldLabel>Icon</FieldLabel>
-                <select
-                  className={KIT.input}
-                  value={node.props.icon}
-                  onChange={(event) => {
-                    const icon = event.currentTarget.value as BuilderIconName;
-                    const label =
-                      BUILDER_ICON_REGISTRY.find((item) => item.name === icon)
-                        ?.label ?? "Icon";
-                    void commitPatch({
-                      icon,
-                      label: node.props.decorative ? node.props.label : label,
-                    });
-                  }}
-                >
-                  {BUILDER_ICON_REGISTRY.map((icon) => (
-                    <option key={icon.name} value={icon.name}>
-                      {icon.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field flush>
-                <FieldLabel>Size</FieldLabel>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={node.props.size ?? "md"}
-                  onChange={(next) => {
-                    void commitPatch({ size: next });
-                  }}
-                  options={[
-                    { value: "sm", label: "S" },
-                    { value: "md", label: "M" },
-                    { value: "lg", label: "L" },
-                    { value: "xl", label: "XL" },
-                  ]}
-                />
-              </Field>
+              <GlyphTiles
+                label="Icon"
+                options={iconOptions}
+                value={node.props.icon}
+                columns={4}
+                onChange={(icon) => {
+                  const label =
+                    BUILDER_ICON_REGISTRY.find((item) => item.name === icon)?.label ??
+                    "Icon";
+                  void commitPatch({
+                    icon: icon as BuilderIconName,
+                    label: node.props.decorative ? node.props.label : label,
+                  });
+                }}
+                dataControl="icon-glyph"
+              />
+              <PresetNumberRow
+                label="Size"
+                presets={ICON_SIZE_PRESETS}
+                value={iconSizeValue}
+                units={["px", "rem"] as const}
+                onChange={(next) => {
+                  if (next.kind === "preset") {
+                    void commitPatch({ size: next.id, sizeFree: undefined });
+                  } else if (next.kind === "custom") {
+                    void commitPatch({ sizeFree: formatFreeLength(next.numeric) });
+                  } else {
+                    void commitPatch({ size: "md", sizeFree: undefined });
+                  }
+                }}
+                dataControl="icon-size"
+              />
               <Field flush>
                 <FieldLabel>Accessible label</FieldLabel>
                 <input
@@ -2352,40 +2536,28 @@ export function BuilderNodeContentInspector({
           />
           <CardBody>
             <div className="flex flex-col gap-3">
-              <Field flush>
-                <FieldLabel>Icon size</FieldLabel>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={node.props.size ?? "md"}
-                  onChange={(next) => {
-                    void commitPatch({ size: next as "sm" | "md" | "lg" });
-                  }}
-                  options={[
-                    { value: "sm", label: "Small" },
-                    { value: "md", label: "Medium" },
-                    { value: "lg", label: "Large" },
-                  ]}
-                />
-              </Field>
-              <Field flush>
-                <FieldLabel>Icon shape</FieldLabel>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={node.props.shape ?? "circle"}
-                  onChange={(next) => {
-                    void commitPatch({
-                      shape: next as "bare" | "circle" | "square",
-                    });
-                  }}
-                  options={[
-                    { value: "bare", label: "Bare" },
-                    { value: "circle", label: "Circle" },
-                    { value: "square", label: "Square" },
-                  ]}
-                />
-              </Field>
+              <GlyphTiles
+                label="Icon size"
+                options={SOCIAL_ICON_SIZE_OPTIONS}
+                value={node.props.size ?? "md"}
+                columns={3}
+                onChange={(next) => {
+                  void commitPatch({ size: next as "sm" | "md" | "lg" });
+                }}
+                dataControl="social-icon-size"
+              />
+              <GlyphTiles
+                label="Icon shape"
+                options={SOCIAL_ICON_SHAPE_OPTIONS}
+                value={node.props.shape ?? "circle"}
+                columns={3}
+                onChange={(next) => {
+                  void commitPatch({
+                    shape: next as "bare" | "circle" | "square",
+                  });
+                }}
+                dataControl="social-icon-shape"
+              />
               <Field flush>
                 <FieldLabel>Source</FieldLabel>
                 <Toggle
@@ -3098,22 +3270,17 @@ export function BuilderNodeContentInspector({
         <Card state="active">
           <CardHead title="Divider" sub="Horizontal rule" iconAccent="blue" />
           <CardBody>
-            <Field flush>
-              <FieldLabel>Tone</FieldLabel>
-              <Segmented
-                fullWidth
-                compact
-                value={node.props.tone ?? "default"}
-                onChange={(next) => {
-                  void commitPatch({ tone: next });
-                }}
-                options={[
-                  { value: "default", label: "Default" },
-                  { value: "muted", label: "Muted" },
-                ]}
-              />
-              <Helper>Muted draws a fainter line for subtle section breaks.</Helper>
-            </Field>
+            <GlyphTiles
+              label="Tone"
+              options={DIVIDER_TONE_OPTIONS}
+              value={node.props.tone ?? "default"}
+              columns={2}
+              onChange={(next) => {
+                void commitPatch({ tone: next as "default" | "muted" });
+              }}
+              hint="Muted draws a fainter line for subtle section breaks."
+              dataControl="divider-tone"
+            />
           </CardBody>
         </Card>
       </div>
@@ -3121,28 +3288,32 @@ export function BuilderNodeContentInspector({
   }
 
   if (node.kind === "spacer") {
+    const spacerSizeCustom = parseFreeLength(node.props.sizeFree);
+    const spacerSizeValue: FieldValue = spacerSizeCustom
+      ? { kind: "custom", numeric: spacerSizeCustom }
+      : { kind: "preset", id: node.props.size };
     return (
       <div className="flex flex-col gap-3">
         <Card state="active">
           <CardHead title="Spacer" sub="Vertical gap" iconAccent="blue" />
           <CardBody>
-            <Field flush>
-              <FieldLabel>Size</FieldLabel>
-              <Segmented
-                fullWidth
-                compact
-                value={node.props.size ?? "m"}
-                onChange={(next) => {
-                  void commitPatch({ size: next });
-                }}
-                options={[
-                  { value: "s", label: "S" },
-                  { value: "m", label: "M" },
-                  { value: "l", label: "L" },
-                ]}
-              />
-              <Helper>Controls the vertical space this block adds between sections.</Helper>
-            </Field>
+            <PresetNumberRow
+              label="Size"
+              presets={SPACER_PRESETS}
+              value={spacerSizeValue}
+              units={["px", "rem"] as const}
+              onChange={(next) => {
+                if (next.kind === "preset") {
+                  void commitPatch({ size: next.id, sizeFree: undefined });
+                } else if (next.kind === "custom") {
+                  void commitPatch({ sizeFree: formatFreeLength(next.numeric) });
+                } else {
+                  void commitPatch({ size: "m", sizeFree: undefined });
+                }
+              }}
+              hint="Controls the vertical space this block adds between sections."
+              dataControl="spacer-size"
+            />
           </CardBody>
         </Card>
       </div>

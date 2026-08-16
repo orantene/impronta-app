@@ -12,6 +12,7 @@
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { ZodSchemaForm } from "../shared/ZodSchemaForm";
 import { siteHeaderSchemaV1 } from "./schema";
+import { withSiteHeaderEditorDefaults } from "./editor-value";
 import type { SectionEditorProps } from "../types";
 import type { SiteHeaderV1 } from "./schema";
 
@@ -20,28 +21,11 @@ export function SiteHeaderEditor({
   onChange,
   tenantId,
 }: SectionEditorProps<SiteHeaderV1>) {
-  const value: SiteHeaderV1 = {
-    brand: initial.brand ?? { href: "/" },
-    brandDisplay: initial.brandDisplay ?? "image-and-text",
-    navItems: initial.navItems ?? [],
-    primaryCta: initial.primaryCta,
-    sticky: initial.sticky ?? true,
-    tone: initial.tone ?? "surface",
-    variant: initial.variant ?? "standard",
-    authArea: initial.authArea ?? {
-      showAccountMenu: true,
-      showLanguageToggle: true,
-      showDiscoveryTools: true,
-    },
-    // Phase 6B — reusable header cluster + density. Defaults keep every
-    // existing tenant visually unchanged (empty cluster, no density
-    // attrs). The auto-bound ZodSchemaForm renders these from the schema
-    // with humanized labels (Social Links, Contact Links, Density …).
-    socialLinks: initial.socialLinks ?? [],
-    contactLinks: initial.contactLinks ?? [],
-    density: initial.density,
-    presentation: initial.presentation,
-  };
+  // F5 — the defaults layer SPREADS `initial`, so unlisted / newly-added schema
+  // fields (`regions`, `scrollTone`, `scrollThresholdPx`, `nodePresentation`)
+  // survive the `{ ...value, ...next }` merges below instead of being erased on
+  // the operator's next edit. Pure + node-tested in `editor-value.test.ts`.
+  const value: SiteHeaderV1 = withSiteHeaderEditorDefaults(initial);
   return (
     <div className="flex flex-col gap-4">
       <ZodSchemaForm

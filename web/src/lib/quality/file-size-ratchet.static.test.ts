@@ -165,7 +165,11 @@ const BUDGETS: Record<string, number> = {
   // collide with the per-site card face. ES_TEXT is a flat literal map keyed
   // by the English string — new user-facing copy in this tree has nowhere
   // else to live.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3522,
+  // 2026-08-16 T7/D4 brand-mark removal: +1 for the Spanish entry of the one
+  // new user-facing string the Branding drawer's Remove buttons add
+  // ("Favicon removed"). ES_TEXT is a flat literal map — a new string has
+  // nowhere else to live.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3523,
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
@@ -191,7 +195,17 @@ const BUDGETS: Record<string, number> = {
   // invented). One import, one memo resolving the filtered name to a profile
   // id, and one guarded mount; the line and its copy live in
   // components/talent/media-quota-line.tsx + lib/media/quota-line.ts.
-  "src/components/admin/shell/internal/media-page.tsx": 2948,
+  // 2026-08-16 T2 brand-lane uploads: +64. The Brand & site lane was
+  // filter-only, and every drop was forced through the talent-assign modal —
+  // so a drop there aborted with "No talent on roster to assign to." Added:
+  //   +32  uploadBrandFiles() — sequential uploadBrandingMedia loop with
+  //        per-file failure collection (it reads/writes this component's
+  //        upload state, so extracting it would only move the coupling)
+  //   +4   brandUploadProgress state + its progress banner
+  //   +6   uploadPurpose derivation + the early branch in processFiles
+  //   +22  the comments explaining why the branch must precede the roster
+  //        load, and what the lane split means
+  "src/components/admin/shell/internal/media-page.tsx": 3012,
   // 2026-08-15 notification page-targets — +7: `NotificationItem.targetHref`,
   // set when a notification's real destination is a routed page rather than a
   // drawer (payout reversals → /talent/payouts, roster applications →
@@ -229,9 +243,23 @@ const BUDGETS: Record<string, number> = {
   // storage, so a capped talent could burn unbounded storage on refusals), and
   // the register-time backstop now deletes the orphan it refuses. Two call
   // sites plus the comments explaining the ordering; no new logic lands here.
-  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2418,
+  // 2026-08-16 T8/D5 talent-self documents: +3 net. resolveTalentDocumentAuth()
+  // replaces the four copy-pasted staff-only guard + roster-check blocks in the
+  // talent-document actions with one dual-auth helper (staff OR profile owner),
+  // so the helper and its doc comment cost more lines than the four blocks it
+  // deleted returned.
+  "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 2421,
   "src/app/t/[profileCode]/profile-view.tsx": 2634,
-  "src/components/inquiry/InquiryDrawer.tsx": 2149,
+  // 2026-08-16 T4 attachments off the Server Action body: +123. Files used to
+  // ride the submit FormData, which put the whole inquiry behind the ~4 MB
+  // body cap while the drawer advertised 10 x 20 MB. Added:
+  //   +33  the phase-2 effect that uploads staged files against the created
+  //        inquiry id once submit resolves
+  //   +75  <AttachmentStatus> — the per-file outcome panel, which is the
+  //        entire point: failures used to be swallowed by a server-side
+  //         and the user was told everything sent
+  //   +15  imports and the comments recording why the FormData append left
+  "src/components/inquiry/InquiryDrawer.tsx": 2272,
 
   // Site-admin library and its big characterization suites. Test files grow
   // into god files exactly like source files do, and are just as hard to read.

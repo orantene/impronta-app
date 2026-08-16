@@ -1256,6 +1256,10 @@
       "filesAttachAria": "Attach files",
       "filesAttachButton": "Attach files",
       "filesLimitHint": "PDF, images, docs, up to 20 MB each, {count} max",
+      "filesUploading": "Attaching your files… {done} of {total}",
+      "filesAttached": "{count} file(s) attached.",
+      "filesFailedTitle": "{count} file(s) could not be attached",
+      "filesFailedHint": "Your inquiry was sent. You can add these files from the message thread.",
       "filesOversizedOne": "{names} is over 20 MB and won't be uploaded.",
       "filesOversizedOther": "{names} are over 20 MB and won't be uploaded.",
       "filesRemoveAria": "Remove {name}",
@@ -1302,6 +1306,10 @@
       "relativeMinuteOther": "{count} minutes ago",
       "relativeHourOne": "1 hour ago",
       "relativeHourOther": "{count} hours ago"
+    },
+    "siteShellSurface": {
+      "title": "Site header & footer",
+      "body": "This stand-in marks where each page’s content appears. Edits to the header and footer here apply to every page of your site."
     }
   },
   "dashboard": {
@@ -4967,7 +4975,8 @@
       "referrerDirect": "Direct / none",
       "topEmptyPages": "No page data for this period yet.",
       "topEmptyTalent": "No talent data for this period yet.",
-      "topEmptyReferrers": "No referrer data for this period yet."
+      "topEmptyReferrers": "No referrer data for this period yet.",
+      "siteShell": "Site header & footer"
     },
     "adminCardStudio": {
       "title": "Card Design",
@@ -5585,6 +5594,20 @@
         "workspaceUiQuickBarLabel": "Storefront admin quick bar",
         "workspaceUiQuickBarHint": "The thin strip across the top of a tenant's own public site, visible only to signed-in members of that tenant. On by default. Off hides it platform-wide.",
         "workspaceUiSaved": "Saved. Applies to every workspace.",
+        "gatedMediaTitle": "Photo access",
+        "gatedMediaSubtitle": "Whether photos load straight from storage or through a route that checks permission on every request.",
+        "gatedMediaLabel": "Check permission before serving a photo",
+        "gatedMediaHint": "Right now a photo's web address keeps working forever once someone saves or shares it, even after the release it came with is revoked. Turn this on and photos are served through a route that re-checks permission every time, so a revoked photo stops loading within about {minutes} minutes. This does not change who is allowed to see what, only whether the rule is enforced on the file itself.",
+        "gatedMediaStatusActive": "Active",
+        "gatedMediaStatusNotActive": "Not active",
+        "gatedMediaStatusOff": "Off",
+        "gatedMediaDetailActive": "Photos are served through the checked route. Revoking a release stops the file within about {minutes} minutes.",
+        "gatedMediaDetailMissingSecret": "MEDIA_URL_SIGNING_SECRET is not configured, so photos keep loading from their public addresses exactly as before. Someone with access to the deployment settings has to add that value before this switch can do anything. It cannot be set from here, because anyone who could write it could forge photo links.",
+        "gatedMediaDetailOff": "Photos load straight from storage. A saved address keeps working after a release is revoked.",
+        "gatedMediaDetailForcedOff": "Photos load straight from storage.",
+        "gatedMediaOverrideOn": "MEDIA_PRIVATE_ACCESS_ENABLED is set to on in the environment. That overrides this switch, so photos stay checked even with the box unticked.",
+        "gatedMediaOverrideOff": "MEDIA_PRIVATE_ACCESS_ENABLED is set to off in the environment. That overrides this switch, so ticking the box changes nothing until it is removed.",
+        "gatedMediaSaved": "Saved. Takes effect across the platform within 30 seconds.",
         "depositFieldLabel": "Default deposit (%)",
         "refundPolicyFieldLabel": "Default refund policy",
         "instantBookLabel": "Instant booking on by default",
@@ -10366,6 +10389,8 @@
       "emptyNoMatch": "No photos match. Try clearing filters or uploading.",
       "emptyNoPhotos": "No photos yet, drop images or click Upload.",
       "dropPhotosHere": "Drop photos here",
+      "dropBrandImagesHere": "Drop brand images here",
+      "brandUploadProgress": "Uploading brand images… {done} of {total}",
       "bridgeLoadError": "We couldn't load your media library. Try refreshing, and if it keeps failing the bridge query is broken.",
       "showingNofM": "Showing {shown} of {total} photos. Use filters or folders to narrow what you see.",
       "settings": "Settings",

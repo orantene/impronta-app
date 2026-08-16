@@ -169,6 +169,18 @@ export interface BuilderNodeRenderOptions {
   // tenant-scoped data) or a labeled placeholder. Absent in lighter render
   // contexts (tests, tenant-less previews) → the case renders nothing.
   renderSectionEmbed?: BuilderSectionEmbedRenderer | null;
+  // Server-resolved captcha for this tenant (`resolveTenantCaptcha`). The
+  // `form` node MUST render the widget whenever the tenant has an active
+  // provider, because /api/cms/forms/submit enforces captcha at TENANT level:
+  // it looks up the submitted section's tenant, not the form's own props. So
+  // the instant an operator configures captcha, a form node that renders no
+  // widget sends no token and EVERY submission is rejected — which is exactly
+  // what happened to improntamodels.com on 2026-08-16. Keying render and
+  // enforcement off the same tenant signal makes them impossible to diverge.
+  captcha?: {
+    provider: "hcaptcha" | "turnstile" | "none";
+    siteKey: string | null;
+  } | null;
   // W3-T1 — EDITOR-ONLY insert/delete/reorder motion. When true, the rendered
   // node list is wrapped in a `display: contents` FLIP primitive
   // (`BuilderNodeLayoutMotion`) so inserts fade+rise, deletes fade out, and
@@ -4381,7 +4393,9 @@ function renderBuilderNodeElement(
           aria-label={decorative ? undefined : iconLabel || icon.name}
           aria-hidden={decorative ? true : undefined}
           style={inlineNodeStyle(node.props.style, {
-            fontSize: ICON_SIZE[node.props.size ?? "md"],
+            // Inspector Reset P3: an exact typed/dragged size wins over the
+            // S/M/L/XL token when present (D9 item 2 — presets are shortcuts).
+            fontSize: node.props.sizeFree || ICON_SIZE[node.props.size ?? "md"],
           })}
         >
           <svg
@@ -4552,7 +4566,9 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--spacer"
           aria-hidden="true"
           style={inlineNodeStyle(node.props.style, {
-            height: SPACER_BY_SIZE[node.props.size],
+            // Inspector Reset P3: an exact typed/dragged height wins over the
+            // S/M/L token when present (D9 item 2 — presets are shortcuts).
+            height: node.props.sizeFree || SPACER_BY_SIZE[node.props.size],
           })}
         />
       );
@@ -4560,6 +4576,12 @@ function renderBuilderNodeElement(
       const formProps = node.props;
       const fields = formProps.fields ?? [];
       const honeypotName = formProps.honeypotName?.trim() || "website";
+      // Tenant-resolved captcha (see `captcha` in the options doc above).
+      const formCaptchaProvider =
+        options.captcha && options.captcha.provider !== "none"
+          ? options.captcha.provider
+          : null;
+      const formCaptchaSiteKey = options.captcha?.siteKey ?? null;
       const isInternal =
         !formProps.action || formProps.action.trim().toLowerCase() === "internal";
       const method =
@@ -4697,6 +4719,30 @@ function renderBuilderNodeElement(
               </div>
             );
           })}
+          {/* Captcha widget. Rendered off the TENANT's resolved provider — the
+              same signal /api/cms/forms/submit enforces on — so a configured
+              captcha can never demand a token this form does not produce.
+              Markup mirrors the contact_form section component exactly. */}
+          {formCaptchaProvider === "hcaptcha" && formCaptchaSiteKey ? (
+            <>
+              <div
+                className="h-captcha"
+                data-sitekey={formCaptchaSiteKey}
+                data-callback="__tulalaCaptchaDone"
+              />
+              <script src="https://js.hcaptcha.com/1/api.js" async defer />
+            </>
+          ) : null}
+          {formCaptchaProvider === "turnstile" && formCaptchaSiteKey ? (
+            <>
+              <div className="cf-turnstile" data-sitekey={formCaptchaSiteKey} />
+              <script
+                src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+                async
+                defer
+              />
+            </>
+          ) : null}
         </form>
       );
     }
@@ -4986,6 +5032,9 @@ function normalizeBuilderNodeRenderOptions(
   if (cached) return cached;
   const normalized: NormalizedBuilderNodeRenderOptions = {
     publicPathPrefix: options.publicPathPrefix ?? "",
+    // Absent in lighter contexts (tests, tenant-less previews) → the `form`
+    // node renders no widget, exactly as before this option existed.
+    captcha: options.captcha ?? null,
     mode: options.mode ?? "freeform",
     dataSources: options.dataSources ?? {},
     includeRendererStyles: options.includeRendererStyles ?? true,
