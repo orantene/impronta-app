@@ -33,6 +33,7 @@ import {
   ZIP_IMAGE_CAP,
   ZIP_MAX_BYTES,
   type MediaUploadItem,
+  type NoUploadExtra,
   type ZipLoader,
 } from "./media-upload-engine";
 
@@ -53,7 +54,7 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 function items(n: number) {
   return createUploadItems(
     Array.from({ length: n }, (_, i) => file(`p${i}.jpg`)),
-    () => ({}) as Record<string, never>,
+    () => ({}) as NoUploadExtra,
     (i) => `id-${i}`,
     (f) => `blob:${f.name}`,
   );

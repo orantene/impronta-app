@@ -36,11 +36,22 @@ export type MediaUploadStatus =
   | "error";
 
 /**
+ * "This surface carries no extra per-item state."
+ *
+ * NOT `Record<string, never>`: that type has a STRING INDEX SIGNATURE, and an
+ * index signature of `never` makes `Partial<MediaUploadItem<…>>` reject every
+ * real field — `patchUploadItem(items, id, { status: "ready" })` failed to
+ * typecheck with "Type '\"ready\"' is not assignable to type 'undefined'".
+ * `Record<never, never>` is the empty object with no index signature.
+ */
+export type NoUploadExtra = Record<never, never>;
+
+/**
  * One file in a batch. `Extra` lets a surface carry its own per-item state in
  * the same list instead of a parallel map — the Media page uses it for the
  * per-photo `talentId` its assign modal edits while the upload is in flight.
  */
-export type MediaUploadItem<Extra = Record<string, never>> = {
+export type MediaUploadItem<Extra = NoUploadExtra> = {
   /** Stable within a batch. Not a DB id — nothing is registered yet. */
   id: string;
   file: File;
@@ -187,7 +198,7 @@ async function defaultZipLoader(file: File) {
 }
 
 /** Build the staging list for a batch. Every item starts `queued` at 0 bytes. */
-export function createUploadItems<Extra = Record<string, never>>(
+export function createUploadItems<Extra = NoUploadExtra>(
   files: File[],
   makeExtra: (file: File, index: number) => Extra,
   makeId: (index: number) => string = defaultItemId,

@@ -40,6 +40,7 @@ import {
   runUploadPool,
   summarizeUploadItems,
   type MediaUploadItem,
+  type NoUploadExtra,
   type PrepareRejection,
   type ZipLoader,
 } from "./media-upload-engine";
@@ -99,7 +100,7 @@ export interface UseMediaUpload<Extra> {
   reset: () => void;
 }
 
-export function useMediaUpload<Extra = Record<string, never>>(
+export function useMediaUpload<Extra = NoUploadExtra>(
   options: UseMediaUploadOptions<Extra>,
 ): UseMediaUpload<Extra> {
   const [items, setItems] = useState<Array<MediaUploadItem<Extra>>>([]);
