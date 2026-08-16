@@ -54,7 +54,7 @@ import {
 } from "./kit";
 import { useEditContext, type PageMetadata } from "./edit-context";
 import { useSaving } from "./save-cycle-bridge";
-import { MediaPickerButton } from "./inspectors/kit";
+import { MediaField, toMediaValue } from "./inspectors/kit";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
   createRedirectAction,
@@ -625,10 +625,10 @@ export function PageSettingsDrawer() {
                   <FieldLabel htmlFor="ps-og-image" meta="1200×630 recommended">
                     OG image
                   </FieldLabel>
-                  <MediaPickerButton
+                  <MediaField
                     tenantId={tenantId}
-                    value={draft?.ogImageUrl ?? null}
-                    onChange={(next) => patch("ogImageUrl", next)}
+                    value={toMediaValue(draft?.ogImageUrl ?? null)}
+                    onChange={(next) => patch("ogImageUrl", next?.url ?? null)}
                     emptyLabel="Add share image"
                     aspect="21/9"
                   />

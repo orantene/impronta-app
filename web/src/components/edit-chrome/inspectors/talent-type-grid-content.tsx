@@ -16,7 +16,8 @@ import { useEditorLocale } from "../use-editor-locale";
 import {
   InspectorGroup,
   KIT,
-  MediaPickerButton,
+  MediaField,
+  toMediaValue,
   VisualChipGroup,
   DebouncedRangeInput,
 } from "./kit";
@@ -510,11 +511,11 @@ export function TalentTypeGridContentInspector({
                   </button>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
-                  <MediaPickerButton
+                  <MediaField
                     tenantId={tenantId}
-                    value={item.imageUrl}
+                    value={toMediaValue(item.imageUrl)}
                     onChange={(next) =>
-                      patchItem(index, { imageUrl: next ?? undefined })
+                      patchItem(index, { imageUrl: next?.url ?? undefined })
                     }
                     emptyLabel={t("Pick background image")}
                     aspect="16/9"

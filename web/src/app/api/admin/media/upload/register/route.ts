@@ -221,6 +221,9 @@ export async function POST(req: Request) {
       byteSize: storedSize,
       width,
       height,
+      // The COLUMN, not just the metadata key — library-query.ts reads and
+      // searches `original_filename` and never looked at the metadata copy.
+      originalFilename,
       metadata: {
         source: "admin-upload-signed",
         original_mime: originalMime,
@@ -292,6 +295,7 @@ export async function POST(req: Request) {
     byte_size: storedSize,
     mime: storedMime,
     mime_type: storedMime,
+    original_filename: originalFilename,
     metadata: {
       source: "admin-upload-signed",
       original_mime: originalMime,

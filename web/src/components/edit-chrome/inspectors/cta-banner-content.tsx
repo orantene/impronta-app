@@ -18,7 +18,8 @@ import {
   KIT,
   InspectorGroup,
   VisualChipGroup,
-  MediaPickerButton,
+  MediaField,
+  toMediaValue,
   CtaDuoEditor,
   DebouncedRangeInput,
   type CtaShape,
@@ -234,11 +235,11 @@ export function CtaBannerContentInspector({
 
       {usesImage ? (
         <InspectorGroup title={t("Background image")}>
-          <MediaPickerButton
+          <MediaField
             tenantId={tenantId}
-            value={backgroundImageUrl}
-            onChange={(url) =>
-              update({ backgroundImageUrl: url ?? undefined })
+            value={toMediaValue(backgroundImageUrl)}
+            onChange={(next) =>
+              update({ backgroundImageUrl: next?.url ?? undefined })
             }
             emptyLabel={t("Add background image")}
             aspect="21/9"

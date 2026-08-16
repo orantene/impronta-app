@@ -120,6 +120,9 @@ export async function POST(req: Request) {
     storagePath,
     mime: SVG_MIME,
     byteSize: sanitized.bytes.byteLength,
+    // The COLUMN — library-query.ts reads/searches `original_filename` and
+    // never looked at the metadata copy below.
+    originalFilename,
     metadata: {
       source: "admin-upload-svg",
       original_mime: SVG_MIME,

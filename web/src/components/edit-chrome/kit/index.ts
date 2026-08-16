@@ -5,7 +5,7 @@
  *
  * This is distinct from `web/src/components/edit-chrome/inspectors/kit/`,
  * which holds primitives scoped to inspector tab CONTENT (InspectorGroup,
- * VisualChipGroup, MediaPickerButton, etc.). The chrome kit sits above
+ * VisualChipGroup, MediaField, etc.). The chrome kit sits above
  * those and defines the chrome those primitives sit inside.
  */
 

@@ -26,8 +26,7 @@
 import { useEffect, useState } from "react";
 
 import { useEditContext } from "../../../edit-context";
-import { InspectorGroup, KIT } from "../../kit";
-import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
+import { InspectorGroup, KIT, MediaField, toMediaValue } from "../../kit";
 import {
   normalizeHeaderContactLink,
   normalizeHeaderSocialLink,
@@ -459,121 +458,28 @@ function LogoField({
     };
   }, [currentAssetId, tenantId]);
 
-  const hasLogo = Boolean(currentAssetId && previewUrl);
-
-  // 2027-style hover-edit pattern: the entire thumbnail IS the trigger.
-  // No status text, no separate Pick / Replace / Clear button row. The
-  // MediaPicker's own button is positioned `absolute inset-0` and made
-  // invisible (opacity-0); a CSS hover overlay surfaces "Replace" /
-  // "Add logo" microcopy contextually. Clear (×) appears top-right
-  // only when a logo is set, only on hover.
+  // The whole thumbnail IS the trigger — that is `<MediaField layout="cover">`.
+  // This used to be hand-rolled: an `[&>button]:absolute [&>button]:inset-0 …`
+  // arbitrary-selector cascade reaching INTO `MediaPicker` to erase the button
+  // it renders, plus a hand-written hover ×. `brand-quick-panel.tsx` carried a
+  // byte-identical copy. Both are gone; the affordance is one component now.
+  //
+  // `resolving` is still consulted so an unresolved id shows nothing rather
+  // than an "Add logo" empty state that would lie about the current value.
   return (
-    <div className="group relative size-24 overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6] transition-[border-color] duration-150 hover:border-stone-300">
-      {/* Thumbnail layer */}
-      <div className="absolute inset-0 flex items-center justify-center bg-white">
-        {hasLogo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={previewUrl!}
-            alt="Current logo"
-            className="size-full object-contain p-2"
-          />
-        ) : resolving ? (
-          <span className="size-3 animate-pulse rounded-full bg-stone-300" />
-        ) : (
-          <svg
-            viewBox="0 0 24 24"
-            width="28"
-            height="28"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-stone-300"
-            aria-hidden
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="9" cy="9" r="2" />
-            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-          </svg>
-        )}
-      </div>
-
-      {/* Hover overlay — fades in on group-hover. Pure CSS, no JS state. */}
-      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-stone-900/60 text-white opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          {hasLogo ? (
-            <>
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </>
-          ) : (
-            <>
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </>
-          )}
-        </svg>
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em]">
-          {hasLogo ? "Replace" : "Add logo"}
-        </span>
-      </div>
-
-      {/* MediaPicker trigger — covers the whole tile, invisible. The
-       * arbitrary-selector `[&>button]` targets the button MediaPicker
-       * renders, sizes it to the tile, and zeroes its visual chrome. */}
-      <div className="absolute inset-0 z-20 [&>button]:absolute [&>button]:inset-0 [&>button]:size-full [&>button]:cursor-pointer [&>button]:rounded-lg [&>button]:border-0 [&>button]:bg-transparent [&>button]:p-0 [&>button]:text-transparent [&>button]:opacity-0">
-        <MediaPicker
-          tenantId={tenantId}
-          label="."
-          onPick={() => {
-            // Single-pick by URL is unused — onPickItem delivers the asset id.
-          }}
-          onPickItem={(item) => onChange(item.id)}
-        />
-      </div>
-
-      {/* Clear (×) — only when a logo is set; only on hover. Stops
-       * propagation so it doesn't trigger the picker behind it. */}
-      {currentAssetId ? (
-        <button
-          type="button"
-          aria-label="Clear logo"
-          title="Clear logo"
-          onClick={(e) => {
-            e.stopPropagation();
-            onChange(null);
-          }}
-          className="absolute right-1.5 top-1.5 z-30 inline-flex size-5 items-center justify-center rounded-full bg-stone-900/85 text-white opacity-0 shadow-md transition-opacity duration-200 hover:bg-rose-600 group-hover:opacity-100"
-        >
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      ) : null}
+    <div className="size-24">
+      <MediaField
+        tenantId={tenantId}
+        aspect="1/1"
+        layout="cover"
+        emptyLabel={resolving ? "" : "Logo"}
+        coverReplaceLabel="Replace"
+        // The consumer stores an ASSET ID, not a URL, so a pasted URL has
+        // nothing to store — the escape hatch is off for this field.
+        allowUrlPaste={false}
+        value={toMediaValue(previewUrl, currentAssetId)}
+        onChange={(next) => onChange(next?.mediaId ?? null)}
+      />
     </div>
   );
 }

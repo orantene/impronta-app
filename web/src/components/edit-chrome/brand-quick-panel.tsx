@@ -15,7 +15,7 @@ import {
   saveHeaderIdentityAction,
 } from "@/lib/site-admin/site-header/actions";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
-import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
+import { MediaField, toMediaValue } from "./inspectors/kit";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { CHROME, Field, FieldLabel, Helper, SaveChip, type SaveChipStatus } from "./kit";
@@ -67,61 +67,29 @@ function LogoQuickField({
     };
   }, [assetId, tenantId]);
 
-  const hasLogo = Boolean(assetId && previewUrl);
-
+  // The whole thumbnail IS the trigger — `<MediaField layout="cover">`. This
+  // was a hand-rolled `[&>button]:absolute [&>button]:inset-0 …` cascade
+  // reaching into `MediaPicker` to erase the button it renders, plus a
+  // hand-written hover ×; `site-header/tabs/BrandTab.tsx` carried a
+  // byte-identical copy of the same hack. One component now owns it.
+  //
+  // `resolving` keeps an unresolved id from flashing the empty state.
   return (
     <Field>
       <FieldLabel>Logo</FieldLabel>
-      <div
-        className="group relative overflow-hidden rounded-[10px] border"
-        style={{
-          width: 96,
-          height: 96,
-          borderColor: CHROME.line,
-          background: CHROME.controlFill,
-        }}
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          {hasLogo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl!}
-              alt="Site logo"
-              className="size-full object-contain p-2"
-            />
-          ) : resolving ? (
-            <span
-              className="size-3 animate-pulse rounded-full"
-              style={{ background: CHROME.muted3 }}
-            />
-          ) : (
-            <span className="text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: CHROME.muted3 }}>
-              Logo
-            </span>
-          )}
-        </div>
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-stone-900/55 text-[10px] font-semibold uppercase tracking-[0.1em] text-white opacity-0 transition-opacity group-hover:opacity-100">
-          {hasLogo ? "Replace" : "Add"}
-        </div>
-        <div className="absolute inset-0 z-20 [&>button]:absolute [&>button]:inset-0 [&>button]:size-full [&>button]:cursor-pointer [&>button]:border-0 [&>button]:bg-transparent [&>button]:opacity-0">
-          <MediaPicker
-            tenantId={tenantId}
-            label="Pick logo"
-            onPick={() => {}}
-            onPickItem={(item) => onChange(item.id)}
-          />
-        </div>
-        {assetId ? (
-          <button
-            type="button"
-            aria-label="Clear logo"
-            title="Clear logo"
-            onClick={() => onChange(null)}
-            className="absolute right-1 top-1 z-30 inline-flex size-5 items-center justify-center rounded-full bg-stone-900/85 text-white opacity-0 shadow-md transition-opacity group-hover:opacity-100"
-          >
-            ×
-          </button>
-        ) : null}
+      <div style={{ width: 96, height: 96 }}>
+        <MediaField
+          tenantId={tenantId}
+          aspect="1/1"
+          layout="cover"
+          emptyLabel={resolving ? "" : "Logo"}
+          coverReplaceLabel="Replace"
+          // The consumer stores an ASSET ID, so a pasted URL has nothing
+          // to store — the escape hatch is off for this field.
+          allowUrlPaste={false}
+          value={toMediaValue(previewUrl, assetId)}
+          onChange={(next) => onChange(next?.mediaId ?? null)}
+        />
       </div>
       <Helper>Shown in the site header and shared with header settings.</Helper>
     </Field>

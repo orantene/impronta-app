@@ -11,7 +11,7 @@
  * that hosts it plus the two upload transports (staff signed-pipeline vs
  * talent-self) that the ownership model requires be different.
  *
- * The public API is DELIBERATELY UNCHANGED — `MediaPickerButton`,
+ * The public API is DELIBERATELY UNCHANGED — `MediaField` (seam 4),
  * `MediaPicker` (sections/shared) and `ZodSchemaForm` call sites keep working
  * without edits, and `MediaPickerDialog`'s "Replace image" alias is folded in
  * as the `title` prop it always was.
@@ -31,8 +31,11 @@ import { ImageIcon } from "lucide-react";
 
 import { RequestReleaseButton } from "./media-picker-request-release";
 import { useT } from "@/i18n/use-t";
-import { uploadCmsMedia } from "@/lib/client/signed-upload";
 import { compressImage } from "@/lib/client/image-compress";
+import {
+  useMediaUpload,
+  type MediaUploadTransport,
+} from "@/lib/media/use-media-upload";
 import { TalentMediaQuotaLine } from "@/components/talent/media-quota-line";
 import { advanceMediaQuota, type MediaQuotaSnapshot } from "@/lib/media/quota-line";
 
@@ -63,28 +66,6 @@ function translateOr(
   const translated = t(key);
   if (translated && translated !== key) return translated;
   return fallback ?? translated;
-}
-
-/** MEDIA-1 — infer the upload kind from a chosen file's MIME / extension. */
-function detectUploadKind(file: File): "image" | "video" | "document" {
-  const mime = (file.type || "").toLowerCase();
-  if (mime.startsWith("video/")) return "video";
-  if (mime.startsWith("image/")) return "image";
-  if (
-    mime === "application/pdf" ||
-    mime.startsWith("application/vnd.") ||
-    mime === "application/msword" ||
-    mime === "text/plain" ||
-    mime === "text/csv"
-  ) {
-    return "document";
-  }
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (["mp4", "mov", "webm", "avi", "mkv", "m4v"].includes(ext)) return "video";
-  if (["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv"].includes(ext)) {
-    return "document";
-  }
-  return "image";
 }
 
 /** File-input accept lists, by surface. Talents stay image-only. */
@@ -148,7 +129,6 @@ export function MediaPickerDrawer({
 
   /** Multi-select pending set. The model itself lives in `selection.ts`. */
   const [selection, setSelection] = useState<MediaSelectionState>(EMPTY_SELECTION);
-  const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   /** Soft 80% plan-quota warning. Not an error: the upload went through. */
   const [quotaNotice, setQuotaNotice] = useState<string | null>(null);
@@ -207,30 +187,38 @@ export function MediaPickerDrawer({
     [multi, pickItem],
   );
 
-  async function uploadOne(file: File): Promise<MediaLibraryWireItem> {
-    if (isTalentScope) {
-      // Talent-self upload — the agency signed-upload + /api/admin routes are
-      // staff-only. Compress FIRST: raw phone photos (5-15 MB) blow both
-      // Vercel's ~4.5 MB request-body cap and the route's own limit.
+  /**
+   * Talent-self transport. The agency signed-upload + /api/admin routes are
+   * staff-only, so this lane is a plain multipart POST to the talent endpoint
+   * — and it is the one upload failure in the app with a LOCALIZED refusal
+   * (plan quota), which is exactly why it rides `useMediaUpload`'s `custom`
+   * purpose rather than one of the built-in ones.
+   *
+   * Compress FIRST: raw phone photos (5-15 MB) blow both Vercel's ~4.5 MB
+   * request-body cap and the route's own limit.
+   */
+  const talentTransport = useCallback<MediaUploadTransport>(
+    async ({ file, onProgress }) => {
+      onProgress({ phase: "compressing" });
       const compressed = await compressImage(file);
       const form = new FormData();
       form.set("talentProfileId", talentProfileId!);
       form.set("file", compressed.file, compressed.file.name || file.name);
+      onProgress({ phase: "uploading", bytesTotal: compressed.file.size });
       const res = await fetch("/api/talent/media/upload", {
         method: "POST",
         body: form,
       });
       const body = await res.json();
       if (!res.ok || !body.ok) {
-        // A plan-quota refusal is the one upload failure with a localized
-        // message: the talent should read this in their own language.
         if (body.errorCode === "limit_reached") {
           setQuotaNotice(null);
-          throw new Error(
-            translateOr(t, "dashboard.mediaPicker.quotaLimitReached", body.error),
-          );
+          return {
+            ok: false,
+            error: translateOr(t, "dashboard.mediaPicker.quotaLimitReached", body.error),
+          };
         }
-        throw new Error(body.error ?? `HTTP ${res.status}`);
+        return { ok: false, error: body.error ?? `HTTP ${res.status}` };
       }
       setQuotaNotice(
         body.quotaWarning
@@ -242,48 +230,55 @@ export function MediaPickerDrawer({
           : null,
       );
       setQuota(advanceMediaQuota); // the photo that just landed counts
-      return body.item as MediaLibraryWireItem;
-    }
+      return { ok: true, registered: body.item, publicUrl: body.item?.publicUrl };
+    },
+    [t, talentProfileId],
+  );
 
-    // MEDIA-1 — route by the file's kind so staff can add video/doc assets.
-    const uploadKind = detectUploadKind(file);
-    const fast = await uploadCmsMedia({ file, tenantId, kind: uploadKind });
-    if (fast.ok) return fast.item as MediaLibraryWireItem;
-    if (!fast.fallbackToLegacy) throw new Error(fast.error);
+  /**
+   * The shared engine (seam 3). This drawer used to upload strictly serially
+   * in a bare `for` loop with a single boolean `uploading` flag: a 20-file
+   * drop took 20 round trips end to end, and the first failure aborted the
+   * rest of the batch. The pool runs four at a time and isolates failures.
+   */
+  const uploader = useMediaUpload({
+    purpose: isTalentScope
+      ? { kind: "custom", transport: talentTransport }
+      : { kind: "cms", tenantId },
+    onItemReady: (staged) => {
+      const item = staged.registered as MediaLibraryWireItem | undefined;
+      if (!item) return;
+      library.prependItem(item);
+      if (multi) setSelection((prev) => addToSelection(prev, item));
+    },
+  });
 
-    const form = new FormData();
-    form.set("tenantId", tenantId);
-    form.set("kind", uploadKind);
-    form.set("file", file);
-    const res = await fetch("/api/admin/media/upload", {
-      method: "POST",
-      body: form,
-    });
-    const body = await res.json();
-    if (!res.ok || !body.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-    return body.item as MediaLibraryWireItem;
-  }
-
-  async function handleUpload(files: File[]) {
-    setUploading(true);
-    setUploadError(null);
-    let last: MediaLibraryWireItem | null = null;
-    try {
-      for (const file of files) {
-        const item = await uploadOne(file);
-        library.prependItem(item);
-        last = item;
-        if (multi) setSelection((prev) => addToSelection(prev, item));
+  const handleUpload = useCallback(
+    async (files: File[]) => {
+      setUploadError(null);
+      const finished = await uploader.upload(files);
+      const failed = finished.filter((it) => it.status === "error");
+      if (failed.length > 0) {
+        setUploadError(
+          failed
+            .map((it) => `${it.file.name}: ${it.errorMsg ?? "failed"}`)
+            .join(" · ")
+            .slice(0, 200),
+        );
       }
       // Single-select: a drop of one file is a pick. A drop of several with
       // nowhere to put them stays in the grid rather than picking at random.
-      if (!multi && last && files.length === 1) pickItem(last);
-    } catch (e) {
-      setUploadError(String(e).slice(0, 200));
-    } finally {
-      setUploading(false);
-    }
-  }
+      const ready = finished.filter((it) => it.status === "ready");
+      if (!multi && files.length === 1 && ready.length === 1) {
+        const item = ready[0]!.registered as MediaLibraryWireItem | undefined;
+        if (item) pickItem(item);
+      }
+      uploader.reset();
+    },
+    [multi, pickItem, uploader],
+  );
+
+  const uploading = uploader.uploading;
 
   const lockNoteFor = useCallback(
     (item: MediaLibraryWireItem): string | null => {
@@ -348,7 +343,7 @@ export function MediaPickerDrawer({
   );
 
   return (
-    // PORTALED. Every inspector-hosted trigger (`MediaPickerButton`, the image
+    // PORTALED. Every inspector-hosted trigger (`MediaField`, the image
     // node's Replace) renders this drawer INSIDE the inspector panel, and that
     // panel is a `FloatingPanelShell`: it carries a drag `transform` and
     // `overflow: hidden`. Per spec the transform makes it the containing block

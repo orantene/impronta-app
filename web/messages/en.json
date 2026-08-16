@@ -10983,6 +10983,19 @@
       "quotaLimitReached": "You have reached your plan photo limit. Remove a few photos you no longer need, or upgrade your plan to add more.",
       "quotaApproachingLimit": "You have room for {count} more photos on your plan. Remove photos you no longer need, or upgrade for more space."
     },
+    "mediaField": {
+      "pickerTitle": "Media library",
+      "add": "Add",
+      "replace": "Replace",
+      "change": "Change",
+      "clear": "Clear",
+      "pasteUrl": "Paste URL",
+      "hideUrl": "Hide URL",
+      "dropToUpload": "Drop to upload",
+      "uploading": "Uploading",
+      "uploadFailed": "Upload failed",
+      "loadingDimensions": "Loading dimensions..."
+    },
     "mediaLibrary": {
       "searchPlaceholder": "Search by file name, alt text or note",
       "searchLabel": "Search the media library",

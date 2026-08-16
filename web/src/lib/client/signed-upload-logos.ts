@@ -15,6 +15,7 @@ import {
   SVG_LIBRARY_MAX_BYTES,
   SVG_MIME,
   putToSignedUrl,
+  uploadProgressReporter,
   type FailureResult,
   type SignedUploadProgress,
 } from "@/lib/client/signed-upload-core";
@@ -97,7 +98,11 @@ export async function uploadAgencyLogo(opts: {
     bytesTotal: compressed.file.size,
     compression: compressed,
   });
-  const putOk = await putToSignedUrl(signed.uploadUrl, compressed.file);
+  const putOk = await putToSignedUrl(
+    signed.uploadUrl,
+    compressed.file,
+    uploadProgressReporter(opts.onProgress, compressed),
+  );
   if (!putOk.ok) {
     return { ok: false, fallbackToLegacy: false, error: putOk.error };
   }
@@ -191,7 +196,11 @@ export async function uploadTalentMaxSiteLogo(opts: {
     bytesTotal: compressed.file.size,
     compression: compressed,
   });
-  const putOk = await putToSignedUrl(grant.uploadUrl, compressed.file);
+  const putOk = await putToSignedUrl(
+    grant.uploadUrl,
+    compressed.file,
+    uploadProgressReporter(opts.onProgress, compressed),
+  );
   if (!putOk.ok) {
     return { ok: false, fallbackToLegacy: false, error: putOk.error };
   }
@@ -256,7 +265,11 @@ export async function uploadBrandingMedia(opts: {
     bytesTotal: compressed.file.size,
     compression: compressed,
   });
-  const putOk = await putToSignedUrl(signed.uploadUrl, compressed.file);
+  const putOk = await putToSignedUrl(
+    signed.uploadUrl,
+    compressed.file,
+    uploadProgressReporter(opts.onProgress, compressed),
+  );
   if (!putOk.ok) {
     return { ok: false, fallbackToLegacy: false, error: putOk.error };
   }

@@ -209,7 +209,12 @@ const BUDGETS: Record<string, number> = {
   //   +6   uploadPurpose derivation + the early branch in processFiles
   //   +22  the comments explaining why the branch must precede the roster
   //        load, and what the lane split means
-  "src/components/admin/shell/internal/media-page.tsx": 3012,
+  // 2026-08-16 media rebuild seam 3: -75. The staging model, the
+  // concurrency-4 worker pool, the zip/SVG file-preparation rules and the
+  // signed-then-legacy ladder moved to `lib/media/use-media-upload.ts` +
+  // `lib/media/media-upload-engine.ts`, where the picker drawer and the
+  // branding manager share them. Locked in rather than left as headroom.
+  "src/components/admin/shell/internal/media-page.tsx": 2937,
   // 2026-08-15 notification page-targets — +7: `NotificationItem.targetHref`,
   // set when a notification's real destination is a routed page rather than a
   // drawer (payout reversals → /talent/payouts, roster applications →
