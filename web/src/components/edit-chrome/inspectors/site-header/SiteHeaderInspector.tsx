@@ -52,9 +52,12 @@ import type {
   SiteHeaderNavItemInput,
 } from "@/lib/site-admin/site-header/types";
 
+import type { HeaderRegions } from "@/lib/site-admin/sections/site_header/regions-editing";
+
 import { BrandTab } from "./tabs/BrandTab";
 import { LayoutTab } from "./tabs/LayoutTab";
 import { NavigationTab } from "./tabs/NavigationTab";
+import { RegionsTab } from "./tabs/RegionsTab";
 
 // 2026-04-30 — Tab IA reduction (6 → 3).
 //
@@ -70,12 +73,21 @@ import { NavigationTab } from "./tabs/NavigationTab";
 //   - Brand: identity + visuals + colors + typography (the "who" of the bar)
 //   - Layout: composition + surface + mobile + behavior (the "how" of the bar)
 //   - Navigation: links list (its own surface — it's a list editor)
-type TabKey = "brand" | "navigation" | "layout";
+//
+// 2026-08-16 (WF-6) — a fourth tab, "Arrange".
+//
+// Layout owns the bar's STYLE (which preset, how dense, what surface).
+// Arrange owns WHERE each piece sits: the `regions` value the WF-5 renderer
+// has been able to read since it shipped, and that nothing wrote until now.
+// Keeping them apart matches the two questions operators actually ask, and
+// keeps the paid gate on one tab instead of scattered through Layout.
+type TabKey = "brand" | "navigation" | "layout" | "regions";
 
 const TAB_DEFS: Array<{ key: TabKey; label: string }> = [
   { key: "brand", label: "Brand" },
   { key: "layout", label: "Layout" },
   { key: "navigation", label: "Navigation" },
+  { key: "regions", label: "Arrange" },
 ];
 
 export type SaveStatus =
@@ -130,6 +142,12 @@ export interface SiteHeaderPatch {
       mobileMenuStyle?: string | null;
     } | null;
   }) => void;
+  /**
+   * WF-6 — replace the freeform zone layout. `null` clears it, putting the
+   * header back on its variant's preset layout. Renderer-driven, so it rides
+   * the same section save + shell re-bake + refresh as `patchSection`.
+   */
+  patchRegions: (regions: HeaderRegions | null) => void;
 }
 
 export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
@@ -631,6 +649,20 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
       );
       enqueueSection(input as Record<string, unknown>);
     },
+    patchRegions: (regions) => {
+      captureUndo();
+      // Optimistic so drag-reorder feels immediate; the canvas catches up on
+      // the refresh that follows the section save.
+      setConfig((prev) =>
+        prev && prev.section
+          ? { ...prev, section: { ...prev.section, regions } }
+          : prev,
+      );
+      // 80ms rather than the 450ms text window: every regions gesture is a
+      // discrete "put it there" click, and there is nothing to coalesce.
+      enqueueSection({ regions });
+      scheduleFlush(80);
+    },
   };
 
   // Undo handler — rebuilds the previous config via the same patch
@@ -790,6 +822,8 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
           <BrandTab config={config} patch={patch} tenantId={tenantId} />
         ) : tab === "navigation" ? (
           <NavigationTab config={config} patch={patch} />
+        ) : tab === "regions" ? (
+          <RegionsTab config={config} patch={patch} />
         ) : (
           <LayoutTab config={config} patch={patch} />
         )}
