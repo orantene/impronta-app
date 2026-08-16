@@ -744,7 +744,7 @@ export function SiblingTopNPicker({
                 }}
                 title={
                   disabledForTenant
-                    ? copy.t("This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types.")
+                    ? copy.t("Your workspace doesn't offer this talent type, so it won't appear publicly. Categories are managed in Settings → Roster & profile fields → Categories on your site.")
                     : undefined
                 }
                 style={{

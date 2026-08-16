@@ -68,7 +68,7 @@ export function UnpublishableServicesNotice({
         {items.map((i) => i.label).join(" · ")}
         {" — "}
         {t(
-          "these stay on the profile and save normally, but won't appear publicly until the category is enabled in Settings → Roster → Talent types.",
+          "these stay on the profile and save normally, but won't appear publicly until the category is enabled in Settings → Roster & profile fields → Categories on your site.",
         )}
       </div>
     </div>
