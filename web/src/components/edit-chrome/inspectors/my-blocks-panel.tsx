@@ -18,6 +18,7 @@ import {
 import { useEditContext } from "../edit-context";
 import { useEditorLocale } from "../use-editor-locale";
 import { useSelectedBuilderNodeId } from "../selection-bridge";
+import { fetchFreshMasterSubtreeJson } from "./component-master-sync";
 import { KIT } from "./kit/tokens";
 
 export function MyBlocksPanel({
@@ -114,10 +115,19 @@ export function MyBlocksPanel({
     setBusy(true);
     setError(null);
     setNote(null);
-    const result = await syncComponentInstances(
+    // Sync from a FRESH server read of the master. The panel-state row can be
+    // a version behind (e.g. right after "Update master"), and syncing with it
+    // used to revert this page's instances to the pre-update content.
+    const freshJson = await fetchFreshMasterSubtreeJson(
       component.id,
-      JSON.stringify(component.subtree),
+      listBuilderComponents,
     );
+    if (!freshJson) {
+      setBusy(false);
+      setError(t("Couldn't load the latest master. Try again."));
+      return;
+    }
+    const result = await syncComponentInstances(component.id, freshJson);
     setBusy(false);
     if (!result.ok) {
       setError(result.error ?? t("Couldn't sync instances."));

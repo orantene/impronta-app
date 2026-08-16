@@ -310,6 +310,24 @@ const TALENT_PROFILE_APPROVED: CatalogEntry = {
     surface: "talent",
     title: () => "Your profile is approved",
     body: () => "It's now visible and discoverable to clients.",
+    // Destination = the Representation drawer. This notification fires from
+    // exactly one write: `setRosterTalentSiteVisibility` / `bulkSetWorkflowStatus`
+    // setting `agency_talent_roster.agency_visibility = 'site_visible'`. The
+    // Representation drawer is the talent-side surface that renders THAT column:
+    // it reads `bridgeTalentRepresentation` (loadRepresentation → the same
+    // roster rows) and resolves each workspace to a chip, where
+    // (active + site_visible + not hidden) → "live" → "Live". The `/talent/site`
+    // "Where you appear" panel shows the same data and its own Manage button
+    // opens this very drawer, so the drawer is the shorter path to the fact.
+    //
+    // Deliberately NOT `talent-profile-edit`: the profile EDITOR shows fields,
+    // never workflow or visibility state (MyProfilePage renders no approval or
+    // visibility indicator at all), so it would look plausible and show nothing.
+    //
+    // Reachable from anywhere on the talent surface: `talentRepresentation` is
+    // loaded in the talent layout, not per-page, so the drawer is never empty
+    // because of where the bell was clicked.
+    targetDrawer: "representation",
   },
   email: {
     templateId: "talent.profile_approved",

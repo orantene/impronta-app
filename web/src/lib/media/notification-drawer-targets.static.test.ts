@@ -25,6 +25,12 @@
  * the ternary in `mention-notify.ts` returns literals that appear elsewhere in
  * the file and are caught anyway.
  *
+ *   4. Separately, walk `NOTIFICATION_CATALOG` and fail any `in_app` entry that
+ *      MUST be clickable but declares no `targetDrawer` at all. The source scan
+ *      is blind to that case — an emitter with no `targetDrawer:` literal emits
+ *      nothing for the regex to find — and it is exactly how the profile-approved
+ *      and review-received rows shipped with `target_drawer = NULL`.
+ *
  * There is NO allow-list. `money`, `roster-applications` and `talent-reach`
  * used to sit in a `KNOWN_UNRESOLVED_OUT_OF_SCOPE` set here — three real
  * notifications that opened the stub. They now resolve to page targets and the
@@ -228,6 +234,109 @@ test("notificationDrawerFields hands page targets to the caller as an href", () 
   assert.equal(drawer.targetDrawer, "media-releases");
   assert.equal(drawer.targetHref, undefined);
   assert.equal(drawer.targetPayload?.inquiryId, "inq-1");
+});
+
+test("profile-approved lands on Representation, the surface that renders the changed column", () => {
+  // `talent.profile_approved` fires from ONE write:
+  // `agency_talent_roster.agency_visibility = 'site_visible'`. The Representation
+  // drawer is the talent-side reader of that exact column.
+  const target = drawerTarget("representation");
+  assert.equal(target.drawerId, "representation");
+  assert.ok(drawerCaseIds().has("representation"));
+
+  // Not the profile EDITOR: it renders fields, never workflow/visibility state,
+  // so it would look plausible and show nothing about the approval.
+  assert.notEqual(target.drawerId, "talent-profile-edit");
+
+  // Drawer, not page — the click must call openDrawer(), not navigate.
+  const fields = notificationDrawerFields("representation", null, "/impronta/admin");
+  assert.equal(fields.targetDrawer, "representation");
+  assert.equal(fields.targetHref, undefined);
+});
+
+test("review-received lands on the talent Reviews page, host-local", () => {
+  const target = pageTarget("talent-reviews");
+  assert.equal(target.surface, "talent");
+  assert.equal(target.path, "/talent/reviews");
+
+  // Host-local, like every other talent page target.
+  assert.equal(notificationTargetHref(target, "/admin"), "/talent/reviews");
+  assert.equal(notificationTargetHref(target, "/impronta/admin"), "/talent/reviews");
+
+  // NOT the workspace staff moderation queue — a talent cannot open it, and it
+  // stays a DRAWER target for the admin-side notification that emits it.
+  const moderation = resolveNotificationDrawerTarget("reviews-moderation");
+  assert.ok(moderation && moderation.kind === "drawer", "reviews-moderation is a drawer target");
+  assert.equal(moderation.drawerId, "reviews-moderation");
+});
+
+/**
+ * The catalog half of the guard.
+ *
+ * The scan above only proves that the strings which ARE emitted resolve. It
+ * cannot see an emitter that sets no `targetDrawer` at all — which is exactly
+ * how "Your profile is approved" and "You received a review from a client"
+ * shipped: five and one production rows respectively, rendering and marking
+ * read, with `target_drawer = NULL` so the click did nothing.
+ *
+ * Scoping matters here. A blanket "every talent-surface in_app entry needs a
+ * destination" rule would be FALSE POSITIVES today: several entries legitimately
+ * have none (e.g. `roster.join_rejected.talent` — nothing to open when the
+ * answer is no; the two client review-request entries, whose only destination is
+ * a tokenized external review form, not an in-app surface). So the rule is
+ * narrowed to the one kind where a destination always exists — `profile`, which
+ * by definition is about the talent's own profile — plus an explicit pin per
+ * entry id for the two fixed here.
+ */
+const REQUIRED_IN_APP_DESTINATION: Readonly<Record<string, string>> = {
+  "talent.profile_approved": "representation",
+  "review.received.talent": "talent-reviews",
+};
+
+test("in_app entries that must be clickable declare a resolvable targetDrawer", async () => {
+  const { NOTIFICATION_CATALOG } = await import("@/lib/notifications/catalog");
+  const cases = drawerCaseIds();
+
+  const missing: string[] = [];
+  for (const entry of NOTIFICATION_CATALOG) {
+    const cfg = entry.in_app;
+    if (!cfg) continue;
+
+    const pinned = REQUIRED_IN_APP_DESTINATION[entry.id];
+    // `kind: "profile"` is the generalizing arm: a new profile-kind emitter that
+    // forgets a destination fails here without anyone updating the pin list.
+    const mustHaveTarget = pinned !== undefined || cfg.kind === "profile";
+    if (!mustHaveTarget) continue;
+
+    if (!cfg.targetDrawer) {
+      missing.push(`"${entry.id}" (kind "${cfg.kind}") sets no targetDrawer`);
+      continue;
+    }
+    if (pinned !== undefined && cfg.targetDrawer !== pinned) {
+      missing.push(`"${entry.id}" emits "${cfg.targetDrawer}", pinned to "${pinned}"`);
+      continue;
+    }
+    const resolved = resolveNotificationDrawerTarget(cfg.targetDrawer);
+    assert.ok(resolved, `"${entry.id}" → "${cfg.targetDrawer}" resolved to null`);
+    if (resolved.kind === "drawer" && !cases.has(resolved.drawerId)) {
+      missing.push(`"${entry.id}" → "${resolved.drawerId}" has no case in DrawerSwitch`);
+    }
+  }
+
+  assert.deepEqual(
+    missing,
+    [],
+    `These in-app notifications would render an un-clickable row:\n  ${missing.join("\n  ")}`,
+  );
+
+  // The pins must still correspond to live entries — a renamed entry id would
+  // otherwise silently drop its guard.
+  for (const id of Object.keys(REQUIRED_IN_APP_DESTINATION)) {
+    assert.ok(
+      NOTIFICATION_CATALOG.some((e) => e.id === id),
+      `catalog entry "${id}" no longer exists — retire or repoint its pin`,
+    );
+  }
 });
 
 test("no targetDrawer emission is left unresolved by an allow-list", () => {

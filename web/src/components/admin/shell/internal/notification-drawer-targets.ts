@@ -114,6 +114,19 @@ export const NOTIFICATION_PAGE_TARGETS: Readonly<Record<string, NotificationPage
   // changes.
   "talent-reach": { kind: "page", surface: "talent", path: "/talent/money" },
 
+  // lib/notifications/catalog-entries-reviews.ts — "You received a review from
+  // a client" (review.published → the talent). `/talent/reviews` is a real
+  // first-class talent route: it renders `TalentPageRouteSyncer page="reviews"`
+  // → `talent.tsx case "reviews"` → `ReviewsPage`, which loads the talent's own
+  // received reviews through `loadOwnerReceivedReviewsAction` and shows the
+  // standing header + per-review reply/report. NOT a redirect hop: unlike
+  // `reach`, `talentPageToSegment()` maps reviews → "reviews" one-to-one.
+  //
+  // Deliberately NOT the `reviews-moderation` drawer: that is the WORKSPACE
+  // staff moderation queue (emitted by lib/reviews/review-actions.ts for
+  // admins), and a talent has no access to it.
+  "talent-reviews": { kind: "page", surface: "talent", path: "/talent/reviews" },
+
   // lib/talent/apply-actions.ts — "New roster application" to workspace staff.
   // Real tenant-scoped page: it lists pending + decided applications and wires
   // approve/reject to `decideTalentApplication`. Relative to `adminBasePath`

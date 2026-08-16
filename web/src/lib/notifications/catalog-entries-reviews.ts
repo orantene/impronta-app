@@ -150,6 +150,13 @@ const REVIEW_RECEIVED: CatalogEntry = {
     surface: "talent",
     title: () => "You received a review from a client",
     body: () => "Open your Reviews page to read it in full and reply.",
+    // Destination = the talent Reviews PAGE, resolved through
+    // NOTIFICATION_PAGE_TARGETS["talent-reviews"]. The body already tells the
+    // talent to open their Reviews page and the email CTA already points at
+    // `/talent/reviews`; the bell row was the only half with nowhere to go.
+    // There is no reviews DRAWER on the talent surface — `reviews-moderation`
+    // is the workspace staff queue — so a page target is the honest shape.
+    targetDrawer: "talent-reviews",
   },
   email: {
     templateId: "review.received",

@@ -37,6 +37,10 @@ import {
   type MediaGrantBustKey,
   type MediaGrantResult,
 } from "./media-grants-shared";
+import {
+  recordFailedReleaseBakes,
+  resolveReleaseBakeFailuresForRevoke,
+} from "./media-release-bake-failures";
 import { loadPendingReleaseAssetIds } from "./media-release-withdraw";
 
 // ─── 2. The talent asks (writes the SUBJECT key) ────────────────────────────
@@ -459,14 +463,27 @@ export async function decideMediaReleaseRequest(
  *
  * Rolling the failed assets out of the approval makes the stored state match
  * what is actually servable: the photos that baked stay released, the ones that
- * did not are simply not released, and staff get told which. Re-approving after
- * fixing the cause is the retry — grants are insert-on-approve, so nothing has
- * to be cleaned up first.
+ * did not are simply not released, and staff get told which.
+ *
+ * THE ROLLBACK IS ALSO THE ENQUEUE. This is the ONE code path that knows a
+ * missing owner key means "the bake failed" rather than "staff pulled it", so
+ * it is the only writer of `media_release_bake_failures`. Recording here rather
+ * than in the action wrapper is what makes the stored grant state and the
+ * repair queue impossible to disagree: the same call rolls the photo out and
+ * puts it on the list of things to put back.
+ *
+ * The queue write happens FIRST and never throws. If the grant revoke below
+ * fails, an extra pending repair row is a retry that finds nothing to do; if
+ * the queue write were skipped after a successful revoke, the photo would go
+ * back to being invisible with nothing tracking it — the exact state this
+ * whole rail exists to end.
  */
 export async function rollBackFailedReleaseBakes(
   admin: SupabaseClient,
   input: {
     tenantId: string;
+    /** The approval the failed photos rode in on — the repair's queue key. */
+    requestId: string;
     assetIds: readonly string[];
     targetTenantId: string | null;
     talentProfileId: string;
@@ -474,6 +491,14 @@ export async function rollBackFailedReleaseBakes(
   },
 ): Promise<number> {
   if (input.assetIds.length === 0) return 0;
+
+  await recordFailedReleaseBakes(admin, {
+    tenantId: input.tenantId,
+    requestId: input.requestId,
+    talentProfileId: input.talentProfileId,
+    targetTenantId: input.targetTenantId,
+    assetIds: input.assetIds,
+  });
 
   const affected = selectGrantsToRevoke(
     await loadActiveGrants(admin, input.assetIds),
@@ -615,6 +640,21 @@ export async function revokeMediaRelease(
   }
 
   const revokedAssetIds = [...new Set(affected.map((g) => g.asset_id))];
+
+  // A revoke is a DELIBERATE takedown, so it closes any outstanding watermark
+  // repairs it covers instead of leaving them on the queue. Without this, a
+  // partial approval that left photo B pending repair would keep offering a
+  // one-click retry that re-releases B after staff ended the very release it
+  // belongs to. Scoped by the same target rule the grants just used, and
+  // deliberately covering ALL the assets the caller named rather than only the
+  // ones with a live grant — a repair row exists precisely because its asset
+  // has no live grant to find.
+  await resolveReleaseBakeFailuresForRevoke(admin, {
+    tenantId: input.tenantId,
+    assetIds: ownedIds,
+    targetTenantId: target,
+  });
+
   await logGrantActivity(admin, input.tenantId, revokedAssetIds, "grant.release_revoked", {
     talent_profile_id: input.talentProfileId,
     actor_user_id: input.actorUserId,

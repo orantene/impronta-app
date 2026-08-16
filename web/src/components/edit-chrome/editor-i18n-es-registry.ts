@@ -186,4 +186,15 @@ export const ES_BUILDER_REGISTRY_TEXT: Record<string, string> = {
     '"{name}" aún no tiene instancias en esta página.',
   "Couldn't open the master for editing.":
     "No se pudo abrir el maestro para editarlo.",
+  // ── Instance staleness (feat/component-instance-sync, 2026-08-15) ────────
+  "Published pages always show the latest master. Each page's editor keeps its own copy; Sync refreshes it.":
+    "Las páginas publicadas siempre muestran el maestro más reciente. El editor de cada página guarda su propia copia; sincroniza para actualizarla.",
+  "{count} out of date on this page": "{count} desactualizada(s) en esta página",
+  "The master changed since these were placed. Published pages already show the latest; Sync updates this page's editor view.":
+    "El maestro cambió desde que se colocaron. Las páginas publicadas ya muestran lo último; sincroniza para actualizar la vista del editor en esta página.",
+  "Sync this page": "Sincronizar esta página",
+  "Refresh this page's instances from the latest master":
+    "Actualizar las instancias de esta página desde el maestro más reciente",
+  "Couldn't load the latest master. Try again.":
+    "No se pudo cargar el maestro más reciente. Inténtalo de nuevo.",
 };
