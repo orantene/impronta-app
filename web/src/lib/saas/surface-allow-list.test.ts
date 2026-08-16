@@ -503,6 +503,27 @@ test("public embed loader + roster widget reachable on every host kind (partner 
   assert.equal(isPathAllowedForHostKind("marketing", "/embed.jsz"), false);
 });
 
+test("gated media reads (P0-1) reachable on every host kind, scoped to /api/media/asset", () => {
+  // Host-agnostic on purpose: the surface a photo is requested FOR is HMAC-
+  // signed into the URL, not inferred from the Host, so a tenant reached at
+  // tulala.digital/<slug> and a next/image server-side refetch both evaluate
+  // against the right surface. The real gate is the two-key predicate inside
+  // the route; the whole route 404s while MEDIA_PRIVATE_ACCESS_ENABLED is off.
+  for (const kind of ["agency", "app", "hub", "marketing"] as const) {
+    assert.equal(
+      isPathAllowedForHostKind(kind, "/api/media/asset/0d1c2b3a-0000-0000-0000-000000000000"),
+      true,
+      kind,
+    );
+    // The staff-only bake route keeps EXACTLY the reachability it had before
+    // P0-1: the allow-list entry is `/api/media/asset`, never `/api/media`.
+    assert.equal(isPathAllowedForHostKind(kind, "/api/media/bake-watermark"), false, kind);
+  }
+  // Prefix safety: `/api/media/assetz` must not ride the `/api/media/asset` entry.
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/media/assetz"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/api/media"), false);
+});
+
 test("team-invite + template-preview reachable on agency + app workspace hosts", () => {
   assert.equal(isPathAllowedForHostKind("agency", "/team-invite/abc123"), true);
   assert.equal(isPathAllowedForHostKind("app", "/team-invite/abc123"), true);

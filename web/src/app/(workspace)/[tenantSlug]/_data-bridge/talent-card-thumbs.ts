@@ -2,6 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { gatedMediaPath, type MediaSurface } from "@/lib/media/private-access";
+
 /**
  * _data-bridge/talent-card-thumbs.ts — batch-resolve a public card-thumbnail
  * URL per talent from media_assets.
@@ -48,6 +50,37 @@ export function mediaPublicUrl(client: SupabaseClient, storagePath: string): str
     : client.storage.from(BUCKET).getPublicUrl(storagePath).data.publicUrl;
 }
 
+/**
+ * THE one place a rendered media URL is chosen (P0-1).
+ *
+ * With `MEDIA_PRIVATE_ACCESS_ENABLED` off — production today — this is
+ * `mediaPublicUrl()` and nothing else: same string, same characters. With it
+ * on, and only for callers that know which surface is asking, the URL points
+ * at `/api/media/asset/<id>`, where the two-key predicate and the watermark
+ * condition are re-run per request before any bytes are handed over.
+ *
+ * `surface === undefined` means "the caller does not know the surface" — the
+ * workspace-internal thumb callers (`loadTalentCardThumbs`, admin bridges) are
+ * in that position, and gating them against the wrong surface would blank the
+ * admin UI. They keep the public URL. See the PR body for the covered-surface
+ * table; widening it is a follow-up, not an accident.
+ *
+ * Absolute (`http…`) and root-relative (`/…`) paths are never gated: they are
+ * seeded avatars and bundled `public/` demo portraits, not storage objects —
+ * there is no private byte to protect and nothing to sign.
+ */
+export function mediaUrlForAsset(
+  client: SupabaseClient,
+  input: { assetId: string; storagePath: string; surface?: MediaSurface },
+): string {
+  const { assetId, storagePath, surface } = input;
+  if (surface === undefined) return mediaPublicUrl(client, storagePath);
+  if (storagePath.startsWith("http") || storagePath.startsWith("/")) {
+    return mediaPublicUrl(client, storagePath);
+  }
+  return gatedMediaPath(assetId, surface) ?? mediaPublicUrl(client, storagePath);
+}
+
 /** One ranked face candidate. `id` is what phase 3's two-key filter needs. */
 export type TalentThumbCandidate = {
   id: string;
@@ -81,17 +114,27 @@ export async function loadTalentCardThumbCandidates(
   return (data ?? []) as unknown as TalentThumbCandidate[];
 }
 
-/** Rank-reduce candidates to one URL per talent. Pure; shared by both paths. */
+/**
+ * Rank-reduce candidates to one URL per talent. Pure; shared by both paths.
+ *
+ * `surface` is threaded, not defaulted: omitting it (every pre-P0-1 caller)
+ * yields the public URL exactly as before, while the hub resolver — which does
+ * know the surface — can opt into the gated route.
+ */
 export function pickBestThumbs(
   client: SupabaseClient,
   candidates: readonly TalentThumbCandidate[],
+  surface?: MediaSurface,
 ): Map<string, string> {
   const out = new Map<string, string>();
   const bestRank = new Map<string, number>();
   for (const m of candidates) {
     const rank = THUMB_RANK[m.variant_kind] ?? 99;
     if (rank < (bestRank.get(m.owner_talent_profile_id) ?? 99)) {
-      out.set(m.owner_talent_profile_id, mediaPublicUrl(client, m.storage_path));
+      out.set(
+        m.owner_talent_profile_id,
+        mediaUrlForAsset(client, { assetId: m.id, storagePath: m.storage_path, surface }),
+      );
       bestRank.set(m.owner_talent_profile_id, rank);
     }
   }

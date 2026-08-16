@@ -538,3 +538,117 @@ test("the watermark predicate is asked about the SAME surface as the two-key one
   const surfaces = new Set(rpcCalls.map((c) => c.args.p_tenant_id));
   assert.deepEqual([...surfaces], [null], "the master surface must not leak a tenant id");
 });
+
+// ─── 6. P0-1 — gated media URLs ─────────────────────────────────────────────
+
+const PRIVATE_FLAG = "MEDIA_PRIVATE_ACCESS_ENABLED";
+const SIGNING_SECRET = "MEDIA_URL_SIGNING_SECRET";
+
+/**
+ * AWAITS before restoring. The URL is minted deep inside the resolver, well
+ * after the first `await`, so the synchronous `withFlag` shape above would put
+ * the env back before the code under test ever read it — and the test would
+ * pass by measuring nothing.
+ */
+async function withPrivateAccess<T>(
+  value: string | undefined,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const prevFlag = process.env[PRIVATE_FLAG];
+  const prevSecret = process.env[SIGNING_SECRET];
+  if (value === undefined) delete process.env[PRIVATE_FLAG];
+  else process.env[PRIVATE_FLAG] = value;
+  process.env[SIGNING_SECRET] = "test-secret-do-not-ship";
+  try {
+    return await fn();
+  } finally {
+    if (prevFlag === undefined) delete process.env[PRIVATE_FLAG];
+    else process.env[PRIVATE_FLAG] = prevFlag;
+    if (prevSecret === undefined) delete process.env[SIGNING_SECRET];
+    else process.env[SIGNING_SECRET] = prevSecret;
+  }
+}
+
+/** One curated face, resolved under a given private-access setting. */
+async function resolveWithPrivateAccess(
+  privateAccess: string | undefined,
+  surface: string | null,
+): Promise<Map<string, string>> {
+  const { client } = makeClient({
+    agency_talent_overlays: [{ talent_profile_id: TALENT, cover_media_asset_id: "a1" }],
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+  return withPrivateAccess(privateAccess, () =>
+    withFlag("1", () =>
+      withGrantsFlag("1", () => resolveTalentCardThumbsForHub(client, [TALENT], surface)),
+    ),
+  );
+}
+
+test("P0-1 flag OFF: the resolver still emits the public storage URL, unchanged", async () => {
+  // The ship-safety guarantee, pinned. Anything else here is a live incident.
+  assert.equal(
+    (await resolveWithPrivateAccess(undefined, TENANT_A)).get(TALENT),
+    "https://cdn.test/d.jpg",
+  );
+  assert.equal(
+    (await resolveWithPrivateAccess("0", TENANT_A)).get(TALENT),
+    "https://cdn.test/d.jpg",
+  );
+  assert.equal(
+    (await resolveWithPrivateAccess(undefined, null)).get(TALENT),
+    "https://cdn.test/d.jpg",
+  );
+});
+
+test("P0-1 flag ON: the curated face routes through the gate, carrying its surface", async () => {
+  const url = (await resolveWithPrivateAccess("1", TENANT_A)).get(TALENT);
+  assert.ok(url?.startsWith("/api/media/asset/a1?"), url);
+  assert.ok(url?.includes(`s=${TENANT_A}`), url);
+});
+
+test("P0-1 flag ON, master surface: no tenant id rides in the URL", async () => {
+  const url = (await resolveWithPrivateAccess("1", null)).get(TALENT);
+  assert.ok(url?.startsWith("/api/media/asset/a1?"), url);
+  assert.ok(!url?.includes("s="), url);
+});
+
+test("P0-1: the gated URL carries the ORIGINAL id, so watermarking stays per-request", async () => {
+  // The derivative path is deliberately NOT baked into the URL: the route
+  // re-runs the same policy for the same surface, so un-ticking the condition
+  // (or revoking the release) takes effect on the next request.
+  const { client } = makeClient(
+    {
+      media_assets: [
+        { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+        {
+          id: "wm1",
+          source_media_asset_id: "a1",
+          storage_path: "wm/a1.jpg",
+          variant_kind: "watermarked",
+        },
+      ],
+    },
+    { watermarkRequired: ["a1"] },
+  );
+  const out = await withPrivateAccess("1", () =>
+    withGrantsFlag("1", () => resolveTalentCardThumbsForHub(client, [TALENT], TENANT_B)),
+  );
+  const url = out.get(TALENT);
+  assert.ok(url?.startsWith("/api/media/asset/a1?"), url);
+  assert.ok(!url?.includes("wm1"), "the derivative id must not be what the browser asks for");
+});
+
+test("P0-1 is subordinate to enforcement: with two-key OFF nothing is gated", async () => {
+  const { client } = makeClient({
+    media_assets: [
+      { id: "a1", owner_talent_profile_id: TALENT, storage_path: "d.jpg", variant_kind: "card" },
+    ],
+  });
+  const out = await withPrivateAccess("1", () =>
+    withGrantsFlag(undefined, () => resolveTalentCardThumbsForHub(client, [TALENT], TENANT_A)),
+  );
+  assert.equal(out.get(TALENT), "https://cdn.test/d.jpg");
+});
