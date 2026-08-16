@@ -27,6 +27,7 @@ import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-
 import { isBuilderClientCanvasEnabled } from "@/lib/site-admin/edit-mode/client-canvas-flag";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { StorefrontBodyCanvas } from "@/components/edit-chrome/storefront-body-canvas";
+import { StorefrontBodyServerMarker } from "@/components/edit-chrome/storefront-body-server-marker";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import { userHasCapability } from "@/lib/access";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
@@ -346,6 +347,15 @@ export default async function CmsPublicPage({
           <BuilderNodeRendererStyles kinds={collectPresentNodeKinds(blocks)} />
           <BuilderNodeFontLinks nodes={blocks} />
           <main id="main-content" className="w-full flex-1" data-theme-canvas-root="">
+            {/* Stale-body fix (2026-08-15): when edit mode is active but the
+                body canvas did NOT mount (flag off / capability gate), the body
+                below is a SERVER render. Announce it so the in-editor region
+                (a) does not paint the same tree again below the footer and
+                (b) does not mount the ClientBuilderCanvas whose mount count
+                suppressed the per-edit refresh that keeps THIS render fresh. */}
+            {editModeActive && !mountBodyCanvas ? (
+              <StorefrontBodyServerMarker />
+            ) : null}
             {mountBodyCanvas && editCanvasRenderData ? (
               // EDIT MODE — the live client canvas (see the wave-2 comment at the
               // gate above). Renderer styles/fonts stay server-emitted at page
