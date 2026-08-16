@@ -194,6 +194,7 @@ function WorkspaceSidebarShell() {
     overviewMetrics,
     tenantSlug,
     adminBasePath,
+    bridgeSessionIdentity,
   } = useAdminShell();
   const copy = useDashboardText();
   const router = useRouter();
@@ -249,9 +250,11 @@ function WorkspaceSidebarShell() {
         // Form submissions. This surface had NO in-app route at all — the only
         // way in was a link inside a notification email, so a tenant who never
         // got (or deleted) that email could not reach their own enquiries.
-        // Owner-gated to mirror the page's `manage_billing` capability check:
-        // showing it to a manager would just route them into a 404.
-        ...(meetsRole(state.role, "owner")
+        //
+        // Gated on the SAME capability the page enforces (`manage_billing`),
+        // resolved server-side and passed through the bridge. Inferring it
+        // from `state.role` instead let the sidebar and the route disagree.
+        ...(bridgeSessionIdentity?.canManageBilling
           ? [{ label: "Forms", href: `${websiteBase}/forms` }]
           : []),
       ];
