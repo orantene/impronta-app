@@ -10947,6 +10947,24 @@
       "full": "No queda espacio. Elimina fotos que ya no necesites o mejora tu plan.",
       "forTalent": "{talent}: {used} de {cap} fotos usadas en su plan.",
       "forTalentUnlimited": "{talent} no tiene límite de fotos en su plan."
+    },
+    "talentPayoutAttention": {
+      "title": "Pagos que necesitan atención",
+      "reversedHeading": "Revertidos",
+      "failedHeading": "No se pudieron enviar",
+      "heldHeading": "En espera de liberación",
+      "reversedNote": "Este dinero se devolvió después de anularse el pago de la reserva. No llegará por sí solo. Contacta a tu agencia si crees que es un error.",
+      "failedNote": "No pudimos enviar estos pagos. Revisa que tus datos de cobro estén completos y contacta a tu agencia si siguen aquí.",
+      "heldNote": "No se pierde nada. Liberamos los pagos retenidos automáticamente en cuanto tus datos de cobro estén listos.",
+      "causeRefund": "Tras el reembolso del pago del cliente",
+      "causeDispute": "Tras la disputa del pago del cliente",
+      "causeCancelled": "Cancelado antes de enviarse",
+      "causeUnknown": "Motivo no registrado",
+      "bookingFallback": "Reserva",
+      "eventOn": "Evento {date}",
+      "updatedOn": "Actualizado {date}",
+      "legCountOne": "{count} pago",
+      "legCountOther": "{count} pagos"
     }
   },
   "admin": {

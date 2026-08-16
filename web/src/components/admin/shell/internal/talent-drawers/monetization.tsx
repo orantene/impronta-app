@@ -26,7 +26,7 @@ import { PayoutsShell } from "@/app/(workspace)/[tenantSlug]/talent/settings/pay
 // ─── Payouts ────────────────────────────────────────────────────
 
 export function TalentPayoutsDrawer() {
-  const { state, closeDrawer } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentPayoutAttention } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-payouts";
 
@@ -39,7 +39,7 @@ export function TalentPayoutsDrawer() {
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>}
     >
-      <PayoutsShell embedded selfLoad snapshot={null} loadError={null} heldPayouts={null} justReturned={false} justRefreshed={false} />
+      <PayoutsShell embedded selfLoad snapshot={null} loadError={null} payoutAttention={bridgeTalentPayoutAttention} justReturned={false} justRefreshed={false} />
     </DrawerShell>
   );
 }

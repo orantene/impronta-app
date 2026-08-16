@@ -166,7 +166,11 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/state/types.ts": 2747,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
-  "src/components/admin/shell/internal/state/context.tsx": 2345,
+  // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
+  // field (reversed/failed/held legs replacing the held-only totals). The type
+  // and every helper live in lib/payments/talent-payout-attention-types.ts;
+  // this file only carries the context field and its two exports.
+  "src/components/admin/shell/internal/state/context.tsx": 2347,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,
