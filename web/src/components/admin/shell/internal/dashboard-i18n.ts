@@ -3330,7 +3330,7 @@ const ES_TEXT: Record<string, string> = {
   "Booked as": "Se contrata como",
   "What clients book this person as. Pick the main one.": "Cómo lo contratan los clientes. Elige el principal.",
   "Change main service": "Cambiar el servicio principal",
-  "Disabled in your workspace.": "Desactivado en tu espacio.",
+  "Disabled in your workspace — it stays on this profile but isn't offered on your site.": "Desactivado en tu espacio: se mantiene en este perfil pero no se ofrece en tu sitio.",
   "Enable in Settings →": "Activar en Ajustes →",
   "Specialties under": "Especialidades de",
   "Loading current role…": "Cargando el rol actual…",

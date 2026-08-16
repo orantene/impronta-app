@@ -209,7 +209,7 @@ export function ServicesEditor({
                 className="text-admin-ink-muted"
               >
                 <span aria-hidden>⚠</span>
-                <span>{copy.t("Disabled in your workspace.")}</span>
+                <span>{copy.t("Disabled in your workspace — it stays on this profile but isn't offered on your site.")}</span>
                 {tenantSettingsHref ? (
                   <a
                     href={tenantSettingsHref}
