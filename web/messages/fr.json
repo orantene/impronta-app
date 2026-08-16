@@ -447,6 +447,10 @@
       "eventDateOptional": "Date de l'événement (facultatif)",
       "booking": "Réservation…",
       "confirmAndBook": "Confirmer et réserver · {price}"
+    },
+    "siteShellSurface": {
+      "title": "En-tête et pied de page du site",
+      "body": "Cet espace indique où apparaît le contenu de chaque page. Les modifications de l’en-tête et du pied de page s’appliquent à toutes les pages de votre site."
     }
   },
   "dashboard": {

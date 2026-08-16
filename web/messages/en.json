@@ -1302,6 +1302,10 @@
       "relativeMinuteOther": "{count} minutes ago",
       "relativeHourOne": "1 hour ago",
       "relativeHourOther": "{count} hours ago"
+    },
+    "siteShellSurface": {
+      "title": "Site header & footer",
+      "body": "This stand-in marks where each page’s content appears. Edits to the header and footer here apply to every page of your site."
     }
   },
   "dashboard": {
@@ -4967,7 +4971,8 @@
       "referrerDirect": "Direct / none",
       "topEmptyPages": "No page data for this period yet.",
       "topEmptyTalent": "No talent data for this period yet.",
-      "topEmptyReferrers": "No referrer data for this period yet."
+      "topEmptyReferrers": "No referrer data for this period yet.",
+      "siteShell": "Site header & footer"
     },
     "adminCardStudio": {
       "title": "Card Design",

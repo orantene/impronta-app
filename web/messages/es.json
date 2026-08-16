@@ -1302,6 +1302,10 @@
       "relativeMinuteOther": "hace {count} minutos",
       "relativeHourOne": "hace 1 hora",
       "relativeHourOther": "hace {count} horas"
+    },
+    "siteShellSurface": {
+      "title": "Encabezado y pie de página del sitio",
+      "body": "Este marcador indica dónde aparece el contenido de cada página. Los cambios que hagas aquí en el encabezado y el pie se aplican a todas las páginas de tu sitio."
     }
   },
   "dashboard": {
@@ -4967,7 +4971,8 @@
       "referrerDirect": "Directo / ninguno",
       "topEmptyPages": "Aún no hay datos de páginas para este periodo.",
       "topEmptyTalent": "Aún no hay datos de talent para este periodo.",
-      "topEmptyReferrers": "Aún no hay datos de referentes para este periodo."
+      "topEmptyReferrers": "Aún no hay datos de referentes para este periodo.",
+      "siteShell": "Encabezado y pie de página"
     },
     "adminCardStudio": {
       "title": "Diseño de tarjeta",

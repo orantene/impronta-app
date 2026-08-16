@@ -80,3 +80,40 @@ export function buildEditorPanelUrl({
   if (!base) return null;
   return `${base}/?edit=1&panel=${panel}`;
 }
+
+/**
+ * Canonical slug of the per-tenant `site_shell` row. `edit-path.ts` resolves
+ * BOTH `/__site_shell__` and `/p/__site_shell__` to ownership kind
+ * `site_shell`; we deep-link the `/p/` form because that catch-all route is the
+ * one that actually serves a body.
+ */
+export const SITE_SHELL_EDITOR_SLUG = "__site_shell__";
+
+/**
+ * Deep link to the SITE SHELL surface — the global header + footer shared by
+ * every page of the tenant's site.
+ *
+ * WHY THIS EXISTS (Lane 2 — reachability):
+ * the shell editor surface had NO entry point at all. `edit-chrome-mount.tsx`
+ * would mount the editor for a `site_shell` path once `ENABLE_SITE_SHELL_EDIT`
+ * was on, but nothing linked there and the `/p/*` route excluded system-owned
+ * rows — so flipping the flag mounted the editor chrome over a 404 body. This
+ * is the workspace-side way in.
+ *
+ * Returns `null` when no base URL resolves, so callers hide the affordance
+ * instead of opening a dead tab (same contract as `buildEditorPanelUrl`).
+ *
+ * NOTE: `?edit=1` does NOT by itself turn edit mode on — edit mode is a cookie
+ * set by the Edit FAB. The query param only selects which panel the chrome
+ * opens on first paint. This matches how every other editor deep link in this
+ * module behaves.
+ */
+export function buildSiteShellEditorUrl({
+  editorBaseUrl,
+}: {
+  editorBaseUrl: string | null | undefined;
+}): string | null {
+  const base = editorBaseUrl?.trim();
+  if (!base) return null;
+  return `${base}/p/${SITE_SHELL_EDITOR_SLUG}?edit=1&panel=sections`;
+}

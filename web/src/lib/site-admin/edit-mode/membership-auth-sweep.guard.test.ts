@@ -120,17 +120,30 @@ test("public CMS page: the draft reader is membership-scoped to the storefront's
     /\brequireStaff\s*\(\)/,
     "the draft-reader gate must not key on the global profiles.app_role — it hid a hybrid owner's own unpublished draft from them",
   );
-  // All three membership gates must be scoped: the two draft reads
-  // (generateMetadata + the freeform body) and the wave-2 edit-canvas mount
-  // (the body-hosted ClientBuilderCanvas re-proves the editor when the
-  // PUBLISHED read succeeded and the draft gate therefore never ran).
-  const hits = src.match(
+  // EVERY membership gate in this route must be scoped to publicScope.tenantId.
+  //
+  // This used to assert a magic count (3: the two draft reads in
+  // generateMetadata + the freeform body, and the wave-2 edit-canvas mount).
+  // A magic count is the wrong shape for this guard: it fails on any HONEST
+  // new gate and passes for a new UNSCOPED one as long as someone deletes a
+  // scoped gate to keep the total at 3. It now asserts the actual invariant —
+  // the number of pages.edit checks scoped to publicScope.tenantId equals the
+  // TOTAL number of pages.edit checks, so an unscoped gate fails immediately
+  // and adding a correctly-scoped gate needs no edit here.
+  const total = src.match(/userHasCapability\(\s*\n?\s*"agency\.site_admin\.pages\.edit"/g);
+  const scoped = src.match(
     /userHasCapability\(\s*\n?\s*"agency\.site_admin\.pages\.edit",\s*\n?\s*publicScope\.tenantId,?\s*\n?\s*\)/g,
   );
+  assert.ok(
+    (total?.length ?? 0) >= 3,
+    "expected at least the 3 known pages.edit gates (two draft reads + the edit-canvas mount) — did one get dropped?",
+  );
   assert.equal(
-    hits?.length,
-    3,
-    "all draft-reader / edit-canvas gates must check the capability against publicScope.tenantId",
+    scoped?.length ?? 0,
+    total?.length ?? 0,
+    "every draft-reader / edit-canvas gate must check the capability against " +
+      "publicScope.tenantId — an unscoped check lets a member of tenant A read " +
+      "tenant B's unpublished drafts on B's storefront",
   );
 });
 
