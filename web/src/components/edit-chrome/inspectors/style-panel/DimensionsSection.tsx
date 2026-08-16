@@ -38,6 +38,16 @@ export function DimensionsSection({
               collapsible
               storageKey={`style-panel:dimensions:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={false}
+              // D5 — field-level search keywords (see InspectorGroup).
+              searchTerms={[
+                "width",
+                "max width",
+                "min width",
+                "height",
+                "max height",
+                "min height",
+                "exact size",
+              ]}
             >
             <SegmentedField
               dataControl="maxWidth"

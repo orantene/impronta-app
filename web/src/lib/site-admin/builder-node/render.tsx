@@ -36,6 +36,16 @@ import {
 import { getBuilderIconDefinition } from "./icon-registry";
 import { resolveStyleTokenRef } from "./style-token-bindings";
 import {
+  GAP_BY_SIZE,
+  ICON_SIZE,
+  NODE_MAX_WIDTH,
+  NODE_RADIUS,
+  NODE_SPACING,
+  SPACER_BY_SIZE,
+  TEXT_SIZE_CLAMP,
+  TEXT_SIZE_CLAMP_PARAGRAPH,
+} from "./style-scales";
+import {
   applyComponentStyleDefaults,
   type ComponentStyleDefaults,
 } from "./component-style-defaults";
@@ -252,47 +262,10 @@ type NormalizedBuilderNodeRenderOptions = Required<
 
 const MAX_REPEAT_RENDER_DEPTH = 1;
 
-const GAP_BY_SIZE = {
-  s: "0.75rem",
-  m: "1.25rem",
-  l: "2rem",
-} as const;
-
-const SPACER_BY_SIZE = {
-  s: "1rem",
-  m: "2rem",
-  l: "3rem",
-} as const;
-
-const ICON_SIZE = {
-  sm: "1.25rem",
-  md: "2rem",
-  lg: "3rem",
-  xl: "4.5rem",
-} as const;
-
-const NODE_SPACING = {
-  none: "0",
-  s: "0.75rem",
-  m: "1.5rem",
-  l: "3rem",
-  xl: "6rem",
-} as const;
-
-const NODE_MAX_WIDTH = {
-  narrow: "420px",
-  reading: "680px",
-  wide: "960px",
-  full: "100%",
-} as const;
-
-const NODE_RADIUS = {
-  none: "0",
-  sm: "4px",
-  md: "8px",
-  lg: "16px",
-  pill: "999px",
-} as const;
+// The preset scales (GAP_BY_SIZE, SPACER_BY_SIZE, ICON_SIZE, NODE_SPACING,
+// NODE_MAX_WIDTH, NODE_RADIUS, TEXT_SIZE_CLAMP*) live in `./style-scales` so
+// the inspector's preset chips import the SAME values this renderer emits
+// (Inspector Reset P2 — replaces the field kit's text-parsed mirror).
 
 const NODE_ASPECT_RATIO = {
   auto: undefined,
@@ -886,14 +859,14 @@ const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--code{display:block;width:100%;max-width:100%;margin:0 auto;border:0;background:transparent;box-sizing:border-box}
 .site-builder-node--rich-text{width:100%;max-width:100%;font-family:var(--site-body-font,inherit)}
 .site-builder-node--rich-text .site-link{color:inherit;text-decoration:underline;text-underline-offset:0.16em}
-.site-builder-node[data-builder-style-size="sm"]{font-size:clamp(0.9rem,1vw,1rem)}
-.site-builder-node[data-builder-style-size="md"]{font-size:clamp(1rem,1.3vw,1.25rem)}
-.site-builder-node[data-builder-style-size="lg"]{font-size:clamp(1.35rem,2vw,2.25rem)}
-.site-builder-node[data-builder-style-size="xl"]{font-size:clamp(2rem,4vw,4.5rem)}
-.site-builder-node[data-builder-style-size="display"]{font-size:clamp(3.5rem,6vw,6rem)}
-.site-builder-node--paragraph[data-builder-style-size="lg"]{font-size:clamp(1.1rem,1.45vw,1.45rem)}
-.site-builder-node--paragraph[data-builder-style-size="xl"]{font-size:clamp(1.25rem,1.8vw,1.8rem)}
-.site-builder-node--paragraph[data-builder-style-size="display"]{font-size:clamp(2rem,4vw,4.5rem)}
+.site-builder-node[data-builder-style-size="sm"]{font-size:${TEXT_SIZE_CLAMP.sm}}
+.site-builder-node[data-builder-style-size="md"]{font-size:${TEXT_SIZE_CLAMP.md}}
+.site-builder-node[data-builder-style-size="lg"]{font-size:${TEXT_SIZE_CLAMP.lg}}
+.site-builder-node[data-builder-style-size="xl"]{font-size:${TEXT_SIZE_CLAMP.xl}}
+.site-builder-node[data-builder-style-size="display"]{font-size:${TEXT_SIZE_CLAMP.display}}
+.site-builder-node--paragraph[data-builder-style-size="lg"]{font-size:${TEXT_SIZE_CLAMP_PARAGRAPH.lg}}
+.site-builder-node--paragraph[data-builder-style-size="xl"]{font-size:${TEXT_SIZE_CLAMP_PARAGRAPH.xl}}
+.site-builder-node--paragraph[data-builder-style-size="display"]{font-size:${TEXT_SIZE_CLAMP_PARAGRAPH.display}}
 .site-builder-node[data-builder-style-transition]{transition-property:var(--bn-transition-property,all);transition-duration:var(--bn-transition-duration,.2s);transition-timing-function:var(--bn-transition-timing-function,ease);transition-delay:var(--bn-transition-delay,0s)}
 .site-builder-node[data-builder-style-hover-bg]:hover,.site-builder-node[data-builder-style-hover-bg]:focus-visible{background-color:var(--bn-hover-bg)!important}
 .site-builder-node[data-builder-style-hover-color]:hover,.site-builder-node[data-builder-style-hover-color]:focus-visible{color:var(--bn-hover-color)!important}

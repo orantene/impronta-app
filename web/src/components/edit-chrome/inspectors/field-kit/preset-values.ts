@@ -5,33 +5,32 @@
  * under it. No more choices that "don't say anything about the # size of it".
  *
  * So this module answers, for every preset the inspector offers: what does it
- * ACTUALLY resolve to? The answers are not invented here — they are read out of
- * the renderer, which is the only place that decides:
+ * ACTUALLY resolve to? The answers are not invented here — every number is
+ * DERIVED, at module load, from the renderer's own scale maps in
+ * `@/lib/site-admin/builder-node/style-scales`:
  *
- *   `src/lib/site-admin/builder-node/render.tsx`
  *     NODE_SPACING   → margin / padding presets ("", none, s, m, l, xl)
  *     NODE_RADIUS    → corner presets (none, sm, md, lg, pill)
  *     NODE_MAX_WIDTH → width presets (narrow, reading, wide, full)
  *     GAP_BY_SIZE    → flex/grid gap presets (s, m, l)
  *     SPACER_BY_SIZE → spacer-node height presets (s, m, l)
  *     ICON_SIZE      → icon-node size presets (sm, md, lg, xl)
- *     the `[data-builder-style-size="…"]` font-size rules → text size tiers
+ *     TEXT_SIZE_CLAMP / TEXT_SIZE_CLAMP_PARAGRAPH → fluid text tiers
  *
- *   `inspectors/style-panel/style-options.ts`
- *     BUILDER_NODE_SHADOW_OPTIONS → shadow presets (the CSS *is* the value)
- *     BUILDER_NODE_BORDER_STYLE_OPTIONS → border-style presets
+ * (P1 shipped these as a hand-mirrored copy guarded by a test that read
+ * `render.tsx` as text, because P1 was forbidden from editing existing files.
+ * P2 exported the scales from the renderer, so the mirror and its drift guard
+ * are gone: a chip now CANNOT display a number the renderer does not emit.)
  *
- * Those renderer maps are module-private `const`s and P1 is forbidden from
- * editing existing files, so the values are MIRRORED here — and
- * `preset-values.parity.test.ts` reads `render.tsx` as text and fails if the
- * mirror drifts. That is the whole point: a chip that displays a stale number
- * is worse than a chip that displays nothing, because it lies confidently.
+ * Two option families still live in `inspectors/style-panel/style-options.ts`
+ * (shadow + border-style presets); for those the CSS *is* the stored value, so
+ * there is nothing to mirror and nothing to drift.
  *
  * WHAT "HONEST" MEANS FOR A VALUE THAT ISN'T A CONSTANT
  * Two families are not fixed numbers, and this module does NOT fake one:
  *
  *   1. FLUID TYPE. The size tiers are `clamp()` — `lg` is
- *      `clamp(1.35rem, 2vw, 2.25rem)`, and a PARAGRAPH node resolves `lg` to a
+ *      `clamp(1.35rem,2vw,2.25rem)`, and a PARAGRAPH node resolves `lg` to a
  *      different clamp than a heading does. These carry `kind: "fluid"` with a
  *      real min/max range and a `variantNote`, so the chip can read
  *      "L / 22-36 px" instead of pretending to be a single number.
@@ -44,6 +43,17 @@
  *
  * Pure data + pure functions. No React, no side effects.
  */
+
+import {
+  GAP_BY_SIZE,
+  ICON_SIZE,
+  NODE_MAX_WIDTH,
+  NODE_RADIUS,
+  NODE_SPACING,
+  SPACER_BY_SIZE,
+  TEXT_SIZE_CLAMP,
+  TEXT_SIZE_CLAMP_PARAGRAPH,
+} from "@/lib/site-admin/builder-node/style-scales";
 
 import type { LengthUnit } from "../../kit/number-unit";
 
@@ -103,41 +113,56 @@ const UNSET: PresetValue = {
   numeric: null,
 };
 
-function px(id: string, label: string, value: number): PresetValue {
-  return {
-    id,
-    label,
-    kind: "length",
-    css: value === 0 ? "0" : `${value}px`,
-    numeric: { value, unit: "px" },
-  };
+/**
+ * Turn a renderer scale entry ("0", "0.75rem", "420px") into a length preset
+ * whose numeric is resolved to px. Throws at module load on a value it cannot
+ * parse — a chip that cannot state its number honestly must not ship at all.
+ */
+function fromScale(id: string, label: string, css: string): PresetValue {
+  const rem = css.match(/^([\d.]+)rem$/);
+  if (rem) {
+    return {
+      id,
+      label,
+      kind: "length",
+      css,
+      numeric: { value: remToPx(Number(rem[1])), unit: "px" },
+    };
+  }
+  const px = css.match(/^([\d.]+)px$/);
+  if (px) {
+    return { id, label, kind: "length", css, numeric: { value: Number(px[1]), unit: "px" } };
+  }
+  if (css === "0") {
+    return { id, label, kind: "length", css, numeric: { value: 0, unit: "px" } };
+  }
+  throw new Error(
+    `preset-values: renderer scale entry "${id}: ${css}" is not a length this ` +
+      `module knows how to caption honestly. Teach fromScale() the new form.`,
+  );
 }
 
-function rem(id: string, label: string, value: number): PresetValue {
-  return {
-    id,
-    label,
-    kind: "length",
-    css: value === 0 ? "0" : `${value}rem`,
-    numeric: { value: remToPx(value), unit: "px" },
-  };
-}
-
-// ── Spacing (render.tsx NODE_SPACING) ────────────────────────────────────────
+// ── Spacing (style-scales NODE_SPACING) ──────────────────────────────────────
 //
 // The renderer defines five steps. The Style panel's picker
 // (BUILDER_NODE_SPACING_OPTIONS) exposes only none/s/m/l — `xl` is reachable
 // from the renderer and from presets but has never had a chip. P2 should
 // decide whether to surface it; the honest table carries it either way.
 
+const SPACING_LABELS: Record<keyof typeof NODE_SPACING, string> = {
+  none: "0",
+  s: "S",
+  m: "M",
+  l: "L",
+  xl: "XL",
+};
+
 /** `s` = 0.75rem = 12px. */
 export const SPACING_PRESETS: PresetTable = [
   UNSET,
-  { ...rem("none", "0", 0), css: "0" },
-  rem("s", "S", 0.75),
-  rem("m", "M", 1.5),
-  rem("l", "L", 3),
-  rem("xl", "XL", 6),
+  ...(Object.keys(NODE_SPACING) as Array<keyof typeof NODE_SPACING>).map((id) =>
+    fromScale(id, SPACING_LABELS[id], NODE_SPACING[id]),
+  ),
 ];
 
 /** The subset the Style panel actually renders today (no `xl` chip). */
@@ -145,115 +170,154 @@ export const SPACING_PRESETS_SHIPPED: PresetTable = SPACING_PRESETS.filter(
   (p) => p.id !== "xl",
 );
 
-// ── Corner radius (render.tsx NODE_RADIUS) ───────────────────────────────────
+// ── Corner radius (style-scales NODE_RADIUS) ─────────────────────────────────
+
+const RADIUS_LABELS: Record<keyof typeof NODE_RADIUS, string> = {
+  none: "Sharp",
+  sm: "S",
+  md: "M",
+  lg: "L",
+  pill: "Pill",
+};
 
 export const RADIUS_PRESETS: PresetTable = [
   UNSET,
-  { ...px("none", "Sharp", 0), css: "0" },
-  px("sm", "S", 4),
-  px("md", "M", 8),
-  px("lg", "L", 16),
-  {
-    id: "pill",
-    label: "Pill",
-    kind: "keyword",
-    css: "999px",
-    numeric: null,
-    variantNote:
-      "999px is a fully-rounded sentinel, not a real corner size. It is a keyword, not a number, so the exact input stays empty.",
-  },
+  ...(Object.keys(NODE_RADIUS) as Array<keyof typeof NODE_RADIUS>).map((id) =>
+    id === "pill"
+      ? {
+          id,
+          label: RADIUS_LABELS.pill,
+          kind: "keyword" as const,
+          css: NODE_RADIUS.pill,
+          numeric: null,
+          variantNote:
+            "999px is a fully-rounded sentinel, not a real corner size. It is a keyword, not a number, so the exact input stays empty.",
+        }
+      : fromScale(id, RADIUS_LABELS[id], NODE_RADIUS[id]),
+  ),
 ];
 
-// ── Max width (render.tsx NODE_MAX_WIDTH) ────────────────────────────────────
+// ── Max width (style-scales NODE_MAX_WIDTH) ──────────────────────────────────
+
+const MAX_WIDTH_LABELS: Record<keyof typeof NODE_MAX_WIDTH, string> = {
+  narrow: "Narrow",
+  reading: "Read",
+  wide: "Wide",
+  full: "Full",
+};
 
 export const MAX_WIDTH_PRESETS: PresetTable = [
   { id: "", label: "Auto", kind: "unset", css: "", numeric: null },
-  px("narrow", "Narrow", 420),
-  px("reading", "Read", 680),
-  px("wide", "Wide", 960),
-  {
-    id: "full",
-    label: "Full",
-    kind: "keyword",
-    css: "100%",
-    numeric: { value: 100, unit: "%" },
-  },
+  ...(Object.keys(NODE_MAX_WIDTH) as Array<keyof typeof NODE_MAX_WIDTH>).map((id) =>
+    id === "full"
+      ? {
+          id,
+          label: MAX_WIDTH_LABELS.full,
+          kind: "keyword" as const,
+          css: NODE_MAX_WIDTH.full,
+          numeric: { value: 100, unit: "%" as const },
+        }
+      : fromScale(id, MAX_WIDTH_LABELS[id], NODE_MAX_WIDTH[id]),
+  ),
 ];
 
-// ── Gap (render.tsx GAP_BY_SIZE) ─────────────────────────────────────────────
+// ── Gap (style-scales GAP_BY_SIZE) ───────────────────────────────────────────
 //
 // NOT the same scale as NODE_SPACING: gap `m` is 1.25rem (20px) while spacing
 // `m` is 1.5rem (24px). This is exactly the kind of divergence a chip labelled
 // only "M" hides — two "M" chips in the same panel meaning different numbers.
 
-export const GAP_PRESETS: PresetTable = [
-  rem("s", "S", 0.75),
-  rem("m", "M", 1.25),
-  rem("l", "L", 2),
-];
+export const GAP_PRESETS: PresetTable = (
+  Object.keys(GAP_BY_SIZE) as Array<keyof typeof GAP_BY_SIZE>
+).map((id) => fromScale(id, id.toUpperCase(), GAP_BY_SIZE[id]));
 
-// ── Spacer node height (render.tsx SPACER_BY_SIZE) ───────────────────────────
+// ── Spacer node height (style-scales SPACER_BY_SIZE) ─────────────────────────
 
-export const SPACER_PRESETS: PresetTable = [
-  rem("s", "S", 1),
-  rem("m", "M", 2),
-  rem("l", "L", 3),
-];
+export const SPACER_PRESETS: PresetTable = (
+  Object.keys(SPACER_BY_SIZE) as Array<keyof typeof SPACER_BY_SIZE>
+).map((id) => fromScale(id, id.toUpperCase(), SPACER_BY_SIZE[id]));
 
-// ── Icon size (render.tsx ICON_SIZE) ─────────────────────────────────────────
+// ── Icon size (style-scales ICON_SIZE) ───────────────────────────────────────
 
-export const ICON_SIZE_PRESETS: PresetTable = [
-  rem("sm", "S", 1.25),
-  rem("md", "M", 2),
-  rem("lg", "L", 3),
-  rem("xl", "XL", 4.5),
-];
+const ICON_SIZE_LABELS: Record<keyof typeof ICON_SIZE, string> = {
+  sm: "S",
+  md: "M",
+  lg: "L",
+  xl: "XL",
+};
 
-// ── Text size tiers (render.tsx `[data-builder-style-size]` rules) ───────────
+export const ICON_SIZE_PRESETS: PresetTable = (
+  Object.keys(ICON_SIZE) as Array<keyof typeof ICON_SIZE>
+).map((id) => fromScale(id, ICON_SIZE_LABELS[id], ICON_SIZE[id]));
+
+// ── Text size tiers (style-scales TEXT_SIZE_CLAMP*) ──────────────────────────
 //
 // FLUID. Each tier is a clamp(min, preferred, max); there is no one number.
-// Heading-ish nodes take the base rule; `.site-builder-node--paragraph`
-// overrides lg / xl / display with a smaller clamp. Both are recorded.
+// Heading-ish nodes take the base clamp; paragraph nodes override lg / xl /
+// display with a smaller clamp. Both are recorded.
 
-function fluid(
+/** Parse the renderer's `clamp(<min>rem,<vw>vw,<max>rem)` into a px range. */
+function fluidFromClamp(
   id: string,
   label: string,
-  minRem: number,
-  vw: number,
-  maxRem: number,
+  css: string,
   variantNote?: string,
 ): PresetValue {
+  const m = css.match(/^clamp\(([\d.]+)rem,[\d.]+vw,([\d.]+)rem\)$/);
+  if (!m) {
+    throw new Error(
+      `preset-values: text-size tier "${id}" is "${css}", which is not the ` +
+        `clamp(<rem>,<vw>,<rem>) shape this module derives ranges from.`,
+    );
+  }
   return {
     id,
     label,
     kind: "fluid",
-    css: `clamp(${minRem}rem, ${vw}vw, ${maxRem}rem)`,
+    css,
     numeric: null,
-    rangePx: [remToPx(minRem), remToPx(maxRem)],
+    rangePx: [remToPx(Number(m[1])), remToPx(Number(m[2]))],
     variantNote,
   };
 }
+
+const TEXT_SIZE_LABELS: Record<keyof typeof TEXT_SIZE_CLAMP, string> = {
+  sm: "S",
+  md: "M",
+  lg: "L",
+  xl: "XL",
+  display: "Display",
+};
 
 const PARAGRAPH_NOTE =
   "Paragraph nodes resolve this tier to a smaller clamp than headings do.";
 
 export const TEXT_SIZE_PRESETS: PresetTable = [
   UNSET,
-  fluid("sm", "S", 0.9, 1, 1),
-  fluid("md", "M", 1, 1.3, 1.25),
-  fluid("lg", "L", 1.35, 2, 2.25, PARAGRAPH_NOTE),
-  fluid("xl", "XL", 2, 4, 4.5, PARAGRAPH_NOTE),
-  fluid("display", "Display", 3.5, 6, 6, PARAGRAPH_NOTE),
+  ...(Object.keys(TEXT_SIZE_CLAMP) as Array<keyof typeof TEXT_SIZE_CLAMP>).map(
+    (id) =>
+      fluidFromClamp(
+        id,
+        TEXT_SIZE_LABELS[id],
+        TEXT_SIZE_CLAMP[id],
+        id in TEXT_SIZE_CLAMP_PARAGRAPH ? PARAGRAPH_NOTE : undefined,
+      ),
+  ),
 ];
 
 /** The paragraph-node overrides, for a panel that knows it has a paragraph. */
 export const TEXT_SIZE_PRESETS_PARAGRAPH: PresetTable = [
   UNSET,
-  fluid("sm", "S", 0.9, 1, 1),
-  fluid("md", "M", 1, 1.3, 1.25),
-  fluid("lg", "L", 1.1, 1.45, 1.45),
-  fluid("xl", "XL", 1.25, 1.8, 1.8),
-  fluid("display", "Display", 2, 4, 4.5),
+  ...(Object.keys(TEXT_SIZE_CLAMP) as Array<keyof typeof TEXT_SIZE_CLAMP>).map(
+    (id) =>
+      fluidFromClamp(
+        id,
+        TEXT_SIZE_LABELS[id],
+        id in TEXT_SIZE_CLAMP_PARAGRAPH
+          ? TEXT_SIZE_CLAMP_PARAGRAPH[id as keyof typeof TEXT_SIZE_CLAMP_PARAGRAPH]
+          : TEXT_SIZE_CLAMP[id],
+      ),
+  ),
 ];
 
 // ── Border style (style-options.ts BUILDER_NODE_BORDER_STYLE_OPTIONS) ────────
@@ -363,7 +427,7 @@ export function presetById(presets: PresetTable, id: string): PresetValue | null
 
 /**
  * Every table this module publishes, for guards and for P2's audit. Keyed by
- * the renderer symbol it mirrors so a drift failure names its own source.
+ * the renderer scale it derives from, so a failure names its own source.
  */
 export const PRESET_TABLES: Readonly<Record<string, PresetTable>> = {
   NODE_SPACING: SPACING_PRESETS,

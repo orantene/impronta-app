@@ -147,6 +147,7 @@ export function InspectorAccordion({
   description,
   defaultOpen = true,
   onToggle,
+  searchTerms,
   children,
 }: {
   title: string;
@@ -159,6 +160,15 @@ export function InspectorAccordion({
    * ever recorded the initial default, because no toggle reached its state.
    */
   onToggle?: (open: boolean) => void;
+  /**
+   * D5 (Inspector Reset P2) — extra keywords "Find a setting" matches beyond
+   * the visible title/description. Pass the labels of the fields the group
+   * CONTAINS (e.g. "shadow", "opacity" for Effects); without them, searching
+   * a field name hides the very group that holds the field. Matched both raw
+   * and through the translation boundary, so ES operators can search in
+   * Spanish where a catalog entry exists.
+   */
+  searchTerms?: ReadonlyArray<string>;
   children: ReactNode;
 }) {
   const { t, to } = useInspectorT();
@@ -168,6 +178,7 @@ export function InspectorAccordion({
   const hidden = useInspectorSearchFilter([
     localizedTitle,
     localizedDescription ?? "",
+    ...(searchTerms ?? []).flatMap((term) => [term, t(term)]),
   ]);
   const [open, setOpen] = useState(defaultOpen);
   const panelId = useId();

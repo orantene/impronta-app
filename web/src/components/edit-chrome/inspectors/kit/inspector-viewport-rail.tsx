@@ -129,18 +129,38 @@ export function InspectorViewportRail({
       <div
         className="flex items-center justify-between gap-3"
         style={{ padding: "0 2px" }}
+        title={
+          isBase
+            ? t("Switch to tablet or mobile to hide this only there.")
+            : undefined
+        }
       >
         <span
           style={{
             fontSize: 12,
             fontWeight: 500,
-            color: BUILDER_VISUAL.textStrong,
+            // D6 (Inspector Reset P2) — on the base tier the hide write is a
+            // no-op (there is no override bucket to write into), so the
+            // control is DISABLED instead of rendering enabled-but-inert.
+            color: isBase ? CHROME.muted3 : BUILDER_VISUAL.textStrong,
           }}
         >
           {t("Hide on this device")}
         </span>
-        <Toggle on={hideOnDevice} onChange={onHideChange} />
+        <Toggle on={hideOnDevice} onChange={onHideChange} disabled={isBase} />
       </div>
+      {isBase ? (
+        <p
+          style={{
+            fontSize: 11,
+            color: CHROME.muted2,
+            margin: "-4px 0 0",
+            lineHeight: 1.4,
+          }}
+        >
+          {t("Switch to tablet or mobile to hide this only there.")}
+        </p>
+      ) : null}
       {!isBase ? (
         <div
           className="flex items-center justify-between gap-2"
