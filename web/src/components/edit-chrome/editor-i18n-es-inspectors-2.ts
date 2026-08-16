@@ -280,4 +280,15 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Estos bloques actualmente tienen radios de esquina diferentes.",
   "These blocks currently have different values.":
     "Estos bloques actualmente tienen valores diferentes.",
+
+  // ── Section style panel — plain-language font weights (P4) ───────────────
+  // These used to be bare numbers ("400"/"700"/"800") in the heading/body
+  // weight <select>; the number is kept as the honest resolved value but now
+  // sits behind a name (t(opt.label) is a dynamic call, so the wave-0 guard
+  // cannot see it, but the string still needs a real translation).
+  "Regular (400)": "Regular (400)",
+  "Medium (500)": "Medio (500)",
+  "Semibold (600)": "Seminegrita (600)",
+  "Bold (700)": "Negrita (700)",
+  "Extrabold (800)": "Extranegrita (800)",
 };
