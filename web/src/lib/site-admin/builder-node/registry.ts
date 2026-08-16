@@ -693,7 +693,14 @@ const imagePropsSchema = z.object({
 });
 
 const videoPropsSchema = z.object({
-  src: z.string().url().max(2048),
+  // D3 fix: was `z.string().url().max(2048)`. `.url()` rejected "" (an
+  // empty-but-valid "cleared" state — mirrors imagePropsSchema's `src`,
+  // which has always been a plain string), which made the video node's
+  // "Clear" affordance impossible to save even after the dead-guard bug in
+  // builder-node-content.tsx was fixed. `.url()` was not doing real
+  // security work here either — `new URL()` happily accepts a
+  // `javascript:` scheme, so this never was an XSS control.
+  src: z.string().max(2048),
   poster: z.string().url().max(2048).optional(),
   autoplay: z.boolean().optional(),
   muted: z.boolean().optional(),
