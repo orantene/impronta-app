@@ -30,9 +30,9 @@
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { sanitizeSvgLogoBuffer } from "@/lib/site-admin/sanitize-svg-upload";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { assertTalentCanUseCustomBuilder } from "@/lib/server/talent-self-guard";
+import { gate } from "./site-action-gate";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { deriveSiteSlug, slugifySiteName } from "./derive-site-slug";
 import {
@@ -57,44 +57,8 @@ import type {
 const PAGE_COLUMNS =
   "id, slug, title, nav_label, status, is_home, sort_order, published_at, updated_at";
 
-// ── Shared gate ──────────────────────────────────────────────────────────────
-
-type GateOk = {
-  ok: true;
-  talentProfileId: string;
-  displayName: string;
-  profileCode: string | null;
-  userId: string;
-  planKey: string;
-};
-type GateFail = Extract<MaxSiteActionResult, { ok: false }>;
-
-/**
- * Resolve the signed-in talent + assert Max. Every management action funnels
- * through this so the owner + Max checks live in one place. Lower tiers get
- * `plan_required` (the dashboard shows an upsell).
- */
-async function gate(): Promise<GateOk | GateFail> {
-  const scope = await requireTalentSelf();
-  if (!scope.ok) {
-    return { ok: false, code: scope.code, error: scope.error };
-  }
-  if (!assertTalentCanUseCustomBuilder(scope.planKey)) {
-    return {
-      ok: false,
-      code: "plan_required",
-      error: "Upgrade to Max to build and manage your website.",
-    };
-  }
-  return {
-    ok: true,
-    talentProfileId: scope.talentProfile.id,
-    displayName: scope.talentProfile.displayName,
-    profileCode: scope.talentProfile.profileCode,
-    userId: scope.session.user.id,
-    planKey: scope.planKey,
-  };
-}
+// Shared owner+Max gate lives in ./site-action-gate so the logo actions
+// (./site-logo-actions, a separate "use server" module) can reuse it.
 
 function siteUrl(slug: string | null): string | null {
   return slug ? `/t/site/${encodeURIComponent(slug)}` : null;
@@ -555,93 +519,6 @@ export async function setMaxSiteSlugAction(input: {
   }
   if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
   return { ok: true, data: { slug: desired } };
-}
-
-// ── Logo upload ──────────────────────────────────────────────────────────────
-
-const LOGO_ALLOWED_TYPES = ["image/png", "image/svg+xml", "image/jpeg", "image/webp"];
-const LOGO_MAX_BYTES = 10 * 1024 * 1024; // 10 MB
-
-/**
- * Upload the site logo to public storage and store its URL on
- * `talent_sites.logo_url`. The default shell renders this logo in the header
- * (`buildDefaultShellTree`) when present. Storage write uses the service-role
- * client (path-scoped, no RLS match needed); the DB write is owner-RLS scoped.
- */
-export async function uploadMaxSiteLogoAction(
-  formData: FormData,
-): Promise<MaxSiteActionResult<{ logoUrl: string }>> {
-  const g = await gate();
-  if (!g.ok) return g;
-
-  const file = formData.get("logo") as File | null;
-  if (!file || file.size === 0) {
-    return { ok: false, code: "invalid_input", error: "No file provided." };
-  }
-  if (!LOGO_ALLOWED_TYPES.includes(file.type)) {
-    return { ok: false, code: "invalid_input", error: "PNG, SVG, JPEG or WebP only." };
-  }
-  if (file.size > LOGO_MAX_BYTES) {
-    return { ok: false, code: "invalid_input", error: "Logo must be under 10 MB." };
-  }
-
-  const admin = createServiceRoleClient();
-  const sb = await getCachedServerSupabase();
-  if (!admin || !sb) {
-    return { ok: false, code: "server_error", error: "Not configured." };
-  }
-
-  const ext =
-    file.type === "image/svg+xml"
-      ? "svg"
-      : file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
-  const storagePath = `talent-site-logos/${g.talentProfileId}/${crypto.randomUUID()}.${ext}`;
-  // Public-bucket SVG is stored XSS unless sanitized (Wave 5.1): store only what the allowlist sanitizer accepts.
-  const body = ext === "svg" ? sanitizeSvgLogoBuffer(await file.text()) : ({ ok: true, bytes: await file.arrayBuffer() } as const);
-  if (!body.ok) return { ok: false, code: "invalid_input", error: body.error };
-  const bytes = body.bytes;
-
-  const { error: uploadErr } = await admin.storage
-    .from("media-public")
-    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
-  if (uploadErr) {
-    logServerError("maxSiteManager.logo.upload", uploadErr);
-    return { ok: false, code: "server_error", error: "Upload failed. Try again." };
-  }
-
-  const { data: urlData } = admin.storage.from("media-public").getPublicUrl(storagePath);
-  const logoUrl = urlData.publicUrl;
-
-  const { error: dbErr, count } = await sb
-    .from("talent_sites")
-    .update(
-      { logo_url: logoUrl, updated_at: new Date().toISOString(), updated_by: g.userId },
-      { count: "exact" },
-    )
-    .eq("talent_profile_id", g.talentProfileId);
-  if (dbErr) {
-    logServerError("maxSiteManager.logo.db", dbErr);
-    return { ok: false, code: "server_error", error: "Could not save the logo." };
-  }
-  if (!count) return { ok: false, code: "site_not_found", error: "Site not found." };
-  return { ok: true, data: { logoUrl } };
-}
-
-/** Remove the site logo (clears `talent_sites.logo_url`). */
-export async function removeMaxSiteLogoAction(): Promise<MaxSiteActionResult> {
-  const g = await gate();
-  if (!g.ok) return g;
-  const sb = await getCachedServerSupabase();
-  if (!sb) return { ok: false, code: "server_error", error: "Not configured." };
-  const { error } = await sb
-    .from("talent_sites")
-    .update({ logo_url: null, updated_at: new Date().toISOString(), updated_by: g.userId })
-    .eq("talent_profile_id", g.talentProfileId);
-  if (error) {
-    logServerError("maxSiteManager.logo.remove", error);
-    return { ok: false, code: "server_error", error: "Could not remove the logo." };
-  }
-  return { ok: true };
 }
 
 // ── Publish the whole site ───────────────────────────────────────────────────

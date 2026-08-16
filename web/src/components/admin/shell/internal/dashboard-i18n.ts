@@ -763,6 +763,7 @@ const ES_TEXT: Record<string, string> = {
   "Favicon set": "Favicon configurado",
   "No favicon yet": "Aún no hay favicon",
   "Favicon updated": "Favicon actualizado",
+  "Favicon removed": "Favicon eliminado",
   "Applies right away. No Save needed.": "Se aplica al instante. No hace falta guardar.",
   "Shown in browser tabs and bookmarks.": "Se muestra en pestañas del navegador y marcadores.",
   "These are your live site theme colors, the same tokens the website designer (Website → Design) edits. Saving applies them to your storefront right away.": "Estos son los colores del tema de tu sitio en vivo, los mismos tokens que edita el diseñador web (Sitio web → Diseño). Al guardar se aplican de inmediato a tu escaparate.",

@@ -269,41 +269,19 @@ export async function submitInquiryNowAction(
     guest_session_id: ctx.guestSessionId,
   });
 
-  // Upload any attached files (non-fatal — inquiry is already created).
-  if (result.ok) {
-    const rawFiles = formData.getAll("files[]");
-    const files = rawFiles.filter(
-      (v): v is File => v instanceof File && v.size > 0 && v.size <= 20 * 1024 * 1024,
-    );
-    if (files.length > 0) {
-      // ctx.writeClient is already the service-role client (see resolveSubmitContext).
-      const uploadClient = ctx.writeClient;
-      for (const file of files) {
-        const objectId = crypto.randomUUID();
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const storagePath = `${ctx.tenantId}/${result.inquiryId}/${objectId}-${safeName}`;
-        const buf = await file.arrayBuffer();
-        const { error: uploadErr } = await uploadClient.storage
-          .from("inquiry-files")
-          .upload(storagePath, buf, { contentType: file.type || "application/octet-stream", upsert: false });
-        if (uploadErr) {
-          logServerError("inquiry-intent-actions.uploadFile", new Error(uploadErr.message));
-          continue;
-        }
-        await uploadClient.from("inquiry_attachments").insert({
-          tenant_id: ctx.tenantId,
-          inquiry_id: result.inquiryId,
-          storage_path: storagePath,
-          filename: file.name,
-          mime_type: file.type || "application/octet-stream",
-          byte_size: file.size,
-          attachment_kind: "moodboard",
-          visibility: "agency_and_client",
-        });
-      }
-    }
-  }
-
+  // T4 — attachments NO LONGER ride this action's body.
+  //
+  // They used to arrive as `files[]` on this same FormData, which meant the
+  // whole inquiry submit was subject to the ~4 MB Server Action body cap
+  // (next.config.ts `serverActions.bodySizeLimit`) while the drawer
+  // advertised 10 files x 20 MB. One phone photo and the SUBMIT failed —
+  // not the attachment, the entire inquiry. And when a per-file upload did
+  // fail server-side, the loop `continue`d, so the user was told the
+  // inquiry sent and never learned their files were dropped.
+  //
+  // The drawer now submits the inquiry first (tiny body, always fits) and
+  // then uploads each file through the signed pipeline below, reporting
+  // per-file success/failure. See `createInquiryAttachmentUploadUrlAction`.
 
   return finalizeSubmit(result, tenantSlug, {
     isGuest: !ctx.actorUserId,
@@ -315,6 +293,206 @@ export async function submitInquiryNowAction(
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Inquiry attachments — signed pipeline (T4)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// These live HERE rather than in `lib/server-actions/inquiry-attachment-signed.ts`
+// on purpose. That module's `resolveScope` requires an AUTHENTICATED user
+// (staff / inquiry client / talent participant). The inquiry drawer is
+// mounted on public guest surfaces and its single most common caller has no
+// user at all — the guest identity is the `x-impronta-guest` session that
+// `resolveSubmitContext` above already resolves. Rather than teach the staff
+// module about guests, the just-submitted-inquiry lane gets its own narrow
+// pair, gated on "you are the party this inquiry was filed by".
+
+const ATTACHMENT_BUCKET = "inquiry-files";
+/** Matches the cap the drawer advertises (and now actually honours). */
+const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024;
+const ATTACHMENT_MAX_COUNT = 10;
+
+/** Mirrors the drawer's `accept` list. Anything else is refused server-side. */
+const ATTACHMENT_ALLOWED_MIME = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/zip",
+  "application/x-zip-compressed",
+]);
+
+function isAllowedAttachmentMime(mime: string): boolean {
+  const m = mime.toLowerCase();
+  // SVG is excluded even though it is an image/* — inquiry-files is private
+  // and served through signed URLs, but a signed URL still renders in the
+  // browser, so an SVG there is the same stored-XSS shape as elsewhere.
+  if (m === "image/svg+xml") return false;
+  if (m.startsWith("image/")) return true;
+  return ATTACHMENT_ALLOWED_MIME.has(m);
+}
+
+export type InquiryAttachmentActionResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string };
+
+/**
+ * Confirm the caller is the party that filed this inquiry — the signed-in
+ * client on it, or the guest session it was created under. Everything else
+ * (staff, talent, other clients) belongs to the staff module, not here.
+ */
+async function assertInquirySubmitter(
+  ctx: Awaited<ReturnType<typeof resolveSubmitContext>> & { ok: true },
+  inquiryId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!inquiryId) return { ok: false, error: "Missing inquiry." };
+  const { data: inq } = await ctx.writeClient
+    .from("inquiries")
+    .select("id, tenant_id, client_user_id, guest_session_id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (!inq) return { ok: false, error: "Inquiry not found." };
+
+  const byUser =
+    ctx.actorUserId != null &&
+    (inq.client_user_id as string | null) === ctx.actorUserId;
+  const byGuest =
+    ctx.guestSessionId != null &&
+    (inq.guest_session_id as string | null) === ctx.guestSessionId;
+  if (!byUser && !byGuest) {
+    return { ok: false, error: "Not authorized for this inquiry." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Step 1 — mint a one-shot signed upload URL into the private
+ * `inquiry-files` bucket. Rejects on the DECLARED size/type before minting;
+ * `registerInquiryAttachmentAction` re-checks the real stored bytes.
+ */
+export async function createInquiryAttachmentUploadUrlAction(input: {
+  tenantSlug: string;
+  inquiryId: string;
+  filename: string;
+  mimeType: string;
+  byteSize: number;
+}): Promise<InquiryAttachmentActionResult<{ uploadUrl: string; storagePath: string }>> {
+  const ctx = await resolveSubmitContext(input.tenantSlug);
+  if (!ctx.ok) return { ok: false, error: "Could not resolve workspace." };
+
+  const allowed = await assertInquirySubmitter(ctx, input.inquiryId);
+  if (!allowed.ok) return allowed;
+
+  if (!Number.isFinite(input.byteSize) || input.byteSize <= 0) {
+    return { ok: false, error: "File is empty." };
+  }
+  if (input.byteSize > ATTACHMENT_MAX_BYTES) {
+    return { ok: false, error: "File must be under 20 MB." };
+  }
+  if (!isAllowedAttachmentMime(input.mimeType || "")) {
+    return { ok: false, error: "That file type isn't supported." };
+  }
+
+  // Refuse past the advertised count rather than letting an inquiry
+  // accumulate unbounded objects one signed URL at a time.
+  const { count } = await ctx.writeClient
+    .from("inquiry_attachments")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", ctx.tenantId)
+    .eq("inquiry_id", input.inquiryId);
+  if ((count ?? 0) >= ATTACHMENT_MAX_COUNT) {
+    return { ok: false, error: "This inquiry already has the maximum number of files." };
+  }
+
+  const objectId = crypto.randomUUID();
+  const safeName = (input.filename || "file").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+  const storagePath = `${ctx.tenantId}/${input.inquiryId}/${objectId}-${safeName}`;
+
+  const { data, error } = await ctx.writeClient.storage
+    .from(ATTACHMENT_BUCKET)
+    .createSignedUploadUrl(storagePath);
+  if (error || !data) {
+    logServerError("inquiry-intent-actions.attachment.signedUrl", error);
+    return { ok: false, error: "Could not start upload. Try again." };
+  }
+  return {
+    ok: true,
+    data: { uploadUrl: data.signedUrl, storagePath: data.path ?? storagePath },
+  };
+}
+
+/**
+ * Step 2 — stat the stored object (server-verified size + mime, never the
+ * client's claim) and write the `inquiry_attachments` row. On any refusal
+ * the object is removed, so a rejected upload leaves nothing behind.
+ */
+export async function registerInquiryAttachmentAction(input: {
+  tenantSlug: string;
+  inquiryId: string;
+  storagePath: string;
+  filename: string;
+}): Promise<InquiryAttachmentActionResult<{ filename: string }>> {
+  const ctx = await resolveSubmitContext(input.tenantSlug);
+  if (!ctx.ok) return { ok: false, error: "Could not resolve workspace." };
+
+  const allowed = await assertInquirySubmitter(ctx, input.inquiryId);
+  if (!allowed.ok) return allowed;
+
+  const prefix = `${ctx.tenantId}/${input.inquiryId}/`;
+  if (!input.storagePath.startsWith(prefix)) {
+    return { ok: false, error: "Upload path doesn't match this inquiry." };
+  }
+
+  const slash = input.storagePath.lastIndexOf("/");
+  const { data: listed, error: listErr } = await ctx.writeClient.storage
+    .from(ATTACHMENT_BUCKET)
+    .list(input.storagePath.slice(0, slash), {
+      limit: 1,
+      search: input.storagePath.slice(slash + 1),
+    });
+  const meta = (listed?.[0] as { metadata?: { size?: number; mimetype?: string } } | undefined)
+    ?.metadata;
+  if (listErr || !meta || typeof meta.size !== "number" || meta.size === 0) {
+    logServerError("inquiry-intent-actions.attachment.stat", listErr);
+    return { ok: false, error: "Could not verify the upload. Try again." };
+  }
+
+  const realMime = meta.mimetype || "application/octet-stream";
+  if (meta.size > ATTACHMENT_MAX_BYTES || !isAllowedAttachmentMime(realMime)) {
+    await ctx.writeClient.storage.from(ATTACHMENT_BUCKET).remove([input.storagePath]);
+    return {
+      ok: false,
+      error:
+        meta.size > ATTACHMENT_MAX_BYTES
+          ? "File must be under 20 MB."
+          : "That file type isn't supported.",
+    };
+  }
+
+  const { error: insertErr } = await ctx.writeClient.from("inquiry_attachments").insert({
+    tenant_id: ctx.tenantId,
+    inquiry_id: input.inquiryId,
+    storage_path: input.storagePath,
+    filename: input.filename || "file",
+    mime_type: realMime,
+    byte_size: meta.size,
+    attachment_kind: "moodboard",
+    visibility: "agency_and_client",
+  });
+  if (insertErr) {
+    // Compensate — an object with no row is invisible to every UI and to
+    // the storage reaper's reference walk.
+    await ctx.writeClient.storage.from(ATTACHMENT_BUCKET).remove([input.storagePath]);
+    logServerError("inquiry-intent-actions.attachment.insert", new Error(insertErr.message));
+    return { ok: false, error: "Could not attach the file. Try again." };
+  }
+
+  return { ok: true, data: { filename: input.filename || "file" } };
+}
 
 function finalizeSubmit(
   result: CreateInquiryFromIntentResult,

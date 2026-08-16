@@ -1097,31 +1097,63 @@ export type DocumentUploadResult = ActionResult<{
   mimeType: string;
 }>;
 
+/**
+ * D5 — dual auth for the talent-document lane, mirroring the Wave 4
+ * pattern in `actionCreateSignedUploadUrl`.
+ *
+ * `FilesEditor` renders ungated inside the talent profile drawer, so a
+ * talent editing their OWN profile reached these actions and hit
+ * "Not authorized" on every single upload: the three document actions
+ * were staff-only. Staff still need the roster check (a staffer may only
+ * touch talent on THEIR roster); a talent operating on their own profile
+ * is authorised by ownership, which `requireTalentSelfAction` verifies
+ * against `talent_profiles.user_id`.
+ *
+ * `tenantId` is null for an independent (roster-less) self-registered
+ * talent. That is not an error — it only means the workspace audit entry
+ * is skipped, since there is no workspace to file it under.
+ */
+type TalentDocumentAuth =
+  | { ok: true; tenantId: string | null; actor: "staff" | "self" }
+  | { ok: false; error: string };
+
+async function resolveTalentDocumentAuth(
+  admin: SupabaseClient,
+  talentProfileId: string,
+): Promise<TalentDocumentAuth> {
+  const staff = await requireWorkspaceStaffAction();
+  if (staff.ok) {
+    const { data: rosterRow } = await admin
+      .from("agency_talent_roster")
+      .select("id")
+      .eq("tenant_id", staff.tenantId)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+    return { ok: true, tenantId: staff.tenantId, actor: "staff" };
+  }
+
+  const self = await requireTalentSelfAction(talentProfileId);
+  if (!self.ok) return { ok: false, error: self.error };
+  return { ok: true, tenantId: self.tenantId ?? null, actor: "self" };
+}
+
 export async function actionUploadTalentDocument(
   formData: FormData,
   talentProfileId: string,
 ): Promise<DocumentUploadResult> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+
+  const auth = await resolveTalentDocumentAuth(admin, talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
 
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return { ok: false, error: "No file provided." };
   // 50MB cap — generous for PDF contracts but blocks runaway uploads.
   if (file.size > 50 * 1024 * 1024) return { ok: false, error: "File must be under 50 MB." };
-
-  // Roster guard.
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
   const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
   const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
@@ -1136,15 +1168,19 @@ export async function actionUploadTalentDocument(
     return { ok: false, error: "Upload failed. Try again." };
   }
 
-  scheduleWorkspaceAudit({
-    tenantId,
-    category: "media",
-    action: "media.document.uploaded",
-    summary: `Uploaded document ${file.name || "file"}`,
-    targetType: "talent_document",
-    targetLabel: file.name || null,
-    metadata: { talentProfileId },
-  });
+  // No tenant => independent talent with no workspace to file the entry
+  // under. Skipping the audit is correct; inventing a tenant is not.
+  if (tenantId) {
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "media",
+      action: "media.document.uploaded",
+      summary: `Uploaded document ${file.name || "file"}`,
+      targetType: "talent_document",
+      targetLabel: file.name || null,
+      metadata: { talentProfileId, actor: auth.actor },
+    });
+  }
 
   return {
     ok: true,
@@ -1168,21 +1204,12 @@ export async function actionCreateDocumentSignedUploadUrl(
   talentProfileId: string,
   filename: string,
 ): Promise<ActionResult<{ uploadUrl: string; storagePath: string }>> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
+  // D5 — staff OR the talent whose profile this is (see resolveTalentDocumentAuth).
+  const auth = await resolveTalentDocumentAuth(admin, talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   const ext = (filename.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
   const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
@@ -1210,25 +1237,16 @@ export async function actionFinalizeDocumentUpload(
   talentProfileId: string,
   storagePath: string,
 ): Promise<DocumentUploadResult> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // D5 — staff OR the talent whose profile this is (see resolveTalentDocumentAuth).
+  const auth = await resolveTalentDocumentAuth(admin, talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   if (!storagePath.startsWith(`${talentProfileId}/documents/`)) {
     return { ok: false, error: "Upload path doesn't match this talent." };
   }
-
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
   const slash = storagePath.lastIndexOf("/");
   const { data: listed, error: listErr } = await admin.storage
@@ -1262,26 +1280,17 @@ export async function actionGetTalentDocumentSignedUrl(
   storagePath: string,
   talentProfileId: string,
 ): Promise<ActionResult<{ url: string }>> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // D5 — staff OR the talent whose profile this is. A talent who can
+  // upload their own comp card must also be able to open it again.
+  const auth = await resolveTalentDocumentAuth(admin, talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   if (!isTalentDocumentRef(bucketId, storagePath, talentProfileId)) {
     return { ok: false, error: "That file doesn't belong to this talent." };
   }
-
-  // Roster guard.
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
   const { data, error } = await admin.storage.from(bucketId).createSignedUrl(storagePath, 300);
   if (error || !data) {
@@ -1300,28 +1309,19 @@ export async function actionDeleteTalentDocument(
   talentProfileId: string,
   documentId?: string,
 ): Promise<ActionResult<null>> {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  const { tenantId } = auth;
-
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
+
+  // D5 — staff OR the talent whose profile this is.
+  const auth = await resolveTalentDocumentAuth(admin, talentProfileId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const { tenantId } = auth;
 
   // Same hole as the signed-URL action, but for a DELETE — a crafted
   // bucket + path could remove another tenant's object.
   if (!isTalentDocumentRef(bucketId, storagePath, talentProfileId)) {
     return { ok: false, error: "That file doesn't belong to this talent." };
   }
-
-  // Roster guard.
-  const { data: rosterRow } = await admin
-    .from("agency_talent_roster")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-  if (!rosterRow) return { ok: false, error: "Talent not on this roster." };
 
   const { error: storageErr } = await admin.storage.from(bucketId).remove([storagePath]);
   if (storageErr) {
@@ -1348,15 +1348,18 @@ export async function actionDeleteTalentDocument(
     }
   }
 
-  scheduleWorkspaceAudit({
-    tenantId,
-    category: "media",
-    action: "media.document.deleted",
-    summary: "Deleted a talent document",
-    targetType: "talent_document",
-    targetId: documentId ?? null,
-    metadata: { talentProfileId },
-  });
+  // No tenant => independent talent; nothing to file the entry under.
+  if (tenantId) {
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "media",
+      action: "media.document.deleted",
+      summary: "Deleted a talent document",
+      targetType: "talent_document",
+      targetId: documentId ?? null,
+      metadata: { talentProfileId, actor: auth.actor },
+    });
+  }
 
   return { ok: true, data: null };
 }
