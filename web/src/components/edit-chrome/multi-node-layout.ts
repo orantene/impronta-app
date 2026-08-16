@@ -165,14 +165,22 @@ export function addTranslateDeltaToTree(
   return changed ? nextTree : tree;
 }
 
-/** Apply a (already lock-filtered) style patch onto a style object in place. */
+/**
+ * Apply a (already lock-filtered) style patch onto a style object in place.
+ *
+ * `null` deletes the key exactly like `undefined` does: this patch arrives
+ * through `patchSelectedBuilderNodesStyle` as a JSON string, and
+ * JSON.stringify silently DROPS `undefined` keys — so a caller's
+ * "clear this field" used to arrive as `{}` and no-op. Clears therefore
+ * travel as `null`, and no style value legitimately stores a null.
+ */
 function applyStylePatchKeys(
   style: Record<string, unknown>,
   patch: Readonly<Record<string, unknown>>,
 ): void {
   for (const key of Object.keys(patch)) {
     const value = patch[key];
-    if (value === undefined) {
+    if (value === undefined || value === null) {
       delete style[key];
     } else {
       style[key] = value;

@@ -163,3 +163,55 @@ export function subscribeStorefrontBodyCanvas(listener: Listener): () => void {
 export function isStorefrontBodyCanvasMounted(): boolean {
   return storefrontBodyCanvasCount > 0;
 }
+
+// ── Server-rendered storefront body signal (stale-body fix, 2026-08-15) ────
+// The `/p/[[...slug]]` freeform route can be in edit mode WITHOUT mounting
+// `<StorefrontBodyCanvas>` (client-canvas flag off, or the capability check
+// failed) — the visible body is then a pure SERVER render. Before this signal,
+// that configuration resurrected the pre-#1029 double paint (the in-editor
+// region painted the same tree again below the footer) with a WORSE twist: the
+// region's `<ClientBuilderCanvas>` incremented `mountedCanvasCount`, so the
+// per-edit `router.refresh()` safety net in edit-context concluded "a canvas
+// repaints this page" and skipped — repainting only the hidden region copy
+// while the body the operator was looking at stayed stale on EVERY tree edit
+// ("I save and nothing changes"). Reproduced 2026-08-15 on /p/wave2-canvas for
+// BOTH the single-node inspector lane and the bulk style lane.
+//
+// The server page registers this marker (via <StorefrontBodyServerMarker/>)
+// whenever it renders the body server-side in edit mode. The region reads
+// `isStorefrontBodyPresent()` (canvas OR server render) to suppress its
+// duplicate paint; with the region suppressed, `mountedCanvasCount` correctly
+// stays 0 for the page and the refresh safety net repaints the visible body.
+// DELIBERATELY a separate counter from the canvas one: this marker must never
+// make `isClientBuilderCanvasMounted()` / `isAnyBuilderNodeCanvasMounted()`
+// true — claiming a live canvas exists is exactly the lie that caused the
+// stale body.
+let storefrontBodyServerRenderCount = 0;
+
+/** Register a SERVER-RENDERED storefront body (edit mode, no body canvas).
+ *  Call from a mount effect; the returned fn decrements on unmount. */
+export function registerServerRenderedStorefrontBody(): () => void {
+  storefrontBodyServerRenderCount += 1;
+  for (const listener of storefrontBodyCanvasListeners) listener();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    storefrontBodyServerRenderCount = Math.max(
+      0,
+      storefrontBodyServerRenderCount - 1,
+    );
+    for (const listener of storefrontBodyCanvasListeners) listener();
+  };
+}
+
+/**
+ * True when the storefront page body paints the tree AT ALL — as the live
+ * body canvas OR as a server render. Either way the in-editor region must not
+ * paint the same tree a second time below the footer. Shares the
+ * storefront-body listener set, so `subscribeStorefrontBodyCanvas` observes
+ * both signals.
+ */
+export function isStorefrontBodyPresent(): boolean {
+  return storefrontBodyCanvasCount > 0 || storefrontBodyServerRenderCount > 0;
+}

@@ -146,11 +146,19 @@ export function InspectorAccordion({
   title,
   description,
   defaultOpen = true,
+  onToggle,
   children,
 }: {
   title: string;
   description?: string;
   defaultOpen?: boolean;
+  /**
+   * Reports every user toggle with the NEW open state. The accordion stays
+   * uncontrolled; this exists so a wrapper (InspectorGroup) can persist the
+   * choice — before it, InspectorGroup's sessionStorage "persistence" only
+   * ever recorded the initial default, because no toggle reached its state.
+   */
+  onToggle?: (open: boolean) => void;
   children: ReactNode;
 }) {
   const { t, to } = useInspectorT();
@@ -177,7 +185,11 @@ export function InspectorAccordion({
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          onToggle?.(next);
+        }}
         className="flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-3.5 py-3 text-left transition-colors"
         style={{ color: CHROME.ink }}
         onMouseEnter={(e) => {

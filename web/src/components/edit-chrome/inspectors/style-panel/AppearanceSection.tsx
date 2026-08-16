@@ -38,7 +38,16 @@ export function AppearanceSection({
               title="Appearance"
               collapsible
               storageKey={`style-panel:appearance:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={false}
+              // Cold-cost fix (2026-08-15): open the group RELEVANT to the
+              // selection instead of landing everything collapsed. For surface
+              // kinds (fill / corners live here) Appearance is the money
+              // group, mirroring how Typography already default-opens for
+              // text kinds. Text-first kinds keep it collapsed. The
+              // sessionStorage entry (per kind) still wins once the operator
+              // toggles it themselves.
+              defaultOpen={["container", "split", "card", "cta_group", "image"].includes(
+                selectedStandaloneStyleNode.kind,
+              )}
             >
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,

@@ -164,6 +164,21 @@ test("mergeStylePatchIntoTree deletes a key when the patch value is undefined", 
   assert.deepEqual(styleOf(section.children?.[0]), { opacity: 0.5 });
 });
 
+test("mergeStylePatchIntoTree deletes a key when the patch value is null", () => {
+  // Clears arrive as JSON `null`: the patch travels through
+  // patchSelectedBuilderNodesStyle as a JSON string, and JSON.stringify DROPS
+  // `undefined` keys entirely — every clear used to no-op as `{}`. Null must
+  // therefore delete, never be stored as a style value.
+  const tree = bulkEditTree();
+  const next = mergeStylePatchIntoTree(tree, ["a"], { textColor: null });
+  const section = next[0];
+  if (!section || section.kind !== "section") {
+    assert.fail("expected section");
+    return;
+  }
+  assert.deepEqual(styleOf(section.children?.[0]), { opacity: 0.5 });
+});
+
 test("mergeStylePatchIntoTree drops an emptied style object from props", () => {
   const tree = bulkEditTree();
   const next = mergeStylePatchIntoTree(tree, ["c"], { textColor: undefined });

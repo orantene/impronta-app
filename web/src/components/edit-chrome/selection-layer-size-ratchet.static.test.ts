@@ -109,7 +109,14 @@ const BUDGETS: Record<string, number> = {
   // signal, the chip's constant off-screen seed replacing its bottom-dock
   // style block, and the overflow menu's measured open-direction (the menu
   // could hardcode "up" only while the chip was pinned to the bottom edge).
-  "selection-layer.tsx": 7683,
+  // +6 (quick-style popover, backlog item 1): ONE import + ONE render line
+  // (plus its comment) in BlockChipToolBar for <QuickStyleChipButton/>. The
+  // component, its popover, and ALL logic (field-per-kind gating,
+  // device→bucket mapping, Mixed/lock resolution, patch shapes) live in
+  // quick-style-popover.tsx + quick-style-logic.ts (unit-tested) — the
+  // component reads selection/device/patch from context precisely so this
+  // file's diff stays this thin.
+  "selection-layer.tsx": 7689,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

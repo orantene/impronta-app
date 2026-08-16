@@ -187,6 +187,7 @@ import { CANVAS_HUD_LEFT_INSET_PX } from "./workspace-layout";
 import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-layer-name";
 import { MultiSelectionMoveHandle } from "./multi-selection-move-handle";
 import { MultiSelectionToolbar } from "./multi-selection-toolbar";
+import { QuickStyleChipButton } from "./quick-style-popover";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 import type { MultiNodeRect } from "./multi-node-layout";
 import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
@@ -7367,6 +7368,11 @@ function BlockChipToolBar({
         onClick={onEditContent}
       />
       <ChipTextAction label="Design" disabled={disabled} light={light} onClick={onDesign} />
+      {/* Quick styles — fill / padding / corners / shadow one click off the
+          chip. Self-contained (reads selection + device from context, commits
+          through patchSelectedBuilderNodesStyle); renders nothing for kinds
+          with no quick surface. Logic + popover live in quick-style-*. */}
+      <QuickStyleChipButton light={light} disabled={disabled} btnStyle={btnStyle} />
       {/* Nested blocks — toggles the child-block picker. Only rendered when
           the selection actually has children, so it is never a dead button. */}
       {onToggleNested ? (
