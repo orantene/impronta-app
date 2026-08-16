@@ -82,6 +82,51 @@ import "server-only";
  * fresh on every request by the predicate. That is what keeps a saved URL from
  * outliving the grant behind it, while leaving the URL stable enough to cache.
  *
+ * WHY THE SURFACE AND SIGNATURE LIVE IN THE PATH AND NOT IN A QUERY STRING
+ * ───────────────────────────────────────────────────────────────────────
+ * They used to be query params (`?s=<surface>&k=<sig>`). That shipped, was
+ * switched on in production, and instantly broke every talent photo on the
+ * public directory: cards rendered alt text and a broken-image icon.
+ *
+ * The route was never the problem — fetched directly it 302s to a signed
+ * storage URL and serves the bytes. `next/image` was. Next refuses to optimize
+ * a LOCAL path carrying a query string unless `images.localPatterns` permits
+ * it, and — this is the part that is easy to get wrong — the permission is not
+ * opt-out. `next/dist/server/config` normalizes an ABSENT `images.localPatterns`
+ * to `[{ pathname: "**", search: "" }]`, i.e. every local path, but only with an
+ * EMPTY query string. So a config with no `localPatterns` at all is not
+ * permissive; it is precisely the rule that rejects us, and
+ * `ImageOptimizerCache.validateParams` answers `"url" parameter is not allowed`
+ * → HTTP 400 → broken image.
+ *
+ * Putting both values in the path sidesteps the restriction rather than
+ * negotiating with it:
+ *
+ *   master surface   /api/media/asset/m/<sig>/<assetId>
+ *   tenant surface   /api/media/asset/t/<tenantId>/<sig>/<assetId>
+ *
+ * There is no query string, so the minted URL matches Next's own default and
+ * `next.config.ts` needs no `images.localPatterns` entry. That is deliberate.
+ * The alternative — allow-listing `/api/media/asset/**` with `search` omitted —
+ * does work in this Next version (an omitted `search` skips the check outright),
+ * but it is the worse trade: declaring `localPatterns` REPLACES the `**`
+ * default instead of extending it, so the same edit that unbreaks gated media
+ * silently breaks every other local image on the platform unless the author
+ * also remembers to re-add `{ pathname: "**", search: "" }` by hand. A fix
+ * whose failure mode is "all images vanish, in a file nobody links to this
+ * feature from" is not a fix. Coupling the URL grammar to a config file two
+ * directories away is the fragility; not needing the config at all is the
+ * repair.
+ *
+ * The two leading segments (`m` / `t`) mirror the `master|` / `tenant|` tags in
+ * `surfaceMessage()`: the shape is unambiguous for EVERY tenant id, including a
+ * tenant whose id is the literal string `m`, which addresses as `t/m/...`.
+ *
+ * `gated-url-optimizer.test.ts` holds this property down by running the real
+ * `next.config.ts` through Next's own config loader and the minted URL through
+ * Next's own `validateParams`. Every test that existed when the query-string
+ * grammar shipped passed; none of them looked through the optimizer.
+ *
  * MISCONFIGURATION FAILS TO TODAY'S BEHAVIOR, NOT TO A BLANK SITE
  * ───────────────────────────────────────────────────────────────
  * Signing needs a secret. If the flag is on and no secret is configured, this
@@ -98,10 +143,20 @@ export type MediaSurface = string | null;
 /** Route that serves gated media. Allow-listed on every host kind. */
 export const GATED_MEDIA_ROUTE = "/api/media/asset";
 
-/** Query param carrying the surface tenant id (absent = master surface). */
-export const MEDIA_SURFACE_PARAM = "s";
-/** Query param carrying the HMAC over (asset, surface). */
-export const MEDIA_SIGNATURE_PARAM = "k";
+/**
+ * Leading path segment marking a request minted for the master surface.
+ * Shape: `/api/media/asset/m/<sig>/<assetId>`.
+ */
+export const MEDIA_MASTER_SEGMENT = "m";
+/**
+ * Leading path segment marking a request minted for a tenant surface. The
+ * tenant id is the segment after it: `/api/media/asset/t/<id>/<sig>/<assetId>`.
+ *
+ * A distinct leading tag (rather than a reserved placeholder value in a fixed
+ * surface slot) is what makes the grammar total: there is no tenant id that
+ * could be mistaken for the master marker.
+ */
+export const MEDIA_TENANT_SEGMENT = "t";
 
 /**
  * How long an issued storage signature lives.
@@ -262,34 +317,76 @@ export function gatedMediaPath(
   if (!enabled || !secret) return null;
 
   const signature = computeSignature(assetId, surface, secret);
-  const params = new URLSearchParams();
-  if (surface !== null) params.set(MEDIA_SURFACE_PARAM, surface);
-  params.set(MEDIA_SIGNATURE_PARAM, signature);
-  return `${GATED_MEDIA_ROUTE}/${encodeURIComponent(assetId)}?${params.toString()}`;
+  const segments =
+    surface === null
+      ? [MEDIA_MASTER_SEGMENT, signature, assetId]
+      : [MEDIA_TENANT_SEGMENT, surface, signature, assetId];
+  // No query string, by design — see the optimizer note in the module header.
+  return `${GATED_MEDIA_ROUTE}/${segments.map(encodeURIComponent).join("/")}`;
+}
+
+/** What a well-formed gated path says before any of it is believed. */
+export type ParsedGatedMediaPath = {
+  surface: MediaSurface;
+  assetId: string;
+  signature: string;
+};
+
+/**
+ * Split a gated-media path into its claims. Pure shape work: NOTHING here is
+ * trusted, and a successful parse grants nothing — `verifyGatedMediaRequest()`
+ * is what decides whether we minted this URL.
+ *
+ * Kept separate from verification so the grammar can be tested without a
+ * signing secret, and so a malformed path is distinguishable in tests from a
+ * well-formed one bearing a forged signature.
+ *
+ * `segments` are the already-percent-decoded path segments AFTER
+ * `GATED_MEDIA_ROUTE` — exactly what a catch-all route hands over.
+ */
+export function parseGatedMediaPath(segments: string[]): ParsedGatedMediaPath | null {
+  const [tag, ...rest] = segments;
+
+  if (tag === MEDIA_MASTER_SEGMENT && rest.length === 2) {
+    const [signature, assetId] = rest;
+    if (!signature || !assetId) return null;
+    return { surface: null, assetId, signature };
+  }
+
+  if (tag === MEDIA_TENANT_SEGMENT && rest.length === 3) {
+    const [surface, signature, assetId] = rest;
+    // An empty tenant segment would otherwise collapse into the master surface.
+    if (!surface || !signature || !assetId) return null;
+    return { surface, assetId, signature };
+  }
+
+  return null;
 }
 
 /**
- * Verify an inbound gated-media request and return the surface it was minted
- * for. `null` means the URL was not minted by us — the caller must refuse.
+ * Verify an inbound gated-media request and return the surface and asset it was
+ * minted for. `null` means the URL was not minted by us — the caller must
+ * refuse.
  *
- * The `{ surface }` wrapper exists because a VALID master-surface request
- * resolves to `null`, which would otherwise be indistinguishable from a
- * rejection.
+ * Returning a wrapper object rather than the bare surface is load-bearing: a
+ * VALID master-surface request resolves to `surface: null`, which would
+ * otherwise be indistinguishable from a rejection.
  */
 export function verifyGatedMediaRequest(
-  assetId: string,
-  params: { surface: string | null; signature: string | null },
-): { surface: MediaSurface } | null {
+  segments: string[],
+): { surface: MediaSurface; assetId: string } | null {
   const secret = readSecret();
-  if (!secret || !params.signature) return null;
+  if (!secret) return null;
 
-  const surface = params.surface && params.surface.length > 0 ? params.surface : null;
-  const expected = computeSignature(assetId, surface, secret);
+  const parsed = parseGatedMediaPath(segments);
+  if (!parsed) return null;
 
-  const provided = Buffer.from(params.signature, "base64url");
+  const expected = computeSignature(parsed.assetId, parsed.surface, secret);
+
+  const provided = Buffer.from(parsed.signature, "base64url");
   const wanted = Buffer.from(expected, "base64url");
   if (provided.length !== wanted.length) return null;
   if (!timingSafeEqual(provided, wanted)) return null;
 
-  return { surface };
+  return { surface: parsed.surface, assetId: parsed.assetId };
 }

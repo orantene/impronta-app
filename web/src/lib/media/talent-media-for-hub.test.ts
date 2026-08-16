@@ -605,14 +605,18 @@ test("P0-1 flag OFF: the resolver still emits the public storage URL, unchanged"
 
 test("P0-1 flag ON: the curated face routes through the gate, carrying its surface", async () => {
   const url = (await resolveWithPrivateAccess("1", TENANT_A)).get(TALENT);
-  assert.ok(url?.startsWith("/api/media/asset/a1?"), url);
-  assert.ok(url?.includes(`s=${TENANT_A}`), url);
+  // `/api/media/asset/t/<tenant>/<sig>/<assetId>` — surface and signature ride
+  // in the PATH, never a query string, or next/image 400s the whole card.
+  assert.ok(url?.startsWith(`/api/media/asset/t/${TENANT_A}/`), url);
+  assert.ok(url?.endsWith("/a1"), url);
+  assert.ok(!url?.includes("?"), url);
 });
 
 test("P0-1 flag ON, master surface: no tenant id rides in the URL", async () => {
   const url = (await resolveWithPrivateAccess("1", null)).get(TALENT);
-  assert.ok(url?.startsWith("/api/media/asset/a1?"), url);
-  assert.ok(!url?.includes("s="), url);
+  assert.ok(url?.startsWith("/api/media/asset/m/"), url);
+  assert.ok(url?.endsWith("/a1"), url);
+  assert.ok(!url?.includes("?"), url);
 });
 
 test("P0-1: the gated URL carries the ORIGINAL id, so watermarking stays per-request", async () => {
@@ -637,7 +641,8 @@ test("P0-1: the gated URL carries the ORIGINAL id, so watermarking stays per-req
     withGrantsFlag("1", () => resolveTalentCardThumbsForHub(client, [TALENT], TENANT_B)),
   );
   const url = out.get(TALENT);
-  assert.ok(url?.startsWith("/api/media/asset/a1?"), url);
+  assert.ok(url?.startsWith(`/api/media/asset/t/${TENANT_B}/`), url);
+  assert.ok(url?.endsWith("/a1"), url);
   assert.ok(!url?.includes("wm1"), "the derivative id must not be what the browser asks for");
 });
 
