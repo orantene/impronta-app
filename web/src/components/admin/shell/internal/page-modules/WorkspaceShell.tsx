@@ -7,7 +7,7 @@ import { WorkspaceMediaPage } from "../media-page";
 import { useSiteDesignUrl } from "./use-site-design-url";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, Icon, useRovingTabindex } from "../primitives";
-import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
+import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, meetsRole, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { useCanonicalRouteChildren } from "../canonical-route-children";
@@ -246,6 +246,14 @@ function WorkspaceSidebarShell() {
           : []),
         { label: "Card Design", href: `${websiteBase}/card-design` },
         { label: "Profile Pages", href: `${websiteBase}/profile-pages` },
+        // Form submissions. This surface had NO in-app route at all — the only
+        // way in was a link inside a notification email, so a tenant who never
+        // got (or deleted) that email could not reach their own enquiries.
+        // Owner-gated to mirror the page's `manage_billing` capability check:
+        // showing it to a manager would just route them into a 404.
+        ...(meetsRole(state.role, "owner")
+          ? [{ label: "Forms", href: `${websiteBase}/forms` }]
+          : []),
       ];
     }
     if (p === "roster") {
