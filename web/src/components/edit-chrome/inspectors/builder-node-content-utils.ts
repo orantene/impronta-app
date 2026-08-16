@@ -82,3 +82,28 @@ export function resolveStandaloneBuilderNodeForContent(
   }
   return node;
 }
+
+/**
+ * D3 fix — the value to patch onto a required media `src` field
+ * (image/video nodes) when `MediaPickerButton`'s Clear affordance fires.
+ *
+ * `MediaPickerButton.onChange` is called with `null` on Clear and a string
+ * URL on pick/paste. The old guard at every one of these call sites was
+ * `if (!next) return;`, which silently swallowed the `null` case — Clear
+ * rendered (or, for the `row` variant, didn't even render) but never did
+ * anything. `src` is REQUIRED in both `imagePropsSchema` and
+ * `videoPropsSchema` (registry.ts) but not constrained to non-empty, so ""
+ * is a valid, real "cleared" state — render.tsx's image case already
+ * treats an empty/unresolved `src` as an empty slot rather than crashing.
+ */
+export function resolveClearableMediaSrc(next: string | null): string {
+  return next ?? "";
+}
+
+/** Pure array-without-index helper — used by the social_feed item Clear
+ * fix (mediaUrl is a REQUIRED https:// field per post, so clearing the
+ * image removes the whole post) and mirrors the existing per-item
+ * "Remove" button's own filter. */
+export function removeItemAt<T>(items: ReadonlyArray<T>, index: number): T[] {
+  return items.filter((_, i) => i !== index);
+}

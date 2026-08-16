@@ -102,17 +102,28 @@ export function MediaPickerButton({
             {dimensions ?? "Loading dimensions…"}
           </p>
         </div>
-        <MediaPicker
-          tenantId={tenantId}
-          label="Replace"
-          onPick={(url) => {
-            if (!onPickItem) onChange(url);
-          }}
-          onPickItem={(item) => {
-            if (onPickItem) onPickItem(item);
-            else onChange(item.publicUrl);
-          }}
-        />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <MediaPicker
+            tenantId={tenantId}
+            label="Replace"
+            onPick={(url) => {
+              if (!onPickItem) onChange(url);
+            }}
+            onPickItem={(item) => {
+              if (onPickItem) onPickItem(item);
+              else onChange(item.publicUrl);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="rounded-md border px-2 py-1 text-[11px] font-medium text-stone-600 transition hover:bg-white hover:text-stone-800"
+            style={{ borderColor: "#e7e5e4" }}
+            title="Clear image"
+          >
+            Clear
+          </button>
+        </div>
       </div>
     );
   }
