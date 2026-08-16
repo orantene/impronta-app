@@ -229,7 +229,12 @@ const BUDGETS: Record<string, number> = {
   // comment that tells the click handler to ignore `targetDrawer` when it is
   // present; the resolution logic lives in
   // components/admin/shell/internal/notification-drawer-targets.ts.
-  "src/components/admin/shell/internal/state/types.ts": 2754,
+  // +17: RosterTaxonomyChip gains `parent` (every leaf chip carries its own
+  // parent_category, because a talent spans several and the roster groups by
+  // parent) and `supported` (false when the tenant disabled the term). Both
+  // are two-line fields on an existing type plus the doc comments explaining
+  // the "why" — nothing extractable.
+  "src/components/admin/shell/internal/state/types.ts": 2771,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge

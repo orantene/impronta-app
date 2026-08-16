@@ -563,7 +563,11 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
           data-preview-parent-category
           className="flex items-center justify-center gap-[5px] border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
         >
-          {t("dashboard.adminCardStudio2.sampleParentCategory")}
+          {/* Parent-anchored modes list EVERY parent the talent spans, so the
+              sample shows two — one parent was the bug this replaced. */}
+          {badges.typeDisplay === "expanded"
+            ? t("dashboard.adminCardStudio2.sampleParentCategory")
+            : `${t("dashboard.adminCardStudio2.sampleParentCategory")} · ${t("dashboard.adminCardStudio2.sampleParentCategoryB")}`}
           {/* `parent_first` hangs the child types behind this control on the
               real card; the preview shows the affordance in its resting
               (collapsed) state. */}
@@ -598,6 +602,8 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
               }}
             >
               <span aria-hidden style={{ fontSize: 12, opacity: 0.85 }}>📸</span>
+              {/* The star marks the PRIMARY type, same as the real card. */}
+              <span aria-hidden className="text-[9px]">★</span>
               {t("dashboard.adminCardStudio2.sampleTalentType")}
             </div>
             <div
@@ -615,6 +621,15 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
                   {label}
                 </span>
               ))}
+              {/* A type this workspace has disabled: dimmed + dashed, with the
+                  reason on hover. It still renders — the talent holds it. */}
+              <span
+                data-preview-type-unsupported
+                title={t("admin.roster.card.typeNotOfferedTooltip")}
+                className="inline-flex items-center rounded-full border border-dashed border-admin-border px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted opacity-[0.55]"
+              >
+                {t("dashboard.adminCardStudio2.sampleSecondaryTypeC")}
+              </span>
               <span className="inline-flex items-center rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted">
                 +2
               </span>
