@@ -461,9 +461,22 @@ export async function publishDesign(
     values: DesignPublishValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * SCOPED publish. When present, only these token keys are promoted from
+     * the draft onto the live row; every other live token is left exactly as
+     * it is, and the unpublished remainder stays in the draft for the surface
+     * that owns it.
+     *
+     * `agency_branding` holds ONE draft that several surfaces write to, so an
+     * unscoped publish ships whatever anyone else left pending — that is how a
+     * card-colour publish repainted a whole storefront on 2026-08-15. The Card
+     * Design studio passes CARD_DESIGN_SCOPE; the ThemeDrawer (which owns the
+     * whole theme) passes nothing and keeps the full-promotion behaviour.
+     */
+    scopeKeys?: ReadonlySet<string>;
   },
 ): Promise<Phase5Result<{ version: number; theme: Record<string, string> }>> {
-  const { tenantId, values, actorProfileId } = params;
+  const { tenantId, values, actorProfileId, scopeKeys } = params;
   const correlationId = params.correlationId ?? randomUUID();
 
   await requirePhase5Capability("agency.site_admin.design.publish", tenantId);
@@ -483,7 +496,16 @@ export async function publishDesign(
   const draftSplit = splitLegacyThemeKeys(
     (beforeRow.theme_json_draft ?? {}) as Record<string, unknown>,
   );
-  const gate = validateThemePatch(draftSplit.registryCandidate);
+  // Validate only what this publish actually promotes. A scoped publish must
+  // not be blocked by an invalid token belonging to a different surface —
+  // "one bad key anywhere bricks every publish" is the same trap the legacy
+  // passthrough fix removed.
+  const promotable = scopeKeys
+    ? Object.fromEntries(
+        Object.entries(draftSplit.registryCandidate).filter(([k]) => scopeKeys.has(k)),
+      )
+    : draftSplit.registryCandidate;
+  const gate = validateThemePatch(promotable);
   if (!gate.ok) {
     return fail(
       "PUBLISH_NOT_READY",
@@ -504,6 +526,15 @@ export async function publishDesign(
     ...draftSplit.legacy,
   };
 
+  // Scoped: keep every live token and lay the promoted slice on top.
+  // Unscoped: the normalized draft REPLACES live (the ThemeDrawer submits a
+  // complete map, so a missing key there means "cleared back to default").
+  const liveBase = scopeKeys
+    ? splitLegacyThemeKeys((beforeRow.theme_json ?? {}) as Record<string, unknown>)
+        .registryCandidate as Record<string, string>
+    : {};
+  const nextTheme = { ...liveBase, ...gate.normalized, ...liveLegacy };
+
   const nextVersion = beforeRow.version + 1;
   const now = new Date().toISOString();
   // GAP B — publish the component-style defaults atomically with the theme:
@@ -516,7 +547,7 @@ export async function publishDesign(
   const { data: updatedRow, error: updateError } = await supabase
     .from("agency_branding")
     .update({
-      theme_json: { ...gate.normalized, ...liveLegacy },
+      theme_json: nextTheme,
       component_styles_json: componentStylesLive,
       theme_published_at: now,
       version: nextVersion,

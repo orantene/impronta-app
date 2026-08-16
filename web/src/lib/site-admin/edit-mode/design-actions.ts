@@ -42,6 +42,7 @@ import {
   type ComponentStyleDefaults,
 } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
+import { CARD_DESIGN_SCOPE } from "@/lib/site-admin/tokens/card-design-scope";
 import {
   LEGACY_THEME_PASSTHROUGH_KEYS,
   splitLegacyThemeKeys,
@@ -688,10 +689,10 @@ export async function restoreDesignRevisionFromEditAction(input: {
  * a registry lockdown between save and publish surfaces as PUBLISH_NOT_READY
  * rather than leaking a stale token into the live row.
  */
-export async function publishDesignFromEditAction(input: {
-  expectedVersion: number;
-  tenantSlug?: string;
-}): Promise<DesignPublishResult> {
+async function publishDesignScoped(
+  input: { expectedVersion: number; tenantSlug?: string },
+  scopeKeys: ReadonlySet<string> | undefined,
+): Promise<DesignPublishResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
   const scope = await resolveDesignScope(input?.tenantSlug);
@@ -719,6 +720,7 @@ export async function publishDesignFromEditAction(input: {
       tenantId: scope.tenantId,
       values: parsed.data,
       actorProfileId: auth.user.id,
+      scopeKeys,
     });
     if (!result.ok) {
       if (result.code === "VERSION_CONFLICT") {
@@ -744,4 +746,31 @@ export async function publishDesignFromEditAction(input: {
     logServerError("edit-mode/publish-design", error);
     return { ok: false, error: "Could not publish theme." };
   }
+}
+
+/**
+ * FULL publish — promotes the entire design draft. This is the ThemeDrawer's
+ * move: it owns the whole theme and always submits a complete map.
+ */
+export async function publishDesignFromEditAction(input: {
+  expectedVersion: number;
+  tenantSlug?: string;
+}): Promise<DesignPublishResult> {
+  return publishDesignScoped(input, undefined);
+}
+
+/**
+ * SCOPED publish — promotes ONLY the Card Design studio's own tokens.
+ *
+ * The studio shares one draft column with the ThemeDrawer and the site-preset
+ * picker, so an unscoped publish from here shipped whatever those surfaces had
+ * left pending: on 2026-08-15 a card-colour publish carried a stale site preset
+ * live and repainted a whole storefront. Scoping the promotion means the blast
+ * radius of this button is the cards, full stop.
+ */
+export async function publishCardDesignFromEditAction(input: {
+  expectedVersion: number;
+  tenantSlug?: string;
+}): Promise<DesignPublishResult> {
+  return publishDesignScoped(input, CARD_DESIGN_SCOPE);
 }
