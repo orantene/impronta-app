@@ -270,4 +270,14 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Este sitio todavía no tiene encabezado de estructura",
   "Publish the site shell once and the header layout controls appear here.":
     "Publica la estructura del sitio una vez y los controles de distribución del encabezado aparecerán aquí.",
+
+  // ── Multi-selection style panel (Inspector Reset P4, 2026-08-16) ─────────
+  // Field-kit migration of the Mixed-aware bulk style inspector.
+  "Editing {count} blocks": "Editando {count} bloques",
+  'Shared styles apply to every selected block. "Mixed" means the blocks currently differ. Set a value to make them match.':
+    'Los estilos compartidos se aplican a cada bloque seleccionado. "Mixto" significa que los bloques actualmente difieren. Define un valor para igualarlos.',
+  "These blocks currently have different corner radii.":
+    "Estos bloques actualmente tienen radios de esquina diferentes.",
+  "These blocks currently have different values.":
+    "Estos bloques actualmente tienen valores diferentes.",
 };
