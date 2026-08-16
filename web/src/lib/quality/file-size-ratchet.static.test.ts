@@ -85,7 +85,7 @@ const BUDGETS: Record<string, number> = {
   //       remedy for a three-line delta; the point of the guard is that the
   //       growth is visible, and it is.
   "src/components/edit-chrome/edit-context.tsx": 6202,
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5896,
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5809,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
   "src/components/edit-chrome/topbar.tsx": 3471,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
