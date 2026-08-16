@@ -267,6 +267,13 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   duplicateSelectedBuilderNodes: () => Promise<{ ok: boolean; error?: string; nodeIds?: string[] }>;
   translateSelectedBuilderNodes: (
     deltas: Readonly<Record<string, TranslateDelta>>,
+    /**
+     * Breakpoint-aware nudge — `"tablet"`/`"mobile"` accumulates the delta
+     * into `style.responsive[bucket].translate` for every node in `deltas`
+     * instead of the base style; omitted/`null` is the existing base-style
+     * behavior (also what align/distribute ride, unchanged).
+     */
+    bucket?: "tablet" | "mobile" | null,
   ) => Promise<{ ok: boolean; error?: string }>;
   alignSelectedBuilderNodes: (
     mode: MultiNodeAlignMode,

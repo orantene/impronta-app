@@ -43,14 +43,16 @@ import {
   decideMediaReleaseRequest,
   listMediaReleaseHistory,
   listMediaReleaseRequests,
+  listPendingReleaseBakeRepairs,
   loadReleaseBakeRepairPlan,
-  reinstateRepairedReleaseGrants,
   revokeMediaRelease,
   rollBackFailedReleaseBakes,
+  settleReleaseBakeRetry,
   MAX_RELEASE_ASSETS,
   type MediaGrantBustKey,
   type MediaReleaseHistoryEntry,
   type MediaReleaseRequestSummary,
+  type PendingReleaseBakeRepair,
   type ReleaseDecisionOutcome,
   type ReleaseRevokeOutcome,
 } from "@/lib/site-admin/server/media-grants";
@@ -64,6 +66,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export type {
   MediaReleaseHistoryEntry,
   MediaReleaseRequestSummary,
+  PendingReleaseBakeRepair,
 } from "@/lib/site-admin/server/media-grants";
 
 function bust(keys: readonly MediaGrantBustKey[], tenantSlug: string): void {
@@ -184,6 +187,9 @@ export async function actionDecideMediaReleaseRequest(input: {
   if (failedAssetIds.length > 0) {
     rolledBack = await rollBackFailedReleaseBakes(admin, {
       tenantId: auth.tenantId,
+      // The queue key. The same call that rolls these photos out of the release
+      // records them as pending repairs, so the retry survives this response.
+      requestId: input.requestId,
       assetIds: failedAssetIds,
       targetTenantId: result.data.targetTenantId,
       talentProfileId: result.data.talentProfileId,
@@ -216,16 +222,37 @@ export async function actionDecideMediaReleaseRequest(input: {
   if (failedAssetIds.length === 0) return result;
 
   // Partial success. Naming the count and the reason beats a green tick over a
-  // release that shows nothing.
+  // release that shows nothing. The retry itself no longer hangs off this
+  // response — the photos are on the workspace's watermark-repairs list until
+  // they bake or the release is revoked — so the copy points at the list.
   return {
     ok: true,
     data: {
       ...result.data,
       granted: grantedNow,
-      warning: `${failedAssetIds.length} photo${failedAssetIds.length === 1 ? "" : "s"} could not be watermarked and ${failedAssetIds.length === 1 ? "was" : "were"} left unreleased. Check the workspace logo under Settings, Branding, then use Retry watermark below.`,
+      warning: `${failedAssetIds.length} photo${failedAssetIds.length === 1 ? "" : "s"} could not be watermarked and ${failedAssetIds.length === 1 ? "was" : "were"} left unreleased. Check the workspace logo under Settings, Branding, then retry from Watermark repairs. The list keeps them after a reload.`,
       failedAssetIds,
     },
   };
+}
+
+/**
+ * The workspace's outstanding watermark repairs — the durable half of A4.
+ *
+ * Read from `media_release_bake_failures`, whose only writer is the bake-failure
+ * rollback. A staff revoke RESOLVES rows here rather than creating them, so a
+ * photo somebody deliberately pulled can never show up as a repair candidate.
+ */
+export async function actionListReleaseBakeRepairs(): Promise<
+  ActionResult<PendingReleaseBakeRepair[]>
+> {
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+
+  return listPendingReleaseBakeRepairs(admin, auth.tenantId);
 }
 
 export type ReleaseBakeRetryOutcome = {
@@ -247,19 +274,23 @@ export type ReleaseBakeRetryOutcome = {
  * of the queue entirely (an approved row is only listed while an owner grant is
  * live), so even the manual route was gone.
  *
- * WHAT IS AND IS NOT PERSISTED. Which assets failed is NOT stored as state —
- * `rollBackFailedReleaseBakes` writes a `grant.release_bake_failed` activity
- * row, but that is an audit trail, not a queryable "needs repair" queue. The
- * only live copy of that list is the `failedAssetIds` this action's sibling
- * just returned to the caller, so the retry is offered on the partial-success
- * banner while it is on screen. It is deliberately NOT re-derived from "an
- * approved asset with no live grant", which would also match every photo a
- * staff member intentionally revoked. Surviving a page reload needs a real
- * repair-queue column on the request row; that is a schema change, not
- * something to fake here.
+ * WHERE THE FAILED IDS COME FROM (migration 20261119000000). They are STORED,
+ * in `media_release_bake_failures`, one pending row per (request, asset),
+ * written by `rollBackFailedReleaseBakes` — the one code path that knows a
+ * missing owner key means "the bake failed" and not "staff pulled it". Before
+ * that table the only copy was the approval response, so the retry died on
+ * reload; the `grant.release_bake_failed` activity row it also writes is an
+ * append-only audit trail with no resolved state, which a queue cannot be read
+ * from.
+ *
+ * It is still deliberately NOT re-derived from "an approved asset with no live
+ * grant": that also matches every photo a staff member intentionally revoked,
+ * and re-releasing those would undo a takedown. Revocation instead RESOLVES the
+ * matching rows, so intent flows one way only.
  *
  * Ids are re-validated server-side against the stored `approved_scopes` and
- * current ownership — see `loadReleaseBakeRepairPlan`.
+ * current ownership — see `loadReleaseBakeRepairPlan`. The queue is a
+ * convenience for the caller, never the authority on what may be re-released.
  */
 export async function actionRetryReleaseWatermarkBake(input: {
   requestId: string;
@@ -301,7 +332,7 @@ export async function actionRetryReleaseWatermarkBake(input: {
   }
 
   const baked: string[] = [];
-  let stillFailing = 0;
+  const stillFailingIds: string[] = [];
   for (const assetId of plan.data.assetIds) {
     const result = await bakeWatermarkedVariant(admin, {
       assetId,
@@ -314,15 +345,19 @@ export async function actionRetryReleaseWatermarkBake(input: {
       requirePresetEnabled: false,
     });
     if (result.ok) baked.push(assetId);
-    else stillFailing += 1;
+    else stillFailingIds.push(assetId);
   }
+  const stillFailing = stillFailingIds.length;
 
-  const outcome = await reinstateRepairedReleaseGrants(admin, {
+  // One settlement for both halves: the repaired rows leave the queue, the ones
+  // that failed again stay on it with their attempt count bumped.
+  const outcome = await settleReleaseBakeRetry(admin, {
     tenantId: auth.tenantId,
     requestId: input.requestId,
     talentProfileId: plan.data.talentProfileId,
     targetTenantId: plan.data.targetTenantId,
     assetIds: baked,
+    failedAssetIds: stillFailingIds,
     actorUserId: auth.user.id,
   });
 

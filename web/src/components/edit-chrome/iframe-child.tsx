@@ -55,6 +55,13 @@ interface IframeChildProps {
   /** WS1 — surface config forwarded to the iframe's own EditProvider. Defaults
    *  to the homepage config when omitted (the storefront iframe IS homepage). */
   surfaceConfig?: import("@/lib/site-admin/builder-core/config").BuilderContextConfig;
+  /** Live-QA #1146 — which device tier this iframe load represents, read by
+   *  EditChrome off the `?device=` param DeviceFrameSurface threads onto this
+   *  iframe's own `src`. Seeds the iframe's own EditProvider's `device`
+   *  state so device-scoped writes (the nudge's responsive bucket chief
+   *  among them) resolve against the tier the operator is actually
+   *  previewing instead of always defaulting to "desktop". */
+  initialDevice?: import("./edit-context-types").EditDevice;
 }
 
 export function IframeChild({
@@ -69,6 +76,7 @@ export function IframeChild({
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
   surfaceConfig,
+  initialDevice,
 }: IframeChildProps) {
   return (
     <EditErrorBoundary>
@@ -95,6 +103,7 @@ export function IframeChild({
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
         surfaceConfig={surfaceConfig}
+        initialDevice={initialDevice}
       >
         {/* The storefront DOM is rendered by the host page (page.tsx →
             AgencyHomeStorefront). All we add here is the selection
