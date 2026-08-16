@@ -335,8 +335,10 @@ type Ctx = {
     | { ok: true; data: import("@/lib/payments/stripe-connect-talent").TalentConnectedAccountSnapshot }
     | { ok: false; error: string }
     | null;
-  /** The talent's HELD payout totals (waiting on bank connection), by currency. */
-  bridgeTalentHeldPayouts: Array<{ currency: string; amountCents: number; count: number }> | null;
+  /** The talent's payout legs that did not land (reversed / failed / held). */
+  bridgeTalentPayoutAttention:
+    | import("@/lib/payments/talent-payout-attention-types").TalentPayoutAttention
+    | null;
   /**
    * The talent's agency relationships (cross-tenant). `null` means the
    * layout didn't load them (workspace-only entry). Empty array means the
@@ -2021,7 +2023,7 @@ export function AdminShellProvider({
   );
   const bridgeTalentSelfProfile = initialBridgeData?.talentSelfProfile ?? null;
   const bridgeTalentPayoutSnapshot = initialBridgeData?.talentPayoutSnapshot ?? null;
-  const bridgeTalentHeldPayouts = initialBridgeData?.talentHeldPayouts ?? null;
+  const bridgeTalentPayoutAttention = initialBridgeData?.talentPayoutAttention ?? null;
   // Talent's agency relationships. `null` means the layout didn't load
   // them (workspace-only entry); empty array means "real bridge, no
   // agency relationships yet" — render empty state, not Marta's mocks.
@@ -2188,7 +2190,7 @@ export function AdminShellProvider({
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
       bridgeTalentPayoutSnapshot,
-      bridgeTalentHeldPayouts,
+      bridgeTalentPayoutAttention,
       bridgeTalentAgencies,
       bridgeTalentRepresentation,
       bridgeUserNotifications,
@@ -2308,7 +2310,7 @@ export function AdminShellProvider({
       effectiveTalentInquiries,
       bridgeTalentSelfProfile,
       bridgeTalentPayoutSnapshot,
-      bridgeTalentHeldPayouts,
+      bridgeTalentPayoutAttention,
       bridgeTalentAgencies,
       bridgeTalentRepresentation,
       bridgeUserNotifications,

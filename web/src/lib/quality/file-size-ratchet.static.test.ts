@@ -125,7 +125,15 @@ const BUDGETS: Record<string, number> = {
   // lib/media/talent-storage-usage.ts; what landed here is one import and one
   // guarded mount.
   "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4736,
-  "src/components/admin/shell/internal/wave2.tsx": 4597,
+  // 2026-08-15 talent-notifications de-mock — net +2. `TalentNotificationsDrawer`
+  // rendered a hardcoded MOCK_TALENT_NOTIFS and never read
+  // `bridgeUserNotifications`, so a talent saw none of their own rows. The
+  // ~78 lines of data model + mock moved OUT to
+  // internal/talent-notification-rows.ts (which also owns the bridge → row
+  // mapping); the ~80 lines that landed here are rendering only: live-vs-mock
+  // source selection, per-row + mark-all read-through to
+  // @/lib/notifications/actions, and the deep-link dispatch.
+  "src/components/admin/shell/internal/wave2.tsx": 4599,
   "src/components/admin/shell/internal/workspace.tsx": 3559,
   // 2026-08-10 branding-media: +18 Spanish entries for the Brand identity
   // favicon slot + Brand images manager (translations belong in this map).
@@ -173,7 +181,11 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/state/types.ts": 2754,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
-  "src/components/admin/shell/internal/state/context.tsx": 2345,
+  // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge
+  // field (reversed/failed/held legs replacing the held-only totals). The type
+  // and every helper live in lib/payments/talent-payout-attention-types.ts;
+  // this file only carries the context field and its two exports.
+  "src/components/admin/shell/internal/state/context.tsx": 2347,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,

@@ -10620,9 +10620,8 @@
       "nothingPublishedYet": "Todavía no se ha publicado nada.",
       "publishedUpToDate": "Publicado",
       "liveUpToDateLastPublished": "En vivo · al día · última publicación {date}",
-      "draftChangesPending": "Cambios del borrador pendientes.",
-      "publishDriftWarningOne": "Al publicar también se aplicará 1 cambio de diseño del sitio guardado en el borrador (tema, diseño, colores).",
-      "publishDriftWarningMany": "Al publicar también se aplicarán {count} cambios de diseño del sitio guardados en el borrador (tema, diseño, colores).",
+      "publishDriftWarningOne": "Hay 1 cambio de diseño del sitio (tema, diseño, colores) guardado sin publicar. Publicar aquí solo aplica los ajustes de tarjeta.",
+      "publishDriftWarningMany": "Hay {count} cambios de diseño del sitio (tema, diseño, colores) guardados sin publicar. Publicar aquí solo aplica los ajustes de tarjeta.",
       "publishDriftReviewLink": "Abrir diseño del sitio ↗",
       "lookTitle": "Estilo",
       "lookHint": "Un kit repinta todas las tarjetas con un clic. Después puedes ajustar los colores. Se guarda como borrador mientras editas; Publicar lo activa en todas partes.",
@@ -10836,6 +10835,15 @@
       },
       "failedBadge": "Fallido"
     },
+    "talentNotifications": {
+      "markAllRead": "Marcar todo como leído",
+      "marking": "Marcando…",
+      "allMarkedRead": "Todas las notificaciones se marcaron como leídas.",
+      "markAllFailed": "No se pudieron marcar todas como leídas. Inténtalo de nuevo.",
+      "empty": "Todo en orden. No hay notificaciones ahora mismo.",
+      "emptyArchive": "Nada archivado todavía. Las novedades que descartes aparecerán aquí.",
+      "demoNotice": "Datos de demostración. Tus notificaciones aparecerán aquí en la superficie de talento."
+    },
     "talentHubFace": {
       "title": "Fotos en este sitio",
       "body": "Elige qué fotos representan a este talento en tu sitio y define la portada. Es la selección propia de tu espacio: apunta a las fotos, nunca las copia, y no cambia cómo se ve este talento en otros sitios.",
@@ -10953,6 +10961,24 @@
       "full": "No queda espacio. Elimina fotos que ya no necesites o mejora tu plan.",
       "forTalent": "{talent}: {used} de {cap} fotos usadas en su plan.",
       "forTalentUnlimited": "{talent} no tiene límite de fotos en su plan."
+    },
+    "talentPayoutAttention": {
+      "title": "Pagos que necesitan atención",
+      "reversedHeading": "Revertidos",
+      "failedHeading": "No se pudieron enviar",
+      "heldHeading": "En espera de liberación",
+      "reversedNote": "Este dinero se devolvió después de anularse el pago de la reserva. No llegará por sí solo. Contacta a tu agencia si crees que es un error.",
+      "failedNote": "No pudimos enviar estos pagos. Revisa que tus datos de cobro estén completos y contacta a tu agencia si siguen aquí.",
+      "heldNote": "No se pierde nada. Liberamos los pagos retenidos automáticamente en cuanto tus datos de cobro estén listos.",
+      "causeRefund": "Tras el reembolso del pago del cliente",
+      "causeDispute": "Tras la disputa del pago del cliente",
+      "causeCancelled": "Cancelado antes de enviarse",
+      "causeUnknown": "Motivo no registrado",
+      "bookingFallback": "Reserva",
+      "eventOn": "Evento {date}",
+      "updatedOn": "Actualizado {date}",
+      "legCountOne": "{count} pago",
+      "legCountOther": "{count} pagos"
     }
   },
   "admin": {

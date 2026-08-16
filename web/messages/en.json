@@ -10620,9 +10620,8 @@
       "nothingPublishedYet": "Nothing published yet.",
       "publishedUpToDate": "Published",
       "liveUpToDateLastPublished": "Live · up to date · last published {date}",
-      "draftChangesPending": "Draft changes pending.",
-      "publishDriftWarningOne": "Publishing also ships 1 site design change saved elsewhere in the draft (theme, layout, colors).",
-      "publishDriftWarningMany": "Publishing also ships {count} site design changes saved elsewhere in the draft (theme, layout, colors).",
+      "publishDriftWarningOne": "1 site design change (theme, layout, colors) is saved but unpublished. Publishing here ships card settings only.",
+      "publishDriftWarningMany": "{count} site design changes (theme, layout, colors) are saved but unpublished. Publishing here ships card settings only.",
       "publishDriftReviewLink": "Open site design ↗",
       "lookTitle": "Look",
       "lookHint": "A one-click kit repaints every card. You can fine-tune the colors after. Saved to a draft as you edit; Publish makes it live everywhere.",
@@ -10836,6 +10835,15 @@
       },
       "failedBadge": "Failed"
     },
+    "talentNotifications": {
+      "markAllRead": "Mark all read",
+      "marking": "Marking…",
+      "allMarkedRead": "All notifications marked as read.",
+      "markAllFailed": "Could not mark everything read. Try again.",
+      "empty": "All clear. No notifications right now.",
+      "emptyArchive": "Nothing archived yet. Updates you dismiss land here.",
+      "demoNotice": "Demo data. Your own notifications appear here on the talent surface."
+    },
     "talentHubFace": {
       "title": "Photos on this site",
       "body": "Pick which photos represent this talent on your site, and set the cover. This is your workspace's own selection: it points at photos, it never copies them, and it does not change how this talent looks on any other site.",
@@ -10953,6 +10961,24 @@
       "full": "No room left. Remove photos you no longer need, or upgrade your plan.",
       "forTalent": "{talent}: {used} of {cap} photos used on their plan.",
       "forTalentUnlimited": "{talent} has no photo limit on their plan."
+    },
+    "talentPayoutAttention": {
+      "title": "Payouts that need attention",
+      "reversedHeading": "Reversed",
+      "failedHeading": "Could not be sent",
+      "heldHeading": "Waiting to be released",
+      "reversedNote": "This money was taken back after the payment on the booking was undone. It will not arrive on its own. Contact your agency if you think this is a mistake.",
+      "failedNote": "We could not send these payouts. Check that your payout details are complete, and contact your agency if they stay here.",
+      "heldNote": "Nothing is lost. We release held payouts automatically once your payout details are ready.",
+      "causeRefund": "After the client's payment was refunded",
+      "causeDispute": "After the client's payment was disputed",
+      "causeCancelled": "Cancelled before it was sent",
+      "causeUnknown": "Reason not recorded",
+      "bookingFallback": "Booking",
+      "eventOn": "Event {date}",
+      "updatedOn": "Updated {date}",
+      "legCountOne": "{count} payout",
+      "legCountOther": "{count} payouts"
     }
   },
   "admin": {

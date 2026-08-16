@@ -7,7 +7,7 @@ import { WorkspaceMediaPage } from "../media-page";
 import { useSiteDesignUrl } from "./use-site-design-url";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, Icon, useRovingTabindex } from "../primitives";
-import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, PAGE_META, PLAN_META, useAdminShell } from "../state";
+import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, meetsRole, PAGE_META, PLAN_META, useAdminShell } from "../state";
 import type { FabPaletteChangedDetail, WorkspacePage } from "../state";
 import { ShortcutHelpOverlay, useKeyboardLayer } from "../workspace";
 import { useCanonicalRouteChildren } from "../canonical-route-children";

@@ -328,4 +328,12 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "No blocks match “{query}”": "Ningún bloque coincide con “{query}”",
   "Type to search blocks…": "Escribe para buscar bloques…",
   "Search blocks to insert": "Buscar bloques para insertar",
+  // ── Quick-style popover (selection toolbar, 2026-08-15) ───────────────
+  // Fill / Shadow / Default / Sharp / Pill already live in
+  // editor-i18n-es-inspectors.ts (the popover reuses the inspector's shared
+  // Segmented option lists); only the popover-specific strings are new.
+  "Quick styles": "Estilos rápidos",
+  "Padding": "Espaciado interior",
+  "Corners": "Esquinas",
+  "Locked by admin": "Bloqueado por el administrador",
 };

@@ -205,10 +205,17 @@ const listeners: Listener[] = [
  * Extend `listeners` with system messages / notifications when wiring.
  *
  * Division of responsibility:
- *   `emitStandardEngineEvent` (and the `emitEngineEvents` primitive below) is
- *   the canonical path for ALL inquiry-engine-*.ts writes to `inquiry_events`.
- *   It writes the event row AND dispatches side-effects (system messages,
- *   push notifications, improntaLog) through the listener chain.
+ *   `emitStandardEngineEvent` (and the `emitEngineEvents` primitive below)
+ *   dispatches side-effects ONLY — system messages, push notifications,
+ *   improntaLog — through the listener chain, recording listener failures in
+ *   `failed_engine_effects`. It does NOT insert an `inquiry_events` row.
+ *
+ *   CORRECTED 2026-08-15: this block previously claimed this was "the
+ *   canonical path for ALL writes to `inquiry_events`". It never was, and a
+ *   reader who trusted it would conclude the table was being written when it
+ *   was not. Direct `.from("inquiry_events")` writes DO exist (see
+ *   `inquiry-engine-lifecycle.ts`). Verify before extending this claim — one
+ *   false comment in this codebase has already produced three separate bugs.
  *
  *   `logInquiryActivity` in `commercial-audit.ts` is a separate, simpler
  *   helper for standalone server-action callers that need a bare event row
