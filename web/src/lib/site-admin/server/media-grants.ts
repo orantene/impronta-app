@@ -350,10 +350,16 @@ export {
 
 export {
   loadReleaseBakeRepairPlan,
-  reinstateRepairedReleaseGrants,
+  settleReleaseBakeRetry,
   type ReleaseBakeRepairOutcome,
   type ReleaseBakeRepairPlan,
 } from "./media-release-bake-repair";
+
+export {
+  listPendingReleaseBakeRepairs,
+  groupPendingBakeRepairs,
+  type PendingReleaseBakeRepair,
+} from "./media-release-bake-failures";
 
 export {
   withdrawMediaReleaseRequest,
