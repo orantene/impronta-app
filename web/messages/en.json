@@ -10936,7 +10936,7 @@
       "retryAllFailed": "Still could not watermark {count} photo(s). Check the workspace logo under Settings, Branding, then try again.",
       "repairsTitle": "Watermark repairs",
       "repairsHint": "These photos were approved for release but could not be watermarked, so they are showing nowhere. Fix the cause, usually a missing workspace logo under Settings, Branding, then retry. Revoking the release clears them from this list.",
-      "repairsEntry": "{talent} · {count} photos",
+      "repairsEntry": "{talent} · {count} photo(s)",
       "repairsAttempts": "Tried {count} time(s), last failed {date}.",
       "historyTitle": "Past decisions",
       "historyHint": "What you already answered. Nothing here is live.",

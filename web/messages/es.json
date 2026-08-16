@@ -10936,7 +10936,7 @@
       "retryAllFailed": "Todavía no se pudieron marcar {count} foto(s). Revisa el logo del espacio en Ajustes, Marca y vuelve a intentarlo.",
       "repairsTitle": "Marcas de agua por reparar",
       "repairsHint": "Estas fotos se aprobaron para liberación pero no se pudieron marcar, así que no aparecen en ningún sitio. Corrige la causa, normalmente falta el logo del espacio en Ajustes, Marca, y vuelve a intentarlo. Si revocas la liberación, desaparecen de esta lista.",
-      "repairsEntry": "{talent} · {count} fotos",
+      "repairsEntry": "{talent} · {count} foto(s)",
       "repairsAttempts": "Se intentó {count} vez/veces, último fallo el {date}.",
       "historyTitle": "Decisiones anteriores",
       "historyHint": "Lo que ya respondiste. Nada de esto está activo.",
