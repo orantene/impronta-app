@@ -283,7 +283,7 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
 // WS-11.2 — notification batching types
 
 export function NotificationsDrawer() {
-  const { closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTenantIdentity } = useAdminShell();
+  const { closeDrawer, openDrawer, toast, bridgeUserNotifications, bridgeTenantIdentity, adminBasePath } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
   const [marking, setMarking] = useState(false);
@@ -343,11 +343,11 @@ export function NotificationsDrawer() {
           actorName: "",
           actorInitials: n.actorInitials ?? "·",
           surface: "workspace" as const,
-          ...notificationDrawerFields(n.targetDrawer, n.originInquiryId), // alias-resolved once, for BOTH dispatch sites below
+          ...notificationDrawerFields(n.targetDrawer, n.originInquiryId, adminBasePath), // alias-resolved once, for BOTH dispatch sites below
         }));
     }
     return NOTIFICATIONS.filter((n) => n.surface === "workspace");
-  }, [bridgeUserNotifications]);
+  }, [bridgeUserNotifications, adminBasePath]);
   const filtered = items.filter((n) => {
     if (filter === "unread") return !n.read;
     if (filter === "action") return ACTION_KINDS.includes(n.kind) && !n.read;
@@ -372,7 +372,7 @@ export function NotificationsDrawer() {
         if (!n.read && bridgeUserNotifications !== null) {
           import("@/lib/notifications/actions").then((m) => m.markNotificationRead(n.id)).catch(() => {});
         }
-        openDrawer(n.targetDrawer, n.targetPayload);
+        if (n.targetHref) { closeDrawer(); window.location.assign(n.targetHref); } else { openDrawer(n.targetDrawer, n.targetPayload); }
       }}
       style={{
         background: !n.read ? "#fff" : "rgba(11,11,13,0.015)",

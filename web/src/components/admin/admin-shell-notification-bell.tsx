@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Bell } from "lucide-react";
+import { usePathname } from "next/navigation";
 import {
   Tooltip,
   TooltipContent,
@@ -16,7 +17,11 @@ import type { MyNotification } from "@/lib/notifications/self-types";
 import {
   fireOpenShellDrawer,
 } from "@/components/admin/shell/internal/open-drawer-bridge";
-import { resolveNotificationDrawerTarget } from "@/components/admin/shell/internal/notification-drawer-targets";
+import {
+  adminBasePathFromPathname,
+  notificationTargetHref,
+  resolveNotificationDrawerTarget,
+} from "@/components/admin/shell/internal/notification-drawer-targets";
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -54,6 +59,10 @@ export function TopBarNotificationBell() {
   const popoverRef = React.useRef<HTMLDivElement | null>(null);
   const buttonRef = React.useRef<HTMLButtonElement | null>(null);
   const [dismissed, setDismissed] = React.useState<Set<string>>(() => new Set());
+  // This bell renders OUTSIDE AdminShellProvider, so the host-resolved
+  // workspace base path has to come back off the URL. See
+  // adminBasePathFromPathname.
+  const adminBasePath = adminBasePathFromPathname(usePathname() ?? "/admin");
 
   const loadNotifs = React.useCallback(async () => {
     try {
@@ -209,8 +218,14 @@ export function TopBarNotificationBell() {
                           void markOneRead(n.id);
                           // Stored target_drawer strings are not all drawer
                           // ids — resolve aliases (e.g. "talent-media" → the
-                          // profile shell's media section) in one place.
+                          // profile shell's media section) and page targets
+                          // (e.g. "money" → /talent/payouts) in one place.
                           const target = resolveNotificationDrawerTarget(n.targetDrawer);
+                          if (target?.kind === "page") {
+                            setOpen(false);
+                            window.location.href = notificationTargetHref(target, adminBasePath);
+                            return;
+                          }
                           if (target) {
                             fireOpenShellDrawer(target.drawerId, target.payload);
                             setOpen(false);
