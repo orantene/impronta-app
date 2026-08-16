@@ -846,6 +846,13 @@ export type NotificationItem = {
   targetDrawer: DrawerId;
   /** Optional payload forwarded to the target drawer. */
   targetPayload?: { id?: string; inquiryId?: string };
+  /**
+   * Set when the notification's real destination is a routed PAGE, not a
+   * drawer (e.g. payout reversals → /talent/payouts). When present the click
+   * handler must navigate here and IGNORE `targetDrawer` — see
+   * notification-drawer-targets.ts.
+   */
+  targetHref?: string;
 };
 
 // ════════════════════════════════════════════════════════════════════
