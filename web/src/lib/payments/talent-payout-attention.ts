@@ -20,7 +20,7 @@ import {
  * failed, or still held — with enough booking context to recognise it.
  *
  * Uses the SAME payee predicate as `getHeldPayoutTotals` / `releaseHeldPayouts`
- * (`scopePayoutLegsToPayee`), so the talent's view can never disagree with what
+ * (`payoutLegPayeeScope`), so the talent's view can never disagree with what
  * the release path acts on. Service-role read, scoped to the caller's own
  * `talentProfileId`; best-effort — an empty payload on any failure, because
  * this hangs off a dashboard layout that must never break.
