@@ -224,7 +224,10 @@ const BUDGETS: Record<string, number> = {
   // field (reversed/failed/held legs replacing the held-only totals). The type
   // and every helper live in lib/payments/talent-payout-attention-types.ts;
   // this file only carries the context field and its two exports.
-  "src/components/admin/shell/internal/state/context.tsx": 2347,
+  // +41: setRosterCardTypeDisplay — the roster-card category-block layout
+  // setter, kept beside its sibling setRosterCardBadge (same settings blob,
+  // same optimistic-persist-reconcile contract) rather than split off alone.
+  "src/components/admin/shell/internal/state/context.tsx": 2388,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,
