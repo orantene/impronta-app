@@ -659,6 +659,51 @@ export function taxonomyDisplayName(
   return node.custom_label || node.name_en || node.custom_label_es || node.name_es || "";
 }
 
+/**
+ * One level-3 talent_type as a TOGGLE chip. Disabled leaves render faded,
+ * dashed and struck through — before this, the drawer showed every leaf as an
+ * inert enabled-looking chip, so a tenant's per-type curation (Impronta: 332
+ * disabled leaves, 64 under fully-enabled parents) was invisible and could
+ * only be changed with a DB write.
+ */
+function TalentTypeToggleChip({
+  node,
+  isSpanish,
+  onToggle,
+  t,
+}: {
+  node: TaxonomyNode;
+  isSpanish: boolean;
+  onToggle: (leaf: TaxonomyNode) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(node)}
+      aria-pressed={node.is_enabled}
+      title={t(node.is_enabled ? "dashboard.adminDrawers.taxonomyLeafOnTooltip" : "dashboard.adminDrawers.taxonomyLeafOffTooltip")}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        padding: "3px 8px", fontSize: 11, fontFamily: FONTS.body,
+        color: node.is_enabled ? COLORS.inkMuted : COLORS.inkDim,
+        background: node.is_enabled ? "#fff" : "transparent",
+        borderRadius: 999, cursor: "pointer",
+        border: `1px ${node.is_enabled ? "solid" : "dashed"} ${node.is_enabled ? COLORS.borderSoft : COLORS.border}`,
+        opacity: node.is_enabled ? 1 : 0.6,
+        textDecoration: node.is_enabled ? "none" : "line-through",
+      }}
+    >
+      <span aria-hidden style={{
+        width: 6, height: 6, borderRadius: "50%",
+        background: node.is_enabled ? COLORS.accent : "rgba(11,11,13,0.22)",
+        flexShrink: 0,
+      }} />
+      {taxonomyDisplayName(node, isSpanish)}
+    </button>
+  );
+}
+
 function reorderIds(ids: readonly string[], fromId: string, toId: string): string[] {
   const from = ids.indexOf(fromId);
   const to = ids.indexOf(toId);
@@ -680,6 +725,7 @@ export function CategoryExpandPanel({
   canCustomize,
   canSetOrder,
   onToggleSubEnabled,
+  onToggleLeafEnabled,
   onRemoveCustom,
   addingCustom,
   newSubName,
@@ -703,6 +749,9 @@ export function CategoryExpandPanel({
   /** Plan-tier capability: Agency+ may set display order. */
   canSetOrder: boolean;
   onToggleSubEnabled: (sub: TaxonomyNode) => void;
+  /** Per-talent_type (level-3) enable/disable — same optimistic handler as the
+   *  group toggle; setTaxonomyEnabled accepts any term id. */
+  onToggleLeafEnabled: (leaf: TaxonomyNode) => void;
   onRemoveCustom: (sub: TaxonomyNode) => void;
   addingCustom: boolean;
   newSubName: string;
@@ -753,9 +802,17 @@ export function CategoryExpandPanel({
 
           {/* Level-2 category_groups (from getEnabledTaxonomyTree)
               with their level-3 talent_types nested (from getCategoryDetail). */}
-          {parent.children.map((sub) => {
-            const groupRow = detail?.groups.find((g) => g.group.id === sub.id);
-            const ttList = groupRow?.talentTypes ?? [];
+          {/* Group cards. Direct level-3 leaves under the parent (rare) are
+              excluded here — they render as toggle chips below, not as
+              pseudo-group cards; custom sub-types keep their card + Remove. */}
+          {parent.children.filter((sub) => sub.term_type !== "talent_type" || sub.is_custom).map((sub) => {
+            // Leaf chips come from the TREE (getEnabledTaxonomyTree), not from
+            // getCategoryDetail: only the tree nodes carry the tenant overlay
+            // (is_enabled, custom labels). Sourcing from detail rendered
+            // explicitly-disabled leaves as if enabled — Impronta's launch
+            // curation left 332 of them invisible and untoggleable here.
+            const ttList = sub.children.filter((c) => c.term_type === "talent_type");
+            const offCount = ttList.filter((c) => !c.is_enabled).length;
             return (
               <div
                 key={sub.id}
@@ -801,6 +858,12 @@ export function CategoryExpandPanel({
                     {ttList.length > 0 && (
                       <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                         {interpolate(t(ttList.length === 1 ? "dashboard.adminDrawers.taxonomyTalentTypesCountOne" : "dashboard.adminDrawers.taxonomyTalentTypesCountOther"), { count: ttList.length })}
+                        {offCount > 0 && (
+                          <span className="text-admin-ink-dim">
+                            {" · "}
+                            {interpolate(t("dashboard.adminDrawers.taxonomyLeafOffCount"), { count: offCount })}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -830,11 +893,7 @@ export function CategoryExpandPanel({
                 {ttList.length > 0 && (
                   <div style={{ padding: "6px 10px 10px 24px", display: "flex", flexWrap: "wrap", gap: 4, borderTop: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
                     {ttList.map((tt) => (
-                      <span key={tt.id} style={{
-                        padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
-                        background: "#fff", borderRadius: 999,
-                        border: `1px solid ${COLORS.borderSoft}`,
-                      }}>{tt.name_en}</span>
+                      <TalentTypeToggleChip key={tt.id} node={tt} isSpanish={isSpanish} onToggle={onToggleLeafEnabled} t={t} />
                     ))}
                   </div>
                 )}
@@ -842,27 +901,28 @@ export function CategoryExpandPanel({
             );
           })}
 
-          {/* Direct talent_types (rare). */}
-          {detail && detail.directTalentTypes.length > 0 && (
-            <div style={{
-              marginBottom: 8, padding: "8px 10px", borderRadius: 8,
-              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-              fontFamily: FONTS.body,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: 0.4 }} className="text-admin-ink-muted">
-                {t("dashboard.adminDrawers.taxonomyDirectTypes")}
+          {/* Direct talent_types (rare) — tree-sourced so enablement shows
+              and toggles, same as grouped leaves. */}
+          {(() => {
+            const direct = parent.children.filter((c) => c.term_type === "talent_type" && !c.is_custom);
+            if (direct.length === 0) return null;
+            return (
+              <div style={{
+                marginBottom: 8, padding: "8px 10px", borderRadius: 8,
+                background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body,
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: 0.4 }} className="text-admin-ink-muted">
+                  {t("dashboard.adminDrawers.taxonomyDirectTypes")}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {direct.map((tt) => (
+                    <TalentTypeToggleChip key={tt.id} node={tt} isSpanish={isSpanish} onToggle={onToggleLeafEnabled} t={t} />
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1">
-                {detail.directTalentTypes.map((tt) => (
-                  <span key={tt.id} style={{
-                    padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
-                    background: COLORS.surfaceAlt, borderRadius: 999,
-                    border: `1px solid ${COLORS.borderSoft}`,
-                  }}>{tt.name_en}</span>
-                ))}
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Add custom sub-type. */}
           {addingCustom ? (
@@ -1595,6 +1655,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       canCustomize={canCustomize}
                       canSetOrder={canSetOrder}
                       onToggleSubEnabled={handleToggleEnabled}
+                      onToggleLeafEnabled={handleToggleEnabled}
                       onRemoveCustom={handleRemoveCustom}
                       addingCustom={addingForParent === parent.id}
                       newSubName={newSubName}
