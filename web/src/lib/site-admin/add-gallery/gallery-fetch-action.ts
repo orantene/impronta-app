@@ -28,6 +28,8 @@
  */
 
 import { listGalleryItems } from "./registry-db-merge";
+import { createTemplatePreviewResolver } from "./template-preview-url";
+import { createClient } from "@/lib/supabase/server";
 import { listCatalogStructure } from "./catalog-structure-actions";
 import type { AddGalleryItem, GallerySurfaceDescriptor } from "./types";
 import { listPublishedTemplates } from "@/lib/site-admin/builder-core/templates/registry-actions";
@@ -61,6 +63,12 @@ export async function fetchSurfaceGalleryItems(
     },
     {
       listPublishedTemplates,
+      // WIRED 2026-08-16 — the dep `listGalleryItems` has always accepted and
+      // nothing ever passed. Without it every DB template rendered the generic
+      // SVG wireframe, including the shell header/footer variants whose whole
+      // value is that you can SEE which one you are picking.
+      preparePreviewImageUrls: async (rows) =>
+        createTemplatePreviewResolver(await createClient(), rows),
       loadOverlays: listCatalogOverlays,
       loadStructure: listCatalogStructure,
     },

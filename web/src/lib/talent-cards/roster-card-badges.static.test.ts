@@ -6,8 +6,11 @@ import { fileURLToPath } from "node:url";
 
 import {
   DEFAULT_ROSTER_CARD_BADGES,
+  DEFAULT_ROSTER_CARD_TYPE_DISPLAY,
   ROSTER_CARD_BADGE_KEYS,
   ROSTER_CARD_BADGE_META,
+  ROSTER_CARD_TYPE_DISPLAYS,
+  ROSTER_CARD_TYPE_DISPLAY_META,
   normalizeRosterCardBadges,
 } from "./roster-card-badges";
 
@@ -38,7 +41,10 @@ const rowSrc = read(
   "../../components/admin/shell/internal/page-modules/TalentPage-3.tsx",
 );
 const studioSrc = read(
-  "../../components/admin/shell/internal/page-modules/CardDesignStudio.tsx",
+  "../../components/admin/shell/internal/page-modules/CardDesignStudio-roster.tsx",
+);
+const categoryBlockSrc = read(
+  "../../components/admin/shell/internal/page-modules/roster-card-category-block.tsx",
 );
 const previewSrc = read(
   "../../components/admin/shell/internal/page-modules/CardDesignStudio-4.tsx",
@@ -55,7 +61,9 @@ test("badge key list includes the category block + quick view", () => {
 
 test("every badge key ships a default (all visible)", () => {
   assert.deepEqual(
-    Object.keys(DEFAULT_ROSTER_CARD_BADGES).sort(),
+    Object.keys(DEFAULT_ROSTER_CARD_BADGES)
+      .filter((key) => key !== "typeDisplay")
+      .sort(),
     [...ROSTER_CARD_BADGE_KEYS].sort(),
     "DEFAULT_ROSTER_CARD_BADGES must cover exactly the key list",
   );
@@ -95,6 +103,69 @@ test("normalize fills defaults, applies booleans, drops junk", () => {
   assert.equal(normalized.visibility, true, "non-boolean input must not hide a badge");
   assert.ok(!("unknownKey" in normalized), "unknown keys are dropped");
   assert.deepEqual(normalizeRosterCardBadges(null), DEFAULT_ROSTER_CARD_BADGES);
+});
+
+test("category-block mode: default is the historical layout", () => {
+  assert.equal(
+    DEFAULT_ROSTER_CARD_TYPE_DISPLAY,
+    "expanded",
+    "an existing workspace must see no layout drift on upgrade",
+  );
+  assert.equal(
+    DEFAULT_ROSTER_CARD_BADGES.typeDisplay,
+    DEFAULT_ROSTER_CARD_TYPE_DISPLAY,
+  );
+});
+
+test("category-block mode: normalize accepts known modes, rejects junk", () => {
+  for (const mode of ROSTER_CARD_TYPE_DISPLAYS) {
+    assert.equal(normalizeRosterCardBadges({ typeDisplay: mode }).typeDisplay, mode);
+  }
+  assert.equal(
+    normalizeRosterCardBadges({ typeDisplay: "sideways" }).typeDisplay,
+    DEFAULT_ROSTER_CARD_TYPE_DISPLAY,
+    "an unknown mode must fall back to the default, never hide the types",
+  );
+  assert.equal(
+    normalizeRosterCardBadges({ typeDisplay: 3 }).typeDisplay,
+    DEFAULT_ROSTER_CARD_TYPE_DISPLAY,
+  );
+});
+
+test("category-block mode: studio META covers every mode exactly once", () => {
+  assert.deepEqual(
+    ROSTER_CARD_TYPE_DISPLAY_META.map((m) => m.value).sort(),
+    [...ROSTER_CARD_TYPE_DISPLAYS].sort(),
+  );
+  for (const meta of ROSTER_CARD_TYPE_DISPLAY_META) {
+    assert.ok(meta.label.trim().length > 0, `mode "${meta.value}" needs a label`);
+    assert.ok(
+      meta.description.trim().length > 0,
+      `mode "${meta.value}" needs a description`,
+    );
+  }
+});
+
+test("category-block mode is wired end to end (action → card → row → studio)", () => {
+  assert.match(
+    actionSrc,
+    /typeDisplay:\s*z\.enum\(ROSTER_CARD_TYPE_DISPLAYS\)\.optional\(\)/,
+    "setRosterCardBadges must persist the layout mode",
+  );
+  assert.match(
+    categoryBlockSrc,
+    /typeDisplay !== "expanded"/,
+    "the card's category block must branch on the mode",
+  );
+  assert.match(
+    categoryBlockSrc,
+    /typeDisplay === "parent_first"/,
+    "`parent_first` must be what turns the expander on",
+  );
+  assert.match(cardSrc, /rosterCardBadges\.typeDisplay/);
+  assert.match(rowSrc, /rosterCardBadges\.typeDisplay/);
+  assert.match(studioSrc, /ROSTER_CARD_TYPE_DISPLAY_META\.map/);
+  assert.match(previewSrc, /badges\.typeDisplay/);
 });
 
 test("persistence schema accepts every badge key (server action)", () => {

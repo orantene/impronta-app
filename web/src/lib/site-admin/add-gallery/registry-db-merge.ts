@@ -553,6 +553,19 @@ export interface ListGalleryItemsDeps {
     row: BuilderTemplateRow,
   ) => Promise<string | undefined> | string | undefined;
   /**
+   * BATCHED preview resolution. Given the full published row set, return a
+   * SYNCHRONOUS per-row lookup.
+   *
+   * `resolvePreviewImageUrl` above is awaited inside the per-row loop, so a real
+   * implementation that queries storage would serialise one round-trip per
+   * template on every gallery open. This variant lets the caller resolve every
+   * asset in one query first. When both are supplied this one wins; when neither
+   * is, cards fall back to the SVG wireframe exactly as before.
+   */
+  preparePreviewImageUrls?: (
+    rows: ReadonlyArray<BuilderTemplateRow>,
+  ) => Promise<(row: BuilderTemplateRow) => string | undefined>;
+  /**
    * Load the admin catalog overlay (P3). When provided, the merged set is
    * passed through `applyCatalogOverlay` (subtract-only visibility + metadata
    * overrides) before returning. Applies to BOTH code items and DB templates.
@@ -611,11 +624,24 @@ export async function listGalleryItems(
     return finalize(codeGalleryItemsForPolicy(context.galleryPolicy));
   }
 
+  // Batched resolver first (one query for the whole set); fall back to the
+  // per-row dep, then to no preview at all.
+  const batched = deps.preparePreviewImageUrls
+    ? await deps
+        .preparePreviewImageUrls(result.data)
+        // A thumbnail failure must never blank the gallery — degrade to
+        // wireframe cards, the same way a template-fetch failure degrades to
+        // the code-only catalog above.
+        .catch(() => () => undefined)
+    : null;
+
   const dbItems: AddGalleryItem[] = [];
   for (const row of result.data) {
-    const previewImageUrl = deps.resolvePreviewImageUrl
-      ? await deps.resolvePreviewImageUrl(row)
-      : undefined;
+    const previewImageUrl = batched
+      ? batched(row)
+      : deps.resolvePreviewImageUrl
+        ? await deps.resolvePreviewImageUrl(row)
+        : undefined;
     dbItems.push(
       builderTemplateRowToGalleryItem(row, { previewImageUrl }),
     );

@@ -1,5 +1,6 @@
 /**
- * GET /api/media/asset/[assetId]?s=<surface>&k=<signature>
+ * GET /api/media/asset/m/<sig>/<assetId>              (master surface)
+ * GET /api/media/asset/t/<tenantId>/<sig>/<assetId>   (tenant surface)
  *
  * The byte-level half of the two-key rule (execution plan 2026-08-15 §1 P0-1).
  * Everything else in the media program decides which URL a page RENDERS; this
@@ -36,6 +37,16 @@
  * BEFORE anything touches the database, so an attacker without the signing
  * secret cannot reach the expensive half at all — the worst they can do is
  * replay URLs a real page already published.
+ *
+ * WHY A CATCH-ALL AND NOT `[assetId]`. The surface and the signature are path
+ * segments rather than query params so that `next/image` will optimize the URL
+ * at all: Next's default `images.localPatterns` allows every local path but
+ * only with an EMPTY query string, so the original `?s=…&k=…` grammar made the
+ * optimizer answer 400 and blanked every gated photo. The full reasoning, and
+ * why this is preferable to widening `localPatterns`, is in the module header
+ * of `@/lib/media/private-access`. The two surface shapes have different
+ * segment counts, hence `[...path]`; arity is validated during the parse, so a
+ * wrong shape 404s exactly like a bad signature.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -44,8 +55,6 @@ import { resolveGatedMediaAccess } from "@/lib/media/gated-media-access";
 import {
   GATED_MEDIA_CDN_MAX_AGE_SECONDS,
   GATED_MEDIA_SIGNED_URL_TTL_SECONDS,
-  MEDIA_SIGNATURE_PARAM,
-  MEDIA_SURFACE_PARAM,
   verifyGatedMediaRequest,
 } from "@/lib/media/private-access";
 import { isPrivateMediaAccessEnabled } from "@/lib/platform/gated-media";
@@ -77,7 +86,7 @@ function refuse(errorCode: string, status: number): NextResponse {
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ assetId: string }> },
+  context: { params: Promise<{ path: string[] }> },
 ) {
   // Off ⇒ the route does not exist. Not 403: an endpoint that answers
   // differently when a feature is dark advertises the feature.
@@ -88,16 +97,16 @@ export async function GET(
   // still costs one small query, which is inside this route's existing budget.
   if (!(await isPrivateMediaAccessEnabled())) return refuse("asset_not_found", 404);
 
-  const { assetId } = await context.params;
-  if (!assetId) return refuse("asset_not_found", 404);
+  const { path } = await context.params;
 
-  const verified = verifyGatedMediaRequest(assetId, {
-    surface: request.nextUrl.searchParams.get(MEDIA_SURFACE_PARAM),
-    signature: request.nextUrl.searchParams.get(MEDIA_SIGNATURE_PARAM),
-  });
-  // A bad signature is a URL we never minted. 404 rather than 403 so probing
-  // signatures learns nothing about which (asset, surface) pairs are real.
+  // Shape AND signature in one verdict. A malformed path and a forged signature
+  // are the same event from outside — a URL we did not mint — and answering
+  // them differently would leak the grammar to a prober.
+  const verified = verifyGatedMediaRequest(path ?? []);
+  // 404 rather than 403, so probing learns nothing about which (asset, surface)
+  // pairs are real.
   if (!verified) return refuse("asset_not_found", 404);
+  const { assetId } = verified;
 
   const admin = createServiceRoleClient();
   if (!admin) return refuse("asset_not_found", 404);
@@ -130,7 +139,61 @@ export async function GET(
   // exactly the artifact this route exists to take away.
   if (!data?.signedUrl) return refuse("asset_not_found", 404);
 
-  return redirectTo(data.signedUrl);
+  return proxyBytes(data.signedUrl);
+}
+
+/**
+ * Fetch the signed object and answer with the BYTES.
+ *
+ * WHY NOT A REDIRECT — this reverses the original decision, on evidence.
+ * ─────────────────────────────────────────────────────────────────────
+ * The first cut 302'd here, reasoning that streaming pays Supabase egress and
+ * Vercel egress for the same photo while a redirect pays one small invocation.
+ * That reasoning is sound and it is still why we do not proxy the whole world.
+ * It is also unusable for this route, for a reason that only shows up one hop
+ * downstream:
+ *
+ * Talent cards render these URLs through `next/image`. For a LOCAL path the
+ * optimizer does not make an HTTP request at all — `fetchInternalImage()`
+ * builds a MOCKED req/res, invokes the route handler directly, and reads
+ * `mocked.res.buffers` plus the `Content-Type` header. There is no redirect
+ * follower anywhere in that path. A 302 therefore arrives as an empty body with
+ * a non-image content type, and the optimizer answers 400 "The requested
+ * resource isn't a valid image" — a broken photo, from a route that is behaving
+ * exactly as designed. Verified against a real `next start`, not from memory.
+ *
+ * Neither of the redirect-preserving escapes works here: making the URL
+ * absolute to reach the optimizer's real-fetch path would require every tenant
+ * custom domain in `images.remotePatterns`, and marking gated images
+ * `unoptimized` would forfeit AVIF/WebP and the 60-day edge cache for exactly
+ * the images that need them most.
+ *
+ * So the bytes flow through. The cost is bounded by the thing in front of it:
+ * the optimizer caches its output, so the origin fetch happens once per
+ * (asset, width, quality) per cache entry rather than once per view.
+ *
+ * ⚠️ REVOCATION NOTE FOR WHOEVER TUNES THIS: `images.minimumCacheTTL` is 60
+ * days. An optimized variant that has already been cached will keep being
+ * served after a release is revoked, so the effective revocation lag for gated
+ * photos is that TTL, not this route's `s-maxage`. That is still strictly
+ * better than the unbounded public-URL leak this feature exists to close, but
+ * it is NOT the 5 minutes the constant implies. Tightening it is a product
+ * decision and is called out in the PR rather than silently assumed.
+ */
+async function proxyBytes(signedUrl: string): Promise<NextResponse> {
+  const upstream = await fetch(signedUrl);
+  // A failed fetch must not fall back to anything unguarded — same stance as
+  // the signing failure above.
+  if (!upstream.ok || !upstream.body) return refuse("asset_not_found", 404);
+
+  const contentType = upstream.headers.get("content-type") ?? "application/octet-stream";
+  return new NextResponse(upstream.body, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": `public, max-age=${GATED_MEDIA_CDN_MAX_AGE_SECONDS}, s-maxage=${GATED_MEDIA_CDN_MAX_AGE_SECONDS}`,
+    },
+  });
 }
 
 function redirectTo(url: string): NextResponse {

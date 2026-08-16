@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="110" viewBox="0 0 320 110" role="img" aria-label="Split header with navigation and action">
+  <rect width="320" height="110" fill="#f7f8fb"/>
+  <rect x="0" y="0" width="320" height="54" rx="0" fill="#ffffff" opacity="1.0"/>
+  <line x1="0" y1="54" x2="320" y2="54" stroke="#e4e6ee" stroke-width="1"/>
+  <rect x="24" y="25" width="28" height="4" rx="1" fill="#9aa0b4" opacity="0.75"/>
+  <rect x="58" y="25" width="24" height="4" rx="1" fill="#9aa0b4" opacity="0.75"/>
+  <rect x="88" y="25" width="28" height="4" rx="1" fill="#9aa0b4" opacity="0.75"/>
+  <rect x="134" y="21" width="52" height="7" rx="1" fill="#2c3040" opacity="1.0"/>
+  <rect x="232" y="17" width="64" height="20" rx="10" fill="#5b52d8" opacity="1.0"/>
+  <rect x="246" y="25" width="36" height="4" rx="1" fill="#ffffff" opacity="0.9"/>
+  <rect x="24" y="68" width="272" height="26" rx="4" fill="#eef0f7" opacity="1.0"/>
+</svg>

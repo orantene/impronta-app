@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="110" viewBox="0 0 320 110" role="img" aria-label="Minimal centre-logo header">
+  <rect width="320" height="110" fill="#f7f8fb"/>
+  <rect x="0" y="0" width="320" height="60" rx="0" fill="#ffffff" opacity="1.0"/>
+  <line x1="0" y1="60" x2="320" y2="60" stroke="#e4e6ee" stroke-width="1"/>
+  <rect x="126" y="17" width="68" height="7" rx="1" fill="#2c3040" opacity="1.0"/>
+  <rect x="92" y="37" width="30" height="4" rx="1" fill="#9aa0b4" opacity="0.75"/>
+  <rect x="130" y="37" width="26" height="4" rx="1" fill="#9aa0b4" opacity="0.75"/>
+  <rect x="164" y="37" width="30" height="4" rx="1" fill="#9aa0b4" opacity="0.75"/>
+  <rect x="202" y="37" width="26" height="4" rx="1" fill="#9aa0b4" opacity="0.75"/>
+  <rect x="24" y="74" width="272" height="24" rx="4" fill="#eef0f7" opacity="1.0"/>
+</svg>

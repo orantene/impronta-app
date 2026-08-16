@@ -561,9 +561,20 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
       {badges.categories ? (
         <div
           data-preview-parent-category
-          className="border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
+          className="flex items-center justify-center gap-[5px] border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
         >
           {t("dashboard.adminCardStudio2.sampleParentCategory")}
+          {/* `parent_first` hangs the child types behind this control on the
+              real card; the preview shows the affordance in its resting
+              (collapsed) state. */}
+          {badges.typeDisplay === "parent_first" ? (
+            <span
+              aria-hidden
+              className="inline-flex h-[13px] w-[13px] shrink-0 items-center justify-center rounded-full bg-[rgba(11,11,13,0.10)] text-[11px] font-bold leading-none"
+            >
+              +
+            </span>
+          ) : null}
         </div>
       ) : null}
 
@@ -573,7 +584,7 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, color: COLORS.ink }}>
           {"Tina Rossi"}
         </div>
-        {badges.categories ? (
+        {badges.categories && badges.typeDisplay === "expanded" ? (
           <>
             <div
               style={{

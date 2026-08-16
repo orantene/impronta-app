@@ -37,6 +37,7 @@ import {
   GATED_MEDIA_SIGNED_URL_TTL_SECONDS,
   __resetPrivateMediaWarning,
   gatedMediaPath,
+  parseGatedMediaPath,
   readPrivateMediaEnvOverride,
   resolvePrivateMediaAccess,
   verifyGatedMediaRequest,
@@ -66,6 +67,24 @@ function withEnv<T>(vars: Record<string, string | undefined>, fn: () => T): T {
       else process.env[key] = value;
     }
   }
+}
+
+/**
+ * The path segments a catch-all route would hand the verifier, derived from a
+ * minted URL the same way Next derives them: strip the route prefix, split on
+ * `/`, percent-decode each segment.
+ *
+ * Deliberately goes through `new URL()` so that a minted URL which smuggled in
+ * a query string would surface here as a segment containing `?` rather than
+ * being quietly tolerated.
+ */
+function segmentsOf(url: string): string[] {
+  const parsed = new URL(url, "http://n");
+  assert.equal(parsed.search, "", `gated URLs must carry no query string: ${url}`);
+  return parsed.pathname
+    .slice(`${GATED_MEDIA_ROUTE}/`.length)
+    .split("/")
+    .map(decodeURIComponent);
 }
 
 /**
@@ -338,8 +357,11 @@ test("pickBestThumbs WITH a surface routes through the gate once gating is on", 
     { id: ASSET, owner_talent_profile_id: TALENT, storage_path: "t/card.jpg", variant_kind: "card" },
   ];
   const url = withGating((on) => pickBestThumbs(urlClient, candidates, TENANT_A, on).get(TALENT));
-  assert.ok(url?.startsWith(`${GATED_MEDIA_ROUTE}/${ASSET}?`), url);
-  assert.ok(url?.includes(`s=${TENANT_A}`), url);
+  assert.ok(url);
+  const [tag, surface, , assetId] = segmentsOf(url);
+  assert.equal(tag, "t");
+  assert.equal(surface, TENANT_A);
+  assert.equal(assetId, ASSET);
 });
 
 // ─── 3. the surface is unforgeable ──────────────────────────────────────────
@@ -348,11 +370,10 @@ test("a minted URL verifies back to the surface it was minted for", () => {
   withGating((on) => {
     const url = gatedMediaPath(ASSET, TENANT_A, on);
     assert.ok(url);
-    const params = new URLSearchParams(url.split("?")[1]);
-    assert.deepEqual(
-      verifyGatedMediaRequest(ASSET, { surface: params.get("s"), signature: params.get("k") }),
-      { surface: TENANT_A },
-    );
+    assert.deepEqual(verifyGatedMediaRequest(segmentsOf(url)), {
+      surface: TENANT_A,
+      assetId: ASSET,
+    });
   });
 });
 
@@ -360,46 +381,73 @@ test("the master surface round-trips as null and does not collide with a tenant"
   withGating((on) => {
     const url = gatedMediaPath(ASSET, null, on);
     assert.ok(url);
-    const params = new URLSearchParams(url.split("?")[1]);
-    assert.equal(params.get("s"), null, "master surface must not carry a tenant param");
-    assert.deepEqual(
-      verifyGatedMediaRequest(ASSET, { surface: null, signature: params.get("k") }),
-      { surface: null },
-    );
-    // A tenant literally named "master" must not verify against that signature.
-    assert.equal(
-      verifyGatedMediaRequest(ASSET, { surface: "master", signature: params.get("k") }),
-      null,
-    );
+    const segments = segmentsOf(url);
+    assert.equal(segments[0], "m", "master surface must use the master tag");
+    assert.equal(segments.length, 3, "master paths carry no tenant segment");
+    assert.deepEqual(verifyGatedMediaRequest(segments), { surface: null, assetId: ASSET });
+
+    // A tenant literally named "master" — or "m" — must not verify against the
+    // master signature. `surfaceMessage()`'s domain separation is what stops it.
+    const [, signature, assetId] = segments;
+    for (const impostor of ["master", "m"]) {
+      assert.equal(
+        verifyGatedMediaRequest(["t", impostor, signature, assetId]),
+        null,
+        `tenant "${impostor}" must not verify against the master signature`,
+      );
+    }
   });
 });
 
 test("swapping the surface, the asset, or the signature is refused", () => {
   withGating((on) => {
-    const signature = new URLSearchParams(
-      gatedMediaPath(ASSET, TENANT_A, on)!.split("?")[1],
-    ).get("k");
+    const [, , signature, assetId] = segmentsOf(gatedMediaPath(ASSET, TENANT_A, on)!);
 
     // The whole point: an attacker naming the OWNING tenant is the trivial
-    // bypass an unsigned query param would have handed over.
-    assert.equal(verifyGatedMediaRequest(ASSET, { surface: TENANT_B, signature }), null);
-    assert.equal(verifyGatedMediaRequest("other-asset", { surface: TENANT_A, signature }), null);
-    assert.equal(verifyGatedMediaRequest(ASSET, { surface: TENANT_A, signature: null }), null);
-    assert.equal(verifyGatedMediaRequest(ASSET, { surface: TENANT_A, signature: "short" }), null);
+    // bypass an unsigned surface would have handed over.
+    assert.equal(verifyGatedMediaRequest(["t", TENANT_B, signature, assetId]), null);
+    assert.equal(verifyGatedMediaRequest(["t", TENANT_A, signature, "other-asset"]), null);
+    assert.equal(verifyGatedMediaRequest(["t", TENANT_A, "", assetId]), null);
+    assert.equal(verifyGatedMediaRequest(["t", TENANT_A, "short", assetId]), null);
     assert.equal(
-      verifyGatedMediaRequest(ASSET, { surface: TENANT_A, signature: `${signature}extra` }),
+      verifyGatedMediaRequest(["t", TENANT_A, `${signature}extra`, assetId]),
       null,
     );
+    // Re-tagging a tenant URL as a master one is a different signed message.
+    assert.equal(verifyGatedMediaRequest(["m", signature, assetId]), null);
+  });
+});
+
+test("a malformed path is refused before any signature is considered", () => {
+  withGating(() => {
+    for (const segments of [
+      [],
+      ["m"],
+      ["t"],
+      ["m", "sig"], // master arity is exactly 3
+      ["t", TENANT_A, "sig"], // tenant arity is exactly 4
+      ["t", "", "sig", ASSET], // empty tenant would collapse into master
+      ["x", TENANT_A, "sig", ASSET], // unknown surface tag
+      ["m", "sig", ASSET, "extra"],
+    ]) {
+      assert.equal(
+        parseGatedMediaPath(segments),
+        null,
+        `expected malformed: ${JSON.stringify(segments)}`,
+      );
+      assert.equal(verifyGatedMediaRequest(segments), null);
+    }
   });
 });
 
 test("a URL minted under one secret does not verify under another", () => {
-  const url = withEnv({ [FLAG]: "1", [SECRET]: "secret-one" }, () =>
-    gatedMediaPath(ASSET, TENANT_A, true),
+  const segments = segmentsOf(
+    withEnv({ [FLAG]: "1", [SECRET]: "secret-one" }, () =>
+      gatedMediaPath(ASSET, TENANT_A, true),
+    )!,
   );
-  const signature = new URLSearchParams(url!.split("?")[1]).get("k");
   withEnv({ [FLAG]: "1", [SECRET]: "secret-two" }, () => {
-    assert.equal(verifyGatedMediaRequest(ASSET, { surface: TENANT_A, signature }), null);
+    assert.equal(verifyGatedMediaRequest(segments), null);
   });
 });
 

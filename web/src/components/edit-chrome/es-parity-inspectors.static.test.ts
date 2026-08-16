@@ -107,6 +107,12 @@ const INTENTIONALLY_UNTRANSLATED: ReadonlyMap<string, string> = new Map([
   ["Ken Burns zoom", "named after the film-maker; the effect keeps his name"],
   ["Zoom", "loanword, identical in Spanish"],
   ["Feed", "loanword, identical in Spanish"],
+  // Placeholder SAMPLES in the site-footer inspector. A placeholder here is
+  // demonstrating the SHAPE of the value (a studio name, a copyright line), and
+  // the sample studio name is a proper noun that reads identically in Spanish.
+  // Translating it would only invent a second fictional agency.
+  ["Nova Crew", "sample studio name used as a placeholder; a proper noun"],
+  ["© Nova Crew", "sample copyright line built from the sample studio name; the glyph and the name are identical in Spanish"],
 ]);
 
 /** Regex-shaped exemptions: pure symbols, hex colors, bare URLs and paths. */

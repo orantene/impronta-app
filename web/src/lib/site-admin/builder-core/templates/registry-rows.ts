@@ -63,6 +63,16 @@ export interface BuilderTemplateRow {
   tags: string[];
   thumbnail_asset_id: string | null;
   hero_asset_id: string | null;
+  /**
+   * A gallery-card preview served straight from the app (`/builder-previews/…`)
+   * or an https URL, taking priority over the two asset ids above.
+   *
+   * Platform-authored templates need this: they belong to no tenant, so they
+   * cannot own a `media_assets` row, and `thumbnail_asset_id` has nothing to
+   * point at. Optional so existing row constructors and tests are unaffected;
+   * the DB always supplies it (null when unset).
+   */
+  preview_image_url?: string | null;
   required_plan: "free" | "studio" | "agency" | "network";
   required_talent_tier: string | null;
   builder_tree: BuilderNode[];

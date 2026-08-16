@@ -329,6 +329,19 @@ function RosterRow({
   const taxonomyView = resolveRosterCardTaxonomy(profile, locale);
   const secondaryCount = rosterCardBadges.categories ? taxonomyView.secondaryLabels.length : 0;
 
+  // Parent-anchored modes (`parent_first` / `parent_only`) collapse the row's
+  // type text to the parent category. The row is a single line, so there is no
+  // in-place expander here: `parent_first` keeps a `+N` count (titled with the
+  // full list) as the "there is more" signal, `parent_only` shows nothing else.
+  const parentAnchored =
+    rosterCardBadges.categories && rosterCardBadges.typeDisplay !== "expanded";
+  const anchorLabel = taxonomyView.parentLabel ?? taxonomyView.primaryLabel;
+  const hiddenChildLabels = taxonomyView.parentLabel
+    ? [taxonomyView.primaryLabel, ...taxonomyView.secondaryLabels].filter(
+        (label): label is string => Boolean(label),
+      )
+    : taxonomyView.secondaryLabels;
+
   return (
     <div
       role="button"
@@ -408,21 +421,40 @@ function RosterRow({
             </span>
           )}
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-            {rosterCardBadges.categories && taxonomyView.parentLabel && (
-              <span className="text-[10px] font-semibold uppercase tracking-[0.4px]">
-                {taxonomyView.parentLabel}{" · "}
-              </span>
-            )}
-            {rosterCardBadges.categories
-              ? (taxonomyView.primaryLabel ?? t("admin.roster.row.noType"))
-              : null}
-            {secondaryCount > 0 && (
-              <span className="text-admin-ink-dim" title={taxonomyView.secondaryLabels.join(" · ")}>
-                {" "}+{secondaryCount}
-              </span>
-            )}
-            {taxonomyView.specialty && secondaryCount === 0 && rosterCardBadges.categories && (
-              <span className="text-admin-ink-dim">{" · "}{taxonomyView.specialty}</span>
+            {parentAnchored ? (
+              <>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.4px]">
+                  {anchorLabel ?? t("admin.roster.row.noType")}
+                </span>
+                {rosterCardBadges.typeDisplay === "parent_first" &&
+                  hiddenChildLabels.length > 0 && (
+                    <span
+                      className="text-admin-ink-dim"
+                      title={hiddenChildLabels.join(" · ")}
+                    >
+                      {" "}+{hiddenChildLabels.length}
+                    </span>
+                  )}
+              </>
+            ) : (
+              <>
+                {rosterCardBadges.categories && taxonomyView.parentLabel && (
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.4px]">
+                    {taxonomyView.parentLabel}{" · "}
+                  </span>
+                )}
+                {rosterCardBadges.categories
+                  ? (taxonomyView.primaryLabel ?? t("admin.roster.row.noType"))
+                  : null}
+                {secondaryCount > 0 && (
+                  <span className="text-admin-ink-dim" title={taxonomyView.secondaryLabels.join(" · ")}>
+                    {" "}+{secondaryCount}
+                  </span>
+                )}
+                {taxonomyView.specialty && secondaryCount === 0 && rosterCardBadges.categories && (
+                  <span className="text-admin-ink-dim">{" · "}{taxonomyView.specialty}</span>
+                )}
+              </>
             )}
             {profile.city && (
               <span className="text-admin-ink-dim">

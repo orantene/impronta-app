@@ -34,10 +34,6 @@ import {
   setFieldCardVisible,
 } from "@/lib/site-admin/server/directory-catalogs";
 import { useFavoriteIcon } from "@/lib/talent-cards/use-favorite-icon";
-import {
-  ROSTER_CARD_BADGE_META,
-  type RosterCardBadgeKey,
-} from "@/lib/talent-cards/roster-card-badges";
 import { listCardKits } from "@/lib/site-admin/presets/card-kits";
 import {
   applyCardKitFromEditAction,
@@ -46,6 +42,7 @@ import {
   saveCardDesignTokensFromEditAction,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { CardAppearanceSection } from "./CardDesignStudio-appearance";
+import { RosterCardBadgesPanel } from "./CardDesignStudio-roster";
 import { useSiteDesignUrl } from "./use-site-design-url";
 import { CARD_DESIGN_SCOPE } from "@/lib/site-admin/tokens/card-design-scope";
 import {
@@ -87,8 +84,7 @@ import {
 // ────────────────────────────────────────────────────────────────────────
 
 export function CardDesignStudio() {
-  const { state, toast, rosterCardBadges, setRosterCardBadge, tenantSlug } =
-    useAdminShell();
+  const { state, toast, rosterCardBadges, tenantSlug } = useAdminShell();
   const t = useT();
   // Destination for the drift warning's link (same as the sidebar's item).
   const siteDesignUrl = useSiteDesignUrl();
@@ -140,7 +136,6 @@ export function CardDesignStudio() {
 
   // Roster card badge save-state chrome (the prefs themselves live in the
   // AdminShell context, which owns the optimistic flip + revert + toast).
-  const [badgeStatus, setBadgeStatus] = useState<Partial<Record<RosterCardBadgeKey, FieldSaveState>>>({});
 
   // Seed the preview favorite glyph from the tenant's live token — but only
   // until the design draft (or the operator) provides an explicit value; the
@@ -438,33 +433,6 @@ export function CardDesignStudio() {
     [canEdit, toast, t, tenantSlug],
   );
 
-  const handleToggleBadge = useCallback(
-    (key: RosterCardBadgeKey, next: boolean) => {
-      if (!canEdit) {
-        toast(t("dashboard.adminCardStudio.toastNeedAdminBadges"));
-        return;
-      }
-      setBadgeStatus((prev) => ({ ...prev, [key]: "saving" }));
-      void (async () => {
-        // setRosterCardBadge handles the optimistic flip + revert + error toast.
-        const ok = await setRosterCardBadge(key, next);
-        if (!ok) {
-          setBadgeStatus((prev) => ({ ...prev, [key]: "error" }));
-          return;
-        }
-        setBadgeStatus((prev) => ({ ...prev, [key]: "saved" }));
-        window.setTimeout(() => {
-          setBadgeStatus((prev) => {
-            const nextState = { ...prev };
-            if (nextState[key] === "saved") delete nextState[key];
-            return nextState;
-          });
-        }, 1600);
-      })();
-    },
-    [canEdit, toast, t, setRosterCardBadge],
-  );
-
   // Card-visible engine fields → preview chips (cap at the maxFieldLines feel).
   const fieldChips = useMemo(
     () => (fields ?? []).filter((f) => f.cardVisible).slice(0, 4).map((f) => f.label),
@@ -547,58 +515,7 @@ export function CardDesignStudio() {
         {/* LEFT — controls */}
         <div className="flex min-w-0 flex-col gap-[24px]">
           {isRoster ? (
-            /* Roster card badges — REAL per-workspace persistence (agencies.settings) */
-            <section className="rounded-admin-lg border border-admin-border bg-admin-card p-[16px]">
-              <GroupHeader
-                title={t("dashboard.adminCardStudio.rosterBadgesTitle")}
-                hint={t("dashboard.adminCardStudio.rosterBadgesHint")}
-              />
-              <div className="flex flex-col">
-                {ROSTER_CARD_BADGE_META.map((meta, idx) => {
-                  const on = rosterCardBadges[meta.key];
-                  const status = badgeStatus[meta.key];
-                  const showWarn = !!meta.warnOnHide && !on;
-                  return (
-                    <div
-                      key={meta.key}
-                      className={`flex items-start justify-between gap-[12px] py-[10px] ${
-                        idx === 0 ? "" : "border-t border-admin-border-soft"
-                      }`}
-                    >
-                      <div className="min-w-0">
-                        <div className="text-admin-13 font-medium text-admin-ink">{meta.label}</div>
-                        <div className="mt-[2px] text-admin-11h leading-[1.4] text-admin-ink-dim">
-                          {meta.description}
-                        </div>
-                        {showWarn ? (
-                          <div className="mt-[6px] inline-flex items-start gap-[5px] rounded-admin-md bg-admin-amber-soft px-[9px] py-[5px] text-admin-11 font-semibold leading-[1.35] text-admin-amber-deep">
-                            <Icon name="info" size={12} color={COLORS.amberDeep} />
-                            <span>{t("dashboard.adminCardStudio.badgeHideEyeWarn")}</span>
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-[8px] pt-px">
-                        {status === "saving" ? (
-                          <span className="text-admin-11 text-admin-ink-muted">{t("dashboard.adminCardStudio.saving")}</span>
-                        ) : status === "saved" ? (
-                          <span className="inline-flex items-center gap-[3px] text-admin-11 text-admin-success-deep">
-                            <Icon name="check" size={12} color={COLORS.success} />
-                            {t("dashboard.adminCardStudio.saved")}
-                          </span>
-                        ) : status === "error" ? (
-                          <span className="text-admin-11 text-admin-critical">{t("dashboard.adminCardStudio.failed")}</span>
-                        ) : null}
-                        <Toggle
-                          on={on}
-                          onChange={canEdit ? (v) => handleToggleBadge(meta.key, v) : undefined}
-                          label={interpolate(t("dashboard.adminCardStudio.showBadgeOnRosterAria"), { label: meta.label })}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+            <RosterCardBadgesPanel canEdit={canEdit} />
           ) : (
             <>
           {/* Visual design — REAL persistence (card-family design tokens) */}

@@ -44,7 +44,13 @@ import type { Client, ClientPage, ClientPlan, ClientProfile, ClientProfileId, Cl
 import type { DrawerContext, DrawerId, UpgradeOffer } from "./drawer-ids";
 import { ALWAYS_INTERNAL_FIELDS, ALWAYS_VISIBLE_FIELDS, CLIENT_PAGES, CLIENT_PLANS, CLIENT_PROFILES, DEFAULT_FIELD_VISIBILITY, ENTITY_TYPES, HQ_ROLES, MY_TALENT_PROFILE, PENDING_TALENT, PLANS, PLATFORM_PAGES, RICH_INQUIRIES, ROLES, SEED_ACCOUNT_VERIFICATION, SEED_CLAIM_STATUS, SEED_PROFILE_CLAIMS, SEED_PROFILE_VERIFICATIONS, SEED_TALENT_CONTACT_GATE, SEED_VERIFICATION_METHOD_AUDIT, SEED_VERIFICATION_METHOD_CONFIG, SEED_VERIFICATION_REQUESTS, SURFACES, TALENT_PAGES, TALENT_PAGES_ALL, TALENT_TO_USER, TENANT, VERIFICATION_TYPE_META, WEBSITE_STATE, getClients, getRoster, getTeam, mergeWebsiteStateFromBridge, resolveWorkspacePage } from "./fixtures";
 import { setRosterCardBadges as persistRosterCardBadges } from "@/lib/server-actions/admin-roster-card-badges";
-import { normalizeRosterCardBadges, type RosterCardBadgePrefs, type RosterCardBadgeKey } from "@/lib/talent-cards/roster-card-badges";
+import {
+  DEFAULT_ROSTER_CARD_TYPE_DISPLAY,
+  normalizeRosterCardBadges,
+  type RosterCardBadgePrefs,
+  type RosterCardBadgeKey,
+  type RosterCardTypeDisplay,
+} from "@/lib/talent-cards/roster-card-badges";
 
 // ─── Provider ────────────────────────────────────────────────────────
 
@@ -271,6 +277,12 @@ type Ctx = {
    * failure. Resolves `true` on success, `false` on failure.
    */
   setRosterCardBadge: (key: RosterCardBadgeKey, visible: boolean) => Promise<boolean>;
+  /**
+   * Set how the roster card's category block lays out the taxonomy tree
+   * (everything / parent-first with a `+` expander / parent only). Same
+   * optimistic-persist-reconcile contract as `setRosterCardBadge`.
+   */
+  setRosterCardTypeDisplay: (mode: RosterCardTypeDisplay) => Promise<boolean>;
 
   // ── Phase 3.12 real-data bridge — additional surfaces ────────────────
   /**
@@ -1765,6 +1777,34 @@ export function AdminShellProvider({
     [toast],
   );
 
+  // Same optimistic-then-reconcile shape as `setRosterCardBadge`, for the
+  // category-block layout mode (it rides the same settings blob + action).
+  const setRosterCardTypeDisplay = useCallback(
+    async (mode: RosterCardTypeDisplay): Promise<boolean> => {
+      let previous: RosterCardTypeDisplay = DEFAULT_ROSTER_CARD_TYPE_DISPLAY;
+      setRosterCardBadgesState((prev) => {
+        previous = prev.typeDisplay;
+        return { ...prev, typeDisplay: mode };
+      });
+      try {
+        const res = await persistRosterCardBadges({ typeDisplay: mode });
+        if (!res.ok) {
+          setRosterCardBadgesState((prev) => ({ ...prev, typeDisplay: previous }));
+          toast(res.error, { tone: "error" });
+          return false;
+        }
+        setRosterCardBadgesState(res.data);
+        return true;
+      } catch (err) {
+        setRosterCardBadgesState((prev) => ({ ...prev, typeDisplay: previous }));
+        logServerError("admin-shell.setRosterCardTypeDisplay", err);
+        toast("Could not save card layout setting. Try again.", { tone: "error" });
+        return false;
+      }
+    },
+    [toast],
+  );
+
   const completeTask = useCallback((id: string) => {
     setCompletedTasks((prev) => {
       const next = new Set(prev);
@@ -2171,6 +2211,7 @@ export function AdminShellProvider({
       adminBasePath,
       rosterCardBadges,
       setRosterCardBadge,
+      setRosterCardTypeDisplay,
       // Phase 3.12 — additional surface bridge fields
       effectiveMessagesInquiries,
       effectiveClients,
@@ -2292,6 +2333,7 @@ export function AdminShellProvider({
       adminBasePath,
       rosterCardBadges,
       setRosterCardBadge,
+      setRosterCardTypeDisplay,
       effectiveMessagesInquiries,
       effectiveClients,
       effectiveCalendarEvents,
