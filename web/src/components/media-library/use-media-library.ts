@@ -32,6 +32,7 @@ import type {
 import type {
   MediaLibraryWireFolder,
   MediaLibraryWireItem,
+  MediaLibraryWireTalent,
 } from "@/lib/media/library-wire";
 
 /** Assets the two-key rule will not let this talent use here (ownership phase 3). */
@@ -46,6 +47,14 @@ export type MediaLibraryFilters = {
   folderId: string | null;
   kind: MediaLibraryKindFilter;
   ownership: MediaLibraryOwnershipFilter;
+  /**
+   * WHICH talent owns the asset — not the same axis as `ownership`, which is
+   * the ownership KIND. Both can be set at once and they AND together.
+   * Server-side (`?talentId=`), like every other filter here: filtering a
+   * 1,900-asset library inside the loaded page is the bug this hook exists to
+   * have fixed.
+   */
+  talentProfileId: string | null;
 };
 
 export const EMPTY_MEDIA_FILTERS: MediaLibraryFilters = {
@@ -53,6 +62,7 @@ export const EMPTY_MEDIA_FILTERS: MediaLibraryFilters = {
   folderId: null,
   kind: "all",
   ownership: "all",
+  talentProfileId: null,
 };
 
 export type MediaLibrarySource =
@@ -64,6 +74,8 @@ type QuotaSnapshot = unknown;
 export type MediaLibraryState = {
   items: MediaLibraryWireItem[];
   folders: MediaLibraryWireFolder[];
+  /** Staff lane only — the roster rows the talent select offers. */
+  talents: MediaLibraryWireTalent[];
   portfolioAssetIds: string[];
   locks: MediaLibraryLock[];
   quota: QuotaSnapshot | null;
@@ -95,6 +107,9 @@ function buildUrl(
   if (source.kind === "tenant") {
     if (filters.kind !== "all") params.set("kind", filters.kind);
     if (filters.ownership !== "all") params.set("ownership", filters.ownership);
+    // A talent browsing their OWN library has exactly one talent in it, so the
+    // param would be either a no-op or a way to ask for someone else's photos.
+    if (filters.talentProfileId) params.set("talentId", filters.talentProfileId);
   }
   if (cursor) params.set("cursor", cursor);
   params.set("limit", String(PAGE_SIZE));
@@ -135,6 +150,7 @@ export function useMediaLibrary(input: {
   const [state, setState] = useState<MediaLibraryState>({
     items: [],
     folders: [],
+    talents: [],
     portfolioAssetIds: [],
     locks: [],
     quota: null,
@@ -186,6 +202,7 @@ export function useMediaLibrary(input: {
           error?: string;
           items?: MediaLibraryWireItem[];
           folders?: MediaLibraryWireFolder[];
+          talents?: MediaLibraryWireTalent[];
           portfolioAssetIds?: string[];
           locked?: MediaLibraryLock[];
           quota?: QuotaSnapshot;
@@ -202,6 +219,10 @@ export function useMediaLibrary(input: {
         setState((prev) => ({
           items: mode === "append" ? [...prev.items, ...incoming] : incoming,
           folders: body.folders ?? prev.folders,
+          // Keep the previous roster when a response omits it: the select must
+          // not empty itself mid-session just because one page came back
+          // without the (unchanging) option list.
+          talents: body.talents ?? prev.talents,
           portfolioAssetIds: body.portfolioAssetIds ?? [],
           locks: body.locked ?? [],
           quota: body.quota ?? prev.quota,

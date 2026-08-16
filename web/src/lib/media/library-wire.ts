@@ -18,6 +18,7 @@
 
 import type {
   MediaLibraryAssetKind,
+  MediaLibraryTalentOption,
   WorkspaceMediaFolder,
   WorkspaceMediaPhoto,
 } from "./library-item";
@@ -68,11 +69,20 @@ export type MediaLibraryWireFolder = {
   assetCount: number;
 };
 
+/**
+ * A row of the "filter by talent" select. Already display-resolved server-side
+ * (the client must never re-derive a name from first/last, or the picker and
+ * the tile caption drift apart), so it goes on the wire as-is.
+ */
+export type MediaLibraryWireTalent = MediaLibraryTalentOption;
+
 /** The full GET response both library routes return. */
 export type MediaLibraryWireResponse = {
   ok: true;
   items: MediaLibraryWireItem[];
   folders: MediaLibraryWireFolder[];
+  /** Staff lane only — see `MediaLibraryQueryResult.talents`. */
+  talents?: MediaLibraryWireTalent[];
   nextCursor: string | null;
   totalCount: number;
   pendingCount: number;

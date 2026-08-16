@@ -1,7 +1,14 @@
 "use client";
 
 /**
- * media-library-tile.tsx — one asset in the grid.
+ * media-library-tile.tsx — one asset in the grid. AN IMAGE, not a form.
+ *
+ * 2026-08-16 density pass. This tile used to render, under every thumbnail: an
+ * alt-text input, a tag input with its chip row, and a permanent dimensions
+ * caption. Three stacked controls per asset, on a grid whose job is to let
+ * someone find a photo. They are gone from here — alt + tags + metadata live
+ * in the detail rail (`media-library-detail.tsx`), one click away via the ⓘ
+ * button, and the capability is unchanged.
  *
  * LOCKED TILES ARE STILL RENDERED. An asset the two-key rule will not let this
  * talent use here stays visible, greyed, with the reason on it. A photo that
@@ -10,11 +17,10 @@
  * exactly, including the request-release door.
  */
 
-import { Check, Lock } from "lucide-react";
+import { Check, Info, Lock } from "lucide-react";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../edit-chrome/kit/tokens";
 import { FIELD_KIT } from "../edit-chrome/inspectors/field-kit/tokens";
-import { KIT } from "../edit-chrome/inspectors/kit/tokens";
 import type { MediaLibraryWireItem } from "@/lib/media/library-wire";
 import {
   KindGlyph,
@@ -26,32 +32,24 @@ import {
 export type MediaLibraryTileProps = {
   item: MediaLibraryWireItem;
   selected: boolean;
+  /** True while this asset is the one open in the detail rail. */
+  detailOpen: boolean;
   /** Reason this asset cannot be picked here, already localized. */
   lockNote: string | null;
   /** Talent scope: is this photo on the talent's public profile? */
   portfolioBadge: "portfolio" | "mine" | null;
-  /** Staff scope only — alt + tags are editable through a staff-gated PATCH. */
-  editable: boolean;
-  savingTags: boolean;
-  altDraft: string;
-  tagDraft: string;
   /** Roving-focus index; exactly one tile in the grid is tabbable. */
   tabbable: boolean;
   labels: {
     locked: string;
     portfolio: string;
     mine: string;
-    altPlaceholder: string;
-    tagPlaceholder: string;
-    removeTag: (tag: string) => string;
     pending: string;
+    details: string;
   };
   onActivate: () => void;
-  onAltChange: (value: string) => void;
-  onAltCommit: () => void;
-  onTagDraftChange: (value: string) => void;
-  onTagAdd: () => void;
-  onTagRemove: (tag: string) => void;
+  /** Open this asset in the detail rail WITHOUT picking it. */
+  onOpenDetails: () => void;
   /** Rendered under the lock note (the "ask them to release it" door). */
   lockAction?: React.ReactNode;
 };
@@ -60,23 +58,19 @@ export function MediaLibraryTile(props: MediaLibraryTileProps) {
   const { item, selected, lockNote, labels } = props;
   const locked = lockNote !== null;
   const kind = item.assetKind;
-  const dimensions =
-    kind === "image" && item.width && item.height
-      ? `${item.width}×${item.height}`
-      : kind;
-  const caption = item.originalFilename ?? item.alt ?? dimensions;
+  const caption =
+    item.originalFilename ??
+    item.alt ??
+    (item.width && item.height ? `${item.width}×${item.height}` : kind);
+
+  const ring = props.detailOpen
+    ? FIELD_KIT.accent
+    : selected
+      ? FIELD_KIT.accent
+      : FIELD_KIT.border;
 
   return (
-    <div
-      className="overflow-hidden border transition-shadow"
-      style={{
-        borderColor: selected ? FIELD_KIT.accent : FIELD_KIT.border,
-        borderRadius: CHROME_RADII.lg,
-        background: FIELD_KIT.surface,
-        boxShadow: selected ? CHROME_SHADOWS.cardHi : CHROME_SHADOWS.card,
-      }}
-      data-media-tile={item.id}
-    >
+    <div className="group relative" data-media-tile={item.id}>
       <button
         type="button"
         disabled={locked}
@@ -88,23 +82,29 @@ export function MediaLibraryTile(props: MediaLibraryTileProps) {
         onClick={() => {
           if (!locked) props.onActivate();
         }}
-        className={`relative block w-full text-left ${LIBRARY_FOCUS_CLASS} ${
+        className={`relative block aspect-square w-full overflow-hidden border text-left transition-shadow ${LIBRARY_FOCUS_CLASS} ${
           locked ? "cursor-not-allowed opacity-50" : "cursor-pointer"
         }`}
-        style={{ background: FIELD_KIT.surfaceRecessed }}
+        style={{
+          borderColor: ring,
+          borderWidth: selected || props.detailOpen ? 2 : 1,
+          borderRadius: CHROME_RADII.md,
+          background: FIELD_KIT.surfaceRecessed,
+          boxShadow: selected ? CHROME_SHADOWS.cardHi : "none",
+        }}
         data-asset-kind={kind}
         data-locked={locked ? "true" : undefined}
       >
         <MediaThumb item={item} kind={kind} />
 
         {kind !== "image" ? (
-          <ThumbBadge className="absolute left-2 top-2">
+          <ThumbBadge className="absolute left-1 top-1">
             <KindGlyph kind={kind} />
             {kind}
           </ThumbBadge>
         ) : props.portfolioBadge ? (
           <ThumbBadge
-            className="absolute left-2 top-2"
+            className="absolute left-1 top-1"
             tone={props.portfolioBadge === "portfolio" ? "accent" : "light"}
           >
             {props.portfolioBadge === "portfolio" ? labels.portfolio : labels.mine}
@@ -112,19 +112,19 @@ export function MediaLibraryTile(props: MediaLibraryTileProps) {
         ) : null}
 
         {item.approvalState === "pending" ? (
-          <ThumbBadge className="absolute bottom-2 left-2" tone="light">
+          <ThumbBadge className="absolute bottom-1 left-1" tone="light">
             {labels.pending}
           </ThumbBadge>
         ) : null}
 
         {locked ? (
-          <ThumbBadge className="absolute right-2 top-2">
+          <ThumbBadge className="absolute right-1 top-1">
             <Lock className="size-2.5" />
             {labels.locked}
           </ThumbBadge>
         ) : selected ? (
           <span
-            className="absolute right-2 top-2 inline-flex size-6 items-center justify-center rounded-full"
+            className="absolute right-1 top-1 inline-flex size-5 items-center justify-center rounded-full"
             style={{
               background: FIELD_KIT.accent,
               color: "#ffffff",
@@ -132,139 +132,64 @@ export function MediaLibraryTile(props: MediaLibraryTileProps) {
             }}
             aria-hidden
           >
-            <Check className="size-3.5" />
+            <Check className="size-3" />
           </span>
         ) : null}
+
+        {/* The file name, on hover only. It was a permanent caption line under
+            every tile; it is context, not content. */}
+        <span
+          className="pointer-events-none absolute inset-x-0 bottom-0 truncate px-1.5 py-1 opacity-0 transition-opacity group-hover:opacity-100"
+          style={{
+            background: "linear-gradient(transparent, rgba(36, 41, 66, 0.78))",
+            color: "#ffffff",
+            fontSize: FIELD_KIT.font.caption,
+          }}
+          aria-hidden
+        >
+          {caption}
+        </span>
       </button>
 
-      <div className="grid gap-2 p-2">
-        {lockNote ? (
+      {/* ⓘ — opens the detail rail. A SEPARATE control from the tile because
+          activating a tile in single-select mode picks the asset and closes
+          the drawer, which would make alt/tag editing unreachable. */}
+      <button
+        type="button"
+        aria-label={labels.details}
+        title={labels.details}
+        tabIndex={props.tabbable ? 0 : -1}
+        data-media-tile-details={item.id}
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onOpenDetails();
+        }}
+        className={`absolute bottom-1 right-1 inline-flex size-5 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 ${LIBRARY_FOCUS_CLASS} ${
+          props.detailOpen ? "!opacity-100" : ""
+        }`}
+        style={{
+          background: props.detailOpen ? FIELD_KIT.accent : "rgba(255,255,255,0.94)",
+          color: props.detailOpen ? "#ffffff" : CHROME.text,
+          boxShadow: CHROME_SHADOWS.card,
+        }}
+      >
+        <Info className="size-3" />
+      </button>
+
+      {lockNote ? (
+        <div className="grid gap-1 pt-1">
           <p
             style={{
               fontSize: FIELD_KIT.font.caption,
               color: CHROME.blue,
-              lineHeight: 1.4,
+              lineHeight: 1.35,
             }}
           >
             {lockNote}
           </p>
-        ) : null}
-        {lockNote ? props.lockAction ?? null : null}
-
-        {props.editable ? (
-          <>
-            <input
-              className={KIT.input}
-              value={props.altDraft}
-              placeholder={labels.altPlaceholder}
-              onClick={(event) => event.stopPropagation()}
-              onChange={(event) => props.onAltChange(event.currentTarget.value)}
-              onBlur={props.onAltCommit}
-              onKeyDown={(event) => {
-                // Arrow keys belong to the grid's roving focus; inside a text
-                // field they belong to the caret. Stop them here or typing an
-                // alt text jumps the selection to another tile.
-                event.stopPropagation();
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                event.currentTarget.blur();
-              }}
-            />
-            <TagRow
-              tags={item.tags}
-              value={props.tagDraft}
-              saving={props.savingTags}
-              placeholder={labels.tagPlaceholder}
-              removeLabel={labels.removeTag}
-              onChange={props.onTagDraftChange}
-              onAdd={props.onTagAdd}
-              onRemove={props.onTagRemove}
-            />
-          </>
-        ) : item.alt ? (
-          <p
-            className="truncate"
-            style={{ fontSize: FIELD_KIT.font.caption, color: FIELD_KIT.muted }}
-            title={item.alt}
-          >
-            {item.alt}
-          </p>
-        ) : null}
-
-        <p
-          className="truncate"
-          style={{ fontSize: FIELD_KIT.font.caption, color: FIELD_KIT.mutedSoft }}
-        >
-          {dimensions}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function TagRow({
-  tags,
-  value,
-  saving,
-  placeholder,
-  removeLabel,
-  onChange,
-  onAdd,
-  onRemove,
-}: {
-  tags: string[];
-  value: string;
-  saving: boolean;
-  placeholder: string;
-  removeLabel: (tag: string) => string;
-  onChange: (value: string) => void;
-  onAdd: () => void;
-  onRemove: (tag: string) => void;
-}) {
-  return (
-    <div className="grid gap-1" onClick={(event) => event.stopPropagation()}>
-      {tags.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center gap-1 px-2 py-0.5"
-              style={{
-                background: FIELD_KIT.accentFill,
-                color: FIELD_KIT.accent,
-                borderRadius: CHROME_RADII.xl,
-                fontSize: FIELD_KIT.font.caption,
-                fontWeight: FIELD_KIT.weight.caption,
-              }}
-            >
-              {tag}
-              <button
-                type="button"
-                aria-label={removeLabel(tag)}
-                disabled={saving}
-                onClick={() => onRemove(tag)}
-                className={LIBRARY_FOCUS_CLASS}
-                style={{ color: FIELD_KIT.accent, lineHeight: 1 }}
-              >
-                ×
-              </button>
-            </span>
-          ))}
+          {props.lockAction ?? null}
         </div>
       ) : null}
-      <input
-        className={KIT.input}
-        value={value}
-        placeholder={placeholder}
-        disabled={saving}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        onKeyDown={(event) => {
-          event.stopPropagation();
-          if (event.key !== "Enter") return;
-          event.preventDefault();
-          onAdd();
-        }}
-      />
     </div>
   );
 }

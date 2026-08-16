@@ -65,6 +65,7 @@ import {
   type MediaLibraryOwnerLane,
   type MediaLibraryOwnershipFilter,
   type MediaLibraryScope,
+  type MediaLibraryTalentOption,
   type WorkspaceMediaFolder,
   type WorkspaceMediaPhoto,
 } from "./library-item";
@@ -84,6 +85,21 @@ export type MediaLibraryQueryInput = {
   folderId?: string | null;
   kind?: MediaLibraryKindFilter;
   ownership?: MediaLibraryOwnershipFilter;
+  /**
+   * "Filter by talent" — WHICH talents own the assets, not the ownership KIND.
+   * `ownership: "talent"` says "anything a talent owns"; this says "Ana's".
+   * Empty array and null both mean "no talent filter"; an entry that is not a
+   * uuid is the caller's problem (the route validates).
+   *
+   * NULL SEMANTICS, because this is exactly where #1169's brand-asset bug came
+   * from: `owner_talent_profile_id IN (…)` is NULL — i.e. NOT TRUE — for a
+   * workspace-owned brand asset, so those rows drop out. That is CORRECT here
+   * (you asked for one talent's photos, the logo is not one) and it is the
+   * inverse of the exclusion filter below, where the same NULL had to be
+   * rescued with an explicit `is.null` branch. Positive membership: NULL out.
+   * Negative membership: NULL must be spelled back in.
+   */
+  talentProfileIds?: ReadonlyArray<string> | null;
   approvalState?: MediaLibraryApprovalFilter;
   /** `media_assets.purpose` allow-list (e.g. `["branding", "cms"]`). */
   purpose?: ReadonlyArray<string> | null;
@@ -102,6 +118,13 @@ export type MediaLibraryQueryInput = {
   limit?: number;
   /** Staff surfaces only. See the private-folder note in the module doc. */
   includePrivateFolders?: boolean;
+  /**
+   * Load the roster options for the "filter by talent" select. OFF by default:
+   * the workspace Media page composes two `queryTenantMediaLibrary` calls per
+   * render and neither one needs a talent select, so making this opt-in keeps
+   * a UI affordance from costing every server read an extra roster query.
+   */
+  includeTalentOptions?: boolean;
   /** `created_at` (default, the only cursor-safe order) or the Media page's
    *  legacy `sort_order`. `sort_order` disables cursor pagination. */
   orderBy?: "created_at" | "sort_order";
@@ -111,6 +134,12 @@ export type MediaLibraryQueryResult = {
   items: WorkspaceMediaPhoto[];
   /** Folders visible to this scope, with their membership. */
   folders: WorkspaceMediaFolder[];
+  /**
+   * Options for the "filter by talent" select. Tenant scope only — a talent
+   * browsing their own library has nobody to filter by, and shipping them a
+   * roster listing would be a cross-talent disclosure they never asked for.
+   */
+  talents: MediaLibraryTalentOption[];
   /** Pass back as `cursor` for the next page. `null` = end of the library. */
   nextCursor: string | null;
   /**
@@ -339,6 +368,7 @@ function applyFilters(
     variantKinds: ReadonlyArray<string> | null;
     ownerLane: MediaLibraryOwnerLane;
     assetIds: ReadonlyArray<string> | null;
+    talentProfileIds: ReadonlyArray<string> | null;
     folderAssetIds: string[] | null;
     excludedTalentIds: string[];
     talentScopeIds: string[] | null;
@@ -372,6 +402,15 @@ function applyFilters(
 
   if (input.assetIds) q = q.in("id", input.assetIds);
   if (input.folderAssetIds) q = q.in("id", input.folderAssetIds);
+
+  // "Filter by talent". POSITIVE membership, so the NULL rows (workspace-owned
+  // brand & site imagery) fall out on their own and MUST NOT be rescued — see
+  // the `talentProfileIds` doc on the input type. This is ANDed with every
+  // other filter, including `ownership`: talent=Ana + ownership=workspace is a
+  // legitimate, and usually empty, question.
+  if (input.talentProfileIds && input.talentProfileIds.length > 0) {
+    q = q.in("owner_talent_profile_id", input.talentProfileIds);
+  }
 
   // Media belonging to a talent this workspace removed from its roster stays
   // out of the library — the Media page has excluded it since it shipped, and
@@ -446,6 +485,53 @@ async function loadFolders(
     }));
 }
 
+/**
+ * The roster this workspace can filter by. Non-removed statuses only, because
+ * a removed talent's media is already excluded from every read below — an
+ * option that can only ever return zero assets is a trap, not a filter.
+ */
+async function loadTalentOptions(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<MediaLibraryTalentOption[]> {
+  const { data, error } = await supabase
+    .from("agency_talent_roster")
+    .select(
+      "talent_profile_id, talent_profiles!talent_profile_id ( id, display_name, first_name, last_name, profile_code )",
+    )
+    .eq("tenant_id", tenantId)
+    .neq("status", "removed");
+  if (error || !data) return [];
+
+  type RosterRow = {
+    talent_profile_id: string | null;
+    talent_profiles?: {
+      id: string;
+      display_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      profile_code: string | null;
+    } | null;
+  };
+
+  const byId = new Map<string, MediaLibraryTalentOption>();
+  for (const row of data as unknown as RosterRow[]) {
+    const id = row.talent_profile_id;
+    if (!id) continue;
+    const profile = row.talent_profiles ?? null;
+    const name =
+      profile?.display_name ||
+      [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+      "Unnamed";
+    // A talent can hold more than one roster row for the same tenant (rejoins
+    // are additive in places); the select must not show them twice.
+    if (!byId.has(id)) {
+      byId.set(id, { id, name, profileCode: profile?.profile_code ?? null });
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Talents this workspace removed from its roster. Their media leaves with them. */
 async function loadExcludedTalentIds(
   supabase: SupabaseClient,
@@ -514,6 +600,7 @@ export async function queryTenantMediaLibrary(
   const empty: MediaLibraryQueryResult = {
     items: [],
     folders: [],
+    talents: [],
     nextCursor: null,
     totalCount: 0,
     pendingCount: 0,
@@ -524,13 +611,17 @@ export async function queryTenantMediaLibrary(
   if (scope === "talent" && !talentProfileId) return empty;
 
   try {
-    const [folders, excludedTalentIds, portfolioAssetIds] = await Promise.all([
-      loadFolders(supabase, tenantId, includePrivateFolders),
-      loadExcludedTalentIds(supabase, tenantId),
-      scope === "talent" && talentProfileId
-        ? loadPortfolioAssetIds(supabase, talentProfileId, tenantId)
-        : Promise.resolve<string[]>([]),
-    ]);
+    const [folders, excludedTalentIds, portfolioAssetIds, talents] =
+      await Promise.all([
+        loadFolders(supabase, tenantId, includePrivateFolders),
+        loadExcludedTalentIds(supabase, tenantId),
+        scope === "talent" && talentProfileId
+          ? loadPortfolioAssetIds(supabase, talentProfileId, tenantId)
+          : Promise.resolve<string[]>([]),
+        scope === "tenant" && input.includeTalentOptions === true
+          ? loadTalentOptions(supabase, tenantId)
+          : Promise.resolve<MediaLibraryTalentOption[]>([]),
+      ]);
 
     const folderIdsByAsset = new Map<string, string[]>();
     for (const folder of folders) {
@@ -549,7 +640,7 @@ export async function queryTenantMediaLibrary(
       const folder = folders.find((candidate) => candidate.id === input.folderId);
       folderAssetIds = folder ? folder.assetIds : [];
       if (folderAssetIds.length === 0) {
-        return { ...empty, folders, portfolioAssetIds };
+        return { ...empty, folders, talents, portfolioAssetIds };
       }
     }
 
@@ -563,6 +654,10 @@ export async function queryTenantMediaLibrary(
       variantKinds: input.variantKinds ?? null,
       ownerLane,
       assetIds: input.assetIds ?? null,
+      // Talent scope owns `owner_talent_profile_id` through `talentScopeIds`
+      // below; letting a second predicate at the same column in would be two
+      // rules for one thing. Staff-only filter, staff-only lane.
+      talentProfileIds: scope === "tenant" ? input.talentProfileIds ?? null : null,
       folderAssetIds,
       excludedTalentIds,
       talentScopeIds: scope === "talent" ? portfolioAssetIds : null,
@@ -595,6 +690,7 @@ export async function queryTenantMediaLibrary(
     return {
       items,
       folders,
+      talents,
       nextCursor: page.nextCursor,
       totalCount,
       pendingCount,
