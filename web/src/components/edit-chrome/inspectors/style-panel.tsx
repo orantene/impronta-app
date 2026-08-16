@@ -21,7 +21,7 @@
  * button per row.
  */
 
-import { PRESENTATION_FIELD_LABELS, PRESENTATION_OPTIONS } from "@/lib/site-admin/sections/shared/presentation";
+import { PRESENTATION_OPTIONS } from "@/lib/site-admin/sections/shared/presentation";
 import { resolveBuilderNodeRole, type BuilderNode, type BuilderNodeRole, type BuilderNodeHoverStyle, type BuilderNodeStyle, type BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
 import type {
   NodePresentation,
@@ -53,7 +53,6 @@ import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, Numb
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, INSPECTOR_HELP_TEXT_CLASS as HINT, INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE, InspectorBody } from "./kit/inspector-ui";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
-import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
 import { BoxModel } from "../kit/box-model";
 import { ImageCropModal } from "../image-crop";
@@ -73,21 +72,19 @@ import { EffectsSection } from "./style-panel/EffectsSection";
 
 const INHERIT_HINT = HINT;
 
-// Approximate hex for each background palette token. Real tenant rendering
-// uses CSS variables from token-presets.css — these swatches are inspector
-// affordances only, picked to read at a glance.
-const BACKGROUND_SWATCHES: Record<
-  string,
-  { color: string; ringTone?: "light" | "dark" }
-> = {
-  canvas: { color:
-    "linear-gradient(135deg, #ffffff 0%, #f4efe6 50%, #ffffff 100%)" },
-  ivory: { color: "#fbf7ee" },
-  champagne: { color: "#ecdcb8" },
-  espresso: { color: "#2a201a", ringTone: "dark" },
-  blush: { color: "#f3d7d2" },
-  sage: { color: "#c5d2bd" },
-  "muted-surface": { color: "#ebe6dc" },
+/**
+ * D6 (Inspector Reset P2) — a destructive confirm must LOOK different from the
+ * first click. The old in-place text swap ("Reset block" → "Confirm reset")
+ * changed nothing visually, so two identical-looking clicks destroyed all
+ * styling. The armed state now wears the chrome's error tone; it still
+ * auto-disarms after 2.6s (existing timers).
+ */
+const DESTRUCTIVE_CONFIRM_STYLE: CSSProperties = {
+  background: CHROME.roseBg,
+  border: `1px solid ${CHROME.roseLine}`,
+  color: CHROME.rose,
+  borderRadius: 5,
+  padding: "2px 7px",
 };
 
 const HERO_OVERLAY_OPTIONS: ReadonlyArray<SegmentedOption<string>> = [
@@ -2908,8 +2905,6 @@ export function StylePanel({
   const videoOverlayRaw = (presentation as Record<string, unknown>).videoOverlay;
   const videoOverlay = typeof videoOverlayRaw === "number" ? videoOverlayRaw : 0;
 
-  const [colorAnchor, setColorAnchor] = useState<HTMLButtonElement | null>(null);
-  const [colorOpen, setColorOpen] = useState(false);
   // Freeform-node free-color popover: one shared instance keyed by which field
   // is being edited, so the three swatches (text / fill / border) never stack
   // overlapping popovers.
@@ -3430,6 +3425,12 @@ export function StylePanel({
     setResetConfirmTarget(target);
   }
 
+  // D1 (Inspector Reset P2) — one scope per panel. The blocks that write the
+  // parent SECTION's `draftProps.presentation` render only when the section
+  // itself is the selection; with a node selected the panel shows node-scoped
+  // controls exclusively.
+  const isSectionScope = !selectedNodeRole && !selectedStandaloneStyleNode;
+
   return (
     <InspectorBody>
       {/* Viewport scope is shown in the dock InspectorViewportRail (synced to canvas device). */}
@@ -3728,12 +3729,16 @@ export function StylePanel({
                           confirmThenRunReset("group", resetRoleGroupStyles)
                         }
                         className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: CHROME.muted,
-                          padding: 0,
-                        }}
+                        style={
+                          resetConfirmTarget === "group"
+                            ? DESTRUCTIVE_CONFIRM_STYLE
+                            : {
+                                background: "transparent",
+                                border: "none",
+                                color: CHROME.muted,
+                                padding: 0,
+                              }
+                        }
                         title={
                           selectedRoleGroup === "text"
                             ? "Reset all text-block styles in this section"
@@ -3782,12 +3787,16 @@ export function StylePanel({
                           confirmThenRunReset("node", resetSelectedNodeOverrides)
                         }
                         className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          color: CHROME.muted,
-                          padding: 0,
-                        }}
+                        style={
+                          resetConfirmTarget === "node"
+                            ? DESTRUCTIVE_CONFIRM_STYLE
+                            : {
+                                background: "transparent",
+                                border: "none",
+                                color: CHROME.muted,
+                                padding: 0,
+                              }
+                        }
                       >
                         {resetConfirmTarget === "node" ? "Confirm reset" : "Reset block"}
                       </button>
@@ -4048,12 +4057,16 @@ export function StylePanel({
                               type="button"
                               onClick={() => confirmThenDeletePreset(preset.id)}
                               className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                color: CHROME.muted,
-                                padding: 0,
-                              }}
+                              style={
+                                presetDeleteConfirmTarget === preset.id
+                                  ? DESTRUCTIVE_CONFIRM_STYLE
+                                  : {
+                                      background: "transparent",
+                                      border: "none",
+                                      color: CHROME.muted,
+                                      padding: 0,
+                                    }
+                              }
                             >
                               {presetDeleteConfirmTarget === preset.id
                                 ? "Confirm"
@@ -4837,7 +4850,9 @@ export function StylePanel({
                     border: "none",
                     color: canCopyStandaloneDesktopToViewport
                       ? CHROME.muted
-                      : CHROME.muted2,
+                      // D6 — disabled must read disabled; muted2 was a ~4%
+                      // luminance shift from the enabled tone.
+                      : CHROME.muted3,
                     cursor: canCopyStandaloneDesktopToViewport
                       ? "pointer"
                       : "not-allowed",
@@ -5382,7 +5397,7 @@ export function StylePanel({
                     border: `1px solid ${
                       standaloneStyleClipboard ? CHROME.ink : CHROME.lineMid
                     }`,
-                    color: standaloneStyleClipboard ? "#fff" : CHROME.muted2,
+                    color: standaloneStyleClipboard ? "#fff" : CHROME.muted3,
                     cursor: standaloneStyleClipboard ? "pointer" : "not-allowed",
                     padding: "8px 6px",
                   }}
@@ -5398,7 +5413,7 @@ export function StylePanel({
                   style={{
                     background: "transparent",
                     border: `1px solid ${CHROME.lineMid}`,
-                    color: standaloneStyleClipboard ? CHROME.muted : CHROME.muted2,
+                    color: standaloneStyleClipboard ? CHROME.muted : CHROME.muted3,
                     cursor: standaloneStyleClipboard ? "pointer" : "not-allowed",
                     padding: "8px 6px",
                   }}
@@ -5420,7 +5435,7 @@ export function StylePanel({
                 border: "none",
                 color: canResetSelectedStandaloneViewport
                   ? CHROME.muted
-                  : CHROME.muted2,
+                  : CHROME.muted3,
                 cursor: canResetSelectedStandaloneViewport
                   ? "pointer"
                   : "not-allowed",
@@ -5450,124 +5465,18 @@ export function StylePanel({
           onSetMood={(value) => setOrToggleRoot("mood", value)}
         />
       ) : null}
-      {/* ── Surface (node/role contexts only — section default uses mockup panel) ── */}
-      {selectedNodeRole || selectedStandaloneStyleNode ? (
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Surface</div>
-          {!backgroundValue ? (
-            <span className={INHERIT_HINT}>Theme default</span>
-          ) : null}
-        </div>
-        <div className="flex flex-col gap-2">
-          <span className={FIELD_LABEL}>
-            {PRESENTATION_FIELD_LABELS.background}
-          </span>
-          {/* Swatch grid: each token is a circle, active gets a ring +
-              subtle scale via Swatch's built-in `active` styling. */}
-          <div
-            className="grid items-center gap-2.5"
-            style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}
-          >
-            {PRESENTATION_OPTIONS.background.map((opt) => {
-              const swatch = BACKGROUND_SWATCHES[opt.value];
-              return (
-                <Swatch
-                  key={opt.value}
-                  color={swatch?.color ?? "#ffffff"}
-                  active={backgroundValue === opt.value}
-                  onClick={() => setOrToggleP("background", opt.value)}
-                  size={28}
-                  title={opt.label}
-                />
-              );
-            })}
-          </div>
-          <span className={HINT}>
-            {backgroundColorCustom
-              ? `Custom color overrides the palette token.`
-              : backgroundValue
-                ? (PRESENTATION_OPTIONS.background.find(
-                    (o) => o.value === backgroundValue,
-                  )?.label ?? backgroundValue)
-                : "Match canvas, follows the tenant theme."}
-          </span>
-        </div>
-        {/* Free-color override — Phase 1 (pixel-first) escape from the
-            tenant palette. Sets backgroundColorCustom which the renderer
-            applies as inline `background:` and skips the data-attr so
-            the swatch token is overridden. */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <span className={FIELD_LABEL}>Custom color</span>
-            {backgroundColorCustom ? (
-              <button
-                type="button"
-                onClick={() =>
-                  onPatch({ __presentation: { backgroundColorCustom: undefined } })
-                }
-                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: CHROME.muted,
-                  padding: 0,
-                }}
-              >
-                Clear
-              </button>
-            ) : null}
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              ref={setColorAnchor}
-              type="button"
-              onClick={() => setColorOpen((v) => !v)}
-              aria-label="Pick custom background color"
-              className="cursor-pointer"
-              style={inspectorColorSwatchStyle(
-                Boolean(backgroundColorCustom),
-                backgroundColorCustom || undefined,
-                { border: `1px solid ${CHROME.lineMid}` },
-              )}
-            />
-            <input
-              type="text"
-              value={backgroundColorCustom}
-              onChange={(e) =>
-                onPatch({
-                  __presentation: {
-                    backgroundColorCustom: e.target.value || undefined,
-                  },
-                })
-              }
-              placeholder="e.g. #111111 or rgba()"
-              className="flex-1 px-2"
-              style={{
-                height: 30,
-                fontSize: 12,
-                fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                background: CHROME.surface2,
-                border: `1px solid ${CHROME.controlBorder}`,
-                borderRadius: 7,
-                color: CHROME.ink,
-                outline: "none",
-                transition: "border-color 150ms, box-shadow 150ms",
-              }}
-            />
-          </div>
-          <ColorPickerPopover
-            open={colorOpen}
-            anchor={colorAnchor}
-            value={backgroundColorCustom || "#ffffff"}
-            onChange={(next) =>
-              onPatch({ __presentation: { backgroundColorCustom: next } })
-            }
-            onClose={() => setColorOpen(false)}
-          />
-        </div>
-      </section>
-      ) : null}
+      {/*
+        ── D1: ONE SCOPE PER PANEL (Inspector Reset P2) ─────────────────────
+        Everything below this line reads and writes `draftProps.presentation`
+        — the parent SECTION, not the selected node. It therefore renders ONLY
+        when the section itself is the selection. Before this gate, "Surface",
+        "Custom color", "Advanced → Custom CSS", "Top divider" and "Video
+        background" all rendered with a node selected too: changing "Surface"
+        with a Container selected repainted the whole section while nothing on
+        screen distinguished the two write scopes. The Surface/Custom-color
+        block that used to render in NODE contexts is deleted outright — with
+        the section selected, SectionStyleMockupPanel already owns surface.
+      */}
       {/*
         ── Advanced (Phase A 2026-04-26) ────────────────────────────────────
         Custom CSS is now folded into a collapsible "Advanced" disclosure at
@@ -5584,6 +5493,8 @@ export function StylePanel({
         original Clear button + textarea + hint — no behavior changes.
         Convergence-plan §1 / DEMOTE bucket.
       */}
+      {isSectionScope ? (
+      <>
       <details
         open={Boolean(customCss)}
         className="flex flex-col gap-2"
@@ -5830,6 +5741,8 @@ export function StylePanel({
         </div>
         </section>
       </details>
+      </>
+      ) : null}
 
       {/* W5-T5 — Image crop modal triggered from the image-node inspector */}
       {imageCropOpen &&

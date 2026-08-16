@@ -34,6 +34,9 @@ export function PositionLayoutSection({
               advanced
               storageKey={`style-panel:position:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={false}
+              // D5 — field-level search keywords (see InspectorGroup).
+              // Compact one-liner: this file sits at the max-lines cap.
+              searchTerms={["position", "sticky", "z-index", "stacking", "layout", "flex", "align", "justify", "order", "overflow"]}
             >
             <div
               className="border-t pt-3"

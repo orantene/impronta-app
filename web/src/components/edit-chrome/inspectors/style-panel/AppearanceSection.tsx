@@ -48,6 +48,17 @@ export function AppearanceSection({
               defaultOpen={["container", "split", "card", "cta_group", "image"].includes(
                 selectedStandaloneStyleNode.kind,
               )}
+              // D5 — field-level search keywords (see InspectorGroup).
+              searchTerms={[
+                "background",
+                "fill",
+                "color",
+                "text color",
+                "border",
+                "corners",
+                "radius",
+                "rounded",
+              ]}
             >
             {["container", "split", "card", "cta_group"].includes(
               selectedStandaloneStyleNode.kind,

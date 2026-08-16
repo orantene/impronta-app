@@ -38,6 +38,12 @@ interface InspectorGroupProps {
    * justify-between layout; omitted → no change to the header.
    */
   accessory?: ReactNode;
+  /**
+   * D5 (Inspector Reset P2) — keywords for "Find a setting" beyond the title:
+   * the labels of the fields this group contains, so searching a field name
+   * keeps its group visible. Forwarded to InspectorAccordion when collapsible.
+   */
+  searchTerms?: ReadonlyArray<string>;
   children: ReactNode;
 }
 
@@ -61,6 +67,7 @@ export function InspectorGroup({
   storageKey,
   defaultOpen,
   accessory,
+  searchTerms,
   children,
 }: InspectorGroupProps) {
   const { t, to } = useInspectorT();
@@ -101,7 +108,12 @@ export function InspectorGroup({
       // so without it `setOpen` was never called and the sessionStorage entry
       // only ever held the initial default — "restore the operator's last
       // layout choice" silently measured nothing.
-      <InspectorAccordion title={title} defaultOpen={open} onToggle={setOpen}>
+      <InspectorAccordion
+        title={title}
+        defaultOpen={open}
+        onToggle={setOpen}
+        searchTerms={searchTerms}
+      >
         {accessory ? (
           <div className="flex justify-end">{accessory}</div>
         ) : null}

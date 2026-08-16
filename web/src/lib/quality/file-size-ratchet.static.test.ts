@@ -96,7 +96,10 @@ const BUDGETS: Record<string, number> = {
   //       so a device-preview iframe's own EditProvider can be seeded with the
   //       tier it represents instead of always defaulting to "desktop".
   "src/components/edit-chrome/edit-context.tsx": 6214,
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5896,
+  // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
+  // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
+  // reduction in; the guard can never drift back up silently.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5809,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
   "src/components/edit-chrome/topbar.tsx": 3471,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The

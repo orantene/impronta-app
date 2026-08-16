@@ -580,6 +580,8 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Fast-start spacing preset for this device.":
     "Preajuste de espaciado de arranque rápido para este dispositivo.",
   "Hide on this device": "Ocultar en este dispositivo",
+  "Switch to tablet or mobile to hide this only there.":
+    "Cambia a tableta o móvil para ocultarlo solo allí.",
   "Editing {device}": "Editando {device}",
   "{count} override": "{count} sustitución",
   "{count} overrides": "{count} sustituciones",

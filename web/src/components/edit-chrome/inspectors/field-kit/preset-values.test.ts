@@ -1,25 +1,21 @@
 /**
  * preset-values.test.ts — the field kit's HONESTY GUARD.
  *
- * D9 item 1 says a preset chip must display its real value. A chip that shows
- * a number the renderer no longer emits is worse than a chip that shows
- * nothing: it is a confident lie, and nobody would ever think to check it.
+ * D9 item 1 says a preset chip must display its real value. P1 enforced that
+ * with a parity suite that read `render.tsx` as TEXT, because the renderer's
+ * scale maps were module-private and P1 could not edit existing files. P2
+ * exported the scales (`@/lib/site-admin/builder-node/style-scales`) and
+ * `preset-values.ts` now DERIVES every number from that import, so parity is
+ * enforced by the module graph and the text-parsing guard is deleted.
  *
- * So this suite does two things:
- *   1. PARITY — reads `render.tsx` as TEXT and asserts the mirrored tables in
- *      `preset-values.ts` still match the renderer's private const maps. Text,
- *      not import, because importing the renderer pulls the whole Next/React
- *      graph into a unit-test lane for four object literals.
- *   2. SEMANTICS — the caption formatter and `matchPreset` behave as the D9
- *      contract (and the re-lighting decision) promise.
+ * What remains is the SEMANTICS suite: the caption formatter and `matchPreset`
+ * behave as the D9 contract (and the re-lighting decision) promise, and the
+ * derivation itself produces the numbers the renderer's scales imply.
  *
  * Runner: node:test + node:assert/strict.
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
 import {
@@ -29,106 +25,35 @@ import {
   MAX_WIDTH_PRESETS,
   RADIUS_PRESETS,
   SHADOW_PRESETS,
-  SPACER_PRESETS,
   SPACING_PRESETS,
   SPACING_PRESETS_SHIPPED,
   TEXT_SIZE_PRESETS,
+  TEXT_SIZE_PRESETS_PARAGRAPH,
   matchPreset,
   presetById,
   presetCaption,
   remToPx,
 } from "./preset-values";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const RENDER_TSX = resolve(
-  HERE,
-  "../../../../lib/site-admin/builder-node/render.tsx",
-);
+// ── 1. Derivation sanity ─────────────────────────────────────────────────────
 
-const RENDER_SRC = readFileSync(RENDER_TSX, "utf8");
-
-/**
- * Pull `const NAME = { … } as const;` out of the renderer source and parse the
- * `key: "value"` pairs. Deliberately dumb — these maps are flat string maps and
- * have been for the life of the file; if one grows nesting, this throws rather
- * than silently matching nothing.
- */
-function renderMap(name: string): Record<string, string> {
-  const re = new RegExp(`const ${name} = \\{([\\s\\S]*?)\\n\\} as const;`);
-  const block = RENDER_SRC.match(re);
-  assert.ok(
-    block,
-    `render.tsx no longer declares "const ${name} = { … } as const;". ` +
-      `The field kit mirrors it — find where the scale moved and update ` +
-      `preset-values.ts, do not delete this guard.`,
-  );
-  const out: Record<string, string> = {};
-  const pair = /["']?([\w:-]+)["']?\s*:\s*["']([^"']*)["']/g;
-  let m: RegExpExecArray | null;
-  while ((m = pair.exec(block![1])) !== null) out[m[1]] = m[2];
-  assert.ok(
-    Object.keys(out).length > 0,
-    `Parsed zero entries out of ${name} — the guard would pass vacuously.`,
-  );
-  return out;
-}
-
-/** Assert every id in `expected` is mirrored with the same CSS. */
-function assertMirrors(
-  label: string,
-  expected: Record<string, string>,
-  table: ReadonlyArray<{ id: string; css: string }>,
-) {
-  for (const [id, css] of Object.entries(expected)) {
-    const mirrored = table.find((p) => p.id === id);
-    assert.ok(
-      mirrored,
-      `${label}: renderer offers "${id}" but preset-values.ts has no entry for it. ` +
-        `A preset with no honest value cannot ship a chip caption (D9 item 1).`,
-    );
-    assert.equal(
-      mirrored!.css,
-      css,
-      `${label}: "${id}" resolves to ${css} in render.tsx but preset-values.ts ` +
-        `claims ${mirrored!.css}. The chip would display a stale number.`,
-    );
-  }
-}
-
-// ── 1. Parity with the renderer ─────────────────────────────────────────────
-
-test("spacing presets mirror render.tsx NODE_SPACING", () => {
-  assertMirrors("NODE_SPACING", renderMap("NODE_SPACING"), SPACING_PRESETS);
-});
-
-test("radius presets mirror render.tsx NODE_RADIUS", () => {
-  assertMirrors("NODE_RADIUS", renderMap("NODE_RADIUS"), RADIUS_PRESETS);
-});
-
-test("max-width presets mirror render.tsx NODE_MAX_WIDTH", () => {
-  assertMirrors("NODE_MAX_WIDTH", renderMap("NODE_MAX_WIDTH"), MAX_WIDTH_PRESETS);
-});
-
-test("gap presets mirror render.tsx GAP_BY_SIZE", () => {
-  assertMirrors("GAP_BY_SIZE", renderMap("GAP_BY_SIZE"), GAP_PRESETS);
-});
-
-test("spacer presets mirror render.tsx SPACER_BY_SIZE", () => {
-  assertMirrors("SPACER_BY_SIZE", renderMap("SPACER_BY_SIZE"), SPACER_PRESETS);
-});
-
-test("icon-size presets mirror render.tsx ICON_SIZE", () => {
-  assertMirrors("ICON_SIZE", renderMap("ICON_SIZE"), ICON_SIZE_PRESETS);
-});
-
-test("text-size clamps mirror the renderer's data-builder-style-size rules", () => {
-  for (const preset of TEXT_SIZE_PRESETS) {
-    if (preset.kind !== "fluid") continue;
-    const needle = `-size="${preset.id}"]{font-size:${preset.css.replace(/\s/g, "")}`;
-    assert.ok(
-      RENDER_SRC.replace(/\s/g, "").includes(needle.replace(/\s/g, "")),
-      `Text size "${preset.id}" claims ${preset.css}, which render.tsx does not emit.`,
-    );
+test("every renderer scale id has a chip entry with a resolved value", () => {
+  // The tables are built by iterating the imported scale maps, so a missing id
+  // would mean the derivation silently dropped an entry.
+  for (const [table, ids] of [
+    [SPACING_PRESETS, ["", "none", "s", "m", "l", "xl"]],
+    [RADIUS_PRESETS, ["", "none", "sm", "md", "lg", "pill"]],
+    [MAX_WIDTH_PRESETS, ["", "narrow", "reading", "wide", "full"]],
+    [GAP_PRESETS, ["s", "m", "l"]],
+    [ICON_SIZE_PRESETS, ["sm", "md", "lg", "xl"]],
+    [TEXT_SIZE_PRESETS, ["", "sm", "md", "lg", "xl", "display"]],
+  ] as const) {
+    for (const id of ids) {
+      assert.ok(
+        presetById(table, id),
+        `expected an entry for preset id "${id}"`,
+      );
+    }
   }
 });
 
@@ -144,6 +69,16 @@ test("gap M and spacing M are genuinely different numbers", () => {
   );
   assert.equal(gapM!.numeric!.value, 20);
   assert.equal(spacingM!.numeric!.value, 24);
+});
+
+test("paragraph text tiers really are the smaller clamps", () => {
+  const headingLg = presetById(TEXT_SIZE_PRESETS, "lg")!;
+  const paragraphLg = presetById(TEXT_SIZE_PRESETS_PARAGRAPH, "lg")!;
+  assert.ok(headingLg.rangePx && paragraphLg.rangePx);
+  assert.ok(
+    paragraphLg.rangePx![1] < headingLg.rangePx![1],
+    "the paragraph override must resolve smaller than the heading clamp",
+  );
 });
 
 // ── 2. Captions ─────────────────────────────────────────────────────────────

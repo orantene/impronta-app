@@ -30,7 +30,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { useEditorLocale } from "../use-editor-locale";
-import { CHROME, CHROME_SHADOWS } from "./tokens";
+import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./tokens";
 import { PortaledOverlay } from "./portaled-overlay";
 import { useAnchoredPopover } from "./use-anchored-popover";
 
@@ -217,9 +217,13 @@ export function NumberUnit({
       className={`relative inline-flex items-stretch overflow-visible ${className ?? ""}`}
       style={{
         height: 30,
+        // Inspector Reset P2 (carried from P1): retoned off the khaki
+        // controlBorder onto the field kit's ONE cool edge (lineStrong).
+        // NumberUnit is the control the kit reuses verbatim, so this one
+        // change cools every numeric input the editor renders.
         background: CHROME.controlFill,
-        border: `1px solid ${CHROME.controlBorder}`,
-        borderRadius: 6,
+        border: `1px solid ${CHROME.lineStrong}`,
+        borderRadius: CHROME_RADII.sm,
         boxShadow: CHROME_SHADOWS.inputInset,
         width,
         opacity: disabled ? 0.55 : 1,
@@ -230,7 +234,7 @@ export function NumberUnit({
         e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputFocus;
       }}
       onBlurCapture={(e) => {
-        e.currentTarget.style.borderColor = CHROME.controlBorder;
+        e.currentTarget.style.borderColor = CHROME.lineStrong;
         e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputInset;
       }}
     >
@@ -342,7 +346,7 @@ export function NumberUnit({
         style={{
           background: "transparent",
           border: "none",
-          borderLeft: `1px solid ${CHROME.controlBorder}`,
+          borderLeft: `1px solid ${CHROME.lineStrong}`,
           color: CHROME.muted,
           fontSize: 10,
           fontWeight: 600,
@@ -365,9 +369,11 @@ export function NumberUnit({
             left: unitMenuPos?.left ?? -9999,
             opacity: unitMenuPos ? 1 : 0,
             zIndex: 200,
-            background: CHROME.paper2,
+            // Cool white menu surface (was parchment paper2) — matches
+            // kit/menu-surface.tsx and the field kit's palette.
+            background: CHROME.surface,
             border: `1px solid ${CHROME.lineMid}`,
-            borderRadius: 8,
+            borderRadius: CHROME_RADII.md,
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
             padding: 4,
             minWidth: 72,
@@ -385,9 +391,10 @@ export function NumberUnit({
               onClick={() => setUnit(u)}
               className="cursor-pointer text-left uppercase"
               style={{
-                background: u === activeUnit ? CHROME.surface2 : "transparent",
+                background:
+                  u === activeUnit ? "rgba(24, 24, 27, 0.05)" : "transparent",
                 border: "none",
-                borderRadius: 4,
+                borderRadius: CHROME_RADII.xs,
                 padding: "5px 8px",
                 fontSize: 11,
                 fontWeight: 600,
@@ -396,7 +403,7 @@ export function NumberUnit({
               }}
               onMouseEnter={(e) => {
                 if (u !== activeUnit)
-                  e.currentTarget.style.background = CHROME.surface2;
+                  e.currentTarget.style.background = "rgba(24, 24, 27, 0.05)";
               }}
               onMouseLeave={(e) => {
                 if (u !== activeUnit)

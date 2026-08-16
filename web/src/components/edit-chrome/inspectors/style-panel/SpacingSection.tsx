@@ -39,6 +39,14 @@ export function SpacingSection({
               collapsible
               storageKey={`style-panel:spacing:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={false}
+              // D5 — field-level search keywords (see InspectorGroup).
+              searchTerms={[
+                "margin",
+                "padding",
+                "gap",
+                "box model",
+                "inset",
+              ]}
               accessory={
                 spacingHasResponsiveOverride ? (
                   <StyleGroupOverrideDot label="Spacing has tablet/mobile overrides" />
