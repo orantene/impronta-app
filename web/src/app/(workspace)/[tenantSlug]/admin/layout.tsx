@@ -212,8 +212,16 @@ export default async function WorkspaceAdminLayout({
         null as UserPrefs | null,
       ];
 
+  // Same capability the Forms page itself gates on (manage_billing). The nav
+  // must agree with the page EXACTLY: gating the link on a role proxy meant
+  // the sidebar and the route could disagree, hiding a reachable page (or
+  // advertising an unreachable one). Resolved server-side and passed through
+  // the bridge so the client never re-derives permissions.
+  const canManageBilling = await userHasCapability("manage_billing", scope.tenantId);
+
   const sessionIdentity = {
     userId: session.user.id,
+    canManageBilling,
     email: session.user.email ?? "",
     role: scope.membership.role,
     displayName: profileDisplayName,

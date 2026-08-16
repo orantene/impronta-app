@@ -448,6 +448,11 @@ type Ctx = {
     /** True when the user is a platform admin — gates the switcher's
      *  "Platform" entry point to the HQ console. */
     isPlatformAdmin?: boolean;
+    /** Resolved server-side from the `manage_billing` capability — the SAME
+     *  check the owner-class pages (Forms, financials) gate on. Nav uses this
+     *  instead of inferring from `role`, so the sidebar and the route can
+     *  never disagree about what is reachable. */
+    canManageBilling?: boolean;
   } | null;
   /**
    * Effective tenant values for rendering — derived from bridgeTenantIdentity

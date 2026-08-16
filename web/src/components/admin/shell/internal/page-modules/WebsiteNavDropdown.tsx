@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 import { Icon } from "../primitives";
-import { COLORS, FONTS, meetsRole, useAdminShell, Z } from "../state";
+import { COLORS, FONTS, useAdminShell, Z } from "../state";
 
 export function WebsiteNavItem({
   tenantSlug,
@@ -23,7 +23,7 @@ export function WebsiteNavItem({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { state } = useAdminShell();
+  const { bridgeSessionIdentity } = useAdminShell();
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
@@ -124,8 +124,8 @@ export function WebsiteNavItem({
                 iconName="user"
                 onClick={() => go(`${base}/profile-pages`)}
               />
-              {/* Owner-gated to match the page's own manage_billing check. */}
-              {meetsRole(state.role, "owner") ? (
+              {/* Same capability the page enforces (manage_billing). */}
+              {bridgeSessionIdentity?.canManageBilling ? (
                 <WebsiteMenuItem
                   label="Forms"
                   sub="Submissions from your site forms"

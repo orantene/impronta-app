@@ -55,15 +55,42 @@ jobs:
           # event's URL, so concurrent / out-of-order merges can't strand the
           # domains on a stale build. Fall back to the event URL if the query
           # yields nothing (e.g. a transient CLI hiccup).
-          LATEST="$(
+          # RACE FIX 2 (2026-08-16): this query runs seconds after the deploy
+          # reports ready, and `vercel ls` can still omit it — so "newest ready"
+          # returned the PREVIOUS deployment and the domains were aliased to a
+          # stale build. That is exactly what happened on 2026-08-16: the run
+          # reported success while app.tulala.digital + tulala.digital sat on
+          # the prior deploy and the ADMIN served a stale bundle for ~15 min,
+          # long enough to make a just-shipped fix look like it had not landed.
+          #
+          # Wait until the listing catches up with the deployment the event
+          # fired for, then take newest-ready (still order-independent, so a
+          # late run for an older deploy re-points to the true latest).
+          list_ready() {
             vercel ls tulala \
               --scope oran-tenes-projects \
               --token "$VERCEL_TOKEN" \
               --prod 2>/dev/null \
             | grep -i 'ready' \
-            | grep -oE 'https://tulala-[a-z0-9]+-oran-tenes-projects\.vercel\.app' \
-            | head -1 || true
-          )"
+            | grep -oE 'https://tulala-[a-z0-9]+-oran-tenes-projects\.vercel\.app' || true
+          }
+          for ATTEMPT in 1 2 3 4 5 6; do
+            READY_LIST="$(list_ready)"
+            # No event URL to wait for (manual/odd event) → first listing wins.
+            if [[ -z "${EVENT_URL:-}" ]]; then break; fi
+            if grep -qxF "$EVENT_URL" <<<"$READY_LIST"; then break; fi
+            echo "::notice::listing has not caught up with $EVENT_URL (attempt $ATTEMPT/6) — retrying in 10s"
+            sleep 10
+          done
+          LATEST="$(head -1 <<<"$READY_LIST")"
+          # If the listing never caught up, trust the event: we KNOW that
+          # deployment reported success, whereas newest-ready may be older than
+          # it. Aliasing to an older build is the failure mode this whole step
+          # exists to prevent.
+          if [[ -n "${EVENT_URL:-}" ]] && ! grep -qxF "$EVENT_URL" <<<"$READY_LIST"; then
+            echo "::warning::listing never showed $EVENT_URL — aliasing to the event deployment instead of $LATEST"
+            LATEST="$EVENT_URL"
+          fi
 
           DEPLOY_URL="${LATEST:-${EVENT_URL:-}}"
           if [[ -z "$DEPLOY_URL" ]]; then
