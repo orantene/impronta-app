@@ -24,6 +24,8 @@ import {
   type BuilderComponentRow,
 } from "@/lib/site-admin/edit-mode/builder-components-action";
 import { countComponentInstances } from "@/lib/site-admin/builder-node/component-instances";
+import { countStaleComponentInstances } from "@/lib/site-admin/builder-node/component-instance-staleness";
+import { fetchFreshMasterSubtreeJson } from "./component-master-sync";
 import { useEditContext } from "../edit-context";
 import { useEditorLocale } from "../use-editor-locale";
 import { useBuilderTree } from "../builder-tree-bridge";
@@ -80,6 +82,25 @@ export function ComponentLibraryPanel({
     const map: Record<string, number> = {};
     for (const c of components) {
       map[c.id] = countComponentInstances(builderTree, c.id);
+    }
+    return map;
+  }, [components, builderTree]);
+
+  // STALENESS — how many instances on THIS page carry stored children that no
+  // longer match the (last-fetched) master. Published pages resolve the master
+  // live, so this measures editor-canvas drift only. Pure tree read.
+  const staleById = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const c of components) {
+      const masterChildren =
+        "children" in c.subtree && Array.isArray(c.subtree.children)
+          ? c.subtree.children
+          : [];
+      map[c.id] = countStaleComponentInstances(
+        builderTree,
+        c.id,
+        masterChildren,
+      ).stale;
     }
     return map;
   }, [components, builderTree]);
@@ -147,19 +168,55 @@ export function ComponentLibraryPanel({
       setError(result.error ?? t("Couldn't update the master."));
       return;
     }
-    // Live instances reflect the master after publish; sync refreshes in-editor.
-    const sync = await syncComponentInstances(
+    // Published pages resolve the master live, so they already show the new
+    // content. Re-sync THIS page's stored copies too — from a FRESH server
+    // read: `component.subtree` in panel state is the PRE-update master, and
+    // syncing with it used to revert the canvas to the old design.
+    const freshJson = await fetchFreshMasterSubtreeJson(
       component.id,
-      JSON.stringify(component.subtree),
+      listBuilderComponents,
     );
+    const sync = freshJson
+      ? await syncComponentInstances(component.id, freshJson)
+      : null;
     setNote(
-      sync.ok && sync.synced
+      sync?.ok && sync.synced
         ? t('Updated "{name}" and re-synced {count} instance(s).')
             .replace("{name}", component.name)
             .replace("{count}", String(sync.synced))
         : t(
             'Updated "{name}" master. Published instances reflect it live.',
           ).replace("{name}", component.name),
+    );
+    void refresh();
+  }
+
+  async function onSyncPage(component: BuilderComponentRow) {
+    // One-click catch-up for THIS page's editor copies. Always syncs from a
+    // fresh server read of the master, never from panel state.
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    const freshJson = await fetchFreshMasterSubtreeJson(
+      component.id,
+      listBuilderComponents,
+    );
+    if (!freshJson) {
+      setBusy(false);
+      setError(t("Couldn't load the latest master. Try again."));
+      return;
+    }
+    const sync = await syncComponentInstances(component.id, freshJson);
+    setBusy(false);
+    if (!sync.ok) {
+      setError(sync.error ?? t("Couldn't sync instances."));
+      return;
+    }
+    setNote(
+      (sync.synced === 1
+        ? t("Synced {count} instance.")
+        : t("Synced {count} instances.")
+      ).replace("{count}", String(sync.synced ?? 0)),
     );
     void refresh();
   }
@@ -199,6 +256,9 @@ export function ComponentLibraryPanel({
         <p className="text-[10.5px] leading-snug text-stone-500">
           {t(
             "Saved components and where they’re used on this page. Insert a linked instance, or edit a master to update every instance at once.",
+          )}{" "}
+          {t(
+            "Published pages always show the latest master. Each page's editor keeps its own copy; Sync refreshes it.",
           )}
         </p>
 
@@ -234,6 +294,7 @@ export function ComponentLibraryPanel({
             ) : null}
             {components.map((component) => {
               const usage = usageById[component.id] ?? 0;
+              const stale = staleById[component.id] ?? 0;
               const linkable =
                 component.rootKind === "container" ||
                 component.rootKind === "card";
@@ -267,6 +328,20 @@ export function ComponentLibraryPanel({
                         >
                           {usage} {usage === 1 ? t("instance") : t("instances")}
                         </span>
+                        {stale > 0 ? (
+                          <span
+                            data-builder-node-component-stale={component.id}
+                            className="inline-flex items-center rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700"
+                            title={t(
+                              "The master changed since these were placed. Published pages already show the latest; Sync updates this page's editor view.",
+                            )}
+                          >
+                            {t("{count} out of date on this page").replace(
+                              "{count}",
+                              String(stale),
+                            )}
+                          </span>
+                        ) : null}
                       </span>
                     </span>
                   </div>
@@ -304,6 +379,20 @@ export function ComponentLibraryPanel({
                         onClick={() => void onUpdateMaster(component)}
                       >
                         ↑ {t("Update master")}
+                      </button>
+                    ) : null}
+                    {stale > 0 ? (
+                      <button
+                        type="button"
+                        data-builder-node-component-sync-page={component.id}
+                        title={t(
+                          "Refresh this page's instances from the latest master",
+                        )}
+                        className={KIT.subtleButton}
+                        disabled={busy}
+                        onClick={() => void onSyncPage(component)}
+                      >
+                        {t("Sync this page")}
                       </button>
                     ) : null}
                     {usage > 0 ? (
