@@ -15,7 +15,7 @@ import {
   loadDiscoverTalents,
   loadDiscoverMapPoints,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/discover";
-import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
+import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import { MarketingContainer, MarketingEyebrow } from "@/components/marketing/container";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { MarketingDirectoryShell } from "@/components/marketing/directory/MarketingDirectoryShell";
@@ -122,7 +122,11 @@ export default async function MarketingDirectoryPage({
       : Promise.resolve({ points: [], unmappedCount: 0 }),
   ]);
 
-  const mapApiKey = isMap ? (readGoogleMapsBrowserKey() ?? null) : null;
+  // Resolver, not raw env: an operator who sets the Maps key in the HQ
+  // Integrations panel expects it to be used. Reading process.env directly
+  // silently ignored that value and only worked because env happened to be
+  // set — the HQ field was decorative. tenant → HQ → env order now holds.
+  const mapApiKey = isMap ? await resolveGoogleMapsKeyForClient(null) : null;
 
   // ONE card design for the whole grid: the platform hub tenant's (the
   // workspace whose admin Card Design page labels this surface "Directory ·
