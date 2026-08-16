@@ -4775,7 +4775,7 @@ export function EditProvider({
   const translateSelectedBuilderNodes = useCallback<
     EditContextValue["translateSelectedBuilderNodes"]
   >(
-    async (deltas) => {
+    async (deltas, bucket = null) => {
       const nodeIds = Object.keys(deltas);
       if (nodeIds.length === 0) return { ok: true };
       const guarded = guardSelectedBuilderNodes(nodeIds);
@@ -4785,7 +4785,7 @@ export function EditProvider({
         nodeId: nodeIds[0],
         run: (tree) => ({
           ok: true,
-          tree: addTranslateDeltaToTree(tree, deltas),
+          tree: addTranslateDeltaToTree(tree, deltas, bucket),
         }),
       });
       if (!moved.ok) return { ok: false, error: moved.error };

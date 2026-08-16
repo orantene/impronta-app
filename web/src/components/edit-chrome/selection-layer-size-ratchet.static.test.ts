@@ -109,7 +109,16 @@ const BUDGETS: Record<string, number> = {
   // signal, the chip's constant off-screen seed replacing its bottom-dock
   // style block, and the overflow menu's measured open-direction (the menu
   // could hardcode "up" only while the chip was pinned to the bottom edge).
-  "selection-layer.tsx": 7683,
+  // +39 (builder-leftovers sweep, item 1 — breakpoint-aware nudge): the
+  // responsive-bucket resolution, the next-style computation, and the
+  // key-repeat acceleration curve all live in the new kit/nudge.ts (pure,
+  // unit-tested); what's here is the handler wiring the guard's procedure
+  // asks for — the nudge gate dropping its desktop-only clause (+ a comment
+  // explaining why), a ref tracking consecutive OS key-repeats, the nudge
+  // effect's onKeyUp listener + bucket-aware calls into
+  // commitSelectedNodeTranslate/translateSelectedBuilderNodes, and that
+  // commit fn's new optional `bucket` param + doc comment.
+  "selection-layer.tsx": 7722,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

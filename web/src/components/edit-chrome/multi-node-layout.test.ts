@@ -94,6 +94,70 @@ test("addTranslateDeltaToTree accumulates existing translate style", () => {
   assert.deepEqual(heading.props.style, { translate: "10px 3px" });
 });
 
+test("addTranslateDeltaToTree accumulates into a responsive bucket, not the base style", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "section",
+      kind: "section",
+      props: {
+        sectionId: "11111111-1111-4111-8111-111111111111",
+        sectionTypeKey: "custom",
+      },
+      children: [
+        {
+          id: "a",
+          kind: "heading",
+          props: {
+            text: "A",
+            level: 2,
+            style: { translate: "4px 5px" },
+          },
+        },
+      ],
+    },
+  ];
+  const next = addTranslateDeltaToTree(tree, { a: { x: 6, y: -2 } }, "tablet");
+  const section = next[0];
+  if (!section || section.kind !== "section") throw new Error("expected section");
+  const heading = section.children?.[0];
+  if (!heading || heading.kind !== "heading") throw new Error("expected heading");
+  // The base translate is untouched — only the tablet override accumulates.
+  assert.deepEqual(heading.props.style, {
+    translate: "4px 5px",
+    responsive: { tablet: { translate: "6px -2px" } },
+  });
+});
+
+test("addTranslateDeltaToTree prunes an emptied responsive bucket back out", () => {
+  const tree: BuilderNodeTree = [
+    {
+      id: "section",
+      kind: "section",
+      props: {
+        sectionId: "11111111-1111-4111-8111-111111111111",
+        sectionTypeKey: "custom",
+      },
+      children: [
+        {
+          id: "a",
+          kind: "heading",
+          props: {
+            text: "A",
+            level: 2,
+            style: { responsive: { mobile: { translate: "3px 3px" } } },
+          },
+        },
+      ],
+    },
+  ];
+  const next = addTranslateDeltaToTree(tree, { a: { x: -3, y: -3 } }, "mobile");
+  const section = next[0];
+  if (!section || section.kind !== "section") throw new Error("expected section");
+  const heading = section.children?.[0];
+  if (!heading || heading.kind !== "heading") throw new Error("expected heading");
+  assert.deepEqual(heading.props.style, undefined);
+});
+
 function bulkEditTree(): BuilderNodeTree {
   return [
     {

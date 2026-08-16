@@ -123,9 +123,18 @@ export function computeDistributeDeltas(
   return out;
 }
 
+/**
+ * `bucket` (`"tablet"`/`"mobile"`) accumulates the delta inside
+ * `style.responsive[bucket].translate` instead of the top-level style —
+ * the multi-select twin of the base/bucket split {@link mergeStylePatchIntoTree}
+ * already uses, so a breakpoint-aware nudge (or align/distribute, should they
+ * ever go per-device) moves the block on ONE breakpoint instead of every one.
+ * `null` (default) is the existing base-style behavior, unchanged.
+ */
 export function addTranslateDeltaToTree(
   tree: BuilderNodeTree,
   deltas: Readonly<Record<string, TranslateDelta>>,
+  bucket: MultiSelectionBucket = null,
 ): BuilderNodeTree {
   let changed = false;
   const visit = (node: BuilderNode): BuilderNode => {
@@ -134,15 +143,44 @@ export function addTranslateDeltaToTree(
     if (delta && node.kind !== "section") {
       const props = { ...(node.props as Record<string, unknown>) };
       const style = { ...((props.style as Record<string, unknown> | undefined) ?? {}) };
-      const current = parseTranslateValue(style.translate);
-      const nextTranslate = formatTranslateValue({
-        x: current.x + delta.x,
-        y: current.y + delta.y,
-      });
-      if (nextTranslate) {
-        style.translate = nextTranslate;
+      if (bucket == null) {
+        const current = parseTranslateValue(style.translate);
+        const nextTranslate = formatTranslateValue({
+          x: current.x + delta.x,
+          y: current.y + delta.y,
+        });
+        if (nextTranslate) {
+          style.translate = nextTranslate;
+        } else {
+          delete style.translate;
+        }
       } else {
-        delete style.translate;
+        const responsive = {
+          ...((style.responsive as Record<string, unknown> | undefined) ?? {}),
+        };
+        const tier = {
+          ...((responsive[bucket] as Record<string, unknown> | undefined) ?? {}),
+        };
+        const current = parseTranslateValue(tier.translate);
+        const nextTranslate = formatTranslateValue({
+          x: current.x + delta.x,
+          y: current.y + delta.y,
+        });
+        if (nextTranslate) {
+          tier.translate = nextTranslate;
+        } else {
+          delete tier.translate;
+        }
+        if (Object.keys(tier).length > 0) {
+          responsive[bucket] = tier;
+        } else {
+          delete responsive[bucket];
+        }
+        if (Object.keys(responsive).length > 0) {
+          style.responsive = responsive;
+        } else {
+          delete style.responsive;
+        }
       }
       if (Object.keys(style).length > 0) {
         props.style = style;
