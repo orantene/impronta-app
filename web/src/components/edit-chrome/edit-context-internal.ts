@@ -23,6 +23,7 @@ import {
 } from "@/lib/site-admin/builder-core/config";
 import { homepageAdapter } from "@/lib/site-admin/builder-core/adapters/homepage-adapter";
 import type { ReactNode } from "react";
+import type { EditDevice } from "./edit-context-types";
 
 import type { CompositionData } from "@/lib/site-admin/edit-mode/composition-actions";
 import {
@@ -668,5 +669,22 @@ export interface EditProviderProps {
    * their own config with a different adapter; same provider, zero forked code.
    */
   surfaceConfig?: BuilderContextConfig;
+  /**
+   * Sprint 3 device-preview iframe fix (live-QA #1146) — the iframe mounted
+   * by `DeviceFrameSurface` (edit-shell.tsx) for the Tablet/Mobile preview is
+   * a FULL separate page load with its OWN `IframeChild` → `EditProvider`.
+   * That provider's `device` state previously always defaulted to
+   * `"desktop"` (its own `useState` initial value) — it had NO way of
+   * knowing which tier it was previewing. Every `device`-scoped write inside
+   * the iframe (the keyboard nudge's responsive-bucket resolution chief
+   * among them) silently resolved against the base/desktop bucket
+   * regardless of which tier the operator had actually selected in the
+   * parent topbar. `IframeChild` reads `?device=` off its own URL
+   * (threaded by `DeviceFrameSurface`, one distinct iframe `src` per tier)
+   * and passes it here so the iframe's `device` state is seeded correctly
+   * from first render — no cross-frame sync needed after that, since the
+   * iframe never offers its own device switcher.
+   */
+  initialDevice?: EditDevice;
   children: ReactNode;
 }

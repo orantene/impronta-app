@@ -202,6 +202,13 @@ export function useFloatingDrag(
       const startRect = nodeRef.current?.getBoundingClientRect() ?? null;
       const magnetEnabled = Boolean(panelId && ctx && startRect);
       onDragStartRef.current?.();
+      // PR #1136 leftover — the anchored selection toolbar's occluder clamp
+      // (canvas-toolbar-anchor.ts) only re-measures on a scroll/resize/RO/MO
+      // signal; dragging a panel moves it via THESE pointer listeners, which
+      // fire none of those. Prime the toolbar's dirty flag now (drag start)
+      // and on every move tick below so it re-clamps around the panel while
+      // it's actually moving, not just once it stops.
+      ctx?.notifyCanvasGeometryDirty?.();
       setDragging(true);
       let lastX = baseX;
       let lastY = baseY;
@@ -233,6 +240,7 @@ export function useFloatingDrag(
         }
 
         const clamped = clamp({ x: nextX, y: nextY });
+        ctx?.notifyCanvasGeometryDirty?.();
         onDragMoveRef.current?.(clamped, {
           x: clamped.x - lastX,
           y: clamped.y - lastY,

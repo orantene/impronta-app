@@ -296,6 +296,7 @@ export function EditProvider({
   workspaceMembershipSlug = null,
   canInsertRawHtmlElements = false,
   surfaceConfig,
+  initialDevice,
   children,
 }: EditProviderProps) {
   const router = useRouter();
@@ -585,7 +586,12 @@ export function EditProvider({
   const setHoveredBuilderNodeId = useCallback((id: string | null) => {
     publishHoveredBuilderNodeId(id);
   }, []);
-  const [device, setDeviceRaw] = useState<EditDevice>("desktop");
+  // Sprint 3 device-preview iframe fix (live-QA #1146) — seed from
+  // `initialDevice` (threaded by IframeChild from its own `?device=` URL
+  // param) so the device-preview iframe's OWN EditProvider starts already
+  // knowing which tier it's previewing, instead of always defaulting to
+  // "desktop" the way a top-level (non-iframe) EditProvider correctly does.
+  const [device, setDeviceRaw] = useState<EditDevice>(initialDevice ?? "desktop");
   // Responsive-preview frame override (job #17). Reset whenever the operator
   // picks a device tier so a custom width / rotation from a previous tier never
   // silently carries over to the next.
@@ -1131,6 +1137,8 @@ export function EditProvider({
     setWorkspacePanelOffset,
     getWorkspacePanelOffset,
     getWorkspacePanelRect,
+    registerCanvasGeometryDirtyListener,
+    notifyCanvasGeometryDirty,
   } = useWorkspacePanels();
 
   // W3-T2(c/d) / W1-L2 — the operator's tree that lost a genuine CAS race,
@@ -4775,7 +4783,7 @@ export function EditProvider({
   const translateSelectedBuilderNodes = useCallback<
     EditContextValue["translateSelectedBuilderNodes"]
   >(
-    async (deltas) => {
+    async (deltas, bucket = null) => {
       const nodeIds = Object.keys(deltas);
       if (nodeIds.length === 0) return { ok: true };
       const guarded = guardSelectedBuilderNodes(nodeIds);
@@ -4785,7 +4793,7 @@ export function EditProvider({
         nodeId: nodeIds[0],
         run: (tree) => ({
           ok: true,
-          tree: addTranslateDeltaToTree(tree, deltas),
+          tree: addTranslateDeltaToTree(tree, deltas, bucket),
         }),
       });
       if (!moved.ok) return { ok: false, error: moved.error };
@@ -5854,6 +5862,8 @@ export function EditProvider({
       setWorkspacePanelOffset,
       getWorkspacePanelOffset,
       getWorkspacePanelRect,
+      registerCanvasGeometryDirtyListener,
+      notifyCanvasGeometryDirty,
       savePageMetadata,
 
       revisionsOpen,
@@ -6107,6 +6117,8 @@ export function EditProvider({
       setWorkspacePanelOffset,
       getWorkspacePanelOffset,
       getWorkspacePanelRect,
+      registerCanvasGeometryDirtyListener,
+      notifyCanvasGeometryDirty,
       savePageMetadata,
       revisionsOpen,
       openRevisions,

@@ -275,7 +275,8 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   {
     id: "nudge-block",
     label: "Nudge selected block(s)",
-    description: "Hold ⌥ and arrow to move by 1px; add ⇧ for 10px.",
+    description:
+      "With a nested block (not a section) selected and focus on the canvas, hold ⌥ and arrow to move it by 1px; add ⇧ for 10px. Also works on tablet/mobile preview, moving the block on that breakpoint only. Selecting a section instead reorders it (see \"Move section up/down\").",
     keys: ["⌥", "↑", "↓", "←", "→"],
     category: "editing",
     paletteAction: false,
@@ -294,6 +295,15 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     label: "Rotate selected block",
     description:
       "Drag just outside a corner of the selection box. Snaps to 45-degree angles; hold ⇧ for 15-degree steps, hold ⌘ to rotate freely. Double-click a corner zone (or right-click → Reset rotation) to reset.",
+    keys: [],
+    category: "editing",
+    paletteAction: false,
+  },
+  {
+    id: "move-block-grip",
+    label: "Move selected block",
+    description:
+      "Drag the centre grip on a selected block to reposition it freely. Double-click the grip to snap it back to its natural position.",
     keys: [],
     category: "editing",
     paletteAction: false,
@@ -390,6 +400,15 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
   {
+    id: "nav-tree-walk-tab",
+    label: "Step through blocks in document order",
+    description:
+      "Tab selects the next block in document order (a flat complement to the arrow keys' parent/child/sibling nav); Shift+Tab selects the previous. Wraps at the ends.",
+    keys: ["Tab"],
+    category: "navigation",
+    paletteAction: false,
+  },
+  {
     id: "select-parent-block",
     label: "Select parent block",
     description: "Same as ← when moving between blocks.",
@@ -407,18 +426,18 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   },
   {
     id: "move-section-up",
-    label: "Move selected section up, or nudge a block",
+    label: "Move selected section up",
     description:
-      "With a section selected, moves it one place earlier on the page. With a nested block selected and focus on the canvas, nudges that block up by 1px instead, or 10px with Shift.",
+      "With a section (not a nested block) selected, moves it one place earlier on the page. Selecting a block instead nudges it up (see \"Nudge selected block(s)\").",
     keys: ["⌥", "↑"],
     category: "editing",
     paletteAction: false,
   },
   {
     id: "move-section-down",
-    label: "Move selected section down, or nudge a block",
+    label: "Move selected section down",
     description:
-      "With a section selected, moves it one place later on the page. With a nested block selected and focus on the canvas, nudges that block down by 1px instead, or 10px with Shift.",
+      "With a section (not a nested block) selected, moves it one place later on the page. Selecting a block instead nudges it down (see \"Nudge selected block(s)\").",
     keys: ["⌥", "↓"],
     category: "editing",
     paletteAction: false,
@@ -454,9 +473,42 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: false,
   },
   {
+    id: "ungroup-blocks",
+    label: "Ungroup selected block",
+    description: "Dissolves a group container, promoting its children back to its parent.",
+    keys: ["⌘", "⌥", "⇧", "G"],
+    category: "selection",
+    paletteAction: false,
+  },
+  {
     id: "align-blocks-left",
     label: "Align selected blocks left",
+    description: "Requires 2+ blocks selected.",
     keys: ["⌘", "⇧", "L"],
+    category: "selection",
+    paletteAction: false,
+  },
+  {
+    id: "align-blocks-right",
+    label: "Align selected blocks right",
+    description: "Requires 2+ blocks selected.",
+    keys: ["⌘", "⇧", "R"],
+    category: "selection",
+    paletteAction: false,
+  },
+  {
+    id: "align-blocks-center",
+    label: "Align selected blocks centre",
+    description: "Requires 2+ blocks selected.",
+    keys: ["⌘", "⇧", "E"],
+    category: "selection",
+    paletteAction: false,
+  },
+  {
+    id: "distribute-blocks-horizontal",
+    label: "Distribute selected blocks horizontally",
+    description: "Spaces the middle blocks evenly between the outer two. Requires 3+ blocks selected.",
+    keys: ["⌘", "⇧", "H"],
     category: "selection",
     paletteAction: false,
   },

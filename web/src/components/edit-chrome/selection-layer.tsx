@@ -190,6 +190,11 @@ import { MultiSelectionToolbar } from "./multi-selection-toolbar";
 import { QuickStyleChipButton } from "./quick-style-popover";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 import type { MultiNodeRect } from "./multi-node-layout";
+import {
+  buildNudgeTranslateStyle,
+  nudgeStepForRepeatCount,
+  resolveNudgeBucket,
+} from "./kit/nudge";
 import { CanvasBetweenBlocksInsert } from "./canvas-between-blocks-insert";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import {
@@ -750,7 +755,22 @@ export function SelectionLayer() {
     requestInspectorTab,
     inspectorTabRequest,
     inspectorDockOpen,
+    registerCanvasGeometryDirtyListener,
   } = useEditContext();
+  // Latest-value ref for `device` — the keyboard NUDGE effect (below) reads
+  // this at keydown time instead of closing over `device` directly. A window
+  // `keydown` listener re-subscribes only when its effect's deps change; on
+  // this page's duplicate-canvas-copy path (a separate repaint bug, PR #1145)
+  // a QA pass caught the listener still writing the BASE style while the
+  // topbar showed Tablet selected — the effect's own re-subscribe was not a
+  // reliable enough signal. Synced in an effect (never written during
+  // render, matching canvasZoomRef below and the ref-discipline lint) so
+  // `deviceRef.current` refreshes on every device change, fully decoupled
+  // from the nudge effect's own re-subscription timing.
+  const deviceRef = useRef(device);
+  useEffect(() => {
+    deviceRef.current = device;
+  }, [device]);
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge). selection-layer
   // reads the tree heavily (overlays, drop candidates, context menu) so it
   // subscribes here; an edit re-renders this layer, which is exactly intended.
@@ -933,6 +953,18 @@ export function SelectionLayer() {
     canvasZoomRef.current = canvasZoom;
     geometryDirtyRef.current = true;
   }, [canvasZoom]);
+  // PR #1136 leftover — a floating panel (inspector dock, navigator, …) being
+  // DRAGGED moves via `useFloatingDrag`'s own pointer listeners
+  // (floating-panel.tsx), a separate component tree with no scroll/resize/RO/MO
+  // signal into `geometryDirtyRef`. `notifyCanvasGeometryDirty` fires on every
+  // drag tick (edit-context's use-workspace-panels.ts); subscribe once here so
+  // the anchored toolbar re-clamps around the panel while it moves instead of
+  // going stale until the next unrelated geometry signal.
+  useEffect(() => {
+    return registerCanvasGeometryDirtyListener(() => {
+      geometryDirtyRef.current = true;
+    });
+  }, [registerCanvasGeometryDirtyListener]);
 
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
@@ -3267,6 +3299,16 @@ export function SelectionLayer() {
   ]);
   const canResizeSelectedNode =
     selectedNodeIsEditableBlock && !multiNodeSelectionActive && device === "desktop" && !selectedNodeIsLocked;
+  // #32 leftover — the keyboard NUDGE is the one direct-manipulation gesture
+  // that doesn't need the resize/spacing/rotate/move-grip chrome to be on
+  // screen, so it doesn't need `canResizeSelectedNode`'s desktop-only gate:
+  // unlike those handles it now writes into the ACTIVE device's responsive
+  // bucket (kit/nudge.ts's resolveNudgeBucket) instead of always the base
+  // style, so nudging in tablet/mobile preview moves the block on that
+  // breakpoint only. Deliberately device-agnostic — matching the multi-select
+  // nudge path below, which already ignored this gate.
+  const canNudgeSelectedNode =
+    selectedNodeIsEditableBlock && !multiNodeSelectionActive && !selectedNodeIsLocked;
   // #21 — gap handles apply only to the layout-container kinds that honour the
   // `--bn-gap` escape (same set the Style panel's Gap field gates on). Reuses
   // the resize gate so locked / multi-select / non-desktop are all excluded.
@@ -3427,7 +3469,12 @@ export function SelectionLayer() {
     ],
   );
   const commitSelectedNodeTranslate = useCallback(
-    (x: number, y: number) => {
+    // `bucket` — breakpoint-aware nudge (kit/nudge.ts): "tablet"/"mobile"
+    // writes the RESPONSIVE OVERRIDE bucket instead of the base style, so a
+    // nudge taken while previewing that breakpoint doesn't move the block on
+    // every device. `null` (default) is the pre-existing base-style behavior
+    // the move grip / reset-position button still use.
+    (x: number, y: number, bucket: "tablet" | "mobile" | null = null) => {
       if (!selectedBuilderNodeId) return;
       const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
       if (!node || node.kind === "section") return;
@@ -3454,18 +3501,15 @@ export function SelectionLayer() {
         if (minX <= maxX) cx = Math.max(minX, Math.min(maxX, x));
         if (minY <= maxY) cy = Math.max(minY, Math.min(maxY, y));
       }
-      const rx = Math.round(cx);
-      const ry = Math.round(cy);
       const currentStyle =
         ((node.props as { style?: Record<string, unknown> } | undefined)
           ?.style ?? {}) as Record<string, unknown>;
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      // 0,0 → drop the escape entirely (back to natural position).
-      if (rx === 0 && ry === 0) {
-        delete nextStyle.translate;
-      } else {
-        nextStyle.translate = `${rx}px ${ry}px`;
-      }
+      const nextStyle = buildNudgeTranslateStyle({
+        style: currentStyle,
+        bucket,
+        x: cx,
+        y: cy,
+      });
       void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
     },
     [
@@ -3606,19 +3650,32 @@ export function SelectionLayer() {
       reportMutationError,
     ],
   );
+  // Consecutive OS key-repeat count for the held nudge chord — the
+  // acceleration curve nudgeStepForRepeatCount reads (kit/nudge.ts). A ref,
+  // not state: it must not trigger a re-render on every held repeat.
+  const nudgeRepeatCountRef = useRef(0);
   // #32 — keyboard nudge moves the selected freeform block/set by translate
-  // (Alt+arrow = 1px, Alt+Shift+arrow = 10px). It now lives under ALT so PLAIN
-  // arrows are free to NAVIGATE the selection through the tree (the tree-nav
-  // effect below). Complements the centre move grip for precise positioning;
-  // gated so it never hijacks typing or panel/tree navigation.
+  // (Alt+arrow = 1px, Alt+Shift+arrow = 10px, accelerating to x4 after ~10
+  // held repeats via kit/nudge.ts's nudgeStepForRepeatCount). It now lives
+  // under ALT so PLAIN arrows are free to NAVIGATE the selection through the
+  // tree (the tree-nav effect below). Complements the centre move grip for
+  // precise positioning; gated so it never hijacks typing or panel/tree
+  // navigation. Breakpoint-aware: writes into the active device's responsive
+  // bucket (resolveNudgeBucket), not always the base style, on BOTH the
+  // single-node and multi-select paths.
   useEffect(() => {
-    if (!canResizeSelectedNode && !multiNodeSelectionActive) return;
+    if (!canNudgeSelectedNode && !multiNodeSelectionActive) return;
     const DELTAS: Record<string, [number, number]> = {
       ArrowLeft: [-1, 0],
       ArrowRight: [1, 0],
       ArrowUp: [0, -1],
       ArrowDown: [0, 1],
     };
+    function onNudgeKeyUp(e: KeyboardEvent) {
+      // Reset the acceleration counter once the key is released, so the next
+      // hold starts back at 1px/10px.
+      if (DELTAS[e.key]) nudgeRepeatCountRef.current = 0;
+    }
     function onNudge(e: KeyboardEvent) {
       const delta = DELTAS[e.key];
       if (!delta) return;
@@ -3626,9 +3683,14 @@ export function SelectionLayer() {
       if (!e.altKey || e.metaKey || e.ctrlKey) return;
       if (isEditableKeyboardTarget(e.target) || !keyboardFocusIsOnCanvas()) return;
       e.preventDefault();
-      const step = e.shiftKey ? 10 : 1;
+      nudgeRepeatCountRef.current = e.repeat ? nudgeRepeatCountRef.current + 1 : 0;
+      const baseStep = e.shiftKey ? 10 : 1;
+      const step = nudgeStepForRepeatCount(baseStep, nudgeRepeatCountRef.current);
       const dx = delta[0] * step;
       const dy = delta[1] * step;
+      // Read the LATEST device via the ref, not the closed-over `device` —
+      // see deviceRef's doc comment above.
+      const bucket = resolveNudgeBucket(deviceRef.current);
       if (multiNodeSelectionActive) {
         // P3-LOCK: skip locked nodes from multi-nudge.
         const nodeIds = selectedBuilderNodeRects
@@ -3645,6 +3707,7 @@ export function SelectionLayer() {
           Object.fromEntries(
             nodeIds.map((nodeId) => [nodeId, { x: dx, y: dy }]),
           ),
+          bucket,
         ).then((result) => {
           if (!result.ok && result.error) reportMutationError(result.error);
         });
@@ -3658,13 +3721,20 @@ export function SelectionLayer() {
       // Immediate inline preview so rapid presses accumulate without waiting
       // for the round-trip; the commit then persists it.
       el.style.translate = `${nx}px ${ny}px`;
-      commitSelectedNodeTranslate(nx, ny);
+      commitSelectedNodeTranslate(nx, ny, bucket);
     }
     window.addEventListener("keydown", onNudge);
-    return () => window.removeEventListener("keydown", onNudge);
+    window.addEventListener("keyup", onNudgeKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onNudge);
+      window.removeEventListener("keyup", onNudgeKeyUp);
+    };
   }, [
     builderTree,
-    canResizeSelectedNode,
+    canNudgeSelectedNode,
+    // NOT `device` — the handler reads deviceRef.current at keydown time
+    // (see the ref's doc comment above), so this effect's own re-subscribe
+    // no longer needs to be a signal for a fresh device value.
     getBuilderNodeEl,
     getSelectedBuilderNodeEl,
     commitSelectedNodeTranslate,

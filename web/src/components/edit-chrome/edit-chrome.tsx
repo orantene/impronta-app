@@ -69,6 +69,7 @@ import { createBoundSiteShellAdapter } from "@/lib/site-admin/builder-core/adapt
 import { EditPill } from "./edit-pill";
 import { EditShellLoading } from "./edit-shell-loading";
 import { IframeChild } from "./iframe-child";
+import type { EditDevice } from "./edit-context-types";
 import { PreviewPill } from "./preview-pill";
 import { EDIT_TOPBAR_H } from "./kit";
 
@@ -154,6 +155,22 @@ export function EditChrome({
   const previewMode = searchParams?.get("preview") === "1";
   const editIntent = searchParams?.get("edit") === "1";
   const iframeMode = searchParams?.get("iframe") === "1";
+  // Live-QA #1146 — which tier THIS iframe load represents (threaded by
+  // DeviceFrameSurface's `iframeSrcForTier`), so IframeChild can seed its
+  // own EditProvider's `device` state correctly instead of always starting
+  // at "desktop". Validated against the known tiers; anything else (missing
+  // param, legacy warm-kept iframe from before this fix, tampering) falls
+  // back to the pre-existing "desktop" default rather than passing through
+  // an arbitrary string.
+  const iframeDeviceParam = searchParams?.get("device");
+  const iframeDevice: EditDevice | undefined =
+    iframeDeviceParam === "tablet" ||
+    iframeDeviceParam === "mobile" ||
+    iframeDeviceParam === "wide" ||
+    iframeDeviceParam === "compact" ||
+    iframeDeviceParam === "desktop"
+      ? iframeDeviceParam
+      : undefined;
 
   // WS1 core-adapter seam — the homepage builder config. The storefront editor
   // is the homepage surface: build its config here (in the client boundary so
@@ -215,6 +232,7 @@ export function EditChrome({
         workspaceMembershipSlug={workspaceMembershipSlug}
         canInsertRawHtmlElements={canInsertRawHtmlElements}
         surfaceConfig={surfaceConfig}
+        initialDevice={iframeDevice}
       />
     );
   }

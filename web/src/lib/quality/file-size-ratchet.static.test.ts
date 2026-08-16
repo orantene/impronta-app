@@ -84,7 +84,21 @@ const BUDGETS: Record<string, number> = {
   //       which costs an import line and a hook call. Extraction is not the
   //       remedy for a three-line delta; the point of the guard is that the
   //       growth is visible, and it is.
-  "src/components/edit-chrome/edit-context.tsx": 6202,
+  //   +6 (builder-leftovers sweep, item 5): destructure + wire
+  //       `registerCanvasGeometryDirtyListener` / `notifyCanvasGeometryDirty`
+  //       (2 lines) into the value object + its deps array (2+2 lines) so the
+  //       anchored toolbar can re-prime its dirty flag while a floating panel
+  //       is being dragged. The pub-sub IMPLEMENTATION lives in
+  //       use-workspace-panels.ts (already its own module); this is the thin
+  //       plumbing the guard's own procedure asks for.
+  //   +6 (live-QA #1146 hotfix): `initialDevice` prop + doc comment threaded
+  //       into EditProvider's signature and its `device` useState initializer,
+  //       so a device-preview iframe's own EditProvider can be seeded with the
+  //       tier it represents instead of always defaulting to "desktop".
+  "src/components/edit-chrome/edit-context.tsx": 6214,
+  // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
+  // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
+  // reduction in; the guard can never drift back up silently.
   "src/components/edit-chrome/inspectors/style-panel.tsx": 5809,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
   "src/components/edit-chrome/topbar.tsx": 3471,
@@ -92,7 +106,14 @@ const BUDGETS: Record<string, number> = {
   // plugin, trigger detection, catalog/matcher and menu component all live in
   // their own modules (SlashCommandPlugin, slash-command-trigger,
   // slash-command-catalog, slash-command-menu); this is the call site.
-  "src/components/edit-chrome/edit-shell.tsx": 2722,
+  // +8 (live-QA #1146 hotfix): `iframeSrcForTier(tier)` replaces the single
+  // shared `iframeSrc` — every warm-kept device iframe now gets its OWN
+  // `?device=<tier>` URL so its OWN EditProvider (a full separate page load,
+  // per iframe-child.tsx) can seed `device` correctly instead of always
+  // defaulting to "desktop". Fixes the keyboard nudge (and any other
+  // device-scoped write) silently landing in the base/desktop bucket
+  // whenever performed inside the Tablet/Mobile preview iframe.
+  "src/components/edit-chrome/edit-shell.tsx": 2730,
   "src/components/edit-chrome/inspectors/layout-panel.tsx": 2532,
   "src/components/edit-chrome/publish-drawer.tsx": 2254,
   "src/components/edit-chrome/inspector-dock.tsx": 1826,
