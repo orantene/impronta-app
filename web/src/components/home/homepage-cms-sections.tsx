@@ -389,6 +389,8 @@ export async function HomepageCmsSections({
           {renderFreeformPageRootTree(freeform.tree, {
             publicPathPrefix,
             mode: "freeform",
+            // Native `form` nodes render their own captcha widget from this.
+            captcha: captchaConfig,
             includeRendererStyles: false,
             dataSources: freeformDataSources,
             components: freeformComponents,
@@ -664,6 +666,7 @@ export async function HomepageCmsSections({
               visibilityContext,
               componentStyleDefaults,
               renderSectionEmbed: sectionEmbedRendererForChildren,
+              captcha: captchaConfig,
             });
           }
         }
