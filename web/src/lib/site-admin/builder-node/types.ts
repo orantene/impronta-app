@@ -878,6 +878,9 @@ export interface BuilderIconNode extends BuilderNodeBase {
     layerLabel?: string;
     decorative?: boolean;
     size?: "sm" | "md" | "lg" | "xl";
+    /** Inspector Reset P3 (D9 item 2) — exact typed/dragged size override.
+     * See `sizeFree` on `BuilderSpacerNode` for the shared "Free" convention. */
+    sizeFree?: string;
     style?: BuilderNodeStyle;
   };
 }
@@ -935,6 +938,11 @@ export interface BuilderSpacerNode extends BuilderNodeBase {
   kind: "spacer";
   props: {
     size: "s" | "m" | "l";
+    /** Inspector Reset P3 (D9 item 2, "preset = shortcut, never a ceiling") —
+     * an exact typed/dragged height, taking precedence over `size` in the
+     * renderer when present. Same "Free" companion-field convention as
+     * `BuilderNodeStyle`'s `marginTopFree` etc. */
+    sizeFree?: string;
     style?: BuilderNodeStyle;
   };
 }

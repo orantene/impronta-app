@@ -4408,7 +4408,9 @@ function renderBuilderNodeElement(
           aria-label={decorative ? undefined : iconLabel || icon.name}
           aria-hidden={decorative ? true : undefined}
           style={inlineNodeStyle(node.props.style, {
-            fontSize: ICON_SIZE[node.props.size ?? "md"],
+            // Inspector Reset P3: an exact typed/dragged size wins over the
+            // S/M/L/XL token when present (D9 item 2 — presets are shortcuts).
+            fontSize: node.props.sizeFree || ICON_SIZE[node.props.size ?? "md"],
           })}
         >
           <svg
@@ -4579,7 +4581,9 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--spacer"
           aria-hidden="true"
           style={inlineNodeStyle(node.props.style, {
-            height: SPACER_BY_SIZE[node.props.size],
+            // Inspector Reset P3: an exact typed/dragged height wins over the
+            // S/M/L token when present (D9 item 2 — presets are shortcuts).
+            height: node.props.sizeFree || SPACER_BY_SIZE[node.props.size],
           })}
         />
       );
