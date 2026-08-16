@@ -38,6 +38,18 @@
  * re-alert; that is an accepted trade-off — the triage bucket still shows it,
  * and the lapse sweep covers coordinators that time out after assignment.)
  *
+ * SHARED WITH `processCoordinatorTimeouts` (cron /api/cron/inquiry-engine).
+ * That sweep unassigns a coordinator who never accepted, which turns the inquiry
+ * into exactly the shape this one alerts on. Both now read AND write the same
+ * anchor via `COORDINATOR_STALE_ANCHOR_EVENT`, so an inquiry is alerted once by
+ * whichever sweep reaches it first — never once by each.
+ * See `lib/inquiry/coordinator-stale-policy.ts`.
+ *
+ * STALENESS CUTOFF: `classifyStaleAlert` suppresses the notification (but still
+ * anchors + timelines the row) when the inquiry went stale longer ago than the
+ * policy's window. That keeps a never-run sweep from emptying months of backlog
+ * into staff inboxes in one burst.
+ *
  * Scheduled hourly in `web/vercel.json` at minute 45 (distinct from
  * retry-failed-emails @:00 and expire-offers @:30). Threshold is a clear
  * constant below.
@@ -52,6 +64,10 @@ import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "@/lib/inquiry/inquiry-events";
 import { buildInquiryBells } from "@/lib/inquiry/inquiry-notifications";
+import {
+  COORDINATOR_STALE_ANCHOR_EVENT,
+  classifyStaleAlert,
+} from "@/lib/inquiry/coordinator-stale-policy";
 import { INQUIRY_CLOSED_STATUSES } from "@/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-workspace";
 
 export const runtime = "nodejs";
@@ -82,8 +98,9 @@ export async function GET(request: Request) {
   }
 
   try {
+    const nowMs = Date.now();
     const cutoff = new Date(
-      Date.now() - STALE_THRESHOLD_HOURS * 60 * 60 * 1000,
+      nowMs - STALE_THRESHOLD_HOURS * 60 * 60 * 1000,
     ).toISOString();
 
     // Open + unassigned + stale. Mirrors the triage "Unassigned" bucket
@@ -91,7 +108,7 @@ export async function GET(request: Request) {
     // have aged past the threshold.
     const { data: rows, error } = await admin
       .from("inquiries")
-      .select("id, tenant_id")
+      .select("id, tenant_id, created_at")
       .is("coordinator_id", null)
       .not("status", "in", `(${INQUIRY_CLOSED_STATUSES.join(",")})`)
       .lt("created_at", cutoff);
@@ -102,20 +119,20 @@ export async function GET(request: Request) {
     }
 
     let alerted = 0;
+    let drained = 0;
     let skipped = 0;
 
     for (const row of rows ?? []) {
       const inquiryId = row.id as string;
       const tenantId = row.tenant_id as string;
 
-      // Idempotency guard: skip if this inquiry was already alerted. The marker
-      // is the timeline row that step 1 below writes (engine_emit_system_event),
-      // so re-runs each hour never double-fire.
+      // Idempotency guard: skip if this inquiry was already alerted — by THIS
+      // sweep or by processCoordinatorTimeouts, which writes the same anchor.
       const { data: existing, error: existingErr } = await admin
         .from("inquiry_events")
         .select("id")
         .eq("inquiry_id", inquiryId)
-        .eq("event_type", ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNMENT_TIMED_OUT)
+        .eq("event_type", COORDINATOR_STALE_ANCHOR_EVENT)
         .limit(1)
         .maybeSingle();
 
@@ -127,17 +144,28 @@ export async function GET(request: Request) {
         continue;
       }
 
-      if (existing) {
+      const action = classifyStaleAlert({
+        alreadyAnchored: Boolean(existing),
+        staleSinceIso: row.created_at as string | null,
+        nowMs,
+      });
+
+      if (action === "skip") {
         skipped += 1;
         continue;
       }
 
       // 1) Write the timeline row + dedupe anchor via the service-role system
-      //    emit RPC (actor_user_id = NULL, actor_role = 'system').
+      //    emit RPC (actor_user_id = NULL, actor_role = 'system'). Happens on
+      //    the drain path too, so a quieted row is never re-alerted later.
       const { error: emitErr } = await admin.rpc("engine_emit_system_event", {
         p_inquiry_id: inquiryId,
-        p_event_type: ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNMENT_TIMED_OUT,
-        p_payload: { automated: true, reason: "unassigned_too_long" },
+        p_event_type: COORDINATOR_STALE_ANCHOR_EVENT,
+        p_payload: {
+          automated: true,
+          reason: "unassigned_too_long",
+          ...(action === "drain" ? { notificationsSuppressed: "stale_backlog" } : {}),
+        },
       });
 
       if (emitErr) {
@@ -145,6 +173,13 @@ export async function GET(request: Request) {
         // avoid an un-deduped alert. The next sweep retries this inquiry.
         logServerError("cron/flag-unassigned-inquiries.emit", emitErr);
         skipped += 1;
+        continue;
+      }
+
+      if (action === "drain") {
+        // Accumulated backlog rather than a live signal: anchored and on the
+        // timeline, but no bell and no email.
+        drained += 1;
         continue;
       }
 
@@ -170,9 +205,10 @@ export async function GET(request: Request) {
     void improntaLog("inquiry.cron.flag_unassigned", {
       scanned: (rows ?? []).length,
       alerted,
+      drained,
       skipped,
     });
-    return NextResponse.json({ ok: true, scanned: (rows ?? []).length, alerted, skipped });
+    return NextResponse.json({ ok: true, scanned: (rows ?? []).length, alerted, drained, skipped });
   } catch (err) {
     logServerError("cron/flag-unassigned-inquiries", err);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
