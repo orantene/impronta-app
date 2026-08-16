@@ -3,11 +3,15 @@ import test from "node:test";
 
 import {
   findBuilderNodeById,
+  removeItemAt,
+  resolveClearableMediaSrc,
   resolveHonestSelectedBuilderNodeId,
   resolveStandaloneBuilderNodeForContent,
   treeContainsBuilderNodeId,
 } from "./builder-node-content-utils";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node";
+import { renderBuilderNodes } from "@/lib/site-admin/builder-node/render";
+import { renderToStaticMarkup } from "react-dom/server";
 
 function makeTree(): BuilderNodeTree {
   return [
@@ -157,4 +161,49 @@ test("resolveHonestSelectedBuilderNodeId ignores override owned by another secti
     }),
     "legacy:body:0:hero:heading:headline",
   );
+});
+
+// ── D3 regression: MediaPickerButton Clear on required-`src` media fields ──
+//
+// The image/video node inspectors used to guard their MediaPickerButton
+// `onChange` with `if (!next) return;`, which silently swallowed the
+// `next === null` Clear signal (and, for `variant="row"`, Clear wasn't even
+// rendered — fixed separately in media-picker-button.tsx). These tests lock
+// in the fixed behavior: `resolveClearableMediaSrc` turns a Clear into a
+// real, empty `src` the schema and renderer both treat as "no media set"
+// rather than a no-op.
+
+test("resolveClearableMediaSrc: Clear (null) resolves to empty string, not a no-op", () => {
+  assert.equal(resolveClearableMediaSrc(null), "");
+});
+
+test("resolveClearableMediaSrc: a picked/pasted URL passes through unchanged", () => {
+  assert.equal(
+    resolveClearableMediaSrc("https://example.com/photo.jpg"),
+    "https://example.com/photo.jpg",
+  );
+});
+
+test("D3: an image node cleared to an empty src renders nothing (not a crash, not the old image)", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        {
+          id: "img1",
+          kind: "image",
+          props: { src: resolveClearableMediaSrc(null), alt: "" },
+        },
+      ],
+      { mode: "freeform" },
+    ) as Parameters<typeof renderToStaticMarkup>[0],
+  );
+  assert.ok(!html.includes("<img"), "cleared image node renders no <img>");
+});
+
+test("removeItemAt: social_feed Clear on a required mediaUrl removes that post (mirrors the Remove button)", () => {
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  assert.deepEqual(removeItemAt(items, 1), [{ id: "a" }, { id: "c" }]);
+  // Original array is untouched (patchItem-style callers always replace
+  // the whole `items` prop, never mutate in place).
+  assert.deepEqual(items, [{ id: "a" }, { id: "b" }, { id: "c" }]);
 });

@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import { useSectionT } from "../shared/section-editor-i18n";
 import { coerceLegacyHref } from "../../links/link-ref";
 import {
@@ -35,6 +36,7 @@ const DEFAULT_DISCOVERY_FORM: DiscoveryForm = {
 export function EditorialSplitHeroEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<EditorialSplitHeroV1>) {
   const t = useSectionT();
   const value: EditorialSplitHeroV1 = {
@@ -415,12 +417,25 @@ export function EditorialSplitHeroEditor({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className={FIELD}>
             <span className={LABEL}>{t("Media URL")}</span>
-            <input
-              className={INPUT}
-              placeholder="https://…"
-              value={value.mediaUrl ?? ""}
-              onChange={(e) => patch({ mediaUrl: e.target.value })}
-            />
+            {/* D9 fix: this field was a bare URL textbox — editorial_split_hero
+                has a fully hand-written Editor (not ZodSchemaForm-driven), so
+                the zod-introspect.ts NAME_HINTS allow-list can never reach it
+                regardless of field name. Wire the shared MediaPicker directly. */}
+            <div className="flex items-center gap-2">
+              <input
+                className={`${INPUT} flex-1`}
+                placeholder="https://…"
+                value={value.mediaUrl ?? ""}
+                onChange={(e) => patch({ mediaUrl: e.target.value })}
+              />
+              {tenantId ? (
+                <MediaPicker
+                  tenantId={tenantId}
+                  label={t("Browse library")}
+                  onPick={(url) => patch({ mediaUrl: url })}
+                />
+              ) : null}
+            </div>
           </label>
           <label className={FIELD}>
             <span className={LABEL}>{t("Media alt text")}</span>

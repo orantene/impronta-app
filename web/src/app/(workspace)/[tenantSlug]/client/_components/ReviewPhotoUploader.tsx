@@ -83,13 +83,25 @@ export function ReviewPhotoUploader({
   async function remove(id: string) {
     setBusy(true);
     setError(null);
-    const res = await removeReviewMediaAction(id);
-    if (res.ok) {
-      setPhotos((prev) => prev.filter((p) => p.id !== id));
-    } else {
-      setError(res.error || t("client.reviews.photoRemoveError"));
+    // D11 fix: try/catch is load-bearing here for the same reason it is in
+    // onPick above — if removeReviewMediaAction THROWS (network drop,
+    // Server Action transport error, etc.) rather than resolving to
+    // `{ ok: false }`, the unguarded `await` used to skip straight past
+    // `setBusy(false)` and permanently wedge the uploader in its busy
+    // state (every button stays disabled with no way to recover short of
+    // a page reload).
+    try {
+      const res = await removeReviewMediaAction(id);
+      if (res.ok) {
+        setPhotos((prev) => prev.filter((p) => p.id !== id));
+      } else {
+        setError(res.error || t("client.reviews.photoRemoveError"));
+      }
+    } catch {
+      setError(t("client.reviews.photoRemoveError"));
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   return (

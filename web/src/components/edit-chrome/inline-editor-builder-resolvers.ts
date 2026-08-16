@@ -176,3 +176,28 @@ export function resolveEditableBuilderNodeImageTarget(
   const node = findBuilderNodeById(tree, nodeId);
   return node?.kind === "image" ? { id: node.id } : null;
 }
+
+/**
+ * D1 fix — the patch to apply to an "image" builder node's props when a new
+ * asset is picked from the canvas "Replace image" pill.
+ *
+ * The published renderer (builder-node/render.tsx, "image" case) resolves
+ * `mediaId` → `dataSources.mediaAssets` FIRST and only falls back to `src`
+ * when there is no matching asset:
+ *
+ *   const mediaAsset = node.props.mediaId
+ *     ? dataSources.mediaAssets.find(asset => asset.id === node.props.mediaId)
+ *     : null;
+ *   const baseSrc = mediaAsset?.publicUrl ?? node.props.src ?? "";
+ *
+ * So patching `src` alone leaves a STALE `mediaId` pointing at the old
+ * asset — the editor's optimistic preview shows the new `src`, but the
+ * published page re-resolves `mediaId` back to the OLD asset's URL. Both
+ * keys must move together. See inline-editor.tsx's `handleImagePicked`.
+ */
+export function buildInlineImageReplacePatch(item: {
+  id: string;
+  publicUrl: string;
+}): { src: string; mediaId: string } {
+  return { src: item.publicUrl, mediaId: item.id };
+}

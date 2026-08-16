@@ -94,6 +94,22 @@ const NAME_HINTS: Record<string, IntrospectedField["hint"]> = {
   afterUrl: "image_url",
   beforeAlt: "alt_text",
   afterAlt: "alt_text",
+  // D9 — these four field names fell through the auto-binder's allow-list
+  // and rendered as bare URL textboxes with no picker: site_header.brand
+  // .logoUrl, site_footer.brand.logoUrl, press_strip.items[].logoUrl,
+  // blog_detail.heroImageUrl, video_reel.posterUrl. Matching is by LOCAL
+  // field name (introspectField recurses into object / array-of-object
+  // shapes passing just the child key — see `introspectField`'s
+  // `Object.entries(shape).map(([k, v]) => introspectField(k, v))`), so a
+  // single flat entry here reaches every nesting depth; no path-aware
+  // lookup needed for THESE four. (editorial_split_hero's `mediaUrl` is a
+  // separate case — that Editor is hand-written, not ZodSchemaForm-driven,
+  // so this map can't reach it; fixed directly in its Editor.tsx instead.)
+  logoUrl: "image_url",
+  logoAlt: "alt_text",
+  heroImageUrl: "image_url",
+  heroImageAlt: "alt_text",
+  posterUrl: "image_url",
   href: "href",
   ctaHref: "href",
   url: "href",

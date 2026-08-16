@@ -43,7 +43,7 @@ import { useEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useDraftProps } from "./draft-props-bridge";
 import { useSelectedSectionId } from "./selection-bridge";
-import { MediaPickerDrawer } from "./media-picker-drawer";
+import { MediaPickerDrawer, type MediaPickedItem } from "./media-picker-drawer";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
 import { CanvasEditOverlay } from "./rich-editor";
 import { flushCanvasTextStylePatches } from "./canvas-lexical-bridge";
@@ -53,6 +53,7 @@ import { applyOptimisticInlineRepaint } from "./inline-editor-repaint";
 import { useInlineEditorCommitHandoff } from "./use-inline-editor-commit-handoff";
 import { dismissCoachmark } from "./builder-coachmarks";
 import {
+  buildInlineImageReplacePatch,
   findBuilderNodeById,
   resolveBuilderNodeTextValue,
   resolveEditableBuilderNodeImageTarget,
@@ -543,21 +544,30 @@ export function InlineEditor() {
   };
 
   const handleImagePicked = useCallback(
-    (publicUrl: string) => {
+    (item: MediaPickedItem) => {
       const target = targetImgRef.current;
+      const publicUrl = item.publicUrl;
       setMediaOpen(false);
       if (!target) return;
       if (target.builderNodeId) {
-        void patchBuilderNodeProps(target.builderNodeId, { src: publicUrl }).then(
-          (result) => {
-            if (!result.ok) {
-              const text =
-                result.error ?? "Couldn't replace this image. Try the inspector.";
-              reportMutationError(text);
-              setBanner({ kind: "error", text });
-            }
-          },
-        );
+        // D1 fix: patch `mediaId` alongside `src` so the published renderer
+        // (which prefers `dataSources.mediaAssets` resolved via `mediaId`,
+        // see builder-node/render.tsx's "image" case) picks up the
+        // replacement too — not just the editor's optimistic `src` preview.
+        // Patching `src` alone left the two out of sync: the editor showed
+        // the new image (draft `src`) while the published page kept
+        // resolving the OLD `mediaId` back to the original asset's URL.
+        void patchBuilderNodeProps(
+          target.builderNodeId,
+          buildInlineImageReplacePatch(item),
+        ).then((result) => {
+          if (!result.ok) {
+            const text =
+              result.error ?? "Couldn't replace this image. Try the inspector.";
+            reportMutationError(text);
+            setBanner({ kind: "error", text });
+          }
+        });
         targetImgRef.current = null;
         return;
       }
@@ -712,7 +722,12 @@ export function InlineEditor() {
         tenantId={tenantId ?? ""}
         open={mediaOpen}
         title="Replace image"
-        onPick={handleImagePicked}
+        // All logic lives in `onPickItem` (needs the asset id for `mediaId`,
+        // see the D1 fix above). `onPick` still fires on every pick — the
+        // drawer calls both unconditionally — so it stays a no-op to avoid a
+        // second, duplicate patch.
+        onPick={() => {}}
+        onPickItem={handleImagePicked}
         onClose={() => setMediaOpen(false)}
       />
     </>

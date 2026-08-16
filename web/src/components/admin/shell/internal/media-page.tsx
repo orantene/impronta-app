@@ -2358,7 +2358,7 @@ export function WorkspaceMediaPage() {
 
         {/* Pending review: keyboard hint bar */}
         {view.kind === "pending" && filtered.length > 0 && selCount === 0 && (
-          <div style={{ padding: "7px 20px", background: "rgba(255,193,7,0.08)", borderBottom: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
+          <div style={{ padding: "7px 20px", background: COLORS.amberSoft, borderBottom: `1px solid ${COLORS.borderSoft}`, display: "flex", alignItems: "center", gap: 12, fontFamily: FONTS.body, fontSize: 11.5 }} className="text-admin-ink-muted">
             <span style={{ fontWeight: 700 }} className="text-admin-amber">{interpolate(t("dashboard.adminMedia.nPending"), { count: filtered.length })}</span>
             <span>·</span>
             <span><kbd style={{ padding: "1px 5px", borderRadius: 4, border: `1px solid ${COLORS.border}`, fontFamily: "monospace", fontSize: 10.5 }}>Y</kbd> {t("dashboard.adminMedia.approve")}</span>
@@ -2610,7 +2610,7 @@ export function WorkspaceMediaPage() {
         {/* Bridge cap banner — totalCount now comes from a dedicated post-
             join count query, so this comparison is finally honest. */}
         {bridgeMediaTotalCount != null && bridgeMediaTotalCount > photos.length && (
-          <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: "rgba(255,193,7,0.08)", border: "1px solid rgba(255,193,7,0.22)", fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
+          <div style={{ marginBottom: 10, padding: "8px 13px", borderRadius: 8, background: COLORS.amberSoft, border: `1px solid ${COLORS.amber}38`, fontFamily: FONTS.body, fontSize: 12.5 }} className="text-admin-ink">
             {interpolate(t("dashboard.adminMedia.showingNofM"), {
               shown: photos.length.toLocaleString(),
               total: bridgeMediaTotalCount.toLocaleString(),

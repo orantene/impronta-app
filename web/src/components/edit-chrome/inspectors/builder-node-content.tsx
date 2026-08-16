@@ -52,6 +52,10 @@ import { GenericContent } from "./generic-content";
 import { LocaleFieldTabs } from "./locale-field-tabs";
 import { useActiveContentLocale } from "../active-content-locale-bridge";
 import {
+  removeItemAt,
+  resolveClearableMediaSrc,
+} from "./builder-node-content-utils";
+import {
   GlyphTiles,
   PresetNumberRow,
   ICON_SIZE_PRESETS,
@@ -651,8 +655,13 @@ export function BuilderNodeContentInspector({
             tenantId={tenantId}
             value={node.props.src}
             onChange={(next) => {
-              if (!next) return;
-              void commitPatch({ src: next, mediaId: undefined });
+              // D3 fix: `next === null` is a genuine Clear click (the guard
+              // used to read `if (!next) return;`, silently swallowing it).
+              // `src` is a required string in imagePropsSchema but allows
+              // "" — an empty image node simply doesn't render (see the
+              // `if (!src ...) return null` guard in render.tsx's "image"
+              // case), so this is a real, visible clear rather than a no-op.
+              void commitPatch({ src: resolveClearableMediaSrc(next), mediaId: undefined });
             }}
             onPickItem={(item) => {
               void commitPatch({
@@ -1034,8 +1043,12 @@ export function BuilderNodeContentInspector({
               tenantId={tenantId}
               value={node.props.src}
               onChange={(next) => {
-                if (!next) return;
-                void commitPatch({ src: next, mediaId: undefined });
+                // D3 fix: `next === null` is a Clear click — the old guard
+                // (`if (!next) return;`) silently ate it. `src` is required
+                // but no longer constrained to a strict URL shape (see
+                // videoPropsSchema in registry.ts), so "" is valid and
+                // clears the node visibly instead of doing nothing.
+                void commitPatch({ src: resolveClearableMediaSrc(next), mediaId: undefined });
               }}
               onPickItem={(item) => {
                 void commitPatch({ src: item.publicUrl, mediaId: item.id });
@@ -1326,7 +1339,17 @@ export function BuilderNodeContentInspector({
                   tenantId={tenantId}
                   value={item.mediaUrl}
                   onChange={(next) => {
-                    if (!next) return;
+                    // D3 fix: `next === null` is a Clear click — the old
+                    // guard (`if (!next) return;`) silently ate it.
+                    // `mediaUrl` is a REQUIRED https:// field on every post
+                    // (socialFeedItemSchema) — a post with no media isn't a
+                    // valid post — so clearing the image removes the whole
+                    // post instead of leaving it half-filled and unsavable.
+                    // Matches the existing per-item "Remove" button below.
+                    if (next === null) {
+                      void commitPatch({ items: removeItemAt(feedItems, index) });
+                      return;
+                    }
                     patchItem(index, { mediaUrl: next });
                   }}
                   onPickItem={(picked) => {
