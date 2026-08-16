@@ -15,7 +15,7 @@ import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/dat
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
 import { getTalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
-import { getHeldPayoutTotals } from "@/lib/payments/booking-payouts-ledger";
+import { loadTalentPayoutAttention } from "@/lib/payments/talent-payout-attention";
 import { findTenantMembership } from "@/lib/saas/tenant";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
@@ -136,7 +136,7 @@ export default async function PlatformTalentLayout({
     talentEarnings,
     talentSiteDashboardLoad,
     talentPayoutSnapshot,
-    talentHeldPayouts,
+    talentPayoutAttention,
     profileEditorLayout,
     clientFieldSource,
     localeSettings,
@@ -155,8 +155,10 @@ export default async function PlatformTalentLayout({
     // Stripe Connect payout snapshot for the in-shell Payouts section.
     // Returns { ok:false } on any failure, so it never breaks the layout.
     getTalentConnectedAccountSnapshot(talentSelfProfile.id),
-    // Held payout totals (earnings waiting on bank connection) for the banner.
-    getHeldPayoutTotals({ talentProfileId: talentSelfProfile.id }),
+    // Payout legs that did NOT land (reversed / failed / still held), with
+    // booking context, for the Payouts page. Supersedes the held-only totals:
+    // a reversed leg reached no talent surface at all before this.
+    loadTalentPayoutAttention(talentSelfProfile.id),
     // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
     // to the hardcoded structure), so it can't break the layout.
     loadProfileEditorLayout(),
@@ -222,7 +224,7 @@ export default async function PlatformTalentLayout({
         sessionIdentity,
         talentSelfProfile,
         talentPayoutSnapshot,
-        talentHeldPayouts,
+        talentPayoutAttention,
         talentInquiries,
         talentAgencies,
         talentRepresentation,

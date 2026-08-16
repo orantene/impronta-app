@@ -10952,6 +10952,24 @@
       "full": "No room left. Remove photos you no longer need, or upgrade your plan.",
       "forTalent": "{talent}: {used} of {cap} photos used on their plan.",
       "forTalentUnlimited": "{talent} has no photo limit on their plan."
+    },
+    "talentPayoutAttention": {
+      "title": "Payouts that need attention",
+      "reversedHeading": "Reversed",
+      "failedHeading": "Could not be sent",
+      "heldHeading": "Waiting to be released",
+      "reversedNote": "This money was taken back after the payment on the booking was undone. It will not arrive on its own. Contact your agency if you think this is a mistake.",
+      "failedNote": "We could not send these payouts. Check that your payout details are complete, and contact your agency if they stay here.",
+      "heldNote": "Nothing is lost. We release held payouts automatically once your payout details are ready.",
+      "causeRefund": "After the client's payment was refunded",
+      "causeDispute": "After the client's payment was disputed",
+      "causeCancelled": "Cancelled before it was sent",
+      "causeUnknown": "Reason not recorded",
+      "bookingFallback": "Booking",
+      "eventOn": "Event {date}",
+      "updatedOn": "Updated {date}",
+      "legCountOne": "{count} payout",
+      "legCountOther": "{count} payouts"
     }
   },
   "admin": {
