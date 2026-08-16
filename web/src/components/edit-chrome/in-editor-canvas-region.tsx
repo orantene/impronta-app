@@ -36,7 +36,7 @@ import { BuilderProfilerBoundary } from "./builder-profiler-boundary";
 import { EmptyCanvasStarter } from "./empty-canvas-starter";
 import { useBuilderTree } from "./builder-tree-bridge";
 import {
-  isStorefrontBodyCanvasMounted,
+  isStorefrontBodyPresent,
   subscribeStorefrontBodyCanvas,
 } from "./client-builder-canvas-bridge";
 import {
@@ -62,16 +62,22 @@ export function InEditorCanvasRegion({
   // The live tree the provider publishes (insert/edit/reorder repaint here).
   const tree = useBuilderTree();
 
-  // Wave-2 cms-page canvas — when the STOREFRONT BODY hosts the full-page
-  // canvas (freeform `/p/[[...slug]]` in edit mode, `<StorefrontBodyCanvas>`),
-  // this region must not paint the same tree a second time below the footer.
-  // Subscribed (not read once) so the region reacts when the body canvas mounts
-  // after the shell (auto-enter engage → RSC refresh re-renders the body).
-  // Chrome-only hosts (Builder Lab / talent pages / ephemeral cms drafts whose
-  // body 404s) never set the signal, so this region keeps painting for them.
+  // Wave-2 cms-page canvas — when the STOREFRONT BODY paints the tree at all
+  // (the live `<StorefrontBodyCanvas>` in edit mode, OR — stale-body fix
+  // 2026-08-15 — a SERVER-rendered body announced by
+  // `<StorefrontBodyServerMarker>` when the client-canvas flag/capability gate
+  // kept the body canvas out), this region must not paint the same tree a
+  // second time below the footer. The server-render case matters doubly: this
+  // region's own ClientBuilderCanvas used to count as "a canvas repaints this
+  // page", which suppressed the per-edit router.refresh() safety net and left
+  // the visible server body stale on every tree edit. Subscribed (not read
+  // once) so the region reacts when either signal arrives after the shell
+  // (auto-enter engage → RSC refresh re-renders the body). Chrome-only hosts
+  // (Builder Lab / talent pages / ephemeral cms drafts whose body 404s) never
+  // set either signal, so this region keeps painting for them.
   const bodyCanvasMounted = useSyncExternalStore(
     subscribeStorefrontBodyCanvas,
-    isStorefrontBodyCanvasMounted,
+    isStorefrontBodyPresent,
     () => false,
   );
 

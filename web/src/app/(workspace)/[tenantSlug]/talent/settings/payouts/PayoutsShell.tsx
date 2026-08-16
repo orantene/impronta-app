@@ -16,13 +16,12 @@ import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbedded
 // service agreement, so a Mexican talent was told "payouts aren't available in
 // Mexico yet" even though account creation works. Never re-inline this list.
 import { PAYOUT_COUNTRIES, isConnectPayoutCountry } from "@/lib/payments/payout-countries";
-import { HeldPayoutsBanner } from "@/components/payments/HeldPayoutsBanner";
+import { PayoutAttentionPanel } from "@/components/payments/PayoutAttentionPanel";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
 import { StablecoinPayoutCard } from "./StablecoinPayoutCard";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 import type { ActivePayoutSystem } from "@/lib/payments/active-payout-system";
-
-type HeldTotal = { currency: string; amountCents: number; count: number };
+import type { TalentPayoutAttention } from "@/lib/payments/talent-payout-attention-types";
 
 const C = {
   ink: "#0B0B0D",
@@ -83,7 +82,7 @@ const ghostBtn: CSSProperties = {
 export function PayoutsShell({
   snapshot: initialSnapshot,
   loadError,
-  heldPayouts = null,
+  payoutAttention = null,
   justReturned,
   justRefreshed,
   embedded = false,
@@ -91,7 +90,8 @@ export function PayoutsShell({
 }: {
   snapshot: TalentConnectedAccountSnapshot | null;
   loadError: string | null;
-  heldPayouts?: HeldTotal[] | null;
+  /** Payout legs that did not land (reversed / failed / held). */
+  payoutAttention?: TalentPayoutAttention | null;
   justReturned: boolean;
   justRefreshed: boolean;
   /** Render without the page header + outer container (for use inside a drawer). */
@@ -229,7 +229,11 @@ export function PayoutsShell({
         <div style={{ fontSize: 13, color: C.inkMuted, padding: "8px 2px" }}>Loading your payout status…</div>
       ) : (
         <>
-          {!isEnabled && <HeldPayoutsBanner held={heldPayouts} audience="talent" />}
+          {/* UNGATED on purpose. The old held-only banner rendered under
+              `!isEnabled`, so it vanished the moment the Connect account was
+              enabled — which is the normal state when a payout gets reversed.
+              That is exactly why a reversal was invisible here. */}
+          <PayoutAttentionPanel attention={payoutAttention} />
 
           {justReturned && isEnabled && (
             <div role="status" style={{ marginBottom: 14, padding: "10px 12px", background: C.greenSoft, color: C.green, borderRadius: 10, fontSize: 12.5 }}>

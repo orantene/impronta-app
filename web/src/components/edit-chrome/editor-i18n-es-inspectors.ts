@@ -117,6 +117,10 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   Cover: "Cubrir",
   Fill: "Rellenar",
   Custom: "Personalizado",
+  // Field kit (Inspector Reset, D9): the exact-value input that sits beside
+  // every preset row, and the explicit custom state a typed value drops into.
+  "Custom value": "Valor personalizado",
+  "Exact value": "Valor exacto",
   Shadow: "Sombra",
   Blur: "Desenfoque",
   Scrim: "Velo",

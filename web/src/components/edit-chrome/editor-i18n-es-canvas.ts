@@ -360,4 +360,12 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Step through blocks in document order": "Recorrer los bloques en el orden del documento",
   "Tab selects the next block in document order (a flat complement to the arrow keys' parent/child/sibling nav); Shift+Tab selects the previous. Wraps at the ends.":
     "Tab selecciona el siguiente bloque en el orden del documento (un complemento lineal a la navegación de padre/hijo/hermano con las flechas); Shift+Tab selecciona el anterior. Da la vuelta en los extremos.",
+  // ── Quick-style popover (selection toolbar, 2026-08-15) ───────────────
+  // Fill / Shadow / Default / Sharp / Pill already live in
+  // editor-i18n-es-inspectors.ts (the popover reuses the inspector's shared
+  // Segmented option lists); only the popover-specific strings are new.
+  "Quick styles": "Estilos rápidos",
+  "Padding": "Espaciado interior",
+  "Corners": "Esquinas",
+  "Locked by admin": "Bloqueado por el administrador",
 };

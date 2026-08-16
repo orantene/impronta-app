@@ -42,14 +42,16 @@ import { listCardKits } from "@/lib/site-admin/presets/card-kits";
 import {
   applyCardKitFromEditAction,
   loadDesignAction,
-  publishDesignFromEditAction,
+  publishCardDesignFromEditAction,
   saveCardDesignTokensFromEditAction,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { CardAppearanceSection } from "./CardDesignStudio-appearance";
 import { useSiteDesignUrl } from "./use-site-design-url";
+import { CARD_DESIGN_SCOPE } from "@/lib/site-admin/tokens/card-design-scope";
 import {
   computeDesignDirty,
   computeDriftCount,
+  mergeScopedLive,
   STANDING_DEFAULTS,
 } from "./card-design-drift";
 import { EmptyState, Icon, SecondaryButton, Toggle } from "../primitives";
@@ -117,8 +119,8 @@ export function CardDesignStudio() {
   );
   const [draftTokens, setDraftTokens] = useState<Record<string, string>>({});
   const [liveTokens, setLiveTokens] = useState<Record<string, string>>({});
-  // FULL draft/live token maps (not just the card slice) — Publish promotes the
-  // ENTIRE draft, so drift beyond this page must be visible (see card-design-drift.ts).
+  // FULL draft/live maps — used to surface other surfaces' unpublished
+  // changes (see card-design-drift.ts). Publish here is card-scoped.
   const [fullDraft, setFullDraft] = useState<Record<string, string>>({});
   const [fullLive, setFullLive] = useState<Record<string, string>>({});
   const [designVersion, setDesignVersion] = useState(0);
@@ -246,14 +248,12 @@ export function CardDesignStudio() {
     () => computeDesignDirty(draftTokens, liveTokens),
     [draftTokens, liveTokens],
   );
-  // Draft↔live differences OUTSIDE this page's tokens (they ship on Publish too).
-  const pageOwnedKeys = useMemo(
-    () => new Set<string>([...CARD_DESIGN_TOKEN_KEYS, ...Object.keys(STANDING_DEFAULTS)]),
-    [],
-  );
+  // Draft↔live differences OUTSIDE this page's scope (informational only).
+  // CARD_DESIGN_SCOPE is the SAME set the server publishes, so what the note
+  // calls "not ours" is exactly what the publish leaves alone.
   const driftCount = useMemo(
-    () => computeDriftCount(fullDraft, fullLive, pageOwnedKeys),
-    [fullDraft, fullLive, pageOwnedKeys],
+    () => computeDriftCount(fullDraft, fullLive, CARD_DESIGN_SCOPE),
+    [fullDraft, fullLive],
   );
   const activeFamily = draftTokens[CARD_FAMILY_TOKEN_KEY] ?? "";
 
@@ -385,7 +385,7 @@ export function CardDesignStudio() {
     if (!canPublish) return;
     setPublishState({ kind: "publishing" });
     void (async () => {
-      const res = await publishDesignFromEditAction({
+      const res = await publishCardDesignFromEditAction({
         expectedVersion: designVersion,
         tenantSlug,
       });
@@ -396,9 +396,10 @@ export function CardDesignStudio() {
       setDesignVersion(res.version);
       setDesignPublishedAt(new Date().toISOString());
       setPublishState({ kind: "published", version: res.version });
-      // Publish promoted EVERYTHING — clear both designDirty and driftCount.
+      // SCOPED publish: only this page's tokens went live, so re-seed just
+      // those — other surfaces' pending changes stay counted in driftCount.
       setLiveTokens({ ...draftTokens });
-      setFullLive({ ...fullDraft });
+      setFullLive((prev) => mergeScopedLive(prev, fullDraft, CARD_DESIGN_SCOPE));
     })();
   }, [canPublish, designVersion, draftTokens, fullDraft, tenantSlug]);
 

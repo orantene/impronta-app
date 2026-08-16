@@ -18,6 +18,7 @@ import { test } from "node:test";
 import {
   bustKeysFor,
   buildReleaseScopes,
+  groupPendingBakeRepairs,
   isMediaReleaseRequest,
   mergeAffectedHubIds,
   parseReleaseScopes,
@@ -166,5 +167,74 @@ test("the subject's own consent key is never revoked by the owner", () => {
   assert.deepEqual(
     selectGrantsToRevoke(live, null).map((g) => g.id),
     ["g-owner"],
+  );
+});
+
+// ─── 4. the durable watermark-repair queue (A4, migration 20261119000000) ───
+//
+// The queue is what makes a failed bake repairable after a reload. These pin
+// the grouping rule, which is the only part of it that is pure: one entry per
+// APPROVAL (a retry acts on the whole approval, to one target, for one talent),
+// the honest attempt count, and a target that is never invented.
+
+const REQUEST_1 = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+const REQUEST_2 = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+
+const failure = (
+  requestId: string,
+  assetId: string,
+  attempts = 1,
+  lastFailedAt = "2026-08-15T10:00:00.000Z",
+) => ({
+  request_id: requestId,
+  asset_id: assetId,
+  talent_profile_id: TALENT,
+  target_tenant_id: TARGET as string | null,
+  attempts,
+  last_failed_at: lastFailedAt,
+});
+
+test("pending repairs fold into one entry per request", () => {
+  const grouped = groupPendingBakeRepairs([
+    failure(REQUEST_1, ASSET_1),
+    failure(REQUEST_1, ASSET_2),
+    failure(REQUEST_2, ASSET_1),
+  ]);
+  assert.equal(grouped.length, 2, "one row per approval, not per photo");
+  assert.deepEqual(grouped[0].assetIds, [ASSET_1, ASSET_2]);
+  assert.equal(grouped[0].requestId, REQUEST_1);
+  assert.equal(grouped[1].requestId, REQUEST_2);
+});
+
+test("a repair group reports the HIGHEST attempt count it contains", () => {
+  const grouped = groupPendingBakeRepairs([
+    failure(REQUEST_1, ASSET_1, 3),
+    failure(REQUEST_1, ASSET_2, 1),
+  ]);
+  assert.equal(
+    grouped[0].attempts,
+    3,
+    "understating the retries would hide the case that needs a human",
+  );
+});
+
+test("the newest failure in a group is the one shown, and duplicates collapse", () => {
+  const grouped = groupPendingBakeRepairs([
+    failure(REQUEST_1, ASSET_1, 1, "2026-08-15T12:00:00.000Z"),
+    failure(REQUEST_1, ASSET_1, 1, "2026-08-15T09:00:00.000Z"),
+  ]);
+  assert.equal(grouped.length, 1);
+  assert.deepEqual(grouped[0].assetIds, [ASSET_1], "one photo, listed once");
+  assert.equal(grouped[0].lastFailedAt, "2026-08-15T12:00:00.000Z");
+});
+
+test("an all-hubs repair keeps its null target rather than inventing one", () => {
+  const grouped = groupPendingBakeRepairs([
+    { ...failure(REQUEST_1, ASSET_1), target_tenant_id: null },
+  ]);
+  assert.equal(
+    grouped[0].targetTenantId,
+    null,
+    "a repair must re-release to exactly the surface the approval named",
   );
 });

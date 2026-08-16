@@ -26,6 +26,7 @@ import type {
   MultiNodeAlignMode,
   MultiNodeDistributeMode,
 } from "./multi-node-layout";
+import { QuickStyleChipButton } from "./quick-style-popover";
 import { useEditorLocale } from "./use-editor-locale";
 
 function Divider() {
@@ -261,6 +262,27 @@ export function MultiSelectionToolbar({
       >
         <CopyPlus size={14} aria-hidden />
       </IconButton>
+      {/* Quick styles — the Mixed-aware fill/padding/corners/shadow popover
+          (quick-style-popover.tsx), one click in the MAIN row. Self-contained:
+          reads the selection + device from context and commits through the
+          same patchSelectedBuilderNodesStyle chokepoint as the blind
+          "apply to all" BulkStylePanel below (which keeps text color +
+          opacity). Renders nothing when no selected kind has a quick field. */}
+      <QuickStyleChipButton
+        disabled={disabled}
+        iconSize={14}
+        btnStyle={{
+          width: 30,
+          height: 32,
+          border: "none",
+          background: "transparent",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: disabled ? "not-allowed" : "pointer",
+          flex: "0 0 auto",
+        }}
+      />
       <IconButton
         disabled={disabled}
         label={t("More layout actions")}
@@ -498,22 +520,26 @@ function BulkStyleRow({
 }) {
   const { t } = useEditorLocale();
   const [value, setValue] = useState("");
+  // Clears travel as `null`, NOT `undefined`: this patch is JSON.stringify'd
+  // before it reaches `patchSelectedBuilderNodesStyle`, and stringify silently
+  // DROPS `undefined` keys — the per-field × used to no-op as `{}`. On the far
+  // side applyStylePatchKeys (multi-node-layout.ts) applies null as a delete.
   const commit = (raw: string) => {
     const trimmed = raw.trim();
     if (!trimmed) {
-      onEmit({ [styleKey]: undefined });
+      onEmit({ [styleKey]: null });
       return;
     }
     if (kind === "px") {
       const n = Number.parseFloat(trimmed);
-      onEmit({ [styleKey]: Number.isFinite(n) ? `${Math.max(0, n)}px` : undefined });
+      onEmit({ [styleKey]: Number.isFinite(n) ? `${Math.max(0, n)}px` : null });
       return;
     }
     if (kind === "opacity") {
       const n = Number.parseFloat(trimmed);
       // BuilderNodeStyle.opacity is a unitless NUMBER (0–1), not a string.
       onEmit({
-        [styleKey]: Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : undefined,
+        [styleKey]: Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : null,
       });
       return;
     }
@@ -591,7 +617,8 @@ function BulkStyleRow({
           title={t("Clear {label}").replace("{label}", label)}
           onClick={() => {
             setValue("");
-            onEmit({ [styleKey]: undefined });
+            // null = clear (survives JSON.stringify; undefined is dropped).
+            onEmit({ [styleKey]: null });
           }}
           style={{
             width: 18,

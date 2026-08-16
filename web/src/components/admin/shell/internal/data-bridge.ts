@@ -202,10 +202,14 @@ export type BridgeData = {
     | { ok: false; error: string }
     | null;
   /**
-   * The current talent's HELD payout totals (earnings waiting on bank
-   * connection), grouped by currency. Drives the payouts-page banner.
+   * The current talent's payout legs that did NOT land — reversed, failed, or
+   * still held — with booking context. Drives the Payouts page's attention
+   * panel (which replaced the held-only banner, since that banner hid itself
+   * once the Connect account was enabled, i.e. exactly when a reversal lands).
    */
-  talentHeldPayouts?: Array<{ currency: string; amountCents: number; count: number }> | null;
+  talentPayoutAttention?:
+    | import("@/lib/payments/talent-payout-attention-types").TalentPayoutAttention
+    | null;
   /**
    * The talent's active inquiries — adapted into `Conversation[]` by the
    * AdminShellProvider adapter for use in TodayPage / InboxShell / CalendarPage.
@@ -389,7 +393,7 @@ export function createBridgeDataFromRoster(
     totalUnread: 0,
     talentSelfProfile: null,
     talentPayoutSnapshot: null,
-    talentHeldPayouts: null,
+    talentPayoutAttention: null,
     talentInquiries: null,
     talentAgencies: null,
     website: null,

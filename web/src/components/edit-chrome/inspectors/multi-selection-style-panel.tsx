@@ -167,23 +167,27 @@ function MultiSelectionStyleRow({
     setDraft(sharedValue);
   }
 
+  // Clears travel as `null`, NOT `undefined`: the patch is JSON.stringify'd on
+  // its way to `patchSelectedBuilderNodesStyle`, and stringify silently DROPS
+  // `undefined` keys — the clear arrived as `{}` and no-opped. On the far side
+  // applyStylePatchKeys (multi-node-layout.ts) applies null as a key delete.
   const commit = (raw: string) => {
     if (locked || disabled) return;
     const trimmed = raw.trim();
     if (!trimmed) {
-      onEmit({ [field]: undefined });
+      onEmit({ [field]: null });
       return;
     }
     if (kind === "px") {
       const n = Number.parseFloat(trimmed);
-      onEmit({ [field]: Number.isFinite(n) ? `${Math.max(0, n)}px` : undefined });
+      onEmit({ [field]: Number.isFinite(n) ? `${Math.max(0, n)}px` : null });
       return;
     }
     if (kind === "opacity") {
       const n = Number.parseFloat(trimmed);
       // BuilderNodeStyle.opacity is a unitless NUMBER (0–1), not a string.
       onEmit({
-        [field]: Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : undefined,
+        [field]: Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : null,
       });
       return;
     }
@@ -261,7 +265,8 @@ function MultiSelectionStyleRow({
           title={`Clear ${label}`}
           onClick={() => {
             setDraft("");
-            if (!locked && !disabled) onEmit({ [field]: undefined });
+            // null = clear (survives JSON.stringify; undefined would be dropped).
+            if (!locked && !disabled) onEmit({ [field]: null });
           }}
           style={{
             width: 20,

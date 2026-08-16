@@ -22,10 +22,12 @@ import {
   actionDecideMediaReleaseRequest,
   actionListMediaReleaseHistory,
   actionListMediaReleaseRequests,
+  actionListReleaseBakeRepairs,
   actionRetryReleaseWatermarkBake,
   actionRevokeMediaRelease,
   type MediaReleaseHistoryEntry,
   type MediaReleaseRequestSummary,
+  type PendingReleaseBakeRepair,
 } from "@/lib/server-actions/admin-media-release";
 
 type Busy = { requestId: string; kind: "approve" | "deny" | "revoke" } | null;
@@ -42,19 +44,17 @@ export function MediaReleaseRequestsPanel() {
    *  reason those photos are missing is dropped on the floor. */
   const [warning, setWarning] = useState<string | null>(null);
   /**
-   * A4 — what a "Retry watermark" click would re-bake. Set from the SAME
-   * approval response that produced `warning`, because that response is the
-   * only place the failed ids exist: the rollback records them in the media
-   * activity log, not as queryable state, so there is nothing to re-read them
-   * from after a reload. Reloading the page therefore loses the retry, which is
-   * the honest shape of the data rather than a re-derivation that would also
-   * scoop up every photo staff revoked on purpose.
+   * A4 — the DURABLE watermark-repair queue. Read from
+   * `media_release_bake_failures` (migration 20261119000000), whose only writer
+   * is the bake-failure rollback, so it survives a reload and a new session.
+   *
+   * This replaced a retry button that hung off the approval response and died
+   * with the banner. It is still not re-derived from grant state: "approved
+   * asset with no live grant" also describes every photo staff revoked on
+   * purpose, so a revoke RESOLVES rows here instead of creating them.
    */
-  const [retryTarget, setRetryTarget] = useState<{
-    requestId: string;
-    assetIds: string[];
-  } | null>(null);
-  const [retryBusy, setRetryBusy] = useState(false);
+  const [repairs, setRepairs] = useState<PendingReleaseBakeRepair[] | null>(null);
+  const [retryBusy, setRetryBusy] = useState<string | null>(null);
   const [retryMessage, setRetryMessage] = useState<{ text: string; failed: boolean } | null>(null);
   /**
    * Per-request "require watermark" ticks (phase 4). Kept per request id
@@ -93,15 +93,27 @@ export function MediaReleaseRequestsPanel() {
     setHistory(res.ok ? res.data : []);
   }, []);
 
+  /**
+   * The repair queue is loaded on its own, next to the request list rather than
+   * inside it: a failed repairs read must not take the approve/decline buttons
+   * down with it, the same reasoning the history section already uses.
+   */
+  const loadRepairs = useCallback(async () => {
+    const res = await actionListReleaseBakeRepairs();
+    setRepairs(res.ok ? res.data : []);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      if (!cancelled) await load();
+      if (cancelled) return;
+      await load();
+      if (!cancelled) await loadRepairs();
     })();
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [load, loadRepairs]);
 
   // Fetch the history only once the reader asks for it, then keep it fresh
   // after every decision — a decline that does not appear under "Past
@@ -116,7 +128,6 @@ export function MediaReleaseRequestsPanel() {
     setError(null);
     setDone(null);
     setWarning(null);
-    setRetryTarget(null);
     setRetryMessage(null);
     const watermarkRequired = approve && watermark[request.requestId] === true;
     const res = await actionDecideMediaReleaseRequest({
@@ -138,26 +149,28 @@ export function MediaReleaseRequestsPanel() {
         : t("dashboard.mediaReleaseRequests.denied"),
     );
     if (res.data.warning) setWarning(res.data.warning);
-    if (res.data.failedAssetIds && res.data.failedAssetIds.length > 0) {
-      setRetryTarget({ requestId: request.requestId, assetIds: res.data.failedAssetIds });
-    }
     await load();
+    // The failed ids came back in the response too, but the list below is what
+    // the retry reads: one source of truth, and the one that survives a reload.
+    await loadRepairs();
   };
 
   /**
-   * Re-bake the photos the approval could not watermark, and put their owner
-   * key back if it works. Safe to click twice: the bake overwrites its own
+   * Re-bake the photos an approval could not watermark, and put their owner key
+   * back if it works. Safe to click twice: the bake overwrites its own
    * derivative and the grant insert is idempotent, so a photo that already
-   * repaired just costs a round trip. The target is deliberately NOT narrowed
-   * after a partial repair, because the action reports counts and not which
-   * ids failed a second time.
+   * repaired just costs a round trip. What is retried comes from the durable
+   * queue row, and the server re-validates every id against the stored
+   * `approved_scopes` plus current ownership before touching anything.
    */
-  const retryWatermark = async () => {
-    if (!retryTarget) return;
-    setRetryBusy(true);
+  const retryWatermark = async (repair: PendingReleaseBakeRepair) => {
+    setRetryBusy(repair.requestId);
     setRetryMessage(null);
-    const res = await actionRetryReleaseWatermarkBake(retryTarget);
-    setRetryBusy(false);
+    const res = await actionRetryReleaseWatermarkBake({
+      requestId: repair.requestId,
+      assetIds: repair.assetIds,
+    });
+    setRetryBusy(null);
     if (!res.ok) {
       setRetryMessage({ text: res.error, failed: true });
       return;
@@ -171,7 +184,6 @@ export function MediaReleaseRequestsPanel() {
         ),
         failed: false,
       });
-      setRetryTarget(null);
       setWarning(null);
     } else if (repaired > 0) {
       setRetryMessage({
@@ -190,6 +202,7 @@ export function MediaReleaseRequestsPanel() {
       });
     }
     await load();
+    await loadRepairs();
   };
 
   const revoke = async (request: MediaReleaseRequestSummary) => {
@@ -197,7 +210,6 @@ export function MediaReleaseRequestsPanel() {
     setError(null);
     setDone(null);
     setWarning(null);
-    setRetryTarget(null);
     setRetryMessage(null);
     const res = await actionRevokeMediaRelease({
       talentProfileId: request.talentProfileId,
@@ -216,6 +228,10 @@ export function MediaReleaseRequestsPanel() {
       t("dashboard.mediaReleaseRequests.revoked").replace("{count}", String(res.data.revoked)),
     );
     await load();
+    // A revoke resolves any pending repairs it covered, so the queue has to be
+    // re-read: leaving a stale entry on screen would offer to re-release a photo
+    // this workspace just pulled.
+    await loadRepairs();
   };
 
   return (
@@ -228,6 +244,73 @@ export function MediaReleaseRequestsPanel() {
           {t("dashboard.mediaReleaseRequests.body")}
         </div>
       </div>
+
+      {/* A4 — the durable repair queue. Above the request list because it is
+          the only actionable thing here that is already OVERDUE: these photos
+          were approved for release and are showing nowhere. Hidden entirely
+          when empty, which is the normal state. Cool attention colour, never
+          amber: this is a "do something", not a fault. */}
+      {repairs !== null && repairs.length > 0 && (
+        <div className="rounded-lg border border-[#2c5fdb] bg-admin-surface p-3">
+          <div className="text-[12.5px] font-semibold text-[#2c5fdb]">
+            {t("dashboard.mediaReleaseRequests.repairsTitle")}
+          </div>
+          <div className="mt-1 text-[11.5px] leading-relaxed text-admin-ink-muted">
+            {t("dashboard.mediaReleaseRequests.repairsHint")}
+          </div>
+          <ul className="mt-2 flex flex-col gap-2">
+            {repairs.map((repair) => (
+              <li
+                key={repair.requestId}
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-admin-border-soft pt-2"
+              >
+                <span className="text-[11.5px] text-admin-ink">
+                  {t("dashboard.mediaReleaseRequests.repairsEntry")
+                    .replace("{talent}", repair.talentName)
+                    .replace("{count}", String(repair.assetIds.length))}
+                  <span className="ml-1 text-admin-ink-muted">
+                    {repair.targetTenantName
+                      ? t("dashboard.mediaReleaseRequests.targetNamed").replace(
+                          "{workspace}",
+                          repair.targetTenantName,
+                        )
+                      : t("dashboard.mediaReleaseRequests.targetAnywhere")}
+                  </span>
+                  <span className="block text-admin-ink-muted">
+                    {t("dashboard.mediaReleaseRequests.repairsAttempts")
+                      .replace("{count}", String(repair.attempts))
+                      .replace("{date}", repair.lastFailedAt.slice(0, 10))}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => retryWatermark(repair)}
+                  disabled={retryBusy !== null}
+                  className="cursor-pointer rounded-lg border border-[#2c5fdb] bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-[#2c5fdb] disabled:cursor-not-allowed disabled:border-admin-border disabled:text-admin-ink-dim"
+                  title={t("dashboard.mediaReleaseRequests.retryHint")}
+                >
+                  {retryBusy === repair.requestId
+                    ? t("dashboard.mediaReleaseRequests.retryWorking")
+                    : t("dashboard.mediaReleaseRequests.retryWatermark")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Outside the box above on purpose: a fully successful retry empties the
+          queue, and a result message that disappears with the last row would
+          leave the click with no visible outcome at all. */}
+      {retryMessage && (
+        <div
+          className={`text-[11.5px] leading-snug ${
+            retryMessage.failed ? "text-admin-red" : "text-admin-green"
+          }`}
+        >
+          {retryMessage.text}
+        </div>
+      )}
 
       {requests === null && (
         <div className="text-[12px] text-admin-ink-muted">
@@ -367,40 +450,13 @@ export function MediaReleaseRequestsPanel() {
         </div>
       )}
 
-      {/* A4 — partial success. The warning names what did not bake; the button
-          next to it is the only in-product way to try again, because the
-          request is `approved` by now and the approve path only answers PENDING
-          rows. Cool attention colour, never amber: this is a "do something",
-          not a fault. */}
-      {(warning || retryMessage) && !error && (
-        <div className="flex flex-col gap-2 rounded-lg border border-admin-border-soft bg-admin-surface-alt p-3">
-          {warning && (
-            <div className="text-[11.5px] leading-snug text-[#2c5fdb]">{warning}</div>
-          )}
-          {retryTarget && (
-            <div>
-              <button
-                type="button"
-                onClick={retryWatermark}
-                disabled={retryBusy}
-                className="cursor-pointer rounded-lg border border-[#2c5fdb] bg-admin-surface px-3 py-1.5 text-[12px] font-semibold text-[#2c5fdb] disabled:cursor-not-allowed disabled:border-admin-border disabled:text-admin-ink-dim"
-                title={t("dashboard.mediaReleaseRequests.retryHint")}
-              >
-                {retryBusy
-                  ? t("dashboard.mediaReleaseRequests.retryWorking")
-                  : t("dashboard.mediaReleaseRequests.retryWatermark")}
-              </button>
-            </div>
-          )}
-          {retryMessage && (
-            <div
-              className={`text-[11.5px] leading-snug ${
-                retryMessage.failed ? "text-admin-red" : "text-admin-green"
-              }`}
-            >
-              {retryMessage.text}
-            </div>
-          )}
+      {/* A4 — partial success. This names what did not bake right after the
+          click; the retry itself lives in the Watermark repairs list at the top,
+          which is read from the database and is still there tomorrow. Cool
+          attention colour, never amber: this is a "do something", not a fault. */}
+      {warning && !error && (
+        <div className="rounded-lg border border-admin-border-soft bg-admin-surface-alt p-3 text-[11.5px] leading-snug text-[#2c5fdb]">
+          {warning}
         </div>
       )}
 

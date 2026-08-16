@@ -28,6 +28,10 @@ import {
   type MediaGrantBustKey,
   type MediaGrantResult,
 } from "./media-grants-shared";
+import {
+  recordFailedReleaseBakes,
+  resolveReleaseBakeFailures,
+} from "./media-release-bake-failures";
 import { insertGrants } from "./media-release-requests";
 
 export type ReleaseBakeRepairPlan = {
@@ -104,29 +108,51 @@ export type ReleaseBakeRepairOutcome = {
 };
 
 /**
- * Put the owner key back on assets whose watermark derivative now exists.
+ * Settle one "Retry watermark" click: put the owner key back on what baked, and
+ * leave what did not on the repair queue with its attempt count bumped.
  *
- * The counterpart to `rollBackFailedReleaseBakes`. The rollback revoked the
- * owner grant so the stored state would match what was servable; once the bake
- * succeeds the photo IS servable, so the grant goes back — with
- * `watermark_required: true`, because that is the whole reason it was baked and
- * a repair must never quietly release the unmarked original.
+ * THE COUNTERPART TO `rollBackFailedReleaseBakes`, and deliberately the mirror
+ * of it in both halves. The rollback revoked the owner grant AND opened the
+ * queue row; this closes the queue row AND writes the grant back — with
+ * `watermark_required: true`, because that is the whole reason the derivative
+ * was baked and a repair must never quietly release the unmarked original.
+ *
+ * BOTH LISTS IN ONE CALL on purpose. Resolving the repaired rows without
+ * re-stamping the failed ones would leave a queue that quietly forgets how many
+ * times a photo has been tried; re-stamping without resolving would keep
+ * offering to repair photos that are already live. One call, one settlement.
  *
  * `insertGrants` is idempotent (the live-grant unique index turns a re-insert
  * into a 23505 it ignores), so a double click costs a wasted round trip, not a
  * second grant.
  */
-export async function reinstateRepairedReleaseGrants(
+export async function settleReleaseBakeRetry(
   admin: SupabaseClient,
   input: {
     tenantId: string;
     requestId: string;
     talentProfileId: string;
     targetTenantId: string | null;
+    /** Assets whose bake succeeded this time. */
     assetIds: readonly string[];
+    /** Assets that failed again and stay on the queue. */
+    failedAssetIds?: readonly string[];
     actorUserId: string;
   },
 ): Promise<ReleaseBakeRepairOutcome> {
+  // The queue is settled before the early return: a retry where EVERYTHING
+  // failed again still has to record the attempt, or the count staff read to
+  // decide "this one needs a human" never moves.
+  if (input.failedAssetIds && input.failedAssetIds.length > 0) {
+    await recordFailedReleaseBakes(admin, {
+      tenantId: input.tenantId,
+      requestId: input.requestId,
+      talentProfileId: input.talentProfileId,
+      targetTenantId: input.targetTenantId,
+      assetIds: input.failedAssetIds,
+    });
+  }
+
   if (input.assetIds.length === 0) return { repaired: 0, bustKeys: [] };
 
   await insertGrants(admin, {
@@ -136,6 +162,12 @@ export async function reinstateRepairedReleaseGrants(
     grantedBy: input.actorUserId,
     sourceRequestId: input.requestId,
     watermarkRequired: true,
+  });
+
+  await resolveReleaseBakeFailures(admin, {
+    requestId: input.requestId,
+    assetIds: input.assetIds,
+    resolution: "repaired",
   });
 
   await logGrantActivity(admin, input.tenantId, input.assetIds, "grant.release_bake_repaired", {

@@ -337,6 +337,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run verify:server-actions
 
+      # Gate: EN/ES message catalogs stay aligned. This lived ONLY in the `ci`
+      # aggregate script in package.json, which this workflow does not run — so
+      # it had never gated a single PR. Wired here 2026-08-15 after a duplicate
+      # key reached main unnoticed.
+      - name: verify — i18n message catalogs (en/es aligned)
+        if: ${{ !cancelled() }}
+        run: npm run verify:ui-messages
+
       # ── Gate 6: Production build (catch-all bundle gate) ─────────────
       # The ONLY step that exercises the real SWC bundle the way Vercel does, so
       # `main` refuses bundle-time breakers tsc/tsx never see. Runs `next build`

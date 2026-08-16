@@ -44,6 +44,45 @@ export type PayoutLeg = {
   payoutRail: string | null;
 };
 
+/** A payee predicate as data: equality filters + one-of filters, in order. */
+export type PayoutPayeeScope = {
+  eq: Array<[column: string, value: string]>;
+  in: Array<[column: string, values: string[]]>;
+};
+
+/**
+ * THE payee predicate for every `booking_payouts` read scoped to one payee.
+ *
+ * Every surface that asks "what does this talent / this workspace have in the
+ * ledger?" must narrow the table the same way, or the answers diverge: a talent
+ * is `party='talent'` + their `talent_profile_id`, while a tenant owns BOTH its
+ * `workspace` margin legs and any `channel_referral` legs paid to it (Phase C —
+ * `tenant_id` is the channel party there). Returns `null` when the target names
+ * no payee, so a caller can never accidentally read the whole table.
+ *
+ * Returned as DATA rather than as a chained query so every call site keeps its
+ * own concrete PostgREST builder type (chaining it through a generic helper trips
+ * TS2589, "type instantiation is excessively deep").
+ */
+export function payoutLegPayeeScope(target: {
+  talentProfileId?: string | null;
+  tenantId?: string | null;
+}): PayoutPayeeScope | null {
+  if (target.talentProfileId) {
+    return {
+      eq: [
+        ["party", "talent"],
+        ["talent_profile_id", target.talentProfileId],
+      ],
+      in: [],
+    };
+  }
+  if (target.tenantId) {
+    return { eq: [["tenant_id", target.tenantId]], in: [["party", ["workspace", "channel_referral"]]] };
+  }
+  return null;
+}
+
 /** Stable per-leg Stripe idempotency key — shared by initial fan-out + release. */
 export function payoutIdempotencyKey(bookingId: string, participantId: string, party: PayoutParty): string {
   return `transfer_${bookingId}_${participantId}_${party}`;
@@ -195,22 +234,19 @@ export async function releaseHeldPayouts(
   const outcomes: ReleaseOutcome[] = [];
 
   try {
+    // Phase C — a channel_referral leg is paid to a workspace Connect account
+    // (tenant_id = the channel party), exactly like a workspace leg. The shared
+    // payee scope matches both parties for a tenant so a held referral leg can
+    // auto-release when the channel's account flips enabled.
+    const scope = payoutLegPayeeScope(target);
+    if (!scope) return [];
+
     let query = sb
       .from("booking_payouts")
       .select("id, booking_id, participant_id, party, talent_profile_id, tenant_id, amount_cents, currency, attempts, payout_rail")
       .in("status", ["held", "failed"]);
-
-    if (target.talentProfileId) {
-      query = query.eq("party", "talent").eq("talent_profile_id", target.talentProfileId);
-    } else if (target.tenantId) {
-      // Phase C — a channel_referral leg is paid to a workspace Connect account
-      // (tenant_id = the channel party), exactly like a workspace leg. Match both
-      // parties for this tenant_id so a held referral leg can auto-release when
-      // the channel's account flips enabled; without this it'd be stuck forever.
-      query = query.in("party", ["workspace", "channel_referral"]).eq("tenant_id", target.tenantId);
-    } else {
-      return [];
-    }
+    for (const [col, val] of scope.eq) query = query.eq(col, val);
+    for (const [col, vals] of scope.in) query = query.in(col, vals);
 
     const { data, error } = await query;
     if (error || !data?.length) return [];
@@ -392,13 +428,15 @@ export async function getHeldPayoutTotals(
   const sb = sbIn ?? createServiceRoleClient();
   if (!sb) return [];
   try {
-    let query = sb.from("booking_payouts").select("amount_cents, currency").eq("status", "held");
-    if (target.talentProfileId) query = query.eq("party", "talent").eq("talent_profile_id", target.talentProfileId);
     // Phase C — a tenant's held total includes both its workspace-margin legs and
-    // any channel_referral legs owed to it (tenant_id = channel party), so the
-    // banner reflects the full held amount once the referral lane is live.
-    else if (target.tenantId) query = query.in("party", ["workspace", "channel_referral"]).eq("tenant_id", target.tenantId);
-    else return [];
+    // any channel_referral legs owed to it (tenant_id = channel party), which is
+    // exactly what the shared payee scope encodes.
+    const scope = payoutLegPayeeScope(target);
+    if (!scope) return [];
+
+    let query = sb.from("booking_payouts").select("amount_cents, currency").eq("status", "held");
+    for (const [col, val] of scope.eq) query = query.eq(col, val);
+    for (const [col, vals] of scope.in) query = query.in(col, vals);
 
     const { data, error } = await query;
     if (error || !data?.length) return [];
