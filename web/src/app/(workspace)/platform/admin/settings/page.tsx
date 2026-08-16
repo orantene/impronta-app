@@ -7,7 +7,10 @@ import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency
 import { loadPlatformCommercialDefaults } from "@/lib/platform/commercial-defaults";
 import { loadActivePayoutSystem } from "@/lib/payments/active-payout-system";
 import { loadPlatformWorkspaceUi } from "@/lib/platform/workspace-ui";
+import { loadPrivateMediaAccessState } from "@/lib/platform/gated-media";
+import { GATED_MEDIA_CDN_MAX_AGE_SECONDS } from "@/lib/media/private-access";
 import { PlatformWorkspaceUiCard } from "./PlatformWorkspaceUiCard";
+import { PlatformGatedMediaCard } from "./PlatformGatedMediaCard";
 import { PlatformCurrencyCard } from "./PlatformCurrencyCard";
 import { PlatformCommercialDefaultsCard } from "./PlatformCommercialDefaultsCard";
 import { PlatformPayoutSystemCard } from "./PlatformPayoutSystemCard";
@@ -127,6 +130,10 @@ export default async function PlatformSettingsPage() {
   const commercialDefaults = await loadPlatformCommercialDefaults();
   const activePayoutSystem = await loadActivePayoutSystem();
   const workspaceUi = await loadPlatformWorkspaceUi();
+  const gatedMedia = await loadPrivateMediaAccessState();
+  // Rounded up: the card promises "within about N minutes", and rounding a
+  // 5-minute lag down to 4 would understate it.
+  const revocationLagMinutes = Math.ceil(GATED_MEDIA_CDN_MAX_AGE_SECONDS / 60);
 
   return (
     <>
@@ -208,6 +215,18 @@ export default async function PlatformSettingsPage() {
           iconId="features"
         >
           <PlatformWorkspaceUiCard current={workspaceUi} />
+        </HqCard>
+
+        {/* Photo access — public storage URLs vs the permission-checked route */}
+        <HqCard
+          title={t("dashboard.platform.settings.gatedMediaTitle")}
+          subtitle={t("dashboard.platform.settings.gatedMediaSubtitle")}
+          iconId="features"
+        >
+          <PlatformGatedMediaCard
+            current={gatedMedia}
+            revocationLagMinutes={revocationLagMinutes}
+          />
         </HqCard>
 
         {/* HQ team — all users with platform staff role */}
