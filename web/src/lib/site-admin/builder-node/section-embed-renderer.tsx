@@ -60,6 +60,14 @@ export interface SectionEmbedRenderContext {
    */
   captcha?: { provider: "hcaptcha" | "turnstile" | "none"; siteKey: string | null } | null;
   /**
+   * Server-resolved Google Maps browser key (`resolveGoogleMapsKeyForClient`).
+   * Exactly the same gap as `captcha` above: a curated map section embedded in
+   * a freeform tree got no key and silently fell back to its editorial
+   * placeholder, while the identical section rendered through the section list
+   * showed a live map. Threading both here keeps the two paths equivalent.
+   */
+  mapsApiKey?: string | null;
+  /**
    * WS-A A5 — TRUE when the embed is rendered onto the in-editor CANVAS (not the
    * published storefront). Threaded down to the curated Component as its
    * `preview` prop, so an interactive curated section (the header-widget embeds:
@@ -281,6 +289,7 @@ export function renderSectionEmbed(
         sectionId={node.props.sectionId ?? undefined}
         publicPathPrefix={publicPathPrefix}
         captcha={context.captcha ?? undefined}
+        mapsApiKey={context.mapsApiKey ?? undefined}
       />
     </div>
   );
