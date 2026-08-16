@@ -34,6 +34,8 @@ interface ShellRow {
   meta_description: string | null;
   template_schema_version: number | null;
   version: number;
+  /** F2 — the freeform draft tree. Authoritative for the baked builderTree. */
+  blocks: unknown;
 }
 
 interface DraftSlotRow {
@@ -49,6 +51,47 @@ interface SectionFacts {
   props: Record<string, unknown>;
 }
 
+/**
+ * F2 — resolve the `builderTree` that goes into the shell's published snapshot.
+ *
+ * THE DATA-LOSS BUG THIS FIXES
+ * ----------------------------
+ * This function is the ONE place the shell snapshot is baked, and it is called
+ * from four places:
+ *
+ *   - publishSiteShellRow            (the shell builder's own Publish)
+ *   - site-header/actions.ts         (the legacy SiteHeaderInspector autosave)
+ *   - composition-actions.ts         (publishing the HOMEPAGE)
+ *   - page-composer-action.ts        (the page composer)
+ *
+ * It used to hardcode `builderTree: buildLegacySectionBuilderTree(slots)` —
+ * a tree derived purely from the slot composition. `publishSiteShellRow`
+ * compensated by re-overlaying the freeform `blocks` tree onto the snapshot
+ * immediately afterwards. The other three callers did not.
+ *
+ * So: operator edits the shell's freeform content and publishes it (fine), then
+ * publishes the HOMEPAGE, and the homepage publish silently rebakes the shell
+ * snapshot from slots alone — wiping the freeform shell content off the LIVE
+ * site. Nothing errors. Same for a SiteHeaderInspector autosave.
+ *
+ * The fix is to make the freeform tree authoritative HERE, so every caller gets
+ * it and no caller has to remember to re-overlay. `publishSiteShellRow` was
+ * already doing exactly this substitution after the fact, so this is not a new
+ * behaviour — it is the proven behaviour, moved to where every path shares it.
+ *
+ * An EMPTY / non-array `blocks` still falls back to the slot-derived tree, which
+ * is what every pre-freeform tenant has. That keeps the legacy path byte-stable.
+ */
+export function resolveShellSnapshotBuilderTree(
+  blocks: unknown,
+  slots: ReadonlyArray<Parameters<typeof buildLegacySectionBuilderTree>[0][number]>,
+) {
+  if (Array.isArray(blocks) && blocks.length > 0) {
+    return blocks as ReturnType<typeof buildLegacySectionBuilderTree>;
+  }
+  return buildLegacySectionBuilderTree(slots);
+}
+
 export async function republishSiteShellSnapshot(
   supabase: SupabaseClient,
   params: { tenantId: string; locale: Locale; actorProfileId: string | null },
@@ -59,7 +102,7 @@ export async function republishSiteShellSnapshot(
   //    shell path.
   const { data: shell } = await supabase
     .from("cms_pages")
-    .select("id, title, meta_description, template_schema_version, version")
+    .select("id, title, meta_description, template_schema_version, version, blocks")
     .eq("tenant_id", tenantId)
     .eq("locale", locale)
     .eq("system_template_key", "site_shell")
@@ -154,7 +197,11 @@ export async function republishSiteShellSnapshot(
     },
     templateSchemaVersion: shell.template_schema_version ?? 1,
     slots,
-    builderTree: buildLegacySectionBuilderTree(slots),
+    // F2 — the freeform `blocks` tree wins when present. See
+    // `resolveShellSnapshotBuilderTree` for why this must live here and not in
+    // one caller: a homepage publish used to rebake this from slots alone and
+    // silently wipe the shell's freeform content off the live site.
+    builderTree: resolveShellSnapshotBuilderTree(shell.blocks, slots),
   };
   const { error: updErr } = await supabase
     .from("cms_pages")
