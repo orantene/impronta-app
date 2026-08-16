@@ -19,20 +19,14 @@ import {
 import { useState, type ReactNode } from "react";
 
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
+import { menuShouldOpenUp } from "./canvas-toolbar-anchor";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
-import { CANVAS_FLOATING_BAR, CHROME, CHROME_RADII } from "./kit/tokens";
+import { CHROME, CHROME_RADII } from "./kit/tokens";
 import type {
   MultiNodeAlignMode,
   MultiNodeDistributeMode,
 } from "./multi-node-layout";
 import { useEditorLocale } from "./use-editor-locale";
-
-interface Rect {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
 
 function Divider() {
   return (
@@ -99,6 +93,7 @@ function IconButton({
 }
 
 export function MultiSelectionToolbar({
+  rootRef,
   count,
   disabled,
   canGroup,
@@ -113,7 +108,12 @@ export function MultiSelectionToolbar({
   onRemove,
   onBulkStyle,
 }: {
-  rect: Rect;
+  /**
+   * Wrapper element ref — the selection-layer geometry loop anchors this
+   * toolbar to the live selection bbox through it (canvas-toolbar-anchor.ts),
+   * exactly like the selection chip.
+   */
+  rootRef: React.RefObject<HTMLDivElement | null>;
   count: number;
   disabled: boolean;
   canGroup: boolean;
@@ -137,13 +137,43 @@ export function MultiSelectionToolbar({
   const { t } = useEditorLocale();
   const [styleOpen, setStyleOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  // Docked to the bottom control-bar stack (row 2, above the selection chip).
-  // Popups open UPWARD from the bar, so they anchor off `bottom`, not `top`.
-  const barBottom =
-    CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8;
-  const popupBottom = barBottom + 32 + 6;
+  // The toolbar anchors to the selection now, so popups open toward whichever
+  // side has room instead of assuming "docked at the bottom → always upward".
+  // Measured when a popup is opened; both popups share the direction.
+  const [popupsOpenUp, setPopupsOpenUp] = useState(false);
+  const measurePopupDirection = () => {
+    const el = rootRef.current;
+    if (!el || typeof window === "undefined") return;
+    const anchor = el.getBoundingClientRect();
+    setPopupsOpenUp(
+      menuShouldOpenUp({
+        anchorTop: anchor.top,
+        anchorBottom: anchor.bottom,
+        viewportHeight: window.innerHeight,
+      }),
+    );
+  };
+  const popupAnchorStyle: React.CSSProperties = popupsOpenUp
+    ? { bottom: "calc(100% + 6px)" }
+    : { top: "calc(100% + 6px)" };
   return (
-    <>
+    // Anchored wrapper: the selection-layer geometry loop writes top/left
+    // (canvas-toolbar-anchor.ts) so the bar tracks the selection's union bbox
+    // through scroll/zoom/gestures. The off-screen seed stays CONSTANT so a
+    // re-render never clobbers the loop's imperative writes; the loop places
+    // the bar before first paint. Popups are absolute children, so they ride
+    // along without their own tracking.
+    <div
+      ref={rootRef}
+      data-multi-selection-toolbar-root=""
+      style={{
+        position: "fixed",
+        top: 0,
+        left: -9999,
+        zIndex: 100,
+        pointerEvents: "none",
+      }}
+    >
     <BuilderCoachmarkTip
       id="multi-select-toolbar"
       message={t("Shift-click to select multiple blocks: align, group, and style them together.")}
@@ -152,8 +182,8 @@ export function MultiSelectionToolbar({
       <span
         aria-hidden
         style={{
-          position: "fixed",
-          bottom: barBottom + 16,
+          position: "absolute",
+          top: -10,
           left: "50%",
           width: 1,
           height: 1,
@@ -167,14 +197,7 @@ export function MultiSelectionToolbar({
       role="toolbar"
       aria-label={t("Selected blocks")}
       style={{
-        position: "fixed",
-        // Second row of the bottom control-bar stack: sits directly above the
-        // selection chip so both stay visible and centered instead of one
-        // floating over the canvas at the element's top-left corner.
-        bottom: CANVAS_FLOATING_BAR.bottom + CANVAS_FLOATING_BAR.height + 8,
-        // Centre within the space RIGHT of the zoom bar (shared baseline).
-        left: `calc(50% + ${CANVAS_FLOATING_BAR.leftReserve / 2}px)`,
-        transform: "translateX(-50%)",
+        position: "relative",
         height: 32,
         display: "inline-flex",
         alignItems: "stretch",
@@ -186,7 +209,6 @@ export function MultiSelectionToolbar({
         color: CHROME.ink,
         boxShadow: BUILDER_VISUAL.toolbarShadow,
         border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
-        zIndex: 100,
         pointerEvents: "auto",
         fontFamily:
           'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
@@ -245,7 +267,10 @@ export function MultiSelectionToolbar({
         action="more"
         ariaExpanded={moreOpen}
         ariaHasPopup
-        onClick={() => setMoreOpen((open) => !open)}
+        onClick={() => {
+          if (!moreOpen) measurePopupDirection();
+          setMoreOpen((open) => !open);
+        }}
       >
         <Ellipsis size={14} aria-hidden />
       </IconButton>
@@ -264,10 +289,9 @@ export function MultiSelectionToolbar({
       <div
         data-multi-selection-more=""
         style={{
-          position: "fixed",
-          bottom: popupBottom,
-          left: "50%",
-          transform: "translateX(-50%)",
+          position: "absolute",
+          ...popupAnchorStyle,
+          right: 0,
           display: "inline-flex",
           alignItems: "stretch",
           borderRadius: CHROME_RADII.lg,
@@ -275,6 +299,7 @@ export function MultiSelectionToolbar({
           border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
           boxShadow: BUILDER_VISUAL.toolbarShadow,
           zIndex: 101,
+          pointerEvents: "auto",
         }}
       >
       <IconButton
@@ -367,16 +392,16 @@ export function MultiSelectionToolbar({
       </div>
     ) : null}
     {/* Rendered as a SIBLING of the toolbar (not a child) so the toolbar's
-     *  overflow:hidden scroll-row can't clip it; opens upward from the docked
-     *  bar. */}
+     *  overflow:hidden scroll-row can't clip it; opens off the anchored
+     *  wrapper toward whichever side has room (popupAnchorStyle). */}
     {canBulkStyle && styleOpen ? (
       <BulkStylePanel
-        bottom={popupBottom}
+        anchorStyle={popupAnchorStyle}
         disabled={disabled}
         onBulkStyle={onBulkStyle}
       />
     ) : null}
-    </>
+    </div>
   );
 }
 
@@ -394,11 +419,12 @@ export function MultiSelectionToolbar({
  * per-field × clears that prop across the selection.
  */
 function BulkStylePanel({
-  bottom,
+  anchorStyle,
   disabled,
   onBulkStyle,
 }: {
-  bottom: number;
+  /** Which side of the anchored toolbar the panel opens toward. */
+  anchorStyle: React.CSSProperties;
   disabled: boolean;
   onBulkStyle: (stylePatchJson: string) => void;
 }) {
@@ -411,11 +437,11 @@ function BulkStylePanel({
       data-edit-overlay="multi-selection-bulk-style"
       onClick={(e) => e.stopPropagation()}
       style={{
-        position: "fixed",
-        bottom,
-        // Centre within the space RIGHT of the zoom bar (shared baseline).
-        left: `calc(50% + ${CANVAS_FLOATING_BAR.leftReserve / 2}px)`,
-        transform: "translateX(-50%)",
+        position: "absolute",
+        ...anchorStyle,
+        // Opens off the toolbar's LEFT edge so it can show alongside the
+        // "More" strip (which hangs off the right edge).
+        left: 0,
         width: 232,
         padding: 10,
         borderRadius: CHROME_RADII.lg,

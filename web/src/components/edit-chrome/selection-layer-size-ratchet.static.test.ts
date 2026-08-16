@@ -97,7 +97,19 @@ const BUDGETS: Record<string, number> = {
   // the ratchet moving DOWN, which is the direction it exists to encourage —
   // the budget below is the measured value after that extraction lands on top
   // of the rotate/resize/z-order growth itemised above.
-  "selection-layer.tsx": 7588,
+  // +95 (anchored selection toolbar): the chip + multi-selection toolbar now
+  // anchor to the selection bbox instead of docking to the viewport bottom.
+  // ALL placement math (above/below flip, inside fallback, viewport +
+  // occluder clamping, popup direction) lives in canvas-toolbar-anchor.ts
+  // (unit-tested); what landed here is the thin wiring the guard's procedure
+  // asks for: two positionAnchoredToolbarStack call sites inside the existing
+  // rAF geometry loops (+ the union-bbox accumulation in the multi-ring
+  // loop), one trigger-only-deps effect that re-primes the geometry flag when
+  // a bar's CONTENT or a chrome occluder changes without a scroll/resize
+  // signal, the chip's constant off-screen seed replacing its bottom-dock
+  // style block, and the overflow menu's measured open-direction (the menu
+  // could hardcode "up" only while the chip was pinned to the bottom edge).
+  "selection-layer.tsx": 7683,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

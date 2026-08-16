@@ -121,6 +121,10 @@ import {
   parseScalePair,
   rotatedVisualBox,
 } from "./canvas-transform-geometry";
+import {
+  menuShouldOpenUp,
+  positionAnchoredToolbarStack,
+} from "./canvas-toolbar-anchor";
 import { useMaybeCanvasViewport } from "./canvas-viewport";
 import {
   computeZOrderTarget,
@@ -744,6 +748,7 @@ export function SelectionLayer() {
     previewing: isEditModePreviewing,
     requestInspectorTab,
     inspectorTabRequest,
+    inspectorDockOpen,
   } = useEditContext();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge). selection-layer
   // reads the tree heavily (overlays, drop candidates, context menu) so it
@@ -895,6 +900,9 @@ export function SelectionLayer() {
   // seeds first paint; the rAF loop owns position once mounted.
   const ringRef = useRef<HTMLDivElement | null>(null);
   const chipRef = useRef<HTMLDivElement | null>(null);
+  // Anchored-toolbar stack (canvas-toolbar-anchor.ts): the multi-selection
+  // toolbar's wrapper, positioned by the same geometry loops as the chip.
+  const multiToolbarAnchorRef = useRef<HTMLDivElement | null>(null);
   const moveOverlayRef = useRef<HTMLDivElement | null>(null);
   const resizeOverlayRef = useRef<HTMLDivElement | null>(null);
   const spacingOverlayRef = useRef<HTMLDivElement | null>(null);
@@ -3024,9 +3032,16 @@ export function SelectionLayer() {
         ring.style.height = `${height}px`;
         ring.style.transform = overlayTransform;
       }
-      // The chip is docked to the bottom control-bar line (see its style block)
-      // rather than tracking the element, so this loop deliberately leaves its
-      // position alone. The ring + handles below still track every frame.
+      // Anchored contextual toolbar(s) — the chip (plus the ungroup bar for a
+      // single selected container) tracks the SELECTION, not the viewport
+      // bottom. Anchored off the raw AABB `r`: for a rotated element that IS
+      // its live visual bounds (#1119), and the bars get no rotation
+      // transform, so they stay upright while following a tilted element.
+      // Flip/clamp/occluder rules live in canvas-toolbar-anchor.ts.
+      positionAnchoredToolbarStack(
+        { top: r.top, left: r.left, width: r.width, height: r.height },
+        [chipRef.current, multiToolbarAnchorRef.current],
+      );
       // Each handle overlay box shares the element's exact viewport rect; its
       // inner controls are positioned relative to the box, so moving the box is
       // enough. Any ref may be null (its handle isn't mounted for this node).
@@ -3096,6 +3111,13 @@ export function SelectionLayer() {
       const rings = document.querySelectorAll<HTMLElement>(
         "[data-multi-ring-source]",
       );
+      // Union of the measured source rects — the live multi-select bbox the
+      // anchored toolbar tracks (state-driven multiSelectedRect goes stale on
+      // scroll; this loop is the only per-frame measurement of the set).
+      let unionLeft = Infinity;
+      let unionTop = Infinity;
+      let unionRight = -Infinity;
+      let unionBottom = -Infinity;
       for (const ring of Array.from(rings)) {
         const source = ring.getAttribute("data-multi-ring-source");
         if (!source) continue;
@@ -3126,6 +3148,25 @@ export function SelectionLayer() {
         ring.style.left = `${r.left}px`;
         ring.style.width = `${r.width}px`;
         ring.style.height = `${r.height}px`;
+        unionLeft = Math.min(unionLeft, r.left);
+        unionTop = Math.min(unionTop, r.top);
+        unionRight = Math.max(unionRight, r.right);
+        unionBottom = Math.max(unionBottom, r.bottom);
+      }
+      // Anchor the multi-selection toolbar to the union bbox — but only when
+      // a builder-node multi-select is active: that is when the primary loop
+      // is dormant and this loop owns the toolbar. (With only SECTION
+      // additional rings the primary loop stacks the toolbar with the chip.)
+      if (unionRight > unionLeft && multiNodeSelectionActive) {
+        positionAnchoredToolbarStack(
+          {
+            top: unionTop,
+            left: unionLeft,
+            width: unionRight - unionLeft,
+            height: unionBottom - unionTop,
+          },
+          [multiToolbarAnchorRef.current],
+        );
       }
     };
 
@@ -3864,6 +3905,46 @@ export function SelectionLayer() {
   // chip's toggle and the panel's own `×` share one truth. Reopens for each
   // new selection (the panel is a per-selection picker, not a sticky drawer).
   const [nestedPanelOpen, setNestedPanelOpen] = useState(true);
+  // Anchored-toolbar re-measure triggers. The geometry loops only re-measure
+  // on scroll/resize/RO/MO signals, but the anchored bars also move when (a)
+  // a bar mounts or its CONTENT resizes it (label swap, Remove confirm, count
+  // badge, toolbar variant switch) or (b) a chrome OCCLUDER opens/closes
+  // (inspector dock, nested-blocks panel, navigator, device preview) — none
+  // of which fires a geometry signal on its own. Same trigger-only-deps
+  // pattern as the device/pageVersion recompute effect above.
+  const additionalSelectedCount = additionalSelectedIds.size;
+  useLayoutEffect(() => {
+    if (
+      renderSelectedRect ||
+      confirmRemove ||
+      chipPrimaryLabel ||
+      showChipType ||
+      additionalSelectedCount ||
+      showMultiSelectionToolbar ||
+      selectedNodeUsesCanvasTextToolbar ||
+      inspectorDockOpen ||
+      nestedPanelOpen ||
+      navigatorOpen ||
+      navigatorWidth ||
+      device
+    ) {
+      /* trigger-only: fall through to the re-prime below */
+    }
+    geometryDirtyRef.current = true;
+  }, [
+    renderSelectedRect,
+    confirmRemove,
+    chipPrimaryLabel,
+    showChipType,
+    additionalSelectedCount,
+    showMultiSelectionToolbar,
+    selectedNodeUsesCanvasTextToolbar,
+    inspectorDockOpen,
+    nestedPanelOpen,
+    navigatorOpen,
+    navigatorWidth,
+    device,
+  ]);
   useEffect(() => {
     setNestedPanelOpen(true);
   }, [selectedCanvasNodeId]);
@@ -5357,7 +5438,7 @@ export function SelectionLayer() {
 
 	          {showMultiSelectionToolbar ? (
 	            <MultiSelectionToolbar
-	              rect={renderSelectedRect}
+	              rootRef={multiToolbarAnchorRef}
 	              count={Math.max(1, selectedBuilderNodeRects.length)}
 		              disabled={false /* Perf spine — node ops ride the optimistic lane; no saving gate */}
 		              canGroup={multiNodeSelectionActive}
@@ -5529,19 +5610,16 @@ export function SelectionLayer() {
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
             style={{
               position: "fixed",
-              // Docked to the same bottom line as the canvas text toolbar and
-              // the zoom bar, so every canvas control bar reads as one row
-              // instead of one chip chasing the element while the others sit
-              // still. The rAF loop below no longer writes top/left for the
-              // chip (it still tracks the ring + handles).
-              bottom: CANVAS_FLOATING_BAR.bottom,
-              // Centre within the space RIGHT of the zoom bar, not the whole
-              // viewport: they share this baseline now, so a plain 50% centre
-              // slides under the zoom bar on a narrow window.
-              left: `calc(50% + ${CANVAS_FLOATING_BAR.leftReserve / 2}px)`,
-              transform: "translateX(-50%)",
-              // Bounded by the space right of the zoom bar, not the viewport.
-              maxWidth: `min(720px, calc(100vw - ${CANVAS_FLOATING_BAR.leftReserve + 24}px))`,
+              // ANCHORED to the selection bbox: the rAF geometry loop writes
+              // top/left every dirty frame via positionAnchoredToolbarStack
+              // (above the element, flipping below / inside and clamping —
+              // rules in canvas-toolbar-anchor.ts). These constants are only
+              // the pre-first-measure seed, and they stay CONSTANT so a React
+              // re-render never clobbers the loop's imperative writes; the
+              // layout effect positions the chip before first paint.
+              top: 0,
+              left: -9999,
+              maxWidth: "min(720px, calc(100vw - 16px))",
               height: CANVAS_FLOATING_BAR.height,
               display: "inline-flex",
               alignItems: "stretch",
@@ -7437,6 +7515,9 @@ function BlockChipOverflowMenu({
 }) {
   const { t } = useEditorLocale();
   const [open, setOpen] = useState(false);
+  // The chip anchors to the selection now, so the menu can no longer assume
+  // "docked at the bottom → always open upward". Measured once per open.
+  const [opensUp, setOpensUp] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -7469,7 +7550,19 @@ function BlockChipOverflowMenu({
         light={light}
         style={btnStyle}
         disabled={disabled}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          if (!open && wrapRef.current && typeof window !== "undefined") {
+            const anchor = wrapRef.current.getBoundingClientRect();
+            setOpensUp(
+              menuShouldOpenUp({
+                anchorTop: anchor.top,
+                anchorBottom: anchor.bottom,
+                viewportHeight: window.innerHeight,
+              }),
+            );
+          }
+          setOpen((prev) => !prev);
+        }}
         aria-label={t("More block actions")}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -7484,9 +7577,11 @@ function BlockChipOverflowMenu({
           data-selection-block-overflow-menu=""
           style={{
             position: "absolute",
-            // The chip is docked at the bottom of the viewport, so the menu
-            // opens UPWARD — anchored below the bar it would fall off-screen.
-            bottom: "calc(100% + 6px)",
+            // The chip anchors to the selection, so the menu opens toward
+            // whichever side has room (menuShouldOpenUp, measured on open).
+            ...(opensUp
+              ? { bottom: "calc(100% + 6px)" }
+              : { top: "calc(100% + 6px)" }),
             right: 0,
             zIndex: 10,
             minWidth: 168,
