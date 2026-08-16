@@ -91,7 +91,11 @@ const BUDGETS: Record<string, number> = {
   //       is being dragged. The pub-sub IMPLEMENTATION lives in
   //       use-workspace-panels.ts (already its own module); this is the thin
   //       plumbing the guard's own procedure asks for.
-  "src/components/edit-chrome/edit-context.tsx": 6208,
+  //   +6 (live-QA #1146 hotfix): `initialDevice` prop + doc comment threaded
+  //       into EditProvider's signature and its `device` useState initializer,
+  //       so a device-preview iframe's own EditProvider can be seeded with the
+  //       tier it represents instead of always defaulting to "desktop".
+  "src/components/edit-chrome/edit-context.tsx": 6214,
   "src/components/edit-chrome/inspectors/style-panel.tsx": 5896,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
   "src/components/edit-chrome/topbar.tsx": 3471,
@@ -99,7 +103,14 @@ const BUDGETS: Record<string, number> = {
   // plugin, trigger detection, catalog/matcher and menu component all live in
   // their own modules (SlashCommandPlugin, slash-command-trigger,
   // slash-command-catalog, slash-command-menu); this is the call site.
-  "src/components/edit-chrome/edit-shell.tsx": 2722,
+  // +8 (live-QA #1146 hotfix): `iframeSrcForTier(tier)` replaces the single
+  // shared `iframeSrc` — every warm-kept device iframe now gets its OWN
+  // `?device=<tier>` URL so its OWN EditProvider (a full separate page load,
+  // per iframe-child.tsx) can seed `device` correctly instead of always
+  // defaulting to "desktop". Fixes the keyboard nudge (and any other
+  // device-scoped write) silently landing in the base/desktop bucket
+  // whenever performed inside the Tablet/Mobile preview iframe.
+  "src/components/edit-chrome/edit-shell.tsx": 2730,
   "src/components/edit-chrome/inspectors/layout-panel.tsx": 2532,
   "src/components/edit-chrome/publish-drawer.tsx": 2254,
   "src/components/edit-chrome/inspector-dock.tsx": 1826,

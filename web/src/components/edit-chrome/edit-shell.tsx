@@ -2517,14 +2517,24 @@ function DeviceFrameSurface({
   const displayedW = width * scale;
   const displayedH = Math.max(0, containerHeight);
 
-  // Build the iframe URL for the same page the operator is editing.
-  let iframeSrc = "/";
-  if (typeof window !== "undefined") {
+  // Build the iframe URL for the same page the operator is editing. Takes
+  // the TIER this specific iframe represents (live-QA #1146 fix): each
+  // warm-kept device iframe is a full separate page load with its own
+  // EditProvider, which otherwise has no way of knowing which breakpoint
+  // it's previewing — every `device`-scoped write inside it (the keyboard
+  // nudge's responsive-bucket resolution chief among them) silently
+  // resolved against the base/desktop bucket regardless of which tier the
+  // operator had selected in the parent topbar. `&device=<tier>` lets
+  // IframeChild seed its own EditProvider's `device` state correctly from
+  // first render (see edit-context.tsx's `initialDevice`).
+  const iframeSrcForTier = (tier: EditDevice): string => {
+    if (typeof window === "undefined") return "/";
     const u = new URL(window.location.href);
     u.searchParams.set("iframe", "1");
+    u.searchParams.set("device", tier);
     u.searchParams.delete("edit");
-    iframeSrc = u.pathname + u.search + u.hash;
-  }
+    return u.pathname + u.search + u.hash;
+  };
 
   // Order the visited devices so the iframe DOM order is stable across
   // renders (React reconciles by index/key for unkeyed lists; we use
@@ -2621,7 +2631,7 @@ function DeviceFrameSurface({
               return (
                 <iframe
                   key={`${d}:${pageSlug ?? "/"}:${pageVersion ?? "pending"}`}
-                  src={iframeSrc}
+                  src={iframeSrcForTier(d)}
                   title={`${d} preview`}
                   data-active={isActive ? "true" : undefined}
                   data-device-tier={d}
