@@ -41,6 +41,7 @@ import {
   notificationDrawerFields,
   notificationTargetHref,
   resolveNotificationDrawerTarget,
+  type NotificationDrawerTarget,
   type NotificationPageTarget,
 } from "@/components/admin/shell/internal/notification-drawer-targets";
 
@@ -120,27 +121,36 @@ test("every emitted targetDrawer resolves to a real case in DrawerSwitch", () =>
   );
 });
 
+function drawerTarget(
+  id: string,
+  payload?: Record<string, unknown>,
+): NotificationDrawerTarget {
+  const target = resolveNotificationDrawerTarget(id, payload);
+  assert.ok(target && target.kind === "drawer", `"${id}" did not resolve to a drawer target`);
+  return target;
+}
+
 test("the two media-ownership targets specifically resolve", () => {
   const cases = drawerCaseIds();
 
   // Talent half — "your photos" is the media section of the talent's own
   // profile, reached through the profile shell in edit-self mode.
-  const talent = resolveNotificationDrawerTarget("talent-media");
-  assert.equal(talent?.drawerId, "talent-profile-edit");
-  assert.equal(talent?.payload?.section, "media");
-  assert.equal(talent?.payload?.mode, "edit-self");
+  const talent = drawerTarget("talent-media");
+  assert.equal(talent.drawerId, "talent-profile-edit");
+  assert.equal(talent.payload?.section, "media");
+  assert.equal(talent.payload?.mode, "edit-self");
   assert.ok(cases.has("talent-profile-edit"));
 
   // Workspace half — the release-request queue.
-  const workspace = resolveNotificationDrawerTarget("media-releases");
-  assert.equal(workspace?.drawerId, "media-releases");
+  const workspace = drawerTarget("media-releases");
+  assert.equal(workspace.drawerId, "media-releases");
   assert.ok(cases.has("media-releases"));
 });
 
 test("a notification's own payload wins over the alias default", () => {
-  const resolved = resolveNotificationDrawerTarget("talent-media", { section: "albums" });
-  assert.equal(resolved?.payload?.section, "albums");
-  assert.equal(resolved?.payload?.mode, "edit-self");
+  const resolved = drawerTarget("talent-media", { section: "albums" });
+  assert.equal(resolved.payload?.section, "albums");
+  assert.equal(resolved.payload?.mode, "edit-self");
 });
 
 /**

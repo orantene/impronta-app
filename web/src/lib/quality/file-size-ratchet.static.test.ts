@@ -163,7 +163,14 @@ const BUDGETS: Record<string, number> = {
   // id, and one guarded mount; the line and its copy live in
   // components/talent/media-quota-line.tsx + lib/media/quota-line.ts.
   "src/components/admin/shell/internal/media-page.tsx": 2948,
-  "src/components/admin/shell/internal/state/types.ts": 2747,
+  // 2026-08-15 notification page-targets — +7: `NotificationItem.targetHref`,
+  // set when a notification's real destination is a routed page rather than a
+  // drawer (payout reversals → /talent/payouts, roster applications →
+  // <adminBasePath>/roster/applications). One optional field plus the doc
+  // comment that tells the click handler to ignore `targetDrawer` when it is
+  // present; the resolution logic lives in
+  // components/admin/shell/internal/notification-drawer-targets.ts.
+  "src/components/admin/shell/internal/state/types.ts": 2754,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   "src/components/admin/shell/internal/state/context.tsx": 2345,
