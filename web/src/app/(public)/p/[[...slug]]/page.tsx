@@ -22,6 +22,7 @@ import {
 } from "@/lib/site-admin/builder-node/render";
 import { renderFreeformPageRootTree } from "@/lib/site-admin/builder-node/freeform-page-blocks";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
+import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
@@ -330,6 +331,24 @@ export default async function CmsPublicPage({
       const componentStyleDefaults = await loadPublicComponentStyleDefaults(
         publicScope.tenantId,
       );
+      // Captcha for native `form` nodes on this page. /api/cms/forms/submit
+      // enforces captcha per TENANT, so a form that renders no widget sends no
+      // token and EVERY submission is rejected once a provider is configured —
+      // the improntamodels.com outage on 2026-08-16. This route renders
+      // freeform blocks DIRECTLY (not via HomepageCmsSections), so it needs its
+      // own resolution; threading only the other paths left this one blind.
+      // Gated on the tree actually containing a form node so pages without one
+      // pay no query.
+      const pageHasFormNode = (function hasForm(nodes: unknown): boolean {
+        if (Array.isArray(nodes)) return nodes.some(hasForm);
+        if (!nodes || typeof nodes !== "object") return false;
+        const n = nodes as { kind?: unknown; children?: unknown };
+        return n.kind === "form" || hasForm(n.children);
+      })(blocks);
+      const pageCaptcha = pageHasFormNode
+        ? await resolveTenantCaptcha(publicScope.tenantId)
+        : null;
+
       // ABTEST-1 — stable per-visitor seed + tenant/surface tags for any A/B
       // CTA/form nodes on this storefront page.
       const experimentContext = await resolveExperimentRenderContext({
@@ -436,6 +455,9 @@ export default async function CmsPublicPage({
                 mode: "freeform",
                 includeRendererStyles: false,
                 componentStyleDefaults,
+                captcha: pageCaptcha
+                  ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
+                  : null,
                 ...experimentContext,
                 renderSectionEmbed: makeSectionEmbedRenderer({
                   tenantId: publicScope.tenantId,
