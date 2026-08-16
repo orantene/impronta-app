@@ -50,6 +50,16 @@ export interface SectionEmbedRenderContext {
   locale: string;
   publicPathPrefix?: string;
   /**
+   * Server-resolved captcha (provider + PUBLIC site key) for this tenant, from
+   * `resolveTenantCaptcha`. A curated section rendered INSIDE a freeform tree
+   * needs this exactly as much as one rendered through the section list: the
+   * contact form only shows its widget when it has BOTH `props.captcha` and a
+   * resolved site key. Omitting it here meant every freeform page silently
+   * rendered its contact form with NO captcha, however the operator had
+   * configured it — the section list threaded it, this path did not.
+   */
+  captcha?: { provider: "hcaptcha" | "turnstile" | "none"; siteKey: string | null } | null;
+  /**
    * WS-A A5 — TRUE when the embed is rendered onto the in-editor CANVAS (not the
    * published storefront). Threaded down to the curated Component as its
    * `preview` prop, so an interactive curated section (the header-widget embeds:
@@ -270,6 +280,7 @@ export function renderSectionEmbed(
         preview={context.editorMode === true}
         sectionId={node.props.sectionId ?? undefined}
         publicPathPrefix={publicPathPrefix}
+        captcha={context.captcha ?? undefined}
       />
     </div>
   );

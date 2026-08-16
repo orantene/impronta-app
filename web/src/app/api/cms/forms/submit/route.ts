@@ -276,18 +276,22 @@ export async function POST(req: Request) {
     // No tenant config AND no platform secret → captcha not enforced.
   } else {
     // Resolve the secret for the chosen provider.
-    let secret: string | null = null;
-    if (tenantCaptcha.tenantOwned) {
-      // FAIL CLOSED on a vault decrypt error / missing secret — do NOT fall
-      // through to the platform env secret (that would defeat tenant isolation
-      // and let an attacker pass by solving a different secret's challenge).
-      secret = await tenantCaptcha.getSecret();
-    } else {
-      secret =
-        tenantCaptcha.provider === "hcaptcha"
-          ? process.env.HCAPTCHA_SECRET?.trim() || null
-          : process.env.TURNSTILE_SECRET?.trim() || null;
-    }
+    // ONE door for the secret, both branches. `resolveTenantCaptcha` already
+    // implements the documented order (tenant-custom → HQ default → env), and
+    // `getSecret()` returns the secret that matches the provider it resolved.
+    //
+    // Reading env directly in the inherited branch was a real bug: an operator
+    // who set the platform captcha in HQ (secret stored ENCRYPTED IN THE DB,
+    // not in env) gave every inheriting tenant a null secret here, which the
+    // fail-closed check below turns into "reject every submission". The HQ
+    // panel promised "tenants without their own captcha inherit this" while
+    // the runtime could not honour it.
+    //
+    // FAIL CLOSED is preserved: a vault decrypt error or missing secret
+    // resolves to null and is rejected below. Tenant isolation is preserved
+    // too — a tenant-owned config never falls through to the platform secret,
+    // because the resolver returns that tenant's own getSecret().
+    const secret = await tenantCaptcha.getSecret();
 
     if (!secret) {
       // An active provider with no resolvable secret = misconfiguration; fail

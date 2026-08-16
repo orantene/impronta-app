@@ -438,18 +438,17 @@ type Ctx = {
      */
     talentExclusive?: boolean;
   } | null;
-  /**
-   * Real signed-in user identity. null = standalone demo mode; chrome falls
-   * back to MY_TALENT_PROFILE / state.userName.
-   */
+  /** Real signed-in user identity. null = standalone demo mode; chrome falls
+   *  back to MY_TALENT_PROFILE / state.userName. */
   bridgeSessionIdentity: {
     userId: string;
     email: string;
     role: string;
     displayName: string | null;
-    /** True when the user is a platform admin — gates the switcher's
-     *  "Platform" entry point to the HQ console. */
+    /** Platform admin — gates the switcher's "Platform" HQ entry point. */
     isPlatformAdmin?: boolean;
+    /** Server-resolved `manage_billing`; nav must agree with route gates. */
+    canManageBilling?: boolean;
   } | null;
   /**
    * Effective tenant values for rendering — derived from bridgeTenantIdentity

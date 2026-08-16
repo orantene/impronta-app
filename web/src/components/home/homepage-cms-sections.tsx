@@ -327,6 +327,9 @@ export async function HomepageCmsSections({
         tenantId,
         locale,
         publicPathPrefix,
+        // Same resolved captcha the section-list path passes below. Without it
+        // a contact form embedded in a freeform page renders with no widget.
+        captcha: captchaConfig,
       });
       // REND-2 — scope the renderer sheet to the kinds on this freeform page,
       // but only on the PUBLISHED path. Edit/preview keep the FULL sheet so an
