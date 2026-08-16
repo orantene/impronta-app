@@ -648,7 +648,7 @@
   },
   "src/components/admin/shell/internal/page-modules/BillingPage.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 33
+      "count": 18
     }
   },
   "src/components/admin/shell/internal/page-modules/CalendarPage.tsx": {
