@@ -8,6 +8,11 @@ import type { TalentProfile } from "../state";
 import { fillAdminTpl } from "./TalentPage-1";
 import { RosterEyeToggle, RosterPhotoBadgeOverlay, RosterQuickViewButton, RosterTrustCell } from "./TalentPage-3";
 import { resolveRosterCardTaxonomy } from "./roster-card-taxonomy";
+import {
+  RosterCardCategoryStrip,
+  RosterCardTypeLines,
+  buildRosterCardCategoryModel,
+} from "./roster-card-category-block";
 import type { RosterSortKey } from "./roster-sort";
 
 
@@ -376,10 +381,15 @@ function RosterCard({
   // do", humanized — never a raw slug), secondary labels ("what else").
   // Live bridge chips win; static TAXONOMY covers mock workspaces.
   const taxonomyView = resolveRosterCardTaxonomy(profile, locale);
-  const typeLabel = taxonomyView.primaryLabel ?? null;
-  const secondaryLabels = rosterCardBadges.categories ? taxonomyView.secondaryLabels : [];
-  const visibleSecondaries = secondaryLabels.slice(0, 3);
-  const extraSecondaryCount = secondaryLabels.length - visibleSecondaries.length;
+  // Category-block layout. `expanded` is the historical card. The two
+  // parent-anchored modes collapse the tree to ONE label — the parent talent
+  // type — and (in `parent_first`) hang the child types behind a `+`.
+  const categoryModel = buildRosterCardCategoryModel(
+    taxonomyView,
+    rosterCardBadges.categories,
+    rosterCardBadges.typeDisplay,
+  );
+  const [typesOpen, setTypesOpen] = useState(false);
 
   // Availability dot
   const availDot = profile.availability === "available"
@@ -663,17 +673,17 @@ function RosterCard({
         </div>
       </div>
 
-      {/* Parent-category strip — the admin scanning anchor ("Models",
-          "Performers", "Hosts & Promo"). Full-width band between photo and
-          body so it never collides with the photo overlays. */}
-      {rosterCardBadges.categories && taxonomyView.parentLabel && (
-        <div
-          data-roster-parent-category
-          className="overflow-hidden text-ellipsis whitespace-nowrap border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
-        >
-          {taxonomyView.parentLabel}
-        </div>
-      )}
+      {/* Category strip between photo and body — the admin scanning anchor,
+          and (in `parent_first`) the control that opens the child types. */}
+      <RosterCardCategoryStrip
+        model={categoryModel}
+        categoriesOn={rosterCardBadges.categories}
+        open={typesOpen}
+        onToggle={() => setTypesOpen((v) => !v)}
+        toggleLabel={fillAdminTpl(t("admin.roster.card.toggleTypesAria"), {
+          category: categoryModel.anchorLabel ?? "",
+        })}
+      />
 
       {/* Card body — name + type + city, hairlined */}
       <div style={{ padding: "10px 12px 12px" }}>
@@ -691,59 +701,12 @@ function RosterCard({
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} className="text-admin-ink">
           {profile.name}
         </div>
-        {rosterCardBadges.categories && (
-          <div
-            data-roster-primary-type
-            style={{
-              fontSize: 11.5,
-              color: typeLabel ? COLORS.accentDeep : COLORS.inkMuted,
-              fontWeight: typeLabel ? 600 : 500,
-              marginTop: 2,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-            }}
-          >
-            {taxonomyView.parentEmoji && (
-              <span aria-hidden style={{ fontSize: 12, flexShrink: 0, opacity: 0.85 }}>
-                {taxonomyView.parentEmoji}
-              </span>
-            )}
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
-              {typeLabel ?? t("admin.roster.card.noTypeSet")}
-              {taxonomyView.specialty && visibleSecondaries.length === 0 && (
-                <span style={{ fontWeight: 500 }} className="text-admin-ink-muted">
-                  {" · "}{taxonomyView.specialty}
-                </span>
-              )}
-            </span>
-          </div>
-        )}
-        {visibleSecondaries.length > 0 && (
-          <div
-            data-roster-secondary-types
-            className="mt-[4px] flex flex-wrap gap-[3px]"
-          >
-            {visibleSecondaries.map((label) => (
-              <span
-                key={label}
-                className="inline-flex max-w-full items-center overflow-hidden text-ellipsis whitespace-nowrap rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted"
-              >
-                {label}
-              </span>
-            ))}
-            {extraSecondaryCount > 0 && (
-              <span
-                title={secondaryLabels.slice(3).join(" · ")}
-                className="inline-flex items-center rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted"
-              >
-                +{extraSecondaryCount}
-              </span>
-            )}
-          </div>
-        )}
+        <RosterCardTypeLines
+          model={categoryModel}
+          categoriesOn={rosterCardBadges.categories}
+          open={typesOpen}
+          noTypeLabel={t("admin.roster.card.noTypeSet")}
+        />
         {profile.city && (
           <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
             📍 {profile.city}

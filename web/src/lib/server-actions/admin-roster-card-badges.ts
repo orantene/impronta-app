@@ -20,6 +20,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   ROSTER_CARD_BADGE_KEYS,
+  ROSTER_CARD_TYPE_DISPLAYS,
   normalizeRosterCardBadges,
   type RosterCardBadgePrefs,
 } from "@/lib/talent-cards/roster-card-badges";
@@ -35,6 +36,10 @@ const rosterCardBadgesSchema = z
     talentId:     z.boolean().optional(),
     categories:   z.boolean().optional(),
     quickView:    z.boolean().optional(),
+    // Category-block layout mode — lives in the same JSONB blob as the
+    // badge booleans because it answers the same question ("what does a
+    // roster card show?") and shares this action's read-merge-write.
+    typeDisplay:  z.enum(ROSTER_CARD_TYPE_DISPLAYS).optional(),
   })
   .strict();
 
@@ -101,6 +106,7 @@ export async function setRosterCardBadges(
     const value = parsed.data[key];
     if (typeof value === "boolean") merged[key] = value;
   }
+  if (parsed.data.typeDisplay) merged.typeDisplay = parsed.data.typeDisplay;
 
   const nextSettings = { ...currentSettings, rosterCardBadges: merged };
 
