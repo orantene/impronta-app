@@ -20,66 +20,26 @@
  */
 
 import { TAXONOMY } from "../state";
-import type { RosterTaxonomyChip, TalentProfile } from "../state";
+import type { TalentProfile } from "../state";
+import {
+  chipLabel,
+  groupChipsByParent,
+  parentCategoryEmoji,
+  titleCaseSlug,
+  type RosterTypeGroup,
+} from "./roster-type-groups";
 
-/** "cultural-dancer" → "Cultural Dancer" (last-resort humanizer). */
-export function titleCaseSlug(slug: string): string {
-  return slug
-    .split(/[-_]+/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-/** Pick the localized label off a live taxonomy chip. */
-export function chipLabel(chip: RosterTaxonomyChip, locale: string): string {
-  if (locale.toLowerCase().startsWith("es") && chip.labelEs) return chip.labelEs;
-  return chip.labelEn;
-}
-
-/**
- * Emoji anchor per parent category — keyed by BOTH the live
- * `taxonomy_terms.slug` values (e.g. "hosts-promo") and the static TAXONOMY
- * parent ids (e.g. "hosts") so both data paths get the same visual anchor.
- * Purely decorative; unknown parents simply render without one.
- */
-const PARENT_CATEGORY_EMOJI: Record<string, string> = {
-  // Live parent_category slugs
-  models: "👤",
-  "hosts-promo": "🎤",
-  performers: "✨",
-  "music-djs": "🎧",
-  "chefs-culinary": "👨‍🍳",
-  "wellness-beauty": "🌿",
-  "photo-video-creative": "📷",
-  "influencers-creators": "📱",
-  "event-staff": "✦",
-  "hospitality-property": "🏨",
-  "travel-concierge": "🧭",
-  transportation: "🚙",
-  "home-technical-services": "🔧",
-  "security-protection": "🛡",
-  "sports-fitness": "🏃",
-  "kids-family-services": "🧸",
-  "speakers-coaches-experts": "🎓",
-  "production-bts": "🎬",
-  "animals-specialty-acts": "🐾",
-  // Static TAXONOMY parent ids that differ from the live slugs
-  hosts: "🎤",
-  music: "🎧",
-  creators: "📱",
-  chefs: "👨‍🍳",
-  wellness: "🌿",
-  hospitality: "🏨",
-  photo_video: "📷",
-  event_staff: "✦",
-  security: "🛡",
-  services: "🔧",
-};
-
-export function parentCategoryEmoji(idOrSlug: string): string | undefined {
-  return PARENT_CATEGORY_EMOJI[idOrSlug];
-}
+// Re-exported so existing consumers keep one import surface for the roster's
+// category vocabulary; the implementations live in the pure module so they
+// stay testable (see its header).
+export {
+  chipLabel,
+  groupChipsByParent,
+  parentCategoryEmoji,
+  titleCaseSlug,
+  type RosterTypeEntry,
+  type RosterTypeGroup,
+} from "./roster-type-groups";
 
 /** Display-ready category block for one roster card / row. */
 export type RosterCardTaxonomyView = {
@@ -95,6 +55,12 @@ export type RosterCardTaxonomyView = {
   specialty?: string;
   /** Localized secondary type labels, display order preserved. */
   secondaryLabels: string[];
+  /**
+   * EVERY parent category the talent spans, each with its own types. This is
+   * what the card's parent-anchored modes render — `parentLabel` above is
+   * only the primary type's bucket and would drop the rest.
+   */
+  groups: RosterTypeGroup[];
 };
 
 /**
@@ -112,6 +78,10 @@ export function resolveRosterCardTaxonomy(
   // 1) Live-taxonomy chips from the bridge.
   if (profile.primaryTypeInfo || profile.parentCategory || profile.secondaryTypes?.length) {
     const parent = profile.parentCategory;
+    const chips = [
+      ...(profile.primaryTypeInfo ? [profile.primaryTypeInfo] : []),
+      ...(profile.secondaryTypes ?? []),
+    ];
     return {
       parentId: parent?.slug,
       parentLabel: parent ? chipLabel(parent, locale) : undefined,
@@ -122,6 +92,7 @@ export function resolveRosterCardTaxonomy(
           ? titleCaseSlug(profile.primaryType)
           : undefined,
       secondaryLabels: (profile.secondaryTypes ?? []).map((c) => chipLabel(c, locale)),
+      groups: groupChipsByParent(chips, locale, profile.primaryTypeInfo?.slug),
     };
   }
 
@@ -130,43 +101,81 @@ export function resolveRosterCardTaxonomy(
     for (const parent of TAXONOMY) {
       const child = parent.children.find((c) => c.id === profile.primaryType);
       if (child) {
+        const emoji = parent.emoji || parentCategoryEmoji(parent.id);
         return {
           parentId: parent.id,
           parentLabel: parent.label,
-          parentEmoji: parent.emoji || parentCategoryEmoji(parent.id),
+          parentEmoji: emoji,
           primaryLabel: child.label,
           specialty: child.specialties?.[0],
           secondaryLabels: [],
+          groups: [
+            {
+              parentId: parent.id,
+              parentLabel: parent.label,
+              ...(emoji ? { parentEmoji: emoji } : {}),
+              hasPrimary: true,
+              types: [
+                { key: child.id, label: child.label, isPrimary: true, supported: true },
+              ],
+            },
+          ],
         };
       }
     }
     // 3) Unmatched id/slug — humanize, never render raw.
-    return { primaryLabel: titleCaseSlug(profile.primaryType), secondaryLabels: [] };
+    const label = titleCaseSlug(profile.primaryType);
+    return {
+      primaryLabel: label,
+      secondaryLabels: [],
+      groups: [
+        {
+          parentId: null,
+          parentLabel: null,
+          hasPrimary: true,
+          types: [{ key: profile.primaryType, label, isPrimary: true, supported: true }],
+        },
+      ],
+    };
   }
 
-  return { secondaryLabels: [] };
+  return { secondaryLabels: [], groups: [] };
 }
 
 /**
- * Parent-category filter option for the roster filter bar. Returns null for
- * talents with no resolvable parent (they always pass the "all" filter).
+ * Parent-category filter options for the roster filter bar — ALL of a
+ * talent's parents, not just the primary type's.
+ *
+ * A talent who models AND dances belongs in both buckets; returning only the
+ * primary's parent left them unreachable from the "Performers" chip. Returns
+ * an empty array for a talent with no resolvable parent (they always pass the
+ * "all" filter).
  */
-export function rosterParentFilterOf(
+export function rosterParentFiltersOf(
   profile: Pick<
     TalentProfile,
     "primaryType" | "primaryTypeInfo" | "parentCategory" | "secondaryTypes"
   >,
   locale: string,
-): { id: string; label: string; emoji?: string } | null {
+): Array<{ id: string; label: string; emoji?: string }> {
   const view = resolveRosterCardTaxonomy(profile, locale);
-  if (!view.parentId || !view.parentLabel) return null;
-  return { id: view.parentId, label: view.parentLabel, emoji: view.parentEmoji };
+  const out: Array<{ id: string; label: string; emoji?: string }> = [];
+  for (const group of view.groups) {
+    if (!group.parentId || !group.parentLabel) continue;
+    out.push({
+      id: group.parentId,
+      label: group.parentLabel,
+      ...(group.parentEmoji ? { emoji: group.parentEmoji } : {}),
+    });
+  }
+  return out;
 }
 
 /**
- * Does a talent belong to the given parent-category filter? Accepts BOTH id
- * spaces (live parent slug / static TAXONOMY parent id) so saved views keep
- * working whichever data source populated them.
+ * Does a talent belong to the given parent-category filter? Matches on ANY
+ * parent they span, and accepts BOTH id spaces (live parent slug / static
+ * TAXONOMY parent id) so saved views keep working whichever data source
+ * populated them.
  */
 export function rosterMatchesParentFilter(
   profile: Pick<
@@ -174,8 +183,17 @@ export function rosterMatchesParentFilter(
     "primaryType" | "primaryTypeInfo" | "parentCategory" | "secondaryTypes"
   >,
   filterId: string,
+  locale = "en",
 ): boolean {
   if (profile.parentCategory?.slug === filterId) return true;
+  // Any OTHER parent the talent spans (secondary types in other categories).
+  if (
+    resolveRosterCardTaxonomy(profile, locale).groups.some(
+      (group) => group.parentId === filterId,
+    )
+  ) {
+    return true;
+  }
   const fixtureParent = TAXONOMY.find((p) => p.id === filterId);
   if (!fixtureParent) return false;
   return (

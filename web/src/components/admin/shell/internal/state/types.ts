@@ -504,6 +504,23 @@ export type RosterTaxonomyChip = {
   labelEn: string;
   /** Spanish display label when the term has one. */
   labelEs?: string;
+  /**
+   * The term's own enclosing `parent_category` (Models, Performers,
+   * Influencers & Creators, …). Present on every leaf chip, because a talent
+   * routinely holds types across SEVERAL parents and the roster card groups
+   * them by parent — reading the parent off the primary type alone would show
+   * one bucket and silently drop the others. Absent on parent chips
+   * themselves and when the walk up the tree finds no parent_category.
+   */
+  parent?: { slug: string; labelEn: string; labelEs?: string };
+  /**
+   * Does THIS workspace offer this talent type? False when the tenant
+   * disabled the term in `agency_taxonomy_settings` (missing row = enabled).
+   * The roster renders an unsupported type dimmed with an explanatory
+   * tooltip rather than hiding it — the talent really does hold it, the
+   * workspace just doesn't book it.
+   */
+  supported?: boolean;
 };
 
 export type TalentProfile = {

@@ -681,7 +681,7 @@ function RosterCard({
         open={typesOpen}
         onToggle={() => setTypesOpen((v) => !v)}
         toggleLabel={fillAdminTpl(t("admin.roster.card.toggleTypesAria"), {
-          category: categoryModel.anchorLabel ?? "",
+          category: categoryModel.parentLabels.join(" · "),
         })}
       />
 
@@ -706,6 +706,7 @@ function RosterCard({
           categoriesOn={rosterCardBadges.categories}
           open={typesOpen}
           noTypeLabel={t("admin.roster.card.noTypeSet")}
+          unsupportedTooltip={t("admin.roster.card.typeNotOfferedTooltip")}
         />
         {profile.city && (
           <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">

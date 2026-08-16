@@ -333,14 +333,16 @@ function RosterRow({
   // type text to the parent category. The row is a single line, so there is no
   // in-place expander here: `parent_first` keeps a `+N` count (titled with the
   // full list) as the "there is more" signal, `parent_only` shows nothing else.
+  // EVERY parent the talent spans, not just the primary type's bucket.
   const parentAnchored =
     rosterCardBadges.categories && rosterCardBadges.typeDisplay !== "expanded";
-  const anchorLabel = taxonomyView.parentLabel ?? taxonomyView.primaryLabel;
-  const hiddenChildLabels = taxonomyView.parentLabel
-    ? [taxonomyView.primaryLabel, ...taxonomyView.secondaryLabels].filter(
-        (label): label is string => Boolean(label),
-      )
-    : taxonomyView.secondaryLabels;
+  const anchorLabel = taxonomyView.groups
+    .map((group) => group.parentLabel ?? group.types.map((t2) => t2.label).join(" · "))
+    .filter((label) => label.length > 0)
+    .join(" · ");
+  const hiddenChildLabels = taxonomyView.groups.flatMap((group) =>
+    group.types.map((type) => (type.supported ? type.label : `${type.label} (—)`)),
+  );
 
   return (
     <div
@@ -424,7 +426,7 @@ function RosterRow({
             {parentAnchored ? (
               <>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.4px]">
-                  {anchorLabel ?? t("admin.roster.row.noType")}
+                  {anchorLabel || t("admin.roster.row.noType")}
                 </span>
                 {rosterCardBadges.typeDisplay === "parent_first" &&
                   hiddenChildLabels.length > 0 && (

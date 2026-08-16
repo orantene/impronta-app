@@ -46,6 +46,9 @@ const studioSrc = read(
 const categoryBlockSrc = read(
   "../../components/admin/shell/internal/page-modules/roster-card-category-block.tsx",
 );
+const bridgeSrc = read(
+  "../../components/admin/shell/internal/data-bridge.ts",
+);
 const previewSrc = read(
   "../../components/admin/shell/internal/page-modules/CardDesignStudio-4.tsx",
 );
@@ -194,4 +197,49 @@ test("studio panel iterates META; preview reacts to the new toggles", () => {
   );
   assert.match(previewSrc, /badges\.categories/);
   assert.match(previewSrc, /badges\.quickView/);
+});
+
+test("the card shows EVERY parent, not just the primary type's", () => {
+  // The regression this pins: reading `taxonomyView.parentLabel` (the primary
+  // type's bucket) as the ONLY anchor hid every other parent a talent spans.
+  assert.match(
+    categoryBlockSrc,
+    /parentLabels/,
+    "the strip must render the full parent list, not a single parentLabel",
+  );
+  assert.match(
+    categoryBlockSrc,
+    /groups\.map/,
+    "the expansion must iterate the parent groups",
+  );
+  assert.match(
+    bridgeSrc,
+    /parentCategoryOf\(term\.parent_id, categoryById\)/,
+    "the bridge must resolve a parent for EVERY role term, not just the primary",
+  );
+});
+
+test("the primary type is starred and unsupported types are flagged", () => {
+  assert.match(categoryBlockSrc, /type\.isPrimary/, "primary must be marked");
+  assert.match(categoryBlockSrc, /★/, "the primary mark is a star");
+  assert.match(
+    categoryBlockSrc,
+    /UNSUPPORTED_CHIP_CLASS/,
+    "a type the workspace disabled needs its own dimmed treatment",
+  );
+  assert.match(
+    categoryBlockSrc,
+    /unsupportedTooltip/,
+    "the dimmed chip must explain itself on hover",
+  );
+  assert.match(
+    bridgeSrc,
+    /agency_taxonomy_settings/,
+    "support comes from the tenant's taxonomy enablement overlay",
+  );
+  assert.match(
+    bridgeSrc,
+    /supported: term\.id \? !disabledTermIds\.has\(term\.id\) : true/,
+    "missing overlay row (or a term with no id) = enabled; never dim on missing data",
+  );
 });

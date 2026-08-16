@@ -729,6 +729,7 @@ function parentCategoryOf(
 function deriveTypeChips(
   profile: NonNullable<RosterRow["talent_profiles"]>,
   categoryById: Map<string, CategoryTreeRow>,
+  disabledTermIds: ReadonlySet<string>,
 ): {
   primaryTypeInfo?: RosterTaxonomyChip;
   parentCategory?: RosterTaxonomyChip;
@@ -737,9 +738,34 @@ function deriveTypeChips(
   const ranked = rankRoleTerms(profile);
   if (ranked.length === 0) return {};
 
-  const primaryTerm = ranked[0]?.taxonomy_terms ?? null;
-  const primaryTypeInfo = primaryTerm ? toTaxonomyChip(primaryTerm) : undefined;
+  // Enrich EVERY role term with its own parent_category + this workspace's
+  // support flag. A talent commonly spans several parents (Models AND
+  // Performers AND Influencers), and the card groups by parent — so reading
+  // the parent off the primary type alone would drop the other buckets.
+  const enrich = (
+    term: NonNullable<
+      NonNullable<RosterRow["talent_profiles"]>["talent_profile_taxonomy"]
+    >[number]["taxonomy_terms"],
+  ): RosterTaxonomyChip | undefined => {
+    const chip = term ? toTaxonomyChip(term) : undefined;
+    if (!chip || !term) return chip;
+    const parentTerm = parentCategoryOf(term.parent_id, categoryById);
+    const parentChip = parentTerm ? toTaxonomyChip(parentTerm) : undefined;
+    return {
+      ...chip,
+      ...(parentChip ? { parent: parentChip } : {}),
+      // Absent overlay row = enabled, matching getEnabledTaxonomyTree(). A
+      // term with no id can't be looked up, so it counts as supported —
+      // never dim a type on missing data.
+      supported: term.id ? !disabledTermIds.has(term.id) : true,
+    };
+  };
 
+  const primaryTerm = ranked[0]?.taxonomy_terms ?? null;
+  const primaryTypeInfo = enrich(primaryTerm);
+
+  // Kept for back-compat: the PRIMARY type's parent, which callers that only
+  // need one bucket (the roster filter bar) still read.
   const parentTerm = primaryTerm
     ? parentCategoryOf(primaryTerm.parent_id, categoryById)
     : undefined;
@@ -748,7 +774,7 @@ function deriveTypeChips(
   const seen = new Set<string>(primaryTypeInfo ? [primaryTypeInfo.slug] : []);
   const secondaryTypes: RosterTaxonomyChip[] = [];
   for (const entry of ranked.slice(1)) {
-    const chip = entry.taxonomy_terms ? toTaxonomyChip(entry.taxonomy_terms) : undefined;
+    const chip = enrich(entry.taxonomy_terms);
     if (!chip || seen.has(chip.slug)) continue;
     seen.add(chip.slug);
     secondaryTypes.push(chip);
@@ -759,6 +785,28 @@ function deriveTypeChips(
     ...(parentCategory ? { parentCategory } : {}),
     ...(secondaryTypes.length > 0 ? { secondaryTypes } : {}),
   };
+}
+
+/**
+ * Talent-type terms this tenant has DISABLED in `agency_taxonomy_settings`.
+ * Missing row = enabled (same default-true semantics as the pickers), so we
+ * only fetch the `is_enabled = false` rows. A failed read degrades to "every
+ * type supported" — the roster must never dim a type because a query blipped.
+ */
+async function loadDisabledTermIds(
+  client: BridgeReadClient,
+  tenantId: string,
+): Promise<Set<string>> {
+  const { data, error } = await client
+    .from("agency_taxonomy_settings")
+    .select("taxonomy_term_id")
+    .eq("tenant_id", tenantId)
+    .eq("is_enabled", false);
+  if (error) {
+    logServerError("admin-shell-prototype.loadDisabledTermIds", error);
+    return new Set();
+  }
+  return new Set((data ?? []).map((row) => row.taxonomy_term_id as string));
 }
 
 /**
@@ -904,6 +952,9 @@ export async function loadWorkspaceRosterForCurrentTenant(
     // query per roster load; failure degrades to cards without the parent
     // strip (never blocks the roster).
     const categoryById = await loadCategoryTreeById(readClient);
+    // Which talent types THIS workspace offers. Read alongside the tree so a
+    // type the tenant disabled renders dimmed instead of looking bookable.
+    const disabledTermIds = await loadDisabledTermIds(readClient, tenantId);
 
     const out: TalentProfile[] = [];
     for (const row of rows) {
@@ -946,7 +997,7 @@ export async function loadWorkspaceRosterForCurrentTenant(
         primaryType: derivePrimaryType(profile),
         // Display-ready category chips (localized labels, parent category,
         // secondaries) — the card must never render a raw slug.
-        ...deriveTypeChips(profile, categoryById),
+        ...deriveTypeChips(profile, categoryById, disabledTermIds),
         portfolioCount,
         // Agency directory visibility — the roster-card eye toggle.
         siteVisible:
