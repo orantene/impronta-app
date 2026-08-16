@@ -24,6 +24,7 @@ import {
   InspectorSection,
   InspectorSelect,
 } from "./kit";
+import { useInspectorT } from "./kit/use-inspector-t";
 import {
   InspectorColorHexInput,
   InspectorColorHexPair,
@@ -53,6 +54,19 @@ const QUICK_STYLE_OPTIONS = [
   { value: "editorial", label: "Editorial" },
   { value: "bold", label: "Bold contrast" },
   { value: "soft", label: "Soft minimal" },
+];
+
+// P4 audit: these `<select>` options used to show only the raw CSS number
+// ("400" / "700" / "800"), an enum value with no plain-language name — the
+// operator had to already know what a "font weight" number means. The number
+// stays (it is the honest resolved value, D9 item 1) but now sits behind a
+// name instead of standing alone.
+const FONT_WEIGHT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "400", label: "Regular (400)" },
+  { value: "500", label: "Medium (500)" },
+  { value: "600", label: "Semibold (600)" },
+  { value: "700", label: "Bold (700)" },
+  { value: "800", label: "Extrabold (800)" },
 ];
 
 const COLOR_SWATCHES = [
@@ -100,6 +114,7 @@ export function SectionStyleMockupPanel({
   onSetBackgroundCustom,
   onSetMood,
 }: SectionStyleMockupPanelProps) {
+  const { t } = useInspectorT();
   const { device } = useEditContext();
   const nonDesktop = device !== "desktop";
   const nodePresentation =
@@ -230,9 +245,9 @@ export function SectionStyleMockupPanel({
                   }
                   aria-label="Heading weight"
                 >
-                  {["400", "500", "600", "700", "800"].map((w) => (
-                    <option key={w} value={w}>
-                      {w}
+                  {FONT_WEIGHT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {t(opt.label)}
                     </option>
                   ))}
                 </InspectorSelect>
@@ -284,11 +299,13 @@ export function SectionStyleMockupPanel({
                   }}
                   aria-label="Body weight"
                 >
-                  {["400", "500", "600", "700"].map((w) => (
-                    <option key={w} value={w}>
-                      {w}
-                    </option>
-                  ))}
+                  {FONT_WEIGHT_OPTIONS.filter((opt) => opt.value !== "800").map(
+                    (opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {t(opt.label)}
+                      </option>
+                    ),
+                  )}
                 </InspectorSelect>
               }
               fontSize={
