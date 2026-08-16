@@ -189,6 +189,24 @@ interface HomepageCmsSectionsProps {
   onlyUnboundGallery?: boolean;
 }
 
+/**
+ * Depth-first: does this snapshot's builder tree contain a native `form` node?
+ * Used to decide whether the tenant captcha must be resolved for this render
+ * (see `needsCaptcha`). Defensive against arbitrary snapshot JSON — unknown
+ * shapes simply answer "no".
+ */
+function snapshotHasFormNode(tree: unknown): boolean {
+  if (!tree) return false;
+  const visit = (node: unknown): boolean => {
+    if (Array.isArray(node)) return node.some(visit);
+    if (!node || typeof node !== "object") return false;
+    const n = node as { kind?: unknown; children?: unknown };
+    if (n.kind === "form") return true;
+    return visit(n.children);
+  };
+  return visit(tree);
+}
+
 export async function HomepageCmsSections({
   snapshot,
   tenantId,
@@ -210,9 +228,14 @@ export async function HomepageCmsSections({
   const needsMapsKey = slots.some(
     (s) => s.sectionTypeKey === "location_discovery",
   );
-  const needsCaptcha = slots.some(
-    (s) => s.sectionTypeKey === "contact_form",
-  );
+  // Captcha is needed for the curated contact_form section AND for any native
+  // builder `form` node — the latter posts to the same endpoint, and that
+  // endpoint enforces captcha per TENANT. Gating on slots alone meant a page
+  // built purely from form nodes resolved no captcha, rendered no widget, and
+  // had every submission rejected once the tenant enabled a provider.
+  const needsCaptcha =
+    slots.some((s) => s.sectionTypeKey === "contact_form") ||
+    snapshotHasFormNode(snapshot.builderTree);
 
   const [
     editMode,
@@ -330,6 +353,9 @@ export async function HomepageCmsSections({
         // Same resolved captcha the section-list path passes below. Without it
         // a contact form embedded in a freeform page renders with no widget.
         captcha: captchaConfig,
+        // Likewise the Maps key — an embedded map section otherwise falls back
+        // to its placeholder while the section-list path shows a live map.
+        mapsApiKey,
       });
       // REND-2 — scope the renderer sheet to the kinds on this freeform page,
       // but only on the PUBLISHED path. Edit/preview keep the FULL sheet so an
