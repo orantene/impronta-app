@@ -11,7 +11,25 @@ export {
   InspectorRowDelete,
 } from "./inspector-item-row";
 export { VisualChipGroup, type ChipOption } from "./visual-chip-group";
-export { MediaPickerButton } from "./media-picker-button";
+// Media rebuild seam 4 — `MediaField` replaces `MediaPickerButton`, whose four
+// inlined `<MediaPicker>` blocks (one per layout branch) made every
+// pick-semantics change a four-place edit and let the `row` layout ship with
+// no Clear affordance at all. `media-picker-button.tsx` is DELETED, not
+// deprecated; its D3 regression coverage moved to
+// `./media-field.test.tsx` and the assertions in
+// `../builder-node-content.test.ts` that name it still hold (they test
+// `resolveClearableMediaSrc`, which MediaField's call sites still use).
+export {
+  MediaField,
+  mediaValueFromPick,
+  mediaValueFromUrl,
+  hasMediaValue,
+  toMediaValue,
+  filenameFromUrl,
+  type MediaFieldValue,
+  type MediaFieldLayout,
+  type MediaFieldProps,
+} from "./media-field";
 export { CtaDuoEditor, type CtaShape } from "./cta-duo-editor";
 export { InspectorDraftStatus, PanelSaveChip } from "./panel-save-chip";
 export { DraggableList, type DragHandleProps } from "./draggable-list";

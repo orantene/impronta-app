@@ -588,6 +588,19 @@
       "sell4": "Ce que vous devez, par agence et par devise",
       "seePlans": "Voir les forfaits",
       "navHub": "Toutes les agences"
+    },
+    "mediaField": {
+      "pickerTitle": "Bibliotheque de medias",
+      "add": "Ajouter",
+      "replace": "Remplacer",
+      "change": "Changer",
+      "clear": "Effacer",
+      "pasteUrl": "Coller une URL",
+      "hideUrl": "Masquer l'URL",
+      "dropToUpload": "Deposez pour televerser",
+      "uploading": "Televersement",
+      "uploadFailed": "Echec du televersement",
+      "loadingDimensions": "Chargement des dimensions..."
     }
   }
 }

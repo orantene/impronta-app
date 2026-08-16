@@ -49,10 +49,46 @@ export const SVG_MIME = "image/svg+xml";
 /** Mirrors SVG_LIBRARY_MAX_BYTES / SVG_LOGO_MAX_CHARS on the server. */
 export const SVG_LIBRARY_MAX_BYTES = 256 * 1024;
 
+/**
+ * Byte-level progress reporter for the PUT leg.
+ *
+ * `SignedUploadProgress.bytesSent` was declared here from day one and never
+ * written by anybody: every lane called `putToSignedUrl`, which uses `fetch`,
+ * and `fetch` exposes NO upload-progress event. Callers therefore had a
+ * `bytesSent` field that was always `undefined` and rendered a spinner where
+ * they had designed a progress bar.
+ *
+ * The only browser transport that reports request-body progress is
+ * `XMLHttpRequest` (`xhr.upload.onprogress`). So `putToSignedUrl` now takes an
+ * optional reporter and switches transport ONLY when one is supplied — a
+ * caller that does not ask for progress keeps the exact `fetch` path it had,
+ * byte for byte, so this cannot regress the lanes that never wanted it.
+ */
+export type PutProgressReporter = (bytesSent: number, bytesTotal: number) => void;
+
+/**
+ * Adapt an `onProgress` consumer into the PUT-leg reporter shape. Keeps the
+ * `phase: "uploading"` + `compression` envelope identical to the manual
+ * `onProgress?.({ phase: "uploading", … })` call every lane already makes, so
+ * the only new information on the wire is `bytesSent`.
+ */
+export function uploadProgressReporter(
+  onProgress: ((p: SignedUploadProgress) => void) | undefined,
+  compression?: CompressResult,
+): PutProgressReporter | undefined {
+  if (!onProgress) return undefined;
+  return (bytesSent, bytesTotal) =>
+    onProgress({ phase: "uploading", bytesSent, bytesTotal, compression });
+}
+
 export async function putToSignedUrl(
   uploadUrl: string,
   blob: Blob,
+  onBytes?: PutProgressReporter,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (onBytes && typeof XMLHttpRequest !== "undefined") {
+    return putViaXhr(uploadUrl, blob, onBytes);
+  }
   try {
     const res = await fetch(uploadUrl, {
       method: "PUT",
@@ -66,6 +102,48 @@ export async function putToSignedUrl(
   } catch (e) {
     return { ok: false, error: `signed PUT threw: ${stringifyError(e)}` };
   }
+}
+
+/** Same PUT, same error strings — XHR only so upload progress is observable. */
+function putViaXhr(
+  uploadUrl: string,
+  blob: Blob,
+  onBytes: PutProgressReporter,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (r: { ok: true } | { ok: false; error: string }) => {
+      if (settled) return;
+      settled = true;
+      resolve(r);
+    };
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", blob.type || "application/octet-stream");
+      xhr.upload.onprogress = (e) => {
+        // `lengthComputable` is false for a few exotic body types; reporting a
+        // total of 0 would render a NaN-wide bar, so we simply say nothing.
+        if (e.lengthComputable && e.total > 0) onBytes(e.loaded, e.total);
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // Guarantee the bar reaches 100% even when the last progress event
+          // lands short of total (Safari does this on small bodies).
+          onBytes(blob.size, blob.size);
+          done({ ok: true });
+          return;
+        }
+        done({ ok: false, error: `signed PUT failed: HTTP ${xhr.status}` });
+      };
+      xhr.onerror = () => done({ ok: false, error: "signed PUT threw: network error" });
+      xhr.onabort = () => done({ ok: false, error: "signed PUT threw: aborted" });
+      xhr.ontimeout = () => done({ ok: false, error: "signed PUT threw: timeout" });
+      xhr.send(blob);
+    } catch (e) {
+      done({ ok: false, error: `signed PUT threw: ${stringifyError(e)}` });
+    }
+  });
 }
 
 export function passthroughCompressed(file: File): CompressResult {

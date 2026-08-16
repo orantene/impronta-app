@@ -256,6 +256,8 @@ export async function POST(req: Request) {
         kind,
         original_file_name: (file as { name?: string }).name ?? null,
       },
+      // The COLUMN — library-query.ts reads/searches `original_filename`.
+      originalFilename: (file as { name?: string }).name ?? null,
     });
     if (!inserted.item) {
       await supabase.storage.from(BUCKET).remove([storagePath]);
@@ -317,6 +319,7 @@ export async function POST(req: Request) {
       kind,
       original_file_name: (file as { name?: string }).name ?? null,
     },
+    original_filename: (file as { name?: string }).name ?? null,
   } as const;
 
   const insertVariants: Array<Record<string, unknown>> = [

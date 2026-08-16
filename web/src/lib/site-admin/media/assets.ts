@@ -491,6 +491,19 @@ export async function insertTenantImageAsset(input: {
   width?: number | null;
   height?: number | null;
   alt?: string | null;
+  /**
+   * The name the operator's file had on their disk.
+   *
+   * Found unpersisted in #1169's QA and fixed here. Every CMS upload lane
+   * (signed register, legacy multipart, SVG) already carried the filename all
+   * the way to this insert and then wrote it ONLY into
+   * `metadata.original_file_name` — while `lib/media/library-query.ts` reads
+   * (and searches) the top-level `original_filename` COLUMN. So a CMS-uploaded
+   * asset showed no name in the library and could not be found by typing its
+   * name into the search box. The metadata key stays for existing rows; the
+   * column is now written too.
+   */
+  originalFilename?: string | null;
   metadata?: Record<string, unknown>;
 }): Promise<{ item: MediaLibraryItem | null; error: string | null }> {
   const publicUrl = resolvePublicUrl(input.supabase, {
@@ -530,6 +543,7 @@ export async function insertTenantImageAsset(input: {
         mime: input.mime,
         mime_type: input.mime,
         alt: normalizeAltText(input.alt),
+        original_filename: input.originalFilename ?? null,
         metadata: input.metadata ?? {},
       },
     ])

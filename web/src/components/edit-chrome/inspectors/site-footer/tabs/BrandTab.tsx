@@ -15,7 +15,8 @@ import {
   InspectorGroup,
   InspectorInput,
   InspectorTextarea,
-  MediaPickerButton,
+  MediaField,
+  toMediaValue,
   VisualChipGroup,
   type ChipOption,
 } from "../../kit";
@@ -167,17 +168,21 @@ export function BrandTab({
             label="Footer logo"
             help="Often a simpler or single-colour version of the header logo."
           >
-            <MediaPickerButton
+            <MediaField
               tenantId={tenantId}
-              value={value.brand.logoUrl ?? null}
+              value={toMediaValue(value.brand.logoUrl ?? null)}
+              // `logoUrl` is a bare string in the footer brand config (no id
+              // slot), so the unit collapses to its url. Clear still arrives
+              // as an explicit null and writes "" — the config's own
+              // "no logo" value.
               onChange={(next) =>
                 patch({
-                  brand: { ...value.brand, logoUrl: next ?? "" },
+                  brand: { ...value.brand, logoUrl: next?.url ?? "" },
                 })
               }
               emptyLabel="Choose a footer logo"
               aspect="16/9"
-              variant="row"
+              layout="row"
             />
           </InspectorField>
         ) : null}

@@ -43,7 +43,7 @@ import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Stepper
 import type { LengthUnit } from "../kit/number-unit";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
-import { MediaPickerButton } from "./kit";
+import { MediaField, toMediaValue } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
 import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
@@ -651,28 +651,35 @@ export function BuilderNodeContentInspector({
     return (
       <BuilderNodeFlatPanel>
         <BuilderNodeSection title="Image">
-          <MediaPickerButton
+          <MediaField
             tenantId={tenantId}
-            value={node.props.src}
+            value={toMediaValue(node.props.src, node.props.mediaId, node.props.alt)}
             onChange={(next) => {
-              // D3 fix: `next === null` is a genuine Clear click (the guard
-              // used to read `if (!next) return;`, silently swallowing it).
-              // `src` is a required string in imagePropsSchema but allows
-              // "" — an empty image node simply doesn't render (see the
-              // `if (!src ...) return null` guard in render.tsx's "image"
-              // case), so this is a real, visible clear rather than a no-op.
-              void commitPatch({ src: resolveClearableMediaSrc(next), mediaId: undefined });
-            }}
-            onPickItem={(item) => {
+              // D3: `next === null` is a genuine Clear (the guard here once
+              // read `if (!next) return;`, silently swallowing it). `src` is
+              // required in imagePropsSchema but allows "" — an empty image
+              // node simply doesn't render (see the `if (!src …) return null`
+              // guard in render.tsx's "image" case), so this is a real,
+              // visible clear rather than a no-op.
+              //
+              // D1: src and mediaId are written in the SAME patch, always.
+              if (!next) {
+                void commitPatch({ src: resolveClearableMediaSrc(null), mediaId: undefined });
+                return;
+              }
               void commitPatch({
-                src: item.publicUrl,
-                mediaId: item.id,
-                alt: node.props.alt ?? item.alt ?? undefined,
+                src: next.url,
+                mediaId: next.mediaId ?? undefined,
+                // Only a library pick carries an alt worth adopting, and only
+                // when the node has none of its own.
+                ...(next.mediaId
+                  ? { alt: node.props.alt ?? next.alt ?? undefined }
+                  : {}),
               });
             }}
             emptyLabel="Choose image"
             aspect="4/5"
-            variant="row"
+            layout="row"
           />
           <div className={KIT.field}>
             <label className={KIT.label}>Generate with AI</label>
@@ -1030,7 +1037,7 @@ export function BuilderNodeContentInspector({
   }
 
   // ── video ────────────────────────────────────────────────────────────────
-  // Pattern: MediaPickerButton for src + poster (same as image node), then
+  // Pattern: MediaField for src + poster (same as image node), then
   // four boolean toggles for autoplay/muted/loop/controls. Schema:
   // videoPropsSchema in registry.ts.
   if (node.kind === "video") {
@@ -1039,37 +1046,37 @@ export function BuilderNodeContentInspector({
         <BuilderNodeSection title="Video">
           <div className={KIT.field}>
             <label className={KIT.label}>Video source</label>
-            <MediaPickerButton
+            <MediaField
               tenantId={tenantId}
-              value={node.props.src}
+              value={toMediaValue(node.props.src)}
               onChange={(next) => {
-                // D3 fix: `next === null` is a Clear click — the old guard
+                // D3: `next === null` is a Clear click — the old guard
                 // (`if (!next) return;`) silently ate it. `src` is required
                 // but no longer constrained to a strict URL shape (see
                 // videoPropsSchema in registry.ts), so "" is valid and
                 // clears the node visibly instead of doing nothing.
-                void commitPatch({ src: resolveClearableMediaSrc(next), mediaId: undefined });
-              }}
-              onPickItem={(item) => {
-                void commitPatch({ src: item.publicUrl, mediaId: item.id });
+                // D1: src + mediaId in one patch.
+                void commitPatch({
+                  src: resolveClearableMediaSrc(next?.url ?? null),
+                  mediaId: next?.mediaId ?? undefined,
+                });
               }}
               emptyLabel="Choose video"
             />
           </div>
           <div className={KIT.field}>
             <label className={KIT.label}>Poster image</label>
-            <MediaPickerButton
+            <MediaField
               tenantId={tenantId}
-              value={node.props.poster}
+              value={toMediaValue(node.props.poster)}
+              // `poster` is an optional URL with no id slot in
+              // videoPropsSchema, so the unit collapses to its url here.
               onChange={(next) => {
-                void commitPatch({ poster: next === null ? undefined : next });
-              }}
-              onPickItem={(item) => {
-                void commitPatch({ poster: item.publicUrl });
+                void commitPatch({ poster: next?.url ?? undefined });
               }}
               emptyLabel="Choose poster"
               aspect="16/9"
-              variant="row"
+              layout="row"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -1335,13 +1342,13 @@ export function BuilderNodeContentInspector({
                 key={item.id}
                 className="flex flex-col gap-2 rounded-[10px] border border-stone-200 p-2.5"
               >
-                <MediaPickerButton
+                <MediaField
                   tenantId={tenantId}
-                  value={item.mediaUrl}
+                  value={toMediaValue(item.mediaUrl)}
                   onChange={(next) => {
-                    // D3 fix: `next === null` is a Clear click — the old
-                    // guard (`if (!next) return;`) silently ate it.
-                    // `mediaUrl` is a REQUIRED https:// field on every post
+                    // D3: `next === null` is a Clear click — the old guard
+                    // (`if (!next) return;`) silently ate it. `mediaUrl` is a
+                    // REQUIRED https:// field on every post
                     // (socialFeedItemSchema) — a post with no media isn't a
                     // valid post — so clearing the image removes the whole
                     // post instead of leaving it half-filled and unsavable.
@@ -1350,15 +1357,15 @@ export function BuilderNodeContentInspector({
                       void commitPatch({ items: removeItemAt(feedItems, index) });
                       return;
                     }
-                    patchItem(index, { mediaUrl: next });
-                  }}
-                  onPickItem={(picked) => {
                     patchItem(index, {
-                      mediaUrl: picked.publicUrl,
-                      mediaType: /\.(mp4|webm|mov)(\?|$)/i.test(picked.publicUrl)
+                      mediaUrl: next.url,
+                      mediaType: /\.(mp4|webm|mov)(\?|$)/i.test(next.url)
                         ? "video"
                         : "image",
-                      caption: item.caption ?? picked.alt ?? undefined,
+                      // Only a library pick brings an alt to adopt.
+                      ...(next.mediaId
+                        ? { caption: item.caption ?? next.alt ?? undefined }
+                        : {}),
                     });
                   }}
                 />

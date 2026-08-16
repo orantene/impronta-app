@@ -25,7 +25,8 @@ import {
   InspectorItemRow,
   InspectorRowDelete,
   VisualChipGroup,
-  MediaPickerButton,
+  MediaField,
+  toMediaValue,
   CtaDuoEditor,
   DraggableList,
   CategoryIconGlyph,
@@ -406,10 +407,10 @@ function CategoryRow({
           </div>
           <div className={KIT.field}>
             <label className={KIT.label}>{t("Image")}</label>
-            <MediaPickerButton
+            <MediaField
               tenantId={tenantId}
-              value={item.imageUrl}
-              onChange={(url) => onChange({ imageUrl: url ?? undefined })}
+              value={toMediaValue(item.imageUrl)}
+              onChange={(next) => onChange({ imageUrl: next?.url ?? undefined })}
               emptyLabel={t("Add tile image")}
               aspect="4/5"
             />

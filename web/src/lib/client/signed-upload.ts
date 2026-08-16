@@ -31,6 +31,7 @@ import {
   SVG_MIME,
   passthroughCompressed,
   putToSignedUrl,
+  uploadProgressReporter,
   safeJson,
   stringifyError,
   type CmsMediaItem,
@@ -112,7 +113,11 @@ export async function uploadTalentMedia(opts: {
     compression: compressed,
   });
 
-  const putOk = await putToSignedUrl(signed.data.uploadUrl, compressed.file);
+  const putOk = await putToSignedUrl(
+    signed.data.uploadUrl,
+    compressed.file,
+    uploadProgressReporter(opts.onProgress, compressed),
+  );
   if (!putOk.ok) {
     return { ok: false, fallbackToLegacy: true, error: putOk.error };
   }
@@ -203,7 +208,11 @@ export async function uploadTalentReel(opts: {
   }
 
   opts.onProgress?.({ phase: "uploading", bytesTotal: file.size });
-  const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+  const putOk = await putToSignedUrl(
+    signed.data.uploadUrl,
+    file,
+    uploadProgressReporter(opts.onProgress),
+  );
   if (!putOk.ok) {
     // A failed 100 MB PUT will not fare better as a 100 MB Server
     // Action body — surface the error instead of a doomed retry.
@@ -323,7 +332,11 @@ export async function uploadTalentDocumentSigned(opts: {
   }
 
   opts.onProgress?.({ phase: "uploading", bytesTotal: file.size });
-  const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+  const putOk = await putToSignedUrl(
+    signed.data.uploadUrl,
+    file,
+    uploadProgressReporter(opts.onProgress),
+  );
   if (!putOk.ok) {
     // Small documents may still fit through the legacy FormData action.
     return { ok: false, fallbackToLegacy: file.size < 4 * 1024 * 1024, error: putOk.error };
@@ -386,7 +399,11 @@ export async function uploadInquiryAttachmentSigned(opts: {
   }
 
   opts.onProgress?.({ phase: "uploading", bytesTotal: file.size });
-  const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
+  const putOk = await putToSignedUrl(
+    signed.data.uploadUrl,
+    file,
+    uploadProgressReporter(opts.onProgress),
+  );
   if (!putOk.ok) {
     // Small files may still fit through the legacy FormData action;
     // big ones won't, but the caller's fallback will say so honestly.
@@ -456,6 +473,8 @@ export async function uploadInquirySubmitAttachments(opts: {
       continue;
     }
 
+    // No per-byte reporter here on purpose: this lane's contract is
+    // `onFileDone(done, total)` (a serial file counter), not a byte bar.
     const putOk = await putToSignedUrl(signed.data.uploadUrl, file);
     if (!putOk.ok) {
       results.push({ filename: name, ok: false, error: putOk.error });
@@ -519,7 +538,11 @@ export async function uploadStagingMedia(opts: {
     compression: compressed,
   });
 
-  const putOk = await putToSignedUrl(signed.data.uploadUrl, compressed.file);
+  const putOk = await putToSignedUrl(
+    signed.data.uploadUrl,
+    compressed.file,
+    uploadProgressReporter(opts.onProgress, compressed),
+  );
   if (!putOk.ok) {
     return { ok: false, fallbackToLegacy: true, error: putOk.error };
   }
@@ -634,7 +657,11 @@ export async function uploadCmsMedia(opts: {
     bytesTotal: compressed.file.size,
     compression: compressed,
   });
-  const putOk = await putToSignedUrl(initBody.uploadUrl, compressed.file);
+  const putOk = await putToSignedUrl(
+    initBody.uploadUrl,
+    compressed.file,
+    uploadProgressReporter(opts.onProgress, compressed),
+  );
   if (!putOk.ok) {
     return { ok: false, fallbackToLegacy: true, error: putOk.error };
   }

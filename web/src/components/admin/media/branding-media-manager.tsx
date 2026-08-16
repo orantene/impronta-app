@@ -21,7 +21,11 @@ import {
   actionSetBrandImageRole,
   type BrandingMediaAsset,
 } from "@/lib/server-actions/admin-branding-media";
-import { uploadBrandingMedia } from "@/lib/client/signed-upload";
+import { useMediaUpload } from "@/lib/media/use-media-upload";
+import {
+  UploadProgressBar,
+  uploadPercent,
+} from "@/components/media/upload-progress-bar";
 import { PhotoCropperDialog } from "@/components/talent/photo-cropper-dialog";
 
 const C = {
@@ -31,13 +35,6 @@ const C = {
   red: "#B0303A",
 } as const;
 const F = '"Inter", system-ui, sans-serif';
-
-type UploadEntry = {
-  key: string;
-  name: string;
-  phase: "compressing" | "uploading" | "registering" | "error";
-  error?: string;
-};
 
 export function BrandingMediaManager({
   tt = (s) => s,
@@ -54,7 +51,6 @@ export function BrandingMediaManager({
   const [assets, setAssets] = useState<BrandingMediaAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [uploads, setUploads] = useState<UploadEntry[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [tileError, setTileError] = useState<{ id: string; message: string } | null>(null);
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
@@ -80,35 +76,34 @@ export function BrandingMediaManager({
 
   // ── Upload ──────────────────────────────────────────────────────────
 
+  /**
+   * The shared engine (media rebuild, seam 3). This was a serial `for` loop
+   * over `uploadBrandingMedia` with a bespoke `UploadEntry` status vocabulary
+   * — a third implementation of the same staging model. It now runs the same
+   * pool as the Media page and the picker drawer, and the in-flight rows
+   * finally show real byte progress instead of a phase word.
+   *
+   * Failed rows are DELIBERATELY kept in `uploader.items` until the user
+   * dismisses them (the reset below drops only the successful ones): a brand
+   * upload that failed silently is the "I saved and nothing changed" class.
+   */
+  const uploader = useMediaUpload({
+    purpose: { kind: "branding" },
+    onItemReady: (item) => {
+      const asset = item.registered as BrandingMediaAsset | undefined;
+      if (asset) setAssets((prev) => [asset, ...prev]);
+    },
+  });
+
   const handleFiles = useCallback(
     async (files: File[]) => {
       const images = files.filter((f) => f.type.startsWith("image/"));
       if (images.length === 0) return;
-      for (const file of images) {
-        const key = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        setUploads((prev) => [...prev, { key, name: file.name, phase: "compressing" }]);
-        const result = await uploadBrandingMedia({
-          file,
-          onProgress: (p) =>
-            setUploads((prev) =>
-              prev.map((u) => (u.key === key ? { ...u, phase: p.phase } : u)),
-            ),
-        });
-        if (result.ok) {
-          setUploads((prev) => prev.filter((u) => u.key !== key));
-          setAssets((prev) => [result.asset, ...prev]);
-        } else {
-          // Persist the failure at the row — never drop a failed entry
-          // silently.
-          setUploads((prev) =>
-            prev.map((u) =>
-              u.key === key ? { ...u, phase: "error", error: result.error } : u,
-            ),
-          );
-        }
-      }
+      const finished = await uploader.upload(images);
+      // Keep only what still needs the operator's attention on screen.
+      if (finished.every((it) => it.status === "ready")) uploader.reset();
     },
-    [],
+    [uploader],
   );
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,36 +204,49 @@ export function BrandingMediaManager({
         />
       </div>
 
-      {/* In-flight + failed uploads — persistent until resolved/dismissed. */}
-      {uploads.length > 0 && (
+      {/* In-flight + failed uploads — persistent until resolved/dismissed.
+          The percentage is real bytes now (see `putToSignedUrl`'s XHR path);
+          it used to be a phase word with no notion of progress at all. */}
+      {uploader.items.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
-          {uploads.map((u) => (
-            <div key={u.key} style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
-              borderRadius: 8, border: `1px solid ${u.phase === "error" ? "rgba(176,48,58,0.35)" : C.borderSoft}`,
-              background: u.phase === "error" ? "rgba(176,48,58,0.06)" : C.surfaceAlt,
-              fontFamily: F, fontSize: 11.5,
-            }}>
-              <span style={{ flexShrink: 0 }}>{u.phase === "error" ? "⚠" : "⏳"}</span>
-              <span className="text-admin-ink" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name}</span>
-              <span className="text-admin-ink-muted" style={{ marginLeft: "auto", flexShrink: 0 }}>
-                {u.phase === "compressing" && tt("Compressing…")}
-                {u.phase === "uploading" && tt("Uploading…")}
-                {u.phase === "registering" && tt("Saving…")}
-                {u.phase === "error" && (u.error ?? tt("Upload failed"))}
-              </span>
-              {u.phase === "error" && (
-                <button
-                  type="button"
-                  onClick={() => setUploads((prev) => prev.filter((x) => x.key !== u.key))}
-                  style={{ border: "none", background: "transparent", cursor: "pointer", fontFamily: F, fontSize: 11, fontWeight: 700 }}
-                  className="text-admin-ink-muted"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
+          {uploader.items.map((u) => {
+            const failed = u.status === "error";
+            const pct = uploadPercent(u.bytesSent, u.bytesTotal);
+            return (
+              <div key={u.id} style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
+                borderRadius: 8, border: `1px solid ${failed ? "rgba(176,48,58,0.35)" : C.borderSoft}`,
+                background: failed ? "rgba(176,48,58,0.06)" : C.surfaceAlt,
+                fontFamily: F, fontSize: 11.5,
+              }}>
+                <span style={{ flexShrink: 0 }}>{failed ? "⚠" : "⏳"}</span>
+                <span className="text-admin-ink" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.file.name}</span>
+                {!failed && u.status !== "ready" && (
+                  <span style={{ flex: "0 0 70px", marginLeft: "auto" }}>
+                    <UploadProgressBar bytesSent={u.bytesSent} bytesTotal={u.bytesTotal} />
+                  </span>
+                )}
+                <span className="text-admin-ink-muted" style={{ marginLeft: failed ? "auto" : 0, flexShrink: 0 }}>
+                  {u.status === "compressing" && tt("Compressing…")}
+                  {u.status === "uploading" &&
+                    (pct != null ? `${pct}%` : tt("Uploading…"))}
+                  {u.status === "registering" && tt("Saving…")}
+                  {u.status === "ready" && tt("Done")}
+                  {failed && (u.errorMsg ?? tt("Upload failed"))}
+                </span>
+                {failed && (
+                  <button
+                    type="button"
+                    onClick={() => uploader.reset()}
+                    style={{ border: "none", background: "transparent", cursor: "pointer", fontFamily: F, fontSize: 11, fontWeight: 700 }}
+                    className="text-admin-ink-muted"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -30,7 +30,14 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { PhotoCropperDialog } from "@/components/talent/photo-cropper-dialog";
 import { PhotoLightbox } from "@/components/media/photo-lightbox";
-import { uploadStagingMedia, uploadBrandingMedia } from "@/lib/client/signed-upload";
+import { UploadProgressBar } from "@/components/media/upload-progress-bar";
+import { uploadBrandingMedia } from "@/lib/client/signed-upload";
+import {
+  prepareUploadFiles,
+  summarizeUploadItems,
+  type PrepareRejection,
+} from "@/lib/media/media-upload-engine";
+import { useMediaUpload, type MediaUploadItem } from "@/lib/media/use-media-upload";
 import {
   actionCreateMediaFolder,
   actionRenameMediaFolder,
@@ -79,23 +86,56 @@ type ActiveView =
   | { kind: "releases" }
   | { kind: "analytics" };
 
-type StagingItem = {
-  id: string;
-  file: File;
-  blobUrl: string;
-  /** Lifecycle:
-   *    queued → compressing → uploading → ready
-   *  Compress + signed PUT happen in the browser, register hits the
-   *  server. The "compressing" phase is skipped silently for files
-   *  that can't be canvas-resized (animated GIF, SVG) — they fall
-   *  through to the legacy upload action automatically. */
-  status: "queued" | "compressing" | "uploading" | "ready" | "error";
-  storagePath?: string;
-  publicUrl?: string;
-  meta?: StagedMediaMeta;
-  errorMsg?: string;
-  talentId: string;
-};
+/**
+ * A file in the staging batch.
+ *
+ * The staging model, the concurrency-4 pool and the signed-then-legacy ladder
+ * used to be ~130 lines of `processFiles` right here — the best upload code in
+ * the repo, and reachable from exactly one surface. They moved to
+ * `lib/media/use-media-upload` (media rebuild, seam 3) so the picker drawer
+ * and the branding manager stop re-implementing worse versions of them. This
+ * page is a BEHAVIOURAL NO-OP under that move: its engine IS the hook.
+ *
+ * Only `talentId` is this page's own — the assign modal edits it per photo
+ * while bytes are still moving, which is why the hook carries surface state on
+ * the item instead of forcing a parallel map.
+ *
+ * Lifecycle: queued → compressing → uploading → registering → ready | error.
+ * Compress + signed PUT happen in the browser, register hits the server. The
+ * "compressing" phase is skipped silently for files that can't be
+ * canvas-resized (animated GIF, SVG) — they fall through to the legacy upload
+ * action automatically.
+ */
+type StagingItem = MediaUploadItem<{ talentId: string }>;
+
+/** `registered` is the hook's per-purpose payload; staging's is StagedMediaMeta. */
+function stagedMetaOf(item: StagingItem): StagedMediaMeta | undefined {
+  return item.registered as StagedMediaMeta | undefined;
+}
+
+/**
+ * Map an engine-level rejection onto this page's existing localized copy.
+ * The engine deliberately reports CODES, not strings: a shared module that
+ * hardcoded English would have taken the Spanish catalog away from every
+ * surface that adopts it.
+ */
+function rejectionMessage(
+  t: (key: string) => string,
+  r: PrepareRejection,
+): string {
+  switch (r.code) {
+    case "svg_skipped":
+      return withPluralization(t)("dashboard.adminMedia.errSvgSkipped", r.count);
+    case "zip_too_large":
+      return t("dashboard.adminMedia.errZipTooLarge");
+    case "zip_unreadable":
+      return t("dashboard.adminMedia.errCouldNotReadZip");
+    case "zip_truncated":
+      return interpolate(t("dashboard.adminMedia.errZipTruncated"), { cap: r.cap });
+    case "batch_too_large":
+      return t("dashboard.adminMedia.errMaxBatch");
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1138,9 +1178,13 @@ function UploadModal({
   onAssignTalentChange: (id: string) => void;
 }) {
   const t = useT();
-  const inFlight = stagingItems.filter((it) => it.status === "uploading" || it.status === "queued" || it.status === "compressing").length;
-  const ready = stagingItems.filter((it) => it.status === "ready").length;
-  const errors = stagingItems.filter((it) => it.status === "error").length;
+  // "registering" joined the vocabulary when the engine moved to the shared
+  // hook — it is in flight like the rest, and omitting it here would let the
+  // Save button arm while the last register call was still open.
+  const summary = summarizeUploadItems(stagingItems);
+  const inFlight = summary.inFlight;
+  const ready = summary.ready;
+  const errors = summary.errors;
 
   const fsel: CSSProperties = {
     fontFamily: FONTS.body, fontSize: 12, padding: "4px 9px",
@@ -1237,7 +1281,7 @@ function UploadModal({
                     <div style={{ position: "relative", aspectRatio: "1" }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.blobUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      {(item.status === "uploading" || item.status === "compressing") && (
+                      {(item.status === "uploading" || item.status === "compressing" || item.status === "registering") && (
                         <div style={{ position: "absolute", inset: 0, background: "rgba(11,11,13,0.4)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                           <div style={{ width: 18, height: 18, border: "2px solid rgba(255,255,255,0.35)", borderTopColor: "#fff", borderRadius: "50%" }} />
                           {item.status === "compressing" && (
@@ -1245,6 +1289,19 @@ function UploadModal({
                           )}
                         </div>
                       )}
+                      {/* Real byte progress. `bytesSent` existed as a declared
+                          field for months and was never written by anybody
+                          (fetch has no upload-progress event) — the signed PUT
+                          now rides XHR when a reporter is attached, so this
+                          bar tracks actual bytes instead of a spinner. */}
+                      {item.status === "uploading" && item.bytesTotal ? (
+                        <UploadProgressBar
+                          tone="overlay"
+                          bytesSent={item.bytesSent}
+                          bytesTotal={item.bytesTotal}
+                          className="absolute inset-x-1.5 bottom-1.5"
+                        />
+                      ) : null}
                       {item.status === "error" && (
                         <div style={{ position: "absolute", inset: 0, background: "rgba(192,57,43,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <div style={{ fontSize: 9, fontWeight: 700, color: "#fff" }}>ERR</div>
@@ -1638,7 +1695,19 @@ export function WorkspaceMediaPage() {
   const [brandUploadProgress, setBrandUploadProgress] =
     useState<{ done: number; total: number } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [stagingItems, setStagingItems] = useState<StagingItem[]>([]);
+  /**
+   * The shared upload engine (seam 3). Behavioural no-op vs the inline pool
+   * this page used to own: same concurrency 4, same signed-then-legacy ladder,
+   * same per-file status. What is new is that `bytesSent` is now written, so
+   * the tiles below can show a real progress bar.
+   */
+  const defaultTalentIdRef = useRef("");
+  const staging = useMediaUpload<{ talentId: string }>({
+    purpose: { kind: "talent-staging" },
+    allowZip: true,
+    makeExtra: () => ({ talentId: defaultTalentIdRef.current }),
+  });
+  const stagingItems = staging.items;
   const [stagingSelected, setStagingSelected] = useState<Set<string>>(new Set());
   const [stagingBulkTalentId, setStagingBulkTalentId] = useState("");
   const [assignMode, setAssignMode] = useState<"upload" | "reassign">("upload");
@@ -1911,58 +1980,16 @@ export function WorkspaceMediaPage() {
     purpose: UploadPurpose = "talent",
   ) => {
     setUploadError(null);
-    const rawFiles = Array.from(files);
-    const zips = rawFiles.filter((f) => f.name.toLowerCase().endsWith(".zip"));
-    // Reject SVG client-side too — server rejects, but failing here means
-    // the user gets one clear "not supported" message instead of N upload errors.
-    const isAllowedImage = (f: File) =>
-      f.type.startsWith("image/") &&
-      f.type !== "image/svg+xml" &&
-      !f.name.toLowerCase().endsWith(".svg");
-    let imageFiles = rawFiles.filter((f) => isAllowedImage(f) && !f.name.toLowerCase().endsWith(".zip"));
-    const blocked = rawFiles.filter((f) =>
-      !f.name.toLowerCase().endsWith(".zip")
-      && (f.type === "image/svg+xml" || f.name.toLowerCase().endsWith(".svg")),
-    );
-    if (blocked.length > 0) {
-      setUploadError(
-        withPluralization(t)("dashboard.adminMedia.errSvgSkipped", blocked.length),
-      );
-    }
 
-    if (zips.length > 0) {
-      const ZIP_IMAGE_CAP = 100;
-      try {
-        const JSZip = (await import("jszip")).default;
-        let anyTruncated = false;
-        for (const zip of zips) {
-          if (zip.size > 500 * 1024 * 1024) { setUploadError(t("dashboard.adminMedia.errZipTooLarge")); return; }
-          const z = await JSZip.loadAsync(zip);
-          // Allow common raster formats only. SVG deliberately excluded.
-          const IMAGE_EXTS = /\.(jpe?g|png|webp|gif|heic|avif)$/i;
-          const extracted: File[] = [];
-          let totalEligible = 0;
-          for (const [name, entry] of Object.entries(z.files)) {
-            if (entry.dir || !IMAGE_EXTS.test(name)) continue;
-            totalEligible += 1;
-            if (extracted.length >= ZIP_IMAGE_CAP) continue;
-            const blob = await entry.async("blob");
-            const mime = name.match(/\.png$/i) ? "image/png" : name.match(/\.webp$/i) ? "image/webp" : "image/jpeg";
-            extracted.push(new File([blob], name.split("/").pop() ?? name, { type: mime }));
-          }
-          if (totalEligible > ZIP_IMAGE_CAP) anyTruncated = true;
-          imageFiles = [...imageFiles, ...extracted];
-        }
-        if (anyTruncated) {
-          setUploadError(
-            interpolate(t("dashboard.adminMedia.errZipTruncated"), { cap: ZIP_IMAGE_CAP }),
-          );
-        }
-      } catch { setUploadError(t("dashboard.adminMedia.errCouldNotReadZip")); return; }
-    }
-
-    if (imageFiles.length === 0) return;
-    if (imageFiles.length > 200) { setUploadError(t("dashboard.adminMedia.errMaxBatch")); return; }
+    // Prepare runs HERE rather than inside `staging.upload()` because the two
+    // decisions below (brand lane vs talent lane, and the roster load that
+    // supplies the default talent) need the final file list first. Running it
+    // again inside the hook is a harmless no-op: the output contains no zips
+    // and no SVGs, so every rule is already satisfied.
+    const prepared = await prepareUploadFiles(files, { allowZip: true });
+    for (const r of prepared.rejections) setUploadError(rejectionMessage(t, r));
+    if (prepared.aborted || prepared.files.length === 0) return;
+    const imageFiles = prepared.files;
 
     // Brand & site lane — workspace-owned assets, no talent involved. Must
     // branch BEFORE the roster load below, which is the line that used to
@@ -1978,120 +2005,16 @@ export function WorkspaceMediaPage() {
     setAssignTalents(talents);
     const defaultTalentId = talents[0]?.id ?? "";
     setStagingBulkTalentId(defaultTalentId);
+    // Read by `makeExtra` on the very next line of work — a ref, not state,
+    // because React has not flushed `setStagingBulkTalentId` yet.
+    defaultTalentIdRef.current = defaultTalentId;
 
-    const items: StagingItem[] = imageFiles.map((file) => ({
-      id: Math.random().toString(36).slice(2),
-      file, blobUrl: URL.createObjectURL(file),
-      status: "queued" as const,
-      talentId: defaultTalentId,
-    }));
-    setStagingItems(items);
     setStagingSelected(new Set());
     setAssignMode("upload");
     setShowAssignModal(true);
 
-    const CONCURRENCY = 4;
-    let active = 0;
-    const queue = [...items];
-
-    // Worker for one file. Tries the signed-upload pipeline first
-    // (compress → PUT direct to Supabase → register). Falls back to
-    // the legacy FormData action if the new path can't run (no canvas
-    // API, signed PUT throws, etc.) — keeps the upload going on
-    // browsers / files where compression isn't available.
-    const runOne = async (item: StagingItem): Promise<void> => {
-      setStagingItems((prev) =>
-        prev.map((it) => (it.id === item.id ? { ...it, status: "compressing" } : it)),
-      );
-      const result = await uploadStagingMedia({
-        file: item.file,
-        onProgress: (p) => {
-          if (p.phase === "uploading") {
-            setStagingItems((prev) =>
-              prev.map((it) => (it.id === item.id ? { ...it, status: "uploading" } : it)),
-            );
-          }
-        },
-      });
-
-      if (result.ok) {
-        setStagingItems((prev) =>
-          prev.map((it) =>
-            it.id === item.id
-              ? {
-                  ...it,
-                  status: "ready",
-                  storagePath: result.storagePath,
-                  publicUrl: result.publicUrl,
-                  meta: result.meta,
-                }
-              : it,
-          ),
-        );
-        return;
-      }
-
-      if (!result.fallbackToLegacy) {
-        // Auth / config failures — surface verbatim.
-        setStagingItems((prev) =>
-          prev.map((it) =>
-            it.id === item.id ? { ...it, status: "error", errorMsg: result.error } : it,
-          ),
-        );
-        return;
-      }
-
-      // Legacy fallback — server-side sharp picks up the slack for
-      // files the browser can't (or won't) compress.
-      setStagingItems((prev) =>
-        prev.map((it) => (it.id === item.id ? { ...it, status: "uploading" } : it)),
-      );
-      const fd = new FormData();
-      fd.append("file", item.file);
-      try {
-        const legacy = await actionUploadToStagingStorage(fd);
-        setStagingItems((prev) =>
-          prev.map((it) =>
-            it.id === item.id
-              ? legacy.ok
-                ? {
-                    ...it,
-                    status: "ready",
-                    storagePath: legacy.data.storagePath,
-                    publicUrl: legacy.data.publicUrl,
-                    meta: legacy.data.meta,
-                  }
-                : { ...it, status: "error", errorMsg: legacy.error }
-              : it,
-          ),
-        );
-      } catch {
-        setStagingItems((prev) =>
-          prev.map((it) =>
-            it.id === item.id ? { ...it, status: "error", errorMsg: t("dashboard.adminMedia.errUploadFailed") } : it,
-          ),
-        );
-      }
-    };
-
-    await new Promise<void>((resolve) => {
-      const tryNext = () => {
-        if (queue.length === 0 && active === 0) {
-          resolve();
-          return;
-        }
-        while (active < CONCURRENCY && queue.length > 0) {
-          const item = queue.shift()!;
-          active++;
-          runOne(item).finally(() => {
-            active--;
-            tryNext();
-          });
-        }
-      };
-      tryNext();
-    });
-  }, [t, uploadBrandFiles]);
+    await staging.upload(imageFiles);
+  }, [t, uploadBrandFiles, staging]);
 
   const confirmStaging = async () => {
     const ready = stagingItems.filter((it) => it.status === "ready" && it.storagePath);
@@ -2100,20 +2023,17 @@ export function WorkspaceMediaPage() {
     const assignments = ready.map((it) => ({
       storagePath: it.storagePath!,
       talentProfileId: it.talentId,
-      meta: it.meta,
+      meta: stagedMetaOf(it),
     }));
     const res = await actionBulkAssignStagedMedia(assignments);
     setAssignBusy(false);
     if (!res.ok) { setUploadError(res.error); return; }
-    stagingItems.forEach((it) => URL.revokeObjectURL(it.blobUrl));
-    setStagingItems([]);
+    staging.reset();
     setShowAssignModal(false);
     queueRouterRefresh();
   };
 
   const cancelStaging = () => {
-    // Free the local blob URLs first so the dialog tears down immediately.
-    stagingItems.forEach((it) => URL.revokeObjectURL(it.blobUrl));
     // Fire-and-forget storage cleanup so the user isn't kept waiting.
     const orphaned = stagingItems
       .filter((it) => it.status === "ready" && it.storagePath)
@@ -2121,7 +2041,8 @@ export function WorkspaceMediaPage() {
     if (orphaned.length > 0) {
       void actionCleanupStagedObjects(orphaned);
     }
-    setStagingItems([]);
+    // `reset` frees the local blob URLs, so the dialog tears down immediately.
+    staging.reset();
     setShowAssignModal(false);
   };
 
@@ -2920,8 +2841,12 @@ export function WorkspaceMediaPage() {
           onClearSel={() => setStagingSelected(new Set())}
           onToggleItem={(id) => setStagingSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
           onBulkTalentChange={(id) => setStagingBulkTalentId(id)}
-          onBulkAssign={() => setStagingItems((prev) => prev.map((it) => stagingSelected.has(it.id) ? { ...it, talentId: stagingBulkTalentId } : it))}
-          onItemTalentChange={(itemId, talentId) => setStagingItems((prev) => prev.map((it) => it.id === itemId ? { ...it, talentId } : it))}
+          onBulkAssign={() => {
+            for (const it of stagingItems) {
+              if (stagingSelected.has(it.id)) staging.patch(it.id, { talentId: stagingBulkTalentId });
+            }
+          }}
+          onItemTalentChange={(itemId, talentId) => staging.patch(itemId, { talentId })}
           onConfirm={() => void confirmStaging()}
           onCancel={cancelStaging}
           onReassign={() => void runReassign()}

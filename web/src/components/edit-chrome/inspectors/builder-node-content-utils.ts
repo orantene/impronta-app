@@ -85,9 +85,9 @@ export function resolveStandaloneBuilderNodeForContent(
 
 /**
  * D3 fix — the value to patch onto a required media `src` field
- * (image/video nodes) when `MediaPickerButton`'s Clear affordance fires.
+ * (image/video nodes) when `MediaField`'s Clear affordance fires.
  *
- * `MediaPickerButton.onChange` is called with `null` on Clear and a string
+ * `MediaField.onChange` is called with `null` on Clear and a value
  * URL on pick/paste. The old guard at every one of these call sites was
  * `if (!next) return;`, which silently swallowed the `null` case — Clear
  * rendered (or, for the `row` variant, didn't even render) but never did

@@ -19,7 +19,8 @@ import {
   InspectorSection,
   InspectorBody,
   KIT,
-  MediaPickerButton,
+  MediaField,
+  toMediaValue,
   type CtaShape,
 } from "./kit";
 
@@ -282,13 +283,13 @@ export function HeroContentInspector({
       />
 
       <InspectorSection title={t("Right Image")}>
-        <MediaPickerButton
+        <MediaField
           tenantId={tenantId}
-          value={backdropUrl}
-          onChange={patchBackdrop}
+          value={toMediaValue(backdropUrl)}
+          onChange={(next) => patchBackdrop(next?.url ?? null)}
           emptyLabel={t("Add hero image")}
           aspect="16/9"
-          variant="row"
+          layout="row"
         />
       </InspectorSection>
 
