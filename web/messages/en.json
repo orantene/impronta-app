@@ -10836,6 +10836,15 @@
       },
       "failedBadge": "Failed"
     },
+    "talentNotifications": {
+      "markAllRead": "Mark all read",
+      "marking": "Marking…",
+      "allMarkedRead": "All notifications marked as read.",
+      "markAllFailed": "Could not mark everything read. Try again.",
+      "empty": "All clear. No notifications right now.",
+      "emptyArchive": "Nothing archived yet. Updates you dismiss land here.",
+      "demoNotice": "Demo data. Your own notifications appear here on the talent surface."
+    },
     "talentHubFace": {
       "title": "Photos on this site",
       "body": "Pick which photos represent this talent on your site, and set the cover. This is your workspace's own selection: it points at photos, it never copies them, and it does not change how this talent looks on any other site.",

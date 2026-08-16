@@ -11,6 +11,7 @@ import {
   loadTalentAgencies,
   loadTalentRepresentation,
 } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
+import { loadTalentSurfaceNotifications } from "@/app/(workspace)/[tenantSlug]/_data-bridge/notifications";
 import { loadTalentCalendarEntries } from "@/components/admin/shell/internal/data-bridge";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
@@ -140,6 +141,7 @@ export default async function PlatformTalentLayout({
     profileEditorLayout,
     clientFieldSource,
     localeSettings,
+    userNotifications,
   ] = await Promise.all([
     loadTalentInquiriesAllAgencies(baseProfile.id),
     loadTalentAgencies(talentSelfProfile.id),
@@ -168,6 +170,12 @@ export default async function PlatformTalentLayout({
     // For independent talent (no active agency, tenantId null) the loader
     // returns the single-locale platform fallback, so the toggle hides.
     loadTenantLocaleSettings(tenantId ?? ""),
+    // Talent-surface notifications (`user_notifications`, surface='talent').
+    // Cross-agency on purpose — see the loader's comment. Without this the
+    // shell's `bridgeUserNotifications` stayed null on the whole talent
+    // surface and the notifications drawer had nothing but mock rows to
+    // render. Returns [] on any failure, so it never breaks the layout.
+    loadTalentSurfaceNotifications(),
   ]);
 
   // Platform currency policy: unless a super-admin has turned multi-currency
@@ -236,6 +244,7 @@ export default async function PlatformTalentLayout({
         talentChecklistDismissed: userPrefsRaw?.talentChecklistDismissed ?? false,
         talentCalendarEntries,
         talentEarnings: displayEarnings,
+        userNotifications,
         profileEditorLayout,
         clientFieldSource,
         localeSettings: {

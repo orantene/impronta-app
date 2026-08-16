@@ -138,6 +138,7 @@ export { type CalendarEvent, loadCalendarEvents } from "./_data-bridge/calendar"
 export {
   type UserNotification,
   loadUserNotifications,
+  loadTalentSurfaceNotifications,
 } from "./_data-bridge/notifications";
 
 // ─── Talent calendar — B.3 (talent_bookings + holds + availability_blocks)
