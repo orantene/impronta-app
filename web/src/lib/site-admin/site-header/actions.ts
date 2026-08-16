@@ -49,11 +49,35 @@ import {
 } from "@/lib/site-admin";
 import { saveSectionDraftAction } from "@/lib/site-admin/edit-mode/section-actions";
 import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
+import {
+  HEADER_REGIONS_PLAN_DENIED_REASON,
+  isHeaderRegionsEditAllowedForPlan,
+} from "@/lib/site-admin/edit-mode/shell-plan-guard";
+import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities";
+import { siteHeaderSchemaV1 } from "@/lib/site-admin/sections/site_header/schema";
 import type { Locale } from "@/i18n/config";
 import type {
+  HeaderRegions,
   SiteHeaderConfig,
   SiteHeaderNavItemInput,
 } from "./types";
+import { pickShellPageForLocale } from "./shell-page-pick";
+
+/**
+ * WF-6 — read a stored `regions` blob back through the SECTION schema.
+ *
+ * Anything that does not parse (absent, legacy shape, hand-edited JSON) comes
+ * back as `null`, which the inspector reads as "still on the preset layout".
+ * Casting instead would hand the editor a half-shape whose reorder maths would
+ * then write the corruption back out.
+ */
+function parseStoredRegions(value: unknown): HeaderRegions | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = siteHeaderSchemaV1
+    .pick({ regions: true })
+    .safeParse({ regions: value });
+  return parsed.success ? (parsed.data.regions ?? null) : null;
+}
 
 // ── Result envelope ────────────────────────────────────────────────────
 type ActionResult<T> =
@@ -80,17 +104,39 @@ interface HeaderSectionFacts {
   props: Record<string, unknown>;
 }
 
+/** The tenant's primary content locale, or "en" when identity is unset. */
+async function resolveTenantDefaultLocale(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string> {
+  const { data } = await supabase
+    .from("agency_business_identity")
+    .select("default_locale")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ default_locale: string | null }>();
+  return data?.default_locale ?? "en";
+}
+
 async function resolveHeaderSection(
   supabase: SupabaseClient,
   tenantId: string,
+  preferredLocale?: string | null,
 ): Promise<HeaderSectionFacts | null> {
-  const { data: shell } = await supabase
+  // 2026-08-16 — this used `.maybeSingle()`, which is an ERROR (not a pick)
+  // the moment a tenant has a shell page per locale. Every section-level
+  // header control silently rendered its empty state on bilingual tenants,
+  // impronta included. See `shell-page-pick.ts` for the rule and its test.
+  const { data: shells } = await supabase
     .from("cms_pages")
     .select("id, locale")
     .eq("tenant_id", tenantId)
     .eq("system_template_key", "site_shell")
     .neq("status", "archived")
-    .maybeSingle<{ id: string; locale: string | null }>();
+    .returns<Array<{ id: string; locale: string | null }>>();
+  const shell = pickShellPageForLocale(
+    shells ?? [],
+    preferredLocale ?? (await resolveTenantDefaultLocale(supabase, tenantId)),
+  );
   if (!shell) return null;
 
   let { data: ptr } = await supabase
@@ -196,11 +242,35 @@ export async function saveHeaderSectionAction(input: {
   variant?: string;
   brandDisplay?: string;
   density?: HeaderSectionDensity | null;
+  /**
+   * WF-6 — the freeform zone layout. `null` clears it (back to the variant's
+   * preset layout); omitted leaves whatever is stored untouched, so the Layout
+   * tab's variant/density saves cannot wipe a composed layout.
+   */
+  regions?: HeaderRegions | null;
 }): Promise<ActionResult<{ version: number }>> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No tenant in scope." };
+
+  // WF-6 — PLAN GATE, enforced here and not only in the drawer. The UI lock is
+  // an affordance; this is the rule. Any `regions` write (including clearing
+  // it) from a Free workspace is refused before anything is persisted.
+  if (input.regions !== undefined) {
+    const planTier = await loadBuilderWorkspacePlan(
+      auth.supabase,
+      scope.tenantId,
+      { logTag: "save-header-regions" },
+    );
+    if (!isHeaderRegionsEditAllowedForPlan(planTier)) {
+      return {
+        ok: false,
+        error: HEADER_REGIONS_PLAN_DENIED_REASON,
+        code: "PLAN_LOCKED",
+      };
+    }
+  }
 
   const f = await resolveHeaderSection(auth.supabase, scope.tenantId);
   if (!f) {
@@ -232,6 +302,10 @@ export async function saveHeaderSectionAction(input: {
       if (Object.keys(d).length === 0) delete nextProps.density;
       else nextProps.density = d;
     }
+  }
+  if (input.regions !== undefined) {
+    if (input.regions === null) delete nextProps.regions;
+    else nextProps.regions = input.regions;
   }
 
   const res = await saveSectionDraftAction({
@@ -328,11 +402,16 @@ export async function loadHeaderConfigAction(): Promise<
 
   // Phase 6B — also resolve the site_header SECTION props (variant +
   // density) so the Layout tab can edit what the renderer actually reads.
-  const headerSection = await resolveHeaderSection(auth.supabase, scope.tenantId);
+  const headerSection = await resolveHeaderSection(
+    auth.supabase,
+    scope.tenantId,
+    defaultLocale,
+  );
   const sectionProps = (headerSection?.props ?? {}) as {
     variant?: unknown;
     brandDisplay?: unknown;
     density?: unknown;
+    regions?: unknown;
   };
   const sectionCfg: SiteHeaderConfig["section"] = headerSection
     ? {
@@ -350,13 +429,24 @@ export async function loadHeaderConfigAction(): Promise<
           sectionProps.density && typeof sectionProps.density === "object"
             ? (sectionProps.density as HeaderSectionDensity)
             : null,
+        // WF-6 — parse through the SECTION schema rather than casting, so a
+        // hand-edited or partially-migrated props blob can never hand the
+        // inspector a shape its reorder maths would then corrupt.
+        regions: parseStoredRegions(sectionProps.regions),
       }
     : null;
+
+  // WF-6 — the same predicate the save action enforces, resolved once here so
+  // the drawer can render the locked state without a second round trip.
+  const planTier = await loadBuilderWorkspacePlan(auth.supabase, scope.tenantId, {
+    logTag: "site-header-inspector",
+  });
 
   return {
     ok: true,
     config: {
       section: sectionCfg,
+      canEditRegions: isHeaderRegionsEditAllowedForPlan(planTier),
       identity: {
         publicName: identity?.public_name ?? "",
         tagline: identity?.tagline ?? null,

@@ -9,6 +9,10 @@
  * doesn't have to know which field lives where.
  */
 
+import type { HeaderRegions } from "@/lib/site-admin/sections/site_header/regions-editing";
+
+export type { HeaderRegions };
+
 export interface SiteHeaderConfig {
   /** From agency_business_identity. */
   identity: {
@@ -83,7 +87,20 @@ export interface SiteHeaderConfig {
       verticalPadding?: string | null;
       mobileMenuStyle?: string | null;
     } | null;
+    /**
+     * WF-6 — the freeform zone layout the renderer reads when set (left /
+     * center / right item lists). `null` means the tenant is still on their
+     * variant's preset layout, which is what the Regions tab's empty state
+     * offers to seed from.
+     */
+    regions: HeaderRegions | null;
   } | null;
+  /**
+   * WF-6 — may this workspace's plan compose the header layout? Resolved
+   * server-side from `plan_tier` so the inspector's lock and the save
+   * action's refusal are the same decision, not two guesses.
+   */
+  canEditRegions: boolean;
 }
 
 /** Item shape the inspector sends back to the bulk save action. */
