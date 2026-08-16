@@ -183,7 +183,7 @@
     "cleanup:orphan-media": "tsx --env-file=.env.local scripts/cleanup-orphan-media-rows.ts",
     "test:directory-cards": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/components/home/default-storefront-links.static.test.ts src/lib/directory/caption-norms.test.ts src/lib/directory/demand-score.test.ts src/lib/directory/headline-price.test.ts src/lib/directory/pricing-defaults-shape.test.ts src/lib/fields/height-plausibility.test.ts src/components/directory/discovery-state-sync.test.ts 'src/app/t/[profileCode]/_chat/use-launcher-scroll-collapse.test.ts'",
     "check:taxonomy": "node --env-file=.env.local scripts/check-taxonomy-consistency.mjs",
-    "test:taxonomy-guard": "node scripts/check-taxonomy-consistency.mjs --selftest"
+    "test:taxonomy-guard": "node scripts/check-taxonomy-consistency.mjs --selftest && tsx --test src/lib/talent/skill-term-validation.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireTalentSelfAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { invalidSkillTerms } from "@/lib/talent/skill-term-validation";
 import {
   MAX_TOTAL_SKILLS,
   type ResolvedSkill,
@@ -148,16 +149,8 @@ export async function setTalentProfileSkillsAsTalent(
       .in("id", desiredIds);
     if (error) return { ok: false, error: "Couldn't validate selected services." };
     const byId = new Map((terms ?? []).map((t) => [t.id, t]));
-    for (const id of desiredIds) {
-      const t = byId.get(id);
-      if (!t || t.term_type !== "talent_type") {
-        return { ok: false, error: "Some selected services are no longer available." };
-      }
-      // Already on the profile → keep it, whatever the catalog says today.
-      if (currentByTerm.has(id)) continue;
-      if (!t.is_active || t.is_generic_fallback) {
-        return { ok: false, error: "Some selected services are no longer available." };
-      }
+    if (invalidSkillTerms(desiredIds, byId, new Set(currentByTerm.keys())).length > 0) {
+      return { ok: false, error: "Some selected services are no longer available." };
     }
   }
   const relOf = (role: "primary" | "secondary") => role === "primary" ? "primary_role" : "secondary_role";

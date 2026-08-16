@@ -21,6 +21,7 @@ import { z } from "zod";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
+import { invalidSkillTerms } from "@/lib/talent/skill-term-validation";
 import {
   MAX_TOTAL_SKILLS,
   type ResolvedSkill,
@@ -420,17 +421,7 @@ export async function setTalentProfileSkills(
       };
     }
     const byId = new Map((terms ?? []).map((t) => [t.id, t]));
-    const invalid: string[] = [];
-    for (const id of desiredIds) {
-      const t = byId.get(id);
-      if (!t || t.term_type !== "talent_type") {
-        invalid.push(t?.slug ?? id);
-        continue;
-      }
-      // Already on the profile → keep it, whatever the catalog says today.
-      if (currentByTerm.has(id)) continue;
-      if (!t.is_active || t.is_generic_fallback) invalid.push(t.slug);
-    }
+    const invalid = invalidSkillTerms(desiredIds, byId, new Set(currentByTerm.keys()));
     if (invalid.length > 0) {
       void improntaLog("admin_talent_skills.warn", {
         message: `${LOG} FAIL invalid-terms talent=${tpid} invalid=${invalid.join(",")}`,
