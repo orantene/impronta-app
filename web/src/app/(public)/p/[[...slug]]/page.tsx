@@ -9,6 +9,7 @@ import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { slugPathFromParams } from "@/lib/cms/paths";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
@@ -30,6 +31,8 @@ import { StorefrontBodyCanvas } from "@/components/edit-chrome/storefront-body-c
 import { StorefrontBodyServerMarker } from "@/components/edit-chrome/storefront-body-server-marker";
 import { isPreviewActiveForTenant } from "@/lib/site-admin/server/homepage-reads";
 import { userHasCapability } from "@/lib/access";
+import { shouldRouteSiteShellSurface } from "@/lib/site-admin/site-shell-flag";
+import { SITE_SHELL_EDITOR_SLUG } from "@/lib/admin/website-editor-links";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import {
   jsonLdDocumentToScript,
@@ -189,6 +192,58 @@ export default async function CmsPublicPage({
 
   const publicScope = await getPublicTenantScope();
   if (!publicScope) notFound();
+
+  // ── Lane 2 — the SITE SHELL editing surface ──────────────────────────────
+  //
+  // `edit-path.ts` already resolves `/p/__site_shell__` to ownership kind
+  // `site_shell`, and `edit-chrome-mount.tsx` already mounts the editor for it
+  // once ENABLE_SITE_SHELL_EDIT is on. What was missing is a BODY: every branch
+  // below excludes system-owned rows, so the surface 404'd and flipping the flag
+  // mounted the edit chrome over a not-found page (the failure this route's own
+  // comments describe, where the canvas ends up painted below the 404 footer).
+  //
+  // The body is deliberately minimal: the self-gating <PublicHeader> and
+  // <PublicFooter> ARE the shell being edited (on a shell-enabled tenant they
+  // render the snapshot shell), with a representative spacer between them
+  // standing in for page content. That gives the operator the real header and
+  // footer to select, with nothing else on the canvas to confuse the selection.
+  //
+  // TWO GATES, both required, so this is NOT a public surface:
+  //   1. the ENABLE_SITE_SHELL_EDIT flag (off by default), and
+  //   2. staff edit capability on this tenant.
+  // A visitor — or staff of another tenant — falls through to the normal
+  // slug lookup, which does not resolve `__site_shell__` and 404s as before.
+  if (slugPath === SITE_SHELL_EDITOR_SLUG) {
+    const shellSurfaceAllowed =
+      shouldRouteSiteShellSurface(publicScope.tenantId) &&
+      (await userHasCapability(
+        "agency.site_admin.pages.edit",
+        publicScope.tenantId,
+      ));
+    if (!shellSurfaceAllowed) notFound();
+    const tShell = createTranslator(locale);
+    return (
+      <>
+        <SkipToContent />
+        <PublicHeader />
+        <main
+          id="main-content"
+          className="w-full flex-1"
+          data-site-shell-surface-body=""
+        >
+          <div className="mx-auto flex min-h-[45vh] max-w-3xl flex-col items-center justify-center gap-2 px-6 py-24 text-center">
+            <p className="text-sm font-medium text-foreground">
+              {tShell("public.siteShellSurface.title")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {tShell("public.siteShellSurface.body")}
+            </p>
+          </div>
+        </main>
+        <PublicFooter />
+      </>
+    );
+  }
 
   // P4-SEO — one structured-data read shared by every render branch below.
   const jsonLdScript = await loadPageJsonLdScript(

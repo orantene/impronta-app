@@ -77,6 +77,12 @@ export function buildSlimShellSectionNode(input: {
   slotKey: ShellSlotKey;
   children?: BuilderNodeTree;
   label?: string | null;
+  /**
+   * The snapshot slot's `sectionId`. REQUIRED for the node to be addressable —
+   * see the ADDRESSABILITY note above. Omitted only when no slot exists yet
+   * (a synthesized empty landmark on a partial tree).
+   */
+  sectionId?: string | null;
 }): BuilderSectionNode {
   const sectionTypeKey =
     input.slotKey === "header" ? "site_header" : "site_footer";
@@ -84,6 +90,14 @@ export function buildSlimShellSectionNode(input: {
     id: input.id,
     kind: "section",
     props: {
+      // ADDRESSABILITY (F-slim) — `builderSectionNodeAddressKey` returns NULL
+      // when `sectionId` is absent, and `PublishedShell` looks the landmark up
+      // by that key. A landmark minted without `sectionId` therefore binds to
+      // nothing: its freeform children silently stop rendering on the published
+      // site. This helper is reached from the LIVE super-admin
+      // `applyShellTemplateToTenant` write path, so dropping the id here is a
+      // real content-loss bug, not a dormant one. Always carry it through.
+      ...(input.sectionId ? { sectionId: input.sectionId } : {}),
       sectionTypeKey,
       slotKey: input.slotKey,
       sortOrder: input.slotKey === "header" ? 0 : 1,
@@ -118,6 +132,10 @@ export function slimShellTree(tree: BuilderNodeTree): BuilderSectionNode[] {
         slotKey,
         children: node.children ?? [],
         label: node.props.label ?? null,
+        // Carry the incoming landmark's slot address through the slim reshape;
+        // dropping it un-addresses the landmark (see buildSlimShellSectionNode).
+        sectionId:
+          typeof node.props.sectionId === "string" ? node.props.sectionId : null,
       }),
     );
   }

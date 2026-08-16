@@ -21,6 +21,7 @@ import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
 import { ConfigStatusRow, formatShortDate, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
 import { PageHeader } from "./pages-shared";
+import { useSiteShellEditorUrl } from "./use-site-shell-editor-url";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -252,6 +253,15 @@ export function WebsitePage() {
     window.open(siteDesignUrl, "_blank", "noopener,noreferrer");
   }, [siteDesignUrl]);
 
+  // Lane 2 — entry point for the SITE SHELL surface (global header + footer).
+  // Null unless the server confirms the surface is reachable for this caller,
+  // so the button is never rendered as a link to a 404. See the hook.
+  const siteShellUrl = useSiteShellEditorUrl();
+  const openSiteShell = useCallback(() => {
+    if (!siteShellUrl) return;
+    window.open(siteShellUrl, "_blank", "noopener,noreferrer");
+  }, [siteShellUrl]);
+
   const openPageVisualEditor = useCallback(
     (page: WebsitePageRow) => {
       if (!editorBaseUrl) {
@@ -434,6 +444,16 @@ export function WebsitePage() {
                 <Icon name="sparkle" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.siteDesign")}
               </span>
             </SecondaryButton>
+            {/* Site header & footer — the global shell shared by every page.
+                Rendered ONLY when the server says the surface is reachable
+                (edit flag on + capability), so it is never a link to a 404. */}
+            {siteShellUrl ? (
+              <SecondaryButton size="sm" onClick={openSiteShell}>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon name="pencil" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.siteShell")}
+                </span>
+              </SecondaryButton>
+            ) : null}
             {websiteUsesLiveCms && canEdit ? (
               <PrimaryButton
                 size="sm"
