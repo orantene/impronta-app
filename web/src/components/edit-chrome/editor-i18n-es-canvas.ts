@@ -329,17 +329,11 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Type to search blocks…": "Escribe para buscar bloques…",
   "Search blocks to insert": "Buscar bloques para insertar",
   // ── Quick-style popover (selection toolbar, 2026-08-15) ───────────────
+  // Fill / Shadow / Default / Sharp / Pill already live in
+  // editor-i18n-es-inspectors.ts (the popover reuses the inspector's shared
+  // Segmented option lists); only the popover-specific strings are new.
   "Quick styles": "Estilos rápidos",
-  "Fill": "Relleno",
   "Padding": "Espaciado interior",
   "Corners": "Esquinas",
-  "Shadow": "Sombra",
   "Locked by admin": "Bloqueado por el administrador",
-  // Segmented option labels the popover reuses from the inspector's shared
-  // option lists (style-options.ts). They translate at the Segmented boundary
-  // (dynamic t()), so they are additions the parity guard cannot demand but
-  // the ES render needs.
-  "Default": "Predeterminado",
-  "Sharp": "Recto",
-  "Pill": "Píldora",
 };
