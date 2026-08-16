@@ -22,6 +22,8 @@
  * identically to body sections.
  */
 
+import { Fragment } from "react";
+
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { improntaLog } from "@/lib/server/structured-log";
 import { loadPublishedShell } from "@/lib/site-admin/server/shell-reads";
@@ -41,6 +43,14 @@ import {
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
+import {
+  collectShellSideFreeformNodes,
+  isShellLandmarkNode,
+  prepareShellTree,
+  resolveShellSidePlan,
+  type ShellSideKey,
+} from "@/lib/site-admin/builder-node/shell-render-plan";
+import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
@@ -112,30 +122,11 @@ export async function PublishedShellHeader({
   locale: Locale;
   includeBuilderNodeRendererStyles?: boolean;
 }) {
-  if (!isSiteShellEnabledForTenant(tenantId)) return null;
-  const shell = await loadPublishedShell(tenantId, locale);
-  if (!shell) return null;
-  const slot = shell.snapshot.slots.find((s) => s.slotKey === "header");
-  if (!slot) return null;
-  const builderTree = resolveSnapshotBuilderTree(shell.snapshot).tree;
-  const builderSectionNodeIds = indexBuilderSectionNodeIds(
-    builderTree,
-  );
-  const builderSectionNodes = indexBuilderSectionNodes(
-    builderTree,
-  );
-  const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
-    builderTree,
-  );
-  return renderShellSlot(
-    slot,
+  return renderPublishedShellSide("header", {
     tenantId,
     locale,
-    builderSectionNodeIds,
-    builderSectionNodes,
-    builderSectionChildNodeIds,
-    { includeBuilderNodeRendererStyles },
-  );
+    includeBuilderNodeRendererStyles,
+  });
 }
 
 /**
@@ -151,30 +142,76 @@ export async function PublishedShellFooter({
   locale: Locale;
   includeBuilderNodeRendererStyles?: boolean;
 }) {
+  return renderPublishedShellSide("footer", {
+    tenantId,
+    locale,
+    includeBuilderNodeRendererStyles,
+  });
+}
+
+/**
+ * F3 — the one entry point both sides share.
+ *
+ * The decision of WHAT to render is delegated wholesale to the pure
+ * `resolveShellSidePlan` (see `builder-node/shell-render-plan.ts` for the full
+ * rationale and the fallback ladder). This function only executes the plan:
+ *
+ *   - `legacy_slot` → the pre-existing `renderShellSlot` call, with the same
+ *     slot object and the same indexes built off the same (untouched) tree.
+ *     Every tenant live on the shell today lands here, so their markup is
+ *     byte-identical by construction rather than by careful re-derivation.
+ *   - `freeform`    → render the side's tree roots directly, INCLUDING
+ *     root-level nodes an operator added that no slot addresses. Those roots
+ *     were silently dropped before; that was F3.
+ */
+async function renderPublishedShellSide(
+  side: ShellSideKey,
+  {
+    tenantId,
+    locale,
+    includeBuilderNodeRendererStyles,
+  }: {
+    tenantId: string;
+    locale: Locale;
+    includeBuilderNodeRendererStyles: boolean;
+  },
+): Promise<React.ReactNode> {
   if (!isSiteShellEnabledForTenant(tenantId)) return null;
   const shell = await loadPublishedShell(tenantId, locale);
   if (!shell) return null;
-  const slot = shell.snapshot.slots.find((s) => s.slotKey === "footer");
-  if (!slot) return null;
-  const builderTree = resolveSnapshotBuilderTree(shell.snapshot).tree;
-  const builderSectionNodeIds = indexBuilderSectionNodeIds(
-    builderTree,
+  const slots = shell.snapshot.slots ?? [];
+  const prepared = prepareShellTree(
+    resolveSnapshotBuilderTree(shell.snapshot).tree,
+    slots,
   );
-  const builderSectionNodes = indexBuilderSectionNodes(
-    builderTree,
-  );
-  const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(
-    builderTree,
-  );
-  return renderShellSlot(
-    slot,
+  const plan = resolveShellSidePlan({ tree: prepared.tree, slots, side });
+  if (plan.mode === "none") return null;
+
+  if (plan.mode === "legacy_slot") {
+    const builderTree = prepared.tree;
+    const builderSectionNodeIds = indexBuilderSectionNodeIds(builderTree);
+    const builderSectionNodes = indexBuilderSectionNodes(builderTree);
+    const builderSectionChildNodeIds =
+      indexBuilderSectionChildNodeIds(builderTree);
+    return renderShellSlot(
+      plan.slot,
+      tenantId,
+      locale,
+      builderSectionNodeIds,
+      builderSectionNodes,
+      builderSectionChildNodeIds,
+      { includeBuilderNodeRendererStyles },
+    );
+  }
+
+  return renderFreeformShellSide({
+    nodes: plan.nodes,
+    tree: prepared.tree,
+    slots,
     tenantId,
     locale,
-    builderSectionNodeIds,
-    builderSectionNodes,
-    builderSectionChildNodeIds,
-    { includeBuilderNodeRendererStyles },
-  );
+    includeBuilderNodeRendererStyles,
+  });
 }
 
 /**
@@ -402,6 +439,263 @@ async function renderShellSlot(
             }),
           })
         : null}
+    </div>
+  );
+}
+
+/**
+ * F3 — render ONE side of a FREEFORM-authored shell tree, directly.
+ *
+ * This is the agency-scoped port of `render-max-site.tsx`'s `renderShellRoot`:
+ * walk the side's roots in order; a `site_header` / `site_footer` LANDMARK
+ * renders through its bespoke section component followed by its freeform
+ * children (the freeform renderer returns null for `kind: "section"`), and
+ * every other root renders through `renderBuilderNodes`. Root-level operator
+ * content therefore reaches the live page instead of being dropped for want of
+ * a slot address — that was F3.
+ *
+ * Everything the slot path does for its children — media assets, user + nav
+ * collection sources, live component instances, conditional visibility, scoped
+ * renderer CSS, section-embed rendering, edit-canvas selection markers — is
+ * done here too, over the UNION of every freeform node on the side
+ * (`collectShellSideFreeformNodes`). Resolving over the union rather than
+ * per-root keeps it to a single round of loads per side, exactly as before.
+ */
+async function renderFreeformShellSide({
+  nodes,
+  tree,
+  slots,
+  tenantId,
+  locale,
+  includeBuilderNodeRendererStyles,
+}: {
+  nodes: ReadonlyArray<BuilderNode>;
+  tree: BuilderNodeTree;
+  slots: ReadonlyArray<{
+    slotKey: string;
+    sortOrder: number;
+    sectionId: string;
+    sectionTypeKey: string;
+    props?: Record<string, unknown>;
+  }>;
+  tenantId: string;
+  locale: string;
+  includeBuilderNodeRendererStyles: boolean;
+}): Promise<React.ReactNode> {
+  const publicPathPrefix = await getPublicPathPrefix();
+  // The nodes the freeform renderer will actually paint: landmark children plus
+  // non-landmark roots. Data sources are resolved over exactly this set.
+  const freeformNodes = collectShellSideFreeformNodes(nodes);
+  const mediaIds = collectBuilderImageMediaIds(freeformNodes);
+  const collectionSourceKeys = collectBuilderCollectionSourceKeys(freeformNodes);
+  const navCollectionSourceKeys = collectNavCollectionSourceKeys(freeformNodes);
+  const serviceSupabase =
+    mediaIds.length > 0 ||
+    collectionSourceKeys.length > 0 ||
+    navCollectionSourceKeys.length > 0
+      ? createServiceRoleClient()
+      : null;
+  const mediaSupabase = mediaIds.length > 0 ? serviceSupabase : null;
+  const [
+    builderComponents,
+    mediaAssets,
+    userCollections,
+    navCollections,
+    actorSession,
+    editModeActive,
+    componentStyleDefaults,
+  ] = await Promise.all([
+    treeHasInstances(freeformNodes)
+      ? loadBuilderComponentsForTenant(tenantId)
+      : Promise.resolve({}),
+    mediaSupabase
+      ? listBuilderImageMediaAssets(mediaSupabase, tenantId, mediaIds)
+      : Promise.resolve(undefined),
+    serviceSupabase && collectionSourceKeys.length > 0
+      ? resolveCollectionDataSources(serviceSupabase, tenantId, collectionSourceKeys)
+      : Promise.resolve(undefined),
+    serviceSupabase && navCollectionSourceKeys.length > 0
+      ? resolveNavCollectionDataSources(
+          serviceSupabase,
+          tenantId,
+          navCollectionSourceKeys,
+          locale,
+        )
+      : Promise.resolve(undefined),
+    getCachedActorSession(),
+    isEditModeActiveForTenant(tenantId),
+    loadPublicComponentStyleDefaults(tenantId),
+  ]);
+  const collections =
+    userCollections || navCollections
+      ? { ...(userCollections ?? {}), ...(navCollections ?? {}) }
+      : undefined;
+  const visibilityContext = editModeActive
+    ? undefined
+    : { locale, signedIn: Boolean(actorSession.user) };
+  const renderOptions = {
+    publicPathPrefix,
+    mode: "freeform" as const,
+    includeRendererStyles: false,
+    dataSources: { mediaAssets, collections },
+    components: builderComponents,
+    visibilityContext,
+    componentStyleDefaults,
+    renderSectionEmbed: makeSectionEmbedRenderer({
+      tenantId,
+      locale,
+      publicPathPrefix,
+      editorMode: editModeActive,
+    }),
+  };
+
+  const slotByAddress = new Map<string, (typeof slots)[number]>();
+  for (const slot of slots) {
+    const key = builderSectionNodeAddressKey({
+      sectionId: slot.sectionId,
+      slotKey: slot.slotKey,
+      sortOrder: slot.sortOrder,
+    });
+    if (key && !slotByAddress.has(key)) slotByAddress.set(key, slot);
+  }
+  const builderSectionChildNodeIds = indexBuilderSectionChildNodeIds(tree);
+
+  const shouldIncludeRendererStyles =
+    includeBuilderNodeRendererStyles &&
+    hasRenderableBuilderNodes(freeformNodes, { mode: "freeform" });
+
+  return (
+    <>
+      {shouldIncludeRendererStyles ? (
+        <BuilderNodeRendererStyles
+          kinds={
+            editModeActive
+              ? undefined
+              : collectPresentNodeKinds(freeformNodes, builderComponents)
+          }
+        />
+      ) : null}
+      {nodes.map((node) =>
+        isShellLandmarkNode(node) ? (
+          renderFreeformShellLandmark({
+            node,
+            slotByAddress,
+            builderSectionChildNodeIds,
+            tenantId,
+            locale,
+            publicPathPrefix,
+            renderOptions,
+          })
+        ) : (
+          <Fragment key={node.id}>
+            {renderBuilderNodes([node], renderOptions)}
+          </Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
+/**
+ * Render one shell LANDMARK from a freeform tree.
+ *
+ * The bespoke component's props come from the LIVE slot when the landmark is
+ * address-matched, and from the landmark's inline `props.sectionProps` only
+ * when it is not (an un-addressed landmark from an applied shell template, or a
+ * second landmark the operator added). That ordering is deliberate: the slot
+ * row stays authoritative, so a `cms_sections.props_jsonb` edit — the
+ * SiteHeaderInspector autosave path — keeps taking effect on the live site. See
+ * `hydrateShellLandmarkSectionProps` for the drift argument in full.
+ *
+ * The wrapper `<div>` carries the identical `data-cms-section` marker set the
+ * slot path emits, so EditShell selection, inspector binding and the save flow
+ * behave the same on a freeform shell as on a slot-baked one.
+ */
+function renderFreeformShellLandmark({
+  node,
+  slotByAddress,
+  builderSectionChildNodeIds,
+  tenantId,
+  locale,
+  publicPathPrefix,
+  renderOptions,
+}: {
+  node: Extract<BuilderNode, { kind: "section" }>;
+  slotByAddress: ReadonlyMap<
+    string,
+    { sectionId: string; props?: Record<string, unknown> }
+  >;
+  builderSectionChildNodeIds: ReadonlyMap<string, ReadonlyArray<string>>;
+  tenantId: string;
+  locale: string;
+  publicPathPrefix: string;
+  renderOptions: Parameters<typeof renderBuilderNodes>[1];
+}): React.ReactNode {
+  const sectionTypeKey = node.props.sectionTypeKey;
+  const reg = getSectionType(sectionTypeKey);
+  if (!reg) {
+    if (process.env.NODE_ENV !== "production") {
+      void improntaLog("site_shell_publishedshell.warn", {
+        message: `[PublishedShell] unknown shell landmark type "${sectionTypeKey}" — landmark ignored`,
+      });
+    }
+    return null;
+  }
+  const Comp = reg.Component;
+  const addressKey = builderSectionNodeAddressKey({
+    sectionId: node.props.sectionId ?? "",
+    slotKey: node.props.slotKey,
+    sortOrder: node.props.sortOrder,
+  });
+  const slot = addressKey ? slotByAddress.get(addressKey) : undefined;
+  const rawProps = slot?.props ?? node.props.sectionProps ?? {};
+  const props = prefixPublicHrefsDeep(rawProps, publicPathPrefix);
+  const sectionId = slot?.sectionId ?? node.props.sectionId ?? node.id;
+  const children = node.children ?? [];
+  const roleBindingResult = buildBuilderNodeRoleBindings(
+    (builderSectionChildNodeIds.get(node.id) ?? []).filter((id) =>
+      resolveBuilderNodeRole(id),
+    ),
+  );
+  const roleBindings = roleBindingResult.nodeIdsByRole;
+  if (
+    process.env.NODE_ENV !== "production" &&
+    roleBindingResult.unknownNodeIds.length > 0
+  ) {
+    void improntaLog("site_shell_publishedshell.warn", {
+      message: "[published-shell] unknown builder child node roles",
+      sectionId,
+      sectionTypeKey,
+      unknownNodeIds: roleBindingResult.unknownNodeIds.join(", "),
+    });
+  }
+  return (
+    <div
+      key={node.id}
+      data-cms-section=""
+      data-section-id={
+        sectionTypeKey === "site_header" ? SITE_HEADER_SELECTION_ID : sectionId
+      }
+      data-section-type-key={sectionTypeKey}
+      data-slot-key={node.props.slotKey ?? undefined}
+      data-sort-order={node.props.sortOrder}
+      data-builder-node-id={
+        sectionTypeKey === "site_header" ? undefined : node.id
+      }
+    >
+      <Comp
+        sectionId={sectionId}
+        tenantId={tenantId}
+        locale={locale}
+        preview={false}
+        props={props}
+        publicPathPrefix={publicPathPrefix}
+        builderNodeBindings={{
+          sectionNodeId: node.id,
+          nodeIdsByRole: roleBindings,
+        }}
+      />
+      {children.length > 0 ? renderBuilderNodes(children, renderOptions) : null}
     </div>
   );
 }
