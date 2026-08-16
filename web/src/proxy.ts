@@ -793,6 +793,8 @@ export const config = {
     // to receive the locale + host headers the layout's data loads depend on
     // (bypassing the proxy made it 500). It is instead allow-listed for every
     // host kind in `surface-allow-list.ts`.
-    "/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // `api/media/asset` is excluded because next/image's internal fetch carries
+    // no `Host`; safe, and why, in `@/lib/media/private-access`.
+    "/((?!_next/static|_next/image|api/media/asset|favicon.ico|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
