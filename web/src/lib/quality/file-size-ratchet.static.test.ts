@@ -84,7 +84,14 @@ const BUDGETS: Record<string, number> = {
   //       which costs an import line and a hook call. Extraction is not the
   //       remedy for a three-line delta; the point of the guard is that the
   //       growth is visible, and it is.
-  "src/components/edit-chrome/edit-context.tsx": 6202,
+  //   +6 (builder-leftovers sweep, item 5): destructure + wire
+  //       `registerCanvasGeometryDirtyListener` / `notifyCanvasGeometryDirty`
+  //       (2 lines) into the value object + its deps array (2+2 lines) so the
+  //       anchored toolbar can re-prime its dirty flag while a floating panel
+  //       is being dragged. The pub-sub IMPLEMENTATION lives in
+  //       use-workspace-panels.ts (already its own module); this is the thin
+  //       plumbing the guard's own procedure asks for.
+  "src/components/edit-chrome/edit-context.tsx": 6208,
   "src/components/edit-chrome/inspectors/style-panel.tsx": 5896,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
   "src/components/edit-chrome/topbar.tsx": 3471,

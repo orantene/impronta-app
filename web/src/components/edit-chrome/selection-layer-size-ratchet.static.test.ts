@@ -118,7 +118,12 @@ const BUDGETS: Record<string, number> = {
   // effect's onKeyUp listener + bucket-aware calls into
   // commitSelectedNodeTranslate/translateSelectedBuilderNodes, and that
   // commit fn's new optional `bucket` param + doc comment.
-  "selection-layer.tsx": 7722,
+  // +13 (item 5 — toolbar re-clamp during a panel drag): subscribe to the new
+  // `registerCanvasGeometryDirtyListener` context signal on mount so the
+  // anchored toolbar re-primes its dirty flag while a floating panel is being
+  // dragged. The publish side (the actual notify calls) lives in
+  // floating-panel.tsx; the registry lives in use-workspace-panels.ts.
+  "selection-layer.tsx": 7735,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

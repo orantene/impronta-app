@@ -161,6 +161,34 @@ export function useWorkspacePanels() {
     // Bump the nonce so every floating panel snaps its session offset home.
     setWorkspaceResetNonce((n) => n + 1);
   }, [layoutStorage]);
+
+  // ── Canvas-geometry dirty signal (PR #1136 leftover) ─────────────────────
+  // The anchored selection toolbar's rAF loop (selection-layer.tsx) only
+  // re-measures occluders on a `geometryDirtyRef` signal (scroll / resize /
+  // ResizeObserver / MutationObserver / selection change), so it skips idle
+  // frames. A floating panel being DRAGGED moves via `useFloatingDrag`'s own
+  // pointer listeners (floating-panel.tsx) — a completely separate component
+  // tree with no direct signal into that ref. Same registry pattern as
+  // `registerWorkspacePanel` above: a ref-held listener Set (no re-render per
+  // drag tick), so `useFloatingDrag` can call `notifyCanvasGeometryDirty()` on
+  // every drag tick and `selection-layer.tsx` can subscribe once on mount.
+  const canvasGeometryDirtyListenersRef = useRef<Set<() => void>>(new Set());
+  const registerCanvasGeometryDirtyListener = useCallback<
+    EditContextValue["registerCanvasGeometryDirtyListener"]
+  >((listener) => {
+    canvasGeometryDirtyListenersRef.current.add(listener);
+    return () => {
+      canvasGeometryDirtyListenersRef.current.delete(listener);
+    };
+  }, []);
+  const notifyCanvasGeometryDirty = useCallback<
+    EditContextValue["notifyCanvasGeometryDirty"]
+  >(() => {
+    for (const listener of canvasGeometryDirtyListenersRef.current) {
+      listener();
+    }
+  }, []);
+
   return {
     hasSavedWorkspaceLayout,
     workspaceResetNonce,
@@ -174,5 +202,7 @@ export function useWorkspacePanels() {
     setWorkspacePanelOffset,
     getWorkspacePanelOffset,
     getWorkspacePanelRect,
+    registerCanvasGeometryDirtyListener,
+    notifyCanvasGeometryDirty,
   };
 }

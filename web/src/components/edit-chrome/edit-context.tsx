@@ -1131,6 +1131,8 @@ export function EditProvider({
     setWorkspacePanelOffset,
     getWorkspacePanelOffset,
     getWorkspacePanelRect,
+    registerCanvasGeometryDirtyListener,
+    notifyCanvasGeometryDirty,
   } = useWorkspacePanels();
 
   // W3-T2(c/d) / W1-L2 — the operator's tree that lost a genuine CAS race,
@@ -5854,6 +5856,8 @@ export function EditProvider({
       setWorkspacePanelOffset,
       getWorkspacePanelOffset,
       getWorkspacePanelRect,
+      registerCanvasGeometryDirtyListener,
+      notifyCanvasGeometryDirty,
       savePageMetadata,
 
       revisionsOpen,
@@ -6107,6 +6111,8 @@ export function EditProvider({
       setWorkspacePanelOffset,
       getWorkspacePanelOffset,
       getWorkspacePanelRect,
+      registerCanvasGeometryDirtyListener,
+      notifyCanvasGeometryDirty,
       savePageMetadata,
       revisionsOpen,
       openRevisions,

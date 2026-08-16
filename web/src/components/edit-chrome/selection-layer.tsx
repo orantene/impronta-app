@@ -754,6 +754,7 @@ export function SelectionLayer() {
     requestInspectorTab,
     inspectorTabRequest,
     inspectorDockOpen,
+    registerCanvasGeometryDirtyListener,
   } = useEditContext();
   // WS2 — tree VALUE from the micro-store (builder-tree-bridge). selection-layer
   // reads the tree heavily (overlays, drop candidates, context menu) so it
@@ -937,6 +938,18 @@ export function SelectionLayer() {
     canvasZoomRef.current = canvasZoom;
     geometryDirtyRef.current = true;
   }, [canvasZoom]);
+  // PR #1136 leftover — a floating panel (inspector dock, navigator, …) being
+  // DRAGGED moves via `useFloatingDrag`'s own pointer listeners
+  // (floating-panel.tsx), a separate component tree with no scroll/resize/RO/MO
+  // signal into `geometryDirtyRef`. `notifyCanvasGeometryDirty` fires on every
+  // drag tick (edit-context's use-workspace-panels.ts); subscribe once here so
+  // the anchored toolbar re-clamps around the panel while it moves instead of
+  // going stale until the next unrelated geometry signal.
+  useEffect(() => {
+    return registerCanvasGeometryDirtyListener(() => {
+      geometryDirtyRef.current = true;
+    });
+  }, [registerCanvasGeometryDirtyListener]);
 
   const getSelectedSectionEl = useCallback((): HTMLElement | null => {
     if (!selectedSectionId) return null;
