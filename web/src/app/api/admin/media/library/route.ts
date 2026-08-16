@@ -17,6 +17,11 @@
  * Filtering used to happen client-side inside the truncated 60, which is
  * why an album with real photos in it rendered as empty.
  *
+ * 2026-08-16 (density + talent filter) — `?talentId=<uuid>` filters to ONE
+ * talent's assets (distinct from `?ownership=talent`, which is the ownership
+ * KIND), and the response carries `talents[]`: the workspace roster, so the
+ * picker can offer a searchable talent select without a second endpoint.
+ *
  * QA 2026-05-13 — the `?id=` filter was added so surfaces that already
  * know the asset id they want (e.g. BrandTab's LogoField resolving a
  * stored `shell.brand-logo-media-asset-id` token to a publicUrl)
@@ -106,6 +111,18 @@ export async function GET(req: Request) {
     );
   }
 
+  // "Filter by talent" (2026-08-16). Validated as a uuid HERE, before it can
+  // reach `.in("owner_talent_profile_id", …)`, on the same footing as
+  // `folderId` and the cursor: anything that lands inside a PostgREST filter
+  // expression is untrusted input until it is shape-checked.
+  const talentId = url.searchParams.get("talentId");
+  if (talentId && !UUID_RE.test(talentId)) {
+    return NextResponse.json(
+      { ok: false, error: "invalid talentId" },
+      { status: 400 },
+    );
+  }
+
   const result = await queryTenantMediaLibrary({
     supabase: auth.supabase,
     tenantId: scope.tenantId,
@@ -117,11 +134,15 @@ export async function GET(req: Request) {
     folderId,
     kind: readKind(url.searchParams.get("kind")),
     ownership: readOwnership(url.searchParams.get("ownership")),
+    talentProfileIds: talentId ? [talentId] : null,
     cursor: url.searchParams.get("cursor"),
     limit: requestedId ? 1 : readLimit(url.searchParams.get("limit")),
     // Staff surface: private folders are theirs to browse (library-query.ts
     // documents the reading of `media_folders.is_private`).
     includePrivateFolders: true,
+    // The talent select is a browsing affordance; a by-id resolve is not
+    // browsing, so it stays a single-query lookup.
+    includeTalentOptions: !requestedId,
   });
 
   if (result.errored) {
@@ -137,6 +158,7 @@ export async function GET(req: Request) {
       toMediaLibraryWireItem(photo, scope.tenantId),
     ),
     folders: result.folders.map(toMediaLibraryWireFolder),
+    talents: result.talents,
     nextCursor: result.nextCursor,
     totalCount: result.totalCount,
     pendingCount: result.pendingCount,

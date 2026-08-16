@@ -108,6 +108,26 @@ export type WorkspaceMediaFolder = {
   shootDate: string | null;
 };
 
+/**
+ * One row of the "filter by talent" select (2026-08-16).
+ *
+ * This is the WORKSPACE's roster, not "every talent whose media is in the
+ * library". The two are almost the same set and deliberately not identical: a
+ * talent the workspace removed from its roster has their media excluded from
+ * the library entirely (see `loadExcludedTalentIds`), and a profile the agency
+ * created but never rostered can still own an asset whose tile shows their
+ * name while they are absent from this list. Listing the roster is the version
+ * an operator can reason about — "the people I represent" — and it is one
+ * cheap query instead of a per-tenant DISTINCT over `media_assets`.
+ */
+export type MediaLibraryTalentOption = {
+  id: string;
+  /** Already resolved for display: display_name, else first+last, else "Unnamed". */
+  name: string;
+  /** Secondary line in the option row. Null when the profile has no code. */
+  profileCode: string | null;
+};
+
 // ── Filter vocabulary ───────────────────────────────────────────────────────
 
 /** Which library a caller is asking for. */

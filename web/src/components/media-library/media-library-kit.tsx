@@ -18,7 +18,7 @@
  * absorbs all three.
  */
 
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { FileText, ImageIcon, Play } from "lucide-react";
 
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../edit-chrome/kit/tokens";
@@ -33,6 +33,8 @@ export const LIBRARY_FOCUS_CLASS =
 /** Set once on the library root so the focus ring can be a CSS var. */
 export const LIBRARY_ROOT_STYLE: CSSProperties = {
   ["--media-library-accent" as string]: FIELD_KIT.accent,
+  /** Row hover fill, so a list row can use a Tailwind hover: with a token. */
+  ["--media-library-hover" as string]: FIELD_KIT.hoverFill,
 };
 
 export function LibraryChip({
@@ -97,7 +99,25 @@ export function LibraryChip({
   );
 }
 
-/** Kind-aware thumbnail. Images lazy-load; videos never autoplay. */
+/**
+ * THE grid template, shared by the live grid and the skeleton so a loading
+ * state can never be a different shape from the thing it stands in for.
+ *
+ * `auto-fill` + a 152px floor, not a `lg:grid-cols-4` ladder. The ladder is
+ * what the owner was looking at: at ~1900px the drawer showed FOUR columns of
+ * ~460px tiles, so a wide screen bought no extra assets, only bigger ones.
+ * With auto-fill the same drawer fills every column it has room for.
+ */
+export const LIBRARY_GRID_CLASS =
+  "grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(152px,1fr))]";
+
+/**
+ * Kind-aware thumbnail. Images lazy-load; videos never autoplay.
+ *
+ * It FILLS its parent and does not choose an aspect ratio — the tile owns the
+ * frame (square, for density) and the detail rail owns a taller one. The
+ * parent must be `position: relative`.
+ */
 export function MediaThumb({
   item,
   kind,
@@ -108,7 +128,7 @@ export function MediaThumb({
   if (kind === "video") {
     return (
       <span
-        className="relative flex aspect-[4/5] w-full items-center justify-center"
+        className="absolute inset-0 flex items-center justify-center"
         style={{ background: CHROME.chipInkDeep }}
       >
         <video
@@ -136,10 +156,10 @@ export function MediaThumb({
       item.storagePath.split(".").pop()?.toLowerCase().slice(0, 4) ?? "doc";
     return (
       <span
-        className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-1.5"
+        className="absolute inset-0 flex flex-col items-center justify-center gap-1"
         style={{ background: FIELD_KIT.surfaceRecessed, color: FIELD_KIT.accent }}
       >
-        <FileText className="size-7" />
+        <FileText className="size-5" />
         <span
           className="uppercase tracking-wide"
           style={{
@@ -163,7 +183,7 @@ export function MediaThumb({
       alt=""
       loading="lazy"
       decoding="async"
-      className="block aspect-[4/5] w-full object-cover"
+      className="absolute inset-0 size-full object-cover"
       style={{ background: FIELD_KIT.surfaceRecessed }}
     />
   );
@@ -212,37 +232,111 @@ export function KindGlyph({ kind }: { kind: MediaLibraryAssetKind }) {
  * centered spinner — the library must not flash empty while it loads, because
  * "empty" and "loading" are the two states an operator most needs told apart.
  */
-export function LibrarySkeletonGrid({ tiles = 12 }: { tiles?: number }) {
+export function LibrarySkeletonGrid({ tiles = 24 }: { tiles?: number }) {
   return (
-    <ul
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
-      aria-hidden
-      data-testid="media-library-skeleton"
-    >
+    <ul className={LIBRARY_GRID_CLASS} aria-hidden data-testid="media-library-skeleton">
       {Array.from({ length: tiles }).map((_, index) => (
         <li key={index}>
           <div
-            className="overflow-hidden border"
+            className="aspect-square w-full animate-pulse border"
             style={{
               borderColor: FIELD_KIT.border,
-              borderRadius: CHROME_RADII.lg,
-              background: FIELD_KIT.surface,
+              borderRadius: CHROME_RADII.md,
+              background: FIELD_KIT.surfaceRecessed,
             }}
-          >
-            <div
-              className="aspect-[4/5] w-full animate-pulse"
-              style={{ background: FIELD_KIT.surfaceRecessed }}
-            />
-            <div className="p-2">
-              <div
-                className="h-2.5 w-2/3 animate-pulse rounded"
-                style={{ background: FIELD_KIT.surfaceRecessed }}
-              />
-            </div>
-          </div>
+          />
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * A small anchored popover on the library's own surface.
+ *
+ * WHY IT SWALLOWS ESCAPE AND OUTSIDE CLICKS ITSELF
+ * The picker drawer listens for Escape on `document` and closes. Without the
+ * `stopPropagation` below, dismissing an open filter popover would also close
+ * the whole drawer — one key, two dismissals, and the operator loses the
+ * library they were mid-way through browsing.
+ */
+export function LibraryPopover({
+  open,
+  onClose,
+  label,
+  children,
+  align = "left",
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** Accessible name of the popover surface. */
+  label: string;
+  children: ReactNode;
+  align?: "left" | "right";
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (!ref.current) return;
+      if (ref.current.parentElement?.contains(event.target as Node)) return;
+      onClose();
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={label}
+      className={`absolute top-[calc(100%+6px)] z-[140] max-h-[320px] w-[300px] overflow-y-auto border p-2 ${
+        align === "right" ? "right-0" : "left-0"
+      }`}
+      style={{
+        background: FIELD_KIT.surface,
+        borderColor: FIELD_KIT.border,
+        borderRadius: CHROME_RADII.md,
+        boxShadow: CHROME_SHADOWS.cardHi,
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Escape") return;
+        // Do NOT let the drawer's document-level Escape handler see this.
+        event.stopPropagation();
+        event.preventDefault();
+        onClose();
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** A section heading inside a filter popover. */
+export function LibraryPopoverGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid gap-1.5 py-1.5">
+      <p
+        className="uppercase tracking-wide"
+        style={{
+          fontSize: FIELD_KIT.font.caption,
+          fontWeight: FIELD_KIT.weight.label,
+          color: FIELD_KIT.mutedSoft,
+        }}
+      >
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
   );
 }
 
