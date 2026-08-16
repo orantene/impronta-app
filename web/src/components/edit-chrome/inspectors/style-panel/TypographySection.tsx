@@ -41,6 +41,24 @@ export function TypographySection({
               collapsible
               storageKey={`style-panel:typography:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={["heading", "paragraph", "button", "rich_text"].includes(selectedStandaloneStyleNode.kind)}
+              // D5 — keep this group findable by the fields it CONTAINS, not
+              // just its title. Includes synonyms an operator would type.
+              searchTerms={[
+                "font",
+                "text size",
+                "weight",
+                "bold",
+                "line height",
+                "letter spacing",
+                "align",
+                "transform",
+                "uppercase",
+                "text wrap",
+                "whitespace",
+                "truncate",
+                "decoration",
+                "tone",
+              ]}
             >
             {typographyHasResponsiveOverride ? (
               <div className="flex justify-end">

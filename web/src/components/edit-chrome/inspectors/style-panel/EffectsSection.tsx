@@ -40,6 +40,32 @@ export function EffectsSection({
               advanced
               storageKey={`style-panel:effects:${selectedStandaloneStyleNode.kind}`}
               defaultOpen={false}
+              // D5 — field-level search keywords (see InspectorGroup). The
+              // audit's headline search failure: typing "shadow" hid the group
+              // that contains the shadow control.
+              searchTerms={[
+                "shadow",
+                "opacity",
+                "blur",
+                "backdrop",
+                "blend",
+                "filter",
+                "hover",
+                "focus",
+                "active",
+                "states",
+                "transition",
+                "animation",
+                "entrance",
+                "scroll",
+                "transform",
+                "scale",
+                "rotate",
+                "clip",
+                "mask",
+                "outline",
+                "cursor",
+              ]}
             >
             <div
               className="border-t pt-3"
