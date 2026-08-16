@@ -819,6 +819,11 @@ const iconPropsSchema = z.object({
   layerLabel: layerLabelSchema,
   decorative: z.boolean().optional(),
   size: z.enum(["sm", "md", "lg", "xl"]).optional(),
+  // Inspector Reset P3 (D9 item 2, "preset = shortcut, never a ceiling"): an
+  // exact pixel/rem size the operator typed or dragged, taking precedence over
+  // `size` in the renderer when present. Mirrors the "Free" companion-field
+  // convention already used by `builderNodeStyleSchema` (e.g. `marginTopFree`).
+  sizeFree: z.string().max(24).optional(),
   style: builderNodeStyleSchema,
 });
 
@@ -831,6 +836,11 @@ const codePropsSchema = z.object({ html: z.string().max(20000), minHeight: z.num
 
 const spacerPropsSchema = z.object({
   size: z.enum(["s", "m", "l"]),
+  // Inspector Reset P3 (D9 item 2): exact height override, same "Free"
+  // companion-field convention as `iconPropsSchema.sizeFree`. `size` stays
+  // required (a fallback preset is always on record) and is simply ignored by
+  // the renderer while `sizeFree` is set.
+  sizeFree: z.string().max(24).optional(),
   style: builderNodeStyleSchema,
 });
 

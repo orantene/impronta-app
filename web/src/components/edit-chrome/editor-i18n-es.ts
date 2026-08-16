@@ -10,6 +10,7 @@
 import { ES_BUILDER_REGISTRY_TEXT } from "./editor-i18n-es-registry";
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
 import { ES_INSPECTOR_TEXT } from "./editor-i18n-es-inspectors";
+import { ES_INSPECTOR_TEXT_2 } from "./editor-i18n-es-inspectors-2";
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
 import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
@@ -25,6 +26,9 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_CANVAS_CHROME_TEXT,
   // WAVE 4.4 (deep inspectors: style, layout, motion, data, site header).
   ...ES_INSPECTOR_TEXT,
+  // Inspector Reset P3 (2026-08-16) — overflow split of ES_INSPECTOR_TEXT
+  // above; see that file's header for why.
+  ...ES_INSPECTOR_TEXT_2,
   // WAVE 4.6 (builder registry: node-kind labels + descriptions, element
   // library, "My blocks" / "Component library"). Disjoint from every other
   // catalog by construction, enforced by the cross-file duplicate guard.
