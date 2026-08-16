@@ -161,7 +161,7 @@ export function evaluateTenantTalentTypeAvailability(params: {
         ok: false,
         error:
           `"${unavailableLabel(node)}" was saved on the profile but will not show on this workspace — ` +
-          `it is not enabled for your agency. An admin can turn it on in Settings → Roster → Talent types.`,
+          `it is not enabled for your agency. An admin can enable its category in Settings → Roster & profile fields → Categories on your site.`,
       };
     }
   }

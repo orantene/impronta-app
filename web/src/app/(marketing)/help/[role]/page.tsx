@@ -70,7 +70,7 @@ const ROLE_LABELS: Record<Role, RoleContent> = {
       {
         heading: "Curate your talent types",
         body:
-          "Settings → Roster → Categories on your site → Manage. Toggle which talent categories your agency accepts. Disabled categories disappear from Add Talent forms, public registration, and the directory. EN + ES labels can be overridden per category.",
+          "Settings → Roster & profile fields → Categories on your site → Manage. Toggle which talent categories your agency accepts. Disabled categories disappear from Add Talent forms, public registration, and the directory. EN + ES labels can be overridden per category.",
       },
       {
         heading: "Add coordinators + role-scope access",

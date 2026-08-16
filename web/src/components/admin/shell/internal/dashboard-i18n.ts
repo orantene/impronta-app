@@ -724,8 +724,8 @@ const ES_TEXT: Record<string, string> = {
   "Talent Types": "Talent Types",
   "Some services here can't be published on this site":
     "Algunos servicios de aquí no se pueden publicar en este sitio",
-  "these stay on the profile and save normally, but won't appear publicly until the category is enabled in Settings → Roster → Talent types.":
-    "se quedan en el perfil y se guardan con normalidad, pero no aparecerán públicamente hasta que actives la categoría en Ajustes → Lista → Talent Types.",
+  "these stay on the profile and save normally, but won't appear publicly until the category is enabled in Settings → Roster & profile fields → Categories on your site.":
+    "se quedan en el perfil y se guardan con normalidad, pero no aparecerán públicamente hasta que actives la categoría en Ajustes → Lista y campos de perfil → Categorías en tu sitio.",
   "Home base": "Base principal",
   "Travel": "Viajes",
   "{n} uploaded": "{n} subidas",
@@ -2212,7 +2212,7 @@ const ES_TEXT: Record<string, string> = {
   "- Show fewer": "- Mostrar menos",
   "+ Show all {count} more in {parent}": "+ Mostrar los {count} más en {parent}",
   "No matches in {parent}.": "Sin coincidencias en {parent}.",
-  "This talent type isn't enabled in your workspace. Enable it in Settings → Roster → Talent types.": "Este Talent Type no está activado en tu espacio. Actívalo en Ajustes → Lista → Talent Types.",
+  "Your workspace doesn't offer this talent type, so it won't appear publicly. Categories are managed in Settings → Roster & profile fields → Categories on your site.": "Tu espacio no ofrece este Talent Type, así que no aparecerá públicamente. Las categorías se gestionan en Ajustes → Lista y campos de perfil → Categorías en tu sitio.",
   "Agency-managed": "Gestionado por la agencia",
   "You fill in the full profile right now. Talent can claim ownership of it later, when they're ready, or when you decide they should self-edit.": "Rellenas el perfil completo ahora. El talento puede reclamar su propiedad más tarde, cuando esté listo, o cuando decidas que debe autoeditarlo.",
   "Opens the full Profile Builder next": "Abre el creador de perfil completo a continuación",
