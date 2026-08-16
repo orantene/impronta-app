@@ -74,11 +74,11 @@ export function PublishCluster({
 }) {
   const t = useT();
   const publishing = publishState.kind === "publishing";
-  // Publish promotes the ENTIRE draft. The button goes quiet when there is
-  // truly nothing to ship, and the drift note warns when the draft carries
-  // changes made outside this page — a one-swatch publish must never silently
-  // repaint the whole site (the 2026-08-15 stale-draft incident).
-  const hasChanges = dirty || driftCount > 0;
+  // Publish here is SCOPED to the card tokens (publishCardDesignFromEditAction),
+  // so out-of-scope draft changes neither enable this button nor ship with it.
+  // They are surfaced as an informational note with a way to go publish them —
+  // the button's blast radius is the cards, and the note says so.
+  const hasChanges = dirty;
   const upToDate = !hasChanges && publishState.kind !== "error";
   let line: string;
   if (publishState.kind === "error") {
@@ -91,8 +91,6 @@ export function PublishCluster({
     });
   } else if (dirty) {
     line = t("dashboard.adminCardStudio2.unpublishedChanges");
-  } else if (hasChanges) {
-    line = t("dashboard.adminCardStudio2.draftChangesPending");
   } else if (publishedAt) {
     line = interpolate(t("dashboard.adminCardStudio2.liveUpToDateLastPublished"), {
       date: fmtPublishDate(publishedAt),
@@ -146,7 +144,7 @@ export function PublishCluster({
       >
         {line}
       </div>
-      {hasChanges && driftCount > 0 ? (
+      {driftCount > 0 ? (
         <div
           role="note"
           className="max-w-[240px] rounded-admin-md bg-admin-amber-soft px-[9px] py-[5px] text-right text-admin-11 font-semibold leading-[1.4] text-admin-amber-deep"

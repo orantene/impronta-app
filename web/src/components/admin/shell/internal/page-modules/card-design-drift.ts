@@ -54,3 +54,23 @@ export function computeDriftCount(
   }
   return n;
 }
+
+/**
+ * Live-map re-seed after a SCOPED publish.
+ *
+ * Only the page's own tokens went live, so only those may be copied from the
+ * draft onto the local "live" mirror. Copying the whole draft would zero
+ * `driftCount` and tell the operator that another surface's pending changes
+ * had shipped — they have not.
+ */
+export function mergeScopedLive(
+  prevLive: Record<string, string>,
+  fullDraft: Record<string, string>,
+  scopeKeys: ReadonlySet<string>,
+): Record<string, string> {
+  const next = { ...prevLive };
+  for (const key of scopeKeys) {
+    if (key in fullDraft) next[key] = fullDraft[key];
+  }
+  return next;
+}
