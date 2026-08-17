@@ -223,7 +223,35 @@ export function PayoutsActionsClient({
       )}
 
       {showOnboarding && !fullyEnabled && (
-        <div style={{ marginTop: 4 }}>
+        // Stripe's embedded KYC used to render bare on the page — no card, no
+        // padding, no width cap — so it read as a foreign object pasted under
+        // the buttons rather than part of the workspace. Give it the same
+        // containment the talent payouts surface uses: a titled card, real
+        // padding, and a measure cap so the form doesn't stretch the full
+        // admin width (Stripe fills its container, and full-bleed labels look
+        // broken on a desktop workspace page).
+        <div
+          style={{
+            marginTop: 12,
+            maxWidth: 620,
+            background: "#fff",
+            border: `1px solid ${C.border}`,
+            borderRadius: 14,
+            padding: "18px 20px 20px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              color: C.inkMuted,
+              marginBottom: 14,
+            }}
+          >
+            {t("admin.payouts.actions.connectStripe")}
+          </div>
           <ConnectEmbeddedOnboarding
             fetchClientSecret={async () => {
               const r = await getConnectAccountSessionAction(tenantSlug, country ? { country } : {});
@@ -231,13 +259,11 @@ export function PayoutsActionsClient({
             }}
             onExit={onOnboardingExit}
           />
-          <button
-            type="button"
-            onClick={onOnboardingExit}
-            style={{ ...ghostBtn(false), marginTop: 12 }}
-          >
-            Done for now
-          </button>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+            <button type="button" onClick={onOnboardingExit} style={ghostBtn(false)}>
+              Done for now
+            </button>
+          </div>
         </div>
       )}
 
