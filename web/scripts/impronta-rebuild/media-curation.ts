@@ -58,7 +58,7 @@ import { fileURLToPath } from "node:url";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { listTenantMediaLibrary } from "@/lib/site-admin/media/assets";
+import { rowToMediaLibraryItem } from "@/lib/site-admin/media/assets";
 import type { MediaLibraryItem } from "@/lib/site-admin/media/types";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -68,6 +68,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------
 
 const IMAGE_SLOT_PREFIX = "@@impronta-image-slot::";
+
+/**
+ * The prefix the AUTHORED page modules actually emit (`shared.ts`'s own
+ * `IMAGE_SLOT`, written in parallel with this file). Both are recognised, so
+ * a tree from either source resolves.
+ *
+ * This mismatch was silent and severe: the seeder found zero slots in trees
+ * that contain 24 of them, and would have written the literal
+ * `slot://impronta-rebuild/<name>` string into every image `src` — broken
+ * images on every page, with a clean-looking dry run. Recognise both prefixes
+ * rather than renaming across 14 authored page files.
+ */
+const AUTHORED_IMAGE_SLOT_PREFIX = "slot://impronta-rebuild/";
+
+const IMAGE_SLOT_PREFIXES = [IMAGE_SLOT_PREFIX, AUTHORED_IMAGE_SLOT_PREFIX] as const;
+
+/** Scanning aids for tokens EMBEDDED in a longer string (CSS `url('…')`). */
+const SLOT_SCAN_PREFIX = AUTHORED_IMAGE_SLOT_PREFIX;
+const SLOT_SCAN_RE = new RegExp(
+  `${AUTHORED_IMAGE_SLOT_PREFIX.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}([A-Za-z0-9_-]+)`,
+  "g",
+);
 
 /**
  * Placeholder for an image that will be resolved from the tenant's media
@@ -86,15 +108,18 @@ export function IMAGE_SLOT(slot: string): string {
 }
 
 export function isImageSlotToken(value: unknown): value is string {
-  return typeof value === "string" && value.startsWith(IMAGE_SLOT_PREFIX);
+  return (
+    typeof value === "string" &&
+    IMAGE_SLOT_PREFIXES.some((prefix) => value.startsWith(prefix))
+  );
 }
 
 /** Extract the slot name from a value produced by {@link IMAGE_SLOT}. Throws if `value` is not a slot token — callers should guard with {@link isImageSlotToken} first. */
 export function imageSlotName(token: string): string {
-  if (!isImageSlotToken(token)) {
-    throw new Error(`Not an IMAGE_SLOT token: ${JSON.stringify(token)}`);
+  for (const prefix of IMAGE_SLOT_PREFIXES) {
+    if (token.startsWith(prefix)) return token.slice(prefix.length);
   }
-  return token.slice(IMAGE_SLOT_PREFIX.length);
+  throw new Error(`Not an IMAGE_SLOT token: ${JSON.stringify(token)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +165,14 @@ function walkCollect(value: unknown, found: Set<string>): void {
     found.add(imageSlotName(value));
     return;
   }
+  // Tokens EMBEDDED in a longer string — `IMAGE_SLOT_BG` emits
+  // `url('slot://impronta-rebuild/<name>')` into a CSS value. These must be
+  // collected too, or they are never resolved and `walkReplace` reports them
+  // as unresolved (aborting the run) instead of filling the background in.
+  if (typeof value === "string" && value.includes(SLOT_SCAN_PREFIX)) {
+    for (const match of value.matchAll(SLOT_SCAN_RE)) found.add(match[1]!);
+    return;
+  }
   if (Array.isArray(value)) {
     for (const item of value) walkCollect(item, found);
     return;
@@ -177,6 +210,19 @@ function walkReplace(value: unknown, resolved: Map<string, ResolvedImageSlot>, u
       }
     }
     return out;
+  }
+  // EMBEDDED tokens. `IMAGE_SLOT_BG(name)` (shared.ts) emits
+  // `url('slot://impronta-rebuild/<name>')` inside a longer CSS string —
+  // a `backgroundImage` / `customCss` value, never a bare `src`. The
+  // whole-value check above cannot see those, so full-bleed section
+  // backgrounds were written to the DB with the raw token still in them.
+  if (typeof value === "string" && value.includes(SLOT_SCAN_PREFIX)) {
+    return value.replace(SLOT_SCAN_RE, (match, name: string) => {
+      const pick = resolved.get(name);
+      if (pick) return pick.src;
+      unresolved.add(name);
+      return match;
+    });
   }
   return value;
 }
@@ -250,6 +296,85 @@ function stableSlotHash(input: string): number {
 }
 
 /**
+ * Every approved image in the tenant's library, uncapped.
+ *
+ * `listTenantMediaLibrary` is the admin UI listing and stops at
+ * `MEDIA_LIBRARY_MAX_ITEMS` (60). This seeder needs the whole library: a pin
+ * naming any asset outside the 60 most recent uploads would otherwise miss
+ * silently and fall back. Reuses the repo's own `rowToMediaLibraryItem` mapper
+ * so the item shape (and `publicUrl` resolution) cannot drift from the app's.
+ *
+ * `folderIds` is intentionally left empty — curation never reads it, and
+ * resolving folders would mean a second full-table pass.
+ */
+export async function fetchSeedableTenantImages(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<MediaLibraryItem[]> {
+  // PAGINATED on purpose. A bare `.limit(5000)` does NOT defeat PostgREST's
+  // server-side `db-max-rows` cap (1000 here), so a single call silently
+  // returned only the ~1000 newest of ~2,300 assets and every pin naming an
+  // older asset missed and fell back. Page with `.range()` until a short page
+  // proves the end. Ordered by `(created_at, id)` so paging is stable.
+  const PAGE = 1000;
+  const rows: Parameters<typeof rowToMediaLibraryItem>[1][] = [];
+
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("media_assets")
+      .select(
+        "id, tenant_id, owner_talent_profile_id, variant_kind, asset_kind, storage_path, bucket_id, width, height, byte_size, file_size_bytes, file_size, mime, mime_type, alt, tags, created_at, metadata, purpose, approval_state, deleted_at",
+      )
+      .eq("tenant_id", tenantId)
+      .eq("approval_state", "approved")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1);
+
+    if (error) {
+      throw new Error(
+        `Could not read the tenant media library: ${String((error as { message?: string }).message ?? error)}`,
+      );
+    }
+    const page = (data ?? []) as unknown as Parameters<typeof rowToMediaLibraryItem>[1][];
+    rows.push(...page);
+    if (page.length < PAGE) break;
+    // Defensive stop: a library this large means something is wrong upstream.
+    if (rows.length >= 50_000) break;
+  }
+
+  return rows.map((row) => rowToMediaLibraryItem(supabase, row, []));
+}
+
+/**
+ * Assets that must never be auto-picked as page imagery.
+ *
+ * The fallback picker is deterministic but blind: on the first real dry run it
+ * chose a `purpose="branding"` asset (the agency LOGO) as the Fashion Models
+ * hero, and a `staging/` upload for another plate. Those are obviously wrong on
+ * an editorial page and would waste the owner's review pass.
+ *
+ * Excluded: branding assets (logos, favicons, wordmarks), anything still in a
+ * `staging/` path, and anything narrower than a reasonable editorial crop —
+ * a portrait thumbnail stretched across a full-bleed hero looks broken.
+ *
+ * A PINNED slot bypasses this entirely: an explicit human choice always wins.
+ */
+export function isEditorialFallbackCandidate(item: MediaLibraryItem): boolean {
+  const purpose = (item as { purpose?: string }).purpose ?? "";
+  if (purpose === "branding") return false;
+
+  const storagePath = (item as { storagePath?: string }).storagePath ?? "";
+  if (storagePath.includes("/staging/")) return false;
+
+  const width = (item as { width?: number | null }).width ?? null;
+  if (typeof width === "number" && width > 0 && width < 900) return false;
+
+  return true;
+}
+
+/**
  * Resolve every slot in `slots` against the tenant's approved image library.
  * Never writes anything. Always returns a full report — the caller decides
  * whether to print it, but MUST print it before using `resolved` to write a
@@ -261,9 +386,15 @@ export async function resolveImageSlots(
   slots: readonly string[],
   pins: ImageSlotPinFile,
 ): Promise<ImageSlotResolutionResult> {
-  const library = await listTenantMediaLibrary(supabase, tenantId);
+  // NOT listTenantMediaLibrary(): that is the ADMIN UI listing and caps at
+  // MEDIA_LIBRARY_MAX_ITEMS (60) of ~2,300 assets. Resolving against that page
+  // meant every pinned id outside the 60 most-recent uploads silently missed
+  // and fell back, and the fallback pool itself was 60 recent items — which is
+  // how a logo and a staging upload became page heroes. Query the full library.
+  const library = await fetchSeedableTenantImages(supabase, tenantId);
   const images = library
     .filter((item): item is MediaLibraryItem => item.assetKind === "image")
+    .filter(isEditorialFallbackCandidate)
     .slice()
     .sort((a, b) => {
       const byDate = a.createdAt.localeCompare(b.createdAt);

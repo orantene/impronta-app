@@ -17,13 +17,21 @@ function payloadOf(p: SeedRowPayload | null): Record<string, unknown> {
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { IMAGE_SLOT } from "./media-curation";
+import {
+  IMAGE_SLOT,
+  collectImageSlots,
+  imageSlotName,
+  isImageSlotToken,
+} from "./media-curation";
 import {
   applyHomeInPlaceGuard,
   buildCmsPageUpsertPayload,
   countBuilderNodes,
   isProtectedSystemSlug,
   loadPageModules,
+  normalizeAuthoredPage,
+  pageModuleFileFor,
+  pickPageExport,
   runSeed,
   seedablePageFiles,
   EXPECTED_PAGE_MODULE_FILES,
@@ -91,6 +99,11 @@ function chainResult(result: { data: unknown; error: unknown }) {
   for (const method of ["select", "eq", "is", "order", "limit"]) {
     builder[method] = () => builder;
   }
+  // `range(from, to)` — the media library is read with real pagination now
+  // (PostgREST caps a bare .limit() at db-max-rows). The first page returns
+  // the fixture rows; any later page is empty so the paging loop terminates.
+  builder.range = (from: number) =>
+    Promise.resolve(from === 0 ? result : { data: [], error: null });
   builder.maybeSingle = () => Promise.resolve(result);
   builder.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
     Promise.resolve(result).then(resolve, reject);
@@ -555,4 +568,164 @@ test("no page in the seedable set is a protected system slug", () => {
       `${file} must not collide with a protected system slug`,
     );
   }
+});
+
+// ── AUTHORED-MODULE CONTRACT BRIDGE ──────────────────────────────────────────
+//
+// REGRESSION: the page-tree modules and this seeder were authored in parallel
+// against different contracts (`{PAGE, blocks, camelCase seo}` here vs
+// `{namedExport, tree, snake_case seo}` there), so EVERY module was skipped as
+// invalid and a full run seeded nothing. Caught by the default dry run.
+
+test("normalizeAuthoredPage maps tree -> blocks and snake_case seo -> camelCase", () => {
+  const normalized = normalizeAuthoredPage({
+    slug: "about",
+    title: "About",
+    tree: [{ id: "n1", kind: "heading", props: { text: "hi", level: 2 } }] as never,
+    seo: {
+      meta_title: "About | Impronta",
+      meta_description: "desc",
+      og_title: "og",
+      og_description: "ogd",
+      og_image_url: "https://cdn/x.jpg",
+      canonical_url: "/p/about",
+      noindex: false,
+      include_in_sitemap: true,
+      json_ld: { "@type": "Organization" },
+    },
+  });
+
+  assert.equal(normalized.slug, "about");
+  assert.equal(normalized.blocks.length, 1, "tree must become blocks");
+  assert.equal(normalized.seo.metaTitle, "About | Impronta");
+  assert.equal(normalized.seo.metaDescription, "desc");
+  assert.equal(normalized.seo.ogTitle, "og");
+  assert.equal(normalized.seo.ogDescription, "ogd");
+  assert.equal(normalized.seo.ogImageUrl, "https://cdn/x.jpg");
+  assert.equal(normalized.seo.canonicalPath, "/p/about");
+  assert.equal(normalized.seo.noindex, false);
+  assert.equal(normalized.seo.includeInSitemap, true);
+  assert.deepEqual(normalized.seo.jsonLd, { "@type": "Organization" });
+});
+
+test("normalizeAuthoredPage omits absent seo keys (so updates do not clobber)", () => {
+  const normalized = normalizeAuthoredPage({
+    slug: "x", title: "X", tree: [] as never, seo: { meta_title: "only" },
+  });
+  assert.equal("jsonLd" in normalized.seo, false);
+  assert.equal("noindex" in normalized.seo, false);
+});
+
+test("pickPageExport finds a NAMED page export, not just PAGE/default", () => {
+  const found = pickPageExport({
+    homePage: { slug: "home", title: "Home", tree: [], seo: { meta_title: "t" } },
+  });
+  assert.ok(found, "a named export must be discovered");
+  assert.equal(found?.slug, "home");
+});
+
+test("pickPageExport still honours the PAGE/default contract", () => {
+  const found = pickPageExport({
+    PAGE: { slug: "a", title: "A", blocks: [], seo: { metaTitle: "t" } },
+  });
+  assert.equal(found?.slug, "a");
+});
+
+test("pickPageExport returns null when nothing page-shaped is exported", () => {
+  assert.equal(pickPageExport({ helper: () => {}, CONST: 3 }), null);
+});
+
+test("the 404 page maps to its not-found.ts module file", () => {
+  assert.equal(pageModuleFileFor("404"), "not-found");
+  assert.equal(pageModuleFileFor("about"), "about", "other slugs map to themselves");
+});
+
+test("every seedable page resolves to a real, loadable module", async () => {
+  const { pages, warnings } = await loadPageModules();
+  const skipped = warnings.filter((w) => w.includes("skipping"));
+  assert.deepEqual(skipped, [], `no page may be skipped: ${skipped.join(" | ")}`);
+  assert.equal(
+    pages.length,
+    seedablePageFiles().length,
+    "every seedable page module must load",
+  );
+});
+
+// ── IMAGE SLOT PREFIX BRIDGE ─────────────────────────────────────────────────
+//
+// REGRESSION: the authored page modules emit `slot://impronta-rebuild/<name>`
+// (shared.ts's own IMAGE_SLOT) while this seeder minted/recognised only
+// `@@impronta-image-slot::<name>`. The seeder therefore found ZERO slots in
+// trees containing 24 of them, and a dry run looked clean while an apply would
+// have written the literal token string into every image `src` -- broken
+// images on every page.
+
+test("isImageSlotToken recognises BOTH the seeder and the authored prefixes", () => {
+  assert.equal(isImageSlotToken(IMAGE_SLOT("hero")), true, "seeder-minted token");
+  assert.equal(
+    isImageSlotToken("slot://impronta-rebuild/hero"),
+    true,
+    "the prefix the authored page modules actually emit",
+  );
+  assert.equal(isImageSlotToken("https://cdn.example.com/x.jpg"), false);
+  assert.equal(isImageSlotToken("/local/path.jpg"), false);
+});
+
+test("imageSlotName extracts the same name from either prefix", () => {
+  assert.equal(imageSlotName(IMAGE_SLOT("about-hero")), "about-hero");
+  assert.equal(imageSlotName("slot://impronta-rebuild/about-hero"), "about-hero");
+});
+
+test("collectImageSlots finds slots in an authored-prefix tree", () => {
+  const tree = [
+    {
+      id: "s1",
+      kind: "section",
+      props: {},
+      children: [
+        { id: "i1", kind: "image", props: { src: "slot://impronta-rebuild/hero-a" } },
+        { id: "i2", kind: "image", props: { src: "slot://impronta-rebuild/hero-b" } },
+      ],
+    },
+  ];
+  const found = collectImageSlots(tree as never);
+  assert.deepEqual([...found].sort(), ["hero-a", "hero-b"]);
+});
+
+test("the real authored page trees expose their image slots to the seeder", async () => {
+  const { pages } = await loadPageModules();
+  const total = pages.reduce((n, p) => n + collectImageSlots(p.blocks).length, 0);
+  assert.ok(
+    total > 0,
+    "the seeder must see the authored trees' image slots (0 means the prefix bridge regressed)",
+  );
+});
+
+// ── NO DEAD LINKS TO HELD / MISSING PAGES ────────────────────────────────────
+//
+// REGRESSION: holding `chefs-culinary` (zero tagged talent) left THREE live
+// links to /p/chefs-culinary -- a marquee entry and a division tile on home,
+// and a division tile on for-clients. Every one would have 404'd. A held page
+// must never be linked from a seeded page.
+
+test("no seeded page links to a held or unseeded internal page", async () => {
+  const { pages } = await loadPageModules();
+  const seedableSlugs = new Set(seedablePageFiles());
+  const offenders: string[] = [];
+
+  for (const page of pages) {
+    const hrefs = JSON.stringify(page.blocks).match(/"\/p\/[a-z0-9-]+"/g) ?? [];
+    for (const raw of hrefs) {
+      const slug = raw.replace(/"/g, "").replace("/p/", "");
+      if (!seedableSlugs.has(slug)) {
+        offenders.push(`${page.slug} -> /p/${slug}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    [...new Set(offenders)],
+    [],
+    `seeded pages must not link to a page that will not exist: ${offenders.join(", ")}`,
+  );
 });

@@ -216,13 +216,6 @@ const divisions = band(
           subtitle: "DJs, musicians, curated sound",
           href: "/p/music-djs",
         }),
-        photoTile("rb-clients-div-chefs", {
-          imageSlot: "for-clients-division-chefs",
-          imageAlt: "Impronta private chef finishing plates for an intimate dinner.",
-          title: "Chefs & Culinary",
-          subtitle: "Private chefs, culinary experiences",
-          href: "/p/chefs-culinary",
-        }),
         photoTile("rb-clients-div-roster", {
           imageSlot: "for-clients-division-roster",
           imageAlt: "A wall of Impronta roster portraits from recent shoots.",

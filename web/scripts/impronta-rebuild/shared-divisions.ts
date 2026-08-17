@@ -78,13 +78,22 @@ export interface DivisionPage {
   imageSlots: string[];
 }
 
-/** Cross-linking registry — the five division landing pages. */
+/**
+ * Cross-linking registry — the division landing pages that are LIVE.
+ *
+ * `chefs-culinary` is authored but on owner hold (zero tagged talent, so the
+ * page would render only its empty state). It is deliberately absent here: it
+ * is linked from every other division page plus About and Become a Model, and
+ * leaving it in produced dead `/p/chefs-culinary` links across six pages.
+ * Re-add the entry in the same commit that lifts the hold in
+ * `seed-pages.ts` (`HELD_PAGE_SLUGS`) — the seeder's no-dead-links test fails
+ * if these two ever disagree.
+ */
 export const DIVISIONS: ReadonlyArray<{ slug: string; label: string }> = [
   { slug: "fashion-models", label: "Fashion Models" },
   { slug: "hosts-promoters", label: "Hosts & Promoters" },
   { slug: "performers", label: "Performers" },
   { slug: "music-djs", label: "Music & DJs" },
-  { slug: "chefs-culinary", label: "Chefs & Culinary" },
 ];
 
 // ── text primitives ──────────────────────────────────────────────────────────

@@ -130,7 +130,7 @@ const whoWeSeek = band(
           },
           children: [
             eyebrow("rb-model-who-eyebrow", "Who we look for", "left"),
-            headingLine("rb-model-who-line1", "Five divisions.", { align: "left", layerLabel: "Headline line 1" }),
+            headingLine("rb-model-who-line1", "Four divisions.", { align: "left", layerLabel: "Headline line 1" }),
             headingLine("rb-model-who-line2", "One standard.", { align: "left", accent: true, layerLabel: "Headline line 2 (accent)" }),
             copy(
               "rb-model-who-body",
@@ -151,7 +151,6 @@ const whoWeSeek = band(
                 linkRow("rb-model-who-hosts", "Hosts & Promoters", "/p/hosts-promoters"),
                 linkRow("rb-model-who-performers", "Performers", "/p/performers"),
                 linkRow("rb-model-who-music", "Music & DJs", "/p/music-djs"),
-                linkRow("rb-model-who-chefs", "Chefs & Culinary", "/p/chefs-culinary"),
               ],
             },
           ],
