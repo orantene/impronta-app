@@ -217,11 +217,18 @@ export default async function WorkspaceAdminLayout({
   // the sidebar and the route could disagree, hiding a reachable page (or
   // advertising an unreachable one). Resolved server-side and passed through
   // the bridge so the client never re-derives permissions.
-  const canManageBilling = await userHasCapability("manage_billing", scope.tenantId);
+  // Same reasoning for the Website → Redirects link: the route gates on
+  // `agency.site_admin.pages.edit` (viewers don't have it), so the sidebar
+  // resolves the SAME capability rather than guessing from the role.
+  const [canManageBilling, canEditSitePages] = await Promise.all([
+    userHasCapability("manage_billing", scope.tenantId),
+    userHasCapability("agency.site_admin.pages.edit", scope.tenantId),
+  ]);
 
   const sessionIdentity = {
     userId: session.user.id,
     canManageBilling,
+    canEditSitePages,
     email: session.user.email ?? "",
     role: scope.membership.role,
     displayName: profileDisplayName,

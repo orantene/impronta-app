@@ -285,7 +285,10 @@ const BUDGETS: Record<string, number> = {
   // +41: setRosterCardTypeDisplay — the roster-card category-block layout
   // setter, kept beside its sibling setRosterCardBadge (same settings blob,
   // same optimistic-persist-reconcile contract) rather than split off alone.
-  "src/components/admin/shell/internal/state/context.tsx": 2388,
+  // +2 (2388 → 2390): `canEditSitePages` on bridgeSessionIdentity, so the
+  // Website → Redirects nav link is gated on the same capability its route
+  // enforces instead of on a role proxy.
+  "src/components/admin/shell/internal/state/context.tsx": 2390,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,

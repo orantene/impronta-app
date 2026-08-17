@@ -82,6 +82,11 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // /talent/payouts), NOT a canonical route — it renders inside the talent
   // dashboard nav (and works on agency hosts, unlike standalone /talent/*
   // routes which loop there). Intentionally no matcher here.
+  // /<tenant>/admin/website/redirects — 301/302 manager. "website" IS a
+  // WorkspacePage id, so without this matcher the SPA's Website overview would
+  // render stacked underneath the real page (the failure the bookings/account
+  // matchers below were added for).
+  (s) => s[0] === "admin" && s[1] === "website" && s[2] === "redirects",
   // /<tenant>/admin/messages/<id> — Phase 2.1 canonical thread inspect.
   // The mega Messages shell still owns the LIST (no path segment after
   // "messages") + the legacy ?inquiry=<id> query-param flow. The new

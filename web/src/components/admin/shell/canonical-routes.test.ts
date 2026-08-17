@@ -51,6 +51,7 @@ test("nested canonical routes work on both shapes", () => {
     "/admin/roster/applications",
     "/admin/roster/registration",
     "/admin/policy/auto-ack",
+    "/admin/website/redirects",
   ]) {
     assert.equal(pathIsCanonical(p), true, `branded: ${p}`);
     assert.equal(pathIsCanonical(`/impronta${p}`), true, `slug: ${p}`);
@@ -69,7 +70,8 @@ test("id-bearing routes need the id segment on both shapes", () => {
 
 test("SPA-owned surfaces stay non-canonical on both shapes", () => {
   // Roster deliberately has NO matcher (reverted 2026-05-15 by product owner).
-  for (const p of ["/admin", "/admin/roster", "/admin/calendar", "/admin/clients", "/admin/media"]) {
+  // "/admin/website" itself stays on the SPA — only the /redirects child is canonical.
+  for (const p of ["/admin", "/admin/roster", "/admin/calendar", "/admin/clients", "/admin/media", "/admin/website"]) {
     assert.equal(pathIsCanonical(p), false, `branded: ${p}`);
     assert.equal(pathIsCanonical(`/impronta${p}`), false, `slug: ${p}`);
   }
