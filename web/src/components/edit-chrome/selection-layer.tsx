@@ -165,6 +165,11 @@ import {
 import { performAddGalleryInsertById } from "@/lib/site-admin/add-gallery/perform-insert";
 import { getAddGalleryItemById } from "@/lib/site-admin/add-gallery/registry";
 import { AiReviseModal } from "./ai-revise/ai-revise-modal";
+import { CanvasNodeMoveRail } from "./canvas-node-move-rail";
+import {
+  hasLayoutEscapes,
+  stripLayoutEscapes,
+} from "@/lib/site-admin/builder-node/layout-escapes";
 import {
   replaceBuilderNodeInTree,
   findBuilderNodeParentIndex,
@@ -2941,6 +2946,13 @@ export function SelectionLayer() {
     !!selectedBuilderNodeId &&
     selectedCanvasNodeId === selectedBuilderNodeId &&
     !resolveBuilderNodeRole(selectedBuilderNode.id);
+  // Has this block been moved / resized / rotated by hand? Drives whether the
+  // chip shows its reset button at all — an escape hatch that is only present
+  // when there is something to escape from reads as an answer to the situation
+  // rather than as one more permanent icon in the row.
+  const selectedNodeHasLayoutEscapes = hasLayoutEscapes(
+    (selectedBuilderNode?.props as { style?: unknown } | undefined)?.style,
+  );
   // Does the selected block actually expose an inline-editable TEXT target?
   // The toolbar pencil fires `requestInlineEdit`, which only does something
   // when the node renders an element the inline editor can open
@@ -3221,6 +3233,17 @@ export function SelectionLayer() {
         : null,
     [builderTree, hoveredBuilderNodeId],
   );
+  // Where the hovered block sits among its siblings — gates the move rail's
+  // up/down arrows so the first child cannot be nudged above itself. Read from
+  // the tree rather than from the selection, because the rail acts on the
+  // HOVERED block (the selection catches up on pointer-down).
+  const hoveredSiblingPosition = useMemo(
+    () =>
+      hoveredBuilderNodeId
+        ? findBuilderNodeParentIndex(builderTree, hoveredBuilderNodeId)
+        : null,
+    [builderTree, hoveredBuilderNodeId],
+  );
   const hoveredNodeIsMovableBlock =
     !!hoveredBuilderNode &&
     !!hoveredBuilderNodeId &&
@@ -3448,6 +3471,51 @@ export function SelectionLayer() {
       getSelectedBuilderNodeEl,
     ],
   );
+  /**
+   * "Reset size & position" — clear every style key a canvas drag handle can
+   * write (translate, rotate, width/height + min·max, padding, free margins,
+   * gap) at the base level AND in each responsive bucket, and wipe the inline
+   * previews those handles left on the live element so the reset is visible
+   * immediately rather than after the next refresh.
+   *
+   * Recovery, not a wipe: colour, typography, background, borders and the
+   * responsive visibility flags are untouched. `stripLayoutEscapes` owns which
+   * keys qualify and is unit-tested; this is the commit wiring.
+   */
+  const commitResetSelectedNodeLayout = useCallback(() => {
+    if (!selectedBuilderNodeId) return;
+    const node = findBuilderNodeById(builderTree, selectedBuilderNodeId);
+    if (!node || node.kind === "section") return;
+    const liveEl = getSelectedBuilderNodeEl();
+    if (liveEl) {
+      for (const prop of [
+        "translate",
+        "rotate",
+        "width",
+        "height",
+        "minWidth",
+        "minHeight",
+        "maxWidth",
+        "maxHeight",
+        "gap",
+        "columnGap",
+        "rowGap",
+        "padding",
+        "margin",
+      ] as const) {
+        liveEl.style[prop] = "";
+      }
+    }
+    const nextStyle = stripLayoutEscapes(
+      (node.props as { style?: unknown } | undefined)?.style,
+    );
+    void patchBuilderNodeProps(selectedBuilderNodeId, { style: nextStyle });
+  }, [
+    selectedBuilderNodeId,
+    builderTree,
+    patchBuilderNodeProps,
+    getSelectedBuilderNodeEl,
+  ]);
   const commitSelectedNodeTranslate = useCallback(
     // `bucket` — breakpoint-aware nudge (kit/nudge.ts): "tablet"/"mobile"
     // writes the RESPONSIVE OVERRIDE bucket instead of the base style, so a
@@ -4824,18 +4892,15 @@ export function SelectionLayer() {
       hoveredBuilderNodeId &&
       hoveredBuilderNode &&
       device === "desktop" ? (
-        <button
-          type="button"
-          data-builder-node-hover-grip=""
-          data-builder-node-id={hoveredBuilderNodeId}
-          // The grip is painted in the overlay root, not inside the block it
-          // drags. Declaring its owner keeps hover pointing at that block while
-          // the pointer is on the grip — without it the grip unmounts itself on
+        <CanvasNodeMoveRail
+          rect={nodeHoverRect}
+          label={hoveredBlockLabel}
+          nodeId={hoveredBuilderNodeId}
+          // The rail is painted in the overlay root, not inside the block it
+          // moves. Declaring its owner keeps hover pointing at that block while
+          // the pointer is on the rail — without it the rail unmounts itself on
           // contact and blinks (canvas-hover-attribution.ts).
-          {...hoverAttributionProps(hoveredBuilderNodeId)}
-          aria-label={t("Drag to move {label}").replace("{label}", hoveredBlockLabel)}
-          title={t("Drag to move / nest this block")}
-          draggable
+          hoverAttributionProps={hoverAttributionProps(hoveredBuilderNodeId)}
           onDragStart={(event) => {
             armCanvasNodeMove(
               event,
@@ -4845,50 +4910,22 @@ export function SelectionLayer() {
             );
           }}
           onDragEnd={() => setCanvasNodeDrag({ phase: "idle" })}
-          // Selecting on pointer-down makes the grabbed block the active
-          // selection too, matching the chip-grip path (which drags the
-          // selected block). Doesn't block the drag — dragstart still fires.
           onPointerDown={() => selectBuilderNode(hoveredBuilderNodeId)}
-          style={{
-            position: "fixed",
-            // Sit just inside the ring's top-left corner; clamp to the
-            // viewport top so it never hides under the topbar.
-            top: Math.max(nodeHoverRect.top + 4, 60),
-            left: nodeHoverRect.left + 4,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 22,
-            height: 22,
-            padding: 0,
-            borderRadius: 6,
-            border: "none",
-            background: RAIL_BG,
-            color: CHROME.muted,
-            boxShadow: RAIL_SHADOW,
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            cursor: "grab",
-            pointerEvents: "auto",
-            zIndex: 94,
-            touchAction: "none",
-          }}
-        >
-          <svg
-            width="9"
-            height="14"
-            viewBox="0 0 9 14"
-            fill="currentColor"
-            aria-hidden
-          >
-            <circle cx="2" cy="2" r="1" />
-            <circle cx="7" cy="2" r="1" />
-            <circle cx="2" cy="7" r="1" />
-            <circle cx="7" cy="7" r="1" />
-            <circle cx="2" cy="12" r="1" />
-            <circle cx="7" cy="12" r="1" />
-          </svg>
-        </button>
+          onMoveUp={
+            hoveredSiblingPosition && hoveredSiblingPosition.index > 0
+              ? () => void commitChildMove(hoveredBuilderNodeId, "up")
+              : null
+          }
+          onMoveDown={
+            hoveredSiblingPosition &&
+            hoveredSiblingPosition.index < hoveredSiblingPosition.siblingCount - 1
+              ? () => void commitChildMove(hoveredBuilderNodeId, "down")
+              : null
+          }
+          background={RAIL_BG}
+          boxShadow={RAIL_SHADOW}
+          t={t}
+        />
       ) : null}
 
       {/* Sprint 4 — additional-selection rings. Render a quieter ring
@@ -5940,7 +5977,9 @@ export function SelectionLayer() {
                 disabled={false /* Perf spine — node ops ride the optimistic lane; no saving gate */}
                 confirmRemove={confirmRemove}
                 canEditText={selectedNodeHasInlineTextTarget}
-                onResetPosition={() => commitSelectedNodeTranslate(0, 0)}
+                onResetLayout={
+                  selectedNodeHasLayoutEscapes ? commitResetSelectedNodeLayout : null
+                }
                 onEditContent={() => requestInspectorTab("content")}
                 onDesign={() => requestInspectorTab("style")}
                 onReviseWithAi={
@@ -6691,7 +6730,14 @@ function SelectionContextMenu({
   const viewportHeight = typeof window === "undefined" ? state.y + 280 : window.innerHeight;
   const left = Math.max(Math.min(state.x, viewportWidth - 236), 8);
   const top = Math.max(Math.min(state.y, viewportHeight - 280), 58);
-  return (
+  // Portaled to <body>, NOT to #edit-overlay-portal like the rest of the canvas
+  // chrome. That portal now sits BELOW the floating panels (so a selection ring
+  // can no longer paint across the Structure panel), and this menu is the one
+  // piece of canvas chrome that must still win: it opens from a right-click on a
+  // LAYER ROW inside that very panel, and a menu rendered under its own trigger
+  // would be unusable.
+  return createPortal(
+    (
     <div
       role="menu"
       aria-label={t("Selection actions for {label}").replace("{label}", targetLabel)}
@@ -6709,7 +6755,12 @@ function SelectionContextMenu({
         boxShadow: CHIP_SHADOW,
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
-        zIndex: 94,
+        // `canvasPanels` — the band for canvas-owned surfaces that are
+        // body-portaled, so the number is global and real (unlike anything
+        // inside #edit-overlay-portal, which is clamped by its host). This menu
+        // must clear the Structure panel it can be right-clicked open FROM,
+        // which lives in the `panels` band below it.
+        zIndex: Z_INDEX.canvasPanels,
         pointerEvents: "auto",
         fontFamily:
           'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
@@ -6908,6 +6959,8 @@ function SelectionContextMenu({
       <ContextMenuSeparator />
       <ContextMenuButton onClick={onClose}>{t("Close menu")}</ContextMenuButton>
     </div>
+    ),
+    document.body,
   );
 }
 
@@ -7332,7 +7385,7 @@ function BlockChipToolBar({
   light = false,
   nestedOpen,
   onToggleNested,
-  onResetPosition,
+  onResetLayout,
   onEditContent,
   onDesign,
   onReviseWithAi,
@@ -7362,7 +7415,11 @@ function BlockChipToolBar({
   nestedOpen?: boolean;
   /** Null when the selected block has no children (button stays out). */
   onToggleNested?: (() => void) | null;
-  onResetPosition: () => void;
+  /**
+   * Clears the block's hand-applied size/position/rotation. Null when the block
+   * carries none, so the button stays out of the row until it has work to do.
+   */
+  onResetLayout: (() => void) | null;
   onEditContent: () => void;
   onDesign: () => void;
   // Opens the "revise this block with AI" modal for the selected node. Null when
@@ -7516,6 +7573,36 @@ function BlockChipToolBar({
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
         </ChipBtn>
       ) : null}
+      {/* Move up / down, promoted out of the "More" overflow menu.
+       *  The SECTION chip has always carried this pair as visible buttons; the
+       *  block chip buried the same two actions one click deeper, so the only
+       *  discoverable way to reorder a block on the canvas was to drag it. A
+       *  one-slot nudge is the most common reorder there is and it should not
+       *  cost a gesture, let alone a menu. Disabled (not hidden) at the ends of
+       *  the sibling list so the chip's button row does not reflow as the
+       *  selection moves. */}
+      <ChipBtn
+        light={light}
+        style={btnStyle}
+        disabled={disabled || !onMoveUp}
+        onClick={() => onMoveUp?.()}
+        aria-label={t("Move block up")}
+        data-selection-block-action="move-up"
+        title={t("Move up")}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        light={light}
+        style={btnStyle}
+        disabled={disabled || !onMoveDown}
+        onClick={() => onMoveDown?.()}
+        aria-label={t("Move block down")}
+        data-selection-block-action="move-down"
+        title={t("Move down")}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+      </ChipBtn>
       <ChipBtn
         light={light}
         style={btnStyle}
@@ -7538,14 +7625,29 @@ function BlockChipToolBar({
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z" /><path d="M4 16H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1" /></svg>
       </ChipBtn>
+      {/* Reset size & position — the way back from a block that has been
+       *  dragged, stretched or rotated somewhere the operator did not intend
+       *  and can no longer undo their way out of. Conditional on the block
+       *  actually carrying those overrides, so it appears exactly when it is
+       *  the answer and never sits in the row as dead weight. */}
+      {onResetLayout ? (
+        <ChipBtn
+          light={light}
+          style={btnStyle}
+          disabled={disabled}
+          onClick={onResetLayout}
+          aria-label={t("Reset this block's size and position")}
+          data-selection-block-action="reset-layout"
+          title={t("Reset size & position")}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7" /><polyline points="3 4 3 9 8 9" /></svg>
+        </ChipBtn>
+      ) : null}
       <BlockChipOverflowMenu
         btnStyle={btnStyle}
         disabled={disabled}
         light={light}
-        onResetPosition={onResetPosition}
         onAddBefore={onAddBefore}
-        onMoveUp={onMoveUp}
-        onMoveDown={onMoveDown}
         onCopy={onCopy}
         onCut={onCut}
         onPaste={onPaste}
@@ -7582,17 +7684,15 @@ function BlockChipToolBar({
 /**
  * Overflow ("More") menu for the block chip toolbar. Houses the secondary,
  * lower-frequency actions that used to crowd the chip as undifferentiated
- * icons: reset position, add-before, move up/down, copy. Opens a small popover
+ * icons: add-before, copy. (Move up/down were promoted back out
+ * to visible chip buttons — a one-slot reorder is too common to live in a menu.) Opens a small popover
  * anchored under the kebab button; dismisses on outside-click / Escape.
  */
 function BlockChipOverflowMenu({
   btnStyle,
   disabled,
   light = false,
-  onResetPosition,
   onAddBefore,
-  onMoveUp,
-  onMoveDown,
   onCopy,
   onCut,
   onPaste,
@@ -7602,10 +7702,7 @@ function BlockChipOverflowMenu({
   disabled: boolean;
   /** Light floating toolbar — matches the canvas text toolbar surface. */
   light?: boolean;
-  onResetPosition: () => void;
   onAddBefore: (() => void) | null;
-  onMoveUp: (() => void) | null;
-  onMoveDown: (() => void) | null;
   onCopy: () => void;
   // CANVAS-7 — the full copy/cut/paste/duplicate quartet lives here so every
   // clipboard gesture is reachable from one menu. Paste is null when empty.
@@ -7694,26 +7791,11 @@ function BlockChipOverflowMenu({
             gap: 1,
           }}
         >
-          <ContextMenuButton disabled={disabled} onClick={() => run(onResetPosition)}>
-            {t("Reset position")}
-          </ContextMenuButton>
           <ContextMenuButton
             disabled={disabled || !onAddBefore}
             onClick={() => onAddBefore && run(onAddBefore)}
           >
             {t("Add before")}
-          </ContextMenuButton>
-          <ContextMenuButton
-            disabled={disabled || !onMoveUp}
-            onClick={() => onMoveUp && run(onMoveUp)}
-          >
-            {t("Move up")}
-          </ContextMenuButton>
-          <ContextMenuButton
-            disabled={disabled || !onMoveDown}
-            onClick={() => onMoveDown && run(onMoveDown)}
-          >
-            {t("Move down")}
           </ContextMenuButton>
           {/* "Copy" alone collides with the ES catalog's copywriting sense of
               the word ("Texto"), so this menu says "Copy block" — also matches

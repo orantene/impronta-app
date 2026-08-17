@@ -43,8 +43,23 @@ test("findBuilderNodeParentIndex resolves root, nested, and missing", () => {
     },
     { id: "s1", kind: "section" },
   ]);
-  assert.deepEqual(findBuilderNodeParentIndex(t, "s1"), { parentId: null, index: 1 });
-  assert.deepEqual(findBuilderNodeParentIndex(t, "c0"), { parentId: "s0", index: 0 });
-  assert.deepEqual(findBuilderNodeParentIndex(t, "n0"), { parentId: "c0", index: 0 });
+  // siblingCount travels with the position so a caller can tell whether a
+  // "move down" is even possible without re-walking the tree (the canvas move
+  // rail's arrows gate on it).
+  assert.deepEqual(findBuilderNodeParentIndex(t, "s1"), {
+    parentId: null,
+    index: 1,
+    siblingCount: 2,
+  });
+  assert.deepEqual(findBuilderNodeParentIndex(t, "c0"), {
+    parentId: "s0",
+    index: 0,
+    siblingCount: 1,
+  });
+  assert.deepEqual(findBuilderNodeParentIndex(t, "n0"), {
+    parentId: "c0",
+    index: 0,
+    siblingCount: 1,
+  });
   assert.equal(findBuilderNodeParentIndex(t, "nope"), null);
 });

@@ -46,8 +46,10 @@ import {
   type BuilderNodeKind,
   type BuilderNodeTree,
 } from "@/lib/site-admin/builder-node";
+import { canDropBuilderNode } from "@/lib/site-admin/builder-node/drop-policy";
 import { resolveFreeformLayerDrop } from "@/lib/site-admin/builder-node/freeform-layers-drop";
 import { usePointerDrag } from "./use-pointer-drag";
+import type { PointerDropZone } from "./pointer-drag-autoscroll";
 import {
   resolveLayerDisplayName,
   resolveResponsiveOverrides,
@@ -85,6 +87,11 @@ interface LayerRow {
   index: number;
   /** Number of siblings in this node's parent list (reorder only when > 1). */
   siblingCount: number;
+  /**
+   * Number of children this row holds. Feeds the nest-into-container drop
+   * (a block dropped on a container's middle band appends after these).
+   */
+  childCount: number;
   /**
    * CANVAS-5 — parent container id (`null` at the page root). Drives the
    * flat→tree drop resolver so a layer drag reuses moveBuilderNodeToParentIndex.
@@ -203,6 +210,8 @@ export function flattenTree(tree: BuilderNodeTree): FlattenedTree {
         depth,
         index,
         siblingCount: nodes.length,
+        childCount:
+          "children" in node && Array.isArray(node.children) ? node.children.length : 0,
         parentId,
         parentKind,
         parentLocked,
@@ -386,9 +395,18 @@ export function FreeformLayersTree({
     parentId: string | null;
     index: number;
   } | null>(null);
+  // `zone` distinguishes the two sibling drops from the nest-into-container
+  // drop, so the row can paint an insertion LINE for the first two and a
+  // container OUTLINE for the third. Without that distinction the panel drew
+  // one thin line for every outcome and never said which container a block was
+  // landing in — the "I don't know if it's really putting it inside or outside"
+  // report this state exists to answer.
   const [dropTarget, setDropTarget] = useState<{
     targetRowId: string;
     before: boolean;
+    zone: PointerDropZone;
+    /** Name of the container a nest drop would land in, for the row badge. */
+    parentLabel: string | null;
   } | null>(null);
   const treeRef = useLayersTreeContainer();
 
@@ -564,7 +582,14 @@ export function FreeformLayersTree({
       source: { id: string; kind: BuilderNodeKind; parentId: string | null; index: number },
       targetEl: HTMLElement | null,
       onUpperHalf: boolean | null,
-    ): { result: ReturnType<typeof resolveFreeformLayerDrop>; targetRowId: string; before: boolean } | null => {
+      zone: PointerDropZone | null,
+    ): {
+      result: ReturnType<typeof resolveFreeformLayerDrop>;
+      targetRowId: string;
+      before: boolean;
+      zone: PointerDropZone;
+      parentLabel: string | null;
+    } | null => {
       if (!targetEl || onUpperHalf == null) return null;
       const targetRowId = targetEl.getAttribute("data-builder-node-id");
       if (!targetRowId) return null;
@@ -577,6 +602,7 @@ export function FreeformLayersTree({
       }
       const row = rowById.get(targetRowId);
       if (!row) return null;
+      const effectiveZone: PointerDropZone = zone ?? (onUpperHalf ? "before" : "after");
       const result = resolveFreeformLayerDrop({
         sourceId: source.id,
         sourceKind: source.kind,
@@ -590,10 +616,27 @@ export function FreeformLayersTree({
           parentKind: row.parentKind,
           parentLocked: row.parentLocked,
           index: row.index,
+          childCount: row.childCount,
+          locked: row.locked,
         },
         onUpperHalf,
+        zone: effectiveZone,
       });
-      return { result, targetRowId, before: onUpperHalf };
+      // For a sibling drop the operator wants to know which container it lands
+      // in, which is the hovered row's PARENT, not the hovered row.
+      const parentLabel =
+        effectiveZone === "inside"
+          ? row.label
+          : row.parentId
+            ? (rowById.get(row.parentId)?.label ?? null)
+            : null;
+      return {
+        result,
+        targetRowId,
+        before: effectiveZone === "before",
+        zone: effectiveZone,
+        parentLabel,
+      };
     },
     [descendantsByNode, rowById],
   );
@@ -606,22 +649,38 @@ export function FreeformLayersTree({
       index: number;
     }>({
       rowSelector: "[data-builder-node-id]",
+      // A row's middle band nests INTO it only when it is actually a container
+      // that accepts the dragged kind. Everything else keeps the plain
+      // before/after split, so no row gains a drop behaviour it cannot honour.
+      canNestInto: (targetEl, source) => {
+        const targetRowId = targetEl.getAttribute("data-builder-node-id");
+        if (!targetRowId || targetRowId === source.id) return false;
+        if (descendantsByNode.get(source.id)?.has(targetRowId)) return false;
+        const row = rowById.get(targetRowId);
+        if (!row || row.locked || row.rawChildKinds.length === 0) return false;
+        return canDropBuilderNode({ nodeKind: source.kind, parentKind: row.kind }).ok;
+      },
       onDragStart: (source) => {
         setDraggingNode(source);
         setDropTarget(null);
         selectBuilderNode(source.id);
       },
-      onDragMove: ({ source, targetEl, onUpperHalf }) => {
-        const resolved = resolvePointerDrop(source, targetEl, onUpperHalf);
+      onDragMove: ({ source, targetEl, onUpperHalf, zone }) => {
+        const resolved = resolvePointerDrop(source, targetEl, onUpperHalf, zone);
         // Only paint the indicator when the drop would actually move the node.
         if (!resolved || resolved.result.kind !== "move") {
           setDropTarget(null);
           return;
         }
-        setDropTarget({ targetRowId: resolved.targetRowId, before: resolved.before });
+        setDropTarget({
+          targetRowId: resolved.targetRowId,
+          before: resolved.before,
+          zone: resolved.zone,
+          parentLabel: resolved.parentLabel,
+        });
       },
-      onDrop: ({ source, targetEl, onUpperHalf }) => {
-        const resolved = resolvePointerDrop(source, targetEl, onUpperHalf);
+      onDrop: ({ source, targetEl, onUpperHalf, zone }) => {
+        const resolved = resolvePointerDrop(source, targetEl, onUpperHalf, zone);
         if (!resolved || resolved.result.kind !== "move") return;
         const { targetParentId, targetIndex } = resolved.result;
         setPending(true);
@@ -793,13 +852,22 @@ export function FreeformLayersTree({
             })
           : null;
         const isDragging = draggingNode?.id === row.id;
-        const showDropBefore =
-          dropTarget?.targetRowId === row.id && dropTarget.before;
-        const showDropAfter =
-          dropTarget?.targetRowId === row.id && !dropTarget.before;
+        const dropHere = dropTarget?.targetRowId === row.id ? dropTarget : null;
+        const showDropBefore = dropHere?.zone === "before";
+        const showDropAfter = dropHere?.zone === "after";
+        // A nest drop outlines the whole row instead of drawing a line between
+        // rows, because the block is going INTO this container rather than
+        // beside it. Two visibly different indicators for two different
+        // outcomes is the entire point.
+        const showDropInside = dropHere?.zone === "inside";
         return (
           <div key={row.id}>
-          {showDropBefore ? <LayerDropLine indent={ROOT_PADDING + row.depth * DEPTH_INDENT} /> : null}
+          {showDropBefore ? (
+            <LayerDropLine
+              indent={ROOT_PADDING + row.depth * DEPTH_INDENT}
+              label={dropHere?.parentLabel ?? null}
+            />
+          ) : null}
           <div
             role="treeitem"
             aria-level={row.depth + 1}
@@ -850,7 +918,9 @@ export function FreeformLayersTree({
               padding: "4px 8px",
               paddingLeft: ROOT_PADDING + row.depth * DEPTH_INDENT,
               borderRadius: CHROME_RADII.sm,
-              background: selected
+              background: showDropInside
+                ? "rgba(124,58,237,0.14)"
+                : selected
                 ? BUILDER_VISUAL.accentBg
                 : row.locked
                   ? "rgba(250,174,0,0.06)"
@@ -867,13 +937,18 @@ export function FreeformLayersTree({
               opacity: isDragging ? 0.45 : pending ? 0.72 : 1,
               // Touch parity nudge: keep the page scroll from swallowing a row drag.
               touchAction: draggable ? "none" : undefined,
-              boxShadow: selected
-                ? `inset 3px 0 0 ${BUILDER_VISUAL.accent}`
-                : row.locked
-                  ? "inset 3px 0 0 rgba(250,174,0,0.5)"
-                  : canvasHovered
-                    ? "inset 3px 0 0 rgba(124,58,237,0.45)"
-                    : "none",
+              // A nest drop wins the row's outline outright — while a drag is in
+              // flight the operator is reading exactly one thing off this row,
+              // and it is not whether the row happens to be selected.
+              boxShadow: showDropInside
+                ? `inset 0 0 0 2px ${BUILDER_VISUAL.accent}`
+                : selected
+                  ? `inset 3px 0 0 ${BUILDER_VISUAL.accent}`
+                  : row.locked
+                    ? "inset 3px 0 0 rgba(250,174,0,0.5)"
+                    : canvasHovered
+                      ? "inset 3px 0 0 rgba(124,58,237,0.45)"
+                      : "none",
               transition: "background 140ms ease, box-shadow 140ms ease, color 80ms ease",
             }}
           >
@@ -888,6 +963,30 @@ export function FreeformLayersTree({
               onToggle={() => toggleNode(row.id)}
             />
             <LayerKindPill kind={row.kind} Icon={row.Icon} selected={selected} />
+            {showDropInside ? (
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: -8,
+                  padding: "0 6px",
+                  height: 16,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  borderRadius: 4,
+                  background: BUILDER_VISUAL.accent,
+                  color: "#ffffff",
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.02em",
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                }}
+              >
+                Drop inside
+              </span>
+            ) : null}
             <span
               style={{
                 minWidth: 0,
@@ -1018,7 +1117,12 @@ export function FreeformLayersTree({
               onDismiss={() => setInsertTarget(null)}
             />
           ) : null}
-          {showDropAfter ? <LayerDropLine indent={ROOT_PADDING + row.depth * DEPTH_INDENT} /> : null}
+          {showDropAfter ? (
+            <LayerDropLine
+              indent={ROOT_PADDING + row.depth * DEPTH_INDENT}
+              label={dropHere?.parentLabel ?? null}
+            />
+          ) : null}
           </div>
         );
       })}
@@ -1030,8 +1134,18 @@ export function FreeformLayersTree({
  * CANVAS-5 — the drop-position indicator for a layer drag. Mirrors the
  * navigator's DropLine (blue 2px rule + dropLine shadow) but is indented to the
  * dragged-to row's depth so the operator sees the target nesting level.
+ *
+ * `label` names the container the block lands in. Indentation alone encodes
+ * that nesting level, but reading depth off a 14px indent step mid-drag is
+ * exactly the guesswork the operator reported; the name says it outright.
  */
-function LayerDropLine({ indent }: { indent: number }) {
+function LayerDropLine({
+  indent,
+  label = null,
+}: {
+  indent: number;
+  label?: string | null;
+}) {
   return (
     <div
       aria-hidden
@@ -1049,6 +1163,32 @@ function LayerDropLine({ indent }: { indent: number }) {
           boxShadow: CHROME_SHADOWS.dropLine,
         }}
       />
+      {label ? (
+        <span
+          style={{
+            position: "absolute",
+            left: indent,
+            top: -9,
+            padding: "0 5px",
+            height: 16,
+            display: "inline-flex",
+            alignItems: "center",
+            borderRadius: 4,
+            background: CHROME.blue,
+            color: "#ffffff",
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+            whiteSpace: "nowrap",
+            maxWidth: "70%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            pointerEvents: "none",
+          }}
+        >
+          {label}
+        </span>
+      ) : null}
     </div>
   );
 }
