@@ -362,6 +362,9 @@ export async function fetchSeedableTenantImages(
  * A PINNED slot bypasses this entirely: an explicit human choice always wins.
  */
 export function isEditorialFallbackCandidate(item: MediaLibraryItem): boolean {
+  // NOTE: this filter governs the blind FALLBACK pick only. A PINNED slot
+  // bypasses it entirely, which is how the shell logo slots resolve to a
+  // branding asset (the one case where the brand mark is the right answer).
   const purpose = (item as { purpose?: string }).purpose ?? "";
   if (purpose === "branding") return false;
 
@@ -392,8 +395,19 @@ export async function resolveImageSlots(
   // and fell back, and the fallback pool itself was 60 recent items — which is
   // how a logo and a staging upload became page heroes. Query the full library.
   const library = await fetchSeedableTenantImages(supabase, tenantId);
-  const images = library
-    .filter((item): item is MediaLibraryItem => item.assetKind === "image")
+  const allImages = library.filter(
+    (item): item is MediaLibraryItem => item.assetKind === "image",
+  );
+
+  // PIN LOOKUP over the UNFILTERED library. `isEditorialFallbackCandidate`
+  // governs the blind fallback pool ONLY. Building the id index from the
+  // filtered list silently broke every pin the filter excludes -- which is
+  // exactly the shell logo: it is a `purpose:"branding"` asset, correctly kept
+  // out of editorial fallbacks, and a pin naming it resolved to nothing and
+  // fell back to a random talent portrait as the site's logo.
+  const byId = new Map(allImages.map((item) => [item.id, item] as const));
+
+  const images = allImages
     .filter(isEditorialFallbackCandidate)
     .slice()
     .sort((a, b) => {
@@ -401,7 +415,6 @@ export async function resolveImageSlots(
       if (byDate !== 0) return byDate;
       return a.id.localeCompare(b.id);
     });
-  const byId = new Map(images.map((item) => [item.id, item] as const));
 
   const resolved = new Map<string, ResolvedImageSlot>();
   const unresolvedSlots: string[] = [];

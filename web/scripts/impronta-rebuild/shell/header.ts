@@ -254,6 +254,14 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
         fontWeight: 600,
         letterSpacing: "0.06em",
         textColor: SHELL_NAV_TEXT,
+        // The nav node ships its own full-width bar CSS (max-width 1120 +
+        // space-between) because it is normally THE header. Nested here it must
+        // size to its links instead, or it eats the whole row and the actions
+        // cluster wraps onto a second line.
+        width: "auto",
+        maxWidthFree: "none",
+        flexGrow: 0,
+        flexShrink: 1,
         // Phones: the hamburger reads best at the far edge, after the widgets.
         responsive: { mobile: { order: 3 } },
       },
@@ -270,7 +278,13 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
       layerLabel: "Header actions",
       style: {
         gap: "10px",
+        width: "auto",
+        flexGrow: 0,
         flexShrink: 0,
+        // Six items in the space the logo and nav leave over: with the default
+        // `wrap` they stacked into six rows and made the bar 390px tall.
+        flexWrap: "nowrap",
+        whiteSpace: "nowrap",
         responsive: { mobile: { order: 2, gap: "8px" } },
       },
     },
@@ -293,6 +307,11 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
         ...SHELL_FROSTED_STICKY,
         width: "100%",
         justifyContent: "space-between",
+        // The bar must NOT wrap: the `nav` node ships its own full-width bar
+        // CSS (max-width 1120 + space-between), so as a flex child it claims
+        // the whole row and pushes the cluster onto a second line. nowrap +
+        // content-sized children keeps logo | nav | actions on one line.
+        flexWrap: "nowrap",
         gap: "28px",
         paddingTop: "14px",
         paddingBottom: "14px",

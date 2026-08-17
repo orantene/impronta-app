@@ -30,9 +30,22 @@ const ANCHORS = {
   footer: "22222222-2222-2222-2222-222222222222",
 };
 
+/**
+ * Impronta's footer slot is stored with sortOrder 0 (NOT 1). The fixture keeps
+ * that asymmetry on purpose: assuming header=0/footer=1 is precisely the bug
+ * that shipped a header-less site, because the address key is
+ * `sectionId:slotKey:sortOrder` and a guessed sortOrder matches no slot.
+ */
+const SORT_ORDERS = { header: 0, footer: 0 };
+
 function treeFor(locale: string) {
   const { header, footer } = treesForLocale(locale);
-  return buildShellTree({ anchors: ANCHORS, header, footer });
+  return buildShellTree({
+    anchors: ANCHORS,
+    sortOrders: SORT_ORDERS,
+    header,
+    footer,
+  });
 }
 
 /** The snapshot slots the anchors correspond to. */
@@ -40,13 +53,13 @@ const SLOTS = [
   {
     sectionId: ANCHORS.header,
     slotKey: "header",
-    sortOrder: 0,
+    sortOrder: SORT_ORDERS.header,
     sectionTypeKey: "site_header",
   },
   {
     sectionId: ANCHORS.footer,
     slotKey: "footer",
-    sortOrder: 1,
+    sortOrder: SORT_ORDERS.footer,
     sectionTypeKey: "site_footer",
   },
 ] as never[];
@@ -153,4 +166,29 @@ test("the tree carries no unresolved image-slot tokens once seeded", () => {
     tokens.length > 0,
     "expected authored image slots (the seeder resolves them at write time)",
   );
+});
+
+test("every landmark address key resolves to a real slot (the header-less bug)", () => {
+  // THE regression: a landmark whose `sectionId:slotKey:sortOrder` matches no
+  // slot is invisible to `renderShellSlot` -- it finds no builder node, renders
+  // no children, and because `ejected` correctly suppresses the curated bar the
+  // page ends up with NO header. Shipped exactly once; pinned here forever.
+  const slotKeys = new Set(
+    (SLOTS as unknown as Array<{
+      sectionId: string;
+      slotKey: string;
+      sortOrder: number;
+    }>).map((s) => `${s.sectionId}:${s.slotKey}:${s.sortOrder}`),
+  );
+  for (const locale of ["en", "es"]) {
+    for (const node of treeFor(locale) as Array<{
+      props: { sectionId?: string; slotKey?: string; sortOrder?: number };
+    }>) {
+      const key = `${node.props.sectionId}:${node.props.slotKey}:${node.props.sortOrder}`;
+      assert.ok(
+        slotKeys.has(key),
+        `[${locale}] landmark address "${key}" matches no snapshot slot — its children would never render`,
+      );
+    }
+  }
 });
