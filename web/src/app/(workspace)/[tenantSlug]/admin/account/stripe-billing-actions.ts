@@ -24,6 +24,7 @@ import {
   createBillingPortalSession,
 } from "@/lib/stripe/workspace-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { logServerError } from "@/lib/server/safe-error";
 import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 
@@ -77,6 +78,9 @@ export async function startWorkspaceUpgrade(
     displayName: scope.membership.display_name ?? tenantSlug,
     tenantSlug,
     appBaseUrl,
+    // The app already resolved this owner's language; hand it to Stripe so
+    // Checkout does not fall back to guessing from the browser.
+    locale: await getRequestLocale(),
   });
 
   if (!result.ok) {
@@ -121,6 +125,7 @@ export async function openSubscriptionPortal(
     tenantId: scope.tenantId,
     tenantSlug,
     appBaseUrl,
+    locale: await getRequestLocale(),
   });
 
   if (!result.ok) {

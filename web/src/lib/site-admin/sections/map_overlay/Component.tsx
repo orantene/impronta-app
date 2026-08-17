@@ -7,6 +7,7 @@
  * splitting are preserved exactly.
  */
 import type { CSSProperties } from "react";
+import { withGoogleMapsLanguage } from "@/lib/i18n/vendor-locale";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { Container, SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
@@ -178,11 +179,19 @@ function sectionHeadAlignDecls(align?: "left" | "center" | "right"): string[] {
 export function MapOverlayComponent({
   props,
   sectionId,
+  locale,
   builderNodeBindings,
 }: SectionComponentProps<MapOverlayV1>) {
   const { eyebrow, headline, mapEmbedUrl, card, side, ratio, nodePresentation, presentation } =
     props;
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
+  // `mapEmbedUrl` is a RAW STRING the operator pasted out of Google Maps, so it
+  // is treated as theirs: `hl` is only appended when the URL does not already
+  // carry one, every existing parameter is preserved byte for byte (the `pb=`
+  // payload is full of `!` characters that URL re-encoding would mangle), and
+  // an operator who set their own `hl` is never overruled. Without this the
+  // map's labels and controls follow the visitor's browser, not the page.
+  const localizedMapEmbedUrl = withGoogleMapsLanguage(mapEmbedUrl, locale);
   const eyebrowNode = nodePresentation?.subheadline;
   const headlineNode = nodePresentation?.headline;
   const copyNode = nodePresentation?.copy;
@@ -254,7 +263,7 @@ export function MapOverlayComponent({
       <div className="site-map__frame" style={{ aspectRatio: ratio }}>
         <iframe
           className="site-map__iframe"
-          src={mapEmbedUrl}
+          src={localizedMapEmbedUrl}
           title={`${card.title} on map`}
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"

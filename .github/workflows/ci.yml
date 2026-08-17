@@ -168,6 +168,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:tenant-locale-grammar
 
+      - name: tests — vendor-locale (third-party widget language handoff)
+        if: ${{ !cancelled() }}
+        run: npm run test:vendor-locale
+
       - name: tests — locale-suggestion
         if: ${{ !cancelled() }}
         run: npm run test:locale-suggestion

@@ -23,6 +23,10 @@ import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspa
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import type { AllowedStatus } from "@/lib/stripe/utils";
+import {
+  stripeBillingPortalLocale,
+  stripeCheckoutLocale,
+} from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -140,6 +144,14 @@ export async function createWorkspaceCheckoutSession(opts: {
   displayName: string;
   tenantSlug: string;
   appBaseUrl: string;
+  /**
+   * The workspace owner's resolved app locale (`getRequestLocale()`), threaded
+   * from the calling server action. Without it Stripe reads the BROWSER
+   * language, so an owner running Tulala in Spanish on an English browser pays
+   * through an English form. Absent / unmappable → the parameter is omitted and
+   * Stripe keeps its own default.
+   */
+  locale?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -175,6 +187,8 @@ export async function createWorkspaceCheckoutSession(opts: {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=success`,
       cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=cancelled`,
+      // Show Checkout in the owner's app language, not their browser's.
+      locale: stripeCheckoutLocale(opts.locale),
       metadata: {
         tenant_id: opts.tenantId,
         plan_key: opts.planKey,
@@ -220,6 +234,8 @@ export async function createBillingPortalSession(opts: {
   tenantId: string;
   tenantSlug: string;
   appBaseUrl: string;
+  /** Resolved app locale, threaded from the caller. See the checkout helper. */
+  locale?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -242,6 +258,7 @@ export async function createBillingPortalSession(opts: {
     const session = await stripe.billingPortal.sessions.create({
       customer: customer.stripe_customer_id,
       return_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
+      locale: stripeBillingPortalLocale(opts.locale),
     });
 
     return { ok: true, data: { url: session.url } };

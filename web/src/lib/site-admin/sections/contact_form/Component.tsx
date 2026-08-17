@@ -1,3 +1,4 @@
+import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 import { neutralizeFormAction } from "@/lib/saas/public-hrefs";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
@@ -23,6 +24,7 @@ import {
 export function ContactFormComponent({
   props,
   sectionId,
+  locale,
   captcha: resolvedCaptcha,
   builderNodeBindings,
 }: SectionComponentProps<ContactFormV1>) {
@@ -113,6 +115,15 @@ export function ContactFormComponent({
   const captchaActive =
     (captcha === "hcaptcha" && hcaptchaKey) ||
     (captcha === "turnstile" && turnstileKey);
+  // Widget language. Both providers default to the VISITOR'S BROWSER language,
+  // so a Spanish storefront handed an English-browser visitor an English
+  // challenge. `locale` is the locale this page was rendered for, which is the
+  // only signal that matches what the visitor is actually reading. Undefined
+  // when the locale maps to nothing the provider ships — the attribute is then
+  // omitted and the provider keeps its own default rather than being handed a
+  // tag it would reject.
+  const hcaptchaHl = hcaptchaLocale(locale);
+  const turnstileLanguage = turnstileLocale(locale);
 
   // Phase 8 — when the operator picks `internal:auto` (or just leaves
   // the action blank with a non-null sectionId), route the form to
@@ -503,6 +514,7 @@ export function ContactFormComponent({
               <div
                 className="h-captcha"
                 data-sitekey={hcaptchaKey}
+                data-hl={hcaptchaHl}
                 data-callback="__tulalaCaptchaDone"
               />
               <script src="https://js.hcaptcha.com/1/api.js" async defer />
@@ -510,7 +522,11 @@ export function ContactFormComponent({
           ) : null}
           {captchaActive && captcha === "turnstile" ? (
             <>
-              <div className="cf-turnstile" data-sitekey={turnstileKey} />
+              <div
+                className="cf-turnstile"
+                data-sitekey={turnstileKey}
+                data-language={turnstileLanguage}
+              />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async
