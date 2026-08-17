@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useTransition, useEffect, useRef } from "react";
+import { OfferColumnHeaders, OfferMoneySplit, OfferEditorFooter } from "@/components/admin/offer/offer-money-split";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
@@ -572,13 +573,20 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         <span style={{ fontWeight: 700 }} className="text-admin-ink">{t("dashboard.adminTabs.lineup.draftEditor")}</span>
         {/* W0-4 — live save-state chip, companion to OfferSaveBanner. */}
         <OfferStatusChip state={saveState} />
-        <span className="text-admin-ink-muted text-admin-11">inquiry_offer_line_items</span>
+        {/* Was the raw table name (a debug artifact shipped to owners). */}
+        {snapshot.createdByName ? (
+          <span className="text-admin-ink-muted text-admin-11">
+            {t("dashboard.adminTabs.lineup.createdByLabel")} {snapshot.createdByName}
+          </span>
+        ) : null}
         <span style={{ flex: 1 }} />
         <button type="button" onClick={() => setCollapsed(true)} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.collapse")}</button>
       </div>
       {/* W0-1 — sticky save-state banner: quiet tick on success, persistent
           danger banner (with human reason + Retry) while a save is failing. */}
       <OfferSaveBanner state={saveState} onRetry={save} />
+      {/* Column headings — see offer-money-split.tsx for why. */}
+      <OfferColumnHeaders t={t} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
           <div key={li.id} style={{
@@ -702,32 +710,28 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-2">
-        <button type="button" disabled={pending} onClick={addLineItem} style={ghostBtn()}>{t("dashboard.adminTabs.lineup.addLineItem")}</button>
-        <span style={{ flex: 1 }} />
-        <label className="text-admin-ink-muted text-admin-11">{t("dashboard.adminTabs.lineup.total")}</label>
-        <span
-          title={t("dashboard.adminTabs.lineup.totalTitle")}
-          style={{ minWidth: 90, padding: "5px 6px", fontSize: 13, fontWeight: 700, textAlign: "right", whiteSpace: "nowrap", fontFamily: FONTS.body }}
-          className="text-admin-ink"
-        >
-          {new Intl.NumberFormat("en-US", { style: "currency", currency: snapshot.currencyCode, maximumFractionDigits: 0 }).format(computedTotal)}
-        </span>
-        <label className="text-admin-ink-muted text-admin-11">{t("dashboard.adminTabs.lineup.fee")}</label>
-        <input type="number" min={0} step="100" value={snapshot.coordinatorFee}
-          onChange={(e) => setSnapshot((s) => s == null ? s : { ...s, coordinatorFee: parseFloat(e.target.value) || 0 })}
-          style={{ width: 80, padding: "5px 6px", fontSize: 11, fontFamily: FONTS.body, border: `1px solid ${COLORS.border}`, borderRadius: 4 }}
-        />
-        <button type="button" disabled={savePending} onClick={save} style={primaryBtn(COLORS.accent)}>
-          {savePending ? t("dashboard.adminTabs.lineup.saving") : t("dashboard.adminTabs.lineup.saveDraft")}
-        </button>
-      </div>
+      <OfferEditorFooter
+        t={t}
+        pending={pending}
+        savePending={savePending}
+        total={computedTotal}
+        currencyCode={snapshot.currencyCode}
+        coordinatorFee={snapshot.coordinatorFee}
+        onAddLine={addLineItem}
+        onFeeChange={(v) => setSnapshot((s) => (s == null ? s : { ...s, coordinatorFee: v }))}
+        onSave={save}
+      />
 
-      {/* W6a — negotiated booking terms (deposit / balance method / refund
-          policy), pre-filled from the offer's saved terms (loadOfferDraft) and
-          persisted through saveOfferDraft alongside the current line items.
-          deposit_amount_cents is derived server-side. Display + snapshot only —
-          nothing charges the deposit this wave. */}
+      {/* Client / talent / workspace split — see offer-money-split.tsx. */}
+      <OfferMoneySplit
+        t={t}
+        lineItems={snapshot.lineItems}
+        clientTotal={computedTotal}
+        coordinatorFee={snapshot.coordinatorFee}
+        currencyCode={snapshot.currencyCode}
+      />
+
+      {/* W6a — negotiated booking terms, persisted via saveOfferDraft. */}
       <OfferTermsComposer
         totalUnits={computedTotal}
         currencyCode={snapshot.currencyCode}
