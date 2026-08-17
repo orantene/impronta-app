@@ -70,6 +70,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IMAGE_SLOT_PREFIX = "@@impronta-image-slot::";
 
 /**
+ * The prefix the AUTHORED page modules actually emit (`shared.ts`'s own
+ * `IMAGE_SLOT`, written in parallel with this file). Both are recognised, so
+ * a tree from either source resolves.
+ *
+ * This mismatch was silent and severe: the seeder found zero slots in trees
+ * that contain 24 of them, and would have written the literal
+ * `slot://impronta-rebuild/<name>` string into every image `src` — broken
+ * images on every page, with a clean-looking dry run. Recognise both prefixes
+ * rather than renaming across 14 authored page files.
+ */
+const AUTHORED_IMAGE_SLOT_PREFIX = "slot://impronta-rebuild/";
+
+const IMAGE_SLOT_PREFIXES = [IMAGE_SLOT_PREFIX, AUTHORED_IMAGE_SLOT_PREFIX] as const;
+
+/**
  * Placeholder for an image that will be resolved from the tenant's media
  * library at seed time. Page modules call this in any `src`-shaped prop (or
  * `seo.ogImageUrl`) instead of a real URL.
@@ -86,15 +101,18 @@ export function IMAGE_SLOT(slot: string): string {
 }
 
 export function isImageSlotToken(value: unknown): value is string {
-  return typeof value === "string" && value.startsWith(IMAGE_SLOT_PREFIX);
+  return (
+    typeof value === "string" &&
+    IMAGE_SLOT_PREFIXES.some((prefix) => value.startsWith(prefix))
+  );
 }
 
 /** Extract the slot name from a value produced by {@link IMAGE_SLOT}. Throws if `value` is not a slot token — callers should guard with {@link isImageSlotToken} first. */
 export function imageSlotName(token: string): string {
-  if (!isImageSlotToken(token)) {
-    throw new Error(`Not an IMAGE_SLOT token: ${JSON.stringify(token)}`);
+  for (const prefix of IMAGE_SLOT_PREFIXES) {
+    if (token.startsWith(prefix)) return token.slice(prefix.length);
   }
-  return token.slice(IMAGE_SLOT_PREFIX.length);
+  throw new Error(`Not an IMAGE_SLOT token: ${JSON.stringify(token)}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +268,33 @@ function stableSlotHash(input: string): number {
 }
 
 /**
+ * Assets that must never be auto-picked as page imagery.
+ *
+ * The fallback picker is deterministic but blind: on the first real dry run it
+ * chose a `purpose="branding"` asset (the agency LOGO) as the Fashion Models
+ * hero, and a `staging/` upload for another plate. Those are obviously wrong on
+ * an editorial page and would waste the owner's review pass.
+ *
+ * Excluded: branding assets (logos, favicons, wordmarks), anything still in a
+ * `staging/` path, and anything narrower than a reasonable editorial crop —
+ * a portrait thumbnail stretched across a full-bleed hero looks broken.
+ *
+ * A PINNED slot bypasses this entirely: an explicit human choice always wins.
+ */
+export function isEditorialFallbackCandidate(item: MediaLibraryItem): boolean {
+  const purpose = (item as { purpose?: string }).purpose ?? "";
+  if (purpose === "branding") return false;
+
+  const storagePath = (item as { storagePath?: string }).storagePath ?? "";
+  if (storagePath.includes("/staging/")) return false;
+
+  const width = (item as { width?: number | null }).width ?? null;
+  if (typeof width === "number" && width > 0 && width < 900) return false;
+
+  return true;
+}
+
+/**
  * Resolve every slot in `slots` against the tenant's approved image library.
  * Never writes anything. Always returns a full report — the caller decides
  * whether to print it, but MUST print it before using `resolved` to write a
@@ -264,6 +309,7 @@ export async function resolveImageSlots(
   const library = await listTenantMediaLibrary(supabase, tenantId);
   const images = library
     .filter((item): item is MediaLibraryItem => item.assetKind === "image")
+    .filter(isEditorialFallbackCandidate)
     .slice()
     .sort((a, b) => {
       const byDate = a.createdAt.localeCompare(b.createdAt);

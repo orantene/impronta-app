@@ -561,6 +561,92 @@ function isImprontaPageModule(value: unknown): value is ImprontaPageModule {
   );
 }
 
+/**
+ * The shape the page-tree modules (W4a core / W4b divisions) actually export:
+ * a NAMED const (`homePage`, `aboutPage`, …) holding `{ slug, title, seo, tree }`
+ * with snake_case SEO keys mirroring the cms_pages columns.
+ *
+ * This seeder was authored in parallel against a `{ PAGE, blocks, camelCase seo }`
+ * contract, so the two never lined up and every module was skipped as invalid
+ * (caught by the default dry run — nothing was written). Rather than churn 14
+ * authored page files, normalise here: accept BOTH shapes and map to the
+ * internal one.
+ */
+interface AuthoredPageShape {
+  slug: string;
+  title: string;
+  tree: BuilderNodeTree;
+  seo: {
+    meta_title?: string;
+    meta_description?: string;
+    og_title?: string;
+    og_description?: string;
+    og_image_url?: string;
+    canonical_url?: string;
+    noindex?: boolean;
+    include_in_sitemap?: boolean;
+    json_ld?: unknown;
+  };
+}
+
+function isAuthoredPageShape(v: unknown): v is AuthoredPageShape {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.slug === "string" &&
+    o.slug.length > 0 &&
+    typeof o.title === "string" &&
+    Array.isArray(o.tree) &&
+    typeof o.seo === "object" &&
+    o.seo !== null
+  );
+}
+
+/** Map the authored `{tree, snake_case seo}` shape onto the seeder's contract. */
+export function normalizeAuthoredPage(authored: AuthoredPageShape): ImprontaPageModule {
+  const s = authored.seo;
+  const seo: ImprontaPageSeo = {};
+  if (s.meta_title !== undefined) seo.metaTitle = s.meta_title;
+  if (s.meta_description !== undefined) seo.metaDescription = s.meta_description;
+  if (s.og_title !== undefined) seo.ogTitle = s.og_title;
+  if (s.og_description !== undefined) seo.ogDescription = s.og_description;
+  if (s.og_image_url !== undefined) seo.ogImageUrl = s.og_image_url;
+  if (s.canonical_url !== undefined) seo.canonicalPath = s.canonical_url;
+  if (s.noindex !== undefined) seo.noindex = s.noindex;
+  if (s.include_in_sitemap !== undefined) seo.includeInSitemap = s.include_in_sitemap;
+  if (s.json_ld !== undefined) seo.jsonLd = s.json_ld;
+  return { slug: authored.slug, title: authored.title, blocks: authored.tree, seo };
+}
+
+/**
+ * Pick the page object out of a module regardless of export name: the authored
+ * files use `export const homePage` / `aboutPage` / … rather than `PAGE`.
+ */
+export function pickPageExport(mod: unknown): ImprontaPageModule | null {
+  const m = (mod ?? {}) as Record<string, unknown>;
+  const explicit = m.PAGE ?? m.default;
+  if (isImprontaPageModule(explicit)) return explicit;
+  if (isAuthoredPageShape(explicit)) return normalizeAuthoredPage(explicit);
+  for (const value of Object.values(m)) {
+    if (isImprontaPageModule(value)) return value;
+    if (isAuthoredPageShape(value)) return normalizeAuthoredPage(value);
+  }
+  return null;
+}
+
+/**
+ * Module filename for a page slug. The 404 page is authored as
+ * `not-found.ts` (a file literally named `404.ts` is awkward to import), so
+ * the slug→file mapping is not always identity.
+ */
+export const PAGE_MODULE_FILE_OVERRIDES: Readonly<Record<string, string>> = {
+  "404": "not-found",
+};
+
+export function pageModuleFileFor(slug: string): string {
+  return PAGE_MODULE_FILE_OVERRIDES[slug] ?? slug;
+}
+
 export async function loadPageModules(
   // Defaults to the seedable set: authored-but-held pages (see
   // HELD_PAGE_SLUGS) are never loaded, so they cannot be written even by an
@@ -569,24 +655,30 @@ export async function loadPageModules(
 ): Promise<{ pages: ImprontaPageModule[]; warnings: string[] }> {
   const pages: ImprontaPageModule[] = [];
   const warnings: string[] = [];
-  for (const held of HELD_PAGE_SLUGS) {
-    if (files.includes(held)) {
-      warnings.push(
-        `pages/${held}.ts is on OWNER HOLD and will not be seeded (remove it from HELD_PAGE_SLUGS to ship it).`,
-      );
-    }
-  }
-  for (const file of files) {
+  // A held page is SKIPPED, not merely warned about: `--only=chefs-culinary`
+  // must not be able to seed it. The hold is enforced here (the single place
+  // every caller funnels through) rather than only in the default file list.
+  const requested = files.filter((file) => {
+    if (!HELD_PAGE_SLUGS.includes(file)) return true;
+    warnings.push(
+      `pages/${file}.ts is on OWNER HOLD and will NOT be seeded (remove it from HELD_PAGE_SLUGS to ship it).`,
+    );
+    return false;
+  });
+  for (const file of requested) {
+    const moduleFile = pageModuleFileFor(file);
     let mod: unknown;
     try {
-      mod = await import(`./pages/${file}`);
+      mod = await import(`./pages/${moduleFile}`);
     } catch {
-      warnings.push(`pages/${file}.ts not found yet — skipping.`);
+      warnings.push(`pages/${moduleFile}.ts not found yet — skipping.`);
       continue;
     }
-    const candidate = (mod as { PAGE?: unknown; default?: unknown }).PAGE ?? (mod as { default?: unknown }).default;
-    if (!isImprontaPageModule(candidate)) {
-      warnings.push(`pages/${file}.ts does not export a valid PAGE/default ImprontaPageModule — skipping.`);
+    const candidate = pickPageExport(mod);
+    if (!candidate) {
+      warnings.push(
+        `pages/${moduleFile}.ts does not export a recognisable page module — skipping.`,
+      );
       continue;
     }
     pages.push(candidate);
