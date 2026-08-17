@@ -66,6 +66,13 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // overview stacked on one screen. Yield to the real page.
   (s) => s[0] === "admin" && s[1] === "bookings",
   (s) => s[0] === "admin" && s[1] === "account",
+  // /<tenant>/admin/website/forms — the form-submissions inbox. "website" IS a
+  // WorkspacePage, so without this matcher the SPA rendered its Website surface
+  // AND the server page's body stacked on one screen, with no sidebar owning
+  // the page. The Website sub-nav links straight here, so every operator who
+  // clicked "Forms" hit that. Card Design / Profile Pages stay SPA-rendered
+  // (they are PageRouteSyncer stubs); Forms is a real server page.
+  (s) => s[0] === "admin" && s[1] === "website" && s[2] === "forms",
   // /<tenant>/admin/roster/applications — apply-flow inbox (L48).
   (s) => s[0] === "admin" && s[1] === "roster" && s[2] === "applications",
   // /<tenant>/admin/roster/registration — Tenant Registration Engine settings.

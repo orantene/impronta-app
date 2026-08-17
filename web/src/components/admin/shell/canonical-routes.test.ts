@@ -51,10 +51,23 @@ test("nested canonical routes work on both shapes", () => {
     "/admin/roster/applications",
     "/admin/roster/registration",
     "/admin/policy/auto-ack",
+    "/admin/website/forms",
   ]) {
     assert.equal(pathIsCanonical(p), true, `branded: ${p}`);
     assert.equal(pathIsCanonical(`/impronta${p}`), true, `slug: ${p}`);
   }
+});
+
+test("Website keeps its SPA sub-routes; only /website/forms is canonical", () => {
+  // Overview / Card Design / Profile Pages are PageRouteSyncer stubs — the SPA
+  // renders their bodies. Forms is a real server page; without its matcher the
+  // SPA Website surface and the server page stacked on one screen.
+  for (const p of ["/admin/website", "/admin/website/card-design", "/admin/website/profile-pages"]) {
+    assert.equal(pathIsCanonical(p), false, `branded: ${p}`);
+    assert.equal(pathIsCanonical(`/impronta${p}`), false, `slug: ${p}`);
+  }
+  assert.equal(pathIsCanonical("/admin/website/forms"), true);
+  assert.equal(pathIsCanonical("/impronta/admin/website/forms"), true);
 });
 
 test("id-bearing routes need the id segment on both shapes", () => {
