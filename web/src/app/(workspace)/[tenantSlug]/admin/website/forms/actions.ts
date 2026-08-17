@@ -228,3 +228,62 @@ export async function exportSubmissionsCsv(
 
   return { ok: true, csv: lines.join("\n") };
 }
+
+/**
+ * FORMS-3 — hand a staff member a short-lived download link for one attachment.
+ *
+ * `form-attachments` is a PRIVATE bucket with a staff-only SELECT policy and no
+ * write policy at all, so there is no public URL to link to and no way for the
+ * browser to fetch the object directly. This mints a 5-minute signed URL, the
+ * same TTL the media-originals and talent-document lanes use.
+ *
+ * TENANT SCOPE: the attachment row is fetched with `.eq("tenant_id", ...)` from
+ * the caller's own scope BEFORE anything is signed, so an attachment id from
+ * another workspace resolves to nothing rather than to a link. The service-role
+ * client is used only to sign the object once that check has passed.
+ */
+export async function getFormAttachmentDownloadUrl(
+  tenantSlug: string,
+  attachmentId: string,
+): Promise<ActionResult<{ url: string; filename: string }>> {
+  const guard = await requireFormsAdmin(tenantSlug);
+  if (!guard.ok) return guard;
+  const { supabase, tenantId } = guard;
+
+  const { data: row, error } = await supabase
+    .from("cms_form_submission_attachments")
+    .select("bucket_id, storage_path, original_filename")
+    .eq("id", attachmentId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (error) {
+    logServerError("forms/attachmentDownload", error);
+    return { ok: false, error: "Failed to load the attachment." };
+  }
+  const attachment = row as
+    | { bucket_id: string; storage_path: string; original_filename: string }
+    | null;
+  if (!attachment) {
+    return { ok: false, error: "Attachment not found." };
+  }
+
+  const svc = createServiceRoleClient();
+  if (!svc) return { ok: false, error: "Server is not configured." };
+
+  const { data: signed, error: signError } = await svc.storage
+    .from(attachment.bucket_id)
+    .createSignedUrl(attachment.storage_path, 300, {
+      download: attachment.original_filename,
+    });
+  if (signError || !signed?.signedUrl) {
+    logServerError("forms/attachmentSign", signError ?? new Error("no url"));
+    return { ok: false, error: "Failed to prepare the download." };
+  }
+
+  return {
+    ok: true,
+    url: signed.signedUrl,
+    filename: attachment.original_filename,
+  };
+}

@@ -17,8 +17,9 @@ import {
   archiveSubmission,
   markAllRead,
   exportSubmissionsCsv,
+  getFormAttachmentDownloadUrl,
 } from "./actions";
-import type { FormSubmissionRow } from "./page";
+import type { FormSubmissionAttachment, FormSubmissionRow } from "./page";
 
 const C = {
   ink: "#0B0B0D",
@@ -29,6 +30,7 @@ const C = {
   surface: "rgba(11,11,13,0.02)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",
+  red: "#B42318",
 } as const;
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -103,6 +105,84 @@ function PayloadPreview({ payload }: { payload: Record<string, unknown> }) {
           <span style={{ color: C.ink }}>{String(v).slice(0, 200)}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Human byte size for the attachment row, e.g. "412 KB" / "2.1 MB". */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${Math.round((bytes / 1024 / 1024) * 10) / 10} MB`;
+}
+
+/**
+ * FORMS-3 — the files a visitor attached, with a real way to get them.
+ *
+ * The bucket is private, so there is no URL to render up front: clicking asks
+ * the server for a 5-minute signed link and opens it. A submitted file nobody
+ * can retrieve would be the same bug in a different costume.
+ */
+function AttachmentList({
+  tenantSlug,
+  attachments,
+}: {
+  tenantSlug: string;
+  attachments: FormSubmissionAttachment[];
+}) {
+  const [pendingId, setPendingId] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function handleDownload(attachmentId: string) {
+    setPendingId(attachmentId);
+    setError(null);
+    try {
+      const res = await getFormAttachmentDownloadUrl(tenantSlug, attachmentId);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      window.open(res.url, "_blank", "noopener,noreferrer");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+          color: C.inkDim,
+          marginBottom: 5,
+        }}
+      >
+        Attachments
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {attachments.map((a) => (
+          <div
+            key={a.id}
+            style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5 }}
+          >
+            <span style={{ color: C.ink }}>{a.original_filename}</span>
+            <span style={{ color: C.inkMuted }}>
+              {formatBytes(a.byte_size)} · {a.field_name}
+            </span>
+            <ActionButton
+              label="Download"
+              onClick={() => handleDownload(a.id)}
+              pending={pendingId === a.id}
+            />
+          </div>
+        ))}
+      </div>
+      {error && (
+        <div style={{ marginTop: 6, fontSize: 11.5, color: C.red }}>{error}</div>
+      )}
     </div>
   );
 }
@@ -390,6 +470,13 @@ export function FormsInboxClient({
                     }}
                   >
                     <PayloadPreview payload={row.payload_jsonb} />
+
+                    {row.attachments.length > 0 && (
+                      <AttachmentList
+                        tenantSlug={tenantSlug}
+                        attachments={row.attachments}
+                      />
+                    )}
 
                     {row.source_url && (
                       <div style={{ marginTop: 8, fontSize: 11.5, color: C.inkMuted }}>

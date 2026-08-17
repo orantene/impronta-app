@@ -3316,6 +3316,26 @@ html[data-token-icon-family="geometric"] {
 .site-form__submit {
   align-self: flex-start;
 }
+/* FORMS-3 — attachment hint under a file input, and the visitor-facing
+   attachment error the submit route redirects back with. Both were previously
+   unstyled markup; the error in particular has to read as a problem, not as
+   another line of help text. */
+.site-form__hint {
+  display: block;
+  margin-block-start: 4px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--token-color-muted);
+}
+.site-form__error {
+  margin-block-start: 10px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #b42318;
+}
+.site-form__error[hidden] {
+  display: none;
+}
 
 /* ---- Anchor nav ------------------------------------------------------ */
 .site-anchor-nav {

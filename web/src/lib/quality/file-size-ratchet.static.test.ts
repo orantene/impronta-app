@@ -330,7 +330,14 @@ const BUDGETS: Record<string, number> = {
   // Site-admin library and its big characterization suites. Test files grow
   // into god files exactly like source files do, and are just as hard to read.
   "src/lib/site-admin/builder-node/builder-node.test.ts": 3246,
-  "src/lib/site-admin/sections/node-presentation-render.test.ts": 2620,
+  //   +18  FORMS-3 rewrote the contact-form file-field case: it used to pin
+  //        the operator's own `accept` and `fileMaxSizeMb` verbatim, both of
+  //        which were promises nothing kept. It now pins the SERVER's enforced
+  //        allow-list, the clamped size, and the multipart encoding that is
+  //        the difference between storing the file and dropping it. The three
+  //        new negative cases went to
+  //        `sections/contact_form/attachment-render.test.ts` rather than here.
+  "src/lib/site-admin/sections/node-presentation-render.test.ts": 2638,
   "src/lib/site-admin/server/homepage.ts": 2397,
   "src/lib/site-admin/edit-mode/composition-actions.ts": 2259,
 };

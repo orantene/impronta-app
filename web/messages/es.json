@@ -776,6 +776,21 @@
         "formSectionContactHeading": "Tus datos de contacto",
         "formSectionProjectHeading": "Detalles del proyecto",
         "formSectionBriefHeading": "Tu brief"
+      },
+      "attachment": {
+        "typesLabel": "Se aceptan:",
+        "sizeLabel": "Máximo por archivo:",
+        "countLabel": "Máximo de archivos:",
+        "unavailable": "Este formulario no permite adjuntar archivos.",
+        "error": {
+          "too_large": "Ese archivo es demasiado grande. Adjunta uno más pequeño.",
+          "too_many": "Adjuntaste demasiados archivos. Quita algunos e inténtalo de nuevo.",
+          "total_too_large": "Los archivos pesan demasiado en conjunto. Adjunta menos.",
+          "unsupported_type": "Ese tipo de archivo no se acepta. Adjunta un PDF o una imagen.",
+          "not_accepted": "Este formulario no acepta archivos adjuntos.",
+          "required": "Adjunta el archivo requerido.",
+          "store_failed": "Tu mensaje se envió, pero no se pudo adjuntar el archivo. Envíanoslo por correo."
+        }
       }
     },
     "errors": {

@@ -29,10 +29,27 @@ import { decideFormRouting } from "@/lib/site-admin/sections/contact_form/inquir
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
+import {
+  exceedsRequestBudget,
+  type ContactAttachmentAccepted,
+} from "@/lib/site-admin/sections/contact_form/attachments";
+import {
+  respondAttachmentError,
+  screenContactAttachments,
+  storeContactAttachments,
+} from "@/lib/site-admin/sections/contact_form/attachments-store";
 
 /**
  * FORMS-1 — hard cap for file-size metadata enforcement.
  * No raw binary upload (Supabase free tier); we only record file name/size.
+ *
+ * FORMS-3 SUPERSEDES THIS for the internal lane: files now land in the private
+ * `form-attachments` bucket, written by THIS route with the service role after
+ * every anti-abuse gate. The effective per-file cap is
+ * `effectiveAttachmentMaxBytes` (3 MB), which is well below this 10 MB number
+ * — the platform's 4.5 MB request-body ceiling is the real constraint. The
+ * constant is kept because the legacy client-declared-size guard below still
+ * uses it as an upper bound; it is no longer the operative limit.
  */
 const FILE_MAX_SIZE_MB_HARD_CAP = 10;
 
@@ -64,6 +81,14 @@ export async function POST(req: Request) {
     );
   }
 
+  // FORMS-3 — refuse an oversized body BEFORE buffering it. `content-length`
+  // is attacker-controlled so this is not a security boundary (the platform's
+  // own body cap is); it exists so an honest visitor with a 20 MB PDF gets our
+  // localized "too large" message instead of an opaque platform error.
+  if (exceedsRequestBudget(req.headers.get("content-length"))) {
+    return respondAttachmentError(req, "too_large", 413);
+  }
+
   // Accept FormData OR application/json (FormData covers native HTML
   // form submissions; JSON covers any frontend that wants to hit this
   // programmatically).
@@ -71,6 +96,13 @@ export async function POST(req: Request) {
   let payload: Record<string, unknown> = {};
   let sectionId = "";
   let honeypotField = "website";
+  /**
+   * FORMS-3 — the actual File parts, kept OUT of `payload` (which is stored
+   * verbatim as payload_jsonb). `payload` still carries the filename string so
+   * every existing reader — the admin list, the CSV export, the notification
+   * email — keeps working unchanged.
+   */
+  const uploadedFiles = new Map<string, File>();
 
   if (contentType.includes("application/json")) {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -84,7 +116,13 @@ export async function POST(req: Request) {
     for (const [k, v] of fd.entries()) {
       if (k === "__tulala_section") sectionId = String(v);
       else if (k === "__tulala_honeypot") honeypotField = String(v);
-      else payload[k] = typeof v === "string" ? v : v.name;
+      else if (typeof v === "string") payload[k] = v;
+      else {
+        // A File part. An untouched <input type=file> still submits an empty
+        // part (name "", size 0) — that is "no file", not an attachment.
+        if (v.size > 0) uploadedFiles.set(k, v);
+        payload[k] = v.name;
+      }
     }
   }
 
@@ -240,8 +278,16 @@ export async function POST(req: Request) {
               );
             }
           }
-          // We do NOT accept raw binary data — only the filename string (already
-          // captured from FormData's `v.name`). No Supabase storage write.
+          // FORMS-3 — a required file field must actually carry bytes. The
+          // `required` attribute on the input is client-side only, and until
+          // now nothing checked it here, so a bot (or a browser that skipped
+          // the control) satisfied a "required" attachment with nothing at all.
+          if (field.required && !uploadedFiles.has(field.name)) {
+            return respondAttachmentError(req, "required", 400);
+          }
+          // The bytes themselves are validated and stored further down, after
+          // the captcha gate — see the FORMS-3 block. `payload` keeps the
+          // filename string exactly as before.
           continue;
         }
       }
@@ -356,6 +402,34 @@ export async function POST(req: Request) {
     }
   }
 
+  // ── FORMS-3 — attachment gate ────────────────────────────────────────────
+  // Runs ONLY here: after section validation, honeypot, rate limit, field
+  // validation and captcha. Nothing above this line has written a byte, and
+  // nothing below writes one until `validateContactAttachments` has accepted
+  // every file, so a rejected submission leaves no object and no row to
+  // compensate for.
+  //
+  // A honeypot trip never stores files — bot submissions are recorded as spam
+  // rows and their payloads are not worth the storage.
+  let acceptedAttachments: readonly ContactAttachmentAccepted[] = [];
+  if (uploadedFiles.size > 0) {
+    if (tripped) {
+      uploadedFiles.clear();
+    } else {
+      const screened = await screenContactAttachments({
+        files: uploadedFiles,
+        fields: parsedProps?.success ? parsedProps.data.fields : [],
+        routingMode: parsedProps?.success
+          ? parsedProps.data.routingMode
+          : undefined,
+      });
+      if (!screened.ok) {
+        return respondAttachmentError(req, screened.code, 400);
+      }
+      acceptedAttachments = screened.accepted;
+    }
+  }
+
   // ── FORMS-2 — form-to-inquiry routing ────────────────────────────────────
   // When the section is set to routingMode='inquiry', funnel the submission
   // into the SHARED inquiry engine (createInquiryFromIntent) — the same entry
@@ -461,6 +535,21 @@ export async function POST(req: Request) {
     );
   }
 
+  // ── FORMS-3 — write the accepted files ───────────────────────────────────
+  // Everything is already validated, so this is the only step that can still
+  // fail, and it fails LOUDLY: the visitor's message is durably recorded above
+  // either way, but we never claim the attachment landed when it didn't.
+  let attachmentStoreFailed = false;
+  if (acceptedAttachments.length > 0 && submissionId) {
+    attachmentStoreFailed = !(await storeContactAttachments({
+      admin,
+      tenantId: section.tenant_id,
+      submissionId,
+      accepted: acceptedAttachments,
+      files: uploadedFiles,
+    }));
+  }
+
   // Email-on-submit: fire-and-forget to workspace admins.
   // Only for genuine submissions (honeypot_tripped = false).
   // We need the tenant slug for the inbox URL — fetch it from agencies.
@@ -500,6 +589,12 @@ export async function POST(req: Request) {
       // Notification dispatch is best-effort; never block the response.
       logServerError("cms-forms/notify", err);
     }
+  }
+
+  // The message is saved; only the file didn't make it. Say exactly that
+  // rather than showing an unqualified "Thanks, we'll be in touch."
+  if (attachmentStoreFailed) {
+    return respondAttachmentError(req, "store_failed", 502);
   }
 
   return respondSuccess(req);

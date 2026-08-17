@@ -1,5 +1,13 @@
+import { createTranslator } from "@/i18n/messages";
 import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 import { neutralizeFormAction } from "@/lib/saas/public-hrefs";
+import {
+  CONTACT_ATTACHMENT_ACCEPT,
+  CONTACT_ATTACHMENT_ERROR_CODES,
+  CONTACT_ATTACHMENT_MAX_COUNT,
+  CONTACT_ATTACHMENT_TYPE_LABELS,
+  effectiveAttachmentMaxMb,
+} from "./attachments";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
@@ -40,9 +48,11 @@ export function ContactFormComponent({
     successMessage,
     variant,
     captcha,
+    routingMode,
     nodePresentation,
     presentation,
   } = props;
+  const t = createTranslator(locale);
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
   const eyebrowNode = nodePresentation?.subheadline;
   const headlineNode = nodePresentation?.headline;
@@ -144,6 +154,22 @@ export function ContactFormComponent({
   // here, so the allowlist is safe to apply unconditionally on this branch.
   const formAction = useInternal ? "/api/cms/forms/submit" : neutralizeFormAction(action);
   const formMethod = useInternal ? "POST" : method;
+
+  // ── FORMS-3 — attachments ──────────────────────────────────────────────────
+  // Uploads are REAL only on the lane that can actually store them: our own
+  // endpoint, over POST, recording an inbox row. Anywhere else the bytes would
+  // be discarded — a urlencoded form drops a file input to its filename, a GET
+  // form cannot carry one at all, and inquiry-routing mode creates no
+  // submission row for an attachment to belong to. In those cases we render an
+  // honest note INSTEAD of the control, because an upload widget that throws
+  // the file away is the exact bug this change exists to fix.
+  const hasFileField = fields.some((f) => f.type === "file");
+  const attachmentsSupported =
+    Boolean(useInternal) && formMethod === "POST" && routingMode !== "inquiry";
+  // A form carrying a real file input must be multipart, or the browser sends
+  // the filename string and nothing else.
+  const formEncType =
+    hasFileField && attachmentsSupported ? "multipart/form-data" : undefined;
 
   return (
     <section
@@ -348,7 +374,12 @@ export function ContactFormComponent({
           />
         )}
 
-        <form className="site-form__form" action={formAction} method={formMethod}>
+        <form
+          className="site-form__form"
+          action={formAction}
+          method={formMethod}
+          encType={formEncType}
+        >
           {useInternal && sectionId ? (
             <>
               <input type="hidden" name="__tulala_section" value={sectionId} />
@@ -460,26 +491,48 @@ export function ContactFormComponent({
                         ))}
                       </select>
                     ) : f.type === "file" ? (
-                      /* FORMS-1 — file input (URL/metadata capture only;
-                         no binary upload on Supabase free tier).
-                         Client size guard: the inline script below enforces
-                         fileMaxSizeMb before submit. */
-                      <>
-                        <input
-                          id={id}
-                          name={f.name}
-                          type="file"
-                          required={f.required}
-                          accept={f.fileAccept ?? undefined}
-                          className="site-form__input site-form__input--file"
-                          data-max-size-mb={f.fileMaxSizeMb ?? 5}
-                        />
-                        <script
-                          dangerouslySetInnerHTML={{
-                            __html: `(function(){var el=document.getElementById(${JSON.stringify(id)});if(!el)return;el.addEventListener('change',function(){var maxMb=parseFloat(el.getAttribute('data-max-size-mb')||'5');var f=el.files&&el.files[0];if(f&&f.size>maxMb*1024*1024){alert('File is too large. Maximum size is '+maxMb+' MB.');el.value='';}});})();`,
-                          }}
-                        />
-                      </>
+                      /* FORMS-3 — a real upload. The file rides this same
+                         multipart POST and /api/cms/forms/submit stores it
+                         with the service role after its anti-abuse gates.
+                         The caps shown here are the ones the SERVER enforces
+                         (see attachments.ts), not the operator's optimistic
+                         fileMaxSizeMb — which the schema still allows up to
+                         10 MB, a size this lane cannot carry. */
+                      attachmentsSupported ? (
+                        <>
+                          <input
+                            id={id}
+                            name={f.name}
+                            type="file"
+                            required={f.required}
+                            accept={CONTACT_ATTACHMENT_ACCEPT}
+                            className="site-form__input site-form__input--file"
+                            data-max-size-mb={effectiveAttachmentMaxMb(f.fileMaxSizeMb)}
+                          />
+                          <span className="site-form__hint">
+                            {`${t("public.forms.attachment.typesLabel")} ${CONTACT_ATTACHMENT_TYPE_LABELS}. ` +
+                              `${t("public.forms.attachment.sizeLabel")} ${effectiveAttachmentMaxMb(
+                                f.fileMaxSizeMb,
+                              )} MB. ` +
+                              `${t("public.forms.attachment.countLabel")} ${CONTACT_ATTACHMENT_MAX_COUNT}.`}
+                          </span>
+                          <script
+                            dangerouslySetInnerHTML={{
+                              __html: `(function(){var el=document.getElementById(${JSON.stringify(id)});if(!el)return;el.addEventListener('change',function(){var maxMb=parseFloat(el.getAttribute('data-max-size-mb')||'3');var f=el.files&&el.files[0];if(f&&f.size>maxMb*1024*1024){alert(${JSON.stringify(
+                                t("public.forms.attachment.error.too_large"),
+                              )});el.value='';}});})();`,
+                            }}
+                          />
+                        </>
+                      ) : (
+                        /* This form cannot store a file, so it must not offer
+                           one. Rendering the control here would repeat the
+                           original bug: accept the file, report success,
+                           discard the bytes. */
+                        <span className="site-form__hint" data-attachment-unavailable>
+                          {t("public.forms.attachment.unavailable")}
+                        </span>
+                      )
                     ) : f.type === "number" ? (
                       /* FORMS-1 — number input with optional min/max bounds */
                       <input
@@ -608,10 +661,27 @@ export function ContactFormComponent({
             {successMessage}
           </p>
         ) : null}
+        {/* FORMS-3 — attachment failures. The submit route redirects back with
+            `?__tulala_form_err=<code>` rather than rendering a raw JSON body at
+            the visitor, so a rejected file produces a readable, localized
+            sentence in the page's own language. One paragraph per code, all
+            hidden; the script below reveals the matching one. */}
+        {useInternal
+          ? CONTACT_ATTACHMENT_ERROR_CODES.map((code) => (
+              <p
+                key={code}
+                className="site-form__error"
+                data-error-msg={code}
+                hidden
+              >
+                {t(`public.forms.attachment.error.${code}`)}
+              </p>
+            ))
+          : null}
         {useInternal ? (
           <script
             dangerouslySetInnerHTML={{
-              __html: `(function(){var u=new URL(window.location.href);if(u.searchParams.get('__tulala_form')==='ok'){var els=document.querySelectorAll('[data-success-msg]');for(var i=0;i<els.length;i++){els[i].hidden=false;}}})();`,
+              __html: `(function(){var u=new URL(window.location.href);if(u.searchParams.get('__tulala_form')==='ok'){var els=document.querySelectorAll('[data-success-msg]');for(var i=0;i<els.length;i++){els[i].hidden=false;}}var e=u.searchParams.get('__tulala_form_err');if(e){var m=document.querySelectorAll('[data-error-msg="'+CSS.escape(e)+'"]');for(var j=0;j<m.length;j++){m[j].hidden=false;}}})();`,
             }}
           />
         ) : null}
