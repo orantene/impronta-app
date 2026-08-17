@@ -57,6 +57,29 @@ export const HOVER_NODE_ATTR = "data-hover-node-for";
  */
 export const HOVER_SECTION_ATTR = "data-hover-section-for";
 
+/**
+ * The gap-scoped twin. Some affordances belong to a SEAM between two root-level
+ * page blocks rather than to a block: the "+ Add block" line
+ * (`canvas-between-blocks-insert.tsx`) is painted at `top: boundaryY - 1`, in
+ * the same fixed overlay root, and it mounts only while its own hover state
+ * says the pointer is in that seam's band. Its self-cancelling loop is the grip
+ * bug run through a different state: reaching for the pill made
+ * `elementFromPoint` land inside `[data-edit-overlay]`, that component cleared
+ * its hovered gap, the pill unmounted, the pointer fell back onto the block
+ * below, the seam matched again and the pill remounted.
+ *
+ * A seam is NOT inside either neighbouring block, so declaring one of them as
+ * the owner would trade the blink for a lie: the layers rail would highlight a
+ * block the pointer is not on. The honest declaration is two-part, and
+ * {@link hoverGapAttributionProps} emits both at once:
+ *   - `data-hover-gap-for="<seam key>"` — the seam this affordance belongs to,
+ *     which is what keeps the affordance's own mount condition stable;
+ *   - `data-hover-node-for=""` — the module's existing "belongs to no block"
+ *     escape hatch, so node hover reports null on purpose instead of by way of
+ *     the chrome bail.
+ */
+export const HOVER_GAP_ATTR = "data-hover-gap-for";
+
 /** Chrome surfaces whose interior is never a canvas hover. */
 const CHROME_SELECTOR =
   "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]";
@@ -140,6 +163,38 @@ export function resolveHoveredBuilderNodeId(
     el.closest<HTMLElement>(NODE_SELECTOR)?.getAttribute("data-builder-node-id") ??
     null
   );
+}
+
+/**
+ * Spread onto an overlay affordance that belongs to a page SEAM (the
+ * between-blocks "+ Add block" line and its picker). Declares the seam so the
+ * affordance's own hover state stays stable while the pointer is on it, AND
+ * declares "no block" so canvas node hover stays honest. See
+ * {@link HOVER_GAP_ATTR}. A null/empty key spreads nothing.
+ */
+export function hoverGapAttributionProps(
+  gapKey: string | null | undefined,
+): Record<string, string> {
+  return gapKey ? { [HOVER_GAP_ATTR]: gapKey, [HOVER_NODE_ATTR]: "" } : {};
+}
+
+/**
+ * The seam key declared by the affordance under `target`, or `null` when the
+ * target is not inside a seam-scoped affordance at all. A gap-owning component
+ * uses this to recognise its own chrome and leave its hover state untouched
+ * instead of clearing it (which is what unmounted the pill mid-reach).
+ */
+export function resolveHoveredGapKey(target: EventTarget | null): string | null {
+  const el = hoverEventElement(target);
+  const declaring = el?.closest<HTMLElement>(`[${HOVER_GAP_ATTR}]`) ?? null;
+  if (!declaring) return null;
+  const raw = declaring.getAttribute(HOVER_GAP_ATTR) ?? "";
+  return raw === "" ? null : raw;
+}
+
+/** The seam key for the root-level boundary that inserts at `insertIndex`. */
+export function pageGapKey(insertIndex: number): string {
+  return `root:${insertIndex}`;
 }
 
 /**
