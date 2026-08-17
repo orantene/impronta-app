@@ -1,6 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+/** Loose row shape the seeder hands the Supabase mock (test-local). */
+type SeedRowPayload = Record<string, never> & {
+  [key: string]: unknown;
+};
+interface SeedNode {
+  children: Array<{ props: Record<string, unknown> }>;
+}
+/** Narrow a captured payload after its `assert.ok` guard. */
+function payloadOf(p: SeedRowPayload | null): Record<string, unknown> {
+  if (!p) throw new Error("payload was not captured");
+  return p as Record<string, unknown>;
+}
+
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { IMAGE_SLOT } from "./media-curation";
@@ -299,12 +313,12 @@ test("runSeed dry-run resolves slots, validates, and reports actions but writes 
 });
 
 test("runSeed apply mode (dryRun: false) actually calls insert with a fully-resolved tree", async () => {
-  let insertedPayload: any = null;
+  let insertedPayload: SeedRowPayload | null = null;
   const supabase = makeSupabaseMock({
     mediaAssetRows: [APPROVED_IMAGE_ROW],
     existingBySlug: {},
     onInsert: (payload) => {
-      insertedPayload = payload;
+      insertedPayload = payload as SeedRowPayload;
     },
   });
 
@@ -315,19 +329,19 @@ test("runSeed apply mode (dryRun: false) actually calls insert with a fully-reso
 
   assert.equal(result.aborted, false);
   assert.ok(insertedPayload, "insert should have been called");
-  assert.equal(insertedPayload.is_freeform, true);
-  assert.equal(insertedPayload.status, "draft");
-  const imageNode = insertedPayload.blocks[0].children[0];
+  assert.equal(payloadOf(insertedPayload).is_freeform, true);
+  assert.equal(payloadOf(insertedPayload).status, "draft");
+  const imageNode = (payloadOf(insertedPayload).blocks as SeedNode[])[0].children[0];
   assert.equal(imageNode.props.src, "https://cdn.example.com/tenant-1/hero.jpg");
   assert.equal(imageNode.props.mediaId, APPROVED_IMAGE_ROW.id);
 });
 
 test("runSeed applies --slug-suffix to the effective DB slug", async () => {
-  let insertedPayload: any = null;
+  let insertedPayload: SeedRowPayload | null = null;
   const supabase = makeSupabaseMock({
     mediaAssetRows: [APPROVED_IMAGE_ROW],
     onInsert: (payload) => {
-      insertedPayload = payload;
+      insertedPayload = payload as SeedRowPayload;
     },
   });
 
@@ -337,8 +351,8 @@ test("runSeed applies --slug-suffix to the effective DB slug", async () => {
     slugSuffix: "-new",
   });
 
-  assert.equal(insertedPayload.slug, "about-new");
-  assert.equal(insertedPayload.canonical_url, "/p/about-new");
+  assert.equal(payloadOf(insertedPayload).slug, "about-new");
+  assert.equal(payloadOf(insertedPayload).canonical_url, "/p/about-new");
 });
 
 test("runSeed --only filters which page modules are processed", async () => {
@@ -359,7 +373,7 @@ test("runSeed --only filters which page modules are processed", async () => {
 test("runSeed never deletes/recreates home and keeps a published home page published", async () => {
   let insertCalls = 0;
   let updatedId: unknown = null;
-  let updatedPayload: any = null;
+  let updatedPayload: SeedRowPayload | null = null;
   const supabase = makeSupabaseMock({
     mediaAssetRows: [APPROVED_IMAGE_ROW],
     existingBySlug: {
@@ -370,7 +384,7 @@ test("runSeed never deletes/recreates home and keeps a published home page publi
     },
     onUpdate: (id, payload) => {
       updatedId = id;
-      updatedPayload = payload;
+      updatedPayload = payload as SeedRowPayload;
     },
   });
 
@@ -382,19 +396,19 @@ test("runSeed never deletes/recreates home and keeps a published home page publi
   assert.equal(result.aborted, false);
   assert.equal(insertCalls, 0, "home must never be re-inserted while a row already exists");
   assert.equal(updatedId, "home-row-id");
-  assert.equal(updatedPayload.status, "published", "home guard must keep status=published");
+  assert.equal(payloadOf(updatedPayload).status, "published", "home guard must keep status=published");
   assert.equal(result.outcomes[0].action, "update");
 });
 
 test("runSeed lets --allow-home-status-downgrade override the home guard", async () => {
-  let updatedPayload: any = null;
+  let updatedPayload: SeedRowPayload | null = null;
   const supabase = makeSupabaseMock({
     mediaAssetRows: [APPROVED_IMAGE_ROW],
     existingBySlug: {
       home: { id: "home-row-id", status: "published", slug: "home" },
     },
     onUpdate: (_id, payload) => {
-      updatedPayload = payload;
+      updatedPayload = payload as SeedRowPayload;
     },
   });
 
@@ -404,7 +418,7 @@ test("runSeed lets --allow-home-status-downgrade override the home guard", async
     allowHomeStatusDowngrade: true,
   });
 
-  assert.equal(updatedPayload.status, "draft");
+  assert.equal(payloadOf(updatedPayload).status, "draft");
 });
 
 // ---------------------------------------------------------------------------
