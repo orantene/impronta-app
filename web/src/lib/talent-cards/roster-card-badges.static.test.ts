@@ -204,13 +204,18 @@ test("the card shows EVERY parent, not just the primary type's", () => {
   // type's bucket) as the ONLY anchor hid every other parent a talent spans.
   assert.match(
     categoryBlockSrc,
-    /parentLabels/,
-    "the strip must render the full parent list, not a single parentLabel",
+    /data-roster-parent-group/,
+    "each parent the talent spans must render as its own body row",
   );
   assert.match(
     categoryBlockSrc,
     /groups\.map/,
-    "the expansion must iterate the parent groups",
+    "the body must iterate the parent groups",
+  );
+  assert.match(
+    categoryBlockSrc,
+    /aria-expanded/,
+    "parent_first rows must be real expanders",
   );
   assert.match(
     bridgeSrc,

@@ -556,29 +556,14 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
         </div>
       </div>
 
-      {/* Parent-category strip — mirrors the real card's admin scanning
-          anchor (band between photo and body), gated by `categories`. */}
-      {badges.categories ? (
+      {/* Parent-category strip — `expanded` mode only; the parent-anchored
+          modes render their parents as accordion rows in the body instead. */}
+      {badges.categories && badges.typeDisplay === "expanded" ? (
         <div
           data-preview-parent-category
-          className="flex items-center justify-center gap-[5px] border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
+          className="border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-center text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted"
         >
-          {/* Parent-anchored modes list EVERY parent the talent spans, so the
-              sample shows two — one parent was the bug this replaced. */}
-          {badges.typeDisplay === "expanded"
-            ? t("dashboard.adminCardStudio2.sampleParentCategory")
-            : `${t("dashboard.adminCardStudio2.sampleParentCategory")} · ${t("dashboard.adminCardStudio2.sampleParentCategoryB")}`}
-          {/* `parent_first` hangs the child types behind this control on the
-              real card; the preview shows the affordance in its resting
-              (collapsed) state. */}
-          {badges.typeDisplay === "parent_first" ? (
-            <span
-              aria-hidden
-              className="inline-flex h-[13px] w-[13px] shrink-0 items-center justify-center rounded-full bg-[rgba(11,11,13,0.10)] text-[11px] font-bold leading-none"
-            >
-              +
-            </span>
-          ) : null}
+          {t("dashboard.adminCardStudio2.sampleParentCategory")}
         </div>
       ) : null}
 
@@ -588,6 +573,62 @@ export function RosterBadgePreviewCard({ badges }: { badges: RosterCardBadgePref
         <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: -0.1, color: COLORS.ink }}>
           {"Tina Rossi"}
         </div>
+        {/* Parent-anchored modes: EVERY parent the talent spans is its own
+            row in the body — a quiet eyebrow with (in `parent_first`) a count
+            + chevron, one open showing its types with the primary starred and
+            an unsupported type dimmed. */}
+        {badges.categories && badges.typeDisplay !== "expanded" ? (
+          <div className="mt-[5px] flex flex-col divide-y divide-admin-border-soft">
+            <div data-preview-parent-group>
+              <div className="flex items-center gap-[5px] py-[4px]">
+                <span aria-hidden className="shrink-0 text-[11px] leading-none opacity-[0.8]">📸</span>
+                <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.9px] text-admin-ink-dim">
+                  {t("dashboard.adminCardStudio2.sampleParentCategory")}
+                </span>
+                {badges.typeDisplay === "parent_first" ? (
+                  <>
+                    <span aria-hidden className="ml-auto shrink-0 text-[9px] tabular-nums text-admin-ink-dim opacity-[0.75]">3</span>
+                    <svg aria-hidden width="9" height="9" viewBox="0 0 10 10" className="shrink-0 rotate-90 text-admin-ink-dim">
+                      <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </>
+                ) : null}
+              </div>
+              {badges.typeDisplay === "parent_first" ? (
+                <div data-preview-secondary-types className="flex flex-wrap gap-[3px] pb-[5px] pt-[1px]">
+                  <span className="inline-flex items-center gap-[3px] rounded-full bg-admin-accent-soft px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-accent-deep">
+                    <span aria-hidden className="text-[9px] leading-none">★</span>
+                    {t("dashboard.adminCardStudio2.sampleTalentType")}
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-[rgba(11,11,13,0.05)] px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted">
+                    {t("dashboard.adminCardStudio2.sampleSecondaryTypeA")}
+                  </span>
+                  <span
+                    data-preview-type-unsupported
+                    title={t("admin.roster.card.typeNotOfferedTooltip")}
+                    className="inline-flex items-center rounded-full border border-dashed border-admin-border px-[7px] py-[2px] text-[10px] font-semibold leading-[1.3] text-admin-ink-muted opacity-[0.55]"
+                  >
+                    {t("dashboard.adminCardStudio2.sampleSecondaryTypeC")}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+            <div data-preview-parent-group className="flex items-center gap-[5px] py-[4px]">
+              <span aria-hidden className="shrink-0 text-[11px] leading-none opacity-[0.8]">✨</span>
+              <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.9px] text-admin-ink-dim">
+                {t("dashboard.adminCardStudio2.sampleParentCategoryB")}
+              </span>
+              {badges.typeDisplay === "parent_first" ? (
+                <>
+                  <span aria-hidden className="ml-auto shrink-0 text-[9px] tabular-nums text-admin-ink-dim opacity-[0.75]">2</span>
+                  <svg aria-hidden width="9" height="9" viewBox="0 0 10 10" className="shrink-0 text-admin-ink-dim">
+                    <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         {badges.categories && badges.typeDisplay === "expanded" ? (
           <>
             <div
