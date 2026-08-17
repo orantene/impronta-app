@@ -26,9 +26,28 @@ import type {
 // STYLE-1 — the dedicated style_classes/style_presets columns are selected on a
 // graceful path: a pre-migration DB (columns absent) ERRORS the whole PostgREST
 // query (data:null), so the BASE list omits them and the editor falls back to it.
+// SEO-1 — the metadata/OG columns are in the BASE list, not the graceful-degrade
+// suffix: the PUBLIC read path (`loadMaxSitePages`) already selects the identical
+// set in a single non-degrading query, so they are guaranteed-present columns.
+// Without them the Page settings drawer's SEO fields were a silent no-op here.
 const TALENT_PAGE_BASE_COLS =
-  "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at";
+  "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at, " +
+  "meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
 const TALENT_PAGE_COLS = `${TALENT_PAGE_BASE_COLS}, style_classes, style_presets`;
+
+/** SEO-1 — the metadata columns a talent-page save may write. Same convention as
+ *  the STYLE-1 registries: `undefined` = leave the stored value alone (a
+ *  tree-only autosave carries no metadata), `null` = clear the column.
+ *  No `meta_title`: `talent_pages` has no such column (see the adapter core). */
+const META_PATCH_KEYS = [
+  "meta_description",
+  "og_title",
+  "og_description",
+  "og_image_url",
+  "canonical_url",
+  "noindex",
+  "json_ld",
+] as const;
 
 export async function loadTalentPageAction(
   input: Parameters<TalentPageAdapterActions["loadPage"]>[0],
@@ -171,6 +190,16 @@ export async function saveTalentPageAction(
       updated_at: patch.updated_at,
     };
     if (patch.title !== undefined) updatePayload.title = patch.title;
+
+    // SEO-1 — only set a metadata column when the caller actually supplied it.
+    // WIPE HAZARD: a tree-only autosave/draft-flush carries no metadata; writing
+    // these unconditionally would NULL every SEO field on every keystroke-driven
+    // save — and this surface's columns are rendered on the LIVE public site.
+    // `undefined` = untouched, `null` = clear.
+    for (const key of META_PATCH_KEYS) {
+      const value = patch[key];
+      if (value !== undefined) updatePayload[key] = value;
+    }
 
     // STYLE-1 — also persist the dedicated columns when the caller touched them.
     const stylePatch: Record<string, unknown> = {};
