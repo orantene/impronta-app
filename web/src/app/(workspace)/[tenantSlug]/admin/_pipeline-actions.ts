@@ -15,6 +15,7 @@
  *   4. Translate `EngineResult` to a flat `{ ok, ... }` for the client
  */
 
+import { resolveOfferAuthorName } from "./offer-author";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -1728,9 +1729,7 @@ export type OfferDraftSnapshot = {
   coordinatorFee: number;
   currencyCode: string;
   notes: string | null;
-  /** Display name of whoever created this offer, so an agency team can see
-   *  who wrote the numbers. Null when the author is no longer resolvable. */
-  createdByName: string | null;
+  createdByName: string | null; // who created this offer (see offer-author.ts)
   // W6a — the negotiated commercial terms currently saved on this offer, for
   // the composer to display + edit. Defaulted (never null) so the composer always
   // has a coherent starting state; deposit amount is in minor units.
@@ -1884,20 +1883,7 @@ export async function loadOfferDraft(
       };
     }
 
-    // Resolve the offer's author so the editor can show "created by …". An
-    // agency team needs to know who wrote the numbers before sending them to a
-    // client. Best-effort: a missing/removed profile just yields null.
-    let offerAuthorName: string | null = null;
-    const authorId = offer.created_by_user_id as string | null;
-    if (authorId) {
-      const { data: author } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", authorId)
-        .maybeSingle();
-      const n = (author as { full_name?: string | null } | null)?.full_name?.trim();
-      offerAuthorName = n && n.length > 0 ? n : null;
-    }
+    const offerAuthorName = await resolveOfferAuthorName(supabase, offer.created_by_user_id as string | null);
 
     return {
       ok: true,
