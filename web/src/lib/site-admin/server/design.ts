@@ -43,6 +43,10 @@
 
 import { improntaLog } from "@/lib/server/structured-log";
 import { splitLegacyThemeKeys } from "@/lib/site-admin/tokens/legacy-passthrough";
+import {
+  checkThemePublishShrink,
+  THEME_PUBLISH_SHRINK_BLOCKED_CODE,
+} from "@/lib/site-admin/tokens/theme-shrink-guard";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -104,6 +108,18 @@ export interface DesignBrandingRow {
 /** Snapshot shape written to agency_branding_revisions.snapshot for design ops. */
 export interface DesignRevisionSnapshot {
   kind: "draft" | "published" | "rollback";
+  /**
+   * Marks the PRE-IMAGE snapshot `publishDesign` writes before it mutates the
+   * live row. Recorded as `kind: "draft"` (the DB check constraint is a closed
+   * set of draft/published/rollback) but flagged here so recovery tooling and
+   * the restore list can tell "the draft as it stood immediately before publish
+   * v161" apart from an ordinary draft save.
+   *
+   * This exists because the 2026-08-16 wipe was only recoverable by luck: the
+   * draft revision that happened to precede the publish still carried the 58
+   * live tokens. Recoverability is now guaranteed, not coincidental.
+   */
+  pre_publish?: true;
   theme_json: Record<string, string>;
   theme_json_draft: Record<string, string>;
   /** M7 — preset slug at revision time (may be null on legacy revisions). */
@@ -266,6 +282,20 @@ export async function saveDesignDraft(
     values: DesignSaveDraftValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * PARTIAL patch mode. Default (false) REPLACES `theme_json_draft` with the
+     * patch — correct for the ThemeDrawer, which owns the whole theme and always
+     * submits a complete map, so an absent key there means "cleared".
+     *
+     * A surface that edits a FEW tokens (the site-header inspector's chips) must
+     * pass true. Replacing the shared draft column with a one-key patch is how
+     * the 2026-08-16 wipe started: the draft went to 1 key, and the unscoped
+     * publish that followed promoted that 1 key over 55 live tokens.
+     *
+     * The merge runs inside the same CAS window as the write, so it cannot race
+     * a concurrent draft save.
+     */
+    mergeIntoStoredDraft?: boolean;
   },
 ): Promise<Phase5Result<{ version: number; themeDraft: Record<string, string> }>> {
   const { tenantId, values, actorProfileId } = params;
@@ -305,15 +335,21 @@ export async function saveDesignDraft(
   // Carry the STORED draft's legacy keys (logo_url / favicon_url /
   // watermark_preset) through unchanged — the design pipeline never edits
   // them, and dropping them breaks the public shell logo on publish.
-  const storedDraftLegacy = splitLegacyThemeKeys(
+  const storedDraftSplit = splitLegacyThemeKeys(
     (beforeRow.theme_json_draft ?? {}) as Record<string, unknown>,
-  ).legacy;
+  );
+  const storedDraftLegacy = storedDraftSplit.legacy;
+  // Partial-patch callers layer onto the stored draft tokens; whole-theme
+  // callers replace them. See `mergeIntoStoredDraft`.
+  const draftTokenBase = params.mergeIntoStoredDraft
+    ? (storedDraftSplit.registryCandidate as Record<string, string>)
+    : {};
 
   const nextVersion = beforeRow.version + 1;
   const { data: updatedRow, error: updateError } = await supabase
     .from("agency_branding")
     .update({
-      theme_json_draft: { ...gate.normalized, ...storedDraftLegacy },
+      theme_json_draft: { ...draftTokenBase, ...gate.normalized, ...storedDraftLegacy },
       version: nextVersion,
       updated_by: actorProfileId,
     })
@@ -474,6 +510,13 @@ export async function publishDesign(
      * whole theme) passes nothing and keeps the full-promotion behaviour.
      */
     scopeKeys?: ReadonlySet<string>;
+    /**
+     * Explicit operator intent to shrink an established live theme. Bypasses
+     * the shrink guard ONLY. No caller passes this today; it exists so a future
+     * "reset this theme to platform defaults" flow states its intent by name
+     * rather than tripping the guard with a deliberately small map.
+     */
+    allowThemeReduction?: boolean;
   },
 ): Promise<Phase5Result<{ version: number; theme: Record<string, string> }>> {
   const { tenantId, values, actorProfileId, scopeKeys } = params;
@@ -526,16 +569,80 @@ export async function publishDesign(
     ...draftSplit.legacy,
   };
 
+  const liveTokens = splitLegacyThemeKeys(
+    (beforeRow.theme_json ?? {}) as Record<string, unknown>,
+  ).registryCandidate as Record<string, string>;
+
   // Scoped: keep every live token and lay the promoted slice on top.
   // Unscoped: the normalized draft REPLACES live (the ThemeDrawer submits a
   // complete map, so a missing key there means "cleared back to default").
-  const liveBase = scopeKeys
-    ? splitLegacyThemeKeys((beforeRow.theme_json ?? {}) as Record<string, unknown>)
-        .registryCandidate as Record<string, string>
-    : {};
+  //
+  // EXCEPT when the draft carries NO registry tokens at all. "Promote nothing
+  // over everything" is never an operator intent — it means the draft was never
+  // seeded from live (a partial-patch writer replaced the whole draft column
+  // with its one key, or the row was initialised with `theme_json_draft: {}`).
+  // Seed from live instead of replacing live with nothing.
+  const draftHasTokens = Object.keys(gate.normalized).length > 0;
+  const seededFromLive = !scopeKeys && !draftHasTokens;
+  if (seededFromLive) {
+    void improntaLog("site_admin_design.warn", {
+      message:
+        "[site-admin/design] unscoped publish had an EMPTY token draft — seeded the live map from the current live tokens instead of clearing it",
+      tenantId,
+      liveTokenCount: Object.keys(liveTokens).length,
+    });
+  }
+  const liveBase = scopeKeys || seededFromLive ? liveTokens : {};
   const nextTheme = { ...liveBase, ...gate.normalized, ...liveLegacy };
 
+  // ---- shrink guard (class killer) ----------------------------------------
+  // Last line of defence before the write, common to EVERY publish writer.
+  // See tokens/theme-shrink-guard.ts for the threshold rationale.
+  const shrink = checkThemePublishShrink({
+    live: beforeRow.theme_json ?? {},
+    next: nextTheme,
+    allowReduction: params.allowThemeReduction,
+  });
+  if (!shrink.ok) {
+    void improntaLog("site_admin_design.error", {
+      message: "[site-admin/design] PUBLISH BLOCKED — theme shrink guard",
+      code: THEME_PUBLISH_SHRINK_BLOCKED_CODE,
+      tenantId,
+      actorProfileId,
+      correlationId,
+      scoped: Boolean(scopeKeys),
+      liveTokenCount: shrink.liveTokenCount,
+      nextTokenCount: shrink.nextTokenCount,
+      requiredMinimum: shrink.requiredMinimum,
+      draftTokenCount: Object.keys(draftSplit.registryCandidate).length,
+    });
+    return fail("PUBLISH_NOT_READY", shrink.message);
+  }
+
   const nextVersion = beforeRow.version + 1;
+
+  // PRE-IMAGE revision, written BEFORE the mutation. The 2026-08-16 wipe was
+  // recoverable only because an unrelated draft revision happened to sit 336ms
+  // in front of it; every post-mutation revision records the damage, not the
+  // thing you need to restore. This snapshot always precedes the write, so the
+  // pre-publish state is on the record even if the update below succeeds and
+  // the operator only notices the damage hours later.
+  await insertDesignRevision(supabase, {
+    tenantId,
+    kind: "draft",
+    version: beforeRow.version,
+    snapshot: {
+      kind: "draft",
+      pre_publish: true,
+      theme_json: beforeRow.theme_json ?? {},
+      theme_json_draft: beforeRow.theme_json_draft ?? {},
+      theme_preset_slug: beforeRow.theme_preset_slug ?? null,
+      theme_published_at: beforeRow.theme_published_at,
+      version: beforeRow.version,
+    },
+    actorProfileId,
+  });
+
   const now = new Date().toISOString();
   // GAP B — publish the component-style defaults atomically with the theme:
   // copy the draft map across, validated/normalized so a stale or malformed
