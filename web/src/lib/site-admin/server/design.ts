@@ -517,12 +517,29 @@ export async function publishDesign(
      * rather than tripping the guard with a deliberately small map.
      */
     allowThemeReduction?: boolean;
+    /**
+     * DI test seam, mirroring `copyPublishedToDraft` / `restoreHomepageRevision`.
+     * Production call sites never pass it. It exists so the shrink-guard and
+     * merge-composition regression suite can exercise the REAL function over a
+     * recording Supabase mock instead of re-implementing the composition in the
+     * test (a mirror test would have stayed green through both wipes).
+     */
+    __hooks?: {
+      requireCapability?: (capability: string, tenantId: string) => Promise<void>;
+    };
   },
 ): Promise<Phase5Result<{ version: number; theme: Record<string, string> }>> {
   const { tenantId, values, actorProfileId, scopeKeys } = params;
   const correlationId = params.correlationId ?? randomUUID();
 
-  await requirePhase5Capability("agency.site_admin.design.publish", tenantId);
+  const requireCapability =
+    params.__hooks?.requireCapability ??
+    ((capability: string, tid: string) =>
+      requirePhase5Capability(
+        capability as Parameters<typeof requirePhase5Capability>[0],
+        tid,
+      ));
+  await requireCapability("agency.site_admin.design.publish", tenantId);
 
   const beforeRow = await loadRow(supabase, tenantId);
   if (!beforeRow) {
