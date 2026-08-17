@@ -34,10 +34,34 @@
  * autoplay, same markup, byte-identical SSR. Both server snapshots are frozen
  * module constants returned by identity (a fresh allocation per call makes
  * `useSyncExternalStore` loop forever).
+ *
+ * GENERALISED, NOT COPIED (2026-08-17, slideshow backgrounds)
+ * ──────────────────────────────────────────────────────────
+ * A container's `backgroundMedia` slideshow has the IDENTICAL problem: on the
+ * editor canvas it would rotate under the operator's pointer and slides 2..N
+ * would be uncatchable. The remedy is the same store, so rather than a second
+ * near-identical bridge the pin map grew a CHANNEL: pins are keyed
+ * `<channel>:<nodeId>` instead of `<nodeId>`.
+ *
+ * The channel is load-bearing, not decoration. One node can be a hero carousel
+ * AND carry a background slideshow, and those are two independent "which slide
+ * is showing" answers; a nodeId-only key would have them silently overwrite
+ * each other. The `*CarouselSlide` names below are kept as the "carousel"
+ * channel's wrappers so #1203's call sites and tests are untouched.
  */
 import { useCallback, useSyncExternalStore } from "react";
 
 type Listener = () => void;
+
+/**
+ * Which "which slide is showing" question a pin answers. One node can own more
+ * than one at a time, so the channel is part of the key.
+ */
+export type SlidePinChannel = "carousel" | "background";
+
+function pinKey(channel: SlidePinChannel, nodeId: string): string {
+  return `${channel}:${nodeId}`;
+}
 
 /** The one shared empty pin map. Returned by identity, never re-allocated. */
 const EMPTY_PINS: Readonly<Record<string, number>> = Object.freeze({});
@@ -83,21 +107,68 @@ export function registerCarouselEditMode(): () => void {
   };
 }
 
+/**
+ * Pin the slide the canvas should show for `channel`/`nodeId`. No-op when
+ * unchanged, so a repeat click cannot wake every subscriber.
+ */
+export function setPinnedSlide(
+  channel: SlidePinChannel,
+  nodeId: string,
+  index: number,
+): void {
+  const key = pinKey(channel, nodeId);
+  const next = Math.max(0, Math.trunc(index));
+  if (pinnedSlides[key] === next) return;
+  pinnedSlides = Object.freeze({ ...pinnedSlides, [key]: next });
+  notify(pinnedListeners);
+}
+
+/** Drop the pin (the slider goes back to driving its own index). */
+export function clearPinnedSlide(channel: SlidePinChannel, nodeId: string): void {
+  const key = pinKey(channel, nodeId);
+  if (!(key in pinnedSlides)) return;
+  const next: Record<string, number> = { ...pinnedSlides };
+  delete next[key];
+  pinnedSlides = Object.freeze(next);
+  notify(pinnedListeners);
+}
+
+export function getPinnedSlide(
+  channel: SlidePinChannel,
+  nodeId: string,
+): number | null {
+  const pinned = pinnedSlides[pinKey(channel, nodeId)];
+  return typeof pinned === "number" ? pinned : null;
+}
+
+/**
+ * The slide the inspector pinned on this channel, or null when none. A
+ * PRIMITIVE snapshot, so it is `Object.is`-stable and a pin somewhere else
+ * never wakes this subscriber.
+ */
+export function usePinnedSlide(
+  channel: SlidePinChannel,
+  nodeId: string,
+): number | null {
+  const getSnapshot = useCallback(
+    () => getPinnedSlide(channel, nodeId),
+    [channel, nodeId],
+  );
+  return useSyncExternalStore(
+    subscribeCarouselPinnedSlides,
+    getSnapshot,
+    getCarouselPinnedServerSnapshot,
+  );
+}
+
 /** Pin the slide the canvas should show for `nodeId`. No-op when unchanged. */
 export function setCarouselSlide(nodeId: string, index: number): void {
-  const next = Math.max(0, Math.trunc(index));
-  if (pinnedSlides[nodeId] === next) return;
-  pinnedSlides = Object.freeze({ ...pinnedSlides, [nodeId]: next });
-  notify(pinnedListeners);
+  setPinnedSlide("carousel", nodeId, index);
 }
 
 /** Drop the pin for `nodeId` (the carousel goes back to its own index). */
 export function clearCarouselSlide(nodeId: string): void {
-  if (!(nodeId in pinnedSlides)) return;
-  const next: Record<string, number> = { ...pinnedSlides };
-  delete next[nodeId];
-  pinnedSlides = Object.freeze(next);
-  notify(pinnedListeners);
+  clearPinnedSlide("carousel", nodeId);
 }
 
 export function subscribeCarouselEditing(listener: Listener): () => void {
@@ -119,8 +190,7 @@ export function getCarouselEditingSnapshot(): boolean {
 }
 
 export function getCarouselPinnedSlide(nodeId: string): number | null {
-  const pinned = pinnedSlides[nodeId];
-  return typeof pinned === "number" ? pinned : null;
+  return getPinnedSlide("carousel", nodeId);
 }
 
 /**
@@ -145,17 +215,22 @@ export function useCarouselEditing(): boolean {
 }
 
 /**
+ * The same flag under a name that does not claim to be about carousels, for
+ * the other things on the canvas that must stop moving while someone edits
+ * them (today: a container's background slideshow). Deliberately an alias and
+ * NOT a second refcount — "an editor canvas is mounted" is one fact.
+ */
+export function useEditCanvasMotionPaused(): boolean {
+  return useCarouselEditing();
+}
+
+/**
  * The slide the inspector pinned for this carousel, or null when none. A
  * PRIMITIVE snapshot, so it is `Object.is`-stable and a pin on some other
  * carousel never wakes this one.
  */
 export function useCarouselPinnedSlide(nodeId: string): number | null {
-  const getSnapshot = useCallback(() => getCarouselPinnedSlide(nodeId), [nodeId]);
-  return useSyncExternalStore(
-    subscribeCarouselPinnedSlides,
-    getSnapshot,
-    getCarouselPinnedServerSnapshot,
-  );
+  return usePinnedSlide("carousel", nodeId);
 }
 
 /**

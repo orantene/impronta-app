@@ -49,8 +49,6 @@ export interface MaxSitePageRow {
   blocks: unknown;
   theme: unknown;
   // SEO-2 — per-page SEO columns (SEO-1 migration; all nullable, degrade-safe).
-  /** SEO-3 — SERP/tab title override. NULL -> fall back to `title`. */
-  metaTitle: string | null;
   metaDescription: string | null;
   ogTitle: string | null;
   ogDescription: string | null;
@@ -162,27 +160,6 @@ export function maxSitePageHref(
 ): string {
   const base = `${publicPathPrefix}/t/site/${encodeURIComponent(siteSlug)}`;
   return item.isHome ? base : `${base}/${encodeURIComponent(item.slug)}`;
-}
-
-/**
- * SEO-3 — resolve the two DISTINCT titles a site page has. Pure (no React), so
- * `render-max-site.tsx` can fold `meta_title` in without the logic becoming
- * untestable behind a server component.
- *
- * - `pageTitle` — what the page is called. Used for the JSON-LD `name` fallback,
- *   which describes a PERSON: a SERP string like "Actor in Madrid | Hire" is not
- *   a name, so the SEO override must never leak into it.
- * - `seoTitle` — the SERP/tab title: `meta_title || title`, the platform-wide
- *   convention (see app/page.tsx). This is what lands in `MaxSiteSeo.title`, and
- *   therefore also what og:title falls back to. A NULL/blank `meta_title` leaves
- *   the rendered <title> exactly as it was before the column existed.
- */
-export function resolveMaxSiteTitles(
-  page: Pick<MaxSitePageRow, "title" | "metaTitle">,
-  fallback = "",
-): { pageTitle: string; seoTitle: string } {
-  const pageTitle = page.title?.trim() || fallback;
-  return { pageTitle, seoTitle: page.metaTitle?.trim() || pageTitle };
 }
 
 /**

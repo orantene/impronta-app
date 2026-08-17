@@ -69,9 +69,17 @@ test("the background inspector card's own copy is translated", () => {
   // error banners are rendered as children, which that guard cannot see.
   const missing = [
     "Background",
-    "Video or YouTube behind this block",
+    "Video, YouTube or a slideshow behind this block",
     "That is not a YouTube video link, so nothing will play. Copy the URL from the video page or the Share button.",
     "That video link cannot be used. Pick a file from the library, or paste an https URL.",
+    // The slideshow list renders its own copy as children too (empty state,
+    // row captions, the cap notice), so the same exception applies.
+    "No images yet. Add two or more to start the slideshow.",
+    "That is the maximum number of images for one background.",
+    "Image {n}",
+    "No image chosen",
+    "Selected image",
+    "Seconds per image:",
   ].filter((key) => !ES_TEXT[key]?.trim());
   assert.equal(missing.length, 0, `Missing ES entries:\n${missing.join("\n")}`);
 });

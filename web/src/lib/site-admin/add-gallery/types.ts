@@ -92,7 +92,8 @@ export type AddGalleryNativeVariant =
   | "bg-video"
   | "bg-youtube"
   | "bg-image"
-  | "bg-gradient";
+  | "bg-gradient"
+  | "bg-slideshow";
 
 export interface AddGalleryItem {
   id: string;

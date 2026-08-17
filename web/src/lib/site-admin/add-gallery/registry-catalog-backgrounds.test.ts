@@ -29,7 +29,7 @@ test("the Backgrounds category exists on the layout tab", () => {
 });
 
 test("every background card is registered and reachable in the real catalog", () => {
-  assert.ok(ADD_GALLERY_BACKGROUND_ITEMS.length >= 4);
+  assert.ok(ADD_GALLERY_BACKGROUND_ITEMS.length >= 5);
   for (const item of ADD_GALLERY_BACKGROUND_ITEMS) {
     assert.ok(
       ADD_GALLERY_ITEMS.some((registered) => registered.id === item.id),
@@ -76,8 +76,13 @@ test("each background card inserts a real, visible container", () => {
   }
 });
 
-test("the two motion cards land with a scrim already on", () => {
-  for (const id of ["el-bg-video", "el-bg-youtube"]) {
+test("every motion card lands with a scrim already on", () => {
+  const expectedSource: Record<string, string> = {
+    "el-bg-video": "upload",
+    "el-bg-youtube": "youtube",
+    "el-bg-slideshow": "slideshow",
+  };
+  for (const [id, source] of Object.entries(expectedSource)) {
     const item = ADD_GALLERY_BACKGROUND_ITEMS.find((i) => i.id === id);
     assert.ok(item, id);
     const action = resolveAddGalleryInsertAction(item);
@@ -87,7 +92,7 @@ test("the two motion cards land with a scrim already on", () => {
     assert.ok(media, `${id} must land with a backgroundMedia value`);
     assert.equal(
       media.source,
-      id === "el-bg-video" ? "upload" : "youtube",
+      source,
       `${id} must open the Content card on the right source`,
     );
     // Autoplaying footage under a headline with no scrim is the single easiest
@@ -125,6 +130,23 @@ test("every preview thumbnail exists in public/ and is same-origin", () => {
     // image-card is what makes GalleryCardPreview render the <img> at all.
     assert.equal(item.previewType, "image-card", item.id);
   }
+});
+
+test("the slideshow card lands with an EMPTY image list, not a stock photo", () => {
+  // The inspector's empty state ("Add two or more…") is a clearer instruction
+  // than a placeholder row pointing at a picture the author has to hunt down
+  // and replace. It also keeps the card from resolving to a renderable
+  // background before the author has chosen anything.
+  const item = ADD_GALLERY_BACKGROUND_ITEMS.find((i) => i.id === "el-bg-slideshow");
+  assert.ok(item);
+  const action = resolveAddGalleryInsertAction(item);
+  assert.ok("node" in action);
+  const media = (action.node.props as Record<string, unknown>).backgroundMedia as {
+    slides?: unknown[];
+    intervalMs?: number;
+  };
+  assert.deepEqual(media.slides, []);
+  assert.ok(media.intervalMs, "the card must open with a real dwell, not 0");
 });
 
 test("preview paths are unique, so two cards cannot share a thumbnail", () => {

@@ -26,6 +26,9 @@ import { useCallback } from "react";
 
 import {
   BACKGROUND_MEDIA_DEFAULT_OVERLAY_COLOR,
+  BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS,
+  BACKGROUND_SLIDESHOW_MAX_INTERVAL_MS,
+  BACKGROUND_SLIDESHOW_MIN_INTERVAL_MS,
   resolveBackgroundMedia,
   type BackgroundMediaProps,
   type BackgroundMediaSource,
@@ -37,6 +40,7 @@ import { Field, FieldLabel, Helper, Segmented, TextInput } from "../kit";
 import { DebouncedRangeInput } from "./kit/debounced-range-input";
 import { MediaField, toMediaValue } from "./kit";
 import { KIT } from "./kit/tokens";
+import { BackgroundSlideshowManager } from "./background-slideshow-manager";
 
 /**
  * Scrim applied the moment a background is attached. See the module doc: an
@@ -47,10 +51,13 @@ const DEFAULT_OVERLAY = 40;
 type SourceChoice = "none" | BackgroundMediaSource;
 
 export function BackgroundMediaCard({
+  nodeId,
   tenantId,
   value,
   onChange,
 }: {
+  /** The container this background belongs to — the edit-bridge pin key. */
+  nodeId: string;
   tenantId: string;
   value: BackgroundMediaProps | undefined;
   /** `undefined` clears the background entirely (the "None" choice). */
@@ -76,12 +83,17 @@ export function BackgroundMediaCard({
       // Switching source keeps the scrim + framing the author already dialled
       // in but NEVER carries the src across: a YouTube URL is not a video file
       // and vice versa, and silently keeping the old one renders a dead frame.
+      // The picture list is kept, though — flipping to Video to look at it and
+      // back must not throw away eight chosen images.
       onChange({
         source: nextSource,
         src: "",
         overlay: value?.overlay ?? DEFAULT_OVERLAY,
         ...(value?.overlayColor ? { overlayColor: value.overlayColor } : null),
         ...(value?.focalPoint ? { focalPoint: value.focalPoint } : null),
+        ...(value?.slides?.length ? { slides: value.slides } : null),
+        ...(value?.intervalMs ? { intervalMs: value.intervalMs } : null),
+        ...(value?.transition ? { transition: value.transition } : null),
       });
     },
     [onChange, value],
@@ -107,6 +119,7 @@ export function BackgroundMediaCard({
             { value: "none", label: "None" },
             { value: "upload", label: "Video" },
             { value: "youtube", label: "YouTube" },
+            { value: "slideshow", label: "Slideshow" },
           ]}
         />
         <Helper>
@@ -148,8 +161,70 @@ export function BackgroundMediaCard({
         </Field>
       ) : null}
 
+      {source === "slideshow" ? (
+        <>
+          <div className={KIT.field}>
+            <label className={KIT.label}>Images</label>
+            <BackgroundSlideshowManager
+              nodeId={nodeId}
+              tenantId={tenantId}
+              slides={value?.slides ?? []}
+              onChange={(slides) => patch({ slides })}
+            />
+            <p className={KIT.hint}>
+              They cross-fade in this order. Visitors who prefer reduced motion
+              see the first image only, and the rest load lazily.
+            </p>
+          </div>
+
+          <Field flush>
+            {/* Static prefix + rendered number, matching the overlay slider —
+                interpolating the seconds INTO the key would mint a fresh
+                untranslatable string on every tick. */}
+            <FieldLabel>
+              {t("Seconds per image:")}{" "}
+              {Math.round(
+                (value?.intervalMs ?? BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS) / 1000,
+              )}
+            </FieldLabel>
+            <DebouncedRangeInput
+              min={BACKGROUND_SLIDESHOW_MIN_INTERVAL_MS / 1000}
+              max={BACKGROUND_SLIDESHOW_MAX_INTERVAL_MS / 1000}
+              step={1}
+              value={Math.round(
+                (value?.intervalMs ?? BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS) / 1000,
+              )}
+              onCommit={(next) => patch({ intervalMs: Math.round(next) * 1000 })}
+              ariaLabel="Seconds per image"
+            />
+            <Helper>How long each image stays before the next one fades in.</Helper>
+          </Field>
+
+          <Field flush>
+            <FieldLabel>Transition</FieldLabel>
+            <Segmented
+              fullWidth
+              compact
+              value={value?.transition ?? "crossfade"}
+              onChange={(next) =>
+                patch({ transition: next === "cut" ? "cut" : "crossfade" })
+              }
+              options={[
+                { value: "crossfade", label: "Crossfade" },
+                // "Hard cut", not "Cut": the bare word already means the
+                // CLIPBOARD action in this editor's Spanish catalog
+                // ("Cortar"), and a transition named "Cortar" reads as a
+                // command, not a style.
+                { value: "cut", label: "Hard cut" },
+              ]}
+            />
+          </Field>
+        </>
+      ) : null}
+
       {source !== "none" ? (
         <>
+          {source === "slideshow" ? null : (
           <div className={KIT.field}>
             <label className={KIT.label}>
               {source === "youtube" ? "Poster image (optional)" : "Poster image"}
@@ -168,6 +243,7 @@ export function BackgroundMediaCard({
                 : "Shown before the video starts and instead of it under reduced motion."}
             </p>
           </div>
+          )}
 
           <Field flush>
             {/* Static prefix + rendered number, matching cta-banner-content —

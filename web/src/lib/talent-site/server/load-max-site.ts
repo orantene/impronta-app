@@ -159,7 +159,7 @@ export async function loadMaxSitePages(
       // SEO-2 — widened to carry the SEO-1 per-page SEO columns through the
       // render path. All SEO fields are nullable so a not-yet-populated page
       // degrades to undefined SEO and never throws.
-      "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme, meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
+      "id, slug, title, nav_label, status, is_home, sort_order, blocks, theme, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld",
     )
     .eq("talent_profile_id", talentProfileId)
     .order("sort_order", { ascending: true });
@@ -177,7 +177,6 @@ export async function loadMaxSitePages(
     sort_order: number;
     blocks: unknown;
     theme: unknown;
-    meta_title: string | null;
     meta_description: string | null;
     og_title: string | null;
     og_description: string | null;
@@ -196,7 +195,6 @@ export async function loadMaxSitePages(
     sortOrder: p.sort_order,
     blocks: p.blocks,
     theme: p.theme,
-    metaTitle: p.meta_title ?? null,
     metaDescription: p.meta_description ?? null,
     ogTitle: p.og_title ?? null,
     ogDescription: p.og_description ?? null,

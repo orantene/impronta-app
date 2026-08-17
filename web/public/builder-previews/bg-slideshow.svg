@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="110" viewBox="0 0 320 110" role="img" aria-label="Full-bleed band that cycles through a set of photos">
+  <rect width="320" height="110" fill="#2c3040"/>
+  <g opacity="0.35">
+    <rect x="0" y="0" width="320" height="110" fill="#4b5169"/>
+    <circle cx="248" cy="30" r="14" fill="#6f7690"/>
+    <path d="M0 92 L46 60 L92 84 L146 46 L198 78 L252 54 L320 82 L320 110 L0 110 Z" fill="#2c3040"/>
+  </g>
+  <rect x="0" y="0" width="320" height="110" fill="#12141d" opacity="0.42"/>
+  <g opacity="0.9">
+    <rect x="112" y="26" width="42" height="30" rx="3" fill="#ffffff" opacity="0.30"/>
+    <rect x="128" y="22" width="42" height="34" rx="3" fill="#ffffff" opacity="0.55"/>
+    <rect x="146" y="18" width="46" height="38" rx="3" fill="#ffffff" opacity="0.92"/>
+    <path d="M152 48 L164 34 L172 42 L179 36 L186 48 Z" fill="#2c3040"/>
+    <circle cx="180" cy="27" r="3.4" fill="#2c3040"/>
+  </g>
+  <rect x="96" y="70" width="128" height="8" rx="1" fill="#ffffff" opacity="0.95"/>
+  <g fill="#ffffff">
+    <circle cx="146" cy="90" r="3" opacity="0.95"/>
+    <circle cx="160" cy="90" r="3" opacity="0.45"/>
+    <circle cx="174" cy="90" r="3" opacity="0.45"/>
+  </g>
+</svg>
