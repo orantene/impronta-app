@@ -461,6 +461,8 @@ type Ctx = {
     isPlatformAdmin?: boolean;
     /** Server-resolved `manage_billing`; nav must agree with route gates. */
     canManageBilling?: boolean;
+    /** Server-resolved `agency.site_admin.pages.edit` — gates Website → Redirects. */
+    canEditSitePages?: boolean;
   } | null;
   /**
    * Effective tenant values for rendering — derived from bridgeTenantIdentity

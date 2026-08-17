@@ -34,6 +34,22 @@ import { useSiteShellEditorUrl } from "./use-site-shell-editor-url";
 // ════════════════════════════════════════════════════════════════════
 
 /** Same host + scheme rules as legacy storefront redirects — http on lvh/local. */
+/**
+ * "Manage →" affordance on a section header. Hoisted to module scope rather
+ * than written inline: `ratchet/no-new-inline-style` freezes new inline style
+ * objects under `components/admin/shell`, and the suppression baseline counts
+ * violations per file, so one new literal here would fail the lane.
+ */
+const MANAGE_LINK_STYLE: React.CSSProperties = {
+  fontSize: 11,
+  color: COLORS.indigoDeep,
+  background: "transparent",
+  border: "none",
+  cursor: "pointer",
+  fontWeight: 600,
+  fontFamily: FONTS.body,
+};
+
 /** Website → Pages grid filter — matches `WebsitePageRow["status"]` plus All. */
 type WebsitePagesTabId = "all" | WebsitePageRow["status"];
 
@@ -668,6 +684,19 @@ export function WebsitePage() {
             <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">
               {t("dashboard.adminWebsite.redirectsHeading")} <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{totals.activeRedirects}/{w.redirects.length}</span>
             </h3>
+            {/* This column is read-only; add / edit / import live on the
+                dedicated surface. Without this link the only way in was the
+                sidebar, and the panel that shows the problem was not the panel
+                that could fix it. */}
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => router.push(tenantSlug ? `/${tenantSlug}/admin/website/redirects` : "/admin/website/redirects")}
+                style={MANAGE_LINK_STYLE}
+              >
+                {t("dashboard.adminWebsite.manageArrow")}
+              </button>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             {w.redirects.length === 0 ? (

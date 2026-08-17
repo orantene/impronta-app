@@ -124,6 +124,15 @@ export function WebsiteNavItem({
                 iconName="user"
                 onClick={() => go(`${base}/profile-pages`)}
               />
+              {/* Same capability the page enforces (site_admin.pages.edit). */}
+              {bridgeSessionIdentity?.canEditSitePages ? (
+                <WebsiteMenuItem
+                  label="Redirects"
+                  sub="Point old URLs at new pages"
+                  iconName="arrow-right"
+                  onClick={() => go(`${base}/redirects`)}
+                />
+              ) : null}
               {/* Same capability the page enforces (manage_billing). */}
               {bridgeSessionIdentity?.canManageBilling ? (
                 <WebsiteMenuItem
@@ -149,7 +158,7 @@ function WebsiteMenuItem({
 }: {
   label: string;
   sub: string;
-  iconName: "globe" | "palette" | "user" | "mail";
+  iconName: "globe" | "palette" | "user" | "mail" | "arrow-right";
   onClick: () => void;
 }) {
   return (

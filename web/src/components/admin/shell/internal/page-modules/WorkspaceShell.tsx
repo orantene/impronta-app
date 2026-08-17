@@ -247,6 +247,13 @@ function WorkspaceSidebarShell() {
           : []),
         { label: "Card Design", href: `${websiteBase}/card-design` },
         { label: "Profile Pages", href: `${websiteBase}/profile-pages` },
+        // 301/302 URL forwarding. Gated on the SAME capability the route
+        // enforces (`agency.site_admin.pages.edit`), resolved server-side and
+        // passed through the bridge — a viewer doesn't have it, and a link to a
+        // page that 404s is worse than no link.
+        ...(bridgeSessionIdentity?.canEditSitePages
+          ? [{ label: "Redirects", href: `${websiteBase}/redirects` }]
+          : []),
         // Form submissions. This surface had NO in-app route at all — the only
         // way in was a link inside a notification email, so a tenant who never
         // got (or deleted) that email could not reach their own enquiries.
