@@ -109,7 +109,11 @@ const BUDGETS: Record<string, number> = {
   // also what makes the change reviewable, since each new module is one
   // control with its own reasoning at the top.
   "src/components/edit-chrome/inspectors/style-panel.tsx": 5708,
-  "src/components/edit-chrome/navigator-panel.tsx": 4505,
+  // +7 (builder move affordances): the Structure panel joins the `panels`
+  // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
+  // host (83) and let every selection ring / grip / drop line paint across the
+  // layer list. One prop plus the comment recording why the exception is gone.
+  "src/components/edit-chrome/navigator-panel.tsx": 4512,
   "src/components/edit-chrome/topbar.tsx": 3375,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
   // plugin, trigger detection, catalog/matcher and menu component all live in
@@ -122,7 +126,12 @@ const BUDGETS: Record<string, number> = {
   // defaulting to "desktop". Fixes the keyboard nudge (and any other
   // device-scoped write) silently landing in the base/desktop bucket
   // whenever performed inside the Tablet/Mobile preview iframe.
-  "src/components/edit-chrome/edit-shell.tsx": 2730,
+  // +6 (builder move affordances): the overlay-portal host swaps its raw
+  // z-[83] for the `Z_INDEX.overlayPortal` token, with the comment explaining
+  // that this element is a stacking context — so it, not the zIndex values the
+  // selection chrome sets on its own children, is what decides whether canvas
+  // chrome can cover a floating panel.
+  "src/components/edit-chrome/edit-shell.tsx": 2736,
   "src/components/edit-chrome/inspectors/layout-panel.tsx": 2532,
   "src/components/edit-chrome/publish-drawer.tsx": 2254,
   // 1826 → 1844 (+18), 2026-08-16, footer inspector parity.
