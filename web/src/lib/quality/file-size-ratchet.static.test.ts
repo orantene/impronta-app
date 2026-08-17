@@ -108,7 +108,16 @@ const BUDGETS: Record<string, number> = {
   // Extraction, not budget inflation, is the documented remedy — and it is
   // also what makes the change reviewable, since each new module is one
   // control with its own reasoning at the top.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5708,
+  //
+  // 5708 -> 5560 (-148), 2026-08-17, D4 (the group hierarchy). The budget goes
+  // DOWN again — the remedy for this file has never been a bigger number:
+  //   -68  six hardcoded section mounts -> ONE <StyleGroupStack>, which reads
+  //        style-panel/group-recipes.ts to decide which groups this kind gets
+  //   -80  the loose "Visibility" block and the loose "Custom CSS" <details>
+  //        -> style-panel/groups/AdvancedGroup.tsx. They sat BELOW every
+  //        accordion, in no group at all, which is also why the D5 search
+  //        filter could never reach them.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5560,
   // +7 (builder move affordances): the Structure panel joins the `panels`
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the
