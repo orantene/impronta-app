@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { createTranslator } from "@/i18n/messages";
-import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
@@ -38,7 +38,7 @@ export async function buildPublicPageMetadata(
   const t = createTranslator(locale);
   const baseTitle = t(TITLE_KEY[page]);
   const baseDescription = t(DESCRIPTION_KEY[page]);
-  const alternates = buildPublicLocaleAlternates(locale, PATH[page]);
+  const alternates = await buildTenantLocaleAlternates(locale, PATH[page]);
 
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "agency" && ctx.kind !== "hub") {
