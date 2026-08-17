@@ -18,6 +18,10 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
+import {
+  stripeBillingPortalLocale,
+  stripeCheckoutLocale,
+} from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
 import type { BillingResult } from "@/lib/stripe/workspace-billing";
 
@@ -133,6 +137,14 @@ export async function createTalentCheckoutSession(opts: {
   displayName: string;
   tenantSlug: string;
   appBaseUrl: string;
+  /**
+   * The talent's resolved app locale (`getRequestLocale()`), threaded from the
+   * calling server action. Without it Stripe reads the BROWSER language, so a
+   * Mexican talent running Tulala in Spanish on an English browser pays through
+   * an English form. Absent / unmappable -> the parameter is omitted and Stripe
+   * keeps its own default.
+   */
+  locale?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -158,6 +170,8 @@ export async function createTalentCheckoutSession(opts: {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success`,
       cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
+      // Show Checkout in the talent's app language, not their browser's.
+      locale: stripeCheckoutLocale(opts.locale),
       metadata: {
         talent_profile_id: opts.talentProfileId,
         user_id:           opts.userId,
@@ -197,6 +211,8 @@ export async function createTalentBillingPortalSession(opts: {
   userId: string;
   tenantSlug: string;
   appBaseUrl: string;
+  /** Resolved app locale, threaded from the caller. See the checkout helper. */
+  locale?: string | null;
 }): Promise<BillingResult<{ url: string }>> {
   if (!isStripeConfigured()) {
     return { ok: false, error: "Stripe is not configured." };
@@ -219,6 +235,7 @@ export async function createTalentBillingPortalSession(opts: {
     const session = await stripe.billingPortal.sessions.create({
       customer: customer.stripe_customer_id,
       return_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
+      locale: stripeBillingPortalLocale(opts.locale),
     });
 
     return { ok: true, data: { url: session.url } };

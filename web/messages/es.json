@@ -1310,6 +1310,12 @@
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
       "body": "Este marcador indica dónde aparece el contenido de cada página. Los cambios que hagas aquí en el encabezado y el pie se aplican a todas las páginas de tu sitio."
+    },
+    "localeSuggest": {
+      "prompt": "¿Prefieres ver esta página en español?",
+      "accept": "Ver en español",
+      "dismiss": "No, gracias",
+      "regionLabel": "Sugerencia de idioma"
     }
   },
   "dashboard": {
@@ -10985,7 +10991,8 @@
       "dropToUpload": "Suelta para subir",
       "uploading": "Subiendo",
       "uploadFailed": "No se pudo subir",
-      "loadingDimensions": "Cargando dimensiones..."
+      "loadingDimensions": "Cargando dimensiones...",
+      "videoSelected": "Video seleccionado"
     },
     "mediaLibrary": {
       "searchPlaceholder": "Busca por nombre de archivo, texto alternativo o nota",
@@ -11031,6 +11038,19 @@
       "talentFilterLabel": "Filtrar por talento",
       "talentSearchPlaceholder": "Escribe el nombre de un talento",
       "talentNoMatches": "Ningún talento coincide con ese nombre",
+      "copyUrl": "Copiar URL",
+      "copiedUrl": "URL copiada",
+      "copyUrlFailed": "No se pudo copiar",
+      "crop": "Recortar",
+      "cropSaveFailed": "No se pudo guardar la imagen recortada. Inténtalo de nuevo.",
+      "usedBadge": "En uso {count}",
+      "usedBadgeTitle": "Se usa en {count} secciones de este sitio",
+      "unusedBadge": "Sin usar",
+      "unusedBadgeTitle": "Todavía ninguna sección usa este archivo",
+      "assetsTitle": "Biblioteca de recursos",
+      "assetsMeta": "Biblioteca de medios del espacio",
+      "assetCount": "{count} archivos",
+      "needsAttention": "Requiere atención",
       "kind": {
         "all": "Todos",
         "image": "Imágenes",

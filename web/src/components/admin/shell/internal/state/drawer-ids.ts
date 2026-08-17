@@ -33,7 +33,6 @@ export type DrawerId =
   | "posts"
   | "navigation"
   | "media"
-  | "translations"
   | "seo"
   | "field-catalog"
   | "field-privacy"

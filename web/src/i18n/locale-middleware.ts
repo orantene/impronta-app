@@ -2,11 +2,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import type { LanguageSettings } from "@/lib/language-settings/types";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
+import { LOCALE_AUTO_COOKIE, LOCALE_COOKIE_MAX_AGE_SECONDS } from "@/i18n/locale-cookies";
 
 /** Public cookie name (plan §2). */
 export const LOCALE_COOKIE = "locale";
 
-const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
+const LOCALE_COOKIE_MAX_AGE = LOCALE_COOKIE_MAX_AGE_SECONDS;
 
 export const localeCookieOptions = {
   path: "/",
@@ -14,6 +15,41 @@ export const localeCookieOptions = {
   sameSite: "lax" as const,
   secure: process.env.NODE_ENV === "production",
 };
+
+/**
+ * Mark the `locale` cookie we are about to write as MACHINE-WRITTEN.
+ *
+ * Only the auto-write branch of `syncLocaleCookieForPath` may call this. See
+ * `@/i18n/locale-cookies` for the full contract and why it exists.
+ */
+function markLocaleCookieAuto(res: NextResponse): void {
+  res.cookies.set(LOCALE_AUTO_COOKIE, "1", localeCookieOptions);
+}
+
+/**
+ * Record that the `locale` cookie being written is a DELIBERATE choice.
+ *
+ * Exported because every deliberate writer has to call it, including ones
+ * outside this module. Missing a writer is how the marker regresses into a
+ * permanent "this was automatic" lie, so the writer list is enumerated in
+ * `@/i18n/locale-cookies` and pinned by `locale-suggestion.test.ts`.
+ *
+ * `maxAge: 0` deletes; the rest of the attributes must match the write or the
+ * browser keeps the original cookie alongside a second, empty one.
+ */
+export function clearLocaleCookieAutoMarker(res: NextResponse): void {
+  res.cookies.set(LOCALE_AUTO_COOKIE, "", { ...localeCookieOptions, maxAge: 0 });
+}
+
+/**
+ * True when the `locale` cookie on this request was written by machinery
+ * rather than chosen by a person. Callers that treat the locale cookie as an
+ * expression of intent (today: the language suggestion banner) must consult
+ * this; callers that only need "what language does this session use" must not.
+ */
+export function localeCookieIsAutoWritten(request: NextRequest): boolean {
+  return Boolean(request.cookies.get(LOCALE_AUTO_COOKIE)?.value);
+}
 
 function firstSegment(pathname: string): string {
   const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
@@ -144,17 +180,21 @@ export function isUnprefixedPublicDefaultPath(
   return true;
 }
 
-function acceptLanguageMatchesLocale(header: string | null, localeCode: string): boolean {
-  if (!header) return false;
-  const primary = localeCode.toLowerCase().split("-")[0] ?? localeCode;
-  const parts = header.split(",");
-  for (const part of parts) {
-    const code = part.split(";")[0]?.trim().toLowerCase() ?? "";
-    if (code.startsWith(localeCode.toLowerCase())) return true;
-    if (code.startsWith(primary)) return true;
-  }
-  return false;
-}
+/*
+ * `acceptLanguageMatchesLocale` + `preferredPublicLocaleFromNegotiation` were
+ * REMOVED here (2026-08-16), not moved. They had zero call sites repo-wide —
+ * nothing in the app had ever read the browser language — and they were a
+ * latent hazard: `preferredPublicLocaleFromNegotiation` returns a locale to
+ * SERVE, which is precisely the design that was rejected for the language
+ * suggestion banner (same URL, different language by header ⇒ Googlebot,
+ * crawling with English headers, never sees the Spanish content, and every
+ * shared cache key becomes ambiguous).
+ *
+ * Browser-language handling now lives in `@/i18n/locale-suggestion`, which is
+ * pure, q-value aware, and can only produce a dismissible SUGGESTION — it has
+ * no way to change what a URL serves. There is deliberately no second
+ * implementation left in this file.
+ */
 
 /**
  * Spanish public URL → that locale. Default-locale public URL → default.
@@ -204,31 +244,6 @@ export function shouldRewriteLocalePublicPath(
   return !isDashboardInnerPathForLocalePrefix(inner);
 }
 
-export function preferredPublicLocaleFromNegotiation(
-  request: NextRequest,
-  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
-): string {
-  const cookie = readLocaleCookie(request, settings);
-  if (cookie) return cookie;
-
-  const header = request.headers.get("accept-language");
-  const ordered = [...settings.publicLocales].sort((a, b) => {
-    if (a === settings.defaultLocale) return -1;
-    if (b === settings.defaultLocale) return 1;
-    return a.localeCompare(b);
-  });
-
-  for (const code of ordered) {
-    if (code !== settings.defaultLocale && acceptLanguageMatchesLocale(header, code)) {
-      return code;
-    }
-  }
-  if (acceptLanguageMatchesLocale(header, settings.defaultLocale)) {
-    return settings.defaultLocale;
-  }
-  return settings.defaultLocale;
-}
-
 export function syncLocaleCookieForPath(
   res: import("next/server").NextResponse,
   originalPathname: string,
@@ -240,6 +255,13 @@ export function syncLocaleCookieForPath(
     if (!isDashboardInnerPathForLocalePrefix(inner)) {
       const loc = firstSegment(originalPathname);
       res.cookies.set(LOCALE_COOKIE, loc, localeCookieOptions);
+      // DELIBERATE. This branch is how the public language switcher persists a
+      // choice: `PublicLanguageToggle` is plain `<a href="/es/...">`, it writes
+      // no cookie itself, and this line is what turns that navigation into a
+      // remembered preference. So reaching a non-default locale URL clears the
+      // auto marker — from here on the visitor has chosen, and the suggestion
+      // banner must never ask again.
+      clearLocaleCookieAutoMarker(res);
     }
     return;
   }
@@ -258,8 +280,21 @@ export function syncLocaleCookieForPath(
     const existing = request?.cookies?.get(LOCALE_COOKIE)?.value;
     const existingIsSupported =
       existing && settings.publicLocales.some((l) => l === existing);
+    //
+    // 2026-08-16 — the early return above is LOAD-BEARING and stays exactly as
+    // it is. The auto marker added below deliberately does NOT change it: this
+    // function still never overwrites a supported existing locale cookie, so
+    // the repro above cannot come back. `locale-suggestion.test.ts` replays
+    // that whole sequence hop by hop and asserts the cookie the browser holds
+    // at the DESTINATION, not just after the first hop.
     if (existingIsSupported) return;
     res.cookies.set(LOCALE_COOKIE, settings.defaultLocale, localeCookieOptions);
+    // AUTO. Nobody chose this — it is the bookkeeping write that gives a fresh
+    // visitor a 400-day `locale=en` cookie on their very first response. The
+    // marker is what lets the language suggestion banner tell this apart from
+    // a real choice; without it the banner is silenced from page view 2 and
+    // the feature does not work. This is the ONLY writer allowed to set it.
+    markLocaleCookieAuto(res);
   }
 }
 
@@ -273,5 +308,11 @@ export function redirectToLocaleEquivalent(
   url.pathname = withLocalePath(pathnameWithoutLocale, locale, settings);
   const res = NextResponse.redirect(url, 307);
   res.cookies.set(LOCALE_COOKIE, locale, localeCookieOptions);
+  // DELIBERATE. A caller only reaches this helper because it decided to move
+  // the visitor to a named locale, so the cookie it writes is a choice, not
+  // bookkeeping. (This function currently has zero call sites repo-wide — the
+  // marker clear is here so the FIRST caller inherits correct behavior instead
+  // of silently re-opening the hole.)
+  clearLocaleCookieAutoMarker(res);
   return res;
 }

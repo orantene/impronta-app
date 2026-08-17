@@ -11,6 +11,11 @@ import { cloneNodeWithFreshIds } from "@/lib/site-admin/builder-node/operations"
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
 import { applyItemDataSourceDefaults, applyItemDefaultProps } from "./apply-item-overlay";
+import {
+  BACKGROUND_VARIANT_LAYER_LABEL,
+  BACKGROUND_VARIANT_MEDIA,
+  BACKGROUND_VARIANT_STYLES,
+} from "./registry-catalog-backgrounds";
 import { buildAddGallerySectionTemplate } from "./section-templates";
 import type { AddGalleryInsertMethod, AddGalleryItem, AddGalleryNativeVariant } from "./types";
 
@@ -494,6 +499,38 @@ export function applyNativeVariant(
             provider: "youtube",
             title: "YouTube video",
           },
+        };
+      }
+      break;
+    // Backgrounds story — four pre-dressed containers. Each lands as a tall,
+    // centred band so the author SEES a backdrop immediately instead of a 24px
+    // strip they have to grow by hand before the feature reads at all. The
+    // motion variants also stamp an empty `backgroundMedia` with a 40% scrim,
+    // which is what makes the Content tab's Background card open on the right
+    // source with a readable default rather than on "None".
+    case "bg-video":
+    case "bg-youtube":
+    case "bg-image":
+    case "bg-gradient":
+      if (node.kind === "container") {
+        const media =
+          variant === "bg-video" || variant === "bg-youtube"
+            ? BACKGROUND_VARIANT_MEDIA[variant]
+            : undefined;
+        return {
+          ...node,
+          props: {
+            ...node.props,
+            layout: "stack",
+            align: "center",
+            layerLabel: BACKGROUND_VARIANT_LAYER_LABEL[variant],
+            style: {
+              ...(node.props.style ?? {}),
+              ...BACKGROUND_VARIANT_STYLES[variant],
+            },
+            ...(media ? { backgroundMedia: media } : null),
+          },
+          children: [],
         };
       }
       break;

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { isLocaleInList, type Locale } from "@/i18n/config";
+import { clearLocaleAutoMarkerLine } from "@/i18n/locale-cookies";
 import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,12 @@ function setLocaleCookie(locale: Locale) {
   let line = `${LOCALE_COOKIE}=${locale}; path=${path}; max-age=${String(maxAge)}; samesite=${sameSite}`;
   if (secure) line += "; secure";
   document.cookie = line;
+  // A person clicked a language pill, so this is a DELIBERATE write and the
+  // `locale_auto` marker (which the proxy may have set on an earlier public
+  // page view) no longer describes the cookie. Leaving it behind would let the
+  // public language suggestion banner keep offering a language this user has
+  // already picked in the dashboard. See @/i18n/locale-cookies.
+  document.cookie = clearLocaleAutoMarkerLine(secure);
 }
 
 /**

@@ -12,7 +12,11 @@
  *   2. Allow-list `SITE_SHELL_TENANT_IDS` ─ comma-separated tenant ids that
  *      get the snapshot shell when the master switch is `tenants`. Empty
  *      = no tenant gets it. Used in B.2 to opt the impronta tenant in
- *      first; widen to all tenants only after a clean release.
+ *      first; widen to all tenants only after a clean release. This is
+ *      also the extensibility point for opting a QA/demo tenant (e.g.
+ *      nova-crew) into the render gate from a per-worktree `.env.local`
+ *      WITHOUT touching `LAUNCH_SHELL_TENANT_IDS` below or widening the
+ *      production default — see `web/docs/qa-shell-tenant-recipe-2026-08-16.md`.
  *   3. Shell row published ─ even when the env flags green-light a tenant,
  *      `loadPublishedShell` returning null falls through to the hard-coded
  *      header. Belt-and-suspenders so a tenant with no published shell row

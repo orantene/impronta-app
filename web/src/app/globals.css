@@ -1579,3 +1579,53 @@ body[data-edit-preview="1"] [data-edit-affordance] {
     max-width: 28ch;
   }
 }
+
+/* ── Section video background (2026-08-17) ──────────────────────────────────
+ * Geometry + the reduced-motion fallback for `SectionVideoBackground`
+ * (components/site/section-video-background.tsx), which renders a section's
+ * `presentation.videoBackground`.
+ *
+ * Lives here rather than in a per-call-site <style> because two different
+ * renderers mount it (the homepage CMS section list and the talent site
+ * renderer) and globals.css is loaded by the root layout, so the rules are
+ * guaranteed present on both.
+ *
+ * The negative z-indexes match what the homepage renderer already used inline,
+ * so this is a like-for-like replacement: the wrapper that hosts these already
+ * sets `position:relative; overflow:hidden` when a video background is set.
+ *
+ * The poster is a REAL element painted under the video, which is what makes the
+ * reduced-motion rule a one-liner: hide the video and a correct still is
+ * already there. Before this, the poster fallback that presentation.ts has
+ * always documented did not exist, and the video autoplayed for everyone. */
+.site-section-video-bg__poster,
+.site-section-video-bg__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  border: 0;
+  display: block;
+}
+.site-section-video-bg__video {
+  z-index: -2;
+}
+.site-section-video-bg__poster {
+  z-index: -3;
+}
+.site-section-video-bg__scrim {
+  position: absolute;
+  inset: 0;
+  display: block;
+  z-index: -1;
+  pointer-events: none;
+  background: #000;
+  opacity: var(--section-video-overlay, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-section-video-bg__video {
+    display: none;
+  }
+}

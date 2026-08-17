@@ -1,25 +1,49 @@
+"use client";
+
 import { ExternalLink, MapPin, Navigation } from "lucide-react";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { withGoogleMapsLanguage } from "@/lib/i18n/vendor-locale";
 
 /**
  * Shows an event location with an embedded Google Maps preview and
  * one-click links for viewing the map or getting directions.
  * Renders nothing if `location` is blank.
+ *
+ * Every Google URL here carries `hl=`. Without it the embed and both outbound
+ * links render in whatever language the visitor's BROWSER advertises, so a
+ * Spanish-speaking client reading a Spanish booking got an English map. The
+ * locale comes from the app's own resolution, not from `navigator.language`;
+ * callers may override it with the `locale` prop.
  */
 export function EventLocationMap({
   location,
   compact = false,
+  locale,
 }: {
   location: string | null | undefined;
   /** Compact mode omits the iframe embed — just the text + buttons. */
   compact?: boolean;
+  /** Overrides the dashboard locale (e.g. a server-resolved request locale). */
+  locale?: string | null;
 }) {
+  const dashboardLocale = useDashboardLocale();
+  const mapLocale = locale ?? dashboardLocale;
   const loc = location?.trim();
   if (!loc) return null;
 
   const encoded = encodeURIComponent(loc);
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encoded}`;
-  const embedUrl = `https://maps.google.com/maps?q=${encoded}&output=embed&zoom=13`;
+  const mapsUrl = withGoogleMapsLanguage(
+    `https://www.google.com/maps/search/?api=1&query=${encoded}`,
+    mapLocale,
+  );
+  const directionsUrl = withGoogleMapsLanguage(
+    `https://www.google.com/maps/dir/?api=1&destination=${encoded}`,
+    mapLocale,
+  );
+  const embedUrl = withGoogleMapsLanguage(
+    `https://maps.google.com/maps?q=${encoded}&output=embed&zoom=13`,
+    mapLocale,
+  );
 
   return (
     <div className="space-y-2.5">

@@ -13,6 +13,7 @@ import {
   presentationScopedCss,
   presentationVideoBackground,
 } from "@/lib/site-admin/sections/shared/presentation";
+import { SectionVideoBackground } from "@/components/site/section-video-background";
 import type { TalentSiteSnapshot } from "@/lib/talent-site/types";
 import { TalentSiteFreeformRenderer } from "./TalentSiteFreeformRenderer";
 
@@ -150,6 +151,11 @@ export function TalentSiteRenderer({ snapshot, locale = "en", freeformContext }:
             }
           >
             {scopedCss ? <style dangerouslySetInnerHTML={{ __html: scopedCss }} /> : null}
+            {/* This was the bug: `videoBg` was computed above and used to set
+                position/overflow on the wrapper, but the video itself was
+                never rendered — so a section video background worked on the
+                homepage and silently did nothing on every talent site. */}
+            {videoBg ? <SectionVideoBackground video={videoBg} /> : null}
             {rendered}
           </div>
         );

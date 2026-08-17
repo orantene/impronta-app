@@ -123,8 +123,10 @@ export interface EditContextChromeAndSessionValue {
   openTheme: () => void;
   closeTheme: () => void;
   /**
-   * Visibility flag for the AssetsDrawer (Phase 7). The drawer owns its
-   * own data fetch (via `loadAssetsLibraryAction` + `scanAssetUsageAction`);
+   * Visibility flag for the Assets surface (`assets-library-drawer.tsx`, which
+   * replaced the pre-unification AssetsDrawer on 2026-08-16). The drawer owns
+   * its own data fetch — `useMediaLibrary` against `/api/admin/media/library`,
+   * plus a per-page `scanAssetUsageAction` for the used/unused badges.
    * EditContext only owns the open/close mutex so the topbar's library
    * icon, the navigator footer, and ⌘L can all route through one toggle.
    */

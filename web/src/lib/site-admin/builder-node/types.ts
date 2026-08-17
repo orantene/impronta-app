@@ -1,4 +1,5 @@
 /* eslint-disable max-lines -- hand-authored BuilderNode type + schema definitions (discriminated union + the full style-value model); inherently large, like the other builder-node data files. */
+import type { BackgroundMediaProps } from "./background-media";
 import type { BuilderVisibilityCondition } from "./visibility";
 
 export type BuilderNodeKind =
@@ -530,6 +531,18 @@ export interface BuilderContainerNode extends BuilderNodeBase {
      */
     responsive?: Record<string, BuilderContainerResponsiveOverride>;
     dataBinding?: BuilderDataBindingProps;
+    /**
+     * MOVING BACKGROUND — an uploaded video or a YouTube URL painted behind
+     * this container's children, plus the scrim that keeps the text on top of
+     * it readable. `style.backgroundImage` is the still-image equivalent and
+     * the two compose (the image shows while the video buffers).
+     *
+     * Optional + back-compat: undefined emits no wrapper element, no
+     * `data-bn-bg-media` attribute and no extra CSS, so every container that
+     * predates this field renders byte-identically. See `background-media.ts`
+     * for the resolver and `background-media-layer.tsx` for the markup.
+     */
+    backgroundMedia?: BackgroundMediaProps;
     style?: BuilderNodeStyle;
     // Linked-component instance marker (Living Components Phase 2/3). When set,
     // this container is an instance of the saved component with this id.

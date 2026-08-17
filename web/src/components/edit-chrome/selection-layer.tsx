@@ -121,12 +121,13 @@ import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import { CanvasRotateHandle } from "./canvas-rotate-handle";
 import { useCanvasNodeAutoscroll } from "./use-canvas-node-autoscroll";
+import { normalizeAngleDeg } from "./canvas-transform-geometry";
 import {
-  normalizeAngleDeg,
-  parseRotateDeg,
-  parseScalePair,
-  rotatedVisualBox,
-} from "./canvas-transform-geometry";
+  applyOverlayBox,
+  applyOverlayBoxes,
+  isMeasurableRect,
+  resolveOverlayBox,
+} from "./selection-overlay-boxes";
 import {
   menuShouldOpenUp,
   positionAnchoredToolbarStack,
@@ -175,6 +176,7 @@ import {
   CHROME,
   CHROME_RADII,
   EDIT_TOPBAR_H,
+  OVERLAY_PORTAL_Z,
   Z_INDEX,
 } from "./kit/tokens";
 import {
@@ -3026,80 +3028,43 @@ export function SelectionLayer() {
     if (multiNodeSelectionActive || isDragging) return undefined;
     if (!selectedBuilderNodeId && !selectedSectionId) return undefined;
 
+    // Overlay boxes for one target: measure, or hide when it is no longer
+    // measurable. The measure/write rules (incl. the ROTATED-geometry branch,
+    // where a tilted element's bounding rect is the AABB of the quad and the
+    // unrotated box has to be recovered from layout size × zoom × scale) live
+    // in selection-overlay-boxes.ts and are unit-tested there.
+    //
+    // STUCK BORDER — `box === null` is the case the old inline loop got wrong:
+    // it did `if (!el) return`, which left the previous coordinates painted
+    // forever once the selected node unmounted or moved to another device
+    // canvas. Hiding is now the explicit, only alternative to writing.
+    const overlayRefs = [
+      ringRef,
+      moveOverlayRef,
+      resizeOverlayRef,
+      spacingOverlayRef,
+      gapOverlayRef,
+      rotateOverlayRef,
+    ];
     const sync = () => {
       const el = getSelectedBuilderNodeEl() ?? getSelectedSectionEl();
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      let top = r.top;
-      let left = r.left;
-      let width = r.width;
-      let height = r.height;
-      // ROTATED GEOMETRY — when the element carries a `rotate` escape, its
-      // bounding rect is the AABB of the tilted quad. Recover the unrotated
-      // box (layout size × zoom × scale, centred on the AABB centre) and give
-      // the ring + handle overlays the SAME rotation transform, so the
-      // selection chrome visually tracks the tilt instead of drawing an
-      // axis-aligned box around it. Marquee hit-testing and sibling snapping
-      // deliberately stay AABB-based (documented scope).
-      const computed = getComputedStyle(el);
-      const rotationDeg = normalizeAngleDeg(parseRotateDeg(computed.rotate));
-      const overlayTransform =
-        rotationDeg === 0 ? "" : `rotate(${rotationDeg}deg)`;
-      if (rotationDeg !== 0) {
-        const scale = parseScalePair(computed.scale);
-        const box = rotatedVisualBox({
-          rectLeft: r.left,
-          rectTop: r.top,
-          rectWidth: r.width,
-          rectHeight: r.height,
-          offsetWidth: el.offsetWidth,
-          offsetHeight: el.offsetHeight,
-          zoom: canvasZoomRef.current,
-          scaleX: scale.x,
-          scaleY: scale.y,
-        });
-        top = box.top;
-        left = box.left;
-        width = box.width;
-        height = box.height;
-      }
-
-      const ring = ringRef.current;
-      if (ring) {
-        ring.style.top = `${top}px`;
-        ring.style.left = `${left}px`;
-        ring.style.width = `${width}px`;
-        ring.style.height = `${height}px`;
-        ring.style.transform = overlayTransform;
-      }
+      const box = resolveOverlayBox(el, canvasZoomRef.current);
+      applyOverlayBoxes(
+        overlayRefs.map((ref) => ref.current),
+        box,
+      );
+      if (!box || !el) return;
       // Anchored contextual toolbar(s) — the chip (plus the ungroup bar for a
       // single selected container) tracks the SELECTION, not the viewport
-      // bottom. Anchored off the raw AABB `r`: for a rotated element that IS
-      // its live visual bounds (#1119), and the bars get no rotation
-      // transform, so they stay upright while following a tilted element.
-      // Flip/clamp/occluder rules live in canvas-toolbar-anchor.ts.
+      // bottom. Anchored off the raw AABB: for a rotated element that IS its
+      // live visual bounds (#1119), and the bars get no rotation transform, so
+      // they stay upright while following a tilted element. Flip/clamp/
+      // occluder rules live in canvas-toolbar-anchor.ts.
+      const r = el.getBoundingClientRect();
       positionAnchoredToolbarStack(
         { top: r.top, left: r.left, width: r.width, height: r.height },
         [chipRef.current, multiToolbarAnchorRef.current],
       );
-      // Each handle overlay box shares the element's exact viewport rect; its
-      // inner controls are positioned relative to the box, so moving the box is
-      // enough. Any ref may be null (its handle isn't mounted for this node).
-      for (const ref of [
-        moveOverlayRef,
-        resizeOverlayRef,
-        spacingOverlayRef,
-        gapOverlayRef,
-        rotateOverlayRef,
-      ]) {
-        const box = ref.current;
-        if (!box) continue;
-        box.style.top = `${top}px`;
-        box.style.left = `${left}px`;
-        box.style.width = `${width}px`;
-        box.style.height = `${height}px`;
-        box.style.transform = overlayTransform;
-      }
     };
 
     // Write once synchronously (pre-paint) so the overlays never flash at the
@@ -3182,12 +3147,20 @@ export function SelectionLayer() {
                 ),
             ) ?? null;
         }
-        if (!el) continue;
-        const r = el.getBoundingClientRect();
-        ring.style.top = `${r.top}px`;
-        ring.style.left = `${r.left}px`;
-        ring.style.width = `${r.width}px`;
-        ring.style.height = `${r.height}px`;
+        // Same stuck-border rule as the primary loop: a secondary ring whose
+        // source vanished is HIDDEN, never left at its last coordinates.
+        const r = el?.getBoundingClientRect();
+        if (!el || !r || !isMeasurableRect(r)) {
+          applyOverlayBox(ring, null);
+          continue;
+        }
+        applyOverlayBox(ring, {
+          top: r.top,
+          left: r.left,
+          width: r.width,
+          height: r.height,
+          transform: "",
+        });
         unionLeft = Math.min(unionLeft, r.left);
         unionTop = Math.min(unionTop, r.top);
         unionRight = Math.max(unionRight, r.right);
@@ -4474,7 +4447,17 @@ export function SelectionLayer() {
   // inside its own viewport. Drag-related overlays (drop indicator,
   // drag ghost) remain rendered for completeness, though Sprint 3
   // doesn't support cross-frame drag.
-  const isIframeActive = device !== "desktop";
+  //
+  // `window.parent !== window` — the gate is about WHICH DOCUMENT we are, not
+  // only which tier is selected. Since #1146 the iframe's own EditProvider is
+  // seeded with `initialDevice` ("mobile" / "tablet"), so `device !== "desktop"`
+  // became true INSIDE the iframe too and this early return silently suppressed
+  // the iframe's own chrome as well — leaving mobile preview with no correct
+  // selection ring anywhere, and only stale artifacts visible. The parent is
+  // the only document that must stand down here.
+  const isIframeActive =
+    device !== "desktop" &&
+    (typeof window === "undefined" || window.parent === window);
   if (isIframeActive) {
     return createPortal(
       <div data-edit-overlay className="pointer-events-none absolute inset-0" />,
@@ -4977,6 +4960,11 @@ export function SelectionLayer() {
             data-selection-ring=""
             style={{
               position: "fixed",
+              // Explicit band (OVERLAY_PORTAL_Z, kit/tokens.ts). The ring used
+              // to carry NO z-index, so among its numbered siblings inside
+              // #edit-overlay-portal it landed wherever DOM order put it —
+              // fine by luck today, undefined the moment a sibling moves.
+              zIndex: OVERLAY_PORTAL_Z.ring,
               // For a SINGLE selection the rAF loop below owns these four every
               // frame (Figma-smooth, no trailing); renderSelectedRect still seeds
               // first paint AND is the sole source for the MULTI-select bounding

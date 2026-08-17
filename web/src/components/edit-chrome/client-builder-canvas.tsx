@@ -60,6 +60,8 @@ import {
   subscribeBuilderCanvasTree,
 } from "./client-builder-canvas-bridge";
 import { registerCanvasAnimationReplayListener } from "./inspectors/kit/motion-animation-replay";
+import { registerCarouselEditMode } from "@/lib/site-admin/builder-node/carousel-edit-bridge";
+import { useCarouselSlideFollow } from "./carousel-slide-follow";
 
 export interface ClientBuilderCanvasProps {
   /**
@@ -127,6 +129,18 @@ function ClientBuilderCanvasInner({
   // "Preview" button can replay an animation on this canvas. The listener is a
   // CustomEvent handler on document, scoped to this canvas's mount lifetime.
   useEffect(() => registerCanvasAnimationReplayListener(), []);
+
+  // SLIDER-1 — tell every hero carousel on this canvas that it is being EDITED,
+  // so it never autoplays. Without this the slider crossfaded under the
+  // operator's pointer and slides 2..N (inert while inactive) were unreachable
+  // — the owner's "one slide pass i cant catch the second or third one".
+  // Refcounted in the bridge, so the body canvas and a section-children canvas
+  // can both register and either can unmount first.
+  useEffect(() => registerCarouselEditMode(), []);
+
+  // SLIDER-2 — keep the canvas showing the slide that holds the selection, so
+  // the selection ring is never drawn over a slide the operator did not pick.
+  useCarouselSlideFollow(tree);
 
   // W1-T2(c) — subscribe to the live linked-style-class registry the editor
   // publishes (localStorage-backed). Threading it here makes linked blocks look

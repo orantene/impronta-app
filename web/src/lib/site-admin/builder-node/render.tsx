@@ -8,6 +8,7 @@ import {
 } from "@/lib/social-embed/social-post-url";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import {
@@ -15,6 +16,11 @@ import {
   renderInlineRich,
 } from "@/lib/site-admin/sections/shared/rich-text";
 
+import {
+  BACKGROUND_MEDIA_CSS,
+  renderBackgroundMediaLayer,
+} from "./background-media-layer";
+import { hasRenderableBackgroundMedia } from "./background-media";
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { SocialFeedWidget } from "./social-feed";
 import { BuilderNodeCodeFrame } from "./code-frame";
@@ -181,6 +187,14 @@ export interface BuilderNodeRenderOptions {
     provider: "hcaptcha" | "turnstile" | "none";
     siteKey: string | null;
   } | null;
+  // The locale THIS PAGE was rendered for, used to set the captcha widget's
+  // language. Both hCaptcha and Turnstile default to the visitor's BROWSER
+  // language, so a Spanish storefront served an English-browser visitor an
+  // English challenge on top of Spanish copy. Absent (tests, tenant-less
+  // previews, single-language callers that pass no locale) → no language
+  // attribute is emitted and each provider keeps its own default, which is
+  // byte-identical to the markup before this option existed.
+  visitorLocale?: string;
   // W3-T1 — EDITOR-ONLY insert/delete/reorder motion. When true, the rendered
   // node list is wrapped in a `display: contents` FLIP primitive
   // (`BuilderNodeLayoutMotion`) so inserts fade+rise, deletes fade out, and
@@ -248,6 +262,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
     | "styleClasses"
     | "visibilityContext"
     | "contentLocale"
+    | "visitorLocale"
     | "experimentSeed"
     | "experimentTenantId"
     | "experimentSurface"
@@ -268,6 +283,9 @@ type NormalizedBuilderNodeRenderOptions = Required<
   // WS5 — undefined when the caller supplies no locale (single-language tenants
   // / tests): every localizable prop renders its base value verbatim.
   contentLocale: BuilderNodeContentLocaleOptions | undefined;
+  // Undefined when neither `visitorLocale` nor `contentLocale` was supplied →
+  // captcha widgets emit no language attribute (provider default).
+  visitorLocale: string | undefined;
   repeatItem: BuilderRepeatItem | null;
   repeatDepth: number;
 };
@@ -693,7 +711,16 @@ const BUILDER_NODE_SOCIAL_FEED_CSS = `
 // so the same hero renders Noir & Or / Espresso / Atelier Blanc by swapping the
 // palette. Ported 1:1 from the Noir & Or reference (impronta-mockup-3).
 const BUILDER_NODE_CAROUSEL_HERO_CSS = `
-.site-builder-node--carousel[data-builder-carousel-variant="hero"]{position:relative;display:block;width:100%;max-width:none;min-width:0;margin:0;padding:0;gap:0;overflow:hidden;min-height:var(--bn-hero-min-h,100svh);background:var(--token-color-background,#100e13);--bn-ease:cubic-bezier(0.16,1,0.3,1)}
+/* isolation:isolate — the hero stacks SIX internal layers (slides 1/4, slide
+   scrim 1, slide content 2, page scrim 2, grain 3, shared copy 5, meta+arrows
+   6). Without a stacking context of its own (position:relative alone is not
+   one, z-index stays auto) every one of those numbers competed in the ROOT
+   stacking context against whatever else the page put there, so the hero's
+   arrows could paint over a neighbouring block and the editor's selection
+   chrome had no deterministic relationship to the slides. Isolating costs
+   nothing visually — overflow:hidden already clips these layers to the hero —
+   and it makes "what paints over what inside a slider" answerable. */
+.site-builder-node--carousel[data-builder-carousel-variant="hero"]{position:relative;isolation:isolate;display:block;width:100%;max-width:none;min-width:0;margin:0;padding:0;gap:0;overflow:hidden;min-height:var(--bn-hero-min-h,100svh);background:var(--token-color-background,#100e13);--bn-ease:cubic-bezier(0.16,1,0.3,1)}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="large"]{min-height:var(--bn-hero-min-h,78svh)}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="medium"]{min-height:var(--bn-hero-min-h,60svh)}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="fixed"]{min-height:var(--bn-hero-min-h,620px)}
@@ -1124,6 +1151,7 @@ ${BUILDER_NODE_NAV_CSS}
 ${BUILDER_NODE_SOCIAL_CSS}
 ${BUILDER_NODE_CAROUSEL_HERO_CSS}
 ${BUILDER_NODE_SOCIAL_FEED_CSS}
+${BACKGROUND_MEDIA_CSS}
 `;
 
 /**
@@ -3447,12 +3475,21 @@ function renderBuilderNodeElement(
       // regardless of tag — it is a pure drop-in replacement. Trees that
       // omit htmlTag render as <div> (byte-stable for existing trees).
       const ContainerTag = (node.props.htmlTag ?? "div") as "div";
+      // Moving background. The attribute is the CSS hook (position/isolation/
+      // overflow + lifting the author's children above the layer) and is emitted
+      // ONLY when the value actually resolves to something renderable, so a
+      // container without one — or with a URL that failed to parse — keeps
+      // byte-identical markup.
+      const bgMedia = renderBackgroundMediaLayer(node.props.backgroundMedia, node.id);
       return (
         <ContainerTag
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
+          data-bn-bg-media={
+            hasRenderableBackgroundMedia(node.props.backgroundMedia) ? "" : undefined
+          }
           data-builder-layout={node.props.layout}
           data-builder-tablet-layout={node.props.responsive?.tablet?.layout}
           data-builder-mobile-layout={node.props.responsive?.mobile?.layout}
@@ -3466,6 +3503,7 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--container"
           style={containerStyle(node)}
         >
+          {bgMedia}
           {renderDataBoundContainerChildren(node, options)}
         </ContainerTag>
       );
@@ -4582,6 +4620,8 @@ function renderBuilderNodeElement(
           ? options.captcha.provider
           : null;
       const formCaptchaSiteKey = options.captcha?.siteKey ?? null;
+      const formCaptchaHl = hcaptchaLocale(options.visitorLocale);
+      const formCaptchaLanguage = turnstileLocale(options.visitorLocale);
       const isInternal =
         !formProps.action || formProps.action.trim().toLowerCase() === "internal";
       const method =
@@ -4728,6 +4768,7 @@ function renderBuilderNodeElement(
               <div
                 className="h-captcha"
                 data-sitekey={formCaptchaSiteKey}
+                data-hl={formCaptchaHl}
                 data-callback="__tulalaCaptchaDone"
               />
               <script src="https://js.hcaptcha.com/1/api.js" async defer />
@@ -4735,7 +4776,11 @@ function renderBuilderNodeElement(
           ) : null}
           {formCaptchaProvider === "turnstile" && formCaptchaSiteKey ? (
             <>
-              <div className="cf-turnstile" data-sitekey={formCaptchaSiteKey} />
+              <div
+                className="cf-turnstile"
+                data-sitekey={formCaptchaSiteKey}
+                data-language={formCaptchaLanguage}
+              />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async
@@ -5046,6 +5091,9 @@ function normalizeBuilderNodeRenderOptions(
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},
     contentLocale: options.contentLocale,
+    // Falls back to the per-element translation locale when a caller set that
+    // but not this, so the two can never disagree about the visitor's language.
+    visitorLocale: options.visitorLocale ?? options.contentLocale?.locale,
     experimentSeed: options.experimentSeed,
     experimentTenantId: options.experimentTenantId,
     experimentSurface: options.experimentSurface,

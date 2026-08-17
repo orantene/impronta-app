@@ -35,6 +35,7 @@ import {
   playfairDisplay,
 } from "./fonts";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { LocaleSuggestionBanner } from "@/components/locale-suggestion-banner";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
 import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
 import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
@@ -210,6 +211,13 @@ export default async function RootLayout({
         {/* Tenant custom code — body snippet (end of <body>). Storefront-only. */}
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />
+        {/* SEO-safe language suggestion. Renders nothing unless the visitor's
+            browser asks for a language this tenant publishes but is not the one
+            this URL serves. Never redirects, never changes what the URL renders
+            (crawlers get identical HTML minus the banner) — see
+            @/i18n/locale-suggestion. Mounted here because public HTML comes out
+            of four different shells; this is the one node they share. */}
+        <LocaleSuggestionBanner />
         <EditChromeMount />
         {/* Wave 6.1 — the admin quick bar mounts independently of the editor so
             it reaches every public page of a tenant's own site, not just the

@@ -141,7 +141,11 @@ const BUDGETS: Record<string, number> = {
   "src/components/edit-chrome/page-settings-drawer.tsx": 1463,
   "src/components/edit-chrome/theme-drawer.tsx": 1423,
   "src/components/edit-chrome/command-palette.tsx": 1287,
-  "src/components/edit-chrome/assets-drawer.tsx": 1244,
+  // `assets-drawer.tsx` (1,244) is GONE — the pre-unification media library it
+  // implemented was fully subsumed by <MediaLibrary>. The left rail's Assets
+  // entry point now mounts `assets-library-drawer.tsx`, which is drawer chrome
+  // + the crop/upload pipeline + the paged usage scanner and nothing else, so
+  // it is far under the 800-line cap and needs no suppression entry at all.
   "src/components/edit-chrome/comments-drawer.tsx": 1144,
   // +34 (WF-6): a fourth tab, "Arrange", plus the `patchRegions` entry on the
   // save bus. The tab's own ~1,040 lines went into four NEW modules under

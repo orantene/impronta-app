@@ -65,6 +65,86 @@ test("[launch] code-level launch allow-list enables Impronta with NO env set", (
   assert.equal(isSiteShellEnabledForTenant(TENANT), false);
 });
 
+// ── QA shell tenant (2026-08-16) — the RENDER gate matrix ──────────────────────
+//
+// Confirms `SITE_SHELL_TENANT_IDS` is the extensibility point for opting a QA
+// tenant (e.g. nova-crew, 33333333-3333-3333-3333-333333333333) into the
+// render gate WITHOUT touching `LAUNCH_SHELL_TENANT_IDS` (which stays
+// impronta-only) — across every env shape the parsers accept, and proving the
+// impronta / unknown-tenant / env-listed-tenant triple is stable under each.
+
+const IMPRONTA = "00000000-0000-0000-0000-000000000001";
+const NOVA_CREW = "33333333-3333-3333-3333-333333333333";
+const UNKNOWN = "tenant-never-listed-anywhere";
+
+test("[QA-shell] mode=off (default/explicit) ⇒ impronta ON (launch list), nova + unknown OFF", () => {
+  for (const raw of [undefined, "off", "bogus", ""] as const) {
+    clearEnv();
+    if (raw !== undefined) process.env.ENABLE_SITE_SHELL = raw;
+    assert.equal(readSiteShellMode(), "off");
+    assert.equal(isSiteShellEnabledForTenant(IMPRONTA), true);
+    assert.equal(isSiteShellEnabledForTenant(NOVA_CREW), false);
+    assert.equal(isSiteShellEnabledForTenant(UNKNOWN), false);
+  }
+});
+
+test("[QA-shell] mode=tenants + SITE_SHELL_TENANT_IDS lists nova-crew ⇒ impronta ON (launch), nova ON (env), unknown OFF", () => {
+  clearEnv();
+  process.env.ENABLE_SITE_SHELL = "tenants";
+  process.env.SITE_SHELL_TENANT_IDS = NOVA_CREW;
+  assert.equal(isSiteShellEnabledForTenant(IMPRONTA), true);
+  assert.equal(isSiteShellEnabledForTenant(NOVA_CREW), true);
+  assert.equal(isSiteShellEnabledForTenant(UNKNOWN), false);
+});
+
+test("[QA-shell] SITE_SHELL_TENANT_IDS parses a comma list with whitespace + trailing commas", () => {
+  clearEnv();
+  process.env.ENABLE_SITE_SHELL = "tenants";
+  process.env.SITE_SHELL_TENANT_IDS = ` ${NOVA_CREW} , ${UNKNOWN},, `;
+  assert.equal(isSiteShellEnabledForTenant(NOVA_CREW), true);
+  assert.equal(isSiteShellEnabledForTenant(UNKNOWN), true);
+  assert.equal(isSiteShellEnabledForTenant("a-third-tenant"), false);
+});
+
+test("[QA-shell] mode=tenants with EMPTY SITE_SHELL_TENANT_IDS ⇒ only impronta (launch list)", () => {
+  clearEnv();
+  process.env.ENABLE_SITE_SHELL = "tenants";
+  assert.equal(isSiteShellEnabledForTenant(IMPRONTA), true);
+  assert.equal(isSiteShellEnabledForTenant(NOVA_CREW), false);
+});
+
+test("[QA-shell] mode=all / '1' / 'true' (case-insensitive) ⇒ every tenant ON, incl. unknown", () => {
+  for (const raw of ["all", "ALL", "1", "true", "TRUE"] as const) {
+    clearEnv();
+    process.env.ENABLE_SITE_SHELL = raw;
+    assert.equal(readSiteShellMode(), "all");
+    assert.equal(isSiteShellEnabledForTenant(IMPRONTA), true);
+    assert.equal(isSiteShellEnabledForTenant(NOVA_CREW), true);
+    assert.equal(isSiteShellEnabledForTenant(UNKNOWN), true);
+  }
+});
+
+test("[QA-shell] LAUNCH_SHELL_TENANT_IDS is unaffected by any env shape (impronta always ON)", () => {
+  const shapes: Array<[string | undefined, string | undefined]> = [
+    [undefined, undefined],
+    ["off", undefined],
+    ["tenants", undefined],
+    ["tenants", NOVA_CREW],
+    ["tenants", `${NOVA_CREW},${UNKNOWN}`],
+    ["all", undefined],
+  ];
+  for (const [mode, ids] of shapes) {
+    clearEnv();
+    if (mode !== undefined) process.env.ENABLE_SITE_SHELL = mode;
+    if (ids !== undefined) process.env.SITE_SHELL_TENANT_IDS = ids;
+    assert.equal(
+      isSiteShellEnabledForTenant(IMPRONTA),
+      true,
+      `impronta must stay ON for ENABLE_SITE_SHELL=${mode} SITE_SHELL_TENANT_IDS=${ids}`,
+    );
+  }
+});
+
 test("[A8] edit gate is INDEPENDENT of the render gate", () => {
   // Render on, edit off → editor must NOT route the shell surface.
   process.env.ENABLE_SITE_SHELL = "all";

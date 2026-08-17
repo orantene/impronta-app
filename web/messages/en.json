@@ -1310,6 +1310,12 @@
     "siteShellSurface": {
       "title": "Site header & footer",
       "body": "This stand-in marks where each page’s content appears. Edits to the header and footer here apply to every page of your site."
+    },
+    "localeSuggest": {
+      "prompt": "Would you rather read this page in English?",
+      "accept": "Switch to English",
+      "dismiss": "No thanks",
+      "regionLabel": "Language suggestion"
     }
   },
   "dashboard": {
@@ -10985,7 +10991,8 @@
       "dropToUpload": "Drop to upload",
       "uploading": "Uploading",
       "uploadFailed": "Upload failed",
-      "loadingDimensions": "Loading dimensions..."
+      "loadingDimensions": "Loading dimensions...",
+      "videoSelected": "Video selected"
     },
     "mediaLibrary": {
       "searchPlaceholder": "Search by file name, alt text or note",
@@ -11031,6 +11038,19 @@
       "talentFilterLabel": "Filter by talent",
       "talentSearchPlaceholder": "Type a talent name",
       "talentNoMatches": "No talent matches that name",
+      "copyUrl": "Copy URL",
+      "copiedUrl": "URL copied",
+      "copyUrlFailed": "Could not copy",
+      "crop": "Crop",
+      "cropSaveFailed": "Could not save the cropped image. Try again.",
+      "usedBadge": "Used {count}",
+      "usedBadgeTitle": "Referenced by {count} sections on this site",
+      "unusedBadge": "Unused",
+      "unusedBadgeTitle": "No section references this file yet",
+      "assetsTitle": "Asset library",
+      "assetsMeta": "Workspace media library",
+      "assetCount": "{count} assets",
+      "needsAttention": "Needs attention",
       "kind": {
         "all": "All assets",
         "image": "Images",

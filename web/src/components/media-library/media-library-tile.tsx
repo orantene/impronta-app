@@ -52,6 +52,12 @@ export type MediaLibraryTileProps = {
   onOpenDetails: () => void;
   /** Rendered under the lock note (the "ask them to release it" door). */
   lockAction?: React.ReactNode;
+  /**
+   * Optional top-right chip (the editor's "Used · N" / "Unused" usage badge).
+   * Yields to the lock badge and the selected check, which both own that
+   * corner and both say something more urgent.
+   */
+  cornerBadge?: React.ReactNode;
 };
 
 export function MediaLibraryTile(props: MediaLibraryTileProps) {
@@ -134,6 +140,8 @@ export function MediaLibraryTile(props: MediaLibraryTileProps) {
           >
             <Check className="size-3" />
           </span>
+        ) : props.cornerBadge ? (
+          <span className="absolute right-1 top-1">{props.cornerBadge}</span>
         ) : null}
 
         {/* The file name, on hover only. It was a permanent caption line under

@@ -44,6 +44,7 @@ import { useBuilderMediaScope } from "./builder-media-scope";
 import { MediaLibrary } from "@/components/media-library/media-library";
 import { LibraryNotice } from "@/components/media-library/media-library-kit";
 import { useMediaLibrary } from "@/components/media-library/use-media-library";
+import type { MediaLibraryKindFilter } from "@/lib/media/library-item";
 import {
   activateSelection,
   addToSelection,
@@ -91,11 +92,21 @@ export interface MediaPickedItem {
   alt?: string | null;
 }
 
+/** Upload accept list for a picker opened by a video-only field. */
+const VIDEO_ACCEPT = "video/mp4,video/quicktime,video/webm";
+
 interface MediaPickerDrawerProps {
   tenantId: string;
   open: boolean;
   title?: string;
   multi?: boolean;
+  /**
+   * Restrict the drawer to one asset kind. Seeds the library's kind lane AND
+   * narrows the upload accept list, so a video-only field never offers a photo
+   * upload that the field would then be unable to use. Omitted = the historical
+   * "everything" behaviour.
+   */
+  kind?: MediaLibraryKindFilter;
   onPick: (publicUrl: string) => void;
   onPickItem?: (item: MediaPickedItem) => void;
   onMultiPick?: (publicUrls: string[]) => void;
@@ -109,6 +120,7 @@ export function MediaPickerDrawer({
   open,
   title = "Media library",
   multi = false,
+  kind,
   onPick,
   onPickItem,
   onMultiPick,
@@ -125,6 +137,7 @@ export function MediaPickerDrawer({
       ? { kind: "talent", talentProfileId }
       : { kind: "tenant", tenantId },
     active: open,
+    initialKind: kind,
   });
 
   /** Multi-select pending set. The model itself lives in `selection.ts`. */
@@ -409,7 +422,13 @@ export function MediaPickerDrawer({
             onSaveTags={isTalentScope ? undefined : saveTags}
             onUpload={handleUpload}
             uploading={uploading}
-            uploadAccept={isTalentScope ? IMAGE_ACCEPT : STAFF_ACCEPT}
+            uploadAccept={
+              kind === "video"
+                ? VIDEO_ACCEPT
+                : isTalentScope
+                  ? IMAGE_ACCEPT
+                  : STAFF_ACCEPT
+            }
             header={
               <div className="grid gap-2">
                 {/* B13 — the plan's photo count, BEFORE anything refuses.

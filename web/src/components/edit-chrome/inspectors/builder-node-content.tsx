@@ -45,6 +45,7 @@ import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { MediaField, toMediaValue } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
+import { BackgroundMediaCard } from "./background-media-card";
 import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
@@ -64,6 +65,7 @@ import {
   type GlyphTileOption,
 } from "./field-kit";
 import { VariantIntentCards } from "./variant-intent-cards";
+import { CarouselSlideManager } from "./carousel-slide-manager";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -2771,6 +2773,35 @@ export function BuilderNodeContentInspector({
     return (
       <div className="flex flex-col gap-3">
         <BuilderNodeFlatPanel>
+          {/* SLIDER-1 — the slide list comes FIRST. Every other control on this
+           *  panel configures the slider; this is the one that edits its
+           *  contents, and until it existed slides 2..N were only reachable by
+           *  catching them mid-autoplay on the canvas. Clicking a row pins that
+           *  slide onto the canvas (carousel-edit-bridge) and selects it. */}
+          <BuilderNodeSection title="Slides">
+            <CarouselSlideManager
+              nodeId={node.id}
+              slides={node.children}
+              onSelect={selectBuilderNode}
+              onAdd={() =>
+                // A hero slide IS its background image (the renderer lifts an
+                // `image` child straight onto the Ken-Burns layer); a rail slide
+                // is a card the operator fills in. Both are in the carousel's
+                // allow-list, so neither can be rejected by the tree guard.
+                commitInsert(isHero ? "image" : "card", node.children.length)
+              }
+              onDuplicate={commitDuplicate}
+              onRemove={commitRemove}
+              onMoveToIndex={(slideId, toIndex) =>
+                commitMoveToIndex(slideId, node.id, toIndex)
+              }
+            />
+            <Helper>
+              Click a slide to show it on the canvas. Autoplay is paused while
+              you edit, so a slide can’t move out from under you.
+            </Helper>
+          </BuilderNodeSection>
+
           <BuilderNodeSection title="Slider">
             <Field flush>
               <FieldLabel>Layout</FieldLabel>
@@ -3239,6 +3270,28 @@ export function BuilderNodeContentInspector({
                   </Helper>
                 </Field>
               </div>
+            </CardBody>
+          </Card>
+        ) : null}
+        {/* Moving background. Container-only for now: it is the block every
+            freeform "section" is actually built from (see
+            `add-gallery/section-template-nodes.ts` — `tplSection` IS a
+            container), so this is the surface an author reaches for. */}
+        {node.kind === "container" ? (
+          <Card state="active">
+            <CardHead
+              title="Background"
+              sub="Video or YouTube behind this block"
+              iconAccent="blue"
+            />
+            <CardBody>
+              <BackgroundMediaCard
+                tenantId={tenantId}
+                value={node.props.backgroundMedia}
+                onChange={(next) => {
+                  void commitPatch({ backgroundMedia: next });
+                }}
+              />
             </CardBody>
           </Card>
         ) : null}
