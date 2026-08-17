@@ -117,7 +117,11 @@ const BUDGETS: Record<string, number> = {
   //        -> style-panel/groups/AdvancedGroup.tsx. They sat BELOW every
   //        accordion, in no group at all, which is also why the D5 search
   //        filter could never reach them.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5560,
+  // +1 (5560 -> 5561): one entry in the exhaustive per-section style-role map
+  // for the new `header_language` widget. That map is required to be total by
+  // its own guard, so the line cannot be avoided; extracting a 1-line map entry
+  // would not reduce anything meaningful.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5561,
   // +7 (builder move affordances): the Structure panel joins the `panels`
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the
