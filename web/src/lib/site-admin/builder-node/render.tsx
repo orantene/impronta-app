@@ -22,6 +22,7 @@ import {
 } from "./background-media-layer";
 import { hasRenderableBackgroundMedia } from "./background-media";
 import { BuilderNodeCarouselTrack } from "./carousel";
+import { carouselSlideVars } from "./carousel-slides-per-view";
 import { SocialFeedWidget } from "./social-feed";
 import { BuilderNodeCodeFrame } from "./code-frame";
 import { BuilderNodeLayoutMotion } from "./layout-motion";
@@ -1142,7 +1143,7 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--live-talent-grid{grid-template-columns:1fr}
   .site-builder-node--live-search-shell{align-items:stretch;flex-direction:column}
   .site-builder-node--split[data-builder-collapse-mobile="true"]{grid-template-columns:1fr}
-  .site-builder-node--carousel-slide{flex-basis:86%}
+  .site-builder-node--carousel-slide{flex-basis:var(--bn-mobile-slide-width,86%)}
   .site-builder-node--masonry{column-count:var(--bn-mobile-columns,1)}
   .site-builder-node--pricing-table{grid-template-columns:1fr}
 }
@@ -3946,6 +3947,7 @@ function renderBuilderNodeElement(
           </div>
         );
       }
+      const carouselVars = carouselSlideVars(node.props);
       const carouselItems = nodeChildren(node)
         .filter((child) => shouldRenderNode(child, options))
         .map((child, index) => (
@@ -3967,8 +3969,14 @@ function renderBuilderNodeElement(
           data-builder-carousel-autoplay-ms={node.props.autoplayMs}
           className="site-builder-node site-builder-node--carousel"
           style={inlineNodeStyle(node.props.style, builderNodeStyleVars({
-              "--bn-slide-width": `${100 / (node.props.slidesPerView ?? 2)}%`,
-              "--bn-tablet-slides": Math.min(node.props.slidesPerView ?? 2, 2),
+              // Per-device slide counts. `carouselSlideVars` returns the exact
+              // two values this used to compute inline when no `responsive`
+              // bucket is set, and `undefined` for the mobile var (which
+              // `builderNodeStyleVars` drops) — so a stored carousel emits a
+              // character-identical style attribute.
+              "--bn-slide-width": carouselVars.slideWidth,
+              "--bn-tablet-slides": carouselVars.tabletSlides,
+              "--bn-mobile-slide-width": carouselVars.mobileSlideWidth,
             }))}
         >
           <BuilderNodeCarouselTrack

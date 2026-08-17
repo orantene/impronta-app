@@ -78,6 +78,13 @@ import { InspectorResponsiveSettings } from "./kit/inspector-responsive-settings
 import { LockBadge, LockedFieldsBanner, layoutLockedPathsOf } from "./kit";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
 import {
+  carouselResponsiveTier,
+  effectiveSlidesPerView,
+  hasSlidesPerViewOverride,
+  setCarouselSlidesPerView,
+  slidesPerViewPatch,
+} from "@/lib/site-admin/builder-node/carousel-slides-per-view";
+import {
   countPresentationOverrides,
   type ViewportDevice,
 } from "./responsive-field-state";
@@ -1523,6 +1530,10 @@ function AdvancedNodeLayoutEditor({
   }
 
   if (node.kind === "carousel") {
+    // Only `tablet` and `mobile` are render-backed carousel tiers; any other
+    // editing tier (wide, compact, a custom one) has no CSS to write into, so
+    // it edits the base rather than storing a bucket nothing reads.
+    const carouselTier = carouselResponsiveTier(device);
     return (
       <div className="flex flex-col gap-3" data-builder-node-layout-panel="carousel">
         <div className="flex justify-end">
@@ -1544,14 +1555,19 @@ function AdvancedNodeLayoutEditor({
         <NodeLayoutPresetGrid kind={node.kind} onApply={onPatch} />
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
-            <span className={FIELD_LABEL}>Slides per view</span>
+            {/* Tier-aware, like the container's "Items per view" beside it.
+             *  Before this, changing the count while the Tablet viewport was
+             *  selected silently rewrote DESKTOP. */}
+            <ContainerFieldLabel
+              label="Slides per view"
+              modified={carouselTier !== null && hasSlidesPerViewOverride(node.props, carouselTier)}
+              onReset={() => carouselTier && onPatch(slidesPerViewPatch(node.props, carouselTier, undefined))}
+            />
             <Segmented
               fullWidth
               compact
-              value={String(node.props.slidesPerView ?? "2")}
-              onChange={(next) =>
-                onPatch({ slidesPerView: Number.parseInt(next, 10) })
-              }
+              value={String(effectiveSlidesPerView(node.props, carouselTier))}
+              onChange={(next) => setCarouselSlidesPerView(node.props, carouselTier, next, onPatch)}
               options={CAROUSEL_SLIDES_OPTIONS}
             />
           </div>

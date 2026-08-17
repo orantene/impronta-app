@@ -90,6 +90,22 @@ export function CarouselSlideManager({
     setArmedRemoveId(null);
   }
 
+  /**
+   * Step the shown slide by one.
+   *
+   * The row list alone is awkward past a handful of slides: the operator has
+   * to find the next row rather than just asking for the next slide, and on a
+   * ten-slide hero the list is a scroller. Prev/next is the same action the
+   * canvas arrows perform, available without leaving the panel. Wraps, because
+   * the list is a ring and a dead arrow at the end reads as a broken control.
+   */
+  function step(delta: -1 | 1) {
+    if (models.length === 0) return;
+    const next = (activeIndex + delta + models.length) % models.length;
+    const target = models[next];
+    if (target) showSlide(next, target.nodeId);
+  }
+
   function handleReorder(next: CarouselSlideModel[]) {
     const move = singleMoveFromReorder(
       models.map((m) => m.nodeId),
@@ -111,6 +127,49 @@ export function CarouselSlideManager({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: FIELD_KIT.gap.control }}>
+      {/* WHICH SLIDE AM I ON — stated in words at the top of the list, not
+       *  inferred from which row happens to be tinted. Paired with the two
+       *  steppers so "show me the next one" is one click from anywhere in the
+       *  panel, however long the list is. */}
+      {models.length > 1 ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: FIELD_KIT.gap.tight,
+          }}
+        >
+          <span
+            aria-live="polite"
+            style={{ fontSize: FIELD_KIT.font.caption, color: FIELD_KIT.muted }}
+          >
+            {t("Showing slide {n} of {total}")
+              .replace("{n}", String(activeIndex + 1))
+              .replace("{total}", String(models.length))}
+          </span>
+          <span style={{ display: "inline-flex", gap: FIELD_KIT.gap.tight }}>
+            <button
+              type="button"
+              onClick={() => step(-1)}
+              aria-label={t("Show the previous slide")}
+              title={t("Show the previous slide")}
+              style={stepButtonStyle}
+            >
+              <ChevronGlyph direction="left" />
+            </button>
+            <button
+              type="button"
+              onClick={() => step(1)}
+              aria-label={t("Show the next slide")}
+              title={t("Show the next slide")}
+              style={stepButtonStyle}
+            >
+              <ChevronGlyph direction="right" />
+            </button>
+          </span>
+        </div>
+      ) : null}
       {models.length === 0 ? (
         <p
           style={{
@@ -199,7 +258,10 @@ function SlideRow({
   const { t } = useInspectorT();
   return (
     <div
+      data-carousel-slide-row=""
+      data-carousel-slide-active={active ? "true" : undefined}
       style={{
+        position: "relative",
         display: "flex",
         alignItems: "center",
         gap: 6,
@@ -207,6 +269,10 @@ function SlideRow({
         borderRadius: FIELD_KIT.radius.tile,
         background: active ? FIELD_KIT.accentFill : FIELD_KIT.surface,
         border: `1px solid ${active ? FIELD_KIT.accent : FIELD_KIT.border}`,
+        // A tint plus a border tint is easy to miss in a list of six rows on a
+        // white panel. The solid accent spine is the unmistakable part; the
+        // tint alone was the gap.
+        boxShadow: active ? `inset 3px 0 0 0 ${FIELD_KIT.accent}` : undefined,
       }}
     >
       <button
@@ -251,6 +317,22 @@ function SlideRow({
         }}
       >
         <SlideThumbnail slide={slide} />
+        {/* The ordinal, always visible. Without it the only way to know you
+         *  are looking at slide 4 is to count rows. */}
+        <span
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            minWidth: 14,
+            textAlign: "right",
+            fontSize: FIELD_KIT.font.caption,
+            fontWeight: FIELD_KIT.weight.label,
+            fontVariantNumeric: "tabular-nums",
+            color: active ? FIELD_KIT.accent : FIELD_KIT.muted,
+          }}
+        >
+          {slide.position}
+        </span>
         <span style={{ display: "flex", flexDirection: "column", minWidth: 0, gap: 1 }}>
           <span
             style={{
@@ -264,12 +346,21 @@ function SlideRow({
           >
             {slide.label}
           </span>
-          <span style={{ fontSize: FIELD_KIT.font.caption, color: FIELD_KIT.muted }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: FIELD_KIT.font.caption,
+              color: active ? FIELD_KIT.accent : FIELD_KIT.muted,
+            }}
+          >
+            {active ? <EyeGlyph /> : null}
             {active
               ? t("Showing on canvas")
               : slide.isEmpty
                 ? t("Empty slide")
-                : t("Slide {n}").replace("{n}", String(slide.position))}
+                : t("Click to show")}
           </span>
         </span>
       </button>
@@ -360,6 +451,12 @@ const iconButtonStyle = {
   cursor: "pointer",
 } as const;
 
+const stepButtonStyle = {
+  ...iconButtonStyle,
+  border: `1px solid ${FIELD_KIT.border}`,
+  color: FIELD_KIT.ink,
+} as const;
+
 const destructiveButtonStyle = {
   height: 24,
   padding: "0 8px",
@@ -388,6 +485,48 @@ function DragGlyph() {
       <circle cx="15" cy="12" r="2" />
       <circle cx="9" cy="19" r="2" />
       <circle cx="15" cy="19" r="2" />
+    </svg>
+  );
+}
+
+function ChevronGlyph({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {direction === "left" ? (
+        <polyline points="15 5 8 12 15 19" />
+      ) : (
+        <polyline points="9 5 16 12 9 19" />
+      )}
+    </svg>
+  );
+}
+
+/** Marks the one row whose slide is on the canvas right now. */
+function EyeGlyph() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }

@@ -67,6 +67,7 @@ function pinKey(channel: SlidePinChannel, nodeId: string): string {
 const EMPTY_PINS: Readonly<Record<string, number>> = Object.freeze({});
 
 let editModeRefCount = 0;
+let previewSuppressed = false;
 let editing = false;
 let pinnedSlides: Readonly<Record<string, number>> = EMPTY_PINS;
 
@@ -78,16 +79,55 @@ function notify(listeners: Set<Listener>): void {
 }
 
 /**
- * Mark this process as "an editor canvas is mounted". Returns the unregister,
+ * The one place "is the operator editing" is decided.
+ *
+ * TWO inputs, not one. The refcount answers "is an editor surface mounted";
+ * `previewSuppressed` answers "has the operator pressed Preview". Preview is
+ * the mode where every other affordance unmounts so the page behaves like it
+ * does for a real visitor (EditShell's `!previewing ? …` layers), and a slider
+ * frozen there is the editor lying about the page. Computing it in ONE place
+ * is what keeps the two inputs from disagreeing — the alternative (each
+ * registration site deciding for itself) is how the flag gap below happened.
+ */
+function computeEditing(): boolean {
+  return editModeRefCount > 0 && !previewSuppressed;
+}
+
+/** Recompute `editing`; notify + drop pins only when the answer changed. */
+function syncEditing(): void {
+  const next = computeEditing();
+  if (next === editing) return;
+  editing = next;
+  if (!editing) {
+    // Pins are editor-only state. Leaving them behind would strand a carousel
+    // on one slide for a surface nobody is editing (and, in preview, would show
+    // a slider frozen on slide 3).
+    pinnedSlides = EMPTY_PINS;
+    notify(pinnedListeners);
+  }
+  notify(editingListeners);
+}
+
+/**
+ * Mark this process as "an editor surface is mounted". Returns the unregister,
  * so a caller can hand it straight back from a `useEffect`. Refcounted: edit
- * mode stays on until the LAST canvas unmounts.
+ * mode stays on until the LAST surface unmounts.
+ *
+ * WHO CALLS THIS, AND THE GAP THAT MADE IT MATTER (2026-08-17)
+ * ────────────────────────────────────────────────────────────
+ * #1203 registered from `ClientBuilderCanvas` and `ClientSectionChildren`
+ * only. Both are behind `NEXT_PUBLIC_BUILDER_CLIENT_CANVAS`, which
+ * `client-canvas-flag.ts` documents as DEFAULT OFF: with the flag unset the
+ * editor renders the freeform tree SERVER-side, no client canvas mounts,
+ * nothing ever calls this, and the hero carousel autoplayed under the
+ * operator's pointer exactly as it did before the fix. The carousel itself is
+ * a client component either way, so it was hydrated and subscribed — it was
+ * simply never told. `CarouselEditModeBinding`, mounted by `EditShell`, closes
+ * that: EditShell is present whenever the operator is editing, flag or no flag.
  */
 export function registerCarouselEditMode(): () => void {
   editModeRefCount += 1;
-  if (editModeRefCount === 1) {
-    editing = true;
-    notify(editingListeners);
-  }
+  syncEditing();
   let released = false;
   return () => {
     // Guard double-release: React 18 StrictMode double-invokes effect cleanups
@@ -96,15 +136,23 @@ export function registerCarouselEditMode(): () => void {
     if (released) return;
     released = true;
     editModeRefCount -= 1;
-    if (editModeRefCount === 0) {
-      editing = false;
-      // Pins are editor-only state; leaving them behind would pin a carousel on
-      // a canvas that is no longer being edited.
-      pinnedSlides = EMPTY_PINS;
-      notify(editingListeners);
-      notify(pinnedListeners);
-    }
+    syncEditing();
   };
+}
+
+/**
+ * Preview suppression. `true` while the operator is in the editor's Preview
+ * mode, which forces `editing` off no matter how many surfaces are registered
+ * — so autoplay runs and the slider is what a visitor would see.
+ *
+ * Deliberately NOT a refcount: preview is one global mode with one owner
+ * (EditShell), and a count would let a stale increment strand the page in
+ * "preview" with every editing affordance still on screen.
+ */
+export function setCarouselEditPreviewing(next: boolean): void {
+  if (previewSuppressed === next) return;
+  previewSuppressed = next;
+  syncEditing();
 }
 
 /**
@@ -240,6 +288,7 @@ export function useCarouselPinnedSlide(nodeId: string): number | null {
  */
 export function __resetCarouselEditBridgeForTests(): void {
   editModeRefCount = 0;
+  previewSuppressed = false;
   editing = false;
   pinnedSlides = EMPTY_PINS;
   editingListeners.clear();

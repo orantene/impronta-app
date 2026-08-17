@@ -677,7 +677,23 @@ export interface BuilderCarouselNode extends BuilderNodeBase {
      * / autoplay) — each child is a full-screen slide. Same node, two looks.
      */
     variant?: "rail" | "hero";
+    /**
+     * Rail-variant slide count on the DESKTOP base. Per-device overrides live
+     * in `responsive` below; see `carousel-slides-per-view.ts` for how the two
+     * resolve (and why an absent bucket renders byte-identically to the
+     * pre-responsive behaviour).
+     */
     slidesPerView?: 1 | 2 | 3 | 4;
+    /**
+     * Per-breakpoint overrides. Same bucket shape as `container.responsive`,
+     * deliberately: one responsive convention for the whole node tree.
+     * Absent → tablet falls back to `min(slidesPerView, 2)` and mobile
+     * inherits tablet, which is exactly what shipped before this existed.
+     */
+    responsive?: {
+      tablet?: { slidesPerView?: 1 | 2 | 3 | 4 };
+      mobile?: { slidesPerView?: 1 | 2 | 3 | 4 };
+    };
     autoplayMs?: number;
     loop?: boolean;
     showArrows?: boolean;
