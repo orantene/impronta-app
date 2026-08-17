@@ -230,6 +230,7 @@ export function WebsitePage() {
     effectiveWebsiteState,
     locale,
     tenantSlug,
+    adminBasePath,
     websiteUsesLiveCms,
     bridgeTenantIdentity,
   } = useAdminShell();
@@ -691,7 +692,7 @@ export function WebsitePage() {
             {canEdit && (
               <button
                 type="button"
-                onClick={() => router.push(tenantSlug ? `/${tenantSlug}/admin/website/redirects` : "/admin/website/redirects")}
+                onClick={() => router.push(`${adminBasePath}/website/redirects`)}
                 style={MANAGE_LINK_STYLE}
               >
                 {t("dashboard.adminWebsite.manageArrow")}
