@@ -2510,7 +2510,17 @@ test("FORMS-1: contact form renders number field with min/max attributes", () =>
   assert.match(html, /max="500"/);
 });
 
-test("FORMS-1: contact form renders file field with accept and data-max-size-mb", () => {
+/**
+ * FORMS-3 supersedes the original FORMS-1 assertions here.
+ *
+ * That test pinned `accept=".pdf,image/*"` and `data-max-size-mb="8"` — the
+ * operator's own values, rendered verbatim. Both were promises the product did
+ * not keep: nothing enforced the accept string, and no file was stored at all,
+ * let alone an 8 MB one. Files are stored now, so the rendered contract is the
+ * SERVER's: the enforced allow-list, and the operator's size clamped to what a
+ * single request can actually carry.
+ */
+test("FORMS-3: contact form renders a real file input on the internal lane", () => {
   const props: ContactFormV1 = {
     action: "internal",
     method: "POST",
@@ -2525,14 +2535,22 @@ test("FORMS-1: contact form renders file field with accept and data-max-size-mb"
   const html = renderToStaticMarkup(
     createElement(ContactFormComponent, {
       props,
+      sectionId: "00000000-0000-0000-0000-0000000000aa",
       tenantId: "00000000-0000-0000-0000-000000000001",
       locale: "en",
       preview: false,
     }),
   );
   assert.match(html, /type="file"/);
-  assert.match(html, /accept="\.pdf,image\/\*"/);
-  assert.match(html, /data-max-size-mb="8"/);
+  // Without multipart the browser sends only the filename — this attribute is
+  // the difference between storing the file and the original bug.
+  assert.match(html, /enctype="multipart\/form-data"/i);
+  // The ENFORCED allow-list, not the operator's advisory accept string.
+  assert.match(html, /accept="application\/pdf,image\/jpeg,image\/png,image\/webp,image\/gif"/);
+  assert.doesNotMatch(html, /svg/i);
+  // 8 MB clamped to the 3 MB this lane can actually carry.
+  assert.match(html, /data-max-size-mb="3"/);
+  assert.doesNotMatch(html, /data-max-size-mb="8"/);
 });
 
 test("FORMS-1: contact form renders consent checkbox with consentText", () => {

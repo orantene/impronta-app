@@ -30,16 +30,14 @@ import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import {
-  CONTACT_ATTACHMENT_BUCKET,
-  CONTACT_ATTACHMENT_SNIFF_BYTES,
-  contactAttachmentStorageKey,
-  effectiveAttachmentMaxBytes,
   exceedsRequestBudget,
-  validateContactAttachments,
   type ContactAttachmentAccepted,
-  type ContactAttachmentCandidate,
-  type ContactAttachmentErrorCode,
 } from "@/lib/site-admin/sections/contact_form/attachments";
+import {
+  respondAttachmentError,
+  screenContactAttachments,
+  storeContactAttachments,
+} from "@/lib/site-admin/sections/contact_form/attachments-store";
 
 /**
  * FORMS-1 — hard cap for file-size metadata enforcement.
@@ -418,56 +416,17 @@ export async function POST(req: Request) {
     if (tripped) {
       uploadedFiles.clear();
     } else {
-      // Only fields the SECTION declares as `type: "file"` may carry a file.
-      // A crafted multipart body can name any part it likes; parts that don't
-      // correspond to a declared file field are refused rather than stored.
-      const declaredFileFields = new Set(
-        (parsedProps?.success ? parsedProps.data.fields : [])
-          .filter((f) => f.type === "file")
-          .map((f) => f.name),
-      );
-      // Inquiry-routing forms don't produce a submission row for an attachment
-      // to belong to, so this lane does not offer uploads there and the
-      // renderer doesn't draw the control. Refuse honestly instead of dropping.
-      const inquiryMode =
-        parsedProps?.success && parsedProps.data.routingMode === "inquiry";
-      if (inquiryMode) {
-        return respondAttachmentError(req, "not_accepted", 400);
+      const screened = await screenContactAttachments({
+        files: uploadedFiles,
+        fields: parsedProps?.success ? parsedProps.data.fields : [],
+        routingMode: parsedProps?.success
+          ? parsedProps.data.routingMode
+          : undefined,
+      });
+      if (!screened.ok) {
+        return respondAttachmentError(req, screened.code, 400);
       }
-      for (const fieldName of uploadedFiles.keys()) {
-        if (!declaredFileFields.has(fieldName)) {
-          return respondAttachmentError(req, "not_accepted", 400);
-        }
-      }
-
-      const fieldByName = new Map(
-        (parsedProps?.success ? parsedProps.data.fields : []).map((f) => [
-          f.name,
-          f,
-        ]),
-      );
-      const candidates: ContactAttachmentCandidate[] = [];
-      for (const [fieldName, file] of uploadedFiles) {
-        const head = new Uint8Array(
-          await file.slice(0, CONTACT_ATTACHMENT_SNIFF_BYTES).arrayBuffer(),
-        );
-        candidates.push({
-          fieldName,
-          filename: file.name,
-          byteSize: file.size,
-          declaredMime: file.type,
-          head,
-          maxBytes: effectiveAttachmentMaxBytes(
-            fieldByName.get(fieldName)?.fileMaxSizeMb,
-          ),
-        });
-      }
-
-      const verdict = validateContactAttachments(candidates);
-      if (!verdict.ok) {
-        return respondAttachmentError(req, verdict.code, 400);
-      }
-      acceptedAttachments = verdict.accepted;
+      acceptedAttachments = screened.accepted;
     }
   }
 
@@ -639,125 +598,6 @@ export async function POST(req: Request) {
   }
 
   return respondSuccess(req);
-}
-
-/**
- * FORMS-3 — service-role write of the validated files, then their rows.
- *
- * DELETE-ON-FAILURE, mirroring the register path PR #1165 added to the guest
- * inquiry lane: if the row cannot be written, the object is removed, because
- * an object with no row is invisible to every UI — and, in this bucket,
- * invisible to the reaper too (it only manages media-public/media-originals),
- * so it would leak forever.
- *
- * Returns false on ANY failure; the caller turns that into an honest
- * "we saved your message but not your file" response.
- */
-async function storeContactAttachments(args: {
-  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>;
-  tenantId: string;
-  submissionId: string;
-  accepted: readonly ContactAttachmentAccepted[];
-  files: ReadonlyMap<string, File>;
-}): Promise<boolean> {
-  const { admin, tenantId, submissionId, accepted, files } = args;
-  const writtenPaths: string[] = [];
-
-  const rollback = async () => {
-    if (writtenPaths.length === 0) return;
-    const { error } = await admin.storage
-      .from(CONTACT_ATTACHMENT_BUCKET)
-      .remove(writtenPaths);
-    if (error) logServerError("cms-forms/attachments/rollback", error);
-  };
-
-  try {
-    const rows: Array<Record<string, unknown>> = [];
-    for (const item of accepted) {
-      const file = files.get(item.fieldName);
-      if (!file) {
-        await rollback();
-        return false;
-      }
-      const attachmentId = crypto.randomUUID();
-      const storagePath = contactAttachmentStorageKey({
-        tenantId,
-        submissionId,
-        attachmentId,
-        ext: item.ext,
-      });
-      const { error: uploadError } = await admin.storage
-        .from(CONTACT_ATTACHMENT_BUCKET)
-        .upload(storagePath, file, {
-          // The SNIFFED type, never `file.type` — the browser-declared value
-          // is what an attacker controls, and it is what a later download
-          // would be served with.
-          contentType: item.mime,
-          upsert: false,
-        });
-      if (uploadError) {
-        logServerError("cms-forms/attachments/upload", uploadError);
-        await rollback();
-        return false;
-      }
-      writtenPaths.push(storagePath);
-      rows.push({
-        id: attachmentId,
-        submission_id: submissionId,
-        tenant_id: tenantId,
-        field_name: item.fieldName,
-        original_filename: item.filename,
-        mime_type: item.mime,
-        byte_size: item.byteSize,
-        bucket_id: CONTACT_ATTACHMENT_BUCKET,
-        storage_path: storagePath,
-      });
-    }
-
-    const { error: insertError } = await admin
-      .from("cms_form_submission_attachments")
-      .insert(rows);
-    if (insertError) {
-      logServerError("cms-forms/attachments/insert", insertError);
-      await rollback();
-      return false;
-    }
-    return true;
-  } catch (err) {
-    logServerError("cms-forms/attachments", err);
-    await rollback();
-    return false;
-  }
-}
-
-/**
- * FORMS-3 — honest attachment failure.
- *
- * A native HTML form POST renders whatever the endpoint returns, so the
- * existing `NextResponse.json({ ok:false })` error paths show the visitor a
- * raw JSON blob. Attachment failures instead redirect back to the page the
- * form lives on carrying a stable code, which `contact_form/Component.tsx`
- * turns into a localized sentence — the same mechanism as the existing
- * `?__tulala_form=ok` success banner. Programmatic callers still get JSON.
- */
-function respondAttachmentError(
-  req: Request,
-  code: ContactAttachmentErrorCode,
-  status: number,
-): NextResponse {
-  const accept = req.headers.get("accept") ?? "";
-  const referer = req.headers.get("referer");
-  if (!accept.includes("application/json") && referer) {
-    try {
-      const url = new URL(referer);
-      url.searchParams.delete("__tulala_form");
-      url.searchParams.set("__tulala_form_err", code);
-      return NextResponse.redirect(url.toString(), 303);
-    } catch {
-      // Unparseable referer — fall through to JSON.
-    }
-  }
-  return NextResponse.json({ ok: false, error: code }, { status });
 }
 
 /**
