@@ -140,8 +140,20 @@ const BUDGETS: Record<string, number> = {
   // that this element is a stacking context — so it, not the zIndex values the
   // selection chrome sets on its own children, is what decides whether canvas
   // chrome can cover a floating panel.
-  "src/components/edit-chrome/edit-shell.tsx": 2736,
-  "src/components/edit-chrome/inspectors/layout-panel.tsx": 2532,
+  // +6 (carousel edit-mode binding, 2026-08-17): an import, a three-line
+  // comment, and one self-closing mount. The BEHAVIOUR — the refcounted
+  // registration, the preview suppression, and the slide-follow — lives in
+  // carousel-edit-mode-binding.tsx; this file only says where it hangs. It has
+  // to hang here because EditShell is the one component present on BOTH the
+  // client-canvas and the server-rendered editing paths.
+  "src/components/edit-chrome/edit-shell.tsx": 2742,
+  // +16 (per-device carousel slides, 2026-08-17): "Slides per view" now writes
+  // `responsive[tier]` when a non-desktop viewport is active instead of
+  // silently rewriting the desktop base, plus its override dot and reset. The
+  // tier mapping and the patch construction live in
+  // lib/site-admin/builder-node/carousel-slides-per-view.ts (unit-tested);
+  // this file holds only the two calls and the label.
+  "src/components/edit-chrome/inspectors/layout-panel.tsx": 2548,
   "src/components/edit-chrome/publish-drawer.tsx": 2254,
   // 1826 → 1844 (+18), 2026-08-16, footer inspector parity.
   //   +2  import of <SiteFooterInspector> and its routing predicate
