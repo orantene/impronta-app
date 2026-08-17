@@ -30,6 +30,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
+import {
+  findScrollableAncestor,
+  panelScrollDeltaForY,
+  pointerDropZone,
+  type PointerDropZone,
+} from "./pointer-drag-autoscroll";
+
 /** Pixels the pointer must travel before a press becomes a drag (tap-safe). */
 export const POINTER_DRAG_THRESHOLD_PX = 5;
 
@@ -119,9 +126,31 @@ export interface PointerDragMove<TSource> {
    * `onUpperHalf` signal its old `onDragOver` computed.
    */
   onUpperHalf: boolean | null;
+  /**
+   * Three-way drop zone relative to `targetEl` — `before` / `inside` / `after`,
+   * or `null` when there is no row under the pointer. `inside` only ever
+   * appears when the consumer's `canNestInto` predicate says the row is a
+   * container the dragged thing can be nested into; without that predicate the
+   * zone collapses to the same upper/lower split `onUpperHalf` reports.
+   */
+  zone: PointerDropZone | null;
 }
 
 export interface UsePointerDragOptions<TSource> {
+  /**
+   * Whether a drop can nest INTO the row under the pointer (making its middle
+   * band resolve to `zone: "inside"`). Omit for surfaces that only ever do
+   * sibling reordering — the zone then mirrors `onUpperHalf` exactly.
+   */
+  canNestInto?: (targetEl: HTMLElement, source: TSource) => boolean;
+  /**
+   * Auto-scroll the drag's nearest scrollable ancestor while the pointer sits
+   * in its top/bottom edge band. On by default: every consumer of this hook is
+   * a scrolling list, and without it a row cannot be dragged to a target that
+   * is out of view. Pass `false` only for a surface that genuinely does not
+   * scroll.
+   */
+  autoScroll?: boolean;
   /**
    * CSS selector for a draggable row element (e.g. `[data-section-id]`). Used to
    * resolve the row under the pointer on each move via `elementFromPoint`.
@@ -161,6 +190,16 @@ interface ActiveGesture<TSource> {
   origin: { x: number; y: number };
   engaged: boolean;
   captureEl: HTMLElement;
+  /**
+   * The list container to auto-scroll, resolved once at drag-start from the
+   * handle element. Resolved once (not per frame) because `elementFromPoint`
+   * during a drag can land on the drag indicator or on empty space, and a
+   * container that changes mid-gesture makes the scroll stutter.
+   */
+  scrollEl: HTMLElement | null;
+  /** Last pointer position, so the rAF loop can keep resolving while stationary. */
+  lastX: number;
+  lastY: number;
 }
 
 /**
@@ -187,19 +226,83 @@ export function usePointerDrag<TSource>(
       clientX: number,
       clientY: number,
     ): PointerDragMove<TSource> => {
-      const { rowSelector } = optionsRef.current;
+      const { rowSelector, canNestInto } = optionsRef.current;
       const targetEl = rowElementFromPoint(clientX, clientY, rowSelector);
       let onUpperHalf: boolean | null = null;
+      let zone: PointerDropZone | null = null;
       if (targetEl) {
         const rect = targetEl.getBoundingClientRect();
         onUpperHalf = pointerOnUpperHalf(clientY, rect);
+        zone = pointerDropZone(
+          clientY,
+          rect,
+          canNestInto ? canNestInto(targetEl, source) : false,
+        );
       }
-      return { source, targetEl, clientX, clientY, onUpperHalf };
+      return { source, targetEl, clientX, clientY, onUpperHalf, zone };
     },
     [],
   );
 
+  // rAF handle for the auto-scroll loop. Lives outside the gesture record so a
+  // cancelled gesture can always stop the loop, even if the record is gone.
+  const autoScrollRafRef = useRef<number | null>(null);
+
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollRafRef.current !== null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Drive the list under the pointer while a drag is engaged.
+   *
+   * The loop reads the LAST pointer position rather than waiting for a new
+   * pointermove, because the whole point is to keep making progress while the
+   * operator holds still at the edge of the list. Each frame that actually
+   * scrolls also re-emits `onDragMove`, so the drop indicator tracks the rows
+   * sliding underneath a stationary cursor instead of freezing on a pre-scroll
+   * snapshot — the same contract the canvas block-move loop keeps.
+   */
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollRafRef.current !== null) return; // already running
+    // `tick` is a local function declaration rather than the useCallback
+    // identifier itself: a hook callback that schedules itself by name is a
+    // self-referencing binding, which react-hooks/immutability rejects (and
+    // would also re-create the loop on every dependency change).
+    function tick() {
+      const gesture = gestureRef.current;
+      if (!gesture || !gesture.engaged) {
+        autoScrollRafRef.current = null;
+        return;
+      }
+      const scrollEl = gesture.scrollEl;
+      if (scrollEl) {
+        const delta = panelScrollDeltaForY(
+          gesture.lastY,
+          scrollEl.getBoundingClientRect(),
+        );
+        if (delta !== 0) {
+          const before = scrollEl.scrollTop;
+          scrollEl.scrollTop = before + delta;
+          // Only re-resolve when the container actually moved. At the very top
+          // / bottom of the list scrollTop is pinned, and re-emitting there
+          // would spam the consumer's setState with an identical drop target.
+          if (scrollEl.scrollTop !== before) {
+            optionsRef.current.onDragMove?.(
+              buildMove(gesture.source, gesture.lastX, gesture.lastY),
+            );
+          }
+        }
+      }
+      autoScrollRafRef.current = requestAnimationFrame(tick);
+    }
+    autoScrollRafRef.current = requestAnimationFrame(tick);
+  }, [buildMove]);
+
   const endGesture = useCallback((fireEnd: boolean) => {
+    stopAutoScroll();
     const gesture = gestureRef.current;
     gestureRef.current = null;
     setIsDragging(false);
@@ -211,13 +314,15 @@ export function usePointerDrag<TSource>(
       }
     }
     if (fireEnd) optionsRef.current.onDragEnd?.();
-  }, []);
+  }, [stopAutoScroll]);
 
   const handlePointerMove = useCallback(
     (event: PointerEvent) => {
       const gesture = gestureRef.current;
       if (!gesture || event.pointerId !== gesture.pointerId) return;
       const point = { x: event.clientX, y: event.clientY };
+      gesture.lastX = point.x;
+      gesture.lastY = point.y;
       if (!gesture.engaged) {
         const threshold =
           optionsRef.current.threshold ?? POINTER_DRAG_THRESHOLD_PX;
@@ -227,6 +332,10 @@ export function usePointerDrag<TSource>(
         gesture.engaged = true;
         setIsDragging(true);
         optionsRef.current.onDragStart?.(gesture.source);
+        if (optionsRef.current.autoScroll !== false) {
+          gesture.scrollEl = findScrollableAncestor(gesture.captureEl);
+          startAutoScroll();
+        }
       }
       // Engaged: suppress the default touch scroll/selection and report the move.
       event.preventDefault();
@@ -234,7 +343,7 @@ export function usePointerDrag<TSource>(
         buildMove(gesture.source, event.clientX, event.clientY),
       );
     },
-    [buildMove],
+    [buildMove, startAutoScroll],
   );
 
   const handlePointerUp = useCallback(
@@ -309,6 +418,9 @@ export function usePointerDrag<TSource>(
           origin: { x: event.clientX, y: event.clientY },
           engaged: false,
           captureEl: el,
+          scrollEl: null,
+          lastX: event.clientX,
+          lastY: event.clientY,
         };
       },
       style: { touchAction: "none" },

@@ -22,7 +22,24 @@
  * `talent_pages` shape (from 20260611174629_talent_pages.sql):
  *   id, talent_profile_id, slug, title, status, blocks jsonb, theme jsonb,
  *   required_talent_tier, published_at, scheduled_for,
- *   created_by, created_at, updated_at.
+ *   created_by, created_at, updated_at,
+ *   plus the SEO-1 metadata columns (20261100000000_talent_pages_seo_columns.sql):
+ *   meta_description, og_title, og_description, og_image_url, canonical_url,
+ *   noindex, json_ld.
+ *
+ * SEO-2 already READS that column set on the public side — `loadMaxSitePages`
+ * selects all seven and `maxSiteSeoToMetadata` renders them into <head> for all
+ * three talent-site routes. Only the WRITE half was missing: the composition
+ * hardcoded nulls and `save`/`saveDraft` dropped everything but `title`, so the
+ * Page settings drawer's SEO fields were a silent no-op on this surface (the
+ * same defect fixed for freeform `cms_pages` in PR #1210).
+ *
+ * NO `meta_title` COLUMN: unlike `cms_pages`, the SEO-1 migration deliberately
+ * omits `meta_title` — the talent-site SEO envelope (`MaxSiteSeo`) uses `title`
+ * as the SERP/tab title and `og_title` as the only override. So the drawer's
+ * "Meta title" field has nothing to persist to here and stays null by design;
+ * wiring it would mean a new column PLUS widening the shared SEO envelope that
+ * all three talent-site routes consume in lockstep.
  *
  * The adapter stores the freeform `builderTree` in the `blocks` column.
  * The `theme` column carries `styleClasses`. VERSION is derived from
@@ -68,6 +85,17 @@ export interface TalentPageRow {
   required_talent_tier: string | null;
   published_at: string | null;
   updated_at: string;
+  /** SEO-1 — the `talent_pages` metadata/OG columns, the same set the public
+   *  `loadMaxSitePages` read selects. Optional on the row type so a spy/test
+   *  fixture (or a partial select) degrades to the null defaults instead of
+   *  throwing. There is deliberately no `meta_title` — see the header note. */
+  meta_description?: string | null;
+  og_title?: string | null;
+  og_description?: string | null;
+  og_image_url?: string | null;
+  canonical_url?: string | null;
+  noindex?: boolean | null;
+  json_ld?: unknown;
   /** STYLE-1 — dedicated style-class registry column (supersedes the slice in
    *  `theme`). Optional so a pre-migration row degrades to the `theme` fallback. */
   style_classes?: unknown;
@@ -86,6 +114,16 @@ export interface TalentPagePatch {
   theme: unknown;
   updated_at: string;
   title?: string;
+  /** SEO-1 — metadata/OG columns. `undefined` means "leave the stored value
+   *  untouched" (a tree-only autosave carries no metadata envelope); `null`
+   *  clears the column. */
+  meta_description?: string | null;
+  og_title?: string | null;
+  og_description?: string | null;
+  og_image_url?: string | null;
+  canonical_url?: string | null;
+  noindex?: boolean | null;
+  json_ld?: unknown;
   /** STYLE-1 — serialized style-class registry for the dedicated column
    *  (`undefined` = leave untouched, `null` = clear). The binding ALSO keeps
    *  `theme` carrying the registry for back-compat reads during the cutover. */
@@ -169,18 +207,21 @@ export function buildEmptyTalentPageComposition(
     liveSitePublishedAt: row.published_at,
     metadata: {
       title: row.title,
+      // SEO-1 — read the REAL stored values. These were hardcoded to null, so
+      // the Page settings drawer opened blank and every SEO edit round-tripped
+      // back to nothing, even though the public renderer reads these columns.
+      // `metaTitle` stays null: `talent_pages` has no such column (the
+      // talent-site SEO envelope uses `title`). `introTagline` stays null: it
+      // is homepage-only (it lives in the homepage row's `hero` JSON).
       metaTitle: null,
-      metaDescription: null,
+      metaDescription: row.meta_description ?? null,
       introTagline: null,
-      ogTitle: null,
-      ogDescription: null,
-      ogImageUrl: null,
-      canonicalUrl: null,
-      noindex: false,
-      // SEO-1 contract field. SEO-2 wires the actual `talent_pages.json_ld`
-      // column read here (the column lands in the SEO-1 migration). Null until
-      // then so a not-yet-migrated read degrades safely.
-      jsonLd: null,
+      ogTitle: row.og_title ?? null,
+      ogDescription: row.og_description ?? null,
+      ogImageUrl: row.og_image_url ?? null,
+      canonicalUrl: row.canonical_url ?? null,
+      noindex: row.noindex ?? false,
+      jsonLd: row.json_ld ?? null,
     },
     slots: {},
     builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
@@ -195,6 +236,40 @@ export function buildEmptyTalentPageComposition(
     stylePresets: coerceStylePresetRegistry(row.style_presets),
     availableLocales: [locale as CompositionData["locale"]],
   };
+}
+
+/**
+ * SEO-1 — build the metadata slice of a `talent_pages` patch from a save input.
+ *
+ * WIPE HAZARD: a tree-only autosave / draft-flush carries NO metadata envelope.
+ * Mapping unconditionally (`metadata?.metaDescription ?? null`) would NULL every
+ * SEO column on every autosave — and on this surface those columns are LIVE on
+ * the public site, so the wipe would be visible in search results. So:
+ *   - `metadata` absent  → returns `{}` (the columns stay out of the patch), and
+ *   - an individual field that is `undefined` is likewise omitted; only an
+ *     explicit `null` clears the column.
+ * Shared by `save` and `saveDraft` so both legs persist metadata identically.
+ *
+ * `metaTitle` is intentionally NOT mapped: `talent_pages` has no `meta_title`
+ * column (see the module header).
+ */
+function talentMetadataPatch(
+  metadata: CompositionSaveInput["metadata"] | undefined,
+): Omit<TalentPagePatch, "blocks" | "theme" | "updated_at"> {
+  if (!metadata) return {};
+  const patch: Omit<TalentPagePatch, "blocks" | "theme" | "updated_at"> = {};
+  if (metadata.metaDescription !== undefined) {
+    patch.meta_description = metadata.metaDescription;
+  }
+  if (metadata.ogTitle !== undefined) patch.og_title = metadata.ogTitle;
+  if (metadata.ogDescription !== undefined) {
+    patch.og_description = metadata.ogDescription;
+  }
+  if (metadata.ogImageUrl !== undefined) patch.og_image_url = metadata.ogImageUrl;
+  if (metadata.canonicalUrl !== undefined) patch.canonical_url = metadata.canonicalUrl;
+  if (metadata.noindex !== undefined) patch.noindex = metadata.noindex;
+  if (metadata.jsonLd !== undefined) patch.json_ld = metadata.jsonLd;
+  return patch;
 }
 
 /** STYLE-1 — build the style-registry slice of a `talent_pages` patch from a
@@ -283,6 +358,7 @@ export function createTalentPageAdapter(
           blocks: input.builderTree ?? [],
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
+          ...talentMetadataPatch(input.metadata),
           ...talentStyleRegistryPatch(input),
         },
       });
@@ -316,6 +392,7 @@ export function createTalentPageAdapter(
           blocks: input.builderTree ?? [],
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
+          ...talentMetadataPatch(input.metadata),
           ...talentStyleRegistryPatch(input),
         },
       });
