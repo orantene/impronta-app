@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 
-import {
-  LOCALE_SUGGESTION_DISMISSED_COOKIE,
-  localeSuggestionCookieString,
-} from "@/i18n/locale-suggestion";
+import { clearLocaleAutoMarkerLine, localeCookieLine } from "@/i18n/locale-cookies";
+import { LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-suggestion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,9 +50,23 @@ export function LocaleSuggestionBannerClient({
   if (hidden) return null;
 
   const writeCookie = (name: string, value: string) => {
-    document.cookie = localeSuggestionCookieString(name, value, {
-      secure: secureCookies,
-    });
+    document.cookie = localeCookieLine(name, value, { secure: secureCookies });
+  };
+
+  /**
+   * Accepting is the most DELIBERATE act in the whole flow, so it must clear
+   * the `locale_auto` marker as well as write the locale. Skipping this would
+   * leave the visitor with `locale=es` + marker: they would land on the
+   * Spanish page and then be offered Spanish again on the next English URL
+   * they touch. The navigation that follows also lands on a `/es/...` URL,
+   * where `syncLocaleCookieForPath` clears the marker a second time — belt and
+   * braces on purpose, because the two paths differ for an es-default tenant
+   * (there the accepted URL is UNPREFIXED and the proxy's clearing branch does
+   * not run at all, leaving this the only writer that does it).
+   */
+  const acceptSuggestion = () => {
+    writeCookie(localeCookieName, locale);
+    document.cookie = clearLocaleAutoMarkerLine(secureCookies);
   };
 
   return (
@@ -80,7 +92,7 @@ export function LocaleSuggestionBannerClient({
             href={href}
             hrefLang={locale}
             lang={locale}
-            onClick={() => writeCookie(localeCookieName, locale)}
+            onClick={acceptSuggestion}
             className={cn(
               "inline-flex items-center rounded-md bg-foreground px-2.5 py-1 text-xs font-medium",
               "text-background no-underline transition-opacity hover:opacity-90",

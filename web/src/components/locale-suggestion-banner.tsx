@@ -3,6 +3,7 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 
 import { createTranslator } from "@/i18n/messages";
+import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import {
   LOCALE_SUGGESTION_DISMISSED_COOKIE,
@@ -67,6 +68,10 @@ async function resolveBannerProps(): Promise<BannerProps | null> {
 
     const decision = shouldSuggestLocale({
       cookieLocale: jar.get(LOCALE_COOKIE)?.value ?? null,
+      // The marker the proxy sets alongside its own bookkeeping write. Read
+      // from the cookie JAR rather than `localeCookieIsAutoWritten(request)`
+      // because a server component has no NextRequest; same cookie, same read.
+      localeCookieIsAuto: Boolean(jar.get(LOCALE_AUTO_COOKIE)?.value),
       acceptLanguage: h.get("accept-language"),
       country: h.get("x-vercel-ip-country"),
       currentLocale,

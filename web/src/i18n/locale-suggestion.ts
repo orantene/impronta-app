@@ -31,7 +31,10 @@
  * SIGNAL PRECEDENCE (asserted in locale-suggestion.test.ts)
  * ────────────────────────────────────────────────────────
  * 1. `dismissed` cookie          — the visitor said no. Never ask again.
- * 2. `locale` cookie             — an explicit past choice beats any guess.
+ * 2. `locale` cookie, DELIBERATE — an explicit past choice beats any guess. A
+ *                                  machine-written one (`locale_auto` marker
+ *                                  present) is bookkeeping, not a choice, and
+ *                                  is ignored here. See `@/i18n/locale-cookies`.
  * 3. crawler user-agent          — a banner in Googlebot's render is noise in
  *                                  the indexed HTML. Conservative: an ABSENT
  *                                  user-agent counts as a crawler too.
@@ -64,9 +67,6 @@ import { isDashboardInnerPath } from "@/i18n/locale-middleware";
 
 /** Persistent "stop asking" cookie. Separate from `locale` on purpose: dismissing is not choosing. */
 export const LOCALE_SUGGESTION_DISMISSED_COOKIE = "locale-suggest-dismissed";
-
-/** ~13 months, matching `localeCookieOptions` in locale-middleware.ts. */
-export const LOCALE_SUGGESTION_COOKIE_MAX_AGE = 60 * 60 * 24 * 400;
 
 /**
  * Pre-auth path prefixes that are public HTML but are not storefront browsing.
@@ -207,6 +207,12 @@ export type LocaleSuggestion =
 export type LocaleSuggestionInput = {
   /** Raw `locale` cookie value, or null when unset. */
   cookieLocale?: string | null;
+  /**
+   * `locale_auto` marker present, i.e. the `locale` cookie above was written
+   * by `syncLocaleCookieForPath`'s bookkeeping branch and NOT chosen by a
+   * person. When true, `cookieLocale` carries no intent and is ignored.
+   */
+  localeCookieIsAuto?: boolean;
   /** Raw `Accept-Language` request header. */
   acceptLanguage?: string | null;
   /** Raw `x-vercel-ip-country` (case-insensitive; absent off Vercel). */
@@ -341,6 +347,7 @@ export function isPublicSuggestablePath(
 export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggestion {
   const {
     cookieLocale,
+    localeCookieIsAuto,
     acceptLanguage,
     country,
     currentLocale,
@@ -356,14 +363,20 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
 
   // 2 — an explicit past choice always beats a guess.
   //
-  // KNOWN INTERACTION, stated rather than hidden: `syncLocaleCookieForPath`
-  // in proxy.ts writes `locale=<default>` on a fresh visitor's FIRST public
-  // response, and that write is indistinguishable from a deliberate one here.
-  // So in production this banner is a one-shot first-render suggestion, which
-  // is the intended shape (never nag) but is narrower than "until dismissed".
-  // Widening it needs the proxy to mark its auto-write, which is another
-  // lane's file — see the handover note, not a silent change here.
-  if (cookieLocale && cookieLocale.trim()) {
+  // `syncLocaleCookieForPath` hands a fresh visitor a 400-day `locale=en` on
+  // their FIRST public response (verified live with curl against
+  // improntamodels.com and tulala.digital). By value that is identical to the
+  // cookie an operator gets by clicking ES in the switcher, so gate 2 used to
+  // fire from page view 2 onward and the banner was effectively a one-shot
+  // that vanished the moment the visitor clicked any link before deciding.
+  //
+  // `locale_auto` is the companion marker that separates the two. When it is
+  // present the cookie carries no intent and this gate stands down; the
+  // visitor keeps being offered their language until they accept, switch, or
+  // dismiss. When it is absent the cookie IS a choice and wins, exactly as
+  // before. Which writers set and clear it is enumerated in
+  // `@/i18n/locale-cookies` and pinned by the session tests.
+  if (cookieLocale && cookieLocale.trim() && !localeCookieIsAuto) {
     return { suggest: false, reason: "explicit-locale-cookie" };
   }
 
@@ -417,28 +430,3 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
   return { suggest: true, locale: target, source, href };
 }
 
-/**
- * `document.cookie` payload for the two writes the banner performs (accept →
- * `locale`, dismiss → `locale-suggest-dismissed`).
- *
- * Lives here rather than reusing `localeCookieOptions` because that constant
- * ships from `locale-middleware.ts`, which imports `next/server` — pulling it
- * into the client bundle is a build error. The banner's client half imports
- * only this file's pure half, and the cookie NAME is passed in as a prop from
- * the server so there is still exactly one definition of it.
- */
-export function localeSuggestionCookieString(
-  name: string,
-  value: string,
-  options?: { maxAgeSeconds?: number; secure?: boolean },
-): string {
-  const maxAge = options?.maxAgeSeconds ?? LOCALE_SUGGESTION_COOKIE_MAX_AGE;
-  const parts = [
-    `${name}=${encodeURIComponent(value)}`,
-    "path=/",
-    `max-age=${maxAge}`,
-    "samesite=lax",
-  ];
-  if (options?.secure) parts.push("secure");
-  return parts.join("; ");
-}

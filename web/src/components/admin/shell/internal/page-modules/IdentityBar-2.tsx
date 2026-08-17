@@ -3,6 +3,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
+import { clearLocaleAutoMarkerLine } from "@/i18n/locale-cookies";
 import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
 import { useDashboardText } from "../dashboard-i18n";
 import { COLORS, FONTS, TRANSITION } from "../state";
@@ -67,6 +68,10 @@ function persistLocaleCookie(next: string): void {
   let line = `${LOCALE_COOKIE}=${next}; path=${path}; max-age=${String(maxAge)}; samesite=${sameSite}`;
   if (secure) line += "; secure";
   document.cookie = line;
+  // DELIBERATE write (a person clicked the pill), so the `locale_auto` marker
+  // must go with it — otherwise the public language suggestion banner still
+  // reads this session as "never chose". See @/i18n/locale-cookies.
+  document.cookie = clearLocaleAutoMarkerLine(secure);
 }
 
 /**
