@@ -18,7 +18,7 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useInspectorSearchFilter } from "./inspector-search";
 
-import { CHROME } from "../../kit/tokens";
+import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "../../kit/tokens";
 import { useEditContext } from "../../edit-context";
 import {
   baseBreakpointId,
@@ -324,19 +324,56 @@ export function InspectorHelpText({ children }: { children: ReactNode }) {
 }
 
 /** Re-export KIT input classes — panels should use KIT.input via InspectorInput wrapper. */
+/**
+ * Inspector Reset P5 — InspectorInput/Textarea/Select share ONE cool edge.
+ *
+ * Retoned off the khaki `CHROME.controlBorder` (#cfc7b6) onto
+ * `CHROME.lineStrong`, the same edge `NumberUnit` (kit/number-unit.tsx)
+ * already moved to in P2. Radius sources from `CHROME_RADII.lg` (still 10,
+ * the pre-existing value — this is a token-source swap, not a size change)
+ * and focus/blur use the same `CHROME_SHADOWS.inputFocus` halo NumberUnit
+ * applies on its container, so an InspectorSelect and an InspectorInput (or
+ * a NumberUnit) sitting side by side in the same panel row read as one
+ * family instead of two palettes.
+ */
+function useCoolFieldFocus() {
+  return {
+    onFocus: (e: React.FocusEvent<HTMLElement>) => {
+      e.currentTarget.style.borderColor = CHROME.blue;
+      e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputFocus;
+    },
+    onBlur: (e: React.FocusEvent<HTMLElement>) => {
+      e.currentTarget.style.borderColor = CHROME.lineStrong;
+      e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputInset;
+    },
+  };
+}
+
 export function InspectorInput({
   className,
+  onFocus,
+  onBlur,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement>) {
+  const coolFocus = useCoolFieldFocus();
   return (
     <input
       className={className}
       {...props}
+      onFocus={(e) => {
+        coolFocus.onFocus(e);
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        coolFocus.onBlur(e);
+        onBlur?.(e);
+      }}
       style={{
         width: "100%",
-        borderRadius: 10,
-        border: `1px solid ${CHROME.controlBorder}`,
-        background: CHROME.surface,
+        borderRadius: CHROME_RADII.lg,
+        border: `1px solid ${CHROME.lineStrong}`,
+        background: CHROME.controlFill,
+        boxShadow: CHROME_SHADOWS.inputInset,
         padding: "9px 12px",
         fontSize: 13,
         color: CHROME.ink,
@@ -350,19 +387,31 @@ export function InspectorInput({
 export function InspectorTextarea({
   className,
   rows = 3,
+  onFocus,
+  onBlur,
   ...props
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const coolFocus = useCoolFieldFocus();
   return (
     <textarea
       rows={rows}
       className={className}
       {...props}
+      onFocus={(e) => {
+        coolFocus.onFocus(e);
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        coolFocus.onBlur(e);
+        onBlur?.(e);
+      }}
       style={{
         width: "100%",
         resize: "vertical",
-        borderRadius: 10,
-        border: `1px solid ${CHROME.controlBorder}`,
-        background: CHROME.surface,
+        borderRadius: CHROME_RADII.lg,
+        border: `1px solid ${CHROME.lineStrong}`,
+        background: CHROME.controlFill,
+        boxShadow: CHROME_SHADOWS.inputInset,
         padding: "9px 12px",
         fontSize: 13,
         lineHeight: 1.45,
@@ -378,18 +427,30 @@ export function InspectorTextarea({
 export function InspectorSelect({
   className,
   children,
+  onFocus,
+  onBlur,
   ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const coolFocus = useCoolFieldFocus();
   return (
     <select
       className={className}
       {...props}
+      onFocus={(e) => {
+        coolFocus.onFocus(e);
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        coolFocus.onBlur(e);
+        onBlur?.(e);
+      }}
       style={{
         width: "100%",
         cursor: "pointer",
-        borderRadius: 10,
-        border: `1px solid ${CHROME.controlBorder}`,
-        background: CHROME.surface,
+        borderRadius: CHROME_RADII.lg,
+        border: `1px solid ${CHROME.lineStrong}`,
+        background: CHROME.controlFill,
+        boxShadow: CHROME_SHADOWS.inputInset,
         padding: "9px 32px 9px 12px",
         fontSize: 13,
         color: CHROME.ink,
