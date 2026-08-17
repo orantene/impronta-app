@@ -417,6 +417,9 @@ export async function HomepageCmsSections({
             mode: "freeform",
             // Native `form` nodes render their own captcha widget from this.
             captcha: captchaConfig,
+            // …and that widget must speak the page's language, not the
+            // visitor's browser language.
+            visitorLocale: locale,
             includeRendererStyles: false,
             dataSources: freeformDataSources,
             components: freeformComponents,
@@ -693,6 +696,7 @@ export async function HomepageCmsSections({
               componentStyleDefaults,
               renderSectionEmbed: sectionEmbedRendererForChildren,
               captcha: captchaConfig,
+              visitorLocale: locale,
             });
           }
         }

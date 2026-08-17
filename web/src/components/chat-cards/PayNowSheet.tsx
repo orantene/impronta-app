@@ -23,16 +23,27 @@ import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { createInquiryPaymentIntent } from "@/lib/server-actions/client-pipeline";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { stripeJsLocale, type StripeJsLocale } from "@/lib/i18n/vendor-locale";
 import { interpolate } from "@/i18n/interpolate";
 
 const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-// Created once per page load — loadStripe memoises internally but we guard the
-// missing-key case so the module never throws at import time.
-let stripePromise: Promise<Stripe | null> | null = null;
-function getStripePromise(): Promise<Stripe | null> | null {
+// One promise PER LOCALE. Stripe.js reads the BROWSER language when no `locale`
+// is passed, so a client paying inside a Spanish app on an English browser got
+// an English Payment Element. loadStripe memoises the script load internally,
+// so a second call with a different locale is cheap; keying the cache on the
+// locale is what stops the first (pre-hydration) "en" render from freezing the
+// language for the rest of the session.
+const stripePromises = new Map<string, Promise<Stripe | null>>();
+function getStripePromise(locale: StripeJsLocale | undefined): Promise<Stripe | null> | null {
   if (!PUBLISHABLE_KEY) return null;
-  if (!stripePromise) stripePromise = loadStripe(PUBLISHABLE_KEY);
-  return stripePromise;
+  const key = locale ?? "";
+  let promise = stripePromises.get(key);
+  if (!promise) {
+    promise = loadStripe(PUBLISHABLE_KEY, locale ? { locale } : undefined);
+    stripePromises.set(key, promise);
+  }
+  return promise;
 }
 
 type Props = {
@@ -48,6 +59,7 @@ const INK = "#0B0B0D";
 
 export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) {
   const t = useT();
+  const dashboardLocale = useDashboardLocale();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [mock, setMock] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -79,7 +91,12 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
     onPaid?.();
   }, [onPaid]);
 
-  const stripeP = getStripePromise();
+  // Resolved from the app's own locale cookie, never from navigator.language.
+  // It reads "en" until hydration, but `<Elements>` only mounts once the
+  // PaymentIntent resolves — well after that — so the real locale is the one
+  // Stripe.js is created with.
+  const paymentLocale = stripeJsLocale(dashboardLocale);
+  const stripeP = getStripePromise(paymentLocale);
   const canRenderElements = !!clientSecret && !!stripeP;
 
   return (
@@ -156,6 +173,9 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
             stripe={stripeP}
             options={{
               clientSecret: clientSecret!,
+              // Belt and braces with the locale baked into `stripeP`: an
+              // Elements group created without one re-reads the browser.
+              ...(paymentLocale ? { locale: paymentLocale } : {}),
               appearance: { theme: "stripe", variables: { colorPrimary: BRAND } },
             }}
           >

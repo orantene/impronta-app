@@ -19,6 +19,7 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
+import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
 
 /**
  * Re-export the ONE canonical Stripe singleton (server-only, defined in
@@ -55,6 +56,14 @@ export type CheckoutSessionInput = {
    * `connectedAccountId` is set. Defaults to 0 (no platform cut).
    */
   applicationFeeCents?: number;
+  /**
+   * The paying client's resolved app locale (`getRequestLocale()`), threaded
+   * from the calling server action. Stripe otherwise reads the BROWSER
+   * language, so a Spanish-speaking client on an English browser pays an
+   * invoice through an English form. Absent / unmappable → the parameter is
+   * omitted and Stripe keeps its own default.
+   */
+  locale?: string | null;
 };
 
 export type CheckoutSessionResult =
@@ -111,6 +120,8 @@ export async function createCheckoutSessionForTransaction(
         },
       ],
       customer_email: input.payerEmail ?? undefined,
+      // Pay in the language the client is already reading the app in.
+      locale: stripeCheckoutLocale(input.locale),
       client_reference_id: input.transactionId,
       success_url: input.successUrl,
       cancel_url: input.cancelUrl,

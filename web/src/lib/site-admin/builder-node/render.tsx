@@ -8,6 +8,7 @@ import {
 } from "@/lib/social-embed/social-post-url";
 
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { hcaptchaLocale, turnstileLocale } from "@/lib/i18n/vendor-locale";
 import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/FeaturedTalentCard";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import {
@@ -181,6 +182,14 @@ export interface BuilderNodeRenderOptions {
     provider: "hcaptcha" | "turnstile" | "none";
     siteKey: string | null;
   } | null;
+  // The locale THIS PAGE was rendered for, used to set the captcha widget's
+  // language. Both hCaptcha and Turnstile default to the visitor's BROWSER
+  // language, so a Spanish storefront served an English-browser visitor an
+  // English challenge on top of Spanish copy. Absent (tests, tenant-less
+  // previews, single-language callers that pass no locale) → no language
+  // attribute is emitted and each provider keeps its own default, which is
+  // byte-identical to the markup before this option existed.
+  visitorLocale?: string;
   // W3-T1 — EDITOR-ONLY insert/delete/reorder motion. When true, the rendered
   // node list is wrapped in a `display: contents` FLIP primitive
   // (`BuilderNodeLayoutMotion`) so inserts fade+rise, deletes fade out, and
@@ -248,6 +257,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
     | "styleClasses"
     | "visibilityContext"
     | "contentLocale"
+    | "visitorLocale"
     | "experimentSeed"
     | "experimentTenantId"
     | "experimentSurface"
@@ -268,6 +278,9 @@ type NormalizedBuilderNodeRenderOptions = Required<
   // WS5 — undefined when the caller supplies no locale (single-language tenants
   // / tests): every localizable prop renders its base value verbatim.
   contentLocale: BuilderNodeContentLocaleOptions | undefined;
+  // Undefined when neither `visitorLocale` nor `contentLocale` was supplied →
+  // captcha widgets emit no language attribute (provider default).
+  visitorLocale: string | undefined;
   repeatItem: BuilderRepeatItem | null;
   repeatDepth: number;
 };
@@ -4582,6 +4595,8 @@ function renderBuilderNodeElement(
           ? options.captcha.provider
           : null;
       const formCaptchaSiteKey = options.captcha?.siteKey ?? null;
+      const formCaptchaHl = hcaptchaLocale(options.visitorLocale);
+      const formCaptchaLanguage = turnstileLocale(options.visitorLocale);
       const isInternal =
         !formProps.action || formProps.action.trim().toLowerCase() === "internal";
       const method =
@@ -4728,6 +4743,7 @@ function renderBuilderNodeElement(
               <div
                 className="h-captcha"
                 data-sitekey={formCaptchaSiteKey}
+                data-hl={formCaptchaHl}
                 data-callback="__tulalaCaptchaDone"
               />
               <script src="https://js.hcaptcha.com/1/api.js" async defer />
@@ -4735,7 +4751,11 @@ function renderBuilderNodeElement(
           ) : null}
           {formCaptchaProvider === "turnstile" && formCaptchaSiteKey ? (
             <>
-              <div className="cf-turnstile" data-sitekey={formCaptchaSiteKey} />
+              <div
+                className="cf-turnstile"
+                data-sitekey={formCaptchaSiteKey}
+                data-language={formCaptchaLanguage}
+              />
               <script
                 src="https://challenges.cloudflare.com/turnstile/v0/api.js"
                 async
@@ -5046,6 +5066,9 @@ function normalizeBuilderNodeRenderOptions(
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},
     contentLocale: options.contentLocale,
+    // Falls back to the per-element translation locale when a caller set that
+    // but not this, so the two can never disagree about the visitor's language.
+    visitorLocale: options.visitorLocale ?? options.contentLocale?.locale,
     experimentSeed: options.experimentSeed,
     experimentTenantId: options.experimentTenantId,
     experimentSurface: options.experimentSurface,

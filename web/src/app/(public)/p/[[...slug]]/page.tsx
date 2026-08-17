@@ -458,6 +458,10 @@ export default async function CmsPublicPage({
                 captcha: pageCaptcha
                   ? { provider: pageCaptcha.provider, siteKey: pageCaptcha.siteKey }
                   : null,
+                // The captcha widget must render in the page's language. Both
+                // providers otherwise read the visitor's BROWSER language, so a
+                // Spanish storefront showed an English challenge.
+                visitorLocale: locale,
                 ...experimentContext,
                 renderSectionEmbed: makeSectionEmbedRenderer({
                   tenantId: publicScope.tenantId,

@@ -13,6 +13,7 @@ import {
   createUncachedServiceRoleClient,
 } from "@/lib/supabase/admin";
 import { createWorkspaceCheckoutSession } from "@/lib/stripe/workspace-billing";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { getWorkspacePriceId, type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import {
   findFreeWorkspaceLimitBlocker,
@@ -373,6 +374,10 @@ async function finalizeProvisionResult(params: {
       displayName: params.agency.display_name,
       tenantSlug: params.agency.slug,
       appBaseUrl: getAppUrl(),
+      // Signup runs inside the /onboarding/workspace render, so the request
+      // locale is available; without it the first thing a new Spanish-speaking
+      // owner sees is an English payment form.
+      locale: await getRequestLocale(),
     });
 
     if (checkout.ok && checkout.data.url) {
