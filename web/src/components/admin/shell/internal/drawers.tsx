@@ -32,7 +32,7 @@ import { DomainDrawer, IdentityDrawer, WorkspaceSettingsDrawer, TalentProfileDra
 import { GuestChatSettingsDrawer } from "./drawers/guest-chat-settings";
 import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, NewBookingDrawer, ClientProfileDrawer } from "./drawers/light-06";
 import { TodayPulseDrawer, PipelineDrawer, PipelineFilterDrawer, NotificationsDrawer, ActivityFeedDrawer, MyActivityDrawer } from "./drawers/light-07";
-import { PagesDrawer, PostsDrawer, NavigationDrawer, MediaDrawer, TranslationsDrawer, SeoDrawer } from "./drawers/light-08";
+import { PagesDrawer, PostsDrawer, NavigationDrawer, MediaDrawer, SeoDrawer } from "./drawers/light-08";
 import { FieldCatalogDrawer, FieldPrivacyDrawer } from "./drawers/light-10";
 import { TrustVerificationQueueDrawer, DisputedClaimsDrawer } from "./drawers/light-11";
 import { TalentTrustDetailDrawer, TalentClaimInviteDrawer, PlatformVerificationMethodsDrawer } from "./drawers/light-12";
@@ -168,8 +168,6 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <NavigationDrawer />;
     case "media":
       return <MediaDrawer />;
-    case "translations":
-      return <TranslationsDrawer />;
     case "seo":
       return <SeoDrawer />;
     case "field-catalog":
