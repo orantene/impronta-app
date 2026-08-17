@@ -11,6 +11,7 @@ import { ES_BUILDER_REGISTRY_TEXT } from "./editor-i18n-es-registry";
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
 import { ES_INSPECTOR_TEXT } from "./editor-i18n-es-inspectors";
 import { ES_INSPECTOR_TEXT_2 } from "./editor-i18n-es-inspectors-2";
+import { ES_CAROUSEL_TEXT } from "./editor-i18n-es-carousel";
 import { ES_MEDIA_TEXT } from "./editor-i18n-es-media";
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
@@ -36,6 +37,8 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_BUILDER_REGISTRY_TEXT,
   // ── Media surfaces (picker locks, MediaField, Assets library) ─────────
   ...ES_MEDIA_TEXT,
+  // ── Slider inspector (2026-08-17 rebuild onto the field kit) ──────────
+  ...ES_CAROUSEL_TEXT,
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',

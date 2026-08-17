@@ -11,6 +11,7 @@ import {
   getCarouselPinnedSlide,
   getPinnedSlide,
   registerCarouselEditMode,
+  setCarouselEditPreviewing,
   setCarouselSlide,
   setPinnedSlide,
   subscribeCarouselEditing,
@@ -159,4 +160,80 @@ test("both server snapshots are the published behavior, by identity", () => {
     getCarouselEditServerSnapshot(),
   );
   release();
+});
+
+// ── Preview suppression (2026-08-17) ────────────────────────────────────────
+// Preview is the mode where every editing affordance unmounts so the page
+// reads as a visitor's. A slider frozen there is the editor lying about the
+// page, so preview forces `editing` off no matter how many surfaces are
+// registered — and the registrations must SURVIVE it, because leaving preview
+// has to put the pause straight back without a remount.
+
+test("preview forces editing off while surfaces stay registered", () => {
+  const release = registerCarouselEditMode();
+  assert.equal(getCarouselEditingSnapshot(), true);
+  setCarouselEditPreviewing(true);
+  assert.equal(getCarouselEditingSnapshot(), false);
+  setCarouselEditPreviewing(false);
+  assert.equal(
+    getCarouselEditingSnapshot(),
+    true,
+    "leaving preview must restore the pause without a remount",
+  );
+  release();
+  assert.equal(getCarouselEditingSnapshot(), false);
+});
+
+test("entering preview clears pins so the slider does not start frozen", () => {
+  const release = registerCarouselEditMode();
+  setCarouselSlide("hero-1", 2);
+  setPinnedSlide("background", "band-1", 1);
+  setCarouselEditPreviewing(true);
+  assert.equal(getCarouselPinnedSlide("hero-1"), null);
+  assert.equal(getPinnedSlide("background", "band-1"), null);
+  setCarouselEditPreviewing(false);
+  release();
+});
+
+test("preview notifies editing subscribers exactly once per real change", () => {
+  const release = registerCarouselEditMode();
+  let notified = 0;
+  subscribeCarouselEditing(() => {
+    notified += 1;
+  });
+  setCarouselEditPreviewing(true);
+  setCarouselEditPreviewing(true);
+  assert.equal(notified, 1, "a repeat preview flip must not wake subscribers");
+  setCarouselEditPreviewing(false);
+  assert.equal(notified, 2);
+  release();
+});
+
+test("preview engaged before any surface registers keeps editing off", () => {
+  setCarouselEditPreviewing(true);
+  const release = registerCarouselEditMode();
+  assert.equal(getCarouselEditingSnapshot(), false);
+  release();
+});
+
+test("nested surfaces still hold the pause until the last one releases", () => {
+  const releaseA = registerCarouselEditMode();
+  const releaseB = registerCarouselEditMode();
+  releaseA();
+  assert.equal(getCarouselEditingSnapshot(), true);
+  releaseB();
+  assert.equal(getCarouselEditingSnapshot(), false);
+});
+
+test("a double release cannot drive the refcount negative", () => {
+  const release = registerCarouselEditMode();
+  release();
+  release();
+  const second = registerCarouselEditMode();
+  assert.equal(
+    getCarouselEditingSnapshot(),
+    true,
+    "a stranded negative count would leave the next session unpaused",
+  );
+  second();
 });

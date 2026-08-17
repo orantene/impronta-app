@@ -448,10 +448,31 @@ const tabPanelPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
+const carouselSlidesPerViewSchema = z
+  .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+  .optional();
+
+/**
+ * Per-breakpoint carousel overrides. Declared here (not just in `types.ts`) so
+ * `validateBuilderNodeTree`'s Zod parse does NOT strip the bucket on snapshot
+ * read — the exact trap `containerResponsiveSchema` documents, where `display`
+ * / `itemsPerView` silently vanished from the published render while `columns`
+ * survived.
+ */
+const carouselResponsiveSchema = z.object({
+  slidesPerView: carouselSlidesPerViewSchema,
+});
+
 const carouselPropsSchema = z.object({
   variant: z.enum(["rail", "hero"]).optional(),
-  slidesPerView: z
-    .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)])
+  slidesPerView: carouselSlidesPerViewSchema,
+  // Optional + every key inside optional: an absent bucket renders exactly as
+  // it did before per-device slides existed. See carousel-slides-per-view.ts.
+  responsive: z
+    .object({
+      tablet: carouselResponsiveSchema.optional(),
+      mobile: carouselResponsiveSchema.optional(),
+    })
     .optional(),
   autoplayMs: z.number().int().min(1000).max(30000).optional(),
   loop: z.boolean().optional(),

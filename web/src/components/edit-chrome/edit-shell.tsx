@@ -68,6 +68,7 @@ import {
   LAUNCH_CHECKLIST_STEPS,
 } from "./launch-checklist";
 import { SelectionLayer } from "./selection-layer";
+import { CarouselEditModeBinding } from "./carousel-edit-mode-binding";
 import { InEditorCanvasRegion } from "./in-editor-canvas-region";
 import type { InEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { InspectorDock } from "./inspector-dock";
@@ -1195,6 +1196,10 @@ function EditShellInner({
          *  for a real visitor. SelectionLayer owns the hover ring,
          *  drag toolbar chip, and click-selection capture. */}
         {!previewing ? <SelectionLayer /> : null}
+        {/* Stops carousel/slideshow autoplay while editing and follows the
+         *  selected slide. Mounted here, not only on the (default-off,
+         *  flag-gated) client canvas — see carousel-edit-mode-binding.tsx. */}
+        <CarouselEditModeBinding previewing={previewing} />
         {/* Slim left command dock — launches the floating panels (Add, Pages,
             Structure, Design, Assets, Help). Search now lives only in the ⌘K
             command palette; Page Settings has a single home in the topbar
