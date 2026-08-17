@@ -65,12 +65,7 @@ import { pxLength, pctLength } from "./style-panel/length-utils";
 import { BUILDER_NODE_THEME_COLOR_TOKENS, colorSwatchDisplay } from "./style-panel/section-shared";
 import { QuickStyleCards } from "./style-panel/QuickStyleCards";
 import { StyleFooterRow } from "./style-panel/StyleFooterRow";
-import { DimensionsSection } from "./style-panel/DimensionsSection";
-import { TypographySection } from "./style-panel/TypographySection";
-import { AppearanceSection } from "./style-panel/AppearanceSection";
-import { SpacingSection } from "./style-panel/SpacingSection";
-import { PositionLayoutSection } from "./style-panel/PositionLayoutSection";
-import { EffectsSection } from "./style-panel/EffectsSection";
+import { StyleGroupStack } from "./style-panel/groups/StyleGroupStack";
 
 const INHERIT_HINT = HINT;
 
@@ -5006,63 +5001,18 @@ export function StylePanel({
               scopeLabel={selectedViewport}
             />
 
-            {/* ── Typography group (Wave 1 / Job #11 progressive disclosure) ── */}
-            <TypographySection
-              nodeFontPickerOpen={nodeFontPickerOpen}
-              patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
-              selectedStandaloneFullStyle={selectedStandaloneFullStyle}
-              selectedStandaloneStyleNode={selectedStandaloneStyleNode}
-              selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
-              selectedViewport={selectedViewport}
-              setNodeFontPickerOpen={setNodeFontPickerOpen}
-              setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
-              typographyHasResponsiveOverride={typographyHasResponsiveOverride}
-            />
-            {/* ── end Typography group ── */}
-
-            {/* ── Dimensions group (Wave 1 / Job #11 progressive disclosure) ── */}
-            <DimensionsSection
-              selectedStandaloneStyleNode={selectedStandaloneStyleNode}
-              selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
-              setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
-              patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
-            />
-            {/* ── end Dimensions group ── */}
-
-            {/* ── Appearance group (Wave 1 / Job #11 progressive disclosure) ── */}
-            <AppearanceSection
+            {/* ── D4: the group stack ─────────────────────────────────────
+                Was SIX hardcoded section mounts, every one of them rendered
+                for every selection — including "Typography" holding a lone
+                Align control on a container and an "Appearance" a divider
+                cannot use. The stack now asks `styleGroupsForKind` which of
+                Text / Layout & spacing / Appearance this kind gets, renders
+                them in D4's order with the first one open, and ends at ONE
+                Advanced that absorbs position, motion, states, visibility and
+                custom CSS. See style-panel/group-recipes.ts. ── */}
+            <StyleGroupStack
               nodeColorField={nodeColorField}
-              patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
-              selectedStandaloneStyleNode={selectedStandaloneStyleNode}
-              selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
-              setNodeColorField={setNodeColorField}
-              setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
-            />
-            {/* ── end Appearance group ── */}
-
-            {/* ── Spacing group (Wave 1 / Job #11 progressive disclosure) ── */}
-            <SpacingSection
-              patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
-              selectedStandaloneFullStyle={selectedStandaloneFullStyle}
-              selectedStandaloneStyleNode={selectedStandaloneStyleNode}
-              selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
-              selectedViewport={selectedViewport}
-              setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
-              spacingHasResponsiveOverride={spacingHasResponsiveOverride}
-            />
-            {/* ── end Spacing group ── */}
-
-            {/* ── Position & Layout group — collapsed by default (Wave 1 / Job #11) ── */}
-            <PositionLayoutSection
-              patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
-              selectedStandaloneStyleNode={selectedStandaloneStyleNode}
-              selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
-              selectedViewport={selectedViewport}
-            />
-            {/* ── end Position & Layout group ── */}
-
-            {/* ── Effects & Motion group — collapsed by default (Wave 1 / Job #11) ── */}
-            <EffectsSection
+              nodeFontPickerOpen={nodeFontPickerOpen}
               patchSelectedBaseStyle={patchSelectedBaseStyle}
               patchSelectedHoverStyle={patchSelectedHoverStyle}
               patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
@@ -5071,10 +5021,15 @@ export function StylePanel({
               selectedStandaloneFullStyle={selectedStandaloneFullStyle}
               selectedStandaloneStyleNode={selectedStandaloneStyleNode}
               selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+              selectedViewport={selectedViewport}
+              setNodeColorField={setNodeColorField}
+              setNodeFontPickerOpen={setNodeFontPickerOpen}
               setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
               setSelectedInteractionState={setSelectedInteractionState}
+              spacingHasResponsiveOverride={spacingHasResponsiveOverride}
+              typographyHasResponsiveOverride={typographyHasResponsiveOverride}
             />
-            {/* ── end Effects & Motion group ── */}
+            {/* ── end D4 group stack ── */}
 
             {selectedStandaloneStyleNode.kind === "image" ? (
               <>
@@ -5206,116 +5161,13 @@ export function StylePanel({
               </div>
             ) : null}
 
-            <div
-              className="flex flex-col gap-1.5 border-t pt-3"
-              data-builder-node-style-control="visibility"
-              style={{ borderColor: CHROME.line }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className={FIELD_LABEL}>Visibility</span>
-                {selectedStandaloneViewportStyle?.visibility === "hidden" ? (
-                  <span className={INHERIT_HINT}>
-                    {selectedViewport === "desktop"
-                      ? "Hidden everywhere"
-                      : `Hidden on ${selectedViewport}`}
-                  </span>
-                ) : null}
-              </div>
-              <Segmented
-                fullWidth
-                compact
-                value={selectedStandaloneViewportStyle?.visibility ?? ""}
-                onChange={(next) =>
-                  patchSelectedStandaloneStyle({
-                    visibility: next === "hidden" ? "hidden" : undefined,
-                  })
-                }
-                options={BUILDER_NODE_VISIBILITY_OPTIONS}
-              />
-              <span className={INHERIT_HINT}>
-                {selectedViewport === "desktop"
-                  ? "Hides on every screen. Switch to tablet/mobile to hide only there."
-                  : `Hides only on ${selectedViewport}; desktop stays shown.`}
-              </span>
-            </div>
-
-            {/*
-              ── Custom CSS (Advanced, node-level) ───────────────────────────
-              Per-node escape hatch mirroring the SECTION custom-CSS field. The
-              CSS is scope-confined to this node's `[data-builder-node-id]` by
-              the hardened `nodeScopedCss` scoper in the renderer — a stray `}`
-              can't break out to page-global rules. Base-style only (not a
-              per-viewport layer) — an author writing responsive rules embeds
-              their own @media inside the block. Folded into a collapsed
-              disclosure since most operators never hand-write CSS; a row marker
-              (•) flags it as in-use even before opening.
-            */}
-            <details
-              open={Boolean(selectedStandaloneFullStyle?.customCss)}
-              className="flex flex-col gap-2 border-t pt-3"
-              data-builder-node-style-control="customCss"
-              style={{ borderColor: CHROME.line }}
-            >
-              <summary
-                className="cursor-pointer flex items-center justify-between select-none"
-                style={{ outline: "none", listStyle: "none" }}
-              >
-                <span className={FIELD_LABEL}>
-                  Custom CSS
-                  {selectedStandaloneFullStyle?.customCss ? (
-                    <span
-                      aria-hidden
-                      style={{
-                        marginLeft: 8,
-                        width: 6,
-                        height: 6,
-                        background: CHROME.blue,
-                        borderRadius: 999,
-                        display: "inline-block",
-                        verticalAlign: "middle",
-                      }}
-                    />
-                  ) : null}
-                </span>
-                <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-              </summary>
-              <div className="flex flex-col gap-2 mt-2">
-                {selectedStandaloneFullStyle?.customCss ? (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => patchSelectedBaseStyle({ customCss: undefined })}
-                      className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: CHROME.muted,
-                        padding: 0,
-                      }}
-                    >
-                      Clear
-                    </button>
-                  </div>
-                ) : null}
-                <CssEditorWithHints
-                  value={selectedStandaloneFullStyle?.customCss ?? ""}
-                  onValueChange={(next) =>
-                    patchSelectedBaseStyle({
-                      customCss: next || undefined,
-                    })
-                  }
-                  placeholder={
-                    "/* Scoped to this block. Modern CSS supported. */\n.headline {\n  letter-spacing: -0.02em;\n}"
-                  }
-                  rows={6}
-                  ariaLabel="Custom CSS for this block"
-                />
-                <span className={INHERIT_HINT}>
-                  Scoped to this block and its contents. Cannot affect the rest
-                  of the page.
-                </span>
-              </div>
-            </details>
+            {/* D4 — the loose "Visibility" block and the loose "Custom CSS"
+                <details> that used to sit here, BELOW every accordion and
+                therefore outside every group, moved into the one Advanced
+                group (style-panel/groups/AdvancedGroup.tsx). Being loose was
+                not only a hierarchy problem: nothing loose registers with the
+                D5 "Find a setting" filter, so searching "hide" or "css" could
+                never reach them. */}
 
             {/* Mockup annotation F — ONE footer row for the panel's
                 whole-object actions. Replaces the "Reuse style" card (Copy /

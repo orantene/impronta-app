@@ -22,11 +22,19 @@ export type EffectsSurfaceSectionProps = Pick<
   "patchSelectedStandaloneStyle" | "selectedStandaloneViewportStyle" | "setOrToggleStandaloneStyle"
 >;
 
-export function EffectsSurfaceSection({
+/**
+ * D4 — the SCROLL-MOTION half of this file (parallax, reveal-on-view).
+ *
+ * This file used to render two unrelated blocks back to back: motion, and
+ * "Surface & depth" (shadow, opacity, background image). D4 sends them to
+ * different groups — motion is Advanced, surface is Appearance — so the file
+ * now exports the two halves separately instead of one Fragment holding both.
+ * No field moved between the halves.
+ */
+export function InteractionsBody({
   patchSelectedStandaloneStyle,
   selectedStandaloneViewportStyle,
-  setOrToggleStandaloneStyle,
-}: EffectsSurfaceSectionProps) {
+}: Omit<EffectsSurfaceSectionProps, "setOrToggleStandaloneStyle">) {
   return (
     <>
             <div
@@ -219,18 +227,38 @@ export function EffectsSurfaceSection({
               </div>
               </details>
             </div>
+    </>
+  );
+}
 
+/**
+ * D4 — the SURFACE half: shadow, text shadow, background image/size/position/
+ * repeat/clip, extra background layers, opacity.
+ *
+ * Two things changed here and nothing else:
+ *
+ *  1. It moved OUT of "Effects & motion" and INTO "Appearance". Shadow living
+ *     in a collapsed "Effects" accordion is the audit's headline search
+ *     failure — an operator looking for a drop shadow looks under Appearance,
+ *     which is where the fill and the corners are.
+ *  2. The "Surface & depth" <details> is GONE. It was the third of the three
+ *     label-disguised disclosures #1199 flagged: a grey summary drawn exactly
+ *     like the static field labels around it. Its children now render plainly
+ *     as the tail of the Appearance group.
+ */
+export function SurfaceDepthBody({
+  patchSelectedStandaloneStyle,
+  selectedStandaloneViewportStyle,
+  setOrToggleStandaloneStyle,
+}: EffectsSurfaceSectionProps) {
+  return (
+    <>
             <div
               className="border-t pt-3"
               data-builder-node-style-control="surface"
               style={{ borderColor: CHROME.line }}
             >
-              <details>
-                <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
-                  <span className={FIELD_LABEL}>Surface &amp; depth</span>
-                  <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-                </summary>
-              <div className="flex flex-col gap-2 mt-2">
+              <div className="flex flex-col gap-2">
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="boxShadow"
@@ -538,9 +566,7 @@ export function EffectsSurfaceSection({
                 </div>
               </div>
               </div>
-              </details>
             </div>
-
     </>
   );
 }

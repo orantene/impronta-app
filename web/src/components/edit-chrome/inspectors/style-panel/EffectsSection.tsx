@@ -8,12 +8,11 @@
 
 import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
-import { InspectorGroup } from "../kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
 import { BUILDER_NODE_ANIMATION_EASING_OPTIONS, BUILDER_NODE_ANIMATION_PRESET_OPTIONS, BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS, BUILDER_NODE_CURSOR_OPTIONS, BUILDER_NODE_POINTER_EVENTS_OPTIONS, BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS, BUILDER_NODE_USER_SELECT_OPTIONS } from "./style-options";
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
 import type { StandaloneSectionCtx } from "./section-types";
-import { EffectsSurfaceSection } from "./EffectsSurfaceSection";
+import { InteractionsBody } from "./EffectsSurfaceSection";
 import { EffectsStatesSection } from "./EffectsStatesSection";
 
 export type EffectsSectionProps = Pick<
@@ -21,7 +20,20 @@ export type EffectsSectionProps = Pick<
   "patchSelectedBaseStyle" | "patchSelectedHoverStyle" | "patchSelectedStandaloneStyle" | "patchSelectedStateStyle" | "selectedInteractionState" | "selectedStandaloneFullStyle" | "selectedStandaloneStyleNode" | "selectedStandaloneViewportStyle" | "setOrToggleStandaloneStyle" | "setSelectedInteractionState"
 >;
 
-export function EffectsSection({
+/**
+ * D4 — the motion part of the ONE "Advanced" group's body: transitions,
+ * entrance animation, scroll parallax/reveal, and the hover/focus/active
+ * state editor.
+ *
+ * Two changes, both structural:
+ *  - The "Effects & motion" accordion wrapper is gone; `groups/AdvancedGroup`
+ *    owns the single Advanced accordion these fields live in now.
+ *  - `SurfaceDepthBody` (shadow, opacity, background image) is NO LONGER
+ *    mounted here — it moved to the Appearance group, where an operator
+ *    looking for a drop shadow actually looks. `InteractionsBody` (parallax /
+ *    reveal) stays, because scroll motion is genuinely advanced.
+ */
+export function EffectsMotionBody({
   patchSelectedBaseStyle,
   patchSelectedHoverStyle,
   patchSelectedStandaloneStyle,
@@ -34,39 +46,7 @@ export function EffectsSection({
   setSelectedInteractionState,
 }: EffectsSectionProps) {
   return (
-            <InspectorGroup
-              title="Effects & motion"
-              collapsible
-              advanced
-              storageKey={`style-panel:effects:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={false}
-              // D5 — field-level search keywords (see InspectorGroup). The
-              // audit's headline search failure: typing "shadow" hid the group
-              // that contains the shadow control.
-              searchTerms={[
-                "shadow",
-                "opacity",
-                "blur",
-                "backdrop",
-                "blend",
-                "filter",
-                "hover",
-                "focus",
-                "active",
-                "states",
-                "transition",
-                "animation",
-                "entrance",
-                "scroll",
-                "transform",
-                "scale",
-                "rotate",
-                "clip",
-                "mask",
-                "outline",
-                "cursor",
-              ]}
-            >
+            <>
             <div
               className="border-t pt-3"
               data-builder-node-style-control="effects-interaction"
@@ -683,10 +663,9 @@ export function EffectsSection({
             {/* ── Interactions (Wave 6B / #27) — scroll parallax. Hover micro-
                 interactions live in the States block below; this surfaces the
                 ongoing scroll-driven motion alongside the entrance animation. ── */}
-            <EffectsSurfaceSection
+            <InteractionsBody
               patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
               selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
-              setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
             />
             <EffectsStatesSection
               patchSelectedBaseStyle={patchSelectedBaseStyle}
@@ -698,6 +677,6 @@ export function EffectsSection({
               selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
               setSelectedInteractionState={setSelectedInteractionState}
             />
-            </InspectorGroup>
+            </>
   );
 }

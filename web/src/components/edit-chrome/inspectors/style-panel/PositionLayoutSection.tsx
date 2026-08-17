@@ -9,7 +9,6 @@
 import { NumberUnit, formatLength } from "../../kit/number-unit";
 import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
-import { InspectorGroup } from "../kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
 import { parseCssLength } from "./length-utils";
 import { BUILDER_NODE_ALIGN_ITEMS_OPTIONS, BUILDER_NODE_ALIGN_SELF_OPTIONS, BUILDER_NODE_FLEX_WRAP_OPTIONS, BUILDER_NODE_GRID_AUTO_FLOW_OPTIONS, BUILDER_NODE_JUSTIFY_CONTENT_OPTIONS, BUILDER_NODE_OVERFLOW_OPTIONS, BUILDER_NODE_POSITION_OPTIONS, BUILDER_NODE_STICKY_ANCHOR_OPTIONS } from "./style-options";
@@ -21,23 +20,21 @@ export type PositionLayoutSectionProps = Pick<
   "patchSelectedStandaloneStyle" | "selectedStandaloneStyleNode" | "selectedStandaloneViewportStyle" | "selectedViewport"
 >;
 
-export function PositionLayoutSection({
+/**
+ * D4 — the position/layout part of the ONE "Advanced" group's body. Position,
+ * inset, z-index, flex/grid and container query are the spec-named fields the
+ * mockup's annotation E puts behind Advanced; the accordion wrapper moved to
+ * `groups/AdvancedGroup.tsx`, which mounts this alongside motion, states,
+ * visibility and custom CSS.
+ */
+export function PositionLayoutBody({
   patchSelectedStandaloneStyle,
   selectedStandaloneStyleNode,
   selectedStandaloneViewportStyle,
   selectedViewport,
 }: PositionLayoutSectionProps) {
   return (
-            <InspectorGroup
-              title="Position & layout"
-              collapsible
-              advanced
-              storageKey={`style-panel:position:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={false}
-              // D5 — field-level search keywords (see InspectorGroup).
-              // Compact one-liner: this file sits at the max-lines cap.
-              searchTerms={["position", "sticky", "z-index", "stacking", "layout", "flex", "align", "justify", "order", "overflow"]}
-            >
+            <>
             <div
               className="border-t pt-3"
               data-builder-node-style-control="position"
@@ -790,6 +787,6 @@ export function PositionLayoutSection({
               </div>
               </details>
             </div>
-            </InspectorGroup>
+            </>
   );
 }

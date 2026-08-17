@@ -399,4 +399,19 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Franja a todo lo ancho con una foto detrás de tu contenido.",
   "Full-bleed band with a soft brand-coloured gradient.":
     "Franja a todo lo ancho con un degradado suave en los colores de tu marca.",
+
+  // ── Style panel group titles — Inspector Reset D4 (2026-08-17) ───────────
+  // The six always-on accordions collapse to at most four groups, chosen per
+  // block kind by `style-panel/group-recipes.ts`. Only ONE title is new here:
+  // "Text", "Appearance" and "Advanced" already resolve through the shared
+  // flat map (editor-i18n-es.ts / -inspectors.ts). The retired titles
+  // ("Typography", "Dimensions", "Spacing", "Position & layout", "Effects &
+  // motion") keep their existing entries: the SECTION panel and the
+  // multi-select panel still render groups by those names, so deleting them
+  // would drop those panels back to English.
+  //
+  // `group-recipes.test.ts` asserts every STYLE_GROUP_TITLES value resolves
+  // here. The regex parity guard cannot: these titles reach InspectorGroup as
+  // `title={STYLE_GROUP_TITLES.layout}`, an expression, not a literal.
+  "Layout & spacing": "Diseño y espaciado",
 };

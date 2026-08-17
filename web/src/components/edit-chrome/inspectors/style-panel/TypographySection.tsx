@@ -10,7 +10,7 @@ import { GoogleFontPicker } from "../../GoogleFontPicker";
 import { NumberUnit, formatLength } from "../../kit/number-unit";
 import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
-import { InspectorGroup, SegmentedField } from "../kit";
+import { SegmentedField } from "../kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, InspectorOverrideBadge } from "../kit/inspector-ui";
 import { getStyleOverrideDevice } from "../responsive-field-state";
 import { parseCssLength } from "./length-utils";
@@ -24,7 +24,54 @@ export type TypographySectionProps = Pick<
   "nodeFontPickerOpen" | "patchSelectedStandaloneStyle" | "selectedStandaloneFullStyle" | "selectedStandaloneStyleNode" | "selectedStandaloneViewportStyle" | "selectedViewport" | "setNodeFontPickerOpen" | "setOrToggleStandaloneStyle" | "typographyHasResponsiveOverride"
 >;
 
-export function TypographySection({
+export type StyleAlignFieldProps = Pick<
+  StandaloneSectionCtx,
+  "patchSelectedStandaloneStyle" | "selectedStandaloneFullStyle" | "selectedStandaloneViewportStyle" | "selectedViewport" | "setOrToggleStandaloneStyle"
+>;
+
+/**
+ * D4 — Align, extracted so it can be rendered by whichever group owns it.
+ *
+ * A container's only typography-shaped control was Align, which is why the
+ * mockup calls out "no 'Typography' holding a single Align control". Killing
+ * the group must not kill the control: kinds without a Text group get this
+ * field inside Layout & spacing instead (see `layoutGroupOwnsAlign`). Same
+ * component, same `data-builder-node-style-control="align"` hook, same writes.
+ */
+export function StyleAlignField({
+  patchSelectedStandaloneStyle,
+  selectedStandaloneFullStyle,
+  selectedStandaloneViewportStyle,
+  selectedViewport,
+  setOrToggleStandaloneStyle,
+}: StyleAlignFieldProps) {
+  return (
+    <SegmentedField
+      dataControl="align"
+      label="Align"
+      accessory={getStyleOverrideDevice(selectedStandaloneFullStyle, "align") ? (
+        <InspectorOverrideBadge
+          device={getStyleOverrideDevice(selectedStandaloneFullStyle, "align")!}
+          onReset={
+            selectedViewport !== "desktop"
+              ? () => patchSelectedStandaloneStyle({ align: undefined })
+              : undefined
+          }
+        />
+      ) : null}
+      value={selectedStandaloneViewportStyle?.align ?? ""}
+      onChange={(next) => setOrToggleStandaloneStyle("align", next)}
+      options={ALIGN_OPTIONS}
+    />
+  );
+}
+
+/**
+ * D4 — the Text group's BODY. The `InspectorGroup` wrapper this component used
+ * to own now lives in `groups/TextGroup.tsx`, so the recipe decides whether
+ * this kind gets a Text accordion at all. Field-for-field unchanged.
+ */
+export function TypographyBody({
   nodeFontPickerOpen,
   patchSelectedStandaloneStyle,
   selectedStandaloneFullStyle,
@@ -36,51 +83,18 @@ export function TypographySection({
   typographyHasResponsiveOverride,
 }: TypographySectionProps) {
   return (
-            <InspectorGroup
-              title="Typography"
-              collapsible
-              storageKey={`style-panel:typography:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={["heading", "paragraph", "button", "rich_text"].includes(selectedStandaloneStyleNode.kind)}
-              // D5 — keep this group findable by the fields it CONTAINS, not
-              // just its title. Includes synonyms an operator would type.
-              searchTerms={[
-                "font",
-                "text size",
-                "weight",
-                "bold",
-                "line height",
-                "letter spacing",
-                "align",
-                "transform",
-                "uppercase",
-                "text wrap",
-                "whitespace",
-                "truncate",
-                "decoration",
-                "tone",
-              ]}
-            >
+            <>
             {typographyHasResponsiveOverride ? (
               <div className="flex justify-end">
                 <StyleGroupOverrideDot label="Typography has tablet/mobile overrides" />
               </div>
             ) : null}
-            <SegmentedField
-              dataControl="align"
-              label="Align"
-              accessory={getStyleOverrideDevice(selectedStandaloneFullStyle, "align") ? (
-                <InspectorOverrideBadge
-                  device={getStyleOverrideDevice(selectedStandaloneFullStyle, "align")!}
-                  onReset={
-                    selectedViewport !== "desktop"
-                      ? () => patchSelectedStandaloneStyle({ align: undefined })
-                      : undefined
-                  }
-                />
-              ) : null}
-              value={selectedStandaloneViewportStyle?.align ?? ""}
-              onChange={(next) => setOrToggleStandaloneStyle("align", next)}
-              options={ALIGN_OPTIONS}
+            <StyleAlignField
+              patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
+              selectedStandaloneFullStyle={selectedStandaloneFullStyle}
+              selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+              selectedViewport={selectedViewport}
+              setOrToggleStandaloneStyle={setOrToggleStandaloneStyle}
             />
 
             {["heading", "paragraph", "button"].includes(
@@ -517,6 +531,6 @@ export function TypographySection({
                 </details>
               </div>
             ) : null}
-            </InspectorGroup>
+            </>
   );
 }

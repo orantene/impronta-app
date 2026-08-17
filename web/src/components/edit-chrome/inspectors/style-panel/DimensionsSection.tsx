@@ -8,46 +8,30 @@
  */
 
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
-import { InspectorGroup, NumberField } from "../kit";
+import { NumberField } from "../kit";
 import { MAX_WIDTH_PRESETS, PresetNumberRow } from "../field-kit";
 import { formatLength } from "../../kit/number-unit";
 import { parseCssLength } from "./length-utils";
 import { twoSlotFieldValue, twoSlotPatch } from "./field-value-bridge";
-import type { StandaloneStyleNode } from "./section-types";
 
 export interface DimensionsSectionProps {
-  selectedStandaloneStyleNode: StandaloneStyleNode;
   selectedStandaloneViewportStyle: BuilderNodeStyleValue | undefined;
-  setOrToggleStandaloneStyle: (
-    key: keyof BuilderNodeStyleValue,
-    next: string,
-  ) => void;
   patchSelectedStandaloneStyle: (patch: Partial<BuilderNodeStyleValue>) => void;
 }
 
-export function DimensionsSection({
-  selectedStandaloneStyleNode,
+/**
+ * D4 — the size half of the "Layout & spacing" group's BODY. This component
+ * used to own a "Dimensions" accordion of its own; the mockup folds size and
+ * spacing into ONE group, so the wrapper moved to
+ * `groups/LayoutSpacingGroup.tsx` and this is now a fragment. Field-for-field
+ * unchanged.
+ */
+export function DimensionsBody({
   selectedStandaloneViewportStyle,
-  setOrToggleStandaloneStyle,
   patchSelectedStandaloneStyle,
 }: DimensionsSectionProps) {
   return (
-            <InspectorGroup
-              title="Dimensions"
-              collapsible
-              storageKey={`style-panel:dimensions:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={false}
-              // D5 — field-level search keywords (see InspectorGroup).
-              searchTerms={[
-                "width",
-                "max width",
-                "min width",
-                "height",
-                "max height",
-                "min height",
-                "exact size",
-              ]}
-            >
+            <>
             {/* D9 + the mockup's annotation D: "Exact size" is no longer a grey
                 label you must know to click. Max width's chips carry their real
                 px (Read = 680) and the exact input sits beside them; the
@@ -147,6 +131,6 @@ export function DimensionsSection({
                 />
               </div>
             </div>
-            </InspectorGroup>
+            </>
   );
 }
