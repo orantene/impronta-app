@@ -11,6 +11,7 @@ import { ES_BUILDER_REGISTRY_TEXT } from "./editor-i18n-es-registry";
 import { ES_CANVAS_CHROME_TEXT } from "./editor-i18n-es-canvas";
 import { ES_INSPECTOR_TEXT } from "./editor-i18n-es-inspectors";
 import { ES_INSPECTOR_TEXT_2 } from "./editor-i18n-es-inspectors-2";
+import { ES_MEDIA_TEXT } from "./editor-i18n-es-media";
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
 import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
@@ -33,34 +34,8 @@ export const ES_TEXT: Record<string, string> = {
   // library, "My blocks" / "Component library"). Disjoint from every other
   // catalog by construction, enforced by the cross-file duplicate guard.
   ...ES_BUILDER_REGISTRY_TEXT,
-  // ── Media picker two-key locks (phase 3, 2026-08-14) ──────────────────
-  "dashboard.mediaPickerLock.badge": "Bloqueada",
-  "dashboard.mediaPickerLock.aWorkspace": "un espacio de trabajo",
-  "dashboard.mediaPickerLock.ownedByWorkspace":
-    "{workspace} es dueño de esta foto, así que solo puede aparecer en su sitio. Pídeles que la liberen y podrás usarla aquí.",
-  "dashboard.mediaPickerLock.masterOff":
-    "{workspace} es dueño de esta foto y la mantiene solo en su sitio. Pídeles que la liberen y podrás usarla aquí.",
-  // B9 (2026-08-15) — the lock note told talents to "ask them to release it"
-  // and gave them nowhere to do it. This is that door.
-  "dashboard.mediaPickerLock.requestRelease": "Pedir liberación",
-  // ── MediaField (media rebuild seam 4, 2026-08-16) ─────────────────────
-  // `<MediaField>` reads these through `useT`, so the canonical copy lives in
-  // `messages/{en,es,fr}.json` alongside the other `dashboard.*` keys. They are
-  // mirrored here for the same reason the mediaPickerLock keys above are: the
-  // ES parity guard scans every `t("…")` in edit-chrome and resolves against
-  // ES_TEXT / MESSAGES.es, so a key that exists ONLY in the JSON catalog reads
-  // as an untranslated string to the guard. Keep both copies in step.
-  "dashboard.mediaField.pickerTitle": "Biblioteca de medios",
-  "dashboard.mediaField.add": "Agregar",
-  "dashboard.mediaField.replace": "Reemplazar",
-  "dashboard.mediaField.change": "Cambiar",
-  "dashboard.mediaField.clear": "Quitar",
-  "dashboard.mediaField.pasteUrl": "Pegar URL",
-  "dashboard.mediaField.hideUrl": "Ocultar URL",
-  "dashboard.mediaField.dropToUpload": "Suelta para subir",
-  "dashboard.mediaField.uploading": "Subiendo",
-  "dashboard.mediaField.uploadFailed": "No se pudo subir",
-  "dashboard.mediaField.loadingDimensions": "Cargando dimensiones...",
+  // ── Media surfaces (picker locks, MediaField, Assets library) ─────────
+  ...ES_MEDIA_TEXT,
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',

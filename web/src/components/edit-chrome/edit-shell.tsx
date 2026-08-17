@@ -136,10 +136,7 @@ const ThemeDrawer = dynamic(
   { ssr: false, loading: () => null },
 );
 const AssetsDrawer = dynamic(
-  () =>
-    import("./assets-library-drawer").then((m) => ({
-      default: m.AssetsLibraryDrawer,
-    })),
+  () => import("./assets-library-drawer").then((m) => ({ default: m.AssetsLibraryDrawer })),
   { ssr: false, loading: () => null },
 );
 const CollectionsDrawer = dynamic(
