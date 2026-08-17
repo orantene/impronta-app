@@ -17,6 +17,7 @@ import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { NewRosterTalentForm } from "./NewRosterTalentForm";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
+import { selectableTalentTypeIds } from "@/lib/taxonomy/tenant-talent-type-options";
 
 export const dynamic = "force-dynamic";
 
@@ -32,26 +33,48 @@ const C = {
 const F  = '"Inter", system-ui, sans-serif';
 const FD = 'var(--font-geist-sans), "Inter", -apple-system, system-ui, sans-serif';
 
-async function loadTalentTypes() {
+async function loadTalentTypes(tenantId: string) {
   const admin = createServiceRoleClient();
   if (!admin) return [];
 
-  const { data, error } = await admin
-    .from("taxonomy_terms")
-    .select("id, name_i18n")
-    .eq("kind", "talent_type")
-    .is("archived_at", null)
-    .order("sort_order", { ascending: true });
+  // The tree (all levels — ancestors are needed for the enablement walk) and
+  // the tenant overlay. Offering a type the save-path validator
+  // (evaluateTenantTalentTypeAvailability) would reject is the bug this
+  // guards against: the admin picks it, saves, and hits an error about a
+  // setting they cannot see.
+  const [{ data: typeRows, error }, { data: treeRows, error: treeError }, { data: settingRows, error: settingsError }] =
+    await Promise.all([
+      admin
+        .from("taxonomy_terms")
+        .select("id, name_i18n")
+        .eq("kind", "talent_type")
+        .is("archived_at", null)
+        .order("sort_order", { ascending: true }),
+      admin
+        .from("taxonomy_terms")
+        .select("id, parent_id, term_type, is_active")
+        .is("archived_at", null),
+      admin
+        .from("agency_taxonomy_settings")
+        .select("taxonomy_term_id, is_enabled, allow_as_primary")
+        .eq("tenant_id", tenantId),
+    ]);
 
-  if (error) {
-    logServerError("roster/new.loadTalentTypes", error);
+  if (error || treeError || settingsError) {
+    logServerError("roster/new.loadTalentTypes", error ?? treeError ?? settingsError);
     return [];
   }
 
-  return (data ?? []).map((t) => ({
+  const types = (typeRows ?? []).map((t) => ({
     id: t.id as string,
     name_en: ((t as { name_i18n?: Record<string, string | null> | null }).name_i18n?.en ?? "") as string,
   }));
+  const selectable = selectableTalentTypeIds({
+    terms: (treeRows ?? []) as { id: string; parent_id: string | null; term_type: string | null; is_active: boolean | null }[],
+    settings: (settingRows ?? []) as { taxonomy_term_id: string; is_enabled: boolean | null; allow_as_primary: boolean | null }[],
+    talentTypeIds: types.map((t) => t.id),
+  });
+  return types.filter((t) => selectable.has(t.id));
 }
 
 export default async function WorkspaceRosterNewPage({
@@ -71,7 +94,7 @@ export default async function WorkspaceRosterNewPage({
   const t = createTranslator(locale);
 
   const [talentTypes, seatCheck] = await Promise.all([
-    loadTalentTypes(),
+    loadTalentTypes(scope.tenantId),
     (async () => {
       const admin = createServiceRoleClient();
       if (!admin) return null;

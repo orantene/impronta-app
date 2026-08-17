@@ -17,7 +17,7 @@ import { pickLocale } from "@/lib/i18n/pick-locale";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import {
-  buildPublicLocaleAlternates,
+  buildTenantLocaleAlternates,
   buildMarketingLocaleAlternates,
 } from "@/lib/seo/locale-alternates";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
@@ -82,12 +82,12 @@ export async function generateMetadata(): Promise<Metadata> {
       const pageMeta = await cmsPageMetadata({
         params: Promise.resolve({ slug: [homeSlug] }),
       });
-      const rootAlt = buildPublicLocaleAlternates(locale, "/");
-      return {
-        ...pageMeta,
-        metadataBase: rootAlt.metadataBase,
-        alternates: rootAlt.alternates,
-      };
+      const rootAlt = await buildTenantLocaleAlternates(locale, "/");
+      // `pageMeta` canonicalizes to `/p/<slug>`; this page is served at `/`, so
+      // its alternates are dropped and re-rooted. When the host is unresolvable
+      // `rootAlt` is `{}` and they stay dropped — no canonical at all beats the
+      // wrong one, and the stale `/p/<slug>` set would be exactly that.
+      return { ...pageMeta, alternates: undefined, ...rootAlt };
     }
   }
 
@@ -118,7 +118,7 @@ export async function generateMetadata(): Promise<Metadata> {
       identity?.seo_default_description?.trim() || t("public.meta.homeDescription");
     const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
     const description = homepage?.metaDescription || fallbackDescription;
-    const localeAlternates = buildPublicLocaleAlternates(locale, "/");
+    const localeAlternates = await buildTenantLocaleAlternates(locale, "/");
 
     // OG image: a freeform homepage published by direct snapshot write (no SEO
     // panel) has `ogImageUrl: null`, so without a fallback NO image is emitted

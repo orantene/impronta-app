@@ -11,7 +11,7 @@ import { slugPathFromParams } from "@/lib/cms/paths";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import type { Locale } from "@/i18n/config";
-import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope, getPublicPathPrefix } from "@/lib/saas/scope";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
@@ -105,14 +105,18 @@ export async function generateMetadata({
 
   const metaCols =
     "title,meta_title,meta_description,og_title,og_description,og_image_url,noindex,canonical_url,locale,slug";
+  // Read EVERY published locale of this slug, not just the requested one. The
+  // extra rows cost nothing (same slug, same RPC) and they are the only honest
+  // source for the hreflang set: a page translated to EN only must not advertise
+  // an `/es/p/<slug>` alternate, because that URL `notFound()`s.
   const { data } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select(metaCols)
-    .eq("locale", locale)
-    .eq("slug", slugPath)
-    .maybeSingle();
+    .eq("slug", slugPath);
 
-  let page = data as CmsPagePublic | null;
+  const publishedRows = (data ?? []) as unknown as CmsPagePublic[];
+  const publishedLocales = publishedRows.map((row) => row.locale);
+  let page = publishedRows.find((row) => row.locale === locale) ?? null;
   // Draft metadata for staff/preview viewers — mirrors the page body's
   // draft-reader gate so an unpublished draft doesn't tab-title as "Not found"
   // for the person editing it. Anonymous visitors still get "Not found".
@@ -137,8 +141,16 @@ export async function generateMetadata({
   }
   if (!page) return { title: "Not found" };
 
-  const pathnameEn = `/p/${slugPath}`;
-  const alt = buildPublicLocaleAlternates(locale as Locale, pathnameEn);
+  // Locale-free, prefix-free path. `buildTenantLocaleAlternates` adds both the
+  // locale segment and the path-based tenant prefix (`/impronta/p/<slug>` on a
+  // shared host), which the previous hardcoded `/p/<slug>` dropped.
+  const pathWithoutLocale = `/p/${slugPath}`;
+  const alt = await buildTenantLocaleAlternates(locale, pathWithoutLocale, {
+    // A draft previewed by staff has no published row, so fall back to the
+    // locale being rendered rather than claiming translations that are not live.
+    availableLocales:
+      publishedLocales.length > 0 ? publishedLocales : [page.locale],
+  });
   const title = page.meta_title?.trim() || page.title;
   const description = page.meta_description?.trim() || undefined;
   const openGraph = {
@@ -148,17 +160,19 @@ export async function generateMetadata({
   };
 
   const canonical = page.canonical_url?.trim();
-  const altLinks = alt.alternates ?? {};
+  const altLinks = alt.alternates;
 
   return {
-    metadataBase: alt.metadataBase,
+    ...alt,
     title,
     description,
     robots: page.noindex ? { index: false, follow: true } : undefined,
-    alternates: {
-      canonical: canonical || altLinks.canonical,
-      languages: altLinks.languages,
-    },
+    // An operator-set canonical_url always wins; otherwise keep whatever the
+    // request-anchored builder produced (possibly nothing, on an unresolvable
+    // host — better than a cross-domain canonical).
+    ...(canonical
+      ? { alternates: { ...altLinks, canonical } }
+      : {}),
     openGraph,
   };
 }

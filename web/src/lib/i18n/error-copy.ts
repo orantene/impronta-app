@@ -87,6 +87,13 @@ export const ERROR_COPY: Record<string, ErrorCopyEntry> = {
     en: "Payment required to continue.",
     es: "Se requiere pago para continuar.",
   },
+  // Theme publish refused by the shrink guard (site-admin/tokens/
+  // theme-shrink-guard.ts). The server also returns a count-bearing message on
+  // the `error` field; this is the locale-aware short form.
+  theme_publish_shrink_blocked: {
+    en: "Publish blocked — that draft is incomplete and would wipe your live theme. Nothing was changed.",
+    es: "Publicación bloqueada: ese borrador está incompleto y borraría tu tema en vivo. No se cambió nada.",
+  },
   feature_not_enabled: {
     en: "This feature isn't enabled on your plan.",
     es: "Esta función no está habilitada en tu plan.",
