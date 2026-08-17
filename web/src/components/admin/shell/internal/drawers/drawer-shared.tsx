@@ -82,6 +82,8 @@ import {
 } from "@/lib/field-engine/effective-visibility";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "../use-taxonomy";
+import { TalentTypeToggleChip, DirectTalentTypeChips, taxonomyDisplayName } from "./talent-type-toggle-chip";
+export { taxonomyDisplayName } from "./talent-type-toggle-chip";
 import { prefetchSkillsData, SkillSlotPanel } from "../skill-slot-panel";
 import { ContextSlotPanel, prefetchContextsData } from "../context-slot-panel";
 import { LanguageSlotPanel, prefetchLanguagesData } from "../language-slot-panel";
@@ -638,27 +640,6 @@ function TabBtn({ label, count, active, onClick }: { id: CategoryTabId; label: s
   );
 }
 
-/**
- * Display name for a taxonomy term in the reader's language.
- *
- * Every term carries a platform EN/ES pair (`name_en` / `name_es`) plus an
- * optional per-workspace override pair (`custom_label` / `custom_label_es`).
- * The drawer used to render `custom_label ?? name_en` unconditionally, so a
- * Spanish admin saw the whole category tree in English and the ES override
- * they had just typed was never shown back to them. Resolve the requested
- * locale first, then fall back through the other locale so a term with only
- * one side filled in still renders a name instead of an empty string.
- */
-export function taxonomyDisplayName(
-  node: { name_en: string; name_es?: string | null; custom_label?: string | null; custom_label_es?: string | null },
-  isSpanish: boolean,
-): string {
-  if (isSpanish) {
-    return node.custom_label_es || node.name_es || node.custom_label || node.name_en;
-  }
-  return node.custom_label || node.name_en || node.custom_label_es || node.name_es || "";
-}
-
 function reorderIds(ids: readonly string[], fromId: string, toId: string): string[] {
   const from = ids.indexOf(fromId);
   const to = ids.indexOf(toId);
@@ -680,6 +661,7 @@ export function CategoryExpandPanel({
   canCustomize,
   canSetOrder,
   onToggleSubEnabled,
+  onToggleLeafEnabled,
   onRemoveCustom,
   addingCustom,
   newSubName,
@@ -703,6 +685,8 @@ export function CategoryExpandPanel({
   /** Plan-tier capability: Agency+ may set display order. */
   canSetOrder: boolean;
   onToggleSubEnabled: (sub: TaxonomyNode) => void;
+  /** Per-talent_type (level-3) toggle — same handler; action takes any term id. */
+  onToggleLeafEnabled: (leaf: TaxonomyNode) => void;
   onRemoveCustom: (sub: TaxonomyNode) => void;
   addingCustom: boolean;
   newSubName: string;
@@ -753,9 +737,13 @@ export function CategoryExpandPanel({
 
           {/* Level-2 category_groups (from getEnabledTaxonomyTree)
               with their level-3 talent_types nested (from getCategoryDetail). */}
-          {parent.children.map((sub) => {
-            const groupRow = detail?.groups.find((g) => g.group.id === sub.id);
-            const ttList = groupRow?.talentTypes ?? [];
+          {/* Group cards; direct leaves render as chips below, custom keep card+Remove. */}
+          {parent.children.filter((sub) => sub.term_type !== "talent_type" || sub.is_custom).map((sub) => {
+            // Leaves come from the TREE, not getCategoryDetail — only tree
+            // nodes carry the tenant overlay (is_enabled, custom labels), and
+            // detail-sourced chips rendered disabled leaves as enabled.
+            const ttList = sub.children.filter((c) => c.term_type === "talent_type");
+            const offCount = ttList.filter((c) => !c.is_enabled).length;
             return (
               <div
                 key={sub.id}
@@ -801,6 +789,12 @@ export function CategoryExpandPanel({
                     {ttList.length > 0 && (
                       <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">
                         {interpolate(t(ttList.length === 1 ? "dashboard.adminDrawers.taxonomyTalentTypesCountOne" : "dashboard.adminDrawers.taxonomyTalentTypesCountOther"), { count: ttList.length })}
+                        {offCount > 0 && (
+                          <span className="text-admin-ink-dim">
+                            {" · "}
+                            {interpolate(t("dashboard.adminDrawers.taxonomyLeafOffCount"), { count: offCount })}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -830,11 +824,7 @@ export function CategoryExpandPanel({
                 {ttList.length > 0 && (
                   <div style={{ padding: "6px 10px 10px 24px", display: "flex", flexWrap: "wrap", gap: 4, borderTop: `1px solid ${COLORS.borderSoft}` }} className="bg-admin-surface-alt">
                     {ttList.map((tt) => (
-                      <span key={tt.id} style={{
-                        padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
-                        background: "#fff", borderRadius: 999,
-                        border: `1px solid ${COLORS.borderSoft}`,
-                      }}>{tt.name_en}</span>
+                      <TalentTypeToggleChip key={tt.id} node={tt} isSpanish={isSpanish} onToggle={onToggleLeafEnabled} t={t} />
                     ))}
                   </div>
                 )}
@@ -842,27 +832,8 @@ export function CategoryExpandPanel({
             );
           })}
 
-          {/* Direct talent_types (rare). */}
-          {detail && detail.directTalentTypes.length > 0 && (
-            <div style={{
-              marginBottom: 8, padding: "8px 10px", borderRadius: 8,
-              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-              fontFamily: FONTS.body,
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: 0.4 }} className="text-admin-ink-muted">
-                {t("dashboard.adminDrawers.taxonomyDirectTypes")}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {detail.directTalentTypes.map((tt) => (
-                  <span key={tt.id} style={{
-                    padding: "3px 8px", fontSize: 11, color: COLORS.inkMuted,
-                    background: COLORS.surfaceAlt, borderRadius: 999,
-                    border: `1px solid ${COLORS.borderSoft}`,
-                  }}>{tt.name_en}</span>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Direct talent_types (rare) — tree-sourced, same chips as grouped. */}
+          <DirectTalentTypeChips parent={parent} isSpanish={isSpanish} onToggle={onToggleLeafEnabled} t={t} label={t("dashboard.adminDrawers.taxonomyDirectTypes")} />
 
           {/* Add custom sub-type. */}
           {addingCustom ? (
@@ -1595,6 +1566,7 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
                       canCustomize={canCustomize}
                       canSetOrder={canSetOrder}
                       onToggleSubEnabled={handleToggleEnabled}
+                      onToggleLeafEnabled={handleToggleEnabled}
                       onRemoveCustom={handleRemoveCustom}
                       addingCustom={addingForParent === parent.id}
                       newSubName={newSubName}
