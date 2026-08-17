@@ -216,10 +216,18 @@ export async function EditChromeMount() {
     !pageSlug.startsWith("__")
   ) {
     try {
+      // MUST filter by locale: `cms_pages` is unique on (tenant_id, locale,
+      // slug), so a page that exists in EN and ES matches two rows here and
+      // `.maybeSingle()` errors out — leaving freeformPageMode=false, which
+      // sends a freeform page through the homepage adapter and paints an
+      // EMPTY canvas over live content. This is why every multi-locale
+      // freeform page (Contact, About, FAQ, …) opened blank in the builder
+      // while the single-locale homepage was fine.
       const { data: freeformRow } = await staff.supabase
         .from("cms_pages")
         .select("is_freeform")
         .eq("tenant_id", ctx.tenantId)
+        .eq("locale", localeContext.locale)
         .eq("slug", pageSlug)
         .eq("is_freeform", true)
         .maybeSingle();
