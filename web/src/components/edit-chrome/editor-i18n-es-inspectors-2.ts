@@ -336,7 +336,11 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   // The Content-tab card that attaches a looping video or a YouTube clip
   // behind a container, plus its scrim. House rules: no em dashes, plain
   // language over the CSS words ("Overlay darkness", not "opacity").
-  Background: "Fondo",
+  // Overflowed from `editor-i18n-es.ts`, which sits AT the 800-line cap, so it
+  // could not take one more line next to its `dashboard.mediaField.*` siblings.
+  "dashboard.mediaField.videoSelected": "Video seleccionado",
+  // "Background" itself is already defined in `-canvas.ts` ("Fondo"); the
+  // cross-file duplicate guard forbids a second definition here.
   "Video or YouTube behind this block": "Video o YouTube detrás de este bloque",
   "Background media": "Medios de fondo",
   "Plays muted and looped behind this block, with a still image for visitors who prefer reduced motion.":

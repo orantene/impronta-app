@@ -558,15 +558,25 @@ export function presentationInlineStyles(
 }
 
 /**
- * Phase 5 — render the optional video background, dark overlay, and poster
- * for a section. Returns the JSX to inject INSIDE the section wrapper,
- * before the content. The wrapper must be `position: relative` (set
+ * Phase 5 — the optional video background / poster / dark overlay for a
+ * section. This function only RESOLVES the value; the markup is
+ * `components/site/section-video-background.tsx`, mounted inside the section
+ * wrapper before the content. The wrapper must be `position: relative` (set
  * automatically by `presentationInlineStyles` when videoBackground is set).
  *
- * The video is muted + autoplay + loop + playsInline so it works under
- * Safari's autoplay policy. We feature-detect prefers-reduced-motion at
- * runtime; when the user prefers reduced motion, we fall back to the
- * poster image and skip the <video> entirely.
+ * The video is muted + autoplay + loop + playsInline so it survives Safari's
+ * autoplay policy, and `prefers-reduced-motion` hides it so the poster shows
+ * instead (the rule lives in `globals.css`).
+ *
+ * HISTORY, because the previous version of this comment was a lie worth
+ * recording: it claimed the reduced-motion poster fallback was feature-detected
+ * at runtime. It was never implemented — the video autoplayed for everyone —
+ * and `TalentSiteRenderer` did not render the video at all. Both were fixed
+ * 2026-08-17 when the two call sites were merged into one component.
+ *
+ * UNIT WARNING: `overlay` here is a 0-1 FLOAT. `hero`, `cta_banner` and the
+ * builder's container `backgroundMedia` all use an int 0-100. Do not copy a
+ * value between them without converting.
  */
 export interface VideoBackgroundProps {
   src: string;

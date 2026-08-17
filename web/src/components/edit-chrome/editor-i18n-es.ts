@@ -61,7 +61,6 @@ export const ES_TEXT: Record<string, string> = {
   "dashboard.mediaField.uploading": "Subiendo",
   "dashboard.mediaField.uploadFailed": "No se pudo subir",
   "dashboard.mediaField.loadingDimensions": "Cargando dimensiones...",
-  "dashboard.mediaField.videoSelected": "Video seleccionado",
   // ── Gaps surfaced by the wave-0 ES parity guard (2026-08-05) ──────────
   'Optional "Browse all services" style link under the grid.':
     'Enlace opcional tipo "Ver todos los servicios" debajo de la cuadrícula.',
