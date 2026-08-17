@@ -282,6 +282,8 @@ async function renderShellSlot(
     }) ?? "",
   );
   const builderSectionChildren = builderSectionNode?.children ?? [];
+  // See the eject note at the <Comp> render below.
+  const sectionEjected = builderSectionNode?.props.ejected === true;
   const shouldIncludeBuilderNodeRendererStyles =
     options.includeBuilderNodeRendererStyles !== false &&
     hasRenderableBuilderNodes(builderSectionChildren, { mode: "freeform" });
@@ -407,15 +409,24 @@ async function renderShellSlot(
           }
         />
       ) : null}
-      <Comp
-        sectionId={slot.sectionId}
-        tenantId={tenantId}
-        locale={locale}
-        preview={false}
-        props={props}
-        publicPathPrefix={publicPathPrefix}
-        builderNodeBindings={builderNodeBindings}
-      />
+      {/* "2018 bye-bye" — an EJECTED landmark no longer renders its curated
+       *  React component; its freeform children render in its place. Same
+       *  contract the homepage composer honors (homepage-cms-sections.tsx:586-588)
+       *  and the one `BuilderSectionNode.props.ejected` documents. The shell
+       *  renderer used to ignore the flag entirely, which made "eject" a silent
+       *  no-op on the header/footer — the one surface where replacing the
+       *  curated bar with an authored tree is the whole point. */}
+      {sectionEjected ? null : (
+        <Comp
+          sectionId={slot.sectionId}
+          tenantId={tenantId}
+          locale={locale}
+          preview={false}
+          props={props}
+          publicPathPrefix={publicPathPrefix}
+          builderNodeBindings={builderNodeBindings}
+        />
+      )}
       {builderSectionChildren.length > 0
         ? renderBuilderNodes(builderSectionChildren, {
             publicPathPrefix,
@@ -683,18 +694,25 @@ function renderFreeformShellLandmark({
         sectionTypeKey === "site_header" ? undefined : node.id
       }
     >
-      <Comp
-        sectionId={sectionId}
-        tenantId={tenantId}
-        locale={locale}
-        preview={false}
-        props={props}
-        publicPathPrefix={publicPathPrefix}
-        builderNodeBindings={{
-          sectionNodeId: node.id,
-          nodeIdsByRole: roleBindings,
-        }}
-      />
+      {/* "2018 bye-bye" — see the identical guard on the legacy-slot path.
+       *  An EJECTED landmark renders ONLY its freeform children; the curated
+       *  header/footer component is gone. This is what makes an all-freeform
+       *  shell possible: without it, authored children render BELOW the
+       *  curated bar (two headers), so there was no way to replace the bar. */}
+      {node.props.ejected === true ? null : (
+        <Comp
+          sectionId={sectionId}
+          tenantId={tenantId}
+          locale={locale}
+          preview={false}
+          props={props}
+          publicPathPrefix={publicPathPrefix}
+          builderNodeBindings={{
+            sectionNodeId: node.id,
+            nodeIdsByRole: roleBindings,
+          }}
+        />
+      )}
       {children.length > 0 ? renderBuilderNodes(children, renderOptions) : null}
     </div>
   );

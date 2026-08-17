@@ -40,6 +40,12 @@ import {
 } from "@/lib/site-admin/add-gallery";
 import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Stepper, TextInput, Toggle } from "../kit";
+import { CHROME } from "../kit/tokens";
+import {
+  MobileNavThumb_DrawerRight,
+  MobileNavThumb_FullScreen,
+  MobileNavThumb_SheetBottom,
+} from "./site-header/thumbnails";
 import type { LengthUnit } from "../kit/number-unit";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
@@ -73,6 +79,46 @@ interface BuilderNodeContentInspectorProps {
 }
 
 /** Flat inspector shell — no nested cards (canvas-first mockup). */
+
+/**
+ * Mobile hamburger presentation options for the `nav` node.
+ *
+ * Same variants the curated header offers, with the curated header's own
+ * thumbnails and helper copy — a freeform nav and a curated header should not
+ * teach an operator two different vocabularies for the same decision.
+ */
+const NAV_MOBILE_MENU_OPTIONS: Array<{
+  value: string;
+  label: string;
+  helper: string;
+  Thumb: React.ComponentType;
+}> = [
+  {
+    value: "dropdown",
+    label: "Dropdown",
+    helper: "Opens under the toggle. Simplest, no overlay.",
+    Thumb: MobileNavThumb_SheetBottom,
+  },
+  {
+    value: "drawer-right",
+    label: "Drawer right",
+    helper: "Slides in from the right. Classic mobile pattern.",
+    Thumb: MobileNavThumb_DrawerRight,
+  },
+  {
+    value: "sheet-bottom",
+    label: "Sheet bottom",
+    helper: "Slides up from below. Modern app feel.",
+    Thumb: MobileNavThumb_SheetBottom,
+  },
+  {
+    value: "full-screen-fade",
+    label: "Full screen",
+    helper: "Covers the page. Editorial, immersive.",
+    Thumb: MobileNavThumb_FullScreen,
+  },
+];
+
 function BuilderNodeFlatPanel({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-4">{children}</div>;
 }
@@ -2168,28 +2214,79 @@ export function BuilderNodeContentInspector({
                   links.
                 </Helper>
               </Field>
+              {/* Mobile menu style — picture chips, not a bare <select>.
+               *  An operator choosing how the hamburger opens is making a
+               *  VISUAL decision; four words in a dropdown make them guess and
+               *  publish to find out. The thumbnails + one-line helpers are the
+               *  vocabulary the curated header already shipped
+               *  (site-header/tabs/MobileTab.tsx), reused verbatim so the two
+               *  surfaces teach the same thing. */}
               <Field flush>
                 <FieldLabel>Mobile menu style</FieldLabel>
-                <select
-                  className={KIT.select}
-                  value={node.props.mobileMenuVariant ?? "dropdown"}
-                  onChange={(event) => {
-                    void commitPatch({
-                      mobileMenuVariant: event.currentTarget.value as
-                        | "dropdown"
-                        | "drawer-right"
-                        | "sheet-bottom"
-                        | "full-screen-fade",
-                    });
-                  }}
-                >
-                  <option value="dropdown">Dropdown (under toggle)</option>
-                  <option value="drawer-right">Drawer (slide from right)</option>
-                  <option value="sheet-bottom">Sheet (slide from bottom)</option>
-                  <option value="full-screen-fade">Full screen (fade)</option>
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  {NAV_MOBILE_MENU_OPTIONS.map((option) => {
+                    const active =
+                      (node.props.mobileMenuVariant ?? "dropdown") === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        title={option.helper}
+                        aria-pressed={active}
+                        onClick={() => {
+                          void commitPatch({
+                            mobileMenuVariant: option.value as
+                              | "dropdown"
+                              | "drawer-right"
+                              | "sheet-bottom"
+                              | "full-screen-fade",
+                          });
+                        }}
+                        className="flex cursor-pointer flex-col gap-1 rounded-[10px] border p-2 text-left transition-colors"
+                        style={{
+                          borderColor: active ? CHROME.accent : CHROME.line,
+                          background: active ? CHROME.paper2 : "transparent",
+                        }}
+                      >
+                        <span
+                          className="block overflow-hidden rounded-[6px]"
+                          style={{ border: `1px solid ${CHROME.line}` }}
+                        >
+                          <option.Thumb />
+                        </span>
+                        <span
+                          className="text-[11px] font-semibold"
+                          style={{ color: active ? CHROME.ink : CHROME.muted }}
+                        >
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
                 <Helper>
                   How the collapsed hamburger menu opens on mobile.
+                </Helper>
+              </Field>
+              <Field flush>
+                <FieldLabel>Hamburger button label</FieldLabel>
+                <input
+                  key={`nav-menu-label-${node.id}`}
+                  defaultValue={node.props.menuLabel ?? ""}
+                  className={KIT.input}
+                  placeholder="Menu"
+                  onBlur={(event) => {
+                    void commitTextInput("menuLabel", node.props.menuLabel ?? "", true)(
+                      event.currentTarget.value,
+                    );
+                  }}
+                  onKeyDown={handleCommitKey((value) => {
+                    void commitTextInput("menuLabel", node.props.menuLabel ?? "", true)(value);
+                  })}
+                />
+                <Helper>
+                  Screen-reader label for the hamburger button. Translate it in a
+                  Spanish header. Defaults to &ldquo;Menu&rdquo;.
                 </Helper>
               </Field>
               <Field flush>

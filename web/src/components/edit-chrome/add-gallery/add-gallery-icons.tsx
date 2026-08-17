@@ -673,6 +673,24 @@ const ICONS: Record<string, ReactNode> = {
       <path d="m20 20-3.5-3.5" />
     </Svg>
   ),
+  globe: (
+    <Svg>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M4 12h16" />
+      <path d="M12 4a13 13 0 0 1 0 16a13 13 0 0 1 0-16z" />
+    </Svg>
+  ),
+  bookmark: (
+    <Svg>
+      <path d="M7 4h10v16l-5-3.5L7 20z" />
+    </Svg>
+  ),
+  account: (
+    <Svg>
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 19c1.6-3.2 4.1-4.8 7-4.8s5.4 1.6 7 4.8" />
+    </Svg>
+  ),
   default: (
     <Svg>
       <rect x="5" y="5" width="14" height="14" rx="2" />

@@ -141,6 +141,11 @@ const FROZEN_SECTION_KEYS: readonly string[] = [
   "header_account",
   "header_inquiry",
   "header_favorites",
+  // Added deliberately (not drift): the LANGUAGE toggle was the only header
+  // widget with no freeform embed, so a freeform shell could not offer locale
+  // switching at all. Same shell-only, `visibleToAgency:false` family as the
+  // four above — it does not widen the page section picker.
+  "header_language",
 ];
 
 function sortedUnique(keys: readonly string[]): string[] {

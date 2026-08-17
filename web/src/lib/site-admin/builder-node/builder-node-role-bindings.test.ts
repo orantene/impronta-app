@@ -700,6 +700,12 @@ const CASES: ReadonlyArray<BindingCase> = [
     expectedRoles: [],
     componentPath: "src/lib/site-admin/sections/header_favorites/Component.tsx",
   },
+  {
+    sectionTypeKey: "header_language",
+    props: {},
+    expectedRoles: [],
+    componentPath: "src/lib/site-admin/sections/header_language/Component.tsx",
+  },
 ];
 
 test("derived child roles stay in sync with renderer bindings", () => {

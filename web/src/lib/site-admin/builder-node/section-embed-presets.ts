@@ -451,6 +451,14 @@ export const SECTION_EMBED_PRESETS: ReadonlyArray<SectionEmbedPreset> = [
       "The header's saved-talent / favorites affordance (bookmark icon). Interactive on the published site.",
     config: {},
   },
+  {
+    id: "header-language",
+    sectionTypeKey: "header_language",
+    label: "Header language",
+    description:
+      "The header's EN | ES language toggle. Interactive on the published site; hides itself when the site publishes one language.",
+    config: {},
+  },
 ];
 
 const SECTION_EMBED_PRESET_BY_ID = new Map(

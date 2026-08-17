@@ -327,6 +327,7 @@ const EDITABLE_ROLES_BY_SECTION: Record<string, ReadonlyArray<EditableNodeRole>>
   header_account: [],
   header_inquiry: [],
   header_favorites: [],
+  header_language: [],
 };
 
 function resolveNodeRole(

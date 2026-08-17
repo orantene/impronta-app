@@ -442,6 +442,14 @@ import {
 } from "./header_search/schema";
 import { HeaderSearchComponent } from "./header_search/Component";
 import { HeaderSearchEditor } from "./header_search/Editor";
+import { headerLanguageMeta } from "./header_language/meta";
+import { headerLanguageMigrations } from "./header_language/migrations";
+import {
+  headerLanguageSchemasByVersion,
+  type HeaderLanguageV1,
+} from "./header_language/schema";
+import { HeaderLanguageComponent } from "./header_language/Component";
+import { HeaderLanguageEditor } from "./header_language/Editor";
 
 import { headerAccountMeta } from "./header_account/meta";
 import { headerAccountMigrations } from "./header_account/migrations";
@@ -874,6 +882,9 @@ export const headerInquirySection: SectionRegistryEntry<HeaderInquiryV1> = {
 export const headerFavoritesSection: SectionRegistryEntry<HeaderFavoritesV1> = {
   meta: headerFavoritesMeta, currentVersion: 1, schemasByVersion: headerFavoritesSchemasByVersion, migrations: headerFavoritesMigrations, Component: HeaderFavoritesComponent, Editor: HeaderFavoritesEditor,
 };
+export const headerLanguageSection: SectionRegistryEntry<HeaderLanguageV1> = {
+  meta: headerLanguageMeta, currentVersion: 1, schemasByVersion: headerLanguageSchemasByVersion, migrations: headerLanguageMigrations, Component: HeaderLanguageComponent, Editor: HeaderLanguageEditor,
+};
 
 export const SECTION_REGISTRY = {
   hero: heroSection,
@@ -939,6 +950,7 @@ export const SECTION_REGISTRY = {
   header_account: headerAccountSection,
   header_inquiry: headerInquirySection,
   header_favorites: headerFavoritesSection,
+  header_language: headerLanguageSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;
