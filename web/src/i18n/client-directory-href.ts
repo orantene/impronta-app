@@ -1,14 +1,32 @@
-import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
-import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
+import { defaultLocale, isLocaleInList, type Locale } from "@/i18n/config";
+import {
+  stripLocaleFromPathname,
+  withLocalePath,
+  type LocaleUrlSettings,
+} from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { resolveAnyTenantPublicPath } from "@/lib/saas/surface-allow-list";
 
 const EXTERNAL_OR_SPECIAL_HREF = /^(?:[a-z][a-z0-9+.-]*:|#|\?)/i;
 
-export function publicPathPrefixFromPathname(pathname: string): string {
+/**
+ * `settings` carries the TENANT's URL grammar (default locale unprefixed, every
+ * other supported locale under `/{code}`). Omitting it falls back to the global
+ * platform grammar, which is only correct off-tenant — on a tenant whose default
+ * locale is not the platform default it produces the inverse prefixing. Server
+ * components get it from `getRequestLocaleUrlSettings()`; client components must
+ * receive it as a prop (see `localeUrlSettings()` in `@/i18n/pathnames`).
+ */
+export function publicPathPrefixFromPathname(
+  pathname: string,
+  settings?: LocaleUrlSettings,
+): string {
   const visiblePathname =
     typeof window === "undefined" ? pathname : window.location.pathname;
-  const { pathnameWithoutLocale } = stripLocaleFromPathname(visiblePathname);
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    visiblePathname,
+    settings,
+  );
   const resolved = resolveAnyTenantPublicPath(pathnameWithoutLocale);
   return resolved ? `/${resolved.tenantSlug}` : "";
 }
@@ -17,24 +35,39 @@ export function publicLocaleHref(
   currentPathname: string,
   pathFromRoot: string,
   locale: Locale,
+  settings?: LocaleUrlSettings,
 ): string {
   if (EXTERNAL_OR_SPECIAL_HREF.test(pathFromRoot)) {
     return pathFromRoot;
   }
-  const prefix = publicPathPrefixFromPathname(currentPathname);
+  const prefix = publicPathPrefixFromPathname(currentPathname, settings);
   const p = pathFromRoot.startsWith("/") ? pathFromRoot : `/${pathFromRoot}`;
   const prefixed = prefixPublicHref(p, prefix);
-  return withLocalePath(prefixed, locale);
+  return withLocalePath(prefixed, locale, settings);
 }
 
 /**
- * Prefix `pathFromRoot` (e.g. `/directory`, `/directory/cart?q=1`) with `/es` when the
- * current route is Spanish, so client navigations stay in-locale.
+ * Prefix `pathFromRoot` (e.g. `/directory`, `/directory/cart?q=1`) with the
+ * current non-default locale so client navigations stay in-locale.
  */
-export function clientLocaleHref(pathname: string, pathFromRoot: string): string {
-  const { locale: raw } = stripLocaleFromPathname(pathname);
-  const locale: Locale = isLocale(raw) ? raw : defaultLocale;
-  return publicLocaleHref(pathname, pathFromRoot, locale);
+export function clientLocaleHref(
+  pathname: string,
+  pathFromRoot: string,
+  settings?: LocaleUrlSettings,
+): string {
+  const { locale: raw } = stripLocaleFromPathname(pathname, settings);
+  // Validate against the ACTIVE locale set, not a hardcoded en/es union: a
+  // tenant publishing e.g. `["es","pt"]` would otherwise have every client
+  // navigation snapped back to the platform default.
+  const allowed = settings?.publicLocales;
+  const locale: Locale = allowed
+    ? isLocaleInList(raw, allowed)
+      ? raw
+      : settings.defaultLocale
+    : isLocaleInList(raw, ["en", "es"])
+      ? raw
+      : defaultLocale;
+  return publicLocaleHref(pathname, pathFromRoot, locale, settings);
 }
 
 /**
@@ -68,6 +101,7 @@ export function clientDirectoryHref(
   pathname: string,
   queryString: string,
   basePath?: string,
+  settings?: LocaleUrlSettings,
 ): string {
   const q = queryString.startsWith("?") ? queryString.slice(1) : queryString;
 
@@ -75,7 +109,7 @@ export function clientDirectoryHref(
   if (basePath) {
     resolvedBase = basePath;
   } else {
-    const { pathnameWithoutLocale } = stripLocaleFromPathname(pathname);
+    const { pathnameWithoutLocale } = stripLocaleFromPathname(pathname, settings);
     if (
       pathnameWithoutLocale === "/directory" ||
       pathnameWithoutLocale.startsWith("/directory/") ||
@@ -92,10 +126,10 @@ export function clientDirectoryHref(
   // so we can re-apply the current locale + our canonical query cleanly.
   const baseNoQuery = resolvedBase.split(/[?#]/)[0] || "/directory";
   const { pathnameWithoutLocale: baseStripped } =
-    stripLocaleFromPathname(baseNoQuery);
+    stripLocaleFromPathname(baseNoQuery, settings);
   const cleanBase = baseStripped.startsWith("/")
     ? baseStripped
     : `/${baseStripped}`;
   const path = q ? `${cleanBase}?${q}` : cleanBase;
-  return clientLocaleHref(pathname, path);
+  return clientLocaleHref(pathname, path, settings);
 }
