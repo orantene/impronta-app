@@ -1286,14 +1286,6 @@
       "count": 1
     }
   },
-  "src/components/edit-chrome/assets-drawer.tsx": {
-    "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-raw-file-formdata": {
-      "count": 1
-    }
-  },
   "src/components/edit-chrome/command-palette.tsx": {
     "max-lines": {
       "count": 1

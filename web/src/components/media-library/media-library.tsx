@@ -84,6 +84,17 @@ export type MediaLibraryProps = {
   /** Staff-gated alt/tag PATCH. Absent ⇒ the detail rail renders alt read-only. */
   onSaveAlt?: (item: MediaLibraryWireItem, alt: string) => Promise<void>;
   onSaveTags?: (item: MediaLibraryWireItem, tags: string[]) => Promise<void>;
+  /**
+   * Open a raster asset in the host's crop modal. Absent ⇒ the detail rail
+   * shows no Crop action. Ported from the retired legacy assets drawer, which
+   * was the only surface in the app that offered crop over the library.
+   */
+  onCrop?: (item: MediaLibraryWireItem) => void;
+  /**
+   * Optional per-tile top-right chip. The editor's Assets surface uses it for
+   * the "Used · N" / "Unused" usage badge; every picker leaves it unset.
+   */
+  renderTileBadge?: (item: MediaLibraryWireItem) => ReactNode;
   /** Drag-and-drop + the Upload button. Absent ⇒ no upload affordance. */
   onUpload?: (files: File[]) => Promise<void>;
   uploading?: boolean;
@@ -267,6 +278,10 @@ export function MediaLibrary(props: MediaLibraryProps) {
     owner: t("dashboard.mediaLibrary.ownerLabel"),
     saving: t("dashboard.mediaLibrary.savingLabel"),
     readOnlyHint: t("dashboard.mediaLibrary.noAltYet"),
+    copyUrl: t("dashboard.mediaLibrary.copyUrl"),
+    copied: t("dashboard.mediaLibrary.copiedUrl"),
+    copyFailed: t("dashboard.mediaLibrary.copyUrlFailed"),
+    crop: t("dashboard.mediaLibrary.crop"),
   };
 
   const activeFolder = library.folders.find(
@@ -443,8 +458,16 @@ export function MediaLibrary(props: MediaLibraryProps) {
                     tabbable={index === focusIndex}
                     labels={tileLabels}
                     lockAction={props.renderLockAction?.(item)}
+                    cornerBadge={props.renderTileBadge?.(item)}
                     onActivate={() => {
                       setFocusIndex(index);
+                      // BROWSE mode has nothing to pick, so a tile click that
+                      // did nothing would read as a dead control. It opens the
+                      // detail rail — which is where crop, copy URL, alt and
+                      // tags now live.
+                      if (props.selectionMode === "none") {
+                        setDetailId((prev) => (prev === item.id ? null : item.id));
+                      }
                       props.onActivate(item);
                     }}
                     onOpenDetails={() => {
@@ -488,6 +511,7 @@ export function MediaLibrary(props: MediaLibraryProps) {
             onClose={() => setDetailId(null)}
             onSaveAlt={props.onSaveAlt}
             onSaveTags={props.onSaveTags}
+            onCrop={props.onCrop}
           />
         ) : null}
       </div>

@@ -1,102 +1,73 @@
 "use server";
 
 /**
- * Edit-chrome assets actions — typed wrappers over the existing
- * media-library reads + a new server-side usage scanner.
+ * Edit-chrome assets actions — the editor's asset USAGE scanner.
  *
- * The shared MediaPicker today fetches `/api/admin/media/library` directly
- * via `fetch`, which is fine for in-form section pickers but adds a
- * round-trip + a JSON parse the AssetsDrawer doesn't need. These typed
- * actions keep the drawer in React state directly:
+ * WHAT CHANGED (2026-08-16, legacy assets-drawer retirement)
+ * ─────────────────────────────────────────────────────────
+ * This module used to export two actions:
  *
- *   - loadAssetsLibraryAction()  — same data as the route, no fetch hop
- *   - scanAssetUsageAction()     — count cms_sections.props_jsonb
- *                                  references per asset id / public URL
+ *   • `loadAssetsLibraryAction()` — the whole tenant library in one shot, via
+ *     `listTenantMediaLibrary`, which is `.limit(60)`. It was the AssetsDrawer's
+ *     data source and it is DELETED: the drawer now mounts `<MediaLibrary>`,
+ *     which reads the paged, server-filtered `/api/admin/media/library` and can
+ *     reach the whole library instead of the newest 60 rows.
+ *   • `scanAssetUsageAction()` — no arguments, scanned the WHOLE library against
+ *     the WHOLE section set: O(sections × assets). That was survivable only
+ *     because the caller was capped at 60 assets. Over an unbounded library
+ *     (the largest tenant has ~1,900 assets) the same shape is a 950,000
+ *     substring-scan request, which is exactly why deleting the drawer was
+ *     deferred instead of done.
  *
- * Both actions are staff-gated (`requireSession`) and tenant-scoped
+ * THE BOUND, stated plainly: the scan is now driven by the caller's CURRENTLY
+ * VISIBLE page. `scanAssetUsageAction(targets)` takes at most
+ * {@link MAX_SCAN_TARGETS} assets, so the cost is O(sections × page) with both
+ * factors capped, and the response is one integer per asset asked about. The
+ * client asks again as it pages; it never asks about the same asset twice.
+ *
+ * A server-side `WHERE` on usage was considered first and rejected: usage lives
+ * inside `cms_sections.props_jsonb`, a free-form jsonb blob with no reference
+ * table and no index over asset ids, so there is no cheap indexed query to
+ * write. Per-page scanning is the honest second choice.
+ *
+ * Staff-gated (`requireSession`) and tenant-scoped
  * (`requireEditSurfaceTenantScope`), matching the disciplines used by the design
  * + revisions edit-mode wrappers.
- *
- * Usage scanner: cms_sections.props_jsonb is a free-form jsonb column
- * holding the section's content (with media_asset_id + publicUrl
- * references inside). The scanner pulls every non-archived section
- * for the tenant once, stringifies each props_jsonb row, and counts
- * `assetId` / `storagePath` substring matches per asset.
- *
- * Cost: O(N_sections * M_assets) string scans, capped because both
- * sides are bounded (60 assets max, a few hundred sections per tenant).
- * Single Supabase round-trip per scan, sub-100ms in practice.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import {
-  listTenantMediaLibrary,
-} from "@/lib/site-admin/media/assets";
-import type { MediaLibraryItem } from "@/lib/site-admin/media/types";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
-export interface AssetsLibrarySnapshot {
-  items: MediaLibraryItem[];
-  /** Server-side wall-clock at fetch time so the drawer can show
-   *  "synced 12s ago" without a second round-trip. */
-  fetchedAt: string;
-}
-
-export type LoadAssetsLibraryResult =
-  | { ok: true; snapshot: AssetsLibrarySnapshot }
-  | { ok: false; error: string };
-
-export interface AssetUsage {
-  /** media_assets.id */
-  assetId: string;
-  /** Number of cms_sections rows whose props_jsonb references this asset
-   *  (by id or by storage path). */
-  refCount: number;
-  /** First N section ids using this asset, ordered by section name. The
-   *  drawer surfaces these as "Used in: Hero, Testimonials, …" chips and
-   *  jumps the canvas to one of them on click. */
-  sectionIds: string[];
+/**
+ * One asset to ask about. The storage path is NOT redundant with the id: an
+ * upload names its object with a fresh `randomUUID()`, so the public URL a
+ * section stores contains the OBJECT id and never the media_assets row id.
+ * Scanning by id alone missed every URL-shaped reference.
+ */
+export interface AssetUsageTarget {
+  id: string;
+  storagePath: string;
 }
 
 export type ScanAssetUsageResult =
-  | { ok: true; usage: Record<string, AssetUsage> }
+  /** assetId → number of non-archived sections referencing it. */
+  | { ok: true; usage: Record<string, number> }
   | { ok: false; error: string };
 
 const MAX_SECTIONS_PER_TENANT = 500;
-const MAX_SAMPLE_SECTIONS_PER_ASSET = 6;
+/** One page of the media library is 60; a few pages in flight still fits. */
+const MAX_SCAN_TARGETS = 300;
 
 // ── actions ───────────────────────────────────────────────────────────────
 
-export async function loadAssetsLibraryAction(): Promise<LoadAssetsLibraryResult> {
-  const auth = await requireSession();
-  if (!auth.ok) return { ok: false, error: auth.error };
-
-  const scope = await requireEditSurfaceTenantScope().catch(() => null);
-  if (!scope) {
-    return {
-      ok: false,
-      error: "Select an agency workspace before opening the assets drawer.",
-    };
-  }
-
-  try {
-    const items = await listTenantMediaLibrary(auth.supabase, scope.tenantId);
-    return {
-      ok: true,
-      snapshot: { items, fetchedAt: new Date().toISOString() },
-    };
-  } catch (error) {
-    logServerError("assets-actions:loadAssetsLibraryAction", error);
-    return { ok: false, error: "Could not load the asset library." };
-  }
-}
-
-export async function scanAssetUsageAction(): Promise<ScanAssetUsageResult> {
+export async function scanAssetUsageAction(
+  targets: ReadonlyArray<AssetUsageTarget>,
+): Promise<ScanAssetUsageResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
 
@@ -108,12 +79,11 @@ export async function scanAssetUsageAction(): Promise<ScanAssetUsageResult> {
     };
   }
 
+  const capped = targets.slice(0, MAX_SCAN_TARGETS).filter((t) => !!t?.id);
+  if (capped.length === 0) return { ok: true, usage: {} };
+
   try {
-    const items = await listTenantMediaLibrary(auth.supabase, scope.tenantId);
-    if (items.length === 0) {
-      return { ok: true, usage: {} };
-    }
-    const usage = await computeAssetUsage(auth.supabase, scope.tenantId, items);
+    const usage = await computeAssetUsage(auth.supabase, scope.tenantId, capped);
     return { ok: true, usage };
   } catch (error) {
     logServerError("assets-actions:scanAssetUsageAction", error);
@@ -124,60 +94,50 @@ export async function scanAssetUsageAction(): Promise<ScanAssetUsageResult> {
 // ── internals ─────────────────────────────────────────────────────────────
 
 /**
- * Pull every non-archived section for the tenant in one round-trip,
- * stringify each props_jsonb, and count substring matches per asset.
+ * Pull every non-archived section for the tenant in one round-trip, stringify
+ * each props_jsonb, and count substring matches for the ASKED-ABOUT assets.
  *
- * The substring strategy matches both `media_asset_id` references and
- * inline `publicUrl` strings — both shapes appear in section schemas
- * (e.g. hero.backgroundMediaAssetId vs gallery.images[].url). Storage
- * path is the more stable signal and rarely repeats by accident, so we
- * lead with that and fall back to id.
+ * The substring strategy matches both `media_asset_id` references and inline
+ * `publicUrl` strings — both shapes appear in section schemas (e.g.
+ * hero.backgroundMediaAssetId vs gallery.images[].url). Storage path is the
+ * more stable signal and rarely repeats by accident, so we lead with that and
+ * fall back to id.
  */
 async function computeAssetUsage(
   supabase: SupabaseClient,
   tenantId: string,
-  items: ReadonlyArray<MediaLibraryItem>,
-): Promise<Record<string, AssetUsage>> {
+  targets: ReadonlyArray<AssetUsageTarget>,
+): Promise<Record<string, number>> {
   const { data, error } = await supabase
     .from("cms_sections")
-    .select("id, name, props_jsonb")
+    .select("id, props_jsonb")
     .eq("tenant_id", tenantId)
     .neq("status", "archived")
-    .order("name", { ascending: true })
     .limit(MAX_SECTIONS_PER_TENANT);
 
-  if (error || !data) {
-    return Object.fromEntries(
-      items.map((it) => [
-        it.id,
-        { assetId: it.id, refCount: 0, sectionIds: [] },
-      ]),
-    );
-  }
+  // A failed scan must not paint every asset "Unused" — that reads as a fact
+  // and would send an operator deleting live imagery. Report nothing instead;
+  // the caller renders no badge for an asset it has no answer for.
+  if (error || !data) return {};
 
   // Pre-stringify each section once — serializing per-asset would be
   // O(N*M) JSON encodes. The stringified form is what we substring-scan.
-  const sections = data.map((row) => ({
-    id: (row as { id: string }).id,
-    haystack: JSON.stringify((row as { props_jsonb: unknown }).props_jsonb),
-  }));
+  const haystacks = data.map((row) =>
+    JSON.stringify((row as { props_jsonb: unknown }).props_jsonb),
+  );
 
-  const out: Record<string, AssetUsage> = {};
-  for (const it of items) {
-    const sectionIds: string[] = [];
-    for (const s of sections) {
+  const out: Record<string, number> = {};
+  for (const target of targets) {
+    let count = 0;
+    for (const haystack of haystacks) {
       if (
-        s.haystack.includes(it.id) ||
-        (it.storagePath && s.haystack.includes(it.storagePath))
+        (target.storagePath && haystack.includes(target.storagePath)) ||
+        haystack.includes(target.id)
       ) {
-        sectionIds.push(s.id);
+        count += 1;
       }
     }
-    out[it.id] = {
-      assetId: it.id,
-      refCount: sectionIds.length,
-      sectionIds: sectionIds.slice(0, MAX_SAMPLE_SECTIONS_PER_ASSET),
-    };
+    out[target.id] = count;
   }
   return out;
 }

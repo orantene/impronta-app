@@ -20,10 +20,10 @@
  * permanent third line under every tile and it is not primary information.
  */
 
-import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Crop, Copy, Loader2, X } from "lucide-react";
 
-import { CHROME_RADII } from "../edit-chrome/kit/tokens";
+import { CHROME, CHROME_RADII } from "../edit-chrome/kit/tokens";
 import { FIELD_KIT } from "../edit-chrome/inspectors/field-kit/tokens";
 import type { MediaLibraryWireItem } from "@/lib/media/library-wire";
 import {
@@ -47,6 +47,11 @@ export type DetailLabels = {
   owner: string;
   saving: string;
   readOnlyHint: string;
+  /** Ported from the retired assets drawer (2026-08-16). */
+  copyUrl: string;
+  copied: string;
+  copyFailed: string;
+  crop: string;
 };
 
 export function MediaLibraryDetail({
@@ -56,6 +61,7 @@ export function MediaLibraryDetail({
   onClose,
   onSaveAlt,
   onSaveTags,
+  onCrop,
 }: {
   item: MediaLibraryWireItem;
   labels: DetailLabels;
@@ -64,16 +70,55 @@ export function MediaLibraryDetail({
   onClose: () => void;
   onSaveAlt?: (item: MediaLibraryWireItem, alt: string) => Promise<void>;
   onSaveTags?: (item: MediaLibraryWireItem, tags: string[]) => Promise<void>;
+  /**
+   * Open this asset in the crop modal. Ported from the retired assets drawer,
+   * which put a Crop chip on every raster tile; the host owns the modal and
+   * the upload of the cropped result, exactly as the drawer did.
+   */
+  onCrop?: (item: MediaLibraryWireItem) => void;
 }) {
   const [altDraft, setAltDraft] = useState(item.alt ?? "");
   const [tagDraft, setTagDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  /** null = idle, true = copied, false = clipboard refused. */
+  const [copied, setCopied] = useState<boolean | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // A new asset opens with the SERVER's alt, never the previous asset's draft.
   useEffect(() => {
     setAltDraft(item.alt ?? "");
     setTagDraft("");
+    setCopied(null);
   }, [item.id, item.alt]);
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
+  const copyUrl = async () => {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(item.publicUrl);
+      ok = true;
+    } catch {
+      ok = false;
+    }
+    setCopied(ok);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopied(null), 1600);
+  };
+
+  // Only RASTER images are croppable. An SVG through a canvas crop comes back
+  // rasterized, which is never what the operator asked for - the retired
+  // drawer made the same exclusion and it is preserved here.
+  const croppable =
+    !!onCrop &&
+    item.assetKind === "image" &&
+    !/\.svg$/i.test(item.storagePath) &&
+    item.mime !== "image/svg+xml";
 
   const run = async (work: Promise<void> | undefined) => {
     if (!work) return;
@@ -160,6 +205,33 @@ export function MediaLibraryDetail({
       >
         <MediaThumb item={item} kind={item.assetKind} />
       </span>
+
+      {/* Asset ACTIONS. Both were only reachable from the retired assets
+          drawer: Copy URL lived behind its multi-select mode (select, then
+          "Copy URLs"), and Crop was a hover chip on the tile. They are one
+          click from the ⓘ rail now, on every surface that mounts the library. */}
+      <div className="flex flex-wrap gap-1">
+        <DetailAction
+          onClick={() => void copyUrl()}
+          icon={copied === true ? <Check className="size-3" /> : <Copy className="size-3" />}
+          tone={copied === true ? "ok" : copied === false ? "warn" : "plain"}
+        >
+          {copied === true
+            ? labels.copied
+            : copied === false
+              ? labels.copyFailed
+              : labels.copyUrl}
+        </DetailAction>
+        {croppable ? (
+          <DetailAction
+            onClick={() => onCrop?.(item)}
+            icon={<Crop className="size-3" />}
+            tone="plain"
+          >
+            {labels.crop}
+          </DetailAction>
+        ) : null}
+      </div>
 
       <DetailRow label={labels.fileName} value={item.originalFilename ?? item.storagePath} />
       <DetailRow label={labels.dimensions} value={dimensions} />
@@ -256,6 +328,39 @@ export function MediaLibraryDetail({
         ) : null}
       </div>
     </aside>
+  );
+}
+
+function DetailAction({
+  children,
+  icon,
+  tone,
+  onClick,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  tone: "plain" | "ok" | "warn";
+  onClick: () => void;
+}) {
+  const ink =
+    tone === "ok" ? CHROME.green : tone === "warn" ? CHROME.rose : FIELD_KIT.ink;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 border px-2 py-1 ${LIBRARY_FOCUS_CLASS}`}
+      style={{
+        borderColor: FIELD_KIT.border,
+        borderRadius: FIELD_KIT.radius.chip,
+        background: FIELD_KIT.surface,
+        color: ink,
+        fontSize: FIELD_KIT.font.caption,
+        fontWeight: FIELD_KIT.weight.label,
+      }}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }
 
