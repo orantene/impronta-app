@@ -478,16 +478,15 @@ export function InspectorDock() {
   // selection target that maps to <SiteHeaderInspector>. Skip the
   // standard load + tab dispatch when this id is selected.
   //
-  // WS-A A2 — this synthetic selection is a LEGACY slot-path construct:
-  // `PublishedShell` emits `SITE_HEADER_SELECTION_ID` as the header slot's
-  // `data-section-id` so the homepage/slot editor routes header clicks to the
-  // form-based <SiteHeaderInspector>. On the fully-freeform `site_shell` SURFACE
-  // (A1/A2) the header/footer are plain freeform section nodes — the synthetic
-  // id is never produced there, and any header/footer node must stay SELECTABLE
-  // and route through the normal node/section inspector. So we gate the special-
-  // case on the shell surface NOT being active: on every legacy path
-  // (surfaceKind !== "site_shell", incl. the homepage with the flag off) the
-  // behavior is byte-identical; on the shell surface it goes inert.
+  // The sentinel is emitted in exactly one place: `PublishedShell`'s SLOT
+  // render of the header. Freeform shell landmarks are BuilderNodes with node
+  // UUIDs (an embed carries the embedded row's real id), so the sentinel can
+  // never collide with node-level editing — the sentinel itself is the whole
+  // gate. A2's extra `surfaceKind !== "site_shell"` condition assumed the
+  // sentinel is never produced on the shell surface; a SLOT-composed
+  // `__site_shell__` page (empty blocks + cms_page_sections rows — Impronta in
+  // prod) falsified that and left the header's inspector a dead "Section not
+  // found". See site-header/selection-id.ts for the full story.
   const isSiteShellSurface = surfaceKind === "site_shell";
   const isSiteHeaderSelected = isLegacySiteHeaderSelection({
     selectedSectionId,
