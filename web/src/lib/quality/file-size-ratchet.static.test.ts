@@ -161,7 +161,12 @@ const BUDGETS: Record<string, number> = {
   // components/talent/media-quota-line.tsx and the numbers come from
   // lib/media/talent-storage-usage.ts; what landed here is one import and one
   // guarded mount.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4736,
+  // +18: the roster-refresh wiring. The skills/contexts panels persist their
+  // own changes, so the card behind the drawer went stale until a manual
+  // reload; onSkillsChanged / onContextsChanged and Save & exit's not-dirty
+  // early return now queue the (coalesced) refresh. Three call sites plus the
+  // comments explaining WHY these paths need it — nothing extractable.
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4754,
   // 2026-08-15 talent-notifications de-mock — net +2. `TalentNotificationsDrawer`
   // rendered a hardcoded MOCK_TALENT_NOTIFS and never read
   // `bridgeUserNotifications`, so a talent saw none of their own rows. The
