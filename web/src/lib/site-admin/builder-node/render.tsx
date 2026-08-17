@@ -16,6 +16,11 @@ import {
   renderInlineRich,
 } from "@/lib/site-admin/sections/shared/rich-text";
 
+import {
+  BACKGROUND_MEDIA_CSS,
+  renderBackgroundMediaLayer,
+} from "./background-media-layer";
+import { hasRenderableBackgroundMedia } from "./background-media";
 import { BuilderNodeCarouselTrack } from "./carousel";
 import { SocialFeedWidget } from "./social-feed";
 import { BuilderNodeCodeFrame } from "./code-frame";
@@ -1137,6 +1142,7 @@ ${BUILDER_NODE_NAV_CSS}
 ${BUILDER_NODE_SOCIAL_CSS}
 ${BUILDER_NODE_CAROUSEL_HERO_CSS}
 ${BUILDER_NODE_SOCIAL_FEED_CSS}
+${BACKGROUND_MEDIA_CSS}
 `;
 
 /**
@@ -3460,12 +3466,21 @@ function renderBuilderNodeElement(
       // regardless of tag — it is a pure drop-in replacement. Trees that
       // omit htmlTag render as <div> (byte-stable for existing trees).
       const ContainerTag = (node.props.htmlTag ?? "div") as "div";
+      // Moving background. The attribute is the CSS hook (position/isolation/
+      // overflow + lifting the author's children above the layer) and is emitted
+      // ONLY when the value actually resolves to something renderable, so a
+      // container without one — or with a URL that failed to parse — keeps
+      // byte-identical markup.
+      const bgMedia = renderBackgroundMediaLayer(node.props.backgroundMedia, node.id);
       return (
         <ContainerTag
           key={node.id}
           data-builder-node-id={node.id}
           data-builder-node-kind={node.kind}
           {...builderNodeStyleAttrs(node.props.style)}
+          data-bn-bg-media={
+            hasRenderableBackgroundMedia(node.props.backgroundMedia) ? "" : undefined
+          }
           data-builder-layout={node.props.layout}
           data-builder-tablet-layout={node.props.responsive?.tablet?.layout}
           data-builder-mobile-layout={node.props.responsive?.mobile?.layout}
@@ -3479,6 +3494,7 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--container"
           style={containerStyle(node)}
         >
+          {bgMedia}
           {renderDataBoundContainerChildren(node, options)}
         </ContainerTag>
       );

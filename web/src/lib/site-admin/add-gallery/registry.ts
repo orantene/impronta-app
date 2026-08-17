@@ -26,6 +26,10 @@ export const ADD_GALLERY_CATEGORIES: ReadonlyArray<AddGalleryCategoryDef> = [
   { id: "buttons", label: "Buttons", tab: "elements", icon: "buttons" },
   { id: "media", label: "Media", tab: "elements", icon: "media" },
   { id: "layout", label: "Layout", tab: "layout", icon: "layout" },
+  // Backgrounds — pre-dressed containers (video / YouTube / image / gradient).
+  // Sits on the `layout` tab next to the raw Container it dresses, rather than
+  // opening a whole new tab; see registry-catalog-backgrounds.ts for why.
+  { id: "backgrounds", label: "Backgrounds", tab: "layout", icon: "media" },
   { id: "cards", label: "Cards", tab: "elements", icon: "cards" },
   { id: "interactive", label: "Interactive", tab: "elements", icon: "interactive" },
   { id: "forms", label: "Forms", tab: "elements", icon: "forms" },

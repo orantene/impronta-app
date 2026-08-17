@@ -45,6 +45,7 @@ import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { MediaField, toMediaValue } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
+import { BackgroundMediaCard } from "./background-media-card";
 import { InlineNameInput } from "./kit/inline-name-input";
 import { MyBlocksPanel } from "./my-blocks-panel";
 import { ComponentLibraryPanel } from "./component-library-panel";
@@ -3239,6 +3240,28 @@ export function BuilderNodeContentInspector({
                   </Helper>
                 </Field>
               </div>
+            </CardBody>
+          </Card>
+        ) : null}
+        {/* Moving background. Container-only for now: it is the block every
+            freeform "section" is actually built from (see
+            `add-gallery/section-template-nodes.ts` — `tplSection` IS a
+            container), so this is the surface an author reaches for. */}
+        {node.kind === "container" ? (
+          <Card state="active">
+            <CardHead
+              title="Background"
+              sub="Video or YouTube behind this block"
+              iconAccent="blue"
+            />
+            <CardBody>
+              <BackgroundMediaCard
+                tenantId={tenantId}
+                value={node.props.backgroundMedia}
+                onChange={(next) => {
+                  void commitPatch({ backgroundMedia: next });
+                }}
+              />
             </CardBody>
           </Card>
         ) : null}

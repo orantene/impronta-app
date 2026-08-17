@@ -103,6 +103,36 @@ function connectSrcDirectives(): string[] {
 }
 
 /**
+ * CSP media-src: where a `<video>` / `<audio>` element may load bytes from.
+ *
+ * Tenant media lives in Supabase storage, so the hosted-project wildcard plus
+ * the configured project origin are both required. `blob:` covers a locally
+ * previewed object URL (the upload field shows the file before it is stored)
+ * and `data:` covers tiny inline placeholder clips. Deliberately NOT a blanket
+ * `https:` the way `img-src` is: images already come from arbitrary CDNs across
+ * this product, video does not, and keeping this list short means an
+ * exfiltration-by-media-fetch has nowhere to point.
+ */
+function mediaSrcDirectives(): string[] {
+  const origins = new Set<string>([
+    "'self'",
+    "blob:",
+    "data:",
+    "https://*.supabase.co",
+  ]);
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (raw) {
+    try {
+      const u = new URL(raw);
+      origins.add(`${u.protocol}//${u.host}`);
+    } catch {
+      /* ignore invalid env */
+    }
+  }
+  return [...origins];
+}
+
+/**
  * Maps JavaScript API — allowlist CSP aligned with Google’s guidance:
  * https://developers.google.com/maps/documentation/javascript/content-security-policy
  * (narrow script/connect was causing partial loads / console CSP violations.)
@@ -174,6 +204,15 @@ function contentSecurityPolicy(): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
+    // `media-src` governs <video>/<audio> src. It was ABSENT until 2026-08-17,
+    // which means it fell back to `default-src 'self'` and every cross-origin
+    // video was blocked by the browser: the `video` builder node, the
+    // `video_reel` section and the section-presentation video background all
+    // point at Supabase storage, so all three were silently dead on any page
+    // that served them. `connect-src` already lists the same origins but does
+    // NOT govern a media element, which is why the hole survived. Mirrors
+    // `connectSrcDirectives()` so a custom / local Supabase host works too.
+    `media-src ${mediaSrcDirectives().join(" ")}`,
     `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
     `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
     /** Maps workers use blob: URLs; service worker needs 'self'. */

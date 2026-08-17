@@ -84,7 +84,15 @@ export type AddGalleryNativeVariant =
   | "feed-grid"
   | "feed-masonry"
   | "feed-slider"
-  | "feed-stories";
+  | "feed-stories"
+  // Backgrounds story — pre-dressed `container` variants. Every background
+  // card MUST name one of these: a no-variant container card would take
+  // canonical status for the `container` kind away from `el-container` in
+  // `resolveKindGovernance`.
+  | "bg-video"
+  | "bg-youtube"
+  | "bg-image"
+  | "bg-gradient";
 
 export interface AddGalleryItem {
   id: string;

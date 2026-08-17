@@ -124,6 +124,14 @@ export function useMediaLibrary(input: {
   source: MediaLibrarySource;
   /** Nothing is fetched until the surface is actually visible. */
   active: boolean;
+  /**
+   * Seed the kind lane. A field that can only hold a video (a background clip)
+   * must not open onto 1,900 photographs the author cannot pick — the operator
+   * reads that as "my videos are missing" rather than "wrong filter". The
+   * author can still widen it with the kind chips; this only sets where the
+   * drawer STARTS. Omitted / "all" keeps the historical behaviour exactly.
+   */
+  initialKind?: MediaLibraryKindFilter;
 }) {
   const { active } = input;
   // The caller builds `input.source` inline, so it is a fresh object on every
@@ -144,7 +152,13 @@ export function useMediaLibrary(input: {
     [sourceKind, sourceId],
   );
 
-  const [filters, setFilters] = useState<MediaLibraryFilters>(EMPTY_MEDIA_FILTERS);
+  // Lazy initializer, not a prop-synced effect: the seed is a STARTING point,
+  // so re-reading it after the author changed the chips would fight them.
+  const [filters, setFilters] = useState<MediaLibraryFilters>(() =>
+    input.initialKind && input.initialKind !== "all"
+      ? { ...EMPTY_MEDIA_FILTERS, kind: input.initialKind }
+      : EMPTY_MEDIA_FILTERS,
+  );
   /** What the input shows. `filters.search` is what the server was asked. */
   const [searchDraft, setSearchDraft] = useState("");
   const [state, setState] = useState<MediaLibraryState>({

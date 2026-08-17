@@ -69,6 +69,7 @@ import {
   presentationScopedCss,
   presentationVideoBackground,
 } from "@/lib/site-admin/sections/shared/presentation";
+import { SectionVideoBackground } from "@/components/site/section-video-background";
 import { getPublicPathPrefix } from "@/lib/saas";
 import { prefixPublicHrefsDeep } from "@/lib/saas/public-hrefs";
 import {
@@ -725,41 +726,12 @@ export async function HomepageCmsSections({
             {scopedCss ? (
               <style dangerouslySetInnerHTML={{ __html: scopedCss }} />
             ) : null}
-            {videoBg ? (
-              <>
-                <video
-                  src={videoBg.src}
-                  poster={videoBg.poster}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    zIndex: -2,
-                    pointerEvents: "none",
-                  }}
-                />
-                {typeof videoBg.overlay === "number" && videoBg.overlay > 0 ? (
-                  <div
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      background: `rgba(0,0,0,${videoBg.overlay})`,
-                      zIndex: -1,
-                      pointerEvents: "none",
-                    }}
-                  />
-                ) : null}
-              </>
-            ) : null}
+            {/* Was ~30 lines of inline styles here. Moved to the shared
+                component so the talent renderer — which computed videoBg and
+                then rendered nothing — gets the same markup, and so the
+                prefers-reduced-motion poster fallback that presentation.ts
+                documents actually exists. */}
+            {videoBg ? <SectionVideoBackground video={videoBg} /> : null}
             {sectionEjected ? null : rendered}
             {builderChildrenNode}
           </div>

@@ -38,7 +38,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ImageIcon } from "lucide-react";
+import { FilmIcon, ImageIcon } from "lucide-react";
 
 import { useT } from "@/i18n/use-t";
 import { MediaPickerDrawer } from "@/components/edit-chrome/media-picker-drawer";
@@ -129,6 +129,15 @@ export interface MediaFieldProps {
   disabled?: boolean;
   /** Drawer title. */
   pickerTitle?: string;
+  /**
+   * Which asset kind this field holds. `"video"` opens the picker already
+   * filtered to video, narrows the upload accept list to the video MIME types
+   * the signed pipeline accepts, and previews the value with a muted `<video>`
+   * instead of an `<img>` (an `<img>` pointed at an mp4 renders a torn-image
+   * icon, which reads as "the upload failed"). Default `"image"` is the
+   * historical behaviour, byte-for-byte.
+   */
+  kind?: "image" | "video";
 }
 
 export function MediaField({
@@ -143,8 +152,10 @@ export function MediaField({
   allowDrop = true,
   disabled = false,
   pickerTitle,
+  kind = "image",
 }: MediaFieldProps) {
   const t = useT();
+  const isVideo = kind === "video";
   const [open, setOpen] = useState(false);
   const [urlMode, setUrlMode] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -196,7 +207,10 @@ export function MediaField({
       : null;
 
   useEffect(() => {
-    if (!has || layout !== "row") {
+    // The probe is an `Image()` decode, so it can only ever answer for an
+    // image. Asking it about an mp4 would just fire onerror and pin the row to
+    // "Loading dimensions" forever.
+    if (!has || layout !== "row" || isVideo) {
       setDimensions(null);
       return;
     }
@@ -204,7 +218,7 @@ export function MediaField({
     img.onload = () => setDimensions(`${img.naturalWidth} × ${img.naturalHeight}`);
     img.onerror = () => setDimensions(null);
     img.src = url;
-  }, [has, url, layout]);
+  }, [has, url, layout, isVideo]);
 
   const dropHandlers = allowDrop && !disabled
     ? {
@@ -261,6 +275,7 @@ export function MediaField({
       tenantId={tenantId}
       open={open}
       title={pickerTitle ?? t("dashboard.mediaField.pickerTitle")}
+      kind={isVideo ? "video" : undefined}
       onPick={() => {
         // Superseded by onPickItem — the drawer calls both, and taking the URL
         // here would be exactly the "src without its mediaId" write D1 forbids.
@@ -269,6 +284,37 @@ export function MediaField({
       onClose={() => setOpen(false)}
     />
   );
+
+  /**
+   * The set value, rendered. ONE helper for all three layouts so the image and
+   * video branches can never drift the way the four inlined `MediaPickerButton`
+   * copies did (see the module doc). The video preview is muted and
+   * control-less on purpose: this is a thumbnail, not a player.
+   */
+  const valuePreview = (className: string, fit: "cover" | "contain") =>
+    isVideo ? (
+      <video
+        src={url}
+        className={className}
+        style={{ objectFit: fit }}
+        muted
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+      />
+    ) : (
+      // eslint-disable-next-line @next/next/no-img-element -- operator-facing inspector thumbnail of an arbitrary tenant/CDN URL; the optimizer would 400 on unlisted hosts.
+      <img
+        src={url}
+        alt=""
+        className={className}
+        style={{ objectFit: fit }}
+        onError={(e) => {
+          // Graceful degrade: a 404'd URL still shows the operator what is set.
+          (e.currentTarget as HTMLImageElement).style.opacity = "0.3";
+        }}
+      />
+    );
 
   const openButton = (label: string, className: string) => (
     <button
@@ -308,8 +354,7 @@ export function MediaField({
           {...dropHandlers}
         >
           {has ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="" className="size-full object-contain p-2" />
+            valuePreview("size-full p-2", "contain")
           ) : (
             <div className="flex size-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-400">
               {emptyLabel}
@@ -368,17 +413,20 @@ export function MediaField({
           {...dropHandlers}
         >
           <div className="size-11 shrink-0 overflow-hidden rounded-md border border-stone-200 bg-stone-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" className="size-full object-cover" />
+            {valuePreview("size-full", "cover")}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12px] font-medium text-stone-800">
-              {filename ?? "image"}
+              {filename ?? (isVideo ? "video" : "image")}
             </p>
             <p className="text-[11px] text-stone-500">
               {inFlight
                 ? `${t("dashboard.mediaField.uploading")}${pct != null ? ` ${pct}%` : ""}`
-                : (dimensions ?? t("dashboard.mediaField.loadingDimensions"))}
+                : isVideo
+                  ? // No dimension probe on the video lane (see the effect above),
+                    // so name the kind rather than leave the line empty.
+                    t("dashboard.mediaField.videoSelected")
+                  : (dimensions ?? t("dashboard.mediaField.loadingDimensions"))}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
@@ -415,7 +463,11 @@ export function MediaField({
             {...dropHandlers}
           >
             <span className="flex flex-col items-center gap-2 text-stone-500">
-              <ImageIcon className="size-5" aria-hidden />
+              {isVideo ? (
+                <FilmIcon className="size-5" aria-hidden />
+              ) : (
+                <ImageIcon className="size-5" aria-hidden />
+              )}
               <span className="text-[11px] font-medium">
                 {dragOver ? t("dashboard.mediaField.dropToUpload") : emptyLabel}
               </span>
@@ -438,16 +490,7 @@ export function MediaField({
           style={{ aspectRatio: aspect }}
           {...dropHandlers}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={url}
-            alt=""
-            className="h-full w-full object-cover"
-            onError={(e) => {
-              // Graceful degrade: a 404'd URL still shows the operator what is set.
-              (e.currentTarget as HTMLImageElement).style.opacity = "0.3";
-            }}
-          />
+          {valuePreview("h-full w-full", "cover")}
           <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/70 to-transparent p-1.5">
             {openButton(
               t("dashboard.mediaField.change"),

@@ -96,6 +96,12 @@ async function check_csp() {
       "va.vercel-scripts.com",
       "vitals.vercel-insights.com",
       "maps.googleapis.com",
+      // Without an explicit media-src, <video> falls back to default-src 'self'
+      // and every Supabase-hosted clip (video node, video_reel, video
+      // backgrounds) is blocked with no server-side symptom at all.
+      "media-src",
+      // Video backgrounds embed the privacy-friendly YouTube host in an iframe.
+      "youtube-nocookie.com",
     ];
     for (const directive of required) {
       if (csp.includes(directive)) pass(`CSP includes ${directive}`);
