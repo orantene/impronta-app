@@ -80,12 +80,15 @@ test("/t/site routes emit og:title + og:image + canonical + hreflang + ld+json",
   const og = meta.openGraph as { title?: unknown; images?: unknown[] };
   assert.equal(og.title, "Sofía Vega — Studio");
   assert.ok(Array.isArray(og.images) && og.images.length > 0, "og:image present");
-  // canonical + hreflang (from the SHARED buildPublicLocaleAlternates)
+  // canonical + hreflang (from the SHARED platform locale-alternates builder).
+  // Absolute since 2026-08-16: a relative canonical resolves against whatever
+  // metadataBase the surrounding layout happens to set, which is how tenant
+  // storefronts ended up canonicalizing to the platform apex.
   const alts = meta.alternates as {
     canonical?: unknown;
     languages?: Record<string, unknown>;
   };
-  assert.equal(alts.canonical, "/t/site/sofia-studio");
+  assert.equal(alts.canonical, "https://tulala.digital/t/site/sofia-studio");
   assert.ok(alts.languages, "hreflang languages present");
   assert.ok(alts.languages?.en, "hreflang en");
   assert.ok(alts.languages?.es, "hreflang es");

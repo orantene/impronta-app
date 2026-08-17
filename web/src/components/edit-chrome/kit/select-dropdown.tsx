@@ -4,9 +4,12 @@
  * SelectDropdown — a styled native <select> wrapper that matches the
  * ColorRow / Segmented visual language.
  *
- * Uses CHROME.controlBorder for the idle border (same tactile affordance as
- * any other interactive control), CHROME.surface2 for the fill, and the
- * standard inputInset + inputFocus shadow treatment on focus.
+ * Inspector Reset P5: retoned off the khaki `CHROME.controlBorder`
+ * (#cfc7b6) onto `CHROME.lineStrong` — the same cool edge `NumberUnit`
+ * (kit/number-unit.tsx) and `InspectorSelect` (inspectors/kit/inspector-ui.tsx)
+ * use, so every "select" control in the editor shares one border language.
+ * Still CHROME.controlFill for the fill, and the standard inputInset +
+ * inputFocus shadow treatment on focus.
  *
  * A custom chevron is injected via a CSS background-image so the native
  * arrow is hidden across browsers. This keeps the styling purely CSS —
@@ -60,7 +63,7 @@ export function SelectDropdown({
         className="w-full appearance-none"
         style={{
           padding: "6px 28px 6px 9px",
-          border: `1px solid ${CHROME.controlBorder}`,
+          border: `1px solid ${CHROME.lineStrong}`,
           borderRadius: 6,
           background: CHROME.controlFill,
           boxShadow: CHROME_SHADOWS.inputInset,
@@ -79,7 +82,7 @@ export function SelectDropdown({
           e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputFocus;
         }}
         onBlur={(e) => {
-          e.currentTarget.style.borderColor = CHROME.controlBorder;
+          e.currentTarget.style.borderColor = CHROME.lineStrong;
           e.currentTarget.style.boxShadow = CHROME_SHADOWS.inputInset;
         }}
       >

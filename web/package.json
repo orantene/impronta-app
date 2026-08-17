@@ -111,7 +111,8 @@
     "test:e2e:impronta-composition-packs": "PLAYWRIGHT_USE_DEV_SIGNIN=1 PLAYWRIGHT_BASE_URL=http://localhost:3000 playwright test e2e/smoke.spec.ts -g 'impronta structure inspector inserts composition section packs'",
     "verify:builder-ownership": "npm run test:builder-node-bindings && npm run test:builder-chrome && npm run test:publish-preflight && npm run verify:published-page-snapshots:strict",
     "test:phase1-i18n": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/translation/phase1-invariants.test.ts src/i18n/message-key-usage.static.test.ts src/i18n/message-catalog-duplicate-keys.static.test.ts",
-    "test:locale-precedence": "tsx --test src/i18n/locale-precedence.test.ts",
+    "test:locale-precedence": "tsx --test src/i18n/locale-precedence.test.ts src/i18n/alternates.test.ts",
+    "test:hreflang": "tsx --test src/i18n/alternates.test.ts",
     "test:tenant-locale-grammar": "tsx --test src/i18n/tenant-locale-grammar.test.ts",
     "test:inquiry-workspace": "tsx --test src/lib/inquiry/coordinator-stale-policy.test.ts src/lib/inquiry/inquiry-workspace.test.ts src/lib/inquiry/alternates-logic.test.ts src/lib/inquiry/agency-inbox-visibility.test.ts src/lib/inquiry/inquiry-rehome.test.ts src/lib/inquiry/guest-draft-resume.test.ts src/lib/inquiry/guest-send-gate.test.ts",
     "validate:inquiry-workspace-db": "node --env-file=.env.local scripts/validate-inquiry-workspace-db.mjs",
@@ -184,7 +185,7 @@
     "cleanup:orphan-media": "tsx --env-file=.env.local scripts/cleanup-orphan-media-rows.ts",
     "test:directory-cards": "NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/components/home/default-storefront-links.static.test.ts src/lib/directory/caption-norms.test.ts src/lib/directory/demand-score.test.ts src/lib/directory/headline-price.test.ts src/lib/directory/pricing-defaults-shape.test.ts src/lib/fields/height-plausibility.test.ts src/components/directory/discovery-state-sync.test.ts 'src/app/t/[profileCode]/_chat/use-launcher-scroll-collapse.test.ts'",
     "check:taxonomy": "node --env-file=.env.local scripts/check-taxonomy-consistency.mjs",
-    "test:taxonomy-guard": "node scripts/check-taxonomy-consistency.mjs --selftest && tsx --test src/lib/talent/skill-term-validation.test.ts src/lib/quality/settings-path-copy.static.test.ts"
+    "test:taxonomy-guard": "node scripts/check-taxonomy-consistency.mjs --selftest && NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' tsx --test src/lib/talent/skill-term-validation.test.ts src/lib/quality/settings-path-copy.static.test.ts src/lib/taxonomy/tenant-talent-type-options.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

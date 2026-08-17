@@ -3,7 +3,7 @@ import "server-only";
 import type { Metadata } from "next";
 
 import type { Locale } from "@/i18n/config";
-import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
 
 import type { MaxSiteSeo } from "./render-max-site";
 
@@ -20,9 +20,10 @@ import type { MaxSiteSeo } from "./render-max-site";
  *   override falling back to title/description). The route-level
  *   `opengraph-image.tsx` ALSO contributes an `og:image` via the file
  *   convention; an explicit `ogImageUrl` here is an additional/override image.
- * - `alternates` reuse the SHARED `buildPublicLocaleAlternates` (canonical +
- *   hreflang) when an English-relative `localePathWithoutLocale` is supplied
- *   (the `/t/site/...` routes). The custom-domain apex has no EN/ES split, so it
+ * - `alternates` reuse the SHARED platform locale-alternates builder (canonical
+ *   + hreflang) when an English-relative `localePathWithoutLocale` is supplied
+ *   (the `/t/site/...` routes, which are served from the platform apex and so
+ *   genuinely own those URLs). The custom-domain apex has no EN/ES split, so it
  *   passes only an absolute `canonical` and no hreflang.
  * - `noindex` → `robots: { index:false, follow:false }` (draft preview).
  */
@@ -66,7 +67,7 @@ export function maxSiteSeoToMetadata(
 
   // /t/site/... routes → shared canonical + EN/ES hreflang.
   if (opts.localePathWithoutLocale && opts.locale) {
-    const alternates = buildPublicLocaleAlternates(
+    const alternates = buildMarketingLocaleAlternates(
       opts.locale,
       opts.localePathWithoutLocale,
     );

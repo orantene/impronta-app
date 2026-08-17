@@ -720,6 +720,21 @@ interface TokenPatchInput {
  * On VERSION_CONFLICT the inspector reloads the config and retries —
  * conflicts are most likely when two operators race or when the same
  * operator is editing in two tabs.
+ *
+ * ── 2026-08-16: this action destroyed a live theme ─────────────────────────
+ * `input.patch` is a PARTIAL patch — the inspector chips call
+ * `patchToken(key, value)` with ONE key (BrandTab.tsx:334 et al). The original
+ * wiring did two unsafe things with it:
+ *
+ *   1. `saveDesignDraft` REPLACES `theme_json_draft` with the patch, so a chip
+ *      click cut the shared draft column down to that one key.
+ *   2. The publish that followed was UNSCOPED, and an unscoped publish treats
+ *      the draft as the complete theme — so the one-key draft replaced the
+ *      55-token live map. Impronta's live `theme_json` went 58 keys → 4.
+ *
+ * Both halves are fixed here: the draft save MERGES onto the stored draft, and
+ * the publish is SCOPED to the patch's own keys so every other live token is
+ * left exactly where it is. `publishDesign`'s shrink guard backstops both.
  */
 export async function saveHeaderTokenAction(
   input: TokenPatchInput,
@@ -738,6 +753,8 @@ export async function saveHeaderTokenAction(
       expectedVersion: input.expectedVersion,
     },
     actorProfileId: auth.user.id,
+    // PARTIAL patch — never replace the shared draft column with these keys.
+    mergeIntoStoredDraft: true,
   });
   if (!draft.ok) {
     return {
@@ -755,6 +772,9 @@ export async function saveHeaderTokenAction(
       expectedVersion: draft.data.version,
     },
     actorProfileId: auth.user.id,
+    // SCOPED to this patch's keys. The inspector owns these tokens and nothing
+    // else; every other live token must survive the publish untouched.
+    scopeKeys: new Set(Object.keys(input.patch)),
   });
   if (!publish.ok) {
     return {
