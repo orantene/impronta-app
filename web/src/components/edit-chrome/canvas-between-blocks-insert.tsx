@@ -45,6 +45,11 @@ import {
   MENU_SURFACE_STYLE,
 } from "./kit/menu-surface";
 import { collectPageBlockBoundaries } from "./page-block-dom";
+import {
+  hoverGapAttributionProps,
+  pageGapKey,
+  resolveHoveredGapKey,
+} from "./canvas-hover-attribution";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import { CANVAS_GESTURE_COACHMARK_SEQUENCE } from "./builder-coachmarks";
 
@@ -163,8 +168,17 @@ export function CanvasBetweenBlocksInsert({
         setHoveredGap(null);
         return;
       }
-      // Skip pointer events over edit-chrome overlays.
       const hit = document.elementFromPoint(e.clientX, e.clientY);
+      // OUR OWN chrome first (see canvas-hover-attribution.ts). This indicator
+      // is painted in the selection layer's [data-edit-overlay] root, so the
+      // bail below used to catch the "+ Add block" pill itself: reaching for it
+      // cleared the gap, which unmounted the pill, which put the pointer back
+      // on the block, which re-matched the seam and remounted the pill. The
+      // owner saw that loop as the pill blinking on and off, exactly like the
+      // drag grip did before #1189. The affordance declares the seam it belongs
+      // to, so hovering it is hovering the seam and nothing changes.
+      if (resolveHoveredGapKey(hit) !== null) return;
+      // Skip pointer events over any OTHER edit-chrome overlay.
       if (hit?.closest("[data-edit-overlay]")) {
         setHoveredGap(null);
         return;
@@ -219,6 +233,7 @@ export function CanvasBetweenBlocksInsert({
       {gap && !pickerTarget ? (
         <div
           data-canvas-between-blocks-indicator=""
+          {...hoverGapAttributionProps(pageGapKey(gap.insertIndex))}
           style={{
             position: "fixed",
             top: gap.y - 1,
@@ -377,6 +392,7 @@ function BetweenBlocksPickerPopover({
   return (
     <div
       data-canvas-between-blocks-picker=""
+      {...hoverGapAttributionProps(pageGapKey(gap.insertIndex))}
       className="edit-anim-pop"
       style={{
         position: "fixed",
