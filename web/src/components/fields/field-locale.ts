@@ -13,24 +13,52 @@ import {
   resolveLocalized,
   type LocalizedMap,
 } from "@/lib/i18n/resolve-localized";
-import type { Locale } from "@/lib/site-admin/locales";
+import {
+  DEFAULT_PLATFORM_LOCALE,
+  isLocale,
+  type Locale,
+} from "@/lib/site-admin/locales";
 
-/** Read the app's `locale` cookie client-side. "en" on the server / no cookie. */
-export function readLocale(): string {
-  if (typeof document === "undefined") return "en";
+/**
+ * Read the app's `locale` cookie client-side.
+ *
+ * Previously this collapsed every cookie value to the en/es pair
+ * (`m?.[1] === "es" ? "es" : "en"`), so a tenant publishing any other language
+ * had EVERY client-side field label resolve as English regardless of what the
+ * visitor had actually selected. Now any well-formed BCP-47 code round-trips;
+ * membership is validated by the resolver's fallback chain, not here.
+ *
+ * `fallback` is the platform default only because a bare client editor has no
+ * tenant in scope. Callers that DO know the tenant should pass its
+ * `defaultLocale` so a no-cookie load lands on the tenant's own language.
+ */
+export function readLocale(fallback: Locale = DEFAULT_PLATFORM_LOCALE): string {
+  if (typeof document === "undefined") return fallback;
   const m = document.cookie.match(/(?:^|;\s*)locale=([^;]+)/);
-  return m?.[1] === "es" ? "es" : "en";
+  const raw = m?.[1] ? decodeURIComponent(m[1]).trim() : "";
+  return isLocale(raw) ? raw : fallback;
 }
 
 /**
- * Single-locale fallback chain `[locale, "en"]` for the common client case
- * where only the active `locale` cookie is known and no tenant settings are in
- * scope (e.g. the `readLocale()`-driven shell editors). Server/render paths
- * that have `TenantLocaleSettings` should pass `settings.fallbackChain(locale)`.
+ * Fallback chain for the common client case where only the active `locale`
+ * cookie is known and no tenant settings are in scope (e.g. the
+ * `readLocale()`-driven shell editors).
+ *
+ * The terminal locale is a PARAMETER, not a hardcoded `"en"`. The old
+ * `locale === "en" ? ["en"] : [locale, "en"]` always ended the walk at English,
+ * so on a tenant whose default locale is (say) `es` an untranslated field fell
+ * back to a language the tenant does not publish instead of to the tenant's own
+ * default. Render paths holding `TenantLocaleSettings` should still pass
+ * `settings.fallbackChain(locale)` — it is the authoritative walk.
  */
-function defaultChain(locale: Locale): Locale[] {
-  return locale === "en" ? ["en"] : [locale, "en"];
+export function clientFallbackChain(
+  locale: Locale,
+  fallbackLocale: Locale = DEFAULT_PLATFORM_LOCALE,
+): Locale[] {
+  return locale === fallbackLocale ? [locale] : [locale, fallbackLocale];
 }
+
+const defaultChain = clientFallbackChain;
 
 /** Locale-aware field label — resolves `label_i18n` against the fallback chain. */
 export function fieldLabel(

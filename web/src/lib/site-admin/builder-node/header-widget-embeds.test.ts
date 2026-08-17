@@ -82,9 +82,22 @@ test("each header-widget preset key has a registered shell-only curated section"
 test("the async (server-data-loader) header widgets are tagged hasLiveData", () => {
   assert.equal(headerAccountMeta.hasLiveData, true);
   assert.equal(headerInquiryMeta.hasLiveData, true);
-  // The sync widgets (pure render) are NOT tagged live-data.
-  assert.notEqual(headerSearchMeta.hasLiveData, true);
-  assert.notEqual(headerFavoritesMeta.hasLiveData, true);
+  // Search and Favorites used to be sync (pure render) and were asserted here
+  // as NOT live-data. #1197 made them async: both now resolve the tenant's
+  // locale URL grammar per request (`getRequestLocaleUrlSettings`) so their
+  // hrefs follow the tenant's default locale instead of the global fallback.
+  //
+  // That makes `hasLiveData: true` the CORRECT tag for them, and it is required
+  // by `sections/section-meta-live-data.test.ts`, which asserts every
+  // async-Component section is tagged. The two guards previously disagreed:
+  // satisfying that one reddened this one. Keep them reconciled — if a header
+  // widget stops loading request data, untag it in BOTH places.
+  //
+  // Cost of the tag, so it is a deliberate trade and not a silent one: a tagged
+  // widget skips the curated-edit path, so an in-editor prop change on these
+  // two now costs a router refresh.
+  assert.equal(headerSearchMeta.hasLiveData, true);
+  assert.equal(headerFavoritesMeta.hasLiveData, true);
 });
 
 test("createBuilderSectionEmbed builds a valid node for each header widget", () => {

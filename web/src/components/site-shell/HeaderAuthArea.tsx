@@ -34,7 +34,11 @@ import {
   ORIGINAL_PATHNAME_HEADER,
 } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
+import {
+  localeUrlSettings,
+  stripLocaleFromPathname,
+  withLocalePath,
+} from "@/i18n/pathnames";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { hostSafeDestination } from "@/lib/saas/host-safe-destination";
 import type { Locale } from "@/i18n/config";
@@ -75,7 +79,14 @@ export async function HeaderAuthArea({
   const t = createTranslator(locale);
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
-  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
+  // The caller already hands us the tenant's locale pair (`availableLocales` +
+  // `defaultLocale`); build the URL grammar from THOSE rather than letting the
+  // pathname helpers fall back to the platform `en`-default grammar.
+  const pathSettings = localeUrlSettings(defaultLocale, availableLocales);
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    originalPath,
+    pathSettings,
+  );
   const actor = await getCachedActorSession();
   const user = actor.user;
   const profile: AccessProfileWithDisplayName | null = actor.profile;
@@ -89,7 +100,7 @@ export async function HeaderAuthArea({
   const hostKind = (await getPublicHostContext()).kind;
   const accountHref = (href: string) => {
     const hostSafe = hostSafeDestination(href, hostKind);
-    return hostSafe === href ? withLocalePath(href, locale) : hostSafe;
+    return hostSafe === href ? withLocalePath(href, locale, pathSettings) : hostSafe;
   };
   const secondaryActionRaw = !user
     ? null

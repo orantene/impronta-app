@@ -1,6 +1,8 @@
 "use server";
 
 import { buildPostPublicPathname, buildPublicPathname } from "@/lib/cms/paths";
+import { localeUrlSettings } from "@/i18n/pathnames";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   parseCmsPageSnapshot,
   parseCmsPostSnapshot,
@@ -120,8 +122,20 @@ export async function getCmsPageRevisionForRestore(input: {
   const snapshot = parseCmsPageSnapshot(data.snapshot);
   if (!snapshot) return { ok: false, error: "Invalid revision snapshot." };
 
-  const livePath = buildPublicPathname(input.liveLocale, input.liveSlug);
-  const revisionPath = buildPublicPathname(snapshot.locale, snapshot.slug);
+  // The "public URL will change" hint must use THIS tenant's URL grammar, or an
+  // es-default workspace is told its Spanish page lives at `/es/p/...` when the
+  // real canonical is `/p/...`.
+  const tenantLocales = await loadTenantLocaleSettings(tenantId);
+  const urlSettings = localeUrlSettings(
+    tenantLocales.defaultLocale,
+    tenantLocales.supportedLocales,
+  );
+  const livePath = buildPublicPathname(input.liveLocale, input.liveSlug, urlSettings);
+  const revisionPath = buildPublicPathname(
+    snapshot.locale,
+    snapshot.slug,
+    urlSettings,
+  );
   const publicUrlChange =
     livePath !== revisionPath ? { fromPath: livePath, toPath: revisionPath } : null;
 
@@ -167,8 +181,21 @@ export async function getCmsPostRevisionForRestore(input: {
   const snapshot = parseCmsPostSnapshot(data.snapshot);
   if (!snapshot) return { ok: false, error: "Invalid revision snapshot." };
 
-  const livePath = buildPostPublicPathname(input.liveLocale, input.liveSlug);
-  const revisionPath = buildPostPublicPathname(snapshot.locale, snapshot.slug);
+  const tenantLocales = await loadTenantLocaleSettings(tenantId);
+  const urlSettings = localeUrlSettings(
+    tenantLocales.defaultLocale,
+    tenantLocales.supportedLocales,
+  );
+  const livePath = buildPostPublicPathname(
+    input.liveLocale,
+    input.liveSlug,
+    urlSettings,
+  );
+  const revisionPath = buildPostPublicPathname(
+    snapshot.locale,
+    snapshot.slug,
+    urlSettings,
+  );
   const publicUrlChange =
     livePath !== revisionPath ? { fromPath: livePath, toPath: revisionPath } : null;
 
