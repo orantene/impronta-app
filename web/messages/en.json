@@ -10971,7 +10971,8 @@
       "dropToUpload": "Drop to upload",
       "uploading": "Uploading",
       "uploadFailed": "Upload failed",
-      "loadingDimensions": "Loading dimensions..."
+      "loadingDimensions": "Loading dimensions...",
+      "videoSelected": "Video selected"
     },
     "mediaLibrary": {
       "searchPlaceholder": "Search by file name, alt text or note",

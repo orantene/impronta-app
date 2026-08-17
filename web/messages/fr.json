@@ -600,7 +600,8 @@
       "dropToUpload": "Deposez pour televerser",
       "uploading": "Televersement",
       "uploadFailed": "Echec du televersement",
-      "loadingDimensions": "Chargement des dimensions..."
+      "loadingDimensions": "Chargement des dimensions...",
+      "videoSelected": "Vidéo sélectionnée"
     }
   }
 }

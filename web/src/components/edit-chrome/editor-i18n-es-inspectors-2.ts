@@ -331,4 +331,55 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "Restablecer el estilo de {device} de este bloque",
   "Copy once, paste anywhere.": "Copia una vez, pega donde quieras.",
   "Copied: {source}": "Copiado: {source}",
+
+  // ── Container background media (2026-08-17) ─────────────────────────────
+  // The Content-tab card that attaches a looping video or a YouTube clip
+  // behind a container, plus its scrim. House rules: no em dashes, plain
+  // language over the CSS words ("Overlay darkness", not "opacity").
+  Background: "Fondo",
+  "Video or YouTube behind this block": "Video o YouTube detrás de este bloque",
+  "Background media": "Medios de fondo",
+  "Plays muted and looped behind this block, with a still image for visitors who prefer reduced motion.":
+    "Se reproduce sin sonido y en bucle detrás de este bloque, con una imagen fija para quienes prefieren menos movimiento.",
+  "Video file": "Archivo de video",
+  "Choose video": "Elegir video",
+  "Choose a background video": "Elegir un video de fondo",
+  "YouTube link": "Enlace de YouTube",
+  "Paste any YouTube link. Watch, share and Shorts URLs all work.":
+    "Pega cualquier enlace de YouTube. Funcionan las URL de reproducción, de compartir y de Shorts.",
+  "Poster image": "Imagen de portada",
+  "Poster image (optional)": "Imagen de portada (opcional)",
+  "Choose poster": "Elegir portada",
+  "Shown before the video starts and instead of it under reduced motion.":
+    "Se muestra antes de que inicie el video y en su lugar cuando hay menos movimiento.",
+  "Shown before the video starts and instead of it under reduced motion. Falls back to the YouTube thumbnail.":
+    "Se muestra antes de que inicie el video y en su lugar cuando hay menos movimiento. Si no la eliges, se usa la miniatura de YouTube.",
+  "Overlay darkness": "Oscuridad de la capa",
+  "Darkens the background so headings and body copy stay readable.":
+    "Oscurece el fondo para que los títulos y el texto sigan siendo legibles.",
+  "Overlay color": "Color de la capa",
+  "Any CSS color, or a theme token like var(--token-color-primary). Defaults to black.":
+    "Cualquier color CSS, o un token del tema como var(--token-color-primary). Por defecto es negro.",
+  "Focal point": "Punto focal",
+  "Which part of the frame stays visible when it is cropped. Try center, top, or 50% 20%.":
+    "Qué parte del encuadre queda visible al recortarse. Prueba center, top o 50% 20%.",
+  "That is not a YouTube video link, so nothing will play. Copy the URL from the video page or the Share button.":
+    "Ese no es un enlace de video de YouTube, así que no se reproducirá nada. Copia la URL desde la página del video o desde el botón Compartir.",
+  "That video link cannot be used. Pick a file from the library, or paste an https URL.":
+    "Ese enlace de video no se puede usar. Elige un archivo de la biblioteca o pega una URL https.",
+
+  // ── Backgrounds story in the Add gallery (2026-08-17) ────────────────────
+  Backgrounds: "Fondos",
+  "Video Background": "Fondo de video",
+  "YouTube Background": "Fondo de YouTube",
+  "Image Background": "Fondo de imagen",
+  "Gradient Background": "Fondo degradado",
+  "Full-bleed band with a looping video behind your content.":
+    "Franja a todo lo ancho con un video en bucle detrás de tu contenido.",
+  "Full-bleed band with a YouTube video playing behind content.":
+    "Franja a todo lo ancho con un video de YouTube reproduciéndose detrás del contenido.",
+  "Full-bleed band with a photo behind your content.":
+    "Franja a todo lo ancho con una foto detrás de tu contenido.",
+  "Full-bleed band with a soft brand-coloured gradient.":
+    "Franja a todo lo ancho con un degradado suave en los colores de tu marca.",
 };

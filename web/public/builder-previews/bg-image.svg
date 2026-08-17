@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="110" viewBox="0 0 320 110" role="img" aria-label="Full-bleed band with a photo background">
+  <rect width="320" height="110" fill="#5b6076"/>
+  <g opacity="0.5">
+    <circle cx="248" cy="26" r="14" fill="#e8eaf2"/>
+    <path d="M0 92 L62 54 L112 78 L176 40 L232 74 L282 52 L320 74 L320 110 L0 110 Z" fill="#343849"/>
+    <path d="M0 104 L76 74 L142 96 L208 68 L268 92 L320 76 L320 110 L0 110 Z" fill="#22242e"/>
+  </g>
+  <rect x="0" y="0" width="320" height="110" fill="#12141d" opacity="0.38"/>
+  <rect x="96" y="46" width="128" height="8" rx="1" fill="#ffffff" opacity="0.95"/>
+  <rect x="112" y="62" width="96" height="5" rx="1" fill="#ffffff" opacity="0.6"/>
+  <rect x="132" y="78" width="56" height="12" rx="2" fill="#ffffff" opacity="0.9"/>
+</svg>

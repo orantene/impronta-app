@@ -10,6 +10,7 @@ import {
   SOCIAL_POST_PROVIDERS,
   parseSocialPostUrl,
 } from "@/lib/social-embed/social-post-url";
+import { backgroundMediaSchema } from "./background-media";
 import type { BuilderNodeKind } from "./types";
 
 /** Kinds allowed inside composable shells (section body, container, card, CTA group, …). */
@@ -574,6 +575,13 @@ const containerPropsSchema = z
       })
       .optional(),
     dataBinding: dataBindingPropsSchema.optional(),
+    // Moving background (uploaded video or a YouTube URL) painted BEHIND this
+    // container's children, with an author-controlled scrim so text stays
+    // readable. Optional + back-compat: undefined emits no wrapper, no data
+    // attribute and no extra CSS hook, so existing trees render byte-identical.
+    // The whole contract (parsing, the nocookie rebuild, poster derivation,
+    // overlay normalization) lives in `background-media.ts`.
+    backgroundMedia: backgroundMediaSchema.optional(),
     style: builderNodeStyleSchema,
     instanceOf: z.string().max(120).optional(),
     instanceOverrides: z
