@@ -28,9 +28,16 @@ export type OfferSplitLine = {
 
 /** Column headings aligned to the line-item grid. */
 export function OfferColumnHeaders({ t }: { t: (key: string) => string }) {
-  const cells = ["colTalent", "colUnit", "colQty", "colClientRate", "colTalentGets"].map((k) =>
-    t(`dashboard.adminTabs.lineup.${k}`),
-  );
+  // Literal keys on purpose: the i18n static extractor treats a template key
+  // as "everything under this prefix is live", which silently revives the
+  // dead-key baseline for the whole lineup namespace.
+  const cells = [
+    t("dashboard.adminTabs.lineup.colTalent"),
+    t("dashboard.adminTabs.lineup.colUnit"),
+    t("dashboard.adminTabs.lineup.colQty"),
+    t("dashboard.adminTabs.lineup.colClientRate"),
+    t("dashboard.adminTabs.lineup.colTalentGets"),
+  ];
   return (
     <div className="grid grid-cols-[1.6fr_0.8fr_0.6fr_0.8fr_0.8fr_28px] gap-1.5 px-2.5 text-admin-ink-muted">
       {cells.map((label) => (
@@ -132,7 +139,6 @@ export function OfferEditorFooter({
   onFeeChange: (value: number) => void;
   onSave: () => void;
 }) {
-  const k = (s: string) => t(`dashboard.adminTabs.lineup.${s}`);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <button
@@ -141,15 +147,15 @@ export function OfferEditorFooter({
         onClick={onAddLine}
         className="rounded border border-admin-border bg-white px-2 py-1 text-[11px] text-admin-ink disabled:opacity-50"
       >
-        {k("addLineItem")}
+        {t("dashboard.adminTabs.lineup.addLineItem")}
       </button>
       <span className="flex-1" />
-      <label className="text-admin-11 text-admin-ink-muted">{k("total")}</label>
-      <span title={k("totalTitle")} className="min-w-[90px] whitespace-nowrap px-1.5 py-1 text-right text-[13px] font-bold text-admin-ink">
+      <label className="text-admin-11 text-admin-ink-muted">{t("dashboard.adminTabs.lineup.total")}</label>
+      <span title={t("dashboard.adminTabs.lineup.totalTitle")} className="min-w-[90px] whitespace-nowrap px-1.5 py-1 text-right text-[13px] font-bold text-admin-ink">
         {new Intl.NumberFormat("en-US", { style: "currency", currency: currencyCode, maximumFractionDigits: 0 }).format(total)}
       </span>
-      <label htmlFor="offer-agency-fee" title={k("feeTitle")} className="text-admin-11 text-admin-ink-muted">
-        {k("feeExtra")}
+      <label htmlFor="offer-agency-fee" title={t("dashboard.adminTabs.lineup.feeTitle")} className="text-admin-11 text-admin-ink-muted">
+        {t("dashboard.adminTabs.lineup.feeExtra")}
       </label>
       <input
         id="offer-agency-fee"
@@ -157,7 +163,7 @@ export function OfferEditorFooter({
         min={0}
         step="100"
         value={coordinatorFee}
-        title={k("feeTitle")}
+        title={t("dashboard.adminTabs.lineup.feeTitle")}
         onChange={(e) => onFeeChange(parseFloat(e.target.value) || 0)}
         className="w-20 rounded border border-admin-border px-1.5 py-1 text-[11px] text-admin-ink"
       />
@@ -167,7 +173,7 @@ export function OfferEditorFooter({
         onClick={onSave}
         className="rounded bg-admin-accent px-2.5 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
       >
-        {savePending ? k("saving") : k("saveDraft")}
+        {savePending ? t("dashboard.adminTabs.lineup.saving") : t("dashboard.adminTabs.lineup.saveDraft")}
       </button>
     </div>
   );
