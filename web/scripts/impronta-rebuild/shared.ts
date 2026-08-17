@@ -568,7 +568,20 @@ export function pageHero(idPrefix: string, opts: PageHeroOptions): BuilderNode {
         gap: "0px",
         backgroundColor: INK,
         backgroundImage: opts.imageSlot
-          ? `linear-gradient(180deg, rgba(6,6,8,0.72) 0%, rgba(6,6,8,0.55) 45%, rgba(6,6,8,0.86) 100%), ${IMAGE_SLOT_BG(opts.imageSlot)}`
+          ? // Scrim tuned against the REAL curated photography (checked in the
+            // browser): the first pass used a 0.55 mid-stop, and on a
+            // bright, high-key frame the body copy under the headline washed
+            // out to near-unreadable. Three layers now: a soft vignette to
+            // hold the edges, a vertical scrim that stays dark through the
+            // copy band (~35-70%), then the photo.
+            // Balanced in the browser across BOTH extremes of the curated set:
+            // strong enough that copy stays legible on a bright, high-key frame,
+            // light enough that an already-dark editorial frame does not crush
+            // to flat black. The vignette carries the edge contrast so the
+            // vertical scrim can stay lighter through the copy band.
+            `radial-gradient(120% 100% at 50% 32%, rgba(6,6,8,0.00) 0%, rgba(6,6,8,0.45) 100%), ` +
+            `linear-gradient(180deg, rgba(6,6,8,0.68) 0%, rgba(6,6,8,0.40) 30%, rgba(6,6,8,0.52) 62%, rgba(6,6,8,0.88) 100%), ` +
+            `${IMAGE_SLOT_BG(opts.imageSlot)}`
           : "radial-gradient(120% 80% at 50% 0%, rgba(201,162,39,0.10), rgba(201,162,39,0) 60%), linear-gradient(180deg,var(--token-color-surface-raised) 0%,var(--token-color-background) 100%)",
         ...(opts.imageSlot
           ? {

@@ -99,6 +99,11 @@ function chainResult(result: { data: unknown; error: unknown }) {
   for (const method of ["select", "eq", "is", "order", "limit"]) {
     builder[method] = () => builder;
   }
+  // `range(from, to)` — the media library is read with real pagination now
+  // (PostgREST caps a bare .limit() at db-max-rows). The first page returns
+  // the fixture rows; any later page is empty so the paging loop terminates.
+  builder.range = (from: number) =>
+    Promise.resolve(from === 0 ? result : { data: [], error: null });
   builder.maybeSingle = () => Promise.resolve(result);
   builder.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
     Promise.resolve(result).then(resolve, reject);
@@ -693,5 +698,34 @@ test("the real authored page trees expose their image slots to the seeder", asyn
   assert.ok(
     total > 0,
     "the seeder must see the authored trees' image slots (0 means the prefix bridge regressed)",
+  );
+});
+
+// ── NO DEAD LINKS TO HELD / MISSING PAGES ────────────────────────────────────
+//
+// REGRESSION: holding `chefs-culinary` (zero tagged talent) left THREE live
+// links to /p/chefs-culinary -- a marquee entry and a division tile on home,
+// and a division tile on for-clients. Every one would have 404'd. A held page
+// must never be linked from a seeded page.
+
+test("no seeded page links to a held or unseeded internal page", async () => {
+  const { pages } = await loadPageModules();
+  const seedableSlugs = new Set(seedablePageFiles());
+  const offenders: string[] = [];
+
+  for (const page of pages) {
+    const hrefs = JSON.stringify(page.blocks).match(/"\/p\/[a-z0-9-]+"/g) ?? [];
+    for (const raw of hrefs) {
+      const slug = raw.replace(/"/g, "").replace("/p/", "");
+      if (!seedableSlugs.has(slug)) {
+        offenders.push(`${page.slug} -> /p/${slug}`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    [...new Set(offenders)],
+    [],
+    `seeded pages must not link to a page that will not exist: ${offenders.join(", ")}`,
   );
 });

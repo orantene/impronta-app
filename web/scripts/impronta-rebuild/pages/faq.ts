@@ -31,7 +31,7 @@ const clientFaq = band(
         id: "rb-faq-c-1",
         question: "What kind of talent can I book?",
         answer:
-          "Five divisions: fashion models, event hosts and promoters, performers, DJs and musicians, and private chefs and culinary talent. You can book one face or build a full team across divisions in a single brief.",
+          "Four divisions: fashion models, event hosts and promoters, performers, and DJs and musicians. We also place private chefs and culinary talent on request. You can book one face or build a full team across divisions in a single brief.",
       },
       {
         id: "rb-faq-c-2",

@@ -161,7 +161,7 @@ const divisionsStrip = band(
     centerHead(
       "rb-about-divisions",
       "The divisions",
-      "Five disciplines, one standard",
+      "Four disciplines, one standard",
       "Each division is curated by the same rules: met in person, vetted, represented.",
     ),
     {
@@ -180,7 +180,6 @@ const divisionsStrip = band(
         linkRow("rb-about-div-hosts", "Hosts & Promoters", "/p/hosts-promoters"),
         linkRow("rb-about-div-performers", "Performers", "/p/performers"),
         linkRow("rb-about-div-music", "Music & DJs", "/p/music-djs"),
-        linkRow("rb-about-div-chefs", "Chefs & Culinary", "/p/chefs-culinary"),
         linkRow("rb-about-div-all", "The full roster", "/directory"),
       ],
     },

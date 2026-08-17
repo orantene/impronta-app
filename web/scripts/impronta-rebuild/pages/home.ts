@@ -63,7 +63,6 @@ const marquee: BuilderNode = {
         { text: "Hosts & Promoters", href: "/p/hosts-promoters" },
         { text: "Performers", href: "/p/performers" },
         { text: "Music & DJs", href: "/p/music-djs" },
-        { text: "Chefs & Culinary", href: "/p/chefs-culinary" },
         { text: "Full Roster", href: "/directory" },
       ],
       speed: "slow",
@@ -135,7 +134,7 @@ const divisions = band(
     centerHead(
       "rb-home-divisions",
       "The divisions",
-      "One agency, five disciplines",
+      "One agency, four disciplines",
       "Every division is a working roster, not a category label. Browse the discipline your brief needs, or search the full directory across all of them.",
     ),
     grid(
@@ -169,13 +168,6 @@ const divisions = band(
           title: "Music & DJs",
           subtitle: "DJs, musicians and curated sound",
           href: "/p/music-djs",
-        }),
-        photoTile("rb-home-div-chefs", {
-          imageSlot: "home-division-chefs",
-          imageAlt: "Impronta private chef plating a dish at an intimate dinner event.",
-          title: "Chefs & Culinary",
-          subtitle: "Private chefs and culinary experiences",
-          href: "/p/chefs-culinary",
         }),
         {
           id: "rb-home-div-all",
