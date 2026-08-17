@@ -389,7 +389,6 @@ function RosterCard({
     rosterCardBadges.categories,
     rosterCardBadges.typeDisplay,
   );
-  const [typesOpen, setTypesOpen] = useState(false);
 
   // Availability dot
   const availDot = profile.availability === "available"
@@ -673,16 +672,11 @@ function RosterCard({
         </div>
       </div>
 
-      {/* Category strip between photo and body — the admin scanning anchor,
-          and (in `parent_first`) the control that opens the child types. */}
+      {/* Category strip between photo and body — `expanded` mode only; the
+          parent-anchored modes list their parents as body rows instead. */}
       <RosterCardCategoryStrip
         model={categoryModel}
         categoriesOn={rosterCardBadges.categories}
-        open={typesOpen}
-        onToggle={() => setTypesOpen((v) => !v)}
-        toggleLabel={fillAdminTpl(t("admin.roster.card.toggleTypesAria"), {
-          category: categoryModel.parentLabels.join(" · "),
-        })}
       />
 
       {/* Card body — name + type + city, hairlined */}
@@ -704,9 +698,13 @@ function RosterCard({
         <RosterCardTypeLines
           model={categoryModel}
           categoriesOn={rosterCardBadges.categories}
-          open={typesOpen}
           noTypeLabel={t("admin.roster.card.noTypeSet")}
           unsupportedTooltip={t("admin.roster.card.typeNotOfferedTooltip")}
+          getToggleAria={(parentLabel) =>
+            fillAdminTpl(t("admin.roster.card.toggleTypesAria"), {
+              category: parentLabel,
+            })
+          }
         />
         {profile.city && (
           <div style={{ fontSize: 11, marginTop: 1 }} className="text-admin-ink-muted">

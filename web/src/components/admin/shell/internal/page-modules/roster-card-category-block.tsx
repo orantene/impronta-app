@@ -4,29 +4,29 @@
  * roster-card-category-block.tsx — the roster GRID card's category block,
  * split out of TalentPage-2 so that file stays under its max-lines budget.
  *
- * The block has two DOM homes on the card, so it ships as two presentational
- * pieces rather than one component:
+ * Two presentational pieces, because the block has two possible DOM homes:
  *
- *   - `<RosterCardCategoryStrip>` — the full-width band between the photo and
- *     the body (the admin scanning anchor).
- *   - `<RosterCardTypeLines>` — the type line + type chips inside the body.
- *
- * Both are pure and prop-driven; the open/closed state of the `parent_first`
- * expander lives on the card so the two halves stay in sync.
+ *   - `<RosterCardCategoryStrip>` — the full-width band between photo and
+ *     body. Renders ONLY in `expanded` mode (the historical admin anchor);
+ *     the parent-anchored modes deliberately have no band — owner feedback:
+ *     the gray accordion strip read as clutter.
+ *   - `<RosterCardTypeLines>` — everything inside the white body.
  *
  * Layout follows the tenant's `rosterCardBadges.typeDisplay`:
  *   - `expanded`     — parent strip, primary type line, first 3 secondary
- *                      chips + a `+N` overflow chip.
- *   - `parent_first` — ONLY the parent talent types, in a strip that toggles
- *                      the child types open in the body, grouped by parent.
- *   - `parent_only`  — parent talent types, nothing else.
+ *                      chips + a `+N` overflow chip (unchanged).
+ *   - `parent_first` — each parent category the talent spans is its OWN
+ *                      accordion row in the body (✨ PERFORMERS ▸). Tapping a
+ *                      row opens just that parent's types. Per-card, local,
+ *                      collapsed at rest.
+ *   - `parent_only`  — the same parent rows, static — no expander, no types.
  *
  * THREE THINGS THE BLOCK IS CAREFUL ABOUT
  * ───────────────────────────────────────
  *   1. EVERY parent, not one. A talent routinely holds types across several
  *      parents (Models AND Performers AND Influencers). Anchoring on the
- *      primary type's parent alone silently hid the rest, so the strip lists
- *      all of them and the expansion groups the types underneath each.
+ *      primary type's parent alone silently hid the rest, so every parent
+ *      gets a row and its types group underneath it.
  *   2. The primary type wears a star, so "what are they mainly" survives the
  *      flattening into chips.
  *   3. A type this workspace has DISABLED still renders — dimmed, dashed, and
@@ -34,13 +34,14 @@
  *      offer it. Hiding it would make the card lie about the talent.
  */
 
+import { useState } from "react";
+
 import type {
   RosterCardTaxonomyView,
   RosterTypeEntry,
   RosterTypeGroup,
 } from "./roster-card-taxonomy";
 
-/** Shared band styling, so the static strip and the toggle read identically. */
 const STRIP_CLASS =
   "border-b border-admin-border-soft bg-[rgba(11,11,13,0.045)] px-[8px] py-[4px] text-[10px] font-bold uppercase tracking-[1px] text-admin-ink-muted";
 
@@ -53,23 +54,19 @@ const PRIMARY_CHIP_CLASS = `${CHIP_CLASS} bg-admin-accent-soft text-admin-accent
  *  bookable type. Dashed + dimmed, with the reason on hover. */
 const UNSUPPORTED_CHIP_CLASS = `${CHIP_CLASS} border border-dashed border-admin-border bg-transparent text-admin-ink-muted opacity-[0.55]`;
 
-/**
- * Everything the two halves need, derived once on the card. `parentLabels`
- * already accounts for a talent whose parent category could not be resolved
- * (their type labels stand in, so the band is never empty).
- */
+/** Parent-row label: quiet, uppercase, reads as a section eyebrow. */
+const GROUP_LABEL_CLASS =
+  "min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.9px] text-admin-ink-dim";
+
+/** Everything the two halves need, derived once on the card. */
 export type RosterCardCategoryModel = {
   taxonomyView: RosterCardTaxonomyView;
   /** `categories` badge is on AND the mode is parent-anchored. */
   parentAnchored: boolean;
-  /** Parent-anchored AND `parent_first` AND there is something to reveal. */
-  canExpandTypes: boolean;
+  /** Parent-anchored AND `parent_first` — rows carry expanders. */
+  expandable: boolean;
   /** Every parent category the talent spans, in display order. */
   groups: RosterTypeGroup[];
-  /** Strip text in the parent-anchored modes — one entry per parent. */
-  parentLabels: string[];
-  /** How many types hide behind the `+`. */
-  hiddenTypeCount: number;
 };
 
 /** One type chip: star for primary, dimmed + tooltipped when unsupported. */
@@ -102,76 +99,132 @@ function TypeChip({
   );
 }
 
+/**
+ * The band between photo and body — `expanded` mode only. The parent-anchored
+ * modes render their parents as body rows instead, so they return null here.
+ */
 export function RosterCardCategoryStrip({
   model,
   categoriesOn,
-  open,
-  onToggle,
-  toggleLabel,
 }: {
   model: RosterCardCategoryModel;
   categoriesOn: boolean;
-  open: boolean;
-  onToggle: () => void;
-  /** Localized aria-label for the expander. */
-  toggleLabel: string;
 }) {
-  const { taxonomyView, parentAnchored, canExpandTypes, parentLabels } = model;
+  const { taxonomyView, parentAnchored } = model;
+  if (parentAnchored || !categoriesOn || !taxonomyView.parentLabel) return null;
+  return (
+    <div
+      data-roster-parent-category
+      className={`overflow-hidden text-ellipsis whitespace-nowrap text-center ${STRIP_CLASS}`}
+    >
+      {taxonomyView.parentLabel}
+    </div>
+  );
+}
 
-  // `expanded`: the historical static parent band (primary's parent only —
-  // the full set is what the parent-anchored modes are for).
-  if (!parentAnchored) {
-    if (!categoriesOn || !taxonomyView.parentLabel) return null;
+/**
+ * One parent's accordion row + its types. The chevron rotates open; the row
+ * stops propagation because the card root is itself a click target (it would
+ * otherwise open the profile drawer).
+ */
+function ParentGroupRow({
+  group,
+  expandable,
+  toggleAria,
+  unsupportedTooltip,
+}: {
+  group: RosterTypeGroup;
+  expandable: boolean;
+  /** Localized aria-label for this row's expander. */
+  toggleAria: string;
+  unsupportedTooltip: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  // A group whose parent could not be resolved has no row label to offer, so
+  // its chips render directly (always visible) — a type the talent holds must
+  // never be unreachable because the tree walk came up empty.
+  if (!group.parentLabel) {
     return (
-      <div
-        data-roster-parent-category
-        className={`overflow-hidden text-ellipsis whitespace-nowrap text-center ${STRIP_CLASS}`}
-      >
-        {taxonomyView.parentLabel}
+      <div data-roster-parent-group className="flex flex-wrap gap-[3px] py-[3px]">
+        {group.types.map((type) => (
+          <TypeChip key={type.key} type={type} unsupportedTooltip={unsupportedTooltip} />
+        ))}
       </div>
     );
   }
 
-  if (parentLabels.length === 0) return null;
-  const bandText = parentLabels.join(" · ");
+  const labelBody = (
+    <>
+      {group.parentEmoji && (
+        <span aria-hidden className="shrink-0 text-[11px] leading-none opacity-[0.8]">
+          {group.parentEmoji}
+        </span>
+      )}
+      <span className={GROUP_LABEL_CLASS}>{group.parentLabel}</span>
+    </>
+  );
 
-  // `parent_first`: the strip IS the control. The card root is itself a click
-  // target, so the toggle stops propagation and never opens the profile drawer.
-  if (canExpandTypes) {
+  // `parent_only`: a static eyebrow row, nothing to open.
+  if (!expandable) {
     return (
-      <button
-        type="button"
-        data-roster-parent-category
-        aria-expanded={open}
-        aria-label={toggleLabel}
-        title={bandText}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-        className={`flex w-full items-center justify-center gap-[5px] transition-colors hover:bg-[rgba(11,11,13,0.075)] ${STRIP_CLASS}`}
+      <div
+        data-roster-parent-group
+        className="flex items-center gap-[5px] py-[3px]"
       >
-        <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          {bandText}
-        </span>
-        <span
-          aria-hidden
-          className="inline-flex h-[13px] w-[13px] shrink-0 items-center justify-center rounded-full bg-[rgba(11,11,13,0.10)] text-[11px] font-bold leading-none"
-        >
-          {open ? "−" : "+"}
-        </span>
-      </button>
+        {labelBody}
+      </div>
     );
   }
 
-  // `parent_only` (or `parent_first` with nothing to reveal).
   return (
-    <div
-      data-roster-parent-category
-      title={bandText}
-      className={`overflow-hidden text-ellipsis whitespace-nowrap text-center ${STRIP_CLASS}`}
-    >
-      {bandText}
+    <div data-roster-parent-group>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={toggleAria}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="-mx-[5px] flex w-[calc(100%+10px)] items-center gap-[5px] rounded-[6px] px-[5px] py-[4px] transition-colors hover:bg-[rgba(11,11,13,0.04)]"
+      >
+        {labelBody}
+        <span
+          aria-hidden
+          className="ml-auto shrink-0 text-[9px] tabular-nums text-admin-ink-dim opacity-[0.75]"
+        >
+          {group.types.length}
+        </span>
+        <svg
+          aria-hidden
+          width="9"
+          height="9"
+          viewBox="0 0 10 10"
+          className={`shrink-0 text-admin-ink-dim transition-transform duration-150 ${
+            open ? "rotate-90" : ""
+          }`}
+        >
+          <path
+            d="M3 1.5 6.5 5 3 8.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open && (
+        <div
+          data-roster-secondary-types
+          className="flex flex-wrap gap-[3px] pb-[5px] pt-[1px]"
+        >
+          {group.types.map((type) => (
+            <TypeChip key={type.key} type={type} unsupportedTooltip={unsupportedTooltip} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -179,51 +232,36 @@ export function RosterCardCategoryStrip({
 export function RosterCardTypeLines({
   model,
   categoriesOn,
-  open,
   noTypeLabel,
   unsupportedTooltip,
+  getToggleAria,
 }: {
   model: RosterCardCategoryModel;
   categoriesOn: boolean;
-  open: boolean;
   /** Localized "No type set" fallback. */
   noTypeLabel: string;
   /** Localized tooltip for a type this workspace does not offer. */
   unsupportedTooltip: string;
+  /** Localized aria-label for a parent row's expander, given its label. */
+  getToggleAria: (parentLabel: string) => string;
 }) {
-  const { taxonomyView, parentAnchored, groups } = model;
+  const { taxonomyView, parentAnchored, expandable, groups } = model;
 
   if (parentAnchored) {
-    // Types revealed by the `+` strip, grouped under their parent. Nothing is
-    // truncated here — the admin asked to see them, so the full set renders.
-    if (!open || groups.length === 0) return null;
-    // With a single group the strip already names the parent, so repeating it
-    // as a heading would be pure noise.
-    const showHeadings = groups.length > 1;
+    if (groups.length === 0) return null;
     return (
-      <div data-roster-secondary-types className="mt-[5px] flex flex-col gap-[5px]">
+      <div
+        data-roster-parent-groups
+        className="mt-[5px] flex flex-col divide-y divide-admin-border-soft"
+      >
         {groups.map((group) => (
-          <div key={group.parentId ?? "ungrouped"} className="flex flex-col gap-[3px]">
-            {showHeadings && group.parentLabel ? (
-              <div className="flex items-center gap-[3px] text-[9px] font-bold uppercase tracking-[0.8px] text-admin-ink-dim">
-                {group.parentEmoji && (
-                  <span aria-hidden className="text-[10px] opacity-[0.85]">
-                    {group.parentEmoji}
-                  </span>
-                )}
-                {group.parentLabel}
-              </div>
-            ) : null}
-            <div className="flex flex-wrap gap-[3px]">
-              {group.types.map((type) => (
-                <TypeChip
-                  key={type.key}
-                  type={type}
-                  unsupportedTooltip={unsupportedTooltip}
-                />
-              ))}
-            </div>
-          </div>
+          <ParentGroupRow
+            key={group.parentId ?? "ungrouped"}
+            group={group}
+            expandable={expandable}
+            toggleAria={getToggleAria(group.parentLabel ?? "")}
+            unsupportedTooltip={unsupportedTooltip}
+          />
         ))}
       </div>
     );
@@ -303,20 +341,10 @@ export function buildRosterCardCategoryModel(
   typeDisplay: string,
 ): RosterCardCategoryModel {
   const parentAnchored = categoriesOn && typeDisplay !== "expanded";
-  const groups = taxonomyView.groups;
-  // A talent whose parent category can't be resolved would render an empty
-  // band, so that group's own type labels stand in as the anchor text.
-  const parentLabels = groups.map(
-    (group) => group.parentLabel ?? group.types.map((type) => type.label).join(" · "),
-  );
-  const hiddenTypeCount = groups.reduce((sum, group) => sum + group.types.length, 0);
   return {
     taxonomyView,
     parentAnchored,
-    canExpandTypes:
-      parentAnchored && typeDisplay === "parent_first" && hiddenTypeCount > 0,
-    groups,
-    parentLabels: parentLabels.filter((label) => label.length > 0),
-    hiddenTypeCount,
+    expandable: parentAnchored && typeDisplay === "parent_first",
+    groups: taxonomyView.groups,
   };
 }
