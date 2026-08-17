@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { Locale } from "@/i18n/config";
+import type { LocaleUrlSettings } from "@/i18n/pathnames";
 import type { LocationItem, LocationSectionCopy } from "./location-section";
 
 const LocationMapClient = dynamic(
@@ -20,6 +21,8 @@ export function LocationMapLazy(props: {
   copy: LocationSectionCopy;
   apiKey?: string;
   publicPathPrefix?: string;
+  /** Tenant URL grammar, forwarded from the server render. */
+  localeUrl?: LocaleUrlSettings;
 }) {
   return <LocationMapClient {...props} />;
 }

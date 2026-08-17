@@ -275,8 +275,3 @@ export function redirectToLocaleEquivalent(
   res.cookies.set(LOCALE_COOKIE, locale, localeCookieOptions);
   return res;
 }
-
-/** @deprecated Use `redirectToLocaleEquivalent` with explicit locale. */
-export function redirectToSpanishEquivalent(request: NextRequest): NextResponse {
-  return redirectToLocaleEquivalent(request, "es", FALLBACK_LANGUAGE_SETTINGS);
-}

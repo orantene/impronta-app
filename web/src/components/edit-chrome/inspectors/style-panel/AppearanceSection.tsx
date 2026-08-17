@@ -1,20 +1,46 @@
 /**
- * StylePanel · AppearanceSection domain sub-section (W5-C1).
+ * StylePanel · Appearance — REBUILT ON THE FIELD KIT (Inspector Reset, D9).
  *
- * Carved verbatim from style-panel.tsx's render body. Receives the exact
- * closure values the parent held, so runtime behavior is identical — same
- * controls, same values, same tree mutation on edit.
+ * This section is where the owner's amendment bites hardest, because it holds
+ * the three properties that most obviously HAVE A LOOK:
+ *
+ *   Corners  — was a six-word `Segmented` ("Default Sharp S M L Pill") over a
+ *              grey "Exact" row. Now four glyph tiles bent by the real radius,
+ *              each captioned with its actual px, and the exact input beside
+ *              them rather than under a second label.
+ *   Border   — was a raw NumberUnit next to a four-word `Segmented`. Now a
+ *              tile row of drawn rules (none / solid / dashed / dotted) and a
+ *              second tile row of drawn WEIGHTS, each with its exact input.
+ *   Fill     — the swatch rows keep their behaviour but move onto `FieldRow`,
+ *              so their labels sit in the one label column instead of each
+ *              inventing a width. That is the mockup's `.row`, and it is what
+ *              fixes the ragged left edge in this section.
+ *
+ * WHAT DID NOT CHANGE: every write still routes through the exact same
+ * `setOrToggleStandaloneStyle` / `patchSelectedStandaloneStyle` helpers, with
+ * the same keys, and `ThemeBindRow` still guards the token-bound case. This is
+ * a control-surface replacement, not a data-model change — the slot mapping is
+ * `field-value-bridge.ts`, which is unit-tested separately.
  */
 
 import { ColorPickerPopover } from "../../kit/color-picker";
 import { NumberUnit, formatLength } from "../../kit/number-unit";
-import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
 import { InspectorGroup, SegmentedField } from "../kit";
-import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
+import {
+  BORDER_STYLE_PRESETS,
+  BORDER_WIDTH_PRESETS,
+  FieldRow,
+  GlyphTiles,
+  RADIUS_PRESETS,
+  borderWeightTileOptions,
+  lineStyleTileOptions,
+  radiusTileOptions,
+} from "../field-kit";
 import { inspectorColorSwatchStyle } from "../style-panel-state-style-fields";
 import { parseCssLength } from "./length-utils";
-import { BUILDER_NODE_BACKGROUND_OPTIONS, BUILDER_NODE_BORDER_STYLE_OPTIONS, BUILDER_NODE_RADIUS_OPTIONS } from "./style-options";
+import { twoSlotFieldValue, twoSlotPatch } from "./field-value-bridge";
+import { BUILDER_NODE_BACKGROUND_OPTIONS } from "./style-options";
 import { parseStyleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { BUILDER_NODE_THEME_COLOR_TOKENS, ThemeBindRow, colorSwatchDisplay } from "./section-shared";
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
@@ -25,6 +51,11 @@ export type AppearanceSectionProps = Pick<
   "nodeColorField" | "patchSelectedStandaloneStyle" | "selectedStandaloneStyleNode" | "selectedStandaloneViewportStyle" | "setNodeColorField" | "setOrToggleStandaloneStyle"
 >;
 
+const SURFACE_KINDS = ["container", "split", "card", "cta_group"];
+const CORNERED_KINDS = ["container", "split", "card", "cta_group", "button", "image"];
+const TEXT_COLOR_KINDS = ["heading", "paragraph", "button"];
+const FILL_KINDS = ["container", "split", "card", "cta_group", "button"];
+
 export function AppearanceSection({
   nodeColorField,
   patchSelectedStandaloneStyle,
@@ -33,310 +64,282 @@ export function AppearanceSection({
   setNodeColorField,
   setOrToggleStandaloneStyle,
 }: AppearanceSectionProps) {
+  const kind = selectedStandaloneStyleNode.kind;
+  const style = selectedStandaloneViewportStyle;
+  // A theme-bound radius is not a number the operator owns; the bind row below
+  // is the control for it, so the tiles + exact input stand down rather than
+  // offering an edit that the binding would immediately overwrite.
+  const radiusIsBound = Boolean(parseStyleTokenRef(style?.borderRadius));
+
   return (
-            <InspectorGroup
-              title="Appearance"
-              collapsible
-              storageKey={`style-panel:appearance:${selectedStandaloneStyleNode.kind}`}
-              // Cold-cost fix (2026-08-15): open the group RELEVANT to the
-              // selection instead of landing everything collapsed. For surface
-              // kinds (fill / corners live here) Appearance is the money
-              // group, mirroring how Typography already default-opens for
-              // text kinds. Text-first kinds keep it collapsed. The
-              // sessionStorage entry (per kind) still wins once the operator
-              // toggles it themselves.
-              defaultOpen={["container", "split", "card", "cta_group", "image"].includes(
-                selectedStandaloneStyleNode.kind,
-              )}
-              // D5 — field-level search keywords (see InspectorGroup).
-              searchTerms={[
-                "background",
-                "fill",
-                "color",
-                "text color",
-                "border",
-                "corners",
-                "radius",
-                "rounded",
-              ]}
-            >
-            {["container", "split", "card", "cta_group"].includes(
-              selectedStandaloneStyleNode.kind,
-            ) ? (
-              <SegmentedField
-                dataControl="background"
-                label="Background"
-                value={selectedStandaloneViewportStyle?.background ?? ""}
-                onChange={(next) => setOrToggleStandaloneStyle("background", next)}
-                options={BUILDER_NODE_BACKGROUND_OPTIONS}
-              />
-            ) : null}
+    <InspectorGroup
+      title="Appearance"
+      collapsible
+      storageKey={`style-panel:appearance:${kind}`}
+      // Cold-cost fix (2026-08-15): open the group RELEVANT to the selection
+      // instead of landing everything collapsed. For surface kinds (fill /
+      // corners live here) Appearance is the money group, mirroring how
+      // Typography already default-opens for text kinds. The sessionStorage
+      // entry (per kind) still wins once the operator toggles it themselves.
+      defaultOpen={["container", "split", "card", "cta_group", "image"].includes(kind)}
+      // D5 — field-level search keywords (see InspectorGroup).
+      searchTerms={[
+        "background",
+        "fill",
+        "color",
+        "text color",
+        "border",
+        "corners",
+        "radius",
+        "rounded",
+      ]}
+    >
+      {SURFACE_KINDS.includes(kind) ? (
+        <SegmentedField
+          dataControl="background"
+          label="Background"
+          value={style?.background ?? ""}
+          onChange={(next) => setOrToggleStandaloneStyle("background", next)}
+          options={BUILDER_NODE_BACKGROUND_OPTIONS}
+        />
+      ) : null}
 
-            {["container", "split", "card", "cta_group", "button", "image"].includes(
-              selectedStandaloneStyleNode.kind,
-            ) ? (
-              <div className="flex flex-col gap-1.5" data-builder-node-style-control="radius">
-                <span className={FIELD_LABEL}>Corners</span>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.radius ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("radius", next)}
-                  options={BUILDER_NODE_RADIUS_OPTIONS}
-                />
-                {parseStyleTokenRef(selectedStandaloneViewportStyle?.borderRadius) ? null : (
-                  <div
-                    className="flex items-center justify-between gap-2"
-                    data-builder-node-style-control="radiusFree"
-                  >
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Exact
-                    </span>
-                    <NumberUnit
-                      units={["px", "rem", "%"]}
-                      defaultUnit="px"
-                      placeholder="Linked"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.borderRadius)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          borderRadius: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                )}
-                <ThemeBindRow
-                  prop="borderRadius"
-                  value={selectedStandaloneViewportStyle?.borderRadius}
-                  onSet={(sentinel) =>
-                    patchSelectedStandaloneStyle({ borderRadius: sentinel })
-                  }
-                  onDetach={() =>
-                    patchSelectedStandaloneStyle({ borderRadius: undefined })
-                  }
-                />
-              </div>
-            ) : null}
-
-            {!["divider", "spacer"].includes(
-              selectedStandaloneStyleNode.kind,
-            ) ? (
-              <div
-                className="flex flex-col gap-2 border-t pt-3"
-                data-builder-node-style-control="color"
-                style={{ borderColor: CHROME.line }}
-              >
-                <span className={FIELD_LABEL}>Color &amp; border</span>
-
-                {["heading", "paragraph", "button"].includes(
-                  selectedStandaloneStyleNode.kind,
-                ) ? (
-                  <div
-                    className="flex items-center justify-between gap-2"
-                    data-builder-node-style-control="textColor"
-                  >
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Text
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {selectedStandaloneViewportStyle?.textColor ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            patchSelectedStandaloneStyle({ textColor: undefined })
-                          }
-                          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: CHROME.muted,
-                            padding: 0,
-                          }}
-                        >
-                          Clear
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        aria-label="Pick text color"
-                        onClick={(e) => {
-                          const btn = e.currentTarget;
-                          setNodeColorField((prev) =>
-                            prev?.field === "textColor"
-                              ? null
-                              : { field: "textColor", anchor: btn },
-                          );
-                        }}
-                        className="cursor-pointer"
-                        style={inspectorColorSwatchStyle(
-                          Boolean(selectedStandaloneViewportStyle?.textColor),
-                          colorSwatchDisplay(
-                            selectedStandaloneViewportStyle?.textColor,
-                          ),
-                          { border: `1px solid ${CHROME.lineMid}` },
-                        )}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                {["container", "split", "card", "cta_group", "button"].includes(
-                  selectedStandaloneStyleNode.kind,
-                ) ? (
-                  <div
-                    className="flex items-center justify-between gap-2"
-                    data-builder-node-style-control="backgroundColor"
-                  >
-                    <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                      Fill
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {selectedStandaloneViewportStyle?.backgroundColor ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            patchSelectedStandaloneStyle({
-                              backgroundColor: undefined,
-                            })
-                          }
-                          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: CHROME.muted,
-                            padding: 0,
-                          }}
-                        >
-                          Clear
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        aria-label="Pick fill color"
-                        onClick={(e) => {
-                          const btn = e.currentTarget;
-                          setNodeColorField((prev) =>
-                            prev?.field === "backgroundColor"
-                              ? null
-                              : { field: "backgroundColor", anchor: btn },
-                          );
-                        }}
-                        className="cursor-pointer"
-                        style={inspectorColorSwatchStyle(
-                          Boolean(selectedStandaloneViewportStyle?.backgroundColor),
-                          colorSwatchDisplay(
-                            selectedStandaloneViewportStyle?.backgroundColor,
-                          ),
-                          { border: `1px solid ${CHROME.lineMid}` },
-                        )}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                {["container", "split", "card", "cta_group", "button", "image"].includes(
-                  selectedStandaloneStyleNode.kind,
-                ) ? (
-                  <div
-                    className="flex flex-col gap-1.5"
-                    data-builder-node-style-control="border"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                        Border
-                      </span>
-                      <div className="flex items-center gap-2">
-                        {selectedStandaloneViewportStyle?.borderColor ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              patchSelectedStandaloneStyle({
-                                borderColor: undefined,
-                              })
-                            }
-                            className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                            style={{
-                              background: "transparent",
-                              border: "none",
-                              color: CHROME.muted,
-                              padding: 0,
-                            }}
-                          >
-                            Clear
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          aria-label="Pick border color"
-                          onClick={(e) => {
-                            const btn = e.currentTarget;
-                            setNodeColorField((prev) =>
-                              prev?.field === "borderColor"
-                                ? null
-                                : { field: "borderColor", anchor: btn },
-                            );
-                          }}
-                          className="cursor-pointer"
-                          style={inspectorColorSwatchStyle(
-                            Boolean(selectedStandaloneViewportStyle?.borderColor),
-                            colorSwatchDisplay(
-                              selectedStandaloneViewportStyle?.borderColor,
-                            ),
-                            { border: `1px solid ${CHROME.lineMid}` },
-                          )}
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <NumberUnit
-                        units={["px"]}
-                        defaultUnit="px"
-                        placeholder="Width"
-                        min={0}
-                        value={parseCssLength(
-                          selectedStandaloneViewportStyle?.borderWidth,
-                        )}
-                        onChange={(next) =>
-                          patchSelectedStandaloneStyle({
-                            borderWidth: next ? formatLength(next) : undefined,
-                          })
-                        }
-                      />
-                      <Segmented
-                        fullWidth
-                        compact
-                        value={selectedStandaloneViewportStyle?.borderStyle ?? ""}
-                        onChange={(next) =>
-                          patchSelectedStandaloneStyle({
-                            borderStyle:
-                              (next || undefined) as BuilderNodeStyleValue["borderStyle"],
-                          })
-                        }
-                        options={BUILDER_NODE_BORDER_STYLE_OPTIONS}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
-                <ColorPickerPopover
-                  open={nodeColorField !== null}
-                  anchor={nodeColorField?.anchor ?? null}
-                  value={
-                    (nodeColorField
-                      ? selectedStandaloneViewportStyle?.[nodeColorField.field]
-                      : undefined) || "#111111"
-                  }
+      {/* ── Corners: D9 item 3 + item 2 in one row ───────────────────────── */}
+      {CORNERED_KINDS.includes(kind) ? (
+        <>
+          {radiusIsBound ? null : (
+            <GlyphTiles
+              dataControl="radius"
+              label="Corners"
+              searchTerms={["Corners", "corner radius", "rounded", "border radius"]}
+              options={radiusTileOptions(RADIUS_PRESETS)}
+              columns={3}
+              value={radiusTileValue(style)}
+              onChange={(next) => {
+                const patch = twoSlotPatch(
+                  next ? { kind: "preset", id: next } : { kind: "unset" },
+                );
+                patchSelectedStandaloneStyle({
+                  radius: patch.token as BuilderNodeStyleValue["radius"],
+                  borderRadius: patch.free,
+                });
+              }}
+              exact={
+                <NumberUnit
+                  units={["px", "rem", "%"]}
+                  defaultUnit="px"
+                  placeholder="—"
+                  min={0}
+                  width={92}
+                  value={parseCssLength(style?.borderRadius)}
                   onChange={(next) => {
-                    if (!nodeColorField) return;
+                    const patch = twoSlotPatch(
+                      next
+                        ? { kind: "custom", numeric: next }
+                        : { kind: "unset" },
+                    );
                     patchSelectedStandaloneStyle({
-                      [nodeColorField.field]: next,
-                    } as Partial<BuilderNodeStyleValue>);
+                      radius: patch.token as BuilderNodeStyleValue["radius"],
+                      borderRadius: patch.free,
+                    });
                   }}
-                  themeTokens={BUILDER_NODE_THEME_COLOR_TOKENS}
-                  onClose={() => setNodeColorField(null)}
                 />
-              </div>
-            ) : null}
-            </InspectorGroup>
+              }
+            />
+          )}
+          <ThemeBindRow
+            prop="borderRadius"
+            value={style?.borderRadius}
+            onSet={(sentinel) => patchSelectedStandaloneStyle({ borderRadius: sentinel })}
+            onDetach={() => patchSelectedStandaloneStyle({ borderRadius: undefined })}
+          />
+        </>
+      ) : null}
+
+      {/* ── Color & border ───────────────────────────────────────────────── */}
+      {!["divider", "spacer"].includes(kind) ? (
+        <div
+          className="flex flex-col gap-2 border-t pt-3"
+          data-builder-node-style-control="color"
+          style={{ borderColor: CHROME.line }}
+        >
+          {TEXT_COLOR_KINDS.includes(kind) ? (
+            <FieldRow
+              dataControl="textColor"
+              label="Text"
+              searchTerms={["Text color", "type color", "foreground"]}
+            >
+              <SwatchControl
+                ariaLabel="Pick text color"
+                value={style?.textColor}
+                onClear={() => patchSelectedStandaloneStyle({ textColor: undefined })}
+                onPick={(anchor) =>
+                  setNodeColorField((prev) =>
+                    prev?.field === "textColor" ? null : { field: "textColor", anchor },
+                  )
+                }
+              />
+            </FieldRow>
+          ) : null}
+
+          {FILL_KINDS.includes(kind) ? (
+            <FieldRow
+              dataControl="backgroundColor"
+              label="Fill"
+              searchTerms={["Fill", "background color", "surface color"]}
+            >
+              <SwatchControl
+                ariaLabel="Pick fill color"
+                value={style?.backgroundColor}
+                onClear={() => patchSelectedStandaloneStyle({ backgroundColor: undefined })}
+                onPick={(anchor) =>
+                  setNodeColorField((prev) =>
+                    prev?.field === "backgroundColor"
+                      ? null
+                      : { field: "backgroundColor", anchor },
+                  )
+                }
+              />
+            </FieldRow>
+          ) : null}
+
+          {CORNERED_KINDS.includes(kind) ? (
+            <>
+              <FieldRow
+                dataControl="borderColor"
+                label="Border color"
+                searchTerms={["Border color", "edge color", "outline color"]}
+              >
+                <SwatchControl
+                  ariaLabel="Pick border color"
+                  value={style?.borderColor}
+                  onClear={() => patchSelectedStandaloneStyle({ borderColor: undefined })}
+                  onPick={(anchor) =>
+                    setNodeColorField((prev) =>
+                      prev?.field === "borderColor"
+                        ? null
+                        : { field: "borderColor", anchor },
+                    )
+                  }
+                />
+              </FieldRow>
+
+              <GlyphTiles
+                dataControl="borderStyle"
+                label="Border"
+                searchTerms={["Border style", "dashed", "dotted", "solid", "stroke"]}
+                options={lineStyleTileOptions(BORDER_STYLE_PRESETS)}
+                columns={4}
+                value={style?.borderStyle ?? ""}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({
+                    borderStyle: (next || undefined) as BuilderNodeStyleValue["borderStyle"],
+                  })
+                }
+              />
+
+              <GlyphTiles
+                dataControl="borderWidth"
+                label="Weight"
+                searchTerms={["Border width", "border weight", "thickness", "stroke width"]}
+                options={borderWeightTileOptions(BORDER_WIDTH_PRESETS)}
+                columns={4}
+                value={style?.borderWidth ?? ""}
+                onChange={(next) =>
+                  patchSelectedStandaloneStyle({ borderWidth: next || undefined })
+                }
+                exact={
+                  <NumberUnit
+                    units={["px"]}
+                    defaultUnit="px"
+                    placeholder="—"
+                    min={0}
+                    width={78}
+                    value={parseCssLength(style?.borderWidth)}
+                    onChange={(next) =>
+                      patchSelectedStandaloneStyle({
+                        borderWidth: next ? formatLength(next) : undefined,
+                      })
+                    }
+                  />
+                }
+              />
+            </>
+          ) : null}
+
+          <ColorPickerPopover
+            open={nodeColorField !== null}
+            anchor={nodeColorField?.anchor ?? null}
+            value={
+              (nodeColorField ? style?.[nodeColorField.field] : undefined) || "#111111"
+            }
+            onChange={(next) => {
+              if (!nodeColorField) return;
+              patchSelectedStandaloneStyle({
+                [nodeColorField.field]: next,
+              } as Partial<BuilderNodeStyleValue>);
+            }}
+            themeTokens={BUILDER_NODE_THEME_COLOR_TOKENS}
+            onClose={() => setNodeColorField(null)}
+          />
+        </div>
+      ) : null}
+    </InspectorGroup>
+  );
+}
+
+/**
+ * Which radius tile is lit. A free `borderRadius` beats the token, because the
+ * renderer layers it last — see `twoSlotFieldValue`, which this defers to so
+ * the two cannot drift.
+ */
+function radiusTileValue(style: BuilderNodeStyleValue | undefined): string {
+  const value = twoSlotFieldValue(style?.radius, style?.borderRadius);
+  return value.kind === "preset" ? value.id : "";
+}
+
+/**
+ * The swatch + Clear pair, once. It appeared three times in this file with
+ * three copies of the same inline styling; the audit counted that kind of
+ * duplication as one of the 20 control patterns.
+ */
+function SwatchControl({
+  ariaLabel,
+  value,
+  onClear,
+  onPick,
+}: {
+  ariaLabel: string;
+  value: string | undefined;
+  onClear: () => void;
+  onPick: (anchor: HTMLButtonElement) => void;
+}) {
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {value ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: CHROME.muted,
+            padding: 0,
+          }}
+        >
+          Clear
+        </button>
+      ) : null}
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        onClick={(e) => onPick(e.currentTarget)}
+        className="cursor-pointer"
+        style={inspectorColorSwatchStyle(Boolean(value), colorSwatchDisplay(value), {
+          border: `1px solid ${CHROME.lineMid}`,
+        })}
+      />
+    </div>
   );
 }

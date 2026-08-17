@@ -147,8 +147,12 @@ export function InspectorSearchField({
           paddingLeft: 28,
           paddingRight: value ? 28 : 10,
           borderRadius: 8,
-          border: `1px solid ${CHROME.controlBorder}`,
-          background: CHROME.paper,
+          // Inspector Reset P5: khaki controlBorder + parchment paper fill
+          // → the cool lineStrong edge + white controlFill NumberUnit/
+          // InspectorSelect share, so the search field at the top of the
+          // panel matches the fields it filters.
+          border: `1px solid ${CHROME.lineStrong}`,
+          background: CHROME.controlFill,
           fontSize: 12.5,
           color: CHROME.ink,
           outline: "none",
@@ -158,7 +162,7 @@ export function InspectorSearchField({
           e.currentTarget.style.boxShadow = "0 0 0 2px rgba(99,102,241,0.12)";
         }}
         onBlur={(e) => {
-          e.currentTarget.style.borderColor = CHROME.controlBorder;
+          e.currentTarget.style.borderColor = CHROME.lineStrong;
           e.currentTarget.style.boxShadow = "none";
         }}
       />

@@ -99,7 +99,16 @@ const BUDGETS: Record<string, number> = {
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5809,
+  //
+  // 5809 -> 5708 (-101), 2026-08-16, the field-kit VISUAL adoption. Two hand-
+  // rolled blocks left this file for modules that render the approved mockup:
+  //   -38  the quick-styles text list  -> style-panel/QuickStyleCards.tsx
+  //   -63  the "Reuse style" card plus the detached grey "Reset … style" link
+  //        -> style-panel/StyleFooterRow.tsx (mockup annotation F)
+  // Extraction, not budget inflation, is the documented remedy — and it is
+  // also what makes the change reviewable, since each new module is one
+  // control with its own reasoning at the top.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5708,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
   "src/components/edit-chrome/topbar.tsx": 3375,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
@@ -165,7 +174,12 @@ const BUDGETS: Record<string, number> = {
   // components/talent/media-quota-line.tsx and the numbers come from
   // lib/media/talent-storage-usage.ts; what landed here is one import and one
   // guarded mount.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4736,
+  // +18: the roster-refresh wiring. The skills/contexts panels persist their
+  // own changes, so the card behind the drawer went stale until a manual
+  // reload; onSkillsChanged / onContextsChanged and Save & exit's not-dirty
+  // early return now queue the (coalesced) refresh. Three call sites plus the
+  // comments explaining WHY these paths need it — nothing extractable.
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4754,
   // 2026-08-15 talent-notifications de-mock — net +2. `TalentNotificationsDrawer`
   // rendered a hardcoded MOCK_TALENT_NOTIFS and never read
   // `bridgeUserNotifications`, so a talent saw none of their own rows. The
@@ -257,7 +271,8 @@ const BUDGETS: Record<string, number> = {
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3588,
+  // +6: loadOfferDraft returns createdByName (the lookup itself is extracted to offer-author.ts)
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3594,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).

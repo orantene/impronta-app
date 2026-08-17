@@ -80,7 +80,9 @@ export function CssEditorWithHints({
     ? CHROME.rose
     : hasWarnings
       ? CHROME.amber
-      : CHROME.controlBorder;
+      // Inspector Reset P5: idle edge cools from khaki controlBorder to
+      // lineStrong, matching NumberUnit/InspectorSelect.
+      : CHROME.lineStrong;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

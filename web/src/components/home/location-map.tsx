@@ -14,7 +14,7 @@ import {
   useMap,
 } from "@vis.gl/react-google-maps";
 import type { Locale } from "@/i18n/config";
-import { withLocalePath } from "@/i18n/pathnames";
+import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import type { LocationItem, LocationSectionCopy } from "./location-section";
 import { normalizeGoogleApiKeyInput } from "@/lib/env/google-maps-browser-key";
@@ -167,11 +167,19 @@ function PinPreviewPortal({
   locale,
   copy,
   publicPathPrefix = "",
+  localeUrl,
 }: {
   loc: LocationItem;
   locale: Locale;
   copy: LocationSectionCopy;
   publicPathPrefix?: string;
+  /**
+   * Tenant URL grammar, passed down from the server render (client components
+   * cannot read the tenant's locale settings themselves). Without it this
+   * builds hrefs with the PLATFORM grammar, which inverts the locale prefixing
+   * on any tenant whose default locale is not the platform default.
+   */
+  localeUrl?: LocaleUrlSettings;
 }) {
   const map = useMap();
   const [px, setPx] = useState<{ x: number; y: number } | null>(null);
@@ -180,6 +188,7 @@ function PinPreviewPortal({
   const directoryHref = withLocalePath(
     prefixPublicHref(`/directory?location=${loc.citySlug}`, publicPathPrefix),
     locale,
+    localeUrl,
   );
 
   // Capture map.getDiv() once (stable reference)
@@ -385,12 +394,20 @@ export function LocationMap({
   copy,
   apiKey: apiKeyProp,
   publicPathPrefix = "",
+  localeUrl,
 }: {
   locations: LocationItem[];
   locale: Locale;
   copy: LocationSectionCopy;
   apiKey?: string;
   publicPathPrefix?: string;
+  /**
+   * Tenant URL grammar, passed down from the server render (client components
+   * cannot read the tenant's locale settings themselves). Without it hrefs are
+   * built with the PLATFORM grammar, which inverts locale prefixing on any
+   * tenant whose default locale is not the platform default.
+   */
+  localeUrl?: LocaleUrlSettings;
 }) {
   // Tenant-aware: the key is resolved server-side (resolveGoogleMapsKey) and
   // passed via apiKeyProp. We no longer read NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
@@ -479,6 +496,7 @@ export function LocationMap({
                   locale={locale}
                   copy={copy}
                   publicPathPrefix={publicPathPrefix}
+                  localeUrl={localeUrl}
                 />
               ) : null}
             </Map>

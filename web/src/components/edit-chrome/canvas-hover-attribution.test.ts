@@ -30,11 +30,15 @@ import { test } from "node:test";
 import { JSDOM } from "jsdom";
 
 import {
+  HOVER_GAP_ATTR,
   HOVER_NODE_ATTR,
   hoverAttributionProps,
+  hoverGapAttributionProps,
   isHoverAffordanceForNode,
+  pageGapKey,
   resolveHoverAttribution,
   resolveHoveredBuilderNodeId,
+  resolveHoveredGapKey,
 } from "./canvas-hover-attribution";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
@@ -194,4 +198,155 @@ test("isHoverAffordanceForNode answers per node", () => {
     false,
   );
   assert.equal(isHoverAffordanceForNode(null, "node-a"), false);
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * SEAM-SCOPED ATTRIBUTION — the "+ Add block" line between two root blocks.
+ *
+ * Owner report, 2026-08-16: the control "sits on the border line and do same
+ * issue when hover it". Same class as the grip, different state: the pill is
+ * painted in the same `[data-edit-overlay]` root, and the component's own
+ * mousemove handler cleared the hovered gap whenever `elementFromPoint` landed
+ * inside that root. Reaching for the pill therefore unmounted it, the pointer
+ * fell back onto the block below, the seam matched again, the pill remounted.
+ *
+ * A seam belongs to NO block, so the honest declaration is the pair
+ * `hoverGapAttributionProps` emits: the seam key (keeps the pill mounted) plus
+ * the empty node declaration (keeps canvas node hover reporting null on
+ * purpose). Declaring a neighbouring block as the owner would stop the blink by
+ * lying to the layers rail, which is the trade this module exists to refuse.
+ *
+ * NEGATIVE-TEST PROTOCOL: dropping the seam key from the indicator (or the
+ * `resolveHoveredGapKey` branch from the handler) fails "the pill's mount
+ * condition no longer oscillates" with an alternating sequence.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** Two root blocks with the seam affordance painted over their boundary. */
+function buildSeam(): {
+  blockAbove: HTMLElement;
+  indicator: HTMLElement;
+  pill: HTMLElement;
+} {
+  doc.body.innerHTML = "";
+  const blockAbove = doc.createElement("section");
+  blockAbove.setAttribute("data-cms-block", "");
+  blockAbove.setAttribute("data-block-index", "0");
+  blockAbove.setAttribute(
+    "data-builder-node-id",
+    "builder-container-e2e-baseline-band",
+  );
+  doc.body.appendChild(blockAbove);
+
+  const overlay = doc.createElement("div");
+  overlay.setAttribute("data-edit-overlay", "");
+  const indicator = doc.createElement("div");
+  indicator.setAttribute("data-canvas-between-blocks-indicator", "");
+  for (const [attr, value] of Object.entries(
+    hoverGapAttributionProps(pageGapKey(1)),
+  )) {
+    indicator.setAttribute(attr, value);
+  }
+  const pill = doc.createElement("button");
+  pill.setAttribute("aria-label", "Add block here");
+  pill.setAttribute("data-canvas-between-blocks-trigger", "");
+  indicator.appendChild(pill);
+  overlay.appendChild(indicator);
+  doc.body.appendChild(overlay);
+
+  return { blockAbove, indicator, pill };
+}
+
+/** The component's handleMove, in the order the real one runs its checks. */
+function stepSeamHover(hit: Element, hoveredGap: string | null): string | null {
+  if (resolveHoveredGapKey(hit) !== null) return hoveredGap; // our own chrome
+  if (hit.closest("[data-edit-overlay]")) return null; // any other chrome
+  return "root:1"; // the pointer is parked in the seam band
+}
+
+test("hoverGapAttributionProps declares the seam AND 'no block'", () => {
+  assert.deepEqual(hoverGapAttributionProps(pageGapKey(2)), {
+    [HOVER_GAP_ATTR]: "root:2",
+    [HOVER_NODE_ATTR]: "",
+  });
+  assert.deepEqual(hoverGapAttributionProps(null), {});
+  assert.deepEqual(hoverGapAttributionProps(undefined), {});
+  assert.deepEqual(hoverGapAttributionProps(""), {});
+});
+
+test("the seam affordance resolves to its seam, from any descendant", () => {
+  const { indicator, pill } = buildSeam();
+  assert.equal(resolveHoveredGapKey(indicator), "root:1");
+  // The pointer actually lands on the pill, or on the + svg inside it.
+  assert.equal(resolveHoveredGapKey(pill), "root:1");
+  const svg = doc.createElement("span");
+  pill.appendChild(svg);
+  assert.equal(resolveHoveredGapKey(svg), "root:1");
+});
+
+test("canvas elements and other overlay chrome declare no seam", () => {
+  const { blockAbove } = buildSeam();
+  assert.equal(resolveHoveredGapKey(blockAbove), null);
+  assert.equal(resolveHoveredGapKey(null), null);
+  const grip = doc.createElement("button");
+  grip.setAttribute(HOVER_NODE_ATTR, "builder-container-e2e-baseline-band");
+  doc.body.appendChild(grip);
+  assert.equal(resolveHoveredGapKey(grip), null);
+});
+
+test("hovering the seam pill reports NO block, not a neighbouring one", () => {
+  // The semantic half of the fix. The pointer is in the gap between blocks, so
+  // "nothing is hovered" is the truthful answer; stopping the blink by naming
+  // the block above would light the wrong row in the layers rail.
+  const { pill, blockAbove } = buildSeam();
+  assert.equal(resolveHoveredBuilderNodeId(pill), null);
+  assert.deepEqual(resolveHoverAttribution(pill), {
+    attributed: true,
+    nodeId: null,
+  });
+  assert.notEqual(
+    resolveHoveredBuilderNodeId(pill),
+    blockAbove.getAttribute("data-builder-node-id"),
+  );
+});
+
+test("the pill's mount condition no longer oscillates", () => {
+  // Replays the handler: the pill mounts only while a gap is hovered, and the
+  // pointer parked on the seam hits the pill whenever it exists. Ten ticks must
+  // report one stable seam.
+  const { blockAbove, pill } = buildSeam();
+  let hoveredGap: string | null = null;
+  const seen: Array<string | null> = [];
+  for (let i = 0; i < 10; i += 1) {
+    hoveredGap = stepSeamHover(hoveredGap === null ? blockAbove : pill, hoveredGap);
+    seen.push(hoveredGap);
+  }
+  assert.deepEqual(
+    new Set(seen),
+    new Set(["root:1"]),
+    `hovered gap oscillated: ${JSON.stringify(seen)}`,
+  );
+});
+
+test("without the declaration the same loop DOES oscillate", () => {
+  // The pre-fix control, kept so this file fails loudly if the seam key is ever
+  // dropped and the test above starts passing for the wrong reason.
+  const { blockAbove, pill, indicator } = buildSeam();
+  indicator.removeAttribute(HOVER_GAP_ATTR);
+  let hoveredGap: string | null = null;
+  const seen: Array<string | null> = [];
+  for (let i = 0; i < 10; i += 1) {
+    hoveredGap = stepSeamHover(hoveredGap === null ? blockAbove : pill, hoveredGap);
+    seen.push(hoveredGap);
+  }
+  assert.equal(
+    new Set(seen).size,
+    2,
+    `expected the historical blink: ${JSON.stringify(seen)}`,
+  );
+});
+
+test("pageGapKey names the root insert index", () => {
+  assert.equal(pageGapKey(0), "root:0");
+  assert.equal(pageGapKey(3), "root:3");
+  assert.notEqual(pageGapKey(0), pageGapKey(1));
 });

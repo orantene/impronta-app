@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Locale } from "@/i18n/config";
-import { withLocalePath } from "@/i18n/pathnames";
+import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { TalentCard } from "@/components/talent-cards/TalentCard";
 import type { CanonicalTalentCardData } from "@/components/talent-cards/talent-card-shape";
@@ -46,12 +46,14 @@ function homeCardToCanonical(
   t: FeaturedTalentCard,
   locale: Locale,
   publicPathPrefix: string,
+  localeUrl?: LocaleUrlSettings,
 ): CanonicalTalentCardData {
   const code = t.profileCode?.trim() || null;
   const profileHref = code
     ? withLocalePath(
         prefixPublicHref(`/t/${encodeURIComponent(code)}`, publicPathPrefix),
         locale,
+        localeUrl,
       )
     : "";
   return {
@@ -76,12 +78,21 @@ export function FeaturedTalentSection({
   copy,
   publicPathPrefix = "",
   emptyState,
+  localeUrl,
 }: {
   talent: FeaturedTalentCard[];
   locale: Locale;
   copy: FeaturedTalentSectionCopy;
   publicPathPrefix?: string;
   emptyState?: FeaturedTalentEmptyState;
+  /**
+   * Tenant URL grammar for locale prefixing: the tenant's DEFAULT locale is
+   * served unprefixed, every other supported locale under `/{code}`. Omitting it
+   * falls back to the PLATFORM grammar, which inverts the prefixing on any
+   * tenant whose default locale is not the platform default, so every link
+   * emitted here would 308-redirect on click.
+   */
+  localeUrl?: LocaleUrlSettings;
 }) {
   if (talent.length === 0) {
     if (!emptyState) return null;
@@ -128,6 +139,7 @@ export function FeaturedTalentSection({
               href={withLocalePath(
                 prefixPublicHref("/directory?sort=featured", publicPathPrefix),
                 locale,
+                localeUrl,
               )}
             >
               {copy.viewAll} <ArrowRight className="ml-1 size-4" />
@@ -147,7 +159,7 @@ export function FeaturedTalentSection({
               className={i >= 4 ? "hidden sm:block" : undefined}
             >
               <TalentCard
-                data={homeCardToCanonical(t, locale, publicPathPrefix)}
+                data={homeCardToCanonical(t, locale, publicPathPrefix, localeUrl)}
                 style="portrait"
                 show={{
                   showName: true,
@@ -171,6 +183,7 @@ export function FeaturedTalentSection({
               href={withLocalePath(
                 prefixPublicHref("/directory?sort=featured", publicPathPrefix),
                 locale,
+                localeUrl,
               )}
             >
               {copy.viewAllMobile} <ArrowRight className="ml-1 size-4" />

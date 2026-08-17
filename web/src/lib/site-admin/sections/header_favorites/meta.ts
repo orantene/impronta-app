@@ -14,4 +14,6 @@ export const headerFavoritesMeta: SectionMeta = {
   visibleToAgency: false,
   category: "navigation",
   inDefault: false,
+  // Async Component (resolves the tenant's locale URL grammar at render time).
+  hasLiveData: true,
 };

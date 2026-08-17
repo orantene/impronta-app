@@ -12,7 +12,7 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { getMarketingCopy } from "@/lib/marketing/copy";
-import { stripLocaleFromPathname } from "@/i18n/pathnames";
+import { localeUrlSettings, stripLocaleFromPathname } from "@/i18n/pathnames";
 
 import { AuthLanguageToggle } from "./auth-language-toggle";
 import {
@@ -280,7 +280,17 @@ export default async function AuthLayout({
       ? await loadTenantLocaleSettings(ctx.tenantId)
       : await loadTenantLocaleSettings("");
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
-  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
+  // Strip with the HOST TENANT's grammar, which `localeSettings` above already
+  // resolved. With the platform fallback this mis-reads which leading segment is
+  // a locale on any tenant whose default locale is not the platform default, and
+  // the language toggle below is built from the corrupted base path.
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    originalPath,
+    localeUrlSettings(
+      localeSettings.defaultLocale,
+      localeSettings.supportedLocales,
+    ),
+  );
 
   // On a whitelabel agency host the footer carries the agency's name; otherwise
   // it stays the Tulala platform line — the same copyright rail the marketing

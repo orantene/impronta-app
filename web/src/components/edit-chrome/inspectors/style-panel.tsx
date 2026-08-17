@@ -63,6 +63,8 @@ import { InlineNameInput } from "./kit/inline-name-input";
 import { CssEditorWithHints } from "./kit/css-editor-with-hints";
 import { pxLength, pctLength } from "./style-panel/length-utils";
 import { BUILDER_NODE_THEME_COLOR_TOKENS, colorSwatchDisplay } from "./style-panel/section-shared";
+import { QuickStyleCards } from "./style-panel/QuickStyleCards";
+import { StyleFooterRow } from "./style-panel/StyleFooterRow";
 import { DimensionsSection } from "./style-panel/DimensionsSection";
 import { TypographySection } from "./style-panel/TypographySection";
 import { AppearanceSection } from "./style-panel/AppearanceSection";
@@ -4995,51 +4997,14 @@ export function StylePanel({
               }
             />
 
-            {selectedStandaloneStylePresets.length > 0 ? (
-              <div
-                className="flex flex-col gap-2"
-                data-builder-node-style-control="quick-presets"
-              >
-                <div className="flex items-end justify-between gap-2">
-                  <span className={FIELD_LABEL}>Quick styles</span>
-                  <span className={INHERIT_HINT}>
-                    Applies to {selectedViewport}
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 gap-1.5">
-                  {selectedStandaloneStylePresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      data-builder-node-style-preset={preset.id}
-                      onClick={() => applyStandaloneStylePreset(preset)}
-                      className="cursor-pointer rounded-md text-left transition-colors hover:bg-stone-100"
-                      style={{
-                        background: CHROME.surface,
-                        border: `1px solid ${CHROME.lineMid}`,
-                        color: CHROME.ink,
-                        padding: "8px 10px",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background =
-                          "rgba(42,49,71,0.06)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background =
-                          CHROME.surface;
-                      }}
-                    >
-                      <span className="block text-[11px] font-semibold">
-                        {preset.label}
-                      </span>
-                      <span className="mt-0.5 block text-[10.5px] leading-tight text-stone-500">
-                        {preset.hint}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            {/* Mockup annotation C — quick styles are the front door, and now
+                they look like it. The thumbnails are derived from each
+                preset's own style object; see QuickStyleCards. */}
+            <QuickStyleCards
+              presets={selectedStandaloneStylePresets}
+              onApply={applyStandaloneStylePreset}
+              scopeLabel={selectedViewport}
+            />
 
             {/* ── Typography group (Wave 1 / Job #11 progressive disclosure) ── */}
             <TypographySection
@@ -5352,98 +5317,32 @@ export function StylePanel({
               </div>
             </details>
 
-            <div
-              className="flex flex-col gap-2 border-t pt-3"
-              data-builder-node-style-control="style-clipboard"
-              style={{ borderColor: CHROME.line }}
-            >
-              <div className="flex items-end justify-between gap-2">
-                <span className={FIELD_LABEL}>Reuse style</span>
-                {standaloneStyleClipboard ? (
-                  <span className={INHERIT_HINT}>
-                    From {standaloneStyleClipboard.label} /
-                    {" "}
-                    {standaloneStyleClipboard.viewport}
-                  </span>
-                ) : (
-                  <span className={INHERIT_HINT}>Copy once, paste anywhere</span>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                <button
-                  type="button"
-                  data-builder-node-style-copy=""
-                  onClick={copySelectedStandaloneStyle}
-                  className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
-                  style={{
-                    background: CHROME.surface,
-                    border: `1px solid ${CHROME.lineMid}`,
-                    color: CHROME.ink,
-                    padding: "8px 6px",
-                  }}
-                >
-                  Copy
-                </button>
-                <button
-                  type="button"
-                  data-builder-node-style-paste=""
-                  onClick={pasteStandaloneStyle}
-                  disabled={!standaloneStyleClipboard}
-                  className="text-[10px] font-semibold uppercase tracking-[0.10em]"
-                  style={{
-                    background: standaloneStyleClipboard
-                      ? CHROME.ink
-                      : CHROME.surface2,
-                    border: `1px solid ${
-                      standaloneStyleClipboard ? CHROME.ink : CHROME.lineMid
-                    }`,
-                    color: standaloneStyleClipboard ? "#fff" : CHROME.muted3,
-                    cursor: standaloneStyleClipboard ? "pointer" : "not-allowed",
-                    padding: "8px 6px",
-                  }}
-                >
-                  Paste
-                </button>
-                <button
-                  type="button"
-                  data-builder-node-style-clear-clipboard=""
-                  onClick={clearStandaloneStyleClipboard}
-                  disabled={!standaloneStyleClipboard}
-                  className="text-[10px] font-semibold uppercase tracking-[0.10em]"
-                  style={{
-                    background: "transparent",
-                    border: `1px solid ${CHROME.lineMid}`,
-                    color: standaloneStyleClipboard ? CHROME.muted : CHROME.muted3,
-                    cursor: standaloneStyleClipboard ? "pointer" : "not-allowed",
-                    padding: "8px 6px",
-                  }}
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
+            {/* Mockup annotation F — ONE footer row for the panel's
+                whole-object actions. Replaces the "Reuse style" card (Copy /
+                Paste / Clear as uppercase micro-buttons) plus the unrelated
+                grey "Reset … style" text link that sat beneath it: the same
+                category of action wearing two control languages.
 
-            <button
-              type="button"
-              data-builder-node-style-reset=""
-              onClick={resetSelectedStandaloneStyle}
-              disabled={!canResetSelectedStandaloneViewport}
-              className="text-[10px] font-semibold uppercase tracking-[0.10em]"
-              style={{
-                alignSelf: "flex-start",
-                background: "transparent",
-                border: "none",
-                color: canResetSelectedStandaloneViewport
-                  ? CHROME.muted
-                  : CHROME.muted3,
-                cursor: canResetSelectedStandaloneViewport
-                  ? "pointer"
-                  : "not-allowed",
-                padding: 0,
-              }}
-            >
-              Reset {selectedViewport} style
-            </button>
+                Reset is armed by the SAME `confirmThenRunReset` the role
+                branch uses, so the destructive confirm has one implementation
+                rather than two — and this reset, which previously fired on the
+                first click with no confirm at all, now cannot. */}
+            <StyleFooterRow
+              onCopy={copySelectedStandaloneStyle}
+              onPaste={pasteStandaloneStyle}
+              onReset={() =>
+                confirmThenRunReset("node", resetSelectedStandaloneStyle)
+              }
+              canPaste={Boolean(standaloneStyleClipboard)}
+              canReset={canResetSelectedStandaloneViewport}
+              resetArmed={resetConfirmTarget === "node"}
+              clipboardLabel={
+                standaloneStyleClipboard
+                  ? `${standaloneStyleClipboard.label} / ${standaloneStyleClipboard.viewport}`
+                  : null
+              }
+              scopeLabel={selectedViewport}
+            />
           </div>
         </section>
       ) : null}

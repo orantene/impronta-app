@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import type { Locale } from "@/i18n/config";
-import { withLocalePath } from "@/i18n/pathnames";
+import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { LocationMapLazy } from "./location-map-lazy";
 
@@ -40,6 +40,7 @@ export function LocationSection({
   copy,
   mapsApiKey,
   publicPathPrefix = "",
+  localeUrl,
 }: {
   locations: LocationItem[];
   locale: Locale;
@@ -47,6 +48,14 @@ export function LocationSection({
   /** Maps JS API key; from `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` or server fallback `GOOGLE_PLACES_API_KEY`. */
   mapsApiKey?: string;
   publicPathPrefix?: string;
+  /**
+   * Tenant URL grammar for locale prefixing: the tenant's DEFAULT locale is
+   * served unprefixed, every other supported locale under `/{code}`. Omitting it
+   * falls back to the PLATFORM grammar, which inverts the prefixing on any
+   * tenant whose default locale is not the platform default, so every link
+   * emitted here would 308-redirect on click.
+   */
+  localeUrl?: LocaleUrlSettings;
 }) {
   if (locations.length === 0) return null;
 
@@ -72,6 +81,7 @@ export function LocationSection({
                     publicPathPrefix,
                   ),
                   locale,
+                  localeUrl,
                 )}
                 className="group flex shrink-0 items-center gap-2.5 rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-4 py-3 transition-all hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/5"
               >
@@ -97,6 +107,7 @@ export function LocationSection({
           copy={copy}
           apiKey={mapsApiKey}
           publicPathPrefix={publicPathPrefix}
+          localeUrl={localeUrl}
         />
       </div>
     </section>

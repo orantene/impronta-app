@@ -164,6 +164,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:locale-precedence
 
+      - name: tests — tenant-locale-grammar
+        if: ${{ !cancelled() }}
+        run: npm run test:tenant-locale-grammar
+
       - name: tests — inquiry-workspace
         if: ${{ !cancelled() }}
         run: npm run test:inquiry-workspace
