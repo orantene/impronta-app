@@ -26,7 +26,7 @@
 import { ColorPickerPopover } from "../../kit/color-picker";
 import { NumberUnit, formatLength } from "../../kit/number-unit";
 import { CHROME } from "../../kit/tokens";
-import { InspectorGroup, SegmentedField } from "../kit";
+import { SegmentedField } from "../kit";
 import {
   BORDER_STYLE_PRESETS,
   BORDER_WIDTH_PRESETS,
@@ -56,7 +56,13 @@ const CORNERED_KINDS = ["container", "split", "card", "cta_group", "button", "im
 const TEXT_COLOR_KINDS = ["heading", "paragraph", "button"];
 const FILL_KINDS = ["container", "split", "card", "cta_group", "button"];
 
-export function AppearanceSection({
+/**
+ * D4 — the "Appearance" group's BODY (fill, corners, border, colour). The
+ * `InspectorGroup` wrapper moved to `groups/AppearanceGroup.tsx`, which also
+ * mounts the surface/depth fields (shadow, opacity, background image) that
+ * used to be buried inside the old "Effects & motion" accordion.
+ */
+export function AppearanceBody({
   nodeColorField,
   patchSelectedStandaloneStyle,
   selectedStandaloneStyleNode,
@@ -72,28 +78,7 @@ export function AppearanceSection({
   const radiusIsBound = Boolean(parseStyleTokenRef(style?.borderRadius));
 
   return (
-    <InspectorGroup
-      title="Appearance"
-      collapsible
-      storageKey={`style-panel:appearance:${kind}`}
-      // Cold-cost fix (2026-08-15): open the group RELEVANT to the selection
-      // instead of landing everything collapsed. For surface kinds (fill /
-      // corners live here) Appearance is the money group, mirroring how
-      // Typography already default-opens for text kinds. The sessionStorage
-      // entry (per kind) still wins once the operator toggles it themselves.
-      defaultOpen={["container", "split", "card", "cta_group", "image"].includes(kind)}
-      // D5 — field-level search keywords (see InspectorGroup).
-      searchTerms={[
-        "background",
-        "fill",
-        "color",
-        "text color",
-        "border",
-        "corners",
-        "radius",
-        "rounded",
-      ]}
-    >
+    <>
       {SURFACE_KINDS.includes(kind) ? (
         <SegmentedField
           dataControl="background"
@@ -284,7 +269,7 @@ export function AppearanceSection({
           />
         </div>
       ) : null}
-    </InspectorGroup>
+    </>
   );
 }
 

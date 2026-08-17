@@ -3281,11 +3281,12 @@ export function BuilderNodeContentInspector({
           <Card state="active">
             <CardHead
               title="Background"
-              sub="Video or YouTube behind this block"
+              sub="Video, YouTube or a slideshow behind this block"
               iconAccent="blue"
             />
             <CardBody>
               <BackgroundMediaCard
+                nodeId={node.id}
                 tenantId={tenantId}
                 value={node.props.backgroundMedia}
                 onChange={(next) => {

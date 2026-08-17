@@ -78,6 +78,30 @@ export const ADD_GALLERY_BACKGROUND_ITEMS: ReadonlyArray<AddGalleryItem> = [
     searchTerms: ["background", "youtube", "video", "embed", "loop"],
   }),
   el({
+    id: "el-bg-slideshow",
+    label: "Slideshow Background",
+    description: "Full-bleed band that cycles through a set of photos.",
+    infoTooltip:
+      "Drops a tall container ready for a rotating backdrop. Open Content, add two or more images, and set how long each one stays. They cross-fade in order; visitors who prefer reduced motion see the first image only.",
+    tab: "layout",
+    category: "backgrounds",
+    icon: "carousel",
+    previewType: "image-card",
+    previewImageUrl: "/builder-previews/bg-slideshow.svg",
+    insertMethod: "nativeNode",
+    nativeKind: "container",
+    nativeVariant: "bg-slideshow",
+    searchTerms: [
+      "background",
+      "slideshow",
+      "slider",
+      "carousel",
+      "rotating",
+      "photos",
+      "gallery",
+    ],
+  }),
+  el({
     id: "el-bg-image",
     label: "Image Background",
     description: "Full-bleed band with a photo behind your content.",
@@ -123,6 +147,7 @@ export const ADD_GALLERY_BACKGROUND_ITEMS: ReadonlyArray<AddGalleryItem> = [
 export const BACKGROUND_VARIANT_STYLES = {
   "bg-video": BACKDROP_STYLE,
   "bg-youtube": BACKDROP_STYLE,
+  "bg-slideshow": BACKDROP_STYLE,
   "bg-image": {
     ...BACKDROP_STYLE,
     backgroundImage:
@@ -137,10 +162,25 @@ export const BACKGROUND_VARIANT_STYLES = {
   },
 } as const;
 
-/** Default background-media value stamped onto the two motion cards. */
+/**
+ * Default background-media value stamped onto the motion cards, so the Content
+ * tab opens on the right source with a readable default scrim instead of on
+ * "None". The slideshow lands with an EMPTY picture list on purpose: the
+ * inspector's empty state ("Add two or more to start the slideshow") is a
+ * clearer instruction than a placeholder row pointing at a stock photo the
+ * author then has to find and replace.
+ */
 export const BACKGROUND_VARIANT_MEDIA = {
   "bg-video": { source: "upload" as const, src: "", overlay: 40 },
   "bg-youtube": { source: "youtube" as const, src: "", overlay: 40 },
+  "bg-slideshow": {
+    source: "slideshow" as const,
+    src: "",
+    overlay: 40,
+    slides: [],
+    intervalMs: 6000,
+    transition: "crossfade" as const,
+  },
 };
 
 /**
@@ -151,6 +191,7 @@ export const BACKGROUND_VARIANT_MEDIA = {
 export const BACKGROUND_VARIANT_LAYER_LABEL = {
   "bg-video": "Video Background",
   "bg-youtube": "YouTube Background",
+  "bg-slideshow": "Slideshow Background",
   "bg-image": "Image Background",
   "bg-gradient": "Gradient Background",
 } as const;

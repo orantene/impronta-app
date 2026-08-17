@@ -9,7 +9,6 @@
 import { BoxModel } from "../../kit/box-model";
 import { NumberUnit, formatLength } from "../../kit/number-unit";
 import { CHROME } from "../../kit/tokens";
-import { InspectorGroup } from "../kit";
 import {
   GAP_PRESETS,
   PresetNumberRow,
@@ -40,7 +39,15 @@ export type SpacingSectionProps = Pick<
  */
 type SpacingToken = "none" | "s" | "m" | "l" | undefined;
 
-export function SpacingSection({
+/**
+ * D4 — the spacing half of the "Layout & spacing" group's BODY. This component
+ * used to own a "Spacing" accordion of its own; the mockup folds size and
+ * spacing into ONE group, so the wrapper moved to
+ * `groups/LayoutSpacingGroup.tsx`. The override dot it used to hand the
+ * accordion header as an `accessory` now renders inline at the top of the
+ * spacing fields, so the merged group's header is not claimed by one half.
+ */
+export function SpacingBody({
   patchSelectedStandaloneStyle,
   selectedStandaloneFullStyle,
   selectedStandaloneStyleNode,
@@ -50,25 +57,12 @@ export function SpacingSection({
   spacingHasResponsiveOverride,
 }: SpacingSectionProps) {
   return (
-            <InspectorGroup
-              title="Spacing"
-              collapsible
-              storageKey={`style-panel:spacing:${selectedStandaloneStyleNode.kind}`}
-              defaultOpen={false}
-              // D5 — field-level search keywords (see InspectorGroup).
-              searchTerms={[
-                "margin",
-                "padding",
-                "gap",
-                "box model",
-                "inset",
-              ]}
-              accessory={
-                spacingHasResponsiveOverride ? (
-                  <StyleGroupOverrideDot label="Spacing has tablet/mobile overrides" />
-                ) : null
-              }
-            >
+            <>
+            {spacingHasResponsiveOverride ? (
+              <div className="flex justify-end">
+                <StyleGroupOverrideDot label="Spacing has tablet/mobile overrides" />
+              </div>
+            ) : null}
             {/* ── D9: every chip carries its real px, and the exact input sits
                 beside it. `marginTop` stores a token; `marginTopFree` stores a
                 length; `field-value-bridge` owns which one a given edit writes
@@ -205,35 +199,22 @@ export function SpacingSection({
               </>
             ) : null}
 
+            {/* D4 — "Fine-tune spacing" WAS a grey <details> summary styled
+                exactly like every static field label beside it: the only way
+                to learn that per-side padding existed was to click a label
+                that gave no sign it was clickable. The disclosure is gone; the
+                fields render plainly. Nothing was removed — every control
+                below is the one that was inside it. (One of the three
+                label-disguised disclosures #1199 flagged.) */}
             {!["divider", "spacer"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
               <div
-                className="border-t pt-3"
+                className="border-t pt-3 flex flex-col gap-2"
                 data-builder-node-style-control="fineSpacing"
                 style={{ borderColor: CHROME.line }}
               >
-                <details
-                  open={Boolean(
-                    selectedStandaloneViewportStyle?.paddingTop ||
-                      selectedStandaloneViewportStyle?.paddingRight ||
-                      selectedStandaloneViewportStyle?.paddingBottom ||
-                      selectedStandaloneViewportStyle?.paddingLeft ||
-                      selectedStandaloneViewportStyle?.marginTopFree ||
-                      selectedStandaloneViewportStyle?.marginRightFree ||
-                      selectedStandaloneViewportStyle?.marginBottomFree ||
-                      selectedStandaloneViewportStyle?.marginLeftFree ||
-                      selectedStandaloneViewportStyle?.gap,
-                  )}
-                >
-                  <summary
-                    className="flex items-center justify-between select-none"
-                    style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
-                  >
-                    <span className={FIELD_LABEL}>Fine-tune spacing</span>
-                    <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-                  </summary>
-                  <div className="mt-2 flex flex-col gap-2">
+                  <div className="flex flex-col gap-2">
             {!["divider", "spacer"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
@@ -449,17 +430,14 @@ export function SpacingSection({
               </div>
             ) : null}
 
-            {/* Box-model diagram for freeform spacing — visual shortcut */}
+            {/* Box-model diagram for freeform spacing — visual shortcut.
+                D4 — "Box model" WAS the second label-disguised disclosure in
+                this file: a grey <details> summary indistinguishable from a
+                field label. The diagram is the fastest way to read and edit
+                all eight sides at once, so it renders. */}
             {!["divider", "spacer"].includes(selectedStandaloneStyleNode.kind) ? (
               <div data-builder-node-style-control="box-model">
-                <details>
-                  <summary
-                    className="flex items-center justify-between select-none"
-                    style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
-                  >
-                    <span className={FIELD_LABEL}>Box model</span>
-                    <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-                  </summary>
+                  <span className={FIELD_LABEL}>Box model</span>
                   <div className="mt-2">
                     <BoxModel
                       margin={{
@@ -508,13 +486,11 @@ export function SpacingSection({
                       }}
                     />
                   </div>
-                </details>
               </div>
             ) : null}
                   </div>
-                </details>
               </div>
             ) : null}
-            </InspectorGroup>
+            </>
   );
 }

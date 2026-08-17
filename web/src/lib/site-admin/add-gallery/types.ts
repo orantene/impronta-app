@@ -92,7 +92,8 @@ export type AddGalleryNativeVariant =
   | "bg-video"
   | "bg-youtube"
   | "bg-image"
-  | "bg-gradient";
+  | "bg-gradient"
+  | "bg-slideshow";
 
 export interface AddGalleryItem {
   id: string;
@@ -164,6 +165,20 @@ export interface AddGalleryItem {
   /** Builder Studio (WS-D D3) — tenants that NEVER see this template. Carried
    *  from the row `tenant_denylist`. */
   rolloutDenylist?: ReadonlyArray<string>;
+  /**
+   * W3 (all-freeform rebuild) — set when this item is known to insert but not
+   * actually WORK on a freeform page (fails builder-tree validation, or lands
+   * as an empty/misconfigured connected component). Card stays insertable —
+   * this only drives the gallery's red-border + badge flag, never a block.
+   *
+   * Not set directly on any of the three catalog files (`registry-catalog-
+   * elements.ts` / `-sections-connected.ts` / `-backgrounds.ts`) today —
+   * `useGalleryCardState` resolves it via a single lookup into
+   * `FREEFORM_INCOMPATIBLE` (add-gallery/freeform-compat.ts) keyed by item id,
+   * so the catalog files stay untouched. Left on the item type (rather than
+   * only in the lookup map) so a future DB-backed item can also carry one.
+   */
+  freeformIncompatible?: { note: string } | null;
 }
 
 export interface AddGalleryCategoryDef {

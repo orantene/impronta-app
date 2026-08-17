@@ -360,10 +360,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const { data: pagesRaw } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
-    .select("slug,locale,updated_at")
+    .select("slug,locale,updated_at,is_system_owned")
     .eq("include_in_sitemap", true)
     .eq("noindex", false);
-  const pages = (pagesRaw ?? []) as unknown as CmsSitemapRow[];
+  // System-owned rows (the legacy homepage row, slug "", and seeded system
+  // pages like __directory__ / __site_shell__) are already covered by
+  // `homepageEntries` (or aren't real crawlable URLs at all) — without this
+  // filter they leak in here as "/p/" and "/p/__directory__" because
+  // `include_in_sitemap` defaults TRUE at the column and this RPC doesn't
+  // otherwise distinguish system pages from real CMS pages. Filter in
+  // TypeScript rather than a migration since the RPC already returns the
+  // full row (SETOF cms_pages, including is_system_owned).
+  const pages = ((pagesRaw ?? []) as unknown as (CmsSitemapRow & {
+    is_system_owned: boolean | null;
+  })[]).filter(
+    (row) => !row.is_system_owned && row.slug !== "" && !row.slug.startsWith("__"),
+  );
 
   // CMS rows, posts, and talent profiles below all prefer their real
   // updated_at. The `new Date()` fallbacks fire only when a row has no

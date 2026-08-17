@@ -4,12 +4,15 @@ import test from "node:test";
 import {
   __resetCarouselEditBridgeForTests,
   clearCarouselSlide,
+  clearPinnedSlide,
   getCarouselEditServerSnapshot,
   getCarouselEditingSnapshot,
   getCarouselPinnedServerSnapshot,
   getCarouselPinnedSlide,
+  getPinnedSlide,
   registerCarouselEditMode,
   setCarouselSlide,
+  setPinnedSlide,
   subscribeCarouselEditing,
   subscribeCarouselPinnedSlides,
 } from "./carousel-edit-bridge";
@@ -109,6 +112,38 @@ test("leaving edit mode drops every pin", () => {
   setCarouselSlide("hero-1", 3);
   release();
   assert.equal(getCarouselPinnedSlide("hero-1"), null);
+});
+
+// ── Channels (2026-08-17, slideshow backgrounds) ──────────────────────────
+
+test("a background pin and a carousel pin on the SAME node do not collide", () => {
+  // The reason the pin map is keyed `<channel>:<nodeId>` and not `<nodeId>`:
+  // one container can be a hero carousel AND carry a background slideshow, and
+  // those are two independent "which slide is showing" answers. A nodeId-only
+  // key would silently have them overwrite each other.
+  setCarouselSlide("hero-1", 2);
+  setPinnedSlide("background", "hero-1", 5);
+  assert.equal(getCarouselPinnedSlide("hero-1"), 2);
+  assert.equal(getPinnedSlide("background", "hero-1"), 5);
+  clearPinnedSlide("background", "hero-1");
+  assert.equal(getPinnedSlide("background", "hero-1"), null);
+  assert.equal(getCarouselPinnedSlide("hero-1"), 2, "clearing one channel must not clear the other");
+});
+
+test("the carousel helpers are the carousel channel, not a second store", () => {
+  setCarouselSlide("hero-1", 3);
+  assert.equal(getPinnedSlide("carousel", "hero-1"), 3);
+  clearCarouselSlide("hero-1");
+  assert.equal(getPinnedSlide("carousel", "hero-1"), null);
+});
+
+test("leaving edit mode drops pins on EVERY channel", () => {
+  const release = registerCarouselEditMode();
+  setCarouselSlide("hero-1", 1);
+  setPinnedSlide("background", "band-1", 4);
+  release();
+  assert.equal(getCarouselPinnedSlide("hero-1"), null);
+  assert.equal(getPinnedSlide("background", "band-1"), null);
 });
 
 test("both server snapshots are the published behavior, by identity", () => {

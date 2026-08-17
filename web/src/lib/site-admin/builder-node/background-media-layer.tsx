@@ -24,10 +24,32 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 
+import { BackgroundSlideshow } from "./background-slideshow";
 import {
   resolveBackgroundMedia,
   type BackgroundMediaProps,
 } from "./background-media";
+
+/**
+ * Slideshow geometry. Declared ABOVE `BACKGROUND_MEDIA_CSS` because that
+ * template literal interpolates it: a `const` referenced before its
+ * initialiser is a TDZ crash at module evaluation, and no gate in this repo
+ * catches a chunk-eval crash (see `incident_card_design_token_keys_tdz_cycle`).
+ *
+ * Images stack exactly like the poster does; only the active one is opaque.
+ * The fade length is a per-node variable rather than a constant so "cut"
+ * (0ms) and "crossfade" are the same rule with a different number.
+ *
+ * The reduced-motion block is SEPARATE from the video/iframe one above it on
+ * purpose: that rule is pinned character-for-character by
+ * `background-media-render.test.ts`, and widening its selector list would
+ * break a guard that is testing something real.
+ */
+const BACKGROUND_SLIDESHOW_CSS = `
+.site-builder-bg-media__slide{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity var(--bn-bg-slide-fade,0ms) linear}
+.site-builder-bg-media__slide[data-active]{opacity:1}
+@media (prefers-reduced-motion:reduce){.site-builder-bg-media__slide{transition:none}.site-builder-bg-media__slide:not([data-active]){display:none}}
+`.trim();
 
 /**
  * Static CSS for the layer. Exported so `render.tsx` owns exactly one import
@@ -55,6 +77,7 @@ export const BACKGROUND_MEDIA_CSS = `
 .site-builder-bg-media__frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:0;min-width:100%;min-height:100%;width:max(100%,calc(100cqh * 16 / 9));height:max(100%,calc(100cqw * 9 / 16))}
 .site-builder-bg-media__scrim{position:absolute;inset:0;display:block;background:var(--bn-bg-overlay-color,#000);opacity:var(--bn-bg-overlay,0)}
 @media (prefers-reduced-motion:reduce){.site-builder-bg-media__video,.site-builder-bg-media__frame{display:none}}
+${BACKGROUND_SLIDESHOW_CSS}
 `.trim();
 
 /**
@@ -86,6 +109,9 @@ export function renderBackgroundMediaLayer(
   const wrapperStyle = {
     "--bn-bg-overlay": String(resolved.overlayOpacity),
     "--bn-bg-overlay-color": resolved.overlayColor,
+    ...(resolved.source === "slideshow"
+      ? { "--bn-bg-slide-fade": `${resolved.fadeMs}ms` }
+      : null),
   } as CSSProperties;
 
   return (
@@ -108,7 +134,13 @@ export function renderBackgroundMediaLayer(
           style={{ objectPosition: resolved.focalPoint }}
         />
       ) : null}
-      {resolved.source === "upload" ? (
+      {resolved.source === "slideshow" ? (
+        <BackgroundSlideshow
+          nodeId={nodeId}
+          slides={resolved.slides}
+          intervalMs={resolved.intervalMs}
+        />
+      ) : resolved.source === "upload" ? (
         <video
           className="site-builder-bg-media__video"
           src={resolved.url}

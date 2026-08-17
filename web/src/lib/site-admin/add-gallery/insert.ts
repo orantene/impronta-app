@@ -510,11 +510,14 @@ export function applyNativeVariant(
     // source with a readable default rather than on "None".
     case "bg-video":
     case "bg-youtube":
+    case "bg-slideshow":
     case "bg-image":
     case "bg-gradient":
       if (node.kind === "container") {
         const media =
-          variant === "bg-video" || variant === "bg-youtube"
+          variant === "bg-video" ||
+          variant === "bg-youtube" ||
+          variant === "bg-slideshow"
             ? BACKGROUND_VARIANT_MEDIA[variant]
             : undefined;
         return {

@@ -16,6 +16,7 @@ import {
   getAddGalleryCardInfoTooltip,
   getAddGalleryCardShortDescription,
 } from "@/lib/site-admin/add-gallery/card-display";
+import { FREEFORM_INCOMPATIBLE } from "@/lib/site-admin/add-gallery/freeform-compat";
 import { galleryItemSupportsDrag } from "@/lib/site-admin/add-gallery/insert";
 
 import { CHROME } from "../kit";
@@ -25,7 +26,7 @@ export function GalleryStatusBadge({
   variant,
   className,
 }: {
-  variant: "soon" | "connected" | "advanced";
+  variant: "soon" | "connected" | "advanced" | "incompatible";
   className?: string;
 }) {
   const styles =
@@ -39,10 +40,15 @@ export function GalleryStatusBadge({
             background: "rgba(15, 23, 42, 0.06)",
             color: CHROME.ink2,
           }
-        : {
-            background: CHROME.paper2,
-            color: CHROME.muted,
-          };
+        : variant === "incompatible"
+          ? {
+              background: CHROME.roseBg,
+              color: CHROME.rose,
+            }
+          : {
+              background: CHROME.paper2,
+              color: CHROME.muted,
+            };
 
   const { t } = useEditorLocale();
   const label =
@@ -50,7 +56,9 @@ export function GalleryStatusBadge({
       ? t("Connected")
       : variant === "advanced"
         ? t("Advanced")
-        : t("Soon");
+        : variant === "incompatible"
+          ? t("Flagged")
+          : t("Soon");
 
   return (
     <span
@@ -113,10 +121,25 @@ export function useGalleryCardState(item: AddGalleryItem) {
   const rawTooltip = getAddGalleryCardInfoTooltip(item);
   const label = t(item.label);
   const shortDescription = t(getAddGalleryCardShortDescription(item));
-  const infoTooltip = rawTooltip ? t(rawTooltip) : undefined;
+  // W3 (all-freeform rebuild) — a single lookup resolves the freeform
+  // compatibility flag: an explicit `item.freeformIncompatible` wins (for a
+  // future DB-backed item), else fall back to the static catalog map. The
+  // three code catalog files never set this field directly.
+  const freeformIncompatible =
+    item.freeformIncompatible ?? FREEFORM_INCOMPATIBLE[item.id] ?? null;
+  const incompatible = Boolean(freeformIncompatible);
+  const incompatibleNote = freeformIncompatible ? t(freeformIncompatible.note) : undefined;
+  const translatedTooltip = rawTooltip ? t(rawTooltip) : undefined;
+  const infoTooltip = incompatibleNote
+    ? translatedTooltip
+      ? `${incompatibleNote}\n\n${translatedTooltip}`
+      : incompatibleNote
+    : translatedTooltip;
   return {
     comingSoon,
     advanced,
+    incompatible,
+    incompatibleNote,
     connected,
     draggable,
     label,

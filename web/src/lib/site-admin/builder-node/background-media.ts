@@ -38,12 +38,65 @@ import { z } from "zod";
 
 import { parseMediaUrl, safeEmbedUrl } from "@/lib/talent-integrations/media-embed";
 
-/** Where the moving pixels come from. */
-export const BACKGROUND_MEDIA_SOURCES = ["upload", "youtube"] as const;
+/**
+ * Where the moving pixels come from.
+ *
+ * `slideshow` (2026-08-17) is ADDITIVE: it appends a third lane and changes
+ * nothing about the first two. A stored `{source:"upload"|"youtube", …}` value
+ * resolves to exactly the same object it resolved to before, which is the whole
+ * back-compat contract — every container already carrying a video background
+ * keeps rendering byte-identical markup.
+ */
+export const BACKGROUND_MEDIA_SOURCES = ["upload", "youtube", "slideshow"] as const;
 export type BackgroundMediaSource = (typeof BACKGROUND_MEDIA_SOURCES)[number];
 
 /** Default scrim colour when an author sets an overlay but no colour. */
 export const BACKGROUND_MEDIA_DEFAULT_OVERLAY_COLOR = "#000000";
+
+/** How a slideshow moves from one image to the next. */
+export const BACKGROUND_SLIDESHOW_TRANSITIONS = ["crossfade", "cut"] as const;
+export type BackgroundSlideshowTransition =
+  (typeof BACKGROUND_SLIDESHOW_TRANSITIONS)[number];
+
+/**
+ * Dwell time per image. Six seconds is long enough to read a headline over the
+ * picture and short enough that the second image is clearly coming — the two
+ * failure modes of a background slideshow are "it is a strobe" and "I never saw
+ * it change".
+ */
+export const BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS = 6000;
+export const BACKGROUND_SLIDESHOW_MIN_INTERVAL_MS = 2000;
+export const BACKGROUND_SLIDESHOW_MAX_INTERVAL_MS = 20000;
+
+/**
+ * Crossfade length. Capped at a third of the dwell so the layer is a still
+ * picture for most of every cycle rather than a permanent dissolve, no matter
+ * how short the author sets the interval.
+ */
+export const BACKGROUND_SLIDESHOW_FADE_MS = 900;
+
+/**
+ * Hard cap on images. Not a taste call: every image past the first is a real
+ * network fetch on the visitor's page, and an unbounded list is how a page
+ * ships 60 full-bleed photos behind one headline.
+ */
+export const BACKGROUND_SLIDESHOW_MAX_SLIDES = 20;
+
+/** One picture in a background slideshow. */
+export interface BackgroundSlideProps {
+  /** Media-library file URL (or a pasted https URL), exactly like `src`. */
+  url: string;
+  /**
+   * Stable identity for the inspector's row list — React keys, drag reorder and
+   * the "which row is pinned" highlight. Optional so a hand-written value still
+   * validates; the inspector always writes one.
+   */
+  id?: string;
+  /** Library row id when the picture came from the library (may be null). */
+  mediaId?: string | null;
+  /** Per-image CSS object-position, falling back to the value's `focalPoint`. */
+  focalPoint?: string;
+}
 
 /**
  * The stored shape. Lives on `container.props.backgroundMedia`.
@@ -70,6 +123,17 @@ export interface BackgroundMediaProps {
   overlayColor?: string;
   /** CSS object-position for the crop, e.g. "center", "50% 20%". */
   focalPoint?: string;
+  /**
+   * `slideshow` lane only — the ordered pictures to cycle through. Ignored by
+   * the other two sources, which is what keeps this key additive: writing it
+   * onto an existing video background changes nothing about how that background
+   * renders.
+   */
+  slides?: BackgroundSlideProps[];
+  /** `slideshow` lane only — dwell per image, ms. */
+  intervalMs?: number;
+  /** `slideshow` lane only — crossfade (default) or a hard cut. */
+  transition?: BackgroundSlideshowTransition;
 }
 
 /**
@@ -96,6 +160,15 @@ const backgroundMediaColorSchema = z
     message: "Overlay colour must be a plain CSS colour (hex, rgb(), hsl(), a name, or var(--token)).",
   });
 
+const backgroundSlideSchema = z
+  .object({
+    url: z.string().max(2048),
+    id: z.string().max(64).optional(),
+    mediaId: z.string().max(120).nullable().optional(),
+    focalPoint: z.string().max(40).optional(),
+  })
+  .strict();
+
 export const backgroundMediaSchema = z
   .object({
     source: z.enum(BACKGROUND_MEDIA_SOURCES),
@@ -105,8 +178,28 @@ export const backgroundMediaSchema = z
     overlay: z.number().int().min(0).max(100).optional(),
     overlayColor: backgroundMediaColorSchema.optional(),
     focalPoint: z.string().max(40).optional(),
+    // Slideshow lane. All three are `.optional()`, so every value stored before
+    // 2026-08-17 still parses against this same strict object.
+    slides: z.array(backgroundSlideSchema).max(BACKGROUND_SLIDESHOW_MAX_SLIDES).optional(),
+    intervalMs: z
+      .number()
+      .int()
+      .min(BACKGROUND_SLIDESHOW_MIN_INTERVAL_MS)
+      .max(BACKGROUND_SLIDESHOW_MAX_INTERVAL_MS)
+      .optional(),
+    transition: z.enum(BACKGROUND_SLIDESHOW_TRANSITIONS).optional(),
   })
   .strict();
+
+/** One validated slideshow image, ready to drop into an `<img>`. */
+export interface ResolvedBackgroundSlide {
+  url: string;
+  /** Always a value — the slide's own, else the background's, else "center". */
+  focalPoint: string;
+}
+
+/** The shared empty slide list. Returned by identity for the non-slideshow lanes. */
+const NO_SLIDES: readonly ResolvedBackgroundSlide[] = Object.freeze([]);
 
 /** What the renderer actually needs. Every field is already safe to emit. */
 export interface ResolvedBackgroundMedia {
@@ -115,6 +208,8 @@ export interface ResolvedBackgroundMedia {
    * `upload` → the validated https/relative video URL for `<video src>`.
    * `youtube` → a rebuilt `www.youtube-nocookie.com/embed/<id>?…` URL whose
    * host is in the CSP `frame-src` allow-list.
+   * `slideshow` → the FIRST image, so a caller that only understands the two
+   * original lanes still has a usable single URL rather than an empty string.
    */
   url: string;
   /** Still frame to paint under the moving element, or null when none is known. */
@@ -124,6 +219,16 @@ export interface ResolvedBackgroundMedia {
   overlayColor: string;
   /** CSS object-position. Always a value, defaulting to "center". */
   focalPoint: string;
+  /**
+   * `slideshow` → the validated, ordered images (never empty: a slideshow with
+   * no usable picture resolves to null instead). Every other source → the one
+   * shared frozen empty array, so the field is safe to read unconditionally.
+   */
+  slides: readonly ResolvedBackgroundSlide[];
+  /** Dwell per image in ms. Clamped; meaningless outside the slideshow lane. */
+  intervalMs: number;
+  /** Crossfade length in ms. 0 for a hard cut and for the non-slideshow lanes. */
+  fadeMs: number;
 }
 
 /**
@@ -203,6 +308,46 @@ export function resolveBackgroundMedia(
     value.focalPoint && value.focalPoint.trim() ? value.focalPoint.trim() : "center";
   const authoredPoster = safeMediaUrl(value.poster);
 
+  if (value.source === "slideshow") {
+    // Same URL discipline as the video lanes: an author-pasted string is
+    // untrusted, so anything that is not same-origin-absolute or https is
+    // DROPPED rather than emitted into a `src`.
+    const slides: ResolvedBackgroundSlide[] = [];
+    for (const slide of value.slides ?? []) {
+      if (slides.length >= BACKGROUND_SLIDESHOW_MAX_SLIDES) break;
+      const url = safeMediaUrl(slide?.url);
+      if (!url) continue;
+      const slideFocal =
+        slide.focalPoint && slide.focalPoint.trim() ? slide.focalPoint.trim() : focalPoint;
+      slides.push({ url, focalPoint: slideFocal });
+    }
+    // No usable picture is the same first-class "nothing to paint" outcome the
+    // video lanes already have: the container renders with no layer at all.
+    if (slides.length === 0) return null;
+    const intervalMs = Math.min(
+      BACKGROUND_SLIDESHOW_MAX_INTERVAL_MS,
+      Math.max(
+        BACKGROUND_SLIDESHOW_MIN_INTERVAL_MS,
+        Math.round(value.intervalMs ?? BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS),
+      ),
+    );
+    return {
+      source: "slideshow",
+      url: slides[0]!.url,
+      // The first image IS the still, so there is nothing to paint under it.
+      posterUrl: authoredPoster,
+      overlayOpacity,
+      overlayColor,
+      focalPoint,
+      slides,
+      intervalMs,
+      fadeMs:
+        value.transition === "cut"
+          ? 0
+          : Math.min(BACKGROUND_SLIDESHOW_FADE_MS, Math.round(intervalMs / 3)),
+    };
+  }
+
   if (value.source === "youtube") {
     const parsed = parseMediaUrl(value.src ?? "");
     // Vimeo/Spotify/SoundCloud parse fine but are not what this field offers,
@@ -217,6 +362,9 @@ export function resolveBackgroundMedia(
       overlayOpacity,
       overlayColor,
       focalPoint,
+      slides: NO_SLIDES,
+      intervalMs: BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS,
+      fadeMs: 0,
     };
   }
 
@@ -229,6 +377,9 @@ export function resolveBackgroundMedia(
     overlayOpacity,
     overlayColor,
     focalPoint,
+    slides: NO_SLIDES,
+    intervalMs: BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS,
+    fadeMs: 0,
   };
 }
 

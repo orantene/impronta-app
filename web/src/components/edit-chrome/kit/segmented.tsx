@@ -63,7 +63,11 @@ export function Segmented<T extends string>({
       className={`inline-flex p-[3px] ${className ?? ""}`}
       style={{
         background: CHROME.paper,
-        border: `1px solid ${CHROME.controlBorder}`,
+        // KIT-control-family retone: track edge cools from khaki
+        // `CHROME.controlBorder` (#cfc7b6) to `CHROME.lineStrong`, matching
+        // NumberUnit / InspectorSelect / SelectDropdown / kit/button.tsx's
+        // "secondary" variant.
+        border: `1px solid ${CHROME.lineStrong}`,
         borderRadius: 10,
         display: fullWidth ? "grid" : "inline-flex",
         // QA 2026-05-13 — Page background field has 11 chips; the old
