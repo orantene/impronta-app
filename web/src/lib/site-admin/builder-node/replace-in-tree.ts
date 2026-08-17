@@ -37,25 +37,44 @@ export function replaceBuilderNodeInTree(
   return { tree: replaced ? next : tree, replaced };
 }
 
+/** Where a node sits among its siblings. */
+export interface BuilderNodeSiblingPosition {
+  parentId: string | null;
+  index: number;
+  /**
+   * How many nodes share this node's parent (including itself). Lets a caller
+   * decide whether a "move down" is even possible without re-walking the tree —
+   * which is what the canvas move rail's arrows gate on.
+   */
+  siblingCount: number;
+}
+
 /**
- * Find a node's parent id (null when it is a root node) and its index within its
- * parent's children (root index when it is a root node). Returns null when the
- * id isn't in the tree.
+ * Find a node's parent id (null when it is a root node), its index within its
+ * parent's children (root index when it is a root node), and how many siblings
+ * that list holds. Returns null when the id isn't in the tree.
  */
 export function findBuilderNodeParentIndex(
   tree: BuilderNodeTree,
   nodeId: string,
-): { parentId: string | null; index: number } | null {
-  const rootIndex = (tree as BuilderNode[]).findIndex((n) => (n as { id?: unknown }).id === nodeId);
-  if (rootIndex >= 0) return { parentId: null, index: rootIndex };
+): BuilderNodeSiblingPosition | null {
+  const roots = tree as BuilderNode[];
+  const rootIndex = roots.findIndex((n) => (n as { id?: unknown }).id === nodeId);
+  if (rootIndex >= 0) {
+    return { parentId: null, index: rootIndex, siblingCount: roots.length };
+  }
 
-  const walk = (parent: BuilderNode): { parentId: string | null; index: number } | null => {
+  const walk = (parent: BuilderNode): BuilderNodeSiblingPosition | null => {
     const kids = childrenOf(parent);
     if (!kids) return null;
     const idx = kids.findIndex((k) => (k as { id?: unknown }).id === nodeId);
     if (idx >= 0) {
       const parentId = (parent as { id?: unknown }).id;
-      return { parentId: typeof parentId === "string" ? parentId : null, index: idx };
+      return {
+        parentId: typeof parentId === "string" ? parentId : null,
+        index: idx,
+        siblingCount: kids.length,
+      };
     }
     for (const k of kids) {
       const hit = walk(k);

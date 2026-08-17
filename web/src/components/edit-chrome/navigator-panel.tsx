@@ -62,6 +62,7 @@ import {
   CHROME_RADII,
   CHROME_SHADOWS,
   SectionTypeIcon,
+  Z_INDEX,
 } from "./kit";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { useFloatingDrag } from "./floating-panel";
@@ -1620,7 +1621,13 @@ export function NavigatorPanel() {
       testId="navigator-panel"
       dataEditOverlay="navigator-panel"
       floatingDrag={floatingDrag}
-      zIndex={80}
+      // The panels band, like every other floating panel. This was a hardcoded
+      // 80 — below `Z_INDEX.overlayPortal` (83) — so all canvas chrome painted
+      // OVER the Structure panel. The overlay host is a stacking context, so
+      // its children can never escape 83; a panel clears the chrome only by
+      // sitting above the HOST. The inspector dock already did; the navigator
+      // was the lone exception. See edit-shell.tsx.
+      zIndex={Z_INDEX.panels}
       headerExtra={navigatorPerfBadge}
       afterHandle={navigatorResizeHandle}
       tabs={navigatorTabs}
