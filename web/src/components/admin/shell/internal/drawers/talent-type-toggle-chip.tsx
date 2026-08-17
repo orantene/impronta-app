@@ -1,5 +1,4 @@
 import type { TaxonomyNode } from "@/lib/server-actions/admin-taxonomy";
-import { COLORS, FONTS } from "../state";
 
 /**
  * Display name for a taxonomy term in the reader's language.
@@ -21,7 +20,6 @@ export function taxonomyDisplayName(
   }
   return node.custom_label || node.name_en || node.custom_label_es || node.name_es || "";
 }
-
 
 /**
  * One level-3 talent_type as a TOGGLE chip. Disabled leaves render faded,
@@ -47,27 +45,24 @@ export function TalentTypeToggleChip({
       onClick={() => onToggle(node)}
       aria-pressed={node.is_enabled}
       title={t(node.is_enabled ? "dashboard.adminDrawers.taxonomyLeafOnTooltip" : "dashboard.adminDrawers.taxonomyLeafOffTooltip")}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
-        padding: "3px 8px", fontSize: 11, fontFamily: FONTS.body,
-        color: node.is_enabled ? COLORS.inkMuted : COLORS.inkDim,
-        background: node.is_enabled ? "#fff" : "transparent",
-        borderRadius: 999, cursor: "pointer",
-        border: `1px ${node.is_enabled ? "solid" : "dashed"} ${node.is_enabled ? COLORS.borderSoft : COLORS.border}`,
-        opacity: node.is_enabled ? 1 : 0.6,
-        textDecoration: node.is_enabled ? "none" : "line-through",
-      }}
+      className={
+        node.is_enabled
+          ? "inline-flex cursor-pointer items-center gap-[5px] rounded-full border border-solid border-admin-border-soft bg-white px-2 py-[3px] font-admin-body text-admin-11 text-admin-ink-muted"
+          : "inline-flex cursor-pointer items-center gap-[5px] rounded-full border border-dashed border-admin-border bg-transparent px-2 py-[3px] font-admin-body text-admin-11 text-admin-ink-dim line-through opacity-60"
+      }
     >
-      <span aria-hidden style={{
-        width: 6, height: 6, borderRadius: "50%",
-        background: node.is_enabled ? COLORS.accent : "rgba(11,11,13,0.22)",
-        flexShrink: 0,
-      }} />
+      <span
+        aria-hidden
+        className={
+          node.is_enabled
+            ? "size-[6px] shrink-0 rounded-full bg-admin-accent"
+            : "size-[6px] shrink-0 rounded-full bg-admin-ink-dim/60"
+        }
+      />
       {taxonomyDisplayName(node, isSpanish)}
     </button>
   );
 }
-
 
 /** The rare direct-under-parent leaves, rendered with the same toggle chips. */
 export function DirectTalentTypeChips({
@@ -86,12 +81,8 @@ export function DirectTalentTypeChips({
   const direct = parent.children.filter((c) => c.term_type === "talent_type" && !c.is_custom);
   if (direct.length === 0) return null;
   return (
-    <div style={{
-      marginBottom: 8, padding: "8px 10px", borderRadius: 8,
-      background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-      fontFamily: FONTS.body,
-    }}>
-      <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: 0.4 }} className="text-admin-ink-muted">
+    <div className="mb-2 rounded-lg border border-admin-border-soft bg-white px-2.5 py-2 font-admin-body">
+      <div className="mb-1.5 text-admin-11 font-bold tracking-[0.4px] text-admin-ink-muted">
         {label}
       </div>
       <div className="flex flex-wrap gap-1">
