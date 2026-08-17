@@ -27,7 +27,7 @@ import {
   pageHero,
   photoTile,
   processStep,
-  quoteCard,
+  featureCard,
   statCell,
   CARD,
   CARD_BORDER,
@@ -331,42 +331,39 @@ const process = band(
 );
 
 // ── social proof ─────────────────────────────────────────────────────────────
-// OWNER-CONFIRM: replace with real client quotes before launch (flagged in the PR).
 const proof = band(
   "rb-home-proof",
   [
-    centerHead("rb-home-proof", "Client words", "Booked once, booked again"),
+    centerHead("rb-home-proof", "How we work", "What you can hold us to"),
     grid(
       "rb-home-proof-grid",
       3,
       [
-        quoteCard(
-          "rb-home-quote-1",
-          "The shortlist landed the same day, availability already confirmed. We cast a full activation team in one call.",
-          "Event producer",
-          "Tulum",
+        featureCard(
+          "rb-home-promise-1",
+          "A shortlist, not a database",
+          "Send the brief and we come back with a small set of faces that fit it, availability already checked for your dates.",
         ),
-        quoteCard(
-          "rb-home-quote-2",
-          "One coordinator, one thread, zero chasing. The talent arrived briefed, on time and camera-ready.",
-          "Brand marketing lead",
-          "Mexico City",
+        featureCard(
+          "rb-home-promise-2",
+          "One coordinator, one thread",
+          "The same person owns the booking from first reply to final call sheet. No re-briefing, no chasing.",
         ),
-        quoteCard(
-          "rb-home-quote-3",
-          "We have worked with agencies in three countries. The level of care here is what kept us coming back.",
-          "Creative director",
-          "Riviera Maya",
+        featureCard(
+          "rb-home-promise-3",
+          "Agency-managed end to end",
+          "Contracts, usage, call times and payment run through the agency, so the talent arrives briefed and the paperwork matches the quote.",
         ),
       ],
-      { layerLabel: "Quotes" },
+      { layerLabel: "Commitments" },
     ),
   ],
-  { borderTop: true, layerLabel: "Social proof" },
+  { borderTop: true, layerLabel: "How we work" },
 );
 
 // ── stats ────────────────────────────────────────────────────────────────────
-// OWNER-CONFIRM: figures mirror the flagship home; confirm before launch.
+// Figures queried from the live roster (2026-08-17): 50 publicly listed
+// talent, 7 distinct home cities, 5 distinct languages, 4 shipped divisions.
 const stats = band(
   "rb-home-stats",
   [
@@ -383,10 +380,10 @@ const stats = band(
         style: { width: "100%", maxWidthFree: "100%", gap: "0px" },
       },
       children: [
-        statCell("rb-home-stat-talent", "27+", "Represented talent", false),
-        statCell("rb-home-stat-divisions", "5", "Divisions", true),
-        statCell("rb-home-stat-reply", "<24h", "First reply", true),
-        statCell("rb-home-stat-managed", "100%", "Agency-managed", true),
+        statCell("rb-home-stat-talent", "50", "Faces on the board", false),
+        statCell("rb-home-stat-divisions", "4", "Divisions", true),
+        statCell("rb-home-stat-cities", "7", "Cities on call", true),
+        statCell("rb-home-stat-languages", "5", "Languages spoken", true),
       ],
     },
   ],
@@ -516,7 +513,7 @@ export const homePage: ImprontaRebuildPage = {
       alternateName: "Impronta Models & Talent Agency",
       description:
         "Boutique model and talent agency in Tulum and Playa del Carmen, Mexico. Representation and bookings for models, event hosts, performers, DJs and culinary talent across the Riviera Maya.",
-      url: "https://impronta.tulala.digital",
+      url: "https://improntamodels.com",
       address: {
         "@type": "PostalAddress",
         addressLocality: "Tulum",

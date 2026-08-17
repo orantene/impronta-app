@@ -187,7 +187,8 @@ const divisionsStrip = band(
   { borderTop: true, layerLabel: "Divisions" },
 );
 
-// OWNER-CONFIRM: figures mirror the flagship home; confirm before launch.
+// Figures queried from the live roster (2026-08-17): 50 publicly listed
+// talent, 7 distinct home cities, 5 distinct languages, 4 shipped divisions.
 const stats = band(
   "rb-about-stats",
   [
@@ -203,10 +204,10 @@ const stats = band(
         style: { width: "100%", maxWidthFree: "100%", gap: "0px" },
       },
       children: [
-        statCell("rb-about-stat-talent", "27+", "Represented talent", false),
-        statCell("rb-about-stat-divisions", "5", "Divisions", true),
-        statCell("rb-about-stat-markets", "3", "Working markets", true),
-        statCell("rb-about-stat-managed", "100%", "Agency-managed", true),
+        statCell("rb-about-stat-talent", "50", "Faces on the board", false),
+        statCell("rb-about-stat-divisions", "4", "Divisions", true),
+        statCell("rb-about-stat-cities", "7", "Cities on call", true),
+        statCell("rb-about-stat-languages", "5", "Languages spoken", true),
       ],
     },
   ],

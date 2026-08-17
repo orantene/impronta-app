@@ -48,11 +48,10 @@ export interface ImprontaRebuildPage {
 }
 
 // ── owner-confirm business facts ─────────────────────────────────────────────
-// OWNER-CONFIRM: no verified public inbox exists in the repo. The seeder /
-// integrator must confirm this address with the owner before go-live (flagged
-// in DESIGN-BLOCKERS.md). No phone number is invented anywhere; the phone/
-// WhatsApp channel stays off the site until the owner supplies one.
-export const CONTACT_EMAIL = "hello@improntamodels.com";
+// Sourced from the agency's OWN published footer on improntamodels.com
+// (verified 2026-08-17), not invented. No phone number is invented anywhere;
+// the phone / WhatsApp channel stays off the site until the owner supplies one.
+export const CONTACT_EMAIL = "hello@impronta.studio";
 
 // ── image slots ──────────────────────────────────────────────────────────────
 

@@ -22,7 +22,7 @@ import {
   pageHero,
   photoTile,
   processStep,
-  quoteCard,
+  featureCard,
   IMAGE_SLOT,
   type ImprontaRebuildPage,
 } from "../shared";
@@ -230,38 +230,43 @@ const divisions = band(
   { borderTop: true, layerLabel: "Divisions" },
 );
 
-// OWNER-CONFIRM: replace with real client quotes before launch (flagged in the PR).
+// No invented testimonials. Client quotes are third-party endorsements: they
+// cannot be authored on the agency's behalf without misleading the reader.
+// This band makes the same trust points as first-person commitments the
+// agency can actually stand behind. Swap in a real quote band the moment the
+// owner supplies attributable quotes.
 const proof = band(
   "rb-clients-proof",
   [
-    centerHead("rb-clients-proof", "Client words", "The second booking says more than the first"),
+    centerHead(
+      "rb-clients-proof",
+      "How we work",
+      "What you can hold us to",
+    ),
     grid(
       "rb-clients-proof-grid",
       3,
       [
-        quoteCard(
-          "rb-clients-quote-1",
-          "Four hostesses, two languages, one day of lead time. They delivered all of it and the follow-up invoice matched the quote exactly.",
-          "Hotel events manager",
-          "Playa del Carmen",
+        featureCard(
+          "rb-clients-promise-1",
+          "One coordinator, start to finish",
+          "A named person owns your booking from the brief through call sheets, on-set coordination and the final breakdown. You are never re-explaining the job to someone new.",
         ),
-        quoteCard(
-          "rb-clients-quote-2",
-          "The difference is the coordinator. Someone owned our booking from the brief to the breakdown of the set.",
-          "Production company",
-          "Mexico City",
+        featureCard(
+          "rb-clients-promise-2",
+          "Vetted before you see them",
+          "Every face on the shortlist is signed, screened and confirmed available for your dates. We do not forward profiles we have not met.",
         ),
-        quoteCard(
-          "rb-clients-quote-3",
-          "We stopped casting from social media. The vetting here is the product.",
-          "Brand founder",
-          "Tulum",
+        featureCard(
+          "rb-clients-promise-3",
+          "The quote is the invoice",
+          "Time, usage and travel are written into the number you approve. Nothing is added after the fact.",
         ),
       ],
-      { layerLabel: "Quotes" },
+      { layerLabel: "Commitments" },
     ),
   ],
-  { borderTop: true, layerLabel: "Social proof" },
+  { borderTop: true, layerLabel: "How we work" },
 );
 
 const faqTeaser = band(
