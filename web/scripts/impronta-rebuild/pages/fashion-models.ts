@@ -18,7 +18,7 @@ import {
   editorialSplit,
   fullBleedPlate,
   statBand,
-  useCaseGrid,
+  buildUseCaseGrid,
   type DivisionPage,
 } from "../shared-divisions";
 
@@ -56,7 +56,7 @@ const editorial = editorialSplit({
   ],
 });
 
-const useCases = useCaseGrid({
+const useCases = buildUseCaseGrid({
   prefix: P,
   eyebrowText: "What clients book",
   title: "One board, three kinds of production",
@@ -144,7 +144,7 @@ export const fashionModelsPage: DivisionPage = {
     meta_title: "Fashion Models in Tulum & Riviera Maya | Impronta",
     meta_description:
       "Book editorial, commercial and runway models in Tulum and Playa del Carmen. Agency-verified profiles, confirmed availability and full booking coordination by Impronta.",
-    og_title: "Fashion Models — Impronta, Tulum & Riviera Maya",
+    og_title: "Fashion Models · Impronta, Tulum & Riviera Maya",
     og_description:
       "Editorial, commercial and runway models cast to your brief. Agency-managed from first option to final usage.",
     canonical_url: "/p/fashion-models",

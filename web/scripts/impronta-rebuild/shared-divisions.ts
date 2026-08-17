@@ -123,7 +123,7 @@ export function sectionTitle(
     kind: "heading",
     props: {
       text,
-      level: 2,
+      level: 2 as const,
       layerLabel: "Title",
       style: {
         fontFamily: SERIF,
@@ -152,7 +152,7 @@ export function sectionTitleAccent(
     kind: "heading",
     props: {
       text,
-      level: 2,
+      level: 2 as const,
       layerLabel: "Title line 2 (accent)",
       style: {
         fontFamily: SERIF,
@@ -751,7 +751,7 @@ export interface UseCaseGridInput {
   items: Array<{ kicker: string; title: string; body: string }>;
 }
 
-export function useCaseGrid(input: UseCaseGridInput): BuilderNode {
+export function buildUseCaseGrid(input: UseCaseGridInput): BuilderNode {
   const p = input.prefix;
   return band(
     `${p}-usecases`,
@@ -965,7 +965,7 @@ export function statBand(input: StatBandInput): BuilderNode {
           props: {
             layout: "stack" as const,
             align: "center" as const,
-            layerLabel: `Stat — ${cell.label}`,
+            layerLabel: `Stat: ${cell.label}`,
             style: {
               gap: "10px",
               align: "center" as const,
@@ -1156,7 +1156,7 @@ export function fullBleedPlate(input: PlateInput): BuilderNode {
                   kind: "heading" as const,
                   props: {
                     text: input.numeral,
-                    level: 2,
+                    level: 2 as const,
                     layerLabel: "Numeral",
                     style: {
                       fontFamily: SERIF,
@@ -1179,7 +1179,7 @@ export function fullBleedPlate(input: PlateInput): BuilderNode {
             kind: "heading",
             props: {
               text: input.line,
-              level: 2,
+              level: 2 as const,
               layerLabel: "Statement line",
               style: {
                 fontFamily: SERIF,

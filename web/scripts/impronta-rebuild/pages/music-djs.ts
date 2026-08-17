@@ -135,7 +135,7 @@ export const musicDjsPage: DivisionPage = {
     meta_title: "DJs & Live Music in Tulum & Riviera Maya | Impronta",
     meta_description:
       "Book resident-caliber DJs, live musicians and hybrid sets for beach clubs, villas, weddings and brand events in Tulum and the Riviera Maya. Sets matched to your brief, logistics handled by the agency.",
-    og_title: "Music & DJs — Impronta, Tulum & Riviera Maya",
+    og_title: "Music & DJs · Impronta, Tulum & Riviera Maya",
     og_description:
       "Resident-caliber DJs and live musicians, matched to your room and coordinated end to end.",
     canonical_url: "/p/music-djs",

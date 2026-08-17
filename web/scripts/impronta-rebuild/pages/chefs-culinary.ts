@@ -15,7 +15,7 @@ import {
   divisionsCrossLinks,
   editorialSplit,
   fullBleedPlate,
-  useCaseGrid,
+  buildUseCaseGrid,
   type DivisionPage,
 } from "../shared-divisions";
 
@@ -34,7 +34,7 @@ const hero = divisionHero({
   secondary: { label: "Browse the roster", href: "/directory" },
 });
 
-const useCases = useCaseGrid({
+const useCases = buildUseCaseGrid({
   prefix: P,
   eyebrowText: "What we serve",
   title: "Three tables, one standard",
@@ -130,7 +130,7 @@ export const chefsCulinaryPage: DivisionPage = {
       "Private Chefs & Culinary Talent in Tulum & Riviera Maya | Impronta",
     meta_description:
       "Book private chefs, mixologists and full culinary teams for villa dinners, weddings and brand productions in Tulum and the Riviera Maya. Menus written to your brief, service coordinated by Impronta.",
-    og_title: "Chefs & Culinary — Impronta, Tulum & Riviera Maya",
+    og_title: "Chefs & Culinary · Impronta, Tulum & Riviera Maya",
     og_description:
       "Private chefs, mixologists and culinary teams. Menus to brief, local sourcing, agency-coordinated service.",
     canonical_url: "/p/chefs-culinary",

@@ -17,7 +17,7 @@ import {
   divisionsCrossLinks,
   editorialSplit,
   fullBleedPlate,
-  useCaseGrid,
+  buildUseCaseGrid,
   type DivisionPage,
 } from "../shared-divisions";
 
@@ -45,7 +45,7 @@ const plate = fullBleedPlate({
   line: "A show is not an add-on. It is the part of the night people remember.",
 });
 
-const useCases = useCaseGrid({
+const useCases = buildUseCaseGrid({
   prefix: P,
   eyebrowText: "What we produce",
   title: "Three ways to hold a room",
@@ -132,7 +132,7 @@ export const performersPage: DivisionPage = {
       "Performers & Entertainment in Tulum & Riviera Maya | Impronta",
     meta_description:
       "Fire and LED shows, aerialists, dancers and character acts for weddings, beach clubs and brand events in Tulum and the Riviera Maya. Agency-produced with riders, safety and timelines handled.",
-    og_title: "Performers — Impronta, Tulum & Riviera Maya",
+    og_title: "Performers · Impronta, Tulum & Riviera Maya",
     og_description:
       "Headline show blocks, roaming acts and ceremony moments, produced and coordinated by the agency.",
     canonical_url: "/p/performers",

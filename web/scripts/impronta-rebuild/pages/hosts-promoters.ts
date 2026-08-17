@@ -15,7 +15,7 @@ import {
   divisionsCrossLinks,
   editorialSplit,
   linkRows,
-  useCaseGrid,
+  buildUseCaseGrid,
   type DivisionPage,
 } from "../shared-divisions";
 
@@ -34,7 +34,7 @@ const hero = divisionHero({
   secondary: { label: "Browse the roster", href: "/directory" },
 });
 
-const useCases = useCaseGrid({
+const useCases = buildUseCaseGrid({
   prefix: P,
   eyebrowText: "What we staff",
   title: "From one host to a full activation team",
@@ -141,7 +141,7 @@ export const hostsPromotersPage: DivisionPage = {
       "Event Hosts, Hostesses & Brand Ambassadors in Tulum | Impronta",
     meta_description:
       "Bilingual event hosts, hostesses, MCs and brand ambassador teams for launches, activations and VIP events in Tulum, Playa del Carmen and the Riviera Maya. Agency-briefed and coordinated.",
-    og_title: "Hosts & Promoters — Impronta, Tulum & Riviera Maya",
+    og_title: "Hosts & Promoters · Impronta, Tulum & Riviera Maya",
     og_description:
       "From one hostess to a full activation team. Bilingual, agency-briefed event staff with one coordinator and one invoice.",
     canonical_url: "/p/hosts-promoters",

@@ -66,12 +66,13 @@ test("division pages: five pages, unique slugs, expected slugs", () => {
 for (const page of PAGES) {
   test(`division pages: ${page.slug} tree passes validateBuilderNodeTree`, () => {
     const result = validateBuilderNodeTree(page.tree);
-    assert.deepEqual(
-      result.issues,
-      [],
-      `validation issues on ${page.slug}: ${JSON.stringify(result.issues, null, 2)}`,
-    );
-    assert.equal(result.ok, true);
+    // Narrow on the failure arm first: `issues` only exists on `{ok:false}`,
+    // and asserting it before narrowing does not type-check.
+    if (!result.ok) {
+      assert.fail(
+        `validation issues on ${page.slug}: ${JSON.stringify(result.issues, null, 2)}`,
+      );
+    }
     assert.equal(result.tree.length, page.tree.length);
   });
 
