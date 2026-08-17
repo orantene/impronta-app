@@ -291,4 +291,44 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "Semibold (600)": "Seminegrita (600)",
   "Bold (700)": "Negrita (700)",
   "Extrabold (800)": "Extranegrita (800)",
+
+  // ── Inspector Reset — the VISUAL adoption (2026-08-16) ───────────────────
+  // Strings introduced when the Style and Content panels were rebuilt onto the
+  // field kit: the glyph-tile rows in Appearance, the preset+exact spacing
+  // rows, the quick-style cards, the footer row, and the Content panel's
+  // layout-intent cards.
+  //
+  // These land HERE rather than in editor-i18n-es-inspectors.ts because that
+  // file is at its 796-line ceiling; ES_INSPECTOR_TEXT_2 merges into ES_TEXT,
+  // so both parity guards resolve them identically.
+
+  // Appearance — "Border" now names the STYLE tile row (solid / dashed /
+  // dotted), with weight as its own row beneath it. "Borde" is the noun the
+  // rest of the Spanish panel already uses for the edge itself.
+  Border: "Borde",
+
+  // Spacing — the four preset rows. The panel's own axis letters (X / Y) are
+  // kept, as they are in the Spanish CSS vocabulary too.
+  "Margin top": "Margen superior",
+  "Margin bottom": "Margen inferior",
+  "Padding X": "Relleno X",
+  "Padding Y": "Relleno Y",
+  "Left and right inside the block.": "Izquierda y derecha dentro del bloque.",
+  "Top and bottom inside the block.": "Arriba y abajo dentro del bloque.",
+
+  // Content panel — the variant picker, promoted from a grey word strip to
+  // picture cards. "Variant" was a developer's word for it; the Spanish takes
+  // the same plain-language turn the English does.
+  "Layout intent": "Intención de diseño",
+
+  // Quick-style cards — the scope caption above the card grid.
+  "Applies to {device}": "Se aplica a {device}",
+
+  // Footer row (Copy style · Paste · Reset…). "Copy style", "Paste" and
+  // "Confirm reset" already have entries from earlier waves.
+  "Reset…": "Restablecer…",
+  "Reset this block's {device} style":
+    "Restablecer el estilo de {device} de este bloque",
+  "Copy once, paste anywhere.": "Copia una vez, pega donde quieras.",
+  "Copied: {source}": "Copiado: {source}",
 };

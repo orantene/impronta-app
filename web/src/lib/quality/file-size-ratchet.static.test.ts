@@ -99,7 +99,16 @@ const BUDGETS: Record<string, number> = {
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5809,
+  //
+  // 5809 -> 5708 (-101), 2026-08-16, the field-kit VISUAL adoption. Two hand-
+  // rolled blocks left this file for modules that render the approved mockup:
+  //   -38  the quick-styles text list  -> style-panel/QuickStyleCards.tsx
+  //   -63  the "Reuse style" card plus the detached grey "Reset … style" link
+  //        -> style-panel/StyleFooterRow.tsx (mockup annotation F)
+  // Extraction, not budget inflation, is the documented remedy — and it is
+  // also what makes the change reviewable, since each new module is one
+  // control with its own reasoning at the top.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5708,
   "src/components/edit-chrome/navigator-panel.tsx": 4505,
   "src/components/edit-chrome/topbar.tsx": 3375,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
