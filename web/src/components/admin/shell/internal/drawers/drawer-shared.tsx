@@ -82,6 +82,8 @@ import {
 } from "@/lib/field-engine/effective-visibility";
 import { shortParentLabel } from "@/lib/taxonomy/parent-labels";
 import { useLiveTaxonomy, type LiveTaxonomyParent } from "../use-taxonomy";
+import { TalentTypeToggleChip, DirectTalentTypeChips, taxonomyDisplayName } from "./talent-type-toggle-chip";
+export { taxonomyDisplayName } from "./talent-type-toggle-chip";
 import { prefetchSkillsData, SkillSlotPanel } from "../skill-slot-panel";
 import { ContextSlotPanel, prefetchContextsData } from "../context-slot-panel";
 import { LanguageSlotPanel, prefetchLanguagesData } from "../language-slot-panel";
@@ -638,72 +640,6 @@ function TabBtn({ label, count, active, onClick }: { id: CategoryTabId; label: s
   );
 }
 
-/**
- * Display name for a taxonomy term in the reader's language.
- *
- * Every term carries a platform EN/ES pair (`name_en` / `name_es`) plus an
- * optional per-workspace override pair (`custom_label` / `custom_label_es`).
- * The drawer used to render `custom_label ?? name_en` unconditionally, so a
- * Spanish admin saw the whole category tree in English and the ES override
- * they had just typed was never shown back to them. Resolve the requested
- * locale first, then fall back through the other locale so a term with only
- * one side filled in still renders a name instead of an empty string.
- */
-export function taxonomyDisplayName(
-  node: { name_en: string; name_es?: string | null; custom_label?: string | null; custom_label_es?: string | null },
-  isSpanish: boolean,
-): string {
-  if (isSpanish) {
-    return node.custom_label_es || node.name_es || node.custom_label || node.name_en;
-  }
-  return node.custom_label || node.name_en || node.custom_label_es || node.name_es || "";
-}
-
-/**
- * One level-3 talent_type as a TOGGLE chip. Disabled leaves render faded,
- * dashed and struck through — before this, the drawer showed every leaf as an
- * inert enabled-looking chip, so a tenant's per-type curation (Impronta: 332
- * disabled leaves, 64 under fully-enabled parents) was invisible and could
- * only be changed with a DB write.
- */
-function TalentTypeToggleChip({
-  node,
-  isSpanish,
-  onToggle,
-  t,
-}: {
-  node: TaxonomyNode;
-  isSpanish: boolean;
-  onToggle: (leaf: TaxonomyNode) => void;
-  t: (key: string) => string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onToggle(node)}
-      aria-pressed={node.is_enabled}
-      title={t(node.is_enabled ? "dashboard.adminDrawers.taxonomyLeafOnTooltip" : "dashboard.adminDrawers.taxonomyLeafOffTooltip")}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
-        padding: "3px 8px", fontSize: 11, fontFamily: FONTS.body,
-        color: node.is_enabled ? COLORS.inkMuted : COLORS.inkDim,
-        background: node.is_enabled ? "#fff" : "transparent",
-        borderRadius: 999, cursor: "pointer",
-        border: `1px ${node.is_enabled ? "solid" : "dashed"} ${node.is_enabled ? COLORS.borderSoft : COLORS.border}`,
-        opacity: node.is_enabled ? 1 : 0.6,
-        textDecoration: node.is_enabled ? "none" : "line-through",
-      }}
-    >
-      <span aria-hidden style={{
-        width: 6, height: 6, borderRadius: "50%",
-        background: node.is_enabled ? COLORS.accent : "rgba(11,11,13,0.22)",
-        flexShrink: 0,
-      }} />
-      {taxonomyDisplayName(node, isSpanish)}
-    </button>
-  );
-}
-
 function reorderIds(ids: readonly string[], fromId: string, toId: string): string[] {
   const from = ids.indexOf(fromId);
   const to = ids.indexOf(toId);
@@ -749,8 +685,7 @@ export function CategoryExpandPanel({
   /** Plan-tier capability: Agency+ may set display order. */
   canSetOrder: boolean;
   onToggleSubEnabled: (sub: TaxonomyNode) => void;
-  /** Per-talent_type (level-3) enable/disable — same optimistic handler as the
-   *  group toggle; setTaxonomyEnabled accepts any term id. */
+  /** Per-talent_type (level-3) toggle — same handler; action takes any term id. */
   onToggleLeafEnabled: (leaf: TaxonomyNode) => void;
   onRemoveCustom: (sub: TaxonomyNode) => void;
   addingCustom: boolean;
@@ -802,15 +737,11 @@ export function CategoryExpandPanel({
 
           {/* Level-2 category_groups (from getEnabledTaxonomyTree)
               with their level-3 talent_types nested (from getCategoryDetail). */}
-          {/* Group cards. Direct level-3 leaves under the parent (rare) are
-              excluded here — they render as toggle chips below, not as
-              pseudo-group cards; custom sub-types keep their card + Remove. */}
+          {/* Group cards; direct leaves render as chips below, custom keep card+Remove. */}
           {parent.children.filter((sub) => sub.term_type !== "talent_type" || sub.is_custom).map((sub) => {
-            // Leaf chips come from the TREE (getEnabledTaxonomyTree), not from
-            // getCategoryDetail: only the tree nodes carry the tenant overlay
-            // (is_enabled, custom labels). Sourcing from detail rendered
-            // explicitly-disabled leaves as if enabled — Impronta's launch
-            // curation left 332 of them invisible and untoggleable here.
+            // Leaves come from the TREE, not getCategoryDetail — only tree
+            // nodes carry the tenant overlay (is_enabled, custom labels), and
+            // detail-sourced chips rendered disabled leaves as enabled.
             const ttList = sub.children.filter((c) => c.term_type === "talent_type");
             const offCount = ttList.filter((c) => !c.is_enabled).length;
             return (
@@ -901,28 +832,8 @@ export function CategoryExpandPanel({
             );
           })}
 
-          {/* Direct talent_types (rare) — tree-sourced so enablement shows
-              and toggles, same as grouped leaves. */}
-          {(() => {
-            const direct = parent.children.filter((c) => c.term_type === "talent_type" && !c.is_custom);
-            if (direct.length === 0) return null;
-            return (
-              <div style={{
-                marginBottom: 8, padding: "8px 10px", borderRadius: 8,
-                background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
-                fontFamily: FONTS.body,
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: 0.4 }} className="text-admin-ink-muted">
-                  {t("dashboard.adminDrawers.taxonomyDirectTypes")}
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {direct.map((tt) => (
-                    <TalentTypeToggleChip key={tt.id} node={tt} isSpanish={isSpanish} onToggle={onToggleLeafEnabled} t={t} />
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
+          {/* Direct talent_types (rare) — tree-sourced, same chips as grouped. */}
+          <DirectTalentTypeChips parent={parent} isSpanish={isSpanish} onToggle={onToggleLeafEnabled} t={t} label={t("dashboard.adminDrawers.taxonomyDirectTypes")} />
 
           {/* Add custom sub-type. */}
           {addingCustom ? (
