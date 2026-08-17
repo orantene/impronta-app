@@ -12,6 +12,7 @@ export { FIELD_KIT, RETIRED_PALETTE } from "./tokens";
 // ── The honest value mapping (D9 item 1) ───────────────────────────────────
 export {
   BORDER_STYLE_PRESETS,
+  BORDER_WIDTH_PRESETS,
   GAP_PRESETS,
   ICON_SIZE_PRESETS,
   MAX_WIDTH_PRESETS,
@@ -57,6 +58,7 @@ export {
   GlyphTiles,
   LineStyleGlyph,
   ShadowGlyph,
+  borderWeightTileOptions,
   lineStyleTileOptions,
   radiusTileOptions,
   shadowTileOptions,

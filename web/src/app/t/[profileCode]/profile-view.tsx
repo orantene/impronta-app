@@ -31,7 +31,7 @@ import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
 import { loadAccountMenuModel } from "@/lib/identity/account-menu-model";
 import { signOut } from "@/app/auth/actions";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
-import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import {
   localizeLanguageName,
   localizeSpeakingLevel,
@@ -2129,7 +2129,7 @@ export async function TalentProfileView({
     const originalPath = h.get("x-impronta-original-pathname") ?? "/";
     marketingPathnameWithoutLocale = stripLocaleFromPathname(
       originalPath,
-      FALLBACK_LANGUAGE_SETTINGS,
+      await getRequestLocaleUrlSettings(),
     ).pathnameWithoutLocale;
     const actor = await getCachedActorSession();
     if (actor.user) {

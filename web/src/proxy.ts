@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { LanguageSettings } from "@/lib/language-settings/types";
 import { stripDefaultLocalePrefixFromPath } from "@/i18n/pathnames";
 import {
   isDashboardInnerPathForLocalePrefix,
@@ -20,8 +19,6 @@ import {
 import { updateSession } from "@/lib/supabase/middleware";
 import {
   resolveTenantContext,
-  resolveTenantContextFromPathSlug,
-  type HostContext,
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
   HOST_TENANT_SLUG_HEADER,
@@ -45,10 +42,11 @@ import {
 } from "@/lib/saas/surface-allow-list";
 import { workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
-  loadTenantLocaleSettings,
-  type TenantLocaleSettings,
-} from "@/lib/site-admin/server/locale-resolver";
+  isTenantHostContext,
+  resolveProxyLocaleContext,
+} from "@/lib/saas/proxy-locale-context";
 import {
   PREVIEW_COOKIE_OPTIONS,
   PREVIEW_QUERY_PARAM,
@@ -67,29 +65,6 @@ function clientIp(request: NextRequest): string {
   const real = request.headers.get("x-real-ip")?.trim();
   if (real) return real;
   return "unknown";
-}
-
-function isTenantHostContext(
-  context: HostContext,
-): context is Extract<HostContext, { kind: "agency" | "hub" }> {
-  return context.kind === "agency" || context.kind === "hub";
-}
-
-function isLocalhostHost(hostHeader: string): boolean {
-  const hostname = hostHeader.split(":")[0]?.trim().toLowerCase();
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-}
-
-function withTenantLanguageSettings(
-  base: LanguageSettings,
-  tenantSettings: TenantLocaleSettings | null,
-): LanguageSettings {
-  if (!tenantSettings) return base;
-  return {
-    ...base,
-    defaultLocale: tenantSettings.defaultLocale,
-    publicLocales: [...tenantSettings.supportedLocales],
-  };
 }
 
 /**
@@ -330,10 +305,25 @@ export async function proxy(request: NextRequest) {
   const hostTenantLocaleSettings = isTenantHostContext(hostContext)
     ? await loadTenantLocaleSettings(hostContext.tenantId)
     : null;
-  const hostLangSettings = withTenantLanguageSettings(
-    langSettings,
+
+  // Which tenant's URL grammar governs this request. MUST run before the
+  // default-locale strip, the supported-locale enforcement and the allow-list
+  // canonicalization below: on `/w/<slug>/…` the grammar belongs to the PATH
+  // tenant, not the host tenant. See proxy-locale-context.ts.
+  const {
+    canResolvePathBasedTenant,
+    pathBasedTenantContext,
+    effectiveHostContext,
+    effectiveTenantLocaleSettings,
+    effectiveLangSettings,
+  } = await resolveProxyLocaleContext({
+    request,
+    hostHeader,
+    pathname,
+    hostContext,
     hostTenantLocaleSettings,
-  );
+    langSettings,
+  });
 
   const parts = pathname.split("/");
   if (parts[1]) {
@@ -349,7 +339,10 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const withoutLocalePrefix = stripDefaultLocalePrefixFromPath(pathname, hostLangSettings);
+  const withoutLocalePrefix = stripDefaultLocalePrefixFromPath(
+    pathname,
+    effectiveLangSettings,
+  );
   // Audit H11 — locale-strip redirect: only safe methods.
   if (
     withoutLocalePrefix !== pathname &&
@@ -369,7 +362,7 @@ export async function proxy(request: NextRequest) {
     //
     // Set the cookie on the redirect response so the followed URL
     // serves with the right locale.
-    syncLocaleCookieForPath(res, pathname, hostLangSettings, request);
+    syncLocaleCookieForPath(res, pathname, effectiveLangSettings, request);
     return res;
   }
 
@@ -379,14 +372,20 @@ export async function proxy(request: NextRequest) {
   // support, redirect to the tenant's default locale instead of serving
   // a page that would 404 or fall back silently. This is temporary safety
   // — M7+ Site Health surfaces missing-locale warnings to operators.
-  if (hostContext.kind === "agency") {
+  //
+  // 2026-08-16 — this was gated on `hostContext.kind === "agency"`, so hub
+  // tenants AND every path-based `/w/<slug>` tenant got NO enforcement at all:
+  // an unsupported `/fr/w/<slug>` fell through to the surface allow-list and
+  // 404'd instead of redirecting to the tenant's own default locale. Gate on the
+  // EFFECTIVE tenant context instead (`agency` or `hub`, host- or path-resolved).
+  // Non-tenant contexts (marketing / app) still skip it, exactly as before.
+  if (isTenantHostContext(effectiveHostContext) && effectiveTenantLocaleSettings) {
     const firstSegment = parts[1];
     const isPlatformLocale = langSettings.publicLocales.some(
       (l) => l.toLowerCase() === firstSegment?.toLowerCase(),
     );
     if (firstSegment && isPlatformLocale) {
-      const tenantLocales =
-        hostTenantLocaleSettings ?? await loadTenantLocaleSettings(hostContext.tenantId);
+      const tenantLocales = effectiveTenantLocaleSettings;
       const supportsRequested = tenantLocales.supportedLocales.some(
         (l) => l.toLowerCase() === firstSegment.toLowerCase(),
       );
@@ -408,14 +407,9 @@ export async function proxy(request: NextRequest) {
   // SaaS P2 — surface allow-list. Reject paths that do not belong on this host
   // kind BEFORE rate limits, CMS redirects, or auth run. Checked against the
   // locale-stripped path so `/es/admin` is treated as `/admin`.
-  const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, hostLangSettings)
-    ? stripNonDefaultLocalePrefix(pathname, hostLangSettings)
+  const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, effectiveLangSettings)
+    ? stripNonDefaultLocalePrefix(pathname, effectiveLangSettings)
     : pathname;
-
-  const canResolvePathBasedTenant =
-    hostContext.kind === "hub" ||
-    hostContext.kind === "marketing" ||
-    (hostContext.kind === "app" && isLocalhostHost(hostHeader));
 
   // `/w` parent + legacy-flat 301s — see workspace-path-redirects.ts.
   const workspaceRedirect = canResolvePathBasedTenant
@@ -423,25 +417,13 @@ export async function proxy(request: NextRequest) {
     : null;
   if (workspaceRedirect) return workspaceRedirect;
 
-  const pathBasedTenant = canResolvePathBasedTenant
+  // Re-derived from `canonicalPath` (not from the locale-agnostic probe above)
+  // because `pathnameWithoutTenant` is what actually gets rewritten, and it must
+  // carry the grammar-correct remainder. The probe already told us WHICH tenant;
+  // this tells us WHAT path within it.
+  const pathBasedTenant = pathBasedTenantContext
     ? resolveWorkspacePathTenantPublicPath(canonicalPath)
     : null;
-  const pathBasedTenantContext = pathBasedTenant
-    ? await resolveTenantContextFromPathSlug(
-        request,
-        hostHeader,
-        pathBasedTenant.tenantSlug,
-      )
-    : null;
-  const effectiveHostContext = pathBasedTenantContext ?? hostContext;
-  const effectiveTenantLocaleSettings =
-    pathBasedTenantContext && isTenantHostContext(pathBasedTenantContext)
-      ? await loadTenantLocaleSettings(pathBasedTenantContext.tenantId)
-      : hostTenantLocaleSettings;
-  const effectiveLangSettings = withTenantLanguageSettings(
-    langSettings,
-    effectiveTenantLocaleSettings,
-  );
   const effectiveCanonicalPath =
     pathBasedTenantContext && pathBasedTenant
       ? pathBasedTenant.pathnameWithoutTenant

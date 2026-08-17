@@ -63,6 +63,7 @@ import {
   type FieldValue,
   type GlyphTileOption,
 } from "./field-kit";
+import { VariantIntentCards } from "./variant-intent-cards";
 
 interface BuilderNodeContentInspectorProps {
   node: Exclude<BuilderNode, { kind: "section" }>;
@@ -4437,24 +4438,23 @@ function VariantPicker({
       | AddGalleryNativeVariant
       | undefined) ?? "default";
   const value = options.includes(current) ? current : "default";
+  // Mockup annotation G — "Variant" was a five-word grey Segmented strip. It is
+  // the single biggest decision in this tab and it now looks like one: picture
+  // cards naming a layout INTENT, not a developer's word for a props patch.
   return (
-    <Field flush>
-      <FieldLabel>Variant</FieldLabel>
-      <Segmented
-        fullWidth
-        compact
-        value={value}
-        onChange={(next) => {
-          const variant = next as AddGalleryNativeVariant;
-          const styleProps = variantStyleProps(node.kind, variant);
-          commitPatch({
-            ...styleProps,
-            nativeVariant: variant === "default" ? undefined : variant,
-          });
-        }}
-        options={options.map((v) => ({ value: v, label: variantLabel(v) }))}
-      />
-      <Helper>Restyles to a preset look, your content stays.</Helper>
-    </Field>
+    <VariantIntentCards
+      label="Layout intent"
+      hint="Restyles to a preset look, your content stays."
+      options={options.map((v) => ({ id: v, label: variantLabel(v) }))}
+      value={value}
+      onChange={(next) => {
+        const variant = next as AddGalleryNativeVariant;
+        const styleProps = variantStyleProps(node.kind, variant);
+        commitPatch({
+          ...styleProps,
+          nativeVariant: variant === "default" ? undefined : variant,
+        });
+      }}
+    />
   );
 }

@@ -3,6 +3,7 @@ import { Bookmark } from "lucide-react";
 
 import { createTranslator } from "@/i18n/messages";
 import { withLocalePath } from "@/i18n/pathnames";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import type { Locale } from "@/i18n/config";
 import {
   HeaderWidgetGlyph,
@@ -20,7 +21,7 @@ import type { HeaderFavoritesV1 } from "./schema";
  *   - editor canvas (`preview`)  → a static placeholder chip.
  *   - published shell            → the real bookmark → favorites link.
  */
-export function HeaderFavoritesComponent({
+export async function HeaderFavoritesComponent({
   preview,
   locale,
   publicPathPrefix = "",
@@ -42,7 +43,12 @@ export function HeaderFavoritesComponent({
     );
   }
 
-  const href = `${publicPathPrefix}${withLocalePath("/client/favorites", locale as Locale)}`;
+  // Awaited AFTER the preview early-return so the editor canvas never pays
+  // for it. The tenant's grammar decides whether the ACTIVE locale is the
+  // unprefixed one; the platform fallback gets that backwards on any tenant
+  // whose default locale is not the platform default.
+  const pathSettings = await getRequestLocaleUrlSettings();
+  const href = `${publicPathPrefix}${withLocalePath("/client/favorites", locale as Locale, pathSettings)}`;
   return (
     <Link
       href={href}

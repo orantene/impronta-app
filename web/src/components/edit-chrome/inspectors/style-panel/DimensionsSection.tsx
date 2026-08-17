@@ -8,12 +8,11 @@
  */
 
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
-import { InspectorGroup, SegmentedField, NumberField } from "../kit";
-import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
-import { CHROME } from "../../kit/tokens";
+import { InspectorGroup, NumberField } from "../kit";
+import { MAX_WIDTH_PRESETS, PresetNumberRow } from "../field-kit";
 import { formatLength } from "../../kit/number-unit";
-import { BUILDER_NODE_WIDTH_OPTIONS } from "./style-options";
 import { parseCssLength } from "./length-utils";
+import { twoSlotFieldValue, twoSlotPatch } from "./field-value-bridge";
 import type { StandaloneStyleNode } from "./section-types";
 
 export interface DimensionsSectionProps {
@@ -49,33 +48,34 @@ export function DimensionsSection({
                 "exact size",
               ]}
             >
-            <SegmentedField
+            {/* D9 + the mockup's annotation D: "Exact size" is no longer a grey
+                label you must know to click. Max width's chips carry their real
+                px (Read = 680) and the exact input sits beside them; the
+                remaining width/height pairs render as plain visible fields. */}
+            <PresetNumberRow
               dataControl="maxWidth"
-              label="Max width (preset)"
-              value={selectedStandaloneViewportStyle?.maxWidth ?? ""}
-              onChange={(next) => setOrToggleStandaloneStyle("maxWidth", next)}
-              options={BUILDER_NODE_WIDTH_OPTIONS}
+              label="Max width"
+              searchTerms={["Max width", "measure", "content width", "reading width"]}
+              presets={MAX_WIDTH_PRESETS}
+              units={["px", "%", "vw", "rem"]}
+              placeholder="Auto"
+              value={twoSlotFieldValue(
+                selectedStandaloneViewportStyle?.maxWidth,
+                selectedStandaloneViewportStyle?.maxWidthFree,
+              )}
+              onChange={(next) => {
+                const patch = twoSlotPatch(next);
+                patchSelectedStandaloneStyle({
+                  maxWidth: patch.token as BuilderNodeStyleValue["maxWidth"],
+                  maxWidthFree: patch.free,
+                });
+              }}
             />
 
-            <details
-              open={Boolean(
-                selectedStandaloneViewportStyle?.width ||
-                  selectedStandaloneViewportStyle?.height ||
-                  selectedStandaloneViewportStyle?.minHeight ||
-                  selectedStandaloneViewportStyle?.minWidth ||
-                  selectedStandaloneViewportStyle?.maxWidthFree ||
-                  selectedStandaloneViewportStyle?.maxHeight,
-              )}
+            <div
               data-builder-node-style-control="dimensions"
+              className="flex flex-col gap-2"
             >
-              <summary
-                className="flex items-center justify-between select-none"
-                style={{ cursor: "pointer", outline: "none", listStyle: "none" }}
-              >
-                <span className={FIELD_LABEL}>Exact size</span>
-                <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
-              </summary>
-              <div className="mt-2 flex flex-col gap-2">
               <div className="grid grid-cols-2 gap-2">
                 <NumberField
                   label="Exact width"
@@ -129,18 +129,10 @@ export function DimensionsSection({
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <NumberField
-                  label="Max width"
-                  units={["px", "%", "vw", "rem"]}
-                  defaultUnit="px"
-                  placeholder="Auto"
-                  value={parseCssLength(selectedStandaloneViewportStyle?.maxWidthFree)}
-                  onChange={(next) =>
-                    patchSelectedStandaloneStyle({
-                      maxWidthFree: next ? formatLength(next) : undefined,
-                    })
-                  }
-                />
+                {/* "Max width" is NOT repeated here: it is the exact input on
+                    the preset row above, writing the same `maxWidthFree` key.
+                    Two fields for one value is how a panel teaches an operator
+                    that saving does not work. */}
                 <NumberField
                   label="Max height"
                   units={["px", "vh", "%", "rem"]}
@@ -154,8 +146,7 @@ export function DimensionsSection({
                   }
                 />
               </div>
-              </div>
-            </details>
+            </div>
             </InspectorGroup>
   );
 }

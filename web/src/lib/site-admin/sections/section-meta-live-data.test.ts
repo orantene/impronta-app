@@ -57,6 +57,11 @@ const EXPECTED_DATA_BOUND_SECTIONS = [
   // WS-A A5 — async header-widget embeds (read session / discovery counts).
   "header_account",
   "header_inquiry",
+  // Async because they resolve the TENANT's locale URL grammar at render time:
+  // their `/directory` + `/client/favorites` hrefs must be prefixed by the
+  // tenant's own rules, not the platform `en`-default fallback.
+  "header_favorites",
+  "header_search",
 ].sort();
 
 /** A section's Component.tsx is a server data-loader iff it renders async. */

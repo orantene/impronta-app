@@ -28,6 +28,8 @@ import { talentTypeGridMeta } from "./talent_type_grid/meta";
 // WS-A A5 — async (server-data-loader) header-widget embeds.
 import { headerAccountMeta } from "./header_account/meta";
 import { headerInquiryMeta } from "./header_inquiry/meta";
+import { headerFavoritesMeta } from "./header_favorites/meta";
+import { headerSearchMeta } from "./header_search/meta";
 import type { SectionMeta } from "./types";
 
 /**
@@ -47,6 +49,8 @@ const LIVE_DATA_METAS: ReadonlyArray<SectionMeta> = [
   talentTypeGridMeta,
   headerAccountMeta,
   headerInquiryMeta,
+  headerFavoritesMeta,
+  headerSearchMeta,
 ];
 
 /** Section type keys whose meta is tagged `hasLiveData:true`. Derived, not hand-listed. */

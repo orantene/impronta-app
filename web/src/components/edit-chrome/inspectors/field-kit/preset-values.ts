@@ -329,6 +329,24 @@ export const BORDER_STYLE_PRESETS: PresetTable = [
   { id: "dotted", label: "Dot", kind: "keyword", css: "dotted", numeric: null },
 ];
 
+// ── Border weight ────────────────────────────────────────────────────────────
+//
+// `style.borderWidth` is a FREE CSS length — the renderer has no token scale
+// for it, so there is nothing to mirror and nothing that can drift. These four
+// steps are the shortcut set; the exact input beside them reaches everything
+// else, which is the whole of D9 item 2.
+//
+// The `0` step is a real value, not the unset option: a node can carry
+// `borderWidth: 0` to cancel an inherited edge, and that is different from
+// "no opinion". Hence no UNSET entry — clearing the exact input unsets.
+
+export const BORDER_WIDTH_PRESETS: PresetTable = [
+  { id: "0", label: "0", kind: "length", css: "0", numeric: { value: 0, unit: "px" } },
+  { id: "1px", label: "1", kind: "length", css: "1px", numeric: { value: 1, unit: "px" } },
+  { id: "2px", label: "2", kind: "length", css: "2px", numeric: { value: 2, unit: "px" } },
+  { id: "4px", label: "4", kind: "length", css: "4px", numeric: { value: 4, unit: "px" } },
+];
+
 // ── Shadow (style-options.ts BUILDER_NODE_SHADOW_OPTIONS) ────────────────────
 //
 // Here the preset id IS the CSS, so a glyph tile can render the literal shadow
@@ -439,5 +457,6 @@ export const PRESET_TABLES: Readonly<Record<string, PresetTable>> = {
   TEXT_SIZE: TEXT_SIZE_PRESETS,
   TEXT_SIZE_PARAGRAPH: TEXT_SIZE_PRESETS_PARAGRAPH,
   BORDER_STYLE: BORDER_STYLE_PRESETS,
+  BORDER_WIDTH: BORDER_WIDTH_PRESETS,
   SHADOW: SHADOW_PRESETS,
 };
