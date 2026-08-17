@@ -144,17 +144,21 @@ export function isUnprefixedPublicDefaultPath(
   return true;
 }
 
-function acceptLanguageMatchesLocale(header: string | null, localeCode: string): boolean {
-  if (!header) return false;
-  const primary = localeCode.toLowerCase().split("-")[0] ?? localeCode;
-  const parts = header.split(",");
-  for (const part of parts) {
-    const code = part.split(";")[0]?.trim().toLowerCase() ?? "";
-    if (code.startsWith(localeCode.toLowerCase())) return true;
-    if (code.startsWith(primary)) return true;
-  }
-  return false;
-}
+/*
+ * `acceptLanguageMatchesLocale` + `preferredPublicLocaleFromNegotiation` were
+ * REMOVED here (2026-08-16), not moved. They had zero call sites repo-wide —
+ * nothing in the app had ever read the browser language — and they were a
+ * latent hazard: `preferredPublicLocaleFromNegotiation` returns a locale to
+ * SERVE, which is precisely the design that was rejected for the language
+ * suggestion banner (same URL, different language by header ⇒ Googlebot,
+ * crawling with English headers, never sees the Spanish content, and every
+ * shared cache key becomes ambiguous).
+ *
+ * Browser-language handling now lives in `@/i18n/locale-suggestion`, which is
+ * pure, q-value aware, and can only produce a dismissible SUGGESTION — it has
+ * no way to change what a URL serves. There is deliberately no second
+ * implementation left in this file.
+ */
 
 /**
  * Spanish public URL → that locale. Default-locale public URL → default.
@@ -202,31 +206,6 @@ export function shouldRewriteLocalePublicPath(
   if (!isNonDefaultLocalePrefixedPath(pathname, settings)) return false;
   const inner = stripNonDefaultLocalePrefix(pathname, settings);
   return !isDashboardInnerPathForLocalePrefix(inner);
-}
-
-export function preferredPublicLocaleFromNegotiation(
-  request: NextRequest,
-  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
-): string {
-  const cookie = readLocaleCookie(request, settings);
-  if (cookie) return cookie;
-
-  const header = request.headers.get("accept-language");
-  const ordered = [...settings.publicLocales].sort((a, b) => {
-    if (a === settings.defaultLocale) return -1;
-    if (b === settings.defaultLocale) return 1;
-    return a.localeCompare(b);
-  });
-
-  for (const code of ordered) {
-    if (code !== settings.defaultLocale && acceptLanguageMatchesLocale(header, code)) {
-      return code;
-    }
-  }
-  if (acceptLanguageMatchesLocale(header, settings.defaultLocale)) {
-    return settings.defaultLocale;
-  }
-  return settings.defaultLocale;
 }
 
 export function syncLocaleCookieForPath(

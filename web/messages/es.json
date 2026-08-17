@@ -1310,6 +1310,12 @@
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
       "body": "Este marcador indica dónde aparece el contenido de cada página. Los cambios que hagas aquí en el encabezado y el pie se aplican a todas las páginas de tu sitio."
+    },
+    "localeSuggest": {
+      "prompt": "¿Prefieres ver esta página en español?",
+      "accept": "Ver en español",
+      "dismiss": "No, gracias",
+      "regionLabel": "Sugerencia de idioma"
     }
   },
   "dashboard": {

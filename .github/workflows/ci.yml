@@ -168,6 +168,10 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run test:tenant-locale-grammar
 
+      - name: tests — locale-suggestion
+        if: ${{ !cancelled() }}
+        run: npm run test:locale-suggestion
+
       - name: tests — inquiry-workspace
         if: ${{ !cancelled() }}
         run: npm run test:inquiry-workspace
