@@ -143,7 +143,17 @@ const BUDGETS: Record<string, number> = {
   // chip button (+6) and this branch's nudge/toolbar/device work (+66 over the
   // pre-lane 7687) — so the merged budget is the sum, 7753 + 6, and the file
   // measures exactly that. No re-baselining, no allowance beyond the two.
-  "selection-layer.tsx": 7759,
+  // +36 (hover attribution): the blinking drag grip. The RESOLUTION — the
+  // "declared owner beats DOM ancestry beats chrome bail" order, the section
+  // twin, and the props helpers — lives in canvas-hover-attribution.ts and is
+  // unit-tested there (including the oscillation itself). What landed in this
+  // file is the wiring the guard's procedure asks for: two call sites in the
+  // pointermove listener replacing their inline ancestry walks (net smaller),
+  // one declaration each on the hover grip, the section control rail, the
+  // canvas add/remove rail and the selection chip, and one wrapper element
+  // (plus its comment) around the direct-manipulation handle group so the five
+  // handles declare their owner once instead of five times.
+  "selection-layer.tsx": 7795,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

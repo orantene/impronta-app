@@ -34,6 +34,7 @@
 
 import { useLayoutEffect, useRef, type RefObject } from "react";
 
+import { hoverAttributionProps } from "./canvas-hover-attribution";
 import { positionAnchoredToolbarStack } from "./canvas-toolbar-anchor";
 
 /**
@@ -94,14 +95,24 @@ export function InlineTextHintPill({
   );
 }
 
-/** "Replace image" — a real button; opens the media picker. */
+/**
+ * "Replace image" — a real button; opens the media picker.
+ *
+ * `nodeId` is the block the hovered image belongs to. The pill is
+ * `pointer-events: auto` and lives in the editor's overlay layer, so without
+ * that declaration the inline editor's own pointermove read the pill as "not
+ * on an image any more" and unmounted it the instant the operator reached for
+ * it (canvas-hover-attribution.ts — same bug class as the blinking drag grip).
+ */
 export function InlineReplaceImagePill({
   show,
   rect,
+  nodeId,
   onReplace,
 }: {
   show: boolean;
   rect: DOMRect | null;
+  nodeId?: string | null;
   onReplace: () => void;
 }) {
   const ref = useAnchoredHoverPill<HTMLButtonElement>(show, rect);
@@ -111,6 +122,7 @@ export function InlineReplaceImagePill({
       ref={ref}
       type="button"
       data-edit-overlay="inline-replace"
+      {...hoverAttributionProps(nodeId)}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();

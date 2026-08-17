@@ -111,6 +111,12 @@ import {
   useAdditionalSelectedBuilderNodeIds,
 } from "./selection-bridge";
 import { getSavingSnapshot, usePageVersion, useSaving } from "./save-cycle-bridge";
+import {
+  hoverAttributionProps,
+  hoverSectionAttributionProps,
+  resolveHoveredBuilderNodeId,
+  resolveHoveredSectionId,
+} from "./canvas-hover-attribution";
 import { CanvasMoveHandle, parseTranslate } from "./canvas-move-handle";
 import { CanvasResizeHandles } from "./canvas-resize-handles";
 import { CanvasRotateHandle } from "./canvas-rotate-handle";
@@ -1396,22 +1402,23 @@ export function SelectionLayer() {
 
   useEffect(() => {
     function onPointerMove(e: PointerEvent) {
-      const el = findSectionEl(e.target);
-      const id = el?.getAttribute("data-section-id") ?? null;
+      // Declaration-first (the section control rail is painted in the overlay
+      // root, so ancestry alone unmounts it on contact), else the section
+      // wrapper under the pointer.
+      const id = resolveHoveredSectionId(e.target);
       if (id !== hoveredSectionId) callbacksRef.current.setHoveredSectionId(id);
       // Job #5 — track the freeform builder node under the cursor for the
       // bidirectional canvas↔layers highlight. Ignore the edit chrome (the
       // layers rail's rows ALSO carry data-builder-node-id; an inspector/topbar
       // hover must not light a canvas block). Off-canvas → clear.
-      const source = eventTargetElement(e.target);
-      const overChrome =
-        source?.closest(
-          "[data-edit-topbar], [data-edit-drawer], [data-edit-overlay]",
-        ) ?? null;
-      const nodeId = overChrome
-        ? null
-        : (findBuilderNodeEl(e.target)?.getAttribute("data-builder-node-id") ??
-          null);
+      //
+      // An overlay affordance that DECLARES its owner (`data-hover-node-for`,
+      // canvas-hover-attribution.ts) wins over both rules: the drag grip is
+      // painted in this layer's [data-edit-overlay] root, so ancestry alone
+      // reported "off canvas" the instant the pointer reached it — which
+      // unmounted the grip, which put the pointer back on the block, which
+      // remounted it. That loop is the blinking grab handle the owner reported.
+      const nodeId = resolveHoveredBuilderNodeId(e.target);
       if (nodeId !== hoveredBuilderNodeId) {
         callbacksRef.current.setHoveredBuilderNodeId(nodeId);
       }
@@ -4706,6 +4713,10 @@ export function SelectionLayer() {
            * full-weight chip competing with the selection chip. */}
           {drag.phase === "idle" ? (
             <div
+              // Painted in the overlay root but owned by the hovered section:
+              // without the declaration, reaching for this rail cleared the
+              // section hover and unmounted the rail under the pointer.
+              {...hoverSectionAttributionProps(hoveredSectionId)}
               style={{
                 position: "fixed",
                 top: Math.max(hoverRect.top + 8, 62),
@@ -4834,6 +4845,11 @@ export function SelectionLayer() {
           type="button"
           data-builder-node-hover-grip=""
           data-builder-node-id={hoveredBuilderNodeId}
+          // The grip is painted in the overlay root, not inside the block it
+          // drags. Declaring its owner keeps hover pointing at that block while
+          // the pointer is on the grip — without it the grip unmounts itself on
+          // contact and blinks (canvas-hover-attribution.ts).
+          {...hoverAttributionProps(hoveredBuilderNodeId)}
           aria-label={t("Drag to move {label}").replace("{label}", hoveredBlockLabel)}
           title={t("Drag to move / nest this block")}
           draggable
@@ -4999,6 +5015,15 @@ export function SelectionLayer() {
               unique job — jumping to a parent — is covered by the navigator
               panel. One bar is clearer. */}
 
+          {/* Every direct-manipulation handle below is painted here, in the
+              overlay root, but acts on the SELECTED block. One declaration on
+              the group makes hover resolution treat the whole set as part of
+              that block, so grabbing a resize / rotate / move / spacing handle
+              no longer reports "nothing is hovered" mid-gesture
+              (canvas-hover-attribution.ts). The wrapper generates a static box
+              with no styles; the handles inside are `position: fixed`, so
+              nothing about their placement changes. */}
+          <div {...hoverAttributionProps(selectedCanvasNodeId)}>
           {/* Direct manipulation — drag the right edge to set width. */}
           {canResizeSelectedNode && !dragChromeSuppressed ? (
             <CanvasResizeHandles
@@ -5052,6 +5077,8 @@ export function SelectionLayer() {
 	              overlayRef={moveOverlayRef}
 	            />
 	          ) : null}
+
+          </div>
 
 	          {multiNodeSelectionActive && !dragChromeSuppressed ? (
 	            <MultiSelectionMoveHandle
@@ -5114,6 +5141,10 @@ export function SelectionLayer() {
           (canInsertIntoSelectedNode || canRemoveSelectedNode) ? (
             <div
               data-edit-overlay="builder-node-canvas-rail"
+              // pointer-events: auto, sits over the selected block's top-right
+              // corner — declare its owner so reaching for Add/Remove does not
+              // read as leaving the block (canvas-hover-attribution.ts).
+              {...hoverAttributionProps(selectedCanvasNodeId)}
               style={{
                 position: "fixed",
                 top: Math.max(renderSelectedRect.top + 8 + canvasTopRailOffset, 62),
@@ -5679,6 +5710,11 @@ export function SelectionLayer() {
             ref={chipRef}
             data-selection-chip=""
             data-selection-chip-scope={selectedNodeIsEditableBlock ? "block" : "section"}
+            // Normally anchored above the selection, but it falls back to
+            // INSIDE the box for an element taller than the viewport — and its
+            // grip is a pointer target either way. Declaring its owner keeps
+            // the hovered id correct while the operator works the chip.
+            {...hoverAttributionProps(selectedCanvasNodeId)}
             style={{
               position: "fixed",
               // ANCHORED to the selection bbox: the rAF geometry loop writes
