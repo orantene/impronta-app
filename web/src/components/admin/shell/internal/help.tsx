@@ -610,18 +610,6 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
     relatedDrawers: ["homepage", "posts", "talent-portfolio"],
   },
 
-  translations: {
-    audience: [W_ADMIN, W_EDIT],
-    category: "Public site",
-    purpose:
-      "Multilingual storefront: translate your pages, posts, and UI strings.",
-    youCanHere: [
-      "Add a language and pick a default fallback",
-      "Edit translations side-by-side with the source",
-      "Mark a translation as 'needs review' for an editor",
-    ],
-    relatedDrawers: ["pages", "posts"],
-  },
 
   seo: {
     audience: [W_ADMIN, W_EDIT],
