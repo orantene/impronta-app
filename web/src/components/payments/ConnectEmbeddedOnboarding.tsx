@@ -22,6 +22,8 @@ import {
   ConnectComponentsProvider,
 } from "@stripe/react-connect-js";
 import { TULALA_CONNECT_APPEARANCE } from "@/lib/payments/connect-appearance";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { stripeConnectLocale } from "@/lib/payments/connect-locale";
 
 type StripeConnectInstance = ReturnType<typeof loadConnectAndInitialize>;
 
@@ -49,6 +51,11 @@ export function ConnectEmbeddedOnboarding({
   const [connectInstance, setConnectInstance] =
     useState<StripeConnectInstance | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  // Render Stripe's KYC in the talent's own language. The cookie is only read
+  // after hydration, so this is "en" on the very first client render; the
+  // instance is created in an effect that depends on it, so the FIRST real
+  // init already carries the resolved locale.
+  const dashboardLocale = useDashboardLocale();
 
   // Keep the latest fetcher in a ref so the Connect instance is created ONCE
   // (callers may pass an inline `fetchClientSecret`; depending on its identity
@@ -64,6 +71,7 @@ export function ConnectEmbeddedOnboarding({
       return;
     }
     try {
+      const locale = stripeConnectLocale(dashboardLocale);
       const instance = loadConnectAndInitialize({
         publishableKey,
         fetchClientSecret: async () => {
@@ -72,12 +80,13 @@ export function ConnectEmbeddedOnboarding({
           return r.clientSecret;
         },
         appearance: TULALA_CONNECT_APPEARANCE,
+        ...(locale ? { locale } : {}),
       });
       setConnectInstance(instance);
     } catch {
       setInitError("Could not load payout setup. Please refresh and try again.");
     }
-  }, [publishableKey]);
+  }, [publishableKey, dashboardLocale]);
 
   if (initError) {
     return (
