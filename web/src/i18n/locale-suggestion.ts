@@ -40,17 +40,22 @@
  *                                  user-agent counts as a crawler too.
  * 4. non-public path             — dashboards and auth are not storefront.
  * 5. tenant publishes 1 language — the production majority. Nothing to offer.
- * 6. `Accept-Language`, q-ranked — the strong signal, and DECISIVE whenever it
+ * 6. switcher hidden by tenant   — `show_language_switcher = false`. Tenant
+ *                                  POLICY, so it sits with gate 5 and above the
+ *                                  signal checks: no browser header can earn a
+ *                                  banner on a tenant that turned language
+ *                                  chrome off.
+ * 7. `Accept-Language`, q-ranked — the strong signal, and DECISIVE whenever it
  *                                  expresses any language preference at all.
  *                                  If the best tenant-supported match is the
  *                                  locale already being rendered, we stop; if
  *                                  it names only languages the tenant does not
  *                                  publish (`fr` on an en/es tenant), we stop.
- * 7. `x-vercel-ip-country`       — consulted ONLY when the header expressed no
+ * 8. `x-vercel-ip-country`       — consulted ONLY when the header expressed no
  *                                  usable preference (missing, blank, `*`, or
  *                                  every entry at `q=0`).
  *
- * Point 7 is the part worth arguing about, so here is the reasoning explicitly:
+ * Point 8 is the part worth arguing about, so here is the reasoning explicitly:
  * geo is a WEAKER signal than the header, and "weaker" is implemented as
  * FALLBACK, not as TIEBREAK. A visitor in Mexico City whose browser says
  * `en-US` has told us something about themselves that their IP has not, and a
@@ -190,6 +195,7 @@ export type LocaleSuggestionSkipReason =
   | "crawler"
   | "non-public-path"
   | "single-locale-tenant"
+  | "language-switcher-hidden"
   | "no-signal"
   | "already-rendering-preferred";
 
@@ -226,6 +232,23 @@ export type LocaleSuggestionInput = {
    * platform fallback.
    */
   tenantSettings: LocaleUrlSettings;
+  /**
+   * `TenantLocaleSettings.showLanguageSwitcher`, i.e.
+   * `agency_business_identity.show_language_switcher`.
+   *
+   * The owner decided (2026-08-16) that this flag governs the banner too, not
+   * just the `EN | ES` pills in the header. The deciding argument was the trap
+   * created by ignoring it: on a tenant with the switcher off, the banner would
+   * be the ONLY language affordance on the storefront, so accepting it becomes
+   * a one-way door — the visitor lands on Spanish, the banner is now silenced
+   * by their own choice, there is no switcher to click, and the only route back
+   * to English is editing the address bar.
+   *
+   * Omitted means "not configured", which reads as TRUE to match
+   * `loadTenantLocaleSettings`'s own `row.show_language_switcher ?? true`.
+   * Callers that know the tenant must pass it explicitly.
+   */
+  showLanguageSwitcher?: boolean;
   /** The BROWSER pathname (still carrying any locale prefix). */
   pathname: string;
   /** Query string including `?`, preserved into the accept href. */
@@ -352,6 +375,7 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
     country,
     currentLocale,
     tenantSettings,
+    showLanguageSwitcher,
     pathname,
     search,
     userAgent,
@@ -393,7 +417,24 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
   const supported = tenantSettings.publicLocales;
   if (supported.length < 2) return { suggest: false, reason: "single-locale-tenant" };
 
-  // 6 — Accept-Language, decisive whenever it says anything at all.
+  // 6 — the tenant turned language chrome off. This is CONFIGURATION, not a
+  //     signal, which is why it sits here next to gate 5 rather than down in
+  //     the header/geo section: no `Accept-Language` value should be able to
+  //     earn a banner on a storefront whose owner said "no language controls".
+  //
+  //     ORDERING IS LOAD-BEARING. `buildTenantLocaleSettings` force-collapses
+  //     `showLanguageSwitcher` to false whenever `supportedLocales.length <= 1`,
+  //     so EVERY solo-language tenant in production arrives here with the flag
+  //     already false and would trip both gates. Gate 5 runs first so the
+  //     reported reason stays the specific, true one ("this tenant publishes
+  //     one language") instead of the derived one ("the switcher is hidden"),
+  //     which would send anyone debugging a missing banner to the wrong admin
+  //     screen. Pinned by test.
+  if (showLanguageSwitcher === false) {
+    return { suggest: false, reason: "language-switcher-hidden" };
+  }
+
+  // 7 — Accept-Language, decisive whenever it says anything at all.
   const signal = acceptLanguageSignal(acceptLanguage, supported);
   let target: string | null = null;
   let source: LocaleSuggestionSource = "accept-language";
@@ -408,7 +449,7 @@ export function shouldSuggestLocale(input: LocaleSuggestionInput): LocaleSuggest
     // must NOT override that: the visitor told us more than their IP did.
     return { suggest: false, reason: "no-signal" };
   } else {
-    // 7 — neutral header: country is allowed to speak now, and only now.
+    // 8 — neutral header: country is allowed to speak now, and only now.
     const geoLanguage = languageForCountry(country);
     const geoLocale = geoLanguage
       ? (supported.find((l) => tagMatchesLocale(geoLanguage, l)) ?? null)

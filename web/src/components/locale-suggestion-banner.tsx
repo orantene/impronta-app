@@ -12,6 +12,8 @@ import {
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
+import { getPublicTenantScope } from "@/lib/saas/scope";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 import { LocaleSuggestionBannerClient } from "./locale-suggestion-banner-client";
 
@@ -48,11 +50,26 @@ type BannerProps = React.ComponentProps<typeof LocaleSuggestionBannerClient>;
 
 async function resolveBannerProps(): Promise<BannerProps | null> {
   try {
-    const [h, jar, settings] = await Promise.all([
+    const [h, jar, settings, scope] = await Promise.all([
       headers(),
       cookies(),
       getRequestLocaleUrlSettings(),
+      getPublicTenantScope(),
     ]);
+
+    // `getRequestLocaleUrlSettings()` carries the URL grammar but not the
+    // tenant's chrome preferences, so read the settings row for the one flag.
+    // Not a second round trip in practice: that resolver already called
+    // `loadTenantLocaleSettings(tenantId)` for this same request and the
+    // resolver holds a 60s process cache, so this lands on the memo.
+    //
+    // Off-tenant (platform apex / marketing / app host) there is no tenant row
+    // and therefore no owner preference to honor — `LanguageSettings` has no
+    // equivalent flag — so those surfaces default to true, matching the
+    // `?? true` the tenant read itself uses for an unset column.
+    const showLanguageSwitcher = scope
+      ? (await loadTenantLocaleSettings(scope.tenantId)).showLanguageSwitcher
+      : true;
 
     // The BROWSER pathname, set by proxy.ts before any rewrite. Without it we
     // cannot build a correct "same page, other language" href, and a banner
@@ -76,6 +93,7 @@ async function resolveBannerProps(): Promise<BannerProps | null> {
       country: h.get("x-vercel-ip-country"),
       currentLocale,
       tenantSettings: settings,
+      showLanguageSwitcher,
       pathname,
       search: h.get(ORIGINAL_SEARCH_HEADER),
       userAgent: h.get("user-agent"),

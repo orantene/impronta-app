@@ -114,7 +114,7 @@
     "test:locale-precedence": "tsx --test src/i18n/locale-precedence.test.ts src/i18n/alternates.test.ts",
     "test:hreflang": "tsx --test src/i18n/alternates.test.ts",
     "test:tenant-locale-grammar": "tsx --test src/i18n/tenant-locale-grammar.test.ts",
-    "test:locale-suggestion": "tsx --test src/i18n/locale-suggestion.test.ts",
+    "test:locale-suggestion": "tsx --test src/i18n/locale-suggestion.test.ts src/i18n/locale-suggestion-session.test.ts",
     "test:inquiry-workspace": "tsx --test src/lib/inquiry/coordinator-stale-policy.test.ts src/lib/inquiry/inquiry-workspace.test.ts src/lib/inquiry/alternates-logic.test.ts src/lib/inquiry/agency-inbox-visibility.test.ts src/lib/inquiry/inquiry-rehome.test.ts src/lib/inquiry/guest-draft-resume.test.ts src/lib/inquiry/guest-send-gate.test.ts",
     "validate:inquiry-workspace-db": "node --env-file=.env.local scripts/validate-inquiry-workspace-db.mjs",
     "test:ai-guardrails": "tsx --test src/lib/ai/inquiry-draft-guardrails.test.ts src/lib/ai/resolve-location-from-query.test.ts src/lib/ai/interpret-taxonomy-synonyms.test.ts src/lib/ai/deterministic-gender-taxonomy.test.ts src/lib/ai/providers/anthropic-adapter.test.ts",
