@@ -32,14 +32,14 @@ import type {
 // Without them the Page settings drawer's SEO fields were a silent no-op here.
 const TALENT_PAGE_BASE_COLS =
   "id, talent_profile_id, slug, title, status, blocks, theme, required_talent_tier, published_at, updated_at, " +
-  "meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
+  "meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
 const TALENT_PAGE_COLS = `${TALENT_PAGE_BASE_COLS}, style_classes, style_presets`;
 
 /** SEO-1 — the metadata columns a talent-page save may write. Same convention as
  *  the STYLE-1 registries: `undefined` = leave the stored value alone (a
- *  tree-only autosave carries no metadata), `null` = clear the column.
- *  No `meta_title`: `talent_pages` has no such column (see the adapter core). */
+ *  tree-only autosave carries no metadata), `null` = clear the column. */
 const META_PATCH_KEYS = [
+  "meta_title",
   "meta_description",
   "og_title",
   "og_description",

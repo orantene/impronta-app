@@ -25,21 +25,20 @@
  *   created_by, created_at, updated_at,
  *   plus the SEO-1 metadata columns (20261100000000_talent_pages_seo_columns.sql):
  *   meta_description, og_title, og_description, og_image_url, canonical_url,
- *   noindex, json_ld.
+ *   noindex, json_ld — and `meta_title` (SEO-3,
+ *   20261122000000_talent_pages_meta_title.sql).
  *
  * SEO-2 already READS that column set on the public side — `loadMaxSitePages`
- * selects all seven and `maxSiteSeoToMetadata` renders them into <head> for all
+ * selects them and `maxSiteSeoToMetadata` renders them into <head> for all
  * three talent-site routes. Only the WRITE half was missing: the composition
  * hardcoded nulls and `save`/`saveDraft` dropped everything but `title`, so the
  * Page settings drawer's SEO fields were a silent no-op on this surface (the
- * same defect fixed for freeform `cms_pages` in PR #1210).
+ * same defect fixed for freeform `cms_pages` in PR #1210, ported in #1212).
  *
- * NO `meta_title` COLUMN: unlike `cms_pages`, the SEO-1 migration deliberately
- * omits `meta_title` — the talent-site SEO envelope (`MaxSiteSeo`) uses `title`
- * as the SERP/tab title and `og_title` as the only override. So the drawer's
- * "Meta title" field has nothing to persist to here and stays null by design;
- * wiring it would mean a new column PLUS widening the shared SEO envelope that
- * all three talent-site routes consume in lockstep.
+ * `meta_title` (SEO-3) closed the last no-op field. It is the SERP/tab override
+ * the shared drawer exposes on every surface; the public read folds it in as
+ * `meta_title || title` — the platform-wide convention (see app/page.tsx) — so
+ * a NULL keeps a page's rendered <title> exactly as it was.
  *
  * The adapter stores the freeform `builderTree` in the `blocks` column.
  * The `theme` column carries `styleClasses`. VERSION is derived from
@@ -88,7 +87,8 @@ export interface TalentPageRow {
   /** SEO-1 — the `talent_pages` metadata/OG columns, the same set the public
    *  `loadMaxSitePages` read selects. Optional on the row type so a spy/test
    *  fixture (or a partial select) degrades to the null defaults instead of
-   *  throwing. There is deliberately no `meta_title` — see the header note. */
+   *  throwing. */
+  meta_title?: string | null;
   meta_description?: string | null;
   og_title?: string | null;
   og_description?: string | null;
@@ -117,6 +117,7 @@ export interface TalentPagePatch {
   /** SEO-1 — metadata/OG columns. `undefined` means "leave the stored value
    *  untouched" (a tree-only autosave carries no metadata envelope); `null`
    *  clears the column. */
+  meta_title?: string | null;
   meta_description?: string | null;
   og_title?: string | null;
   og_description?: string | null;
@@ -210,10 +211,9 @@ export function buildEmptyTalentPageComposition(
       // SEO-1 — read the REAL stored values. These were hardcoded to null, so
       // the Page settings drawer opened blank and every SEO edit round-tripped
       // back to nothing, even though the public renderer reads these columns.
-      // `metaTitle` stays null: `talent_pages` has no such column (the
-      // talent-site SEO envelope uses `title`). `introTagline` stays null: it
-      // is homepage-only (it lives in the homepage row's `hero` JSON).
-      metaTitle: null,
+      // `introTagline` stays null: it is homepage-only (it lives in the
+      // homepage row's `hero` JSON, not on talent_pages).
+      metaTitle: row.meta_title ?? null,
       metaDescription: row.meta_description ?? null,
       introTagline: null,
       ogTitle: row.og_title ?? null,
@@ -250,14 +250,13 @@ export function buildEmptyTalentPageComposition(
  *     explicit `null` clears the column.
  * Shared by `save` and `saveDraft` so both legs persist metadata identically.
  *
- * `metaTitle` is intentionally NOT mapped: `talent_pages` has no `meta_title`
- * column (see the module header).
  */
 function talentMetadataPatch(
   metadata: CompositionSaveInput["metadata"] | undefined,
 ): Omit<TalentPagePatch, "blocks" | "theme" | "updated_at"> {
   if (!metadata) return {};
   const patch: Omit<TalentPagePatch, "blocks" | "theme" | "updated_at"> = {};
+  if (metadata.metaTitle !== undefined) patch.meta_title = metadata.metaTitle;
   if (metadata.metaDescription !== undefined) {
     patch.meta_description = metadata.metaDescription;
   }

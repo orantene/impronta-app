@@ -11,6 +11,7 @@
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
+import { userHasCapability } from "@/lib/access";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { reconcileRolesOnSlugChange } from "@/lib/site-admin/server/page-roles";
 
@@ -88,6 +89,14 @@ export async function quickDeletePageAction(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No workspace." };
+
+  // Capability gate. RLS on cms_pages only enforces `is_staff_of_tenant()`,
+  // which is role-blind (any active membership passes) — without this check a
+  // viewer-level membership could delete pages. Same pattern as
+  // savePageSlugAction (cms-seo-actions.ts) and cms-page-actions.ts.
+  if (!(await userHasCapability("agency.site_admin.pages.edit", scope.tenantId))) {
+    return { ok: false, error: "You don't have permission to delete this page." };
+  }
 
   const { data: page } = await tenantScopedQuery(auth.supabase, "cms_pages", scope.tenantId)
     .select("id, slug, is_system_owned")

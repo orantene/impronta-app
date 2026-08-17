@@ -28,6 +28,7 @@ import {
   buildCmsFreeformComposition,
   type CmsPageAdapterActions,
   type CmsFreeformPageRow,
+  type CmsFreeformPagePatch,
 } from "./cms-page-adapter-core";
 
 import {
@@ -55,22 +56,31 @@ function makeFakeRow(overrides: Partial<CmsFreeformPageRow> = {}): CmsFreeformPa
 type LoadCall = { slug: string; locale?: string };
 
 /** Spy action set. `calls` records method names; `loadCalls` records the exact
- *  input handed to loadPage so tests can assert locale threading. */
+ *  input handed to loadPage so tests can assert locale threading; `savePatches`
+ *  records the exact patch handed to savePage so tests can assert which columns
+ *  a given save actually writes (the SEO wipe-hazard guard). */
 function makeActions(
   row: CmsFreeformPageRow | null = makeFakeRow(),
-): CmsPageAdapterActions & { calls: string[]; loadCalls: LoadCall[] } {
+): CmsPageAdapterActions & {
+  calls: string[];
+  loadCalls: LoadCall[];
+  savePatches: CmsFreeformPagePatch[];
+} {
   const calls: string[] = [];
   const loadCalls: LoadCall[] = [];
+  const savePatches: CmsFreeformPagePatch[] = [];
   return {
     calls,
     loadCalls,
+    savePatches,
     async loadPage(input) {
       calls.push("loadPage");
       loadCalls.push({ slug: input.slug, locale: input.locale });
       return row;
     },
-    async savePage(_input) {
+    async savePage(input) {
       calls.push("savePage");
+      savePatches.push(input.patch);
       return { ok: true, updatedAt: new Date("2026-06-13T12:01:00Z").toISOString() };
     },
     async publishPage(_input) {
@@ -238,4 +248,258 @@ test("buildCmsFreeformComposition maps the row into CompositionData", () => {
   assert.deepEqual(comp.builderTree, [{ id: "b1" }]);
   assert.equal(comp.liveSitePublishedAt, "2026-02-01T00:00:00Z");
   assert.equal(comp.locale, "es");
+});
+
+// ── SEO-1: metadata round-trips (regression — was hardcoded null) ─────────────
+
+test("[cms] buildCmsFreeformComposition surfaces the row's REAL SEO metadata", () => {
+  // Regression: every one of these was hardcoded to null/false, so the Page
+  // settings drawer opened blank even when the columns held values.
+  const comp = buildCmsFreeformComposition(
+    makeFakeRow({
+      meta_title: "Studio — Impronta",
+      meta_description: "Casting studio in Madrid.",
+      og_title: "Studio OG",
+      og_description: "Studio OG description",
+      og_image_url: "https://cdn.example/og.jpg",
+      canonical_url: "https://impronta.example/studio",
+      noindex: true,
+      json_ld: { "@type": "WebPage" },
+    }),
+    "es",
+  );
+  assert.equal(comp.metadata.metaTitle, "Studio — Impronta");
+  assert.equal(comp.metadata.metaDescription, "Casting studio in Madrid.");
+  assert.equal(comp.metadata.ogTitle, "Studio OG");
+  assert.equal(comp.metadata.ogDescription, "Studio OG description");
+  assert.equal(comp.metadata.ogImageUrl, "https://cdn.example/og.jpg");
+  assert.equal(comp.metadata.canonicalUrl, "https://impronta.example/studio");
+  assert.equal(comp.metadata.noindex, true);
+  assert.deepEqual(comp.metadata.jsonLd, { "@type": "WebPage" });
+  // introTagline is homepage-only (it lives in the homepage row's hero JSON).
+  assert.equal(comp.metadata.introTagline, null);
+});
+
+test("[cms] buildCmsFreeformComposition degrades a row WITHOUT the SEO columns to nulls", () => {
+  const comp = buildCmsFreeformComposition(makeFakeRow(), "en");
+  assert.equal(comp.metadata.metaTitle, null);
+  assert.equal(comp.metadata.metaDescription, null);
+  assert.equal(comp.metadata.ogTitle, null);
+  assert.equal(comp.metadata.ogDescription, null);
+  assert.equal(comp.metadata.ogImageUrl, null);
+  assert.equal(comp.metadata.canonicalUrl, null);
+  assert.equal(comp.metadata.noindex, false);
+  assert.equal(comp.metadata.jsonLd, null);
+});
+
+test("[cms] save maps metadata onto the cms_pages SEO columns", async () => {
+  const actions = makeActions();
+  const adapter = createCmsPageAdapter(actions, { assertNoLegacyWrite: () => {} });
+
+  const result = await adapter.save(CTX, {
+    locale: "es",
+    pageId: "cms-row-001",
+    expectedVersion: 1,
+    metadata: {
+      title: "About",
+      metaTitle: "About — Impronta",
+      metaDescription: "Who we are.",
+      ogTitle: "About OG",
+      ogDescription: "About OG description",
+      ogImageUrl: "https://cdn.example/about.jpg",
+      canonicalUrl: "https://impronta.example/about",
+      noindex: true,
+      jsonLd: { "@type": "AboutPage" },
+    },
+    slots: {},
+    builderTree: [],
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(actions.savePatches.length, 1);
+  const patch = actions.savePatches[0];
+  assert.equal(patch.title, "About");
+  assert.equal(patch.meta_title, "About — Impronta");
+  assert.equal(patch.meta_description, "Who we are.");
+  assert.equal(patch.og_title, "About OG");
+  assert.equal(patch.og_description, "About OG description");
+  assert.equal(patch.og_image_url, "https://cdn.example/about.jpg");
+  assert.equal(patch.canonical_url, "https://impronta.example/about");
+  assert.equal(patch.noindex, true);
+  assert.deepEqual(patch.json_ld, { "@type": "AboutPage" });
+});
+
+test("[cms] saveDraft maps metadata onto the cms_pages SEO columns", async () => {
+  const actions = makeActions();
+  const adapter = createCmsPageAdapter(actions, { assertNoLegacyWrite: () => {} });
+
+  const result = await adapter.saveDraft(CTX, {
+    expectedVersion: 1,
+    metadata: {
+      title: "Draft",
+      metaTitle: "Draft meta",
+      metaDescription: null,
+      ogTitle: null,
+      ogDescription: null,
+      ogImageUrl: null,
+      canonicalUrl: null,
+      noindex: false,
+      jsonLd: null,
+    },
+    slots: {},
+    builderTree: [],
+  });
+
+  assert.equal(result.ok, true);
+  const patch = actions.savePatches[0];
+  assert.equal(patch.meta_title, "Draft meta");
+  // An explicit null CLEARS the column (STYLE-1 convention: undefined =
+  // untouched, null = clear) — so the operator can empty an SEO field.
+  assert.equal(patch.meta_description, null);
+  assert.equal(patch.canonical_url, null);
+  assert.equal(patch.noindex, false);
+  assert.equal(patch.json_ld, null);
+});
+
+// ── WIPE HAZARD: a metadata-less save must NOT touch the SEO columns ──────────
+
+const SEO_PATCH_KEYS = [
+  "meta_title",
+  "meta_description",
+  "og_title",
+  "og_description",
+  "og_image_url",
+  "canonical_url",
+  "noindex",
+  "json_ld",
+] as const;
+
+test("[cms] a tree-only save (NO metadata) leaves every SEO column OUT of the patch", async () => {
+  // The wipe hazard: autosave / draft-flush paths carry only the builder tree.
+  // If the adapter mapped `metadata?.metaTitle ?? null` unconditionally, every
+  // keystroke-driven save would NULL the page's whole SEO set.
+  const actions = makeActions();
+  const adapter = createCmsPageAdapter(actions, { assertNoLegacyWrite: () => {} });
+
+  const result = await adapter.save(CTX, {
+    locale: "es",
+    pageId: "cms-row-001",
+    expectedVersion: 1,
+    metadata: undefined as unknown as never,
+    slots: {},
+    builderTree: [{ id: "n1" }] as never,
+  });
+
+  assert.equal(result.ok, true);
+  const patch = actions.savePatches[0] as unknown as Record<string, unknown>;
+  for (const key of SEO_PATCH_KEYS) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(patch, key),
+      false,
+      `metadata-less save must not write "${key}" — that would wipe the stored SEO value`,
+    );
+  }
+  assert.deepEqual(patch.blocks, [{ id: "n1" }]);
+});
+
+test("[cms] a tree-only saveDraft (NO metadata) leaves every SEO column OUT of the patch", async () => {
+  const actions = makeActions();
+  const adapter = createCmsPageAdapter(actions, { assertNoLegacyWrite: () => {} });
+
+  const result = await adapter.saveDraft(CTX, {
+    expectedVersion: 1,
+    metadata: undefined as unknown as never,
+    slots: {},
+    builderTree: [],
+  });
+
+  assert.equal(result.ok, true);
+  const patch = actions.savePatches[0] as unknown as Record<string, unknown>;
+  for (const key of SEO_PATCH_KEYS) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(patch, key),
+      false,
+      `metadata-less saveDraft must not write "${key}"`,
+    );
+  }
+});
+
+test("[cms] a PARTIAL metadata save only writes the fields it carries", async () => {
+  // The legacy saveDraft envelope sends `{ title }` alone. Only `title` (and no
+  // SEO column) may reach the patch — the untouched columns keep their values.
+  const actions = makeActions();
+  const adapter = createCmsPageAdapter(actions, { assertNoLegacyWrite: () => {} });
+
+  await adapter.saveDraft(CTX, {
+    expectedVersion: 1,
+    metadata: { title: "Only the title" },
+    slots: {},
+    builderTree: [],
+  });
+
+  const patch = actions.savePatches[0] as unknown as Record<string, unknown>;
+  assert.equal(patch.title, "Only the title");
+  for (const key of SEO_PATCH_KEYS) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(patch, key),
+      false,
+      `partial-metadata save must not write "${key}"`,
+    );
+  }
+});
+
+// ── End-to-end round trip through the adapter (load → save → load) ────────────
+
+test("[cms] SEO metadata survives a load → save → load round trip", async () => {
+  const stored: Record<string, unknown> = {};
+  const row = makeFakeRow({
+    meta_title: "Stored title",
+    meta_description: "Stored description",
+  });
+  const actions: CmsPageAdapterActions = {
+    async loadPage() {
+      return { ...row, ...stored } as CmsFreeformPageRow;
+    },
+    async savePage(input) {
+      Object.assign(stored, input.patch);
+      return { ok: true, updatedAt: new Date("2026-06-13T12:05:00Z").toISOString() };
+    },
+    async publishPage() {
+      return {
+        ok: true,
+        publishedAt: new Date("2026-06-13T12:06:00Z").toISOString(),
+        updatedAt: new Date("2026-06-13T12:06:00Z").toISOString(),
+      };
+    },
+  };
+  const adapter = createCmsPageAdapter(actions, { assertNoLegacyWrite: () => {} });
+
+  const first = await adapter.load(CTX);
+  assert.equal(first.ok, true);
+  if (!first.ok) return;
+  assert.equal(first.data.metadata.metaTitle, "Stored title");
+
+  // Operator edits the Meta title in the Page settings drawer and saves.
+  await adapter.save(CTX, {
+    locale: "es",
+    pageId: first.data.pageId,
+    expectedVersion: first.data.pageVersion,
+    metadata: { ...first.data.metadata, metaTitle: "Edited title" },
+    slots: {},
+    builderTree: [],
+  });
+
+  // A later tree-only autosave must not undo it.
+  await adapter.saveDraft(CTX, {
+    expectedVersion: first.data.pageVersion,
+    metadata: undefined as unknown as never,
+    slots: {},
+    builderTree: [{ id: "n2" }] as never,
+  });
+
+  const second = await adapter.load(CTX);
+  assert.equal(second.ok, true);
+  if (!second.ok) return;
+  assert.equal(second.data.metadata.metaTitle, "Edited title");
+  assert.equal(second.data.metadata.metaDescription, "Stored description");
 });
