@@ -1310,6 +1310,12 @@
     "siteShellSurface": {
       "title": "Site header & footer",
       "body": "This stand-in marks where each page’s content appears. Edits to the header and footer here apply to every page of your site."
+    },
+    "localeSuggest": {
+      "prompt": "Would you rather read this page in English?",
+      "accept": "Switch to English",
+      "dismiss": "No thanks",
+      "regionLabel": "Language suggestion"
     }
   },
   "dashboard": {
