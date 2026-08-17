@@ -19,7 +19,14 @@ export type TenantCatalogScopeSetting = {
   is_enabled: boolean | null;
 };
 
-function buildEnabledTermIds(
+/**
+ * The canonical "is this term enabled for the tenant" walk: a term is enabled
+ * iff its own row isn't explicitly disabled AND every ancestor passes the same
+ * test ("no settings row = enabled" platform default; inactive = disabled).
+ * Exported so pickers can share it instead of hand-rolling a divergent copy —
+ * picker/validator drift is exactly how disabled types ended up selectable.
+ */
+export function buildEnabledTermIds(
   terms: readonly TenantCatalogScopeTerm[],
   settings: readonly TenantCatalogScopeSetting[],
 ): Set<string> {
