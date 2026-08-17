@@ -776,6 +776,21 @@
         "formSectionContactHeading": "Your contact",
         "formSectionProjectHeading": "Project details",
         "formSectionBriefHeading": "Your brief"
+      },
+      "attachment": {
+        "typesLabel": "Accepted:",
+        "sizeLabel": "Max per file:",
+        "countLabel": "Max files:",
+        "unavailable": "File uploads are not available on this form.",
+        "error": {
+          "too_large": "That file is too large. Please attach a smaller one.",
+          "too_many": "You attached too many files. Please remove some and try again.",
+          "total_too_large": "Those files are too large together. Please attach less.",
+          "unsupported_type": "That file type is not accepted. Please attach a PDF or an image.",
+          "not_accepted": "This form does not accept file attachments.",
+          "required": "Please attach the required file.",
+          "store_failed": "Your message was sent, but the file could not be attached. Please send it to us by email instead."
+        }
       }
     },
     "errors": {

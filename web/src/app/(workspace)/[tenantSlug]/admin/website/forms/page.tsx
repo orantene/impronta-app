@@ -41,6 +41,15 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
+/** FORMS-3 — one file the visitor attached to this submission. */
+export type FormSubmissionAttachment = {
+  id: string;
+  field_name: string;
+  original_filename: string;
+  mime_type: string;
+  byte_size: number;
+};
+
 export type FormSubmissionRow = {
   id: string;
   section_id: string;
@@ -51,6 +60,7 @@ export type FormSubmissionRow = {
   source_url: string | null;
   status: string;
   payload_jsonb: Record<string, unknown>;
+  attachments: FormSubmissionAttachment[];
 };
 
 function statusBadge(status: string) {
@@ -161,9 +171,39 @@ export default async function FormsInboxPage({
     );
   }
 
+  // ── 2b. FORMS-3 — attachments for the fetched page of submissions ─────────
+  // One extra query keyed by the ids we already have, so an inbox with no
+  // attachments pays for a single empty lookup. Staff download them through
+  // `getFormAttachmentDownloadUrl`, which mints a short-lived signed URL; the
+  // bucket is private and has no public URL to embed here.
+  const submissionIds = ((rawRows ?? []) as RawRow[]).map((r) => r.id);
+  const attachmentsBySubmission = new Map<string, FormSubmissionAttachment[]>();
+  if (submissionIds.length > 0) {
+    const { data: attachmentRows } = await svcClient
+      .from("cms_form_submission_attachments")
+      .select("id, submission_id, field_name, original_filename, mime_type, byte_size")
+      .eq("tenant_id", scope.tenantId)
+      .in("submission_id", submissionIds)
+      .order("created_at", { ascending: true });
+    for (const a of (attachmentRows ?? []) as Array<
+      FormSubmissionAttachment & { submission_id: string }
+    >) {
+      const list = attachmentsBySubmission.get(a.submission_id) ?? [];
+      list.push({
+        id: a.id,
+        field_name: a.field_name,
+        original_filename: a.original_filename,
+        mime_type: a.mime_type,
+        byte_size: a.byte_size,
+      });
+      attachmentsBySubmission.set(a.submission_id, list);
+    }
+  }
+
   const rows: FormSubmissionRow[] = ((rawRows ?? []) as RawRow[]).map((r) => ({
     ...r,
     section_name: sectionMap.get(r.section_id) ?? r.section_id,
+    attachments: attachmentsBySubmission.get(r.id) ?? [],
   }));
 
   // Text search (client-name, email, payload values — done in-memory after DB fetch).

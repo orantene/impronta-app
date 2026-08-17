@@ -60,14 +60,30 @@ const fieldSchema = z.object({
   /**
    * Accepted MIME types / extensions for file inputs (comma-separated,
    * e.g. "image/*,.pdf"). Only used when `type === "file"`.
-   * Defaults to a safe allowlist when absent.
+   *
+   * FORMS-3: this is now ADVISORY ONLY on the internal lane. The renderer
+   * emits `CONTACT_ATTACHMENT_ACCEPT` and the submit route enforces the
+   * server-side allow-list in `attachments.ts` (PDF + JPEG/PNG/WebP/GIF,
+   * verified by magic bytes), because an operator-editable `accept` string is
+   * a UI hint a crafted POST simply ignores. Kept for backward compat with
+   * saved sections and for any external (Formspree etc.) action.
    */
   fileAccept: z.string().max(200).optional(),
   /**
    * Maximum file size in megabytes. Only used when `type === "file"`.
-   * Enforced client-side (size guard before submit) — no binary upload
-   * on the Supabase free tier; the submit route stores a URL/metadata record.
-   * Hard-capped server-side at FILE_MAX_SIZE_MB_HARD_CAP (10 MB).
+   *
+   * FORMS-3 — attachments ARE stored now. The old comment here ("no binary
+   * upload on the Supabase free tier; the submit route stores a URL/metadata
+   * record") described the bug, not a constraint: the visitor's file rode the
+   * POST and was thrown away. Files on the internal lane now land in the
+   * private `form-attachments` bucket, written server-side with the service
+   * role after honeypot + rate-limit + captcha.
+   *
+   * The operative ceiling is NOT this 10 MB bound. `effectiveAttachmentMaxBytes`
+   * clamps to CONTACT_ATTACHMENT_MAX_BYTES (3 MB) because the whole submission
+   * has to fit inside the platform's 4.5 MB request-body cap. An operator can
+   * tighten below that; they cannot raise above it, and the renderer shows the
+   * clamped number so the form never promises a size it will reject.
    */
   fileMaxSizeMb: z.number().min(0.1).max(10).default(5).optional(),
 });
