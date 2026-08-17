@@ -162,6 +162,25 @@ export const EXPECTED_PAGE_MODULE_FILES: readonly string[] = [
   "chefs-culinary",
 ];
 
+/**
+ * Pages authored but deliberately NOT seeded yet (owner hold).
+ *
+ * `chefs-culinary`: the division has ZERO tagged talent in the live taxonomy,
+ * so the page would publish showing only its empty state. Owner decision
+ * (2026-08-17) is to hold it until chefs are tagged. The tree stays in the
+ * repo and stays gated by CI — remove the slug from this list to ship it, no
+ * re-authoring needed.
+ */
+export const HELD_PAGE_SLUGS: readonly string[] = ["chefs-culinary"];
+
+/** The page set the seeder actually writes (everything not on owner hold). */
+export function seedablePageFiles(
+  files: readonly string[] = EXPECTED_PAGE_MODULE_FILES,
+  held: readonly string[] = HELD_PAGE_SLUGS,
+): string[] {
+  return files.filter((f) => !held.includes(f));
+}
+
 // ---------------------------------------------------------------------------
 // Pure helpers — payload building, the home guard, node counting
 // ---------------------------------------------------------------------------
@@ -195,10 +214,45 @@ export interface BuildUpsertPayloadOptions {
   statusOverride?: "published";
 }
 
+/**
+ * Slugs this seeder must NEVER write, at any stage, for any reason.
+ *
+ * `__directory__` is the tenant's SYSTEM directory page (`is_system_owned`,
+ * `system_template_key='directory'`) and is what `/directory` serves. It is
+ * slot-composed (its config lives in `cms_page_sections`, not `blocks`), it is
+ * hand-tuned by the owner, and it is explicitly OUT of the all-freeform
+ * rebuild: the "retire the legacy slot pages" sweep does not apply to it.
+ * Writing `is_freeform: true` + `blocks` onto that row would strand its slot
+ * sections and blank the page.
+ *
+ * `__site_shell__` (global header/footer) and the legacy `''` homepage row are
+ * protected for the same reason.
+ */
+export const PROTECTED_SYSTEM_SLUGS: readonly string[] = [
+  "__directory__",
+  "__site_shell__",
+  "",
+];
+
+/** True for any slug the seeder is forbidden to touch. */
+export function isProtectedSystemSlug(slug: string): boolean {
+  return PROTECTED_SYSTEM_SLUGS.includes(slug) || slug.startsWith("__");
+}
+
 export function buildCmsPageUpsertPayload(
   page: Pick<ImprontaPageModule, "title" | "seo">,
   opts: BuildUpsertPayloadOptions,
 ): CmsPageWritePayload {
+  // Hard stop, not a filter: a protected slug reaching the payload builder
+  // means an upstream bug, and the correct behaviour is to abort the whole run
+  // (this seeder is all-or-nothing by design) rather than skip quietly.
+  if (isProtectedSystemSlug(opts.effectiveSlug)) {
+    throw new Error(
+      `Refusing to write protected system page "${opts.effectiveSlug}". ` +
+        `The system directory / site shell / legacy homepage rows are out of ` +
+        `scope for the rebuild and must never be overwritten.`,
+    );
+  }
   const seo = page.seo ?? {};
   const canonicalUrl = seo.canonicalPath ?? `/p/${opts.effectiveSlug}`;
   const payload: CmsPageWritePayload = {
@@ -508,10 +562,20 @@ function isImprontaPageModule(value: unknown): value is ImprontaPageModule {
 }
 
 export async function loadPageModules(
-  files: readonly string[] = EXPECTED_PAGE_MODULE_FILES,
+  // Defaults to the seedable set: authored-but-held pages (see
+  // HELD_PAGE_SLUGS) are never loaded, so they cannot be written even by an
+  // `--apply` run that forgets to pass `--only`.
+  files: readonly string[] = seedablePageFiles(),
 ): Promise<{ pages: ImprontaPageModule[]; warnings: string[] }> {
   const pages: ImprontaPageModule[] = [];
   const warnings: string[] = [];
+  for (const held of HELD_PAGE_SLUGS) {
+    if (files.includes(held)) {
+      warnings.push(
+        `pages/${held}.ts is on OWNER HOLD and will not be seeded (remove it from HELD_PAGE_SLUGS to ship it).`,
+      );
+    }
+  }
   for (const file of files) {
     let mod: unknown;
     try {

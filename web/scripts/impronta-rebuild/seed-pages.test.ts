@@ -22,7 +22,12 @@ import {
   applyHomeInPlaceGuard,
   buildCmsPageUpsertPayload,
   countBuilderNodes,
+  isProtectedSystemSlug,
+  loadPageModules,
   runSeed,
+  seedablePageFiles,
+  EXPECTED_PAGE_MODULE_FILES,
+  HELD_PAGE_SLUGS,
   type ExistingCmsPageRow,
   type ImprontaPageModule,
 } from "./seed-pages";
@@ -472,4 +477,82 @@ test("runSeed aborts the WHOLE BATCH (including otherwise-valid pages) when any 
 
   assert.equal(result.aborted, true);
   assert.equal(insertCalls, 0, "the valid page must NOT be written when a sibling page in the batch is invalid");
+});
+
+// ── OWNER HOLD ───────────────────────────────────────────────────────────────
+
+test("held pages are excluded from the seedable set", () => {
+  const seedable = seedablePageFiles();
+  assert.ok(
+    !seedable.includes("chefs-culinary"),
+    "chefs-culinary is on owner hold (zero tagged talent) and must not be seeded",
+  );
+  assert.equal(
+    seedable.length,
+    EXPECTED_PAGE_MODULE_FILES.length - HELD_PAGE_SLUGS.length,
+    "exactly the held pages should be removed",
+  );
+  for (const file of EXPECTED_PAGE_MODULE_FILES) {
+    if (!HELD_PAGE_SLUGS.includes(file)) {
+      assert.ok(seedable.includes(file), `${file} must remain seedable`);
+    }
+  }
+});
+
+test("loadPageModules never loads a held page by default", async () => {
+  const { pages, warnings } = await loadPageModules();
+  assert.ok(
+    !pages.some((p) => p.slug === "chefs-culinary"),
+    "a held page must never reach the writer",
+  );
+  assert.ok(
+    !warnings.some((w) => w.includes("OWNER HOLD")),
+    "the default set already excludes held pages, so no hold warning should fire",
+  );
+});
+
+test("explicitly passing a held page warns instead of silently seeding it", async () => {
+  const { pages, warnings } = await loadPageModules(["chefs-culinary"]);
+  assert.ok(
+    warnings.some((w) => w.includes("OWNER HOLD")),
+    "an explicit held page must announce the hold",
+  );
+  assert.equal(pages.length, 0, "and must still not be loaded for writing");
+});
+
+// ── PROTECTED SYSTEM PAGES ───────────────────────────────────────────────────
+
+test("the seeder refuses to write the system /directory page", () => {
+  assert.throws(
+    () =>
+      buildCmsPageUpsertPayload(
+        { title: "x", seo: {} } as unknown as ImprontaPageModule,
+        { tenantId: "t", effectiveSlug: "__directory__" } as never,
+      ),
+    /protected system page "__directory__"/,
+    "the hand-tuned system directory page must never be overwritten",
+  );
+});
+
+test("the seeder refuses the site shell and the legacy homepage row", () => {
+  for (const slug of ["__site_shell__", ""]) {
+    assert.throws(
+      () =>
+        buildCmsPageUpsertPayload(
+          { title: "x", seo: {} } as unknown as ImprontaPageModule,
+          { tenantId: "t", effectiveSlug: slug } as never,
+        ),
+      /protected system page/,
+      `${slug || "(empty slug)"} must be protected`,
+    );
+  }
+});
+
+test("no page in the seedable set is a protected system slug", () => {
+  for (const file of seedablePageFiles()) {
+    assert.ok(
+      !isProtectedSystemSlug(file),
+      `${file} must not collide with a protected system slug`,
+    );
+  }
 });
