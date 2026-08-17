@@ -198,17 +198,112 @@ async function resolveByTalentType(
       return empty;
     }
 
-    const rows = (data ?? []).filter(
-      (r) =>
-        r.archived_at == null &&
-        (r.term_type === "talent_type" ||
-          (!r.term_type && r.kind === "talent_type")),
-    );
+    const live = (data ?? []).filter((r) => r.archived_at == null);
+    const isTalentType = (r: { kind: string | null; term_type: string | null }) =>
+      r.term_type === "talent_type" || (!r.term_type && r.kind === "talent_type");
 
-    const termIds = rows.map((r) => r.id).filter(Boolean);
+    const directIds = live.filter(isTalentType).map((r) => r.id).filter(Boolean);
+
+    // A configured slug may be a PARENT (`term_type='parent_category'`) or a
+    // mid-level `context` rather than a leaf talent_type. Talent are tagged
+    // ONLY on level-3 talent_type terms, so a parent slug resolved to zero ids
+    // here — which is indistinguishable from "no scope" downstream and made the
+    // grid refetch UNSCOPED (a division page silently showing the whole
+    // roster). Walk such terms down to their descendant talent_type leaves.
+    const branchIds = live.filter((r) => !isTalentType(r)).map((r) => r.id).filter(Boolean);
+    const descendantIds = branchIds.length > 0 ? await resolveDescendantTalentTypeIds(branchIds) : [];
+
+    const termIds = [...new Set([...directIds, ...descendantIds])];
     return { termIds, manualProfileCodes: [], scopeLimited: false };
   } catch (err) {
     logServerError("directory/scope-seed/resolveByTalentType", err);
     return empty;
+  }
+}
+
+/**
+ * Walk `parent_category` / `context` term ids down to their descendant
+ * `talent_type` leaves (the only level talent are actually tagged on).
+ *
+ * The taxonomy is three levels (parent_category → context → talent_type), so
+ * two descent hops reach every leaf; the loop is bounded at 3 regardless so a
+ * malformed parent cycle can never spin. Returns [] on any error — an empty
+ * result degrades to the pre-existing behaviour rather than erroring the
+ * section.
+ */
+export interface TaxonomyDescentRow {
+  id: string;
+  kind: string | null;
+  term_type: string | null;
+  archived_at: string | null;
+}
+
+/** True for both the v2 `term_type` and the legacy `kind` shapes. */
+export function isTalentTypeRow(row: Pick<TaxonomyDescentRow, "kind" | "term_type">): boolean {
+  return row.term_type === "talent_type" || (!row.term_type && row.kind === "talent_type");
+}
+
+/**
+ * Pure BFS from branch term ids down to their `talent_type` leaves, over an
+ * injected child fetcher (so it is testable without a live taxonomy).
+ *
+ * Depth is bounded at 3 (parent_category → context → talent_type) and every
+ * visited id is remembered, so a malformed parent cycle can never spin.
+ */
+export async function collectTalentTypeLeafIds(
+  rootIds: string[],
+  fetchChildren: (parentIds: string[]) => Promise<TaxonomyDescentRow[]>,
+): Promise<string[]> {
+  const leafIds: string[] = [];
+  const seen = new Set<string>(rootIds);
+  let frontier = rootIds;
+
+  for (let depth = 0; depth < 3 && frontier.length > 0; depth += 1) {
+    const children = (await fetchChildren(frontier)).filter(
+      (r) => r.archived_at == null && r.id && !seen.has(r.id),
+    );
+    if (children.length === 0) break;
+
+    const next: string[] = [];
+    for (const child of children) {
+      seen.add(child.id);
+      if (isTalentTypeRow(child)) leafIds.push(child.id);
+      else next.push(child.id);
+    }
+    frontier = next;
+  }
+
+  return leafIds;
+}
+
+async function resolveDescendantTalentTypeIds(rootIds: string[]): Promise<string[]> {
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return [];
+
+  try {
+    return await collectTalentTypeLeafIds(rootIds, async (parentIds) => {
+      const { data, error } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            in: (col: string, vals: string[]) => Promise<{
+              data: TaxonomyDescentRow[] | null;
+              error: unknown;
+            }>;
+          };
+        };
+      })
+        .from("taxonomy_terms")
+        .select("id, kind, term_type, archived_at")
+        .in("parent_id", parentIds);
+
+      if (error) {
+        logServerError("directory/scope-seed/resolveDescendantTalentTypeIds", error);
+        return [];
+      }
+      return data ?? [];
+    });
+  } catch (err) {
+    logServerError("directory/scope-seed/resolveDescendantTalentTypeIds", err);
+    return [];
   }
 }
