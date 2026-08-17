@@ -385,8 +385,41 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "That video link cannot be used. Pick a file from the library, or paste an https URL.":
     "Ese enlace de video no se puede usar. Elige un archivo de la biblioteca o pega una URL https.",
 
+  // ── Slideshow backgrounds (2026-08-17) ───────────────────────────────────
+  "Video, YouTube or a slideshow behind this block":
+    "Video, YouTube o una secuencia de fotos detrás de este bloque",
+  Slideshow: "Secuencia",
+  // "Images", "Crossfade" and "Cut" are deliberately absent: they already
+  // carry a Spanish value in editor-i18n-es.ts / -inspectors.ts / -canvas.ts,
+  // and `es-parity.static.test.ts` fails a key defined in two catalog files
+  // (whichever spread lands last wins, invisibly).
+  "Selected image": "Imagen seleccionada",
+  "Choose image": "Elegir imagen",
+  "Choose a background image": "Elige una imagen de fondo",
+  "Add image": "Agregar imagen",
+  "Image {n}": "Imagen {n}",
+  "No image chosen": "Sin imagen elegida",
+  "Duplicate image": "Duplicar imagen",
+  "Remove image": "Quitar imagen",
+  "No images yet. Add two or more to start the slideshow.":
+    "Aún no hay imágenes. Agrega dos o más para iniciar la secuencia.",
+  "That is the maximum number of images for one background.":
+    "Ese es el número máximo de imágenes para un fondo.",
+  "They cross-fade in this order. Visitors who prefer reduced motion see the first image only, and the rest load lazily.":
+    "Se funden en este orden. Quienes prefieren menos movimiento ven solo la primera imagen, y el resto se carga de forma diferida.",
+  "Seconds per image:": "Segundos por imagen:",
+  "How long each image stays before the next one fades in.":
+    "Cuánto tiempo permanece cada imagen antes de que aparezca la siguiente.",
+  Transition: "Transición",
+  "Hard cut": "Corte seco",
+
   // ── Backgrounds story in the Add gallery (2026-08-17) ────────────────────
   Backgrounds: "Fondos",
+  "Slideshow Background": "Fondo con secuencia de fotos",
+  "Full-bleed band with a photo slideshow behind your content.":
+    "Franja a todo lo ancho con una secuencia de fotos detrás de tu contenido.",
+  "Full-bleed band that cycles through a set of photos.":
+    "Franja a todo lo ancho que va pasando por un conjunto de fotos.",
   "Video Background": "Fondo de video",
   "YouTube Background": "Fondo de YouTube",
   "Image Background": "Fondo de imagen",

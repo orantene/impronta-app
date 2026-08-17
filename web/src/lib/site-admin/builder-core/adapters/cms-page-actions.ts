@@ -32,13 +32,8 @@ import type { CmsFreeformPageRow } from "./cms-page-adapter-core";
 // path: a pre-migration DB (column absent) would ERROR the whole PostgREST query
 // (data:null), 500-ing the editor. So the base column list excludes them and we
 // add them only when present, falling back to the base list on error.
-// SEO-1 — the metadata/OG columns are LONG-STANDING `cms_pages` columns (the
-// homepage + slot-page composition reads select the identical set), so they are
-// part of the BASE list, not the graceful-degrade suffix. Without them the Page
-// settings drawer's SEO fields were a silent no-op on freeform pages.
 const BASE_ROW_COLUMNS =
-  "id, slug, title, status, blocks, is_freeform, version, published_at, updated_at, " +
-  "meta_title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, json_ld";
+  "id, slug, title, status, blocks, is_freeform, version, published_at, updated_at";
 const ROW_COLUMNS = `${BASE_ROW_COLUMNS}, style_classes, style_presets`;
 
 /** Load a freeform cms_pages row by (locale, slug) within the caller's tenant.
@@ -76,36 +71,13 @@ export async function loadCmsFreeformPage(input: {
   return fallback.data;
 }
 
-/** SEO-1 — the metadata columns the freeform save may write. Same STYLE-1
- *  convention as the style registries: `undefined` = leave the stored value
- *  alone (a tree-only autosave carries no metadata), `null` = clear the column. */
-const META_PATCH_KEYS = [
-  "meta_title",
-  "meta_description",
-  "og_title",
-  "og_description",
-  "og_image_url",
-  "canonical_url",
-  "noindex",
-  "json_ld",
-] as const;
-
-/** Persist the freeform tree (+ optional title + SEO metadata + STYLE-1
- *  registries) to cms_pages. */
+/** Persist the freeform tree (+ optional title + STYLE-1 registries) to cms_pages. */
 export async function saveCmsFreeformPage(input: {
   pageId: string;
   patch: {
     blocks: unknown;
     updated_at: string;
     title?: string;
-    meta_title?: string | null;
-    meta_description?: string | null;
-    og_title?: string | null;
-    og_description?: string | null;
-    og_image_url?: string | null;
-    canonical_url?: string | null;
-    noindex?: boolean | null;
-    json_ld?: unknown;
     style_classes?: unknown;
     style_presets?: unknown;
   };
@@ -146,14 +118,6 @@ export async function saveCmsFreeformPage(input: {
   };
   if (typeof input.patch.title === "string" && input.patch.title.length > 0) {
     patch.title = input.patch.title;
-  }
-  // SEO-1 — only set a metadata column when the caller actually supplied it.
-  // WIPE HAZARD: a tree-only autosave/draft-flush carries no metadata; writing
-  // these unconditionally would NULL every SEO field on every keystroke-driven
-  // save. `undefined` = untouched, `null` = clear.
-  for (const key of META_PATCH_KEYS) {
-    const value = input.patch[key];
-    if (value !== undefined) patch[key] = value;
   }
   // STYLE-1 — only set the style columns when the caller actually touched them
   // (`undefined` = leave the stored value alone). `null` clears the column.

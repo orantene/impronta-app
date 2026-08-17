@@ -181,6 +181,89 @@ test("the renderer sheet carries the background-media geometry", () => {
   assert.ok(/\[data-bn-bg-media\]\{[^}]*isolation:isolate/.test(SHEET));
 });
 
+// ── Slideshow lane ────────────────────────────────────────────────────────
+
+test("a slideshow paints every image, with only the first one active", () => {
+  const html = render([
+    container({
+      source: "slideshow",
+      src: "",
+      overlay: 40,
+      slides: [{ url: "/a.jpg" }, { url: "/b.jpg" }, { url: "/c.jpg" }],
+    }),
+  ]);
+  assert.ok(html.includes('data-bn-bg-media=""'), "container needs the CSS hook");
+  assert.ok(html.includes('data-bn-bg-media-source="slideshow"'));
+  for (const url of ["/a.jpg", "/b.jpg", "/c.jpg"]) {
+    assert.ok(html.includes(`src="${url}"`), `${url} must be in the markup`);
+  }
+  // Exactly one active slide in the server output: that IS the no-JS and
+  // pre-hydration rendering, so two actives would ship a double exposure.
+  assert.equal((html.match(/data-active=""/g) ?? []).length, 1);
+  // And the scrim still sits over the stack.
+  assert.ok(html.includes("site-builder-bg-media__scrim"));
+  assert.ok(html.includes("--bn-bg-overlay:0.4"));
+});
+
+test("only the first slideshow image is eager; the rest load lazily", () => {
+  // A ten-image backdrop must cost ONE image at first paint, not ten.
+  const html = render([
+    container({
+      source: "slideshow",
+      src: "",
+      slides: [{ url: "/a.jpg" }, { url: "/b.jpg" }, { url: "/c.jpg" }],
+    }),
+  ]);
+  const slides = html.match(/<img[^>]*site-builder-bg-media__slide[^>]*>/g) ?? [];
+  assert.equal(slides.length, 3);
+  assert.ok(slides[0]!.includes('loading="eager"'));
+  assert.ok(slides[1]!.includes('loading="lazy"'));
+  assert.ok(slides[2]!.includes('loading="lazy"'));
+});
+
+test("a slideshow layer is decorative: no alt text, no focus, no clicks", () => {
+  const html = render([
+    container({ source: "slideshow", src: "", slides: [{ url: "/a.jpg" }] }),
+  ]);
+  const slide = /<img[^>]*site-builder-bg-media__slide[^>]*>/.exec(html)?.[0] ?? "";
+  assert.ok(slide.includes('alt=""'));
+  assert.ok(slide.includes('aria-hidden="true"'));
+});
+
+test("a slideshow emits <img> only, so it needs no CSP directive beyond img-src", () => {
+  // `media-src` (added in #1204) governs <video>/<audio> and `frame-src` the
+  // YouTube iframe. This lane must not quietly introduce a third element kind
+  // that lands outside the directives the deploy smoke test checks for.
+  const html = render([
+    container({ source: "slideshow", src: "", slides: [{ url: "/a.jpg" }] }),
+  ]);
+  const layer = /<div class="site-builder-bg-media"[\s\S]*?<\/div>/.exec(html)?.[0] ?? html;
+  assert.equal(layer.includes("<video"), false);
+  assert.equal(layer.includes("<iframe"), false);
+});
+
+test("a slideshow with no usable image renders no layer at all", () => {
+  const html = render([
+    container({ source: "slideshow", src: "", slides: [{ url: "javascript:x" }] }),
+  ]);
+  assert.equal(hasBackgroundLayer(html), false);
+  assert.ok(html.includes("Hi"), "the author's content must still render");
+});
+
+test("the sheet carries the slideshow stack and its reduced-motion rule", () => {
+  assert.ok(SHEET.includes(".site-builder-bg-media__slide"));
+  assert.ok(/\.site-builder-bg-media__slide\{[^}]*position:absolute/.test(SHEET));
+  // Reduced motion must land on a still even BEFORE hydration, which is what
+  // this rule buys: every non-active image is display:none, so the timer has
+  // nothing to reveal.
+  assert.ok(
+    /@media \(prefers-reduced-motion:reduce\)\{[\s\S]*?\.site-builder-bg-media__slide:not\(\[data-active\]\)\{display:none\}/.test(
+      SHEET,
+    ),
+    "a background that keeps cycling under prefers-reduced-motion is the whole a11y failure",
+  );
+});
+
 test("reduced motion hides the moving element so the poster shows through", () => {
   const guard =
     /@media \(prefers-reduced-motion:reduce\)\{\.site-builder-bg-media__video,\.site-builder-bg-media__frame\{display:none\}\}/;

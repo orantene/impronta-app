@@ -16,11 +16,7 @@
  * --- TABLE CONTRACT ---
  * `cms_pages` (freeform subset): id, tenant_id, slug, title, status,
  *   blocks jsonb (the BuilderNode[] tree), is_freeform, version, published_at,
- *   updated_at, plus the SEO-1 metadata columns (meta_title, meta_description,
- *   og_title, og_description, og_image_url, canonical_url, noindex, json_ld) —
- *   the SAME columns the slot-page composition read/writes, so the Page settings
- *   drawer round-trips identically on a freeform page.
- *   The freeform tree lives in `blocks`; `version` is the existing
+ *   updated_at. The freeform tree lives in `blocks`; `version` is the existing
  *   optimistic-concurrency token (we surface it as pageVersion). styleClasses
  *   are carried in `blocks`-adjacent theme is NOT used here (agency pages inherit
  *   the tenant theme); save passes styleClasses through but the action may ignore.
@@ -62,18 +58,6 @@ export interface CmsFreeformPageRow {
   version: number | null;
   published_at: string | null;
   updated_at: string;
-  /** SEO-1 — the `cms_pages` metadata/OG columns, the same set the homepage +
-   *  slot-page composition reads select. Optional on the row type so a spy/test
-   *  fixture (or a partial select) degrades to the null defaults instead of
-   *  throwing. */
-  meta_title?: string | null;
-  meta_description?: string | null;
-  og_title?: string | null;
-  og_description?: string | null;
-  og_image_url?: string | null;
-  canonical_url?: string | null;
-  noindex?: boolean | null;
-  json_ld?: unknown;
   /** STYLE-1 — site-scoped style-class registry (cms_pages.style_classes).
    *  Optional so a pre-migration read (column absent → undefined) degrades. */
   style_classes?: unknown;
@@ -96,17 +80,6 @@ export interface CmsFreeformPagePatch {
   blocks: unknown;
   updated_at: string;
   title?: string;
-  /** SEO-1 — metadata/OG columns. `undefined` means "leave the stored value
-   *  untouched" (a tree-only autosave carries no metadata envelope); `null`
-   *  clears the column. */
-  meta_title?: string | null;
-  meta_description?: string | null;
-  og_title?: string | null;
-  og_description?: string | null;
-  og_image_url?: string | null;
-  canonical_url?: string | null;
-  noindex?: boolean | null;
-  json_ld?: unknown;
   /** STYLE-1 — serialized style-class registry (or null to clear); `undefined`
    *  means "leave the stored value untouched" (a save that didn't touch classes). */
   style_classes?: unknown;
@@ -151,19 +124,18 @@ export function buildCmsFreeformComposition(
     liveSitePublishedAt: row.published_at,
     metadata: {
       title: row.title,
-      // SEO-1 — read the REAL stored values. These were hardcoded to null, so
-      // the Page settings drawer opened blank and every SEO edit round-tripped
-      // back to nothing. `introTagline` stays null: it is homepage-only (it
-      // lives in the homepage row's `hero` JSON, not on cms_pages).
-      metaTitle: row.meta_title ?? null,
-      metaDescription: row.meta_description ?? null,
+      metaTitle: null,
+      metaDescription: null,
       introTagline: null,
-      ogTitle: row.og_title ?? null,
-      ogDescription: row.og_description ?? null,
-      ogImageUrl: row.og_image_url ?? null,
-      canonicalUrl: row.canonical_url ?? null,
-      noindex: row.noindex ?? false,
-      jsonLd: row.json_ld ?? null,
+      ogTitle: null,
+      ogDescription: null,
+      ogImageUrl: null,
+      canonicalUrl: null,
+      noindex: false,
+      // SEO-1 contract field (cms_pages already has the json_ld column;
+      // the freeform empty-seed sets null — full reads stay on the homepage
+      // metadata path).
+      jsonLd: null,
     },
     slots: {},
     builderTree: (row.blocks as CompositionData["builderTree"]) ?? [],
@@ -176,37 +148,6 @@ export function buildCmsFreeformComposition(
     stylePresets: coerceStylePresetRegistry(row.style_presets),
     availableLocales: [locale as CompositionData["locale"]],
   };
-}
-
-/**
- * SEO-1 — build the metadata slice of a `cms_pages` patch from a save input.
- *
- * WIPE HAZARD: a tree-only autosave / draft-flush carries NO metadata envelope.
- * Mapping unconditionally (`metadata?.metaTitle ?? null`) would NULL every SEO
- * column on every autosave. So:
- *   - `metadata` absent  → returns `{}` (the columns stay out of the patch), and
- *   - an individual field that is `undefined` is likewise omitted; only an
- *     explicit `null` clears the column.
- * Shared by `save` and `saveDraft` so both legs persist metadata identically.
- */
-function cmsMetadataPatch(
-  metadata: CompositionSaveInput["metadata"] | undefined,
-): Omit<CmsFreeformPagePatch, "blocks" | "updated_at"> {
-  if (!metadata) return {};
-  const patch: Omit<CmsFreeformPagePatch, "blocks" | "updated_at"> = {};
-  if (metadata.metaTitle !== undefined) patch.meta_title = metadata.metaTitle;
-  if (metadata.metaDescription !== undefined) {
-    patch.meta_description = metadata.metaDescription;
-  }
-  if (metadata.ogTitle !== undefined) patch.og_title = metadata.ogTitle;
-  if (metadata.ogDescription !== undefined) {
-    patch.og_description = metadata.ogDescription;
-  }
-  if (metadata.ogImageUrl !== undefined) patch.og_image_url = metadata.ogImageUrl;
-  if (metadata.canonicalUrl !== undefined) patch.canonical_url = metadata.canonicalUrl;
-  if (metadata.noindex !== undefined) patch.noindex = metadata.noindex;
-  if (metadata.jsonLd !== undefined) patch.json_ld = metadata.jsonLd;
-  return patch;
 }
 
 /** STYLE-1 — build the style-registry slice of a `cms_pages` patch from a save
@@ -266,7 +207,6 @@ export function createCmsPageAdapter(
           blocks: input.builderTree ?? [],
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
-          ...cmsMetadataPatch(input.metadata),
           ...cmsStyleRegistryPatch(input),
         },
       });
@@ -290,7 +230,6 @@ export function createCmsPageAdapter(
           blocks: input.builderTree ?? [],
           updated_at: new Date().toISOString(),
           title: input.metadata?.title,
-          ...cmsMetadataPatch(input.metadata),
           ...cmsStyleRegistryPatch(input),
         },
       });

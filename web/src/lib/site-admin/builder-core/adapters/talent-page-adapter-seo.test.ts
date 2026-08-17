@@ -14,10 +14,10 @@
  * 800-line cap — and because `cms_pages` likewise keeps its adapter tests
  * separate.
  *
- * SEO-3 (migration 20261122000000) added the `meta_title` column the SEO-1 set
- * had omitted, closing the last no-op field in the drawer. It round-trips here
- * like the rest; the public read folds it in as `meta_title || title` (see
- * `resolveMaxSiteTitles`).
+ * NOTE: `talent_pages` has NO `meta_title` column. The SEO-1 migration
+ * (20261100000000) deliberately omits it — the talent-site SEO envelope
+ * (`MaxSiteSeo`) uses `title` as the SERP/tab title and `og_title` as the only
+ * override. So `metaTitle` is absent throughout, by design, not by oversight.
  *
  * node:test + node:assert only — NO vitest, NO React, NO Supabase. The pure
  * factory takes injected spy actions, so no server-action / DB import graph
@@ -95,9 +95,8 @@ function makeAdapter(actions: TalentPageAdapterActions) {
   });
 }
 
-/** The `talent_pages` SEO columns a save may touch. */
+/** The `talent_pages` SEO columns a save may touch. No `meta_title`. */
 const TALENT_SEO_PATCH_KEYS = [
-  "meta_title",
   "meta_description",
   "og_title",
   "og_description",
@@ -114,7 +113,6 @@ test("[SEO-1][talent] buildEmptyTalentPageComposition surfaces the row's REAL SE
   // settings drawer opened blank even when the columns held values.
   const comp = buildEmptyTalentPageComposition(
     makeFakeTalentPageRow({
-      meta_title: "Ana Ruiz — Actor in Madrid",
       meta_description: "Bilingual actor based in Madrid.",
       og_title: "Ana Ruiz OG",
       og_description: "Ana Ruiz OG description",
@@ -125,7 +123,6 @@ test("[SEO-1][talent] buildEmptyTalentPageComposition surfaces the row's REAL SE
     }),
     "es",
   );
-  assert.equal(comp.metadata.metaTitle, "Ana Ruiz — Actor in Madrid");
   assert.equal(comp.metadata.metaDescription, "Bilingual actor based in Madrid.");
   assert.equal(comp.metadata.ogTitle, "Ana Ruiz OG");
   assert.equal(comp.metadata.ogDescription, "Ana Ruiz OG description");
@@ -133,13 +130,13 @@ test("[SEO-1][talent] buildEmptyTalentPageComposition surfaces the row's REAL SE
   assert.equal(comp.metadata.canonicalUrl, "https://ana.example/about");
   assert.equal(comp.metadata.noindex, true);
   assert.deepEqual(comp.metadata.jsonLd, { "@type": "Person" });
-  // introTagline is homepage-only (it lives in the homepage row's hero JSON).
+  // No `meta_title` column on talent_pages; introTagline is homepage-only.
+  assert.equal(comp.metadata.metaTitle, null);
   assert.equal(comp.metadata.introTagline, null);
 });
 
 test("[SEO-1][talent] a row WITHOUT the SEO columns degrades to nulls", () => {
   const comp = buildEmptyTalentPageComposition(makeFakeTalentPageRow(), "en");
-  assert.equal(comp.metadata.metaTitle, null);
   assert.equal(comp.metadata.metaDescription, null);
   assert.equal(comp.metadata.ogTitle, null);
   assert.equal(comp.metadata.ogDescription, null);
@@ -161,7 +158,6 @@ test("[SEO-1][talent] save maps metadata onto the talent_pages SEO columns", asy
     expectedVersion: 1,
     metadata: {
       title: "About",
-      metaTitle: "About Ana | Impronta",
       metaDescription: "Who I am.",
       ogTitle: "About OG",
       ogDescription: "About OG description",
@@ -178,7 +174,6 @@ test("[SEO-1][talent] save maps metadata onto the talent_pages SEO columns", asy
   assert.equal(actions.savePatches.length, 1);
   const patch = actions.savePatches[0];
   assert.equal(patch.title, "About");
-  assert.equal(patch.meta_title, "About Ana | Impronta");
   assert.equal(patch.meta_description, "Who I am.");
   assert.equal(patch.og_title, "About OG");
   assert.equal(patch.og_description, "About OG description");
@@ -196,7 +191,6 @@ test("[SEO-1][talent] saveDraft maps metadata onto the talent_pages SEO columns"
     expectedVersion: 1,
     metadata: {
       title: "Draft",
-      metaTitle: "Draft meta title",
       metaDescription: null,
       ogTitle: "Draft OG",
       ogDescription: null,
@@ -211,7 +205,6 @@ test("[SEO-1][talent] saveDraft maps metadata onto the talent_pages SEO columns"
 
   assert.equal(result.ok, true);
   const patch = actions.savePatches[0];
-  assert.equal(patch.meta_title, "Draft meta title");
   assert.equal(patch.og_title, "Draft OG");
   // An explicit null CLEARS the column (STYLE-1 convention: undefined =
   // untouched, null = clear) — so the operator can empty an SEO field.
@@ -303,7 +296,6 @@ test("[SEO-1][talent] a PARTIAL metadata save only writes the fields it carries"
 test("[SEO-1][talent] SEO metadata survives a load → save → load round trip", async () => {
   const stored: Record<string, unknown> = {};
   const baseRow = makeFakeTalentPageRow({
-    meta_title: "Stored meta title",
     meta_description: "Stored description",
     og_title: "Stored OG title",
   });
@@ -357,5 +349,4 @@ test("[SEO-1][talent] SEO metadata survives a load → save → load round trip"
   if (!second.ok) return;
   assert.equal(second.data.metadata.metaDescription, "Edited description");
   assert.equal(second.data.metadata.ogTitle, "Stored OG title");
-  assert.equal(second.data.metadata.metaTitle, "Stored meta title");
 });
