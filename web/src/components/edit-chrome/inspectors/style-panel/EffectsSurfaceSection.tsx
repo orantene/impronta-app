@@ -11,7 +11,8 @@ import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
 import { BackgroundLayersEditor, GradientBuilder, ShadowBuilder } from "../css-value-builders";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
-import { BUILDER_NODE_ANIMATION_EASING_OPTIONS, BUILDER_NODE_BG_CLIP_OPTIONS, BUILDER_NODE_BG_REPEAT_OPTIONS, BUILDER_NODE_PARALLAX_OPTIONS, BUILDER_NODE_REVEAL_OPTIONS, BUILDER_NODE_SHADOW_OPTIONS } from "./style-options";
+import { BUILDER_NODE_ANIMATION_EASING_OPTIONS, BUILDER_NODE_BG_CLIP_OPTIONS, BUILDER_NODE_BG_REPEAT_OPTIONS, BUILDER_NODE_PARALLAX_OPTIONS, BUILDER_NODE_REVEAL_OPTIONS } from "./style-options";
+import { GlyphTiles, SHADOW_PRESETS, shadowTileOptions } from "../field-kit";
 import { parseStyleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { ThemeBindRow } from "./section-shared";
 import type { StandaloneSectionCtx } from "./section-types";
@@ -234,17 +235,19 @@ export function EffectsSurfaceSection({
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="boxShadow"
               >
-                <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Shadow
-                </span>
                 {parseStyleTokenRef(selectedStandaloneViewportStyle?.boxShadow) ? null : (
                   <>
-                    <Segmented
-                      fullWidth
-                      compact
+                    {/* D9 item 3, at its most literal: each tile WEARS the
+                        box-shadow it offers, so "S / M / L" stops being a
+                        guess about a value the operator cannot see. */}
+                    <GlyphTiles
+                      dataControl="boxShadowTiles"
+                      label="Shadow"
+                      searchTerms={["Shadow", "box shadow", "depth", "elevation"]}
+                      options={shadowTileOptions(SHADOW_PRESETS)}
+                      columns={4}
                       value={selectedStandaloneViewportStyle?.boxShadow ?? ""}
                       onChange={(next) => setOrToggleStandaloneStyle("boxShadow", next)}
-                      options={BUILDER_NODE_SHADOW_OPTIONS}
                     />
                     <ShadowBuilder
                       value={selectedStandaloneViewportStyle?.boxShadow}
