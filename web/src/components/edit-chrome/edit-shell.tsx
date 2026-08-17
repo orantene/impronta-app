@@ -56,6 +56,7 @@ import {
   INSPECTOR_PANEL_RIGHT_INSET_PX,
   Button,
   EditToast,
+  Z_INDEX,
 } from "./kit";
 import { isCoachmarkDismissed, dismissCoachmark } from "./builder-coachmarks";
 import {
@@ -1169,18 +1170,23 @@ function EditShellInner({
           previewSubjectChip={previewSubjectChip}
           labHeaderActions={labHeaderActions}
         />
-        {/* z-[83]: above the Layers/Structure navigator (z-80) so canvas
-         *  chrome — selection rings, chips, and especially the #30 right-click
-         *  context menu opened FROM a layer row — paints over the rail instead
-         *  of being occluded by it. Still below the inspector dock (z-85),
-         *  right-rail drawers (z-88), and the topbar (z-90), which stay the
-         *  topmost interactive panels. The layer itself is pointer-events:none;
-         *  only its explicitly interactive children (chip/menu) capture pointer,
-         *  and those only render over the canvas or the (intended) menu. */}
+        {/* The overlay-portal host. `Z_INDEX.overlayPortal` (83) rather than a
+         *  raw z-[83]: this element is `position: fixed` WITH a z-index, so it
+         *  is a STACKING CONTEXT, and the zIndex 88…100 values the selection
+         *  chrome sets on its own children resolve INSIDE it — they can never
+         *  out-stack this number. It is therefore the single knob that decides
+         *  whether ANY canvas chrome can paint over a floating panel, which is
+         *  why it must stay below the `panels` band and why the token owns it.
+         *
+         *  (The Structure navigator used to sit at 80, under this host, so
+         *  every ring, grip, drop line and drag ghost drew across it. That was
+         *  fixed on the panel's side — see navigator-panel.tsx — not by moving
+         *  this host, because lowering it would only have relocated the same
+         *  collision onto whatever panel sat below.) */}
         <div
           id="edit-overlay-portal"
-          className="pointer-events-none fixed inset-0 z-[83]"
-          style={{ top: EDIT_TOPBAR_H }}
+          className="pointer-events-none fixed inset-0"
+          style={{ top: EDIT_TOPBAR_H, zIndex: Z_INDEX.overlayPortal }}
           aria-hidden
         />
         {/* Preview toggle suppression — when the operator clicks the
