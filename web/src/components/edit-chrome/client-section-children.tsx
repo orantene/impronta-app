@@ -44,6 +44,7 @@ import {
 import type { ComponentDefinitions } from "@/lib/site-admin/builder-node/component-instances";
 import type { ComponentStyleDefaults } from "@/lib/site-admin/builder-node/component-style-defaults";
 import { useComponentDefaultsPreview } from "./component-defaults-bridge";
+import { registerCarouselEditMode } from "@/lib/site-admin/builder-node/carousel-edit-bridge";
 
 import {
   getStyleClassRegistrySnapshot,
@@ -105,6 +106,10 @@ function ClientSectionChildrenInner({
   // builder-perf-2026 — announce a section-children canvas is mounted so
   // `edit-context` lets builder-node edits skip the per-edit refresh.
   useEffect(() => registerSectionChildrenCanvasMount(), []);
+
+  // SLIDER-1 — same edit-mode signal the page canvas registers: a hero carousel
+  // living inside a curated section must not autoplay while it is being edited.
+  useEffect(() => registerCarouselEditMode(), []);
 
   // Subscribe to the live tree but project to THIS section's children. Copy-on-write
   // keeps an untouched section's children ref stable, so `getSnapshot` returns the

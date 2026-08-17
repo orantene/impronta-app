@@ -273,22 +273,89 @@ export const DRAWER_WIDTHS = {
 export type DrawerKind = keyof typeof DRAWER_WIDTHS;
 
 /**
- * Named z-index bands for edit chrome. Use these instead of ad-hoc z-[N]
- * values so floating panels never cover selection handles.
+ * THE z-index scale for edit chrome. One module, two scales, and the fact that
+ * ties them together — do not add a raw `z-[N]` or `zIndex: N` anywhere in
+ * `edit-chrome/**` without putting the band here first.
  *
- * Order (low → high): canvas < selectionChrome < floatingControls < panels
- * < topBar < modals < toasts
+ * ── The fact that makes the two scales necessary ──────────────────────────
+ * `#edit-overlay-portal` (edit-shell.tsx) is a positioned element WITH a
+ * z-index, which makes it a STACKING CONTEXT. Everything portaled into it —
+ * selection rings, move/resize/gap handles, the drop indicator, the nested-
+ * blocks panel — is flattened to the host's single z against the rest of the
+ * page. Their own numbers only order them AGAINST EACH OTHER. That is why a
+ * panel numbered 91 could still paint behind the inspector dock at 85, which
+ * is the owner's "the panels are always behind": the 91 was never global.
+ *
+ * So:
+ *   - `Z_INDEX`      — the GLOBAL bands. Anything in the root stacking context
+ *                      (fixed chrome, body portals) uses these.
+ *   - `OVERLAY_PORTAL_Z` — the LOCAL band inside `#edit-overlay-portal`. These
+ *                      numbers are meaningless outside it. A control that must
+ *                      beat a real panel does not get a bigger number here; it
+ *                      gets portaled to `document.body` with a `Z_INDEX` band.
+ *
+ * Global order (low → high):
+ *   canvasContent < overlayPortal < panels < panelOverlay < canvasPanels
+ *   < topBar < popover < modal < modalOverlay < toast
  */
 export const Z_INDEX = {
+  /**
+   * The editor canvas. NOT a decoration: `canvasContentMax` is the real
+   * ceiling an operator can reach from the Position section of the style panel
+   * (`registry.ts` clamps `style.zIndex` to ±999, and `canvas-z-order.ts`
+   * clamps the Bring-forward / Send-back commands to the same range).
+   *
+   * Canvas content is confined to its own stacking context by
+   * `canvas-viewport.tsx`, so a node at 999 can no longer out-stack the chrome.
+   * If that isolation is ever removed, every band below has to move above 999.
+   */
   canvas: 1,
+  canvasContentMax: 999,
+  /** Legacy alias — the breadcrumb bar is the last consumer. */
   selectionChrome: 70,
+  /**
+   * The `#edit-overlay-portal` host. Below the panels on purpose: a selection
+   * ring drawn across a wide block must NOT paint over the inspector dock.
+   */
+  overlayPortal: 83,
   floatingControls: 84,
   panels: 85,
   panelOverlay: 88,
+  /**
+   * Canvas-owned floating PANELS (nested blocks, the multi-selection toolbar).
+   * Above every drawer and dock, below the top bar — the top bar is the one
+   * surface that must never be covered. These are body-portaled, so unlike the
+   * overlay-portal band this number is global and real.
+   */
+  canvasPanels: 89,
   topBar: 90,
   modal: 100,
   modalOverlay: 110,
   toast: 120,
+} as const;
+
+/**
+ * Stacking INSIDE `#edit-overlay-portal` only. See the note above: these order
+ * the canvas chrome against each other and against nothing else.
+ *
+ * Order (low → high): sectionRail < hoverRing < ring < handles < dropIndicator
+ * < chip < menu < dragGhost.
+ */
+export const OVERLAY_PORTAL_Z = {
+  sectionRail: 1,
+  hoverRing: 2,
+  /**
+   * The primary selection ring. It used to carry NO z-index at all, which put
+   * it below every numbered sibling in DOM order — so on a node with its own
+   * inner layers (a hero carousel stacks slides, scrim, grain, meta) the ring
+   * read as interleaved with the content instead of drawn on top of it.
+   */
+  ring: 3,
+  handles: 4,
+  dropIndicator: 5,
+  chip: 6,
+  menu: 7,
+  dragGhost: 8,
 } as const;
 
 /**
