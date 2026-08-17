@@ -2211,6 +2211,12 @@ export function TalentProfileShellDrawer() {
   const saveAndExit = async () => {
     if (payload.talentId && mode !== "create") {
       if (!dirty && saveStatus !== "error") {
+        // Nothing in the reducer to commit — but self-persisting panels
+        // (skills, contexts, media) may well have written during this
+        // session without ever marking the drawer dirty. Refresh on the way
+        // out so the roster card reflects them; queueing is coalesced and
+        // costs nothing when there was genuinely no change.
+        queueShellRouterRefresh();
         closeDrawer();
         return;
       }
@@ -3526,14 +3532,26 @@ export function TalentProfileShellDrawer() {
                     actions={isSelf ? talentSelfSkillActions : undefined}
                     searchActions={isSelf ? talentSelfSkillSearchActions : undefined}
                     careerInterestActions={isSelf ? talentSelfCareerInterestActions : undefined}
-                    onSkillsChanged={() => setTaxonomyVersion((v) => v + 1)}
+                    onSkillsChanged={() => {
+                      setTaxonomyVersion((v) => v + 1);
+                      // These panels persist each change THEMSELVES (they do
+                      // not ride saveAll), so without this the roster card
+                      // behind the drawer kept rendering the old talent types
+                      // and the old ★ primary until a manual page reload.
+                      // RAF-coalesced, so dragging through several edits still
+                      // costs one refresh.
+                      queueShellRouterRefresh();
+                    }}
                   />
                   <ContextSlotPanel
                     talentProfileId={payload.talentId!}
                     talentName={state.stageName}
                     actions={isSelf ? talentSelfContextActions : undefined}
                     catalogActions={isSelf ? talentSelfContextCatalogActions : undefined}
-                    onContextsChanged={() => setTaxonomyVersion((v) => v + 1)}
+                    onContextsChanged={() => {
+                      setTaxonomyVersion((v) => v + 1);
+                      queueShellRouterRefresh();
+                    }}
                   />
                 </div>
               ) : (
