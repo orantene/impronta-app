@@ -3495,7 +3495,6 @@
         "addLineItem": "+ Add line item",
         "total": "Total",
         "totalTitle": "Auto-summed from the line items above, this is exactly what the client sees on the offer and is charged at booking.",
-        "fee": "Fee",
         "savedAt": "Saved · {time}",
         "retry": "Retry",
         "saveErr": {
@@ -3535,7 +3534,22 @@
         "svcPrefill": "Prefill from services…",
         "svcNoneUseTemplate": "No services yet, use a template…",
         "svcThisTalent": "This talent's services",
-        "svcGenericTemplates": "Generic templates"
+        "svcGenericTemplates": "Generic templates",
+        "colTalent": "Talent",
+        "colUnit": "Unit",
+        "colQty": "Qty",
+        "colClientRate": "Client rate",
+        "colTalentGets": "Talent gets",
+        "feeExtra": "Agency fee",
+        "feeTitle": "An extra agency charge added on top of the line items — your coordination fee. Leave 0 if your margin is already in the rates.",
+        "splitHeading": "Where this money goes",
+        "splitClientList": "Client list price",
+        "splitTalentGets": "Talent is paid",
+        "splitAgencyKeeps": "Your workspace keeps",
+        "splitAgencyNote": "before the platform share",
+        "splitPlatformNote": "A platform fee (a small client surcharge plus a share of your margin) is calculated at booking and shown on the confirmed booking.",
+        "splitTalentUnpaid": "This talent is set to receive $0 — check the “Talent gets” column.",
+        "createdByLabel": "Offer created by"
       },
       "files": {
         "fileOver100": "File exceeds 100 MB cap",

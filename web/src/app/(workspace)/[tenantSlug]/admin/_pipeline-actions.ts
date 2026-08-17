@@ -15,6 +15,7 @@
  *   4. Translate `EngineResult` to a flat `{ ok, ... }` for the client
  */
 
+import { resolveOfferAuthorName } from "./offer-author";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -1728,6 +1729,7 @@ export type OfferDraftSnapshot = {
   coordinatorFee: number;
   currencyCode: string;
   notes: string | null;
+  createdByName: string | null; // who created this offer (see offer-author.ts)
   // W6a — the negotiated commercial terms currently saved on this offer, for
   // the composer to display + edit. Defaulted (never null) so the composer always
   // has a coherent starting state; deposit amount is in minor units.
@@ -1785,7 +1787,7 @@ export async function loadOfferDraft(
     const { data: offer, error: offerErr } = await supabase
       .from("inquiry_offers")
       .select(
-        "id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status, deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key",
+        "id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status, deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key, created_by_user_id",
       )
       .eq("id", offerId)
       .eq("tenant_id", tenantId)
@@ -1798,6 +1800,7 @@ export async function loadOfferDraft(
         coordinator_fee: number | null;
         currency_code: string | null;
         notes: string | null;
+        created_by_user_id: string | null;
         status: string | null;
         deposit_pct: number | string | null;
         deposit_amount_cents: number | string | null;
@@ -1880,6 +1883,8 @@ export async function loadOfferDraft(
       };
     }
 
+    const offerAuthorName = await resolveOfferAuthorName(supabase, offer.created_by_user_id as string | null);
+
     return {
       ok: true,
       data: {
@@ -1890,6 +1895,7 @@ export async function loadOfferDraft(
         coordinatorFee: Number(offer.coordinator_fee ?? 0),
         currencyCode: (offer.currency_code as string | null) ?? "USD",
         notes: (offer.notes as string | null) ?? null,
+        createdByName: offerAuthorName,
         terms,
         lineItems: rows.map((r) => ({
           id: r.id,

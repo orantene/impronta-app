@@ -3,8 +3,9 @@ import { unstable_cache } from "next/cache";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { Locale } from "@/i18n/config";
-import { withLocalePath } from "@/i18n/pathnames";
+import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 
 export type PublicNavLink = {
@@ -21,13 +22,22 @@ interface RawNavRow {
 
 /**
  * Resolve stored href for the public site (locale prefix for internal paths).
+ *
+ * `settings` MUST be the tenant's URL grammar. Omitting it falls back to the
+ * platform grammar, which prefixes the wrong locale on any tenant whose default
+ * locale is not the platform default: every nav link would then 308-redirect on
+ * click. `getPublicCmsNavigationLinks` supplies it for the live nav.
  */
-export function resolvePublicCmsNavHref(href: string, locale: Locale): string {
+export function resolvePublicCmsNavHref(
+  href: string,
+  locale: Locale,
+  settings?: LocaleUrlSettings,
+): string {
   const raw = href.trim();
   if (!raw) return "/";
   if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
   const path = raw.startsWith("/") ? raw : `/${raw}`;
-  return withLocalePath(path, locale);
+  return withLocalePath(path, locale, settings);
 }
 
 /**
@@ -104,9 +114,10 @@ export async function getPublicCmsNavigationLinks(
   const rows = await loadCachedNavigation(publicScope.tenantId, locale, zone);
   if (rows.length === 0) return [];
 
+  const settings = await getRequestLocaleUrlSettings();
   return rows.map((r) => ({
     label: r.label,
-    href: resolvePublicCmsNavHref(r.href, locale),
+    href: resolvePublicCmsNavHref(r.href, locale, settings),
     sort_order: r.sort_order,
   }));
 }

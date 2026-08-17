@@ -267,7 +267,8 @@ const BUDGETS: Record<string, number> = {
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3747,
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3588,
+  // +6: loadOfferDraft returns createdByName (the lookup itself is extracted to offer-author.ts)
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3594,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).

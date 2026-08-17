@@ -18,7 +18,7 @@ import {
 } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { publicLocaleHref } from "@/i18n/client-directory-href";
-import { stripLocaleFromPathname } from "@/i18n/pathnames";
+import { localeUrlSettings, stripLocaleFromPathname } from "@/i18n/pathnames";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import {
   resolveAccountHref,
@@ -116,9 +116,21 @@ export async function PublicHeader() {
     tenantIdForIdentity ?? "",
   );
 
+  // URL grammar for THIS tenant: its default locale is unprefixed, every other
+  // supported locale sits under `/{code}`. Without it both the strip below and
+  // every href built from it would use the PLATFORM grammar, which inverts on a
+  // tenant whose default locale is not the platform default.
+  const pathSettings = localeUrlSettings(
+    tenantLocaleSettings.defaultLocale,
+    tenantLocaleSettings.supportedLocales,
+  );
+
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
-  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(
+    originalPath,
+    pathSettings,
+  );
   const t = createTranslator(locale);
   const actor = await getCachedActorSession();
   const user = actor.user;
@@ -134,7 +146,7 @@ export async function PublicHeader() {
   const headerHref = (href: string) => {
     const hostSafe = hostSafeDestination(href, hostContext.kind);
     if (hostSafe !== href) return hostSafe;
-    return publicLocaleHref(pathnameWithoutLocale, href, locale);
+    return publicLocaleHref(pathnameWithoutLocale, href, locale, pathSettings);
   };
   const accountLink = resolveAccountHref(Boolean(user), profile);
   const destination = resolveAuthenticatedDestination(profile);
