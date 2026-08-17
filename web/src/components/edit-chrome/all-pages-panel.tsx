@@ -13,7 +13,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import {
   createDraftPageAction,
@@ -43,7 +42,7 @@ import type {
 import { useDirty } from "./dirty-bridge";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
-import { flushThenNavigate } from "./page-switch-flush";
+import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { CHROME } from "./kit";
 import { useEditorLocale } from "./use-editor-locale";
 
@@ -239,7 +238,6 @@ function InlineDeleteConfirm({ page, onDone, onError }: InlineDeleteProps) {
 
 export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const { t } = useEditorLocale();
-  const router = useRouter();
   const dirty = useDirty();
   const {
     pageId,
@@ -355,22 +353,23 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   }, [open, loadPages]);
 
   // CANVAS-2 — silent autosave flush on page switch (no blocking confirm()).
-  // The shared flushThenNavigate awaits the EditProvider flush when dirty so the
-  // debounced draft commits before the route change (a fire-and-forget save
-  // would race the navigation and trip VERSION_CONFLICT). The `navigating` guard
-  // disables the nav controls so the operator can't double-trigger mid-flush.
+  // The shared navigateToEditSurface awaits the EditProvider flush when dirty
+  // so the debounced draft commits, then does a FULL document navigation
+  // (window.location.assign) rather than router.push — EditChromeMount is a
+  // server component keyed off request headers, so a client-side push leaves
+  // it showing the previous page's surface until a hard reload. The
+  // `navigating` guard disables the nav controls so the operator can't
+  // double-trigger mid-flush.
   async function navToPage(slug: string) {
     if (navigating) return;
     setNavigating(true);
     try {
-      await flushThenNavigate({
+      await navigateToEditSurface({
         dirty,
         flush: flushBuilderTreeSave,
-        navigate: () => {
-          onClose();
-          router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
-        },
+        href: slug === "" ? "/?edit=1" : `/${slug}?edit=1`,
       });
+      onClose();
     } finally {
       setNavigating(false);
     }
@@ -390,14 +389,12 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       if (result.ok) {
         // Flush the current page's draft before navigating to the new page so
         // un-persisted edits aren't lost when the route changes (see navToPage).
-        await flushThenNavigate({
+        await navigateToEditSurface({
           dirty,
           flush: flushBuilderTreeSave,
-          navigate: () => {
-            onClose();
-            router.push(result.slug ? `/${result.slug}?edit=1` : "/?edit=1");
-          },
+          href: result.slug ? `/${result.slug}?edit=1` : "/?edit=1",
         });
+        onClose();
       } else {
         setFetchErr(result.error);
       }
@@ -422,14 +419,12 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     try {
       const result = await createDraftPageAction();
       if (result.ok) {
-        await flushThenNavigate({
+        await navigateToEditSurface({
           dirty,
           flush: flushBuilderTreeSave,
-          navigate: () => {
-            onClose();
-            router.push(aiCreatePageHref(result.slug));
-          },
+          href: aiCreatePageHref(result.slug),
         });
+        onClose();
       } else {
         setFetchErr(result.error);
       }
@@ -449,12 +444,15 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     try {
       const result = await duplicatePageAction(sourceId);
       if (result.ok) {
+        await navigateToEditSurface({
+          dirty,
+          flush: flushBuilderTreeSave,
+          href:
+            result.slug === ""
+              ? "/?edit=1&panel=pageSettings"
+              : `/${result.slug}?edit=1&panel=pageSettings`,
+        });
         onClose();
-        router.push(
-          result.slug === ""
-            ? "/?edit=1&panel=pageSettings"
-            : `/${result.slug}?edit=1&panel=pageSettings`,
-        );
       } else {
         setFetchErr(result.error);
         loadPages();

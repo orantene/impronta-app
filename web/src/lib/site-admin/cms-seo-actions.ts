@@ -31,6 +31,7 @@ import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { pageSlugSchema } from "@/lib/site-admin/forms/pages";
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import { reconcileRolesOnSlugChange } from "@/lib/site-admin/server/page-roles";
 import {
   jsonLdDocumentToEditorText,
   normalizeRedirectPair,
@@ -115,6 +116,13 @@ export async function savePageSlugAction(input: {
     }
     return { ok: false, error: GENERIC_ERROR };
   }
+
+  // PAGE ROLES — if this page served a role (home/directory/notFound), follow
+  // the slug change so `/`, `/directory`, or the 404 keep pointing at it
+  // instead of silently reverting to the legacy default. Mirrors
+  // quickRenamePageAction (admin-site-pages-inline.ts) — this SEO-panel path
+  // was the one rename surface that skipped the reconcile.
+  await reconcileRolesOnSlugChange(scope.tenantId, row.slug, slug);
 
   updateTag(tagFor(scope.tenantId, "pages", { id: input.pageId }));
   updateTag(tagFor(scope.tenantId, "pages-all"));

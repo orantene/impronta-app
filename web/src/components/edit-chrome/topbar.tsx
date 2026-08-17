@@ -42,7 +42,6 @@ import {
 } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 import { copyPublishedHomepageAction } from "@/lib/site-admin/edit-mode/composition-actions";
@@ -64,7 +63,7 @@ import {
   type PreviewFrameOverride,
 } from "./edit-context";
 import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
-import { flushThenNavigate } from "./page-switch-flush";
+import { navigateToEditSurface } from "./navigate-to-edit-surface";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { useEditorLocale } from "./use-editor-locale";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
@@ -163,7 +162,6 @@ function PagePicker({
   // a dead control and no reason. Reuse the one canonical reason resolver the
   // upsell row above and all-pages-panel already use.
   const duplicateDenialMessage = resolveAddPageDenialMessage(availability);
-  const router = useRouter();
   const pagePickerMenuId = useId();
   const pagePickerTriggerId = useId();
   // Fixed-position anchor + portal to <body> so the menu escapes the topbar's
@@ -261,22 +259,22 @@ function PagePicker({
   }, [open]);
 
   // CANVAS-2 — silent autosave flush on page switch (no blocking confirm()).
-  // The shared flushThenNavigate awaits the EditProvider flush when dirty so the
-  // debounced draft commits before navigating; firing-and-forgetting would let an
-  // in-flight save race the route change and trip VERSION_CONFLICT. The
+  // The shared navigateToEditSurface awaits the EditProvider flush when dirty
+  // so the debounced draft commits, then does a FULL document navigation
+  // (window.location.assign) rather than router.push — EditChromeMount is a
+  // server component keyed off request headers, so a client-side push leaves
+  // it showing the previous page's surface until a hard reload. The
   // `navigating` guard disables the row while the flush settles.
   async function navToPage(slug: string) {
     if (navigating) return;
     setNavigating(true);
     try {
-      await flushThenNavigate({
+      await navigateToEditSurface({
         dirty: dirty ?? false,
         flush: editCtx?.flushBuilderTreeSave,
-        navigate: () => {
-          setOpen(false);
-          router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
-        },
+        href: slug === "" ? "/?edit=1" : `/${slug}?edit=1`,
       });
+      setOpen(false);
     } finally {
       setNavigating(false);
     }
@@ -297,14 +295,12 @@ function PagePicker({
       if (result.ok) {
         // Flush the current page's draft before navigating to the new page so
         // un-persisted edits aren't lost on the route change (see navToPage).
-        await flushThenNavigate({
+        await navigateToEditSurface({
           dirty: dirty ?? false,
           flush: editCtx?.flushBuilderTreeSave,
-          navigate: () => {
-            setOpen(false);
-            router.push(result.slug ? `/${result.slug}?edit=1` : "/?edit=1");
-          },
+          href: result.slug ? `/${result.slug}?edit=1` : "/?edit=1",
         });
+        setOpen(false);
       } else {
         setFetchErr(result.error);
       }
@@ -325,12 +321,15 @@ function PagePicker({
     try {
       const result = await duplicatePageAction(sourceId);
       if (result.ok) {
+        await navigateToEditSurface({
+          dirty: dirty ?? false,
+          flush: editCtx?.flushBuilderTreeSave,
+          href:
+            result.slug === ""
+              ? "/?edit=1&panel=pageSettings"
+              : `/${result.slug}?edit=1&panel=pageSettings`,
+        });
         setOpen(false);
-        router.push(
-          result.slug === ""
-            ? "/?edit=1&panel=pageSettings"
-            : `/${result.slug}?edit=1&panel=pageSettings`,
-        );
       } else {
         setPages(null); // re-fetch on next open
         setFetchErr(result.error);
