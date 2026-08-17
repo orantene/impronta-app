@@ -576,6 +576,7 @@ export const ES_TEXT: Record<string, string> = {
   "Eyebrow": "Antetítulo",
   "Feature this card in pod layouts": "Destacar esta tarjeta en los diseños de pod",
   "Featured badge": "Insignia de destacado",
+  "Flagged": "Marcado",
   "Featured latest": "Destacados recientes",
   "Featured-flagged talent appear here in your chosen order. Nothing to configure.": "El talento marcado como destacado aparece aquí en el orden elegido. No hay nada que configurar.",
   "Fill at least one voice to publish this section.": "Completa al menos una voz para publicar esta sección.",

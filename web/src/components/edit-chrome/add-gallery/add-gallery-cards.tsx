@@ -86,7 +86,7 @@ function ElementCard({
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  const { comingSoon, advanced, draggable, label, shortDescription, infoTooltip } =
+  const { comingSoon, advanced, incompatible, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
   const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
@@ -98,22 +98,25 @@ function ElementCard({
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-center transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
       style={{
-        borderColor: CHROME.line,
+        borderColor: incompatible ? CHROME.rose : CHROME.line,
         background: CHROME.surface,
         minHeight: 108,
+        boxShadow: incompatible ? `0 0 0 1px ${CHROME.roseBg}` : undefined,
         ...(dragProps?.style ?? null),
       }}
       onMouseEnter={(e) => {
-        if (comingSoon) return;
+        if (comingSoon || incompatible) return;
         e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.45)";
         e.currentTarget.style.boxShadow =
           "0 4px 14px -8px rgba(124, 58, 237, 0.35)";
       }}
       onMouseLeave={(e) => {
+        if (incompatible) return;
         e.currentTarget.style.borderColor = CHROME.line;
         e.currentTarget.style.boxShadow = "none";
       }}
       data-add-gallery-item={item.id}
+      data-freeform-incompatible={incompatible ? "true" : undefined}
     >
       <GalleryPreviewTrigger item={item} onPreview={onPreview} />
       {infoTooltip ? (
@@ -128,6 +131,10 @@ function ElementCard({
       {comingSoon ? (
         <span className="absolute left-[8px] top-[8px]">
           <GalleryStatusBadge variant="soon" />
+        </span>
+      ) : incompatible ? (
+        <span className="absolute left-[8px] top-[8px]">
+          <GalleryStatusBadge variant="incompatible" />
         </span>
       ) : advanced ? (
         <span className="absolute left-[8px] top-[8px]">
@@ -192,7 +199,7 @@ function SectionCard({
    */
   armed?: boolean;
 }) {
-  const { comingSoon, advanced, connected, draggable, label, shortDescription, infoTooltip } =
+  const { comingSoon, advanced, connected, incompatible, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
   // A shell card must never drag: dragging routes to the canvas INSERT path,
   // which would nest a header inside a header. Click-to-replace is the only
@@ -211,25 +218,34 @@ function SectionCard({
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
       style={{
-        borderColor: armed ? "rgb(225 29 72)" : CHROME.line,
+        borderColor: armed
+          ? "rgb(225 29 72)"
+          : incompatible
+            ? CHROME.rose
+            : CHROME.line,
         background: CHROME.surface,
         minHeight: 156,
-        boxShadow: armed ? "0 0 0 3px rgba(225, 29, 72, 0.18)" : undefined,
+        boxShadow: armed
+          ? "0 0 0 3px rgba(225, 29, 72, 0.18)"
+          : incompatible
+            ? `0 0 0 1px ${CHROME.roseBg}`
+            : undefined,
         ...(dragProps?.style ?? null),
       }}
       onMouseEnter={(e) => {
-        if (comingSoon || armed) return;
+        if (comingSoon || armed || incompatible) return;
         e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.45)";
         e.currentTarget.style.boxShadow =
           "0 6px 18px -10px rgba(124, 58, 237, 0.4)";
       }}
       onMouseLeave={(e) => {
-        if (armed) return;
+        if (armed || incompatible) return;
         e.currentTarget.style.borderColor = CHROME.line;
         e.currentTarget.style.boxShadow = "none";
       }}
       data-add-gallery-item={item.id}
       data-shell-variant-armed={armed ? "true" : undefined}
+      data-freeform-incompatible={incompatible ? "true" : undefined}
     >
       <GalleryPreviewTrigger item={item} onPreview={onPreview} />
       {infoTooltip ? (
@@ -252,6 +268,10 @@ function SectionCard({
         {comingSoon ? (
           <span className="absolute right-[8px] top-[8px]">
             <GalleryStatusBadge variant="soon" />
+          </span>
+        ) : incompatible ? (
+          <span className="absolute right-[8px] top-[8px]">
+            <GalleryStatusBadge variant="incompatible" />
           </span>
         ) : advanced ? (
           <span className="absolute right-[8px] top-[8px]">
@@ -281,7 +301,7 @@ function ConnectedCard({
   onPreview: (item: AddGalleryItem) => void;
   pending: boolean;
 }) {
-  const { comingSoon, advanced, draggable, label, shortDescription, infoTooltip } =
+  const { comingSoon, advanced, incompatible, draggable, label, shortDescription, infoTooltip } =
     useGalleryCardState(item);
   const dragProps = useGalleryCardPointerDrag(item, draggable && !pending);
 
@@ -293,22 +313,25 @@ function ConnectedCard({
       onClick={() => onInsert(item)}
       className="group relative flex cursor-pointer flex-col overflow-hidden rounded-[12px] border text-left transition-[border-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7c3aed]/40 disabled:cursor-not-allowed"
       style={{
-        borderColor: CHROME.line,
+        borderColor: incompatible ? CHROME.rose : CHROME.line,
         background: CHROME.surface,
         minHeight: 112,
+        boxShadow: incompatible ? `0 0 0 1px ${CHROME.roseBg}` : undefined,
         ...(dragProps?.style ?? null),
       }}
       onMouseEnter={(e) => {
-        if (comingSoon) return;
+        if (comingSoon || incompatible) return;
         e.currentTarget.style.borderColor = "rgba(124, 58, 237, 0.45)";
         e.currentTarget.style.boxShadow =
           "0 4px 14px -8px rgba(124, 58, 237, 0.35)";
       }}
       onMouseLeave={(e) => {
+        if (incompatible) return;
         e.currentTarget.style.borderColor = CHROME.line;
         e.currentTarget.style.boxShadow = "none";
       }}
       data-add-gallery-item={item.id}
+      data-freeform-incompatible={incompatible ? "true" : undefined}
     >
       <GalleryPreviewTrigger item={item} onPreview={onPreview} />
       {infoTooltip ? (
@@ -353,6 +376,10 @@ function ConnectedCard({
       {comingSoon ? (
         <span className="absolute left-[8px] top-[8px]">
           <GalleryStatusBadge variant="soon" />
+        </span>
+      ) : incompatible ? (
+        <span className="absolute left-[8px] top-[8px]">
+          <GalleryStatusBadge variant="incompatible" />
         </span>
       ) : advanced ? (
         <span className="absolute left-[8px] top-[8px]">
