@@ -10,11 +10,12 @@ import { selectableTalentTypeIds } from "./tenant-talent-type-options";
  * disabled, and the save then failed on a setting the admin cannot see.
  */
 
+// Shape-compatible with the validator's TalentTypeTermLookupRow.
 type Term = {
   id: string;
   slug: string;
   name_en: string;
-  kind: string | null;
+  kind: string;
   term_type: string | null;
   parent_id: string | null;
   is_active: boolean;
@@ -24,7 +25,8 @@ type Term = {
 const term = (over: Partial<Term> & { id: string }): Term => ({
   slug: over.id,
   name_en: over.id,
-  kind: "talent_type",
+  kind: over.term_type === undefined || over.term_type === "talent_type" ? "talent_type" : "",
+
   term_type: "talent_type",
   parent_id: null,
   is_active: true,
@@ -34,21 +36,29 @@ const term = (over: Partial<Term> & { id: string }): Term => ({
 
 // A miniature of the real tree: performers → stage-show-acts → {cabaret-act,
 // actor}; performers → dancers → latin-dancer; plus a no-primary category.
-const PERFORMERS = term({ id: "performers", kind: null, term_type: "parent_category" });
-const STAGE = term({ id: "stage-show-acts", kind: null, term_type: "category_group", parent_id: "performers" });
-const DANCERS = term({ id: "dancers", kind: null, term_type: "category_group", parent_id: "performers" });
+const PERFORMERS = term({ id: "performers", term_type: "parent_category" });
+const STAGE = term({ id: "stage-show-acts", term_type: "category_group", parent_id: "performers" });
+const DANCERS = term({ id: "dancers", term_type: "category_group", parent_id: "performers" });
 const CABARET = term({ id: "cabaret-act", parent_id: "stage-show-acts" });
 const ACTOR = term({ id: "actor", parent_id: "stage-show-acts" });
 const LATIN = term({ id: "latin-dancer", parent_id: "dancers" });
 const RETIRED = term({ id: "retired-type", parent_id: "dancers", is_active: false });
-const NOPRIM_CAT = term({ id: "kids-family", kind: null, term_type: "parent_category" });
-const NOPRIM_GRP = term({ id: "kids-grp", kind: null, term_type: "category_group", parent_id: "kids-family" });
+const NOPRIM_CAT = term({ id: "kids-family", term_type: "parent_category" });
+const NOPRIM_GRP = term({ id: "kids-grp", term_type: "category_group", parent_id: "kids-family" });
 const BABYSITTER = term({ id: "babysitter", parent_id: "kids-grp" });
 
 const TREE = [PERFORMERS, STAGE, DANCERS, CABARET, ACTOR, LATIN, RETIRED, NOPRIM_CAT, NOPRIM_GRP, BABYSITTER];
 const TALENT_TYPE_IDS = TREE.filter((t) => t.term_type === "talent_type").map((t) => t.id);
 
 type Setting = { taxonomy_term_id: string; is_enabled: boolean | null; allow_as_primary?: boolean | null; allow_as_secondary?: boolean | null };
+
+/** Widen a fixture Setting to the validator's non-optional field shape. */
+const toValidatorSetting = (s: Setting) => ({
+  taxonomy_term_id: s.taxonomy_term_id,
+  is_enabled: s.is_enabled,
+  allow_as_primary: s.allow_as_primary ?? null,
+  allow_as_secondary: s.allow_as_secondary ?? null,
+});
 
 function validatorAccepts(id: string, settings: Setting[]): boolean {
   const byId = new Map(TREE.map((t) => [t.id, t] as const));
@@ -63,7 +73,7 @@ function validatorAccepts(id: string, settings: Setting[]): boolean {
   const res = evaluateTenantTalentTypeAvailability({
     term: t,
     ancestors,
-    settings,
+    settings: settings.map(toValidatorSetting),
     relationshipType: "primary_role",
   });
   return res.ok;
