@@ -91,15 +91,22 @@ function buildButtonStylesheet(): string {
 .ec-btn--primary:hover:not(:disabled) { background: ${CHROME.accent2}; }
 .ec-btn--primary:disabled { background: ${CHROME.muted2}; box-shadow: none; }
 
-/* secondary — white well + control edge */
+/* secondary — white well + control edge.
+ * KIT-control-family retone: edge cools from khaki CHROME.controlBorder
+ * (#cfc7b6) to CHROME.lineStrong, matching NumberUnit / InspectorSelect /
+ * SelectDropdown / kit/segmented.tsx. This is the DEFAULT Button variant, so
+ * the retone reaches every bare <Button> in the editor. Hover background
+ * cools from the parchment CHROME.paper2 (#f3f0e8) to a whisper-of-ink
+ * neutral tint; hover border steps to CHROME.lineStrongHover — one deeper
+ * stop of the SAME cool ink instead of the old khaki controlBorderStrong. */
 .ec-btn--secondary {
   background: ${CHROME.surface};
   color: ${CHROME.text2};
-  border-color: ${CHROME.controlBorder};
+  border-color: ${CHROME.lineStrong};
 }
 .ec-btn--secondary:hover:not(:disabled) {
-  background: ${CHROME.paper2};
-  border-color: ${CHROME.controlBorderStrong};
+  background: rgba(24, 24, 27, 0.05);
+  border-color: ${CHROME.lineStrongHover};
 }
 .ec-btn--secondary:disabled { color: ${CHROME.muted2}; opacity: 0.6; }
 

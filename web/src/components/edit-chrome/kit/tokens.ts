@@ -55,6 +55,16 @@ export const CHROME = {
   lineMid: "rgba(24, 24, 27, 0.08)", // collapsed → line
   lineStrong: "rgba(24, 24, 27, 0.16)",
   lineWarm: "rgba(24, 24, 27, 0.08)", // collapsed → line
+  /**
+   * KIT-control-family retone: one step past `lineStrong` on the same cool
+   * ink scale — the hover/press edge for `inspectors/kit/tokens.ts` KIT.input
+   * / inputLg / textarea / select / enumChipOff and the `Button` `secondary`
+   * variant (kit/button.tsx). Replaces the old two-step khaki hover
+   * (`controlBorder` idle → `controlBorderStrong` hover) with a single
+   * deeper stop of the SAME hue, so hovering a control darkens its own edge
+   * instead of drifting toward a different color family.
+   */
+  lineStrongHover: "rgba(24, 24, 27, 0.28)",
 
   // ── Control affordance (inputs / selects / segmented / toggle) ──
   // The `line` token (8% ink) is correct for a hairline DIVIDER but far
@@ -69,14 +79,23 @@ export const CHROME = {
   //
   // @deprecated for NEW control edges. Inspector Reset (P1 NumberUnit, P5
   // InspectorInput/Textarea/Select + SelectDropdown + the inspector search
-  // field + InlineNameInput) has been migrating control borders off this
-  // khaki pair onto the cool `lineStrong` token instead — it is still the
-  // idle edge for dozens of un-migrated call sites (style-panel.tsx and the
-  // style-panel/* sections, kit/segmented.tsx, kit/button.tsx's default
-  // "secondary" variant, inspectors/kit/tokens.ts KIT.input/select/textarea),
-  // so the two hex values below cannot be changed here without a much wider
-  // migration than any single PR should carry silently — retone new/small
-  // controls onto `lineStrong` directly rather than reaching for this pair.
+  // field + InlineNameInput, and the KIT-control-family retone: kit/segmented.tsx,
+  // kit/button.tsx's default "secondary" variant, inspectors/kit/tokens.ts
+  // KIT.input/inputLg/textarea/select/enumChipOff/subtleButton) has been
+  // migrating control borders off this khaki pair onto the cool `lineStrong`
+  // / `lineStrongHover` tokens instead — it is still the idle edge for the
+  // remaining un-migrated call sites (style-panel.tsx and the style-panel/*
+  // sections — owned by a concurrent lane — plus a long tail of one-off
+  // feature panels: navigator-panel.tsx, comments-drawer.tsx, publish-drawer.tsx,
+  // ai-brief-input.tsx, schedule-drawer.tsx, builder-find-replace-overlay.tsx,
+  // empty-canvas-starter.tsx, layout-panel.tsx, css-value-builders.tsx,
+  // style-presets-bar.tsx, instance-overrides-panel.tsx,
+  // linked-style-classes-bar.tsx, motion-panel.tsx, node-motion-panel.tsx,
+  // ai-generate-image-button.tsx, color-swatch-button.tsx,
+  // style-panel-preview-helpers.tsx), so the two hex values below cannot be
+  // changed here without a much wider migration than any single PR should
+  // carry silently — retone new/small controls onto `lineStrong` directly
+  // rather than reaching for this pair.
   controlBorder: "#cfc7b6",
   controlBorderStrong: "#b3a892",
   controlFill: "#ffffff",
