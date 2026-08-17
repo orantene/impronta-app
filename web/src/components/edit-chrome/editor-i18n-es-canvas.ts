@@ -239,6 +239,9 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Add block inside": "Agregar bloque dentro",
   "Copy block": "Copiar bloque",
   "Duplicate block": "Duplicar bloque",
+  "Reset size & position": "Restablecer tamaño y posición",
+  "Reset this block's size and position":
+    "Restablecer el tamaño y la posición de este bloque",
   "Move block up": "Subir bloque",
   "Move block down": "Bajar bloque",
   "Wrap in container": "Envolver en un contenedor",

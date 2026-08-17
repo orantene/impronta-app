@@ -271,3 +271,167 @@ test("root drop: a root-legal kind reorders at the page root (parentId null)", (
   assert.equal(result.targetParentId, null);
   assert.equal(result.targetIndex, 0);
 });
+
+// ── nest-into-container drops (zone: "inside") ───────────────────────────────
+// Before this zone existed the flat layer list could only ever place a block as
+// a SIBLING of a row already inside the target container, so a container the
+// operator had not yet expanded — or an empty one — was unreachable from the
+// Structure panel. These cover the append math and the three guards.
+
+test("inside: dropping on a container row's middle band appends into it", () => {
+  const result = resolveFreeformLayerDrop({
+    sourceId: "loose",
+    sourceKind: "paragraph",
+    sourceParentId: null,
+    sourceIndex: 4,
+    descendantIds: EMPTY,
+    targetRow: {
+      id: "wrap",
+      kind: "container",
+      parentId: null,
+      parentKind: null,
+      parentLocked: false,
+      index: 0,
+      childCount: 3,
+    },
+    onUpperHalf: false,
+    zone: "inside",
+  });
+  assert.equal(result.kind, "move");
+  if (result.kind !== "move") return;
+  assert.equal(result.targetParentId, "wrap", "the hovered row becomes the parent");
+  assert.equal(result.targetIndex, 3, "appends after the existing children");
+});
+
+test("inside: a same-parent re-nest takes the post-removal end index", () => {
+  // n-a is already child 0 of wrap (3 children). Re-nesting sends it to the
+  // end; after its own removal the end index is 2, not 3.
+  const result = resolveFreeformLayerDrop({
+    sourceId: "n-a",
+    sourceKind: "heading",
+    sourceParentId: "wrap",
+    sourceIndex: 0,
+    descendantIds: EMPTY,
+    targetRow: {
+      id: "wrap",
+      kind: "container",
+      parentId: null,
+      parentKind: null,
+      parentLocked: false,
+      index: 0,
+      childCount: 3,
+    },
+    onUpperHalf: false,
+    zone: "inside",
+  });
+  assert.equal(result.kind, "move");
+  if (result.kind !== "move") return;
+  assert.equal(result.targetIndex, 2);
+
+  // And the resolved index actually lands it last in the real tree.
+  const moved = moveBuilderNode({
+    tree: fixtureContainer(),
+    nodeId: "n-a",
+    parentId: result.targetParentId,
+    index: result.targetIndex,
+  });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+  const wrap = moved.tree.find((n) => n.id === "wrap");
+  if (!wrap || wrap.kind !== "container") return assert.fail("wrap missing");
+  assert.deepEqual(wrap.children.map((c) => c.id), ["n-b", "n-c", "n-a"]);
+});
+
+test("inside: already the last child is a no-op, not a redundant move", () => {
+  const result = resolveFreeformLayerDrop({
+    sourceId: "n-c",
+    sourceKind: "paragraph",
+    sourceParentId: "wrap",
+    sourceIndex: 2,
+    descendantIds: EMPTY,
+    targetRow: {
+      id: "wrap",
+      kind: "container",
+      parentId: null,
+      parentKind: null,
+      parentLocked: false,
+      index: 0,
+      childCount: 3,
+    },
+    onUpperHalf: false,
+    zone: "inside",
+  });
+  assert.equal(result.kind, "noop");
+});
+
+test("inside: nesting a block into its own subtree is blocked", () => {
+  const result = resolveFreeformLayerDrop({
+    sourceId: "wrap",
+    sourceKind: "container",
+    sourceParentId: null,
+    sourceIndex: 0,
+    descendantIds: new Set(["inner"]),
+    targetRow: {
+      id: "inner",
+      kind: "container",
+      parentId: "wrap",
+      parentKind: "container",
+      parentLocked: false,
+      index: 0,
+      childCount: 0,
+    },
+    onUpperHalf: false,
+    zone: "inside",
+  });
+  assert.equal(result.kind, "blocked");
+});
+
+test("inside: a locked container refuses the nest", () => {
+  const result = resolveFreeformLayerDrop({
+    sourceId: "loose",
+    sourceKind: "paragraph",
+    sourceParentId: null,
+    sourceIndex: 4,
+    descendantIds: EMPTY,
+    targetRow: {
+      id: "wrap",
+      kind: "container",
+      parentId: null,
+      parentKind: null,
+      parentLocked: false,
+      index: 0,
+      childCount: 1,
+      locked: true,
+    },
+    onUpperHalf: false,
+    zone: "inside",
+  });
+  assert.equal(result.kind, "blocked");
+});
+
+test("omitting the zone reproduces the original upper/lower-half behaviour", () => {
+  // The additive-change guarantee: every pre-nest call site passes no zone and
+  // must get exactly what it got before.
+  for (const onUpperHalf of [true, false]) {
+    const withoutZone = resolveFreeformLayerDrop({
+      sourceId: "n-a",
+      sourceKind: "heading",
+      sourceParentId: "wrap",
+      sourceIndex: 0,
+      descendantIds: EMPTY,
+      targetRow: rowFor("n-c", 2),
+      onUpperHalf,
+    });
+    const withZone = resolveFreeformLayerDrop({
+      sourceId: "n-a",
+      sourceKind: "heading",
+      sourceParentId: "wrap",
+      sourceIndex: 0,
+      descendantIds: EMPTY,
+      targetRow: rowFor("n-c", 2),
+      onUpperHalf,
+      zone: onUpperHalf ? "before" : "after",
+    });
+    assert.deepEqual(withoutZone, withZone);
+  }
+});
