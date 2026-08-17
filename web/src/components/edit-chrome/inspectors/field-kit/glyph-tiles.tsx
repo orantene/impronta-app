@@ -192,6 +192,17 @@ export interface GlyphTilesProps {
   onChange: (next: string) => void;
   /** Tiles per row. Defaults to 4, which fits a ~300px inspector column. */
   columns?: number;
+  /**
+   * D9 item 2, for a tile row whose choice is NUMERIC (corner radius, border
+   * weight): the exact input sits BESIDE the tiles, exactly as it does on
+   * `PresetNumberRow`. The approved mockup draws this as `.tiles` + `.num` in
+   * one `.row`, and the rule is not "presets get an exact field" but "a preset
+   * is never a ceiling" — which does not stop applying because the control
+   * happens to be drawn with pictures.
+   *
+   * Omit it for a tile row with nothing to type (border style, shadow).
+   */
+  exact?: ReactNode;
   accessory?: ReactNode;
   hint?: ReactNode;
   searchTerms?: string | string[];
@@ -206,6 +217,7 @@ export function GlyphTiles({
   value,
   onChange,
   columns = 4,
+  exact,
   accessory,
   hint,
   searchTerms,
@@ -240,6 +252,14 @@ export function GlyphTiles({
       dataControl={dataControl}
     >
       <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: FIELD_KIT.gap.control,
+          minWidth: 0,
+        }}
+      >
+      <div
         ref={groupRef}
         role="radiogroup"
         aria-labelledby={labelId}
@@ -248,6 +268,8 @@ export function GlyphTiles({
           display: "grid",
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gap: FIELD_KIT.gap.tight,
+          flex: "1 1 auto",
+          minWidth: 0,
           ...style,
         }}
       >
@@ -334,6 +356,17 @@ export function GlyphTiles({
           );
         })}
       </div>
+        {exact ? (
+          <div
+            data-field-kit-tiles-exact=""
+            role="group"
+            aria-label={t("Exact value")}
+            style={{ flex: "0 0 auto" }}
+          >
+            {exact}
+          </div>
+        ) : null}
+      </div>
     </FieldRow>
   );
 }
@@ -387,6 +420,21 @@ function lineStyleOf(preset: PresetValue): "none" | "solid" | "dashed" | "dotted
     default:
       return "none";
   }
+}
+
+/**
+ * Border-WEIGHT tiles: each glyph is a rule of the weight it offers, so 1px
+ * and 4px are told apart by looking rather than by reading two numbers.
+ */
+export function borderWeightTileOptions(presets: PresetTable): GlyphTileOption[] {
+  return presets.map((preset) => ({
+    id: preset.id,
+    label: preset.label,
+    valueCaption: null,
+    glyph: (ink: string) => (
+      <BorderWeightGlyph weightPx={preset.numeric?.value ?? 0} color={ink} />
+    ),
+  }));
 }
 
 /** Shadow tiles that render the literal shadow they offer. */

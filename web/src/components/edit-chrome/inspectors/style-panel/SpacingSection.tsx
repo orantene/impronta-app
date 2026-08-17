@@ -8,13 +8,23 @@
 
 import { BoxModel } from "../../kit/box-model";
 import { NumberUnit, formatLength } from "../../kit/number-unit";
-import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
 import { InspectorGroup } from "../kit";
+import {
+  GAP_PRESETS,
+  PresetNumberRow,
+  SPACING_PRESETS_SHIPPED,
+  type FieldValue,
+} from "../field-kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, InspectorOverrideBadge } from "../kit/inspector-ui";
 import { getStyleOverrideDevice } from "../responsive-field-state";
 import { parseCssLength } from "./length-utils";
-import { BUILDER_NODE_SPACING_OPTIONS } from "./style-options";
+import {
+  oneSlotFieldValue,
+  oneSlotPatch,
+  twoSlotFieldValue,
+  twoSlotPatch,
+} from "./field-value-bridge";
 import { parseStyleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
 import { StyleGroupOverrideDot, ThemeBindRow } from "./section-shared";
 import type { StandaloneSectionCtx } from "./section-types";
@@ -23,6 +33,12 @@ export type SpacingSectionProps = Pick<
   StandaloneSectionCtx,
   "patchSelectedStandaloneStyle" | "selectedStandaloneFullStyle" | "selectedStandaloneStyleNode" | "selectedStandaloneViewportStyle" | "selectedViewport" | "setOrToggleStandaloneStyle" | "spacingHasResponsiveOverride"
 >;
+
+/**
+ * The margin/padding token slots share one enum. Naming it once keeps the four
+ * bridge call sites from each casting a slightly different union.
+ */
+type SpacingToken = "none" | "s" | "m" | "l" | undefined;
 
 export function SpacingSection({
   patchSelectedStandaloneStyle,
@@ -53,61 +69,97 @@ export function SpacingSection({
                 ) : null
               }
             >
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginTop">
-                <div className="flex items-center justify-between gap-1">
-                  <span className={FIELD_LABEL}>Margin top</span>
-                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "marginTop") ? (
-                    <InspectorOverrideBadge
-                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "marginTop")!}
-                      onReset={
-                        selectedViewport !== "desktop"
-                          ? () => patchSelectedStandaloneStyle({ marginTop: undefined })
-                          : undefined
-                      }
-                    />
-                  ) : null}
-                </div>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.marginTop ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("marginTop", next)}
-                  options={BUILDER_NODE_SPACING_OPTIONS}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5" data-builder-node-style-control="marginBottom">
-                <div className="flex items-center justify-between gap-1">
-                  <span className={FIELD_LABEL}>Bottom</span>
-                  {getStyleOverrideDevice(selectedStandaloneFullStyle, "marginBottom") ? (
-                    <InspectorOverrideBadge
-                      device={getStyleOverrideDevice(selectedStandaloneFullStyle, "marginBottom")!}
-                      onReset={
-                        selectedViewport !== "desktop"
-                          ? () => patchSelectedStandaloneStyle({ marginBottom: undefined })
-                          : undefined
-                      }
-                    />
-                  ) : null}
-                </div>
-                <Segmented
-                  fullWidth
-                  compact
-                  value={selectedStandaloneViewportStyle?.marginBottom ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("marginBottom", next)}
-                  options={BUILDER_NODE_SPACING_OPTIONS}
-                />
-              </div>
-            </div>
+            {/* ── D9: every chip carries its real px, and the exact input sits
+                beside it. `marginTop` stores a token; `marginTopFree` stores a
+                length; `field-value-bridge` owns which one a given edit writes
+                and always clears the other. ─────────────────────────────── */}
+            <PresetNumberRow
+              dataControl="marginTop"
+              label="Margin top"
+              searchTerms={["Margin top", "space above", "outer spacing"]}
+              presets={SPACING_PRESETS_SHIPPED}
+              value={twoSlotFieldValue(
+                selectedStandaloneViewportStyle?.marginTop,
+                selectedStandaloneViewportStyle?.marginTopFree,
+              )}
+              onChange={(next) => {
+                const patch = twoSlotPatch(next);
+                patchSelectedStandaloneStyle({
+                  marginTop: patch.token as SpacingToken,
+                  marginTopFree: patch.free,
+                });
+              }}
+              accessory={
+                getStyleOverrideDevice(selectedStandaloneFullStyle, "marginTop") ? (
+                  <InspectorOverrideBadge
+                    device={getStyleOverrideDevice(selectedStandaloneFullStyle, "marginTop")!}
+                    onReset={
+                      selectedViewport !== "desktop"
+                        ? () => patchSelectedStandaloneStyle({ marginTop: undefined })
+                        : undefined
+                    }
+                  />
+                ) : null
+              }
+            />
+            <PresetNumberRow
+              dataControl="marginBottom"
+              label="Margin bottom"
+              searchTerms={["Margin bottom", "space below", "outer spacing"]}
+              presets={SPACING_PRESETS_SHIPPED}
+              value={twoSlotFieldValue(
+                selectedStandaloneViewportStyle?.marginBottom,
+                selectedStandaloneViewportStyle?.marginBottomFree,
+              )}
+              onChange={(next) => {
+                const patch = twoSlotPatch(next);
+                patchSelectedStandaloneStyle({
+                  marginBottom: patch.token as SpacingToken,
+                  marginBottomFree: patch.free,
+                });
+              }}
+              accessory={
+                getStyleOverrideDevice(selectedStandaloneFullStyle, "marginBottom") ? (
+                  <InspectorOverrideBadge
+                    device={getStyleOverrideDevice(selectedStandaloneFullStyle, "marginBottom")!}
+                    onReset={
+                      selectedViewport !== "desktop"
+                        ? () => patchSelectedStandaloneStyle({ marginBottom: undefined })
+                        : undefined
+                    }
+                  />
+                ) : null
+              }
+            />
 
             {["container", "split", "card", "cta_group", "button"].includes(
               selectedStandaloneStyleNode.kind,
             ) ? (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1.5" data-builder-node-style-control="paddingX">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={FIELD_LABEL}>Padding X</span>
-                    {getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingX") ? (
+              <>
+                {/* Padding's free slot is the PAIR of sides, because the token
+                    is an axis and the renderer has no `paddingXFree`. Writing
+                    an exact value therefore sets both sides of that axis —
+                    which is what the axis chip did too. */}
+                <PresetNumberRow
+                  dataControl="paddingX"
+                  label="Padding X"
+                  hint="Left and right inside the block."
+                  searchTerms={["Padding X", "horizontal padding", "inner spacing", "side padding"]}
+                  presets={SPACING_PRESETS_SHIPPED}
+                  value={twoSlotFieldValue(
+                    selectedStandaloneViewportStyle?.paddingX,
+                    selectedStandaloneViewportStyle?.paddingLeft,
+                  )}
+                  onChange={(next) => {
+                    const patch = twoSlotPatch(next);
+                    patchSelectedStandaloneStyle({
+                      paddingX: patch.token as SpacingToken,
+                      paddingLeft: patch.free,
+                      paddingRight: patch.free,
+                    });
+                  }}
+                  accessory={
+                    getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingX") ? (
                       <InspectorOverrideBadge
                         device={getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingX")!}
                         onReset={
@@ -116,20 +168,29 @@ export function SpacingSection({
                             : undefined
                         }
                       />
-                    ) : null}
-                  </div>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedStandaloneViewportStyle?.paddingX ?? ""}
-                    onChange={(next) => setOrToggleStandaloneStyle("paddingX", next)}
-                    options={BUILDER_NODE_SPACING_OPTIONS}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5" data-builder-node-style-control="paddingY">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={FIELD_LABEL}>Padding Y</span>
-                    {getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingY") ? (
+                    ) : null
+                  }
+                />
+                <PresetNumberRow
+                  dataControl="paddingY"
+                  label="Padding Y"
+                  hint="Top and bottom inside the block."
+                  searchTerms={["Padding Y", "vertical padding", "inner spacing"]}
+                  presets={SPACING_PRESETS_SHIPPED}
+                  value={twoSlotFieldValue(
+                    selectedStandaloneViewportStyle?.paddingY,
+                    selectedStandaloneViewportStyle?.paddingTop,
+                  )}
+                  onChange={(next) => {
+                    const patch = twoSlotPatch(next);
+                    patchSelectedStandaloneStyle({
+                      paddingY: patch.token as SpacingToken,
+                      paddingTop: patch.free,
+                      paddingBottom: patch.free,
+                    });
+                  }}
+                  accessory={
+                    getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingY") ? (
                       <InspectorOverrideBadge
                         device={getStyleOverrideDevice(selectedStandaloneFullStyle, "paddingY")!}
                         onReset={
@@ -138,17 +199,10 @@ export function SpacingSection({
                             : undefined
                         }
                       />
-                    ) : null}
-                  </div>
-                  <Segmented
-                    fullWidth
-                    compact
-                    value={selectedStandaloneViewportStyle?.paddingY ?? ""}
-                    onChange={(next) => setOrToggleStandaloneStyle("paddingY", next)}
-                    options={BUILDER_NODE_SPACING_OPTIONS}
-                  />
-                </div>
-              </div>
+                    ) : null
+                  }
+                />
+              </>
             ) : null}
 
             {!["divider", "spacer"].includes(
@@ -364,22 +418,28 @@ export function SpacingSection({
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="gap"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className={FIELD_LABEL}>Gap</span>
-                  {parseStyleTokenRef(selectedStandaloneViewportStyle?.gap) ? null : (
-                    <NumberUnit
-                      units={["px", "rem", "%"]}
-                      defaultUnit="px"
-                      placeholder="Linked"
-                      value={parseCssLength(selectedStandaloneViewportStyle?.gap)}
-                      onChange={(next) =>
-                        patchSelectedStandaloneStyle({
-                          gap: next ? formatLength(next) : undefined,
-                        })
-                      }
-                    />
-                  )}
-                </div>
+                {/* Gap is a ONE-slot field: there is no `gapFree`, so the chips
+                    are shortcuts into the same key. The bridge writes the
+                    preset's own rem (never a px re-rounding) and re-lights the
+                    chip by normalising rem→px, so the row cannot show a dark
+                    chip beside the number it just wrote. */}
+                {parseStyleTokenRef(selectedStandaloneViewportStyle?.gap) ? null : (
+                  <PresetNumberRow
+                    label="Gap"
+                    searchTerms={["Gap", "space between", "gutter", "column gap"]}
+                    presets={GAP_PRESETS}
+                    placeholder="Linked"
+                    value={oneSlotFieldValue(
+                      selectedStandaloneViewportStyle?.gap,
+                      GAP_PRESETS,
+                    )}
+                    onChange={(next: FieldValue) =>
+                      patchSelectedStandaloneStyle({
+                        gap: oneSlotPatch(next, GAP_PRESETS),
+                      })
+                    }
+                  />
+                )}
                 <ThemeBindRow
                   prop="gap"
                   value={selectedStandaloneViewportStyle?.gap}
