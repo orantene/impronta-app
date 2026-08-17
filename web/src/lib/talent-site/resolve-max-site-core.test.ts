@@ -24,6 +24,7 @@ function page(partial: Partial<MaxSitePageRow> & { slug: string }): MaxSitePageR
     sortOrder: partial.sortOrder ?? 0,
     blocks: partial.blocks ?? [],
     theme: partial.theme ?? {},
+    metaTitle: partial.metaTitle ?? null,
     metaDescription: partial.metaDescription ?? null,
     ogTitle: partial.ogTitle ?? null,
     ogDescription: partial.ogDescription ?? null,
@@ -167,7 +168,26 @@ test("href: home → bare site URL; inner → /<slug>; locale prefix honored", (
 
 // ── hydrateShellNav ──────────────────────────────────────────────────────────
 
-test("hydrateShellNav injects page links into the shell's nav node", () => {
+/** Read the `site_header` landmark's inline config out of a shell tree. */
+function headerConfig(tree: BuilderNode[]): {
+  navItems?: { label: string; href: string }[];
+  brand?: { href?: string };
+} {
+  const header = tree.find(
+    (n) =>
+      n.kind === "section" &&
+      (n.props as { sectionTypeKey?: unknown }).sectionTypeKey === "site_header",
+  );
+  assert.ok(header, "default shell must expose a site_header landmark");
+  return (header.props as { sectionProps?: Record<string, unknown> })
+    .sectionProps as ReturnType<typeof headerConfig>;
+}
+
+test("hydrateShellNav injects page links into the site_header landmark's navItems", () => {
+  // REGRESSION (was red on main, in no CI lane): the shell moved from a `nav`
+  // builder node to a `site_header` SECTION carrying navItems in its config, so
+  // the old `kind === "nav"` walk matched nothing and every multi-page talent
+  // site rendered a header with only the seeded "Home".
   const shell = buildDefaultShellTree({ displayName: "Morena" });
   const nav = buildMaxSiteNav([
     page({ slug: "home", isHome: true, sortOrder: 0, title: "Home" }),
@@ -175,11 +195,41 @@ test("hydrateShellNav injects page links into the shell's nav node", () => {
   ]);
   const hydrated = hydrateShellNav(shell, nav, "morena");
 
-  // Find the nav node inside the header container.
-  const header = hydrated[0] as { children: BuilderNode[] };
-  const navNode = header.children.find((n) => n.kind === "nav") as {
-    props: { links: { label: string; href: string }[]; brandHref: string };
-  };
+  const cfg = headerConfig(hydrated);
+  assert.deepEqual(
+    (cfg.navItems ?? []).map((l) => [l.label, l.href]),
+    [
+      ["Home", "/t/site/morena"],
+      ["Gallery", "/t/site/morena/gallery"],
+    ],
+  );
+  // The brand always links to the SITE home, not the seeded "/".
+  assert.equal(cfg.brand?.href, "/t/site/morena");
+
+  // The seeded default must genuinely have been replaced, not appended to.
+  const seeded = headerConfig(buildDefaultShellTree({ displayName: "Morena" }));
+  assert.deepEqual(seeded.navItems, [{ label: "Home", href: "/" }]);
+});
+
+test("hydrateShellNav still hydrates a plain `nav` builder node (legacy shells)", () => {
+  const shell: BuilderNode[] = [
+    {
+      id: "hdr",
+      kind: "container",
+      props: { layout: "row" },
+      children: [
+        { id: "n", kind: "nav", props: { links: [], brandHref: "/" } },
+      ],
+    } as BuilderNode,
+  ];
+  const nav = buildMaxSiteNav([
+    page({ slug: "home", isHome: true, sortOrder: 0, title: "Home" }),
+    page({ slug: "gallery", sortOrder: 1, title: "Gallery" }),
+  ]);
+  const hydrated = hydrateShellNav(shell, nav, "morena");
+  const navNode = (hydrated[0] as { children: BuilderNode[] }).children.find(
+    (n) => n.kind === "nav",
+  ) as { props: { links: { label: string; href: string }[]; brandHref: string } };
   assert.deepEqual(
     navNode.props.links.map((l) => [l.label, l.href]),
     [
@@ -187,8 +237,18 @@ test("hydrateShellNav injects page links into the shell's nav node", () => {
       ["Gallery", "/t/site/morena/gallery"],
     ],
   );
-  // brandHref points at the home page.
   assert.equal(navNode.props.brandHref, "/t/site/morena");
+});
+
+test("hydrateShellNav does not mutate the input shell's header config", () => {
+  const shell = buildDefaultShellTree({ displayName: "Morena" });
+  const before = JSON.stringify(shell);
+  hydrateShellNav(
+    shell,
+    buildMaxSiteNav([page({ slug: "home", isHome: true, title: "Home" })]),
+    "morena",
+  );
+  assert.equal(JSON.stringify(shell), before, "input shell must not be mutated");
 });
 
 test("hydrateShellNav is non-mutating and leaves a nav-less shell unchanged", () => {

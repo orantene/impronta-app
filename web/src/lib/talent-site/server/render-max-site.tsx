@@ -39,6 +39,7 @@ import {
   coerceTree,
   hydrateShellNav,
   maxSitePublicGate,
+  resolveMaxSiteTitles,
   selectMaxSitePage,
   type MaxSiteRow,
   type MaxSitePageRow,
@@ -281,7 +282,14 @@ function buildMaxSiteSeo(args: {
 }): MaxSiteSeo {
   const { site, page, identity, locale, noindex } = args;
 
-  const title = page.title?.trim() || identity?.name || site.siteSlug || "";
+  // SEO-3 — `meta_title` overrides the SERP/tab title. Folded into `title` here
+  // rather than added to `MaxSiteSeo`, so the shared `maxSiteSeoToMetadata`
+  // mapper needs no change and all three talent-site routes pick it up in
+  // lockstep — including og:title, which already falls back to `title`.
+  const { pageTitle, seoTitle: title } = resolveMaxSiteTitles(
+    page,
+    identity?.name || site.siteSlug || "",
+  );
   const description = page.metaDescription?.trim() || undefined;
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
@@ -293,7 +301,9 @@ function buildMaxSiteSeo(args: {
 
   // JSON-LD — operator override wins; else the SHARED profile builder, keyed to
   // the SITE canonical. `name` falls back through identity → title.
-  const name = identity?.name?.trim() || title;
+  // JSON-LD `name` is the PERSON, so it falls back to the page title, never to
+  // the SEO override (a SERP string like "Actor in Madrid | Hire" is not a name).
+  const name = identity?.name?.trim() || pageTitle;
   const sharedJsonLd =
     name && canonical
       ? buildTalentProfileJsonLd({

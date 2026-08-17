@@ -49,6 +49,8 @@ export interface MaxSitePageRow {
   blocks: unknown;
   theme: unknown;
   // SEO-2 — per-page SEO columns (SEO-1 migration; all nullable, degrade-safe).
+  /** SEO-3 — SERP/tab title override. NULL -> fall back to `title`. */
+  metaTitle: string | null;
   metaDescription: string | null;
   ogTitle: string | null;
   ogDescription: string | null;
@@ -163,14 +165,60 @@ export function maxSitePageHref(
 }
 
 /**
- * Inject the site's pages as the nav links of every `nav` node in the shell
- * tree, recursively. The default shell (`buildDefaultShellTree`) seeds a single
- * "Home" link; this replaces it with the LIVE page set so a multi-page site's
- * header reflects the talent's pages without the talent hand-maintaining links.
+ * SEO-3 — resolve the two DISTINCT titles a site page has. Pure (no React), so
+ * `render-max-site.tsx` can fold `meta_title` in without the logic becoming
+ * untestable behind a server component.
+ *
+ * - `pageTitle` — what the page is called. Used for the JSON-LD `name` fallback,
+ *   which describes a PERSON: a SERP string like "Actor in Madrid | Hire" is not
+ *   a name, so the SEO override must never leak into it.
+ * - `seoTitle` — the SERP/tab title: `meta_title || title`, the platform-wide
+ *   convention (see app/page.tsx). This is what lands in `MaxSiteSeo.title`, and
+ *   therefore also what og:title falls back to. A NULL/blank `meta_title` leaves
+ *   the rendered <title> exactly as it was before the column existed.
+ */
+export function resolveMaxSiteTitles(
+  page: Pick<MaxSitePageRow, "title" | "metaTitle">,
+  fallback = "",
+): { pageTitle: string; seoTitle: string } {
+  const pageTitle = page.title?.trim() || fallback;
+  return { pageTitle, seoTitle: page.metaTitle?.trim() || pageTitle };
+}
+
+/**
+ * WF-5 — the `site_header` section schema caps `navItems` at 8 and requires each
+ * label to be 1..60 chars. This MATTERS: `render-max-site.tsx` `safeParse`s the
+ * header config and returns **null for the whole header** when it fails, so
+ * emitting a 9th page (or a 61-char title) would not degrade the nav — it would
+ * delete the header. Kept as a local constant because this module is a PURE core
+ * with no runtime imports; `max-site-shell-nav.test.ts` asserts what we emit
+ * actually passes the REAL schema, so the two cannot drift apart silently.
+ */
+const SITE_HEADER_MAX_NAV_ITEMS = 8;
+const SITE_HEADER_MAX_NAV_LABEL = 60;
+
+/**
+ * Inject the site's pages as the nav links of the shell header, recursively.
+ * The default shell seeds a single "Home" link; this replaces it with the LIVE
+ * page set so a multi-page site's header reflects the talent's pages without the
+ * talent hand-maintaining links.
+ *
+ * TWO header shapes are hydrated, because the shell was refactored underneath
+ * this function and it silently stopped working:
+ *
+ *  1. a `nav` BUILDER NODE (`props.links`) — the original shape, still valid for
+ *     hand-built or legacy shells; and
+ *  2. a `site_header` SECTION LANDMARK, which carries its config inline on
+ *     `props.sectionProps` (`navItems` + `brand.href`) and has NO `nav` child.
+ *     This is what `buildDefaultShellTree` emits today — its WF-5
+ *     `regions.center: [{ type: "nav" }]` entry REFERENCES `navItems` rather
+ *     than holding links itself. Walking only for `kind === "nav"` matched
+ *     nothing here, so every multi-page talent Max site rendered a header
+ *     containing just the seeded "Home".
  *
  * PURE + non-mutating — returns a new tree (structural clone of the touched
- * branches). A shell with no `nav` node is returned unchanged. When the site has
- * no published pages, the nav's existing links are preserved (never blanked).
+ * branches). A shell with neither shape is returned unchanged. When the site has
+ * no published pages, existing links are preserved (never blanked).
  */
 export function hydrateShellNav(
   tree: readonly BuilderNode[],
@@ -189,7 +237,43 @@ export function hydrateShellNav(
   const home = nav.find((n) => n.isHome) ?? nav[0]!;
   const brandHref = maxSitePageHref(siteSlug, home, publicPathPrefix);
 
+  // The `site_header` config shape: schema-legal `{label, href}` pairs, capped
+  // and truncated so `safeParse` can never reject the header (see the constants
+  // above). `links` above is the richer builder-node shape and is left uncapped.
+  const navItems = nav
+    .slice(0, SITE_HEADER_MAX_NAV_ITEMS)
+    .map((item) => ({
+      label: item.label.slice(0, SITE_HEADER_MAX_NAV_LABEL),
+      href: maxSitePageHref(siteSlug, item, publicPathPrefix),
+    }))
+    // A blank label fails the schema's `min(1)`; buildMaxSiteNav already falls
+    // back to the slug, so this only guards a hand-edited row.
+    .filter((item) => item.label.length > 0);
+
   const visit = (node: BuilderNode): BuilderNode => {
+    // Shape 2 — the `site_header` SECTION landmark (config inline, no nav child).
+    if (node.kind === "section" && node.props.sectionTypeKey === "site_header") {
+      // Nothing schema-legal to write → leave the seeded nav alone rather than
+      // blanking a header that currently renders.
+      if (navItems.length === 0) return node;
+      const cfg = node.props.sectionProps ?? {};
+      const brand = (cfg.brand ?? {}) as Record<string, unknown>;
+      // Spread `node.props` (not a widened Record) so `sectionTypeKey` and the
+      // rest of the section envelope survive — the compiler enforces it.
+      return {
+        ...node,
+        props: {
+          ...node.props,
+          sectionProps: {
+            ...cfg,
+            navItems,
+            // The brand always links to the SITE home, never the seeded "/".
+            brand: { ...brand, href: brandHref },
+          },
+        },
+      };
+    }
+    // Shape 1 — a plain `nav` builder node.
     if (node.kind === "nav") {
       // The brand always links to the SITE home. The default shell seeds a
       // placeholder "/" brandHref; a multi-page site's brand must resolve to
