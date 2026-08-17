@@ -48,10 +48,15 @@ export interface ImprontaRebuildPage {
 }
 
 // ── owner-confirm business facts ─────────────────────────────────────────────
-// Sourced from the agency's OWN published footer on improntamodels.com
-// (verified 2026-08-17), not invented. No phone number is invented anywhere;
-// the phone / WhatsApp channel stays off the site until the owner supplies one.
-export const CONTACT_EMAIL = "hello@impronta.studio";
+// Supplied by the owner (relayed from Alejandra, 2026-08-17): booking inbox,
+// WhatsApp line and the real social handles. These replace the placeholder
+// contact details the site shipped with.
+export const CONTACT_EMAIL = "impronta.talento@gmail.com";
+/** Owner-supplied booking line (also the WhatsApp number). */
+export const CONTACT_PHONE_E164 = "+529843170816";
+export const CONTACT_PHONE_DISPLAY = "+52 984 317 0816";
+export const INSTAGRAM_URL = "https://www.instagram.com/impronta_models";
+export const TIKTOK_URL = "https://www.tiktok.com/@impronta12";
 
 // ── image slots ──────────────────────────────────────────────────────────────
 

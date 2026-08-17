@@ -24,6 +24,8 @@ import {
   CARD,
   CARD_BORDER,
   CONTACT_EMAIL,
+  CONTACT_PHONE_DISPLAY,
+  CONTACT_PHONE_E164,
   type ImprontaRebuildPage,
 } from "../shared";
 
@@ -124,6 +126,7 @@ const formSection = band(
                 style: { gap: "12px", marginTopFree: "22px", width: "100%" },
               },
               children: [
+                lineButton("rb-contact-whatsapp-cta", `WhatsApp ${CONTACT_PHONE_DISPLAY}`, `https://wa.me/${CONTACT_PHONE_E164.replace("+", "")}`),
                 lineButton("rb-contact-email-cta", "Email the agency", `mailto:${CONTACT_EMAIL}`),
                 lineButton("rb-contact-directory-cta", "Browse talent first", "/directory"),
               ],

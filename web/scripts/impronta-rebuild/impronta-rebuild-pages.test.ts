@@ -200,7 +200,10 @@ test("impronta-rebuild: every image is a W5 slot placeholder with alt text", () 
 });
 
 // Every button href must be a real destination — no dead CTAs.
-const ALLOWED_HREF = /^(\/directory|\/contact|\/register|\/p\/[a-z0-9-]+|mailto:[^\s]+|tel:\+[0-9]+|\/)$/;
+// Owner-supplied contact channels are allowed destinations too: the WhatsApp
+// booking line (wa.me) and the agency's real Instagram / TikTok profiles.
+const ALLOWED_HREF =
+  /^(\/directory|\/contact|\/register|\/p\/[a-z0-9-]+|mailto:[^\s]+|tel:\+[0-9]+|https:\/\/wa\.me\/[0-9]+|https:\/\/www\.(instagram|tiktok)\.com\/[^\s]+|\/)$/;
 
 test("impronta-rebuild: every button href points at a real destination", () => {
   for (const page of PAGES) {

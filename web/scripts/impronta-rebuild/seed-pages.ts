@@ -77,6 +77,8 @@
  *   --dry-run                        Explicit no-op flag; conflicts with --apply.
  *   --only=slug-a,slug-b             Restrict to these page-module slugs (comma-separated).
  *   --slug-suffix=-new                Append this suffix to every effective DB slug.
+ *   --publish                        Publish the pages this run writes. An existing
+ *                                    published page ALWAYS stays published.
  *   --allow-home-status-downgrade    Let the home page's write set status to draft. Dangerous.
  *   --pins=<path>                    Override the image-slots.json path (default: ./image-slots.json).
  *
@@ -211,7 +213,7 @@ export interface BuildUpsertPayloadOptions {
   resolvedBlocks: unknown;
   resolvedOgImageUrl?: string;
   /** Set by {@link applyHomeInPlaceGuard} to force-keep an already-published home page published. */
-  statusOverride?: "published";
+  statusOverride?: "published" | "draft";
 }
 
 /**
@@ -312,6 +314,34 @@ export function applyHomeInPlaceGuard(
   return "published";
 }
 
+/**
+ * Status to write for a page, generalising the home guard to EVERY page.
+ *
+ * Rewriting the live pages in place (no rename, no delete) is how the rebuild
+ * ships: the seeder writes the new tree straight onto the existing slug. The
+ * payload default is `draft`, so without this an in-place run would silently
+ * UNPUBLISH every live page the moment it updated it. Rule:
+ *
+ *   - existing page already published  -> stays published (never downgraded,
+ *     unless --allow-home-status-downgrade is passed for `home` specifically)
+ *   - `--publish` passed               -> publish what we write
+ *   - otherwise                        -> draft (the safe default)
+ */
+export function resolveWriteStatus(
+  effectiveSlug: string,
+  existing: ExistingCmsPageRow | null,
+  options: { allowHomeStatusDowngrade: boolean; publish: boolean },
+): "published" | "draft" | undefined {
+  const homeGuard = applyHomeInPlaceGuard(effectiveSlug, existing, options);
+  if (homeGuard) return homeGuard;
+  // The explicit home-downgrade escape hatch must still win over the general
+  // "never unpublish a live page" rule below, or the flag becomes a no-op.
+  if (effectiveSlug === "home" && options.allowHomeStatusDowngrade) return undefined;
+  if (existing?.status === "published") return "published";
+  if (options.publish) return "published";
+  return undefined;
+}
+
 export function countBuilderNodes(tree: unknown): number {
   if (Array.isArray(tree)) {
     return tree.reduce((sum: number, node) => sum + countBuilderNodes(node), 0);
@@ -347,6 +377,8 @@ export interface RunSeedOptions {
   only?: readonly string[];
   slugSuffix?: string;
   allowHomeStatusDowngrade?: boolean;
+  /** Publish the pages this run writes (existing published pages stay published regardless). */
+  publish?: boolean;
   pins?: ImageSlotPinFile;
 }
 
@@ -475,8 +507,9 @@ export async function runSeed(
     }
 
     const existing = existingRaw as ExistingCmsPageRow | null;
-    const statusOverride = applyHomeInPlaceGuard(item.effectiveSlug, existing, {
+    const statusOverride = resolveWriteStatus(item.effectiveSlug, existing, {
       allowHomeStatusDowngrade: options.allowHomeStatusDowngrade ?? false,
+      publish: options.publish ?? false,
     });
 
     const payload = buildCmsPageUpsertPayload(item.page, {
@@ -734,6 +767,7 @@ async function main(): Promise<void> {
   const only = value("only")?.split(",").map((s) => s.trim()).filter(Boolean);
   const slugSuffix = value("slug-suffix");
   const allowHomeStatusDowngrade = flag("allow-home-status-downgrade");
+  const publish = flag("publish");
   const pinsPath = value("pins") ?? DEFAULT_IMAGE_SLOT_PINS_PATH;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -770,6 +804,7 @@ async function main(): Promise<void> {
     only,
     slugSuffix,
     allowHomeStatusDowngrade,
+    publish,
     pins,
   });
 
