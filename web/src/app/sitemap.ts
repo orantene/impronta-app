@@ -3,13 +3,14 @@ import type { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withLocalePath } from "@/i18n/pathnames";
+import { buildLocaleAlternates } from "@/i18n/alternates";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
 import { publicRequestSiteBase } from "@/lib/seo/request-base";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
-import { pickLocale } from "@/lib/i18n/pick-locale";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -96,18 +97,18 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
       ? new Date(row.published_at ?? row.updated_at!)
       : new Date();
 
+    const enUrl = new URL(`/t/${code}`, PLATFORM_TALENT_SITEMAP_BASE).toString();
+    const esUrl = new URL(
+      withLocalePath(`/t/${code}`, "es"),
+      PLATFORM_TALENT_SITEMAP_BASE,
+    ).toString();
+    // Both locales of one profile are one page in two languages; say so, or
+    // Google reads them as unrelated duplicates.
+    const languages = { en: enUrl, es: esUrl, "x-default": enUrl };
+
     return [
-      {
-        url: new URL(`/t/${code}`, PLATFORM_TALENT_SITEMAP_BASE).toString(),
-        lastModified,
-      },
-      {
-        url: new URL(
-          withLocalePath(`/t/${code}`, "es"),
-          PLATFORM_TALENT_SITEMAP_BASE,
-        ).toString(),
-        lastModified,
-      },
+      { url: enUrl, lastModified, alternates: { languages } },
+      { url: esUrl, lastModified, alternates: { languages } },
     ];
   });
 }
@@ -174,12 +175,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       (path) => {
         // EN and ES ship together, so both locales share one lastmod.
         const lastModified = marketingLastModified(path);
+        const enUrl = new URL(path, base).toString();
+        const esUrl = new URL(withLocalePath(path, "es"), base).toString();
+        // EN + ES only. `fr` is enabled in the global app_locales registry but
+        // has zero translated marketing content, so it must not be annotated
+        // here — an hreflang pointing at an untranslated page is a worse signal
+        // than no hreflang at all.
+        const languages = { en: enUrl, es: esUrl, "x-default": enUrl };
         return [
-          { url: new URL(path, base).toString(), lastModified },
-          {
-            url: new URL(withLocalePath(path, "es"), base).toString(),
-            lastModified,
-          },
+          { url: enUrl, lastModified, alternates: { languages } },
+          { url: esUrl, lastModified, alternates: { languages } },
         ];
       },
     );
@@ -190,6 +195,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
   if (hostContext.kind !== "agency") {
     return [];
+  }
+
+  // The storefront's OWN language set, not a hardcoded EN/ES pair. Most tenants
+  // are solo-language: listing `/es/models` for an English-only agency
+  // advertised a URL that only ever serves fallback content, and annotating it
+  // as a Spanish alternate would have been a false statement to every crawler.
+  const localeSettings = await loadTenantLocaleSettings(hostContext.tenantId);
+
+  /**
+   * One sitemap entry per locale a path exists in, each carrying the full
+   * alternate set so the `<url>` declares the relationship instead of leaving
+   * the locales looking like unrelated duplicates. A solo-language tenant gets
+   * exactly one entry with no `alternates` at all.
+   */
+  function localeEntries(
+    pathnameWithoutLocale: string,
+    lastModified: Date,
+    locales: readonly string[] = localeSettings.supportedLocales,
+  ): MetadataRoute.Sitemap {
+    return locales.map((locale) => {
+      const alt = buildLocaleAlternates({
+        origin: base,
+        pathnameWithoutLocale,
+        currentLocale: locale,
+        defaultLocale: localeSettings.defaultLocale,
+        supportedLocales: locales,
+      });
+      return {
+        url: alt.canonical,
+        lastModified,
+        ...(alt.languages ? { alternates: { languages: alt.languages } } : {}),
+      };
+    });
   }
 
   // Static pages always present on agency storefronts. The homepage ("/")
@@ -204,21 +242,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // "unknown", not a claim about the marketing tree, which now uses a pinned
   // revision constant.
   const fixedStaticEntries: MetadataRoute.Sitemap = fixedStaticPaths.flatMap(
-    (path) => [
-      { url: new URL(path, base).toString(), lastModified: new Date() },
-      {
-        url: new URL(withLocalePath(path, "es"), base).toString(),
-        lastModified: new Date(),
-      },
-    ],
+    (path) => localeEntries(path, new Date()),
   );
 
   if (!supabase) {
     // No DB client, so the homepage row (and its updated_at) is unreadable.
-    return [
-      { url: new URL("/", base).toString(), lastModified: new Date() },
-      ...fixedStaticEntries,
-    ];
+    return [...localeEntries("/", new Date()), ...fixedStaticEntries];
   }
 
   // Non-agency contexts (hub/marketing/app) have no tenant-specific CMS.
@@ -226,10 +255,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const publicScope = await getPublicTenantScope();
   if (!publicScope) {
     // Same as above: without a tenant scope there is no homepage row to date.
-    return [
-      { url: new URL("/", base).toString(), lastModified: new Date() },
-      ...fixedStaticEntries,
-    ];
+    return [...localeEntries("/", new Date()), ...fixedStaticEntries];
   }
 
   // Read the homepage row's noindex + sitemap flags so the sitemap honours an
@@ -290,17 +316,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const homepageEntries: MetadataRoute.Sitemap =
     anyHomepageNoindex || anyHomepageExcludedFromSitemap
-    ? []
-    : [
-        {
-          url: new URL("/", base).toString(),
-          lastModified: homepageLastModified,
-        },
-        {
-          url: new URL(withLocalePath("/", "es"), base).toString(),
-          lastModified: homepageLastModified,
-        },
-      ];
+      ? []
+      : localeEntries("/", homepageLastModified);
 
   const staticEntries: MetadataRoute.Sitemap = [
     ...homepageEntries,
@@ -308,6 +325,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   type CmsSitemapRow = { slug: string; locale: string; updated_at: string | null };
+
+  /**
+   * Sitemap entries for per-locale CMS rows. Rows are grouped by slug so each
+   * URL can declare the OTHER translations of the same page; a slug with one
+   * row emits one entry and no `alternates`.
+   */
+  function cmsRowEntries(
+    rows: readonly CmsSitemapRow[],
+    pathPrefix: string,
+  ): MetadataRoute.Sitemap {
+    const localesBySlug = new Map<string, string[]>();
+    for (const row of rows) {
+      const list = localesBySlug.get(row.slug);
+      if (list) list.push(row.locale);
+      else localesBySlug.set(row.slug, [row.locale]);
+    }
+    return rows.map((row) => {
+      const locales = localesBySlug.get(row.slug) ?? [row.locale];
+      const alt = buildLocaleAlternates({
+        origin: base,
+        pathnameWithoutLocale: `${pathPrefix}/${row.slug}`,
+        currentLocale: row.locale,
+        defaultLocale: localeSettings.defaultLocale,
+        supportedLocales: locales,
+      });
+      return {
+        url: alt.canonical,
+        lastModified: row.updated_at ? new Date(row.updated_at) : new Date(),
+        ...(alt.languages ? { alternates: { languages: alt.languages } } : {}),
+      };
+    });
+  }
 
   const { data: pagesRaw } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
@@ -319,15 +368,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // CMS rows, posts, and talent profiles below all prefer their real
   // updated_at. The `new Date()` fallbacks fire only when a row has no
   // timestamp at all, where there is no honest date to publish.
-  const cmsEntries: MetadataRoute.Sitemap = pages.map((row) => {
-    const slug = row.slug;
-    const locale = row.locale;
-    const path = pickLocale(locale, { en: `/p/${slug}`, es: withLocalePath(`/p/${slug}`, "es") });
-    return {
-      url: new URL(path, base).toString(),
-      lastModified: row.updated_at ? new Date(row.updated_at) : new Date(),
-    };
-  });
+  //
+  // CMS content is per-locale ROWS, so the alternate set for a slug is the
+  // locales that actually have a row — never the tenant's full supported list.
+  // A page written in English only must not be annotated as having a Spanish
+  // version; that URL 404s.
+  const cmsEntries: MetadataRoute.Sitemap = cmsRowEntries(pages, "/p");
 
   const { data: postsRaw } = await supabase
     .rpc("cms_public_posts_for_tenant", { p_tenant_id: publicScope.tenantId })
@@ -336,15 +382,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .eq("noindex", false);
   const posts = (postsRaw ?? []) as unknown as CmsSitemapRow[];
 
-  const postEntries: MetadataRoute.Sitemap = posts.map((row) => {
-    const slug = row.slug;
-    const locale = row.locale;
-    const path = pickLocale(locale, { en: `/posts/${slug}`, es: withLocalePath(`/posts/${slug}`, "es") });
-    return {
-      url: new URL(path, base).toString(),
-      lastModified: row.updated_at ? new Date(row.updated_at) : new Date(),
-    };
-  });
+  const postEntries: MetadataRoute.Sitemap = cmsRowEntries(posts, "/posts");
 
   // Phase G PR 1 — include the agency's published roster in the sitemap.
   // Without this, talent profile pages (`/t/<profileCode>`) are crawlable
@@ -369,13 +407,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const talentEntries: MetadataRoute.Sitemap = talents.flatMap((row) => {
     const code = encodeURIComponent(row.profile_code);
     const lastModified = row.updated_at ? new Date(row.updated_at) : new Date();
-    return [
-      { url: new URL(`/t/${code}`, base).toString(), lastModified },
-      {
-        url: new URL(withLocalePath(`/t/${code}`, "es"), base).toString(),
-        lastModified,
-      },
-    ];
+    // A profile page is framework-rendered, so it exists in every locale the
+    // tenant supports.
+    return localeEntries(`/t/${code}`, lastModified);
   });
 
   return [...staticEntries, ...cmsEntries, ...postEntries, ...talentEntries];

@@ -6,7 +6,7 @@ import { PublicHeader } from "@/components/public-header";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
-import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { withLocalePath } from "@/i18n/pathnames";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -40,20 +40,25 @@ export async function generateMetadata({
   const publicScope = await getPublicTenantScope();
   if (!publicScope) return { title: "Not found" };
 
+  // Every published locale of this slug, not just the requested one — the
+  // hreflang set must name only translations that actually exist (an untranslated
+  // post `notFound()`s at `/es/posts/<slug>`).
   const { data } = await supabase
     .rpc("cms_public_posts_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select(
       "title,meta_title,meta_description,og_image_url,noindex,locale,slug,excerpt",
     )
-    .eq("locale", locale)
-    .eq("slug", slug.trim().toLowerCase())
-    .maybeSingle();
+    .eq("slug", slug.trim().toLowerCase());
 
-  const post = data as CmsPostPublic | null;
+  const publishedRows = (data ?? []) as unknown as CmsPostPublic[];
+  const post = publishedRows.find((row) => row.locale === locale) ?? null;
   if (!post) return { title: "Not found" };
 
-  const pathnameEn = `/posts/${post.slug}`;
-  const alt = buildPublicLocaleAlternates(locale as Locale, pathnameEn);
+  // Locale-free, prefix-free path; the builder adds the locale segment and the
+  // path-based tenant prefix from the request.
+  const alt = await buildTenantLocaleAlternates(locale, `/posts/${post.slug}`, {
+    availableLocales: publishedRows.map((row) => row.locale),
+  });
   const title = post.meta_title?.trim() || post.title;
   const description = post.meta_description?.trim() || post.excerpt?.trim() || undefined;
   const openGraph = {
@@ -62,17 +67,11 @@ export async function generateMetadata({
     ...(post.og_image_url ? { images: [{ url: post.og_image_url }] } : {}),
   };
 
-  const altLinks = alt.alternates ?? {};
-
   return {
-    metadataBase: alt.metadataBase,
+    ...alt,
     title,
     description,
     robots: post.noindex ? { index: false, follow: true } : undefined,
-    alternates: {
-      canonical: altLinks.canonical,
-      languages: altLinks.languages,
-    },
     openGraph,
   };
 }
