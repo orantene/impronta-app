@@ -66,6 +66,17 @@ export const CHROME = {
   // the warm paper / white-card ground it sits on (the 2026-04-30
   // "premium restraint" pass dropped visible borders entirely — that
   // went too far; affordance beats restraint for a control surface).
+  //
+  // @deprecated for NEW control edges. Inspector Reset (P1 NumberUnit, P5
+  // InspectorInput/Textarea/Select + SelectDropdown + the inspector search
+  // field + InlineNameInput) has been migrating control borders off this
+  // khaki pair onto the cool `lineStrong` token instead — it is still the
+  // idle edge for dozens of un-migrated call sites (style-panel.tsx and the
+  // style-panel/* sections, kit/segmented.tsx, kit/button.tsx's default
+  // "secondary" variant, inspectors/kit/tokens.ts KIT.input/select/textarea),
+  // so the two hex values below cannot be changed here without a much wider
+  // migration than any single PR should carry silently — retone new/small
+  // controls onto `lineStrong` directly rather than reaching for this pair.
   controlBorder: "#cfc7b6",
   controlBorderStrong: "#b3a892",
   controlFill: "#ffffff",

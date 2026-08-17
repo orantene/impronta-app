@@ -89,7 +89,7 @@ export function InlineNameInput({
       onKeyDown={handleKeyDown}
       style={{
         borderRadius: 10,
-        border: `1px solid ${CHROME.controlBorder}`,
+        border: `1px solid ${CHROME.lineStrong}`,
         background: CHROME.surface,
         boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
         padding: "10px 12px",
@@ -121,8 +121,8 @@ export function InlineNameInput({
           style={{
             width: "100%",
             borderRadius: 7,
-            border: `1px solid ${CHROME.controlBorder}`,
-            background: CHROME.paper,
+            border: `1px solid ${CHROME.lineStrong}`,
+            background: CHROME.controlFill,
             padding: "7px 10px",
             fontSize: 13,
             color: CHROME.ink,
@@ -133,7 +133,7 @@ export function InlineNameInput({
             e.currentTarget.style.borderColor = CHROME.blue;
           }}
           onBlur={(e) => {
-            e.currentTarget.style.borderColor = CHROME.controlBorder;
+            e.currentTarget.style.borderColor = CHROME.lineStrong;
           }}
         />
       ) : null}
@@ -147,7 +147,7 @@ export function InlineNameInput({
             fontSize: 12,
             fontWeight: 500,
             background: "transparent",
-            border: `1px solid ${CHROME.controlBorder}`,
+            border: `1px solid ${CHROME.lineStrong}`,
             borderRadius: 7,
             color: CHROME.muted,
             cursor: "pointer",
