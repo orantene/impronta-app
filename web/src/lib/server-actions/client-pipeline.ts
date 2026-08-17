@@ -27,6 +27,7 @@ import {
   getApplicationFeeForBooking,
 } from "@/lib/payments/stripe-connect";
 import { headers } from "next/headers";
+import { getRequestLocale } from "@/i18n/request-locale";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently
 // preserved as a structurally compatible local type so `startInquiryCheckout`
@@ -284,6 +285,9 @@ export async function startInquiryCheckout(
       description: "Booking invoice",
       connectedAccountId,
       applicationFeeCents,
+      // Pay in the language the client is reading the app in, not the one
+      // their browser happens to advertise.
+      locale: await getRequestLocale(),
     });
 
     if (!result.ok) return { ok: false, error: result.error };

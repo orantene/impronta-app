@@ -16,6 +16,7 @@ import {
   createTalentBillingPortalSession,
 } from "@/lib/stripe/talent-billing";
 import { deriveAppBaseUrl } from "@/lib/stripe/utils";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { loadTalentSelfProfile } from "../../_data-bridge";
 import { logServerError } from "@/lib/server/safe-error";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
@@ -61,6 +62,9 @@ export async function startTalentUpgrade(
     displayName:     talentProfile.displayName,
     tenantSlug,
     appBaseUrl,
+    // The app already resolved this talent's language; hand it to Stripe so
+    // Checkout does not fall back to guessing from the browser.
+    locale: await getRequestLocale(),
   });
 
   if (!result.ok) {
@@ -92,6 +96,7 @@ export async function openTalentSubscriptionPortal(
     userId: session.user.id,
     tenantSlug,
     appBaseUrl,
+    locale: await getRequestLocale(),
   });
 
   if (!result.ok) {
