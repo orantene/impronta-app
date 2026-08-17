@@ -36,7 +36,24 @@ export interface FreeformDropRow {
   parentLocked: boolean;
   /** Index of the row within its parent's child list. */
   index: number;
+  /**
+   * How many children the row itself holds. Only read for an `inside` drop
+   * (the block appends to the end of the container), so it is optional for the
+   * sibling drops every caller already made.
+   */
+  childCount?: number;
+  /** Whether the row ITSELF is locked — governance blocks nesting into it. */
+  locked?: boolean;
 }
+
+/**
+ * Where the drop lands relative to the hovered row. `before`/`after` are the
+ * original sibling drops; `inside` nests the dragged block into the hovered row
+ * itself, which the flat layer list previously had no way to express — a block
+ * could only ever become a sibling of a row that was ALREADY inside the target
+ * container, so an empty or collapsed container was unreachable from the panel.
+ */
+export type FreeformDropZone = "before" | "inside" | "after";
 
 export interface FreeformDropResolved {
   /** Destination parent for `moveBuilderNodeToParentIndex` (`null` = root). */
@@ -79,6 +96,12 @@ export function resolveFreeformLayerDrop(input: {
   descendantIds: ReadonlySet<string>;
   targetRow: FreeformDropRow;
   onUpperHalf: boolean;
+  /**
+   * Three-way zone from the pointer split. Omitted → derived from
+   * `onUpperHalf`, which is exactly the pre-nest behaviour, so every existing
+   * caller keeps its result byte-for-byte.
+   */
+  zone?: FreeformDropZone;
 }): FreeformDropResult {
   const {
     sourceId,
@@ -89,9 +112,43 @@ export function resolveFreeformLayerDrop(input: {
     targetRow,
     onUpperHalf,
   } = input;
+  const zone: FreeformDropZone = input.zone ?? (onUpperHalf ? "before" : "after");
 
   // Dropping onto itself is a no-op, not a move.
   if (targetRow.id === sourceId) return { kind: "noop" };
+
+  // ── nest INTO the hovered row ─────────────────────────────────────────────
+  // The hovered row becomes the PARENT and the block appends to the end of its
+  // children. Runs the same three guards as a sibling drop, but against the row
+  // itself rather than against the row's parent.
+  if (zone === "inside") {
+    if (isSelfOrDescendant(targetRow.id, sourceId, descendantIds)) {
+      return { kind: "blocked", reason: "Cannot move a block into itself." };
+    }
+    if (targetRow.locked) {
+      return { kind: "blocked", reason: "This container is locked." };
+    }
+    const nestDecision = canDropBuilderNode({
+      nodeKind: sourceKind,
+      parentKind: targetRow.kind,
+    });
+    if (!nestDecision.ok) {
+      return { kind: "blocked", reason: nestDecision.message };
+    }
+    const childCount = targetRow.childCount ?? 0;
+    // Already the last child of this container → nothing would change.
+    if (sourceParentId === targetRow.id && sourceIndex === childCount - 1) {
+      return { kind: "noop" };
+    }
+    // Append. A same-parent re-nest removes the source first, so the end index
+    // is one lower — the same post-removal adjustment the sibling path makes.
+    return {
+      kind: "move",
+      targetParentId: targetRow.id,
+      targetIndex:
+        sourceParentId === targetRow.id ? childCount - 1 : childCount,
+    };
+  }
 
   const targetParentId = targetRow.parentId;
 
@@ -118,9 +175,8 @@ export function resolveFreeformLayerDrop(input: {
     return { kind: "blocked", reason: decision.message };
   }
 
-  // Upper half → before the row; lower half → after it. Gap is within the
-  // target row's parent list.
-  const dropGapIndex = onUpperHalf ? targetRow.index : targetRow.index + 1;
+  // Before the row / after the row. Gap is within the target row's parent list.
+  const dropGapIndex = zone === "before" ? targetRow.index : targetRow.index + 1;
   const sameParent = sourceParentId === targetParentId;
 
   const resolved = siblingDropGapToMoveIndex({

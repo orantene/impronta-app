@@ -163,7 +163,28 @@ const BUDGETS: Record<string, number> = {
   //   wiring + the iframe self-detection gate + the explicit ring z-index back
   //   in. The ratchet moving DOWN,
   //   which is the direction it exists to encourage.
-  "selection-layer.tsx": 7783,
+  // +80 (builder move affordances). Four wirings, each with its logic in a
+  // module of its own exactly as this guard's procedure asks:
+  //   • the on-hover grab handle became a rail (grip + click-to-move ↑/↓); the
+  //     component is canvas-node-move-rail.tsx and the sibling-position lookup
+  //     is findBuilderNodeParentIndex in replace-in-tree.ts. What is here is the
+  //     one render site (which REPLACED the old inline <button>, so the net is
+  //     smaller than the feature) plus a memo reading the hovered node's index.
+  //   • "Reset size & position" on the block chip. Which style keys count as a
+  //     layout escape, and the strip itself, live in layout-escapes.ts
+  //     (unit-tested); here is the commit callback that also clears the inline
+  //     previews the drag handles left on the live element, plus the button.
+  //   • Move up/down promoted out of the overflow menu into visible chip
+  //     buttons, matching the section chip. Two ChipBtns in, two menu rows and
+  //     their prop plumbing out.
+  //   • the #30 context menu now portals to <body> so it can outrank the
+  //     Structure panel, which had to be raised above the canvas overlay to
+  //     stop selection rings painting across it (see edit-shell.tsx).
+  // Rebase resolution: both lanes moved this budget. Main's SLIDER-4 extraction
+  // took it DOWN to 7783; this branch's move-affordance wiring adds +80 on top
+  // of that, and the additions are disjoint. Budget below is the measured value
+  // after the rebase, not the sum guessed in advance.
+  "selection-layer.tsx": 7865,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
