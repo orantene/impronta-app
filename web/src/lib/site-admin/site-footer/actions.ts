@@ -47,6 +47,8 @@ import { loadBuilderWorkspacePlan } from "@/lib/site-admin/builder-capabilities"
 import type { Locale } from "@/i18n/config";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 
+import { pickShellPageForLocale } from "@/lib/site-admin/site-header/shell-page-pick";
+
 import { mergeFooterProps, readFooterValue } from "./config-merge";
 import type { SiteFooterConfig, SiteFooterPatchInput } from "./types";
 
@@ -82,13 +84,27 @@ async function resolveFooterSection(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<FooterSectionFacts | null> {
-  const { data: shell } = await supabase
+  // 2026-08-17 — this used `.maybeSingle()`, the exact bug the header already
+  // fixed: with one shell page PER LOCALE, PostgREST errors instead of picking,
+  // and every footer control silently renders its empty state on a bilingual
+  // tenant. Ported verbatim from `resolveHeaderSection`; the rule + its test
+  // live in `site-header/shell-page-pick.ts`.
+  const { data: shells } = await supabase
     .from("cms_pages")
     .select("id, locale")
     .eq("tenant_id", tenantId)
     .eq("system_template_key", "site_shell")
     .neq("status", "archived")
-    .maybeSingle<{ id: string; locale: string | null }>();
+    .returns<Array<{ id: string; locale: string | null }>>();
+  const { data: identity } = await supabase
+    .from("agency_business_identity")
+    .select("default_locale")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ default_locale: string | null }>();
+  const shell = pickShellPageForLocale(
+    shells ?? [],
+    identity?.default_locale ?? "en",
+  );
   if (!shell) return null;
 
   let { data: ptr } = await supabase

@@ -385,6 +385,8 @@ export const ES_INSPECTOR_TEXT: Record<string, string> = {
   "Inside menu": "Dentro del menú",
   Drawer: "Panel lateral",
   "Drawer right": "Panel lateral derecho",
+  "Full screen": "Pantalla completa",
+  "Menu": "Menú",
   Dropdown: "Desplegable",
   Sheet: "Hoja",
   "Sheet bottom": "Hoja inferior",

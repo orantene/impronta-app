@@ -1847,6 +1847,9 @@ export function deriveLegacySectionChildNodes(
   if (slot.sectionTypeKey === "header_favorites") {
     return [];
   }
+  if (slot.sectionTypeKey === "header_language") {
+    return [];
+  }
   return [];
 }
 

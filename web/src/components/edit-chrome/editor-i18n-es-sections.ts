@@ -84,6 +84,11 @@ export const ES_SECTION_CATALOG_TEXT: Record<string, string> = {
   "The header's account menu / sign-in affordance. Live on the published shell; a placeholder chip in the editor.":
     "El menú de cuenta / control de inicio de sesión del encabezado. Activo en el sitio publicado; una ficha de marcador de posición en el editor.",
   "Header favorites": "Favoritos en el encabezado",
+  "Header language": "Idioma en el encabezado",
+  "The header's EN | ES locale toggle. Live on the published shell; a placeholder chip in the editor. Hides itself when the tenant publishes only one language.":
+    "El selector de idioma EN | ES del encabezado. Activo en el sitio publicado; una ficha de marcador de posición en el editor. Se oculta cuando el sitio publica un solo idioma.",
+  "Drops the live EN | ES language toggle into the shell. It switches the visitor to the same page in the other language, and hides itself automatically when your site publishes only one language.":
+    "Coloca el selector de idioma EN | ES en el encabezado. Lleva a la persona visitante a la misma página en el otro idioma y se oculta automáticamente cuando tu sitio publica un solo idioma.",
   "The header's saved-talent / favorites affordance (bookmark icon). Live on the published shell; a placeholder chip in the editor.":
     "El control de talento guardado / favoritos del encabezado (icono de marcador). Activo en el sitio publicado; una ficha de marcador de posición en el editor.",
   "Header inquiry": "Solicitud en el encabezado",

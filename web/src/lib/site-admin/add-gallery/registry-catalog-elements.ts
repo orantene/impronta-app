@@ -600,4 +600,15 @@ export const ADD_GALLERY_ELEMENT_ITEMS: ReadonlyArray<AddGalleryItem> = [
     sourceType: "section-embed",
     searchTerms: ["favorites", "saved", "bookmark", "shortlist", "header widget"],
   }),
+  el({
+    id: "el-header-language",
+    label: "Header Language",
+    description: "The header's EN | ES language toggle for bilingual sites.",
+    category: "header-widgets",
+    icon: "globe",
+    insertMethod: "sectionEmbed",
+    sectionEmbedKey: "header_language",
+    sourceType: "section-embed",
+    searchTerms: ["language", "locale", "translate", "spanish", "english", "en es", "header widget"],
+  }),
 ];

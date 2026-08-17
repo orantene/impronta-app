@@ -840,6 +840,10 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
     name: "Header favorites",
     props: {},
   },
+  header_language: {
+    name: "Header language",
+    props: {},
+  },
 };
 
 export function getLibraryDefault(

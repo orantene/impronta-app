@@ -61,6 +61,7 @@ const EXPECTED_DATA_BOUND_SECTIONS = [
   // their `/directory` + `/client/favorites` hrefs must be prefixed by the
   // tenant's own rules, not the platform `en`-default fallback.
   "header_favorites",
+  "header_language",
   "header_search",
 ].sort();
 
