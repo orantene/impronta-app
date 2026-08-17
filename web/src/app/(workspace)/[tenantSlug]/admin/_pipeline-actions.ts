@@ -1728,6 +1728,9 @@ export type OfferDraftSnapshot = {
   coordinatorFee: number;
   currencyCode: string;
   notes: string | null;
+  /** Display name of whoever created this offer, so an agency team can see
+   *  who wrote the numbers. Null when the author is no longer resolvable. */
+  createdByName: string | null;
   // W6a — the negotiated commercial terms currently saved on this offer, for
   // the composer to display + edit. Defaulted (never null) so the composer always
   // has a coherent starting state; deposit amount is in minor units.
@@ -1785,7 +1788,7 @@ export async function loadOfferDraft(
     const { data: offer, error: offerErr } = await supabase
       .from("inquiry_offers")
       .select(
-        "id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status, deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key",
+        "id, inquiry_id, version, total_client_price, coordinator_fee, currency_code, notes, status, deposit_pct, deposit_amount_cents, balance_collection_method, refund_policy_key, created_by_user_id",
       )
       .eq("id", offerId)
       .eq("tenant_id", tenantId)
@@ -1798,6 +1801,7 @@ export async function loadOfferDraft(
         coordinator_fee: number | null;
         currency_code: string | null;
         notes: string | null;
+        created_by_user_id: string | null;
         status: string | null;
         deposit_pct: number | string | null;
         deposit_amount_cents: number | string | null;
@@ -1880,6 +1884,21 @@ export async function loadOfferDraft(
       };
     }
 
+    // Resolve the offer's author so the editor can show "created by …". An
+    // agency team needs to know who wrote the numbers before sending them to a
+    // client. Best-effort: a missing/removed profile just yields null.
+    let offerAuthorName: string | null = null;
+    const authorId = offer.created_by_user_id as string | null;
+    if (authorId) {
+      const { data: author } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", authorId)
+        .maybeSingle();
+      const n = (author as { full_name?: string | null } | null)?.full_name?.trim();
+      offerAuthorName = n && n.length > 0 ? n : null;
+    }
+
     return {
       ok: true,
       data: {
@@ -1890,6 +1909,7 @@ export async function loadOfferDraft(
         coordinatorFee: Number(offer.coordinator_fee ?? 0),
         currencyCode: (offer.currency_code as string | null) ?? "USD",
         notes: (offer.notes as string | null) ?? null,
+        createdByName: offerAuthorName,
         terms,
         lineItems: rows.map((r) => ({
           id: r.id,
