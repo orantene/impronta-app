@@ -26,7 +26,8 @@ import { resolveLayerDisplayName } from "@/lib/site-admin/builder-node/freeform-
 import type { BuilderNodePastePreview } from "./edit-context";
 import { useEditorLocale } from "./use-editor-locale";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
-import { CANVAS_CHILDREN_PANEL, CHROME, CHROME_RADII } from "./kit/tokens";
+import { CANVAS_CHILDREN_PANEL, CHROME, CHROME_RADII, Z_INDEX } from "./kit/tokens";
+import { PortaledOverlay } from "./kit/portaled-overlay";
 import { useCanvasPanelPlacement } from "./canvas-panel-clearance";
 import {
   BLUE, BLUE_RGB, CANVAS_CHROME_RADIUS, DROP_LINE_HEIGHT, DROP_LINE_RADIUS,
@@ -119,6 +120,12 @@ export function CanvasNodeChildrenPanel({
   // control stack directly above the zoom bar.
   if (!open) {
     return (
+      // PANELS-1 — body-portaled, not left inside #edit-overlay-portal. That
+      // host is a stacking context at z-83, so this panel's own z was flattened
+      // to 83 and it painted BEHIND the inspector dock (85), the drawers
+      // (87/88), and the left dock rail (86) - the owner's "the panels are
+      // always behind". Portaled to <body>, the band below is global and real.
+      <PortaledOverlay>
       <button
         type="button"
         data-builder-node-canvas-children-collapsed=""
@@ -144,7 +151,7 @@ export function CanvasNodeChildrenPanel({
           boxShadow: BUILDER_VISUAL.toolbarShadow,
           color: CHROME.muted,
           cursor: "pointer",
-          zIndex: 91,
+          zIndex: Z_INDEX.canvasPanels,
           pointerEvents: "auto",
           fontSize: 11.5,
           fontWeight: 600,
@@ -155,6 +162,7 @@ export function CanvasNodeChildrenPanel({
         <FolderTree size={14} strokeWidth={2} aria-hidden />
         <span>{nodes.length}</span>
       </button>
+      </PortaledOverlay>
     );
   }
   const clearDragState = () => {
@@ -203,6 +211,8 @@ export function CanvasNodeChildrenPanel({
     await onMoveToIndex(nodeId, parentNodeId, resolved.targetSiblingIndex);
   };
   return (
+    // PANELS-1 — same body portal as the collapsed pill above.
+    <PortaledOverlay>
     <div
       data-builder-node-canvas-children=""
       style={{
@@ -222,7 +232,7 @@ export function CanvasNodeChildrenPanel({
         background: CHROME.surface,
         color: CHROME.ink,
         boxShadow: BUILDER_VISUAL.toolbarShadow,
-        zIndex: 91,
+        zIndex: Z_INDEX.canvasPanels,
         pointerEvents: "auto",
         overflow: "hidden",
         fontFamily:
@@ -640,6 +650,7 @@ export function CanvasNodeChildrenPanel({
         ) : null}
       </div>
     </div>
+    </PortaledOverlay>
   );
 }
 

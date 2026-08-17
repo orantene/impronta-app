@@ -40,6 +40,19 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "Controls the vertical space this block adds between sections.":
     "Controla el espacio vertical que este bloque agrega entre secciones.",
 
+  // ── Carousel slide manager (SLIDER-1, 2026-08-16) ────────────────────────
+  // The inspector's slide list. "Slide {n}", "Add slide", "Drag to reorder" and
+  // "Remove?" already live in the shared flat map (the roster / navigation /
+  // canvas-chip lanes put them there), so only the strings this list invents
+  // are added here.
+  "Showing on canvas": "Se ve en el lienzo",
+  "Empty slide": "Diapositiva vacía",
+  "Duplicate slide": "Duplicar diapositiva",
+  "Remove slide": "Quitar diapositiva",
+  Keep: "Conservar",
+  "No slides yet. Add one to start the slider.":
+    "Todavía no hay diapositivas. Agrega una para empezar el carrusel.",
+
   // ── Site footer inspector + shell variant gallery (2026-08-16) ───────────
   // The footer parity drawer (`inspectors/site-footer/**`) and the Add Gallery's
   // shell-variant confirm. Both resolve through this same flat map: the tabs'

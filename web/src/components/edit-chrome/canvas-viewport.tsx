@@ -332,7 +332,6 @@ export function CanvasViewportProvider({
  * No coordinate adjustments needed in selection-layer.
  */
 export function CanvasZoomStyle({ zoom }: { zoom: number }) {
-  if (zoom === 1) return null; // No transform at 100% — avoids any side effects.
   // `:not(:has([data-edit-chrome]))` — same nested-mount guard as edit-shell's
   // device body-clip. On the storefront the chrome is a body-direct child so
   // this is a no-op; on non-homepage surfaces (Lab / workspace / talent pages)
@@ -340,15 +339,37 @@ export function CanvasZoomStyle({ zoom }: { zoom: number }) {
   // zoom!=1 would scale the ENTIRE platform-admin app (the body-direct child
   // that contains the chrome) instead of just the canvas. The in-editor canvas
   // region is scaled directly by marker so the canvas still zooms there.
+  //
+  // ── `isolation: isolate` is NOT part of the zoom, and is emitted at EVERY
+  // zoom level including 100% ────────────────────────────────────────────────
+  // An operator can give any canvas node a `z-index` up to 999 (the clamp lives
+  // in `registry.ts` and `canvas-z-order.ts`; `Z_INDEX.canvasContentMax` names
+  // it). Without a stacking context around the canvas, that 999 lands in the
+  // ROOT stacking context and paints over the inspector dock (85), the drawers
+  // (87/88), the top bar (90) — every panel. That is the owner's "the panels
+  // are always behind".
+  //
+  // `transform: scale()` already created that stacking context, which is why
+  // the bug only showed at 100% zoom, where the old `if (zoom === 1) return
+  // null` emitted nothing at all. `isolation: isolate` creates the same
+  // stacking context with NO layout, paint, or containing-block effect (unlike
+  // `transform`, it does not become a containing block for `position: fixed`,
+  // so a sticky/fixed element inside the canvas keeps behaving as it does on
+  // the published page). Canvas z-indices now order canvas content against
+  // canvas content, and nothing else.
+  const zoomRules =
+    zoom === 1
+      ? ""
+      : `
+        transform: scale(${zoom}) !important;
+        transform-origin: top center !important;`;
   return (
     <style>{`
       body > *:not([data-edit-chrome]):not([data-edit-iframe-host]):not(:has([data-edit-chrome])) {
-        transform: scale(${zoom}) !important;
-        transform-origin: top center !important;
+        isolation: isolate !important;${zoomRules}
       }
       [data-in-editor-canvas-region] {
-        transform: scale(${zoom}) !important;
-        transform-origin: top center !important;
+        isolation: isolate !important;${zoomRules}
       }
     `}</style>
   );

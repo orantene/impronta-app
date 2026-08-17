@@ -23,6 +23,7 @@ import { usePagePresence } from "./presence-provider";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { anchorToCursor, cursorToAnchor } from "./cursor-coords";
 import {
+  pruneStaleRemoteCursors,
   reconcileRemoteCursors,
   removeRemoteCursor,
   resetRemoteCursors,
@@ -46,7 +47,7 @@ export function RemoteCursorsLayer() {
 }
 
 function RemoteCursorsLayerInner() {
-  const { pageId, locale } = useEditContext();
+  const { pageId, locale, device } = useEditContext();
   const { editors } = usePagePresence();
   const selectedNodeId = useSelectedBuilderNodeId();
 
@@ -203,6 +204,17 @@ function RemoteCursorsLayerInner() {
     reconcileRemoteCursors(new Set(editors.map((e) => e.id)));
   }, [editors]);
 
+  // ── Prune cursors that simply stopped broadcasting ────────────────────────
+  // Presence only reconciles on a real leave. A peer who stops moving their
+  // pointer (idle, backgrounded tab, closed laptop) keeps a live presence row
+  // while sending nothing, so their selection ring used to sit on your canvas
+  // indefinitely — the owner's stuck border. `lastSeen` has been recorded on
+  // every upsert since WS1-B and read by nothing; the TTL sweep reads it.
+  useEffect(() => {
+    const id = window.setInterval(() => pruneStaleRemoteCursors(), 2_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   // ── Re-render on scroll/resize so peer cursors track MY viewport ──────────
   const cursors = useRemoteCursors();
   const [, forceTick] = useState(0);
@@ -218,6 +230,22 @@ function RemoteCursorsLayerInner() {
   }, [cursors.size]);
 
   if (typeof document === "undefined") return null;
+  // ── DEVICE-TIER GUARD ─────────────────────────────────────────────────────
+  // Owner: "the border of selected section gets stuck when another user is
+  // there in mobile and the other in desktop."
+  //
+  // In a device preview the canvas is an IFRAME; the parent document's
+  // storefront is still in the DOM, only `visibility: hidden` (edit-shell's
+  // device body-clip). `visibility: hidden` PRESERVES LAYOUT, so the
+  // `document.querySelector('[data-builder-node-id=…]')` below still returns a
+  // real, plausible, and completely wrong rect — desktop coordinates for a node
+  // the local operator is viewing at phone width. The peer's ring was then
+  // painted over the iframe at those coordinates and, because nothing in this
+  // layer re-measures on a device change, it stayed there.
+  //
+  // SelectionLayer already refuses to draw parent-side chrome in this state
+  // (its `isIframeActive` early return); this layer never got the same gate.
+  if (device !== "desktop") return null;
   const portal = document.getElementById("edit-overlay-portal");
   if (!portal) return null;
 

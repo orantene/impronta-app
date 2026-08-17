@@ -276,14 +276,21 @@ export function IframeBridgeParent() {
     previewingRef.current = previewing;
   }, [previewing]);
 
-  // Helper: post to the iframe's contentWindow if it's mounted.
+  // Helper: post to the ACTIVE iframe's contentWindow if it's mounted.
+  //
+  // STUCK BORDER — this used to take the FIRST `[data-edit-iframe-host] iframe`
+  // in the document. DevicePreview keeps one warm iframe per tier the operator
+  // has visited (hidden with display:none, not unmounted), and tablet comes
+  // before mobile in DOM order — so once tablet had been opened, every
+  // `editor:setSelection` / `editor:scrollToSection` / `editor:setPreviewing`
+  // went to the hidden TABLET frame. The visible mobile frame kept whatever
+  // selection it last had, and no later message could clear it.
+  //
+  // `postToActiveIframe` (exported below, same file) already did this
+  // correctly, with the warm-frame QA note; this internal twin was never
+  // updated. Both now resolve the same way.
   function postToIframe(msg: BridgeMessage) {
-    if (typeof document === "undefined") return;
-    const iframe = document.querySelector<HTMLIFrameElement>(
-      "[data-edit-iframe-host] iframe",
-    );
-    if (!iframe || !iframe.contentWindow) return;
-    iframe.contentWindow.postMessage(msg, window.location.origin);
+    postToActiveIframe(msg);
   }
 
   useEffect(() => {
@@ -396,10 +403,19 @@ export function IframeBridgeParent() {
 
   // When the device toggle flips back to desktop the iframe unmounts;
   // reset the ready handshake so the next mount re-syncs cleanly.
+  //
+  // STUCK BORDER — the selection key is now cleared on EVERY tier change, not
+  // only on the way back to desktop. DevicePreview keeps the tier the operator
+  // just left warm and mounted, so desktop -> mobile, or tablet -> mobile,
+  // used to leave `lastPostedSelectionKeyRef` holding the key that was already
+  // pushed to the OTHER frame; the outbound selection effect then deduped
+  // itself and the newly-active frame was never told what is selected. It
+  // painted (or kept) whatever it had. Clearing the key forces one re-push
+  // into the frame that is now on screen.
   useEffect(() => {
+    lastPostedSelectionKeyRef.current = undefined;
     if (device === "desktop") {
       iframeReadyRef.current = false;
-      lastPostedSelectionKeyRef.current = undefined;
     }
   }, [device]);
 

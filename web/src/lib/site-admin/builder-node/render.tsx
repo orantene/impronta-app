@@ -711,7 +711,16 @@ const BUILDER_NODE_SOCIAL_FEED_CSS = `
 // so the same hero renders Noir & Or / Espresso / Atelier Blanc by swapping the
 // palette. Ported 1:1 from the Noir & Or reference (impronta-mockup-3).
 const BUILDER_NODE_CAROUSEL_HERO_CSS = `
-.site-builder-node--carousel[data-builder-carousel-variant="hero"]{position:relative;display:block;width:100%;max-width:none;min-width:0;margin:0;padding:0;gap:0;overflow:hidden;min-height:var(--bn-hero-min-h,100svh);background:var(--token-color-background,#100e13);--bn-ease:cubic-bezier(0.16,1,0.3,1)}
+/* isolation:isolate — the hero stacks SIX internal layers (slides 1/4, slide
+   scrim 1, slide content 2, page scrim 2, grain 3, shared copy 5, meta+arrows
+   6). Without a stacking context of its own (position:relative alone is not
+   one, z-index stays auto) every one of those numbers competed in the ROOT
+   stacking context against whatever else the page put there, so the hero's
+   arrows could paint over a neighbouring block and the editor's selection
+   chrome had no deterministic relationship to the slides. Isolating costs
+   nothing visually — overflow:hidden already clips these layers to the hero —
+   and it makes "what paints over what inside a slider" answerable. */
+.site-builder-node--carousel[data-builder-carousel-variant="hero"]{position:relative;isolation:isolate;display:block;width:100%;max-width:none;min-width:0;margin:0;padding:0;gap:0;overflow:hidden;min-height:var(--bn-hero-min-h,100svh);background:var(--token-color-background,#100e13);--bn-ease:cubic-bezier(0.16,1,0.3,1)}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="large"]{min-height:var(--bn-hero-min-h,78svh)}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="medium"]{min-height:var(--bn-hero-min-h,60svh)}
 .site-builder-node--carousel[data-builder-carousel-variant="hero"][data-bn-height-mode="fixed"]{min-height:var(--bn-hero-min-h,620px)}

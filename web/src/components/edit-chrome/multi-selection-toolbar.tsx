@@ -21,7 +21,8 @@ import { useState, type ReactNode } from "react";
 import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import { menuShouldOpenUp } from "./canvas-toolbar-anchor";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
-import { CHROME, CHROME_RADII } from "./kit/tokens";
+import { CHROME, CHROME_RADII, Z_INDEX } from "./kit/tokens";
+import { PortaledOverlay } from "./kit/portaled-overlay";
 import type {
   MultiNodeAlignMode,
   MultiNodeDistributeMode,
@@ -158,12 +159,18 @@ export function MultiSelectionToolbar({
     ? { bottom: "calc(100% + 6px)" }
     : { top: "calc(100% + 6px)" };
   return (
-    // Anchored wrapper: the selection-layer geometry loop writes top/left
-    // (canvas-toolbar-anchor.ts) so the bar tracks the selection's union bbox
-    // through scroll/zoom/gestures. The off-screen seed stays CONSTANT so a
-    // re-render never clobbers the loop's imperative writes; the loop places
-    // the bar before first paint. Popups are absolute children, so they ride
-    // along without their own tracking.
+    // PANELS-1 — body-portaled. Rendered inside #edit-overlay-portal (a
+    // stacking context at z-83) this bar's z-100 was flattened to 83, so it
+    // painted BEHIND the inspector dock (85) and the drawers (87/88) — the
+    // owner's "the panels are always behind". The ref still works across the
+    // portal, so the geometry loop below keeps writing top/left as before.
+    <PortaledOverlay>
+    {/* Anchored wrapper: the selection-layer geometry loop writes top/left
+     *  (canvas-toolbar-anchor.ts) so the bar tracks the selection's union bbox
+     *  through scroll/zoom/gestures. The off-screen seed stays CONSTANT so a
+     *  re-render never clobbers the loop's imperative writes; the loop places
+     *  the bar before first paint. Popups are absolute children, so they ride
+     *  along without their own tracking. */}
     <div
       ref={rootRef}
       data-multi-selection-toolbar-root=""
@@ -171,7 +178,7 @@ export function MultiSelectionToolbar({
         position: "fixed",
         top: 0,
         left: -9999,
-        zIndex: 100,
+        zIndex: Z_INDEX.canvasPanels,
         pointerEvents: "none",
       }}
     >
@@ -320,7 +327,7 @@ export function MultiSelectionToolbar({
           background: CHROME.surface,
           border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
           boxShadow: BUILDER_VISUAL.toolbarShadow,
-          zIndex: 101,
+          zIndex: Z_INDEX.canvasPanels + 1,
           pointerEvents: "auto",
         }}
       >
@@ -409,6 +416,7 @@ export function MultiSelectionToolbar({
       />
     ) : null}
     </div>
+    </PortaledOverlay>
   );
 }
 
@@ -456,7 +464,7 @@ function BulkStylePanel({
         color: CHROME.ink,
         border: `1px solid ${BUILDER_VISUAL.panelBorder}`,
         boxShadow: BUILDER_VISUAL.toolbarShadow,
-        zIndex: 101,
+        zIndex: Z_INDEX.canvasPanels + 1,
         pointerEvents: "auto",
         display: "grid",
         gap: 9,

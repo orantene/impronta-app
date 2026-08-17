@@ -153,13 +153,30 @@ const BUDGETS: Record<string, number> = {
   // canvas add/remove rail and the selection chip, and one wrapper element
   // (plus its comment) around the direct-manipulation handle group so the five
   // handles declare their owner once instead of five times.
-  "selection-layer.tsx": 7795,
+  // MINUS 12 (SLIDER-4, the stuck selection border): the two rAF overlay
+  //   tracking loops no longer inline their measure/write. `resolveOverlayBox`
+  //   + `applyOverlayBox(es)` moved to selection-overlay-boxes.ts, WITH the fix
+  //   that a target which can no longer be measured HIDES its overlay instead
+  //   of keeping its last coordinates (the stuck ring). The rotated-geometry
+  //   branch travelled with them and is unit-tested in
+  //   selection-overlay-boxes.test.ts. Net: ~70 inline lines out, ~45 of
+  //   wiring + the iframe self-detection gate + the explicit ring z-index back
+  //   in. The ratchet moving DOWN,
+  //   which is the direction it exists to encourage.
+  "selection-layer.tsx": 7783,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which
   // names the network the feed pulls from rather than repeating "Social feed".
   // Still far under the eslint 800 cap.
-  "canvas-node-children-panel.tsx": 778,
+  // +11 (SLIDER-3, "the panels are always behind"): the panel now portals
+  //   ITSELF to <body> (both the collapsed pill and the open panel) instead of
+  //   rendering inside #edit-overlay-portal, whose z-83 stacking context
+  //   flattened this panel's z-91 and put it behind the inspector dock. That is
+  //   two <PortaledOverlay> wrappers, two closing tags, the import, and the
+  //   comment explaining the trap so the next person does not move it back.
+  //   The z itself now comes from Z_INDEX.canvasPanels; no logic changed.
+  "canvas-node-children-panel.tsx": 789,
 };
 
 function lineCount(relativePath: string): number {
