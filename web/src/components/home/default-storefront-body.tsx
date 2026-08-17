@@ -5,6 +5,7 @@ import {
 } from "@/lib/home/default-storefront-roster";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { getPublicPathPrefix } from "@/lib/saas/scope";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { resolveCardDesign } from "@/lib/site-admin/server/card-design-resolver";
@@ -38,10 +39,11 @@ export async function DefaultStorefrontBody({
   ctaHref: string;
   locale: Locale;
 }) {
-  const [talents, publicPathPrefix, cardDesign] = await Promise.all([
+  const [talents, publicPathPrefix, cardDesign, pathSettings] = await Promise.all([
     loadDefaultStorefrontRoster(tenantId),
     getPublicPathPrefix(),
     resolveCardDesign(tenantId),
+    getRequestLocaleUrlSettings(),
   ]);
   const heroBg = primaryColor?.trim() || "oklch(0.21 0.006 285)";
 
@@ -54,6 +56,7 @@ export async function DefaultStorefrontBody({
     return withLocalePath(
       prefixPublicHref(`/t/${encodeURIComponent(code)}`, publicPathPrefix),
       locale,
+      pathSettings,
     );
   };
 

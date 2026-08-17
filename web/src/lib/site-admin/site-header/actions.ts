@@ -26,6 +26,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSession } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import {
   loadBrandingForStaff,
   loadIdentityForStaff,
@@ -572,8 +573,16 @@ export async function saveHeaderIdentityAction(
       input.socialX !== undefined
         ? input.socialX
         : (current?.social_x ?? null),
-    defaultLocale: current?.default_locale ?? "en",
-    supportedLocales: current?.supported_locales ?? ["en"],
+    // A tenant that has never opened Identity has no row yet. Seed the pair
+    // from the PLATFORM default rather than a literal "en": the literal made
+    // every merge-save on such a tenant silently rewrite its locale set to
+    // English, and it hardcodes a language choice the platform can change.
+    // Keeping default + supported consistent also guarantees the saved row can
+    // never claim a default that is not in its own supported list.
+    defaultLocale: current?.default_locale ?? DEFAULT_PLATFORM_LOCALE,
+    supportedLocales:
+      current?.supported_locales ??
+      [current?.default_locale ?? DEFAULT_PLATFORM_LOCALE],
     seoDefaultTitle: current?.seo_default_title ?? null,
     seoDefaultDescription: current?.seo_default_description ?? null,
     seoDefaultShareImageMediaAssetId:

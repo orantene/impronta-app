@@ -1,12 +1,54 @@
-import type { LanguageSettings } from "@/lib/language-settings/types";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+
+/**
+ * The ONLY two fields URL grammar depends on.
+ *
+ * Every function in this module used to take the full global `LanguageSettings`
+ * with `FALLBACK_LANGUAGE_SETTINGS` as a default argument. That default encodes
+ * the PLATFORM grammar (`defaultLocale: "en"`, `publicLocales: ["en","es"]`),
+ * which is simply wrong on a tenant whose default locale is not `en`: a tenant
+ * with `default_locale = "es"` serves Spanish UNPREFIXED (`/models`) and English
+ * at `/en/models`, the exact inverse of the fallback.
+ *
+ * Narrowing the parameter to this structural pair means a caller can pass a
+ * tenant's `{ defaultLocale, supportedLocales }` (via `localeUrlSettings()`)
+ * without importing the server-only tenant resolver into client code.
+ * `LanguageSettings` remains structurally assignable, so every existing caller
+ * keeps compiling unchanged.
+ */
+export type LocaleUrlSettings = {
+  defaultLocale: string;
+  publicLocales: readonly string[];
+};
+
+/**
+ * Build URL-grammar settings from a tenant's locale pair.
+ *
+ * Client-safe on purpose: takes plain values, not the server-only
+ * `TenantLocaleSettings` object, so a server component can pass
+ * `{defaultLocale, supportedLocales}` down to a client component as props and
+ * the client can rebuild the grammar without touching the DB.
+ */
+export function localeUrlSettings(
+  defaultLocale: string | null | undefined,
+  supportedLocales: readonly string[] | null | undefined,
+): LocaleUrlSettings {
+  const def = defaultLocale?.trim() || FALLBACK_LANGUAGE_SETTINGS.defaultLocale;
+  const supported = (supportedLocales ?? []).filter(
+    (l): l is string => typeof l === "string" && l.trim().length > 0,
+  );
+  return {
+    defaultLocale: def,
+    publicLocales: supported.length > 0 ? supported : [def],
+  };
+}
 
 /**
  * Removes repeated leading locale path segments (e.g. `/es/en/...` from bad redirects).
  */
 export function pathnameWithoutAnyLocalePrefix(
   pathname: string,
-  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  settings: LocaleUrlSettings = FALLBACK_LANGUAGE_SETTINGS,
 ): string {
   let p = pathname.startsWith("/") ? pathname : `/${pathname}`;
   const set = new Set(settings.publicLocales);
@@ -20,7 +62,7 @@ export function pathnameWithoutAnyLocalePrefix(
 
 export function stripLocaleFromPathname(
   pathname: string,
-  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  settings: LocaleUrlSettings = FALLBACK_LANGUAGE_SETTINGS,
 ): {
   locale: string;
   pathnameWithoutLocale: string;
@@ -42,7 +84,7 @@ export function stripLocaleFromPathname(
 export function withLocalePath(
   pathnameWithoutLocale: string,
   locale: string,
-  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  settings: LocaleUrlSettings = FALLBACK_LANGUAGE_SETTINGS,
 ): string {
   const normalized = pathnameWithoutAnyLocalePrefix(
     pathnameWithoutLocale.startsWith("/")
@@ -71,7 +113,7 @@ export function withLocalePath(
 export function withLocaleHref(
   href: string,
   locale: string,
-  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  settings: LocaleUrlSettings = FALLBACK_LANGUAGE_SETTINGS,
 ): string {
   if (!href.startsWith("/") || href.startsWith("//")) return href;
 
@@ -107,7 +149,7 @@ export function withLocaleHref(
  */
 export function stripDefaultLocalePrefixFromPath(
   path: string,
-  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+  settings: LocaleUrlSettings = FALLBACK_LANGUAGE_SETTINGS,
 ): string {
   const hashIdx = path.indexOf("#");
   const beforeHash = hashIdx === -1 ? path : path.slice(0, hashIdx);

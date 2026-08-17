@@ -24,9 +24,8 @@ import { headerContactHref } from "@/lib/site-admin/site-header/social-contact-n
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { headers } from "next/headers";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
-import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
+import { localeUrlSettings, stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
 import { publicLocaleHref } from "@/i18n/client-directory-href";
-import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getFavoriteTalentIds, getSavedTalentIds } from "@/lib/public-discovery";
 import { resolveAccountHref } from "@/lib/auth-flow";
@@ -67,18 +66,18 @@ async function renderRightZone(
   }
   const h = await headers();
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
-  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
+  // Moved ABOVE the strip: the strip's own input needs the tenant's grammar too.
+  // With the platform fallback it mis-reads which leading segment is a locale on
+  // any tenant whose default locale is not the platform default, so every
+  // switcher link below was built from a corrupted base path.
+  const pathSettings = localeUrlSettings(localeSettings.defaultLocale, localeSettings.supportedLocales);
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath, pathSettings);
   const actor = await getCachedActorSession();
   const account = resolveAccountHref(Boolean(actor.user), actor.profile);
   const [savedIds, favoriteIds] = await Promise.all([
     getSavedTalentIds(),
     getFavoriteTalentIds(),
   ]);
-  const pathSettings = {
-    ...FALLBACK_LANGUAGE_SETTINGS,
-    defaultLocale: localeSettings.defaultLocale,
-    publicLocales: [...localeSettings.supportedLocales],
-  };
   const localeLinks = showLanguage
     ? localeSettings.supportedLocales.map((code) => ({
         code,
@@ -92,7 +91,7 @@ async function renderRightZone(
       activeLocale={locale}
       navItems={navItems}
       primaryCta={primaryCta}
-      directoryHref={publicLocaleHref(pathnameWithoutLocale, "/directory", locale)}
+      directoryHref={publicLocaleHref(pathnameWithoutLocale, "/directory", locale, pathSettings)}
       accountHref={account.href}
       accountLabel={account.label}
       savedCount={savedIds.length}

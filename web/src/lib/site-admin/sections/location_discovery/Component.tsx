@@ -9,6 +9,7 @@ import type { SectionComponentProps } from "../types";
 import type { LocationDiscoveryV1 } from "./schema";
 import { fetchTenantRosterCities } from "./fetch";
 import { LocationSection } from "@/components/home/location-section";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { getHomepageData } from "@/lib/home-data";
 import { resolveGoogleMapsKeyForClient } from "@/lib/integrations/resolve";
 import type { Locale } from "@/i18n/config";
@@ -221,6 +222,11 @@ export async function LocationDiscoveryComponent({
     mapStyle,
   } = props;
 
+  // Tenant URL grammar for every `/directory?location=…` link this section (and
+  // the client-side orbit map beneath it) emits. Resolved once here and threaded
+  // down as a prop, because the map is a client component and cannot read it.
+  const localeUrl = await getRequestLocaleUrlSettings();
+
   // talent_orbit — the live, interactive Google map with talent-profile photos
   // orbiting each city pin (LocationSection / LocationMapPinPreview). Sources
   // live roster cities + featured talent for the tenant, regardless of `source`.
@@ -240,6 +246,7 @@ export async function LocationDiscoveryComponent({
           locale={locale as Locale}
           mapsApiKey={mapsApiKey}
           publicPathPrefix={publicPathPrefix}
+          localeUrl={localeUrl}
           copy={{
             sectionKicker:
               eyebrow ?? pickLocale(locale, { en: "Talent network", es: "Red de talento" }),
@@ -396,6 +403,7 @@ export async function LocationDiscoveryComponent({
             }}
             mapsApiKey={key}
             publicPathPrefix={publicPathPrefix}
+            localeUrl={localeUrl}
           />
         </Container>
       </section>

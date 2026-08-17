@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 
 import { createTranslator } from "@/i18n/messages";
 import { withLocalePath } from "@/i18n/pathnames";
+import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import type { Locale } from "@/i18n/config";
 import {
   HeaderWidgetGlyph,
@@ -21,7 +22,7 @@ import type { HeaderSearchV1 } from "./schema";
  *   - published shell            → the real Search → /directory link, locale +
  *     path-prefix resolved like the legacy header.
  */
-export function HeaderSearchComponent({
+export async function HeaderSearchComponent({
   preview,
   locale,
   publicPathPrefix = "",
@@ -44,7 +45,12 @@ export function HeaderSearchComponent({
     );
   }
 
-  const href = `${publicPathPrefix}${withLocalePath("/directory", locale as Locale)}`;
+  // Awaited AFTER the preview early-return so the editor canvas never pays
+  // for it. The tenant's grammar decides whether the ACTIVE locale is the
+  // unprefixed one; the platform fallback gets that backwards on any tenant
+  // whose default locale is not the platform default.
+  const pathSettings = await getRequestLocaleUrlSettings();
+  const href = `${publicPathPrefix}${withLocalePath("/directory", locale as Locale, pathSettings)}`;
   return (
     <Link
       href={href}
