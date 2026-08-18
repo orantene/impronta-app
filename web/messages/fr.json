@@ -599,6 +599,8 @@
       "nav": {
         "overviewLabel": "Aperçu",
         "overviewDescription": "Pages, articles, domaine, SEO",
+        "pagesLabel": "Pages",
+        "pagesDescription": "Toutes les pages de votre site",
         "designLabel": "Design",
         "designDescription": "Couleurs, polices, espacement, en-tête et pied de page",
         "cardDesignLabel": "Design des cartes",

@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { InfoTip } from "@/components/ui/info-tip";
+import { Icon } from "../primitives";
 import { COLORS, FONTS } from "../state";
 import type { WebsiteAnalytics, WebsitePageRow, WebsitePeriodMetrics } from "../state";
 
@@ -75,18 +77,6 @@ export function formatScheduledPublishAt(
   return interpolate(t("dashboard.adminWebsite.pageCardPublishesOn"), { date: formatShortDate(iso, locale) });
 }
 
-export function HeroStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div>
-      <div style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 600, color: "#fff", letterSpacing: -0.5, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 4, fontWeight: 500, letterSpacing: 0.2 }}>
-        {label}
-        {sub && <span style={{ marginLeft: 4, opacity: 0.7 }}>· {sub}</span>}
-      </div>
-    </div>
-  );
-}
-
 export function ConfigStatusRow({ label, status, value }: { label: string; status: "ok" | "warn"; value: string }) {
   const dot = status === "ok" ? COLORS.successDeep : COLORS.amberDeep;
   return (
@@ -124,6 +114,15 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
   const t = useT();
   const [period, setPeriod] = useState<"7d" | "30d">("7d");
   const [topView, setTopView] = useState<"pages" | "talent" | "referrers">("pages");
+  // Open by default on desktop, folded away on a narrow screen where five
+  // tables of numbers push everything actionable off the page. Plain useState +
+  // a conditional render on purpose: `AdminCollapsibleSection` is built on
+  // shadcn tokens (`text-foreground` renders white-on-white in this shell) and
+  // Radix would buy nothing here but bundle weight.
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    if (window.innerWidth < 900) setOpen(false);
+  }, []);
   const m: WebsitePeriodMetrics = period === "7d" ? analytics.last7d : analytics.last30d;
   const byPage = period === "7d" ? analytics.byPage7d : analytics.byPage30d;
   const byTalent = period === "7d" ? analytics.byTalent7d : analytics.byTalent30d;
@@ -157,7 +156,23 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
   return (
     <section style={{ marginBottom: 18 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.performanceHeading")}</h2>
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          className="inline-flex cursor-pointer items-baseline gap-[6px] border-none bg-transparent p-0 text-left"
+        >
+          <span className="self-center text-admin-ink-dim">
+            <Icon name={open ? "chevron-down" : "chevron-right"} size={14} />
+          </span>
+          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.performanceHeading")}</h2>
+        </button>
+        <InfoTip
+          label={t("dashboard.adminWebsite.performanceInfo")}
+          triggerLabel={t("dashboard.adminWebsite.designHub.whatIsThis")}
+          placement="bottom-start"
+          className="self-center text-admin-ink-dim hover:text-admin-ink"
+        />
         <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminWebsite.vsPriorPeriod"), { period })}</span>
         <div style={{ marginLeft: "auto", display: "inline-flex", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 999, padding: 3, fontFamily: FONTS.body }} className="bg-admin-surface-alt">
           {(["7d", "30d"] as const).map(p => {
@@ -169,6 +184,7 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
         </div>
       </div>
 
+      {open ? (
       <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14 }}>
           <Tile label={t("dashboard.adminWebsite.tileVisits")}           value={m.visits.toLocaleString()}   current={m.visits}    prior={m.prior.visits} />
@@ -298,6 +314,7 @@ export function WebsitePerformance({ analytics, pages, fmtMoney }: { analytics: 
           )}
         </div>
       </div>
+      ) : null}
     </section>
   );
 }
