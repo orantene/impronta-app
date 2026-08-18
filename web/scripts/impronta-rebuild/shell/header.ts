@@ -182,6 +182,20 @@ function hideOnMobile(node: BuilderNode): BuilderNode {
 
 // ── tree builder ─────────────────────────────────────────────────────────────
 
+/**
+ * The four division landing pages exist in ENGLISH only.
+ *
+ * They were still listed in the Spanish menu, so every Spanish page carried
+ * four 404s in its primary navigation — silently, because the tree is valid and
+ * the publish succeeds; only a click reveals it. Until the Spanish landings are
+ * written, the Spanish menu offers the one destination that IS Spanish: the
+ * directory, which is where those links were leading anyway.
+ *
+ * `seed-shell.ts` now refuses to publish a shell with dead links, so this
+ * cannot regress quietly — delete this constant the day the pages exist.
+ */
+const DIVISION_PAGES_EXIST_IN: ReadonlySet<ShellLocale> = new Set(["en"]);
+
 function navLinks(locale: ShellLocale): BuilderNavLink[] {
   const copy = COPY[locale].links;
   const id = (slug: string): string => `shellhdr-${locale}-nav-${slug}`;
@@ -191,12 +205,16 @@ function navLinks(locale: ShellLocale): BuilderNavLink[] {
       id: id("divisions"),
       label: copy.divisions,
       href: "/directory",
-      children: [
-        { id: id("fashion-models"), label: copy.fashionModels, href: "/p/fashion-models" },
-        { id: id("hosts-promoters"), label: copy.hostsPromoters, href: "/p/hosts-promoters" },
-        { id: id("performers"), label: copy.performers, href: "/p/performers" },
-        { id: id("music-djs"), label: copy.musicDjs, href: "/p/music-djs" },
-      ],
+      ...(DIVISION_PAGES_EXIST_IN.has(locale)
+        ? {
+            children: [
+              { id: id("fashion-models"), label: copy.fashionModels, href: "/p/fashion-models" },
+              { id: id("hosts-promoters"), label: copy.hostsPromoters, href: "/p/hosts-promoters" },
+              { id: id("performers"), label: copy.performers, href: "/p/performers" },
+              { id: id("music-djs"), label: copy.musicDjs, href: "/p/music-djs" },
+            ],
+          }
+        : {}),
     },
     { id: id("for-clients"), label: copy.forClients, href: "/p/for-clients" },
     { id: id("about"), label: copy.about, href: "/p/about" },
