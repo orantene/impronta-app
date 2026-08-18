@@ -184,3 +184,45 @@ export function shellGoldCta(id: string, label: string, href: string): BuilderNo
 
 /** Re-exported for shell trees that set nav link colours. */
 export const SHELL_NAV_TEXT = TEXT;
+
+
+// ── locale hrefs ─────────────────────────────────────────────────────────────
+
+/**
+ * Prefix every INTERNAL href in a tree with the locale segment.
+ *
+ * English is this tenant's unprefixed default, so `/p/about` is correct there
+ * and `/es/p/about` is correct on the Spanish site. Authoring the trees from
+ * one structural builder means both locales carry the same bare hrefs -- which
+ * shipped a Spanish header whose every link dropped the visitor back into
+ * English. The pages themselves were fine (`/es/p/about` renders Spanish); only
+ * the links were wrong, so nothing surfaced as an error.
+ *
+ * Left alone: absolute URLs, `mailto:`/`tel:`/`wa.me`, in-page anchors, and
+ * anything already carrying the prefix (so this is idempotent).
+ */
+export function localizeHref(href: string, locale: string): string {
+  if (locale === "en") return href;
+  if (!href.startsWith("/")) return href;
+  const prefix = `/${locale}`;
+  if (href === prefix || href.startsWith(`${prefix}/`)) return href;
+  return href === "/" ? prefix : `${prefix}${href}`;
+}
+
+/** Deep-map `localizeHref` over every href a shell node can carry. */
+export function localizeTreeHrefs<T>(nodes: readonly T[], locale: string): T[] {
+  if (locale === "en") return nodes as T[];
+  const walk = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (!node || typeof node !== "object") return node;
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      out[key] =
+        key === "href" && typeof value === "string"
+          ? localizeHref(value, locale)
+          : walk(value);
+    }
+    return out;
+  };
+  return nodes.map((n) => walk(n) as T);
+}
