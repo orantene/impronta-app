@@ -14,6 +14,7 @@ import type {
   BuilderButtonNode,
   BuilderContainerNode,
   BuilderHeadingNode,
+  BuilderNode,
   BuilderNodeTree,
   BuilderParagraphNode,
   BuilderSplitNode,
@@ -179,6 +180,23 @@ test("uses mobile override width when present", () => {
   const tapIssues = issues.filter((i) => i.kind === "tap_target");
   assert.equal(tapIssues.length, 1);
   assert.ok(tapIssues[0]!.message.includes("width 20px"));
+});
+
+test("flags nav with explicit height below 44px", () => {
+  const nav: BuilderNode = {
+    id: "nav1",
+    kind: "nav",
+    props: {
+      brand: "Impronta",
+      links: [],
+      style: { height: "32px" },
+    },
+  } as BuilderNode;
+  const issues = runMobileHealthCheck([nav]);
+  const tapIssues = issues.filter((i) => i.kind === "tap_target");
+  assert.equal(tapIssues.length, 1);
+  assert.ok(tapIssues[0]!.message.includes("Nav"));
+  assert.ok(tapIssues[0]!.message.includes("height 32px"));
 });
 
 // ── Check 2b: container with buttons and no gap ────────────────────────────

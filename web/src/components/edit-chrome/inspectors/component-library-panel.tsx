@@ -60,6 +60,7 @@ export function ComponentLibraryPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -108,6 +109,12 @@ export function ComponentLibraryPanel({
   const linkableTotal = components.filter(
     (c) => c.rootKind === "container" || c.rootKind === "card",
   ).length;
+
+  const visibleComponents = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return components;
+    return components.filter((c) => c.name.toLowerCase().includes(q));
+  }, [components, query]);
 
   async function onInsertLinked(component: BuilderComponentRow) {
     setBusy(true);
@@ -292,7 +299,20 @@ export function ComponentLibraryPanel({
                 )}
               </div>
             ) : null}
-            {components.map((component) => {
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              placeholder={t("Search components…")}
+              className={KIT.input}
+              aria-label={t("Search components…")}
+            />
+            {visibleComponents.length === 0 ? (
+              <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
+                {t("No components match this search.")}
+              </div>
+            ) : (
+            visibleComponents.map((component) => {
               const usage = usageById[component.id] ?? 0;
               const stale = staleById[component.id] ?? 0;
               const linkable =
@@ -412,7 +432,8 @@ export function ComponentLibraryPanel({
                   </div>
                 </div>
               );
-            })}
+            })
+            )}
           </>
         )}
       </div>

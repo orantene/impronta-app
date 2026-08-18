@@ -875,9 +875,10 @@ export function SelectionLayer() {
   }, [inspectorTabRequest]);
   const [contextMenu, setContextMenu] =
     useState<SelectionContextMenuState | null>(null);
-  const [componentNamerSuggested, setComponentNamerSuggested] = useState<
-    string | null
-  >(null);
+  const [componentNamer, setComponentNamer] = useState<{
+    suggested: string;
+    nodeId: string;
+  } | null>(null);
   const [nodeInsertTarget, setNodeInsertTarget] = useState<NodeInsertTarget | null>(
     null,
   );
@@ -5479,7 +5480,7 @@ export function SelectionLayer() {
                       t(BUILDER_NODE_REGISTRY[contextMenuNode.kind].label),
                     )
                   : t("Saved component");
-              setComponentNamerSuggested(suggested);
+              setComponentNamer({ suggested, nodeId: id });
               closeContextMenu();
             }}
             onMoveNodeUp={() => {
@@ -5555,18 +5556,23 @@ export function SelectionLayer() {
               closeContextMenu();
             }}
           />
-          {componentNamerSuggested ? (
+          {componentNamer ? (
             <ConvertToComponentNamer
-              suggested={componentNamerSuggested}
+              suggested={componentNamer.suggested}
               onConfirm={(name) => {
-                setComponentNamerSuggested(null);
-                void saveSelectedNodeAsComponent(name).then((result) => {
+                const pinnedNodeId = componentNamer.nodeId;
+                setComponentNamer(null);
+                void saveSelectedNodeAsComponent(
+                  name,
+                  undefined,
+                  pinnedNodeId,
+                ).then((result) => {
                   if (!result.ok && result.error) {
                     reportMutationError(result.error);
                   }
                 });
               }}
-              onCancel={() => setComponentNamerSuggested(null)}
+              onCancel={() => setComponentNamer(null)}
             />
           ) : null}
 

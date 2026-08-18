@@ -48,6 +48,7 @@ import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
 import { runMobileHealthCheck } from "@/lib/site-admin/builder-node/mobile-health";
 import type { BuilderNode, BuilderNodeTree } from "@/lib/site-admin/builder-node";
 import { CHROME } from "./kit";
+import { useEditorLocale } from "./use-editor-locale";
 
 // The navigator rail collapses to this hairline width when closed (mirrors
 // navigator-panel.tsx's collapsed rail). Keep the panel clear of it.
@@ -222,10 +223,13 @@ function MobileStructureControls({
     patch: { visibility?: "visible" | "hidden"; order?: number | null },
   ) => Promise<{ ok: boolean; error?: string }>;
 }) {
+  const { t } = useEditorLocale();
   const [busy, setBusy] = useState(false);
   const { hidden, order } = readDeviceStructure(node, bucket);
   const overrides = resolveResponsiveOverrides(node);
   const label = resolveLayerDisplayName(node);
+  const onTablet = bucket === "tablet";
+  const hasBucketOverride = onTablet ? overrides.tablet : overrides.mobile;
 
   async function run(patch: {
     visibility?: "visible" | "hidden";
@@ -302,11 +306,19 @@ function MobileStructureControls({
           </span>
         </span>
         {/* (d) Wave-2B "has mobile override" dot — visible on the selected block. */}
-        {overrides.mobile ? (
+        {hasBucketOverride ? (
           <span
             role="img"
-            aria-label="This block has mobile-specific overrides"
-            title="This block behaves differently on mobile"
+            aria-label={
+              onTablet
+                ? t("This block has tablet-specific overrides")
+                : t("This block has mobile-specific overrides")
+            }
+            title={
+              onTablet
+                ? t("This block behaves differently on tablet")
+                : t("This block behaves differently on mobile")
+            }
             style={{
               display: "inline-block",
               width: 7,
@@ -330,8 +342,12 @@ function MobileStructureControls({
         aria-pressed={hidden}
         title={
           hidden
-            ? "This block is hidden on mobile, show it again"
-            : "Hide this block on mobile only (desktop + tablet unaffected)"
+            ? onTablet
+              ? t("This block is hidden on tablet, show it again")
+              : t("This block is hidden on mobile, show it again")
+            : onTablet
+              ? t("Hide this block on tablet only (desktop + phone unaffected)")
+              : t("Hide this block on mobile only (desktop + tablet unaffected)")
         }
         style={{
           width: "100%",
@@ -351,7 +367,13 @@ function MobileStructureControls({
           {hidden ? <EyeOffIcon /> : <EyeIcon />}
         </span>
         <span style={{ flex: 1, fontSize: 12, fontWeight: 600 }}>
-          {hidden ? "Hidden on mobile" : "Hide on mobile"}
+          {hidden
+            ? onTablet
+              ? t("Hidden on tablet")
+              : t("Hidden on mobile")
+            : onTablet
+              ? t("Hide on tablet")
+              : t("Hide on mobile")}
         </span>
         <span
           style={{
@@ -360,7 +382,7 @@ function MobileStructureControls({
             color: hidden ? CHROME.amber : CHROME.muted2,
           }}
         >
-          {hidden ? "Tap to show" : "Tap to hide"}
+            {hidden ? t("Tap to show") : t("Tap to hide")}
         </span>
       </button>
 
@@ -382,7 +404,7 @@ function MobileStructureControls({
               color: CHROME.text,
             }}
           >
-            Mobile order
+            {onTablet ? t("Tablet order") : t("Mobile order")}
           </span>
           <span
             style={{
@@ -392,8 +414,11 @@ function MobileStructureControls({
             }}
           >
             {order === null
-              ? "Natural flow"
-              : `Override: ${order} (lower shows first)`}
+              ? t("Natural flow")
+              : t("Override: {order} (lower shows first)").replace(
+                  "{order}",
+                  String(order),
+                )}
           </span>
         </span>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -401,8 +426,16 @@ function MobileStructureControls({
             type="button"
             onClick={() => void run({ order: effectiveOrder - 1 })}
             disabled={busy}
-            title="Move earlier on mobile (paint this block sooner)"
-            aria-label="Move earlier on mobile"
+            title={
+              onTablet
+                ? t("Move earlier on tablet (paint this block sooner)")
+                : t("Move earlier on mobile (paint this block sooner)")
+            }
+            aria-label={
+              onTablet
+                ? t("Move earlier on tablet")
+                : t("Move earlier on mobile")
+            }
             style={nudgeBtnStyle(busy)}
           >
             <ArrowUpIcon />
@@ -411,8 +444,14 @@ function MobileStructureControls({
             type="button"
             onClick={() => void run({ order: effectiveOrder + 1 })}
             disabled={busy}
-            title="Move later on mobile (paint this block after siblings)"
-            aria-label="Move later on mobile"
+            title={
+              onTablet
+                ? t("Move later on tablet (paint this block after siblings)")
+                : t("Move later on mobile (paint this block after siblings)")
+            }
+            aria-label={
+              onTablet ? t("Move later on tablet") : t("Move later on mobile")
+            }
             style={nudgeBtnStyle(busy)}
           >
             <ArrowDownIcon />
@@ -421,7 +460,11 @@ function MobileStructureControls({
             type="button"
             onClick={() => void run({ order: null })}
             disabled={busy || order === null}
-            title="Reset mobile order to natural flow"
+            title={
+              onTablet
+                ? t("Reset tablet order to natural flow")
+                : t("Reset mobile order to natural flow")
+            }
             style={{
               height: 26,
               padding: "0 8px",
@@ -435,7 +478,7 @@ function MobileStructureControls({
               whiteSpace: "nowrap",
             }}
           >
-            Reset
+            {t("Reset")}
           </button>
         </div>
       </div>

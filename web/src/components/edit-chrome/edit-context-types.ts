@@ -732,6 +732,7 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   saveSelectedNodeAsComponent: (
     name: string,
     description?: string,
+    nodeId?: string,
   ) => Promise<{ ok: boolean; error?: string; componentId?: string }>;
   /**
    * Phase 3 — overwrite an existing master component with the selected block, so

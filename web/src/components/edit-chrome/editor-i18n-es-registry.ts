@@ -126,6 +126,9 @@ export const ES_BUILDER_REGISTRY_TEXT: Record<string, string> = {
   // ── Element-library insert picker ────────────────────────────────────────
   "Search elements": "Buscar elementos",
   "Search blocks…": "Buscar bloques...",
+  "Search components…": "Buscar componentes...",
+  "No components match this search.":
+    "Ningún componente coincide con esta búsqueda.",
   "No elements match this search.": "Ningún elemento coincide con esta búsqueda.",
   "No elements can be inserted here right now (catalog empty). Reload the page or pick another section. If this persists, the builder tree may still be loading.":
     "Ahora mismo no se puede insertar ningún elemento aquí (catálogo vacío). Recarga la página o elige otra sección. Si el problema continúa, puede que el árbol del constructor aún se esté cargando.",

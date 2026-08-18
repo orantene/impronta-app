@@ -81,6 +81,8 @@ import {
   clearInstanceVariant as clearInstanceVariantInTree,
   countComponentInstances,
   tagAsInstance,
+  wrapNodeAsInstanceRoot,
+  canConvertNodeToComponent,
 } from "@/lib/site-admin/builder-node/component-instances";
 import {
   ejectSectionInTree,
@@ -110,8 +112,9 @@ import {
   applyMobileFixes,
   collectMobileFixes,
 } from "@/lib/site-admin/builder-node/mobile-fix";
-import { randomUuid } from "@/lib/site-admin/builder-node/make-id";
 import { applyResponsiveStructurePatch } from "@/lib/site-admin/builder-node/responsive-structure";
+import { replaceBuilderNodeInTree } from "@/lib/site-admin/builder-node/replace-in-tree";
+import { makeId } from "@/lib/site-admin/builder-node/make-id";
 import {
   builderPlanAllows,
   normalizeBuilderWorkspacePlan,
@@ -4093,9 +4096,8 @@ export function EditProvider({
   const saveSelectedNodeAsComponent = useCallback<
     EditContextValue["saveSelectedNodeAsComponent"]
   >(
-    async (name, description) => {
-      // W2-T4a — read selection from the ref so this stays stable on selection.
-      const activeNodeId = selectedBuilderNodeIdRef.current;
+    async (name, description, nodeId) => {
+      const activeNodeId = nodeId ?? selectedBuilderNodeIdRef.current;
       if (!activeNodeId) {
         return { ok: false, error: "Select a block on the canvas first." };
       }
@@ -4103,20 +4105,52 @@ export function EditProvider({
         builderTreeRef.current,
         activeNodeId,
       );
-      if (!location || location.node.kind === "section") {
-        return {
-          ok: false,
-          error: "Pick a block inside a section, not the whole section.",
-        };
+      if (!location) {
+        return { ok: false, error: "Select a block on the canvas first." };
       }
+      const gate = canConvertNodeToComponent(location.node);
+      if (!gate.ok) return gate;
+
+      const subtree = wrapNodeAsInstanceRoot(
+        location.node,
+        makeId("container"),
+      );
       const result = await saveBuilderComponent({
         name,
         description,
-        subtree: location.node,
+        subtree,
       });
+      if (!result.ok || !result.componentId) return result;
+
+      const linked = tagAsInstance(subtree, result.componentId);
+      const replaced = await executeBuilderNodeOperation({
+        operation: "patch",
+        nodeId: activeNodeId,
+        run: (tree) => {
+          const next = replaceBuilderNodeInTree(tree, activeNodeId, linked);
+          if (!next.replaced) {
+            return {
+              ok: false,
+              code: "NODE_NOT_FOUND",
+              error: "That block is no longer on the page.",
+            };
+          }
+          return { ok: true, tree: next.tree };
+        },
+      });
+      if (!replaced.ok) {
+        return {
+          ok: false,
+          error:
+            replaced.error ??
+            "Saved the component but couldn't link it on the canvas.",
+          componentId: result.componentId,
+        };
+      }
+      setSelectedBuilderNodeIdOverride(linked.id);
       return result;
     },
-    [],
+    [executeBuilderNodeOperation, setSelectedBuilderNodeIdOverride],
   );
   // Phase 3 — overwrite an existing master component from the selected block.
   const updateSelectedNodeAsComponent = useCallback<

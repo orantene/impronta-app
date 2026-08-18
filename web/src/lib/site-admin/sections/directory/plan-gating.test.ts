@@ -62,3 +62,8 @@ test("schema accepts an optional cardKitOverride slug as plain data", () => {
   assert.equal(unset.success, true);
   if (unset.success) assert.equal(unset.data.cardKitOverride, undefined);
 });
+
+test("schema defaults columnsMobile to 1", () => {
+  const parsed = directorySchemaV1.parse({});
+  assert.equal(parsed.columnsMobile, 1);
+});

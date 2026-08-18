@@ -357,15 +357,6 @@ export async function DirectoryComponent({
       ? "items-start text-left"
       : "items-center text-center mx-auto";
 
-  // #6 polish: density + hover knobs propagate as data attributes so card
-  // CSS can opt in without DirectoryCard growing hooks (RP-1 / T2 reuse:
-  // DirectoryCard stays pure prop-driven).
-  const sectionStyle = {
-    "--dir-cols-m": props.columnsMobile,
-    "--dir-cols-t": props.columnsTablet,
-    "--dir-cols-d": props.columnsDesktop,
-  } as unknown as CSSProperties;
-
   // P4 — per-instance card-kit override projected to inline `--token-card-*`
   // vars on the results wrapper (DirectoryReactiveResults). Undefined → the
   // instance inherits the tenant's published card palette.
@@ -460,7 +451,6 @@ export async function DirectoryComponent({
               ? "w-full bg-foreground/[0.015] px-4 py-14 sm:px-6 sm:py-20"
               : "w-full px-4 py-14 sm:px-6 sm:py-20"
       }
-      style={sectionStyle}
     >
       {hasBanner ? (
         <div className="relative isolate w-full overflow-hidden">
@@ -723,6 +713,7 @@ export async function DirectoryComponent({
             columnsDesktop={props.columnsDesktop}
             columnsTablet={props.columnsTablet}
             columnsMobile={props.columnsMobile}
+            mobileFilterStyle={props.mobileFilterStyle}
           />
           </>
         )}

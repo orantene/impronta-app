@@ -26,6 +26,7 @@ export function DirectoryMobileFilters({
   ageMax = null,
   fieldFacets,
   ui,
+  filterStyle = "sheet",
 }: {
   blocks: DirectoryFilterSidebarBlock[];
   selectedIds: string[];
@@ -36,6 +37,7 @@ export function DirectoryMobileFilters({
   ageMax?: number | null;
   fieldFacets: DirectoryFieldFacetSelection[];
   ui: DirectoryUiCopy;
+  filterStyle?: "sheet" | "drawer";
 }) {
   const [open, setOpen] = useState(false);
   const scalarFacetCount = fieldFacets.filter((f) => f.values.some((v) => v.trim())).length;
@@ -46,6 +48,8 @@ export function DirectoryMobileFilters({
     (ageMin != null || ageMax != null ? 1 : 0) +
     scalarFacetCount;
 
+  const side = filterStyle === "drawer" ? "left" : "bottom";
+
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
@@ -55,7 +59,14 @@ export function DirectoryMobileFilters({
           {activeCount > 0 ? ` (${activeCount})` : ""}
         </Button>
       </DrawerTrigger>
-      <DrawerContent side="left" className="w-full overflow-y-auto sm:max-w-sm">
+      <DrawerContent
+        side={side}
+        className={
+          side === "bottom"
+            ? "max-h-[85dvh] overflow-y-auto"
+            : "w-full overflow-y-auto sm:max-w-sm"
+        }
+      >
         <DrawerHeader>
           <DrawerTitle>{ui.mobile.sheetTitle}</DrawerTitle>
           <DrawerDescription>{ui.mobile.sheetDescription}</DrawerDescription>
