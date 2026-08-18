@@ -82,3 +82,27 @@ test("both shell render paths are covered (guard count)", () => {
     `expected an eject guard on BOTH shell render paths, found ${guards.length}`,
   );
 });
+
+test("an ejected header exposes its REAL ids so its blocks stay selectable", () => {
+  // The synthetic `__site_header__` id routes editor clicks to the curated
+  // header FORM inspector, and the suppressed node id stops the header being
+  // picked as a freeform node. Correct while the curated bar renders; wrong
+  // once ejected — the operator could see the new header but could not click a
+  // single element in it. Both markers must be conditional on `ejected`.
+  const slotGuards = SOURCE.match(
+    /slot\.sectionTypeKey === "site_header" && !sectionEjected/g,
+  ) ?? [];
+  assert.equal(
+    slotGuards.length,
+    2,
+    "legacy-slot path must gate BOTH data-section-id and data-builder-node-id on eject",
+  );
+  const landmarkGuards = SOURCE.match(
+    /sectionTypeKey === "site_header" && node\.props\.ejected !== true/g,
+  ) ?? [];
+  assert.equal(
+    landmarkGuards.length,
+    2,
+    "freeform-landmark path must gate BOTH id markers on eject",
+  );
+});
