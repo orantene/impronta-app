@@ -65,6 +65,23 @@ export const STYLE_GROUP_TITLES: Record<StyleGroupId, string> = {
 };
 
 /**
+ * Kinds that lay out CHILDREN, and therefore get the plain-language Arrange
+ * controls INSIDE "Layout & spacing" (not as a group of their own — D4 caps
+ * how many groups a kind may render, and arrangement is a layout decision, the
+ * same reasoning that re-homed Align there). Justify/align/wrap exist for every kind in the style schema, but they
+ * only DO anything on a flex/grid parent — offering them on a heading would be
+ * three dead controls. Everything else reaches the raw fields in Advanced.
+ */
+export const ARRANGE_KINDS: ReadonlySet<BuilderNodeKind> = new Set<BuilderNodeKind>([
+  "container",
+  "split",
+  "cta_group",
+  "nav",
+  "card",
+  "masonry",
+]);
+
+/**
  * Kinds whose own content is text the operator sets typography on.
  *
  * Excluded on purpose: `container` / `split` / `card` / `cta_group` /
@@ -182,6 +199,11 @@ export const STYLE_GROUP_SEARCH_TERMS: Record<
     "tone",
   ],
   layout: [
+    "arrange",
+    "justify",
+    "center",
+    "spread",
+    "wrap",
     // was Dimensions
     "width",
     "max width",

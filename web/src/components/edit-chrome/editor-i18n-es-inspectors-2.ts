@@ -472,4 +472,25 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "Visitors must fill this field before submitting.":
     "Los visitantes deben completar este campo antes de enviar.",
   "+ Add field": "+ Añadir campo",
+  // Arrange items group (plain-language justify/align/wrap).
+  "Arrange items": "Ordenar elementos",
+  "How the things inside this box sit next to each other.":
+    "Cómo se colocan entre sí los elementos dentro de esta caja.",
+  "Across": "En horizontal",
+  "When it runs out of room": "Cuando falta espacio",
+  "One line": "En una línea",
+  "Let it wrap": "Que baje de línea",
+  // Nav panel labels that reached the operator untranslated.
+  "Submenu style": "Estilo del submenú",
+  "Menu background": "Fondo del menú",
+  "Menu text": "Texto del menú",
+  "Menu border": "Borde del menú",
+  "Hamburger button label": "Etiqueta del botón de menú",
+  "Auto-populate links from": "Rellenar enlaces automáticamente desde",
+  "Colours for the open mobile menu. Any CSS colour or a theme token such as var(--token-color-ink). Leave blank for the default card.":
+    "Colores del menú móvil abierto. Cualquier color CSS o un token del tema como var(--token-color-ink). Déjalo vacío para la tarjeta predeterminada.",
+  "Edit label and destination for each link. Drag the handle to reorder.":
+    "Edita el texto y el destino de cada enlace. Arrastra el asa para reordenar.",
+  "Opens under the toggle. Simplest, no overlay.":
+    "Se abre bajo el botón. Lo más simple, sin superposición.",
 };

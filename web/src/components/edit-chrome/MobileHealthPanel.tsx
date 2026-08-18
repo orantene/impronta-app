@@ -22,6 +22,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 
 import {
+  MOBILE_HEALTH_KIND_ORDER,
   runMobileHealthCheck,
   type MobileHealthCheckKind,
   type MobileHealthIssue,
@@ -278,7 +279,7 @@ export function MobileHealthPanel({ builderTree }: Props) {
                 )}
               </p>
               <FixMobileIssuesAction builderTree={builderTree} />
-              {(["tiny_text", "tap_target", "overflow"] as const)
+              {MOBILE_HEALTH_KIND_ORDER
                 .filter((kind) => (grouped[kind]?.length ?? 0) > 0)
                 .map((kind) => (
                   <IssueGroup

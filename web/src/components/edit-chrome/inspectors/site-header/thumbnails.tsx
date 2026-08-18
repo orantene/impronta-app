@@ -327,6 +327,28 @@ function PhoneFrame() {
   );
 }
 
+/**
+ * The "dropdown" mobile menu: a small panel hanging under the hamburger,
+ * inside the page rather than over it. It had NO thumbnail of its own and
+ * borrowed the bottom-sheet picture, so two of the four chips in the picker
+ * were visually identical and the operator could not tell them apart.
+ */
+export function MobileNavThumb_Dropdown() {
+  return (
+    <svg viewBox={VB} className="h-10 w-[72px]" aria-hidden>
+      <PhoneFrame />
+      {/* the burger it hangs from */}
+      <rect x="48" y="5" width="8" height="1.5" rx="0.5" className={STYLES.ink} />
+      <rect x="48" y="8" width="8" height="1.5" rx="0.5" className={STYLES.ink} />
+      <rect x="48" y="11" width="8" height="1.5" rx="0.5" className={STYLES.ink} />
+      {/* small panel below it — page still visible around it */}
+      <rect x="30" y="16" width="28" height="16" rx="3" className="fill-white" />
+      <rect x="34" y="20" width="20" height="2" rx="0.5" className={STYLES.mute} />
+      <rect x="34" y="25" width="14" height="2" rx="0.5" className={STYLES.mute} />
+    </svg>
+  );
+}
+
 export function MobileNavThumb_DrawerRight() {
   return (
     <svg viewBox={VB} className="h-10 w-[72px]" aria-hidden>

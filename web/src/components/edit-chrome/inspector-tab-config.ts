@@ -86,6 +86,15 @@ function nodeUsesLayoutInspector(
   }
 }
 
+/**
+ * Kinds that get a Data tab for its VISIBILITY rules alone, having no data
+ * binding of their own to earn it.
+ */
+const KINDS_WITH_VISIBILITY_RULES: ReadonlySet<string> = new Set([
+  "nav",
+  "social_links",
+]);
+
 export function resolveInspectorVisibleTabs(input: {
   sectionTypeKey: string | null | undefined;
   selectedStandaloneBuilderNode: ReturnType<
@@ -102,6 +111,12 @@ export function resolveInspectorVisibleTabs(input: {
     } else if (
       builderNodeSupportsFieldBindings(selectedStandaloneBuilderNode.kind)
     ) {
+      tabs.push("data");
+    } else if (KINDS_WITH_VISIBILITY_RULES.has(selectedStandaloneBuilderNode.kind)) {
+      // The Data tab also owns visibility rules (show only in one locale, only
+      // when signed in). Gating the tab purely on data BINDING hid that control
+      // from the header's two most locale-sensitive nodes -- a nav and a social
+      // row -- so the rules existed with no way to reach them.
       tabs.push("data");
     }
     tabs.push("motion");

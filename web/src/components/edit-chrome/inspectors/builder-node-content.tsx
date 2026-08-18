@@ -42,11 +42,14 @@ import { ElementLibraryInsertPicker } from "../element-library-insert-picker";
 import { Card, CardBody, CardHead, Field, FieldLabel, Helper, Segmented, Stepper, TextInput, Toggle } from "../kit";
 import { CHROME } from "../kit/tokens";
 import {
+  MobileNavThumb_Dropdown,
   MobileNavThumb_DrawerRight,
   MobileNavThumb_FullScreen,
   MobileNavThumb_SheetBottom,
 } from "./site-header/thumbnails";
 import type { LengthUnit } from "../kit/number-unit";
+import { ColorSwatchButton } from "./color-swatch-button";
+import { DraggableList } from "./kit/draggable-list";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
 import { MediaField, toMediaValue } from "./kit";
@@ -98,7 +101,7 @@ const NAV_MOBILE_MENU_OPTIONS: Array<{
     value: "dropdown",
     label: "Dropdown",
     helper: "Opens under the toggle. Simplest, no overlay.",
-    Thumb: MobileNavThumb_SheetBottom,
+    Thumb: MobileNavThumb_Dropdown,
   },
   {
     value: "drawer-right",
@@ -2016,20 +2019,33 @@ export function BuilderNodeContentInspector({
               ] as const).map(([propKey, label, placeholder]) => (
                 <Field flush key={`nav-${propKey}-${node.id}`}>
                   <FieldLabel>{label}</FieldLabel>
-                  <input
-                    key={`nav-${propKey}-input-${node.id}`}
-                    defaultValue={node.props[propKey] ?? ""}
-                    className={KIT.input}
-                    placeholder={placeholder}
-                    onBlur={(event) => {
-                      void commitTextInput(propKey, node.props[propKey] ?? "", true)(
-                        event.currentTarget.value,
-                      );
-                    }}
-                    onKeyDown={handleCommitKey((value) => {
-                      void commitTextInput(propKey, node.props[propKey] ?? "", true)(value);
-                    })}
-                  />
+                  {/* Swatch AND text: the picker is the fast path, but the text
+                      input stays because a theme token -- var(--token-color-ink)
+                      -- is a legitimate value a colour picker cannot express. */}
+                  <div className="flex items-center gap-2">
+                    <ColorSwatchButton
+                      color={node.props[propKey] ?? ""}
+                      ariaLabel={`Pick ${label.toLowerCase()}`}
+                      dataAttr={["data-builder-nav-color", propKey]}
+                      onChange={(next) => {
+                        void commitPatch({ [propKey]: next });
+                      }}
+                    />
+                    <input
+                      key={`nav-${propKey}-input-${node.id}-${node.props[propKey] ?? ""}`}
+                      defaultValue={node.props[propKey] ?? ""}
+                      className={KIT.input}
+                      placeholder={placeholder}
+                      onBlur={(event) => {
+                        void commitTextInput(propKey, node.props[propKey] ?? "", true)(
+                          event.currentTarget.value,
+                        );
+                      }}
+                      onKeyDown={handleCommitKey((value) => {
+                        void commitTextInput(propKey, node.props[propKey] ?? "", true)(value);
+                      })}
+                    />
+                  </div>
                 </Field>
               ))}
               <Helper>
@@ -2073,20 +2089,33 @@ export function BuilderNodeContentInspector({
           />
           <CardBody>
             <div className="flex flex-col gap-3">
-              <p className={KIT.hint}>Edit label and destination for each link. Drag to reorder.</p>
-              {links.map((link, linkIndex) => (
+              <p className={KIT.hint}>Edit label and destination for each link. Drag the handle to reorder.</p>
+              {/* The hint used to promise dragging with no drag handler behind
+                  it. DraggableList is the sanctioned inspector reorder
+                  primitive; Up/Down stay as the keyboard-accessible path. */}
+              <DraggableList
+                items={links}
+                keyOf={(link) => link.id}
+                onReorder={(next) => {
+                  void commitPatch({ links: next });
+                }}
+              >
+                {(link, linkIndex, handleProps) => (
                 <div
                   key={link.id}
                   className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
-                      <div
-                        aria-hidden
-                        className="inline-flex h-6 w-5 shrink-0 items-center justify-center text-[13px] font-semibold text-stone-400"
+                      <span
+                        {...handleProps}
+                        role="button"
+                        tabIndex={-1}
+                        aria-label={`Reorder ${link.label || `link ${linkIndex + 1}`}`}
+                        className="inline-flex h-6 w-5 shrink-0 cursor-grab items-center justify-center text-[13px] font-semibold text-stone-400 active:cursor-grabbing"
                       >
                         ⋮⋮
-                      </div>
+                      </span>
                       <span className="flex-1 truncate text-[12px] font-semibold text-stone-700">
                         {link.label || `Link ${linkIndex + 1}`}
                       </span>
@@ -2333,7 +2362,8 @@ export function BuilderNodeContentInspector({
                     </div>
                   </div>
                 </div>
-              ))}
+                )}
+              </DraggableList>
               {links.length < 12 ? (
                 <button
                   type="button"
