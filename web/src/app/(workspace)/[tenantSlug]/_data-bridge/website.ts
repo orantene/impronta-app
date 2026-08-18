@@ -12,6 +12,9 @@ import {
   type WebsiteAnalyticsData,
   type WebsiteConversionMetrics,
 } from "@/lib/analytics/website-analytics";
+import { readTenantPageRoles } from "@/lib/site-admin/server/page-roles";
+import { EMPTY_PAGE_ROLES } from "@/lib/site-admin/server/page-roles-shape";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   loadWorkspaceDomainSummary,
   type WorkspaceDomainSummary,
@@ -42,6 +45,32 @@ export type WebsitePageItem = {
    * `state/website-page-status.ts`).
    */
   scheduledPublishAt: string | null;
+  /** cms_pages.locale — a bilingual tenant seeds one row per locale per
+   *  page, so the same slug can appear once per supported language. */
+  locale: string;
+  /** cms_pages.version — optimistic-concurrency counter, bumped on save. */
+  version: number;
+  /** cms_pages.noindex — robots noindex flag set from the SEO panel. */
+  noindex: boolean;
+  /** cms_pages.include_in_sitemap. */
+  includeInSitemap: boolean;
+  /**
+   * True when `cms_pages.meta_description` is set (non-empty after trim).
+   * Deliberately a presence flag, not the text itself — this bridge feeds
+   * list/grid surfaces that only need to badge "SEO description missing",
+   * not render the description. The full identity/SEO editors read
+   * `cms_pages` directly when they need the text.
+   */
+  hasMetaDescription: boolean;
+  /** cms_pages.published_at — null until the page has ever been published. */
+  publishedAt: string | null;
+  /**
+   * cms_pages.system_template_key — used (alongside `homeSlug` below) to
+   * detect the built-in homepage row when the tenant hasn't assigned a
+   * `home` page-role override. NOT the same as `templateKey` above (the
+   * staff-chosen section template).
+   */
+  systemTemplateKey: string | null;
 };
 
 export type WebsitePostItem = {
@@ -84,6 +113,25 @@ export type WebsiteData = {
    * money tiles in the WebsitePerformance panel.
    */
   conversion: WebsiteConversionMetrics;
+  /**
+   * P1-B — per-tenant page ROLE pointers (`agencies.settings.pageRoles`,
+   * read via `readTenantPageRoles`). A null role means "use the built-in
+   * default" (see `page-roles-shape.ts`); the `home` pointer in particular
+   * lets `mergeWebsiteStateFromBridge` compute `WebsitePageRow.isHomepage`
+   * without a second query — all three roles come back from one
+   * `agencies.settings` read, so all three are exposed here even though
+   * only `home` is consumed today.
+   */
+  homeSlug: string | null;
+  directorySlug: string | null;
+  notFoundSlug: string | null;
+  /**
+   * Tenant's primary language (`agency_business_identity.default_locale`
+   * via `loadTenantLocaleSettings`). Exposed for a future Pages list
+   * redesign to flag pages whose locale differs from the tenant default;
+   * not consumed by any UI yet.
+   */
+  defaultLocale: string;
 };
 
 /**
@@ -114,12 +162,16 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
     domainSummary: emptyDomainSummary,
     analytics: emptyWebsiteAnalytics(),
     conversion: emptyWebsiteConversionMetrics(),
+    homeSlug: null,
+    directorySlug: null,
+    notFoundSlug: null,
+    defaultLocale: "en",
   };
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return empty;
 
-    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary, analytics, conversion] = await Promise.all([
+    const [pagesRaw, postsRes, redirectsRes, identity, domainSummary, analytics, conversion, pageRoles, localeSettings] = await Promise.all([
       listPagesForStaff(supabase, tenantId).catch(() => []),
       supabase
         .from("cms_posts")
@@ -137,6 +189,8 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       loadWorkspaceDomainSummary(tenantId).catch(() => emptyDomainSummary),
       loadWebsiteAnalytics(tenantId).catch(() => emptyWebsiteAnalytics()),
       loadWebsiteConversionMetrics(tenantId).catch(() => emptyWebsiteConversionMetrics()),
+      readTenantPageRoles(supabase, tenantId).catch(() => EMPTY_PAGE_ROLES),
+      loadTenantLocaleSettings(tenantId).catch(() => null),
     ]);
 
     type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
@@ -160,6 +214,13 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
           updatedBy: p.updated_by ?? null,
           templateKey: p.template_key ?? null,
           scheduledPublishAt: p.scheduled_publish_at ?? null,
+          locale: p.locale,
+          version: p.version,
+          noindex: p.noindex,
+          includeInSitemap: p.include_in_sitemap,
+          hasMetaDescription: !!p.meta_description?.trim(),
+          publishedAt: p.published_at ?? null,
+          systemTemplateKey: p.system_template_key ?? null,
         })),
       posts: ((postsRes.data ?? []) as unknown as PostRow[]).map((p) => ({
         id: p.id,
@@ -181,6 +242,10 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
       domainSummary,
       analytics,
       conversion,
+      homeSlug: pageRoles.home,
+      directorySlug: pageRoles.directory,
+      notFoundSlug: pageRoles.notFound,
+      defaultLocale: localeSettings?.defaultLocale ?? "en",
     };
   } catch (err) {
     logServerError("workspace.loadWebsiteData", err);

@@ -4804,12 +4804,12 @@ const _daysAhead = (n: number) => new Date(_now + n * 86400e3).toISOString();
 
 export const WEBSITE_STATE: WebsiteState = {
   pages: [
-    { id: "p1", title: "Home",                  slug: "/",            status: "published", updatedAt: _daysAgo(2),  lastEditedBy: "Joana Rivera", template: "home",    hits7d: 1842 },
-    { id: "p2", title: "Roster",                slug: "/roster",      status: "published", updatedAt: _daysAgo(5),  lastEditedBy: "Joana Rivera", template: "roster",  hits7d: 1216 },
-    { id: "p3", title: "About us",              slug: "/about",       status: "published", updatedAt: _daysAgo(30), lastEditedBy: "Marco Conti",  template: "about",   hits7d: 412 },
-    { id: "p4", title: "Contact",               slug: "/contact",     status: "published", updatedAt: _daysAgo(60), lastEditedBy: "Joana Rivera", template: "contact", hits7d: 287 },
-    { id: "p5", title: "Press kit",             slug: "/press",       status: "draft",     updatedAt: _daysAgo(1),  lastEditedBy: "Marco Conti",  template: "press",   hits7d: 0 },
-    { id: "p6", title: "SS27 capsule launch",   slug: "/launch/ss27", status: "scheduled", scheduledFor: _daysAhead(14), updatedAt: _daysAgo(0.2), lastEditedBy: "Joana Rivera", template: "blank", hits7d: 0 },
+    { id: "p1", title: "Home",                  slug: "/",            status: "published", updatedAt: _daysAgo(2),  lastEditedBy: "Joana Rivera", template: "home",    hits7d: 1842, hits30d: 6320, locale: "en", version: 9,  noindex: false, includeInSitemap: true,  hasMetaDescription: true,  publishedAt: _daysAgo(120), isHomepage: true },
+    { id: "p2", title: "Roster",                slug: "/roster",      status: "published", updatedAt: _daysAgo(5),  lastEditedBy: "Joana Rivera", template: "roster",  hits7d: 1216, hits30d: 4180, locale: "en", version: 5,  noindex: false, includeInSitemap: true,  hasMetaDescription: true,  publishedAt: _daysAgo(90),  isHomepage: false },
+    { id: "p3", title: "About us",              slug: "/about",       status: "published", updatedAt: _daysAgo(30), lastEditedBy: "Marco Conti",  template: "about",   hits7d: 412,  hits30d: 1410, locale: "en", version: 3,  noindex: false, includeInSitemap: true,  hasMetaDescription: true,  publishedAt: _daysAgo(200), isHomepage: false },
+    { id: "p4", title: "Contact",               slug: "/contact",     status: "published", updatedAt: _daysAgo(60), lastEditedBy: "Joana Rivera", template: "contact", hits7d: 287,  hits30d: 980,  locale: "en", version: 4,  noindex: false, includeInSitemap: true,  hasMetaDescription: false, publishedAt: _daysAgo(200), isHomepage: false },
+    { id: "p5", title: "Press kit",             slug: "/press",       status: "draft",     updatedAt: _daysAgo(1),  lastEditedBy: "Marco Conti",  template: "press",   hits7d: 0,    hits30d: 0,    locale: "en", version: 1,  noindex: false, includeInSitemap: true,  hasMetaDescription: false, isHomepage: false },
+    { id: "p6", title: "SS27 capsule launch",   slug: "/launch/ss27", status: "scheduled", scheduledFor: _daysAhead(14), updatedAt: _daysAgo(0.2), lastEditedBy: "Joana Rivera", template: "blank", hits7d: 0, hits30d: 0, locale: "en", version: 1, noindex: false, includeInSitemap: true, hasMetaDescription: true, isHomepage: false },
   ],
   posts: [
     { id: "po1", title: "Spring 2026 — what's moving",   slug: "/blog/spring-2026-moving",  status: "published", publishedAt: _daysAgo(3),  updatedAt: _daysAgo(3),  author: "Joana Rivera", hits7d: 412, tags: ["editorial", "trends"] },
@@ -4991,6 +4991,15 @@ export function mergeWebsiteStateFromBridge(
     // UI-only "scheduled" status — see website-page-status.ts for why
     // `cms_pages.status` alone can never produce it.
     const status = deriveWebsitePageStatus(p.status, p.scheduledPublishAt);
+    // A row is the tenant's homepage when its raw slug matches the
+    // assigned `home` page-role pointer (agencies.settings.pageRoles.home,
+    // read by readTenantPageRoles). When no role is assigned, fall back to
+    // the built-in convention: the seeded `system_template_key = 'homepage'`
+    // row — see page-roles-shape.ts for why an unset role means "use the
+    // default" rather than "no homepage".
+    const isHomepage = live.homeSlug
+      ? rawSlug === live.homeSlug
+      : p.systemTemplateKey === "homepage";
     return {
       id: p.id,
       title: p.title?.trim() ? p.title : "Untitled",
@@ -5004,6 +5013,16 @@ export function mergeWebsiteStateFromBridge(
       lastEditedBy: (p.updatedBy && memberNameById.get(p.updatedBy)) || "",
       template: p.templateKey?.replace(/_/g, " ") ?? "page",
       hits7d: 0,
+      // P1-B — pipeline enrichment, no visible UI change yet (feeds the
+      // redesigned Pages list). Passed straight through from cms_pages via
+      // WebsitePageItem.
+      locale: p.locale,
+      version: p.version,
+      noindex: p.noindex,
+      includeInSitemap: p.includeInSitemap,
+      hasMetaDescription: p.hasMetaDescription,
+      publishedAt: p.publishedAt ?? undefined,
+      isHomepage,
     };
   });
 
@@ -5078,17 +5097,28 @@ export function mergeWebsiteStateFromBridge(
   const conv7d = live.conversion.last7d;
   const conv30d = live.conversion.last30d;
 
-  // Map page slug → real 7d visits so each page card shows live hits.
+  // Map page slug → real 7d/30d visits so each page card shows live hits.
   const visitsBySlug7d = new Map<string, number>(
     live7d.topPages.map((p) => [p.pageSlug, p.visits]),
+  );
+  const visitsBySlug30d = new Map<string, number>(
+    live30d.topPages.map((p) => [p.pageSlug, p.visits]),
   );
   const slugOf = (raw: string): string => {
     const s = (raw ?? "").trim();
     return s === "" ? "/" : s.startsWith("/") ? s : `/${s}`;
   };
+  // ANALYTICS-2 — null-honest: `groupTopPages` truncates to the top 8
+  // slugs by visits (website-analytics-group.ts `limit = 8`), so a slug
+  // absent from `topPages` does NOT mean zero visits — it means "not in
+  // the top 8". Leave hits7d/hits30d undefined here rather than
+  // defaulting to 0. Consumers (WebsitePage-1/2.tsx) already do
+  // `hits7d ?? 0` for rendering — a deliberate "treat unknown as zero for
+  // now" display choice, not a claim of a true zero.
   const pagesWithHits: WebsitePageRow[] = pages.map((p) => ({
     ...p,
-    hits7d: visitsBySlug7d.get(slugOf(p.slug)) ?? 0,
+    hits7d: visitsBySlug7d.get(slugOf(p.slug)),
+    hits30d: visitsBySlug30d.get(slugOf(p.slug)),
   }));
 
   // Build a slug → cms_pages id map so top-page rows (which may carry only a

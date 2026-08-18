@@ -192,7 +192,12 @@ const BUDGETS: Record<string, number> = {
   // Admin shell internals. The largest concentration of god files outside the
   // builder, and the one with no decomposition program running today.
   "src/components/admin/shell/internal/drawers/drawer-shared.tsx": 5615,
-  "src/components/admin/shell/internal/state/fixtures.ts": 5149,
+  // 2026-08-18 Website pages data enrichment (P1-B): +29 for the bridge merge
+  // projecting locale / SEO flags / page roles / 30d visits onto WebsitePageRow,
+  // plus the null-honest visit mapping. The merge is the seam between the data
+  // bridge and shell state, so it has nowhere else to live; the pure helpers it
+  // calls are already separate modules.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5178,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -295,7 +300,12 @@ const BUDGETS: Record<string, number> = {
   // parent) and `supported` (false when the tenant disabled the term). Both
   // are two-line fields on an existing type plus the doc comments explaining
   // the "why" — nothing extractable.
-  "src/components/admin/shell/internal/state/types.ts": 2771,
+  // 2026-08-18 Website pages data enrichment (P1-B): +24 for the eight new
+  // WebsitePageRow fields and the comments recording what each one means -
+  // notably that an undefined visit count is "not in the top 8", not zero.
+  // types.ts is the shell's single shared type surface; splitting one row type
+  // out of it would cost more in import churn than the lines are worth.
+  "src/components/admin/shell/internal/state/types.ts": 2795,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge

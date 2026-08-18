@@ -2632,7 +2632,31 @@ export type WebsitePageRow = {
   scheduledFor?: string;
   lastEditedBy: string;
   template: string;
+  /**
+   * ANALYTICS-2 — real 7d page-view count from `groupTopPages` (top 8 by
+   * visits; see website-analytics-group.ts). Undefined means "not in the
+   * top 8", NOT "zero visits" — `groupTopPages` truncates, so a page can
+   * have had real traffic and still be absent. Consumers currently render
+   * `hits7d ?? 0` (WebsitePage-1/2.tsx), a deliberate "treat unknown as
+   * zero for now" choice, not a claim of a true zero.
+   */
   hits7d?: number;
+  /** Same null-honest convention as `hits7d`, over the trailing 30 days. */
+  hits30d?: number;
+  /** P1-B — pipeline enrichment (data only; no UI consumer yet, feeds the
+   *  redesigned Pages list). Passed straight through from `cms_pages` via
+   *  `WebsitePageItem` (_data-bridge/website.ts). */
+  locale?: string;
+  version?: number;
+  noindex?: boolean;
+  includeInSitemap?: boolean;
+  /** True when `cms_pages.meta_description` is set — presence only, not
+   *  the text (see `WebsitePageItem.hasMetaDescription`). */
+  hasMetaDescription?: boolean;
+  publishedAt?: string;
+  /** True when this row is the tenant's homepage — see
+   *  `mergeWebsiteStateFromBridge` for how it's derived. */
+  isHomepage?: boolean;
 };
 
 export type WebsitePost = {

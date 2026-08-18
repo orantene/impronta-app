@@ -95,6 +95,10 @@ export function HeroStat({ label, value, sub }: { label: string; value: string; 
 export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRow; maxHits: number; onClick?: () => void }) {
   const t = useT();
   const locale = useDashboardLocale();
+  // ANALYTICS-2 — `hits7d` is null-honest (undefined ⇒ "not in the top 8
+  // pages by visits", not "zero visits"; see mergeWebsiteStateFromBridge).
+  // Rendering unknown-as-zero here is a deliberate display choice, not a
+  // claim of a true zero.
   const hits = page.hits7d ?? 0;
   const fillPct = maxHits > 0 ? (hits / maxHits) * 100 : 0;
   const isLive = page.status === "published";
