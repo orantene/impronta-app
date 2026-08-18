@@ -540,6 +540,13 @@ export function TalentProfileChatLauncher({
           target at its own centre and label. Below ~700px the rail is suppressed
           entirely (audit item 7 — no floating cluster on narrow viewports). */}
       <div
+        /* Marks the launcher for the one rule that must reach it from outside
+           this tree: an open mobile nav drawer hides it. The launcher is
+           body-level at z-index 95 while a site header is its own stacking
+           context (sticky + z-index), so NO z-index on the drawer can lift it
+           over this pill -- hiding it is the only correct fix. See the nav CSS
+           in builder-node/render.tsx. */
+        data-guest-chat-launcher=""
         style={{
           position: "fixed",
           right: "max(16px, env(safe-area-inset-right))",
