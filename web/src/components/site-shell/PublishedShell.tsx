@@ -384,8 +384,14 @@ async function renderShellSlot(
     <div
       key={slot.sectionId}
       data-cms-section=""
+      // The synthetic `__site_header__` id routes editor clicks to the curated
+      // header FORM inspector, and suppressing the node id stops the header
+      // being selected as a freeform node. Both are right while the curated bar
+      // renders -- and wrong once it is EJECTED, because then the bar is an
+      // authored tree whose blocks must be clickable like any other. Ejected
+      // landmarks therefore expose their real ids.
       data-section-id={
-        slot.sectionTypeKey === "site_header"
+        slot.sectionTypeKey === "site_header" && !sectionEjected
           ? SITE_HEADER_SELECTION_ID
           : slot.sectionId
       }
@@ -393,7 +399,9 @@ async function renderShellSlot(
       data-slot-key={slot.slotKey}
       data-sort-order={slot.sortOrder}
       data-builder-node-id={
-        slot.sectionTypeKey === "site_header" ? undefined : builderNodeId
+        slot.sectionTypeKey === "site_header" && !sectionEjected
+          ? undefined
+          : builderNodeId
       }
     >
       {shouldIncludeBuilderNodeRendererStyles ? (
@@ -684,14 +692,20 @@ function renderFreeformShellLandmark({
     <div
       key={node.id}
       data-cms-section=""
+      // See the identical note on the legacy-slot path: an ejected header is an
+      // authored tree, so it exposes its real ids and stays node-selectable.
       data-section-id={
-        sectionTypeKey === "site_header" ? SITE_HEADER_SELECTION_ID : sectionId
+        sectionTypeKey === "site_header" && node.props.ejected !== true
+          ? SITE_HEADER_SELECTION_ID
+          : sectionId
       }
       data-section-type-key={sectionTypeKey}
       data-slot-key={node.props.slotKey ?? undefined}
       data-sort-order={node.props.sortOrder}
       data-builder-node-id={
-        sectionTypeKey === "site_header" ? undefined : node.id
+        sectionTypeKey === "site_header" && node.props.ejected !== true
+          ? undefined
+          : node.id
       }
     >
       {/* "2018 bye-bye" — see the identical guard on the legacy-slot path.

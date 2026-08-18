@@ -108,6 +108,15 @@ export function countNodes(tree: unknown): number {
  */
 export function buildShellTree(input: {
   anchors: AnchorIds;
+  /**
+   * The slot sortOrder AS STORED. Do NOT assume header=0 / footer=1: the
+   * address key is `sectionId:slotKey:sortOrder`, and Impronta's footer slot is
+   * stored with sortOrder 0. Guessing it produced landmarks that matched no
+   * slot, so `renderShellSlot` found no builder node, rendered no children --
+   * and with the curated component correctly suppressed by `ejected`, the live
+   * site had NO header at all.
+   */
+  sortOrders: { header: number; footer: number };
   header: BuilderNode[];
   footer: BuilderNode[];
 }): BuilderNode[] {
@@ -119,7 +128,7 @@ export function buildShellTree(input: {
         sectionId: input.anchors.header,
         sectionTypeKey: "site_header",
         slotKey: "header",
-        sortOrder: 0,
+        sortOrder: input.sortOrders.header,
         label: "Site header",
         ejected: true,
       },
@@ -132,7 +141,7 @@ export function buildShellTree(input: {
         sectionId: input.anchors.footer,
         sectionTypeKey: "site_footer",
         slotKey: "footer",
-        sortOrder: 1,
+        sortOrder: input.sortOrders.footer,
         label: "Site footer",
         ejected: true,
       },
@@ -212,28 +221,34 @@ async function ensureAnchor(
     tenantId: string;
     pageId: string;
     slotKey: ShellSlotKey;
+    locale: string;
     sourceProps: Record<string, unknown> | null;
     apply: boolean;
   },
-): Promise<{ sectionId: string | null; created: boolean }> {
+): Promise<{ sectionId: string | null; sortOrder: number; created: boolean }> {
   const sectionTypeKey =
     opts.slotKey === "header" ? "site_header" : "site_footer";
 
   const { data: existing } = await supabase
     .from("cms_page_sections")
-    .select("section_id, is_draft")
+    .select("section_id, is_draft, sort_order")
     .eq("tenant_id", opts.tenantId)
     .eq("page_id", opts.pageId)
     .eq("slot_key", opts.slotKey)
-    .returns<Array<{ section_id: string; is_draft: boolean }>>();
+    .returns<Array<{ section_id: string; is_draft: boolean; sort_order: number | null }>>();
 
   const rows = existing ?? [];
   const draft = rows.find((r) => r.is_draft);
   const live = rows.find((r) => !r.is_draft);
-  const found = draft?.section_id ?? live?.section_id ?? null;
-  if (found) return { sectionId: found, created: false };
+  const source = draft ?? live;
+  const found = source?.section_id ?? null;
+  // Read the STORED sortOrder — the address key depends on it exactly.
+  if (found) {
+    return { sectionId: found, sortOrder: source?.sort_order ?? 0, created: false };
+  }
 
-  if (!opts.apply) return { sectionId: null, created: true };
+  const newSortOrder = opts.slotKey === "header" ? 0 : 1;
+  if (!opts.apply) return { sectionId: null, sortOrder: newSortOrder, created: true };
 
   const { data: section, error: sectionErr } = await supabase
     .from("cms_sections")
@@ -241,7 +256,10 @@ async function ensureAnchor(
       tenant_id: opts.tenantId,
       section_type_key: sectionTypeKey,
       schema_version: 1,
-      name: `Impronta — site ${opts.slotKey}`,
+      // cms_sections has a UNIQUE (tenant, name) constraint, so a per-locale
+      // anchor MUST carry its locale in the name or the second locale's
+      // insert dies on a duplicate key.
+      name: `Impronta — site ${opts.slotKey} (${opts.locale})`,
       props_jsonb: opts.sourceProps ?? {},
       version: 1,
     })
@@ -261,7 +279,7 @@ async function ensureAnchor(
       page_id: opts.pageId,
       section_id: section.id,
       slot_key: opts.slotKey,
-      sort_order: opts.slotKey === "header" ? 0 : 1,
+      sort_order: newSortOrder,
       is_draft: isDraft,
     });
     if (error) {
@@ -270,7 +288,7 @@ async function ensureAnchor(
       );
     }
   }
-  return { sectionId: section.id, created: true };
+  return { sectionId: section.id, sortOrder: newSortOrder, created: true };
 }
 
 /** Props of an existing anchor, used to seed a new locale's anchor. */
@@ -329,16 +347,19 @@ export async function runShellSeed(opts: {
 
     const createdAnchors: ShellSlotKey[] = [];
     const anchors: Partial<AnchorIds> = {};
+    const sortOrders: { header: number; footer: number } = { header: 0, footer: 1 };
     for (const slotKey of ["header", "footer"] as ShellSlotKey[]) {
       const res = await ensureAnchor(opts.supabase, {
         tenantId: opts.tenantId,
         pageId: page.id,
         slotKey,
+        locale: page.locale,
         sourceProps: reference[slotKey] ?? null,
         apply: opts.apply,
       });
       if (res.created) createdAnchors.push(slotKey);
       if (res.sectionId) anchors[slotKey] = res.sectionId;
+      sortOrders[slotKey] = res.sortOrder;
     }
 
     const { header, footer } = treesForLocale(page.locale);
@@ -360,6 +381,7 @@ export async function runShellSeed(opts: {
 
     const rawTree = buildShellTree({
       anchors: { header: anchors.header, footer: anchors.footer },
+      sortOrders,
       header,
       footer,
     });
