@@ -48,6 +48,7 @@ import {
   MobileNavThumb_SheetBottom,
 } from "./site-header/thumbnails";
 import type { LengthUnit } from "../kit/number-unit";
+import { IconPicker } from "./field-kit/icon-picker";
 import { ColorSwatchButton } from "./color-swatch-button";
 import { DraggableList } from "./kit/draggable-list";
 import { useInspectorT } from "./kit/use-inspector-t";
@@ -778,11 +779,6 @@ export function BuilderNodeContentInspector({
   }
 
   if (node.kind === "icon") {
-    const iconOptions: GlyphTileOption[] = BUILDER_ICON_REGISTRY.map((def) => ({
-      id: def.name,
-      label: def.label,
-      glyph: (ink: string) => <BuilderIconTileGlyph icon={def} color={ink} />,
-    }));
     const iconSizeCustom = parseFreeLength(node.props.sizeFree);
     const iconSizeValue: FieldValue = iconSizeCustom
       ? { kind: "custom", numeric: iconSizeCustom }
@@ -793,21 +789,24 @@ export function BuilderNodeContentInspector({
           <CardHead title="Icon" sub="Inline SVG" iconAccent="blue" />
           <CardBody>
             <div className="flex flex-col gap-3">
-              <GlyphTiles
+              {/* A flat tile grid was right for twelve glyphs and unusable at
+                  ~95: IconPicker is the searchable control for the full
+                  library. GlyphTiles stays the small-set control elsewhere. */}
+              <IconPicker
                 label="Icon"
-                options={iconOptions}
                 value={node.props.icon}
-                columns={4}
+                allowNone={false}
+                searchTerms="icon glyph symbol"
                 onChange={(icon) => {
+                  if (!icon) return;
                   const label =
                     BUILDER_ICON_REGISTRY.find((item) => item.name === icon)?.label ??
                     "Icon";
                   void commitPatch({
-                    icon: icon as BuilderIconName,
+                    icon,
                     label: node.props.decorative ? node.props.label : label,
                   });
                 }}
-                dataControl="icon-glyph"
               />
               <PresetNumberRow
                 label="Size"
