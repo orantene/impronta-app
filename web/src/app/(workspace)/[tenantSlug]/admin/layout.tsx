@@ -26,6 +26,7 @@ import {
   loadTotalUnreadMessages,
   loadWorkspaceMediaBridge,
   loadWebsiteData,
+  loadWebsiteHealth,
   loadTalentSelfProfile,
   loadTalentInquiries,
   loadUserNotifications,
@@ -225,6 +226,15 @@ export default async function WorkspaceAdminLayout({
     userHasCapability("agency.site_admin.pages.edit", scope.tenantId),
   ]);
 
+  // P2-C — Site Health. Runs after the capability fan-out because the Forms
+  // finding is gated on the SAME capability the Forms route gates on; it reuses
+  // the website data already loaded above and adds at most one COUNT query.
+  const websiteHealth = await loadWebsiteHealth({
+    tenantId,
+    website: websiteData,
+    canManageBilling,
+  });
+
   const sessionIdentity = {
     userId: session.user.id,
     canManageBilling,
@@ -278,7 +288,7 @@ export default async function WorkspaceAdminLayout({
           talentUnread: talentUnread ?? 0,
           preferredSurface: userPrefs?.preferredSurface ?? null,
           firstRunToggleTipSeen: userPrefs?.firstRunToggleTipSeen ?? false,
-          website: websiteData,
+          website: { ...websiteData, health: websiteHealth },
           userNotifications,
           rosterCardBadges,
           payoutsSurface,

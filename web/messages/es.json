@@ -4985,7 +4985,84 @@
       "topEmptyPages": "Aún no hay datos de páginas para este periodo.",
       "topEmptyTalent": "Aún no hay datos de talent para este periodo.",
       "topEmptyReferrers": "Aún no hay datos de referentes para este periodo.",
-      "siteShell": "Encabezado y pie de página"
+      "siteShell": "Encabezado y pie de página",
+      "health": {
+        "heading": "Estado del sitio",
+        "summaryAllClear": "Todo se ve bien",
+        "summaryCounts": "{critical} urgentes, {warning} para revisar, {info} para tener en cuenta",
+        "fixIt": "Solucionar",
+        "whatIsThis": "¿Qué es esto?",
+        "severity": {
+          "critical": "Urgente",
+          "warning": "Revisar",
+          "info": "Bueno saberlo",
+          "ok": "Todo bien"
+        },
+        "allClear": {
+          "title": "Tu sitio web se ve saludable",
+          "detail": "Tu dirección web funciona, tus páginas publicadas se pueden encontrar en buscadores y no hay nada esperando por ti."
+        },
+        "domainNone": {
+          "title": "Estás usando tu dirección web gratuita de Tulala",
+          "detail": "Tu sitio está publicado en {host}. Puedes conectar tu propia dirección web cuando quieras.",
+          "detailNoHost": "Tu sitio todavía no tiene una dirección web propia. Puedes conectar una cuando quieras.",
+          "fix": "Configurar una dirección"
+        },
+        "domainPending": {
+          "title": "Tu dirección web todavía no está conectada",
+          "detail": "{host} necesita un ajuste en la empresa donde la compraste. Hasta que se haga, quien escriba esa dirección no llegará a tu sitio.",
+          "fix": "Ver qué hacer"
+        },
+        "domainFailed": {
+          "title": "Tu dirección web no está funcionando",
+          "detail": "Quienes van a {host} no llegan a tu sitio, porque la configuración no se completó.",
+          "detailWithReason": "Quienes van a {host} no llegan a tu sitio. El motivo que recibimos: {reason}",
+          "fix": "Arreglar la dirección"
+        },
+        "pagesNoindex": {
+          "title": "Algunas páginas publicadas están ocultas para Google",
+          "detail": "{count} de tus páginas publicadas están configuradas para quedar fuera de los resultados de búsqueda, así que nadie las encontrará buscando.",
+          "fix": "Revisar páginas"
+        },
+        "pagesSitemap": {
+          "title": "Algunas páginas publicadas quedan fuera de tu mapa del sitio",
+          "detail": "{count} de tus páginas publicadas no aparecen en la lista que los buscadores leen para descubrir tu sitio. Pueden tardar mucho más en aparecer.",
+          "fix": "Revisar páginas"
+        },
+        "redirectLoops": {
+          "title": "Una regla de reenvío manda a los visitantes en círculo",
+          "detail": "{count} reglas de reenvío vuelven al punto de partida. Quien caiga en ellas verá una página de error en lugar de tu sitio.",
+          "fix": "Abrir reglas de reenvío"
+        },
+        "redirectChains": {
+          "title": "Algunas reglas de reenvío dan un salto de más",
+          "detail": "{count} reglas de reenvío llevan a otra regla antes de llegar a la página real. Funciona, pero es más lento y a los buscadores les gusta menos.",
+          "fix": "Abrir reglas de reenvío"
+        },
+        "pagesDraft": {
+          "title": "Tienes páginas sin terminar",
+          "detail": "{count} páginas siguen como borrador, así que todavía nadie puede verlas.",
+          "fix": "Abrir páginas"
+        },
+        "pagesScheduled": {
+          "title": "Tienes páginas esperando para publicarse",
+          "detail": "{count} páginas están programadas para publicarse solas más adelante.",
+          "fix": "Abrir páginas"
+        },
+        "formsUnread": {
+          "title": "Mensajes nuevos desde tu sitio web",
+          "detail": "{count} personas completaron un formulario en tu sitio y nadie abrió su mensaje todavía.",
+          "fix": "Abrir mensajes de formularios"
+        },
+        "tip": {
+          "webAddress": "Una dirección web es el nombre que la gente escribe para llegar a tu sitio, como tuestudio.com. Hasta que conectes la tuya, tu sitio vive en una dirección gratuita de Tulala.",
+          "dns": "El DNS es la guía telefónica de internet. Conectar tu propia dirección web significa agregar un registro en la empresa donde la compraste, para que apunte a tu sitio de Tulala.",
+          "noindex": "Noindex es un ajuste que le dice a Google y a otros buscadores que dejen una página fuera de sus resultados. Útil para una página de agradecimiento, un problema para una página que quieres que se encuentre.",
+          "sitemap": "Un mapa del sitio es la lista de tus páginas que los buscadores leen para descubrirlas. Una página que quede fuera igual se puede encontrar, pero normalmente mucho después.",
+          "redirectLoop": "Una regla de reenvío lleva a los visitantes de una dirección vieja a una nueva. Un círculo es cuando la nueva reenvía de vuelta a la vieja, así que el navegador se rinde y muestra un error.",
+          "redirectChain": "Una cadena es cuando una regla de reenvío apunta a otra regla de reenvío. Los visitantes igual llegan, pero cada salto extra hace la página más lenta."
+        }
+      }
     },
     "adminCardStudio": {
       "title": "Diseño de tarjeta",
