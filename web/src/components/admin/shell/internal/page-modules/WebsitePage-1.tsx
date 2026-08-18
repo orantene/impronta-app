@@ -1,29 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/config";
 import { useT } from "@/i18n/use-t";
-import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { InfoTip } from "@/components/ui/info-tip";
 import {
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
 } from "@/lib/admin/website-editor-links";
 import { interpolate } from "@/i18n/interpolate";
-import { buildPostPublicPathname, buildPublicPathname, isValidSlugPath, normalizeSlugPath } from "@/lib/cms/paths";
-import { createDraftPageAction } from "@/lib/server-actions/admin-site-pages";
-import { EmptyState, Icon, PrimaryButton, SecondaryButton } from "../primitives";
+import { buildPostPublicPathname } from "@/lib/cms/paths";
+import { EmptyState, Icon } from "../primitives";
 import { COLORS, FONTS, TRANSITION, meetsRole, useAdminShell } from "../state";
-import type { WebsitePageRow, WebsitePost } from "../state";
+import type { WebsitePost } from "../state";
 import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
 import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
-import { formatShortDate, HeroStat, WebsitePerformance } from "./WebsitePage-2";
-import { WebsitePagesList } from "./WebsitePagesList";
-import { groupPagesBySlug, pageGroupMatchesStatus, sortPageGroups } from "../state/website-pages-list";
+import { WebsitePerformance } from "./WebsitePage-2";
+import { WebsiteLaunchpad } from "./WebsiteLaunchpad";
+import { WebsitePagesPage, WebsitePagesPreview } from "./WebsitePagesSurface";
 import { PageHeader } from "./pages-shared";
-import { useWebsitePageLinks } from "./use-website-page-links";
 import { WebsiteDesignHub } from "./WebsiteDesignHub";
 import { WebsiteDesignTabs } from "./website-design-tabs";
 import { WebsiteSetupPage } from "./WebsiteSetupPage";
@@ -31,116 +29,30 @@ import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 
 
 // ════════════════════════════════════════════════════════════════════
-// WEBSITE
-// 2026 premium site-management surface. Twelve sections (hero / performance
-// / pages / posts / redirects / nav / custom code / tracking / SEO /
-// domain / maintenance / announcement). Performance is the headline:
-// 4 KPI tiles + funnel strip + Top performers Pages↔Talent switcher.
-// See dev-handoff §27 for production wiring map per section.
+// WEBSITE — the Overview, and the route dispatch for every sub-view.
+//
+// OVERVIEW IS A LAUNCHPAD (P4-A), NOT AN INVENTORY
+// ────────────────────────────────────────────────
+// It used to open with a gradient hero carrying four inert stat tiles, then
+// the whole pages list, then a read-only copy of the redirects table. Three
+// different things claimed to be the summary and none of them told an operator
+// what to do next.
+//
+// It now answers four questions in order and then stops:
+//   1. What is my site's address, and is it live?      → the hero
+//   2. Does anything need attention?                   → WebsiteHealthPanel
+//   3. Where do I go next?                             → WebsiteLaunchpad
+//   4. What is my site made of?                        → WebsitePagesPreview
+// Performance follows, collapsible; Posts closes the page.
+//
+// WHAT LEFT, AND WHERE IT WENT
+//   • The 4 hero stat tiles      → re-expressed as live counts on the
+//                                   launchpad card of the thing they describe.
+//   • The full Pages list        → `/website/pages` (WebsitePagesSurface.tsx).
+//   • The read-only Redirects    → `/website/redirects` owns it, and the health
+//     rows                         panel already surfaces redirect problems.
+//   • Configuration              → `/website/setup` (#1244).
 // ════════════════════════════════════════════════════════════════════
-
-/** Same host + scheme rules as legacy storefront redirects — http on lvh/local. */
-/**
- * "Manage →" affordance on a section header. Hoisted to module scope rather
- * than written inline: `ratchet/no-new-inline-style` freezes new inline style
- * objects under `components/admin/shell`, and the suppression baseline counts
- * violations per file, so one new literal here would fail the lane.
- */
-const MANAGE_LINK_STYLE: React.CSSProperties = {
-  fontSize: 11,
-  color: COLORS.indigoDeep,
-  background: "transparent",
-  border: "none",
-  cursor: "pointer",
-  fontWeight: 600,
-  fontFamily: FONTS.body,
-};
-
-/** Website → Pages grid filter — matches `WebsitePageRow["status"]` plus All. */
-type WebsitePagesTabId = "all" | WebsitePageRow["status"];
-
-function WebsitePagesStatusTabs({
-  active,
-  onChange,
-  counts,
-}: {
-  active: WebsitePagesTabId;
-  onChange: (id: WebsitePagesTabId) => void;
-  counts: Record<WebsitePagesTabId, number>;
-}) {
-  const t = useT();
-  const tabs: { id: WebsitePagesTabId; label: string }[] = [
-    { id: "all", label: t("dashboard.adminWebsite.pagesTabAll") },
-    { id: "published", label: t("dashboard.adminWebsite.pagesTabLive") },
-    { id: "draft", label: t("dashboard.adminWebsite.pagesTabDraft") },
-    { id: "scheduled", label: t("dashboard.adminWebsite.pagesTabScheduled") },
-    { id: "archived", label: t("dashboard.adminWebsite.pagesTabArchived") },
-  ];
-  return (
-    <div
-      role="group"
-      aria-label={t("dashboard.adminWebsite.pagesFilterAria")}
-      data-tulala-pages-status-filter
-      style={{
-        display: "inline-flex",
-        flexWrap: "wrap",
-        gap: 6,
-        marginBottom: 12,
-        position: "relative",
-        zIndex: 1,
-        background: COLORS.surfaceAlt,
-        border: `1px solid ${COLORS.borderSoft}`,
-        borderRadius: 999,
-        padding: 3,
-        fontFamily: FONTS.body,
-      }}
-    >
-      {tabs.map(tab => {
-        const n = counts[tab.id];
-        const isActive = active === tab.id;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            aria-pressed={isActive}
-            aria-label={interpolate(t("dashboard.adminWebsite.pagesTabAria"), { label: tab.label, count: n })}
-            onClick={() => onChange(tab.id)}
-            style={{
-              padding: "6px 12px",
-              fontSize: 11.5,
-              fontWeight: 600,
-              letterSpacing: 0.15,
-              borderRadius: 999,
-              border: "none",
-              cursor: "pointer",
-              background: isActive ? "#fff" : "transparent",
-              color: isActive ? COLORS.ink : COLORS.inkMuted,
-              boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
-              transition: "all 120ms ease",
-              fontFamily: FONTS.body,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            {tab.label}
-            <span
-              style={{
-                fontVariantNumeric: "tabular-nums",
-                fontSize: 10.5,
-                fontWeight: 700,
-                color: isActive ? COLORS.inkDim : COLORS.inkMuted,
-                opacity: 0.85,
-              }}
-            >
-              {n}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 /**
  * Website is one surface with two sub-views: the site-management body and the
@@ -224,15 +136,6 @@ function WebsiteSubviewTabs({
 
 export function WebsitePage() {
   const t = useT();
-  // Operator's UI display locale — distinct from `locale` below (the site
-  // CONTENT locale off useAdminShell, used for building editor page URLs).
-  const dashboardLocale = useDashboardLocale();
-  // t() is called inside useCallback closures below; keep a ref so we can read
-  // the latest translator without listing `t` in the callbacks' dep arrays.
-  const tRef = useRef(t);
-  useEffect(() => {
-    tRef.current = t;
-  }, [t]);
   const router = useRouter();
   const pathname = usePathname();
   const {
@@ -242,25 +145,14 @@ export function WebsitePage() {
     locale,
     tenantSlug,
     adminBasePath,
-    websiteUsesLiveCms,
-    bridgeTenantIdentity,
-    tenantDefaultLocale,
   } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
-  // The platform network-hub's public site (tulala.digital) is managed in
-  // code, not the page builder — so the builder + create are disabled here.
-  const isPlatformHub =
-    bridgeTenantIdentity?.kind === "hub" &&
-    bridgeTenantIdentity?.planTier === "network";
   const w = effectiveWebsiteState;
   const isCardDesign = pathname?.endsWith("/website/card-design") ?? false;
   const isProfilePages = pathname?.endsWith("/website/profile-pages") ?? false;
   const isDesignHub = pathname?.endsWith("/website/design") ?? false;
   const isSetup = pathname?.endsWith("/website/setup") ?? false;
-
-  const [isCreatingPage, startCreatePageTransition] = useTransition();
-
-  const [pagesTab, setPagesTab] = useState<WebsitePagesTabId>("all");
+  const isPagesRoute = pathname?.endsWith("/website/pages") ?? false;
 
   const [windowOrigin, setWindowOrigin] = useState("");
   useEffect(() => {
@@ -278,131 +170,32 @@ export function WebsitePage() {
   // Site theme + site header/footer entry points MOVED to the Design hub
   // (`/website/design`, WebsiteDesignHub.tsx). They were two of four scattered
   // ways to change how the site looks; the hub is the one place that names the
-  // set. Overview's header keeps only the actions about Overview's own content.
-
-  // Every page URL is built at the ROW's own locale, never the shell's — see
-  // use-website-page-links.ts for the 404 that rule exists to prevent.
-  const notify = useCallback(
-    (messageKey: string) => toast(tRef.current(messageKey)),
-    [toast],
-  );
-  const { openPageEditor, openPageSettings, pageLiveUrl } = useWebsitePageLinks({
-    editorBaseUrl,
-    liveOrigin,
-    fallbackLocale: locale,
-    notify,
-  });
+  // set. Overview links there rather than duplicating any of it.
 
   const openPostOnLive = useCallback(
     (post: WebsitePost) => {
       if (!liveOrigin) {
-        toast(tRef.current("dashboard.adminWebsite.toastLiveUrlUnavailable"));
+        toast(t("dashboard.adminWebsite.toastLiveUrlUnavailable"));
         return;
       }
       const raw = post.slug.trim().replace(/^\/+/u, "");
       const firstSegment = raw.split("/").filter(Boolean)[0] ?? "";
       const pathname = buildPostPublicPathname(locale as Locale, firstSegment);
       window.open(`${liveOrigin}${pathname}`, "_blank", "noopener,noreferrer");
-      toast(tRef.current("dashboard.adminWebsite.toastOpeningPost"));
+      toast(t("dashboard.adminWebsite.toastOpeningPost"));
     },
-    [liveOrigin, locale, toast],
+    [liveOrigin, locale, t, toast],
   );
 
   const openHomepageEditor = useCallback(() => {
     if (!editorBaseUrl) {
-      toast(tRef.current("dashboard.adminWebsite.toastLiveUrlUnavailable"));
+      toast(t("dashboard.adminWebsite.toastLiveUrlUnavailable"));
       return;
     }
     window.open(`${editorBaseUrl}?edit=1&panel=sections`, "_blank", "noopener,noreferrer");
-    toast(tRef.current("dashboard.adminWebsite.toastOpeningHomepageEditor"));
-  }, [editorBaseUrl, toast]);
+    toast(t("dashboard.adminWebsite.toastOpeningHomepageEditor"));
+  }, [editorBaseUrl, t, toast]);
 
-  const handleAddPage = useCallback(() => {
-    if (isPlatformHub) {
-      toast(tRef.current("dashboard.adminWebsite.toastSiteManagedInCode"));
-      return;
-    }
-    startCreatePageTransition(() => {
-      void (async () => {
-        const res = await createDraftPageAction();
-        if (!res.ok) {
-          toast(res.error);
-          return;
-        }
-        await router.refresh();
-        if (!editorBaseUrl) {
-          toast(tRef.current("dashboard.adminWebsite.toastDraftCreatedOpenVisual"));
-          return;
-        }
-        const inner = normalizeSlugPath(res.slug.replace(/^\/+/u, ""));
-        if (!isValidSlugPath(inner)) {
-          toast(tRef.current("dashboard.adminWebsite.toastDraftCreatedOpenList"));
-          return;
-        }
-        // Open the editor at the locale the page was CREATED at (tenant default),
-        // not the operator's current UI locale — cms_pages is unique on
-        // (tenant_id, locale, slug), so opening at the wrong locale 404s the
-        // `/p/` underlay and the editor shows "not found".
-        const pathname = buildPublicPathname((res.locale as Locale) ?? (locale as Locale), inner);
-        window.open(
-          `${editorBaseUrl}${pathname}?edit=1&panel=pageSettings`,
-          "_blank",
-          "noopener,noreferrer",
-        );
-        toast(tRef.current("dashboard.adminWebsite.toastOpeningVisualEditor"));
-      })();
-    });
-  }, [
-    editorBaseUrl,
-    isPlatformHub,
-    locale,
-    router,
-    startCreatePageTransition,
-    toast,
-  ]);
-
-  const totals = {
-    publishedPages: w.pages.filter(p => p.status === "published").length,
-    draftPages: w.pages.filter(p => p.status === "draft").length,
-    scheduledPages: w.pages.filter(p => p.status === "scheduled").length,
-    archivedPages: w.pages.filter(p => p.status === "archived").length,
-    publishedPosts: w.posts.filter(p => p.status === "published").length,
-    activeRedirects: w.redirects.filter(r => r.active).length,
-  };
-
-  // Earliest upcoming fire time among scheduled pages, for the hero's
-  // "Scheduled" stat sub-label. `scheduledFor` is always set on a page
-  // whose derived status is "scheduled" (mergeWebsiteStateFromBridge).
-  const nextScheduledAt = w.pages
-    .filter(p => p.status === "scheduled" && p.scheduledFor)
-    .map(p => p.scheduledFor as string)
-    .sort()[0];
-
-  // One entry per SLUG, locale variants folded in — see website-pages-list.ts
-  // for why the locale dimension needs a container rather than more cards.
-  const pageGroups = useMemo(
-    () => sortPageGroups(groupPagesBySlug(w.pages, tenantDefaultLocale)),
-    [w.pages, tenantDefaultLocale],
-  );
-
-  // The tabs count GROUPS now, not rows: an EN + ES pair is one page to the
-  // operator. A group counts under every status one of its variants holds, so
-  // the half-finished ES draft of a live page is findable under "Draft".
-  const pagesTabCounts = useMemo(
-    (): Record<WebsitePagesTabId, number> => ({
-      all: pageGroups.length,
-      published: pageGroups.filter(g => pageGroupMatchesStatus(g, "published")).length,
-      draft: pageGroups.filter(g => pageGroupMatchesStatus(g, "draft")).length,
-      scheduled: pageGroups.filter(g => pageGroupMatchesStatus(g, "scheduled")).length,
-      archived: pageGroups.filter(g => pageGroupMatchesStatus(g, "archived")).length,
-    }),
-    [pageGroups],
-  );
-
-  const filteredGroups =
-    pagesTab === "all"
-      ? pageGroups
-      : pageGroups.filter(g => pageGroupMatchesStatus(g, pagesTab));
   const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
 
   // Design / Cards / Profiles additionally carry the local design strip, so
@@ -445,85 +238,101 @@ export function WebsitePage() {
     );
   }
 
+  if (isPagesRoute) {
+    return (
+      <>
+        <WebsiteSubviewTabs active="pages" />
+        <WebsitePagesPage />
+      </>
+    );
+  }
+
   return (
     <>
       <WebsiteSubviewTabs active="site" />
       <PageHeader
         title={t("dashboard.adminWebsite.title")}
-        subtitle={interpolate(t("dashboard.adminWebsite.subtitle"), { domain: w.domain.primaryDomain })}
+        subtitle={t("dashboard.adminWebsite.subtitle")}
         actions={
-          <>
-            {!canEdit && <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.readOnly")}</span>}
-            <SecondaryButton
-              size="sm"
-              disabled={!liveOrigin}
-              onClick={() => liveOrigin && window.open(liveOrigin, "_blank", "noopener,noreferrer")}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                <Icon name="external" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.viewLive")}
-              </span>
-            </SecondaryButton>
-            <SecondaryButton size="sm" disabled={!liveOrigin} onClick={openHomepageEditor}>
-              <span className="inline-flex items-center gap-1.5">
-                <Icon name="pencil" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.editHomepage")}
-              </span>
-            </SecondaryButton>
-            {websiteUsesLiveCms && canEdit ? (
-              <PrimaryButton
-                size="sm"
-                disabled={!liveOrigin || isCreatingPage}
-                onClick={handleAddPage}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <Icon name="plus" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.addPage")}
-                </span>
-              </PrimaryButton>
-            ) : null}
-          </>
+          !canEdit ? (
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.readOnly")}</span>
+          ) : undefined
         }
       />
 
-      {/* Hero — gradient banner with URL + status + key totals */}
-      <section style={{
-        marginBottom: 18,
-        background: `linear-gradient(135deg, ${COLORS.fill} 0%, ${COLORS.fillDeep} 100%)`,
-        borderRadius: 14,
-        padding: 20,
-        color: "#fff",
-        fontFamily: FONTS.body,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", opacity: 0.7 }}>{t("dashboard.adminWebsite.liveUrl")}</span>
-          <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 14, fontWeight: 600 }}>{liveOrigin || "—"}</span>
-          <button type="button" disabled={!liveOrigin} onClick={() => { try { navigator.clipboard.writeText(liveOrigin); } catch {} toast(t("dashboard.adminWebsite.toastCopied")); }}
-            style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.30)", background: "transparent", color: "#fff", fontFamily: FONTS.body, cursor: liveOrigin ? "pointer" : "not-allowed", opacity: liveOrigin ? 1 : 0.45 }}
-          >{t("dashboard.adminWebsite.copy")}</button>
-          <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: w.maintenance.enabled ? COLORS.amber : "#5BD893" }} />
-            {w.maintenance.enabled ? t("dashboard.adminWebsite.inMaintenance") : t("dashboard.adminWebsite.live")}
+      {/* Hero — the address, whether it is live, and the three things an
+          operator does from here. The four stat tiles that used to sit under
+          this are gone: their numbers now live on the launchpad card of the
+          destination that can act on them. */}
+      <section className="mb-[18px] rounded-admin-xl border border-admin-border bg-admin-accent-soft p-[18px] font-admin-body">
+        <div className="flex flex-wrap items-center gap-x-[10px] gap-y-[8px]">
+          <span className="text-admin-10h font-bold uppercase tracking-[0.7px] text-admin-ink-muted">
+            {t("dashboard.adminWebsite.liveUrl")}
+          </span>
+          <span className="break-all font-mono text-admin-15 font-semibold text-admin-ink">
+            {liveOrigin || "—"}
+          </span>
+          <button
+            type="button"
+            disabled={!liveOrigin}
+            onClick={() => {
+              try {
+                navigator.clipboard.writeText(liveOrigin);
+              } catch {}
+              toast(t("dashboard.adminWebsite.toastCopied"));
+            }}
+            className="cursor-pointer rounded-full border border-admin-border bg-admin-card px-[10px] py-[3px] text-admin-11 font-semibold text-admin-ink disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {t("dashboard.adminWebsite.copy")}
+          </button>
+          <span className="ml-auto inline-flex items-center gap-[6px] text-admin-12h font-semibold text-admin-ink">
+            <span
+              aria-hidden
+              className={`size-[8px] shrink-0 rounded-full ${w.maintenance.enabled ? "bg-admin-amber-deep" : "bg-admin-success-deep"}`}
+            />
+            {w.maintenance.enabled
+              ? t("dashboard.adminWebsite.inMaintenance")
+              : t("dashboard.adminWebsite.live")}
+            <InfoTip
+              label={t("dashboard.adminWebsite.heroStatusInfo")}
+              triggerLabel={t("dashboard.adminWebsite.designHub.whatIsThis")}
+              placement="bottom-end"
+              className="text-admin-ink-dim hover:text-admin-ink"
+            />
           </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14 }}>
-          <HeroStat label={t("dashboard.adminWebsite.heroPagesLive")}      value={totals.publishedPages.toString()} sub={interpolate(t("dashboard.adminWebsite.heroDraftCount"), { count: totals.draftPages })} />
-          <HeroStat label={t("dashboard.adminWebsite.heroPosts")}            value={totals.publishedPosts.toString()} sub={interpolate(t("dashboard.adminWebsite.heroUnpublishedCount"), { count: w.posts.length - totals.publishedPosts })} />
-          <HeroStat label={t("dashboard.adminWebsite.heroRedirects")}    value={totals.activeRedirects.toString()} sub={interpolate(t("dashboard.adminWebsite.heroPausedCount"), { count: w.redirects.length - totals.activeRedirects })} />
-          <HeroStat label={t("dashboard.adminWebsite.heroScheduled")}        value={totals.scheduledPages.toString()} sub={nextScheduledAt ? interpolate(t("dashboard.adminWebsite.heroNextScheduled"), { date: formatShortDate(nextScheduledAt, dashboardLocale) }) : t("dashboard.adminWebsite.heroNone")} />
+        <div className="mt-[14px] flex flex-wrap gap-[8px]">
+          <button
+            type="button"
+            disabled={!liveOrigin}
+            onClick={() => liveOrigin && window.open(liveOrigin, "_blank", "noopener,noreferrer")}
+            className="inline-flex cursor-pointer items-center gap-[5px] rounded-admin-md border border-admin-border bg-admin-card px-[12px] py-[6px] text-admin-12h font-semibold text-admin-ink disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Icon name="external" size={12} stroke={1.7} />
+            {t("dashboard.adminWebsite.heroViewSite")}
+          </button>
+          <button
+            type="button"
+            disabled={!liveOrigin}
+            onClick={openHomepageEditor}
+            className="inline-flex cursor-pointer items-center gap-[5px] rounded-admin-md border border-admin-border bg-admin-card px-[12px] py-[6px] text-admin-12h font-semibold text-admin-ink disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Icon name="pencil" size={12} stroke={1.7} />
+            {t("dashboard.adminWebsite.heroEditSite")}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`${adminBasePath}/website/design`)}
+            className="inline-flex cursor-pointer items-center gap-[5px] rounded-admin-md border border-admin-border bg-admin-card px-[12px] py-[6px] text-admin-12h font-semibold text-admin-ink"
+          >
+            <Icon name="palette" size={12} stroke={1.7} />
+            {t("dashboard.adminWebsite.heroChangeDesign")}
+          </button>
         </div>
       </section>
 
       {/* Server-computed findings: nothing on fixtures, one green line when well. */}
       <WebsiteHealthPanel report={w.health} />
-
-      {/* Wave 4.1 — REMOVED the separate "Page Builder" (workspace_pages) section.
-          It was an empty second page system stacked next to the real "Pages"
-          list (cms_pages) below, which was the source of confusion. There is now
-          ONE page system: the cms_pages "Pages" list (cards + front-end ?edit=1),
-          rendered further down. The workspace_pages adapter + surface kind were
-          deleted in the page-system consolidation; the empty table is dropped
-          separately. */}
-
-      {/* Performance — KPI tiles + funnel + Top performers switcher */}
-      <WebsitePerformance analytics={w.analytics} pages={w.pages} fmtMoney={fmtMoney} />
 
       {/* Site banners — only render if any are active (Maintenance + Announcement collapsed) */}
       {(w.maintenance.enabled || w.announcement.enabled) && (
@@ -548,73 +357,21 @@ export function WebsitePage() {
         </section>
       )}
 
-      {/* Pages — one expandable row per slug (see WebsitePagesList). Replaced
-          the card grid: cards buried state and had nowhere to put the locale
-          variants that `cms_pages` unavoidably produces. */}
-      <section style={{ marginBottom: 22 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.pagesHeading")}</h2>
-          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">
-            {interpolate(t("dashboard.adminWebsite.pagesCountSummary"), { live: totals.publishedPages, draft: totals.draftPages, scheduled: totals.scheduledPages })}
-            {totals.archivedPages > 0 ? interpolate(t("dashboard.adminWebsite.pagesCountArchivedSuffix"), { archived: totals.archivedPages }) : ""}
-          </span>
-        </div>
-        <p style={{ margin: "0 0 12px", fontSize: 12, fontFamily: FONTS.body, lineHeight: 1.45 }} className="text-admin-ink-muted">
-          {t("dashboard.adminWebsite.pagesHelp")}
-        </p>
-        {w.pages.length === 0 ? (
-          <EmptyState
-            icon="info"
-            title={t("dashboard.adminWebsite.pagesEmptyTitle")}
-            body={t("dashboard.adminWebsite.pagesEmptyBody")}
-            compact
-          />
-        ) : (
-          <>
-            <WebsitePagesStatusTabs active={pagesTab} onChange={setPagesTab} counts={pagesTabCounts} />
-            {filteredGroups.length === 0 ? (
-              <EmptyState
-                icon="info"
-                title={
-                  pagesTab === "draft"
-                    ? t("dashboard.adminWebsite.pagesFilterEmptyDraftTitle")
-                    : pagesTab === "scheduled"
-                      ? t("dashboard.adminWebsite.pagesFilterEmptyScheduledTitle")
-                      : pagesTab === "archived"
-                        ? t("dashboard.adminWebsite.pagesFilterEmptyArchivedTitle")
-                        : pagesTab === "published"
-                          ? t("dashboard.adminWebsite.pagesFilterEmptyLiveTitle")
-                          : t("dashboard.adminWebsite.pagesFilterEmptyDefaultTitle")
-                }
-                body={
-                  pagesTab === "draft"
-                    ? t("dashboard.adminWebsite.pagesFilterEmptyDraftBody")
-                    : pagesTab === "scheduled"
-                      ? t("dashboard.adminWebsite.pagesFilterEmptyScheduledBody")
-                      : pagesTab === "archived"
-                        ? t("dashboard.adminWebsite.pagesFilterEmptyArchivedBody")
-                        : pagesTab === "published"
-                          ? t("dashboard.adminWebsite.pagesFilterEmptyLiveBody")
-                          : t("dashboard.adminWebsite.pagesFilterEmptyDefaultBody")
-                }
-                compact
-              />
-            ) : (
-              <WebsitePagesList
-                groups={filteredGroups}
-                canEdit={canEdit}
-                isPlatformHub={isPlatformHub}
-                liveUrlFor={pageLiveUrl}
-                onOpenEditor={openPageEditor}
-                onOpenPageSettings={openPageSettings}
-              />
-            )}
-          </>
-        )}
-      </section>
+      {/* Where to go next — one card per Website destination, driven by the
+          same `useWebsiteSubnav()` list the sidebar reads. */}
+      <WebsiteLaunchpad />
 
-      {/* Posts + Redirects — two-column composite (breaks the visual rhythm) */}
-      <section style={{ marginBottom: 22, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 14 }}>
+      {/* What the site is made of — the first rows of the shared sort, with
+          "Add page" and a link to the full list at /website/pages. */}
+      <WebsitePagesPreview />
+
+      {/* Performance — collapsible; KPI tiles + funnel + Top performers. */}
+      <WebsitePerformance analytics={w.analytics} pages={w.pages} fmtMoney={fmtMoney} />
+
+      {/* Posts. The read-only Redirects column that used to sit beside this is
+          gone: Redirects has its own route, the launchpad links to it with a
+          live count, and the health panel is what surfaces a broken one. */}
+      <section style={{ marginBottom: 22 }}>
         {/* Posts column */}
         <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
@@ -676,47 +433,6 @@ export function WebsitePage() {
           </div>
         </div>
 
-        {/* Redirects column */}
-        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">
-              {t("dashboard.adminWebsite.redirectsHeading")} <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{totals.activeRedirects}/{w.redirects.length}</span>
-            </h3>
-            {/* This column is read-only; add / edit / import live on the
-                dedicated surface. Without this link the only way in was the
-                sidebar, and the panel that shows the problem was not the panel
-                that could fix it. */}
-            {canEdit && (
-              <button
-                type="button"
-                onClick={() => router.push(`${adminBasePath}/website/redirects`)}
-                style={MANAGE_LINK_STYLE}
-              >
-                {t("dashboard.adminWebsite.manageArrow")}
-              </button>
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {w.redirects.length === 0 ? (
-              <EmptyState icon="info" title={t("dashboard.adminWebsite.redirectsEmptyTitle")} body={t("dashboard.adminWebsite.redirectsEmptyBody")} compact />
-            ) : (
-              w.redirects.map(r => (
-              <div key={r.id} style={{ padding: "9px 12px", borderRadius: 9, border: `1px solid ${COLORS.borderSoft}`, background: r.active ? "#fff" : COLORS.surfaceAlt, opacity: r.active ? 1 : 0.7 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, fontFamily: "ui-monospace, monospace" }} className="bg-admin-indigo-soft text-admin-indigo-deep">{r.statusCode}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5 }} className="text-admin-ink-muted">{r.match}</span>
-                  <span style={{ marginLeft: "auto", fontFamily: "ui-monospace, monospace", fontSize: 11, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink-muted">{interpolate(t("dashboard.adminWebsite.redirectHits"), { count: (r.hits7d ?? 0).toLocaleString() })}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }} className="text-admin-ink">{r.from}</span>
-                  <span style={{ flexShrink: 0 }} className="text-admin-ink-dim">→</span>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1, minWidth: 0 }} className="text-admin-indigo-deep">{r.to}</span>
-                </div>
-              </div>
-              ))
-            )}
-          </div>
-        </div>
       </section>
     </>
   );

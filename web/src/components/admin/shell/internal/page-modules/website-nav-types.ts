@@ -9,6 +9,7 @@ export interface WebsiteSubnavItem {
   /** Stable identifier — routing key, React key, active-state comparisons. */
   id:
     | "overview"
+    | "pages"
     | "design"
     | "card-design"
     | "profile-pages"

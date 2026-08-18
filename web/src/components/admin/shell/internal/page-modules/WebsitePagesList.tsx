@@ -60,6 +60,12 @@ import { formatPageUpdatedAt, formatScheduledPublishAt, formatShortDate } from "
 
 type PagesListProps = {
   groups: readonly WebsitePageGroup[];
+  /**
+   * Render at most this many rows. Overview's preview passes 5; the Pages
+   * surface passes nothing. The truncation lives HERE rather than at the call
+   * site so there is one list component and no second copy of a row.
+   */
+  limit?: number;
   /** Role gate — below `admin` the editor affordances are not offered. */
   canEdit: boolean;
   /** The platform hub's own site is managed in code, not the page builder. */
@@ -384,6 +390,7 @@ function PagesListRow({
 
 export function WebsitePagesList({
   groups,
+  limit,
   canEdit,
   isPlatformHub,
   liveUrlFor,
@@ -401,9 +408,11 @@ export function WebsitePagesList({
     setExpandedSlug((current) => (current === slug ? null : slug));
   }, []);
 
+  const visible = typeof limit === "number" ? groups.slice(0, limit) : groups;
+
   return (
     <div className="flex flex-col gap-[6px]">
-      {groups.map((group) => {
+      {visible.map((group) => {
         const panelId = `${idPrefix}-${group.slug}`;
         return (
           <PagesListRow

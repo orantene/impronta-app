@@ -71,6 +71,18 @@ export function useWebsiteSubnav(): WebsiteSubnavItem[] {
     ];
 
     items.push(
+      // Pages got its own route in P4-A. Before that the full list lived at the
+      // bottom of Overview, which is why Overview could never be short: the one
+      // surface an operator opens every day also carried the whole inventory.
+      // Overview now shows the first few rows and links here for the rest.
+      {
+        id: "pages",
+        label: "Pages",
+        i18nKey: "dashboard.adminWebsite.nav.pagesLabel",
+        descriptionI18nKey: "dashboard.adminWebsite.nav.pagesDescription",
+        href: `${base}/pages`,
+        icon: "layers",
+      },
       // Design is now an INTERNAL hub, not the external theme deep link it used
       // to be. The theme panel still lives in a drawer inside the storefront
       // editor, but four separate ways to change how the site looks (theme,
