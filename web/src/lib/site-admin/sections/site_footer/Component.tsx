@@ -1,3 +1,5 @@
+import { BuilderIconSvg } from "@/lib/site-admin/builder-node/builder-icon-svg";
+import { socialPlatformIconName } from "@/lib/site-admin/builder-node/social-platform-icons";
 import type { CSSProperties } from "react";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import {
@@ -282,7 +284,10 @@ export async function SiteFooterComponent({
                   data-platform={s.platform}
                   aria-label={s.platform}
                 >
-                  {s.platform}
+                  {/* The footer printed the platform's NAME here — the literal
+                      string "instagram" in a row of links — because it had no
+                      glyph set of its own. It shares the registry now. */}
+                  <BuilderIconSvg name={socialPlatformIconName(s.platform)} />
                 </a>
               </li>
             ))}
