@@ -26,13 +26,21 @@ const linkSchema = z.object({
   external: z.boolean().optional(),
 });
 
+/**
+ * The footer's platform list. `x` and `whatsapp` were absent here while the
+ * freeform `social_links` node had them, so the same tenant could show a
+ * WhatsApp mark in one surface and be unable to add it in the other. Additive
+ * only — `twitter` stays for stored rows and resolves to the same glyph as `x`.
+ */
 const SOCIAL_PLATFORMS = [
   "instagram",
   "twitter",
+  "x",
   "linkedin",
   "facebook",
   "youtube",
   "tiktok",
+  "whatsapp",
   "pinterest",
   "vimeo",
   "spotify",
