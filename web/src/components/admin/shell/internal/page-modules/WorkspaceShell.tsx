@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { WorkspaceMediaPage } from "../media-page";
-import { useSiteDesignUrl } from "./use-site-design-url";
+import { useWebsiteSubnav } from "./website-nav";
 import { useDashboardText } from "../dashboard-i18n";
 import { Avatar, Icon, useRovingTabindex } from "../primitives";
 import { COLORS, ENTITY_TYPE_META, FAB_PALETTE_CHANGED_EVENT, FAB_PALETTE_OPEN_EVENT, meetsRole, PAGE_META, PLAN_META, useAdminShell } from "../state";
@@ -194,14 +194,15 @@ function WorkspaceSidebarShell() {
     overviewMetrics,
     tenantSlug,
     adminBasePath,
-    bridgeSessionIdentity,
   } = useAdminShell();
   const copy = useDashboardText();
   const router = useRouter();
   const pathname = usePathname();
 
-  // Sidebar entry point for the site-wide theme panel (see the hook).
-  const siteDesignUrl = useSiteDesignUrl();
+  // Website sub-nav — single source of truth shared with the hover dropdown
+  // and the mobile pill strip (website-nav.ts). Gating (Redirects/Forms/
+  // Design) is computed inside the hook.
+  const websiteSubnav = useWebsiteSubnav();
 
   // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
   const sidebarNavRef = useRef<HTMLElement | null>(null);
@@ -222,7 +223,6 @@ function WorkspaceSidebarShell() {
   // Host-aware: `/admin` on the tenant's own domain, `/{slug}/admin` on the
   // shared app host. Resolved once in the provider — see `adminBasePath`.
   const adminBase = adminBasePath;
-  const websiteBase = `${adminBase}/website`;
   const rosterBase = `${adminBase}/roster`;
   const pendingApplications =
     overviewMetrics !== null ? (overviewMetrics.pendingApprovals ?? 0) : livePendingCount;
@@ -237,34 +237,15 @@ function WorkspaceSidebarShell() {
     external?: boolean;
   }> | null => {
     if (p === "website") {
-      return [
-        { label: "Overview", href: websiteBase, exact: true },
-        // Site-wide theme (colors, fonts, spacing, header/footer). It lives in
-        // a drawer inside the storefront editor, so the only way in used to be
-        // "enter the editor and go hunting" — this is the direct route.
-        ...(siteDesignUrl
-          ? [{ label: "Design", href: siteDesignUrl, external: true }]
-          : []),
-        { label: "Card Design", href: `${websiteBase}/card-design` },
-        { label: "Profile Pages", href: `${websiteBase}/profile-pages` },
-        // 301/302 URL forwarding. Gated on the SAME capability the route
-        // enforces (`agency.site_admin.pages.edit`), resolved server-side and
-        // passed through the bridge — a viewer doesn't have it, and a link to a
-        // page that 404s is worse than no link.
-        ...(bridgeSessionIdentity?.canEditSitePages
-          ? [{ label: "Redirects", href: `${websiteBase}/redirects` }]
-          : []),
-        // Form submissions. This surface had NO in-app route at all — the only
-        // way in was a link inside a notification email, so a tenant who never
-        // got (or deleted) that email could not reach their own enquiries.
-        //
-        // Gated on the SAME capability the page enforces (`manage_billing`),
-        // resolved server-side and passed through the bridge. Inferring it
-        // from `state.role` instead let the sidebar and the route disagree.
-        ...(bridgeSessionIdentity?.canManageBilling
-          ? [{ label: "Forms", href: `${websiteBase}/forms` }]
-          : []),
-      ];
+      // Single source of truth — see website-nav.ts. Order + gating are
+      // computed there; the sidebar just maps to its own render shape.
+      return websiteSubnav.map((item) => ({
+        label: item.label,
+        href: item.href,
+        exact: item.id === "overview",
+        external: item.external,
+        count: item.count,
+      }));
     }
     if (p === "roster") {
       return [

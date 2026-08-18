@@ -237,7 +237,11 @@ const BUDGETS: Record<string, number> = {
   // new user-facing string the Branding drawer's Remove buttons add
   // ("Favicon removed"). ES_TEXT is a flat literal map — a new string has
   // nowhere else to live.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3531,
+  // 2026-08-18 Website nav single source (P1-A): +3 for the Spanish entries
+  // of the sub-nav labels the sidebar now renders through `copy.t()`. The
+  // labels live in website-nav.ts, but ES_TEXT is a flat literal map keyed by
+  // the English string, so their translations have nowhere else to live.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3534,
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).

@@ -595,6 +595,22 @@
       "seePlans": "Voir les forfaits",
       "navHub": "Toutes les agences"
     },
+    "adminWebsite": {
+      "nav": {
+        "overviewLabel": "Aperçu",
+        "overviewDescription": "Pages, articles, domaine, SEO",
+        "designLabel": "Design",
+        "designDescription": "Couleurs, polices, espacement, en-tête et pied de page",
+        "cardDesignLabel": "Design des cartes",
+        "cardDesignDescription": "L'apparence et le comportement des cartes de talent",
+        "profilePagesLabel": "Pages de profil",
+        "profilePagesDescription": "Choisissez le modèle de profil de talent",
+        "redirectsLabel": "Redirections",
+        "redirectsDescription": "Faites pointer d'anciennes URL vers de nouvelles pages",
+        "formsLabel": "Formulaires",
+        "formsDescription": "Soumissions des formulaires de votre site"
+      }
+    },
     "mediaField": {
       "pickerTitle": "Bibliotheque de medias",
       "add": "Ajouter",

@@ -22,6 +22,7 @@ import { PageStatusChip } from "./SitePage";
 import { ConfigStatusRow, formatShortDate, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
 import { PageHeader } from "./pages-shared";
 import { useSiteShellEditorUrl } from "./use-site-shell-editor-url";
+import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 
 
 // ════════════════════════════════════════════════════════════════════
@@ -146,19 +147,23 @@ function WebsitePagesStatusTabs({
  */
 function WebsiteSubviewTabs({
   active,
-  tenantSlug,
 }: {
-  active: "site" | "card-design" | "profile-pages";
-  tenantSlug: string | undefined;
+  /** "site" is this strip's legacy local id for the Overview destination. */
+  active: "site" | WebsiteSubnavItem["id"];
 }) {
   const t = useT();
   const router = useRouter();
-  const base = tenantSlug ? `/${tenantSlug}/admin/website` : "/admin/website";
-  const tabs: { id: "site" | "card-design" | "profile-pages"; label: string; href: string }[] = [
-    { id: "site", label: t("dashboard.adminWebsite.subviewSite"), href: base },
-    { id: "card-design", label: t("dashboard.adminWebsite.subviewCardDesign"), href: `${base}/card-design` },
-    { id: "profile-pages", label: t("dashboard.adminWebsite.subviewProfilePages"), href: `${base}/profile-pages` },
-  ];
+  // Single source of truth (website-nav.ts), minus the external "Design" link:
+  // a pill cannot open a new tab and read as "active" at the same time. This is
+  // what finally gives mobile (rail hidden ≤720px) a way to reach the
+  // destinations the strip used to omit, Redirects and Forms among them.
+  const tabs = useWebsiteSubnav()
+    .filter(item => !item.external)
+    .map(item => ({
+      id: item.id === "overview" ? "site" : item.id,
+      label: t(item.i18nKey),
+      href: item.href,
+    }));
   // De-dup with a mobile carve-out: on desktop the sidebar rail shows these
   // three destinations as nested sub-links under Website, so the tab strip
   // is hidden there. At ≤720px the rail itself is hidden (bottom tab bar
@@ -414,7 +419,7 @@ export function WebsitePage() {
   if (isCardDesign) {
     return (
       <>
-        <WebsiteSubviewTabs active="card-design" tenantSlug={tenantSlug} />
+        <WebsiteSubviewTabs active="card-design" />
         <CardDesignStudio />
       </>
     );
@@ -423,7 +428,7 @@ export function WebsitePage() {
   if (isProfilePages) {
     return (
       <>
-        <WebsiteSubviewTabs active="profile-pages" tenantSlug={tenantSlug} />
+        <WebsiteSubviewTabs active="profile-pages" />
         <ProfilePagesStudio />
       </>
     );
@@ -431,7 +436,7 @@ export function WebsitePage() {
 
   return (
     <>
-      <WebsiteSubviewTabs active="site" tenantSlug={tenantSlug} />
+      <WebsiteSubviewTabs active="site" />
       <PageHeader
         title={t("dashboard.adminWebsite.title")}
         subtitle={interpolate(t("dashboard.adminWebsite.subtitle"), { domain: w.domain.primaryDomain })}
