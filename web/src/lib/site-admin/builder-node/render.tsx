@@ -150,6 +150,12 @@ export interface BuilderNodeRenderDataSources {
 
 export interface BuilderNodeRenderOptions {
   publicPathPrefix?: string;
+  /**
+   * The path being rendered, so a nav link to it can carry `aria-current`.
+   * Optional: a caller that cannot supply it (a cached fragment) simply gets
+   * no current-page marking rather than a wrong one.
+   */
+  currentPath?: string;
   mode?: "all" | "freeform";
   dataSources?: BuilderNodeRenderDataSources;
   includeRendererStyles?: boolean;
@@ -270,8 +276,13 @@ type NormalizedBuilderNodeRenderOptions = Required<
     | "experimentSeed"
     | "experimentTenantId"
     | "experimentSurface"
+    // Optional at the boundary AND in the normalized shape: a caller that
+    // cannot know the request path (a cached fragment) must be able to omit it
+    // and get no aria-current, rather than a wrong one.
+    | "currentPath"
   >
 > & {
+  currentPath?: string;
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
   // ABTEST-1 — undefined/null seed → control always renders, no tracking.
   experimentSeed: string | null | undefined;
@@ -497,6 +508,15 @@ function socialLinkHref(platform: string, href: string): string {
  * `ClusterIcon` (site_header/Component.tsx) so the two surfaces stay visually
  * consistent. An unknown platform falls back to a generic link glyph.
  */
+/**
+ * Do two internal paths point at the same page? Compared after trimming a
+ * trailing slash, so "/p/about" and "/p/about/" are one page rather than two.
+ */
+function samePath(href: string, current: string): boolean {
+  const norm = (p: string) => (p.length > 1 ? p.replace(/\/+$/, "") : p);
+  return norm(href) === norm(current);
+}
+
 function SocialGlyph({ platform }: { platform: string }) {
   // Was a 90-line switch holding its own copy of every brand path, duplicated
   // verbatim in `ClusterIcon`. Both are now views onto the icon registry.
@@ -4714,6 +4734,7 @@ function renderBuilderNodeElement(
         navBrand.isFallback,
         options.contentLocale,
       );
+      const navCurrentPath = options.currentPath;
       const collapseAt = navProps.collapseAt ?? "mobile";
       const submenuVariant = navProps.submenuVariant ?? "dropdown";
       const mobileMenuVariant = navProps.mobileMenuVariant ?? "dropdown";
@@ -4742,16 +4763,83 @@ function renderBuilderNodeElement(
       // wider multi-column "mega" panel), mobile = the children nest inline. The
       // `aria-haspopup`/`group` semantics live on the parent <li>; the panel is
       // a real <ul> in the a11y tree (never display:none-into-nothing on focus).
+      /**
+       * Link content: glyph, label, badge, description. A link that carries
+       * none of the v2 fields emits exactly `{label}` as before, so existing
+       * trees produce byte-identical markup.
+       */
+      const navLinkBody = (link: BuilderNavLink, inPanel: boolean) => {
+        if (!link.icon && !link.badge && !(inPanel && link.description)) {
+          return link.label;
+        }
+        return (
+          <>
+            {link.icon ? (
+              <BuilderIconSvg
+                name={link.icon}
+                className="site-builder-node--nav-link-icon"
+              />
+            ) : null}
+            <span className="site-builder-node--nav-link-text">
+              <span className="site-builder-node--nav-link-label">
+                {link.label}
+                {link.badge ? (
+                  <span className="site-builder-node--nav-badge">{link.badge}</span>
+                ) : null}
+              </span>
+              {/* Descriptions belong to PANELS. In the bar they would turn a
+                  one-line row into a paragraph. */}
+              {inPanel && link.description ? (
+                <span className="site-builder-node--nav-link-desc">
+                  {link.description}
+                </span>
+              ) : null}
+            </span>
+          </>
+        );
+      };
+
+      const navAnchor = (link: BuilderNavLink, inPanel: boolean) => (
+        <a
+          href={prefixPublicHref(link.href, options.publicPathPrefix)}
+          data-bn-nav-link-id={link.id}
+          {...(link.external
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {})}
+          {...(navCurrentPath && samePath(link.href, navCurrentPath)
+            ? { "aria-current": "page" as const }
+            : {})}
+        >
+          {navLinkBody(link, inPanel)}
+        </a>
+      );
+
+      /**
+       * `placement` picks the SURFACE, `hideOn` removes a link from a tier.
+       * Both are filters here rather than CSS, except `hideOn`, which must stay
+       * a media rule so one server render serves every viewport.
+       */
+      const forSurface = (list: ReadonlyArray<BuilderNavLink>, variant: "inline" | "menu") =>
+        list.filter((link) => {
+          const placement = link.placement ?? "both";
+          return placement === "both" || placement === (variant === "inline" ? "bar" : "menu");
+        });
+
+      const hideOnAttr = (link: BuilderNavLink) =>
+        link.hideOn && link.hideOn.length > 0
+          ? { "data-bn-link-hide": link.hideOn.join(" ") }
+          : {};
+
       const renderNavLinks = (variant: "inline" | "menu") =>
-        links.map((link) => {
+        forSurface(links, variant).map((link) => {
           const children = link.children ?? [];
-          const linkAnchor = (
-            <a href={prefixPublicHref(link.href, options.publicPathPrefix)}>
-              {link.label}
-            </a>
-          );
+          const linkAnchor = navAnchor(link, false);
           if (children.length === 0) {
-            return <li key={`${node.id}:${variant}:${link.id}`}>{linkAnchor}</li>;
+            return (
+              <li key={`${node.id}:${variant}:${link.id}`} {...hideOnAttr(link)}>
+                {linkAnchor}
+              </li>
+            );
           }
           const subId = `${node.id}-sub-${link.id}-${variant}`;
           return (
@@ -4759,6 +4847,8 @@ function renderBuilderNodeElement(
               key={`${node.id}:${variant}:${link.id}`}
               className="site-builder-node--nav-has-sub"
               data-bn-submenu={submenuVariant}
+              data-bn-nav-link-id={link.id}
+              {...hideOnAttr(link)}
             >
               {linkAnchor}
               <button
@@ -4776,13 +4866,41 @@ function renderBuilderNodeElement(
                 className="site-builder-node--nav-submenu"
                 data-bn-submenu={submenuVariant}
               >
-                {children.map((child) => (
-                  <li key={`${node.id}:${variant}:${link.id}:${child.id}`}>
-                    <a href={prefixPublicHref(child.href, options.publicPathPrefix)}>
-                      {child.label}
-                    </a>
-                  </li>
-                ))}
+                {forSurface(children, variant).map((child) => {
+                  const grandchildren = child.children ?? [];
+                  // A child WITH children is a group: its label is the heading.
+                  if (grandchildren.length > 0) {
+                    return (
+                      <li
+                        key={`${node.id}:${variant}:${link.id}:${child.id}`}
+                        className="site-builder-node--nav-group"
+                        {...hideOnAttr(child)}
+                      >
+                        <span className="site-builder-node--nav-group-heading">
+                          {child.label}
+                        </span>
+                        <ul className="site-builder-node--nav-group-links">
+                          {forSurface(grandchildren, variant).map((leaf) => (
+                            <li
+                              key={`${node.id}:${variant}:${link.id}:${child.id}:${leaf.id}`}
+                              {...hideOnAttr(leaf)}
+                            >
+                              {navAnchor(leaf, true)}
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    );
+                  }
+                  return (
+                    <li
+                      key={`${node.id}:${variant}:${link.id}:${child.id}`}
+                      {...hideOnAttr(child)}
+                    >
+                      {navAnchor(child, true)}
+                    </li>
+                  );
+                })}
               </ul>
             </li>
           );
@@ -4796,6 +4914,7 @@ function renderBuilderNodeElement(
           data-bn-collapse={collapseAt}
           data-bn-submenu={submenuVariant}
           data-bn-mobile-menu={mobileMenuVariant}
+          data-bn-link-hover={navProps.linkHover ?? "underline"}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
           // The menu's colours were documented as "overridable via the
@@ -4812,6 +4931,9 @@ function renderBuilderNodeElement(
               : {}),
             ...(navProps.menuBorderColor
               ? { ["--bn-nav-menu-border" as string]: navProps.menuBorderColor }
+              : {}),
+            ...(navProps.accentColor
+              ? { ["--bn-nav-accent" as string]: navProps.accentColor }
               : {}),
           } as React.CSSProperties}
         >
@@ -5003,6 +5125,9 @@ function normalizeBuilderNodeRenderOptions(
   if (cached) return cached;
   const normalized: NormalizedBuilderNodeRenderOptions = {
     publicPathPrefix: options.publicPathPrefix ?? "",
+    // Deliberately NOT defaulted: "no path supplied" and "the path is /" are
+    // different, and defaulting would mark the home link current everywhere.
+    currentPath: options.currentPath,
     // Absent in lighter contexts (tests, tenant-less previews) → the `form`
     // node renders no widget, exactly as before this option existed.
     captcha: options.captcha ?? null,

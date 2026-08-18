@@ -57,6 +57,43 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-menu .site-builder-node--nav-submenu{list-style:none;margin:0.1rem 0 0.3rem;padding:0 0 0 0.85rem;display:flex;flex-direction:column;gap:0.1rem;border-left:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12))}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu a{display:block;padding:0.45rem 0.6rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.9rem;opacity:0.92}
+/* v2 link content — icon, badge, description, groups.
+   Each rule only bites when the matching prop is set, so a link that carries
+   none of them lays out exactly as it did before. */
+.site-builder-node--nav-links a,.site-builder-node--nav-menu a,.site-builder-node--nav-submenu a{display:inline-flex;align-items:center;gap:0.5em}
+.site-builder-node--nav-link-icon{flex:0 0 auto;font-size:1.05em;opacity:0.85}
+.site-builder-node--nav-link-text{display:flex;flex-direction:column;gap:0.15em;min-width:0}
+.site-builder-node--nav-link-label{display:inline-flex;align-items:center;gap:0.5em}
+.site-builder-node--nav-link-desc{font-size:0.82em;font-weight:400;opacity:0.66;line-height:1.35;text-transform:none;letter-spacing:0}
+.site-builder-node--nav-badge{display:inline-flex;align-items:center;padding:0.1em 0.45em;border-radius:999px;font-size:0.68em;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-badge-ink,#fff);line-height:1.5}
+.site-builder-node--nav-group{margin:0;padding:0;list-style:none}
+.site-builder-node--nav-group-heading{display:block;padding:0.35rem 0.75rem 0.15rem;font-size:0.72em;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.6}
+.site-builder-node--nav-group-links{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.1rem}
+
+/* Per-link viewport hiding. A MEDIA rule, not a filter: one server render has
+   to serve every viewport, so the link ships and the breakpoint decides. */
+@media (min-width:901px){
+  .site-builder-node--nav [data-bn-link-hide~="desktop"]{display:none}
+}
+@media (min-width:641px) and (max-width:900px){
+  .site-builder-node--nav [data-bn-link-hide~="tablet"]{display:none}
+}
+@media (max-width:640px){
+  .site-builder-node--nav [data-bn-link-hide~="mobile"]{display:none}
+}
+
+/* Link states. Nav links had NO hover and NO current-page styling at all,
+   while buttons and social links had both — so the header was the one place
+   on the site that never answered a pointer. The underline is drawn with a
+   background gradient rather than border/text-decoration so it animates from
+   the left with zero layout shift. */
+.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links a{background-image:linear-gradient(var(--bn-nav-accent,currentColor),var(--bn-nav-accent,currentColor));background-repeat:no-repeat;background-position:0 100%;background-size:0% 2px;transition:background-size 180ms ease,opacity 120ms ease}
+.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links a:hover,.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links a:focus-visible{background-size:100% 2px}
+.site-builder-node--nav[data-bn-link-hover="fade"] .site-builder-node--nav-links a{transition:opacity 120ms ease}
+.site-builder-node--nav[data-bn-link-hover="fade"] .site-builder-node--nav-links a:hover{opacity:0.68}
+.site-builder-node--nav a[aria-current="page"]{font-weight:700}
+.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links a[aria-current="page"]{background-size:100% 2px}
+
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-links .site-builder-node--nav-submenu{transition:none}
 }
@@ -130,4 +167,5 @@ body:has(.site-builder-node--nav-disclosure[open]) [data-guest-chat-launcher]{op
   .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:none}
   .site-builder-node--nav-disclosure[open]>summary::before{animation:none}
   body:has(.site-builder-node--nav-disclosure[open]) [data-guest-chat-launcher]{transition:none}
+  .site-builder-node--nav-links a{transition:none}
 }`;
