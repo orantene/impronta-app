@@ -157,9 +157,7 @@ const ALLOW_LIST: Record<string, string[]> = {
 
   // ── section Editors: RICH EDITOR (leaf-move backlog) ──────────────────────
   "sections/category_grid/Editor.tsx": ["@/components/edit-chrome/rich-editor"],
-  "sections/cta_banner/Editor.tsx": ["@/components/edit-chrome/rich-editor"],
   "sections/featured_talent/Editor.tsx": ["@/components/edit-chrome/rich-editor"],
-  "sections/hero/Editor.tsx": ["@/components/edit-chrome/rich-editor"],
   "sections/shared/LocalizedTextInput.tsx": ["@/components/edit-chrome/rich-editor"],
 
   // ── section shared primitives ─────────────────────────────────────────────
