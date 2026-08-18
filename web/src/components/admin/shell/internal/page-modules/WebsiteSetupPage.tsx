@@ -24,9 +24,12 @@
  *           Showing them as live settings would be the panel inventing a fact,
  *           so they are omitted entirely rather than shown greyed out.
  *   NOT   — `tracking.*` is likewise fixture (only `plausibleDomain` is scoped
- *           to the host, and nothing writes it). Tracking and Custom code
- *           therefore get an explicit "not set up yet" card, not inputs that
- *           save nowhere.
+ *           to the host, and nothing writes it). Tracking therefore keeps an
+ *           explicit "not set up yet" card, not inputs that save nowhere.
+ *
+ * Custom code USED to be a second "not set up yet" card here. As of P3-C it is
+ * a real surface backed by `cms_code_snippets` (see `WebsiteCustomCode.tsx`),
+ * so the placeholder and its catalog key are gone rather than left to rot.
  *
  * STYLING — token classes only (`ratchet/no-new-inline-style`). Nothing was
  * carried over from Overview's inline-styled markup: a moved style counts as a
@@ -42,6 +45,7 @@ import { InfoTip } from "@/components/ui/info-tip";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
 import { PageHeader } from "./pages-shared";
+import { WebsiteCustomCode } from "./WebsiteCustomCode";
 
 /** Section shell — heading, one plain sentence, optional trailing action. */
 function SetupSection({
@@ -250,17 +254,29 @@ export function WebsiteSetupPage() {
           </SetupSection>
         ) : null}
 
-        {/* Named, not built. See the file header for why these are not inputs. */}
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[14px]">
-          <NotSetUpYetCard
-            heading={t("dashboard.adminWebsite.setup.trackingHeading")}
-            body={t("dashboard.adminWebsite.setup.trackingBody")}
-          />
-          <NotSetUpYetCard
-            heading={t("dashboard.adminWebsite.setup.customCodeHeading")}
-            body={t("dashboard.adminWebsite.setup.customCodeBody")}
-          />
-        </div>
+        {/* Custom code — a real surface as of P3-C. The snippet library owns its
+            own loading / permission / error states, so this section is just the
+            heading and the InfoTip that explains the two placements. */}
+        <SetupSection
+          heading={t("dashboard.adminWebsite.setup.customCodeHeading")}
+          helper={t("dashboard.adminWebsite.setup.customCodeHelper")}
+          action={
+            <InfoTip
+              label={t("dashboard.adminWebsite.setup.customCode.placementInfo")}
+              triggerLabel={t("dashboard.adminWebsite.designHub.whatIsThis")}
+              placement="bottom-end"
+              className="text-admin-ink-dim hover:text-admin-ink"
+            />
+          }
+        >
+          <WebsiteCustomCode />
+        </SetupSection>
+
+        {/* Named, not built. See the file header for why this is not inputs. */}
+        <NotSetUpYetCard
+          heading={t("dashboard.adminWebsite.setup.trackingHeading")}
+          body={t("dashboard.adminWebsite.setup.trackingBody")}
+        />
       </div>
     </>
   );
