@@ -20,9 +20,12 @@ import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
 import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
-import { ConfigStatusRow, formatShortDate, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
+import { ConfigStatusRow, formatShortDate, HeroStat, WebsitePerformance } from "./WebsitePage-2";
+import { WebsitePagesList } from "./WebsitePagesList";
+import { groupPagesBySlug, pageGroupMatchesStatus, sortPageGroups } from "../state/website-pages-list";
 import { PageHeader } from "./pages-shared";
 import { useSiteShellEditorUrl } from "./use-site-shell-editor-url";
+import { useWebsitePageLinks } from "./use-website-page-links";
 import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 
 
@@ -239,6 +242,7 @@ export function WebsitePage() {
     adminBasePath,
     websiteUsesLiveCms,
     bridgeTenantIdentity,
+    tenantDefaultLocale,
   } = useAdminShell();
   const canEdit = meetsRole(state.role, "admin");
   // The platform network-hub's public site (tulala.digital) is managed in
@@ -285,31 +289,18 @@ export function WebsitePage() {
     window.open(siteShellUrl, "_blank", "noopener,noreferrer");
   }, [siteShellUrl]);
 
-  const openPageVisualEditor = useCallback(
-    (page: WebsitePageRow) => {
-      if (!editorBaseUrl) {
-        toast(tRef.current("dashboard.adminWebsite.toastLiveUrlUnavailableDomain"));
-        return;
-      }
-      const raw = page.slug.trim();
-      const inner =
-        raw === "" || raw === "/"
-          ? ""
-          : normalizeSlugPath(raw.replace(/^\/+/u, ""));
-      if (inner && !isValidSlugPath(inner)) {
-        toast(
-          tRef.current("dashboard.adminWebsite.toastUrlNoPublicPath"),
-        );
-        return;
-      }
-      const pathname =
-        inner === "" ? "/" : buildPublicPathname(locale as Locale, inner);
-      const url = `${editorBaseUrl}${pathname}?edit=1&panel=sections`;
-      window.open(url, "_blank", "noopener,noreferrer");
-      toast(tRef.current("dashboard.adminWebsite.toastOpeningVisualEditor"));
-    },
-    [editorBaseUrl, locale, toast],
+  // Every page URL is built at the ROW's own locale, never the shell's — see
+  // use-website-page-links.ts for the 404 that rule exists to prevent.
+  const notify = useCallback(
+    (messageKey: string) => toast(tRef.current(messageKey)),
+    [toast],
   );
+  const { openPageEditor, openPageSettings, pageLiveUrl } = useWebsitePageLinks({
+    editorBaseUrl,
+    liveOrigin,
+    fallbackLocale: locale,
+    notify,
+  });
 
   const openPostOnLive = useCallback(
     (post: WebsitePost) => {
@@ -396,25 +387,31 @@ export function WebsitePage() {
     .map(p => p.scheduledFor as string)
     .sort()[0];
 
-  const pagesTabCounts = useMemo(
-    (): Record<WebsitePagesTabId, number> => ({
-      all: w.pages.length,
-      published: totals.publishedPages,
-      draft: totals.draftPages,
-      scheduled: totals.scheduledPages,
-      archived: totals.archivedPages,
-    }),
-    [
-      w.pages.length,
-      totals.publishedPages,
-      totals.draftPages,
-      totals.scheduledPages,
-      totals.archivedPages,
-    ],
+  // One entry per SLUG, locale variants folded in — see website-pages-list.ts
+  // for why the locale dimension needs a container rather than more cards.
+  const pageGroups = useMemo(
+    () => sortPageGroups(groupPagesBySlug(w.pages, tenantDefaultLocale)),
+    [w.pages, tenantDefaultLocale],
   );
 
-  const filteredPages =
-    pagesTab === "all" ? w.pages : w.pages.filter(p => p.status === pagesTab);
+  // The tabs count GROUPS now, not rows: an EN + ES pair is one page to the
+  // operator. A group counts under every status one of its variants holds, so
+  // the half-finished ES draft of a live page is findable under "Draft".
+  const pagesTabCounts = useMemo(
+    (): Record<WebsitePagesTabId, number> => ({
+      all: pageGroups.length,
+      published: pageGroups.filter(g => pageGroupMatchesStatus(g, "published")).length,
+      draft: pageGroups.filter(g => pageGroupMatchesStatus(g, "draft")).length,
+      scheduled: pageGroups.filter(g => pageGroupMatchesStatus(g, "scheduled")).length,
+      archived: pageGroups.filter(g => pageGroupMatchesStatus(g, "archived")).length,
+    }),
+    [pageGroups],
+  );
+
+  const filteredGroups =
+    pagesTab === "all"
+      ? pageGroups
+      : pageGroups.filter(g => pageGroupMatchesStatus(g, pagesTab));
   const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
 
   if (isCardDesign) {
@@ -557,7 +554,9 @@ export function WebsitePage() {
         </section>
       )}
 
-      {/* Pages — visual card grid (the hero asset, not a table) */}
+      {/* Pages — one expandable row per slug (see WebsitePagesList). Replaced
+          the card grid: cards buried state and had nowhere to put the locale
+          variants that `cms_pages` unavoidably produces. */}
       <section style={{ marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.pagesHeading")}</h2>
@@ -579,7 +578,7 @@ export function WebsitePage() {
         ) : (
           <>
             <WebsitePagesStatusTabs active={pagesTab} onChange={setPagesTab} counts={pagesTabCounts} />
-            {filteredPages.length === 0 ? (
+            {filteredGroups.length === 0 ? (
               <EmptyState
                 icon="info"
                 title={
@@ -607,19 +606,14 @@ export function WebsitePage() {
                 compact
               />
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-                {(() => {
-                  const maxHits = Math.max(...filteredPages.map(p => p.hits7d ?? 0), 1);
-                  return filteredPages.map(p => (
-                    <PageVisualCard
-                      key={p.id}
-                      page={p}
-                      maxHits={maxHits}
-                      onClick={() => openPageVisualEditor(p)}
-                    />
-                  ));
-                })()}
-              </div>
+              <WebsitePagesList
+                groups={filteredGroups}
+                canEdit={canEdit}
+                isPlatformHub={isPlatformHub}
+                liveUrlFor={pageLiveUrl}
+                onOpenEditor={openPageEditor}
+                onOpenPageSettings={openPageSettings}
+              />
             )}
           </>
         )}

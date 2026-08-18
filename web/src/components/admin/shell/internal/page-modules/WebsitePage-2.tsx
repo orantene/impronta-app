@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
-import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
-import { COLORS, FONTS, TRANSITION, fmtMoney } from "../state";
+import { COLORS, FONTS } from "../state";
 import type { WebsiteAnalytics, WebsitePageRow, WebsitePeriodMetrics } from "../state";
-import { PageStatusChip } from "./SitePage";
 
 const MIN_MS = 60_000;
 const HOUR_MS = 60 * MIN_MS;
@@ -40,7 +38,7 @@ export function formatShortDate(iso: string, locale: string): string {
  * first week ("2h ago", "3d ago" — same convention as Inbox/Pitches), then
  * falls back to `formatShortDate`.
  */
-function formatPageUpdatedAt(
+export function formatPageUpdatedAt(
   iso: string,
   t: (key: string) => string,
   locale: string,
@@ -62,7 +60,7 @@ function formatPageUpdatedAt(
  * is what makes the Scheduled tab informative rather than just a filter —
  * see the admin Website → Pages "Scheduled" tab fix.
  */
-function formatScheduledPublishAt(
+export function formatScheduledPublishAt(
   iso: string,
   t: (key: string) => string,
   locale: string,
@@ -86,77 +84,6 @@ export function HeroStat({ label, value, sub }: { label: string; value: string; 
         {sub && <span style={{ marginLeft: 4, opacity: 0.7 }}>· {sub}</span>}
       </div>
     </div>
-  );
-}
-
-// Visual page card — replaces flat table rows with browser-chrome mockup cards.
-// Each card shows the page title prominently, a faux URL bar, status chip, and
-// an inline bar showing relative hits-7d compared to top page in the set.
-export function PageVisualCard({ page, maxHits, onClick }: { page: WebsitePageRow; maxHits: number; onClick?: () => void }) {
-  const t = useT();
-  const locale = useDashboardLocale();
-  // ANALYTICS-2 — `hits7d` is null-honest (undefined ⇒ "not in the top 8
-  // pages by visits", not "zero visits"; see mergeWebsiteStateFromBridge).
-  // Rendering unknown-as-zero here is a deliberate display choice, not a
-  // claim of a true zero.
-  const hits = page.hits7d ?? 0;
-  const fillPct = maxHits > 0 ? (hits / maxHits) * 100 : 0;
-  const isLive = page.status === "published";
-  const label = interpolate(t("dashboard.adminWebsite.pageCardOpenAria"), { title: page.title, slug: page.slug });
-  return (
-    <button type="button" onClick={onClick} aria-label={label}
-      style={{
-        textAlign: "left", cursor: "pointer", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
-        background: "#fff", padding: 0, fontFamily: FONTS.body, overflow: "hidden",
-        display: "flex", flexDirection: "column", transition: `transform ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}, border-color ${TRANSITION.micro}`,
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.indigoDeep; e.currentTarget.style.boxShadow = "0 4px 14px rgba(11,11,13,0.06)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "translateY(0)"; }}
-    >
-      {/* Faux browser chrome / preview band */}
-      <div style={{ height: 70, background: `linear-gradient(135deg, ${COLORS.surfaceAlt} 0%, #fff 100%)`, borderBottom: `1px solid ${COLORS.borderSoft}`, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-        <div className="flex gap-1">
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FEBC2E" }} />
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
-        </div>
-        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 6, padding: "4px 8px", fontFamily: "ui-monospace, monospace", fontSize: 10.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink-muted">{page.slug}</div>
-      </div>
-      {/* Body */}
-      <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: -0.1, lineHeight: 1.25, flex: 1, minWidth: 0 }} className="text-admin-ink">{page.title}</div>
-          <PageStatusChip status={page.status} />
-        </div>
-        {/* Scheduled fire time — makes the Scheduled tab informative, not just
-            a filter. Only ever set when `status === "scheduled"` (see
-            mergeWebsiteStateFromBridge / deriveWebsitePageStatus). */}
-        {page.status === "scheduled" && page.scheduledFor && (
-          <div className="text-[11px] font-semibold text-admin-indigo-deep">
-            {formatScheduledPublishAt(page.scheduledFor, t, locale)}
-          </div>
-        )}
-        {/* Inline bar — hits relative to top page */}
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.hits7dCaps")}</span>
-            <span style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-ink">{hits.toLocaleString()}</span>
-          </div>
-          <div style={{ height: 4, borderRadius: 999, overflow: "hidden" }} className="bg-admin-surface-alt">
-            <div style={{ '--progress-w': `${fillPct}%`, '--progress-bg': isLive ? COLORS.indigoDeep : COLORS.inkDim }} className="w-[var(--progress-w)] h-full bg-[var(--progress-bg)] rounded-full [transition:width_200ms_ease]" />
-          </div>
-        </div>
-        <div aria-hidden style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.02 }} className="text-admin-indigo-deep">
-          {t("dashboard.adminWebsite.visualEditorArrow")}
-        </div>
-        <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11 }} className="text-admin-ink-muted">
-          {/* Author resolves to a display name upstream (mergeWebsiteStateFromBridge);
-              an unresolvable/blank editor renders nothing rather than a raw UUID. */}
-          <span>{page.lastEditedBy ? interpolate(t("dashboard.adminWebsite.byAuthor"), { name: page.lastEditedBy }) : ""}</span>
-          <span>{formatPageUpdatedAt(page.updatedAt, t, locale)}</span>
-        </div>
-      </div>
-    </button>
   );
 }
 
