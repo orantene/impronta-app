@@ -29,6 +29,17 @@ test("an open drawer keeps a way to close it", () => {
   assert.match(SOURCE, /\[open\]>summary>\.site-builder-node--nav-burger\{position:relative;z-index:3\}/);
 });
 
+test("hamburger tap target is at least 44px", () => {
+  assert.match(
+    SOURCE,
+    /site-builder-node--nav-toggle\{[^}]*min-width:44px/,
+  );
+  assert.match(
+    SOURCE,
+    /site-builder-node--nav-toggle\{[^}]*min-height:44px/,
+  );
+});
+
 test("the scrim sits BELOW the panel, so nav links stay tappable", () => {
   // Shipped inverted once: the summary carried a z-index above the panel, so
   // its full-screen scrim swallowed every tap meant for a link. The menu still

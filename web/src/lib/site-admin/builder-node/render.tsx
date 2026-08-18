@@ -441,7 +441,7 @@ const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-links>li{margin:0;padding:0}
 .site-builder-node--nav-links a{text-decoration:none;color:inherit}
 .site-builder-node--nav-disclosure{display:none;position:static}
-.site-builder-node--nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.5rem;cursor:pointer;list-style:none;border:1px solid currentColor;border-radius:8px;color:inherit;-webkit-tap-highlight-color:transparent}
+.site-builder-node--nav-toggle{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;min-width:44px;height:2.75rem;min-height:44px;cursor:pointer;list-style:none;border:1px solid currentColor;border-radius:8px;color:inherit;-webkit-tap-highlight-color:transparent}
 .site-builder-node--nav-toggle::-webkit-details-marker{display:none}
 .site-builder-node--nav-toggle::marker{content:""}
 .site-builder-node--nav-toggle:focus-visible{outline:2px solid currentColor;outline-offset:2px}
@@ -993,7 +993,6 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node[data-builder-style-tablet-object-position]{object-position:var(--bn-tablet-object-position)!important}
   .site-builder-node[data-builder-style-tablet-ratio]{aspect-ratio:var(--bn-tablet-ratio)!important}
   .site-builder-node[data-builder-style-tablet-aspect-free]{aspect-ratio:var(--bn-tablet-aspect-free)!important}
-  .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
   .site-builder-node[data-builder-style-tablet-font-family]{font-family:var(--bn-tablet-font-family)!important}
   .site-builder-node[data-builder-style-tablet-font-size]{font-size:var(--bn-tablet-font-size)!important}
   .site-builder-node[data-builder-style-tablet-font-weight]{font-weight:var(--bn-tablet-font-weight)!important}
@@ -1077,6 +1076,9 @@ const BUILDER_NODE_RENDERER_CSS = `
   .site-builder-node--live-talent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .site-builder-node--carousel-slide{flex-basis:calc(100% / var(--bn-tablet-slides,2))}
   .site-builder-node--masonry{column-count:var(--bn-tablet-columns,2)}
+}
+@media (min-width:641px) and (max-width:900px){
+  .site-builder-node[data-builder-style-tablet-hidden]{display:none!important}
 }
 @media (max-width:640px){
   .site-builder-node[data-builder-style-mobile-align]{text-align:var(--bn-mobile-align)!important}

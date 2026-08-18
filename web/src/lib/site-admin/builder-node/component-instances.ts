@@ -6,6 +6,7 @@ import type {
   BuilderComponentVariant,
 } from "./types";
 import { cloneNodeWithFreshIds } from "./operations";
+import { resolveBuilderNodeRole } from "./role-bindings";
 
 /**
  * The node kinds that can be a linked-component INSTANCE ROOT. Phase 2/3 only
@@ -149,6 +150,44 @@ export function tagAsInstance(
     ...node,
     props: { ...node.props, instanceOf: componentId },
   } as BuilderNode;
+}
+
+/**
+ * Instance roots are container/card only. Convert wraps any other kind in a
+ * stack container so the canvas node can carry `instanceOf`.
+ */
+export function wrapNodeAsInstanceRoot(
+  node: BuilderNode,
+  wrapId: string,
+): BuilderNode {
+  if (isInstanceRootKind(node.kind)) return node;
+  return {
+    id: wrapId,
+    kind: "container",
+    props: { layout: "stack", gap: "m" },
+    children: [node],
+  } as BuilderNode;
+}
+
+export function canConvertNodeToComponent(
+  node: BuilderNode,
+): { ok: true } | { ok: false; error: string } {
+  if (node.kind === "section") {
+    return {
+      ok: false,
+      error: "Whole sections can't be saved as a block — pick a block inside it.",
+    };
+  }
+  if (node.locked === true) {
+    return { ok: false, error: "Locked blocks can't become components." };
+  }
+  if (resolveBuilderNodeRole(node.id)) {
+    return {
+      ok: false,
+      error: "Role-bound blocks can't become components.",
+    };
+  }
+  return { ok: true };
 }
 
 export interface DetachInstanceResult {

@@ -79,7 +79,7 @@ export const directorySchemaV1 = z.object({
     .default("atelier"),
   columnsDesktop: z.number().int().min(1).max(6).default(4),
   columnsTablet: z.number().int().min(1).max(4).default(3),
-  columnsMobile: z.number().int().min(1).max(2).default(2),
+  columnsMobile: z.number().int().min(1).max(2).default(1),
   /** UNSET = follow `directory.card.density`. */
   density: z.enum(["comfortable", "compact"]).optional(),
   containerWidth: z.enum(["boxed", "full"]).default("boxed"),

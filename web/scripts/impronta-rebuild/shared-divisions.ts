@@ -1295,7 +1295,7 @@ export function divisionRosterSection(input: RosterSectionInput): BuilderNode {
             pageSize: 8,
             columnsDesktop: 4,
             columnsTablet: 3,
-            columnsMobile: 2,
+            columnsMobile: 1,
             containerWidth: "boxed",
             background: "plain",
             aiMode: "off",

@@ -114,6 +114,7 @@ export function DirectoryReactiveResults({
   columnsDesktop,
   columnsTablet,
   columnsMobile,
+  mobileFilterStyle = "sheet",
 }: {
   /** Server-fetched first page (unfiltered for the section scope). */
   initialPage: DirectoryPageResponse;
@@ -193,6 +194,7 @@ export function DirectoryReactiveResults({
   columnsDesktop: number;
   columnsTablet: number;
   columnsMobile: number;
+  mobileFilterStyle?: DirectoryV1["mobileFilterStyle"];
 }) {
   return (
     <DirectoryQueryProvider>
@@ -242,6 +244,7 @@ export function DirectoryReactiveResults({
           columnsDesktop={columnsDesktop}
           columnsTablet={columnsTablet}
           columnsMobile={columnsMobile}
+          mobileFilterStyle={mobileFilterStyle}
         />
       </Suspense>
     </DirectoryQueryProvider>
@@ -301,6 +304,7 @@ function DirectoryReactiveResultsInner({
   columnsDesktop,
   columnsTablet,
   columnsMobile,
+  mobileFilterStyle = "sheet",
 }: {
   initialPage: DirectoryPageResponse;
   /** Signature of the request the SERVER seeded (see directorySeedSignature). */
@@ -349,6 +353,7 @@ function DirectoryReactiveResultsInner({
   columnsDesktop: number;
   columnsTablet: number;
   columnsMobile: number;
+  mobileFilterStyle?: DirectoryV1["mobileFilterStyle"];
 }) {
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -452,6 +457,7 @@ function DirectoryReactiveResultsInner({
   // App-like desktop filter panel: toggled from the toolbar, slides open and
   // closed. Defaults open (matches SSR); the visitor's last choice persists.
   const hasSidebar = showSidebar && sidebarBlocks.length > 0;
+  const mobileFiltersInline = mobileFilterStyle === "inline";
   const [filtersOpen, setFiltersOpen] = useState(true);
   // `animateFilters` stays false until the stored preference has been applied,
   // so a visitor who closed the panel doesn't watch it slide shut on every
@@ -515,7 +521,7 @@ function DirectoryReactiveResultsInner({
         </p>
       ) : null}
       {aiSummary ? <AIInterpretChip summary={aiSummary} /> : null}
-      <div className="mt-6 flex">
+      <div className={mobileFiltersInline ? "mt-6 flex flex-col md:flex-row" : "mt-6 flex"}>
         {hasSidebar ? (
           // P4 — `order-last` floats the aside to the right when
           // `sidebarPosition==='right'`; sticky is gated on `sidebarSticky`.
@@ -534,9 +540,9 @@ function DirectoryReactiveResultsInner({
                 ? { type: "spring", stiffness: 300, damping: 34, mass: 0.9 }
                 : { duration: 0 }
             }
-            className={`hidden shrink-0 overflow-hidden md:block ${
-              sidebarPosition === "right" ? "order-last" : ""
-            }`}
+            className={`${
+              mobileFiltersInline ? "w-full shrink-0 overflow-hidden md:w-auto" : "hidden shrink-0 overflow-hidden md:block"
+            } ${sidebarPosition === "right" ? "order-last" : ""}`}
             data-sidebar-position={sidebarPosition}
             // `inert` (not just aria-hidden): a width-0 overflow-hidden panel
             // still keeps its inputs in the tab order, so keyboard users would
@@ -571,7 +577,7 @@ function DirectoryReactiveResultsInner({
           data-card-design-scope={cardKitOverrideFamily ? "" : undefined}
           style={cardKitOverrideStyle}
         >
-          {showSidebar && sidebarBlocks.length > 0 ? (
+          {showSidebar && sidebarBlocks.length > 0 && !mobileFiltersInline ? (
             <div className="mb-3 flex flex-wrap items-center gap-2 md:mb-0 md:hidden">
               <DirectoryMobileFilters
                 blocks={sidebarBlocks}
@@ -583,6 +589,7 @@ function DirectoryReactiveResultsInner({
                 ageMax={ageMax}
                 fieldFacets={fieldFacets}
                 ui={ui}
+                filterStyle={mobileFilterStyle === "drawer" ? "drawer" : "sheet"}
               />
             </div>
           ) : null}

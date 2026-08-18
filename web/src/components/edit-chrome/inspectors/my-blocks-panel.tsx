@@ -48,6 +48,7 @@ export function MyBlocksPanel({
   const [naming, setNaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [note, setNote] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -258,7 +259,29 @@ export function MyBlocksPanel({
             )}
           </div>
         ) : (
-          components.map((component) => (
+          <>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              placeholder={t("Search blocks…")}
+              className={KIT.input}
+              aria-label={t("Search blocks…")}
+            />
+            {components.filter((component) =>
+              component.name.toLowerCase().includes(query.trim().toLowerCase()),
+            ).length === 0 ? (
+              <div className="rounded-md border border-dashed border-stone-300 bg-white px-3 py-3 text-[11px] text-stone-500">
+                {t("No components match this search.")}
+              </div>
+            ) : (
+              components
+                .filter((component) =>
+                  component.name
+                    .toLowerCase()
+                    .includes(query.trim().toLowerCase()),
+                )
+                .map((component) => (
             <div
               key={component.id}
               data-builder-node-my-block={component.id}
@@ -300,7 +323,8 @@ export function MyBlocksPanel({
                     ↑ {t("Update master")}
                   </button>
                 ) : null}
-                {component.rootKind === "container" ? (
+                {component.rootKind === "container" ||
+                component.rootKind === "card" ? (
                   <>
                     <button
                       type="button"
@@ -343,7 +367,9 @@ export function MyBlocksPanel({
                 ✕
               </button>
             </div>
-          ))
+                ))
+            )}
+          </>
         )}
       </div>
     </details>

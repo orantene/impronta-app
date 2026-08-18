@@ -30,7 +30,7 @@ export const fashionDirectoryPreset: DirectoryV1 = {
   template: "atelier",
   columnsDesktop: 4,
   columnsTablet: 3,
-  columnsMobile: 2,
+  columnsMobile: 1,
   // density / cardStyle / cardAspect / hoverBehavior are deliberately UNSET:
   // the starter section follows the tenant's Card Design defaults
   // (`directory.card.*` tokens), which themselves default to the same values

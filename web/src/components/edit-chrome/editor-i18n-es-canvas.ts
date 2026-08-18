@@ -393,4 +393,46 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Mobile only. Click to hide.": "Solo móvil. Haz clic para ocultar.",
   "Visible everywhere. Click for desktop only.":
     "Visible en todas partes. Haz clic para solo escritorio.",
+  "Hide on mobile": "Ocultar en móvil",
+  "Hidden on mobile": "Oculto en móvil",
+  "Hide on tablet": "Ocultar en tablet",
+  "Hidden on tablet": "Oculto en tablet",
+  "Tap to show": "Toca para mostrar",
+  "Tap to hide": "Toca para ocultar",
+  "Tablet order": "Orden en tablet",
+  "Natural flow": "Flujo natural",
+  "Override: {order} (lower shows first)":
+    "Anulación: {order} (menor se muestra primero)",
+  "Move earlier on mobile": "Mover antes en móvil",
+  "Move later on mobile": "Mover después en móvil",
+  "Move earlier on tablet": "Mover antes en tablet",
+  "Move later on tablet": "Mover después en tablet",
+  "Move earlier on mobile (paint this block sooner)":
+    "Mover antes en móvil (este bloque se pinta primero)",
+  "Move later on mobile (paint this block after siblings)":
+    "Mover después en móvil (este bloque se pinta después de sus hermanos)",
+  "Move earlier on tablet (paint this block sooner)":
+    "Mover antes en tablet (este bloque se pinta primero)",
+  "Move later on tablet (paint this block after siblings)":
+    "Mover después en tablet (este bloque se pinta después de sus hermanos)",
+  "This block is hidden on mobile, show it again":
+    "Este bloque está oculto en móvil; muéstralo de nuevo",
+  "Hide this block on mobile only (desktop + tablet unaffected)":
+    "Ocultar este bloque solo en móvil (escritorio y tablet no cambian)",
+  "This block is hidden on tablet, show it again":
+    "Este bloque está oculto en tablet; muéstralo de nuevo",
+  "Hide this block on tablet only (desktop + phone unaffected)":
+    "Ocultar este bloque solo en tablet (escritorio y teléfono no cambian)",
+  "This block has mobile-specific overrides":
+    "Este bloque tiene ajustes específicos para móvil",
+  "This block has tablet-specific overrides":
+    "Este bloque tiene ajustes específicos para tablet",
+  "This block behaves differently on mobile":
+    "Este bloque se comporta distinto en móvil",
+  "This block behaves differently on tablet":
+    "Este bloque se comporta distinto en tablet",
+  "Reset mobile order to natural flow":
+    "Restablecer el orden en móvil al flujo natural",
+  "Reset tablet order to natural flow":
+    "Restablecer el orden en tablet al flujo natural",
 };

@@ -231,15 +231,18 @@ function parseDimensionPx(value: string | undefined | null): number | null {
 }
 
 /**
- * Flag a button (or interactive icon) whose explicit width/height is below
- * `TAP_TARGET_MIN_PX`. We only check free-value `width`/`height` escapes
- * because token-based sizing usually produces adequate targets.
+ * Flag a button, interactive icon, or nav control whose explicit width/height
+ * is below `TAP_TARGET_MIN_PX`. We only check free-value `width`/`height`
+ * escapes because token-based sizing usually produces adequate targets.
+ * Nav hamburger size is also CSS-enforced at 44px in render.tsx.
  */
 function checkTapTarget(
   node: BuilderNode,
   ownerSectionId: string | null,
 ): MobileHealthIssue | null {
-  if (node.kind !== "button" && node.kind !== "icon") return null;
+  if (node.kind !== "button" && node.kind !== "icon" && node.kind !== "nav") {
+    return null;
+  }
   const style = node.props.style;
   if (!style) return null;
 
@@ -263,7 +266,9 @@ function checkTapTarget(
     nodeId: node.id,
     nodeKind: node.kind,
     ownerSectionId,
-    message: `${node.kind === "button" ? "Button" : "Icon"} has ${smallDim} — below the ${TAP_TARGET_MIN_PX}px minimum tap target. Increase size or remove the explicit dimension.`,
+    message: `${
+      node.kind === "button" ? "Button" : node.kind === "icon" ? "Icon" : "Nav"
+    } has ${smallDim} — below the ${TAP_TARGET_MIN_PX}px minimum tap target. Increase size or remove the explicit dimension.`,
   };
 }
 

@@ -3,6 +3,15 @@ import { test } from "node:test";
 
 import { applyResponsiveStructurePatch } from "./responsive-structure";
 
+test("tablet hide writes the tablet bucket only (CSS isolation is in tablet-hidden-css.static.test.ts)", () => {
+  const next = applyResponsiveStructurePatch({}, "tablet", {
+    visibility: "hidden",
+  });
+  assert.deepEqual(next, {
+    responsive: { tablet: { visibility: "hidden" } },
+  });
+});
+
 test("tablet hide preserves the mobile bucket", () => {
   const next = applyResponsiveStructurePatch(
     { responsive: { mobile: { visibility: "hidden", order: 2 } } },
