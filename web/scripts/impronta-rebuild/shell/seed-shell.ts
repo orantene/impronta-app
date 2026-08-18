@@ -60,6 +60,7 @@ import {
   resolveImageSlots,
 } from "../media-curation";
 
+import { localizeTreeHrefs } from "./shared-shell";
 import { improntaHeaderTree } from "./header";
 import { improntaFooterTree } from "./footer";
 
@@ -156,9 +157,12 @@ export function treesForLocale(locale: string): {
   footer: BuilderNode[];
 } {
   const key = locale === "es" ? "es" : "en";
+  // Both locales are authored from one structural builder and therefore carry
+  // the same bare hrefs. Without this the Spanish header and footer linked
+  // straight back into the English site -- silently, since those pages exist.
   return {
-    header: improntaHeaderTree[key],
-    footer: improntaFooterTree[key],
+    header: localizeTreeHrefs(improntaHeaderTree[key], key),
+    footer: localizeTreeHrefs(improntaFooterTree[key], key),
   };
 }
 

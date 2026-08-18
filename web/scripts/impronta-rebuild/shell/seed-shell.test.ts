@@ -253,3 +253,42 @@ test("the mobile drawer is noir, not the platform's white card", () => {
     assert.ok(nav.props.menuTextColor, `[${locale}] drawer text colour must be set`);
   }
 });
+
+test("every internal link in the Spanish shell stays in Spanish", () => {
+  // Shipped once: both locale trees are built from one structural builder, so
+  // the Spanish header and footer carried the same bare `/p/about` hrefs as
+  // English -- and every tap dropped a Spanish visitor into the English site.
+  // Nothing errored, because those English pages exist and render fine.
+  const collect = (nodes: unknown): string[] => {
+    const out: string[] = [];
+    const walk = (n: unknown): void => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (!n || typeof n !== "object") return;
+      for (const [k, v] of Object.entries(n as Record<string, unknown>)) {
+        if (k === "href" && typeof v === "string") out.push(v);
+        else walk(v);
+      }
+    };
+    walk(nodes);
+    return out;
+  };
+
+  const { header, footer } = treesForLocale("es");
+  const internal = [...collect(header), ...collect(footer)].filter((h) =>
+    h.startsWith("/"),
+  );
+  assert.ok(internal.length > 10, "expected the shell to carry internal links");
+  const unprefixed = internal.filter((h) => h !== "/es" && !h.startsWith("/es/"));
+  assert.deepEqual(unprefixed, [], "these Spanish links land on English pages");
+
+  // …and English must stay unprefixed (it is the default locale).
+  const en = treesForLocale("en");
+  const enInternal = [...collect(en.header), ...collect(en.footer)].filter((h) =>
+    h.startsWith("/"),
+  );
+  assert.deepEqual(
+    enInternal.filter((h) => h.startsWith("/es")),
+    [],
+    "English links must not carry a locale prefix",
+  );
+});
