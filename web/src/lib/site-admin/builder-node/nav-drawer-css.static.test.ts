@@ -25,15 +25,18 @@ test("off-canvas geometry is viewport-sized, not opposing offsets", () => {
 test("an open drawer keeps a way to close it", () => {
   // The panel covers the hamburger that opened it, and <details> does not close
   // on an outside tap: without BOTH of these the menu could not be dismissed.
-  assert.match(SOURCE, /\[open\]>summary\{position:relative;z-index:97\}/);
   assert.match(SOURCE, /\[open\]>summary::before\{content:"";position:fixed/);
+  assert.match(SOURCE, /\[open\]>summary>\.site-builder-node--nav-burger\{position:relative;z-index:3\}/);
 });
 
-test("the drawer out-stacks a site's floating chat launcher", () => {
-  // The launcher sits at 95 and floated on top of the open menu.
-  assert.match(SOURCE, /\[open\]>\.site-builder-node--nav-menu\{position:fixed;z-index:96/);
+test("the scrim sits BELOW the panel, so nav links stay tappable", () => {
+  // Shipped inverted once: the summary carried a z-index above the panel, so
+  // its full-screen scrim swallowed every tap meant for a link. The menu still
+  // "opened" -- it was simply inert. Order must be scrim 1 < panel 2 < burger 3.
+  assert.match(SOURCE, /\[open\]>\.site-builder-node--nav-menu\{position:fixed;z-index:2/);
+  assert.match(SOURCE, /\[open\]>summary::before\{content:"";position:fixed;top:0;left:0;width:100vw;height:100dvh;z-index:1/);
   assert.ok(
-    !/\[open\]>\.site-builder-node--nav-menu\{position:fixed;z-index:8[01]/.test(SOURCE),
-    "the old 80/81 band lost to the launcher",
+    !/\[open\]>summary\{position:relative;z-index:(9[0-9]|8[0-9])\}/.test(SOURCE),
+    "a page-level z-index on the summary puts the scrim over the panel AND cannot escape the header's stacking context anyway",
   );
 });

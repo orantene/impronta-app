@@ -507,7 +507,7 @@ const BUILDER_NODE_NAV_CSS = `
 @keyframes bn-nav-menu-in{from{opacity:0}to{opacity:1}}
 .site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
 .site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
-.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{position:fixed;z-index:96;max-height:none;overflow:auto}
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{position:fixed;z-index:2;max-height:none;overflow:auto}
 .site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{top:0;right:0;left:auto;height:100dvh;width:88vw;max-width:400px;border-radius:0;box-shadow:-18px 0 40px rgba(0,0,0,0.2);animation:bn-nav-drawer-right 240ms ease both}
 @keyframes bn-nav-drawer-right{from{transform:translateX(100%)}to{transform:translateX(0)}}
 .site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{left:0;width:100vw;bottom:0;top:auto;max-height:80dvh;border-radius:18px 18px 0 0;box-shadow:0 -18px 40px rgba(0,0,0,0.2);animation:bn-nav-sheet-bottom 240ms ease both}
@@ -521,11 +521,20 @@ const BUILDER_NODE_NAV_CSS = `
    Sized in viewport units for the containing-block caveat above. */
 .site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>summary,
 .site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>summary,
-/* 96/97, not 80/81: a site's own floating chat launcher sits at 95 and floated
-   ON TOP of the open menu. Still below the editor's modal band (100). */
-.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>summary{position:relative;z-index:97}
+/* The three open-menu layers, ordered WITHIN the header's stacking context:
+   scrim (1) < panel (2) < burger (3). Absolute page-level numbers are useless
+   here -- a sticky header with a z-index is itself a stacking context, so no
+   value on a descendant can out-stack a body-level element. An earlier attempt
+   at 96/97 (to beat a body-level chat launcher at 95) could never have worked
+   for that reason, and it put the summary ABOVE the panel, where its
+   full-screen scrim swallowed every tap meant for a nav link. The panel must
+   sit above the scrim, and only the burger above the panel. */
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>summary{position:relative;z-index:auto}
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger,
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger,
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger{position:relative;z-index:3}
 .site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>summary::before,
-.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>summary::before{content:"";position:fixed;top:0;left:0;width:100vw;height:100dvh;z-index:-1;background:var(--bn-nav-scrim,rgba(8,8,8,0.55));animation:bn-nav-menu-in 200ms ease both}
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>summary::before{content:"";position:fixed;top:0;left:0;width:100vw;height:100dvh;z-index:1;background:var(--bn-nav-scrim,rgba(8,8,8,0.55));animation:bn-nav-menu-in 200ms ease both}
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:none}
   .site-builder-node--nav-disclosure[open]>summary::before{animation:none}
