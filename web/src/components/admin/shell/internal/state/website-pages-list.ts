@@ -186,6 +186,142 @@ export function pageGroupMatchesStatus(
   return group.variants.some((v) => v.status === status);
 }
 
+/**
+ * The `cms_pages` slug as the DATABASE stores it, recovered from the
+ * leading-slash form the shell renders.
+ *
+ * `mergeWebsiteStateFromBridge` prefixes every slug with `/` and rewrites the
+ * empty homepage slug to `/`, so a row's `slug` is a display value, not a key.
+ * `setPageRoleAction` and `quickRenamePageAction` both match on the RAW column,
+ * where the homepage is the empty string — passing `/` there matches nothing
+ * and the role assignment silently fails its "is this a real page?" check.
+ */
+export function rawPageSlug(slug: string): string {
+  const key = normalizePageSlugKey(slug);
+  return key === "/" ? "" : key.slice(1);
+}
+
+/**
+ * One quick action offered on a page row.
+ *
+ * `restore` maps to publish, not to an un-archive: there is no draft-restore
+ * operation anywhere in the server layer, and `publishPage` accepts an archived
+ * row. Naming it `restore` rather than reusing `publish` keeps the two apart in
+ * the copy, because they answer different questions.
+ */
+export type WebsitePageActionId =
+  | "publish"
+  | "rename"
+  | "duplicate"
+  | "setHomepage"
+  | "archive"
+  | "restore"
+  | "delete";
+
+/** Fixed presentation order, independent of which subset is permitted. */
+const ACTION_ORDER: readonly WebsitePageActionId[] = [
+  "publish",
+  "restore",
+  "rename",
+  "duplicate",
+  "setHomepage",
+  "archive",
+  "delete",
+];
+
+export type PageActionContext = {
+  /** Role gate — below `admin` no page-changing affordance is offered. */
+  readonly canEdit: boolean;
+  /** The platform hub's own site is managed in code, not the page builder. */
+  readonly isPlatformHub: boolean;
+  /**
+   * True when this page currently holds the `home` page role. Taken from the
+   * GROUP rather than the row: the role is per-slug, so an EN row and its ES
+   * sibling are the homepage together or not at all.
+   */
+  readonly isHomepage: boolean;
+};
+
+/**
+ * True when `cms_pages.is_system_owned` is set for this row.
+ *
+ * The bridge does not project `is_system_owned` itself, but the M0 schema pairs
+ * it with `system_template_key` (partial unique index
+ * `WHERE is_system_owned = TRUE AND system_template_key IS NOT NULL`), and the
+ * bridge DOES project the template key. A row with a template key is therefore
+ * a row the `cms_pages` guard trigger refuses to DELETE and refuses to
+ * re-slug — which is exactly the set of rows this list must not offer those
+ * actions on. `undefined` means the payload predates the projection: unknown is
+ * treated as "not system", because the server rejects the call anyway and its
+ * message is the honest one to show.
+ */
+export function isSystemOwnedPage(row: WebsitePageRow): boolean {
+  return typeof row.systemTemplateKey === "string" && row.systemTemplateKey !== "";
+}
+
+/**
+ * Can this page's ADDRESS be changed?
+ *
+ * Two separate reasons it cannot, both of them real rather than defensive:
+ *   • system-owned rows — the DB trigger rejects a slug update outright;
+ *   • the homepage — its address is what `/` resolves to. `quickRename` does
+ *     reconcile the role pointer, so a rename would not break the site, but a
+ *     novice renaming "Home" to "welcome" and finding their front page now
+ *     lives at /welcome is a surprise the list should not hand out.
+ * The TITLE stays editable in both cases; only the address is frozen.
+ */
+export function isPageSlugLocked(
+  row: WebsitePageRow,
+  context: Pick<PageActionContext, "isHomepage">,
+): boolean {
+  return context.isHomepage || isSystemOwnedPage(row) || rawPageSlug(row.slug) === "";
+}
+
+/**
+ * Which quick actions this page may offer, in presentation order.
+ *
+ * Every exclusion below mirrors something the SERVER already enforces, or a
+ * one-way door a novice should not find behind a single click:
+ *
+ *   • not an admin, or the platform hub → nothing at all.
+ *   • Publish only from draft/scheduled. Re-publishing a live page from a list
+ *     row does nothing an operator can perceive.
+ *   • Set as homepage only from PUBLISHED, and never on the current homepage.
+ *     `setPageRoleAction` refuses an unpublished target ("That page must be
+ *     published before it can take a role"), so offering it would be a button
+ *     that always errors.
+ *   • Archive never on the homepage (it takes `/` offline) and never on a
+ *     system-owned row (`archivePage` returns SYSTEM_PAGE_IMMUTABLE).
+ *   • Delete ONLY from archived, and never on the homepage or a system row.
+ *     Live → Archive → Delete is the deliberate two-door path; `deletePage`
+ *     itself would happily delete a live page in one call.
+ */
+export function derivePageActions(
+  row: WebsitePageRow,
+  context: PageActionContext,
+): WebsitePageActionId[] {
+  if (!context.canEdit || context.isPlatformHub) return [];
+
+  const systemOwned = isSystemOwnedPage(row);
+  const permitted = new Set<WebsitePageActionId>(["rename", "duplicate"]);
+
+  if (row.status === "draft" || row.status === "scheduled") permitted.add("publish");
+  if (row.status === "archived") permitted.add("restore");
+  if (row.status === "published" && !context.isHomepage) permitted.add("setHomepage");
+  if (
+    (row.status === "published" || row.status === "draft") &&
+    !context.isHomepage &&
+    !systemOwned
+  ) {
+    permitted.add("archive");
+  }
+  if (row.status === "archived" && !context.isHomepage && !systemOwned) {
+    permitted.add("delete");
+  }
+
+  return ACTION_ORDER.filter((id) => permitted.has(id));
+}
+
 /** Which search-visibility fact a note reports. */
 export type PageVisibilityNoteId = "noindex" | "sitemap" | "metaDescription";
 

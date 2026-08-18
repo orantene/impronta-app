@@ -36,9 +36,10 @@
  *
  * SCOPE
  * ─────
- * Read-only. Publish / rename / duplicate / archive / delete are a later PR;
- * the panel reserves a labelled region for them rather than pretending the
- * space does not exist.
+ * The row itself stays read-only. The expanded panel's "More actions" region is
+ * filled by `WebsitePageActions` (P3-A), which owns every page-changing call;
+ * keeping it in its own module is what holds this file under the 800-line cap
+ * and keeps the reading rules and the writing rules apart.
  */
 
 import { useCallback, useId, useState } from "react";
@@ -54,6 +55,7 @@ import {
   type WebsitePageGroup,
 } from "../state/website-pages-list";
 import { PageStatusChip } from "./SitePage";
+import { WebsitePageActions } from "./WebsitePageActions";
 import { formatPageUpdatedAt, formatScheduledPublishAt, formatShortDate } from "./WebsitePage-2";
 
 type PagesListProps = {
@@ -366,17 +368,14 @@ function PagesListRow({
             </div>
           </div>
 
-          {/* Reserved for publish / rename / duplicate / archive / delete —
-              wired in the follow-up PR. Named rather than hidden so the shape
-              of the finished panel is visible in review. */}
-          <div className="flex flex-col gap-[3px] border-t border-admin-border-soft pt-[10px]">
-            <span className="text-admin-10 font-semibold uppercase tracking-[0.6px] text-admin-ink-muted">
-              {t("dashboard.adminWebsite.pagesListActionsHeading")}
-            </span>
-            <span className="text-admin-11h text-admin-ink-dim">
-              {t("dashboard.adminWebsite.pagesListActionsSoon")}
-            </span>
-          </div>
+          {/* Publish / rename / duplicate / set as homepage / archive /
+              restore / delete. Which of those appear is decided by
+              `derivePageActions`, not here — see WebsitePageActions.tsx. */}
+          <WebsitePageActions
+            group={group}
+            canEdit={canEdit}
+            isPlatformHub={isPlatformHub}
+          />
         </div>
       ) : null}
     </div>
