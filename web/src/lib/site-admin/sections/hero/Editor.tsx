@@ -6,7 +6,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { MediaPicker } from "../shared/MediaPicker";
 import { AltTextField } from "../shared/AltTextField";
 import { BlueprintPicker } from "../shared/BlueprintPicker";
-import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { LocalizedTextInput } from "../shared/LocalizedTextInput";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { useSectionT } from "../shared/section-editor-i18n";
 import { coerceLegacyHref } from "../../links/link-ref";
@@ -182,26 +182,22 @@ export function HeroEditor({
         onApply={(next) => commit(next)}
       />
       <div className="grid gap-4 md:grid-cols-2">
-        <div className={FIELD}>
-          <span className={LABEL}>{t("Headline")}</span>
-          <RichEditor
-            value={state.headline ?? ""}
-            onChange={(next) => update("headline", next)}
-            variant="single"
-            tenantId={tenantId}
-            ariaLabel={t("Headline")}
-          />
-        </div>
-        <div className={FIELD}>
-          <span className={LABEL}>{t("Sub-headline")}</span>
-          <RichEditor
-            value={state.subheadline ?? ""}
-            onChange={(next) => update("subheadline", next || undefined)}
-            variant="single"
-            tenantId={tenantId}
-            ariaLabel={t("Sub-headline")}
-          />
-        </div>
+        <LocalizedTextInput
+          label="Headline"
+          value={state.headline}
+          onChange={(next) => update("headline", next)}
+          rich
+          tenantId={tenantId}
+          maxLength={140}
+        />
+        <LocalizedTextInput
+          label="Sub-headline"
+          value={state.subheadline}
+          onChange={(next) => update("subheadline", next)}
+          rich
+          tenantId={tenantId}
+          maxLength={240}
+        />
       </div>
 
       <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
@@ -524,38 +520,30 @@ export function HeroEditor({
                       )}
                     </span>
                   </label>
-                  <label className={FIELD}>
-                    <span className={LABEL}>{t("Eyebrow")}</span>
-                    <input
-                      type="text"
-                      className={INPUT}
-                      value={slide.eyebrow ?? ""}
-                      maxLength={80}
-                      onChange={(e) =>
-                        patchSlide(i, { eyebrow: e.target.value })
+                  <LocalizedTextInput
+                    label="Eyebrow"
+                    value={slide.eyebrow}
+                    onChange={(next) => patchSlide(i, { eyebrow: next })}
+                    maxLength={80}
+                  />
+                  <LocalizedTextInput
+                    label="Slide headline"
+                    value={slide.headline}
+                    onChange={(next) => patchSlide(i, { headline: next })}
+                    rich
+                    tenantId={tenantId}
+                    maxLength={140}
+                  />
+                  <div className="md:col-span-2">
+                    <LocalizedTextInput
+                      label="Slide sub-headline"
+                      value={slide.subheadline}
+                      onChange={(next) =>
+                        patchSlide(i, { subheadline: next })
                       }
-                    />
-                  </label>
-                  <div className={FIELD}>
-                    <span className={LABEL}>{t("Slide headline")}</span>
-                    <RichEditor
-                      key={`slide-${i}-headline`}
-                      value={slide.headline ?? ""}
-                      onChange={(next) => patchSlide(i, { headline: next })}
-                      variant="single"
+                      rich
                       tenantId={tenantId}
-                      ariaLabel={t("Slide headline")}
-                    />
-                  </div>
-                  <div className={`${FIELD} md:col-span-2`}>
-                    <span className={LABEL}>{t("Slide sub-headline")}</span>
-                    <RichEditor
-                      key={`slide-${i}-subheadline`}
-                      value={slide.subheadline ?? ""}
-                      onChange={(next) => patchSlide(i, { subheadline: next || undefined })}
-                      variant="single"
-                      tenantId={tenantId}
-                      ariaLabel={t("Slide sub-headline")}
+                      maxLength={240}
                     />
                   </div>
                 </div>

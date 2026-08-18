@@ -119,7 +119,7 @@ function GalleryTileRow({
              
             autoFocus
             type="text"
-            className="w-full rounded-lg border border-[#cfc7b6] bg-white px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-500 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
+            className="w-full rounded-lg border border-[rgba(24,24,27,0.16)] bg-white px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-500 hover:border-[rgba(24,24,27,0.28)] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]"
             value={item.alt ?? ""}
             maxLength={160}
             placeholder={t("Describe this image…")}

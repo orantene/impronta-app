@@ -383,7 +383,6 @@ export function PageSettingsDrawer() {
       open={pageSettingsOpen}
       zIndex={87}
       ariaLabelledBy="page-settings-drawer-title"
-      modal
       onRequestClose={submitting ? undefined : closePageSettings}
       floating
       floatLabel="Page settings"

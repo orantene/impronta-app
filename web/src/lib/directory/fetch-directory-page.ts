@@ -38,6 +38,7 @@ import {
 } from "@/lib/directory/price-from";
 import { loadTenantPricingDefaults } from "@/lib/directory/pricing-defaults";
 import { resolveStartingPrice } from "@/lib/directory/pricing-defaults-shape";
+import { normalizeDirectoryProfileCodes } from "@/lib/directory/profile-codes";
 import { loadPlatformTalentPriceDefault } from "@/lib/platform/talent-price-defaults";
 import {
   applyDemandSmoothing,
@@ -355,6 +356,7 @@ export async function fetchDirectoryPage(
     ? await tenantReviewsEnabled(tenantScopeId)
     : true;
   const requestedTaxonomyTermIds = params.taxonomyTermIds?.filter(Boolean) ?? [];
+  const profileCodes = normalizeDirectoryProfileCodes(params.profileCodes);
   const locale = params.locale ?? "en";
   const sort = params.sort ?? "recommended";
   const queryText = params.query?.trim() ?? "";
@@ -696,6 +698,10 @@ export async function fetchDirectoryPage(
       // the number of cards actually rendered.
       .eq("is_publicly_listed", true);
 
+    if (profileCodes.length > 0) {
+      countQuery = countQuery.in("profile_code", profileCodes);
+    }
+
     if (locationId) {
       countQuery = countQuery.or(orResidenceOrLegacyLocationEq(locationId));
     }
@@ -788,6 +794,10 @@ export async function fetchDirectoryPage(
     // the RLS policy then refused to return (the "faceless card" bug). All
     // three now read talent_profiles.is_publicly_listed.
     .eq("is_publicly_listed", true);
+
+  if (profileCodes.length > 0) {
+    query = query.in("profile_code", profileCodes);
+  }
 
   if (locationId) {
     query = query.or(orResidenceOrLegacyLocationEq(locationId));

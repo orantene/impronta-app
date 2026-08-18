@@ -24,21 +24,29 @@ test("isShortcutVisible hides theme shortcut when site shell is locked", () => {
   );
 });
 
-test("isShortcutVisible hides revisions shortcut off the homepage editor", () => {
+test("isShortcutVisible keeps revisions visible off the homepage editor", () => {
   assert.equal(
     isShortcutVisible("open-revisions", {
       canEditSiteShell: true,
       homepageEditing: false,
     }),
-    false,
-  );
-  assert.equal(
-    isShortcutVisible("open-revisions", {
-      canEditSiteShell: true,
-      homepageEditing: true,
-    }),
     true,
   );
+});
+
+test("shortcut key sequences are unique", () => {
+  const seen = new Map<string, string>();
+  for (const entry of SHORTCUTS) {
+    if (entry.keys.length === 0) continue;
+    const chord = entry.keys.join("+");
+    const prior = seen.get(chord);
+    assert.equal(
+      prior,
+      undefined,
+      `chord ${chord} claimed by both ${prior} and ${entry.id}`,
+    );
+    seen.set(chord, entry.id);
+  }
 });
 
 test("filterVisibleShortcuts keeps all shortcuts when shell editing is enabled", () => {
@@ -60,12 +68,12 @@ test("filterVisibleShortcuts removes theme shortcut when shell editing is disabl
   assert.ok(visible.some((entry) => entry.id === "open-assets"));
 });
 
-test("filterVisibleShortcuts removes revisions shortcut when not homepage editing", () => {
+test("filterVisibleShortcuts keeps revisions when not homepage editing", () => {
   const visible = filterVisibleShortcuts(SHORTCUTS, {
     canEditSiteShell: true,
     homepageEditing: false,
   });
-  assert.equal(visible.some((entry) => entry.id === "open-revisions"), false);
+  assert.ok(visible.some((entry) => entry.id === "open-revisions"));
   assert.ok(visible.some((entry) => entry.id === "open-publish"));
 });
 

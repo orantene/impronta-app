@@ -3,8 +3,8 @@
  *
  * Verifies:
  *   1. Every Publish menu item fires the correct existing context opener.
- *   2. The stubs "named-draft" and "discard" are absent from the
- *      PublishMenuOption union.
+ *   2. The stub "named-draft" is absent from the PublishMenuOption union.
+ *      Revisions / save-draft / preview / settings / duplicate live elsewhere.
  *   3. The storefront "live" header variant is byte-stable — none of the
  *      new props (onRevisions, onPageSettings, onDuplicatePage, onUnpublish,
  *      headerVariant, onExit, exitLabel, previewSubjectChip) change the
@@ -23,12 +23,8 @@ import assert from "node:assert/strict";
 
 type PublishMenuOption =
   | "schedule"
-  | "save-draft"
-  | "preview"
-  | "revisions"
-  | "page-settings"
-  | "duplicate-page"
   | "unpublish"
+  | "discard"
   | "pull-from-live:replace"
   | "pull-from-live:above"
   | "pull-from-live:below";
@@ -36,16 +32,15 @@ type PublishMenuOption =
 /** Exhaustive list of menu options that MUST appear in the menu. */
 const REQUIRED_MENU_OPTIONS: PublishMenuOption[] = [
   "schedule",
-  "save-draft",
-  "preview",
-  "revisions",
-  "page-settings",
-  "duplicate-page",
   "unpublish",
+  "discard",
+  "pull-from-live:replace",
+  "pull-from-live:above",
+  "pull-from-live:below",
 ];
 
 /** Options that MUST NOT appear in the menu (removed stubs). */
-const BANNED_MENU_OPTIONS = ["named-draft", "discard"] as const;
+const BANNED_MENU_OPTIONS = ["named-draft"] as const;
 
 type BannedOption = (typeof BANNED_MENU_OPTIONS)[number];
 
@@ -55,12 +50,8 @@ function createHandlers() {
     calls,
     onPublish: () => calls.push("openPublish"),
     onSchedule: () => calls.push("openSchedule"),
-    onSaveDraft: () => calls.push("saveDraft"),
-    setPreviewing: (v: boolean) => calls.push(`setPreviewing(${v})`),
-    onRevisions: () => calls.push("openRevisions"),
-    onPageSettings: () => calls.push("openPageSettings"),
-    onDuplicatePage: () => calls.push("requestPagesPickerOpen"),
     onUnpublish: () => calls.push("openPublish"),
+    onPullFromLive: (mode: string) => calls.push(`pullFromLive:${mode}`),
   };
 }
 
@@ -70,18 +61,16 @@ function handleMenuSelect(
 ): void {
   if (opt === "schedule") {
     handlers.onSchedule();
-  } else if (opt === "save-draft") {
-    handlers.onSaveDraft();
-  } else if (opt === "preview") {
-    handlers.setPreviewing(true);
-  } else if (opt === "revisions") {
-    handlers.onRevisions();
-  } else if (opt === "page-settings") {
-    handlers.onPageSettings();
-  } else if (opt === "duplicate-page") {
-    handlers.onDuplicatePage();
   } else if (opt === "unpublish") {
     handlers.onUnpublish();
+  } else if (opt === "discard") {
+    handlers.calls.push("discardDraft");
+  } else if (opt === "pull-from-live:replace") {
+    handlers.onPullFromLive("replace");
+  } else if (opt === "pull-from-live:above") {
+    handlers.onPullFromLive("above");
+  } else if (opt === "pull-from-live:below") {
+    handlers.onPullFromLive("below");
   }
 }
 
@@ -91,36 +80,6 @@ test("schedule → openSchedule", () => {
   const h = createHandlers();
   handleMenuSelect("schedule", h);
   assert.deepEqual(h.calls, ["openSchedule"]);
-});
-
-test("save-draft → saveDraft", () => {
-  const h = createHandlers();
-  handleMenuSelect("save-draft", h);
-  assert.deepEqual(h.calls, ["saveDraft"]);
-});
-
-test("preview → setPreviewing(true)", () => {
-  const h = createHandlers();
-  handleMenuSelect("preview", h);
-  assert.deepEqual(h.calls, ["setPreviewing(true)"]);
-});
-
-test("revisions → openRevisions", () => {
-  const h = createHandlers();
-  handleMenuSelect("revisions", h);
-  assert.deepEqual(h.calls, ["openRevisions"]);
-});
-
-test("page-settings → openPageSettings", () => {
-  const h = createHandlers();
-  handleMenuSelect("page-settings", h);
-  assert.deepEqual(h.calls, ["openPageSettings"]);
-});
-
-test("duplicate-page → requestPagesPickerOpen", () => {
-  const h = createHandlers();
-  handleMenuSelect("duplicate-page", h);
-  assert.deepEqual(h.calls, ["requestPagesPickerOpen"]);
 });
 
 test("unpublish → openPublish (Publish drawer handles Unpublish/Archive)", () => {
@@ -154,10 +113,12 @@ test("named-draft is not a valid menu option", () => {
   assert.equal(isPresent, false, '"named-draft" must not be in the menu options');
 });
 
-test("discard is not a valid menu option", () => {
-  const banned: BannedOption = "discard";
-  const isPresent = (REQUIRED_MENU_OPTIONS as string[]).includes(banned);
-  assert.equal(isPresent, false, '"discard" must not be in the menu options');
+test("discard is a required menu option", () => {
+  assert.equal(
+    (REQUIRED_MENU_OPTIONS as string[]).includes("discard"),
+    true,
+    '"discard" must appear in the Publish caret',
+  );
 });
 
 // ── 4. Storefront "live" variant is byte-stable ───────────────────────────

@@ -41,13 +41,15 @@ import {
   resolveSnapshotBuilderTreeForPublish,
   summarizeBuilderTreeIssues,
 } from "@/lib/site-admin/builder-node/snapshot-tree";
+import { resolveBuilderTreeClassRefs } from "@/lib/site-admin/builder-node/style-classes";
+import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
+import { parseStyleClassesFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
 import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
+import { commitPageRevisionThenVersion } from "@/lib/site-admin/server/page-revision-commit";
 import {
   buildPublishedPageRevisionSnapshot,
   isFreeformPagePublish,
 } from "@/lib/site-admin/edit-mode/page-publish-revision";
-import { improntaLog } from "@/lib/server/structured-log";
-
 export interface ComposablePageRow {
   id: string;
   slug: string | null;
@@ -164,7 +166,7 @@ export async function publishPageSnapshot(input: {
   const { data: page, error: pErr } = await admin
     .from("cms_pages")
     .select(
-      "id, tenant_id, locale, title, status, version, system_template_key, template_schema_version, meta_description",
+      "id, tenant_id, locale, title, status, version, system_template_key, template_schema_version, meta_description, style_classes",
     )
     .eq("id", input.pageId)
     .eq("tenant_id", scope.tenantId)
@@ -300,6 +302,19 @@ export async function publishPageSnapshot(input: {
     };
   }
 
+  const styleClasses =
+    parseStyleClassesFromSnapshot(versionMatchedSnapshot) ??
+    coerceStyleClassRegistry(
+      (page as { style_classes?: unknown }).style_classes,
+    );
+  // Mirror homepage publish: bake linked class styles into the tree so the
+  // public snapshot does not depend on a client registry that is gone at
+  // render time. Unlinked classRefs still strip cleanly (never blank).
+  const publishedBuilderTree = resolveBuilderTreeClassRefs(
+    resolvedBuilderTree.tree,
+    styleClasses,
+  );
+
   const snapshot: HomepageSnapshot = {
     version: 1,
     publishedAt: new Date().toISOString(),
@@ -312,66 +327,55 @@ export async function publishPageSnapshot(input: {
     },
     templateSchemaVersion: (page.template_schema_version ?? 1) as number,
     slots,
-    builderTree: resolvedBuilderTree.tree,
+    builderTree: publishedBuilderTree,
   };
 
-  // Atomic-ish: bump version + write snapshot + flip draft rows to live.
-  const { error: updErr } = await admin
-    .from("cms_pages")
-    .update({
+  // WAVE1-1.5 — revision FIRST, then the CAS version bump. Returning ok:true
+  // after a warn-only revision failure left the editor with version N+1 and
+  // no tree to rehydrate. Homepage publish already used this order.
+  const nextVersion = page.version + 1;
+  const commit = await commitPageRevisionThenVersion(admin, {
+    tenantId: scope.tenantId,
+    pageId: input.pageId,
+    beforeVersion: page.version,
+    update: {
       status: "published",
       published_at: snapshot.publishedAt,
       published_page_snapshot: snapshot,
-      version: page.version + 1,
+      version: nextVersion,
       updated_by: auth.user.id,
       // W1-L2 — unstamped version bump: clear the WS1-D edit-session stamps so
       // a stale stamp can never grant a later beacon/save LWW past this write.
       edit_session_id: null,
       draft_seq: null,
-    })
-    .eq("id", input.pageId)
-    .eq("tenant_id", scope.tenantId)
-    .eq("version", page.version);
-  if (updErr) {
-    return { ok: false, error: "Couldn't publish — version conflict, reload and retry." };
-  }
-
-  // WAVE 1.2 — write a revision AT THE NEW VERSION.
-  //
-  // The publish above bumps `cms_pages.version`. Every editor load (and the
-  // publish path itself) reads the revision whose `version` MATCHES the page
-  // row. Without this insert there is no such revision, so the very next editor
-  // load found nothing, painted an EMPTY canvas, and the following autosave
-  // persisted that emptiness forward under a perfectly valid CAS. The live site
-  // was fine; the editor was where the work disappeared. Homepage publish has
-  // written a `kind='published'` revision all along — this is the same write.
-  const { error: revInsErr } = await admin.from("cms_page_revisions").insert({
-    tenant_id: scope.tenantId,
-    page_id: input.pageId,
-    kind: "published",
-    version: page.version + 1,
-    template_schema_version: (page.template_schema_version ?? 1) as number,
-    snapshot: buildPublishedPageRevisionSnapshot({
-      title: page.title as string,
-      locale: (page.locale ?? DEFAULT_PLATFORM_LOCALE) as string,
-      metaDescription: (page.meta_description ?? null) as string | null,
-      version: page.version + 1,
-      publishedAt: snapshot.publishedAt,
-      composition: slots,
-      builderTree: resolvedBuilderTree.tree,
-      previousSnapshot: versionMatchedSnapshot,
-    }),
-    created_by: auth.user.id,
+    },
+    revision: {
+      kind: "published",
+      version: nextVersion,
+      templateSchemaVersion: (page.template_schema_version ?? 1) as number,
+      snapshot: buildPublishedPageRevisionSnapshot({
+        title: page.title as string,
+        locale: (page.locale ?? DEFAULT_PLATFORM_LOCALE) as string,
+        metaDescription: (page.meta_description ?? null) as string | null,
+        version: nextVersion,
+        publishedAt: snapshot.publishedAt,
+        composition: slots,
+        builderTree: publishedBuilderTree,
+        previousSnapshot: versionMatchedSnapshot,
+      }),
+    },
+    actorProfileId: auth.user.id,
+    logScope: "site-admin/page-composer",
   });
-  if (revInsErr) {
-    void improntaLog("site_admin_pages.warn", {
-      message:
-        "[site-admin/page-composer] published revision insert failed — editor may load an empty canvas until the next save",
-      tenantId: scope.tenantId,
-      pageId: input.pageId,
-      version: page.version + 1,
-      error: revInsErr.message,
-    });
+  if (!commit.ok) {
+    if (commit.reason === "revision_insert") {
+      return {
+        ok: false,
+        error:
+          "Couldn't record the published revision, so nothing was published. Try again.",
+      };
+    }
+    return { ok: false, error: "Couldn't publish — version conflict, reload and retry." };
   }
 
   // Replace live composition with the freshly-snapshotted draft.

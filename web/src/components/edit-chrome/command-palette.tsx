@@ -394,25 +394,18 @@ export function CommandPalette({
         },
       ),
     );
-    if (
-      isShortcutVisible("open-revisions", {
-        canEditSiteShell: ctx.canEditSiteShell,
-        homepageEditing: !ctx.pageSlug,
-      })
-    ) {
-      rows.push(
-        drawerRow(
-          "open-revisions",
-          "Open Revisions",
-          "Browse and restore prior drafts",
-          ["history", "rollback", "restore", "version"],
-          () => {
-            ctx.openRevisions();
-            onClose();
-          },
-        ),
-      );
-    }
+    rows.push(
+      drawerRow(
+        "open-revisions",
+        "Open Revisions",
+        "Browse and restore prior drafts",
+        ["history", "rollback", "restore", "version"],
+        () => {
+          ctx.openRevisions();
+          onClose();
+        },
+      ),
+    );
     rows.push(
       ...(isShortcutVisible("open-theme", {
         canEditSiteShell: ctx.canEditSiteShell,

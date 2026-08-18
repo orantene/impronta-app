@@ -37,6 +37,10 @@ import {
   type BlockPosition,
 } from "./canvas-block-position";
 
+import {
+  BUILDER_FONT_REGISTRY,
+  cssFamilyForBuilderFont,
+} from "@/lib/site-admin/builder-node/fonts-registry";
 import { BUILDER_VISUAL } from "./inspectors/kit/tokens";
 import type { ViewportDevice } from "./inspectors/responsive-field-state";
 import {
@@ -49,6 +53,7 @@ import {
   requestCanvasToolbarColor,
   requestCanvasToolbarLink,
 } from "./canvas-lexical-bridge";
+import { CanvasTextLinkPopover } from "./canvas-text-link-popover";
 import { findBuilderNodeElement } from "./canvas-text-style-preview";
 import { ColorPickerPopover } from "./kit/color-picker";
 import {
@@ -120,6 +125,8 @@ export interface CanvasTextToolbarProps {
   onToggleBold?: () => void;
   onToggleItalic?: () => void;
   onChangeTextRole?: (role: BuilderTextRoleId) => void;
+  /** Whole-block href without arming inline edit (heading/paragraph/rich_text). */
+  onPatchHref?: (href: string | undefined) => void;
 }
 
 const FONT_SIZE_MIN = 8;
@@ -150,10 +157,10 @@ function resolveStyleField(
 
 const FONT_FAMILIES = [
   { value: "", label: "Theme default" },
-  { value: "Inter, sans-serif", label: "Inter" },
-  { value: "Georgia, serif", label: "Georgia" },
-  { value: "Playfair Display, serif", label: "Playfair" },
-  { value: "DM Sans, sans-serif", label: "DM Sans" },
+  ...BUILDER_FONT_REGISTRY.map((font) => ({
+    value: cssFamilyForBuilderFont(font),
+    label: font.label,
+  })),
 ];
 
 const TOOLBAR_MAX_WIDTH = 720;
@@ -402,7 +409,6 @@ export function CanvasTextToolbar({
   onToggleLock,
   locked = false,
   onPatchStyle,
-  onRequestInlineEdit,
   onReviseWithAi,
   nestedOpen,
   onToggleNested,
@@ -417,6 +423,7 @@ export function CanvasTextToolbar({
   onToggleBold,
   onToggleItalic,
   onChangeTextRole,
+  onPatchHref,
 }: CanvasTextToolbarProps) {
   const { t } = useEditorLocale();
   const { inspectorDockOpen, device } = useEditContext();
@@ -488,6 +495,10 @@ export function CanvasTextToolbar({
   const blockPosition = blockPositionFromStyle(style);
   const textColor = (style.textColor as string | undefined) ?? CHROME.ink;
   const showLink = node.kind !== "button";
+  const blockHref =
+    node.kind === "button" ? node.props.href : (node.props.href ?? "");
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkDraft, setLinkDraft] = useState(blockHref);
   const showJustify = node.kind === "paragraph";
 
   useLayoutEffect(() => {
@@ -523,12 +534,13 @@ export function CanvasTextToolbar({
     blockPositionOpen,
     fontFamilyOpen,
     textStyleOpen,
+    linkOpen,
     displayFontSize,
     rightReservePx,
   ]);
 
   useEffect(() => {
-    if (!moreOpen && !blockPositionOpen && !fontFamilyOpen && !textStyleOpen) {
+    if (!moreOpen && !blockPositionOpen && !fontFamilyOpen && !textStyleOpen && !linkOpen) {
       return;
     }
     const close = (e: MouseEvent) => {
@@ -538,10 +550,11 @@ export function CanvasTextToolbar({
       setBlockPositionOpen(false);
       setFontFamilyOpen(false);
       setTextStyleOpen(false);
+      setLinkOpen(false);
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
-  }, [moreOpen, blockPositionOpen, fontFamilyOpen, textStyleOpen]);
+  }, [moreOpen, blockPositionOpen, fontFamilyOpen, textStyleOpen, linkOpen]);
 
   const patchAlign = useCallback(
     (next: string) => {
@@ -594,13 +607,26 @@ export function CanvasTextToolbar({
     [editingActive],
   );
 
-  const handleLinkClick = useCallback(() => {
+  const handleLinkClick = () => {
     if (editingActive) {
       requestCanvasToolbarLink();
       return;
     }
-    onRequestInlineEdit?.();
-  }, [editingActive, onRequestInlineEdit]);
+    setLinkDraft(blockHref);
+    setLinkOpen((open) => !open);
+  };
+
+  const applyBlockHref = () => {
+    const next = linkDraft.trim();
+    onPatchHref?.(next || undefined);
+    setLinkOpen(false);
+  };
+
+  const removeBlockHref = () => {
+    onPatchHref?.(undefined);
+    setLinkDraft("");
+    setLinkOpen(false);
+  };
 
   const bar = (
     <div
@@ -808,6 +834,8 @@ export function CanvasTextToolbar({
               left: 0,
               bottom: "calc(100% + 6px)",
               minWidth: 168,
+              maxHeight: 280,
+              overflowY: "auto",
               background: CHROME.surface,
               border: `1px solid ${CHROME.line}`,
               borderRadius: 10,
@@ -1032,9 +1060,25 @@ export function CanvasTextToolbar({
       </ToolbarBtn>
 
       {showLink ? (
-        <ToolbarBtn title={t("Link")} disabled={disabled} onClick={handleLinkClick}>
-          <Link2 size={15} strokeWidth={2} aria-hidden />
-        </ToolbarBtn>
+        <span style={{ position: "relative", display: "inline-flex" }}>
+          <ToolbarBtn
+            title={t("Link")}
+            disabled={disabled}
+            active={linkOpen || Boolean(blockHref)}
+            onClick={handleLinkClick}
+          >
+            <Link2 size={15} strokeWidth={2} aria-hidden />
+          </ToolbarBtn>
+          {linkOpen && !editingActive ? (
+            <CanvasTextLinkPopover
+              draft={linkDraft}
+              onDraftChange={setLinkDraft}
+              onApply={applyBlockHref}
+              onRemove={removeBlockHref}
+              onClose={() => setLinkOpen(false)}
+            />
+          ) : null}
+        </span>
       ) : null}
 
       <Divider />

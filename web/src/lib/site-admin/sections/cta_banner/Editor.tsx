@@ -7,7 +7,7 @@ import { MediaPicker } from "../shared/MediaPicker";
 import { LinkKindPicker } from "../shared/LinkKindPicker";
 import { AltTextField } from "../shared/AltTextField";
 import { useSectionT } from "../shared/section-editor-i18n";
-import { RichEditor } from "@/components/edit-chrome/rich-editor";
+import { LocalizedTextInput } from "../shared/LocalizedTextInput";
 import { coerceLegacyHref } from "../../links/link-ref";
 import type { CtaBannerV1 } from "./schema";
 
@@ -45,54 +45,40 @@ export function CtaBannerEditor({
     <div className="flex flex-col gap-4">
       {/* ── Copy ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className={FIELD}>
-          <span className={LABEL}>{t("Eyebrow")}</span>
-          <input
-            className={INPUT}
-            maxLength={60}
-            placeholder={t("Ready when you are")}
-            value={value.eyebrow ?? ""}
-            onChange={(e) => patch({ eyebrow: e.target.value })}
-          />
-        </label>
-        <div className={FIELD}>
-          <span className={LABEL}>{t("Headline *")}</span>
-          <RichEditor
-            value={value.headline}
-            onChange={(next) => patch({ headline: next })}
-            variant="single"
-            tenantId={tenantId}
-            placeholder={t("Tell us about your celebration.")}
-            ariaLabel={t("Headline")}
-          />
-        </div>
-      </div>
-
-      <div className={FIELD}>
-        <span className={LABEL}>{t("Copy")}</span>
-        <RichEditor
-          value={value.copy ?? ""}
-          onChange={(next) => patch({ copy: next || undefined })}
-          variant="multi"
+        <LocalizedTextInput
+          label="Eyebrow"
+          value={value.eyebrow}
+          onChange={(next) => patch({ eyebrow: next })}
+          maxLength={60}
+        />
+        <LocalizedTextInput
+          label="Headline *"
+          value={value.headline}
+          onChange={(next) => patch({ headline: next })}
+          rich
           tenantId={tenantId}
-          placeholder={t(
-            "Share a few details and your concierge will return a curated team.",
-          )}
-          ariaLabel={t("Copy")}
+          maxLength={160}
         />
       </div>
 
-      <div className={FIELD}>
-        <span className={LABEL}>{t("Reassurance (italic)")}</span>
-        <RichEditor
-          value={value.reassurance ?? ""}
-          onChange={(next) => patch({ reassurance: next || undefined })}
-          variant="single"
-          tenantId={tenantId}
-          placeholder={t("Quiet, unhurried, always in the same key.")}
-          ariaLabel={t("Reassurance")}
-        />
-      </div>
+      <LocalizedTextInput
+        label="Copy"
+        value={value.copy}
+        onChange={(next) => patch({ copy: next })}
+        rich
+        tenantId={tenantId}
+        maxLength={320}
+        multiline
+      />
+
+      <LocalizedTextInput
+        label="Reassurance (italic)"
+        value={value.reassurance}
+        onChange={(next) => patch({ reassurance: next })}
+        rich
+        tenantId={tenantId}
+        maxLength={120}
+      />
 
       {/* ── CTAs ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

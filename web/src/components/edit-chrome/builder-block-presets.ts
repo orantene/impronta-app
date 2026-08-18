@@ -2,11 +2,10 @@
  * Builder block presets — localStorage seam (Builder 2026).
  *
  * Self-contained persistence helpers peeled out of edit-context.tsx (MAINT-1).
- * A "block preset" is a reusable, named builder node the operator saves and can
- * paste again later; the list is persisted to `window.localStorage` as a
- * convenience layer (editing continues even when storage is unavailable). Pure
- * functions — no React state, no surface branches. Behavior is byte-identical
- * to the inlined originals.
+ * A "block preset" used to be a localStorage list. Save pattern now writes
+ * a living component (`cms_builder_components`) via saveBuilderComponent.
+ * These helpers remain for any leftover readers; edit-context no longer
+ * reads or writes `impronta.builderBlockPresets.v1`.
  */
 
 import {

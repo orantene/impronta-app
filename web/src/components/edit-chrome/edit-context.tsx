@@ -62,6 +62,7 @@ import {
   restoreHomepageRevisionAction,
   restorePageRevisionAction,
   fetchNewestDraftRevisionIdAction,
+  setRevisionLabelAction,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import type {
   DispatchResult,
@@ -110,6 +111,7 @@ import {
   collectMobileFixes,
 } from "@/lib/site-admin/builder-node/mobile-fix";
 import { randomUuid } from "@/lib/site-admin/builder-node/make-id";
+import { applyResponsiveStructurePatch } from "@/lib/site-admin/builder-node/responsive-structure";
 import {
   builderPlanAllows,
   normalizeBuilderWorkspacePlan,
@@ -168,9 +170,6 @@ import {
   writeStoredBuilderNodeMultiClipboard,
 } from "./builder-node-clipboard-storage";
 import {
-  BUILDER_BLOCK_PRESET_LIMIT,
-  readStoredBuilderBlockPresets,
-  writeStoredBuilderBlockPresets,
   type BuilderBlockPreset,
 } from "./builder-block-presets";
 import {
@@ -479,7 +478,7 @@ export function EditProvider({
     useState<SerializedBuilderNodeClipboard | null>(null);
   const [builderBlockPresets, setBuilderBlockPresets] = useState<
     BuilderBlockPreset[]
-  >(() => readStoredBuilderBlockPresets());
+  >([]);
   useEffect(() => {
     setCopiedBuilderNode(readStoredBuilderNodeClipboard());
     setCopiedBuilderNodeClipboard(readStoredBuilderNodeMultiClipboard());
@@ -490,9 +489,6 @@ export function EditProvider({
   useEffect(() => {
     writeStoredBuilderNodeMultiClipboard(copiedBuilderNodeClipboard);
   }, [copiedBuilderNodeClipboard]);
-  useEffect(() => {
-    writeStoredBuilderBlockPresets(builderBlockPresets);
-  }, [builderBlockPresets]);
 
   // Plain setter used by canvas click, navigator click without modifiers,
   // and the chip's selection forwarding. Always clears the multi-set.
@@ -4301,29 +4297,18 @@ export function EditProvider({
   const saveCopiedBuilderNodeAsPreset = useCallback<
     EditContextValue["saveCopiedBuilderNodeAsPreset"]
   >(
-    (name) => {
+    async (name) => {
       if (!copiedBuilderNode || copiedBuilderNode.kind === "section") {
         return {
           ok: false,
-          error: "Copy a block on the page first, then save a preset.",
+          error: "Copy a block on the page first, then save it as a component.",
         };
       }
-      const presetId = randomUuid();
       const label = builderNodeLabel(copiedBuilderNode.kind);
-      const preset: BuilderBlockPreset = {
-        id: presetId,
+      return saveBuilderComponent({
         name: name?.trim() || `${label} pattern`,
-        node: cloneBuilderNode(copiedBuilderNode) as Exclude<
-          BuilderNode,
-          { kind: "section" }
-        >,
-        createdAt: new Date().toISOString(),
-      };
-      setBuilderBlockPresets((current) => {
-        const deduped = current.filter((item) => item.name !== preset.name);
-        return [preset, ...deduped].slice(0, BUILDER_BLOCK_PRESET_LIMIT);
+        subtree: copiedBuilderNode,
       });
-      return { ok: true, presetId };
     },
     [copiedBuilderNode],
   );
@@ -4517,7 +4502,7 @@ export function EditProvider({
   const setBuilderNodeMobileStructure = useCallback<
     EditContextValue["setBuilderNodeMobileStructure"]
   >(
-    async (nodeId, patch) => {
+    async (nodeId, patch, bucket = "mobile") => {
       const node = findBuilderNodeById(builderTreeRef.current, nodeId);
       if (!node || node.kind === "section") {
         return {
@@ -4530,38 +4515,7 @@ export function EditProvider({
         ("style" in node.props
           ? (node.props.style as Record<string, unknown> | undefined)
           : undefined) ?? {};
-      const currentResponsive =
-        (currentStyle.responsive as Record<string, unknown> | undefined) ?? {};
-      const currentMobile = {
-        ...((currentResponsive.mobile as Record<string, unknown> | undefined) ??
-          {}),
-      };
-
-      if ("visibility" in patch) {
-        if (patch.visibility === undefined) delete currentMobile.visibility;
-        else currentMobile.visibility = patch.visibility;
-      }
-      if ("order" in patch) {
-        if (patch.order === undefined || patch.order === null)
-          delete currentMobile.order;
-        else currentMobile.order = patch.order;
-      }
-
-      // Rebuild responsive, dropping an emptied mobile bucket so we never leave
-      // a `responsive: { mobile: {} }` residue (matches cleanBuilderNodeStyle).
-      const nextResponsive: Record<string, unknown> = { ...currentResponsive };
-      if (Object.keys(currentMobile).length > 0) {
-        nextResponsive.mobile = currentMobile;
-      } else {
-        delete nextResponsive.mobile;
-      }
-
-      const nextStyle: Record<string, unknown> = { ...currentStyle };
-      if (Object.keys(nextResponsive).length > 0) {
-        nextStyle.responsive = nextResponsive;
-      } else {
-        delete nextStyle.responsive;
-      }
+      const nextStyle = applyResponsiveStructurePatch(currentStyle, bucket, patch);
 
       const patched = await executeBuilderNodeOperation({
         operation: "patch",
@@ -5164,6 +5118,14 @@ export function EditProvider({
       try {
         queueBuilderTreePersist(top.pre);
         restoreHistorySelection(top.selection);
+        // Server-rendered curated pages have no ClientBuilderCanvas. Undo
+        // used to wait on the debounced persist before router.refresh, so
+        // redo/undo looked like a no-op until reload. Eager refresh when
+        // the full-page canvas is not mounted; leave the client canvas path
+        // alone (it already paints from the tree).
+        if (!isClientBuilderCanvasMounted()) {
+          void queueRouterRefresh();
+        }
       } finally {
         replayingHistoryRef.current = false;
       }
@@ -5260,6 +5222,7 @@ export function EditProvider({
     // Wave 3 (3.5) — the coalesced builder-tree lane.
     beginPendingHistoryBurst,
     queueBuilderTreePersist,
+    queueRouterRefresh,
   ]);
 
   const redo = useCallback(async () => {
@@ -5290,6 +5253,9 @@ export function EditProvider({
       try {
         queueBuilderTreePersist(top.post);
         restoreHistorySelection(top.selection);
+        if (!isClientBuilderCanvasMounted()) {
+          void queueRouterRefresh();
+        }
       } finally {
         replayingHistoryRef.current = false;
       }
@@ -5377,6 +5343,7 @@ export function EditProvider({
     // Wave 3 (3.5) — the coalesced builder-tree lane.
     beginPendingHistoryBurst,
     queueBuilderTreePersist,
+    queueRouterRefresh,
   ]);
 
   // Flush a queued undo/redo once the in-flight save completes.
@@ -5651,14 +5618,10 @@ export function EditProvider({
       }
       const trimmedLabel = label.trim();
       if (trimmedLabel) {
-        try {
-          const raw = window.localStorage.getItem("builder_revision_labels_v1");
-          const map: Record<string, string> = raw ? (JSON.parse(raw) as Record<string, string>) : {};
-          map[revRes.revisionId] = trimmedLabel;
-          window.localStorage.setItem("builder_revision_labels_v1", JSON.stringify(map));
-        } catch {
-          // localStorage unavailable (quota / private browsing) — ignore.
-        }
+        await setRevisionLabelAction({
+          revisionId: revRes.revisionId,
+          label: trimmedLabel,
+        });
       }
       return { ok: true, revisionId: revRes.revisionId };
     },

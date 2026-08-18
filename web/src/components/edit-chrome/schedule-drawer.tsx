@@ -257,7 +257,6 @@ export function ScheduleDrawer() {
       kind="schedule"
       open={open}
       ariaLabelledBy="schedule-drawer-title"
-      modal
       onRequestClose={exitDisabled ? undefined : onClose}
     >
       <DrawerHead

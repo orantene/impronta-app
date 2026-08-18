@@ -681,6 +681,7 @@ const splitPropsSchema = z.object({
 const headingPropsSchema = z.object({
   text: z.string().min(1).max(240),
   level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  href: z.string().max(500).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
@@ -688,6 +689,7 @@ const headingPropsSchema = z.object({
 
 const paragraphPropsSchema = z.object({
   text: z.string().min(1).max(5000),
+  href: z.string().max(500).optional(),
   layerLabel: layerLabelSchema,
   fieldBindings: fieldBindingPropsSchema.optional(),
   style: builderNodeStyleSchema,
@@ -867,7 +869,7 @@ const pricingTablePropsSchema = z.object({
   tiers: z.array(z.object({ id: z.string().min(1).max(80), name: z.string().min(1).max(120), description: z.string().max(500).optional(), price: z.string().min(1).max(80), period: z.string().max(80).optional(), ctaLabel: z.string().max(80).optional(), ctaHref: z.string().max(500).optional(), highlighted: z.boolean().optional(), features: z.array(z.object({ label: z.string().min(1).max(240), included: z.boolean().optional() })).max(20).optional() })).min(2).max(4),
   style: builderNodeStyleSchema,
 });
-const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), fieldBindings: fieldBindingPropsSchema.optional(), style: builderNodeStyleSchema });
+const richTextPropsSchema = z.object({ text: z.string().min(1).max(10000), href: z.string().max(500).optional(), fieldBindings: fieldBindingPropsSchema.optional(), style: builderNodeStyleSchema });
 const codePropsSchema = z.object({ html: z.string().max(20000), minHeight: z.number().int().min(40).max(5000).optional(), style: builderNodeStyleSchema }); // safety = opaque-origin sandbox in render.tsx, not markup validation
 
 const spacerPropsSchema = z.object({
@@ -922,18 +924,31 @@ const sectionEmbedPropsSchema = z.object({
 });
 
 // Lead/contact form (MVP). Fields are an ordered array (text/email/tel/
-// textarea inputs + one submit button). `action` is "internal" (POST to
-// /api/cms/forms/submit, gated by a real `sectionId`) OR a full https/http URL
-// (Formspree, a custom handler, …). Field `name`s become submission keys; the
-// renderer adds a honeypot + hidden section marker. DEFERRED: select / radio /
-// checkbox, multi-step, and validation beyond native required/type.
+// textarea/select/radio/checkbox/date/file/consent + one submit button).
+// `action` is "internal" (POST to /api/cms/forms/submit, gated by a real
+// `sectionId`) OR a full https/http URL (Formspree, a custom handler, …).
+// Inquiry routing is owned by the contact_form section the operator picks.
 const formFieldSchema = z.object({
   id: z.string().min(1).max(120),
   name: z.string().min(1).max(80),
-  type: z.enum(["text", "email", "tel", "textarea", "submit"]),
+  type: z.enum([
+    "text",
+    "email",
+    "tel",
+    "textarea",
+    "submit",
+    "select",
+    "radio",
+    "checkbox",
+    "date",
+    "file",
+    "consent",
+  ]),
   label: z.string().min(1).max(120),
   placeholder: z.string().max(160).optional(),
+  consentText: z.string().max(500).optional(),
   required: z.boolean().optional(),
+  options: z.array(z.string().min(1).max(80)).max(24).optional(),
 });
 
 const formPropsSchema = z.object({

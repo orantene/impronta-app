@@ -95,7 +95,6 @@ export function CollectionsDrawer() {
       kind="collections"
       open={collectionsOpen}
       testId="collections-drawer"
-      modal
       onRequestClose={closeCollections}
     >
       <DrawerHead

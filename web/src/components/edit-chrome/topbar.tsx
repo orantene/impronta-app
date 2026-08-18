@@ -1683,12 +1683,8 @@ function TbOutlineBtn({
 
 type PublishMenuOption =
   | "schedule"
-  | "save-draft"
-  | "preview"
-  | "revisions"
-  | "page-settings"
-  | "duplicate-page"
   | "unpublish"
+  | "discard"
   | "pull-from-live:replace"
   | "pull-from-live:above"
   | "pull-from-live:below";
@@ -1852,36 +1848,6 @@ function PublishSplitButton({
               "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
           }}
         >
-          {/* Save draft */}
-          <MenuItem
-            icon={
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
-              </svg>
-            }
-            title="Save draft"
-            description="Checkpoint without publishing"
-            shortcut="⌘S"
-            onClick={() => { onMenuSelect("save-draft"); setMenuOpen(false); }}
-          />
-          {/* Preview */}
-          <MenuItem
-            icon={
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            }
-            title="Preview"
-            description="View page as a visitor"
-            onClick={() => { onMenuSelect("preview"); setMenuOpen(false); }}
-          />
-          <div
-            role="separator"
-            style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
-          />
           {/* Schedule */}
           <MenuItem
             icon={
@@ -1893,23 +1859,6 @@ function PublishSplitButton({
             title="Schedule publish…"
             description="Choose a date and time"
             onClick={() => { onMenuSelect("schedule"); setMenuOpen(false); }}
-          />
-          <div
-            role="separator"
-            style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
-          />
-          {/* Revision history */}
-          <MenuItem
-            icon={
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M3 3v5h5" />
-                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
-                <polyline points="12 7 12 12 15 15" />
-              </svg>
-            }
-            title="Revision history"
-            description="Browse and restore past saves"
-            onClick={() => { onMenuSelect("revisions"); setMenuOpen(false); }}
           />
           <div
             role="separator"
@@ -1952,30 +1901,6 @@ function PublishSplitButton({
             description="Add the live homepage blocks below your draft"
             onClick={() => { onMenuSelect("pull-from-live:below"); setMenuOpen(false); }}
           />
-          {/* Page settings */}
-          <MenuItem
-            icon={
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            }
-            title="Page settings"
-            description="SEO, URL, metadata"
-            onClick={() => { onMenuSelect("page-settings"); setMenuOpen(false); }}
-          />
-          {/* Duplicate page */}
-          <MenuItem
-            icon={
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-              </svg>
-            }
-            title="Duplicate page"
-            description="Clone this page to a new draft"
-            onClick={() => { onMenuSelect("duplicate-page"); setMenuOpen(false); }}
-          />
           <div
             role="separator"
             style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
@@ -1994,6 +1919,17 @@ function PublishSplitButton({
             title="Unpublish / Archive"
             description="Take this page offline"
             onClick={() => { onMenuSelect("unpublish"); setMenuOpen(false); }}
+          />
+          <MenuItem
+            icon={
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+            }
+            title="Discard draft"
+            description="Reset this draft to the live published version"
+            onClick={() => { onMenuSelect("discard"); setMenuOpen(false); }}
           />
         </div>
         </PortaledOverlay>
@@ -2548,6 +2484,7 @@ function ShareButton({
     ttlSeconds?: number;
   }) => Promise<string | null>;
 }) {
+  const editCtx = useMaybeEditContext();
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [ttl, setTtl] =
@@ -2595,7 +2532,7 @@ function ShareButton({
         try {
           await navigator.clipboard.writeText(url);
         } catch {
-          window.prompt("Share link", url);
+          editCtx?.reportMutationError(`Couldn't copy automatically. Link: ${url}`);
         }
       }
       setOpen(false);
@@ -2982,6 +2919,7 @@ export function TopBar({
   labHeaderActions,
 }: TopBarProps) {
   const editCtx = useMaybeEditContext();
+  const { t } = useEditorLocale();
   // Workspace slug for the dashboard quick-links menu. Null on Builder Lab and
   // platform surfaces, where `/{slug}/admin/*` would not resolve.
   const workspaceSlug = editCtx?.workspaceMembershipSlug ?? null;
@@ -3032,33 +2970,6 @@ export function TopBar({
       else void improntaLog("edit_chrome_topbar.info", {
         message: "[topbar] schedule publish: no handler wired",
       });
-    } else if (opt === "save-draft") {
-      // WS4-TASK1 (main): if onSaveNamedDraft is wired, open the label prompt
-      // (named checkpoints) instead of firing onSaveDraft silently.
-      if (onSaveNamedDraft) {
-        setNamedDraftLabel("");
-        setNamedDraftError(null);
-        setNamedDraftOpen(true);
-      } else if (onSaveDraft) {
-        void onSaveDraft();
-      }
-    } else if (opt === "preview") {
-      setPreviewing(true);
-    } else if (opt === "revisions") {
-      if (onRevisions) onRevisions();
-      else void improntaLog("edit_chrome_topbar.info", {
-        message: "[topbar] revision history: no handler wired",
-      });
-    } else if (opt === "page-settings") {
-      if (onPageSettings) onPageSettings();
-      else void improntaLog("edit_chrome_topbar.info", {
-        message: "[topbar] page settings: no handler wired",
-      });
-    } else if (opt === "duplicate-page") {
-      if (onDuplicatePage) onDuplicatePage();
-      else void improntaLog("edit_chrome_topbar.info", {
-        message: "[topbar] duplicate page: no handler wired",
-      });
     } else if (opt === "unpublish") {
       // Opens the Publish drawer — the drawer handles Unpublish/Archive state.
       if (onUnpublish) onUnpublish();
@@ -3079,10 +2990,7 @@ export function TopBar({
             : "below";
       void runPullFromLive(mode);
     } else if (opt === "discard") {
-      // Phase 4 — discard draft (revert to live snapshot)
-      void improntaLog("edit_chrome_topbar.info", {
-        message: "[topbar] discard draft: not yet implemented",
-      });
+      void runDiscardDraft();
     }
   }
 
@@ -3091,6 +2999,41 @@ export function TopBar({
   // public cache). Runs from the `...` menu (not the advisory-heavy Publish
   // drawer) so it never main-thread-freezes on large homes. Mirrors the
   // publish-drawer's handleCopyFromLive: confirm -> safeAction -> refresh.
+  async function runDiscardDraft() {
+    if (!editCtx) return;
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        t(
+          "Reset this draft to the currently published version? This discards your unsaved draft edits.",
+        ),
+      )
+    ) {
+      return;
+    }
+    const res = await safeAction(
+      () =>
+        copyPublishedHomepageAction({
+          locale: editCtx.locale,
+          mode: "replace",
+        }),
+      {
+        name: "discardDraft",
+        fallback: {
+          ok: false as const,
+          error:
+            "Network error. Couldn't discard the draft. Check your connection and try again.",
+          code: "network",
+        },
+      },
+    );
+    if (res.ok) {
+      await editCtx.refreshComposition();
+      return;
+    }
+    editCtx.reportMutationError(res.error);
+  }
+
   async function runPullFromLive(mode: "replace" | "above" | "below") {
     if (!editCtx) return;
     // Only Replace discards the current draft, so only it needs a confirm.
@@ -3209,6 +3152,16 @@ export function TopBar({
         <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 7v6h-6" />
           <path d="M3 17a9 9 0 0 1 15-6.7l3 2.7" />
+        </svg>
+      </TbIconBtn>
+      <TbIconBtn
+        title="Revisions (⌘⇧Y)"
+        onClick={onRevisions}
+        disabled={!onRevisions}
+      >
+        <svg width={TB_ICON_PX} height={TB_ICON_PX} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
         </svg>
       </TbIconBtn>
 

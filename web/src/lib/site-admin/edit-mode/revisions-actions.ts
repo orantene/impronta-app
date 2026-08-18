@@ -26,6 +26,11 @@ import {
 } from "@/lib/site-admin/forms/homepage";
 import { pageRestoreRevisionSchema } from "@/lib/site-admin/forms/pages";
 import { restoreHomepageRevision } from "@/lib/site-admin/server/homepage";
+import {
+  computeRevisionStructuredDiff,
+  treeFromRevisionSnapshot,
+  type RevisionStructuredDiff,
+} from "@/lib/site-admin/edit-mode/revisions-diff";
 import { restorePageRevision } from "@/lib/site-admin/server/pages";
 import {
   loadDraftHomepage,
@@ -58,6 +63,8 @@ export interface RevisionListRow {
   sectionCount: number;
   /** `snapshot.page.title` if present — useful when the row predates the current title. */
   titleAtRevision: string | null;
+  /** Operator-assigned named version. Null = unlabeled. */
+  label: string | null;
 }
 
 export type RevisionsLoadResult =
@@ -165,6 +172,7 @@ export async function loadHomepageRevisionsAction(input: {
           ? snap.composition.length
           : 0,
         titleAtRevision: snap.page?.title ?? null,
+        label: typeof r.label === "string" && r.label.trim() ? r.label.trim() : null,
       };
     });
 
@@ -274,7 +282,12 @@ export interface RevisionSnapshotSummary {
 }
 
 export type RevisionSnapshotResult =
-  | { ok: true; a: RevisionSnapshotSummary; b: RevisionSnapshotSummary }
+  | {
+      ok: true;
+      a: RevisionSnapshotSummary;
+      b: RevisionSnapshotSummary;
+      diff: RevisionStructuredDiff;
+    }
   | { ok: false; error: string };
 
 // ── Helper: extract summary items from a raw snapshot JSONB ────────────────
@@ -414,6 +427,7 @@ export async function loadPageRevisionsAction(input: {
         } : null,
         sectionCount: nodeCount,
         titleAtRevision: title,
+        label: typeof r.label === "string" && r.label.trim() ? r.label.trim() : null,
       };
     });
 
@@ -657,9 +671,59 @@ export async function loadRevisionDiffAction(input: {
       };
     }
 
-    return { ok: true, a: toSummary(rowA), b: toSummary(rowB) };
+    const snapA = (rowA.snapshot ?? {}) as Record<string, unknown>;
+    const snapB = (rowB.snapshot ?? {}) as Record<string, unknown>;
+    return {
+      ok: true,
+      a: toSummary(rowA),
+      b: toSummary(rowB),
+      diff: computeRevisionStructuredDiff(
+        treeFromRevisionSnapshot(snapA),
+        treeFromRevisionSnapshot(snapB),
+      ),
+    };
   } catch (error) {
     logServerError("edit-mode/diff-revisions", error);
     return { ok: false, error: "Failed to load diff." };
+  }
+}
+
+export type SetRevisionLabelResult =
+  | { ok: true }
+  | { ok: false; error: string; code?: string };
+
+/**
+ * Persist an operator-assigned named version on `cms_page_revisions.label`.
+ * Empty string clears the label. Talent-site-shell revisions use a different
+ * table and keep the localStorage fallback in the drawer.
+ */
+export async function setRevisionLabelAction(input: {
+  revisionId: string;
+  label: string;
+}): Promise<SetRevisionLabelResult> {
+  const auth = await requireSession();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireEditSurfaceTenantScope().catch(() => null);
+  if (!scope) {
+    return { ok: false, error: "Select an agency workspace first.", code: "NO_SCOPE" };
+  }
+  const revisionId = input.revisionId?.trim() ?? "";
+  if (!revisionId) return { ok: false, error: "Missing revision.", code: "VALIDATION" };
+  const trimmed = input.label.trim().slice(0, 80);
+
+  try {
+    const { data, error } = await auth.supabase
+      .from("cms_page_revisions")
+      .update({ label: trimmed || null })
+      .eq("tenant_id", scope.tenantId)
+      .eq("id", revisionId)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error) return { ok: false, error: "Could not save the version name.", code: "DB_ERROR" };
+    if (!data) return { ok: false, error: "Revision not found.", code: "NOT_FOUND" };
+    return { ok: true };
+  } catch (err) {
+    logServerError("edit-mode/set-revision-label", err);
+    return { ok: false, error: "Could not save the version name." };
   }
 }

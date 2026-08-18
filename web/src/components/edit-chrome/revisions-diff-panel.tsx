@@ -18,6 +18,8 @@ import {
   type RevisionListRow,
   type RevisionSnapshotSummary,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type { RevisionStructuredDiff } from "@/lib/site-admin/edit-mode/revisions-diff";
+import { useEditorLocale } from "./use-editor-locale";
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 
@@ -198,7 +200,12 @@ export function RevisionsDiffPanel({
     | { status: "idle" }
     | { status: "loading" }
     | { status: "error"; message: string }
-    | { status: "loaded"; a: RevisionSnapshotSummary; b: RevisionSnapshotSummary };
+    | {
+        status: "loaded";
+        a: RevisionSnapshotSummary;
+        b: RevisionSnapshotSummary;
+        diff: RevisionStructuredDiff;
+      };
 
   const [diffState, setDiffState] = useState<DiffState>({ status: "idle" });
 
@@ -212,7 +219,7 @@ export function RevisionsDiffPanel({
     }).then((res) => {
       if (cancelled) return;
       if (res.ok) {
-        setDiffState({ status: "loaded", a: res.a, b: res.b });
+        setDiffState({ status: "loaded", a: res.a, b: res.b, diff: res.diff });
       } else {
         setDiffState({ status: "error", message: res.error });
       }
@@ -266,9 +273,9 @@ export function RevisionsDiffPanel({
               color: CHROME.muted,
             }}
           >
-            Side-by-side structural diff, shows which top-level sections or
-            blocks were added or removed between the two snapshots. Content
-            edits within a block are not shown here. Click{" "}
+            Side-by-side diff of added, removed, and edited blocks (copy,
+            links, images, fill, type, order). Full style sits behind Show
+            details. Click{" "}
             <strong style={{ color: CHROME.text }}>Back</strong> then{" "}
             <strong style={{ color: CHROME.text }}>Restore</strong> to roll back.
           </div>
@@ -302,19 +309,104 @@ export function RevisionsDiffPanel({
         </div>
       )}
 
-      {diffState.status === "loaded" && (() => {
-        const { aRows, bRows } = computeDiff(diffState.a.items, diffState.b.items);
-        // In embedded mode (publish drawer) revA=published, revB=draft so
-        // use more descriptive labels than "older"/"newer".
-        const labelA = embedded ? "Published" : "older";
-        const labelB = embedded ? "Draft (going live)" : "newer";
-        return (
-          <div className="flex gap-2 items-start">
-            <DiffColumn summary={diffState.a} rows={aRows} label={labelA} />
-            <DiffColumn summary={diffState.b} rows={bRows} label={labelB} />
+      {diffState.status === "loaded" && (
+        <LoadedDiff
+          a={diffState.a}
+          b={diffState.b}
+          diff={diffState.diff}
+          embedded={embedded}
+        />
+      )}
+    </div>
+  );
+}
+
+function LoadedDiff({
+  a,
+  b,
+  diff,
+  embedded,
+}: {
+  a: RevisionSnapshotSummary;
+  b: RevisionSnapshotSummary;
+  diff: RevisionStructuredDiff;
+  embedded: boolean;
+}) {
+  const { t } = useEditorLocale();
+  const [openDetails, setOpenDetails] = useState<Record<string, boolean>>({});
+  const { aRows, bRows } = computeDiff(a.items, b.items);
+  const labelA = embedded ? "Published" : "older";
+  const labelB = embedded ? "Draft (going live)" : "newer";
+  const changed = diff.nodes.filter((n) => n.op === "changed");
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2 items-start">
+        <DiffColumn summary={a} rows={aRows} label={labelA} />
+        <DiffColumn summary={b} rows={bRows} label={labelB} />
+      </div>
+      {changed.length === 0 && diff.summary.added === 0 && diff.summary.removed === 0 ? (
+        <p style={{ fontSize: 11.5, color: CHROME.muted, margin: 0 }}>{t("No changes")}</p>
+      ) : null}
+      {changed.map((node) => (
+        <div
+          key={node.id}
+          className="rounded-md px-2.5 py-2"
+          style={{ border: `1px solid ${CHROME.line}`, background: CHROME.paper }}
+        >
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: CHROME.ink }}>
+            {node.label}{" "}
+            <span style={{ fontWeight: 500, color: CHROME.muted }}>{node.kind}</span>
           </div>
-        );
-      })()}
+          <div className="mt-1 flex flex-wrap gap-1">
+            {node.properties.map((prop) => (
+              <span
+                key={prop.property}
+                className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5"
+                style={{
+                  fontSize: 10,
+                  background: CHROME.surface2,
+                  border: `1px solid ${CHROME.line}`,
+                  color: CHROME.text,
+                }}
+              >
+                {prop.property}: {prop.before} → {prop.after}
+              </span>
+            ))}
+          </div>
+          {node.styleDetails ? (
+            <button
+              type="button"
+              onClick={() =>
+                setOpenDetails((prev) => ({ ...prev, [node.id]: !prev[node.id] }))
+              }
+              style={{
+                marginTop: 6,
+                fontSize: 10.5,
+                color: CHROME.blue,
+                background: "none",
+                border: 0,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              {openDetails[node.id] ? t("Hide details") : t("Show details")}
+            </button>
+          ) : null}
+          {openDetails[node.id] && node.styleDetails
+            ? Object.entries(node.styleDetails).map(([key, value]) => (
+                <div key={key} style={{ fontSize: 10.5, color: CHROME.muted }}>
+                  {key}: {value.before} → {value.after}
+                </div>
+              ))
+            : null}
+        </div>
+      ))}
+      {diff.remainderCount > 0 ? (
+        <p style={{ fontSize: 11, color: CHROME.muted, margin: 0 }}>
+          {t("+{count} more changes").replace("{count}", String(diff.remainderCount))}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -34,6 +34,7 @@ import {
   publishHomepageFromEditModeAction,
 } from "@/lib/site-admin/edit-mode/composition-actions";
 import type { BuilderSurfaceKind } from "@/lib/site-admin/builder-core/surface-kind";
+import { isPublishPreflightSurface } from "@/lib/site-admin/edit-mode/publish-preflight-surfaces";
 import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
   readClasses,
@@ -365,11 +366,9 @@ export function PublishDrawer() {
     if (publishOpen) {
       setState({ kind: "idle" });
       setShowLegacy(false);
-      // Only the homepage surface runs the CMS preflight; for talent/workspace
-      // it's disabled, and since PublishPreflight (a child) resolves its status
-      // BEFORE this parent effect, optimistically setting `true` here would
-      // leave the publish button stuck "Running publish checks…".
-      setPreflightLoading(surfaceKind === "homepage");
+      // PublishPreflight resolves status before this parent effect; start
+      // loading only on surfaces that actually run the checks.
+      setPreflightLoading(isPublishPreflightSurface(surfaceKind));
       setPreflightBlockingErrors(0);
       setPreflightMobileOverflowErrors(0);
       setPublishedRows(null);
@@ -682,7 +681,9 @@ export function PublishDrawer() {
     if (
       typeof window !== "undefined" &&
       !window.confirm(
-        "Reset this draft to the currently published version? This discards your unsaved draft edits.",
+        t(
+          "Reset this draft to the currently published version? This discards your unsaved draft edits.",
+        ),
       )
     ) {
       return;
@@ -1002,15 +1003,12 @@ export function PublishDrawer() {
             {/* Phase 10 — preflight (heading + alt-text + contrast). */}
             <div className="mb-3">
               <PublishPreflight
-                // The CMS preflight (requireStaff + cms_pages) only applies to
-                // the homepage surface; talent_page / cms_page publish
-                // through their own adapter, so skip it there (it would 401 for
-                // a non-staff talent and falsely block publish). Mobile-health
-                // advisories below still run for all surfaces.
-                enabled={publishOpen && surfaceKind === "homepage"}
+                enabled={publishOpen && isPublishPreflightSurface(surfaceKind)}
                 refreshKey={publishOpen ? 1 : 0}
                 locale={locale}
-                pageId={pageSlug ? pageId : undefined}
+                pageId={pageId}
+                surfaceKind={surfaceKind}
+                builderTree={builderTree}
                 onStatusChange={handlePreflightStatusChange}
                 onFocusSection={focusSectionForEdit}
               />
@@ -1648,6 +1646,7 @@ export function PublishDrawer() {
                         createdBy: null,
                         sectionCount: 0,
                         titleAtRevision: null,
+                        label: null,
                       }}
                       revB={{
                         id: builderDiffIds.draftRevisionId,
@@ -1657,6 +1656,7 @@ export function PublishDrawer() {
                         createdBy: null,
                         sectionCount: 0,
                         titleAtRevision: null,
+                        label: null,
                       }}
                       onClose={() => setBuilderDiffIds(null)}
                       embedded

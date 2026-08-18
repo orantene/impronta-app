@@ -247,7 +247,6 @@ export function AssetsLibraryDrawer() {
       zIndex={87}
       ariaLabelledBy={TITLE_ID}
       testId="assets-drawer"
-      modal
       onRequestClose={uploading ? undefined : closeAssets}
       floating
       floatLabel="Assets"

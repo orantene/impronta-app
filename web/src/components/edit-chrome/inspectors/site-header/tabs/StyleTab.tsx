@@ -211,7 +211,7 @@ function ColorRow({
         <span className={KIT.label}>{label}</span>
         {hint ? <span className={KIT.hint}>{hint}</span> : null}
       </div>
-      <div className="flex items-center gap-2 rounded-lg border border-[#cfc7b6] bg-white px-2 py-1.5 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
+      <div className="flex items-center gap-2 rounded-lg border border-[rgba(24,24,27,0.16)] bg-white px-2 py-1.5 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
         {/* Native color picker — no popover anchoring complexity. The
          *  visible swatch IS the input, hidden but clickable through a
          *  custom-styled wrapper. */}

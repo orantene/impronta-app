@@ -7,8 +7,9 @@
  * "desktop minus stuff", they think "what does the menu look like, where
  * does the CTA go, how does the bar collapse". This tab answers those.
  *
- * In this first cut we ship two functional controls + IA stubs for the
- * three controls that need design judgment in the next session.
+ * The two live mobile tokens (menu style + CTA placement) are the complete
+ * mobile-header set. Sticky / brand / density stay on Layout because they
+ * are not mobile-only.
  */
 
 import { InspectorGroup } from "../../kit";
@@ -155,7 +156,7 @@ function ChipGrid({
             className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
               active
                 ? "border-indigo-300 bg-indigo-50"
-                : "border-transparent bg-[#faf9f6] hover:border-[#e5e0d5] hover:bg-white"
+                : "border-transparent hover:border-[rgba(24,24,27,0.16)] hover:bg-white"
             }`}
           >
             <span className="flex items-center justify-center rounded-md bg-white py-1.5">

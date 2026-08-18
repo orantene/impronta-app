@@ -1,6 +1,7 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { pickI18n } from "../shared/i18n-text";
 import { Cta } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
@@ -256,14 +257,11 @@ export function CtaBannerComponent({
   props,
   sectionId,
   tenantId,
+  locale,
   publicPathPrefix,
   builderNodeBindings,
 }: SectionComponentProps<CtaBannerV1>) {
   const {
-    eyebrow,
-    headline,
-    copy,
-    reassurance,
     primaryCta,
     secondaryCta,
     backgroundImageUrl,
@@ -275,6 +273,10 @@ export function CtaBannerComponent({
     insetCard,
     presentation,
   } = props;
+  const eyebrow = pickI18n(props.eyebrow, locale);
+  const headline = pickI18n(props.headline, locale);
+  const copy = pickI18n(props.copy, locale);
+  const reassurance = pickI18n(props.reassurance, locale);
 
   // 6C — resolve CTA LinkRefs through the single source of truth.
   // robust whether props arrive as a LinkRef object (new editor writes)

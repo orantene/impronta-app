@@ -184,7 +184,7 @@ const BUDGETS: Record<string, number> = {
   // took it DOWN to 7783; this branch's move-affordance wiring adds +80 on top
   // of that, and the additions are disjoint. Budget below is the measured value
   // after the rebase, not the sum guessed in advance.
-  "selection-layer.tsx": 7865,
+  "selection-layer.tsx": 7882,
   // The extracted panel. Also under the eslint 800 cap, and it must stay there:
   // the point of the extraction is a second small file, not a second god file.
   // +5 (PR #947): the `social_feed` case in `canvasChildSecondaryLabel`, which

@@ -21,6 +21,7 @@
  */
 
 import type { ReactNode, CSSProperties } from "react";
+import { overlayOpacityToUnitInterval } from "../overlay-opacity";
 
 // ── Container ───────────────────────────────────────────────────────────
 
@@ -603,7 +604,7 @@ export function MediaFrame({
           aria-hidden="true"
           style={{
             background: overlayColor ?? "#000",
-            opacity: ov,
+            opacity: overlayOpacityToUnitInterval(ov) ?? 0,
           }}
         />
       ) : null}

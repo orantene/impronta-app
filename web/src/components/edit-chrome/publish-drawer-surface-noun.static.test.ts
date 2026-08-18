@@ -34,6 +34,9 @@ const read = (rel: string) => readFileSync(resolve(HERE, rel), "utf8");
 
 const DRAWER = read("publish-drawer.tsx");
 const ES = read("editor-i18n-es.ts");
+const PREFLIGHT_SURFACES = read(
+  "../../lib/site-admin/edit-mode/publish-preflight-surfaces.ts",
+);
 
 test("copy-deciding homepage checks are guarded by pageSlug", () => {
   // The two COPY sites: the drawer title noun and the success body sentence.
@@ -47,12 +50,16 @@ test("copy-deciding homepage checks are guarded by pageSlug", () => {
     2,
     `expected exactly 2 pageSlug-guarded homepage copy checks (drawer title noun + success body), found ${guarded.length}`,
   );
-  // The remaining surfaceKind-only homepage comparisons in this file are
-  // BEHAVIOURAL (which publish server action to call, whether to run the CMS
-  // preflight) and are correctly slug-blind. They must still exist.
+  // Preflight surface membership lives in publish-preflight-surfaces.ts so
+  // this god file does not grow a second copy of the same or-chain. The
+  // drawer must still call the helper; the helper must still list cms_page.
   assert.ok(
-    DRAWER.includes('setPreflightLoading(surfaceKind === "homepage");'),
-    "the CMS preflight gate is surfaceKind-only on purpose and should not have been slug-guarded",
+    DRAWER.includes("isPublishPreflightSurface"),
+    "publish drawer must gate preflight through isPublishPreflightSurface",
+  );
+  assert.ok(
+    PREFLIGHT_SURFACES.includes('"cms_page"'),
+    "preflight now runs on cms_page / site_shell / talent_page, not homepage-only",
   );
 });
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
+import { i18nCopy } from "../shared/i18n-text";
 import { pgUuidSchema, publicImagePathOrUrlSchema } from "../../validators";
 import { linkRefOrLegacy } from "../../links/link-ref";
 
@@ -25,11 +26,11 @@ const ctaSchema = z.object({
 });
 
 export const ctaBannerSchemaV1 = z.object({
-  eyebrow: z.string().max(60).optional(),
-  headline: z.string().min(1).max(160),
-  copy: z.string().max(320).optional(),
+  eyebrow: i18nCopy(60).optional(),
+  headline: i18nCopy(160, { min: 1 }),
+  copy: i18nCopy(320).optional(),
   /** Italic serif reassurance line below CTAs. */
-  reassurance: z.string().max(120).optional(),
+  reassurance: i18nCopy(120).optional(),
 
   primaryCta: ctaSchema.optional(),
   secondaryCta: ctaSchema.optional(),

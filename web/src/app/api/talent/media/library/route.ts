@@ -26,6 +26,8 @@ import {
   MEDIA_LIBRARY_PAGE_SIZE,
 } from "@/lib/media/library-item";
 import { classifyTalentMediaUsability } from "@/lib/site-admin/server/media-grants";
+import { normalizeAltText } from "@/lib/site-admin/media/validation";
+import { updateTenantMediaAssetAlt } from "@/lib/site-admin/media/assets";
 import {
   requireWorkspaceStaffAction,
   requireTalentSelfAction,
@@ -187,4 +189,110 @@ export async function GET(req: Request) {
     pendingCount: result.pendingCount,
     quota,
   });
+}
+
+export async function PATCH(req: Request) {
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ ok: false, error: "Malformed JSON." }, { status: 400 });
+  }
+
+  const talentProfileId =
+    typeof body.talentProfileId === "string" ? body.talentProfileId : "";
+  const assetId = typeof body.id === "string" ? body.id : "";
+  if (!UUID_RE.test(talentProfileId) || !UUID_RE.test(assetId)) {
+    return NextResponse.json(
+      { ok: false, error: "talentProfileId and id required" },
+      { status: 400 },
+    );
+  }
+
+  const self = await requireTalentSelfAction(talentProfileId);
+  let authorized = self.ok;
+  let resolvedTenantId: string | null = self.ok ? self.tenantId : null;
+  const isTalentSelf = self.ok;
+
+  if (!authorized) {
+    const staff = await requireWorkspaceStaffAction();
+    if (staff.ok) {
+      const admin = createServiceRoleClient();
+      if (admin) {
+        const { data: roster } = await admin
+          .from("agency_talent_roster")
+          .select("talent_profile_id")
+          .eq("talent_profile_id", talentProfileId)
+          .eq("tenant_id", staff.tenantId)
+          .limit(1)
+          .maybeSingle();
+        const { data: profile } = await admin
+          .from("talent_profiles")
+          .select("created_by_agency_id")
+          .eq("id", talentProfileId)
+          .maybeSingle();
+        const managed =
+          !!roster ||
+          (profile as { created_by_agency_id: string | null } | null)
+            ?.created_by_agency_id === staff.tenantId;
+        authorized = managed;
+        if (managed) resolvedTenantId = staff.tenantId;
+      }
+    }
+  }
+
+  if (!authorized) {
+    return NextResponse.json(
+      { ok: false, error: "Not authorized for this talent's media." },
+      { status: 403 },
+    );
+  }
+  if (!resolvedTenantId) {
+    return NextResponse.json(
+      { ok: false, error: "Your profile isn't connected to an agency yet." },
+      { status: 400 },
+    );
+  }
+
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return NextResponse.json(
+      { ok: false, error: "Server configuration error." },
+      { status: 500 },
+    );
+  }
+
+  const alt = normalizeAltText(typeof body.alt === "string" ? body.alt : null);
+
+  if (isTalentSelf) {
+    const { data, error } = await admin
+      .from("media_assets")
+      .update({ alt })
+      .eq("id", assetId)
+      .eq("owner_talent_profile_id", talentProfileId)
+      .is("deleted_at", null)
+      .select("id, alt")
+      .maybeSingle<{ id: string; alt: string | null }>();
+    if (error || !data) {
+      return NextResponse.json(
+        { ok: false, error: "Asset not found for this profile." },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({ ok: true, item: { id: data.id, alt: data.alt } });
+  }
+
+  const item = await updateTenantMediaAssetAlt({
+    supabase: admin,
+    tenantId: resolvedTenantId,
+    assetId,
+    alt,
+  });
+  if (!item) {
+    return NextResponse.json(
+      { ok: false, error: "Asset not found for this workspace." },
+      { status: 404 },
+    );
+  }
+  return NextResponse.json({ ok: true, item });
 }

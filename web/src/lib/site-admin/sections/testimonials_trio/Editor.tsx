@@ -4,6 +4,7 @@ import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { useSectionT } from "../shared/section-editor-i18n";
+import { LocalizedTextInput } from "../shared/LocalizedTextInput";
 import type { TestimonialsTrioV1, TestimonialsTrioItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -33,14 +34,18 @@ export function TestimonialsTrioEditor({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className={FIELD}>
-          <span className={LABEL}>{t("Eyebrow")}</span>
-          <input className={INPUT} maxLength={60} value={value.eyebrow ?? ""} onChange={(e) => patch({ eyebrow: e.target.value })} placeholder={t("Couples & planners")} />
-        </label>
-        <label className={FIELD}>
-          <span className={LABEL}>{t("Headline")}</span>
-          <input className={INPUT} maxLength={200} value={value.headline ?? ""} onChange={(e) => patch({ headline: e.target.value })} placeholder={t("Words from the people we work for.")} />
-        </label>
+        <LocalizedTextInput
+          label="Eyebrow"
+          value={value.eyebrow}
+          onChange={(next) => patch({ eyebrow: next })}
+          maxLength={60}
+        />
+        <LocalizedTextInput
+          label="Headline"
+          value={value.headline}
+          onChange={(next) => patch({ headline: next })}
+          maxLength={200}
+        />
       </div>
 
       <VariantPicker
@@ -88,34 +93,31 @@ export function TestimonialsTrioEditor({
         </div>
         {value.items.map((item, i) => (
           <div key={i} className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/30 p-3">
-            <textarea
-              className={`${INPUT} min-h-[72px]`}
-              maxLength={360}
+            <LocalizedTextInput
+              label="Quote"
               value={item.quote}
-              onChange={(e) => patchItem(i, { quote: e.target.value })}
-              placeholder={t("Quote")}
+              onChange={(next) => patchItem(i, { quote: next })}
+              multiline
+              maxLength={360}
             />
             <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-              <input
-                className={INPUT}
-                placeholder={t("Author (e.g. Priya & Dev)")}
+              <LocalizedTextInput
+                label="Author"
+                value={item.author}
+                onChange={(next) => patchItem(i, { author: next })}
                 maxLength={80}
-                value={item.author ?? ""}
-                onChange={(e) => patchItem(i, { author: e.target.value })}
               />
-              <input
-                className={INPUT}
-                placeholder={t("Context (e.g. Three-day celebration)")}
+              <LocalizedTextInput
+                label="Context"
+                value={item.context}
+                onChange={(next) => patchItem(i, { context: next })}
                 maxLength={120}
-                value={item.context ?? ""}
-                onChange={(e) => patchItem(i, { context: e.target.value })}
               />
-              <input
-                className={INPUT}
-                placeholder={t("Location (e.g. Amalfi Coast)")}
+              <LocalizedTextInput
+                label="Location"
+                value={item.location}
+                onChange={(next) => patchItem(i, { location: next })}
                 maxLength={120}
-                value={item.location ?? ""}
-                onChange={(e) => patchItem(i, { location: e.target.value })}
               />
             </div>
             <div className="flex items-center justify-between gap-2">

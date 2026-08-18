@@ -97,17 +97,17 @@ export function MeshGradientGenerator(): ReactElement {
             <span className="text-stone-500">#{i + 1}</span>
             <label className="flex items-center gap-1">
               x
-              <input type="number" min={0} max={100} value={s.x} onChange={(e) => patch(i, { x: Number(e.target.value) })} className="w-12 rounded-lg border border-[#cfc7b6] bg-white px-1.5 py-0.5 text-[11px] text-stone-800 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]" />
+              <input type="number" min={0} max={100} value={s.x} onChange={(e) => patch(i, { x: Number(e.target.value) })} className="w-12 rounded-lg border border-[rgba(24,24,27,0.16)] bg-white px-1.5 py-0.5 text-[11px] text-stone-800 hover:border-[rgba(24,24,27,0.28)] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]" />
             </label>
             <label className="flex items-center gap-1">
               y
-              <input type="number" min={0} max={100} value={s.y} onChange={(e) => patch(i, { y: Number(e.target.value) })} className="w-12 rounded-lg border border-[#cfc7b6] bg-white px-1.5 py-0.5 text-[11px] text-stone-800 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]" />
+              <input type="number" min={0} max={100} value={s.y} onChange={(e) => patch(i, { y: Number(e.target.value) })} className="w-12 rounded-lg border border-[rgba(24,24,27,0.16)] bg-white px-1.5 py-0.5 text-[11px] text-stone-800 hover:border-[rgba(24,24,27,0.28)] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]" />
             </label>
             <div className="flex items-center gap-1">
               <input type="color" value={s.color} onChange={(e) => patch(i, { color: e.target.value })} className="h-5 w-7 rounded-lg border border-[#e5e0d5]" />
               <span className="font-mono text-[10px] text-stone-500">{s.color}</span>
             </div>
-            <input type="number" min={10} max={100} value={s.size} onChange={(e) => patch(i, { size: Number(e.target.value) })} className="w-12 rounded-lg border border-[#cfc7b6] bg-white px-1.5 py-0.5 text-[11px] text-stone-800 hover:border-[#b3a892] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]" title="size %" />
+            <input type="number" min={10} max={100} value={s.size} onChange={(e) => patch(i, { size: Number(e.target.value) })} className="w-12 rounded-lg border border-[rgba(24,24,27,0.16)] bg-white px-1.5 py-0.5 text-[11px] text-stone-800 hover:border-[rgba(24,24,27,0.28)] focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 transition-[border-color,box-shadow]" title="size %" />
           </div>
         ))}
       </div>

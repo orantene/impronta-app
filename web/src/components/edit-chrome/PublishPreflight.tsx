@@ -51,6 +51,8 @@ interface Props {
   locale?: string;
   /** Non-homepage CMS page being edited — scopes builder preflight to `published_page_snapshot`. */
   pageId?: string | null;
+  surfaceKind?: string | null;
+  builderTree?: unknown;
   onStatusChange?: (status: {
     loading: boolean;
     blockingErrors: number;
@@ -69,6 +71,8 @@ export function PublishPreflight({
   refreshKey,
   locale,
   pageId,
+  surfaceKind,
+  builderTree,
   onStatusChange,
   onFocusSection,
 }: Props) {
@@ -110,7 +114,15 @@ export function PublishPreflight({
       // W1-L2 — safeAction adds the hard timeout; a hung/dead action resolves
       // to the fallback instead of leaving the skeleton (and the disabled
       // Publish button) stuck forever.
-      const result = await safeAction(() => runPublishPreflight({ locale }), {
+      const result = await safeAction(
+        () =>
+          runPublishPreflight({
+            locale,
+            pageId,
+            surfaceKind,
+            builderTree,
+          }),
+        {
         name: "runPublishPreflight",
         timeoutMs: PREFLIGHT_TIMEOUT_MS,
         fallback: {
@@ -141,7 +153,17 @@ export function PublishPreflight({
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshKey, retryNonce, locale, pageId, onStatusChange, t]);
+  }, [
+    enabled,
+    refreshKey,
+    retryNonce,
+    locale,
+    pageId,
+    surfaceKind,
+    builderTree,
+    onStatusChange,
+    t,
+  ]);
 
   // Tick the elapsed counter once a second while loading.
   useEffect(() => {

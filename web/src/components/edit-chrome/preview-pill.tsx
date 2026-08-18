@@ -400,10 +400,10 @@ function ShareButton({
           setOpen(false);
           window.setTimeout(() => setCopied(false), 2200);
         } catch {
-          window.prompt("Share link", url);
+          onError(`Couldn't copy automatically. Link: ${url}`);
         }
       } else {
-        window.prompt("Share link", url);
+        onError(`Couldn't copy automatically. Link: ${url}`);
       }
     } catch (err) {
       onError(

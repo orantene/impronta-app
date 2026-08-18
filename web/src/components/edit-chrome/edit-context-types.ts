@@ -320,7 +320,7 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   copyBuilderNode: (nodeId: string) => { ok: boolean; error?: string };
   saveCopiedBuilderNodeAsPreset: (
     name?: string,
-  ) => { ok: boolean; error?: string; presetId?: string };
+  ) => Promise<{ ok: boolean; error?: string; presetId?: string; componentId?: string }>;
   pasteBuilderBlockPreset: (
     presetId: string,
     targetNodeId?: string | null,
@@ -398,6 +398,7 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   setBuilderNodeMobileStructure: (
     nodeId: string,
     patch: { visibility?: "visible" | "hidden"; order?: number | null },
+    bucket?: "mobile" | "tablet",
   ) => Promise<{ ok: boolean; error?: string }>;
 
   /**

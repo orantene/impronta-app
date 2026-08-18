@@ -36,6 +36,7 @@ import {
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { recoverBuilderTreeIfEmpty } from "@/lib/site-admin/server/recover-builder-tree";
+import { commitPageRevisionThenVersion } from "@/lib/site-admin/server/page-revision-commit";
 import { isSameSessionNewerWrite } from "@/lib/site-admin/server/beacon-last-write-wins";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
@@ -1010,11 +1011,19 @@ export async function saveHomepageCompositionAction(
       }
 
       const nextVersion = pageRow.version + 1;
+      const draftBuilderTree = resolveBuilderTreeForSnapshot({
+        slots: compositionSnapshot,
+        preferredBuilderTree: input.builderTree,
+      });
 
-      // Update page metadata fields (introTagline is homepage-only; skip).
-      const { data: updRow, error: updErr } = await admin
-        .from("cms_pages")
-        .update({
+      // WAVE1-1.5 — revision FIRST, then the CAS version bump. The old order
+      // bumped cms_pages, rewrote slots, then inserted the revision. A killed
+      // request after the bump left version N+1 with no matching tree.
+      const commit = await commitPageRevisionThenVersion(admin, {
+        tenantId: scope.tenantId,
+        pageId: input.pageId,
+        beforeVersion: pageRow.version,
+        update: {
           title: input.metadata.title,
           meta_title: input.metadata.metaTitle ?? null,
           meta_description: input.metadata.metaDescription ?? null,
@@ -1035,34 +1044,66 @@ export async function saveHomepageCompositionAction(
                 draft_seq: input.editSession.seq,
               }
             : { edit_session_id: null, draft_seq: null }),
-        })
-        .eq("id", input.pageId)
-        .eq("tenant_id", scope.tenantId)
-        // Second CAS guard — keyed on the version we just READ (identical to
-        // expectedVersion on the normal path; the CURRENT version under W1-L2
-        // session adoption).
-        .eq("version", pageRow.version)
-        .select("id")
-        .maybeSingle<{ id: string }>();
-      if (updErr) {
+        },
+        revision: {
+          kind: "draft",
+          version: nextVersion,
+          templateSchemaVersion: pageRow.template_schema_version,
+          snapshot: {
+            locale: pageRow.locale,
+            slug: pageRow.slug,
+            template_key: pageRow.template_key,
+            system_template_key: pageRow.system_template_key,
+            is_system_owned: pageRow.is_system_owned,
+            template_schema_version: pageRow.template_schema_version,
+            title: input.metadata.title,
+            status: pageRow.status,
+            body: pageRow.body ?? "",
+            hero: pageRow.hero ?? {},
+            meta_title: input.metadata.metaTitle ?? pageRow.meta_title,
+            meta_description: input.metadata.metaDescription ?? null,
+            og_title: input.metadata.ogTitle ?? null,
+            og_description: input.metadata.ogDescription ?? null,
+            og_image_url: input.metadata.ogImageUrl ?? null,
+            og_image_media_asset_id: pageRow.og_image_media_asset_id,
+            noindex: input.metadata.noindex ?? false,
+            include_in_sitemap: pageRow.include_in_sitemap,
+            canonical_url: input.metadata.canonicalUrl ?? null,
+            version: nextVersion,
+            composition: compositionSnapshot,
+            builderTree: draftBuilderTree,
+            ...(input.styleClasses && Object.keys(input.styleClasses).length > 0
+              ? { styleClasses: input.styleClasses }
+              : {}),
+            ...(input.stylePresets &&
+            (input.stylePresets.presets.length > 0 || input.stylePresets.clipboard)
+              ? { stylePresets: input.stylePresets }
+              : {}),
+          },
+        },
+        actorProfileId: auth.user.id,
+        logScope: "edit-mode/composition/save-page",
+      });
+      if (!commit.ok) {
+        if (commit.reason === "cas_conflict") {
+          return {
+            ok: false,
+            error: "Someone else edited this page. Changes reloaded — try again.",
+            code: "VERSION_CONFLICT",
+            currentVersion: pageRow.version + 1,
+          };
+        }
+        if (commit.reason === "revision_insert") {
+          logServerError(
+            "edit-mode/composition/save-page-revision",
+            new Error(commit.message ?? "revision insert failed"),
+          );
+        }
         return { ok: false, error: CLIENT_ERROR.update };
       }
-      // W1-L2 — the second CAS used to be UNCHECKED: a lost race no-oped the
-      // page-row update but still rewrote the draft rows below. Detect the
-      // zero-row write and fail honestly as a version conflict instead.
-      if (!updRow) {
-        return {
-          ok: false,
-          error: "Someone else edited this page. Changes reloaded — try again.",
-          code: "VERSION_CONFLICT",
-          currentVersion: pageRow.version + 1,
-        };
-      }
 
-      // Replace draft slot rows atomically: delete then insert.
-      // supabase-js reports failures via the returned `error`, never by
-      // throwing — an unchecked call here silently drops the write while the
-      // version pointer above has already advanced.
+      // Junction writes AFTER the revision+version commit. A slot failure
+      // leaves version N+1 WITH a revision — the editor rehydrates from it.
       const { error: delErr } = await admin
         .from("cms_page_sections")
         .delete()
@@ -1101,62 +1142,6 @@ export async function saveHomepageCompositionAction(
         if (insErr) {
           return { ok: false, error: CLIENT_ERROR.update };
         }
-      }
-
-      const draftBuilderTree = resolveBuilderTreeForSnapshot({
-        slots: compositionSnapshot,
-        preferredBuilderTree: input.builderTree,
-      });
-
-      // The revision snapshot is the ONLY place the builder tree is stored —
-      // an unchecked failure here returns ok:true with the version already
-      // bumped, and the "saved" tree never existed (silent draft loss).
-      // Fail honestly instead: the client keeps `dirty`, and a same-session
-      // retry is rescued by the W1-L2 adoption above.
-      const { error: revErr } = await admin.from("cms_page_revisions").insert({
-        tenant_id: scope.tenantId,
-        page_id: input.pageId,
-        kind: "draft",
-        version: nextVersion,
-        template_schema_version: pageRow.template_schema_version,
-        snapshot: {
-          locale: pageRow.locale,
-          slug: pageRow.slug,
-          template_key: pageRow.template_key,
-          system_template_key: pageRow.system_template_key,
-          is_system_owned: pageRow.is_system_owned,
-          template_schema_version: pageRow.template_schema_version,
-          title: input.metadata.title,
-          status: pageRow.status,
-          body: pageRow.body ?? "",
-          hero: pageRow.hero ?? {},
-          meta_title: input.metadata.metaTitle ?? pageRow.meta_title,
-          meta_description: input.metadata.metaDescription ?? null,
-          og_title: input.metadata.ogTitle ?? null,
-          og_description: input.metadata.ogDescription ?? null,
-          og_image_url: input.metadata.ogImageUrl ?? null,
-          og_image_media_asset_id: pageRow.og_image_media_asset_id,
-          noindex: input.metadata.noindex ?? false,
-          include_in_sitemap: pageRow.include_in_sitemap,
-          canonical_url: input.metadata.canonicalUrl ?? null,
-          version: nextVersion,
-          composition: compositionSnapshot,
-          builderTree: draftBuilderTree,
-          ...(input.styleClasses && Object.keys(input.styleClasses).length > 0
-            ? { styleClasses: input.styleClasses }
-            : {}),
-          // STYLE-1 — store presets in the snapshot alongside styleClasses so
-          // the homepage / cms_page slot path round-trips them too.
-          ...(input.stylePresets &&
-          (input.stylePresets.presets.length > 0 || input.stylePresets.clipboard)
-            ? { stylePresets: input.stylePresets }
-            : {}),
-        },
-        created_by: auth.user.id,
-      });
-      if (revErr) {
-        logServerError("edit-mode/composition/save-page-revision", revErr);
-        return { ok: false, error: CLIENT_ERROR.update };
       }
 
       return { ok: true, pageVersion: nextVersion };

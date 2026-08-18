@@ -37,6 +37,7 @@ import {
 import { KbdSequence } from "./kit/kbd";
 import { CHROME, CHROME_RADII, CHROME_SHADOWS } from "./kit/tokens";
 import { useEditContext } from "./edit-context";
+import { useEditorLocale } from "./use-editor-locale";
 import { useModalFocusTrap } from "./modal-focus-trap";
 import { useAdvancedMode } from "./advanced-mode";
 
@@ -55,6 +56,7 @@ const CATEGORY_ORDER: ReadonlyArray<ShortcutCategory> = [
 ];
 
 export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
+  const { t } = useEditorLocale();
   const { canEditSiteShell, pageSlug } = useEditContext();
   const { advanced, toggle: toggleAdvanced } = useAdvancedMode();
   const dialogRef = useModalFocusTrap(open, onClose);
@@ -144,7 +146,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                 letterSpacing: "-0.005em",
               }}
             >
-              Keyboard shortcuts
+              {t("Keyboard shortcuts")}
             </h2>
             <p
               style={{
@@ -153,7 +155,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                 color: CHROME.muted,
               }}
             >
-              Every keybind in the editor, in one place.
+              {t("Every keybind in the editor, in one place.")}
             </p>
           </div>
           <button
@@ -298,7 +300,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                     letterSpacing: "0.06em",
                   }}
                 >
-                  {SHORTCUT_CATEGORY_LABELS[cat]}
+                  {t(SHORTCUT_CATEGORY_LABELS[cat])}
                 </h3>
                 <ul
                   style={{
@@ -333,7 +335,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                             lineHeight: 1.3,
                           }}
                         >
-                          {s.label}
+                          {t(s.label)}
                         </div>
                         {s.description ? (
                           <div
@@ -344,7 +346,7 @@ export function ShortcutOverlay({ open, onClose }: ShortcutOverlayProps) {
                               lineHeight: 1.35,
                             }}
                           >
-                            {s.description}
+                            {t(s.description)}
                           </div>
                         ) : null}
                       </div>

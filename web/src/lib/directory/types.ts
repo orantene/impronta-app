@@ -187,4 +187,9 @@ export type DirectoryListParams = {
    * hub (federated cross-tenant) requests.
    */
   tenantId?: string | null;
+  /**
+   * Hand-picked public profile codes (`TAL-00014`, …). When set, the listing
+   * and count are restricted to those rows. Used by directory `scope=manual`.
+   */
+  profileCodes?: string[];
 };

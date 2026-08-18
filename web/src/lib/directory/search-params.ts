@@ -3,6 +3,7 @@ import {
   type DirectoryFieldFacetSelection,
   type DirectorySortValue,
 } from "@/lib/directory/types";
+import { directoryProfileCodesCacheKey } from "@/lib/directory/profile-codes";
 
 export type DirectoryViewMode = "grid" | "list" | "map";
 
@@ -407,6 +408,8 @@ export function directorySeedSignature(input: {
   heightMaxCm: number | null;
   ageMin: number | null;
   ageMax: number | null;
+  /** Manual-scope profile codes. Omitted / empty = unscoped (all talent). */
+  profileCodes?: readonly string[];
 }): string {
   return [
     input.aiSearch ? "ai" : "classic",
@@ -420,5 +423,6 @@ export function directorySeedSignature(input: {
     input.heightMaxCm ?? "",
     input.ageMin ?? "",
     input.ageMax ?? "",
+    directoryProfileCodesCacheKey(input.profileCodes),
   ].join("\u0001");
 }

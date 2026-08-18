@@ -100,10 +100,8 @@ export function DirectoryReactiveGrid({
   directorySearchViaAi?: boolean;
   /**
    * P4 — when `scope=manual`, the resolved profile codes (in pick order).
-   * The grid filters the fetched items to these codes and suppresses
-   * infinite-scroll of non-manual talent. Render-level only (the SSR seed +
-   * `/api/directory` still serve the full roster — `scopeLimited` stays the
-   * honest hint). `undefined` → no manual filter.
+   * The grid keeps those codes in pick order and stops infinite-scroll.
+   * SSR seeds the same set via listing `profileCodes`. `undefined` → off.
    */
   manualProfileCodes?: string[];
   cardStyle: NonNullable<DirectoryV1["cardStyle"]>;
@@ -186,6 +184,7 @@ export function DirectoryReactiveGrid({
     heightMaxCm,
     ageMin,
     ageMax,
+    profileCodes: manualProfileCodes,
   });
   const isSeedKey = currentSignature === seedSignature;
 

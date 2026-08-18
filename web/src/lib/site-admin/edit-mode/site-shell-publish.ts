@@ -22,6 +22,11 @@ import type { Locale } from "@/i18n/config";
 import { getSectionType } from "@/lib/site-admin/sections/registry";
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
 import { buildLegacySectionBuilderTree } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
+import {
+  resolveBuilderTreeClassRefs,
+  type BuilderStyleClassRegistry,
+} from "@/lib/site-admin/builder-node/style-classes";
+import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
 
 export type ShellRepublishResult =
   | { ok: true; applied: true; sectionCount: number; pageVersion: number }
@@ -36,6 +41,8 @@ interface ShellRow {
   version: number;
   /** F2 — the freeform draft tree. Authoritative for the baked builderTree. */
   blocks: unknown;
+  /** STYLE-1 — site-scoped class registry baked into the published tree. */
+  style_classes?: unknown;
 }
 
 interface DraftSlotRow {
@@ -85,11 +92,13 @@ interface SectionFacts {
 export function resolveShellSnapshotBuilderTree(
   blocks: unknown,
   slots: ReadonlyArray<Parameters<typeof buildLegacySectionBuilderTree>[0][number]>,
+  styleClasses?: BuilderStyleClassRegistry,
 ) {
-  if (Array.isArray(blocks) && blocks.length > 0) {
-    return blocks as ReturnType<typeof buildLegacySectionBuilderTree>;
-  }
-  return buildLegacySectionBuilderTree(slots);
+  const tree =
+    Array.isArray(blocks) && blocks.length > 0
+      ? (blocks as ReturnType<typeof buildLegacySectionBuilderTree>)
+      : buildLegacySectionBuilderTree(slots);
+  return resolveBuilderTreeClassRefs(tree, styleClasses);
 }
 
 export async function republishSiteShellSnapshot(
@@ -102,7 +111,7 @@ export async function republishSiteShellSnapshot(
   //    shell path.
   const { data: shell } = await supabase
     .from("cms_pages")
-    .select("id, title, meta_description, template_schema_version, version, blocks")
+    .select("id, title, meta_description, template_schema_version, version, blocks, style_classes")
     .eq("tenant_id", tenantId)
     .eq("locale", locale)
     .eq("system_template_key", "site_shell")
@@ -201,7 +210,11 @@ export async function republishSiteShellSnapshot(
     // `resolveShellSnapshotBuilderTree` for why this must live here and not in
     // one caller: a homepage publish used to rebake this from slots alone and
     // silently wipe the shell's freeform content off the live site.
-    builderTree: resolveShellSnapshotBuilderTree(shell.blocks, slots),
+    builderTree: resolveShellSnapshotBuilderTree(
+      shell.blocks,
+      slots,
+      coerceStyleClassRegistry(shell.style_classes),
+    ),
   };
   const { error: updErr } = await supabase
     .from("cms_pages")

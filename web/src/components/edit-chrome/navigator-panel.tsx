@@ -23,17 +23,10 @@
  *     publish menu.
  *
  * Visibility toggle:
- *   Wires through `setSectionVisibility(sectionId, "hidden" | "always")`
- *   which round-trips `presentation.visibility` on the section's props
- *   via `setSectionVisibilityAction` (CAS-safe, audited, cache-busts the
- *   storefront). `presentation.visibility` already maps to
- *   `data-section-visibility` via `presentationDataAttrs` and the
- *   storefront's `token-presets.css`, so a click here propagates to the
- *   live preview without any per-section render changes.
- *
- *   The schema's `desktop-only`/`mobile-only` granularity is not yet
- *   exposed in the navigator (the eye is a binary toggle); a follow-up
- *   right-click menu will surface the full enum.
+ *   Wires through `setSectionVisibility` which round-trips
+ *   `presentation.visibility` on the section's props via
+ *   `setSectionVisibilityAction`. The eye cycles always → desktop-only →
+ *   mobile-only → hidden → always.
  */
 
 import {
@@ -94,6 +87,7 @@ import { BuilderCoachmarkTip } from "./builder-coachmark-tip";
 import { FreeformLayersTree } from "./freeform-layers-tree";
 import { locateCanvasNode } from "./freeform-layer-row";
 import { useEditorLocale } from "./use-editor-locale";
+import { nextSectionVisibility } from "./navigator-visibility";
 import {
   builderSectionNodeAddressKey,
   BUILDER_NODE_REGISTRY,
@@ -2742,9 +2736,10 @@ export function NavigatorPanel() {
                       tabIndex={sectionActionsVisible ? 0 : -1}
                       onToggle={() => {
                         selectNavigatorSectionRow(row);
-                        const next: SectionVisibilityT =
-                          visibility === "hidden" ? "always" : "hidden";
-                        void setSectionVisibility(row.ref.sectionId, next);
+                        void setSectionVisibility(
+                          row.ref.sectionId,
+                          nextSectionVisibility(visibility),
+                        );
                       }}
                     />
                   </span>
@@ -3391,14 +3386,16 @@ function VisibilityEye({
   tabIndex?: number;
   onToggle: () => void;
 }) {
+  const { t } = useEditorLocale();
   const hidden = visibility === "hidden";
-  const partial =
-    visibility === "desktop-only" || visibility === "mobile-only";
-  const titleText = hidden
-    ? "Hidden on every breakpoint, click to show"
-    : partial
-      ? `Visible on ${visibility === "desktop-only" ? "desktop" : "mobile"} only`
-      : "Visible everywhere, click to hide";
+  const titleText =
+    visibility === "hidden"
+      ? t("Hidden on every breakpoint. Click to show everywhere.")
+      : visibility === "desktop-only"
+        ? t("Desktop only. Click for mobile only.")
+        : visibility === "mobile-only"
+          ? t("Mobile only. Click to hide.")
+          : t("Visible everywhere. Click for desktop only.");
   // Match NodeInlineActionButton exactly so the eye reads as the same kind of
   // button as its neighbours. (Earlier bug: a white icon for `selected` rows —
   // invisible now that the eye sits in a light action chip. Never white.)

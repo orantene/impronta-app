@@ -227,6 +227,7 @@ test("[REV-1b] loadRevisions routes through the bound action, scoped to the capt
             createdBy: null,
             sectionCount: 3,
             titleAtRevision: "Site shell",
+            label: null,
           },
         ],
         pageVersion: 42,

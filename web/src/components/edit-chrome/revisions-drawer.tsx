@@ -57,16 +57,17 @@ import { usePageVersion } from "./save-cycle-bridge";
 import {
   loadHomepageRevisionsAction,
   loadPageRevisionsAction,
+  setRevisionLabelAction,
   type RevisionListRow,
 } from "@/lib/site-admin/edit-mode/revisions-actions";
 import { RevisionsDiffPanel } from "./revisions-diff-panel";
 import { RevisionCard } from "./revisions-card";
 
-// Named-version labels are persisted client-side (this drawer + RevisionCard);
-// the key lives here, not in the "use server" revisions-actions module (which
-// can only export async functions).
+// Named-version labels live on `cms_page_revisions.label`. The localStorage
+// map is a one-session import + fallback for talent-site-shell revisions
+// (different table) and for browsers that have not yet written the column.
 //
-// REV-1 — the labels are SCOPED per (surfaceKind + page identity). A single
+// REV-1 — the fallback slot is SCOPED per (surfaceKind + page identity).
 // global key bled labels across surfaces in a shared browser: a label saved
 // against revision `r1` of the storefront homepage would also surface on
 // revision `r1` of a talent-site shell, because revision ids are unique per
@@ -232,12 +233,13 @@ export function RevisionsDrawer(): ReactElement | null {
   // setter persists only deliberate edits against the key in force at edit time.
   const setLabel = useCallback(
     (revId: string, label: string) => {
+      const trimmed = label.trim();
       setLabelMap((prev) => {
         const next = { ...prev };
-        if (label.trim() === "") {
+        if (trimmed === "") {
           delete next[revId];
         } else {
-          next[revId] = label.trim();
+          next[revId] = trimmed;
         }
         if (typeof window !== "undefined") {
           try {
@@ -248,9 +250,64 @@ export function RevisionsDrawer(): ReactElement | null {
         }
         return next;
       });
+      void setRevisionLabelAction({ revisionId: revId, label: trimmed });
     },
     [labelsStorageKey],
   );
+
+  useEffect(() => {
+    if (!revisions) return;
+    const server: Record<string, string> = {};
+    for (const row of revisions) {
+      if (row.label) server[row.id] = row.label;
+    }
+    let local: Record<string, string> = {};
+    try {
+      const scoped = window.localStorage.getItem(labelsStorageKey);
+      if (scoped) local = JSON.parse(scoped) as Record<string, string>;
+    } catch {
+      local = {};
+    }
+    try {
+      const global = window.localStorage.getItem(REVISION_LABELS_KEY_PREFIX);
+      if (global) {
+        local = {
+          ...(JSON.parse(global) as Record<string, string>),
+          ...local,
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    setLabelMap({ ...local, ...server });
+    const leftovers = Object.entries(local).filter(
+      ([id, value]) =>
+        Boolean(value?.trim()) && !server[id] && revisions.some((row) => row.id === id),
+    );
+    if (leftovers.length === 0) {
+      try {
+        window.localStorage.removeItem(labelsStorageKey);
+        window.localStorage.removeItem(REVISION_LABELS_KEY_PREFIX);
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    void Promise.all(
+      leftovers.map(([id, value]) =>
+        setRevisionLabelAction({ revisionId: id, label: value }),
+      ),
+    ).then((results) => {
+      if (results.every((result) => result.ok)) {
+        try {
+          window.localStorage.removeItem(labelsStorageKey);
+          window.localStorage.removeItem(REVISION_LABELS_KEY_PREFIX);
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  }, [revisions, labelsStorageKey]);
 
   // Re-fetch on every open so a freshly-written draft revision shows up.
   useEffect(() => {
@@ -352,7 +409,6 @@ export function RevisionsDrawer(): ReactElement | null {
       open={revisionsOpen}
       zIndex={87}
       ariaLabelledBy="revisions-drawer-title"
-      modal
       onRequestClose={pendingId ? undefined : closeRevisions}
       floating
       floatLabel="Revisions"

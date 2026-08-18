@@ -34,3 +34,37 @@ export function hasNativeTextSelection(): boolean {
   const sel = window.getSelection();
   return Boolean(sel && sel.toString().length > 0);
 }
+
+/**
+ * Undo / redo / Revisions chords (⌘Z, ⇧⌘Z, ⌘Y, ⇧⌘Y). Extracted from
+ * edit-shell so the Revisions bind could land without growing that
+ * ratchet-capped file.
+ *
+ * `key` is `e.key.toLowerCase()`. Returns true when this handler consumed
+ * the event.
+ */
+export function tryHistoryShortcut(
+  e: KeyboardEvent,
+  mod: boolean,
+  key: string,
+  actions: {
+    undo: () => void;
+    redo: () => void | Promise<unknown>;
+    openRevisions: () => void;
+  },
+): boolean {
+  if (!mod) return false;
+  if (key === "y" && !e.altKey) {
+    e.preventDefault();
+    if (e.shiftKey) actions.openRevisions();
+    else void actions.redo();
+    return true;
+  }
+  if (key === "z") {
+    e.preventDefault();
+    if (e.shiftKey) void actions.redo();
+    else void actions.undo();
+    return true;
+  }
+  return false;
+}

@@ -46,6 +46,7 @@ import {
   CanvasTextToolbar,
   isCanvasTextToolbarKind,
 } from "./canvas-text-toolbar";
+import { ConvertToComponentNamer } from "./convert-to-component-namer";
 import { useCanvasTextStylePatch } from "./use-canvas-text-style-patch";
 import {
   getActiveCanvasLexicalEditor,
@@ -874,6 +875,9 @@ export function SelectionLayer() {
   }, [inspectorTabRequest]);
   const [contextMenu, setContextMenu] =
     useState<SelectionContextMenuState | null>(null);
+  const [componentNamerSuggested, setComponentNamerSuggested] = useState<
+    string | null
+  >(null);
   const [nodeInsertTarget, setNodeInsertTarget] = useState<NodeInsertTarget | null>(
     null,
   );
@@ -5475,18 +5479,7 @@ export function SelectionLayer() {
                       t(BUILDER_NODE_REGISTRY[contextMenuNode.kind].label),
                     )
                   : t("Saved component");
-              const name =
-                typeof window !== "undefined"
-                  ? window.prompt(t("Name this reusable component"), suggested)
-                  : suggested;
-              if (name === null) {
-                closeContextMenu();
-                return;
-              }
-              const trimmed = name.trim() || suggested;
-              void saveSelectedNodeAsComponent(trimmed).then((result) => {
-                if (!result.ok && result.error) reportMutationError(result.error);
-              });
+              setComponentNamerSuggested(suggested);
               closeContextMenu();
             }}
             onMoveNodeUp={() => {
@@ -5562,6 +5555,20 @@ export function SelectionLayer() {
               closeContextMenu();
             }}
           />
+          {componentNamerSuggested ? (
+            <ConvertToComponentNamer
+              suggested={componentNamerSuggested}
+              onConfirm={(name) => {
+                setComponentNamerSuggested(null);
+                void saveSelectedNodeAsComponent(name).then((result) => {
+                  if (!result.ok && result.error) {
+                    reportMutationError(result.error);
+                  }
+                });
+              }}
+              onCancel={() => setComponentNamerSuggested(null)}
+            />
+          ) : null}
 
 	          {showMultiSelectionToolbar ? (
 	            <MultiSelectionToolbar
@@ -5669,6 +5676,16 @@ export function SelectionLayer() {
 	              }}
 	              onRequestInlineEdit={() => {
 	                if (selectedBuilderNodeId) requestInlineEdit(selectedBuilderNodeId);
+	              }}
+	              onPatchHref={(href) => {
+	                if (!selectedBuilderNodeId) return;
+	                void patchBuilderNodeProps(selectedBuilderNodeId, {
+	                  href: href || undefined,
+	                }).then((result) => {
+	                  if (!result.ok && result.error) {
+	                    reportMutationError(result.error);
+	                  }
+	                });
 	              }}
 	              onReviseWithAi={
 	                selectedBuilderNodeId
