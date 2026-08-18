@@ -24,6 +24,10 @@ import {
   TenantCustomCodeBody,
   TenantCustomCodeHead,
 } from "@/components/integrations/tenant-custom-code";
+import {
+  TenantCodeSnippetsBody,
+  TenantCodeSnippetsHead,
+} from "@/components/integrations/tenant-code-snippets";
 import { GoogleFontsLink } from "./google-fonts-link";
 import {
   bodySans,
@@ -175,6 +179,11 @@ export default async function RootLayout({
         {/* Tenant custom code — head snippet. Storefront-only (publicScope),
             entitlement + status gated inside the resolver. */}
         {publicScope && <TenantCustomCodeHead tenantId={publicScope.tenantId} />}
+        {/* Custom code LIBRARY — named, individually publishable snippets
+            (Website → Setup → Custom code). Same storefront-only gate as the
+            legacy blob above; the tenant check is repeated inside
+            selectSnippetsForRender. `head`-placed CSS is hoisted into <head>. */}
+        {publicScope && <TenantCodeSnippetsHead tenantId={publicScope.tenantId} />}
         {/* Platform JSON-LD (Organization + WebSite + SoftwareApplication).
             Emitted on the platform/marketing surface only; `publicScope` is
             non-null solely for tenant-resolved storefront requests, where the
@@ -210,6 +219,8 @@ export default async function RootLayout({
         {modal}
         {/* Tenant custom code — body snippet (end of <body>). Storefront-only. */}
         {publicScope && <TenantCustomCodeBody tenantId={publicScope.tenantId} />}
+        {/* Custom code library — snippets placed at the end of the page. */}
+        {publicScope && <TenantCodeSnippetsBody tenantId={publicScope.tenantId} />}
         <TenantRegisterMount />
         {/* SEO-safe language suggestion. Renders nothing unless the visitor's
             browser asks for a language this tenant publishes but is not the one
