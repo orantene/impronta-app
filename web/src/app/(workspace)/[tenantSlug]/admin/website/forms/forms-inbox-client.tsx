@@ -12,6 +12,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import {
   markSubmissionRead,
   archiveSubmission,
@@ -130,6 +132,7 @@ function AttachmentList({
   tenantSlug: string;
   attachments: FormSubmissionAttachment[];
 }) {
+  const t = useT();
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -160,7 +163,7 @@ function AttachmentList({
           marginBottom: 5,
         }}
       >
-        Attachments
+        {t("dashboard.adminForms.attachments")}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {attachments.map((a) => (
@@ -173,7 +176,7 @@ function AttachmentList({
               {formatBytes(a.byte_size)} · {a.field_name}
             </span>
             <ActionButton
-              label="Download"
+              label={t("dashboard.adminForms.download")}
               onClick={() => handleDownload(a.id)}
               pending={pendingId === a.id}
             />
@@ -195,6 +198,7 @@ export function FormsInboxClient({
   searchQuery,
   rows,
 }: Props) {
+  const t = useT();
   const router = useRouter();
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [pendingAllRead, setPendingAllRead] = React.useState(false);
@@ -261,7 +265,7 @@ export function FormsInboxClient({
     try {
       const result = await exportSubmissionsCsv(tenantSlug, activeSectionId ?? undefined);
       if (!result.ok) {
-        alert(`Export failed: ${result.error}`);
+        alert(interpolate(t("dashboard.adminForms.exportFailed"), { error: result.error }));
         return;
       }
       // Trigger browser download.
@@ -299,7 +303,7 @@ export function FormsInboxClient({
           <input
             ref={searchRef}
             type="search"
-            placeholder="Search name, email, content…"
+            placeholder={t("dashboard.adminForms.searchPlaceholder")}
             defaultValue={searchQuery}
             onChange={handleSearchChange}
             style={{
@@ -331,7 +335,7 @@ export function FormsInboxClient({
                 cursor: "pointer",
               }}
             >
-              <option value="">All forms</option>
+              <option value="">{t("dashboard.adminForms.allForms")}</option>
               {sectionList.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -345,13 +349,13 @@ export function FormsInboxClient({
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {activeStatus === "new" && newCount > 0 && (
             <ActionButton
-              label={`Mark all read (${newCount})`}
+              label={interpolate(t("dashboard.adminForms.markAllRead"), { count: newCount })}
               onClick={handleMarkAllRead}
               pending={pendingAllRead}
             />
           )}
           <ActionButton
-            label="Export CSV"
+            label={t("dashboard.adminForms.exportCsv")}
             onClick={handleExport}
             pending={pendingExport}
             variant="accent"
@@ -422,7 +426,7 @@ export function FormsInboxClient({
                         whiteSpace: "nowrap" as const,
                       }}
                     >
-                      {row.contact_name ?? row.contact_email ?? "(no name)"}
+                      {row.contact_name ?? row.contact_email ?? t("dashboard.adminForms.noName")}
                       {row.contact_email && row.contact_name && (
                         <span style={{ fontWeight: 400, color: C.inkMuted, marginLeft: 6 }}>
                           {row.contact_email}
@@ -480,7 +484,7 @@ export function FormsInboxClient({
 
                     {row.source_url && (
                       <div style={{ marginTop: 8, fontSize: 11.5, color: C.inkMuted }}>
-                        Source:{" "}
+                        {t("dashboard.adminForms.source")}{" "}
                         <a
                           href={row.source_url}
                           target="_blank"
@@ -502,14 +506,14 @@ export function FormsInboxClient({
                     >
                       {row.status === "new" && (
                         <ActionButton
-                          label="Mark as read"
+                          label={t("dashboard.adminForms.markAsRead")}
                           onClick={() => handleMarkRead(row.id)}
                           pending={isPendingThis}
                         />
                       )}
                       {(row.status === "new" || row.status === "read") && (
                         <ActionButton
-                          label="Archive"
+                          label={t("dashboard.adminForms.archive")}
                           onClick={() => handleArchive(row.id)}
                           pending={isPendingThis}
                         />

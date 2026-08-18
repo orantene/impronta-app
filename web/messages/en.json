@@ -11104,6 +11104,127 @@
       "updatedOn": "Updated {date}",
       "legCountOne": "{count} payout",
       "legCountOther": "{count} payouts"
+    },
+    "adminProfilePages": {
+      "title": "Profile Pages",
+      "liveBadge": "Live for every profile",
+      "subtitle": "Choose the template that renders your talent profile pages. The choice applies to every profile on your site and saves instantly. Talent content (photos, bio, fields) stays the same — only the layout and styling change.",
+      "readOnly": "Read-only",
+      "activeBadge": "Active",
+      "currentTemplate": "Current template",
+      "liveTemplateNote": "This is your live template",
+      "useTemplate": "Use this template",
+      "applying": "Applying…",
+      "footnoteTipPrefix": "Tip: open any talent profile and add",
+      "footnoteTipOr": "or",
+      "footnoteTipSuffix": "to preview a single page in either template without changing your live choice.",
+      "toastNeedsAdmin": "You need admin access to change the profile template.",
+      "toastSaveError": "Could not save that template.",
+      "toastTemplateSet": "Profile template set to {label}.",
+      "templates": {
+        "classic": {
+          "label": "Classic",
+          "tagline": "The platform default",
+          "description": "Clean, light, conversion-first. Cover + header, 70/30 body with a sticky booking card, portfolio, services, skills, details and reviews. The safe, fast, neutral choice that fits any brand.",
+          "typeLabel": "Geist · clean",
+          "sections": [
+            "Cover + header",
+            "Portfolio",
+            "About",
+            "Services & pricing",
+            "Skills",
+            "Details",
+            "Reviews",
+            "Sticky booking card"
+          ]
+        },
+        "noir": {
+          "label": "Noir & Or",
+          "tagline": "Black canvas, gold serif — editorial",
+          "description": "A dark, high-fashion editorial register. Split portrait hero, gold-hairline digitals grid, masonry portfolio, services, a clients band and a sticky book bar. Cormorant Garamond + Jost with gold accents. Built for agencies that want a premium magazine feel.",
+          "typeLabel": "Cormorant · editorial",
+          "sections": [
+            "Split portrait hero",
+            "Digitals / measurements",
+            "Skills & specialties",
+            "Services & rates",
+            "Portfolio",
+            "Watch & listen",
+            "Select clients",
+            "Reviews",
+            "More from this roster",
+            "Sticky book bar"
+          ]
+        },
+        "lumen": {
+          "label": "Lumen",
+          "tagline": "Modern, airy — adapts to your theme",
+          "description": "A bright, premium, modern layout with generous whitespace. Adaptive hero (cover, split, or compact — by the images you have), then a main column with a sticky availability + booking rail, full spec cards for every field, services, integrations and reviews. Follows your theme colors in settings - light theme renders light, dark renders dark, with your brand accent.",
+          "typeLabel": "Modern · airy",
+          "sections": [
+            "Adaptive hero",
+            "Sticky availability + booking rail",
+            "All fields as spec cards",
+            "Portfolio",
+            "Services & pricing",
+            "Integrations / featured media",
+            "Reviews",
+            "More from this roster"
+          ]
+        },
+        "atelier": {
+          "label": "Atelier",
+          "tagline": "Minimal magazine — adapts to your theme",
+          "description": "A minimal high-fashion magazine layout: centered masthead hero, very large serif display, numbered sections, and a refined definition list that surfaces every profile field. Inline availability, wide editorial portfolio, integrations and reviews. Follows your theme colors in settings (light or dark) with your brand accent.",
+          "typeLabel": "Fraunces · editorial",
+          "sections": [
+            "Centered masthead hero",
+            "Numbered sections",
+            "All fields as definition list",
+            "Inline availability",
+            "Editorial portfolio",
+            "Integrations / featured media",
+            "Reviews",
+            "More from this roster"
+          ]
+        }
+      }
+    },
+    "adminForms": {
+      "heading": "Form submissions",
+      "subtitle": "All contact-form submissions from your site, scoped to this workspace.",
+      "backToWebsite": "← Website",
+      "statusLabel": {
+        "new": "New",
+        "read": "Read",
+        "archived": "Archived",
+        "spam": "Spam"
+      },
+      "statusWord": {
+        "new": "new",
+        "read": "read",
+        "archived": "archived",
+        "spam": "spam"
+      },
+      "loadError": "Failed to load form submissions: {message}",
+      "emptyState": "No {status} submissions{suffix}.",
+      "emptyStateSectionSuffix": " for this form",
+      "tableStatus": "Status",
+      "tableForm": "Form",
+      "tableContact": "Contact",
+      "tableSource": "Source",
+      "tableReceived": "Received",
+      "searchPlaceholder": "Search name, email, content…",
+      "allForms": "All forms",
+      "markAllRead": "Mark all read ({count})",
+      "exportCsv": "Export CSV",
+      "markAsRead": "Mark as read",
+      "archive": "Archive",
+      "noName": "(no name)",
+      "attachments": "Attachments",
+      "download": "Download",
+      "source": "Source:",
+      "exportFailed": "Export failed: {error}"
     }
   },
   "admin": {

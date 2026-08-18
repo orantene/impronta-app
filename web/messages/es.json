@@ -11104,6 +11104,127 @@
       "updatedOn": "Actualizado {date}",
       "legCountOne": "{count} pago",
       "legCountOther": "{count} pagos"
+    },
+    "adminProfilePages": {
+      "title": "Páginas de perfil",
+      "liveBadge": "Activo para todos los perfiles",
+      "subtitle": "Elige la plantilla que muestra las páginas de perfil de tu talento. La elección se aplica a todos los perfiles de tu sitio y se guarda al instante. El contenido del talento (fotos, biografía, campos) se mantiene igual, solo cambian el diseño y el estilo.",
+      "readOnly": "Solo lectura",
+      "activeBadge": "Activa",
+      "currentTemplate": "Plantilla actual",
+      "liveTemplateNote": "Esta es tu plantilla activa",
+      "useTemplate": "Usar esta plantilla",
+      "applying": "Aplicando…",
+      "footnoteTipPrefix": "Consejo: abre cualquier perfil de talento y añade",
+      "footnoteTipOr": "o",
+      "footnoteTipSuffix": "para previsualizar una sola página con cualquiera de las plantillas sin cambiar tu elección activa.",
+      "toastNeedsAdmin": "Necesitas acceso de administrador para cambiar la plantilla de perfil.",
+      "toastSaveError": "No se pudo guardar esa plantilla.",
+      "toastTemplateSet": "Plantilla de perfil establecida en {label}.",
+      "templates": {
+        "classic": {
+          "label": "Classic",
+          "tagline": "La opción predeterminada de la plataforma",
+          "description": "Limpia, clara y orientada a la conversión. Portada + cabecera, cuerpo 70/30 con una tarjeta de reserva fija, portafolio, servicios, habilidades, detalles y reseñas. La opción segura, rápida y neutral que encaja con cualquier marca.",
+          "typeLabel": "Geist · limpia",
+          "sections": [
+            "Portada + cabecera",
+            "Portafolio",
+            "Acerca de",
+            "Servicios y precios",
+            "Habilidades",
+            "Detalles",
+            "Reseñas",
+            "Tarjeta de reserva fija"
+          ]
+        },
+        "noir": {
+          "label": "Noir & Or",
+          "tagline": "Fondo negro, serif dorada: editorial",
+          "description": "Un registro editorial oscuro y de alta costura. Hero de retrato dividido, cuadrícula de digitales con líneas doradas, portafolio en mosaico, servicios, una franja de clientes y una barra de reserva fija. Cormorant Garamond + Jost con acentos dorados. Pensada para agencias que buscan una sensación de revista premium.",
+          "typeLabel": "Cormorant · editorial",
+          "sections": [
+            "Hero de retrato dividido",
+            "Digitales / medidas",
+            "Habilidades y especialidades",
+            "Servicios y tarifas",
+            "Portafolio",
+            "Ver y escuchar",
+            "Clientes seleccionados",
+            "Reseñas",
+            "Más de este roster",
+            "Barra de reserva fija"
+          ]
+        },
+        "lumen": {
+          "label": "Lumen",
+          "tagline": "Moderna y luminosa: se adapta a tu tema",
+          "description": "Un diseño moderno, luminoso y premium con amplios espacios en blanco. Hero adaptativo (portada, dividido o compacto, según las imágenes que tengas), luego una columna principal con una barra de disponibilidad y reserva fija, tarjetas completas para cada campo, servicios, integraciones y reseñas. Sigue los colores de tu tema en ajustes: el tema claro se muestra claro, el oscuro se muestra oscuro, con el acento de tu marca.",
+          "typeLabel": "Moderna · luminosa",
+          "sections": [
+            "Hero adaptativo",
+            "Barra de disponibilidad y reserva fija",
+            "Todos los campos como tarjetas",
+            "Portafolio",
+            "Servicios y precios",
+            "Integraciones / medios destacados",
+            "Reseñas",
+            "Más de este roster"
+          ]
+        },
+        "atelier": {
+          "label": "Atelier",
+          "tagline": "Revista minimalista: se adapta a tu tema",
+          "description": "Un diseño de revista minimalista de alta costura: hero de portada centrado, tipografía serif muy grande, secciones numeradas y una lista de definiciones que muestra cada campo del perfil. Disponibilidad en línea, portafolio editorial amplio, integraciones y reseñas. Sigue los colores de tu tema en ajustes (claro u oscuro) con el acento de tu marca.",
+          "typeLabel": "Fraunces · editorial",
+          "sections": [
+            "Hero de portada centrado",
+            "Secciones numeradas",
+            "Todos los campos como lista de definiciones",
+            "Disponibilidad en línea",
+            "Portafolio editorial",
+            "Integraciones / medios destacados",
+            "Reseñas",
+            "Más de este roster"
+          ]
+        }
+      }
+    },
+    "adminForms": {
+      "heading": "Envíos de formularios",
+      "subtitle": "Todos los envíos de formularios de contacto de tu sitio, dentro de este espacio de trabajo.",
+      "backToWebsite": "← Sitio web",
+      "statusLabel": {
+        "new": "Nuevo",
+        "read": "Leído",
+        "archived": "Archivado",
+        "spam": "Spam"
+      },
+      "statusWord": {
+        "new": "nuevos",
+        "read": "leídos",
+        "archived": "archivados",
+        "spam": "de spam"
+      },
+      "loadError": "No se pudieron cargar los envíos de formularios: {message}",
+      "emptyState": "No hay envíos {status}{suffix}.",
+      "emptyStateSectionSuffix": " para este formulario",
+      "tableStatus": "Estado",
+      "tableForm": "Formulario",
+      "tableContact": "Contacto",
+      "tableSource": "Origen",
+      "tableReceived": "Recibido",
+      "searchPlaceholder": "Buscar nombre, correo, contenido…",
+      "allForms": "Todos los formularios",
+      "markAllRead": "Marcar todo como leído ({count})",
+      "exportCsv": "Exportar CSV",
+      "markAsRead": "Marcar como leído",
+      "archive": "Archivar",
+      "noName": "(sin nombre)",
+      "attachments": "Adjuntos",
+      "download": "Descargar",
+      "source": "Origen:",
+      "exportFailed": "Error al exportar: {error}"
     }
   },
   "admin": {

@@ -15,6 +15,9 @@ import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import { FormsInboxClient } from "./forms-inbox-client";
 
 export const dynamic = "force-dynamic";
@@ -63,12 +66,12 @@ export type FormSubmissionRow = {
   attachments: FormSubmissionAttachment[];
 };
 
-function statusBadge(status: string) {
+function statusBadge(status: string, t: (key: string) => string) {
   const cfg: Record<string, { label: string; bg: string; color: string }> = {
-    new:      { label: "New",      bg: C.amberSoft, color: C.amber },
-    read:     { label: "Read",     bg: C.surface,   color: C.inkMuted },
-    archived: { label: "Archived", bg: C.surface,   color: C.inkDim },
-    spam:     { label: "Spam",     bg: C.redSoft,   color: C.red },
+    new:      { label: t("dashboard.adminForms.statusLabel.new"),      bg: C.amberSoft, color: C.amber },
+    read:     { label: t("dashboard.adminForms.statusLabel.read"),     bg: C.surface,   color: C.inkMuted },
+    archived: { label: t("dashboard.adminForms.statusLabel.archived"), bg: C.surface,   color: C.inkDim },
+    spam:     { label: t("dashboard.adminForms.statusLabel.spam"),     bg: C.redSoft,   color: C.red },
   };
   const s = cfg[status] ?? { label: status, bg: C.surface, color: C.inkMuted };
   return (
@@ -111,6 +114,9 @@ export default async function FormsInboxPage({
 }) {
   const { tenantSlug } = await params;
   const { section: sectionFilter, status: statusFilter, q: searchQuery } = await searchParams;
+
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
@@ -166,7 +172,7 @@ export default async function FormsInboxPage({
     // Surface the error gracefully rather than crashing.
     return (
       <div style={{ padding: 32, fontFamily: FONT, color: C.red }}>
-        Failed to load form submissions: {error.message}
+        {interpolate(t("dashboard.adminForms.loadError"), { message: error.message })}
       </div>
     );
   }
@@ -240,17 +246,17 @@ export default async function FormsInboxPage({
             {scope.membership.display_name}
           </div>
           <h1 style={{ fontFamily: FONT, fontSize: 26, fontWeight: 700, color: C.ink, margin: 0, lineHeight: 1.1 }}>
-            Form submissions
+            {t("dashboard.adminForms.heading")}
           </h1>
           <div style={{ marginTop: 4, fontSize: 12.5, color: C.inkMuted }}>
-            All contact-form submissions from your site, scoped to this workspace.
+            {t("dashboard.adminForms.subtitle")}
           </div>
         </div>
         <Link
           href={`/${tenantSlug}/admin/website`}
           style={{ fontSize: 12.5, color: C.accent, textDecoration: "underline" }}
         >
-          ← Website
+          {t("dashboard.adminForms.backToWebsite")}
         </Link>
       </div>
 
@@ -266,7 +272,7 @@ export default async function FormsInboxPage({
       >
         {(["new", "read", "archived", "spam"] as const).map((tab) => {
           const isActive = activeStatus === tab;
-          const tabLabel = tab[0]!.toUpperCase() + tab.slice(1);
+          const tabLabel = t(`dashboard.adminForms.statusLabel.${tab}`);
           const tabCount = counts[tab] ?? 0;
           const href = new URLSearchParams(
             [
@@ -338,8 +344,10 @@ export default async function FormsInboxPage({
             fontSize: 13,
           }}
         >
-          No {activeStatus} submissions
-          {sectionFilter ? ` for this form` : ""}.
+          {interpolate(t("dashboard.adminForms.emptyState"), {
+            status: t(`dashboard.adminForms.statusWord.${activeStatus}`),
+            suffix: sectionFilter ? t("dashboard.adminForms.emptyStateSectionSuffix") : "",
+          })}
         </div>
       ) : (
         <div
@@ -361,17 +369,17 @@ export default async function FormsInboxPage({
                   letterSpacing: 0.6,
                 }}
               >
-                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>Status</th>
-                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>Form</th>
-                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>Contact</th>
-                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>Source</th>
-                <th style={{ textAlign: "right" as const, padding: "10px 14px" }}>Received</th>
+                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>{t("dashboard.adminForms.tableStatus")}</th>
+                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>{t("dashboard.adminForms.tableForm")}</th>
+                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>{t("dashboard.adminForms.tableContact")}</th>
+                <th style={{ textAlign: "left" as const, padding: "10px 14px" }}>{t("dashboard.adminForms.tableSource")}</th>
+                <th style={{ textAlign: "right" as const, padding: "10px 14px" }}>{t("dashboard.adminForms.tableReceived")}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((row) => (
                 <tr key={row.id} style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                  <td style={{ padding: "10px 14px" }}>{statusBadge(row.status)}</td>
+                  <td style={{ padding: "10px 14px" }}>{statusBadge(row.status, t)}</td>
                   <td style={{ padding: "10px 14px", color: C.ink, fontWeight: 500, maxWidth: 180 }}>
                     {row.section_name}
                   </td>
