@@ -183,6 +183,35 @@ const talentMediaEmbedCsp = {
   frame: "https://open.spotify.com https://w.soundcloud.com",
 };
 
+// Tenant tracking connections (Website → Setup → Tracking, lib/site-admin/
+// tracking.ts). A provider whose host is missing here is not "degraded" — the
+// browser blocks the tag outright and the tenant sees an admin screen that says
+// "connected" while no data is ever collected. So the two lists are paired by a
+// test: `lib/site-admin/tracking.test.ts` reads THIS FILE and asserts every host
+// declared on a provider spec appears in the directive it needs.
+//
+// Google Analytics 4 and Google Tag Manager needed NOTHING new:
+// www.googletagmanager.com and www.google-analytics.com were already in
+// script-src and connect-src for the platform's own tag. The three hosts below
+// are the additions this PR makes, each a single exact origin, no wildcards:
+//
+//   • connect.facebook.net  (script-src)  — Meta pixel's fbevents.js loader.
+//   • www.facebook.com      (connect-src) — where fbevents.js posts events.
+//     img-src already allows `https:`, so the <img> fallback needed nothing.
+//   • plausible.io          (script + connect) — Plausible's script and the
+//     /api/event endpoint it beacons to. Hosted plausible.io only; a
+//     self-hosted instance would mean a per-tenant policy host, which is
+//     deliberately not offered.
+//
+// NOT added, and why: www.googletagmanager.com in `frame-src`. Google's GTM
+// snippet has a <noscript> iframe half, which is not emitted — a visitor with
+// JavaScript off cannot run any of these providers anyway, so widening the
+// frame policy for every tenant and the platform hub would buy nothing.
+const tenantTrackingCsp = {
+  script: "https://connect.facebook.net https://plausible.io",
+  connect: "https://www.facebook.com https://plausible.io",
+};
+
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
   // Tenant captcha integrations (hCaptcha + Cloudflare Turnstile). The widget
@@ -199,8 +228,8 @@ function contentSecurityPolicy(): string {
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script} ${tenantTrackingCsp.script}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${stripeCsp.script} ${googleTag} ${captchaScript} ${vercelInsights} ${socialPostCsp.script} ${tenantTrackingCsp.script}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
@@ -213,7 +242,7 @@ function contentSecurityPolicy(): string {
     // NOT govern a media element, which is why the hole survived. Mirrors
     // `connectSrcDirectives()` so a custom / local Supabase host works too.
     `media-src ${mediaSrcDirectives().join(" ")}`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${stripeCsp.connect} ${googleTag} ${captchaConnect} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com ${vercelInsights} https://*.sentry.io ${tenantTrackingCsp.connect}`,
     `frame-src ${googleMapsCsp.frameSrc} ${stripeCsp.frame} ${builderEmbedCsp.frame} ${captchaFrame} ${talentMediaEmbedCsp.frame} ${socialPostCsp.frame}`,
     /** Maps workers use blob: URLs; service worker needs 'self'. */
     "worker-src 'self' blob:",

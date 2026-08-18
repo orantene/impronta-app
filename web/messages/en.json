@@ -5126,9 +5126,46 @@
         "redirectsHeading": "Redirects",
         "redirectsHelper": "Send an old address to a new one so old links keep working.",
         "redirectsAction": "Open redirects",
-        "notSetUpYet": "Not set up yet",
         "trackingHeading": "Tracking",
-        "trackingBody": "Analytics and advertising connections will be managed here. Nothing can be connected from this screen today, and no tracking is configured from it.",
+        "trackingHelper": "Connect an analytics or advertising account to your public site.",
+        "tracking": {
+          "sectionInfo": "Each account you connect here adds its own small piece of code to every page of your public site. Nothing is added to your admin screens, and nothing is added to any other agency's site. Clear a field and save to disconnect it again.",
+          "loading": "Loading your connections.",
+          "ownerOnly": "Only the workspace owner can connect tracking accounts, because they run on your live public site and send your visitors' activity to another company.",
+          "intro": "Paste the ID from the account you want to connect. It starts working on your public site right away, and clearing the field disconnects it. Your admin screens are never tracked.",
+          "statusConnected": "Connected",
+          "statusNotConnected": "Not connected",
+          "saveAction": "Connect",
+          "disconnectAction": "Disconnect",
+          "savingAction": "Saving",
+          "connectedNotice": "Connected. It is running on your public site now.",
+          "disconnectedNotice": "Disconnected. It has stopped running on your public site.",
+          "consentNote": "You are responsible for telling visitors what you collect, and for asking their permission where the law where you operate requires it.",
+          "ga4": {
+            "name": "Google Analytics",
+            "info": "Google Analytics counts your visitors and shows you which pages they read, where they came from and what they did before they left. It is free and it is the most common way to see whether your site is working.",
+            "fieldLabel": "Measurement ID",
+            "placeholder": "G-1A2B3C4D5E"
+          },
+          "gtm": {
+            "name": "Google Tag Manager",
+            "info": "Google Tag Manager is a container you fill with other tracking tools, so you can add and remove them from Google's own screen instead of asking for a change here each time. Connect it only if someone is already managing tags for you.",
+            "fieldLabel": "Container ID",
+            "placeholder": "GTM-A1B2C3D"
+          },
+          "metaPixel": {
+            "name": "Meta pixel",
+            "info": "The Meta pixel tells Facebook and Instagram what people did on your site after seeing one of your ads, so you can see which ads brought real enquiries. Connect it only if you are actually running ads on those platforms.",
+            "fieldLabel": "Pixel ID",
+            "placeholder": "123456789012345"
+          },
+          "plausible": {
+            "name": "Plausible",
+            "info": "Plausible is a paid, privacy first alternative to Google Analytics. It uses no cookies and collects nothing about individual people, which usually means you do not need a cookie banner for it. Enter the site domain exactly as you set it up in Plausible.",
+            "fieldLabel": "Site domain",
+            "placeholder": "yoursite.com"
+          }
+        },
         "customCodeHeading": "Custom code",
         "customCodeHelper": "Your own CSS or JavaScript, saved by name and switched on when you are ready.",
         "customCode": {

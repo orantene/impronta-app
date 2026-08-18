@@ -23,13 +23,14 @@
  *           template is derived from the tenant name, not a stored setting).
  *           Showing them as live settings would be the panel inventing a fact,
  *           so they are omitted entirely rather than shown greyed out.
- *   NOT   — `tracking.*` is likewise fixture (only `plausibleDomain` is scoped
- *           to the host, and nothing writes it). Tracking therefore keeps an
- *           explicit "not set up yet" card, not inputs that save nowhere.
  *
- * Custom code USED to be a second "not set up yet" card here. As of P3-C it is
- * a real surface backed by `cms_code_snippets` (see `WebsiteCustomCode.tsx`),
- * so the placeholder and its catalog key are gone rather than left to rot.
+ * Custom code and Tracking USED to be "not set up yet" cards here. As of P3-C
+ * and P3-D they are real surfaces — `cms_code_snippets` (`WebsiteCustomCode
+ * .tsx`) and `agencies.settings.tracking` (`WebsiteTracking.tsx`) — so both
+ * placeholders and every catalog key they owned are gone rather than left to
+ * rot. The `WEBSITE_STATE.tracking.*` prototype fixture is NOT what the Tracking
+ * section reads: that module loads the stored config through its own server
+ * action, so nothing on this page invents a fact about tracking any more.
  *
  * STYLING — token classes only (`ratchet/no-new-inline-style`). Nothing was
  * carried over from Overview's inline-styled markup: a moved style counts as a
@@ -46,6 +47,7 @@ import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
 import { PageHeader } from "./pages-shared";
 import { WebsiteCustomCode } from "./WebsiteCustomCode";
+import { WebsiteTracking } from "./WebsiteTracking";
 
 /** Section shell — heading, one plain sentence, optional trailing action. */
 function SetupSection({
@@ -107,25 +109,6 @@ function SetupField({ label, value, mono }: { label: string; value: string; mono
       >
         {value}
       </span>
-    </div>
-  );
-}
-
-/**
- * A surface that is named but not built. Says so in the label, not only in the
- * body, so nobody reads the card as a working control they cannot find.
- */
-function NotSetUpYetCard({ heading, body }: { heading: string; body: string }) {
-  const t = useT();
-  return (
-    <div className="flex flex-col gap-[6px] rounded-admin-lg border border-dashed border-admin-border bg-admin-surface-alt p-[16px]">
-      <div className="flex flex-wrap items-center gap-[8px]">
-        <span className="text-admin-13h font-semibold text-admin-ink">{heading}</span>
-        <span className="rounded-admin-sm bg-admin-card px-[7px] py-px text-admin-10 font-semibold uppercase tracking-[0.5px] text-admin-ink-muted">
-          {t("dashboard.adminWebsite.setup.notSetUpYet")}
-        </span>
-      </div>
-      <p className="m-0 text-admin-11h leading-relaxed text-admin-ink-muted">{body}</p>
     </div>
   );
 }
@@ -272,11 +255,23 @@ export function WebsiteSetupPage() {
           <WebsiteCustomCode />
         </SetupSection>
 
-        {/* Named, not built. See the file header for why this is not inputs. */}
-        <NotSetUpYetCard
+        {/* Tracking — a real surface as of P3-D. Like Custom code above, the
+            module owns its own loading / permission / error states, so this
+            section is just the heading and the InfoTip. */}
+        <SetupSection
           heading={t("dashboard.adminWebsite.setup.trackingHeading")}
-          body={t("dashboard.adminWebsite.setup.trackingBody")}
-        />
+          helper={t("dashboard.adminWebsite.setup.trackingHelper")}
+          action={
+            <InfoTip
+              label={t("dashboard.adminWebsite.setup.tracking.sectionInfo")}
+              triggerLabel={t("dashboard.adminWebsite.designHub.whatIsThis")}
+              placement="bottom-end"
+              className="text-admin-ink-dim hover:text-admin-ink"
+            />
+          }
+        >
+          <WebsiteTracking />
+        </SetupSection>
       </div>
     </>
   );

@@ -5126,9 +5126,46 @@
         "redirectsHeading": "Redirecciones",
         "redirectsHelper": "Envía una dirección antigua a una nueva para que los enlaces viejos sigan funcionando.",
         "redirectsAction": "Abrir redirecciones",
-        "notSetUpYet": "Aún sin configurar",
         "trackingHeading": "Seguimiento",
-        "trackingBody": "Las conexiones de analítica y publicidad se gestionarán aquí. Hoy no se puede conectar nada desde esta pantalla ni se configura ningún seguimiento desde ella.",
+        "trackingHelper": "Conecta una cuenta de analítica o de publicidad a tu sitio público.",
+        "tracking": {
+          "sectionInfo": "Cada cuenta que conectas aquí añade su propio fragmento de código a todas las páginas de tu sitio público. No se añade nada a tus pantallas de administración ni al sitio de ninguna otra agencia. Vacía un campo y guarda para desconectarla.",
+          "loading": "Cargando tus conexiones.",
+          "ownerOnly": "Solo la persona propietaria del espacio de trabajo puede conectar cuentas de seguimiento, porque se ejecutan en tu sitio público y envían la actividad de tus visitantes a otra empresa.",
+          "intro": "Pega el identificador de la cuenta que quieras conectar. Empieza a funcionar en tu sitio público de inmediato, y si vacías el campo se desconecta. Tus pantallas de administración nunca se rastrean.",
+          "statusConnected": "Conectado",
+          "statusNotConnected": "Sin conectar",
+          "saveAction": "Conectar",
+          "disconnectAction": "Desconectar",
+          "savingAction": "Guardando",
+          "connectedNotice": "Conectado. Ya se está ejecutando en tu sitio público.",
+          "disconnectedNotice": "Desconectado. Ha dejado de ejecutarse en tu sitio público.",
+          "consentNote": "Es tu responsabilidad informar a las personas que visitan tu sitio sobre lo que recoges y pedirles permiso cuando la ley de tu país lo exija.",
+          "ga4": {
+            "name": "Google Analytics",
+            "info": "Google Analytics cuenta tus visitas y te muestra qué páginas leen, de dónde llegan y qué hacen antes de irse. Es gratuito y es la forma más habitual de saber si tu sitio está funcionando.",
+            "fieldLabel": "ID de medición",
+            "placeholder": "G-1A2B3C4D5E"
+          },
+          "gtm": {
+            "name": "Google Tag Manager",
+            "info": "Google Tag Manager es un contenedor donde metes otras herramientas de seguimiento, para poder añadirlas y quitarlas desde la pantalla de Google en lugar de pedir un cambio aquí cada vez. Conéctalo solo si alguien ya gestiona las etiquetas por ti.",
+            "fieldLabel": "ID del contenedor",
+            "placeholder": "GTM-A1B2C3D"
+          },
+          "metaPixel": {
+            "name": "Píxel de Meta",
+            "info": "El píxel de Meta le dice a Facebook y a Instagram qué hicieron las personas en tu sitio después de ver uno de tus anuncios, para que veas qué anuncios traen consultas reales. Conéctalo solo si de verdad estás haciendo publicidad en esas plataformas.",
+            "fieldLabel": "ID del píxel",
+            "placeholder": "123456789012345"
+          },
+          "plausible": {
+            "name": "Plausible",
+            "info": "Plausible es una alternativa de pago a Google Analytics centrada en la privacidad. No usa cookies ni recoge nada sobre personas concretas, así que normalmente no necesitas un aviso de cookies para usarlo. Escribe el dominio del sitio tal como lo configuraste en Plausible.",
+            "fieldLabel": "Dominio del sitio",
+            "placeholder": "tusitio.com"
+          }
+        },
         "customCodeHeading": "Código personalizado",
         "customCodeHelper": "Tu propio CSS o JavaScript, guardado con un nombre y activado cuando quieras.",
         "customCode": {
