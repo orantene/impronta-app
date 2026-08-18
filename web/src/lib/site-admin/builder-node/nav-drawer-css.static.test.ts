@@ -7,8 +7,11 @@ import { readFileSync } from "node:fs";
  * defect on the Impronta phone header, and each fails silently: the drawer
  * still "opens", it is just clipped, uncloseable, or underneath the page.
  */
+// Repointed when the nav CSS moved to its own module. The ASSERTIONS below are
+// unchanged — each pins a defect that reached the live site, so a file move is
+// exactly when they must not be "tidied".
 const SOURCE = readFileSync(
-  new URL("./render.tsx", import.meta.url),
+  new URL("./nav-css.ts", import.meta.url),
   "utf8",
 );
 
