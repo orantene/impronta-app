@@ -608,7 +608,9 @@
         "redirectsLabel": "Redirections",
         "redirectsDescription": "Faites pointer d'anciennes URL vers de nouvelles pages",
         "formsLabel": "Formulaires",
-        "formsDescription": "Soumissions des formulaires de votre site"
+        "formsDescription": "Soumissions des formulaires de votre site",
+        "setupLabel": "Configuration",
+        "setupDescription": "Adresse web, réglages de recherche, suivi"
       }
     },
     "mediaField": {

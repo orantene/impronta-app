@@ -62,6 +62,7 @@ const ES_TEXT: Record<string, string> = {
   "Profile Pages": "Páginas de perfil",
   "Design": "Diseño",
   "Redirects": "Redirecciones",
+  "Setup": "Configuración",
   "Forms": "Formularios",
   // Account menu (W3/W7) — AccountMenuItem translates label+sub via copy.t
   "Seats, invoices, payouts": "Plazas, facturas y pagos",

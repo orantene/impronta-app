@@ -6,7 +6,6 @@ import type { Locale } from "@/i18n/config";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import {
-  buildEditorPanelUrl,
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
 } from "@/lib/admin/website-editor-links";
@@ -20,12 +19,14 @@ import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
 import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
-import { ConfigStatusRow, formatShortDate, HeroStat, WebsitePerformance } from "./WebsitePage-2";
+import { formatShortDate, HeroStat, WebsitePerformance } from "./WebsitePage-2";
 import { WebsitePagesList } from "./WebsitePagesList";
 import { groupPagesBySlug, pageGroupMatchesStatus, sortPageGroups } from "../state/website-pages-list";
 import { PageHeader } from "./pages-shared";
-import { useSiteShellEditorUrl } from "./use-site-shell-editor-url";
 import { useWebsitePageLinks } from "./use-website-page-links";
+import { WebsiteDesignHub } from "./WebsiteDesignHub";
+import { WebsiteDesignTabs } from "./website-design-tabs";
+import { WebsiteSetupPage } from "./WebsiteSetupPage";
 import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 
 
@@ -157,10 +158,12 @@ function WebsiteSubviewTabs({
 }) {
   const t = useT();
   const router = useRouter();
-  // Single source of truth (website-nav.ts), minus the external "Design" link:
-  // a pill cannot open a new tab and read as "active" at the same time. This is
-  // what finally gives mobile (rail hidden ≤720px) a way to reach the
-  // destinations the strip used to omit, Redirects and Forms among them.
+  // Single source of truth (website-nav.ts), minus any external link: a pill
+  // cannot open a new tab and read as "active" at the same time. Every item is
+  // internal since Design became a hub route, but the filter stays — the field
+  // is still part of the item shape. This is what finally gives mobile (rail
+  // hidden ≤720px) a way to reach the destinations the strip used to omit,
+  // Redirects and Forms among them.
   const tabs = useWebsiteSubnav()
     .filter(item => !item.external)
     .map(item => ({
@@ -234,7 +237,6 @@ export function WebsitePage() {
   const pathname = usePathname();
   const {
     state,
-    openDrawer,
     toast,
     effectiveWebsiteState,
     locale,
@@ -253,6 +255,8 @@ export function WebsitePage() {
   const w = effectiveWebsiteState;
   const isCardDesign = pathname?.endsWith("/website/card-design") ?? false;
   const isProfilePages = pathname?.endsWith("/website/profile-pages") ?? false;
+  const isDesignHub = pathname?.endsWith("/website/design") ?? false;
+  const isSetup = pathname?.endsWith("/website/setup") ?? false;
 
   const [isCreatingPage, startCreatePageTransition] = useTransition();
 
@@ -271,23 +275,10 @@ export function WebsitePage() {
     () => resolveWebsiteEditorBaseUrl({ liveOrigin, tenantSlug, windowOrigin }),
     [liveOrigin, tenantSlug, windowOrigin],
   );
-  const siteDesignUrl = useMemo(
-    () => buildEditorPanelUrl({ editorBaseUrl, panel: "theme" }),
-    [editorBaseUrl],
-  );
-  const openSiteDesign = useCallback(() => {
-    if (!siteDesignUrl) return;
-    window.open(siteDesignUrl, "_blank", "noopener,noreferrer");
-  }, [siteDesignUrl]);
-
-  // Lane 2 — entry point for the SITE SHELL surface (global header + footer).
-  // Null unless the server confirms the surface is reachable for this caller,
-  // so the button is never rendered as a link to a 404. See the hook.
-  const siteShellUrl = useSiteShellEditorUrl();
-  const openSiteShell = useCallback(() => {
-    if (!siteShellUrl) return;
-    window.open(siteShellUrl, "_blank", "noopener,noreferrer");
-  }, [siteShellUrl]);
+  // Site theme + site header/footer entry points MOVED to the Design hub
+  // (`/website/design`, WebsiteDesignHub.tsx). They were two of four scattered
+  // ways to change how the site looks; the hub is the one place that names the
+  // set. Overview's header keeps only the actions about Overview's own content.
 
   // Every page URL is built at the ROW's own locale, never the shell's — see
   // use-website-page-links.ts for the 404 that rule exists to prevent.
@@ -414,10 +405,13 @@ export function WebsitePage() {
       : pageGroups.filter(g => pageGroupMatchesStatus(g, pagesTab));
   const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
 
+  // Design / Cards / Profiles additionally carry the local design strip, so
+  // the three surfaces read as one place without merging their routes.
   if (isCardDesign) {
     return (
       <>
         <WebsiteSubviewTabs active="card-design" />
+        <WebsiteDesignTabs active="card-design" />
         <CardDesignStudio />
       </>
     );
@@ -427,7 +421,26 @@ export function WebsitePage() {
     return (
       <>
         <WebsiteSubviewTabs active="profile-pages" />
+        <WebsiteDesignTabs active="profile-pages" />
         <ProfilePagesStudio />
+      </>
+    );
+  }
+
+  if (isDesignHub) {
+    return (
+      <>
+        <WebsiteSubviewTabs active="design" />
+        <WebsiteDesignHub />
+      </>
+    );
+  }
+
+  if (isSetup) {
+    return (
+      <>
+        <WebsiteSubviewTabs active="setup" />
+        <WebsiteSetupPage />
       </>
     );
   }
@@ -455,25 +468,6 @@ export function WebsitePage() {
                 <Icon name="pencil" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.editHomepage")}
               </span>
             </SecondaryButton>
-            {/* Site design (theme tokens: colors, fonts, spacing, shell).
-                It lives in a drawer INSIDE the visual editor, which made it
-                effectively undiscoverable from the admin — this is the direct
-                way in. Mirrored in the sidebar's Website → Design item. */}
-            <SecondaryButton size="sm" disabled={!siteDesignUrl} onClick={openSiteDesign}>
-              <span className="inline-flex items-center gap-1.5">
-                <Icon name="sparkle" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.siteDesign")}
-              </span>
-            </SecondaryButton>
-            {/* Site header & footer — the global shell shared by every page.
-                Rendered ONLY when the server says the surface is reachable
-                (edit flag on + capability), so it is never a link to a 404. */}
-            {siteShellUrl ? (
-              <SecondaryButton size="sm" onClick={openSiteShell}>
-                <span className="inline-flex items-center gap-1.5">
-                  <Icon name="pencil" size={12} stroke={1.7} /> {t("dashboard.adminWebsite.siteShell")}
-                </span>
-              </SecondaryButton>
-            ) : null}
             {websiteUsesLiveCms && canEdit ? (
               <PrimaryButton
                 size="sm"
@@ -721,71 +715,6 @@ export function WebsitePage() {
               </div>
               ))
             )}
-          </div>
-        </div>
-      </section>
-
-      {/* Configuration — single 3-column card combining Domain / SEO / Tracking */}
-      <section style={{ marginBottom: 18 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.2 }} className="text-admin-ink">{t("dashboard.adminWebsite.configHeading")}</h2>
-          <span style={{ fontSize: 11.5, fontFamily: FONTS.body }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.configSubheading")}</span>
-        </div>
-        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, overflow: "hidden", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-          {/* Domain */}
-          <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.domainLabel")}</span>
-              {canEdit && <button type="button" onClick={() => openDrawer("domain")} style={{ fontSize: 11, color: COLORS.indigoDeep, background: "transparent", border: "none", cursor: "pointer", fontWeight: 600, fontFamily: FONTS.body }}>{t("dashboard.adminWebsite.manageArrow")}</button>}
-            </div>
-            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, letterSpacing: -0.3, wordBreak: "break-all", marginBottom: 12 }} className="text-admin-ink">{w.domain.primaryDomain}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-              <ConfigStatusRow label={t("dashboard.adminWebsite.dnsLabel")} status={w.domain.status === "verified" ? "ok" : "warn"} value={w.domain.status === "verified" ? t("dashboard.adminWebsite.dnsVerified") : t("dashboard.adminWebsite.dnsPending")} />
-              <ConfigStatusRow label={t("dashboard.adminWebsite.sslLabel")} status={w.domain.sslStatus === "active" ? "ok" : "warn"} value={w.domain.sslStatus === "active" ? interpolate(t("dashboard.adminWebsite.sslActiveRenews"), { date: w.domain.sslExpiresOn ?? "—" }) : w.domain.sslStatus} />
-              <ConfigStatusRow label={t("dashboard.adminWebsite.recordsLabel")} status={(w.domain.dnsRecords ?? []).every(r => r.matched) ? "ok" : "warn"} value={interpolate(t("dashboard.adminWebsite.recordsMatched"), { matched: (w.domain.dnsRecords ?? []).filter(r => r.matched).length, total: (w.domain.dnsRecords ?? []).length })} />
-            </div>
-          </div>
-
-          {/* SEO */}
-          <div style={{ padding: 18, borderRight: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoDefaultsLabel")}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: w.seo.robotsMode === "indexable" ? COLORS.successSoft : COLORS.amberSoft, color: w.seo.robotsMode === "indexable" ? COLORS.successDeep : COLORS.amberDeep, textTransform: "uppercase", letterSpacing: 0.5 }}>{w.seo.robotsMode === "indexable" ? t("dashboard.adminWebsite.seoIndexable") : t("dashboard.adminWebsite.seoNoIndex")}</span>
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, lineHeight: 1.3 }} className="text-admin-ink">{w.seo.siteTitle || t("dashboard.adminWebsite.notSet")}</div>
-            <div style={{ fontSize: 11.5, marginBottom: 12, lineHeight: 1.45 }} className="text-admin-ink-muted">{w.seo.description || t("dashboard.adminWebsite.notSet")}</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 5, fontSize: 11.5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoTitleTemplate")}</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }} className="text-admin-ink">{w.seo.titleTemplate || t("dashboard.adminWebsite.notSet")}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoSitemap")}</span><span style={{ color: w.seo.sitemapEnabled ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 600 }}>{w.seo.sitemapEnabled ? t("dashboard.adminWebsite.seoEnabled") : t("dashboard.adminWebsite.seoDisabled")}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><span className="text-admin-ink-muted">{t("dashboard.adminWebsite.seoCanonical")}</span><span style={{ fontFamily: "ui-monospace, monospace", fontSize: 11 }} className="text-admin-ink">{w.seo.canonicalDomain}</span></div>
-            </div>
-          </div>
-
-          {/* Tracking — chip cluster */}
-          <div style={{ padding: 18, fontFamily: FONTS.body }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase" }} className="text-admin-ink-muted">{t("dashboard.adminWebsite.trackingLabel")}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, textTransform: "uppercase", letterSpacing: 0.5 }} className="bg-admin-indigo-soft text-admin-indigo-deep">{interpolate(t("dashboard.adminWebsite.trackingConsent"), { mode: w.tracking.cookieConsent })}</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { label: "GA4", value: w.tracking.ga4MeasurementId },
-                { label: "Plausible", value: w.tracking.plausibleDomain },
-                { label: "Meta", value: w.tracking.metaPixelId },
-                { label: "GTM", value: w.tracking.gtmContainerId },
-                { label: "Hotjar", value: w.tracking.hotjarSiteId },
-                { label: "LinkedIn", value: w.tracking.linkedInPartnerId },
-              ].map(tr => {
-                const active = tr.value.length > 0;
-                return (
-                  <span key={tr.label} title={active ? tr.value : t("dashboard.adminWebsite.notConfigured")}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: active ? COLORS.successSoft : COLORS.surfaceAlt, border: `1px solid ${active ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, fontSize: 11.5, fontWeight: 600, color: active ? COLORS.successDeep : COLORS.inkDim }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? COLORS.successDeep : COLORS.inkDim }} />
-                    {tr.label}
-                  </span>
-                );
-              })}
-            </div>
           </div>
         </div>
       </section>
