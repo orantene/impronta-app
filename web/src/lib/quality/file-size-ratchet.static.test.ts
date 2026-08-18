@@ -197,7 +197,10 @@ const BUDGETS: Record<string, number> = {
   // plus the null-honest visit mapping. The merge is the seam between the data
   // bridge and shell state, so it has nowhere else to live; the pure helpers it
   // calls are already separate modules.
-  "src/components/admin/shell/internal/state/fixtures.ts": 5181,
+  // 2026-08-18 Website pages quick actions (P3-A): +4 for passing
+  // `system_template_key` through the merge, so the Pages list can stop
+  // offering Archive/Delete on the rows the cms_pages guard trigger protects.
+  "src/components/admin/shell/internal/state/fixtures.ts": 5185,
   // +15: surfacing a committed-but-incomplete save on BOTH save paths. The
   // shared handling was extracted into profile-shell-save-feedback
   // (reportProfileShellSaveWarnings); what remains here is two call sites and
@@ -308,7 +311,10 @@ const BUDGETS: Record<string, number> = {
   // notably that an undefined visit count is "not in the top 8", not zero.
   // types.ts is the shell's single shared type surface; splitting one row type
   // out of it would cost more in import churn than the lines are worth.
-  "src/components/admin/shell/internal/state/types.ts": 2804,
+  // 2026-08-18 Website pages quick actions (P3-A): +11 for
+  // `WebsitePageRow.systemTemplateKey` and the note recording why a template
+  // key stands in for the unprojected `is_system_owned` column.
+  "src/components/admin/shell/internal/state/types.ts": 2815,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge

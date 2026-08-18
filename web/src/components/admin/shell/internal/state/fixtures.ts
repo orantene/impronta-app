@@ -5023,6 +5023,10 @@ export function mergeWebsiteStateFromBridge(
       hasMetaDescription: p.hasMetaDescription,
       publishedAt: p.publishedAt ?? undefined,
       isHomepage,
+      // P3-A — the quick-actions region needs to know which rows the cms_pages
+      // guard trigger protects; system_template_key is the flag the bridge
+      // already carries (see WebsitePageRow.systemTemplateKey).
+      systemTemplateKey: p.systemTemplateKey,
     };
   });
 

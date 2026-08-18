@@ -2658,6 +2658,17 @@ export type WebsitePageRow = {
   /** True when this row is the tenant's homepage — see
    *  `mergeWebsiteStateFromBridge` for how it's derived. */
   isHomepage?: boolean;
+  /**
+   * P3-A — `cms_pages.system_template_key`, passed through unchanged.
+   *
+   * The bridge does not select `is_system_owned`, but the M0 schema pairs the
+   * two (unique index `WHERE is_system_owned = TRUE AND system_template_key IS
+   * NOT NULL`), so a non-null template key identifies the rows whose DELETE and
+   * slug/locale UPDATE the `cms_pages` guard trigger refuses. The Pages list
+   * reads it through `isSystemOwnedPage` to stop offering actions the server
+   * will always reject. `undefined` = the payload predates this projection.
+   */
+  systemTemplateKey?: string | null;
 };
 
 export type WebsitePost = {

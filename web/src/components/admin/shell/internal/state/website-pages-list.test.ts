@@ -3,10 +3,14 @@ import { test } from "node:test";
 
 import type { WebsitePageRow } from "./types";
 import {
+  derivePageActions,
   derivePageVisibilityNotes,
   groupPagesBySlug,
+  isPageSlugLocked,
+  isSystemOwnedPage,
   normalizePageSlugKey,
   pageGroupMatchesStatus,
+  rawPageSlug,
   sortPageGroups,
 } from "./website-pages-list";
 
@@ -210,4 +214,146 @@ test("derivePageVisibilityNotes stays silent on fields the pipeline did not carr
     row({ noindex: undefined, includeInSitemap: undefined, hasMetaDescription: undefined }),
   );
   assert.deepEqual(notes, []);
+});
+
+// ── rawPageSlug ─────────────────────────────────────────────────────────
+
+test("rawPageSlug recovers the DB slug, with the homepage as the empty string", () => {
+  // setPageRoleAction and quickRenamePageAction both match on cms_pages.slug,
+  // where the homepage is "" — passing the displayed "/" matches no row.
+  assert.equal(rawPageSlug("/"), "");
+  assert.equal(rawPageSlug(""), "");
+  assert.equal(rawPageSlug("/about"), "about");
+  assert.equal(rawPageSlug("about/"), "about");
+});
+
+// ── derivePageActions ───────────────────────────────────────────────────
+
+const OPEN = { canEdit: true, isPlatformHub: false, isHomepage: false } as const;
+
+test("derivePageActions offers nothing below admin", () => {
+  assert.deepEqual(derivePageActions(row({ status: "draft" }), { ...OPEN, canEdit: false }), []);
+});
+
+test("derivePageActions offers nothing on the platform hub's own site", () => {
+  // The hub's site is managed in code; every one of these calls would be a lie.
+  assert.deepEqual(
+    derivePageActions(row({ status: "draft" }), { ...OPEN, isPlatformHub: true }),
+    [],
+  );
+});
+
+test("derivePageActions always offers rename and duplicate", () => {
+  for (const status of ["published", "draft", "scheduled", "archived"] as const) {
+    const ids = derivePageActions(row({ status }), OPEN);
+    assert.ok(ids.includes("rename"), `rename missing for ${status}`);
+    assert.ok(ids.includes("duplicate"), `duplicate missing for ${status}`);
+  }
+});
+
+test("derivePageActions offers Publish on a draft and on a scheduled page only", () => {
+  assert.ok(derivePageActions(row({ status: "draft" }), OPEN).includes("publish"));
+  assert.ok(derivePageActions(row({ status: "scheduled" }), OPEN).includes("publish"));
+  assert.ok(!derivePageActions(row({ status: "published" }), OPEN).includes("publish"));
+  assert.ok(!derivePageActions(row({ status: "archived" }), OPEN).includes("publish"));
+});
+
+test("derivePageActions offers Restore on an archived page only", () => {
+  assert.ok(derivePageActions(row({ status: "archived" }), OPEN).includes("restore"));
+  assert.ok(!derivePageActions(row({ status: "draft" }), OPEN).includes("restore"));
+});
+
+test("derivePageActions never offers 'Set as homepage' on an unpublished page", () => {
+  // setPageRoleAction refuses a non-published target outright, so the button
+  // would be one that always errors — worse than no button.
+  for (const status of ["draft", "scheduled", "archived"] as const) {
+    assert.ok(
+      !derivePageActions(row({ status }), OPEN).includes("setHomepage"),
+      `setHomepage offered for ${status}`,
+    );
+  }
+  assert.ok(derivePageActions(row({ status: "published" }), OPEN).includes("setHomepage"));
+});
+
+test("derivePageActions does not offer 'Set as homepage' on the page that already is", () => {
+  const ids = derivePageActions(row({ status: "published" }), { ...OPEN, isHomepage: true });
+  assert.ok(!ids.includes("setHomepage"));
+});
+
+test("derivePageActions offers Archive on a live or draft page", () => {
+  assert.ok(derivePageActions(row({ status: "published" }), OPEN).includes("archive"));
+  assert.ok(derivePageActions(row({ status: "draft" }), OPEN).includes("archive"));
+  assert.ok(!derivePageActions(row({ status: "scheduled" }), OPEN).includes("archive"));
+  assert.ok(!derivePageActions(row({ status: "archived" }), OPEN).includes("archive"));
+});
+
+// ── safety rails ────────────────────────────────────────────────────────
+
+test("RAIL: a live page cannot be deleted in one step — Live → Archive → Delete", () => {
+  for (const status of ["published", "draft", "scheduled"] as const) {
+    assert.ok(
+      !derivePageActions(row({ status }), OPEN).includes("delete"),
+      `delete offered on a ${status} page`,
+    );
+  }
+  assert.ok(derivePageActions(row({ status: "archived" }), OPEN).includes("delete"));
+});
+
+test("RAIL: the homepage is never deletable and never archivable", () => {
+  const home = { ...OPEN, isHomepage: true };
+  assert.ok(!derivePageActions(row({ status: "archived" }), home).includes("delete"));
+  assert.ok(!derivePageActions(row({ status: "published" }), home).includes("archive"));
+  assert.ok(!derivePageActions(row({ status: "draft" }), home).includes("archive"));
+});
+
+test("RAIL: the homepage's address is locked while it holds the role", () => {
+  assert.equal(isPageSlugLocked(row({ slug: "/welcome" }), { isHomepage: true }), true);
+  assert.equal(isPageSlugLocked(row({ slug: "/welcome" }), { isHomepage: false }), false);
+});
+
+test("RAIL: system-owned pages offer neither Archive nor Delete", () => {
+  // archivePage and deletePage both return SYSTEM_PAGE_IMMUTABLE for these,
+  // and the cms_pages guard trigger blocks the DELETE underneath.
+  const system = row({ status: "published", systemTemplateKey: "homepage" });
+  assert.ok(!derivePageActions(system, OPEN).includes("archive"));
+  assert.ok(
+    !derivePageActions(row({ status: "archived", systemTemplateKey: "homepage" }), OPEN)
+      .includes("delete"),
+  );
+});
+
+test("RAIL: a system-owned page's address is locked, its title is not", () => {
+  const system = row({ slug: "/legal", systemTemplateKey: "legal" });
+  assert.equal(isPageSlugLocked(system, { isHomepage: false }), true);
+  assert.ok(derivePageActions(system, OPEN).includes("rename"));
+});
+
+test("isSystemOwnedPage treats an absent template key as 'not system', not unknown", () => {
+  // The bridge does not project is_system_owned; system_template_key is its
+  // paired flag. An older payload carries neither, and the server rejects the
+  // call anyway — its message is the honest one to show.
+  assert.equal(isSystemOwnedPage(row({ systemTemplateKey: undefined })), false);
+  assert.equal(isSystemOwnedPage(row({ systemTemplateKey: null })), false);
+  assert.equal(isSystemOwnedPage(row({ systemTemplateKey: "homepage" })), true);
+});
+
+test("derivePageActions returns a stable presentation order", () => {
+  assert.deepEqual(derivePageActions(row({ status: "draft" }), OPEN), [
+    "publish",
+    "rename",
+    "duplicate",
+    "archive",
+  ]);
+  assert.deepEqual(derivePageActions(row({ status: "archived" }), OPEN), [
+    "restore",
+    "rename",
+    "duplicate",
+    "delete",
+  ]);
+  assert.deepEqual(derivePageActions(row({ status: "published" }), OPEN), [
+    "rename",
+    "duplicate",
+    "setHomepage",
+    "archive",
+  ]);
 });
