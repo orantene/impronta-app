@@ -1176,6 +1176,11 @@ export interface BuilderNavNode extends BuilderNodeBase {
       | "full-screen-fade";
     /** Accessible label for the hamburger toggle (default "Menu"). */
     menuLabel?: string;
+    // Mobile-menu palette — the authoring path to the --bn-nav-menu-* custom
+    // properties, so a dark site does not get a white drawer.
+    menuBackground?: string;
+    menuTextColor?: string;
+    menuBorderColor?: string;
     /** Accessible label for the <nav> landmark (default "Primary"). */
     ariaLabel?: string;
     /**
