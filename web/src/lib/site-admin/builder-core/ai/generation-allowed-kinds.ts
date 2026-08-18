@@ -89,8 +89,42 @@ export function photoForImageRole(role: unknown): string {
   return IMAGE_ROLE_TO_PHOTO[DEFAULT_IMAGE_ROLE];
 }
 
-/** Icon names the model may use — the full registry enum. Coerce maps anything else to the fallback. */
-export const GENERATION_ICON_NAMES = BUILDER_ICON_NAMES;
+/**
+ * Icon names the MODEL may use — a curated subset, not the whole registry.
+ *
+ * `generate-nodes.ts` inlines this list into every generation prompt. Aliasing
+ * it to the full registry was fine at 12 names and is not at 100+: it would put
+ * a wall of vocabulary into every call, for tokens, to no benefit — a generated
+ * page wants a handful of clear, general glyphs, not the long tail. The
+ * operator still picks from everything; `safeIconName` coerces anything the
+ * model invents, so a name outside this list can never reach a stored tree.
+ */
+export const GENERATION_ICON_NAMES = [
+  "sparkle",
+  "star",
+  "heart",
+  "check",
+  "arrow_right",
+  "calendar",
+  "map_pin",
+  "mail",
+  "phone",
+  "play",
+  "users",
+  "camera",
+  "search",
+  "globe",
+  "shield",
+  "clock",
+  "award",
+  "message_circle",
+  "image",
+  "music",
+  "briefcase",
+  "user",
+  "zap",
+  "leaf",
+] as const satisfies ReadonlyArray<(typeof BUILDER_ICON_NAMES)[number]>;
 export const FALLBACK_ICON_NAME = "sparkle";
 
 export function safeIconName(name: unknown): string {
