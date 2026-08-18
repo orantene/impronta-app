@@ -60,6 +60,19 @@ import type {
 
 // ── Public surface ─────────────────────────────────────────────────────────
 
+/**
+ * Display order for the issue kinds. Exported so the advisory panel can derive
+ * its render loop from the DATA rather than re-listing kinds by hand -- the
+ * hand-written list silently dropped `trapped_drawer`, so the badge counted an
+ * issue the operator could never see or locate.
+ */
+export const MOBILE_HEALTH_KIND_ORDER = [
+  "overflow",
+  "trapped_drawer",
+  "tap_target",
+  "tiny_text",
+] as const;
+
 export type MobileHealthCheckKind =
   | "tiny_text"
   | "tap_target"

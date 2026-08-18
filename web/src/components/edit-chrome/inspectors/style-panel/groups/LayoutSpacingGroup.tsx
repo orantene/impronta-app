@@ -15,7 +15,8 @@ import { InspectorGroup } from "../../kit";
 import { DimensionsBody, type DimensionsSectionProps } from "../DimensionsSection";
 import { SpacingBody, type SpacingSectionProps } from "../SpacingSection";
 import { StyleAlignField, type StyleAlignFieldProps } from "../TypographySection";
-import { STYLE_GROUP_SEARCH_TERMS, STYLE_GROUP_TITLES, layoutGroupOwnsAlign } from "../group-recipes";
+import { ARRANGE_KINDS, STYLE_GROUP_SEARCH_TERMS, STYLE_GROUP_TITLES, layoutGroupOwnsAlign } from "../group-recipes";
+import { ArrangeBody } from "./ArrangeGroup";
 
 export type LayoutSpacingGroupProps = SpacingSectionProps &
   DimensionsSectionProps &
@@ -49,6 +50,15 @@ export function LayoutSpacingGroup(props: LayoutSpacingGroupProps) {
           container, a card…) used to reach Align through a "Typography"
           accordion that held nothing else. It renders here instead, where a
           container's alignment is a layout decision anyway. */}
+      {/* Arrangement of this box's CHILDREN. The same writes exist in Advanced
+          under their CSS names; this is the plain-language path, because
+          centring a header row should not require opening "Advanced". */}
+      {ARRANGE_KINDS.has(kind) ? (
+        <ArrangeBody
+          patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
+          selectedStandaloneViewportStyle={selectedStandaloneViewportStyle}
+        />
+      ) : null}
       {layoutGroupOwnsAlign(kind) ? (
         <StyleAlignField
           patchSelectedStandaloneStyle={patchSelectedStandaloneStyle}
