@@ -117,6 +117,8 @@ export interface PageRevisionRow {
   snapshot: Record<string, unknown>;
   created_by: string | null;
   created_at: string;
+  /** Operator-assigned named version. Null/absent = unlabeled. */
+  label?: string | null;
 }
 
 const PAGE_COLUMNS = `

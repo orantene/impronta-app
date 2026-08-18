@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getAppUrl } from "@/lib/auth-flow";
 import { resolveTenantContextFromPathSlug } from "@/lib/saas/host-context";
 import {
+  isWorkspaceSlugPath,
   resolvePathBasedTenantPublicPath,
   resolveWorkspacePathTenantPublicPath,
   WORKSPACE_PATH_SEGMENT,
@@ -63,4 +65,50 @@ export async function workspacePathRedirect(params: {
   if (!legacyContext) return null;
 
   return redirectTo(`${localePrefix}/${WORKSPACE_PATH_SEGMENT}${canonicalPath}`);
+}
+
+/**
+ * Bookmarked `tulala.digital/{slug}/admin/*` (and other workspace surfaces)
+ * hard-404 because marketing hosts do not route workspace paths. Emitters
+ * already produce app-origin URLs; this is the receiving-side 302 for
+ * links already in the wild. Unknown slugs still 404 as marketing paths.
+ */
+export function shouldRedirectMarketingWorkspacePath(args: {
+  hostKind: string;
+  canonicalPath: string;
+}): boolean {
+  return args.hostKind === "marketing" && isWorkspaceSlugPath(args.canonicalPath);
+}
+
+export async function marketingWorkspacePathRedirect(params: {
+  request: NextRequest;
+  pathname: string;
+  canonicalPath: string;
+  hostHeader: string;
+  hostKind: string;
+}): Promise<NextResponse | null> {
+  if (
+    !shouldRedirectMarketingWorkspacePath({
+      hostKind: params.hostKind,
+      canonicalPath: params.canonicalPath,
+    })
+  ) {
+    return null;
+  }
+
+  const tenantSlug = params.canonicalPath.split("/")[1];
+  if (!tenantSlug) return null;
+
+  const tenantContext = await resolveTenantContextFromPathSlug(
+    params.request,
+    params.hostHeader,
+    tenantSlug,
+  );
+  if (!tenantContext) return null;
+
+  const dest = new URL(
+    `${params.pathname}${params.request.nextUrl.search}`,
+    `${getAppUrl()}/`,
+  );
+  return NextResponse.redirect(dest, 302);
 }

@@ -27,6 +27,8 @@ import { userHasCapability } from "@/lib/access";
 import { requireEditSurfaceTenantScope } from "@/lib/saas/edit-surface-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
+import { resolveBuilderTreeClassRefs } from "@/lib/site-admin/builder-node/style-classes";
+import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
 import {
   resolveSnapshotBuilderTree,
 } from "@/lib/site-admin/builder-node/snapshot-tree";
@@ -300,15 +302,19 @@ export async function publishSiteShellRow(input: {
   // 1. Read the freeform draft tree we're publishing.
   const { data: draftRow } = await admin
     .from("cms_pages")
-    .select("blocks")
+    .select("blocks, style_classes")
     .eq("id", input.pageId)
     .eq("tenant_id", scope.tenantId)
     .eq("system_template_key", "site_shell")
     .maybeSingle()
-    .returns<{ blocks: unknown }>();
+    .returns<{ blocks: unknown; style_classes?: unknown }>();
   const draftTree: BuilderNodeTree = Array.isArray(draftRow?.blocks)
     ? (draftRow.blocks as BuilderNodeTree)
     : [];
+  const publishedTree = resolveBuilderTreeClassRefs(
+    draftTree,
+    coerceStyleClassRegistry(draftRow?.style_classes),
+  );
 
   // 2. Bake the slot snapshot via the existing site-shell-publish write path.
   const republish = await republishSiteShellSnapshot(admin, {
@@ -325,7 +331,7 @@ export async function publishSiteShellRow(input: {
   //    derives `pageVersion` from and which this action returns to the client.
   //    Removing it would silently break optimistic concurrency on the shell.
   const nowIso = new Date().toISOString();
-  if (draftTree.length > 0) {
+  if (publishedTree.length > 0) {
     const { data: baked } = await admin
       .from("cms_pages")
       .select("published_page_snapshot")
@@ -337,7 +343,7 @@ export async function publishSiteShellRow(input: {
     if (snapshot) {
       const nextSnapshot: HomepageSnapshot = {
         ...snapshot,
-        builderTree: draftTree,
+        builderTree: publishedTree,
       };
       const { error: overlayErr } = await admin
         .from("cms_pages")
@@ -367,7 +373,7 @@ export async function publishSiteShellRow(input: {
     tenantId: scope.tenantId,
     pageId: input.pageId,
     title: titleRow?.title ?? "Site shell",
-    blocks: draftTree,
+    blocks: publishedTree,
     kind: "published",
     actorProfileId: auth.user.id,
   });

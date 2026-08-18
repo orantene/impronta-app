@@ -423,7 +423,7 @@ const PATH_BASED_REGISTER_PATHS = [
   "/join",
 ] as const;
 
-function isWorkspaceSlugPath(pathname: string): boolean {
+export function isWorkspaceSlugPath(pathname: string): boolean {
   // pathname must be "/<tenantSlug>/<surface>" or "/<tenantSlug>/<surface>/..."
   const parts = pathname.split("/");
   // parts: ["", tenantSlug, surface, ...rest]

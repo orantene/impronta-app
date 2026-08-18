@@ -41,6 +41,7 @@ import { eyebrowSize, headingSize, paragraphSize } from "./heading-sizes";
 import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
 import { mapDirectoryDefaultSort } from "./default-sort";
 import { resolveDirectoryScopeSeed } from "./scope-seed";
+import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
 
 /**
  * P4 — Resolve a per-instance `cardKitOverride` slug to inline `--token-card-*`
@@ -188,10 +189,9 @@ export async function DirectoryComponent({
   const showPriceFrom =
     props.showPriceFrom ?? onOff(tenantCardDesign?.showPriceFrom) ?? true;
 
-  // Resolve scope seed: maps by_talent_type keys → taxonomy term UUIDs for
-  // the SSR first-page pre-filter, surfaces manual codes for client
-  // reconciliation, and sets an honest scopeLimited hint when the requested
-  // scope cannot be fully enforced server-side (by_tag, manual).
+  // Resolve scope seed: maps by_talent_type / by_tag keys → taxonomy term
+  // UUIDs for the SSR first-page pre-filter, and surfaces manual codes for
+  // both the listing `.in("profile_code")` seed and client pick-order.
   const scopeSeed = await resolveDirectoryScopeSeed(
     props,
     directoryTenantId,
@@ -201,14 +201,8 @@ export async function DirectoryComponent({
 
   const scopeLimitedHint = scopeSeed.scopeLimited
     ? pickLocale(loc, {
-        en:
-          props.scope === "by_tag"
-            ? "This section shows all talent. Tag scope projection lands with the deferred public Discover listing endpoint."
-            : "This section shows all talent. Manual pick scope is not yet applied on the public listing.",
-        es:
-          props.scope === "by_tag"
-            ? "Esta sección muestra todos los talentos. El filtro por etiquetas aún no proyecta en este endpoint."
-            : "Esta sección muestra todos los talentos. La selección manual aún no se aplica en el listado público.",
+        en: "These tags could not be matched to the roster, so this section is not filtering yet.",
+        es: "Estas etiquetas no coinciden con el roster, así que esta sección aún no filtra.",
       })
     : undefined;
 
@@ -259,28 +253,45 @@ export async function DirectoryComponent({
         ageMin: urlFilters.ageMin,
         ageMax: urlFilters.ageMax,
         fieldFacetFilters: urlFilters.fieldFacets,
+        profileCodes: scopeSeed.manualProfileCodes,
       }),
       // The sidebar's facet COUNTS are relative to the active filter set, so
       // it has to see the same URL filters or a deep link would render counts
       // for the unfiltered roster.
-      getCachedDirectoryFilterSidebarModel(
-        loc,
-        {
-          taxonomyTermIds: seedTermIds,
-          locationSlug: urlFilters.locationSlug,
-          heightMinCm: urlFilters.heightMinCm,
-          heightMaxCm: urlFilters.heightMaxCm,
-          ageMin: urlFilters.ageMin,
-          ageMax: urlFilters.ageMax,
-          query: urlFilters.query,
-          fieldFacets: urlFilters.fieldFacets,
-        },
-        surface,
-      ),
+      // Manual pick is a closed roster. Facet RPCs have no profile-code
+      // filter, so counts would be the unscoped tenant and lie. Hide them.
+      scopeSeed.manualProfileCodes.length > 0
+        ? Promise.resolve({ blocks: [] })
+        : getCachedDirectoryFilterSidebarModel(
+            loc,
+            {
+              taxonomyTermIds: seedTermIds,
+              locationSlug: urlFilters.locationSlug,
+              heightMinCm: urlFilters.heightMinCm,
+              heightMaxCm: urlFilters.heightMaxCm,
+              ageMin: urlFilters.ageMin,
+              ageMax: urlFilters.ageMax,
+              query: urlFilters.query,
+              fieldFacets: urlFilters.fieldFacets,
+            },
+            surface,
+          ),
       getAiFeatureFlags(),
     ]);
   } catch (e) {
     logServerError("directory-section/ssr-seed", e);
+  }
+
+  if (initialPage && scopeSeed.manualProfileCodes.length > 0) {
+    const order = buildManualCodeOrder(scopeSeed.manualProfileCodes);
+    const items = filterToManualCodes(initialPage.items, order);
+    initialPage = {
+      ...initialPage,
+      items,
+      ...(typeof initialPage.totalCount === "number"
+        ? { totalCount: items.length }
+        : {}),
+    };
   }
 
   const t = createTranslator(loc);
@@ -317,6 +328,7 @@ export async function DirectoryComponent({
     heightMaxCm: urlFilters.heightMaxCm,
     ageMin: urlFilters.ageMin,
     ageMax: urlFilters.ageMax,
+    profileCodes: scopeSeed.manualProfileCodes,
   });
   const heroCopy: HeroSearchCopy = {
     placeholder:

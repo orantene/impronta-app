@@ -70,7 +70,8 @@ const REVISION_SELECT = `
   template_schema_version,
   snapshot,
   created_by,
-  created_at
+  created_at,
+  label
 `;
 
 // ---- public shape ---------------------------------------------------------

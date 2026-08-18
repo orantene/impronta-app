@@ -68,6 +68,40 @@ test("no captcha option at all → no widget, form still renders", () => {
   assert.ok(html.includes("<form"), "the form itself must still render");
 });
 
+test("date / file / consent fields render native controls", () => {
+  const html = renderToStaticMarkup(
+    renderBuilderNodes(
+      [
+        {
+          ...formNode,
+          props: {
+            ...formNode.props,
+            fields: [
+              { id: "when", type: "date", name: "event_date", label: "Event date" },
+              { id: "pack", type: "file", name: "brief", label: "Brief" },
+              {
+                id: "gdpr",
+                type: "consent",
+                name: "gdpr",
+                label: "GDPR",
+                consentText: "I agree to the privacy policy.",
+                required: true,
+              },
+              { id: "send", type: "submit", name: "send", label: "Send" },
+            ],
+          },
+        } as BuilderNode,
+      ],
+      { mode: "freeform", includeRendererStyles: false },
+    ) as React.ReactElement,
+  );
+  assert.match(html, /type="date"/);
+  assert.match(html, /type="file"/);
+  assert.match(html, /encType="multipart\/form-data"/);
+  assert.match(html, /I agree to the privacy policy/);
+  assert.match(html, /type="checkbox"/);
+});
+
 test("active provider WITHOUT a site key renders no widget", () => {
   // A half-configured integration must not emit a keyless widget: hCaptcha
   // would fail to initialise and the visitor would face an unsolvable form.

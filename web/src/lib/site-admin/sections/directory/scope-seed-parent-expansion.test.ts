@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   collectTalentTypeLeafIds,
+  isSkillTermRow,
   isTalentTypeRow,
+  partitionTagScopeRows,
   type TaxonomyDescentRow,
 } from "./scope-seed";
 
@@ -63,4 +65,23 @@ test("isTalentTypeRow accepts both the v2 term_type and legacy kind shapes", () 
   assert.equal(isTalentTypeRow({ kind: "talent_type", term_type: null }), true);
   assert.equal(isTalentTypeRow({ kind: "tag", term_type: "parent_category" }), false);
   assert.equal(isTalentTypeRow({ kind: "tag", term_type: "context" }), false);
+});
+
+test("isSkillTermRow accepts both the v2 term_type and legacy kind shapes", () => {
+  assert.equal(isSkillTermRow({ kind: null, term_type: "skill" }), true);
+  assert.equal(isSkillTermRow({ kind: "skill", term_type: null }), true);
+  assert.equal(isSkillTermRow({ kind: "tag", term_type: "parent_category" }), false);
+  assert.equal(isSkillTermRow({ kind: "talent_type", term_type: "talent_type" }), false);
+});
+
+test("partitionTagScopeRows keeps skills + talent types and parks parents as branches", () => {
+  const { talentTypeIds, skillIds, branchIds } = partitionTagScopeRows([
+    { id: "l1", kind: "talent_type", term_type: "talent_type", archived_at: null },
+    { id: "s1", kind: "skill", term_type: "skill", archived_at: null },
+    { id: "p1", kind: "tag", term_type: "parent_category", archived_at: null },
+  ]);
+  assert.deepEqual(talentTypeIds, ["l1"]);
+  assert.deepEqual(skillIds, ["s1"]);
+  assert.deepEqual(branchIds, ["p1"]);
+  assert.ok(!talentTypeIds.includes("p1"), "parent ids must not seed as a second kind");
 });

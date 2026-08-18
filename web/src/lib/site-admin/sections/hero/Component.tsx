@@ -5,6 +5,7 @@ import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { pickI18n } from "../shared/i18n-text";
 import type { HeroV1, HeroSlide } from "./schema";
 
 function textAlignFor(align?: "left" | "center" | "right"): CSSProperties["textAlign"] {
@@ -255,12 +256,11 @@ export function HeroComponent({
   props,
   sectionId,
   tenantId,
+  locale,
   publicPathPrefix = "",
   builderNodeBindings,
 }: SectionComponentProps<HeroV1>) {
   const {
-    headline,
-    subheadline,
     search,
     categoryChips,
     primaryCta,
@@ -272,6 +272,8 @@ export function HeroComponent({
     autoplayMs,
     presentation,
   } = props;
+  const headline = pickI18n(props.headline, locale);
+  const subheadline = pickI18n(props.subheadline, locale);
 
   // 6C — single-source link resolution (LinkRef object or legacy
   // string; auth routes stay root, tenant pages prefix-aware).

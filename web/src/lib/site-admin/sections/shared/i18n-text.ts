@@ -48,6 +48,31 @@ export const i18nString = z.union([z.string().max(20000), localeMapSchema]);
 export type I18nString = z.infer<typeof i18nString>;
 export type I18nLocaleMap = z.infer<typeof localeMapSchema>;
 
+/**
+ * Bounded translatable copy. Same union as {@link i18nString} (plain string OR
+ * locale map) so ZodSchemaForm still detects `i18n_text`, but each branch is
+ * clamped to the field's existing max — do not silently widen headline fields
+ * to 20k.
+ */
+export function i18nCopy(max: number, opts?: { min?: number }) {
+  const min = opts?.min ?? 0;
+  const str = min > 0 ? z.string().min(min).max(max) : z.string().max(max);
+  const map = z
+    .object({
+      default: z.string().max(max).optional(),
+      en: z.string().max(max).optional(),
+      es: z.string().max(max).optional(),
+      fr: z.string().max(max).optional(),
+      pt: z.string().max(max).optional(),
+      "pt-BR": z.string().max(max).optional(),
+      it: z.string().max(max).optional(),
+      de: z.string().max(max).optional(),
+      ja: z.string().max(max).optional(),
+    })
+    .catchall(z.string().max(max));
+  return z.union([str, map]);
+}
+
 const FALLBACK_LOCALES: ReadonlyArray<string> = ["en", "default"];
 
 /**

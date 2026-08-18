@@ -89,3 +89,14 @@ test("layout coexists with slides[] without interference", () => {
   assert.equal(parsed.layout, "split-left");
   assert.equal(parsed.slides?.length, 2);
 });
+
+test("hero schema accepts a locale-map headline (i18nCopy union)", () => {
+  const parsed = heroSchemaV1.parse({
+    headline: { en: "Hello", es: "Hola" },
+  });
+  assert.equal(typeof parsed.headline, "object");
+  assert.equal(
+    (parsed.headline as { es?: string }).es,
+    "Hola",
+  );
+});

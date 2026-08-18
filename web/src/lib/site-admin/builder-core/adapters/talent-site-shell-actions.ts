@@ -27,6 +27,9 @@ import {
 } from "@/lib/server/talent-self-guard";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { parseBuilderTreeFromSnapshot } from "@/lib/site-admin/edit-mode/composition-revision-snapshot";
+import { resolveBuilderTreeClassRefs } from "@/lib/site-admin/builder-node/style-classes";
+import { coerceStyleClassRegistry } from "@/lib/site-admin/builder-node/style-registry-coerce";
+import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import type {
   RevisionListRow,
   RevisionsLoadResult,
@@ -256,13 +259,29 @@ export async function publishTalentSiteShellRow(
     if (!sb) return { ok: false as const, error: "Supabase client unavailable." };
 
     // Bake shell_tree → shell_published (publishes ONLY the shell, not the pages).
-    const { data: current } = await sb
-      .from("talent_sites")
-      .select("id, shell_tree")
-      .eq("talent_profile_id", gate.talentProfileId)
-      .maybeSingle();
-    const currentRow = current as { id: string; shell_tree: unknown } | null;
-    const shellTree = currentRow?.shell_tree ?? [];
+    // STYLE-1 — try with style_classes, fall back when the column is not yet migrated.
+    const selectCurrent = (cols: string) =>
+      sb
+        .from("talent_sites")
+        .select(cols)
+        .eq("talent_profile_id", gate.talentProfileId)
+        .maybeSingle();
+    let { data: current } = await selectCurrent("id, shell_tree, style_classes");
+    if (!current) {
+      ({ data: current } = await selectCurrent("id, shell_tree"));
+    }
+    const currentRow = current as {
+      id: string;
+      shell_tree: unknown;
+      style_classes?: unknown;
+    } | null;
+    const rawTree: BuilderNodeTree = Array.isArray(currentRow?.shell_tree)
+      ? (currentRow.shell_tree as BuilderNodeTree)
+      : [];
+    const shellTree = resolveBuilderTreeClassRefs(
+      rawTree,
+      coerceStyleClassRegistry(currentRow?.style_classes),
+    );
 
     const now = new Date().toISOString();
     const { data, error } = await sb
@@ -504,6 +523,7 @@ export async function loadTalentSiteShellRevisionsAction(input: {
           : null,
         sectionCount: Array.isArray(snap.builderTree) ? snap.builderTree.length : 0,
         titleAtRevision: typeof snap.title === "string" ? snap.title : null,
+        label: null,
       };
     });
 

@@ -16,6 +16,7 @@ import { ES_MEDIA_TEXT } from "./editor-i18n-es-media";
 import { ES_SECTION_CATALOG_TEXT } from "./editor-i18n-es-sections";
 import { ES_SECTION_PANEL_TEXT } from "./editor-i18n-es-section-panels";
 import { ES_SECTION_PANEL_TEXT_2 } from "./editor-i18n-es-section-panels-2";
+import { ES_SHORTCUT_TEXT } from "./editor-i18n-es-shortcuts";
 
 export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_CATALOG_TEXT,
@@ -26,6 +27,7 @@ export const ES_TEXT: Record<string, string> = {
   ...ES_SECTION_PANEL_TEXT_2,
   // WAVE 4 (canvas bars, preflight, AI panels) — split out for the line cap.
   ...ES_CANVAS_CHROME_TEXT,
+  ...ES_SHORTCUT_TEXT,
   // WAVE 4.4 (deep inspectors: style, layout, motion, data, site header).
   ...ES_INSPECTOR_TEXT,
   // Inspector Reset P3 (2026-08-16) — overflow split of ES_INSPECTOR_TEXT
@@ -310,6 +312,11 @@ export const ES_TEXT: Record<string, string> = {
   "Builder diff unavailable.": "Comparación del editor no disponible.",
   "Save a draft checkpoint without publishing":
     "Guarda un punto de control del borrador sin publicar",
+  "Discard draft": "Descartar borrador",
+  "Reset this draft to the live published version":
+    "Restablece este borrador a la versión publicada en vivo",
+  "Reset this draft to the currently published version? This discards your unsaved draft edits.":
+    "¿Restablecer este borrador a la versión publicada actual? Esto descarta las ediciones no guardadas.",
   "Discard your draft edits and reset to the currently published version":
     "Descarta las ediciones de tu borrador y restablece a la versión publicada actual",
   "Resetting…": "Restableciendo...",

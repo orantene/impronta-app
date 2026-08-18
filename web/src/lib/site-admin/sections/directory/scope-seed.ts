@@ -7,12 +7,13 @@
  *   - `by_talent_type`  → map talentTypeKeys (slugs) → taxonomy term UUIDs
  *                         so the first-page query pre-filters server-side
  *                         instead of fetching all talent then discarding.
- *   - `manual`          → resolve the requested profile codes (the fetch layer
- *                         already handles `manualProfileCodes` client-side, but
- *                         we surface them here so the caller can apply an honest
- *                         scopeLimited hint).
- *   - `all` / `by_tag`  → no seed; `by_tag` sets `scopeLimited=true` because
- *                         the directory cache has no tag-aware projection today.
+ *   - `manual`          → resolve the requested profile codes for the listing
+ *                         `.in("profile_code")` seed (client still re-orders).
+ *   - `all`             → no seed.
+ *   - `by_tag`          → map tagKeys (taxonomy slugs) → term UUIDs. Skills
+ *                         resolve directly; parent / context slugs expand to
+ *                         descendant talent_type leaves (same as by_talent_type)
+ *                         so a division page does not silently unscope.
  *
  * `resolveDirectoryPublicCap` copies the same plan-tier + seat-limit pattern
  * from featured_talent/fetch.ts so callers can enforce a per-tenant cap on the
@@ -42,8 +43,7 @@ export type DirectoryScopeSeed = {
   manualProfileCodes: string[];
   /**
    * True when the requested scope cannot be fully enforced by the SSR seed
-   * (e.g. by_tag with non-empty tagKeys, or manual pick — which the reactive
-   * grid reconciles client-side but the SSR seed serves all talent).
+   * (e.g. by_tag keys that resolved to zero taxonomy terms).
    */
   scopeLimited: boolean;
 };
@@ -55,11 +55,12 @@ export type DirectoryScopeSeed = {
  * - `by_talent_type` with non-empty `talentTypeKeys`: resolves slugs → term
  *   UUIDs via a direct `taxonomy_terms` query (anon public client, no auth
  *   required). Unknown slugs are silently dropped.
- * - `manual` with non-empty `manualProfileCodes`: passes the codes through;
- *   sets `scopeLimited=true` because the directory cache cannot pre-filter
- *   by profile code (the client island handles it reactively).
- * - `by_tag` with non-empty `tagKeys`: no seed; sets `scopeLimited=true`
- *   (no tag-aware projection in the directory cache today).
+ * - `manual` with non-empty `manualProfileCodes`: passes the codes through
+ *   for the SSR `profileCodes` listing filter.
+ * - `by_tag` with non-empty `tagKeys`: resolves slugs → term UUIDs. Skill
+ *   terms seed directly; other non-leaf terms expand to talent_type leaves
+ *   (parent ids are never seeded — they AND against a kind talent are not
+ *   tagged on and would zero the roster).
  * - `all` or unconfigured: no seed, no scope limit.
  *
  * Never throws — returns an empty seed on any error.
@@ -82,25 +83,20 @@ export async function resolveDirectoryScopeSeed(
   }
 
   if (scope === "manual" && props.manualProfileCodes.length > 0) {
-    // The directory cache has no profile-code filter, and the reactive grid
-    // does NOT yet consume manualProfileCodes — so a manual-scope section
-    // currently shows the full roster, both at SSR and after hydration. We
-    // surface the resolved codes (for a future profile-code filter) and flag
-    // scopeLimited so the Component shows the honest "manual pick not yet
-    // applied" hint instead of silently rendering the wrong set.
     const codes = props.manualProfileCodes
       .map((c) => c.trim())
       .filter((c) => c.length > 0);
     return {
       ...empty,
       manualProfileCodes: codes,
-      scopeLimited: codes.length > 0,
+      // SSR listing + count now accept profileCodes; the client still
+      // re-orders to pick order. No hint — the public seed is honest.
+      scopeLimited: false,
     };
   }
 
   if (scope === "by_tag" && props.tagKeys.length > 0) {
-    // No tag-aware projection in the SSR cache today.
-    return { ...empty, scopeLimited: true };
+    return resolveByTag(props.tagKeys);
   }
 
   return empty;
@@ -222,6 +218,77 @@ async function resolveByTalentType(
 }
 
 /**
+ * Resolve operator-entered tag keys (taxonomy slugs) into SSR seed term ids.
+ *
+ * Talent are tagged on `talent_type` leaves and on `skill` terms. Parent /
+ * context / specialty rows must NOT be seeded as-is: they carry `kind='tag'`,
+ * and fetch-directory-page ANDs across kinds — a parent id would require a
+ * second kind no talent satisfies. Expand those to talent_type descendants
+ * instead (same walk as by_talent_type).
+ */
+async function resolveByTag(tagKeys: string[]): Promise<DirectoryScopeSeed> {
+  const empty: DirectoryScopeSeed = {
+    termIds: [],
+    manualProfileCodes: [],
+    scopeLimited: false,
+  };
+
+  if (!isSupabaseConfigured()) return empty;
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return empty;
+
+  const slugs = [
+    ...new Set(tagKeys.map((k) => k.trim().toLowerCase()).filter(Boolean)),
+  ];
+  if (slugs.length === 0) return empty;
+
+  try {
+    const { data, error } = await (supabase as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => {
+          in: (col: string, vals: string[]) => Promise<{
+            data: Array<{ id: string; slug: string; kind: string | null; term_type: string | null; archived_at: string | null }> | null;
+            error: unknown;
+          }>;
+        };
+      };
+    })
+      .from("taxonomy_terms")
+      .select("id, slug, kind, term_type, archived_at")
+      .in("slug", slugs);
+
+    if (error) {
+      logServerError("directory/scope-seed/resolveByTag", error);
+      return { ...empty, scopeLimited: true };
+    }
+
+    const live = (data ?? []).filter((r) => r.archived_at == null);
+    const partitioned = partitionTagScopeRows(live);
+    const descendantIds =
+      partitioned.branchIds.length > 0
+        ? await resolveDescendantTalentTypeIds(partitioned.branchIds)
+        : [];
+    const termIds = [
+      ...new Set([
+        ...partitioned.talentTypeIds,
+        ...partitioned.skillIds,
+        ...descendantIds,
+      ]),
+    ];
+    return {
+      termIds,
+      manualProfileCodes: [],
+      // Keys were set but nothing resolved — keep the honest hint rather than
+      // silently showing the full roster (the previous by_tag behaviour).
+      scopeLimited: termIds.length === 0,
+    };
+  } catch (err) {
+    logServerError("directory/scope-seed/resolveByTag", err);
+    return { ...empty, scopeLimited: true };
+  }
+}
+
+/**
  * Walk `parent_category` / `context` term ids down to their descendant
  * `talent_type` leaves (the only level talent are actually tagged on).
  *
@@ -241,6 +308,31 @@ export interface TaxonomyDescentRow {
 /** True for both the v2 `term_type` and the legacy `kind` shapes. */
 export function isTalentTypeRow(row: Pick<TaxonomyDescentRow, "kind" | "term_type">): boolean {
   return row.term_type === "talent_type" || (!row.term_type && row.kind === "talent_type");
+}
+
+/** Skills hang off `kind`/`term_type` = `skill` — talent are tagged on these. */
+export function isSkillTermRow(row: Pick<TaxonomyDescentRow, "kind" | "term_type">): boolean {
+  return row.term_type === "skill" || (!row.term_type && row.kind === "skill");
+}
+
+/**
+ * Split live taxonomy rows for a by_tag seed. Parent / context / specialty
+ * ids go to `branchIds` so the caller can expand them to talent_type leaves;
+ * they are never returned as seed ids themselves.
+ */
+export function partitionTagScopeRows(
+  rows: ReadonlyArray<TaxonomyDescentRow>,
+): { talentTypeIds: string[]; skillIds: string[]; branchIds: string[] } {
+  const talentTypeIds: string[] = [];
+  const skillIds: string[] = [];
+  const branchIds: string[] = [];
+  for (const row of rows) {
+    if (!row.id) continue;
+    if (isTalentTypeRow(row)) talentTypeIds.push(row.id);
+    else if (isSkillTermRow(row)) skillIds.push(row.id);
+    else branchIds.push(row.id);
+  }
+  return { talentTypeIds, skillIds, branchIds };
 }
 
 /**

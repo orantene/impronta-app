@@ -63,8 +63,11 @@ const PANEL_EDGE_INSET = 14;
 // every render when no EditProvider tree is present.
 const EMPTY_BUILDER_TREE: BuilderNodeTree = [];
 
-/** Read the node's current mobile-structure overrides for the affordance state. */
-function readMobileStructure(node: BuilderNode | null): {
+/** Read hide/order overrides for the active device-tier HUD. */
+function readDeviceStructure(
+  node: BuilderNode | null,
+  bucket: "mobile" | "tablet",
+): {
   hidden: boolean;
   order: number | null;
 } {
@@ -75,14 +78,15 @@ function readMobileStructure(node: BuilderNode | null): {
           | {
               responsive?: {
                 mobile?: { visibility?: string; order?: number };
+                tablet?: { visibility?: string; order?: number };
               };
             }
           | undefined)
       : undefined;
-  const mobile = style?.responsive?.mobile;
+  const tier = style?.responsive?.[bucket];
   return {
-    hidden: mobile?.visibility === "hidden",
-    order: typeof mobile?.order === "number" ? mobile.order : null,
+    hidden: tier?.visibility === "hidden",
+    order: typeof tier?.order === "number" ? tier.order : null,
   };
 }
 
@@ -208,16 +212,18 @@ function ArrowDownIcon() {
 
 function MobileStructureControls({
   node,
+  bucket,
   onSetStructure,
 }: {
   node: BuilderNode;
+  bucket: "mobile" | "tablet";
   onSetStructure: (
     nodeId: string,
     patch: { visibility?: "visible" | "hidden"; order?: number | null },
   ) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const [busy, setBusy] = useState(false);
-  const { hidden, order } = readMobileStructure(node);
+  const { hidden, order } = readDeviceStructure(node, bucket);
   const overrides = resolveResponsiveOverrides(node);
   const label = resolveLayerDisplayName(node);
 
@@ -491,9 +497,12 @@ export function MobileEditPanel() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Only render in mobile-edit mode — and never while previewing (the two are
-  // mutually exclusive, enforced in edit-context, but guard belt-and-braces).
-  if (!ctx || !ctx.mobileEditMode || ctx.previewing) return null;
+  const tabletHud = Boolean(ctx && ctx.device === "tablet" && !ctx.mobileEditMode);
+  const hudOpen = Boolean(ctx && (ctx.mobileEditMode || tabletHud));
+  // Mobile-first mode, or Tablet preview (structure HUD only). Never while
+  // previewing — preview hides chrome.
+  if (!ctx || !hudOpen || ctx.previewing) return null;
+  const structureBucket: "mobile" | "tablet" = tabletHud ? "tablet" : "mobile";
 
   // Fixed left offset, clamped so the panel never clips off the LEFT or RIGHT
   // viewport edge (matches the other dock/floating panels' on-screen rule).
@@ -519,7 +528,7 @@ export function MobileEditPanel() {
       data-edit-drawer
       data-mobile-edit-panel
       role="region"
-      aria-label="Mobile-first editing"
+      aria-label={tabletHud ? "Tablet editing" : "Mobile-first editing"}
       style={{
         position: "fixed",
         left: panelLeft,
@@ -561,7 +570,7 @@ export function MobileEditPanel() {
               letterSpacing: "-0.01em",
             }}
           >
-            Mobile editing
+            {tabletHud ? "Tablet editing" : "Mobile editing"}
           </span>
           <span
             style={{
@@ -571,14 +580,23 @@ export function MobileEditPanel() {
               opacity: 0.85,
             }}
           >
-            Style edits scope to mobile
+            {tabletHud
+              ? "Hide and reorder apply to tablet"
+              : "Style edits scope to mobile"}
           </span>
         </span>
         <button
           type="button"
-          onClick={() => ctx.setMobileEditMode(false)}
+          onClick={() => {
+            if (tabletHud) ctx.setDevice("desktop");
+            else ctx.setMobileEditMode(false);
+          }}
           title="Exit to desktop editing"
-          aria-label="Exit mobile editing, back to desktop"
+          aria-label={
+            tabletHud
+              ? "Exit tablet editing, back to desktop"
+              : "Exit mobile editing, back to desktop"
+          }
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -614,7 +632,10 @@ export function MobileEditPanel() {
         {selectableNode ? (
           <MobileStructureControls
             node={selectableNode}
-            onSetStructure={ctx.setBuilderNodeMobileStructure}
+            bucket={structureBucket}
+            onSetStructure={(nodeId, patch) =>
+              ctx.setBuilderNodeMobileStructure(nodeId, patch, structureBucket)
+            }
           />
         ) : (
           <div
@@ -631,12 +652,14 @@ export function MobileEditPanel() {
             <span style={{ fontWeight: 600, color: CHROME.text }}>
               Select a block
             </span>{" "}
-            on the canvas to hide it on mobile or change its mobile order. Style
-            edits already apply to the mobile breakpoint.
+            on the canvas to hide it on {tabletHud ? "tablet" : "mobile"} or
+            change its {tabletHud ? "tablet" : "mobile"} order. Style edits
+            already apply to this breakpoint.
           </div>
         )}
 
-        {/* (b) Wave-2C mobile-health checker, surfaced inline + open. */}
+        {/* (b) Wave-2C mobile-health checker — mobile mode only. */}
+        {tabletHud ? null : (
         <div>
           <div
             style={{
@@ -677,6 +700,7 @@ export function MobileEditPanel() {
           {/* REUSE: the exact Wave-2C panel + its locateCanvasNode click-to-locate. */}
           <MobileHealthPanel builderTree={builderTree} />
         </div>
+        )}
       </div>
     </div>
   );

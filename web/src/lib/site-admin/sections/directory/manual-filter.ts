@@ -2,19 +2,19 @@
  * manual-filter.ts — pure, framework-free helpers for the `scope=manual`
  * render-level filter (P4).
  *
- * The directory engine (`/api/directory`) has no profile-code filter, so a
- * manual-scope instance fetches the full roster and the reactive grid trims it
- * to the operator's picked codes client-side. These helpers are the pure core
- * of that trim so it can be unit-tested without rendering React:
+ * The directory engine listing accepts `profileCodes` for SSR, so a
+ * `scope=manual` first page is already the picked set. The reactive grid still
+ * trims + re-orders client-side (pick order, and any later `/api/directory`
+ * refetch that does not yet send profile codes). These helpers are the pure
+ * core of that trim so it can be unit-tested without rendering React:
  *
  *   - `buildManualCodeOrder` → an index map (code → pick position), de-duped,
  *     or `null` when no codes are picked (manual filter inactive).
  *   - `filterToManualCodes`  → keep only picked codes, de-duped, sorted into
  *     the operator's pick order.
  *
- * Render-level only: this does NOT make the SSR seed or the API honest about
- * the manual scope — `scopeLimited` stays the honest hint. It only ensures the
- * VISIBLE grid shows exactly the picked codes, in order.
+ * Render-level trim: keep the visible grid in pick order even if a client
+ * refetch returns extra rows. SSR already seeds `profileCodes`.
  */
 
 /** Minimal shape the filter needs from a directory card. */

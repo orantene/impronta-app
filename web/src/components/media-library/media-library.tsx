@@ -228,7 +228,7 @@ export function MediaLibrary(props: MediaLibraryProps) {
     handleFiles(event.dataTransfer?.files ?? null);
   };
 
-  const editable = props.variant === "staff" && !!props.onSaveAlt;
+  const editable = !!props.onSaveAlt;
   const isStaff = props.variant === "staff";
 
   const tileLabels = {

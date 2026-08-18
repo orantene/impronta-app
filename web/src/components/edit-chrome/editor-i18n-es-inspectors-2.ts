@@ -447,4 +447,29 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   // here. The regex parity guard cannot: these titles reach InspectorGroup as
   // `title={STYLE_GROUP_TITLES.layout}`, an expression, not a literal.
   "Layout & spacing": "Diseño y espaciado",
+
+  // Freeform form node — inbox picker + date/file/consent
+  "Where submissions go": "Destino de los envíos",
+  "Submissions are recorded in your workspace and emailed to admins. Pick the inbox form below.":
+    "Los envíos se guardan en tu espacio de trabajo y se envían a los administradores. Elige el formulario de bandeja abajo.",
+  "Posts the form straight to your own endpoint (Formspree, a custom handler, …).":
+    "Envía el formulario directo a tu propio destino (Formspree, un receptor propio, …).",
+  "Inbox form": "Formulario de bandeja",
+  "Select a contact form…": "Selecciona un formulario de contacto…",
+  "This destination opens a real inquiry, not an inbox row. File fields are not stored on that path.":
+    "Este destino abre una solicitud real, no una fila de bandeja. Los archivos no se guardan en esa ruta.",
+  "Required for inbox delivery. Without a destination the form renders but submissions are rejected.":
+    "Obligatorio para la bandeja. Sin destino el formulario se ve pero los envíos se rechazan.",
+  "Submit URL": "URL de envío",
+  "Full https:// URL the form data POSTs to.":
+    "URL https:// completa a la que se envían los datos.",
+  "Field name": "Nombre del campo",
+  "The submission key. Use “email” and “name” for the contact fields.":
+    "La clave del envío. Usa “email” y “name” para los campos de contacto.",
+  "I agree to the privacy policy.": "Acepto la política de privacidad.",
+  "Files only store when this form posts to an inbox destination that also declares a matching file field. Inquiry destinations cannot keep uploads.":
+    "Los archivos solo se guardan cuando este formulario envía a una bandeja que también declara un campo de archivo coincidente. Los destinos de solicitud no conservan adjuntos.",
+  "Visitors must fill this field before submitting.":
+    "Los visitantes deben completar este campo antes de enviar.",
+  "+ Add field": "+ Añadir campo",
 };

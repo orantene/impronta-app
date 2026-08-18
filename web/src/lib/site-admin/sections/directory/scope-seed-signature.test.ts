@@ -75,3 +75,19 @@ test("a URL selection outranks the section scope, on both sides identically", ()
 test("unscoped section with no URL filter stays unscoped", () => {
   assert.deepEqual(resolveTermIds([], []), []);
 });
+
+test("manual profile codes are part of the seed signature (SSR rows are adopted)", () => {
+  const codes = ["TAL-2", "TAL-1"];
+  const server = directorySeedSignature({ ...BASE, taxonomyTermIds: [], profileCodes: codes });
+  const client = directorySeedSignature({
+    ...BASE,
+    taxonomyTermIds: [],
+    profileCodes: ["TAL-1", "TAL-2"],
+  });
+  assert.equal(client, server, "cache key is order-insensitive");
+  assert.notEqual(
+    directorySeedSignature({ ...BASE, taxonomyTermIds: [], profileCodes: codes }),
+    directorySeedSignature({ ...BASE, taxonomyTermIds: [] }),
+    "omitting profileCodes must not adopt a hand-picked SSR seed",
+  );
+});

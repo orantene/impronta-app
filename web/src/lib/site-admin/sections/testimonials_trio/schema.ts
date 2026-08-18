@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
+import { i18nCopy } from "../shared/i18n-text";
 
 /**
  * Testimonials trio — three elegant quote cards with a palette accent
@@ -19,16 +20,16 @@ const accentSchema = z.enum([
 ]);
 
 const testimonialItemSchema = z.object({
-  quote: z.string().min(1).max(360),
-  author: z.string().max(80).optional(),
-  context: z.string().max(120).optional(),
-  location: z.string().max(120).optional(),
+  quote: i18nCopy(360, { min: 1 }),
+  author: i18nCopy(80).optional(),
+  context: i18nCopy(120).optional(),
+  location: i18nCopy(120).optional(),
   accent: accentSchema.optional(),
 });
 
 export const testimonialsTrioSchemaV1 = z.object({
-  eyebrow: z.string().max(60).optional(),
-  headline: z.string().max(200).optional(),
+  eyebrow: i18nCopy(60).optional(),
+  headline: i18nCopy(200).optional(),
   items: z.array(testimonialItemSchema).min(1).max(4),
   /** Layout variant. */
   variant: z

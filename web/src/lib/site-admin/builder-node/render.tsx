@@ -1336,6 +1336,30 @@ export function sanitizeBuilderRichText(input: string): string {
   );
 }
 
+/** Whole-block link on heading/paragraph/rich_text. Dangerous schemes become `#` and are dropped. */
+function wrapBlockHref(
+  href: string | undefined,
+  children: ReactNode,
+  publicPathPrefix: string,
+): ReactNode {
+  const raw = href?.trim();
+  if (!raw) return children;
+  const resolved = prefixPublicHref(raw, publicPathPrefix);
+  if (!resolved || (resolved === "#" && raw !== "#")) return children;
+  const isExternal = /^https?:\/\//i.test(resolved);
+  return (
+    <a
+      href={resolved}
+      className="site-link"
+      style={{ color: "inherit", textDecoration: "inherit" }}
+      target={isExternal ? "_blank" : undefined}
+      rel={isExternal ? "noopener noreferrer" : undefined}
+    >
+      {children}
+    </a>
+  );
+}
+
 const CONTAINER_QUERY_STYLE_ATTR_KEYS: ReadonlyArray<[
   keyof BuilderNodeStyleValue,
   string,
@@ -4089,7 +4113,11 @@ function renderBuilderNodeElement(
           suppressHydrationWarning
           style={inlineNodeStyle(node.props.style, MARGIN_ZERO, { lineHeight: 1.05, ...cue.style })}
         >
-          {renderInlineRich(resolved.value)}
+          {wrapBlockHref(
+            node.props.href,
+            renderInlineRich(resolved.value),
+            options.publicPathPrefix ?? "",
+          )}
         </Tag>
       );
     }
@@ -4121,7 +4149,11 @@ function renderBuilderNodeElement(
             ...cue.style,
           })}
         >
-          {renderInlineRich(resolved.value)}
+          {wrapBlockHref(
+            node.props.href,
+            renderInlineRich(resolved.value),
+            options.publicPathPrefix ?? "",
+          )}
         </p>
       );
     }
@@ -4605,7 +4637,11 @@ function renderBuilderNodeElement(
             ...cue.style,
           })}
         >
-          {renderInlineRich(sanitizeBuilderRichText(resolved.value))}
+          {wrapBlockHref(
+            node.props.href,
+            renderInlineRich(sanitizeBuilderRichText(resolved.value)),
+            options.publicPathPrefix ?? "",
+          )}
         </div>
       );
     }
@@ -4679,6 +4715,7 @@ function renderBuilderNodeElement(
       const action = isInternal
         ? prefixPublicHref("/api/cms/forms/submit", options.publicPathPrefix)
         : prefixPublicHref(formProps.action!.trim(), options.publicPathPrefix);
+      const hasFileField = fields.some((f) => f.type === "file");
       return (
         <form
           key={node.id}
@@ -4688,6 +4725,11 @@ function renderBuilderNodeElement(
           className="site-builder-node site-builder-node--form"
           method={method}
           action={action}
+          encType={
+            hasFileField && isInternal && method === "post"
+              ? "multipart/form-data"
+              : undefined
+          }
           style={inlineNodeStyle(formProps.style, {
             display: "grid",
             gap: GAP_BY_SIZE.m,
@@ -4779,7 +4821,7 @@ function renderBuilderNodeElement(
                       </label>
                     ))}
                   </fieldset>
-                ) : field.type === "checkbox" ? (
+                ) : field.type === "checkbox" || field.type === "consent" ? (
                   <label style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
                     <input
                       id={fieldId}
@@ -4788,7 +4830,9 @@ function renderBuilderNodeElement(
                       value="yes"
                       required={field.required ?? false}
                     />
-                    {field.placeholder ?? field.label}
+                    {field.type === "consent"
+                      ? (field.consentText ?? field.label)
+                      : (field.placeholder ?? field.label)}
                   </label>
                 ) : (
                   <input

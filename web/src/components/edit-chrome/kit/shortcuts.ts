@@ -122,9 +122,8 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
   {
     id: "open-revisions",
     label: "Open Revisions",
-    description:
-      "Command palette only, ⌘H hides the active app on macOS (no global bind).",
-    keys: [],
+    description: "Browse and restore prior drafts. ⌘H hides the Mac app.",
+    keys: ["⌘", "⇧", "Y"],
     category: "drawers",
     paletteAction: true,
   },
@@ -562,9 +561,6 @@ export function isShortcutVisible(
 ): boolean {
   if (shortcutId === "open-theme") {
     return options.canEditSiteShell;
-  }
-  if (shortcutId === "open-revisions") {
-    return options.homepageEditing;
   }
   return true;
 }

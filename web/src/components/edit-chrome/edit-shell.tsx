@@ -86,7 +86,7 @@ import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
 import { findBuilderNodeById } from "./inspectors/builder-node-content-utils";
-import { isEditableKeyboardTarget } from "./builder-keyboard";
+import { isEditableKeyboardTarget, tryHistoryShortcut } from "./builder-keyboard";
 import { copySharePreviewLinkToClipboard } from "./copy-share-preview-link";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 import {
@@ -907,16 +907,7 @@ function EditShellInner({
         return;
       }
 
-      if (mod && key === "y" && !e.shiftKey && !e.altKey) {
-        e.preventDefault();
-        void redo();
-        return;
-      }
-
-      if (mod && key === "z") {
-        e.preventDefault();
-        if (e.shiftKey) void redo();
-        else void undo();
+      if (tryHistoryShortcut(e, mod, key, { undo, redo, openRevisions })) {
         return;
       }
 
@@ -1072,6 +1063,7 @@ function EditShellInner({
     openShortcutOverlay,
     closeShortcutOverlay,
     saveDraft,
+    openRevisions,
     // ⌘⇧S mints a share link for the page currently under edit — without these
     // the listener would close over a stale identity and share the wrong page.
     pageId,

@@ -40,7 +40,10 @@ import {
   resolveWorkspacePathTenantPublicPath,
   WORKSPACE_PATH_SEGMENT,
 } from "@/lib/saas/surface-allow-list";
-import { workspacePathRedirect } from "@/lib/saas/workspace-path-redirects";
+import {
+  marketingWorkspacePathRedirect,
+  workspacePathRedirect,
+} from "@/lib/saas/workspace-path-redirects";
 import { resolveLegacyTalentPlatformPath } from "@/lib/talent/legacy-talent-redirect";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
@@ -416,6 +419,17 @@ export async function proxy(request: NextRequest) {
     ? await workspacePathRedirect({ request, pathname, canonicalPath, hostHeader })
     : null;
   if (workspaceRedirect) return workspaceRedirect;
+
+  // Marketing-host bookmarks of /{slug}/admin (and other workspace surfaces)
+  // must land on the app origin — the allow-list below would otherwise 404.
+  const marketingWorkspaceRedirect = await marketingWorkspacePathRedirect({
+    request,
+    pathname,
+    canonicalPath,
+    hostHeader,
+    hostKind: effectiveHostContext.kind,
+  });
+  if (marketingWorkspaceRedirect) return marketingWorkspaceRedirect;
 
   // Re-derived from `canonicalPath` (not from the locale-agnostic probe above)
   // because `pathnameWithoutTenant` is what actually gets rewritten, and it must

@@ -44,7 +44,7 @@ export async function copySharePreviewLinkToClipboard(
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      window.prompt("Share link", url);
+      reportMutationError(`Couldn't copy automatically. Link: ${url}`);
     }
   } catch (err) {
     reportMutationError(

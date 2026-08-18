@@ -38,6 +38,7 @@
 import { z } from "zod";
 
 import { scopeCustomCss } from "./scoped-custom-css";
+import { overlayOpacityToUnitInterval } from "./overlay-opacity";
 
 /**
  * ── Pixel-first companion fields ───────────────────────────────────────
@@ -395,8 +396,10 @@ export function presentationDataAttrs(
   if (p.designPreset) out["data-section-preset"] = p.designPreset;
   if (p.textTone) out["data-section-text-tone"] = p.textTone;
   if (p.overlayColor) out["data-section-overlay-color"] = p.overlayColor;
-  if (p.overlayOpacity != null)
-    out["data-section-overlay-opacity"] = String(p.overlayOpacity);
+  if (p.overlayOpacity != null) {
+    const unit = overlayOpacityToUnitInterval(p.overlayOpacity);
+    if (unit != null) out["data-section-overlay-opacity"] = String(unit);
+  }
   if (p.imageOverlayStrength)
     out["data-section-overlay-strength"] = p.imageOverlayStrength;
   if (p.desktopLayout) out["data-section-desktop-layout"] = p.desktopLayout;
@@ -591,7 +594,7 @@ export function presentationVideoBackground(
   return {
     src: p.videoBackground,
     poster: p.videoPoster,
-    overlay: p.videoOverlay,
+    overlay: overlayOpacityToUnitInterval(p.videoOverlay),
   };
 }
 

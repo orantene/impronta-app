@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { sectionPresentationSchema } from "../shared/presentation";
 import { nodePresentationSchema } from "../shared/node-presentation";
+import { i18nCopy } from "../shared/i18n-text";
 import { pgUuidSchema, publicImagePathOrUrlSchema } from "../../validators";
 import { linkRefOrLegacy, optionalLinkRefOrLegacy } from "../../links/link-ref";
 
@@ -14,9 +15,9 @@ import { linkRefOrLegacy, optionalLinkRefOrLegacy } from "../../links/link-ref";
  * a background frame (useful for lifestyle photo reels).
  */
 const heroSlideSchema = z.object({
-  eyebrow: z.string().max(80).optional(),
-  headline: z.string().max(140).optional(),
-  subheadline: z.string().max(240).optional(),
+  eyebrow: i18nCopy(80).optional(),
+  headline: i18nCopy(140).optional(),
+  subheadline: i18nCopy(240).optional(),
   /** Media-library asset (M5). Component resolves the URL from tenant media. */
   backgroundMediaAssetId: pgUuidSchema().optional(),
   /**
@@ -32,8 +33,8 @@ const heroSlideSchema = z.object({
 });
 
 export const heroSchemaV1 = z.object({
-  headline: z.string().min(1).max(140),
-  subheadline: z.string().max(240).optional(),
+  headline: i18nCopy(140, { min: 1 }),
+  subheadline: i18nCopy(240).optional(),
   search: z
     .object({
       placeholder: z.string().min(1).max(120),

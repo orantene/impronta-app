@@ -311,11 +311,18 @@ export function MediaPickerDrawer({
     async (item: MediaLibraryWireItem, alt: string) => {
       setSaveError(null);
       try {
-        const res = await fetch("/api/admin/media/library", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tenantId, id: item.id, alt }),
-        });
+        const res = await fetch(
+          isTalentScope ? "/api/talent/media/library" : "/api/admin/media/library",
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              isTalentScope
+                ? { talentProfileId, id: item.id, alt }
+                : { tenantId, id: item.id, alt },
+            ),
+          },
+        );
         const body = await res.json();
         if (!res.ok || !body.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
         library.patchItem(item.id, { alt: body.item?.alt ?? alt });
@@ -323,7 +330,7 @@ export function MediaPickerDrawer({
         setSaveError(String(e).slice(0, 200));
       }
     },
-    [library, tenantId],
+    [isTalentScope, library, talentProfileId, tenantId],
   );
 
   const saveTags = useCallback(
@@ -415,10 +422,7 @@ export function MediaPickerDrawer({
                 />
               ) : null
             }
-            // Talents can't save alt text — the PATCH endpoint is staff-only
-            // (would 401). Passing no handler renders alt read-only instead of
-            // an editable field that errors on blur.
-            onSaveAlt={isTalentScope ? undefined : saveAlt}
+            onSaveAlt={saveAlt}
             onSaveTags={isTalentScope ? undefined : saveTags}
             onUpload={handleUpload}
             uploading={uploading}

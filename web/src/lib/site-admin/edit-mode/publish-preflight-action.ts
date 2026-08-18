@@ -152,6 +152,13 @@ export async function runPublishPreflight(input?: {
    * Free nested-node policy). Omit for homepage (resolved via `locale`).
    */
   pageId?: string | null;
+  /**
+   * homepage keeps the tenant-wide section scan. cms_page / site_shell /
+   * talent_page skip it — those scans false-positive against homepage slots.
+   */
+  surfaceKind?: string | null;
+  /** Live canvas tree for surfaces that have no cms_pages revision (talent). */
+  builderTree?: unknown;
 }): Promise<PreflightResult> {
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -218,7 +225,10 @@ export async function runPublishPreflight(input?: {
     }
   }
 
-  const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
+  const runSectionScans = !input?.surfaceKind || input.surfaceKind === "homepage";
+  const rows = runSectionScans
+    ? await listSectionsForStaff(auth.supabase, scope.tenantId)
+    : [];
   const issues: PreflightIssue[] = [];
   const featuredChecks: Array<Promise<void>> = [];
 
@@ -426,6 +436,9 @@ export async function runPublishPreflight(input?: {
   // BuilderTree data-binding guardrails. Section schema validation catches
   // section props; this checks the newer freeform/nested BuilderNode layer
   // before it becomes the published snapshot.
+  let builderTree: unknown = Array.isArray(input?.builderTree)
+    ? input.builderTree
+    : null;
   if (preflightPage?.id && typeof preflightPage.version === "number") {
     const { data: revisionRow } = await auth.supabase
       .from("cms_page_revisions")
@@ -436,13 +449,15 @@ export async function runPublishPreflight(input?: {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ snapshot: { builderTree?: unknown } | null }>();
-    const builderTree =
+    if (
       revisionRow?.snapshot &&
       typeof revisionRow.snapshot === "object" &&
       Array.isArray(revisionRow.snapshot.builderTree)
-        ? revisionRow.snapshot.builderTree
-        : null;
-    if (builderTree) {
+    ) {
+      builderTree = revisionRow.snapshot.builderTree;
+    }
+  }
+  if (builderTree) {
       const validation = validateBuilderNodeTree(builderTree);
       if (!validation.ok) {
         issues.push({
@@ -561,7 +576,6 @@ export async function runPublishPreflight(input?: {
         }
       }
     }
-  }
 
   // SEO baseline audit.
   for (const issue of classifyCanonicalIssue({

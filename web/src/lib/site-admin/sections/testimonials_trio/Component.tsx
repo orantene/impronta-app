@@ -1,6 +1,7 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { buildNodePresentationResponsiveCss } from "../shared/node-presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { pickI18n } from "../shared/i18n-text";
 import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { TestimonialsTrioV1, TestimonialsTrioItem } from "./schema";
@@ -170,9 +171,12 @@ function sectionHeadAlignDecls(align?: "left" | "center" | "right"): string[] {
 export function TestimonialsTrioComponent({
   props,
   sectionId,
+  locale,
   builderNodeBindings,
 }: SectionComponentProps<TestimonialsTrioV1>) {
-  const { eyebrow, headline, items, variant, defaultAccent, presentation, nodePresentation } = props;
+  const { items, variant, defaultAccent, presentation, nodePresentation } = props;
+  const eyebrow = pickI18n(props.eyebrow, locale);
+  const headline = pickI18n(props.headline, locale);
   const nodeIdsByRole = builderNodeBindings?.nodeIdsByRole;
   const eyebrowNode = nodePresentation?.subheadline;
   const headlineNode = nodePresentation?.headline;
@@ -348,9 +352,14 @@ export function TestimonialsTrioComponent({
           />
         )}
         <div className="site-testimonials-trio__grid">
-          {items.map((item, i) => (
+          {items.map((item, i) => {
+            const quote = pickI18n(item.quote, locale);
+            const author = pickI18n(item.author, locale);
+            const context = pickI18n(item.context, locale);
+            const location = pickI18n(item.location, locale);
+            return (
             <article
-              key={`${item.author ?? ""}-${i}`}
+              key={`${author}-${i}`}
               className="site-testimonials-trio__card"
               data-accent={resolvedAccent(item, i)}
             >
@@ -370,24 +379,25 @@ export function TestimonialsTrioComponent({
                 <path d="M16.5 17c-2 0-3-1.2-3-3.2 0-3 2-5.8 5-6.8l.5 1.5c-1.5.5-2.5 2-2.5 3.5h.5c1.5 0 2.5 1 2.5 2.5s-1 2.5-3 2.5Z" />
               </svg>
               <p className="site-testimonials-trio__text">
-                &ldquo;{item.quote}&rdquo;
+                &ldquo;{quote}&rdquo;
               </p>
-              {(item.author || item.context || item.location) && (
+              {(author || context || location) && (
                 <footer className="site-testimonials-trio__meta">
-                  {item.author ? (
+                  {author ? (
                     <strong className="site-testimonials-trio__author">
-                      {item.author}
+                      {author}
                     </strong>
                   ) : null}
-                  {item.context || item.location ? (
+                  {context || location ? (
                     <span className="site-testimonials-trio__context">
-                      {[item.context, item.location].filter(Boolean).join(" · ")}
+                      {[context, location].filter(Boolean).join(" · ")}
                     </span>
                   ) : null}
                 </footer>
               )}
             </article>
-          ))}
+            );
+          })}
         </div>
       </Container>
     </section>

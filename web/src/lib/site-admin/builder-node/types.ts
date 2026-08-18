@@ -770,6 +770,8 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
   props: {
     text: string;
     level: 1 | 2 | 3 | 4;
+    /** Whole-block link. Optional; empty/absent = not linked. */
+    href?: string;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
@@ -780,6 +782,8 @@ export interface BuilderParagraphNode extends BuilderNodeBase {
   kind: "paragraph";
   props: {
     text: string;
+    /** Whole-block link. Optional; empty/absent = not linked. */
+    href?: string;
     layerLabel?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
@@ -939,6 +943,8 @@ export interface BuilderRichTextNode extends BuilderNodeBase {
   kind: "rich_text";
   props: {
     text: string;
+    /** Whole-block link. Optional; empty/absent = not linked. */
+    href?: string;
     fieldBindings?: BuilderNodeFieldBindings;
     style?: BuilderNodeStyle;
   };
@@ -1096,12 +1102,25 @@ export interface BuilderFormField {
   id: string;
   /** Submission key (form-data field name). Lowercase/no-spaces recommended. */
   name: string;
-  type: "text" | "email" | "tel" | "textarea" | "submit" | "select" | "radio" | "checkbox";
+  type:
+    | "text"
+    | "email"
+    | "tel"
+    | "textarea"
+    | "submit"
+    | "select"
+    | "radio"
+    | "checkbox"
+    | "date"
+    | "file"
+    | "consent";
   /** Options for select / radio groups (one label per option). */
   options?: string[];
   /** Visible label (also the submit button caption for type:"submit"). */
   label: string;
   placeholder?: string;
+  /** Legal copy beside a consent checkbox. Only used when type is "consent". */
+  consentText?: string;
   required?: boolean;
 }
 

@@ -7,6 +7,7 @@ import type {
   DirectorySortValue,
 } from "@/lib/directory/types";
 import { DIRECTORY_PAGE_SIZE_DEFAULT } from "@/lib/directory/types";
+import { directoryProfileCodesCacheKey } from "@/lib/directory/profile-codes";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getPublicSettings } from "@/lib/public-settings";
@@ -47,6 +48,8 @@ export function getCachedDirectoryFirstPage(options: {
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
   /** Tenant-scoped cache segment. `null` = hub / cross-tenant. */
   tenantId?: string | null;
+  /** Manual-scope public profile codes. Empty / omitted = unscoped. */
+  profileCodes?: string[];
 }): Promise<DirectoryPageResponse> {
   const key = taxonomyCacheKey(options.taxonomyTermIds);
   const limit = options.limit ?? DIRECTORY_PAGE_SIZE_DEFAULT;
@@ -60,6 +63,7 @@ export function getCachedDirectoryFirstPage(options: {
   const aMax = options.ageMax ?? null;
   const ffKey = fieldFacetCacheKey(options.fieldFacetFilters);
   const tenantKey = options.tenantId ?? "hub";
+  const profileKey = directoryProfileCodesCacheKey(options.profileCodes);
 
   return unstable_cache(
     async () => {
@@ -85,6 +89,7 @@ export function getCachedDirectoryFirstPage(options: {
         ageMax: aMax,
         fieldFacetFilters: options.fieldFacetFilters,
         tenantId: options.tenantId ?? null,
+        profileCodes: options.profileCodes,
       });
     },
     [
@@ -103,6 +108,7 @@ export function getCachedDirectoryFirstPage(options: {
       String(aMin ?? ""),
       String(aMax ?? ""),
       ffKey,
+      profileKey,
     ],
     { tags: [CACHE_TAG_DIRECTORY], revalidate: 120 },
   )();
@@ -127,9 +133,17 @@ export async function getPublicDirectoryFirstPage(options: {
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
   /** Tenant-scoped cache segment. `null` = hub / cross-tenant. */
   tenantId?: string | null;
+  /** Manual-scope public profile codes. Empty / omitted = unscoped. */
+  profileCodes?: string[];
 }): Promise<DirectoryPageResponse> {
   const flags = await getAiFeatureFlags();
-  if (!flags.ai_master_enabled || !flags.ai_search_enabled) {
+  // Hand-picked sections must not round-trip through AI search — that path has
+  // no profile-code filter and would SSR the full roster.
+  if (
+    (options.profileCodes?.length ?? 0) > 0 ||
+    !flags.ai_master_enabled ||
+    !flags.ai_search_enabled
+  ) {
     return getCachedDirectoryFirstPage(options);
   }
 

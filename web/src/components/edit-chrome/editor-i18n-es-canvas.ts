@@ -371,4 +371,26 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
   "Padding": "Espaciado interior",
   "Corners": "Esquinas",
   "Locked by admin": "Bloqueado por el administrador",
+  "Revisions (⌘⇧Y)": "Revisiones (⌘⇧Y)",
+  "Open Revisions": "Abrir revisiones",
+  "+{count} more changes": "+{count} cambios más",
+  "No changes": "Sin cambios",
+  "Component name": "Nombre del componente",
+  "Save component": "Guardar componente",
+  "Link URL": "URL del enlace",
+  "Paste a URL": "Pega una URL",
+  "Apply link": "Aplicar enlace",
+  "Remove this link": "Quitar este enlace",
+  "Dropdown list": "Lista desplegable",
+  "Radio group": "Grupo de opciones",
+  "Edit each field below. Use Submit for the send action. Dropdown, radio, and checkbox need one option per line.":
+    "Edita cada campo abajo. Usa Enviar para el botón de envío. Lista desplegable, radio y casilla necesitan una opción por línea.",
+  "One option per line": "Una opción por línea",
+  "Hidden on every breakpoint. Click to show everywhere.":
+    "Oculto en todos los tamaños. Haz clic para mostrar en todas partes.",
+  "Desktop only. Click for mobile only.":
+    "Solo escritorio. Haz clic para solo móvil.",
+  "Mobile only. Click to hide.": "Solo móvil. Haz clic para ocultar.",
+  "Visible everywhere. Click for desktop only.":
+    "Visible en todas partes. Haz clic para solo escritorio.",
 };

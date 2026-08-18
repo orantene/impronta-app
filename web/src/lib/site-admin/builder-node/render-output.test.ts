@@ -777,6 +777,28 @@ test("node kind: rich_text renders annotations and sanitizes unsafe links", () =
   assert.ok(html.includes("color:#111827"), "shared style");
 });
 
+test("heading / paragraph whole-block href wraps content; javascript is dropped", () => {
+  const linked = render([
+    {
+      id: "h-link",
+      kind: "heading",
+      props: { text: "About us", level: 2, href: "/about" },
+    } as BuilderNode,
+  ]);
+  assert.ok(linked.includes('href="/about"'), "relative block href");
+  assert.ok(linked.includes("About us"), "label kept");
+
+  const unsafe = render([
+    {
+      id: "p-xss",
+      kind: "paragraph",
+      props: { text: "Click", href: "javascript:alert(1)" },
+    } as BuilderNode,
+  ]);
+  assert.ok(!unsafe.includes("javascript:alert"), "dangerous block href dropped");
+  assert.ok(unsafe.includes("Click"), "copy still renders");
+});
+
 test("node kind: code renders an opaque-origin sandboxed iframe (scripts-only)", () => {
   const html = render([
     {
