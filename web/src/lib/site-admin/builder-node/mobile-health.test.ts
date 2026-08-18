@@ -14,6 +14,7 @@ import type {
   BuilderButtonNode,
   BuilderContainerNode,
   BuilderHeadingNode,
+  BuilderNodeTree,
   BuilderParagraphNode,
   BuilderSplitNode,
 } from "./types";
@@ -596,4 +597,73 @@ test("collectMobileOverflowOffenders returns empty for a clean responsive tree",
     },
   ]);
   assert.deepEqual(offenders, []);
+});
+
+// ── Check 4: trapped off-canvas drawer ───────────────────────────────────────
+
+function navUnder(ancestorStyle: Record<string, unknown>): BuilderNodeTree {
+  return [
+    {
+      id: "bar",
+      kind: "container",
+      props: { layout: "row", style: ancestorStyle },
+      children: [
+        {
+          id: "nav",
+          kind: "nav",
+          props: {
+            links: [{ id: "l1", label: "Home", href: "/" }],
+            collapseAt: "mobile",
+            mobileMenuVariant: "drawer-right",
+          },
+        },
+      ],
+    },
+  ] as unknown as BuilderNodeTree;
+}
+
+test("a frosted sticky bar traps the nav's off-canvas drawer", () => {
+  // The exact live defect: `backdrop-filter` makes the bar the containing block
+  // for position:fixed, so the drawer sized itself to the 141px bar instead of
+  // the viewport and the hamburger opened a clipped stub.
+  const issues = runMobileHealthCheck(navUnder({ backdropFilter: "blur(18px)" }));
+  const trapped = issues.filter((i) => i.kind === "trapped_drawer");
+  assert.equal(trapped.length, 1);
+  assert.equal(trapped[0].nodeId, "nav");
+  assert.equal(trapped[0].severity, "warn", "advisory — never blocks publish");
+});
+
+test("clearing the blur at the mobile tier resolves the warning", () => {
+  const issues = runMobileHealthCheck(
+    navUnder({
+      backdropFilter: "blur(18px)",
+      responsive: { mobile: { backdropFilter: "none" } },
+    }),
+  );
+  assert.equal(
+    issues.filter((i) => i.kind === "trapped_drawer").length,
+    0,
+    "an author who cleared the blur on mobile has FIXED this — do not nag",
+  );
+});
+
+test("a plain dropdown menu is never reported as trapped", () => {
+  // The default dropdown is absolutely positioned INSIDE the header; it never
+  // relies on escaping to the viewport, so a blurred ancestor is harmless.
+  const tree = navUnder({ backdropFilter: "blur(18px)" });
+  const nav = (tree[0] as unknown as { children: Array<{ props: Record<string, unknown> }> })
+    .children[0];
+  nav.props.mobileMenuVariant = "dropdown";
+  assert.equal(
+    runMobileHealthCheck(tree).filter((i) => i.kind === "trapped_drawer").length,
+    0,
+  );
+});
+
+test("no trap warning without a filtering ancestor", () => {
+  assert.equal(
+    runMobileHealthCheck(navUnder({ backgroundColor: "#000" }))
+      .filter((i) => i.kind === "trapped_drawer").length,
+    0,
+  );
 });

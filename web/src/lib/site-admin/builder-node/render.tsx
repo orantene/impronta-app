@@ -488,7 +488,19 @@ const BUILDER_NODE_NAV_CSS = `
    native details open state (no JS). "dropdown" (default / absent) keeps the
    pre-A6 panel below, so existing nav trees are byte-identical. The panel is
    position:fixed for the off-canvas variants so it escapes the header's
-   stacking/overflow; the open details animates it in. Variants apply ONLY
+   stacking/overflow; the open details animates it in.
+
+   CAVEAT, learned the hard way: position:fixed does NOT always escape. Any
+   ancestor with backdrop-filter, filter, perspective, contain:paint or
+   will-change:transform becomes the CONTAINING BLOCK for fixed descendants --
+   and a frosted-glass sticky header (our own shell variants ship
+   backdrop-filter: blur(18px)) is exactly that. The drawer then resolves
+   top:0;bottom:0 against the ~64px header instead of the viewport and opens
+   as a clipped stub. There is no CSS escape from a containing block, so the
+   off-canvas geometry is expressed in VIEWPORT UNITS (dvh/vw) rather than
+   opposing offsets: the panel is then full-screen-sized whether or not it got
+   trapped. mobile-health.ts additionally warns the operator at authoring
+   time. Do not "simplify" these back to bottom:0 / inset:0. Variants apply ONLY
    when the disclosure is visible (i.e. at/under the collapse breakpoint), so a
    desktop render is untouched. */
 .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:bn-nav-menu-in 200ms ease both}
@@ -496,11 +508,11 @@ const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
 .site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu,
 .site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{position:fixed;z-index:80;max-height:none;overflow:auto}
-.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{top:0;right:0;bottom:0;left:auto;width:88vw;max-width:400px;border-radius:0;box-shadow:-18px 0 40px rgba(0,0,0,0.2);animation:bn-nav-drawer-right 240ms ease both}
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{top:0;right:0;left:auto;height:100dvh;width:88vw;max-width:400px;border-radius:0;box-shadow:-18px 0 40px rgba(0,0,0,0.2);animation:bn-nav-drawer-right 240ms ease both}
 @keyframes bn-nav-drawer-right{from{transform:translateX(100%)}to{transform:translateX(0)}}
-.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{left:0;right:0;bottom:0;top:auto;max-height:80vh;border-radius:18px 18px 0 0;box-shadow:0 -18px 40px rgba(0,0,0,0.2);animation:bn-nav-sheet-bottom 240ms ease both}
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{left:0;width:100vw;bottom:0;top:auto;max-height:80dvh;border-radius:18px 18px 0 0;box-shadow:0 -18px 40px rgba(0,0,0,0.2);animation:bn-nav-sheet-bottom 240ms ease both}
 @keyframes bn-nav-sheet-bottom{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{inset:0;width:100%;border-radius:0;padding:1.25rem;gap:0.35rem;justify-content:center;animation:bn-nav-menu-in 240ms ease both}
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{top:0;left:0;height:100dvh;width:100vw;border-radius:0;padding:1.25rem;gap:0.35rem;justify-content:center;animation:bn-nav-menu-in 240ms ease both}
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:none}
 }`;
