@@ -12,8 +12,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
-import { Icon } from "../primitives";
-import { COLORS, FONTS, useAdminShell, Z } from "../state";
+import { useT } from "@/i18n/use-t";
+import { Icon, type AdminShellIconName } from "../primitives";
+import { COLORS, FONTS, Z } from "../state";
+import { useWebsiteSubnav } from "./website-nav";
 
 export function WebsiteNavItem({
   tenantSlug,
@@ -23,7 +25,8 @@ export function WebsiteNavItem({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { bridgeSessionIdentity } = useAdminShell();
+  const t = useT();
+  const websiteSubnav = useWebsiteSubnav();
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
   const wrapRef = useRef<HTMLSpanElement | null>(null);
@@ -67,10 +70,13 @@ export function WebsiteNavItem({
     [],
   );
 
-  const base = tenantSlug ? `/${tenantSlug}/admin/website` : "/admin/website";
-  const go = (href: string) => {
+  const go = (item: { href: string; external?: boolean }) => {
     setOpen(false);
-    router.push(href);
+    if (item.external) {
+      window.open(item.href, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(item.href);
+    }
   };
 
   return (
@@ -106,42 +112,18 @@ export function WebsiteNavItem({
                 fontFamily: FONTS.body,
               }}
             >
-              <WebsiteMenuItem
-                label="Website overview"
-                sub="Pages, posts, domain, SEO"
-                iconName="globe"
-                onClick={() => go(base)}
-              />
-              <WebsiteMenuItem
-                label="Card Design"
-                sub="How talent cards look & act"
-                iconName="palette"
-                onClick={() => go(`${base}/card-design`)}
-              />
-              <WebsiteMenuItem
-                label="Profile Pages"
-                sub="Pick the talent profile template"
-                iconName="user"
-                onClick={() => go(`${base}/profile-pages`)}
-              />
-              {/* Same capability the page enforces (site_admin.pages.edit). */}
-              {bridgeSessionIdentity?.canEditSitePages ? (
+              {/* Single source of truth — website-nav.ts. Same order + gating
+                  as the sidebar rail; this used to be a hand-maintained list
+                  that had drifted out of sync (missing "Design", English-only). */}
+              {websiteSubnav.map((item) => (
                 <WebsiteMenuItem
-                  label="Redirects"
-                  sub="Point old URLs at new pages"
-                  iconName="arrow-right"
-                  onClick={() => go(`${base}/redirects`)}
+                  key={item.id}
+                  label={t(item.i18nKey)}
+                  sub={t(item.descriptionI18nKey)}
+                  iconName={item.icon}
+                  onClick={() => go(item)}
                 />
-              ) : null}
-              {/* Same capability the page enforces (manage_billing). */}
-              {bridgeSessionIdentity?.canManageBilling ? (
-                <WebsiteMenuItem
-                  label="Forms"
-                  sub="Submissions from your site forms"
-                  iconName="mail"
-                  onClick={() => go(`${base}/forms`)}
-                />
-              ) : null}
+              ))}
             </div>,
             document.body,
           )
@@ -158,7 +140,7 @@ function WebsiteMenuItem({
 }: {
   label: string;
   sub: string;
-  iconName: "globe" | "palette" | "user" | "mail" | "arrow-right";
+  iconName: AdminShellIconName;
   onClick: () => void;
 }) {
   return (
