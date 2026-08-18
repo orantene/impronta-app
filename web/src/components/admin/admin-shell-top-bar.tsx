@@ -65,6 +65,7 @@ const SUBROUTE_LABEL_KEYS = [
   "profile-pages",
   "structure",
   "design",
+  "setup",
   "sections",
   "pages",
   "content",

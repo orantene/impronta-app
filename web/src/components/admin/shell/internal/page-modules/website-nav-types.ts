@@ -7,7 +7,14 @@ import type { AdminShellIconName } from "../primitives";
 
 export interface WebsiteSubnavItem {
   /** Stable identifier — routing key, React key, active-state comparisons. */
-  id: "overview" | "design" | "card-design" | "profile-pages" | "redirects" | "forms";
+  id:
+    | "overview"
+    | "design"
+    | "card-design"
+    | "profile-pages"
+    | "redirects"
+    | "setup"
+    | "forms";
   /** EN literal — consumed by the sidebar's `copy.t()` (dashboard-i18n ES_TEXT). */
   label: string;
   /** Catalog key for the dropdown/mobile `useT()` label. */

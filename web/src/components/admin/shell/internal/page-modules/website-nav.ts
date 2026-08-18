@@ -34,7 +34,6 @@
 
 import { useMemo } from "react";
 import { useAdminShell } from "../state";
-import { useSiteDesignUrl } from "./use-site-design-url";
 import { internalWebsiteSubnavItems, type WebsiteSubnavItem } from "./website-nav-types";
 
 export type { WebsiteSubnavItem };
@@ -56,7 +55,6 @@ export { internalWebsiteSubnavItems };
  */
 export function useWebsiteSubnav(): WebsiteSubnavItem[] {
   const { adminBasePath, bridgeSessionIdentity } = useAdminShell();
-  const siteDesignUrl = useSiteDesignUrl();
 
   return useMemo(() => {
     const base = `${adminBasePath}/website`;
@@ -72,23 +70,22 @@ export function useWebsiteSubnav(): WebsiteSubnavItem[] {
       },
     ];
 
-    // Site-wide theme (colors, fonts, spacing, header/footer). Lives in a
-    // drawer inside the storefront visual editor — `useSiteDesignUrl` is the
-    // one hook that resolves the deep link; `null` when no usable domain
-    // exists yet, so the affordance is hidden rather than opening a dead tab.
-    if (siteDesignUrl) {
-      items.push({
+    items.push(
+      // Design is now an INTERNAL hub, not the external theme deep link it used
+      // to be. The theme panel still lives in a drawer inside the storefront
+      // editor, but four separate ways to change how the site looks (theme,
+      // header/footer, talent cards, profile templates) had no shared entry
+      // point, and a nav item that jumps straight into a new tab cannot be one.
+      // `/website/design` explains the set and links to each; the theme link
+      // is one card there, resolved by `useSiteDesignUrl` at render time.
+      {
         id: "design",
         label: "Design",
         i18nKey: "dashboard.adminWebsite.nav.designLabel",
         descriptionI18nKey: "dashboard.adminWebsite.nav.designDescription",
-        href: siteDesignUrl,
-        external: true,
+        href: `${base}/design`,
         icon: "palette",
-      });
-    }
-
-    items.push(
+      },
       {
         id: "card-design",
         label: "Card Design",
@@ -122,6 +119,19 @@ export function useWebsiteSubnav(): WebsiteSubnavItem[] {
       });
     }
 
+    // Web address, search settings, and the tracking / custom-code surfaces
+    // that are named but not built yet. Ungated: this is the same read-only
+    // configuration summary that used to sit at the bottom of Overview, which
+    // every role could see.
+    items.push({
+      id: "setup",
+      label: "Setup",
+      i18nKey: "dashboard.adminWebsite.nav.setupLabel",
+      descriptionI18nKey: "dashboard.adminWebsite.nav.setupDescription",
+      href: `${base}/setup`,
+      icon: "settings",
+    });
+
     // Form submissions. Gated on the SAME capability the page enforces
     // (`manage_billing`), resolved server-side and passed through the
     // bridge — inferring it from `state.role` instead let the sidebar and
@@ -138,5 +148,5 @@ export function useWebsiteSubnav(): WebsiteSubnavItem[] {
     }
 
     return items;
-  }, [adminBasePath, siteDesignUrl, bridgeSessionIdentity?.canEditSitePages, bridgeSessionIdentity?.canManageBilling]);
+  }, [adminBasePath, bridgeSessionIdentity?.canEditSitePages, bridgeSessionIdentity?.canManageBilling]);
 }

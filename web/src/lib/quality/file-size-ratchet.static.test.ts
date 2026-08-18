@@ -246,7 +246,10 @@ const BUDGETS: Record<string, number> = {
   // of the sub-nav labels the sidebar now renders through `copy.t()`. The
   // labels live in website-nav.ts, but ES_TEXT is a flat literal map keyed by
   // the English string, so their translations have nowhere else to live.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3534,
+  // 2026-08-18 Website Design hub + Setup (P2-B): +1 for the Spanish entry of
+  // the new "Setup" sub-nav label. Same constraint as the P1-A note above —
+  // ES_TEXT is keyed by the English literal, so it cannot live beside the item.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3535,
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
