@@ -1,7 +1,7 @@
 /**
  * Mobile health checker — a pure analysis pass over a BuilderNodeTree.
  *
- * Flags three classes of likely mobile problem:
+ * Flags four classes of likely mobile problem:
  *
  *   1. **Tiny text** — a node's effective font-size on the mobile breakpoint
  *      resolves below 12 px (the browser accessibility minimum and the WCAG
@@ -19,7 +19,18 @@
  *      `width` wider than 360 px (the narrowest modern viewport). Either
  *      condition forces a horizontal scroll bar on small phones.
  *
- * Most findings are *advisory* — they feed `MobileHealthPanel` in the publish
+ *    4. **Trapped mobile drawer** — a collapsing `nav` whose off-canvas menu sits
+      under an ancestor that creates a CONTAINING BLOCK for `position: fixed`
+      (`backdrop-filter`, `filter`, `perspective`, `contain: paint`,
+      `will-change: transform`). The drawer is `position: fixed` precisely so it
+      can cover the viewport; a frosted-glass sticky header silently re-anchors
+      it to the header box instead. Impronta shipped exactly this and the
+      hamburger opened a clipped stub. The renderer now sizes the panel in
+      viewport units so the damage is bounded, but the honest fix is the
+      operator dropping the blur at the mobile breakpoint — which is what this
+      warning tells them to do.
+
+Most findings are *advisory* — they feed `MobileHealthPanel` in the publish
  * drawer and never block. The one exception (W3-M1) is **definite** horizontal
  * overflow: a node whose resolved fixed `width`/`minWidth` on mobile exceeds the
  * narrowest viewport. Those are marked `blocking` and the publish preflight
@@ -52,7 +63,8 @@ import type {
 export type MobileHealthCheckKind =
   | "tiny_text"
   | "tap_target"
-  | "overflow";
+  | "overflow"
+  | "trapped_drawer";
 
 export interface MobileHealthIssue {
   /** Discriminates the check category for grouping in the UI. */
@@ -447,12 +459,61 @@ function checkFixedWidthOverflow(
  *
  * Pure function — no side effects, no I/O. All issues are advisory (`"warn"`).
  */
+/**
+ * Style properties that make an element the containing block for `position:
+ * fixed` descendants. Any one of them turns an ancestor into a drawer trap.
+ */
+const FIXED_CONTAINING_BLOCK_PROPS = [
+  "backdropFilter",
+  "filter",
+  "perspective",
+] as const;
+
+/** Does this node trap `position: fixed` descendants on the mobile breakpoint? */
+function trapsFixedDescendants(node: BuilderNode): boolean {
+  // Node styles live at `props.style`, NOT on the node itself. Reading the
+  // wrong level makes this check silently measure nothing.
+  const style = (node.props as { style?: BuilderNodeStyleValue } | undefined)?.style;
+  if (!style) return false;
+  const mobile = (style as {
+    responsive?: { mobile?: BuilderNodeStyleValue };
+  }).responsive?.mobile;
+  for (const prop of FIXED_CONTAINING_BLOCK_PROPS) {
+    const base = (style as Record<string, unknown>)[prop];
+    // A mobile override wins, and `none` is the initial value -- an author who
+    // clears the blur at the mobile breakpoint has FIXED this, so do not warn.
+    const override = mobile
+      ? (mobile as Record<string, unknown>)[prop]
+      : undefined;
+    const effective = override !== undefined ? override : base;
+    if (typeof effective === "string" && effective.trim() && effective.trim() !== "none") {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Is this a nav that collapses into an OFF-CANVAS (fixed) mobile menu? */
+function hasOffCanvasMobileMenu(node: BuilderNode): boolean {
+  if (node.kind !== "nav") return false;
+  const props = node.props as { collapseAt?: string; mobileMenuVariant?: string };
+  if (!props.collapseAt || props.collapseAt === "never") return false;
+  // "dropdown" (the default) is absolutely positioned inside the header and is
+  // unaffected; only the off-canvas variants rely on escaping to the viewport.
+  return (
+    props.mobileMenuVariant === "drawer-right" ||
+    props.mobileMenuVariant === "sheet-bottom" ||
+    props.mobileMenuVariant === "full-screen-fade"
+  );
+}
+
 export function runMobileHealthCheck(tree: BuilderNodeTree): ReadonlyArray<MobileHealthIssue> {
   const issues: MobileHealthIssue[] = [];
 
   const walk = (
     nodes: ReadonlyArray<BuilderNode>,
     ownerSectionId: string | null,
+    trappingAncestor: BuilderNode | null = null,
   ): void => {
     for (const node of nodes) {
       const nextOwnerSectionId =
@@ -483,9 +544,27 @@ export function runMobileHealthCheck(tree: BuilderNodeTree): ReadonlyArray<Mobil
       const widthOverflow = checkFixedWidthOverflow(node, nextOwnerSectionId);
       if (widthOverflow) issues.push(widthOverflow);
 
+      // Check 4: an off-canvas mobile drawer trapped by an ancestor that is
+      // the containing block for position:fixed.
+      if (trappingAncestor && hasOffCanvasMobileMenu(node)) {
+        issues.push({
+          kind: "trapped_drawer",
+          message:
+            "This menu opens off-canvas, but an ancestor block uses a backdrop blur or filter, which pins the panel to that block instead of the screen. Clear the blur on the mobile breakpoint so the menu can cover the full screen.",
+          nodeId: node.id,
+          nodeKind: node.kind,
+          ownerSectionId: nextOwnerSectionId,
+          severity: "warn",
+        });
+      }
+
       // Recurse into children
       if ("children" in node && Array.isArray(node.children)) {
-        walk(node.children, nextOwnerSectionId);
+        walk(
+          node.children,
+          nextOwnerSectionId,
+          trappingAncestor ?? (trapsFixedDescendants(node) ? node : null),
+        );
       }
     }
   };

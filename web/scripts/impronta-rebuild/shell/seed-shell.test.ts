@@ -192,3 +192,42 @@ test("every landmark address key resolves to a real slot (the header-less bug)",
     }
   }
 });
+
+test("the phone header stays ONE row, and the blur is cleared so the drawer works", () => {
+  // Both halves of the live mobile defect, pinned together because they present
+  // as one symptom (a 141px, three-row phone header whose hamburger opens a
+  // clipped stub):
+  //   - containers fall back to a COLUMN at the mobile tier, so the widget
+  //     cluster needs an explicit props-level mobile row;
+  //   - `backdrop-filter` on the bar makes it the containing block for the
+  //     nav's position:fixed drawer, so it must be cleared at mobile.
+  for (const locale of ["en", "es"]) {
+    const { header } = treesForLocale(locale);
+    const find = (suffix: string) => {
+      const stack = [...(header as unknown as Array<Record<string, unknown>>)];
+      while (stack.length) {
+        const n = stack.pop() as { id?: string; children?: unknown[] };
+        if (typeof n.id === "string" && n.id.endsWith(suffix)) return n as never;
+        if (Array.isArray(n.children)) stack.push(...(n.children as never[]));
+      }
+      return null;
+    };
+    const bar = find("-main-bar") as unknown as {
+      props: { style: { responsive?: { mobile?: { backdropFilter?: string } } } };
+    } | null;
+    const cluster = find("-actions") as unknown as {
+      props: { responsive?: { mobile?: { layout?: string } } };
+    } | null;
+    assert.ok(bar && cluster, `[${locale}] header must have a bar + actions cluster`);
+    assert.equal(
+      bar!.props.style.responsive?.mobile?.backdropFilter,
+      "none",
+      `[${locale}] the bar must clear its blur on mobile or the drawer is trapped inside it`,
+    );
+    assert.equal(
+      cluster!.props.responsive?.mobile?.layout,
+      "row",
+      `[${locale}] the widget cluster must stay a row on mobile (default is column)`,
+    );
+  }
+});

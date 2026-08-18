@@ -158,6 +158,27 @@ function headerWidgetEmbed(
   return embed;
 }
 
+/** Hide a node at the mobile tier only (desktop + tablet untouched). */
+function hideOnMobile(node: BuilderNode): BuilderNode {
+  const props = node.props as { style?: Record<string, unknown> };
+  const style = (props.style ?? {}) as Record<string, unknown>;
+  const responsive = (style.responsive ?? {}) as Record<string, unknown>;
+  const mobile = (responsive.mobile ?? {}) as Record<string, unknown>;
+  return {
+    ...node,
+    props: {
+      ...node.props,
+      style: {
+        ...style,
+        responsive: {
+          ...responsive,
+          mobile: { ...mobile, visibility: "hidden" as const },
+        },
+      },
+    },
+  } as BuilderNode;
+}
+
 // ── tree builder ─────────────────────────────────────────────────────────────
 
 function navLinks(locale: ShellLocale): BuilderNavLink[] {
@@ -235,7 +256,7 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
         width: "auto",
         objectFit: "contain",
         flexShrink: 0,
-        responsive: { mobile: { height: "32px" } },
+        responsive: { mobile: { height: "26px" } },
       },
     },
   };
@@ -283,6 +304,12 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
       layout: "row",
       align: "center",
       layerLabel: "Header actions",
+      // Containers fall back to a COLUMN at the mobile tier -- sensible for page
+      // sections, ruinous for a header bar: the three surviving widgets stacked
+      // vertically and made the phone header 141px of three ragged rows. The
+      // props-level responsive block (NOT style.responsive) is what picks the
+      // mobile layout.
+      responsive: { mobile: { layout: "row", align: "center" } },
       style: {
         gap: "10px",
         width: "auto",
@@ -297,7 +324,7 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
     },
     children: [
       ...HEADER_WIDGET_KEYS.map((key) => headerWidgetEmbed(locale, key)),
-      shellGoldCta(id("cta"), copy.ctaLabel, "/p/contact"),
+      hideOnMobile(shellGoldCta(id("cta"), copy.ctaLabel, "/p/contact")),
     ],
   };
 
@@ -328,7 +355,14 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
         boxShadow: shellHairline("bottom"),
         responsive: {
           mobile: {
-            gap: "12px",
+            // NOT cosmetic. `backdrop-filter` makes this bar the containing
+            // block for `position: fixed` descendants, which re-anchors the
+            // nav's off-canvas drawer to the ~64px bar instead of the screen --
+            // the hamburger opened a clipped stub. Frosted glass stays on
+            // desktop, where the drawer never opens. See mobile-health.ts
+            // ("trapped_drawer") and the caveat in render.tsx.
+            backdropFilter: "none",
+            gap: "8px",
             paddingLeft: "16px",
             paddingRight: "16px",
             paddingTop: "10px",

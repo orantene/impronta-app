@@ -102,6 +102,7 @@ const KIND_LABEL: Record<MobileHealthCheckKind, string> = {
   tiny_text: "Tiny text",
   tap_target: "Tap target",
   overflow: "Overflow",
+  trapped_drawer: "Trapped menu",
 };
 
 // Three distinguishable, on-palette hues. No gold/rust in admin chrome, so the
@@ -111,6 +112,7 @@ const KIND_COLOR: Record<MobileHealthCheckKind, string> = {
   tiny_text: "#2c5fdb", // cool attention blue (CHROME.amber / CHROME.blue)
   tap_target: "#7c3aed", // violet chrome accent (CHROME.accent)
   overflow: "#1d4ed8",   // blue-700
+  trapped_drawer: "#0f766e", // teal-700 — distinct from the two blues + violet
 };
 
 // ── Panel component ───────────────────────────────────────────────────────────
