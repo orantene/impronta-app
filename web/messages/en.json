@@ -4985,7 +4985,84 @@
       "topEmptyPages": "No page data for this period yet.",
       "topEmptyTalent": "No talent data for this period yet.",
       "topEmptyReferrers": "No referrer data for this period yet.",
-      "siteShell": "Site header & footer"
+      "siteShell": "Site header & footer",
+      "health": {
+        "heading": "Site health",
+        "summaryAllClear": "Everything looks good",
+        "summaryCounts": "{critical} urgent, {warning} to check, {info} to know about",
+        "fixIt": "Fix it",
+        "whatIsThis": "What is this?",
+        "severity": {
+          "critical": "Urgent",
+          "warning": "Check this",
+          "info": "Good to know",
+          "ok": "All good"
+        },
+        "allClear": {
+          "title": "Your website looks healthy",
+          "detail": "Your web address is working, your live pages can be found in search, and nothing is waiting on you."
+        },
+        "domainNone": {
+          "title": "You are using your free Tulala web address",
+          "detail": "Your site is live at {host}. You can connect your own web address whenever you are ready.",
+          "detailNoHost": "Your site does not have a web address of its own yet. You can connect one whenever you are ready.",
+          "fix": "Set up an address"
+        },
+        "domainPending": {
+          "title": "Your web address is not connected yet",
+          "detail": "{host} still needs one setting changed where you bought it. Until that is done, visitors who type that address will not reach your site.",
+          "fix": "See what to do"
+        },
+        "domainFailed": {
+          "title": "Your web address is not working",
+          "detail": "Visitors going to {host} are not reaching your site, because the setup did not finish.",
+          "detailWithReason": "Visitors going to {host} are not reaching your site. The reason we were given: {reason}",
+          "fix": "Fix the address"
+        },
+        "pagesNoindex": {
+          "title": "Some live pages are hidden from Google",
+          "detail": "{count} of your live pages are set to stay out of search results, so people will not find them by searching.",
+          "fix": "Review pages"
+        },
+        "pagesSitemap": {
+          "title": "Some live pages are left out of your site map",
+          "detail": "{count} of your live pages are missing from the list search engines read to discover your site. They may take much longer to appear.",
+          "fix": "Review pages"
+        },
+        "redirectLoops": {
+          "title": "A forwarding rule sends visitors in a circle",
+          "detail": "{count} forwarding rules point back to where they started. Anyone who lands on them sees an error page instead of your site.",
+          "fix": "Open forwarding rules"
+        },
+        "redirectChains": {
+          "title": "Some forwarding rules take an extra hop",
+          "detail": "{count} forwarding rules send visitors to another rule before the real page. It still works, but it is slower and search engines like it less.",
+          "fix": "Open forwarding rules"
+        },
+        "pagesDraft": {
+          "title": "You have unfinished pages",
+          "detail": "{count} pages are still drafts, so nobody can see them yet.",
+          "fix": "Open pages"
+        },
+        "pagesScheduled": {
+          "title": "You have pages waiting to go live",
+          "detail": "{count} pages are set to publish themselves on a later date.",
+          "fix": "Open pages"
+        },
+        "formsUnread": {
+          "title": "New messages from your website",
+          "detail": "{count} people filled in a form on your site and nobody has opened their message yet.",
+          "fix": "Open form messages"
+        },
+        "tip": {
+          "webAddress": "A web address is the name people type to reach your site, like yourstudio.com. Until you connect your own, your site lives on a free Tulala address.",
+          "dns": "DNS is the phone book of the internet. Connecting your own web address means adding one record at the company you bought it from, so it points at your Tulala site.",
+          "noindex": "Noindex is a setting that tells Google and other search engines to leave a page out of their results. Handy for a thank you page, a problem for a page you want found.",
+          "sitemap": "A site map is the list of your pages that search engines read to discover them. A page left off it can still be found, but usually much later.",
+          "redirectLoop": "A forwarding rule sends visitors from an old address to a new one. A loop is when the new address forwards back to the old one, so the browser gives up and shows an error.",
+          "redirectChain": "A chain is when one forwarding rule points at another forwarding rule. Visitors still get there, but every extra hop slows the page down."
+        }
+      }
     },
     "adminCardStudio": {
       "title": "Card Design",

@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────
 import type { DrawerId } from "./drawer-ids";
 import type { OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
+import type { WebsiteHealthReport } from "@/lib/admin/website-health";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -2782,6 +2783,14 @@ export type WebsiteAnalytics = {
 };
 
 export type WebsiteState = {
+  /**
+   * P2-C — Site Health findings, computed server-side by
+   * `lib/admin/website-health.ts` and passed through the Website data bridge.
+   * OPTIONAL on purpose: the prototype `WEBSITE_STATE` fixture does not define
+   * it, so a shell running on fixtures renders no health panel at all rather
+   * than a panel full of invented green ticks.
+   */
+  health?: WebsiteHealthReport;
   pages: WebsitePageRow[];
   posts: WebsitePost[];
   redirects: WebsiteRedirect[];

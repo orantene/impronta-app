@@ -155,6 +155,7 @@ export {
   type WebsiteRedirectItem,
   type WebsiteData,
   loadWebsiteData,
+  loadWebsiteHealth,
 } from "./_data-bridge/website";
 
 // ─── Activity feeds — moved to ./_data-bridge/activity.ts (rev 13)

@@ -88,7 +88,11 @@ export function resolveFinalPath(
  * from the map (so `map.get(id) ?? []` is the read).
  */
 export function auditRedirects(
-  rows: ReadonlyArray<RedirectRecord>,
+  // Narrowed to the four fields the walk actually reads. `RedirectRecord`
+  // satisfies this, so every existing caller is unaffected; the Site Health
+  // panel can now audit the Website bridge's leaner redirect rows without
+  // inventing `createdAt` / `statusCode` values it does not have.
+  rows: ReadonlyArray<Pick<RedirectRecord, "id" | "oldPath" | "newPath" | "active">>,
 ): Map<string, RedirectIssue[]> {
   const activeByOldPath = new Map<string, string>();
   for (const row of rows) {

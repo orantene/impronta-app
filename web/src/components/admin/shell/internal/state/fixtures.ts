@@ -5164,6 +5164,9 @@ export function mergeWebsiteStateFromBridge(
 
   return {
     ...WEBSITE_STATE,
+    // P2-C — server-computed Site Health report. Undefined when the loader
+    // did not run, which keeps the panel silent rather than green-by-default.
+    health:       live.health,
     pages:        pagesWithHits,
     posts,
     redirects,

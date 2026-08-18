@@ -25,6 +25,7 @@ export {
   loadWorkspaceDomainSummary,
   loadWorkspaceBillingState,
   loadWebsiteData,
+  loadWebsiteHealth,
   loadTotalUnreadMessages,
   // Phase 3.12.2 — talent self-surface loaders
   loadTalentSelfProfile,

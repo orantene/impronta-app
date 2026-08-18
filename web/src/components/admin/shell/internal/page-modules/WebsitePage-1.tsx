@@ -19,6 +19,7 @@ import type { WebsitePageRow, WebsitePost } from "../state";
 import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
+import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
 import { ConfigStatusRow, formatShortDate, HeroStat, PageVisualCard, WebsitePerformance } from "./WebsitePage-2";
 import { PageHeader } from "./pages-shared";
 import { useSiteShellEditorUrl } from "./use-site-shell-editor-url";
@@ -518,6 +519,9 @@ export function WebsitePage() {
           <HeroStat label={t("dashboard.adminWebsite.heroScheduled")}        value={totals.scheduledPages.toString()} sub={nextScheduledAt ? interpolate(t("dashboard.adminWebsite.heroNextScheduled"), { date: formatShortDate(nextScheduledAt, dashboardLocale) }) : t("dashboard.adminWebsite.heroNone")} />
         </div>
       </section>
+
+      {/* Server-computed findings: nothing on fixtures, one green line when well. */}
+      <WebsiteHealthPanel report={w.health} />
 
       {/* Wave 4.1 — REMOVED the separate "Page Builder" (workspace_pages) section.
           It was an empty second page system stacked next to the real "Pages"

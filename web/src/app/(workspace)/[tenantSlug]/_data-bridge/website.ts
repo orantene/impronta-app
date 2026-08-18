@@ -19,6 +19,11 @@ import {
   loadWorkspaceDomainSummary,
   type WorkspaceDomainSummary,
 } from "./workspace-config";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import {
+  buildWebsiteHealthReport,
+  type WebsiteHealthReport,
+} from "@/lib/admin/website-health";
 
 /**
  * _data-bridge/website.ts — canonical Website settings page loader.
@@ -132,6 +137,14 @@ export type WebsiteData = {
    * not consumed by any UI yet.
    */
   defaultLocale: string;
+  /**
+   * P2-C — the Site Health report (read-only aggregation over everything
+   * above plus the Forms inbox count). Undefined until `loadWebsiteHealth`
+   * has run: `loadWebsiteData` itself cannot compute it, because the Forms
+   * finding is gated on a capability the layout resolves separately. See
+   * `loadWebsiteHealth` below.
+   */
+  health?: WebsiteHealthReport;
 };
 
 /**
@@ -251,4 +264,62 @@ export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
     logServerError("workspace.loadWebsiteData", err);
     return empty;
   }
+}
+
+/**
+ * P2-C — Site Health. A thin loader over data `loadWebsiteData` has ALREADY
+ * fetched, plus exactly one extra query: the unread Forms count, and only when
+ * the viewer can reach the Forms inbox.
+ *
+ * Why it is a second call rather than part of the fan-out above: the Forms
+ * finding must match the Forms route's own gate (`manage_billing`), which the
+ * admin layout resolves after its Promise.all. Passing the capability in keeps
+ * the panel and the route from ever disagreeing about who sees what — the same
+ * reasoning the sidebar link already uses.
+ *
+ * Never throws: on any failure the report is built with a zeroed Forms inbox,
+ * so the panel degrades to "no forms finding" rather than breaking the layout.
+ */
+export async function loadWebsiteHealth(args: {
+  tenantId: string;
+  website: WebsiteData;
+  canManageBilling: boolean;
+}): Promise<WebsiteHealthReport> {
+  const { tenantId, website, canManageBilling } = args;
+
+  let unreadCount = 0;
+  if (canManageBilling) {
+    try {
+      // Service role, matching the Forms route — the inbox is read through the
+      // service client there too. `head: true` makes this a COUNT, not a fetch.
+      const svc = createServiceRoleClient();
+      if (svc) {
+        const { count } = await svc
+          .from("cms_form_submissions")
+          .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
+          .eq("status", "new");
+        unreadCount = count ?? 0;
+      }
+    } catch (err) {
+      logServerError("workspace.loadWebsiteHealth.forms", err);
+    }
+  }
+
+  return buildWebsiteHealthReport({
+    domain: {
+      primaryHost: website.domainSummary.primaryHost,
+      customDomainHost: website.domainSummary.customDomainHost,
+      customDomainStatus: website.domainSummary.customDomainStatus,
+      failureReason: website.domainSummary.failureReason,
+    },
+    pages: website.pages.map((p) => ({
+      status: p.status,
+      noindex: p.noindex,
+      includeInSitemap: p.includeInSitemap,
+      scheduledPublishAt: p.scheduledPublishAt,
+    })),
+    redirects: website.redirects,
+    forms: { visible: canManageBilling, unreadCount },
+  });
 }
