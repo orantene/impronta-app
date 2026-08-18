@@ -513,8 +513,20 @@ const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{left:0;width:100vw;bottom:0;top:auto;max-height:80dvh;border-radius:18px 18px 0 0;box-shadow:0 -18px 40px rgba(0,0,0,0.2);animation:bn-nav-sheet-bottom 240ms ease both}
 @keyframes bn-nav-sheet-bottom{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{top:0;left:0;height:100dvh;width:100vw;border-radius:0;padding:1.25rem;gap:0.35rem;justify-content:center;animation:bn-nav-menu-in 240ms ease both}
+/* An open off-canvas menu gets a tap-anywhere-to-close scrim and keeps its own
+   toggle ON TOP of the panel. Without both, the drawer covered the hamburger
+   and there was NO way to close the menu -- the panel simply ate the screen.
+   The scrim is the summary's own ::before, so closing stays CSS-only: a tap
+   anywhere on it is a tap on the summary, which toggles the details shut.
+   Sized in viewport units for the containing-block caveat above. */
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>summary,
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>summary,
+.site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>summary{position:relative;z-index:81}
+.site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>summary::before,
+.site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>summary::before{content:"";position:fixed;top:0;left:0;width:100vw;height:100dvh;z-index:-1;background:var(--bn-nav-scrim,rgba(8,8,8,0.55));animation:bn-nav-menu-in 200ms ease both}
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:none}
+  .site-builder-node--nav-disclosure[open]>summary::before{animation:none}
 }`;
 
 // A4 — social/contact icon row. The list lays out as an inline-flex row of
@@ -4907,7 +4919,22 @@ function renderBuilderNodeElement(
           data-bn-mobile-menu={mobileMenuVariant}
           aria-label={navAriaLabel}
           className="site-builder-node site-builder-node--nav"
-          style={inlineNodeStyle(navProps.style)}
+          // The menu's colours were documented as "overridable via the
+          // --bn-nav-menu-* custom properties" but NOTHING could author them,
+          // so every mobile drawer on every site was the same white card --
+          // glaring on a dark theme. These props are that authoring path.
+          style={{
+            ...inlineNodeStyle(navProps.style),
+            ...(navProps.menuBackground
+              ? { ["--bn-nav-menu-bg" as string]: navProps.menuBackground }
+              : {}),
+            ...(navProps.menuTextColor
+              ? { ["--bn-nav-menu-color" as string]: navProps.menuTextColor }
+              : {}),
+            ...(navProps.menuBorderColor
+              ? { ["--bn-nav-menu-border" as string]: navProps.menuBorderColor }
+              : {}),
+          } as React.CSSProperties}
         >
           {navBrand.value ? (
             <a

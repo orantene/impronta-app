@@ -2289,6 +2289,37 @@ export function BuilderNodeContentInspector({
                   Spanish header. Defaults to &ldquo;Menu&rdquo;.
                 </Helper>
               </Field>
+              {/* The open menu is a full-screen surface on phones -- on a dark
+                  site the default white card is the single most jarring thing
+                  a visitor sees. These three fields are the only authoring path
+                  to the --bn-nav-menu-* custom properties. */}
+              {([
+                ["menuBackground", "Menu background", "#ffffff"],
+                ["menuTextColor", "Menu text", "#111111"],
+                ["menuBorderColor", "Menu border", "rgba(17,17,17,0.12)"],
+              ] as const).map(([propKey, label, placeholder]) => (
+                <Field flush key={`nav-${propKey}-${node.id}`}>
+                  <FieldLabel>{label}</FieldLabel>
+                  <input
+                    key={`nav-${propKey}-input-${node.id}`}
+                    defaultValue={node.props[propKey] ?? ""}
+                    className={KIT.input}
+                    placeholder={placeholder}
+                    onBlur={(event) => {
+                      void commitTextInput(propKey, node.props[propKey] ?? "", true)(
+                        event.currentTarget.value,
+                      );
+                    }}
+                    onKeyDown={handleCommitKey((value) => {
+                      void commitTextInput(propKey, node.props[propKey] ?? "", true)(value);
+                    })}
+                  />
+                </Field>
+              ))}
+              <Helper>
+                Colours for the open mobile menu. Any CSS colour or a theme token
+                such as var(--token-color-ink). Leave blank for the default card.
+              </Helper>
               <Field flush>
                 <FieldLabel>Auto-populate links from</FieldLabel>
                 <select

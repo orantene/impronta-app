@@ -231,3 +231,25 @@ test("the phone header stays ONE row, and the blur is cleared so the drawer work
     );
   }
 });
+
+test("the mobile drawer is noir, not the platform's white card", () => {
+  // A full-screen white panel on a noir site is the most jarring thing a phone
+  // visitor meets. The menu colours were always overridable by CSS custom
+  // property but had no authoring path until now, so pin that they are set.
+  for (const locale of ["en", "es"]) {
+    const { header } = treesForLocale(locale);
+    const stack = [...(header as unknown as Array<Record<string, unknown>>)];
+    let nav: { props: Record<string, unknown> } | null = null;
+    while (stack.length) {
+      const n = stack.pop() as { kind?: string; children?: unknown[] };
+      if (n.kind === "nav") nav = n as unknown as { props: Record<string, unknown> };
+      if (Array.isArray(n.children)) stack.push(...(n.children as never[]));
+    }
+    if (!nav) {
+      assert.fail(`[${locale}] header must contain the nav node`);
+      return;
+    }
+    assert.equal(nav.props.menuBackground, "#0d0b09", `[${locale}] drawer ground`);
+    assert.ok(nav.props.menuTextColor, `[${locale}] drawer text colour must be set`);
+  }
+});

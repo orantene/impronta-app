@@ -33,6 +33,7 @@ import {
   IMAGE_SLOT,
   SANS,
   SHELL_FROSTED_STICKY,
+  SHELL_HAIRLINE_RGBA,
   SHELL_NAV_TEXT,
   SHELL_UTILITY_BG,
   SHELL_WHATSAPP_DISPLAY,
@@ -273,6 +274,12 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
       mobileMenuVariant: "drawer-right",
       menuLabel: copy.menuLabel,
       ariaLabel: copy.navAriaLabel,
+      // The open drawer is a full-screen surface on phones. Left to the
+      // platform default it is a WHITE card, which on this noir site is the
+      // most jarring thing a visitor meets. Noir ground + warm ivory text.
+      menuBackground: "#0d0b09",
+      menuTextColor: SHELL_NAV_TEXT,
+      menuBorderColor: SHELL_HAIRLINE_RGBA,
       style: {
         fontFamily: SANS,
         fontSize: "13px",

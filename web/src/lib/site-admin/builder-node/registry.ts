@@ -973,6 +973,12 @@ const navPropsSchema = z.object({
     .enum(["dropdown", "drawer-right", "sheet-bottom", "full-screen-fade"])
     .optional(),
   menuLabel: z.string().max(80).optional(),
+  // Mobile-menu palette. The panel's colours were always overridable by CSS
+  // custom property; these are the authoring path for them, so a dark site
+  // stops getting a white drawer.
+  menuBackground: z.string().max(60).optional(),
+  menuTextColor: z.string().max(60).optional(),
+  menuBorderColor: z.string().max(60).optional(),
   ariaLabel: z.string().max(80).optional(),
   // A4 follow-up — optional bind to a collection nav source (`cms_page` /
   // `cms_posts`). When it resolves, the SHELL/server caller passes those
