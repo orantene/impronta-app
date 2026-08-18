@@ -535,9 +535,16 @@ const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav[data-bn-mobile-menu="full-screen-fade"] .site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger{position:relative;z-index:3}
 .site-builder-node--nav[data-bn-mobile-menu="drawer-right"] .site-builder-node--nav-disclosure[open]>summary::before,
 .site-builder-node--nav[data-bn-mobile-menu="sheet-bottom"] .site-builder-node--nav-disclosure[open]>summary::before{content:"";position:fixed;top:0;left:0;width:100vw;height:100dvh;z-index:1;background:var(--bn-nav-scrim,rgba(8,8,8,0.55));animation:bn-nav-menu-in 200ms ease both}
+/* A site's floating chat launcher is body-level at z-index 95, while the header
+   that contains this menu is its own stacking context (sticky + z-index) -- so
+   no z-index on the drawer can ever lift it over that pill. Hiding the pill
+   while the menu is open is the only correct fix, and it is what a native app
+   would do anyway. */
+body:has(.site-builder-node--nav-disclosure[open]) [data-guest-chat-launcher]{opacity:0;pointer-events:none;transition:opacity 160ms ease}
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-disclosure[open]>.site-builder-node--nav-menu{animation:none}
   .site-builder-node--nav-disclosure[open]>summary::before{animation:none}
+  body:has(.site-builder-node--nav-disclosure[open]) [data-guest-chat-launcher]{transition:none}
 }`;
 
 // A4 — social/contact icon row. The list lays out as an inline-flex row of

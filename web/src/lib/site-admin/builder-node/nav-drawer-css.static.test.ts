@@ -40,3 +40,13 @@ test("the scrim sits BELOW the panel, so nav links stay tappable", () => {
     "a page-level z-index on the summary puts the scrim over the panel AND cannot escape the header's stacking context anyway",
   );
 });
+
+test("an open drawer hides the floating chat launcher", () => {
+  // The launcher is body-level at z-index 95; a sticky header with a z-index is
+  // its own stacking context, so NO value on the drawer can lift it over the
+  // pill. Hiding is the only correct fix — an earlier PR claimed otherwise.
+  assert.match(
+    SOURCE,
+    /body:has\(\.site-builder-node--nav-disclosure\[open\]\) \[data-guest-chat-launcher\]\{opacity:0;pointer-events:none/,
+  );
+});
