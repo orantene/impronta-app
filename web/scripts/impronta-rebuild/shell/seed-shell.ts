@@ -317,6 +317,8 @@ export async function runShellSeed(opts: {
   tenantId: string;
   apply: boolean;
   onlyLocales?: string[];
+  /** Escape hatch for a deliberate pre-launch link. Never the default. */
+  allowDeadLinks?: boolean;
 }): Promise<{ outcomes: LocaleOutcome[]; abortReason?: string }> {
   const pages = await loadShellPages(opts.supabase, opts.tenantId);
   if (pages.length === 0) {
@@ -367,6 +369,28 @@ export async function runShellSeed(opts: {
     }
 
     const { header, footer } = treesForLocale(page.locale);
+
+    // Preflight: refuse to publish a shell whose own links 404. The shell is on
+    // every page, so a dead link here is dead site-wide, and it is invisible to
+    // every other check — the tree validates, the publish succeeds.
+    const deadLinks = await findDeadShellLinks(
+      opts.supabase,
+      opts.tenantId,
+      page.locale,
+      collectInternalHrefs([...header, ...footer]),
+    );
+    if (deadLinks.length > 0 && !opts.allowDeadLinks) {
+      outcomes.push({
+        locale: page.locale,
+        pageId: page.id,
+        action: "skip",
+        headerNodes: countNodes(header),
+        footerNodes: countNodes(footer),
+        createdAnchors,
+        note: `DEAD LINKS (${deadLinks.length}): ${deadLinks.join(" ")} — no page in "${page.locale}". Fix the tree or pass --allow-dead-links.`,
+      });
+      continue;
+    }
 
     if (!anchors.header || !anchors.footer) {
       outcomes.push({
@@ -456,6 +480,71 @@ export async function runShellSeed(opts: {
   return { outcomes };
 }
 
+
+// ---------------------------------------------------------------------------
+// Dead-link preflight
+// ---------------------------------------------------------------------------
+
+/**
+ * Every internal href a shell tree points at, for one locale.
+ *
+ * The shell is the ONE surface that appears on every page, so a link that goes
+ * nowhere there is broken site-wide. This shipped: the Spanish header and
+ * footer carried the four division links, and those pages exist only in
+ * English, so `/es/p/fashion-models` was a 404 in the primary navigation of
+ * every Spanish page. Nothing errored — the tree was valid, the shell
+ * published, and the 404 only appeared to someone who clicked.
+ */
+function collectInternalHrefs(nodes: readonly BuilderNode[]): string[] {
+  const out: string[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (!node || typeof node !== "object") return;
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      if (key === "href" && typeof value === "string" && value.startsWith("/")) {
+        out.push(value);
+      } else {
+        walk(value);
+      }
+    }
+  };
+  walk(nodes);
+  return [...new Set(out)];
+}
+
+/** Hrefs served by a route rather than a `cms_pages` row. */
+const SYSTEM_PATHS = new Set(["", "directory", "register", "login"]);
+
+/**
+ * Resolve each href against the pages that actually exist in that locale.
+ * Returns the ones that would 404.
+ */
+async function findDeadShellLinks(
+  supabase: SupabaseClient,
+  tenantId: string,
+  locale: string,
+  hrefs: readonly string[],
+): Promise<string[]> {
+  const { data } = await supabase
+    .from("cms_pages")
+    .select("slug")
+    .eq("tenant_id", tenantId)
+    .eq("locale", locale)
+    .eq("status", "published");
+  const slugs = new Set((data ?? []).map((r) => (r as { slug: string }).slug));
+
+  const dead: string[] = [];
+  for (const href of hrefs) {
+    // Strip the locale prefix the tree carries for non-default locales.
+    const path = href.replace(new RegExp(`^/${locale}(?=/|$)`), "") || "/";
+    const trimmed = path.replace(/^\//, "").replace(/\/$/, "");
+    if (SYSTEM_PATHS.has(trimmed)) continue;
+    const slug = trimmed.startsWith("p/") ? trimmed.slice(2) : trimmed;
+    if (!slugs.has(slug)) dead.push(href);
+  }
+  return dead;
+}
+
 // ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
@@ -468,6 +557,7 @@ async function main() {
 
   const argv = process.argv.slice(2);
   const apply = argv.includes("--apply");
+  const allowDeadLinks = argv.includes("--allow-dead-links");
   const onlyArg = argv.find((a) => a.startsWith("--only="));
   const onlyLocales = onlyArg
     ? onlyArg.slice("--only=".length).split(",").map((s) => s.trim()).filter(Boolean)
@@ -482,6 +572,7 @@ async function main() {
     tenantId,
     apply,
     onlyLocales,
+    allowDeadLinks,
   });
 
   console.log("LOCALE  ACTION  HEADER  FOOTER  ANCHORS CREATED  NOTE");

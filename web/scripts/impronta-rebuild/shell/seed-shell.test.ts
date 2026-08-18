@@ -292,3 +292,50 @@ test("every internal link in the Spanish shell stays in Spanish", () => {
     "English links must not carry a locale prefix",
   );
 });
+
+test("the Spanish shell never links to an English-only page", () => {
+  // Shipped live: the four division landings exist in English only, but the
+  // Spanish header and footer listed them, so every Spanish page carried four
+  // 404s in its primary navigation. Nothing errored — the tree validated, the
+  // publish succeeded, and only a click revealed it.
+  const ENGLISH_ONLY = [
+    "fashion-models",
+    "hosts-promoters",
+    "performers",
+    "music-djs",
+  ];
+  const collect = (nodes: unknown): string[] => {
+    const out: string[] = [];
+    const walk = (n: unknown): void => {
+      if (Array.isArray(n)) return n.forEach(walk);
+      if (!n || typeof n !== "object") return;
+      for (const [k, v] of Object.entries(n as Record<string, unknown>)) {
+        if (k === "href" && typeof v === "string") out.push(v);
+        else walk(v);
+      }
+    };
+    walk(nodes);
+    return out;
+  };
+
+  const { header, footer } = treesForLocale("es");
+  const hrefs = [...collect(header), ...collect(footer)];
+  for (const slug of ENGLISH_ONLY) {
+    const offenders = hrefs.filter((h) => h.includes(`/p/${slug}`));
+    assert.deepEqual(
+      offenders,
+      [],
+      `the Spanish shell links to /p/${slug}, which has no Spanish page`,
+    );
+  }
+
+  // English keeps them — this is a locale gate, not a deletion.
+  const en = treesForLocale("en");
+  const enHrefs = [...collect(en.header), ...collect(en.footer)];
+  for (const slug of ENGLISH_ONLY) {
+    assert.ok(
+      enHrefs.some((h) => h.includes(`/p/${slug}`)),
+      `the English shell lost its /p/${slug} link`,
+    );
+  }
+});
