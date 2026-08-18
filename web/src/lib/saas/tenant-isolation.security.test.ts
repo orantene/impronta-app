@@ -169,7 +169,13 @@ test("INVARIANT src/lib/saas/**: the seed tenant UUID literal appears ONLY in te
     if (!name.endsWith(".ts")) continue;
     if (name.endsWith(".test.ts")) continue; // tests legitimately mention it
     if (name === "tenant.ts") continue; // canonical definition site
-    const body = readFileSync(join(SAAS_DIR, name), "utf8");
+    // Strip comments first. The invariant is about a RUNTIME FALLBACK, and
+    // scope.ts legitimately cites the seed id in prose to explain why zod's
+    // `.uuid()` (which enforces RFC 9562 version bits the seeded placeholders
+    // do not satisfy) had to be replaced with a shape-only regex.
+    const body = readFileSync(join(SAAS_DIR, name), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
     if (body.includes(SEED)) offenders.push(name);
   }
   assert.deepEqual(
