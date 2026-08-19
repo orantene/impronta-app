@@ -59,6 +59,7 @@ const CODE_VALUE_SAMPLES: ReadonlySet<string> = new Set([
   // what a good answer looks like, and a Spanish operator types their own.
   "Book talent",
   "New",
+  "See the full board",
   // A CSS token, shown as a placeholder so the operator knows a theme token is
   // accepted where a colour is expected. Translating it would break the value.
   "var(--token-color-accent)",
