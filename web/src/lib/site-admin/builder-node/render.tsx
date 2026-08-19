@@ -2279,6 +2279,27 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   if (style.minWidth) out.minWidth = clampFreeWidthForMobile(style.minWidth);
   if (style.maxWidthFree) out.maxWidth = style.maxWidthFree;
   if (style.maxHeight) out.maxHeight = style.maxHeight;
+  // Ratio + fit for EVERY kind, not just media.
+  //
+  // These four were honored at base only inside the image/video/embed cases,
+  // while the tablet/mobile lanes applied them kind-agnostically with
+  // !important. So `responsive.mobile.aspectRatioFree` shaped a container and
+  // the same key at base did nothing — an inversion that shipped 0-height
+  // cards on two live pages (a container whose children are absolutely
+  // positioned has no other height source).
+  //
+  // Emitting here keeps the shipped cascade contract intact: media kinds pass
+  // their defaults through inlineNodeStyle's BASE argument, these authored
+  // values override them, and the responsive !important rules still win over
+  // both. objectFit/objectPosition are inert on non-replaced elements, so
+  // applying them everywhere costs nothing. Inline, not a new sheet rule —
+  // zero bytes against the renderer-CSS budget.
+  if (style.objectFit) out.objectFit = style.objectFit;
+  if (style.objectPosition) out.objectPosition = style.objectPosition;
+  const aspectRatio =
+    style.aspectRatioFree ??
+    (style.aspectRatio ? NODE_ASPECT_RATIO[style.aspectRatio] : undefined);
+  if (aspectRatio) out.aspectRatio = aspectRatio;
   // Free per-side padding — applied after the paddingX/paddingY token so an
   // exact side overrides the preset. Each may bind to a `token:space.*` var; a
   // raw length is emitted unchanged.

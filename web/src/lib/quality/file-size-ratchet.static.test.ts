@@ -127,7 +127,13 @@ const BUDGETS: Record<string, number> = {
   // for the new `header_language` widget. That map is required to be total by
   // its own guard, so the line cannot be avoided; extracting a 1-line map entry
   // would not reduce anything meaningful.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5561,
+  // +12 (5561 -> 5573): the Ratio + Custom ratio controls move OUT of the
+  // image-only block so every kind can shape a node (the renderer honors
+  // ratio kind-agnostically now — it used to drop it on containers, which
+  // shipped 0-height cards on two live pages). The move costs a widened
+  // media gate for fit/focal-point, an explicit image check on Crop, and two
+  // comments recording why the controls are no longer media-gated.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5573,
   // +7 (builder move affordances): the Structure panel joins the `panels`
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the

@@ -185,10 +185,8 @@ const divisions = band(
             style: {
               gap: "10px",
               justifyContent: "flex-end",
-              // Same trap as photoTile: aspectRatioFree is dropped on
-              // containers. customCss keeps this tile the same height as the
-              // photo tiles beside it.
-              customCss: "{ aspect-ratio: 0.78; }\n@media (max-width: 640px) { { aspect-ratio: auto; } }",
+              // Typed prop; the renderer honors ratio on containers now.
+              aspectRatioFree: "0.78",
               backgroundColor: CARD,
               borderColor: CARD_BORDER,
               borderWidth: "1px",

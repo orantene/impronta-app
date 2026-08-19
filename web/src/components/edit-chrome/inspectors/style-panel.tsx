@@ -5032,7 +5032,11 @@ export function StylePanel({
             />
             {/* ── end D4 group stack ── */}
 
-            {selectedStandaloneStyleNode.kind === "image" ? (
+            {/* Fit + focal point need a REPLACED element (img/video) to act
+                on, so they stay media-gated. The ratio controls used to live
+                in here too — they now apply to every kind and sit below. */}
+            {selectedStandaloneStyleNode.kind === "image" ||
+            selectedStandaloneStyleNode.kind === "video" ? (
               <>
                 <SegmentedField
                   dataControl="objectFit"
@@ -5064,38 +5068,9 @@ export function StylePanel({
                     }
                   />
                 </div>
-                <SegmentedField
-                  dataControl="aspectRatio"
-                  label="Ratio"
-                  value={selectedStandaloneViewportStyle?.aspectRatio ?? ""}
-                  onChange={(next) => setOrToggleStandaloneStyle("aspectRatio", next)}
-                  options={BUILDER_NODE_RATIO_OPTIONS}
-                />
-                <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatioFree">
-                  <span className={FIELD_LABEL}>Custom ratio</span>
-                  <input
-                    type="text"
-                    className="px-2"
-                    style={{
-                      height: 30,
-                      fontSize: 12,
-                      background: CHROME.surface2,
-                      border: `1px solid ${CHROME.controlBorder}`,
-                      borderRadius: 7,
-                      color: CHROME.ink,
-                      outline: "none",
-                    }}
-                    placeholder="1.85 · 16 / 9 · 2 / 3"
-                    value={selectedStandaloneViewportStyle?.aspectRatioFree ?? ""}
-                    onChange={(e) =>
-                      patchSelectedStandaloneStyle({
-                        aspectRatioFree: e.target.value.trim() || undefined,
-                      })
-                    }
-                  />
-                </div>
                 {/* W5-T5 — Crop entry point from the style panel. */}
-                {selectedStandaloneStyleNode.props.src ? (
+                {selectedStandaloneStyleNode.kind === "image" &&
+                selectedStandaloneStyleNode.props.src ? (
                   <div
                     className="flex flex-col gap-1.5 border-t pt-3"
                     data-builder-node-style-control="crop"
@@ -5130,6 +5105,43 @@ export function StylePanel({
                 ) : null}
               </>
             ) : null}
+
+            {/* Ratio applies to EVERY kind. It was media-gated here while
+                the renderer's tablet/mobile lanes already honored it on any
+                node — so a container could be shaped on mobile but not on
+                desktop. The renderer now emits it at base for all kinds and
+                the control follows. A ratio is how a card keeps its shape
+                when its children are absolutely positioned. */}
+            <SegmentedField
+              dataControl="aspectRatio"
+              label="Ratio"
+              value={selectedStandaloneViewportStyle?.aspectRatio ?? ""}
+              onChange={(next) => setOrToggleStandaloneStyle("aspectRatio", next)}
+              options={BUILDER_NODE_RATIO_OPTIONS}
+            />
+            <div className="flex flex-col gap-1.5" data-builder-node-style-control="aspectRatioFree">
+              <span className={FIELD_LABEL}>Custom ratio</span>
+              <input
+                type="text"
+                className="px-2"
+                style={{
+                  height: 30,
+                  fontSize: 12,
+                  background: CHROME.surface2,
+                  border: `1px solid ${CHROME.controlBorder}`,
+                  borderRadius: 7,
+                  color: CHROME.ink,
+                  outline: "none",
+                }}
+                placeholder="1.85 · 16 / 9 · 2 / 3"
+                value={selectedStandaloneViewportStyle?.aspectRatioFree ?? ""}
+                onChange={(e) =>
+                  patchSelectedStandaloneStyle({
+                    aspectRatioFree: e.target.value.trim() || undefined,
+                  })
+                }
+              />
+            </div>
 
             {selectedStandaloneStyleNode.kind === "button" ? (
               <div className="flex flex-col gap-2" data-builder-node-style-control="buttonStates">
