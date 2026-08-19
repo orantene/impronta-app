@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  bucketVisitsByDay,
+  countVisitsBetween,
   groupTopPages,
   groupTopReferrers,
   normalizeReferrer,
@@ -90,4 +92,45 @@ test("normalizeReferrer: host extraction + direct fallback", () => {
   assert.equal(normalizeReferrer(""), "direct");
   assert.equal(normalizeReferrer(null), "direct");
   assert.equal(normalizeReferrer(undefined), "direct");
+});
+
+// ── W2 — prior-window counting + per-day bucketing ───────────────────────────
+
+test("countVisitsBetween: [from, to) — includes the from bound, excludes the to bound", () => {
+  const rows: SitePageViewRow[] = [
+    row(null, null, "2026-06-01T00:00:00.000Z"), // exactly `from` → counted
+    row(null, null, "2026-06-04T12:00:00.000Z"), // inside → counted
+    row(null, null, "2026-06-08T00:00:00.000Z"), // exactly `to` → excluded
+    row(null, null, "2026-05-31T23:59:59.000Z"), // before → excluded
+  ];
+  assert.equal(
+    countVisitsBetween(rows, "2026-06-01T00:00:00.000Z", "2026-06-08T00:00:00.000Z"),
+    2,
+  );
+});
+
+test("bucketVisitsByDay: zero-fills every day in the window, oldest first", () => {
+  const rows: SitePageViewRow[] = [
+    row(null, null, "2026-06-15T08:00:00.000Z"),
+    row(null, null, "2026-06-15T21:00:00.000Z"),
+    row(null, null, "2026-06-17T03:00:00.000Z"),
+  ];
+  const days = bucketVisitsByDay(rows, { days: 4, endIso: "2026-06-17T10:30:00.000Z" });
+  assert.deepEqual(days, [
+    { date: "2026-06-14", visits: 0 },
+    { date: "2026-06-15", visits: 2 },
+    { date: "2026-06-16", visits: 0 },
+    { date: "2026-06-17", visits: 1 },
+  ]);
+});
+
+test("bucketVisitsByDay: rows outside the window are ignored; empty inputs are safe", () => {
+  const rows: SitePageViewRow[] = [row(null, null, "2026-01-01T00:00:00.000Z")];
+  const days = bucketVisitsByDay(rows, { days: 2, endIso: "2026-06-17T00:00:00.000Z" });
+  assert.deepEqual(days, [
+    { date: "2026-06-16", visits: 0 },
+    { date: "2026-06-17", visits: 0 },
+  ]);
+  assert.deepEqual(bucketVisitsByDay([], { days: 0, endIso: "2026-06-17T00:00:00.000Z" }), []);
+  assert.deepEqual(bucketVisitsByDay([], { days: 3, endIso: "not-a-date" }), []);
 });

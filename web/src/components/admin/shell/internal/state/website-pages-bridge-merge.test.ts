@@ -67,10 +67,13 @@ function bridgeData(overrides: Partial<WebsiteData>): WebsiteData {
       refreshedAt: "2026-08-01T00:00:00.000Z",
       last7d: { visits: 0, topPages: [], topReferrers: [] },
       last30d: { visits: 0, topPages: [], topReferrers: [] },
+      prior7dVisits: 0,
+      visitsByDay30: [],
     },
     conversion: {
       last7d: { inquiries: 0, bookings: 0, revenue: 0 },
       last30d: { inquiries: 0, bookings: 0, revenue: 0 },
+      prior7d: { inquiries: 0, bookings: 0, revenue: 0 },
     },
     homeSlug: null,
     directorySlug: null,
@@ -155,6 +158,81 @@ test("an assigned home role overrides the built-in system_template_key conventio
   assert.equal(state.pages.find((p) => p.id === "p2")!.isHomepage, true);
 });
 
+// ── W2 — honest analytics projection ─────────────────────────────────────────
+
+test("last7d gets a REAL prior (visits from the loader, money from conversion.prior7d); last30d prior is null", () => {
+  const data = bridgeData({
+    analytics: {
+      refreshedAt: "2026-08-01T00:00:00.000Z",
+      last7d: { visits: 100, topPages: [], topReferrers: [] },
+      last30d: { visits: 400, topPages: [], topReferrers: [] },
+      prior7dVisits: 80,
+      visitsByDay30: [],
+    },
+    conversion: {
+      last7d: { inquiries: 5, bookings: 2, revenue: 1200 },
+      last30d: { inquiries: 20, bookings: 9, revenue: 5400 },
+      prior7d: { inquiries: 4, bookings: 1, revenue: 700 },
+    },
+  });
+  const analytics = mergeWebsiteStateFromBridge(data, "acme").analytics;
+  assert.deepEqual(analytics.last7d.prior, {
+    visits: 80,
+    inquiries: 4,
+    bookings: 1,
+    revenue: 700,
+  });
+  // No 30d baseline exists (that needs a 60d scan) — null, NEVER a fake zero.
+  assert.equal(analytics.last30d.prior, null);
+  assert.equal(analytics.last7d.visits, 100);
+  assert.equal(analytics.last30d.revenue, 5400);
+});
+
+test("byPage rows carry pageSlug + surfaces and NO fabricated per-page conversions", () => {
+  const data = bridgeData({
+    pages: [page({ id: "p1", slug: "roster" })],
+    analytics: {
+      refreshedAt: "2026-08-01T00:00:00.000Z",
+      last7d: {
+        visits: 42,
+        topPages: [
+          { pageSlug: "/roster", pageId: null, surfaces: ["storefront", "talent_site"], visits: 42 },
+        ],
+        topReferrers: [],
+      },
+      last30d: { visits: 42, topPages: [], topReferrers: [] },
+      prior7dVisits: 0,
+      visitsByDay30: [],
+    },
+  });
+  const analytics = mergeWebsiteStateFromBridge(data, "acme").analytics;
+  const row = analytics.byPage7d[0]!;
+  // pageId resolves through the slug → cms_pages map when the loader had none.
+  assert.equal(row.pageId, "p1");
+  assert.equal(row.pageSlug, "/roster");
+  assert.deepEqual(row.surfaces, ["storefront", "talent_site"]);
+  assert.equal(row.visits, 42);
+  assert.ok(!("inquiries" in row), "per-page inquiries no longer exist in the shape");
+  assert.ok(!("bookings" in row), "per-page bookings no longer exist in the shape");
+});
+
+test("visitsByDay passes straight through from the loader's 30d day buckets", () => {
+  const days = [
+    { date: "2026-07-31", visits: 3 },
+    { date: "2026-08-01", visits: 0 },
+  ];
+  const data = bridgeData({
+    analytics: {
+      refreshedAt: "2026-08-01T00:00:00.000Z",
+      last7d: { visits: 3, topPages: [], topReferrers: [] },
+      last30d: { visits: 3, topPages: [], topReferrers: [] },
+      prior7dVisits: 0,
+      visitsByDay30: days,
+    },
+  });
+  assert.deepEqual(mergeWebsiteStateFromBridge(data, "acme").analytics.visitsByDay, days);
+});
+
 test("hits7d/hits30d are null-honest: a slug absent from topPages stays undefined, not 0", () => {
   const data = bridgeData({
     pages: [
@@ -173,6 +251,8 @@ test("hits7d/hits30d are null-honest: a slug absent from topPages stays undefine
         topPages: [{ pageSlug: "/roster", pageId: "p1", surfaces: [], visits: 180 }],
         topReferrers: [],
       },
+      prior7dVisits: 0,
+      visitsByDay30: [],
     },
   });
   const state = mergeWebsiteStateFromBridge(data, "acme");

@@ -254,7 +254,10 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-18 Website Design hub + Setup (P2-B): +1 for the Spanish entry of
   // the new "Setup" sub-nav label. Same constraint as the P1-A note above —
   // ES_TEXT is keyed by the English literal, so it cannot live beside the item.
-  "src/components/admin/shell/internal/dashboard-i18n.ts": 3535,
+  // 2026-08-18 Website Analytics page (W2): +1 for the Spanish entry of the
+  // new "Analytics" sub-nav label — ES_TEXT is keyed by the English literal,
+  // so it cannot live beside the nav item.
+  "src/components/admin/shell/internal/dashboard-i18n.ts": 3536,
   "src/components/admin/shell/internal/help.tsx": 2968,
   // 2026-08-10 branding-media: +32 for the Brand & site lane (sidebar row,
   // brand filter, workspace-asset guards on crop/reassign/lightbox).
@@ -316,9 +319,15 @@ const BUDGETS: Record<string, number> = {
   // 2026-08-18 Website pages quick actions (P3-A): +11 for
   // `WebsitePageRow.systemTemplateKey` and the note recording why a template
   // key stands in for the unprojected `is_system_owned` column.
-  // +13: W3 — WebsitePost re-modelled on real cms_posts columns
-  // (locale/hasExcerpt/lastEditedBy doc comments replace author/tags/hits7d).
-  "src/components/admin/shell/internal/state/types.ts": 2828,
+  // 2026-08-18 Website Analytics honesty pass (W2): +18 for documenting the
+  // null-honest `prior` on WebsitePeriodMetrics, the slug/surfaces fields on
+  // WebsitePageMetrics, and the WebsiteDailyVisits trend type. The always-zero
+  // per-page conversion fields and the never-populated WebsiteTalentMetrics
+  // were DELETED; the growth is comments explaining why.
+  // Rebase reconciliation (W2 onto W3, 2026-08-18): the Posts row-model fields
+  // (#1258) and the Analytics fields above landed in this file from separate
+  // branches, so the true count is the sum rather than either branch's number.
+  "src/components/admin/shell/internal/state/types.ts": 2846,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge

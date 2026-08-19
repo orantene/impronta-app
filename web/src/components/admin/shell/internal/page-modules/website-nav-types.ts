@@ -11,6 +11,7 @@ export interface WebsiteSubnavItem {
     | "overview"
     | "pages"
     | "posts"
+    | "analytics"
     | "design"
     | "card-design"
     | "profile-pages"

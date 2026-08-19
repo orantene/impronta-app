@@ -4892,36 +4892,28 @@ export const WEBSITE_STATE: WebsiteState = {
       revenue: 61200,
       prior: { visits: 14920, inquiries: 71, bookings: 21, revenue: 46300 },
     },
+    // W2 — per-page rows carry ONLY what the data can support: real visits,
+    // the grouping slug, and contributing surfaces. The always-zero per-page
+    // inquiries/bookings columns and the never-populated byTalent arrays that
+    // used to live here are gone (see WebsitePageMetrics in types.ts).
     byPage7d: [
-      { pageId: "p2", visits: 1216, inquiries: 11, bookings: 4 },
-      { pageId: "p1", visits: 1842, inquiries:  6, bookings: 1 },
-      { pageId: "p3", visits:  412, inquiries:  4, bookings: 1 },
-      { pageId: "p4", visits:  287, inquiries:  2, bookings: 0 },
-      { pageId: "p5", visits:    0, inquiries:  0, bookings: 0 },
-      { pageId: "p6", visits:    0, inquiries:  0, bookings: 0 },
+      { pageId: "p2", pageSlug: "/roster",  surfaces: ["storefront"], visits: 1216 },
+      { pageId: "p1", pageSlug: "/",        surfaces: ["storefront"], visits: 1842 },
+      { pageId: "p3", pageSlug: "/about",   surfaces: ["storefront"], visits:  412 },
+      { pageId: "p4", pageSlug: "/contact", surfaces: ["storefront"], visits:  287 },
     ],
     byPage30d: [
-      { pageId: "p2", visits: 4180, inquiries: 41, bookings: 17 },
-      { pageId: "p1", visits: 6320, inquiries: 22, bookings:  6 },
-      { pageId: "p3", visits: 1410, inquiries: 14, bookings:  3 },
-      { pageId: "p4", visits:  980, inquiries:  9, bookings:  2 },
-      { pageId: "p5", visits:    0, inquiries:  0, bookings:  0 },
-      { pageId: "p6", visits:    0, inquiries:  0, bookings:  0 },
+      { pageId: "p2", pageSlug: "/roster",  surfaces: ["storefront"], visits: 4180 },
+      { pageId: "p1", pageSlug: "/",        surfaces: ["storefront"], visits: 6320 },
+      { pageId: "p3", pageSlug: "/about",   surfaces: ["storefront"], visits: 1410 },
+      { pageId: "p4", pageSlug: "/contact", surfaces: ["storefront"], visits:  980 },
     ],
-    byTalent7d: [
-      { talentId: "t1", talentName: "Marta Reyes",   visits: 624, inquiries: 7, bookings: 3, revenue: 18400, topPageId: "p2" },
-      { talentId: "t3", talentName: "Tomás Navarro", visits: 412, inquiries: 5, bookings: 2, revenue: 12800, topPageId: "p2" },
-      { talentId: "t4", talentName: "Lina Park",     visits: 318, inquiries: 3, bookings: 1, revenue:  6200, topPageId: "p2" },
-      { talentId: "t5", talentName: "Amelia Dorsey", visits: 184, inquiries: 2, bookings: 1, revenue:  4400, topPageId: "p2" },
-      { talentId: "t2", talentName: "Kai Lin",       visits: 156, inquiries: 2, bookings: 0, revenue:     0, topPageId: "p3" },
-    ],
-    byTalent30d: [
-      { talentId: "t1", talentName: "Marta Reyes",   visits: 2180, inquiries: 26, bookings: 11, revenue: 64800, topPageId: "p2" },
-      { talentId: "t3", talentName: "Tomás Navarro", visits: 1490, inquiries: 18, bookings:  7, revenue: 41200, topPageId: "p2" },
-      { talentId: "t4", talentName: "Lina Park",     visits: 1124, inquiries: 11, bookings:  4, revenue: 22000, topPageId: "p2" },
-      { talentId: "t5", talentName: "Amelia Dorsey", visits:  672, inquiries:  8, bookings:  3, revenue: 13200, topPageId: "p2" },
-      { talentId: "t2", talentName: "Kai Lin",       visits:  548, inquiries:  6, bookings:  2, revenue:  8400, topPageId: "p3" },
-    ],
+    // Deterministic 30-day trend fixture: a gentle weekly rhythm around the
+    // ~638 visits/day the last30d.visits total implies.
+    visitsByDay: Array.from({ length: 30 }, (_, i) => ({
+      date: new Date(Date.now() - (29 - i) * 86_400_000).toISOString().slice(0, 10),
+      visits: 520 + ((i * 97) % 240),
+    })),
     topReferrers7d: [
       { referrer: "direct",        visits: 2840 },
       { referrer: "google.com",    visits: 1180 },
@@ -5135,38 +5127,46 @@ export function mergeWebsiteStateFromBridge(
     pages.map((p) => [slugOf(p.slug), p.id]),
   );
   const toByPage = (
-    topPages: { pageSlug: string; pageId: string | null; visits: number }[],
+    topPages: { pageSlug: string; pageId: string | null; surfaces: string[]; visits: number }[],
   ): WebsitePageMetrics[] =>
     topPages.map((tp) => ({
       pageId: tp.pageId ?? pageIdBySlug.get(slugOf(tp.pageSlug)) ?? tp.pageSlug,
+      pageSlug: slugOf(tp.pageSlug),
+      surfaces: tp.surfaces,
       visits: tp.visits,
-      inquiries: 0,
-      bookings: 0,
     }));
 
+  // W2 — real prior-period baselines, or an honest null. The 7d prior (days
+  // 8-14) is derived from the SAME 30d fetch by the loaders; the 30d period
+  // has no baseline (that needs a 60d scan) so its prior is null and the UI
+  // renders no delta — the old shape's hardcoded prior of 0 made every delta
+  // permanently read "flat vs 0".
   const metrics = (
     visits: number,
     conv: { inquiries: number; bookings: number; revenue: number },
+    prior: WebsitePeriodMetrics["prior"],
   ): WebsitePeriodMetrics => ({
     visits,
     inquiries: conv.inquiries,
     bookings: conv.bookings,
     revenue: conv.revenue,
-    // No historical baseline is loaded yet, so prior stays 0 → deltas read
-    // "flat" rather than inventing a comparison the data can't support.
-    prior: { visits: 0, inquiries: 0, bookings: 0, revenue: 0 },
+    prior,
   });
 
   const analyticsLive: WebsiteAnalytics = {
     refreshedAt:    live.analytics.refreshedAt,
-    last7d:         metrics(live7d.visits, conv7d),
-    last30d:        metrics(live30d.visits, conv30d),
+    last7d:         metrics(live7d.visits, conv7d, {
+      visits: live.analytics.prior7dVisits,
+      inquiries: live.conversion.prior7d.inquiries,
+      bookings: live.conversion.prior7d.bookings,
+      revenue: live.conversion.prior7d.revenue,
+    }),
+    last30d:        metrics(live30d.visits, conv30d, null),
     byPage7d:       toByPage(live7d.topPages),
     byPage30d:      toByPage(live30d.topPages),
-    byTalent7d:     [],
-    byTalent30d:    [],
     topReferrers7d:  live7d.topReferrers,
     topReferrers30d: live30d.topReferrers,
+    visitsByDay:     live.analytics.visitsByDay30,
   };
 
   return {

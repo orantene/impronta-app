@@ -18,6 +18,7 @@ const NOW = Date.now();
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const START_30 = new Date(NOW - 30 * DAY_MS).toISOString();
+const START_14 = new Date(NOW - 14 * DAY_MS).toISOString();
 const START_7 = new Date(NOW - 7 * DAY_MS).toISOString();
 
 // in window 30d but OUTSIDE 7d
@@ -81,6 +82,40 @@ test("groupConversionMetrics: empty inputs → all-zero buckets", () => {
     revenue30: [],
   });
   assert.deepEqual(out, emptyWebsiteConversionMetrics());
+});
+
+test("groupConversionMetrics: prior7d slices days 8-14 out of the same 30d rows", () => {
+  // in the PRIOR window (between day 14 and day 7 back)
+  const PRIOR = new Date(NOW - 10 * DAY_MS).toISOString();
+  const out = groupConversionMetrics({
+    start7Iso: START_7,
+    start14Iso: START_14,
+    start30Iso: START_30,
+    inquiries30: [{ created_at: RECENT }, { created_at: PRIOR }, { created_at: OLD }],
+    bookings30: [{ created_at: PRIOR }, { created_at: PRIOR }],
+    revenue30: [
+      { paid_at: PRIOR, gross_amount_cents: 25_000 },
+      { paid_at: RECENT, gross_amount_cents: 10_000 },
+      { paid_at: OLD, gross_amount_cents: 99_000 },
+    ],
+  });
+  assert.equal(out.prior7d.inquiries, 1, "only the PRIOR-window inquiry");
+  assert.equal(out.prior7d.bookings, 2);
+  assert.equal(out.prior7d.revenue, 250, "only the PRIOR-window settlement, in major units");
+  // Current buckets are unaffected by the prior computation.
+  assert.equal(out.last7d.inquiries, 1);
+  assert.equal(out.last30d.inquiries, 3);
+});
+
+test("groupConversionMetrics: without start14Iso, prior7d is all zeros (never invented)", () => {
+  const out = groupConversionMetrics({
+    start7Iso: START_7,
+    start30Iso: START_30,
+    inquiries30: [{ created_at: OLD }],
+    bookings30: [],
+    revenue30: [],
+  });
+  assert.deepEqual(out.prior7d, { inquiries: 0, bookings: 0, revenue: 0 });
 });
 
 // ── loadWebsiteConversionMetrics — end-to-end with an injected fake client ───
