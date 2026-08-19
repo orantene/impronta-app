@@ -3,7 +3,7 @@
  *
  * Plain-language template draft, clearly marked for owner and counsel review
  * (Mexico's LFPDPPP applies to a Mexican agency handling personal data).
- * Flow: compact hero → template notice → numbered clauses → closing links.
+ * Flow: compact hero → numbered clauses → closing links.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import {
@@ -11,7 +11,6 @@ import {
   closingCta,
   copy,
   legalClause,
-  legalTemplateNotice,
   pageHero,
   type ImprontaRebuildPage,
 } from "../shared";
@@ -43,10 +42,6 @@ const body = band(
         },
       },
       children: [
-        legalTemplateNotice(
-          "rb-privacy-notice",
-          "Template draft. This policy is a plain-language starting point prepared for Impronta and has not yet been reviewed by legal counsel. Mexican data-protection law (LFPDPPP) sets specific requirements for a formal aviso de privacidad; the agency should have counsel confirm and complete this text before relying on it.",
-        ),
         copy(
           "rb-privacy-updated",
           "Last updated: August 2026",

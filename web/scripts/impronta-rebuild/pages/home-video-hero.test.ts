@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { resolveBackgroundMedia } from "@/lib/site-admin/builder-node/background-media";
 import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
 
+import { collectVideoUrls, youtubeIdFromUrl } from "../video-embed-preflight";
 import { pageHero } from "../shared";
 import { homePage } from "./home";
 
@@ -58,13 +59,19 @@ test("the scrim is heavier over video than over a still", () => {
   assert.ok((media.overlay ?? 0) >= 50, `overlay ${media.overlay} is too light for video`);
 });
 
-test("the live homepage does NOT ship the known un-embeddable video", () => {
-  // The owner's own reel has embedding disabled in YouTube; re-adding it puts
-  // "This video is unavailable" across the hero. The PLACEHOLDER that ships
-  // instead is owner-sanctioned and verified against YouTube by the seed
-  // preflight — the only place that fact is checkable.
+test("the hero video is one the seeder can verify with YouTube", () => {
+  // This used to pin ONE video id out of the tree, because that reel had
+  // embedding disabled and shipping it put "This video is unavailable" across
+  // the hero. Pinning an id was always the weaker guard: the id was never the
+  // problem, the SETTING was, and the setting changed (the reel is embeddable
+  // now, so it ships). What has to stay true is that the value is a real
+  // YouTube watch URL the seed preflight can check against YouTube's oembed
+  // endpoint before writing — that check is the only place embeddability is
+  // knowable, and it runs on every seed.
+  const urls = collectVideoUrls(homePage.tree as never);
+  assert.equal(urls.length, 1, "the hero should carry exactly one video");
   assert.ok(
-    !JSON.stringify(homePage.tree).includes("c9ARKE2WNxA"),
-    "the homepage carries a video whose embedding is disabled",
+    youtubeIdFromUrl(urls[0]!),
+    `the preflight cannot check this value: ${urls[0]}`,
   );
 });
