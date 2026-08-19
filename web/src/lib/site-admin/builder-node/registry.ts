@@ -177,17 +177,24 @@ export const builderNodeStyleValueSchema = z.object({
   maxHeight: z.string().max(16).optional(),
   // Free per-side padding escapes — layer after the paddingX/paddingY token.
   // Also accept a `token:space.*` binding → follow the theme's spacing rhythm.
-  paddingTop: tokenAwareStyleString(16),
-  paddingRight: tokenAwareStyleString(16),
-  paddingBottom: tokenAwareStyleString(16),
-  paddingLeft: tokenAwareStyleString(16),
+  //
+  // 64, not 16: a fluid value is the normal way to write section padding
+  // (`clamp(48px, 6vw, 88px)` is 24 characters) and the old cap rejected every
+  // one of them. Ten shipped presets route their section padding through
+  // `customCss` for no reason except this cap. Raising a max is additive —
+  // zod REJECTS an over-cap value rather than truncating it, so nothing that
+  // ever persisted changes meaning.
+  paddingTop: tokenAwareStyleString(64),
+  paddingRight: tokenAwareStyleString(64),
+  paddingBottom: tokenAwareStyleString(64),
+  paddingLeft: tokenAwareStyleString(64),
   // Free per-side margin escapes (collision-safe *Free keys; the margin tokens
   // are enums). Layer after every margin token so the exact value wins. Also
   // accept a `token:space.*` binding.
-  marginTopFree: tokenAwareStyleString(16),
-  marginRightFree: tokenAwareStyleString(16),
-  marginBottomFree: tokenAwareStyleString(16),
-  marginLeftFree: tokenAwareStyleString(16),
+  marginTopFree: tokenAwareStyleString(64),
+  marginRightFree: tokenAwareStyleString(64),
+  marginBottomFree: tokenAwareStyleString(64),
+  marginLeftFree: tokenAwareStyleString(64),
   // Surface & depth escapes (length/string-capped; opacity normalized 0–1).
   // boxShadow also accepts a `token:shadow.*` binding → follows the theme shadow.
   boxShadow: tokenAwareStyleString(200),
@@ -203,7 +210,7 @@ export const builderNodeStyleValueSchema = z.object({
   opacity: z.number().min(0).max(1).optional(),
   // Free gap escape — overrides the layout gap token via the --bn-gap variable.
   // Also accepts a `token:space.*` binding → follows the theme spacing rhythm.
-  gap: tokenAwareStyleString(16),
+  gap: tokenAwareStyleString(64),
   // Container-query registration — turns this node into a query container.
   containerType: z.enum(["normal", "inline-size", "size"]).optional(),
   containerName: z.string().max(80).optional(),
@@ -241,7 +248,9 @@ export const builderNodeStyleValueSchema = z.object({
   alignSelf: z.enum(["auto", "start", "center", "end", "stretch"]).optional(),
   flexGrow: z.number().min(0).max(999).optional(),
   flexShrink: z.number().min(0).max(999).optional(),
-  flexBasis: z.string().max(16).optional(),
+  // 64 for the same reason as the padding escapes: a card basis is routinely
+  // fluid (`clamp(260px,30vw,380px)` is 23 characters).
+  flexBasis: z.string().max(64).optional(),
   // Grid child placement — grid-column / grid-row span/line specs.
   gridColumn: z.string().max(24).optional(),
   gridRow: z.string().max(24).optional(),
