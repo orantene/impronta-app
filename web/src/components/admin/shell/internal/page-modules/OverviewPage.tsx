@@ -581,9 +581,16 @@ function OverviewFree() {
   const livePublished = liveRoster.filter((t) => t.state === "published").length;
   const liveInquiries = effectiveMessagesInquiries/* trust the bridge — context handles empty-vs-mock */;
   const liveTeam = effectiveTeamMembers.length > 0 ? effectiveTeamMembers : getTeam(state.plan);
+  // Starter-seeded demo profiles must not complete the operator's checklist:
+  // a 30-second-old workspace was showing "Add your first talent — auto-
+  // detected, already done" (struck through, 40% progress) on the strength of
+  // the three demo people onboarding itself seeded, while the signup page
+  // promises "no fake social proof, no growth-hack funnel".
+  const ownRoster = liveRoster.filter((t) => !t.isStarterSeed);
+  const ownPublished = ownRoster.filter((t) => t.state === "published").length;
   const autoComplete: Record<string, boolean> = {
-    "add-talent": liveRoster.length > 0,
-    publish: livePublished > 0,
+    "add-talent": ownRoster.length > 0,
+    publish: ownPublished > 0,
     "share-url": false, // genuinely manual — no upstream signal
     "try-inquiry": liveInquiries.length > 0,
     "invite-team": liveTeam.length > 1,
@@ -648,7 +655,7 @@ function OverviewFree() {
             overflow: "hidden",
           }}
         >
-          <div style={{ '--progress-w': `${progressPct}%` }} className="w-[var(--progress-w)] h-full [transition:width_.25s_ease]"
+          <div style={{ '--progress-w': `${progressPct}%` }} className="w-[var(--progress-w)] h-full bg-admin-fill [transition:width_.25s_ease]"
           />
         </div>
       </div>
@@ -657,7 +664,7 @@ function OverviewFree() {
         title={t("dashboard.adminOverview.activationArcTitle")}
         subtitle={t("dashboard.adminOverview.activationArcSubtitle")}
       >
-        <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }} className="bg-admin-fill">
+        <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
           {ACTIVATION_TASKS.map((task, idx) => {
             const done = isDone(task.id);
             return (
@@ -723,7 +730,7 @@ function OverviewFree() {
                     )}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div style={{ fontSize: 13.5, fontWeight: 500, textDecoration: done ? "line-through" : "none", opacity: done ? 0.55 : 1 }} className="text-admin-ink">
+                    <div style={{ fontSize: 13.5, fontWeight: 500, opacity: done ? 0.55 : 1 }} className="text-admin-ink">
                       {t(ACTIVATION_LABEL_KEY[task.id] ?? "") || task.label}
                     </div>
                     <div style={{ fontSize: 11.5, marginTop: 1, opacity: done ? 0.55 : 1 }} className="text-admin-ink-muted">

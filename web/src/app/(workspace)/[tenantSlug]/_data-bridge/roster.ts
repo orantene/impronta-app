@@ -31,6 +31,7 @@ type RosterRow = {
     deleted_at: string | null;
     height_cm: number | null;
     user_id: string | null;
+    is_starter_seed: boolean | null;
     is_discoverable: boolean | null;
     talent_profile_taxonomy:
       | {
@@ -74,6 +75,9 @@ export type WorkspaceRosterItem = {
   completenessPercent?: number;
   /** Talent's master switch for cross-tenant Tulala Discover catalog. */
   isDiscoverable?: boolean;
+  /** True for the demo profiles onboarding seeds (talent_profiles.is_starter_seed).
+   *  Setup checklists must NOT count these as the operator's own talent. */
+  isStarterSeed?: boolean;
 };
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
@@ -171,6 +175,7 @@ export async function loadWorkspaceRosterForTenant(
           deleted_at,
           height_cm,
           user_id,
+          is_starter_seed,
           is_discoverable,
           talent_profile_taxonomy (
             relationship_type,
@@ -203,6 +208,7 @@ export async function loadWorkspaceRosterForTenant(
         id: profile.id,
         name: deriveDisplayName(profile),
         state: deriveProfileState(row),
+        isStarterSeed: profile.is_starter_seed ?? false,
         height: deriveHeightLabel(profile),
         city: deriveCity(profile),
         primaryType: derivePrimaryType(profile),
@@ -267,6 +273,7 @@ export const loadWorkspaceRosterLite = cache(async function loadWorkspaceRosterL
           home_city_text,
           workflow_status,
           user_id,
+          is_starter_seed,
           deleted_at,
           talent_profile_taxonomy (
             relationship_type,
@@ -295,6 +302,8 @@ export const loadWorkspaceRosterLite = cache(async function loadWorkspaceRosterL
         home_city_text: string | null;
         workflow_status: string | null;
         user_id: string | null;
+        is_starter_seed: boolean | null;
+    is_starter_seed: boolean | null;
         deleted_at: string | null;
         talent_profile_taxonomy:
           | Array<{
@@ -386,6 +395,7 @@ export async function loadWorkspaceRosterEnriched(
           home_city_text,
           short_bio,
           user_id,
+          is_starter_seed,
           deleted_at,
           talent_profile_taxonomy (
             relationship_type,
@@ -551,6 +561,7 @@ export async function loadWorkspaceRosterEnriched(
         id: profile.id,
         name: deriveDisplayName(profile),
         state: deriveProfileState(row),
+        isStarterSeed: profile.is_starter_seed ?? false,
         height: deriveHeightLabel(profile),
         city,
         primaryType: derivePrimaryType(profile),

@@ -350,7 +350,10 @@ const BUDGETS: Record<string, number> = {
   // branches, so the true count is the sum rather than either branch's number.
     // Rebase reconciliation (W1 onto W2+W3, 2026-08-18): same three branches,
   // same shared type surface — the sum, not any single branch's figure.
-  "src/components/admin/shell/internal/state/types.ts": 2866,
+  // 2026-08-19 onboarding-honesty fix: +5 for `TalentProfile.isStarterSeed`
+  // and the note recording why the setup checklist must not count seeded
+  // demo profiles as the operator's own talent.
+  "src/components/admin/shell/internal/state/types.ts": 2871,
   "src/components/admin/shell/admin-shell-client.tsx": 2481,
   "src/components/admin/shell/internal/platform.tsx": 2357,
   // 2026-08-15 talent-payout-visibility: +2 for the richer talent payout bridge

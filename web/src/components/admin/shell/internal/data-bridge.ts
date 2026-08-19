@@ -462,6 +462,7 @@ type RosterRow = {
     first_name: string | null;
     last_name: string | null;
     invitation_email: string | null;
+    is_starter_seed: boolean | null;
     deleted_at: string | null;
     workflow_status: string | null;
     is_publicly_hidden: boolean | null;
@@ -918,6 +919,7 @@ export async function loadWorkspaceRosterForCurrentTenant(
           first_name,
           last_name,
           invitation_email,
+          is_starter_seed,
           deleted_at,
           workflow_status,
           is_publicly_hidden,
@@ -999,6 +1001,7 @@ export async function loadWorkspaceRosterForCurrentTenant(
         lastName: profile.last_name ?? undefined,
         email: profile.invitation_email ?? undefined,
         state: deriveProfileState(row),
+        isStarterSeed: profile.is_starter_seed ?? false,
         height: deriveHeightLabel(profile),
         city: deriveCity(profile),
         thumb: thumbUrl,
