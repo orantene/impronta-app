@@ -815,7 +815,7 @@
   },
   "src/components/admin/shell/internal/primitives/activity-feed.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 14
+      "count": 13
     }
   },
   "src/components/admin/shell/internal/primitives/async-helpers.tsx": {
