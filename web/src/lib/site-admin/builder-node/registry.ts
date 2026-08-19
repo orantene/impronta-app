@@ -1034,6 +1034,22 @@ const navPropsSchema = z.object({
   megaColumns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
   /** Anchored under the trigger (default) or full-bleed across the nav. */
   megaWidth: z.enum(["anchored", "full"]).optional(),
+  /**
+   * Mobile drawer furniture. Props rather than child nodes on purpose: the
+   * panel is a <details> whose CSS-only behaviour and viewport-unit geometry
+   * are pinned by static tests, and arbitrary child nodes would put both at
+   * the mercy of whatever got dropped inside.
+   */
+  menu: z
+    .object({
+      ctaLabel: z.string().max(60).optional(),
+      ctaHref: z.string().max(500).optional(),
+      showSocial: z.boolean().optional(),
+      showLanguageToggle: z.boolean().optional(),
+      groups: z.enum(["inline", "collapsible"]).optional(),
+      density: z.enum(["compact", "comfortable", "spacious"]).optional(),
+    })
+    .optional(),
   /** Drives --bn-nav-accent: the underline, the badge fill, the drawer CTA. */
   accentColor: z.string().max(60).optional(),
   ariaLabel: z.string().max(80).optional(),

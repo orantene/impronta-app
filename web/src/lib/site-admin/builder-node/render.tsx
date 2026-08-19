@@ -151,6 +151,11 @@ export interface BuilderNodeRenderDataSources {
 export interface BuilderNodeRenderOptions {
   publicPathPrefix?: string;
   /**
+   * Locales the drawer's language row may offer. Supplied by the shell caller,
+   * which is the only layer that knows a tenant's locale set and their URLs.
+   */
+  availableLocales?: ReadonlyArray<{ code: string; href: string; current?: boolean }>;
+  /**
    * The path being rendered, so a nav link to it can carry `aria-current`.
    * Optional: a caller that cannot supply it (a cached fragment) simply gets
    * no current-page marking rather than a wrong one.
@@ -280,9 +285,11 @@ type NormalizedBuilderNodeRenderOptions = Required<
     // cannot know the request path (a cached fragment) must be able to omit it
     // and get no aria-current, rather than a wrong one.
     | "currentPath"
+    | "availableLocales"
   >
 > & {
   currentPath?: string;
+  availableLocales?: ReadonlyArray<{ code: string; href: string; current?: boolean }>;
   renderSectionEmbed: BuilderSectionEmbedRenderer | null;
   // ABTEST-1 — undefined/null seed → control always renders, no tracking.
   experimentSeed: string | null | undefined;
@@ -4735,6 +4742,68 @@ function renderBuilderNodeElement(
         options.contentLocale,
       );
       const navCurrentPath = options.currentPath;
+      const navMenu = navProps.menu;
+
+      /**
+       * The pinned bottom of the drawer: CTA, social row, locale row. Each is
+       * opt-in, and each renders nothing rather than an empty shell when its
+       * data is missing — a drawer with a blank social strip looks broken in a
+       * way a drawer without one does not.
+       */
+      const navMenuSocialLinks =
+        navMenu?.showSocial === true
+          ? collectionRecordsForSource(
+              "workspace_social_links",
+              options.dataSources,
+            )
+          : [];
+      const navMenuLocales =
+        navMenu?.showLanguageToggle === true ? options.availableLocales ?? [] : [];
+      const navMenuFooter =
+        navMenu &&
+        (navMenu.ctaLabel ||
+          navMenuSocialLinks.length > 0 ||
+          navMenuLocales.length > 1) ? (
+          <li className="site-builder-node--nav-menu-footer">
+            {navMenu.ctaLabel && navMenu.ctaHref ? (
+              <a
+                className="site-builder-node--nav-menu-cta"
+                href={prefixPublicHref(navMenu.ctaHref, options.publicPathPrefix)}
+              >
+                {navMenu.ctaLabel}
+              </a>
+            ) : null}
+            {navMenuSocialLinks.length > 0 ? (
+              <span className="site-builder-node--nav-menu-social">
+                {navMenuSocialLinks.map((record, i) => {
+                  const platform = String(
+                    (record as Record<string, unknown>).platform ?? "",
+                  );
+                  const href = String((record as Record<string, unknown>).href ?? "");
+                  if (!href) return null;
+                  return (
+                    <a key={`${node.id}:social:${i}`} href={href} aria-label={platform}>
+                      <SocialGlyph platform={platform} />
+                    </a>
+                  );
+                })}
+              </span>
+            ) : null}
+            {navMenuLocales.length > 1 ? (
+              <span className="site-builder-node--nav-menu-locales">
+                {navMenuLocales.map((locale) => (
+                  <a
+                    key={`${node.id}:locale:${locale.code}`}
+                    href={locale.href}
+                    {...(locale.current ? { "aria-current": "true" as const } : {})}
+                  >
+                    {locale.code}
+                  </a>
+                ))}
+              </span>
+            ) : null}
+          </li>
+        ) : null;
       const collapseAt = navProps.collapseAt ?? "mobile";
       const submenuVariant = navProps.submenuVariant ?? "dropdown";
       const mobileMenuVariant = navProps.mobileMenuVariant ?? "dropdown";
@@ -4768,8 +4837,11 @@ function renderBuilderNodeElement(
        * none of the v2 fields emits exactly `{label}` as before, so existing
        * trees produce byte-identical markup.
        */
+      const navLinkIsRich = (link: BuilderNavLink, inPanel: boolean) =>
+        Boolean(link.icon || link.badge || (inPanel && link.description));
+
       const navLinkBody = (link: BuilderNavLink, inPanel: boolean) => {
-        if (!link.icon && !link.badge && !(inPanel && link.description)) {
+        if (!navLinkIsRich(link, inPanel)) {
           return link.label;
         }
         return (
@@ -4803,6 +4875,15 @@ function renderBuilderNodeElement(
         <a
           href={prefixPublicHref(link.href, options.publicPathPrefix)}
           data-bn-nav-link-id={link.id}
+          // Only a link with icon/badge/description becomes a flex row. A
+          // plain link must stay `display:inline`: inline-flex changes its
+          // baseline and how it wraps, which is a VISUAL change on every site
+          // that sets none of the new fields — and one a markup-equality test
+          // cannot see, because the markup is identical and only the
+          // stylesheet moved.
+          {...(navLinkIsRich(link, inPanel)
+            ? { className: "site-builder-node--nav-rich" }
+            : {})}
           {...(link.external
             ? { target: "_blank", rel: "noopener noreferrer" }
             : {})}
@@ -4873,6 +4954,33 @@ function renderBuilderNodeElement(
                   const grandchildren = child.children ?? [];
                   // A child WITH children is a group: its label is the heading.
                   if (grandchildren.length > 0) {
+                    const groupLinks = (
+                      <ul className="site-builder-node--nav-group-links">
+                        {forSurface(grandchildren, variant).map((leaf) => (
+                          <li
+                            key={`${node.id}:${variant}:${link.id}:${child.id}:${leaf.id}`}
+                            {...hideOnAttr(leaf)}
+                          >
+                            {navAnchor(leaf, true)}
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                    // In the DRAWER a long menu is easier to scan collapsed —
+                    // opt-in per nav, and still no JS: a nested <details> is
+                    // valid HTML and manages its own open state.
+                    if (variant === "menu" && navMenu?.groups === "collapsible") {
+                      return (
+                        <details
+                          key={`${node.id}:${variant}:${link.id}:${child.id}`}
+                          className="site-builder-node--nav-menu-group"
+                          {...hideOnAttr(child)}
+                        >
+                          <summary>{child.label}</summary>
+                          {groupLinks}
+                        </details>
+                      );
+                    }
                     return (
                       <li
                         key={`${node.id}:${variant}:${link.id}:${child.id}`}
@@ -4882,16 +4990,7 @@ function renderBuilderNodeElement(
                         <span className="site-builder-node--nav-group-heading">
                           {child.label}
                         </span>
-                        <ul className="site-builder-node--nav-group-links">
-                          {forSurface(grandchildren, variant).map((leaf) => (
-                            <li
-                              key={`${node.id}:${variant}:${link.id}:${child.id}:${leaf.id}`}
-                              {...hideOnAttr(leaf)}
-                            >
-                              {navAnchor(leaf, true)}
-                            </li>
-                          ))}
-                        </ul>
+                        {groupLinks}
                       </li>
                     );
                   }
@@ -5004,8 +5103,18 @@ function renderBuilderNodeElement(
             >
               <span className="site-builder-node--nav-burger" aria-hidden="true" />
             </summary>
-            <ul id={menuId} className="site-builder-node--nav-menu">
+            <ul
+              id={menuId}
+              className="site-builder-node--nav-menu"
+              {...(navMenu?.density ? { "data-bn-density": navMenu.density } : {})}
+            >
               {renderNavLinks("menu")}
+              {/* Drawer furniture. These are PROPS, not child nodes: the panel
+                  lives inside a <details> whose CSS-only behaviour and
+                  viewport-unit geometry are pinned by static tests, and letting
+                  arbitrary nodes render inside it would put both at the mercy
+                  of whatever an operator dropped in. */}
+              {navMenuFooter}
             </ul>
           </details>
         </nav>
@@ -5167,6 +5276,7 @@ function normalizeBuilderNodeRenderOptions(
     // Deliberately NOT defaulted: "no path supplied" and "the path is /" are
     // different, and defaulting would mark the home link current everywhere.
     currentPath: options.currentPath,
+    availableLocales: options.availableLocales,
     // Absent in lighter contexts (tests, tenant-less previews) → the `form`
     // node renders no widget, exactly as before this option existed.
     captcha: options.captcha ?? null,

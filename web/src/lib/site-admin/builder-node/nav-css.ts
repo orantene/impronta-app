@@ -91,6 +91,42 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-menu .site-builder-node--nav-submenu{list-style:none;margin:0.1rem 0 0.3rem;padding:0 0 0 0.85rem;display:flex;flex-direction:column;gap:0.1rem;border-left:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12))}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu a{display:block;padding:0.45rem 0.6rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.9rem;opacity:0.92}
+/* DRAWER v2.
+
+   The burger MORPHS INTO AN X while the menu is open. That is the close
+   affordance, and it costs zero new DOM: a details element allows exactly one
+   summary, and the burger already sits above the panel. Middle bar goes
+   transparent, the two pseudo-elements rotate onto each other. Every off-canvas
+   variant gets a working X exactly where the toggle already is. */
+.site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger{background:transparent;transition:background 120ms ease}
+.site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger::before{top:0;transform:rotate(45deg)}
+.site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger::after{top:0;transform:rotate(-45deg)}
+.site-builder-node--nav-burger::before,.site-builder-node--nav-burger::after{transition:transform 160ms ease,top 160ms ease}
+
+/* Density — how much air each row gets. The default matches what shipped. */
+.site-builder-node--nav-menu[data-bn-density="compact"] a{padding:0.42rem 0.75rem;font-size:0.92em}
+.site-builder-node--nav-menu[data-bn-density="spacious"] a{padding:0.85rem 0.9rem;font-size:1.05em}
+
+/* Collapsible groups: nested details, still no JS. "inline" keeps the shipped
+   markup byte-identical, so this is opt-in per nav. */
+.site-builder-node--nav-menu-group{list-style:none;margin:0}
+.site-builder-node--nav-menu-group>summary{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.6rem 0.75rem;cursor:pointer;font-size:0.72em;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.7;list-style:none}
+.site-builder-node--nav-menu-group>summary::-webkit-details-marker{display:none}
+.site-builder-node--nav-menu-group>summary::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform 160ms ease}
+.site-builder-node--nav-menu-group[open]>summary::after{transform:rotate(-135deg) translateY(-2px)}
+.site-builder-node--nav-menu-group>ul{list-style:none;margin:0;padding:0 0 0.4rem 0.5rem;display:flex;flex-direction:column}
+
+/* Drawer furniture. The panel is already a flex column, so the CTA pins itself
+   to the bottom with margin-top:auto — no fixed offsets to fight the viewport
+   units the geometry depends on. */
+.site-builder-node--nav-menu-footer{margin-top:auto;display:flex;flex-direction:column;gap:0.75rem;padding:0.9rem 0.75rem 0.25rem}
+.site-builder-node--nav-menu-cta{display:flex;align-items:center;justify-content:center;padding:0.8rem 1rem;border-radius:8px;font-weight:700;letter-spacing:0.04em;text-decoration:none;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-cta-ink,#fff)}
+.site-builder-node--nav-menu-social{display:flex;flex-direction:row;gap:0.9rem;align-items:center;padding:0 0.25rem}
+.site-builder-node--nav-menu-social a{display:inline-flex;padding:0.35rem;font-size:1.15em;opacity:0.85;text-decoration:none;color:inherit}
+.site-builder-node--nav-menu-locales{display:flex;flex-direction:row;gap:0.75rem;padding:0 0.25rem;font-size:0.85em}
+.site-builder-node--nav-menu-locales a{text-decoration:none;color:inherit;opacity:0.6;text-transform:uppercase;letter-spacing:0.08em}
+.site-builder-node--nav-menu-locales a[aria-current="true"]{opacity:1;font-weight:700}
+
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-links .site-builder-node--nav-submenu{transition:none}
 }

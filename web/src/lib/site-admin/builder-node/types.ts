@@ -1241,6 +1241,15 @@ export interface BuilderNavNode extends BuilderNodeBase {
     megaColumns?: 2 | 3 | 4;
     /** Anchored under the trigger (default) or full-bleed across the nav. */
     megaWidth?: "anchored" | "full";
+    /** Mobile drawer furniture — props, not child nodes (see the schema note). */
+    menu?: {
+      ctaLabel?: string;
+      ctaHref?: string;
+      showSocial?: boolean;
+      showLanguageToggle?: boolean;
+      groups?: "inline" | "collapsible";
+      density?: "compact" | "comfortable" | "spacious";
+    };
     /** Accent for the underline, badges and the drawer CTA (--bn-nav-accent). */
     accentColor?: string;
     /** Accessible label for the <nav> landmark (default "Primary"). */

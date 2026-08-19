@@ -47,3 +47,29 @@ test("the featured card reserves its aspect ratio", () => {
   // Without it the panel reflows when the image loads.
   assert.match(CSS, /\.site-builder-node--nav-featured img\{[^}]*aspect-ratio:16\/10/);
 });
+
+test("the burger becomes an X while the menu is open", () => {
+  // The close affordance, at zero DOM cost: a <details> allows exactly one
+  // <summary>, so a separate X button is not available without JS.
+  assert.match(CSS, /\[open\]>summary>\.site-builder-node--nav-burger\{background:transparent/);
+  assert.match(CSS, /\[open\]>summary>\.site-builder-node--nav-burger::before\{top:0;transform:rotate\(45deg\)/);
+  assert.match(CSS, /\[open\]>summary>\.site-builder-node--nav-burger::after\{top:0;transform:rotate\(-45deg\)/);
+});
+
+test("the drawer CTA pins with margin-top:auto, never a fixed offset", () => {
+  // A fixed offset would fight the viewport units the drawer geometry depends
+  // on — the exact class of bug that clipped this panel to the header once.
+  assert.match(CSS, /\.site-builder-node--nav-menu-footer\{margin-top:auto/);
+  const footer = CSS.slice(CSS.indexOf(".site-builder-node--nav-menu-footer"));
+  const rule = footer.slice(0, footer.indexOf("}"));
+  assert.ok(!/position:(fixed|absolute)/.test(rule), "the footer must stay in flow");
+});
+
+test("collapsible groups stay in flow and hide the native marker", () => {
+  assert.match(CSS, /\.site-builder-node--nav-menu-group>summary::-webkit-details-marker\{display:none\}/);
+  const group = CSS.slice(CSS.indexOf(".site-builder-node--nav-menu-group{"));
+  assert.ok(
+    !/position:absolute/.test(group.slice(0, group.indexOf("}"))),
+    "a group must flow inside the panel, not float over it",
+  );
+});

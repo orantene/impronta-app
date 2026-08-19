@@ -227,3 +227,90 @@ test("a dropdown nav gets no mega attributes at all", () => {
   assert.ok(!out.includes("data-bn-mega-width"), "mega width leaked onto a dropdown");
   assert.ok(!out.includes("nav-featured"), "a dropdown must not render a promo card");
 });
+
+// ── Drawer v2 ───────────────────────────────────────────────────────────────
+
+const GROUPED = [
+  {
+    id: "l1",
+    label: "Divisions",
+    href: "/directory",
+    children: [
+      {
+        id: "g1",
+        label: "By discipline",
+        href: "#",
+        children: [{ id: "gg1", label: "Models", href: "/p/models" }],
+      },
+    ],
+  },
+];
+
+test("the drawer CTA renders pinned, and only when both label and href are set", () => {
+  const withCta = html(
+    navTree(GROUPED, { menu: { ctaLabel: "Book talent", ctaHref: "/p/contact" } }),
+  );
+  assert.match(withCta, /nav-menu-cta[^>]*>Book talent</);
+
+  // A label with nowhere to go is a dead button, so it renders nothing.
+  const labelOnly = html(navTree(GROUPED, { menu: { ctaLabel: "Book talent" } }));
+  assert.ok(!labelOnly.includes("nav-menu-cta"), "a CTA without an href must not render");
+});
+
+test("the social row renders only when the binding actually resolved", () => {
+  // An empty social strip looks broken in a way that no strip does not.
+  const noRecords = html(navTree(GROUPED, { menu: { showSocial: true } }));
+  assert.ok(!noRecords.includes("nav-menu-social"), "no records must mean no row");
+
+  const withRecords = html(navTree(GROUPED, { menu: { showSocial: true } }), {
+    dataSources: {
+      collections: {
+        workspace_social_links: [
+          { platform: "instagram", href: "https://instagram.com/x" },
+        ],
+      },
+    },
+  });
+  assert.match(withRecords, /nav-menu-social/);
+});
+
+test("the locale row needs more than one locale to be worth showing", () => {
+  const one = html(navTree(GROUPED, { menu: { showLanguageToggle: true } }), {
+    availableLocales: [{ code: "en", href: "/", current: true }],
+  });
+  assert.ok(!one.includes("nav-menu-locales"), "a one-locale site has nothing to switch to");
+
+  const two = html(navTree(GROUPED, { menu: { showLanguageToggle: true } }), {
+    availableLocales: [
+      { code: "en", href: "/", current: true },
+      { code: "es", href: "/es" },
+    ],
+  });
+  assert.match(two, /nav-menu-locales/);
+  assert.match(two, /aria-current="true"/);
+});
+
+test("collapsible groups are opt-in and drawer-only", () => {
+  const inline = html(navTree(GROUPED, { menu: { groups: "inline" } }));
+  assert.ok(
+    !inline.includes("nav-menu-group"),
+    "inline must keep the shipped markup, byte for byte",
+  );
+
+  const collapsible = html(navTree(GROUPED, { menu: { groups: "collapsible" } }));
+  const split = collapsible.indexOf("nav-disclosure");
+  const bar = collapsible.slice(0, split);
+  const drawer = collapsible.slice(split);
+  assert.match(drawer, /<details class="site-builder-node--nav-menu-group"/);
+  assert.ok(
+    !bar.includes("nav-menu-group"),
+    "the desktop panel is a grid, not a stack of disclosures",
+  );
+});
+
+test("a nav with no menu props emits no drawer furniture at all", () => {
+  const out = html(navTree(GROUPED));
+  for (const cls of ["nav-menu-footer", "nav-menu-cta", "nav-menu-social", "nav-menu-locales"]) {
+    assert.ok(!out.includes(cls), `${cls} rendered without being asked for`);
+  }
+});
