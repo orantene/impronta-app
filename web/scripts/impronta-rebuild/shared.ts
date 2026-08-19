@@ -718,10 +718,15 @@ export function fullBleedPlate(idPrefix: string, opts: PlateOptions): BuilderNod
             top: "0px",
             left: "0px",
             width: "100%",
+            // Without this the container base class caps the scrim at
+            // 1120px, LEFT-aligned — the darkening covered the left half of
+            // the plate and the statement line sat on raw photograph. The
+            // image spans the full bleed; the scrim must too.
+            maxWidthFree: "100%",
             height: "100%",
             zIndex: 1,
             backgroundImage:
-              "linear-gradient(180deg, rgba(6,6,8,0.5) 0%, rgba(6,6,8,0.68) 100%)",
+              "linear-gradient(180deg, rgba(6,6,8,0.72) 0%, rgba(6,6,8,0.86) 100%)",
           },
         },
         children: [],
@@ -826,6 +831,10 @@ export function bulletRow(id: string, text: string): BuilderNode {
       style: {
         width: "100%",
         gap: "16px",
+        // Explicit: live QA caught these rows packing RIGHT (markers adrift
+        // mid-row, ragged-left text) from an inherited alignment. Pin the
+        // packing direction rather than trusting the cascade.
+        justifyContent: "flex-start",
         paddingTop: "14px",
         paddingBottom: "14px",
         borderColor: HAIRLINE,
@@ -862,6 +871,7 @@ export function bulletRow(id: string, text: string): BuilderNode {
             fontFamily: SANS,
             fontSize: "15px",
             lineHeight: "1.5",
+            flexGrow: 1,
             textColor: TEXT,
             marginBottomFree: "0px",
             marginTopFree: "0px",
@@ -1151,7 +1161,12 @@ export function photoTile(
         position: "relative",
         overflow: "hidden",
         borderRadius: "4px",
-        aspectRatioFree: opts.aspect ?? "0.78",
+        // NOT aspectRatioFree: that prop's inline path only applies to image
+        // nodes — on a container it is silently dropped, and since both
+        // children of this tile are position:absolute the card collapses to
+        // 0px tall (three of the four division tiles vanished live).
+        // customCss scopes the rule to the card root and actually renders.
+        customCss: `{ aspect-ratio: ${opts.aspect ?? "0.78"}; }\n@media (max-width: 640px) { { aspect-ratio: 4 / 5; } }`,
         backgroundColor: SURFACE,
         transitionProperty: "transform, box-shadow",
         transitionDuration: "300ms",
