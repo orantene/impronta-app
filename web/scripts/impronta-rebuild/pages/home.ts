@@ -47,6 +47,12 @@ const hero = pageHero("rb-home", {
   secondary: { label: "Explore the roster", href: "/directory" },
   footnote: "Agency-managed end to end · first reply within 24 hours",
   imageSlot: "home-hero",
+  // PLACEHOLDER FOOTAGE — owner-sanctioned stand-in ("just take a random video
+  // from youtube so we can see"). Third-party 4K Tulum drone film, verified
+  // embeddable (oembed 200) and gated by the seed preflight. Swap for
+  // Impronta's own reel (c9ARKE2WNxA) the day its YouTube setting allows
+  // embedding: Studio → Edit → Show more → "Allow embedding".
+  videoUrl: "https://www.youtube.com/watch?v=QpCbp9uNgMQ",
   imageAlt: "Editorial photograph of an Impronta model at golden hour on the Riviera Maya coast.",
 });
 

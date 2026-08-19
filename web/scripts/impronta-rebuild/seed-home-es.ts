@@ -29,6 +29,10 @@ import {
   loadImageSlotPins,
   resolveImageSlots,
 } from "./media-curation";
+import {
+  describeUnembeddable,
+  findUnembeddableVideos,
+} from "./video-embed-preflight";
 import { divisionPagesEs } from "./pages/divisions-es";
 import { homePageEs } from "./pages/home-es";
 import type { ImprontaRebuildPage } from "./shared";
@@ -104,6 +108,15 @@ async function writePage(
   if (!validation.ok) {
     throw new Error(
       `Spanish home tree is invalid: ${validation.issues.map((i) => i.message).join("; ")}`,
+    );
+  }
+
+  // 1b. A video that cannot be embedded renders an error banner ACROSS the
+  //     hero and hides the poster behind it. Ask YouTube before writing.
+  const unembeddable = await findUnembeddableVideos(page.tree);
+  if (unembeddable.length > 0) {
+    throw new Error(
+      `${SLUG}: ${unembeddable.length} video(s) cannot be embedded:\n${describeUnembeddable(unembeddable)}`,
     );
   }
 

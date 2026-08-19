@@ -497,6 +497,16 @@ export interface PageHeroOptions {
   /** Small reassurance line under the CTAs. */
   footnote?: string;
   compact?: boolean;
+  /**
+   * Moving background: a YouTube URL painted behind the hero's content.
+   *
+   * `imageSlot` STAYS REQUIRED alongside it and keeps doing its job. The still
+   * is the poster, the reduced-motion fallback, and what a visitor sees while
+   * the embed loads or if it never does — so the hero is never a black box on a
+   * slow connection, and a visitor who asked their system for less motion gets
+   * the photograph rather than nothing.
+   */
+  videoUrl?: string;
 }
 
 /**
@@ -556,6 +566,23 @@ export function pageHero(idPrefix: string, opts: PageHeroOptions): BuilderNode {
       layout: "stack",
       align: "center",
       layerLabel: "Hero",
+      // The container already knows how to paint a moving background: the
+      // renderer rebuilds a privacy-preserving nocookie embed from the video id
+      // and never uses a pasted URL as an iframe src. Absent ⇒ no wrapper, no
+      // data attribute, no extra CSS — the photographic hero is byte-identical.
+      ...(opts.videoUrl
+        ? {
+            backgroundMedia: {
+              source: "youtube" as const,
+              src: opts.videoUrl,
+              // The scrim below is layered for a PHOTO. Video is busier and
+              // moves, so copy needs a touch more protection than a still does.
+              overlay: 58,
+              overlayColor: "#06060a",
+              focalPoint: "center",
+            },
+          }
+        : {}),
       style: {
         width: "100%",
         maxWidthFree: "100%",

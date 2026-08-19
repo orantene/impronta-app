@@ -49,6 +49,58 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-caret{display:block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:0.7}
 .site-builder-node--nav-links .site-builder-node--nav-submenu{list-style:none;margin:0;padding:0.5rem;display:flex;flex-direction:column;gap:0.15rem;position:absolute;top:calc(100% + 10px);left:0;z-index:40;min-width:200px;background:var(--bn-nav-menu-bg,#ffffff);color:var(--bn-nav-menu-color,#111111);border:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12));border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.16);opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity 120ms ease,transform 120ms ease,visibility 0s linear 120ms}
 .site-builder-node--nav-links .site-builder-node--nav-has-sub:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub:focus-within .site-builder-node--nav-submenu{opacity:1;visibility:visible;transform:translateY(0);transition-delay:0s}
+/* LINK CONTENT — icon, label, description, badge.
+
+   HISTORY, so this cannot quietly happen again: the first version of this
+   block was LOST in a branch supersede (#1254 → #1257). The renderer kept
+   emitting every class below with no stylesheet behind it, so panels rendered
+   as concatenated text ("Fashion ModelsEditorial, campaign and…"), icons
+   floated unsized, and descriptions printed at full size inline. Markup tests
+   could not see it — the markup was correct — which is what the class↔CSS
+   parity test now guards.
+
+   Anatomy: the icon sits in a FIXED slot so labels align down a panel; the
+   description is panel-only, one line, ellipsized — a menu row is a signpost,
+   not a paragraph. */
+.site-builder-node--nav-rich{display:inline-flex;align-items:flex-start;gap:0.6em;min-width:0}
+.site-builder-node--nav-link-icon{flex:0 0 auto;width:1.1em;height:1.1em;margin-top:0.15em;opacity:0.5;transition:opacity 160ms ease}
+a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-icon{opacity:0.95}
+.site-builder-node--nav-link-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.site-builder-node--nav-link-label{display:inline-flex;align-items:center;gap:0.5em;min-width:0}
+.site-builder-node--nav-link-desc{font-size:0.78em;font-weight:400;opacity:0.52;line-height:1.45;text-transform:none;letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:26ch}
+.site-builder-node--nav-badge{display:inline-flex;align-items:center;padding:0.1em 0.5em;border-radius:999px;font-size:0.62em;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-badge-ink,#101010);line-height:1.6}
+
+/* Group headings — the label of a child-with-children, in panels and drawer. */
+.site-builder-node--nav-group{margin:0;padding:0;list-style:none;min-width:0}
+.site-builder-node--nav-group-heading{display:block;padding:0.2rem 0.65rem 0.45rem;font-size:0.66em;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;opacity:0.45}
+.site-builder-node--nav-group-links{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;min-width:0}
+
+/* Per-link viewport hiding. A MEDIA rule, not a render filter: one server
+   render serves every viewport, so the link ships and the breakpoint decides. */
+@media (min-width:901px){
+  .site-builder-node--nav [data-bn-link-hide~="desktop"]{display:none}
+}
+@media (min-width:641px) and (max-width:900px){
+  .site-builder-node--nav [data-bn-link-hide~="tablet"]{display:none}
+}
+@media (max-width:640px){
+  .site-builder-node--nav [data-bn-link-hide~="mobile"]{display:none}
+}
+
+/* Bar-link states. The underline draws with background-size so it animates
+   from the left with zero layout shift; aria-current holds it. */
+.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links>li>a,.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-has-sub>a{background-image:linear-gradient(var(--bn-nav-accent,currentColor),var(--bn-nav-accent,currentColor));background-repeat:no-repeat;background-position:0 100%;background-size:0% 1.5px;padding-bottom:3px;transition:background-size 200ms ease,opacity 140ms ease}
+.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links>li>a:hover,.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links>li>a:focus-visible,.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-has-sub>a:hover{background-size:100% 1.5px}
+.site-builder-node--nav[data-bn-link-hover="fade"] .site-builder-node--nav-links a{transition:opacity 140ms ease}
+.site-builder-node--nav[data-bn-link-hover="fade"] .site-builder-node--nav-links a:hover{opacity:0.65}
+.site-builder-node--nav a[aria-current="page"]{font-weight:700}
+.site-builder-node--nav[data-bn-link-hover="underline"] .site-builder-node--nav-links a[aria-current="page"]{background-size:100% 1.5px}
+
+/* Panel rows — dropdown and mega share one row treatment. The hover tint is
+   mixed from currentColor so it works on a white panel and a noir one alike. */
+.site-builder-node--nav-links .site-builder-node--nav-submenu a{display:flex;align-items:flex-start;padding:0.5rem 0.65rem;border-radius:8px;transition:background-color 140ms ease}
+.site-builder-node--nav-links .site-builder-node--nav-submenu a:hover{background-color:color-mix(in srgb,currentColor 7%,transparent)}
+
 /* MEGA PANEL.
    Was a single auto-fill rule — the same flat list of text links reflowed into
    columns, which is why "mega" was a schema value with nothing behind it. A
@@ -57,9 +109,8 @@ export const BUILDER_NODE_NAV_CSS = `
 
    --bn-mega-cols comes from the node (2/3/4); the auto-fill fallback keeps
    an ungrouped legacy mega rendering exactly as it did. */
-.site-builder-node--nav-links .site-builder-node--nav-submenu[data-bn-submenu="mega"]{display:grid;grid-template-columns:repeat(var(--bn-mega-cols,auto-fill),minmax(180px,1fr));gap:0.5rem 1.5rem;min-width:min(620px,80vw);padding:1rem}
-.site-builder-node--nav-submenu[data-bn-submenu="mega"] .site-builder-node--nav-group-heading{padding-left:0.25rem}
-.site-builder-node--nav-submenu[data-bn-submenu="mega"] .site-builder-node--nav-group-links a{padding:0.4rem 0.25rem}
+.site-builder-node--nav-links .site-builder-node--nav-submenu[data-bn-submenu="mega"]{display:grid;grid-template-columns:repeat(var(--bn-mega-cols,auto-fill),minmax(0,1fr));gap:0.75rem 2rem;width:min(680px,92vw);padding:1.4rem 1.5rem 1.5rem}
+.site-builder-node--nav-submenu[data-bn-submenu="mega"] .site-builder-node--nav-group-heading{padding-left:0.65rem}
 
 /* Anchored panel: centred UNDER ITS TRIGGER rather than left-aligned off the
    edge of the viewport, which is what the old left:0 did to a rightmost item. */
@@ -73,10 +124,12 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="full"] .site-builder-node--nav-submenu{left:0;right:0;width:100%;max-width:none;border-radius:0 0 14px 14px}
 
 /* Featured card — the one place the menu carries an image. */
-.site-builder-node--nav-featured{display:flex;flex-direction:column;gap:0.5rem;padding:0.25rem;text-decoration:none;color:inherit}
-.site-builder-node--nav-featured img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px;display:block}
-.site-builder-node--nav-featured-title{font-weight:700;font-size:0.95em}
-.site-builder-node--nav-featured-desc{font-size:0.82em;opacity:0.7;line-height:1.4}
+.site-builder-node--nav-featured{display:flex;flex-direction:column;gap:0.55rem;padding:0.35rem;border-radius:12px;text-decoration:none;color:inherit;transition:background-color 140ms ease}
+.site-builder-node--nav-featured:hover{background-color:color-mix(in srgb,currentColor 6%,transparent)}
+.site-builder-node--nav-featured img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;display:block;filter:saturate(0.92)}
+.site-builder-node--nav-featured:hover img{filter:saturate(1)}
+.site-builder-node--nav-featured-title{font-weight:700;font-size:0.9em;letter-spacing:0.02em}
+.site-builder-node--nav-featured-desc{font-size:0.76em;opacity:0.55;line-height:1.45}
 
 /* Close FORGIVENESS. The panel closes on a delay so travelling diagonally from
    the trigger toward the panel does not shut it mid-move. Opening stays
@@ -91,6 +144,14 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-menu .site-builder-node--nav-submenu{list-style:none;margin:0.1rem 0 0.3rem;padding:0 0 0 0.85rem;display:flex;flex-direction:column;gap:0.1rem;border-left:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12))}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu a{display:block;padding:0.45rem 0.6rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.9rem;opacity:0.92}
+/* Drawer rows read as a LIST: descriptions are desktop-panel furniture and
+   turn a thumb-length row into a paragraph, so the drawer drops them. Icons
+   keep their fixed slot so labels align down the sheet. */
+.site-builder-node--nav-menu .site-builder-node--nav-link-desc{display:none}
+.site-builder-node--nav-menu .site-builder-node--nav-link-icon{margin-top:0}
+.site-builder-node--nav-menu .site-builder-node--nav-rich{align-items:center}
+.site-builder-node--nav-menu .site-builder-node--nav-group-heading{padding:0.85rem 0.75rem 0.3rem;opacity:0.4}
+
 /* DRAWER v2.
 
    The burger MORPHS INTO AN X while the menu is open. That is the close
