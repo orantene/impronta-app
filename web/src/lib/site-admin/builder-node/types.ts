@@ -798,6 +798,12 @@ export interface BuilderButtonNode extends BuilderNodeBase {
     href: string;
     layerLabel?: string;
     tone?: "primary" | "secondary";
+    /** Icons on a button (the gallery's "Icon button" variant used to fake
+     *  this with a literal "♥ Save" text label). */
+    leadingIcon?: BuilderIconName;
+    trailingIcon?: BuilderIconName;
+    /** Hide the label visually; it stays as the accessible name. */
+    iconOnly?: boolean;
     fieldBindings?: BuilderNodeFieldBindings;
     stateStyles?: {
       hover?: { tone?: "primary" | "secondary" };

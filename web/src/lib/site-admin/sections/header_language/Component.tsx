@@ -31,6 +31,7 @@ import type { HeaderLanguageV1 } from "./schema";
  * single-language tenant renders nothing rather than a dead one-item switch.
  */
 export async function HeaderLanguageComponent({
+  props,
   preview,
   tenantId,
   locale,
@@ -38,6 +39,7 @@ export async function HeaderLanguageComponent({
   if (preview) {
     return (
       <HeaderWidgetPlaceholder
+        icon={props.icon}
         typeKey="header_language"
         label="EN | ES"
         glyph={

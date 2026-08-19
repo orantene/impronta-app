@@ -700,6 +700,15 @@ const buttonPropsSchema = z.object({
   href: z.string().min(1).max(500),
   layerLabel: layerLabelSchema,
   tone: z.enum(["primary", "secondary"]).optional(),
+  /**
+   * Icons on a button. The gallery has advertised an "Icon button" variant for
+   * a while; it inserted a literal "♥ Save" text label, because the node had
+   * no icon slot at all.
+   */
+  leadingIcon: z.enum(BUILDER_ICON_NAMES).optional(),
+  trailingIcon: z.enum(BUILDER_ICON_NAMES).optional(),
+  /** Hide the label visually; it stays as the accessible name. */
+  iconOnly: z.boolean().optional(),
   fieldBindings: fieldBindingPropsSchema.optional(),
   stateStyles: z
     .object({
