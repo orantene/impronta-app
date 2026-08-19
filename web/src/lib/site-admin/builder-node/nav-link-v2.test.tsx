@@ -314,3 +314,22 @@ test("a nav with no menu props emits no drawer furniture at all", () => {
     assert.ok(!out.includes(cls), `${cls} rendered without being asked for`);
   }
 });
+
+test("token-bound menu colors emit CSS vars, never the raw sentinel", () => {
+  // The shipped bug: accentColor "token:color.primary" was copied verbatim
+  // into --bn-nav-accent. A raw sentinel is an invalid color, so every
+  // var(--bn-nav-accent) consumer — the drawer CTA, badges, the underline —
+  // computed to transparent (IACVT) on the live site.
+  const out = html(
+    navTree(PRE_V2_LINKS, {
+      accentColor: "token:color.primary",
+      menuTextColor: "token:color.ink",
+      menuBackground: "#0d0b09",
+    }),
+  );
+  assert.ok(!out.includes("token:color"), "raw token sentinel leaked into markup");
+  assert.match(out, /--bn-nav-accent:var\(--token-color-primary/);
+  assert.match(out, /--bn-nav-menu-color:var\(--token-color-ink/);
+  // Raw colors still pass through untouched.
+  assert.match(out, /--bn-nav-menu-bg:#0d0b09/);
+});

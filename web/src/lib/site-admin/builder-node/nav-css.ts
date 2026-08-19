@@ -136,6 +136,13 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
 .site-builder-node--nav-menu .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu a{display:block;padding:0.45rem 0.6rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.9rem;opacity:0.92}
 
+/* Drawer rows, same cascade story as the featured card: the anchor carries
+   nav-rich but the generic drawer row rule (0-2-1) was flattening it to
+   display:block, stacking the icon above its label. Element-qualified and
+   AFTER those rules so the tie resolves here. Rows stay display:flex — a
+   drawer row is a full-width tap target, inline-flex would shrink it. */
+.site-builder-node--nav-menu a.site-builder-node--nav-rich{display:flex;align-items:center}
+
 /* Featured card — the one place the menu carries an image. The selector is
    element-qualified under the nav root (0-2-1) and the block sits AFTER the
    shared row rules on purpose: the card is an <a> inside the submenu, so the
@@ -153,7 +160,6 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
    keep their fixed slot so labels align down the sheet. */
 .site-builder-node--nav-menu .site-builder-node--nav-link-desc{display:none}
 .site-builder-node--nav-menu .site-builder-node--nav-link-icon{margin-top:0}
-.site-builder-node--nav-menu .site-builder-node--nav-rich{align-items:center}
 .site-builder-node--nav-menu .site-builder-node--nav-group-heading{padding:0.85rem 0.75rem 0.3rem;opacity:0.4}
 
 /* DRAWER v2.
@@ -185,7 +191,7 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
    to the bottom with margin-top:auto — no fixed offsets to fight the viewport
    units the geometry depends on. */
 .site-builder-node--nav-menu-footer{margin-top:auto;display:flex;flex-direction:column;gap:0.75rem;padding:0.9rem 0.75rem 0.25rem}
-.site-builder-node--nav-menu-cta{display:flex;align-items:center;justify-content:center;padding:0.8rem 1rem;border-radius:8px;font-weight:700;letter-spacing:0.04em;text-decoration:none;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-cta-ink,#fff)}
+.site-builder-node--nav-menu a.site-builder-node--nav-menu-cta{display:flex;align-items:center;justify-content:center;padding:0.8rem 1rem;border-radius:8px;font-weight:700;letter-spacing:0.04em;text-decoration:none;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-cta-ink,#fff)}
 .site-builder-node--nav-menu-social{display:flex;flex-direction:row;gap:0.9rem;align-items:center;padding:0 0.25rem}
 .site-builder-node--nav-menu-social a{display:inline-flex;padding:0.35rem;font-size:1.15em;opacity:0.85;text-decoration:none;color:inherit}
 .site-builder-node--nav-menu-locales{display:flex;flex-direction:row;gap:0.75rem;padding:0 0.25rem;font-size:0.85em}
