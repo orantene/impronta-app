@@ -29,6 +29,7 @@ import type {
 } from "@/lib/site-admin/builder-node/types";
 import { createBuilderSectionEmbed } from "@/lib/site-admin/builder-node/section-embed-presets";
 
+import { GOLD } from "../shared";
 import {
   IMAGE_SLOT,
   SANS,
@@ -64,6 +65,16 @@ interface HeaderCopy {
     forClients: string;
     about: string;
     contact: string;
+    /** Column heading inside the Divisions mega panel. */
+    divisionsGroupHeading: string;
+    /** One line per division, shown under its name in the panel. */
+    fashionModelsDesc: string;
+    hostsPromotersDesc: string;
+    performersDesc: string;
+    musicDjsDesc: string;
+    /** The panel's promo card. */
+    featuredTitle: string;
+    featuredDesc: string;
   };
 }
 
@@ -84,6 +95,13 @@ const COPY: Record<ShellLocale, HeaderCopy> = {
       forClients: "For Clients",
       about: "About",
       contact: "Contact",
+      divisionsGroupHeading: "By discipline",
+      fashionModelsDesc: "Editorial, campaign and runway faces.",
+      hostsPromotersDesc: "Event hosts, brand ambassadors, promo teams.",
+      performersDesc: "Dancers, aerialists, live acts.",
+      musicDjsDesc: "DJs and musicians for venues and private events.",
+      featuredTitle: "See the full board",
+      featuredDesc: "Every face we represent, filterable by discipline and city.",
     },
   },
   es: {
@@ -102,6 +120,13 @@ const COPY: Record<ShellLocale, HeaderCopy> = {
       forClients: "Para Clientes",
       about: "Nosotros",
       contact: "Contacto",
+      divisionsGroupHeading: "Por disciplina",
+      fashionModelsDesc: "Rostros de editorial, campaña y pasarela.",
+      hostsPromotersDesc: "Anfitriones, embajadores de marca y equipos promo.",
+      performersDesc: "Bailarines, acróbatas y actos en vivo.",
+      musicDjsDesc: "DJs y músicos para venues y eventos privados.",
+      featuredTitle: "Ver el directorio completo",
+      featuredDesc: "Todos los rostros que representamos, con filtros por disciplina y ciudad.",
     },
   },
 };
@@ -207,18 +232,73 @@ function navLinks(locale: ShellLocale): BuilderNavLink[] {
       href: "/directory",
       ...(DIVISION_PAGES_EXIST_IN.has(locale)
         ? {
+            // A GROUP (a child with children) becomes the mega panel's column
+            // heading. One column today; a second discipline group drops in
+            // beside it without touching the renderer.
             children: [
-              { id: id("fashion-models"), label: copy.fashionModels, href: "/p/fashion-models" },
-              { id: id("hosts-promoters"), label: copy.hostsPromoters, href: "/p/hosts-promoters" },
-              { id: id("performers"), label: copy.performers, href: "/p/performers" },
-              { id: id("music-djs"), label: copy.musicDjs, href: "/p/music-djs" },
+              {
+                id: id("divisions-group"),
+                label: copy.divisionsGroupHeading,
+                href: "/directory",
+                children: [
+                  {
+                    id: id("fashion-models"),
+                    label: copy.fashionModels,
+                    href: "/p/fashion-models",
+                    icon: "camera" as const,
+                    description: copy.fashionModelsDesc,
+                  },
+                  {
+                    id: id("hosts-promoters"),
+                    label: copy.hostsPromoters,
+                    href: "/p/hosts-promoters",
+                    icon: "mic" as const,
+                    description: copy.hostsPromotersDesc,
+                  },
+                  {
+                    id: id("performers"),
+                    label: copy.performers,
+                    href: "/p/performers",
+                    icon: "sparkle" as const,
+                    description: copy.performersDesc,
+                  },
+                  {
+                    id: id("music-djs"),
+                    label: copy.musicDjs,
+                    href: "/p/music-djs",
+                    icon: "headphones" as const,
+                    description: copy.musicDjsDesc,
+                  },
+                ],
+              },
             ],
+            featured: {
+              title: copy.featuredTitle,
+              description: copy.featuredDesc,
+              href: "/directory",
+              imageSrc: IMAGE_SLOT("shell-mega-featured"),
+            },
           }
         : {}),
     },
-    { id: id("for-clients"), label: copy.forClients, href: "/p/for-clients" },
-    { id: id("about"), label: copy.about, href: "/p/about" },
-    { id: id("contact"), label: copy.contact, href: "/p/contact" },
+    {
+      id: id("for-clients"),
+      label: copy.forClients,
+      href: "/p/for-clients",
+      icon: "briefcase" as const,
+    },
+    {
+      id: id("about"),
+      label: copy.about,
+      href: "/p/about",
+      icon: "users" as const,
+    },
+    {
+      id: id("contact"),
+      label: copy.contact,
+      href: "/p/contact",
+      icon: "mail" as const,
+    },
   ];
 }
 
@@ -287,7 +367,6 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
     kind: "nav",
     props: {
       links: navLinks(locale),
-      submenuVariant: "dropdown",
       collapseAt: "mobile",
       mobileMenuVariant: "drawer-right",
       menuLabel: copy.menuLabel,
@@ -298,6 +377,20 @@ function buildHeaderTree(locale: ShellLocale): BuilderNode[] {
       menuBackground: "#0d0b09",
       menuTextColor: SHELL_NAV_TEXT,
       menuBorderColor: SHELL_HAIRLINE_RGBA,
+      submenuVariant: "mega",
+      megaColumns: 2,
+      megaWidth: "anchored",
+      accentColor: GOLD,
+      // The phone menu was a bare list. It now closes on the burger (which
+      // becomes an X), carries the booking CTA where a thumb reaches it, and
+      // ends with the social + language rows the curated drawer always had.
+      menu: {
+        ctaLabel: copy.ctaLabel,
+        ctaHref: "/p/contact",
+        showSocial: true,
+        showLanguageToggle: true,
+        density: "comfortable",
+      },
       style: {
         fontFamily: SANS,
         fontSize: "13px",
