@@ -28,6 +28,7 @@ import {
   TenantCodeSnippetsBody,
   TenantCodeSnippetsHead,
 } from "@/components/integrations/tenant-code-snippets";
+import { TenantTrackingHead } from "@/components/integrations/tenant-tracking";
 import { GoogleFontsLink } from "./google-fonts-link";
 import {
   bodySans,
@@ -184,6 +185,12 @@ export default async function RootLayout({
             legacy blob above; the tenant check is repeated inside
             selectSnippetsForRender. `head`-placed CSS is hoisted into <head>. */}
         {publicScope && <TenantCodeSnippetsHead tenantId={publicScope.tenantId} />}
+        {/* Tenant TRACKING — the analytics / advertising accounts connected in
+            Website → Setup → Tracking. Same storefront-only `publicScope` gate
+            as the two injectors above, reused rather than reinvented, so this
+            feature adds no new seam; the tenant check is repeated inside
+            selectTrackingForRender, which also re-validates every stored ID. */}
+        {publicScope && <TenantTrackingHead tenantId={publicScope.tenantId} />}
         {/* Platform JSON-LD (Organization + WebSite + SoftwareApplication).
             Emitted on the platform/marketing surface only; `publicScope` is
             non-null solely for tenant-resolved storefront requests, where the
