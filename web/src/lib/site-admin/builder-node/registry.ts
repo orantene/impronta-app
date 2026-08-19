@@ -1033,9 +1033,13 @@ const navPropsSchema = z.object({
   // Mobile-menu palette. The panel's colours were always overridable by CSS
   // custom property; these are the authoring path for them, so a dark site
   // stops getting a white drawer.
-  menuBackground: z.string().max(60).optional(),
-  menuTextColor: z.string().max(60).optional(),
-  menuBorderColor: z.string().max(60).optional(),
+  // tokenAware, not bare string: the renderer resolves these through
+  // resolveStyleTokenRef, which returns undefined for an unknown token key —
+  // so a typo'd binding silently drops the colour instead of erroring. The
+  // refine catches it at authoring time.
+  menuBackground: tokenAwareStyleString(60),
+  menuTextColor: tokenAwareStyleString(60),
+  menuBorderColor: tokenAwareStyleString(60),
   /** Link interaction. Default "underline" — the bar answered a pointer with
    *  nothing at all before, which read as broken rather than restrained. */
   linkHover: z.enum(["underline", "fade", "none"]).optional(),
@@ -1060,7 +1064,7 @@ const navPropsSchema = z.object({
     })
     .optional(),
   /** Drives --bn-nav-accent: the underline, the badge fill, the drawer CTA. */
-  accentColor: z.string().max(60).optional(),
+  accentColor: tokenAwareStyleString(60),
   ariaLabel: z.string().max(80).optional(),
   // A4 follow-up — optional bind to a collection nav source (`cms_page` /
   // `cms_posts`). When it resolves, the SHELL/server caller passes those

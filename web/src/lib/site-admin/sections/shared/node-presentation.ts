@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { CSSProperties } from "react";
 
+import { resolveStyleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
+
 /**
  * Engine-B curated element-style vocabulary. The px-INTEGER companions below
  * (`*Px`, `lineHeightPct`) are the PARALLEL element-style vocabulary to the
@@ -203,7 +205,7 @@ export function nodePresentationInlineStyle(
   const color = toneColor(value.tone);
   if (color) style.color = color;
   // Free escapes — applied after the size/tone tokens so a raw value wins.
-  if (value.fontFamily) style.fontFamily = value.fontFamily;
+  if (value.fontFamily) style.fontFamily = resolveStyleTokenRef(value.fontFamily);
   if (value.fontSizePx !== undefined) style.fontSize = `${value.fontSizePx}px`;
   if (value.fontWeight !== undefined) style.fontWeight = value.fontWeight;
   if (value.letterSpacingPx !== undefined) {
@@ -222,8 +224,12 @@ export function nodePresentationInlineStyle(
     style.WebkitBoxOrient = "vertical";
     style.overflow = "hidden";
   }
-  if (value.textColor) style.color = value.textColor;
-  if (value.backgroundColor) style.backgroundColor = value.backgroundColor;
+  // Through the resolver, NOT verbatim: the role-colour pickers write the
+  // binding sentinel `token:color.x` for every theme swatch, and a raw
+  // sentinel is an invalid colour — the declaration is thrown away and the
+  // text renders transparent/inherited. Same failure the nav CTA shipped.
+  if (value.textColor) style.color = resolveStyleTokenRef(value.textColor);
+  if (value.backgroundColor) style.backgroundColor = resolveStyleTokenRef(value.backgroundColor);
   if (
     value.borderColor ||
     value.borderWidthPx !== undefined ||
@@ -232,7 +238,7 @@ export function nodePresentationInlineStyle(
     style.borderStyle = value.borderStyle ?? "solid";
     style.borderWidth =
       value.borderWidthPx !== undefined ? `${value.borderWidthPx}px` : "1px";
-    if (value.borderColor) style.borderColor = value.borderColor;
+    if (value.borderColor) style.borderColor = resolveStyleTokenRef(value.borderColor);
   }
   if (value.visibility === "hidden") style.display = "none";
   return Object.keys(style).length > 0 ? style : undefined;
