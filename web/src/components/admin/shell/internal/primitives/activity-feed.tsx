@@ -28,26 +28,43 @@ export function ActivityFeedItem({
 }) {
   return (
     <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-        padding: "10px 0",
-        fontFamily: FONTS.body,
-      }}
+      className="group flex items-start gap-2.5 py-2.5"
+      style={{ fontFamily: FONTS.body }}
     >
-      <div style={{ width: 28, height: 28, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 13, }}
+      <div
+        className="bg-admin-surface-alt"
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: "50%",
+          border: `1px solid ${COLORS.borderSoft}`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 12,
+          marginTop: 1,
+        }}
         aria-hidden
       >
-        {iconName ? <Icon name={iconName} size={13} stroke={1.7} color={COLORS.inkMuted} /> : (icon ?? "📋")}
+        {iconName ? <Icon name={iconName} size={12} stroke={1.7} color={COLORS.inkMuted} /> : (icon ?? "\u{1F4CB}")}
       </div>
-      <div className="flex-1 min-w-0">
-        <div style={{ fontSize: 12.5, lineHeight: 1.4 }} className="bg-admin-surface-alt text-admin-ink-muted text-admin-ink">
-          <strong className="font-semibold">{actor}</strong>
-          {" "}{action}{" "}
-          <strong className="font-medium">{target}</strong>
-        </div>
-        <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{timestamp}</div>
+
+      {/* Sentence — actor and target carry the ink, the verb stays muted so the
+          eye lands on who/what, not on the connective tissue. */}
+      <div className="flex-1 min-w-0 text-admin-ink-muted" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+        <span className="font-semibold text-admin-ink">{actor}</span>
+        {" "}{action}{" "}
+        <span className="font-medium text-admin-ink">{target}</span>
+      </div>
+
+      {/* Timestamp rides the same baseline instead of stacking a second line
+          under every row — keeps the feed one row = one line. */}
+      <div
+        className="text-admin-ink-muted"
+        style={{ fontSize: 11, flexShrink: 0, marginTop: 1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}
+      >
+        {timestamp}
       </div>
     </div>
   );

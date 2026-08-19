@@ -432,7 +432,7 @@ export function OverviewPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 4,
+            marginBottom: 10,
           }}
         >
           <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: 0, letterSpacing: -0.2 }} className="text-admin-ink">
@@ -468,7 +468,8 @@ export function OverviewPage() {
             background: "#fff",
             border: `1px solid ${COLORS.borderSoft}`,
             borderRadius: 12,
-            padding: "0 18px",
+            padding: "4px 16px",
+            overflow: "hidden",
           }}
         >
           {realActivity.length === 0 ? (
