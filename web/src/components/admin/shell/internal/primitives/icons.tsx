@@ -42,7 +42,8 @@ export type AdminShellIconName =
   | "layers"
   | "camera"
   | "image"
-  | "briefcase";
+  | "briefcase"
+  | "chart";
 
 export function Icon({
   name,
@@ -302,6 +303,13 @@ export function Icon({
         <svg {...common}>
           <rect x="2" y="7" width="20" height="14" rx="2" />
           <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </svg>
+      );
+    case "chart":
+      return (
+        <svg {...common}>
+          <path d="M3 3v18h18" />
+          <path d="M7 15l4-5 3 3 5-7" />
         </svg>
       );
   }

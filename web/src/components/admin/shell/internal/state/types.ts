@@ -2764,24 +2764,36 @@ export type WebsitePeriodMetrics = {
   inquiries: number;
   bookings: number;
   revenue: number;
-  prior: { visits: number; inquiries: number; bookings: number; revenue: number };
+  /**
+   * The prior comparison window, or NULL when no baseline exists for this
+   * period. Null-honest on purpose (W2): the old shape hardcoded all-zero
+   * priors, which made every KPI delta permanently read "flat vs 0". The 7d
+   * period gets a real prior (days 8-14, derived from the 30d fetch); the 30d
+   * period is null because a 30d baseline would need a 60d scan the loader
+   * does not do. Consumers render NO delta when this is null.
+   */
+  prior: { visits: number; inquiries: number; bookings: number; revenue: number } | null;
 };
 
+/**
+ * A top-page row. Visits are real (`view_site_page` grouped by slug). The
+ * per-page `inquiries`/`bookings` fields the old shape carried are GONE: no
+ * per-page attribution exists in the data, and structurally-always-zero
+ * columns were one of the three lies the W2 audit found.
+ */
 export type WebsitePageMetrics = {
   pageId: string;
+  /** The grouping slug the loader keyed on ("/", "/roster", ...). */
+  pageSlug: string;
+  /** Distinct surfaces that contributed views (storefront, talent-site, ...). */
+  surfaces: string[];
   visits: number;
-  inquiries: number;
-  bookings: number;
 };
 
-export type WebsiteTalentMetrics = {
-  talentId: string;
-  talentName: string;
+/** One UTC day of visit counts, for the trend chart (oldest first). */
+export type WebsiteDailyVisits = {
+  date: string;
   visits: number;
-  inquiries: number;
-  bookings: number;
-  revenue: number;
-  topPageId?: string;
 };
 
 /**
@@ -2799,11 +2811,17 @@ export type WebsiteAnalytics = {
   last30d: WebsitePeriodMetrics;
   byPage7d: WebsitePageMetrics[];
   byPage30d: WebsitePageMetrics[];
-  byTalent7d: WebsiteTalentMetrics[];
-  byTalent30d: WebsiteTalentMetrics[];
   /** ANALYTICS-2 — top referrers (host) over the trailing window. */
   topReferrers7d: WebsiteReferrerMetrics[];
   topReferrers30d: WebsiteReferrerMetrics[];
+  /**
+   * W2 — per-day visit counts across the trailing 30d window (zero-filled,
+   * oldest first). The 7d view slices the last 7 entries. The old
+   * `byTalent7d/30d` fields that lived here were removed rather than kept:
+   * nothing ever populated them from live data, so the Talent tab they fed
+   * could only ever render its empty state.
+   */
+  visitsByDay: WebsiteDailyVisits[];
 };
 
 export type WebsiteState = {

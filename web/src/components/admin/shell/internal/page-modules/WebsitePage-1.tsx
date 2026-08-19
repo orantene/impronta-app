@@ -18,7 +18,7 @@ import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
 import { PageStatusChip } from "./SitePage";
 import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
-import { WebsitePerformance } from "./WebsitePage-2";
+import { WebsiteAnalyticsPage } from "./WebsiteAnalyticsPage";
 import { WebsiteLaunchpad } from "./WebsiteLaunchpad";
 import { WebsitePagesPage, WebsitePagesPreview } from "./WebsitePagesSurface";
 import { WebsitePostsPage } from "./WebsitePostsPage";
@@ -44,7 +44,8 @@ import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 //   2. Does anything need attention?                   → WebsiteHealthPanel
 //   3. Where do I go next?                             → WebsiteLaunchpad
 //   4. What is my site made of?                        → WebsitePagesPreview
-// Performance follows, collapsible; Posts closes the page.
+// Posts close the page. Performance moved to /website/analytics (W2);
+// its launchpad card carries the live 7d visit count.
 //
 // WHAT LEFT, AND WHERE IT WENT
 //   • The 4 hero stat tiles      → re-expressed as live counts on the
@@ -155,6 +156,7 @@ export function WebsitePage() {
   const isSetup = pathname?.endsWith("/website/setup") ?? false;
   const isPagesRoute = pathname?.endsWith("/website/pages") ?? false;
   const isPostsRoute = pathname?.endsWith("/website/posts") ?? false;
+  const isAnalytics = pathname?.endsWith("/website/analytics") ?? false;
 
   const [windowOrigin, setWindowOrigin] = useState("");
   useEffect(() => {
@@ -197,8 +199,6 @@ export function WebsitePage() {
     window.open(`${editorBaseUrl}?edit=1&panel=sections`, "_blank", "noopener,noreferrer");
     toast(t("dashboard.adminWebsite.toastOpeningHomepageEditor"));
   }, [editorBaseUrl, t, toast]);
-
-  const fmtMoney = (n: number) => `€${n.toLocaleString()}`;
 
   // Design / Cards / Profiles additionally carry the local design strip, so
   // the three surfaces read as one place without merging their routes.
@@ -254,6 +254,15 @@ export function WebsitePage() {
       <>
         <WebsiteSubviewTabs active="posts" />
         <WebsitePostsPage />
+      </>
+    );
+  }
+
+  if (isAnalytics) {
+    return (
+      <>
+        <WebsiteSubviewTabs active="analytics" />
+        <WebsiteAnalyticsPage />
       </>
     );
   }
@@ -376,8 +385,10 @@ export function WebsitePage() {
           "Add page" and a link to the full list at /website/pages. */}
       <WebsitePagesPreview />
 
-      {/* Performance — collapsible; KPI tiles + funnel + Top performers. */}
-      <WebsitePerformance analytics={w.analytics} pages={w.pages} fmtMoney={fmtMoney} />
+      {/* Performance moved to its own page (W2): the launchpad's Analytics
+          card carries the live 7d visit count and links to /website/analytics.
+          The inline WebsitePerformance panel this replaced showed hardcoded-
+          zero deltas and per-page conversions — see WebsiteAnalyticsPage. */}
 
       {/* Posts. The read-only Redirects column that used to sit beside this is
           gone: Redirects has its own route, the launchpad links to it with a

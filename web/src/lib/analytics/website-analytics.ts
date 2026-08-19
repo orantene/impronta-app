@@ -3,8 +3,11 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import {
+  bucketVisitsByDay,
+  countVisitsBetween,
   groupTopPages,
   groupTopReferrers,
+  type DailyVisitBucket,
   type SitePageViewRow,
   type TopPageRow,
   type TopReferrerRow,
@@ -38,6 +41,20 @@ export type WebsiteAnalyticsData = {
   last7d: WebsiteAnalyticsBucket;
   /** Visits + grouped top-pages/top-referrers for the trailing 30-day window. */
   last30d: WebsiteAnalyticsBucket;
+  /**
+   * Visits in the PRIOR 7-day window (days 8-14), derived in-memory from the
+   * same 30d fetch — the real baseline behind the 7d KPI delta. The 30d period
+   * has NO prior here on purpose: a 30d baseline needs a 60d scan, which the
+   * free-tier row cap does not leave room for, and inventing one would be the
+   * exact lie this shape replaced.
+   */
+  prior7dVisits: number;
+  /**
+   * Per-UTC-day visit counts across the whole trailing 30d window (oldest
+   * first, zero-filled). Derived from the event timestamps already in the 30d
+   * fetch — no extra query.
+   */
+  visitsByDay30: DailyVisitBucket[];
 };
 
 const EMPTY_BUCKET: WebsiteAnalyticsBucket = {
@@ -51,6 +68,8 @@ export function emptyWebsiteAnalytics(): WebsiteAnalyticsData {
     refreshedAt: new Date().toISOString(),
     last7d: { ...EMPTY_BUCKET },
     last30d: { ...EMPTY_BUCKET },
+    prior7dVisits: 0,
+    visitsByDay30: [],
   };
 }
 
@@ -112,6 +131,12 @@ export type ConversionBucket = {
 export type WebsiteConversionMetrics = {
   last7d: ConversionBucket;
   last30d: ConversionBucket;
+  /**
+   * The PRIOR 7-day window (days 8-14), derived from the same 30d row set —
+   * the baseline behind the 7d KPI deltas. There is deliberately no prior30d:
+   * that would need a 60d scan (see `WebsiteAnalyticsData.prior7dVisits`).
+   */
+  prior7d: ConversionBucket;
 };
 
 const EMPTY_CONVERSION_BUCKET: ConversionBucket = {
@@ -124,6 +149,7 @@ export function emptyWebsiteConversionMetrics(): WebsiteConversionMetrics {
   return {
     last7d: { ...EMPTY_CONVERSION_BUCKET },
     last30d: { ...EMPTY_CONVERSION_BUCKET },
+    prior7d: { ...EMPTY_CONVERSION_BUCKET },
   };
 }
 
@@ -135,9 +161,34 @@ function countWithin(rows: readonly ConversionRawRow[], sinceIso: string): numbe
   return rows.reduce((n, r) => (r.created_at >= sinceIso ? n + 1 : n), 0);
 }
 
+/** Count rows whose `created_at` falls in `[fromIso, toIso)` — the prior-window slice. */
+function countBetween(
+  rows: readonly ConversionRawRow[],
+  fromIso: string,
+  toIso: string,
+): number {
+  return rows.reduce(
+    (n, r) => (r.created_at >= fromIso && r.created_at < toIso ? n + 1 : n),
+    0,
+  );
+}
+
 function sumRevenueWithin(rows: readonly RevenueRawRow[], sinceIso: string): number {
   const cents = rows.reduce((sum, r) => {
     if (!r.paid_at || r.paid_at < sinceIso) return sum;
+    return sum + (typeof r.gross_amount_cents === "number" ? r.gross_amount_cents : 0);
+  }, 0);
+  return Math.round(cents) / 100;
+}
+
+/** Sum settled revenue whose `paid_at` falls in `[fromIso, toIso)`. */
+function sumRevenueBetween(
+  rows: readonly RevenueRawRow[],
+  fromIso: string,
+  toIso: string,
+): number {
+  const cents = rows.reduce((sum, r) => {
+    if (!r.paid_at || r.paid_at < fromIso || r.paid_at >= toIso) return sum;
     return sum + (typeof r.gross_amount_cents === "number" ? r.gross_amount_cents : 0);
   }, 0);
   return Math.round(cents) / 100;
@@ -156,11 +207,21 @@ type ConversionQueryClient = Pick<
  */
 export function groupConversionMetrics(input: {
   start7Iso: string;
+  /** Start of the PRIOR 7-day window (day 14 back). Optional so pre-existing
+   *  callers keep compiling; without it prior7d is all zeros. */
+  start14Iso?: string;
   start30Iso: string;
   inquiries30: readonly ConversionRawRow[];
   bookings30: readonly ConversionRawRow[];
   revenue30: readonly RevenueRawRow[];
 }): WebsiteConversionMetrics {
+  const prior7d: ConversionBucket = input.start14Iso
+    ? {
+        inquiries: countBetween(input.inquiries30, input.start14Iso, input.start7Iso),
+        bookings: countBetween(input.bookings30, input.start14Iso, input.start7Iso),
+        revenue: sumRevenueBetween(input.revenue30, input.start14Iso, input.start7Iso),
+      }
+    : { ...EMPTY_CONVERSION_BUCKET };
   return {
     last7d: {
       inquiries: countWithin(input.inquiries30, input.start7Iso),
@@ -172,6 +233,7 @@ export function groupConversionMetrics(input: {
       bookings: input.bookings30.length,
       revenue: sumRevenueWithin(input.revenue30, input.start30Iso),
     },
+    prior7d,
   };
 }
 
@@ -192,6 +254,7 @@ export async function loadWebsiteConversionMetrics(
   if (!supabase) return emptyWebsiteConversionMetrics();
 
   const start30Iso = windowStartIso(30);
+  const start14Iso = windowStartIso(14);
   const start7Iso = windowStartIso(7);
 
   try {
@@ -231,6 +294,7 @@ export async function loadWebsiteConversionMetrics(
 
     return groupConversionMetrics({
       start7Iso,
+      start14Iso,
       start30Iso,
       inquiries30,
       bookings30,
@@ -281,6 +345,7 @@ export async function loadWebsiteAnalytics(
   if (!supabase) return emptyWebsiteAnalytics();
 
   const start30Iso = windowStartIso(30);
+  const start14Iso = windowStartIso(14);
   const start7Iso = windowStartIso(7);
 
   try {
@@ -305,6 +370,16 @@ export async function loadWebsiteAnalytics(
       refreshedAt: new Date().toISOString(),
       last7d: bucketFromRows(rows7),
       last30d: bucketFromRows(rows30),
+      // Days 8-14, sliced from the same fetch. Caveat, stated rather than
+      // hidden: the query is newest-first with a 5000-row cap, so a tenant
+      // that actually hits the cap loses its OLDEST rows first — the prior
+      // window (and the tail of visitsByDay30) would undercount before the
+      // current window does. At today's traffic no tenant is near the cap.
+      prior7dVisits: countVisitsBetween(rows30, start14Iso, start7Iso),
+      visitsByDay30: bucketVisitsByDay(rows30, {
+        days: 30,
+        endIso: new Date().toISOString(),
+      }),
     };
   } catch {
     return emptyWebsiteAnalytics();

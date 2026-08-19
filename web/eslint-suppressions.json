@@ -746,11 +746,6 @@
       "count": 20
     }
   },
-  "src/components/admin/shell/internal/page-modules/WebsitePage-2.tsx": {
-    "ratchet/no-new-inline-style": {
-      "count": 46
-    }
-  },
   "src/components/admin/shell/internal/page-modules/WorkPage.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 31

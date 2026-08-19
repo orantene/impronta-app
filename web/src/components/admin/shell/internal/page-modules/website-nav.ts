@@ -95,6 +95,18 @@ export function useWebsiteSubnav(): WebsiteSubnavItem[] {
         href: `${base}/posts`,
         icon: "pencil",
       },
+      // W2 — the dedicated Analytics page. Replaces the Performance panel that
+      // used to squat at the bottom of Overview (WebsitePerformance,
+      // WebsitePage-2.tsx). Ungated: the panel it replaces was visible to
+      // every role, and the page is read-only.
+      {
+        id: "analytics",
+        label: "Analytics",
+        i18nKey: "dashboard.adminWebsite.nav.analyticsLabel",
+        descriptionI18nKey: "dashboard.adminWebsite.nav.analyticsDescription",
+        href: `${base}/analytics`,
+        icon: "chart",
+      },
       // Design is now an INTERNAL hub, not the external theme deep link it used
       // to be. The theme panel still lives in a drawer inside the storefront
       // editor, but four separate ways to change how the site looks (theme,

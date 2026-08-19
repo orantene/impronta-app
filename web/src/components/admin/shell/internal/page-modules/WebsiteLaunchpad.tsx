@@ -130,6 +130,13 @@ export function WebsiteLaunchpad() {
             });
       case "setup":
         return w.domain.primaryDomain || t("dashboard.adminWebsite.launchpadSetupNoAddress");
+      // REAL — the 7d visit count comes straight from the analytics loader
+      // (`view_site_page` rows); this is the Overview's replacement for the
+      // inline Performance panel (W2).
+      case "analytics":
+        return interpolate(t("dashboard.adminWebsite.launchpadAnalyticsMeta"), {
+          count: w.analytics.last7d.visits.toLocaleString(),
+        });
       // Forms carries no submissions count through the Website bridge, and
       // Card Design / Profile Pages have nothing countable. No number, on
       // purpose — see the honesty rule in this file's header.

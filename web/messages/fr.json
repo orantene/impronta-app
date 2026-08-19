@@ -614,8 +614,23 @@
         "formsLabel": "Formulaires",
         "formsDescription": "Soumissions des formulaires de votre site",
         "setupLabel": "Configuration",
-        "setupDescription": "Adresse web, réglages de recherche, suivi"
-      }
+        "setupDescription": "Adresse web, réglages de recherche, suivi",
+        "analyticsLabel": "Statistiques",
+        "analyticsDescription": "Visites, demandes, réservations et leur provenance."
+      },
+      "analyticsSubtitle": "Comment va votre site : visites réelles, demandes, réservations et leur provenance.",
+      "analyticsUpdated": "Mis à jour {when}",
+      "analyticsDeltaNew": "Nouveau sur cette période (période précédente : 0)",
+      "analyticsNo30dDelta": "La variation par rapport à la période précédente n'est affichée que sur la vue 7 jours. Une comparaison sur 30 jours nécessite 60 jours d'historique, pas encore collectés.",
+      "analyticsTrendHeading": "Visites quotidiennes",
+      "analyticsTrendPeak": "Pic de {count} visites",
+      "analyticsTrendEmpty": "Aucune visite enregistrée sur cette période pour le moment.",
+      "analyticsFunnelHeading": "Entonnoir des visites du site",
+      "analyticsFunnelInfo": "Visites du site comparées aux demandes et réservations confirmées sur la même période. Ce n'est pas l'entonnoir des demandes, qui suit l'avancement des demandes par étapes.",
+      "analyticsTopPagesHeading": "Pages principales",
+      "analyticsTopReferrersHeading": "Principales sources",
+      "analyticsThSurfaces": "Surfaces",
+      "launchpadAnalyticsMeta": "{count} visites · 7 j"
     },
     "mediaField": {
       "pickerTitle": "Bibliotheque de medias",
