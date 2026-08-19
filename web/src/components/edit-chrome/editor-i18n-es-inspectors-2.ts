@@ -601,4 +601,10 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
     "El bloque se desliza verticalmente durante su paso por pantalla. Controla el hueco de entrada cuando ambos están definidos. La entrada se reproduce una vez; el parallax es lo que sigue en movimiento.",
   "Eases in the first time the block scrolls into view, then stays. Direction variants travel by the distance below.":
     "Aparece suavemente la primera vez que el bloque entra en pantalla y luego permanece. Las variantes direccionales se desplazan la distancia indicada abajo.",
+
+  // The node-role "Selected block" variant of the device-rail sentence. It was
+  // inline (and untranslated) before the info-tip pass; moving it onto a
+  // boundary prop made the guard see it, which is the guard working.
+  "Device is controlled by the device rail above (synced to the canvas).":
+    "El dispositivo se controla desde la barra de dispositivos de arriba (sincronizada con el lienzo).",
 };

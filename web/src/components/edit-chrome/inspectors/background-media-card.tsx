@@ -36,7 +36,8 @@ import {
 
 import { useT } from "@/i18n/use-t";
 
-import { Field, FieldLabel, Helper, Segmented, TextInput } from "../kit";
+import { Field, FieldLabel, Segmented, TextInput } from "../kit";
+import { InspectorLabelWithInfo } from "./kit/inspector-info-tip";
 import { DebouncedRangeInput } from "./kit/debounced-range-input";
 import { MediaField, toMediaValue } from "./kit";
 import { KIT } from "./kit/tokens";
@@ -109,7 +110,9 @@ export function BackgroundMediaCard({
   return (
     <div className="flex flex-col gap-3">
       <Field flush>
-        <FieldLabel>Background media</FieldLabel>
+        <FieldLabel info="Plays muted and looped behind this block, with a still image for visitors who prefer reduced motion.">
+          Background media
+        </FieldLabel>
         <Segmented
           fullWidth
           compact
@@ -122,10 +125,6 @@ export function BackgroundMediaCard({
             { value: "slideshow", label: "Slideshow" },
           ]}
         />
-        <Helper>
-          Plays muted and looped behind this block, with a still image for
-          visitors who prefer reduced motion.
-        </Helper>
       </Field>
 
       {source === "upload" ? (
@@ -149,39 +148,38 @@ export function BackgroundMediaCard({
 
       {source === "youtube" ? (
         <Field flush>
-          <FieldLabel>YouTube link</FieldLabel>
+          <FieldLabel info="Paste any YouTube link. Watch, share and Shorts URLs all work.">
+            YouTube link
+          </FieldLabel>
           <TextInput
             value={value?.src ?? ""}
             onChange={(next) => patch({ src: next })}
             placeholder="https://www.youtube.com/watch?v=..."
           />
-          <Helper>
-            Paste any YouTube link. Watch, share and Shorts URLs all work.
-          </Helper>
         </Field>
       ) : null}
 
       {source === "slideshow" ? (
         <>
           <div className={KIT.field}>
-            <label className={KIT.label}>Images</label>
+            <InspectorLabelWithInfo
+              label="Images"
+              info="They cross-fade in this order. Visitors who prefer reduced motion see the first image only, and the rest load lazily."
+              className={KIT.label}
+            />
             <BackgroundSlideshowManager
               nodeId={nodeId}
               tenantId={tenantId}
               slides={value?.slides ?? []}
               onChange={(slides) => patch({ slides })}
             />
-            <p className={KIT.hint}>
-              They cross-fade in this order. Visitors who prefer reduced motion
-              see the first image only, and the rest load lazily.
-            </p>
           </div>
 
           <Field flush>
             {/* Static prefix + rendered number, matching the overlay slider —
                 interpolating the seconds INTO the key would mint a fresh
                 untranslatable string on every tick. */}
-            <FieldLabel>
+            <FieldLabel info="How long each image stays before the next one fades in.">
               {t("Seconds per image:")}{" "}
               {Math.round(
                 (value?.intervalMs ?? BACKGROUND_SLIDESHOW_DEFAULT_INTERVAL_MS) / 1000,
@@ -197,7 +195,6 @@ export function BackgroundMediaCard({
               onCommit={(next) => patch({ intervalMs: Math.round(next) * 1000 })}
               ariaLabel="Seconds per image"
             />
-            <Helper>How long each image stays before the next one fades in.</Helper>
           </Field>
 
           <Field flush>
@@ -226,9 +223,15 @@ export function BackgroundMediaCard({
         <>
           {source === "slideshow" ? null : (
           <div className={KIT.field}>
-            <label className={KIT.label}>
-              {source === "youtube" ? "Poster image (optional)" : "Poster image"}
-            </label>
+            <InspectorLabelWithInfo
+              label={source === "youtube" ? "Poster image (optional)" : "Poster image"}
+              info={
+                source === "youtube"
+                  ? "Shown before the video starts and instead of it under reduced motion. Falls back to the YouTube thumbnail."
+                  : "Shown before the video starts and instead of it under reduced motion."
+              }
+              className={KIT.label}
+            />
             <MediaField
               tenantId={tenantId}
               value={toMediaValue(value?.poster)}
@@ -237,11 +240,6 @@ export function BackgroundMediaCard({
               aspect="16/9"
               layout="row"
             />
-            <p className={KIT.hint}>
-              {source === "youtube"
-                ? "Shown before the video starts and instead of it under reduced motion. Falls back to the YouTube thumbnail."
-                : "Shown before the video starts and instead of it under reduced motion."}
-            </p>
           </div>
           )}
 
@@ -249,7 +247,7 @@ export function BackgroundMediaCard({
             {/* Static prefix + rendered number, matching cta-banner-content —
                 interpolating the number INTO the key would produce a fresh
                 untranslatable string ("Overlay darkness: 45%") on every tick. */}
-            <FieldLabel>
+            <FieldLabel info="Darkens the background so headings and body copy stay readable.">
               {t("Overlay darkness:")} {value?.overlay ?? 0}%
             </FieldLabel>
             <DebouncedRangeInput
@@ -260,13 +258,12 @@ export function BackgroundMediaCard({
               onCommit={(next) => patch({ overlay: next })}
               ariaLabel="Overlay darkness"
             />
-            <Helper>
-              Darkens the background so headings and body copy stay readable.
-            </Helper>
           </Field>
 
           <Field flush>
-            <FieldLabel>Overlay color</FieldLabel>
+            <FieldLabel info="Any CSS color, or a theme token like var(--token-color-primary). Defaults to black.">
+              Overlay color
+            </FieldLabel>
             <TextInput
               value={value?.overlayColor ?? ""}
               onChange={(next) =>
@@ -274,14 +271,12 @@ export function BackgroundMediaCard({
               }
               placeholder={BACKGROUND_MEDIA_DEFAULT_OVERLAY_COLOR}
             />
-            <Helper>
-              Any CSS color, or a theme token like var(--token-color-primary).
-              Defaults to black.
-            </Helper>
           </Field>
 
           <Field flush>
-            <FieldLabel>Focal point</FieldLabel>
+            <FieldLabel info="Which part of the frame stays visible when it is cropped. Try center, top, or 50% 20%.">
+              Focal point
+            </FieldLabel>
             <TextInput
               value={value?.focalPoint ?? ""}
               onChange={(next) =>
@@ -289,10 +284,6 @@ export function BackgroundMediaCard({
               }
               placeholder="center"
             />
-            <Helper>
-              Which part of the frame stays visible when it is cropped. Try
-              center, top, or 50% 20%.
-            </Helper>
           </Field>
 
           {unresolvable ? (

@@ -50,7 +50,7 @@ import { useComponentDefaultsPreview } from "../component-defaults-bridge";
 import { InstanceOverridesPanel } from "./instance-overrides-panel";
 import { InstanceVariantPicker } from "./instance-variant-picker";
 import { SectionStyleMockupPanel } from "./section-style-mockup-panel";
-import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput, InspectorInfoTip } from "./kit";
+import { LockBadge, LockedFieldsBanner, styleLockedPathsOf, SegmentedField, NumberField, DebouncedRangeInput, InspectorInfoTip, InspectorLabelWithInfo } from "./kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL, INSPECTOR_HELP_TEXT_CLASS as HINT, INSPECTOR_SECTION_TITLE_CLASS as SECTION_TITLE, InspectorBody } from "./kit/inspector-ui";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
@@ -3463,7 +3463,11 @@ export function StylePanel({
       {selectedNodeRole && selectedNodeLabel ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>{t("Selected block")}</div>
+            <InspectorLabelWithInfo
+              label={t("Selected block")}
+              info="Device is controlled by the device rail above (synced to the canvas)."
+              className={SECTION_TITLE}
+            />
             <span className={INHERIT_HINT}>{selectedNodeLabel}</span>
           </div>
           <div
@@ -3826,14 +3830,13 @@ export function StylePanel({
                     ) : null}
                   </div>
                 </div>
-                <p className={HINT}>
-                  Device is controlled by the device rail above (synced to the canvas).
-                  {selectedViewport !== "desktop"
-                    ? ` Editing ${selectedViewport}: ${selectedViewportOverrideCount} override${
-                        selectedViewportOverrideCount === 1 ? "" : "s"
-                      }.`
-                    : ""}
-                </p>
+                {selectedViewport !== "desktop" ? (
+                  <p className={HINT}>
+                    {`Editing ${selectedViewport}: ${selectedViewportOverrideCount} override${
+                      selectedViewportOverrideCount === 1 ? "" : "s"
+                    }.`}
+                  </p>
+                ) : null}
                 {selectedViewport !== "desktop" ? (
                   <span className={INHERIT_HINT}>
                     {selectedViewportOverrideCount > 0
@@ -4831,7 +4834,13 @@ export function StylePanel({
       {!selectedNodeRole && selectedStandaloneStyleNode ? (
         <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <div className={SECTION_TITLE}>{t("Selected block")}</div>
+            <InspectorLabelWithInfo
+              label={t("Selected block")}
+              info={t(
+                "Device is controlled by the device rail above the inspector (synced to the canvas).",
+              )}
+              className={SECTION_TITLE}
+            />
             <div className="flex items-center gap-2">
               {styleLockedPaths.length > 0 ? <LockBadge /> : null}
               <span className={INHERIT_HINT}>
@@ -4844,11 +4853,8 @@ export function StylePanel({
             data-builder-node-style-panel={selectedStandaloneStyleNode.kind}
           >
             <p className={HINT}>
-              {t(
-                "Device is controlled by the device rail above the inspector (synced to the canvas).",
-              )}
               {selectedViewport !== "desktop"
-                ? ` ${t(
+                ? `${t(
                     selectedStandaloneViewportOverrideCount === 1
                       ? "Editing {device} overrides: {count} field set."
                       : "Editing {device} overrides: {count} fields set.",
