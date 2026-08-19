@@ -34,6 +34,7 @@ import {
   findUnembeddableVideos,
 } from "./video-embed-preflight";
 import { divisionPagesEs } from "./pages/divisions-es";
+import { legalPagesEs } from "./pages/legal-es";
 import { homePageEs } from "./pages/home-es";
 import type { ImprontaRebuildPage } from "./shared";
 
@@ -46,7 +47,7 @@ const LOCALE = "es";
  * generalizing here beat copying the script — the image-slot resolution and the
  * validate-before-write guard are the parts worth having exactly once.
  */
-const PAGES: ImprontaRebuildPage[] = [homePageEs, ...divisionPagesEs];
+const PAGES: ImprontaRebuildPage[] = [homePageEs, ...divisionPagesEs, ...legalPagesEs];
 
 function serviceClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
