@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { ES_PAGE_META } from "./fix-es-page-meta";
+import { ES_PAGE_META } from "./es-page-meta";
 
 test("every entry is actually Spanish", () => {
   // The defect being fixed is English metadata on Spanish pages. Shipping a

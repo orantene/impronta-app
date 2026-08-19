@@ -24,7 +24,7 @@ import { faqPage } from "./faq";
 import { becomeAModelPage } from "./become-a-model";
 import { CORE_ES_COPY, CORE_ES_KEEP_ENGLISH } from "./core-es-copy";
 import { buildLocalizedTree, collectVisitorText } from "./localize-page";
-import { ES_PAGE_META } from "../fix-es-page-meta";
+import { ES_PAGE_META } from "../es-page-meta";
 import type { ImprontaRebuildPage } from "../shared";
 
 function spanishCore(page: ImprontaRebuildPage): ImprontaRebuildPage {

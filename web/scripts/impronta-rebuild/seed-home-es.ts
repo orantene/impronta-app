@@ -194,11 +194,28 @@ async function writePage(
   }
 
   if (existing) {
+    // A draft write on a PUBLISHED page must not unpublish it. The public
+    // render serves status='published' rows from published_page_snapshot, so
+    // flipping status would drop the live Spanish page to its English
+    // fallback while the copy waits for review. Write the new tree into
+    // `blocks` (the editor's working copy), keep everything live untouched;
+    // the owner's Publish promotes it.
+    const draftOnPublished = !publish && existing.status === "published";
+    const update = draftOnPublished
+      ? { blocks: payload.blocks, is_freeform: payload.is_freeform }
+      : payload;
+    if (draftOnPublished) {
+      console.log("draft-on-published: writing blocks only; live page + SEO stay as published");
+    }
     const { error } = await supabase
       .from("cms_pages")
-      .update(payload)
+      .update(update)
       .eq("id", existing.id);
     if (error) throw new Error(`update failed: ${error.message}`);
+    if (draftOnPublished) {
+      console.log("\nWritten as the working draft of a page that STAYS published.");
+      return;
+    }
   } else {
     const { error } = await supabase.from("cms_pages").insert(payload);
     if (error) throw new Error(`insert failed: ${error.message}`);
