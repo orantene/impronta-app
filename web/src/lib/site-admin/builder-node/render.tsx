@@ -5083,18 +5083,24 @@ function renderBuilderNodeElement(
           // glaring on a dark theme. These props are that authoring path.
           style={{
             ...inlineNodeStyle(navProps.style),
-            ...(navProps.menuBackground
-              ? { ["--bn-nav-menu-bg" as string]: navProps.menuBackground }
-              : {}),
-            ...(navProps.menuTextColor
-              ? { ["--bn-nav-menu-color" as string]: navProps.menuTextColor }
-              : {}),
-            ...(navProps.menuBorderColor
-              ? { ["--bn-nav-menu-border" as string]: navProps.menuBorderColor }
-              : {}),
-            ...(navProps.accentColor
-              ? { ["--bn-nav-accent" as string]: navProps.accentColor }
-              : {}),
+            // Through resolveStyleTokenRef, NOT verbatim: these fields hold
+            // either a raw color or a `token:color.x` binding, and a raw
+            // sentinel in a custom property is an invalid color — the CTA and
+            // accent silently render transparent (IACVT), which is exactly
+            // what shipped.
+            ...Object.fromEntries(
+              (
+                [
+                  ["--bn-nav-menu-bg", navProps.menuBackground],
+                  ["--bn-nav-menu-color", navProps.menuTextColor],
+                  ["--bn-nav-menu-border", navProps.menuBorderColor],
+                  ["--bn-nav-accent", navProps.accentColor],
+                ] as const
+              ).flatMap(([cssVar, raw]) => {
+                const value = raw ? resolveStyleTokenRef(raw) : undefined;
+                return value ? [[cssVar, value]] : [];
+              }),
+            ),
             ...(navProps.megaColumns
               ? { ["--bn-mega-cols" as string]: String(navProps.megaColumns) }
               : {}),

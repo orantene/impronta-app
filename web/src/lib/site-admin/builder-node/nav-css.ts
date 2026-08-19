@@ -67,7 +67,7 @@ export const BUILDER_NODE_NAV_CSS = `
 a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-icon{opacity:0.95}
 .site-builder-node--nav-link-text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .site-builder-node--nav-link-label{display:inline-flex;align-items:center;gap:0.5em;min-width:0}
-.site-builder-node--nav-link-desc{font-size:0.78em;font-weight:400;opacity:0.52;line-height:1.45;text-transform:none;letter-spacing:0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:26ch}
+.site-builder-node--nav-link-desc{font-size:0.78em;font-weight:400;opacity:0.52;line-height:1.45;text-transform:none;letter-spacing:0.01em;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;max-width:26ch}
 .site-builder-node--nav-badge{display:inline-flex;align-items:center;padding:0.1em 0.5em;border-radius:999px;font-size:0.62em;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-badge-ink,#101010);line-height:1.6}
 
 /* Group headings — the label of a child-with-children, in panels and drawer. */
@@ -98,7 +98,7 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
 
 /* Panel rows — dropdown and mega share one row treatment. The hover tint is
    mixed from currentColor so it works on a white panel and a noir one alike. */
-.site-builder-node--nav-links .site-builder-node--nav-submenu a{display:flex;align-items:flex-start;padding:0.5rem 0.65rem;border-radius:8px;transition:background-color 140ms ease}
+.site-builder-node--nav-links .site-builder-node--nav-submenu a{display:flex;align-items:flex-start;padding:0.5rem 0.65rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.92rem;white-space:nowrap;transition:background-color 140ms ease}
 .site-builder-node--nav-links .site-builder-node--nav-submenu a:hover{background-color:color-mix(in srgb,currentColor 7%,transparent)}
 
 /* MEGA PANEL.
@@ -123,14 +123,6 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
 .site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="full"]{position:static}
 .site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="full"] .site-builder-node--nav-submenu{left:0;right:0;width:100%;max-width:none;border-radius:0 0 14px 14px}
 
-/* Featured card — the one place the menu carries an image. */
-.site-builder-node--nav-featured{display:flex;flex-direction:column;gap:0.55rem;padding:0.35rem;border-radius:12px;text-decoration:none;color:inherit;transition:background-color 140ms ease}
-.site-builder-node--nav-featured:hover{background-color:color-mix(in srgb,currentColor 6%,transparent)}
-.site-builder-node--nav-featured img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;display:block;filter:saturate(0.92)}
-.site-builder-node--nav-featured:hover img{filter:saturate(1)}
-.site-builder-node--nav-featured-title{font-weight:700;font-size:0.9em;letter-spacing:0.02em}
-.site-builder-node--nav-featured-desc{font-size:0.76em;opacity:0.55;line-height:1.45}
-
 /* Close FORGIVENESS. The panel closes on a delay so travelling diagonally from
    the trigger toward the panel does not shut it mid-move. Opening stays
    instant — a delay there would read as lag. True hover-intent needs JS, and
@@ -138,18 +130,36 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
 .site-builder-node--nav-links .site-builder-node--nav-submenu{transition:opacity 120ms ease 120ms,transform 120ms ease 120ms,visibility 0s linear 240ms}
 .site-builder-node--nav-links .site-builder-node--nav-has-sub:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub:focus-within .site-builder-node--nav-submenu{transition-delay:0s,0s,0s}
 .site-builder-node--nav-links .site-builder-node--nav-submenu>li{margin:0;padding:0}
-.site-builder-node--nav-links .site-builder-node--nav-submenu a{display:block;padding:0.5rem 0.65rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.92rem;white-space:nowrap}
 .site-builder-node--nav-menu .site-builder-node--nav-has-sub{display:block}
 .site-builder-node--nav-menu .site-builder-node--nav-sub-toggle{display:none}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu{list-style:none;margin:0.1rem 0 0.3rem;padding:0 0 0 0.85rem;display:flex;flex-direction:column;gap:0.1rem;border-left:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12))}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu a{display:block;padding:0.45rem 0.6rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.9rem;opacity:0.92}
+
+/* Drawer rows, same cascade story as the featured card: the anchor carries
+   nav-rich but the generic drawer row rule (0-2-1) was flattening it to
+   display:block, stacking the icon above its label. Element-qualified and
+   AFTER those rules so the tie resolves here. Rows stay display:flex — a
+   drawer row is a full-width tap target, inline-flex would shrink it. */
+.site-builder-node--nav-menu a.site-builder-node--nav-rich{display:flex;align-items:center}
+
+/* Featured card — the one place the menu carries an image. The selector is
+   element-qualified under the nav root (0-2-1) and the block sits AFTER the
+   shared row rules on purpose: the card is an <a> inside the submenu, so the
+   row rule matches it too, and this block must win the specificity tie by
+   order or the card collapses back into a text row. */
+.site-builder-node--nav a.site-builder-node--nav-featured{display:flex;flex-direction:column;gap:0.55rem;padding:0.35rem;border-radius:12px;text-decoration:none;color:inherit;white-space:normal;transition:background-color 140ms ease}
+.site-builder-node--nav a.site-builder-node--nav-featured:hover{background-color:color-mix(in srgb,currentColor 6%,transparent)}
+.site-builder-node--nav-featured img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;display:block;filter:saturate(0.92)}
+.site-builder-node--nav a.site-builder-node--nav-featured:hover img{filter:saturate(1)}
+.site-builder-node--nav-featured-title{font-weight:700;font-size:0.9em;letter-spacing:0.02em}
+.site-builder-node--nav-featured-desc{font-size:0.76em;opacity:0.55;line-height:1.45}
+
 /* Drawer rows read as a LIST: descriptions are desktop-panel furniture and
    turn a thumb-length row into a paragraph, so the drawer drops them. Icons
    keep their fixed slot so labels align down the sheet. */
 .site-builder-node--nav-menu .site-builder-node--nav-link-desc{display:none}
 .site-builder-node--nav-menu .site-builder-node--nav-link-icon{margin-top:0}
-.site-builder-node--nav-menu .site-builder-node--nav-rich{align-items:center}
 .site-builder-node--nav-menu .site-builder-node--nav-group-heading{padding:0.85rem 0.75rem 0.3rem;opacity:0.4}
 
 /* DRAWER v2.
@@ -181,7 +191,7 @@ a:hover>.site-builder-node--nav-link-icon,a:hover .site-builder-node--nav-link-i
    to the bottom with margin-top:auto — no fixed offsets to fight the viewport
    units the geometry depends on. */
 .site-builder-node--nav-menu-footer{margin-top:auto;display:flex;flex-direction:column;gap:0.75rem;padding:0.9rem 0.75rem 0.25rem}
-.site-builder-node--nav-menu-cta{display:flex;align-items:center;justify-content:center;padding:0.8rem 1rem;border-radius:8px;font-weight:700;letter-spacing:0.04em;text-decoration:none;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-cta-ink,#fff)}
+.site-builder-node--nav-menu a.site-builder-node--nav-menu-cta{display:flex;align-items:center;justify-content:center;padding:0.8rem 1rem;border-radius:8px;font-weight:700;letter-spacing:0.04em;text-decoration:none;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-cta-ink,#fff)}
 .site-builder-node--nav-menu-social{display:flex;flex-direction:row;gap:0.9rem;align-items:center;padding:0 0.25rem}
 .site-builder-node--nav-menu-social a{display:inline-flex;padding:0.35rem;font-size:1.15em;opacity:0.85;text-decoration:none;color:inherit}
 .site-builder-node--nav-menu-locales{display:flex;flex-direction:row;gap:0.75rem;padding:0 0.25rem;font-size:0.85em}
