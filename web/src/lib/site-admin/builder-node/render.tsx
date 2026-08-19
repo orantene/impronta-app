@@ -3639,7 +3639,11 @@ function renderBuilderNodeElement(
               bgStyle.backgroundRepeat = childStyle.backgroundRepeat ?? "no-repeat";
             }
             if (childStyle.backgroundColor) {
-              bgStyle.backgroundColor = childStyle.backgroundColor;
+              // styleToken, not verbatim: this lift reads childStyle RAW
+              // instead of going through sharedNodeStyle, so it bypasses the
+              // resolver the same field gets on every other path. A raw
+              // `token:` sentinel is an invalid colour and paints nothing.
+              bgStyle.backgroundColor = styleToken(childStyle.backgroundColor);
             }
             // Spread over the BuilderNode union loses the discriminated-union
             // narrowing, so assert back to BuilderNode (structure is unchanged
@@ -3707,7 +3711,7 @@ function renderBuilderNodeElement(
                       ? // The <img> carries the photo; keep only a non-image
                         // backdrop (e.g. backgroundColor) on the layer.
                         childStyle.backgroundColor
-                        ? { backgroundColor: childStyle.backgroundColor }
+                        ? { backgroundColor: styleToken(childStyle.backgroundColor) }
                         : undefined
                       : Object.keys(bgStyle).length > 0
                         ? bgStyle
