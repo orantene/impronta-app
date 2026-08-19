@@ -58,9 +58,11 @@ test("the scrim is heavier over video than over a still", () => {
   assert.ok((media.overlay ?? 0) >= 50, `overlay ${media.overlay} is too light for video`);
 });
 
-test("the live homepage does NOT ship an un-embeddable video", () => {
-  // Guards the revert: re-adding the owner's current URL would put "This video
-  // is unavailable" across the hero again.
+test("the live homepage does NOT ship the known un-embeddable video", () => {
+  // The owner's own reel has embedding disabled in YouTube; re-adding it puts
+  // "This video is unavailable" across the hero. The PLACEHOLDER that ships
+  // instead is owner-sanctioned and verified against YouTube by the seed
+  // preflight — the only place that fact is checkable.
   assert.ok(
     !JSON.stringify(homePage.tree).includes("c9ARKE2WNxA"),
     "the homepage carries a video whose embedding is disabled",

@@ -274,19 +274,16 @@ function navLinks(locale: ShellLocale): BuilderNavLink[] {
       id: id("for-clients"),
       label: copy.forClients,
       href: "/p/for-clients",
-      icon: "briefcase" as const,
     },
     {
       id: id("about"),
       label: copy.about,
       href: "/p/about",
-      icon: "users" as const,
     },
     {
       id: id("contact"),
       label: copy.contact,
       href: "/p/contact",
-      icon: "mail" as const,
     },
   ];
 }

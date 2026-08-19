@@ -29,11 +29,20 @@ test("the anchored panel is centred under its trigger and viewport-capped", () =
 });
 
 test("columns are author-set with an auto-fill fallback", () => {
-  // The fallback is what keeps an existing ungrouped mega rendering as before.
+  // The fallback keeps an ungrouped mega rendering; minmax(0,1fr) is the part
+  // that shipped wrong once — minmax(180px,…) let long labels OVERFLOW their
+  // column and run underneath the featured image. Zero-basis columns clip to
+  // their track and the desc ellipsis does the rest.
   assert.match(
     CSS,
-    /grid-template-columns:repeat\(var\(--bn-mega-cols,auto-fill\),minmax\(180px,1fr\)\)/,
+    /grid-template-columns:repeat\(var\(--bn-mega-cols,auto-fill\),minmax\(0,1fr\)\)/,
   );
+});
+
+test("the mega panel has a REAL width, not just a minimum", () => {
+  // min-width alone shipped a 378px panel with two crushed columns. A set
+  // width is deterministic; the vw clamp keeps it on-screen at any viewport.
+  assert.match(CSS, /data-bn-submenu="mega"\]\{[^}]*width:min\(680px,92vw\)/);
 });
 
 test("the panel closes on a delay but opens instantly", () => {
