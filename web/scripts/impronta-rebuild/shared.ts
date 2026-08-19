@@ -718,6 +718,11 @@ export function fullBleedPlate(idPrefix: string, opts: PlateOptions): BuilderNod
             top: "0px",
             left: "0px",
             width: "100%",
+            // Without this the container base class caps the scrim at
+            // 1120px, LEFT-aligned — the darkening covered the left half of
+            // the plate and the statement line sat on raw photograph. The
+            // image spans the full bleed; the scrim must too.
+            maxWidthFree: "100%",
             height: "100%",
             zIndex: 1,
             backgroundImage:
