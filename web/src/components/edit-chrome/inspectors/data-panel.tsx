@@ -372,7 +372,7 @@ function DataPanelInner({
 
             {binding && source?.supportsManualSelection ? (
               <Field flush>
-                <FieldLabel>Selection mode</FieldLabel>
+                <FieldLabel info="Bound stays synced to live data. Manual is fully curated. Hybrid mixes live data with operator curation.">Selection mode</FieldLabel>
                 <Segmented
                   fullWidth
                   compact
@@ -386,9 +386,6 @@ function DataPanelInner({
                     { value: "hybrid", label: "Hybrid" },
                   ]}
                 />
-                <Helper>
-                  Bound stays synced to live data. Manual is fully curated. Hybrid mixes live data with operator curation.
-                </Helper>
               </Field>
             ) : null}
 
@@ -445,7 +442,7 @@ function DataPanelInner({
 
             {binding && source?.supportsFiltering ? (
               <Field flush>
-                <FieldLabel>Filter note</FieldLabel>
+                <FieldLabel info="Wireframe for the future query builder. Today it stores operator intent.">Filter note</FieldLabel>
                 <textarea
                   className={KIT.textarea}
                   rows={3}
@@ -453,9 +450,6 @@ function DataPanelInner({
                   placeholder="Example: featured=true, location=Cancun, category=models"
                   onChange={(event) => patchBinding({ filterQuery: event.currentTarget.value })}
                 />
-                <Helper>
-                  Wireframe for the future query builder. Today it stores operator intent.
-                </Helper>
               </Field>
             ) : null}
           </div>

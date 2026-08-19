@@ -31,6 +31,7 @@ import type { ReactNode } from "react";
 
 import { FIELD_KIT } from "./field-kit";
 import { useInspectorT } from "./kit/use-inspector-t";
+import { InspectorInfoTip } from "./kit/inspector-info-tip";
 
 export interface VariantIntentOption {
   id: string;
@@ -282,6 +283,7 @@ export function VariantIntentCards({
   return (
     <div className="flex flex-col gap-1.5" data-variant-intent-cards="">
       <span
+        className="inline-flex items-center gap-1.5"
         style={{
           fontSize: FIELD_KIT.font.label,
           fontWeight: FIELD_KIT.weight.label,
@@ -289,6 +291,7 @@ export function VariantIntentCards({
         }}
       >
         {t(label)}
+        {hint ? <InspectorInfoTip content={hint} title={label} /> : null}
       </span>
       <div
         role="radiogroup"
@@ -344,17 +347,6 @@ export function VariantIntentCards({
           );
         })}
       </div>
-      {hint ? (
-        <span
-          style={{
-            fontSize: FIELD_KIT.font.caption,
-            fontWeight: FIELD_KIT.weight.caption,
-            color: FIELD_KIT.muted,
-          }}
-        >
-          {t(hint)}
-        </span>
-      ) : null}
     </div>
   );
 }

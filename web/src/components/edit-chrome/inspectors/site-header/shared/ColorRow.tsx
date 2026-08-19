@@ -27,7 +27,7 @@ import { useEffect, useState } from "react";
 // site-header/shared sits two levels under inspectors/, so the kit
 // (inspectors/kit) is two `..` up. Don't reach for the edit-chrome
 // kit — that's a different KIT export with different tokens.
-import { KIT } from "../../kit";
+import { InspectorLabelWithInfo, KIT } from "../../kit";
 import { ColorPickerPopover } from "../../../kit/color-picker";
 
 interface ColorRowProps {
@@ -63,8 +63,7 @@ export function ColorRow({ label, hint, value, onChange }: ColorRowProps) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-col gap-0.5">
-        <span className={KIT.label}>{label}</span>
-        {hint ? <span className={KIT.hint}>{hint}</span> : null}
+        <InspectorLabelWithInfo label={label} info={hint} className={KIT.label} />
       </div>
       <div className="flex items-center gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5">
         {/* In-app color picker — the visible swatch button opens the branded

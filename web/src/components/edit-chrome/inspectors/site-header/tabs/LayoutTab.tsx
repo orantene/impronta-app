@@ -17,7 +17,7 @@
  * (it's a brand-level decision that happens to express through layout).
  */
 
-import { InspectorGroup, KIT } from "../../kit";
+import { InspectorGroup, InspectorLabelWithInfo, KIT } from "../../kit";
 import {
   CtaPlacementThumb_Both,
   CtaPlacementThumb_Hidden,
@@ -253,7 +253,11 @@ export function LayoutTab({ config, patch }: Props) {
               </select>
             </div>
             <div className={KIT.field}>
-              <label className={KIT.label}>Brand display</label>
+              <InspectorLabelWithInfo
+                label="Brand display"
+                info="Pick “Wordmark text only” for the prototype look: the gold Cinzel IMPRONTA wordmark with the agency tagline beneath (tagline comes from Brand → Tagline)."
+                className={KIT.label}
+              />
               <select
                 className={KIT.select}
                 value={config.section.brandDisplay}
@@ -267,11 +271,6 @@ export function LayoutTab({ config, patch }: Props) {
                 </option>
                 <option value="image">Logo image only</option>
               </select>
-              <p className={KIT.hint}>
-                Pick &ldquo;Wordmark text only&rdquo; for the prototype look:
-                the gold Cinzel IMPRONTA wordmark with the agency tagline
-                beneath (tagline comes from Brand → Tagline).
-              </p>
             </div>
           </InspectorGroup>
 
@@ -578,10 +577,11 @@ function ToggleRow({
   return (
     <label className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color,background-color] duration-150 hover:border-[#e5e0d5] hover:bg-white">
       <span className="flex flex-col gap-0.5">
-        <span className="text-[12.5px] font-medium text-stone-800">{label}</span>
-        {hint ? (
-          <span className="text-[10.5px] leading-snug text-stone-500">{hint}</span>
-        ) : null}
+        <InspectorLabelWithInfo
+          label={label}
+          info={hint}
+          className="text-[12.5px] font-medium text-stone-800"
+        />
       </span>
       <span
         role="switch"

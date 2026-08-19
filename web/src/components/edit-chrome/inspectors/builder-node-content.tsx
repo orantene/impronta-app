@@ -59,7 +59,7 @@ import { ColorSwatchButton } from "./color-swatch-button";
 import { DraggableList } from "./kit/draggable-list";
 import { useInspectorT } from "./kit/use-inspector-t";
 import { KIT } from "./kit/tokens";
-import { MediaField, toMediaValue } from "./kit";
+import { InspectorLabelWithInfo, MediaField, toMediaValue } from "./kit";
 import { AiGenerateImageButton } from "./ai-generate-image-button";
 import { BackgroundMediaCard } from "./background-media-card";
 import { InlineNameInput } from "./kit/inline-name-input";
@@ -146,14 +146,18 @@ function BuilderNodeFlatPanel({ children }: { children: ReactNode }) {
 
 function BuilderNodeSection({
   title,
+  info,
   children,
 }: {
   title: string;
+  info?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2.5">
-      <h3 className={KIT.blockHeading}>{title}</h3>
+      <h3 className={KIT.blockHeading}>
+        {info ? <InspectorLabelWithInfo label={title} info={info} /> : title}
+      </h3>
       {children}
     </section>
   );
@@ -854,7 +858,7 @@ export function BuilderNodeContentInspector({
                 dataControl="icon-size"
               />
               <Field flush>
-                <FieldLabel>Accessible label</FieldLabel>
+                <FieldLabel info="Leave decorative on when the icon only supports nearby text.">Accessible label</FieldLabel>
                 <input
                   key={`${node.id}:label:${node.props.label ?? ""}`}
                   defaultValue={node.props.label ?? ""}
@@ -870,7 +874,6 @@ export function BuilderNodeContentInspector({
                     void commitTextInput("label", node.props.label ?? "", true)(value);
                   })}
                 />
-                <Helper>Leave decorative on when the icon only supports nearby text.</Helper>
               </Field>
               <div style={{ padding: "4px 0" }}>
                 <Toggle
@@ -896,7 +899,7 @@ export function BuilderNodeContentInspector({
           <CardHead title="Accordion item" sub={`${node.children.length} nested blocks`} iconAccent="blue" />
           <CardBody>
             <Field flush>
-              <FieldLabel>Question</FieldLabel>
+              <FieldLabel info="Use Structure to edit the answer blocks nested inside this item.">Question</FieldLabel>
               <BuilderNodeLocalizableTextField
                 node={node}
                 prop="title"
@@ -908,7 +911,6 @@ export function BuilderNodeContentInspector({
                 onCommitBase={(next) => commitTextInput("title", node.props.title)(next)}
                 patch={commitPatch}
               />
-              <Helper>Use Structure to edit the answer blocks nested inside this item.</Helper>
             </Field>
           </CardBody>
         </Card>
@@ -945,7 +947,7 @@ export function BuilderNodeContentInspector({
           <CardHead title="Tab panel" sub={`${node.children.length} nested blocks`} iconAccent="blue" />
           <CardBody>
             <Field flush>
-              <FieldLabel>Tab label</FieldLabel>
+              <FieldLabel info="Use Structure to edit the content blocks inside this tab.">Tab label</FieldLabel>
               <BuilderNodeLocalizableTextField
                 node={node}
                 prop="title"
@@ -957,7 +959,6 @@ export function BuilderNodeContentInspector({
                 onCommitBase={(next) => commitTextInput("title", node.props.title)(next)}
                 patch={commitPatch}
               />
-              <Helper>Use Structure to edit the content blocks inside this tab.</Helper>
             </Field>
           </CardBody>
         </Card>
@@ -1290,9 +1291,10 @@ export function BuilderNodeContentInspector({
       value: string,
       options: Array<[string, string]>,
       onPick: (v: string) => void,
+      info?: ReactNode,
     ) => (
       <Field flush>
-        <FieldLabel>{label}</FieldLabel>
+        <FieldLabel info={info}>{label}</FieldLabel>
         <select
           className={KIT.select}
           value={value}
@@ -1313,14 +1315,7 @@ export function BuilderNodeContentInspector({
             {select("Posts come from", feed.source ?? "manual", [
               ["manual", "Posts I add below"],
               ["connected", "My connected account (auto-updates)"],
-            ], (v) => void commitPatch({ source: v }))}
-            {feed.source === "connected" ? (
-              <p className={KIT.hint}>
-                Pulls your latest posts from the account connected in Settings,
-                Integrations. Until that account is connected, the posts you add
-                below are shown instead.
-              </p>
-            ) : null}
+            ], (v) => void commitPatch({ source: v }), "Pulls your latest posts from the account connected in Settings, Integrations. Until that account is connected, the posts you add below are shown instead.")}
             {select("Layout", feed.layout ?? "grid", [
               ["grid", "Grid"],
               ["masonry", "Masonry"],
@@ -1412,13 +1407,11 @@ export function BuilderNodeContentInspector({
             </label>
           </div>
         </BuilderNodeSection>
-        <BuilderNodeSection title={`Posts (${feedItems.length})`}>
+        <BuilderNodeSection
+          title={`Posts (${feedItems.length})`}
+          info="Add the photo or video for each post, then paste the post link so visitors can open it. Live account sync arrives once the workspace connects Instagram or TikTok."
+        >
           <div className="flex flex-col gap-3">
-            <p className={KIT.hint}>
-              Add the photo or video for each post, then paste the post link so
-              visitors can open it. Live account sync arrives once the workspace
-              connects Instagram or TikTok.
-            </p>
             {feedItems.map((item, index) => (
               <div
                 key={item.id}
@@ -1922,7 +1915,7 @@ export function BuilderNodeContentInspector({
                 />
               </Field>
               <Field flush>
-                <FieldLabel>Collapse to hamburger at</FieldLabel>
+                <FieldLabel info="“Mobile” keeps links visible on tablet and above.">Collapse to hamburger at</FieldLabel>
                 <Segmented
                   fullWidth
                   compact
@@ -1935,12 +1928,9 @@ export function BuilderNodeContentInspector({
                     { value: "tablet", label: "Tablet" },
                   ]}
                 />
-                <Helper>
-                  &ldquo;Mobile&rdquo; keeps links visible on tablet and above.
-                </Helper>
               </Field>
               <Field flush>
-                <FieldLabel>Submenu style</FieldLabel>
+                <FieldLabel info="How a link’s submenu opens on desktop. “Mega” uses a wider multi-column panel. Only affects links with child links.">Submenu style</FieldLabel>
                 <Segmented
                   fullWidth
                   compact
@@ -1955,11 +1945,6 @@ export function BuilderNodeContentInspector({
                     { value: "mega", label: "Mega" },
                   ]}
                 />
-                <Helper>
-                  How a link&rsquo;s submenu opens on desktop. &ldquo;Mega&rdquo;
-                  uses a wider multi-column panel. Only affects links with child
-                  links.
-                </Helper>
               </Field>
               {/* Mobile menu style — picture chips, not a bare <select>.
                *  An operator choosing how the hamburger opens is making a
@@ -1969,7 +1954,7 @@ export function BuilderNodeContentInspector({
                *  (site-header/tabs/MobileTab.tsx), reused verbatim so the two
                *  surfaces teach the same thing. */}
               <Field flush>
-                <FieldLabel>Mobile menu style</FieldLabel>
+                <FieldLabel info="How the collapsed hamburger menu opens on mobile.">Mobile menu style</FieldLabel>
                 <div className="grid grid-cols-2 gap-2">
                   {NAV_MOBILE_MENU_OPTIONS.map((option) => {
                     const active =
@@ -2011,9 +1996,6 @@ export function BuilderNodeContentInspector({
                     );
                   })}
                 </div>
-                <Helper>
-                  How the collapsed hamburger menu opens on mobile.
-                </Helper>
               </Field>
               {/* Phone menu contents. Grouped with the other mobile controls so
                   the drawer is configured in one place rather than split
@@ -2281,7 +2263,7 @@ export function BuilderNodeContentInspector({
                 </Helper>
               </Field>
               <Field flush>
-                <FieldLabel>Auto-populate links from</FieldLabel>
+                <FieldLabel info="When set, the nav builds its links from your published pages or posts. The manual links below stay as the fallback when nothing resolves.">Auto-populate links from</FieldLabel>
                 <select
                   className={KIT.select}
                   value={node.props.dataBinding?.sourceKey ?? ""}
@@ -2299,11 +2281,6 @@ export function BuilderNodeContentInspector({
                   <option value="cms_page">Site pages</option>
                   <option value="cms_posts">Blog posts</option>
                 </select>
-                <Helper>
-                  When set, the nav builds its links from your published pages or
-                  posts. The manual links below stay as the fallback when nothing
-                  resolves.
-                </Helper>
               </Field>
             </div>
           </CardBody>
@@ -2985,7 +2962,7 @@ export function BuilderNodeContentInspector({
                 dataControl="social-icon-shape"
               />
               <Field flush>
-                <FieldLabel>Source</FieldLabel>
+                <FieldLabel info="When on, this block shows the social/contact links from your workspace identity and ignores the manual list below.">Source</FieldLabel>
                 <Toggle
                   on={isBound}
                   onChange={(checked) => {
@@ -2997,10 +2974,6 @@ export function BuilderNodeContentInspector({
                   }}
                   label="Sync from workspace social profiles"
                 />
-                <Helper>
-                  When on, this block shows the social/contact links from your
-                  workspace identity and ignores the manual list below.
-                </Helper>
               </Field>
             </div>
           </CardBody>
@@ -3266,7 +3239,7 @@ export function BuilderNodeContentInspector({
                   </p>
                 </div>
                 <Field flush>
-                  <FieldLabel>Items shown</FieldLabel>
+                  <FieldLabel info="Controls the live data limit while keeping the section's editable copy.">Items shown</FieldLabel>
                   <Segmented
                     fullWidth
                     compact
@@ -3290,9 +3263,6 @@ export function BuilderNodeContentInspector({
                       { value: "12", label: "12" },
                     ]}
                   />
-                  <Helper>
-                    Controls the live data limit while keeping the section&apos;s editable copy.
-                  </Helper>
                 </Field>
               </div>
             </CardBody>

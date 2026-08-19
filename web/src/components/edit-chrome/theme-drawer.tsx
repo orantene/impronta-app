@@ -60,13 +60,15 @@ import {
   DrawerTabs,
   Field,
   FieldLabel,
-  Helper,
   SaveChip,
   Segmented,
   TextInput,
   type SegmentedOption,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+// Direct file import, NOT the inspectors/kit barrel — avoids the barrel
+// module cycle documented in kit/field.tsx.
+import { InspectorInfoTip } from "./inspectors/kit/inspector-info-tip";
 import { clearThemePreview, publishThemePreview } from "./theme-preview-bridge";
 import { clearComponentDefaultsPreview } from "./component-defaults-bridge";
 import { ComponentDefaultsTab } from "./component-defaults-tab";
@@ -747,7 +749,10 @@ export function ThemeDrawer(): ReactElement | null {
                   <CardHead icon={<TypeIcon />} title="Google Fonts" />
                   <CardBody>
                     <Field>
-                      <FieldLabel htmlFor="theme-typography.heading-font-family">
+                      <FieldLabel
+                        htmlFor="theme-typography.heading-font-family"
+                        info="Overrides the heading-preset above. Loads on save + publish."
+                      >
                         Heading family
                       </FieldLabel>
                       <GoogleFontPicker
@@ -757,10 +762,6 @@ export function ThemeDrawer(): ReactElement | null {
                           set("typography.heading-font-family", v)
                         }
                       />
-                      <Helper>
-                        Overrides the heading-preset above. Loads on save +
-                        publish.
-                      </Helper>
                     </Field>
                     <Field flush>
                       <FieldLabel htmlFor="theme-typography.body-font-family">
@@ -778,7 +779,13 @@ export function ThemeDrawer(): ReactElement | null {
                 </Card>
 
                 <Card>
-                  <CardHead icon={<TypeIcon />} title="Type scale (h1–h6)" />
+                  <CardHead
+                    icon={<TypeIcon />}
+                    title="Type scale (h1–h6)"
+                    sub={
+                      <InspectorInfoTip content="Free CSS length values (clamp(), px, rem, %). Empty = use the type-scale preset above." />
+                    }
+                  />
                   <CardBody>
                     {(
                       [
@@ -803,10 +810,6 @@ export function ThemeDrawer(): ReactElement | null {
                         />
                       </Field>
                     ))}
-                    <Helper>
-                      Free CSS length values (clamp(), px, rem, %). Empty = use
-                      the type-scale preset above.
-                    </Helper>
                   </CardBody>
                 </Card>
               </>
@@ -1037,15 +1040,24 @@ function ColorsTab({
         <CardHead icon={<BackgroundIcon />} title="Page background" />
         <CardBody>
           <Field>
-            <FieldLabel htmlFor="theme-color.background">Background color</FieldLabel>
+            <FieldLabel
+              htmlFor="theme-color.background"
+              info="The main background of your site. White (#ffffff) by default."
+            >
+              Background color
+            </FieldLabel>
             <ColorRow
               value={draft["color.background"] ?? "#ffffff"}
               onChange={(v) => onChange("color.background", v)}
             />
-            <Helper>The main background of your site. White (#ffffff) by default.</Helper>
           </Field>
           <Field flush>
-            <FieldLabel htmlFor="theme-background.mode">Background texture</FieldLabel>
+            <FieldLabel
+              htmlFor="theme-background.mode"
+              info="Layers warmth or grain over the background color above. Also in Layout tab."
+            >
+              Background texture
+            </FieldLabel>
             <Segmented
               value={draft["background.mode"] ?? "plain"}
               onChange={(v) => onChange("background.mode", v)}
@@ -1053,9 +1065,6 @@ function ColorsTab({
               fullWidth
               compact
             />
-            <Helper>
-              Layers warmth or grain over the background color above. Also in Layout tab.
-            </Helper>
           </Field>
         </CardBody>
       </Card>
@@ -1065,12 +1074,13 @@ function ColorsTab({
         <CardBody>
           {BRAND_COLORS.map((c, i) => (
             <Field key={c.key} flush={i === BRAND_COLORS.length - 1}>
-              <FieldLabel htmlFor={`theme-${c.key}`}>{c.label}</FieldLabel>
+              <FieldLabel htmlFor={`theme-${c.key}`} info={c.hint}>
+                {c.label}
+              </FieldLabel>
               <ColorRow
                 value={draft[c.key] ?? ""}
                 onChange={(v) => onChange(c.key, v)}
               />
-              {c.hint ? <Helper>{c.hint}</Helper> : null}
             </Field>
           ))}
         </CardBody>
@@ -1120,7 +1130,9 @@ function PresetsTab({
       <CardBody>
         {presets.map((p, i) => (
           <Field key={p.key} flush={i === presets.length - 1}>
-            <FieldLabel htmlFor={`theme-${p.key}`}>{p.label}</FieldLabel>
+            <FieldLabel htmlFor={`theme-${p.key}`} info={p.hint}>
+              {p.label}
+            </FieldLabel>
             <Segmented
               value={draft[p.key] ?? p.options[0]?.value ?? ""}
               onChange={(v) => onChange(p.key, v)}
@@ -1128,7 +1140,6 @@ function PresetsTab({
               fullWidth
               compact
             />
-            {p.hint ? <Helper>{p.hint}</Helper> : null}
           </Field>
         ))}
       </CardBody>

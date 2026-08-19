@@ -18,7 +18,10 @@ import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import { MediaField, toMediaValue } from "./inspectors/kit";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
-import { CHROME, Field, FieldLabel, Helper, SaveChip, type SaveChipStatus } from "./kit";
+import { CHROME, Field, FieldLabel, SaveChip, type SaveChipStatus } from "./kit";
+// Direct file import, NOT the inspectors/kit barrel — avoids the barrel
+// module cycle documented in kit/field.tsx.
+import { InspectorInfoTip } from "./inspectors/kit/inspector-info-tip";
 
 interface BrandQuickPanelProps {
   open: boolean;
@@ -76,7 +79,9 @@ function LogoQuickField({
   // `resolving` keeps an unresolved id from flashing the empty state.
   return (
     <Field>
-      <FieldLabel>Logo</FieldLabel>
+      <FieldLabel info="Shown in the site header and shared with header settings.">
+        Logo
+      </FieldLabel>
       <div style={{ width: 96, height: 96 }}>
         <MediaField
           tenantId={tenantId}
@@ -91,7 +96,6 @@ function LogoQuickField({
           onChange={(next) => onChange(next?.mediaId ?? null)}
         />
       </div>
-      <Helper>Shown in the site header and shared with header settings.</Helper>
     </Field>
   );
 }
@@ -212,9 +216,7 @@ export function BrandQuickPanelBody({ active }: { active: boolean }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[14px] py-[12px]">
         <div className="mb-[10px] flex items-center justify-between gap-[8px]">
-          <p className="m-0 text-[11px] leading-snug" style={{ color: CHROME.muted }}>
-            Quick brand controls for name, logo, and colors.
-          </p>
+          <InspectorInfoTip content="Quick brand controls for name, logo, and colors." />
           <SaveChip status={chipStatus} />
         </div>
 
@@ -296,7 +298,9 @@ export function BrandQuickPanelBody({ active }: { active: boolean }) {
             </Field>
 
             <Field>
-              <FieldLabel>Instagram</FieldLabel>
+              <FieldLabel info="Shared with the site header and footer.">
+                Instagram
+              </FieldLabel>
               <input
                 className="w-full rounded-[8px] border px-[10px] py-[8px] text-[13px]"
                 style={{ borderColor: CHROME.line, color: CHROME.ink }}
@@ -306,7 +310,6 @@ export function BrandQuickPanelBody({ active }: { active: boolean }) {
                   scheduleIdentity({ socialInstagram: e.target.value || null })
                 }
               />
-              <Helper>Shared with the site header and footer.</Helper>
             </Field>
           </div>
         ) : null}

@@ -761,6 +761,12 @@ export function EditProvider({
   const [availableLocales, setAvailableLocales] = useState<ReadonlyArray<string>>(
     initialComposition?.availableLocales ?? initialAvailableLocales ?? [],
   );
+  // Tenant-truth locale list from the server mount; never clobbered by a
+  // composition load (freeform adapters report a single-locale list).
+  const tenantLocales = useMemo<ReadonlyArray<string>>(
+    () => initialAvailableLocales ?? [],
+    [initialAvailableLocales],
+  );
   const pageVersionRef = useRef<number | null>(pageVersion);
   const pageMetadataRef = useRef<PageMetadata | null>(pageMetadata);
   const slotsRef = useRef<Record<string, CompositionSectionRef[]>>(slots);
@@ -5777,6 +5783,7 @@ export function EditProvider({
       slotDefs,
       library,
       availableLocales,
+      tenantLocales,
 
       refreshComposition,
       queueRouterRefresh,
@@ -6034,6 +6041,7 @@ export function EditProvider({
       slotDefs,
       library,
       availableLocales,
+      tenantLocales,
       refreshComposition,
       queueRouterRefresh,
       insertSection,

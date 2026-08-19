@@ -27,6 +27,8 @@ import { resolveBuilderNodeRole } from "@/lib/site-admin/builder-node";
 import {
   KIT,
   InspectorGroup,
+  InspectorInfoTip,
+  InspectorLabelWithInfo,
   InspectorItemRow,
   InspectorRowDelete,
   VisualChipGroup,
@@ -311,13 +313,11 @@ export function FeaturedTalentContentInspector({
 
       <InspectorGroup
         title={t("Preset")}
+        info={t("V11 showcase: centered header, four-card noir grid, cinematic images, outline buttons, and Explore Talent footer link.")}
         collapsible
         storageKey="featured_talent:preset"
         defaultOpen={false}
       >
-        <p className={KIT.hint}>
-          {t("V11 showcase: centered header, four-card noir grid, cinematic images, outline buttons, and Explore Talent footer link.")}
-        </p>
         <button type="button" className={KIT.primaryButton} onClick={applyV11Preset}>
           {t("Apply full preset")}
         </button>
@@ -487,14 +487,16 @@ export function FeaturedTalentContentInspector({
             <ToggleRow
               key={key}
               label={label}
+              info={
+                key === "showAvailability"
+                  ? t("Availability only appears when a real public availability label exists; this section does not invent availability claims.")
+                  : undefined
+              }
               checked={fieldOn(key)}
               onChange={(checked) => update({ [key]: checked })}
             />
           ))}
         </div>
-        <p className={KIT.hint}>
-          {t("Availability only appears when a real public availability label exists; this section does not invent availability claims.")}
-        </p>
       </InspectorGroup>
 
       <InspectorGroup
@@ -736,7 +738,7 @@ function AutoFilterInput({
 }) {
   return (
     <div className={KIT.field}>
-      <label className={KIT.label}>{label}</label>
+      <InspectorLabelWithInfo label={label} info={hint} className={KIT.label} />
       <input
         type="text"
         className={KIT.input}
@@ -745,7 +747,6 @@ function AutoFilterInput({
         maxLength={120}
         onChange={(e) => onChange(e.target.value)}
       />
-      <p className={KIT.hint}>{hint}</p>
     </div>
   );
 }
@@ -760,10 +761,12 @@ function SteadyStateNote({ text }: { text: string }) {
 
 function ToggleRow({
   label,
+  info,
   checked,
   onChange,
 }: {
   label: string;
+  info?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
@@ -775,6 +778,7 @@ function ToggleRow({
         onChange={(e) => onChange(e.target.checked)}
       />
       {label}
+      {info ? <InspectorInfoTip content={info} title={label} /> : null}
     </label>
   );
 }

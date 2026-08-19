@@ -24,7 +24,7 @@
 import { useEffect, useState } from "react";
 
 import { useEditContext } from "../../../edit-context";
-import { InspectorGroup, KIT } from "../../kit";
+import { InspectorGroup, InspectorLabelWithInfo, KIT } from "../../kit";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -208,8 +208,7 @@ function ColorRow({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-col gap-0.5">
-        <span className={KIT.label}>{label}</span>
-        {hint ? <span className={KIT.hint}>{hint}</span> : null}
+        <InspectorLabelWithInfo label={label} info={hint} className={KIT.label} />
       </div>
       <div className="flex items-center gap-2 rounded-lg border border-[rgba(24,24,27,0.16)] bg-white px-2 py-1.5 transition-colors focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-400/25">
         {/* Native color picker — no popover anchoring complexity. The

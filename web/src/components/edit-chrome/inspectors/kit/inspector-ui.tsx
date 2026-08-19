@@ -25,6 +25,7 @@ import {
   breakpointLabelForDevice,
 } from "../../breakpoint-registry";
 import { useInspectorT } from "./use-inspector-t";
+import { InspectorInfoTip, InspectorLabelWithInfo } from "./inspector-info-tip";
 import { BUILDER_VISUAL } from "./tokens";
 import type { OverrideDevice } from "../responsive-field-state";
 
@@ -79,11 +80,14 @@ export function InspectorBody({
 export function InspectorSection({
   title,
   description,
+  descriptionPlacement = "tip",
   children,
   className,
 }: {
   title: ReactNode;
   description?: string;
+  /** "tip" (default) hangs the description off an ⓘ beside the section title. */
+  descriptionPlacement?: "tip" | "inline";
   children: ReactNode;
   className?: string;
 }) {
@@ -105,8 +109,19 @@ export function InspectorSection({
       style={{ gap: INSPECTOR_SECTION_GAP }}
     >
       <div className="flex flex-col gap-0.5">
-        <h3 className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</h3>
-        {localizedDescription ? (
+        <h3 className={`${INSPECTOR_SECTION_TITLE_CLASS} flex items-center gap-1.5`}>
+          {localizedTitle}
+          {/* Raw `description` / `title`, not the localized pair: the tip
+              resolves its own copy at the same boundary, and feeding it an
+              already-Spanish string would run the resolver twice. */}
+          {description && descriptionPlacement === "tip" ? (
+            <InspectorInfoTip
+              content={description}
+              title={typeof title === "string" ? title : undefined}
+            />
+          ) : null}
+        </h3>
+        {localizedDescription && descriptionPlacement === "inline" ? (
           <p className={INSPECTOR_HELP_TEXT_CLASS}>{localizedDescription}</p>
         ) : null}
       </div>
@@ -145,6 +160,7 @@ export function InspectorCard({
 export function InspectorAccordion({
   title,
   description,
+  descriptionPlacement = "tip",
   defaultOpen = true,
   onToggle,
   searchTerms,
@@ -152,6 +168,8 @@ export function InspectorAccordion({
 }: {
   title: string;
   description?: string;
+  /** "tip" (default) hangs the description off an ⓘ beside the title. */
+  descriptionPlacement?: "tip" | "inline";
   defaultOpen?: boolean;
   /**
    * Reports every user toggle with the NEW open state. The accordion stays
@@ -192,17 +210,12 @@ export function InspectorAccordion({
         background: CHROME.surface,
       }}
     >
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => {
-          const next = !open;
-          setOpen(next);
-          onToggle?.(next);
-        }}
-        className="flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-3.5 py-3 text-left transition-colors"
-        style={{ color: CHROME.ink }}
+      {/* The ⓘ is a real <button>, so it CANNOT sit inside the toggle button —
+          nested buttons are invalid HTML and blow up hydration. It rides
+          alongside the toggle in a flex row instead, and the row (not the
+          button) owns the hover tint so the whole header still highlights. */}
+      <div
+        className="flex w-full items-center pr-3"
         onMouseEnter={(e) => {
           e.currentTarget.style.background = CHROME.paper;
         }}
@@ -210,27 +223,44 @@ export function InspectorAccordion({
           e.currentTarget.style.background = "transparent";
         }}
       >
-        {open ? (
-          <ChevronDown size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
-        ) : (
-          <ChevronRight size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
-        )}
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</span>
-          {localizedDescription && !open ? (
-            <span className={`truncate ${INSPECTOR_HELP_TEXT_CLASS}`}>
-              {localizedDescription}
-            </span>
-          ) : null}
-        </span>
-      </button>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => {
+            const next = !open;
+            setOpen(next);
+            onToggle?.(next);
+          }}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent px-3.5 py-3 text-left"
+          style={{ color: CHROME.ink }}
+        >
+          {open ? (
+            <ChevronDown size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
+          ) : (
+            <ChevronRight size={15} strokeWidth={2} aria-hidden style={{ color: CHROME.muted }} />
+          )}
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className={INSPECTOR_SECTION_TITLE_CLASS}>{localizedTitle}</span>
+            {localizedDescription && descriptionPlacement === "inline" && !open ? (
+              <span className={`truncate ${INSPECTOR_HELP_TEXT_CLASS}`}>
+                {localizedDescription}
+              </span>
+            ) : null}
+          </span>
+        </button>
+        {/* Raw `description`/`title` — the tip translates at the boundary. */}
+        {description && descriptionPlacement === "tip" ? (
+          <InspectorInfoTip content={description} title={title} />
+        ) : null}
+      </div>
       {open ? (
         <div
           id={panelId}
           className="flex flex-col border-t px-3.5 pb-3.5 pt-2"
           style={{ borderColor: CHROME.line, gap: INSPECTOR_SECTION_GAP }}
         >
-          {localizedDescription && open ? (
+          {localizedDescription && descriptionPlacement === "inline" ? (
             <p className={INSPECTOR_HELP_TEXT_CLASS}>{localizedDescription}</p>
           ) : null}
           {children}
@@ -243,6 +273,7 @@ export function InspectorAccordion({
 export function InspectorField({
   label,
   help,
+  helpPlacement = "tip",
   children,
   className,
   overrideDevice,
@@ -253,6 +284,12 @@ export function InspectorField({
 }: {
   label?: string;
   help?: string;
+  /**
+   * "tip" (default) puts `help` behind an ⓘ beside the label; "inline" keeps
+   * the standing paragraph for copy the operator must read before acting.
+   * Mirrors `HintPlacement` on the field primitives.
+   */
+  helpPlacement?: "tip" | "inline";
   children: ReactNode;
   className?: string;
   overrideDevice?: OverrideDevice | null;
@@ -283,7 +320,11 @@ export function InspectorField({
           Spanish here would run it through the resolver twice. */}
       {label ? (
         <div className="flex items-center justify-between gap-2">
-          <InspectorLabel>{label}</InspectorLabel>
+          <InspectorLabelWithInfo
+            label={label}
+            info={help && !showPlaceholder && helpPlacement === "tip" ? help : undefined}
+            className={INSPECTOR_FIELD_LABEL_CLASS}
+          />
           {!showPlaceholder && overrideDevice ? (
             <InspectorOverrideBadge
               device={overrideDevice}
@@ -306,7 +347,9 @@ export function InspectorField({
       ) : (
         children
       )}
-      {help && !showPlaceholder ? (
+      {/* The ⓘ hangs off the label, so a help string on a LABELLESS field has
+          nothing to attach to and stays inline regardless of placement. */}
+      {help && !showPlaceholder && (helpPlacement === "inline" || !label) ? (
         <InspectorHelpText>{help}</InspectorHelpText>
       ) : null}
     </div>

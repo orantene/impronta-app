@@ -488,6 +488,17 @@ export interface EditContextValue extends EditContextChromeAndSessionValue {
   /** Locales the active tenant has enabled — drives the topbar locale
    *  switcher. Empty until the first composition load resolves. */
   availableLocales: ReadonlyArray<string>;
+  /**
+   * The tenant's supported locales from the SERVER mount (locale settings),
+   * independent of the loaded composition. `availableLocales` above is
+   * composition-scoped: freeform adapters report only the single row locale
+   * (their storage is one cms_pages row per locale, so an in-place content
+   * flip has nothing to flip to), which used to blank the topbar switcher
+   * entirely on freeform pages. This list stays the tenant truth so the
+   * topbar can fall back to a NAVIGATE switcher (jump to the sibling
+   * locale's page + row) when the in-place toggle is unavailable.
+   */
+  tenantLocales: ReadonlyArray<string>;
 
   /**
    * Reload authoritative composition state from the server, replacing local

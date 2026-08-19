@@ -101,7 +101,13 @@ const BUDGETS: Record<string, number> = {
   //       both sides can read it; the state itself lives in
   //       `use-editor-chrome.ts` and the rendering in `nav-submenu-pin.tsx`, so
   //       what lands here is the destructure and the memo entry.
-  "src/components/edit-chrome/edit-context.tsx": 6223,
+  //   +8 (info-tip program): `tenantLocales` — the tenant-truth locale list
+  //       from the server mount, kept SEPARATE from the composition-scoped
+  //       `availableLocales` that freeform adapters collapse to one entry.
+  //       That collapse is what hid the EN/ES switch on every freeform page.
+  //       This is a derived value + two value-object entries, i.e. exactly the
+  //       thin plumbing the guard's procedure asks to record rather than extract.
+  "src/components/edit-chrome/edit-context.tsx": 6231,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.
@@ -139,13 +145,27 @@ const BUDGETS: Record<string, number> = {
   // nothing — the control reported success and the page never changed. They
   // now route to the base style, where they render. Mostly the comment
   // explaining why, which is the part a reader needs.
-  "src/components/edit-chrome/inspectors/style-panel.tsx": 5598,
+  // +13 (info-tip program): the Custom CSS helper paragraph became an
+  // `InspectorInfoTip` beside the section title (its JSX fragment carries
+  // <code> samples, so it is wider than the one-line <span> it replaced), and
+  // BOTH "Selected block" headers became `InspectorLabelWithInfo` so the
+  // "Device is controlled by the device rail above" sentence stops printing on
+  // every single panel. The live override COUNT stays inline; only the
+  // explanation moved.
+  "src/components/edit-chrome/inspectors/style-panel.tsx": 5611,
   // +7 (builder move affordances): the Structure panel joins the `panels`
   // z-band instead of its hardcoded 80, which sat BELOW the overlay-portal
   // host (83) and let every selection ring / grip / drop line paint across the
   // layer list. One prop plus the comment recording why the exception is gone.
   "src/components/edit-chrome/navigator-panel.tsx": 4512,
-  "src/components/edit-chrome/topbar.tsx": 3375,
+  // +68 (info-tip program): `NavLocaleToggle` — the locale switcher for
+  // FREEFORM surfaces. Freeform stores one cms_pages row per locale and the
+  // public route loads strictly that row, so the in-place ContentLocaleToggle
+  // is the wrong control there: switching language has to NAVIGATE to the
+  // sibling row. It sits beside its in-place twin deliberately, so the two
+  // storage models stay readable as one decision; splitting them into separate
+  // modules would hide why there are two.
+  "src/components/edit-chrome/topbar.tsx": 3443,
   // +4 (slash-command insert): the mount + wiring for the "/" menu only. The
   // plugin, trigger detection, catalog/matcher and menu component all live in
   // their own modules (SlashCommandPlugin, slash-command-trigger,
@@ -191,7 +211,10 @@ const BUDGETS: Record<string, number> = {
   // shrink it.
   "src/components/edit-chrome/inspector-dock.tsx": 1844,
   "src/components/edit-chrome/page-settings-drawer.tsx": 1463,
-  "src/components/edit-chrome/theme-drawer.tsx": 1423,
+  // +10 (info-tip program): six standing <Helper> paragraphs moved behind ⓘ
+  // via `info=` on their FieldLabel; multi-line labels cost more lines than the
+  // single-line helpers they replaced, while the panel renders shorter.
+  "src/components/edit-chrome/theme-drawer.tsx": 1433,
   "src/components/edit-chrome/command-palette.tsx": 1287,
   // `assets-drawer.tsx` (1,244) is GONE — the pre-unification media library it
   // implemented was fully subsumed by <MediaLibrary>. The left rail's Assets
@@ -204,7 +227,9 @@ const BUDGETS: Record<string, number> = {
   // `tabs/` (RegionsTab / regions-zone / regions-item-row / regions-controls /
   // regions-meta), each under the 800-line cap, rather than into this file.
   "src/components/edit-chrome/inspectors/site-header/SiteHeaderInspector.tsx": 983,
-  "src/components/edit-chrome/inspectors/featured-talent-content.tsx": 900,
+  // +4 (info-tip program): ToggleRow gained an optional `info` prop so the
+  // availability note could move behind an ⓘ instead of standing under the row.
+  "src/components/edit-chrome/inspectors/featured-talent-content.tsx": 904,
 
   // ── everything else on the suppression list at 2,000+ lines ──────────────
   // Admin shell internals. The largest concentration of god files outside the

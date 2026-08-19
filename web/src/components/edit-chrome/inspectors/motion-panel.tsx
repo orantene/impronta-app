@@ -368,7 +368,18 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
         />
       </InspectorSection>
 
-      <InspectorSection title="Hover">
+      <InspectorSection
+        title="Hover"
+        description={
+          hoverValue === "lift"
+            ? "Subtle translate upward on cursor-over."
+            : hoverValue === "glow"
+              ? "Accent-color shadow blooms outward."
+              : hoverValue === "tilt"
+                ? "Perspective rotate following the cursor."
+                : "Applied on cursor-over the section card. Off by default."
+        }
+      >
         <Segmented
           fullWidth
           compact
@@ -376,15 +387,6 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
           onChange={(next) => setOrToggle("hover", next)}
           options={buildIconOptions(ANIMATION_OPTIONS.hover, HOVER_ICONS)}
         />
-        <span className={HINT}>
-          {hoverValue === "lift"
-            ? "Subtle translate upward on cursor-over."
-            : hoverValue === "glow"
-              ? "Accent-color shadow blooms outward."
-              : hoverValue === "tilt"
-                ? "Perspective rotate following the cursor."
-                : "Applied on cursor-over the section card. Off by default."}
-        </span>
       </InspectorSection>
 
       <InspectorSection title="Reduced motion">
@@ -418,7 +420,10 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
         )}
       </InspectorSection>
 
-      <InspectorSection title="Scroll reveal">
+      <InspectorSection
+        title="Scroll reveal"
+        description="Plays once when the section enters the viewport. Skipped when the visitor prefers reduced motion."
+      >
         <Segmented
           fullWidth
           compact
@@ -436,10 +441,6 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
             { value: "zoom", label: "Zoom" },
           ]}
         />
-        <span className={HINT}>
-          Plays once when the section enters the viewport. Skipped when the
-          visitor prefers reduced motion.
-        </span>
         {presentation.scrollReveal && presentation.scrollReveal !== "none" ? (
           <div className="flex flex-col gap-2">
             <span className={FIELD_LABEL}>
@@ -464,7 +465,10 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
         ) : null}
       </InspectorSection>
 
-      <InspectorSection title="Parallax">
+      <InspectorSection
+        title="Parallax"
+        description="Section translates ±60px relative to scroll. Falls back to no motion in browsers without scroll-driven animation support, and for visitors who prefer reduced motion."
+      >
         <DebouncedRangeInput
           min={0}
           max={1}
@@ -477,11 +481,6 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
             })
           }
         />
-        <span className={HINT}>
-          Section translates ±60px relative to scroll. Falls back to no motion in
-          browsers without scroll-driven animation support, and for visitors who
-          prefer reduced motion.
-        </span>
       </InspectorSection>
       </div>
     </InspectorBody>

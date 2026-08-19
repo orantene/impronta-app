@@ -8,6 +8,7 @@
 
 import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
+import { InspectorLabelWithInfo } from "../kit";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
 import { BUILDER_NODE_ANIMATION_EASING_OPTIONS, BUILDER_NODE_ANIMATION_PRESET_OPTIONS, BUILDER_NODE_ANIMATION_TRIGGER_OPTIONS, BUILDER_NODE_CURSOR_OPTIONS, BUILDER_NODE_POINTER_EVENTS_OPTIONS, BUILDER_NODE_SCROLL_SNAP_ALIGN_OPTIONS, BUILDER_NODE_USER_SELECT_OPTIONS } from "./style-options";
 import type { BuilderNodeStyleValue } from "@/lib/site-admin/builder-node";
@@ -498,14 +499,14 @@ export function EffectsMotionBody({
             >
               <details>
                 <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
-                  <span className={FIELD_LABEL}>Entrance animation</span>
+                  <InspectorLabelWithInfo
+                    label="Entrance animation"
+                    info="Plays once when the published page loads (not previewed in the editor). Respects reduced-motion."
+                    className={FIELD_LABEL}
+                  />
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
                 </summary>
               <div className="flex flex-col gap-2 mt-2">
-              <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
-                Plays once when the published page loads (not previewed in the
-                editor). Respects reduced-motion.
-              </p>
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="animationPreset"
@@ -628,7 +629,10 @@ export function EffectsMotionBody({
                 data-builder-node-style-control="animationEasingCustom"
               >
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Custom curve
+                  <InspectorLabelWithInfo
+                    label="Custom curve"
+                    info="Overrides the named easing. Any CSS timing function: cubic-bezier(), steps(), linear()."
+                  />
                 </span>
                 <input
                   type="text"
@@ -651,10 +655,6 @@ export function EffectsMotionBody({
                     })
                   }
                 />
-                <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
-                  Overrides the named easing. Any CSS timing function:
-                  cubic-bezier(), steps(), linear().
-                </span>
               </div>
               </div>
               </details>

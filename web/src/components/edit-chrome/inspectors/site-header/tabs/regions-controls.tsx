@@ -13,6 +13,7 @@
 import { useState } from "react";
 
 import { CHROME } from "../../../kit";
+import { InspectorInfoTip } from "../../kit";
 import { useEditorLocale } from "../../../use-editor-locale";
 
 export function TextRow({
@@ -32,11 +33,14 @@ export function TextRow({
   const [draft, setDraft] = useState(value);
   return (
     <label className="flex flex-col gap-1">
-      <span
-        className="text-[11.5px] font-semibold"
-        style={{ color: CHROME.text }}
-      >
-        {t(label)}
+      <span className="inline-flex items-center gap-1.5 self-start">
+        <span
+          className="text-[11.5px] font-semibold"
+          style={{ color: CHROME.text }}
+        >
+          {t(label)}
+        </span>
+        <InspectorInfoTip content={hint} title={label} />
       </span>
       <input
         type="text"
@@ -60,9 +64,6 @@ export function TextRow({
           color: CHROME.text,
         }}
       />
-      <span className="text-[10.5px] leading-snug" style={{ color: CHROME.muted }}>
-        {t(hint)}
-      </span>
     </label>
   );
 }

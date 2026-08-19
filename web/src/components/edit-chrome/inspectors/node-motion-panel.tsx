@@ -38,6 +38,7 @@ import {
   InspectorNotice,
   InspectorSection,
 } from "./kit/inspector-ui";
+import { InspectorLabelWithInfo } from "./kit/inspector-info-tip";
 import { triggerAnimationReplay } from "./kit/motion-animation-replay";
 import { CHROME } from "../kit/tokens";
 
@@ -445,7 +446,14 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
       {/* Trigger + timing — only shown when a preset is set */}
       {hasEntrance ? (
         <>
-          <InspectorSection title="Trigger">
+          <InspectorSection
+            title="Trigger"
+            description={
+              trigger === "scroll"
+                ? "Animation position is driven by how far the element has scrolled through the viewport. Falls back to load in unsupported browsers."
+                : "Plays once when the page loads, regardless of scroll position."
+            }
+          >
             <Segmented<AnimationTrigger>
               fullWidth
               compact
@@ -466,11 +474,6 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
                 },
               ]}
             />
-            <span className={HINT}>
-              {trigger === "scroll"
-                ? "Animation position is driven by how far the element has scrolled through the viewport. Falls back to load in unsupported browsers."
-                : "Plays once when the page loads, regardless of scroll position."}
-            </span>
           </InspectorSection>
 
           <InspectorSection title="Easing">
@@ -490,8 +493,8 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
         title="Scroll reveal"
         description={
           hasReveal
-            ? `${REVEAL_OPTIONS.find((o) => o.value === revealOnView)?.label ?? revealOnView} · plays once on scroll into view`
-            : "IntersectionObserver-driven reveal. Plays once when the node scrolls into view. Works in all modern browsers."
+            ? `${REVEAL_OPTIONS.find((o) => o.value === revealOnView)?.label ?? revealOnView} · plays once on scroll into view. Skipped for visitors who prefer reduced motion.`
+            : "Plays once when the node scrolls into view. Works in all modern browsers. Skipped for visitors who prefer reduced motion."
         }
       >
         <Segmented<RevealOnView>
@@ -512,10 +515,6 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
           }}
           options={REVEAL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
         />
-        <span className={HINT}>
-          Skipped for visitors who prefer reduced motion. They see the node at its resting
-          state immediately.
-        </span>
       </InspectorSection>
 
       {/* Reveal sub-controls */}
@@ -563,7 +562,11 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
               />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span className={FIELD_LABEL}>Travel distance</span>
+              <InspectorLabelWithInfo
+                label="Travel distance"
+                info="Applies to directional variants (fade-up, fade-down, etc.). Ignored for plain fade and zoom."
+                className={FIELD_LABEL}
+              />
               <input
                 type="text"
                 placeholder="24px"
@@ -581,9 +584,6 @@ export function NodeMotionPanel({ node, onPatchNodeProps }: NodeMotionPanelProps
                   background: "white",
                 }}
               />
-              <span className={HINT}>
-                Applies to directional variants (fade-up, fade-down, etc.). Ignored for plain fade and zoom.
-              </span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span className={FIELD_LABEL}>Easing</span>

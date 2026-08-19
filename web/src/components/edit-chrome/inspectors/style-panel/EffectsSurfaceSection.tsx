@@ -11,6 +11,7 @@ import { Segmented } from "../../kit/segmented";
 import { CHROME } from "../../kit/tokens";
 import { BackgroundLayersEditor, GradientBuilder, ShadowBuilder } from "../css-value-builders";
 import { INSPECTOR_FIELD_LABEL_CLASS as FIELD_LABEL } from "../kit/inspector-ui";
+import { InspectorLabelWithInfo } from "../kit";
 import { BUILDER_NODE_ANIMATION_EASING_OPTIONS, BUILDER_NODE_BG_CLIP_OPTIONS, BUILDER_NODE_BG_REPEAT_OPTIONS, BUILDER_NODE_PARALLAX_OPTIONS, BUILDER_NODE_REVEAL_OPTIONS } from "./style-options";
 import { GlyphTiles, SHADOW_PRESETS, shadowTileOptions } from "../field-kit";
 import { parseStyleTokenRef } from "@/lib/site-admin/builder-node/style-token-bindings";
@@ -44,22 +45,30 @@ export function InteractionsBody({
             >
               <details>
                 <summary className="flex items-center justify-between select-none" style={{ cursor: "pointer", outline: "none", listStyle: "none" }}>
-                  <span className={FIELD_LABEL}>Interactions</span>
+                  <InspectorLabelWithInfo
+                    label="Interactions"
+                    info={
+                      <>
+                        Scroll parallax drifts the block as the visitor scrolls past
+                        (published page only). Pair it with a hover effect in{" "}
+                        <strong>States</strong> below for full motion. Respects
+                        reduced-motion.
+                      </>
+                    }
+                    className={FIELD_LABEL}
+                  />
                   <span style={{ color: CHROME.muted, fontSize: 9 }}>›</span>
                 </summary>
               <div className="flex flex-col gap-2 mt-2">
-              <p className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
-                Scroll parallax drifts the block as the visitor scrolls past
-                (published page only). Pair it with a hover effect in{" "}
-                <strong>States</strong> below for full motion. Respects
-                reduced-motion.
-              </p>
               <div
                 className="flex flex-col gap-1.5"
                 data-builder-node-style-control="parallax"
               >
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Scroll parallax
+                  <InspectorLabelWithInfo
+                    label="Scroll parallax"
+                    info="The block glides vertically over its on-screen pass. Drives the entrance slot when both are set. Entrance plays once, parallax is what keeps moving."
+                  />
                 </span>
                 <Segmented
                   fullWidth
@@ -72,14 +81,6 @@ export function InteractionsBody({
                   }
                   options={BUILDER_NODE_PARALLAX_OPTIONS}
                 />
-                {selectedStandaloneViewportStyle?.parallax &&
-                selectedStandaloneViewportStyle.parallax !== "none" ? (
-                  <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
-                    The block glides vertically over its on-screen pass. Drives
-                    the entrance slot when both are set. Entrance plays once,
-                    parallax is what keeps moving.
-                  </span>
-                ) : null}
               </div>
               {/* Reveal on scroll (2026-06-04) — IntersectionObserver entry.
                   Unlike the entrance preset (plays on load) this fires the first
@@ -90,7 +91,10 @@ export function InteractionsBody({
                 data-builder-node-style-control="revealOnView"
               >
                 <span className="text-[11px]" style={{ color: CHROME.muted }}>
-                  Reveal on scroll
+                  <InspectorLabelWithInfo
+                    label="Reveal on scroll"
+                    info="Eases in the first time the block scrolls into view, then stays. Direction variants travel by the distance below."
+                  />
                 </span>
                 <Segmented
                   fullWidth
@@ -106,10 +110,6 @@ export function InteractionsBody({
                 {selectedStandaloneViewportStyle?.revealOnView &&
                 selectedStandaloneViewportStyle.revealOnView !== "none" ? (
                   <>
-                    <span className="text-[10px] leading-snug" style={{ color: CHROME.muted }}>
-                      Eases in the first time the block scrolls into view, then
-                      stays. Direction variants travel by the distance below.
-                    </span>
                     {selectedStandaloneViewportStyle.revealOnView !== "fade" &&
                     selectedStandaloneViewportStyle.revealOnView !== "zoom" ? (
                       <div

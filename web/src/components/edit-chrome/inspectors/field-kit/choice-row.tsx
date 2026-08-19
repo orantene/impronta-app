@@ -86,6 +86,8 @@ export interface ChoiceRowProps<T extends string> {
   onChange: (next: T) => void;
   accessory?: ReactNode;
   hint?: ReactNode;
+  /** Forwarded to FieldRow: "tip" (default) hangs the hint off an ⓘ; "inline" keeps it standing. */
+  hintPlacement?: "tip" | "inline";
   searchTerms?: string | string[];
   disabled?: boolean;
   /** Label above the control instead of beside it. */
@@ -100,6 +102,7 @@ export function ChoiceRow<T extends string>({
   onChange,
   accessory,
   hint,
+  hintPlacement,
   searchTerms,
   disabled = false,
   orientation = "inline",
@@ -127,6 +130,7 @@ export function ChoiceRow<T extends string>({
       label={label}
       accessory={accessory}
       hint={hint}
+      hintPlacement={hintPlacement}
       searchTerms={searchTerms}
       orientation={orientation}
       disabled={disabled}

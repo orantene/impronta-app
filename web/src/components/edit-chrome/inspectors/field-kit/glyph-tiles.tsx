@@ -205,6 +205,8 @@ export interface GlyphTilesProps {
   exact?: ReactNode;
   accessory?: ReactNode;
   hint?: ReactNode;
+  /** Forwarded to FieldRow: "tip" (default) hangs the hint off an ⓘ; "inline" keeps it standing. */
+  hintPlacement?: "tip" | "inline";
   searchTerms?: string | string[];
   disabled?: boolean;
   dataControl?: string;
@@ -220,6 +222,7 @@ export function GlyphTiles({
   exact,
   accessory,
   hint,
+  hintPlacement,
   searchTerms,
   disabled = false,
   dataControl,
@@ -245,6 +248,7 @@ export function GlyphTiles({
       label={label}
       accessory={accessory}
       hint={hint}
+      hintPlacement={hintPlacement}
       searchTerms={searchTerms}
       orientation="stacked"
       disabled={disabled}

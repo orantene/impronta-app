@@ -40,6 +40,7 @@
 
 import { useId, type CSSProperties, type ReactNode } from "react";
 
+import { InspectorInfoTip } from "../kit/inspector-info-tip";
 import { useInspectorSearchFilter } from "../kit/inspector-search";
 import { useInspectorT } from "../kit/use-inspector-t";
 import { FIELD_KIT } from "./tokens";
@@ -54,8 +55,15 @@ export interface FieldRowProps {
    * reset affordances. P2 passes `InspectorOverrideBadge` / `LockBadge` here.
    */
   accessory?: ReactNode;
-  /** One line of plain-language help under the control. Never a disclosure. */
+  /** One line of plain-language help. Renders behind an ⓘ on the label line
+   *  unless `hintPlacement="inline"`. Never a disclosure. */
   hint?: ReactNode;
+  /**
+   * "tip" (default) hangs the hint off an ⓘ beside the label — the same
+   * pattern as the kit primitives (`InspectorFieldShell`). Pass "inline" for
+   * copy that must stay standing (live state, warnings, disabled reasons).
+   */
+  hintPlacement?: "tip" | "inline";
   /**
    * Terms this row answers to in "Find a setting". Defaults to the label when
    * the label is a string. See the search contract above.
@@ -87,6 +95,7 @@ export function FieldRow({
   children,
   accessory,
   hint,
+  hintPlacement = "tip",
   searchTerms,
   orientation = "inline",
   disabled = false,
@@ -109,6 +118,7 @@ export function FieldRow({
   const filteredOut = useInspectorSearchFilter(terms);
   if (terms.length > 0 && filteredOut) return null;
 
+  const hintAsTip = hint !== undefined && hint !== null && hintPlacement === "tip";
   const labelNode = (
     <div
       style={{
@@ -121,25 +131,40 @@ export function FieldRow({
         minWidth: 0,
       }}
     >
-      <label
-        id={labelId}
-        htmlFor={htmlFor}
+      <span
         style={{
-          fontSize: FIELD_KIT.font.label,
-          fontWeight: FIELD_KIT.weight.label,
-          letterSpacing: "-0.005em",
-          color: disabled ? FIELD_KIT.mutedSoft : FIELD_KIT.ink,
-          // A label is a label. No pointer cursor unless it actually focuses
-          // something, and never a disclosure affordance.
-          cursor: htmlFor ? "pointer" : "default",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
           minWidth: 0,
         }}
       >
-        {tn(label)}
-      </label>
+        <label
+          id={labelId}
+          htmlFor={htmlFor}
+          style={{
+            fontSize: FIELD_KIT.font.label,
+            fontWeight: FIELD_KIT.weight.label,
+            letterSpacing: "-0.005em",
+            color: disabled ? FIELD_KIT.mutedSoft : FIELD_KIT.ink,
+            // A label is a label. No pointer cursor unless it actually focuses
+            // something, and never a disclosure affordance.
+            cursor: htmlFor ? "pointer" : "default",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+          }}
+        >
+          {tn(label)}
+        </label>
+        {hintAsTip ? (
+          <InspectorInfoTip
+            content={hint}
+            title={typeof label === "string" ? label : undefined}
+          />
+        ) : null}
+      </span>
       {accessory ? <span style={{ display: "flex", flexShrink: 0 }}>{accessory}</span> : null}
     </div>
   );
@@ -169,7 +194,7 @@ export function FieldRow({
         {labelNode}
         <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
       </div>
-      {hint ? (
+      {hint && !hintAsTip ? (
         <div
           style={{
             fontSize: FIELD_KIT.font.caption,

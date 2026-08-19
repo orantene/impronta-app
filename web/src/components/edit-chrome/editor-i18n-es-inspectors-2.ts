@@ -535,4 +535,76 @@ export const ES_INSPECTOR_TEXT_2: Record<string, string> = {
   "Featured card": "Tarjeta destacada",
   "One line about what is behind the link":
     "Una línea sobre lo que hay detrás del enlace",
+  // ── Standing helper copy moved behind ⓘ info tips (2026-08-19) ───────────
+  // Former <Helper> / KIT.hint paragraphs, now `info=` boundary props.
+  "Bound stays synced to live data. Manual is fully curated. Hybrid mixes live data with operator curation.":
+    "Vinculado se mantiene sincronizado con los datos en vivo. Manual es totalmente curado. Híbrido combina datos en vivo con curación del operador.",
+  "Wireframe for the future query builder. Today it stores operator intent.":
+    "Boceto del futuro constructor de consultas. Hoy guarda la intención del operador.",
+  "Show this block only on the selected storefront language.":
+    "Muestra este bloque solo en el idioma seleccionado del sitio.",
+  "Restrict to signed-in or signed-out visitors.":
+    "Restringe a visitantes con sesión iniciada o sin sesión.",
+  "Optional named flag. The block shows only when the page is rendered for this variant; an unknown variant always shows it.":
+    "Indicador con nombre opcional. El bloque se muestra solo cuando la página se renderiza para esta variante; una variante desconocida siempre lo muestra.",
+  "Leave decorative on when the icon only supports nearby text.":
+    "Deja activado decorativo cuando el ícono solo acompaña al texto cercano.",
+  "Use Structure to edit the answer blocks nested inside this item.":
+    "Usa Estructura para editar los bloques de respuesta anidados en este elemento.",
+  "Use Structure to edit the content blocks inside this tab.":
+    "Usa Estructura para editar los bloques de contenido dentro de esta pestaña.",
+  "“Mobile” keeps links visible on tablet and above.":
+    "“Móvil” mantiene los enlaces visibles en tablet y superiores.",
+  "How a link’s submenu opens on desktop. “Mega” uses a wider multi-column panel. Only affects links with child links.":
+    "Cómo se abre el submenú de un enlace en escritorio. “Mega” usa un panel más ancho de varias columnas. Solo afecta a enlaces con enlaces hijos.",
+  "How the collapsed hamburger menu opens on mobile.":
+    "Cómo se abre el menú hamburguesa plegado en móvil.",
+  "When set, the nav builds its links from your published pages or posts. The manual links below stay as the fallback when nothing resolves.":
+    "Cuando está definido, la navegación construye sus enlaces desde tus páginas o publicaciones publicadas. Los enlaces manuales de abajo quedan como respaldo cuando nada resuelve.",
+  "When on, this block shows the social/contact links from your workspace identity and ignores the manual list below.":
+    "Al activarlo, este bloque muestra los enlaces sociales y de contacto de la identidad de tu espacio de trabajo e ignora la lista manual de abajo.",
+  "Hero = full-screen image slider. Rail = horizontal scroll of cards.":
+    "Hero = carrusel de imágenes a pantalla completa. Rail = desplazamiento horizontal de tarjetas.",
+  "Per slide = each slide owns its content. Shared = one fixed block while backgrounds rotate.":
+    "Por diapositiva = cada diapositiva tiene su propio contenido. Compartido = un bloque fijo mientras los fondos rotan.",
+  "Controls the live data limit while keeping the section's editable copy.":
+    "Controla el límite de datos en vivo sin perder el texto editable de la sección.",
+  "Add the photo or video for each post, then paste the post link so visitors can open it. Live account sync arrives once the workspace connects Instagram or TikTok.":
+    "Agrega la foto o el video de cada publicación y luego pega el enlace de la publicación para que los visitantes puedan abrirla. La sincronización con la cuenta en vivo llega cuando el espacio de trabajo conecta Instagram o TikTok.",
+  "Pulls your latest posts from the account connected in Settings, Integrations. Until that account is connected, the posts you add below are shown instead.":
+    "Trae tus publicaciones más recientes de la cuenta conectada en Ajustes, Integraciones. Hasta que esa cuenta se conecte, se muestran las publicaciones que agregues abajo.",
+  // Motion-panel helper copy that moved to boundary props in the same program.
+  "Travel distance": "Distancia de recorrido",
+  "Applies to directional variants (fade-up, fade-down, etc.). Ignored for plain fade and zoom.":
+    "Aplica a las variantes direccionales (fade-up, fade-down, etc.). Se ignora para el desvanecido simple y el zoom.",
+  "Plays once when the section enters the viewport. Skipped when the visitor prefers reduced motion.":
+    "Se reproduce una vez cuando la sección entra en la pantalla. Se omite cuando el visitante prefiere movimiento reducido.",
+  "Section translates ±60px relative to scroll. Falls back to no motion in browsers without scroll-driven animation support, and for visitors who prefer reduced motion.":
+    "La sección se desplaza ±60px según el scroll. Queda sin movimiento en navegadores sin soporte de animación por scroll y para visitantes que prefieren movimiento reducido.",
+
+  // ── Site-header inspector: helper prose moved behind ⓘ (2026-08-19) ─────
+  "Brand display": "Presentación de marca",
+  "Pick “Wordmark text only” for the prototype look: the gold Cinzel IMPRONTA wordmark with the agency tagline beneath (tagline comes from Brand → Tagline).":
+    "Elige “Solo texto, Cinzel + eslogan” para el look del prototipo: el nombre IMPRONTA en Cinzel dorado con el eslogan de la agencia debajo (el eslogan viene de Marca → Eslogan).",
+
+  // Style panel — helper copy moved behind ⓘ info tips (2026-08-19).
+  "Custom CSS": "CSS personalizado",
+  "Custom curve": "Curva personalizada",
+  "Interactions": "Interacciones",
+  "Scroll parallax": "Parallax al desplazar",
+  "Reveal on scroll": "Revelar al desplazar",
+  "Plays once when the published page loads (not previewed in the editor). Respects reduced-motion.":
+    "Se reproduce una vez cuando carga la página publicada (no se previsualiza en el editor). Respeta la preferencia de movimiento reducido.",
+  "Overrides the named easing. Any CSS timing function: cubic-bezier(), steps(), linear().":
+    "Anula el easing con nombre. Cualquier función de tiempo CSS: cubic-bezier(), steps(), linear().",
+  "The block glides vertically over its on-screen pass. Drives the entrance slot when both are set. Entrance plays once, parallax is what keeps moving.":
+    "El bloque se desliza verticalmente durante su paso por pantalla. Controla el hueco de entrada cuando ambos están definidos. La entrada se reproduce una vez; el parallax es lo que sigue en movimiento.",
+  "Eases in the first time the block scrolls into view, then stays. Direction variants travel by the distance below.":
+    "Aparece suavemente la primera vez que el bloque entra en pantalla y luego permanece. Las variantes direccionales se desplazan la distancia indicada abajo.",
+
+  // The node-role "Selected block" variant of the device-rail sentence. It was
+  // inline (and untranslated) before the info-tip pass; moving it onto a
+  // boundary prop made the guard see it, which is the guard working.
+  "Device is controlled by the device rail above (synced to the canvas).":
+    "El dispositivo se controla desde la barra de dispositivos de arriba (sincronizada con el lienzo).",
 };

@@ -104,7 +104,15 @@ export {
   SelectField,
   ColorField,
   type SelectFieldOption,
+  type HintPlacement,
 } from "./inspector-fields";
+// 2026-08-19 — the ⓘ trigger + floating explanation that replaced standing
+// helper paragraphs across every panel.
+export {
+  InspectorInfoTip,
+  InspectorLabelWithInfo,
+  type InspectorInfoTipProps,
+} from "./inspector-info-tip";
 export {
   InspectorSearchProvider,
   InspectorSearchField,

@@ -20,10 +20,16 @@
  * themselves, just the surrounding form-row scaffolding.
  */
 
+"use client";
+
 import type { ReactNode } from "react";
 
 import { CHROME } from "./tokens";
 import { useEditorLocale } from "../use-editor-locale";
+// Direct file import, NOT the inspectors/kit barrel — a barrel import here
+// would close a module cycle (kit → inspectors/kit barrel → … → kit) of the
+// exact TDZ-at-chunk-eval shape that took prod admin down once already.
+import { InspectorInfoTip } from "../inspectors/kit/inspector-info-tip";
 
 /** WAVE 4.4 translation boundary: plain-string children resolve through the
  *  shared editor catalog; nodes and interpolated values pass through. */
@@ -53,6 +59,14 @@ export function Field({ className, flush = false, children }: FieldProps) {
 interface FieldLabelProps {
   /** Marks the field with a small red required indicator. */
   required?: boolean;
+  /**
+   * Explanation behind an ⓘ after the label text. This is where former
+   * `<Helper>` paragraphs go: the copy is unchanged, it just waits to be
+   * asked for (hover / focus / tap) instead of standing in the panel.
+   * Keep `<Helper>` only for what must be read before acting: warnings,
+   * live state, counters, and the reason a control is disabled.
+   */
+  info?: ReactNode;
   /** Right-aligned caption-tone meta text. */
   meta?: ReactNode;
   /**
@@ -67,6 +81,7 @@ interface FieldLabelProps {
 
 export function FieldLabel({
   required = false,
+  info,
   meta,
   breakpoint,
   className,
@@ -90,6 +105,12 @@ export function FieldLabel({
       }}
     >
       {tn(children)}
+      {info ? (
+        <InspectorInfoTip
+          content={info}
+          title={typeof children === "string" ? children : undefined}
+        />
+      ) : null}
       {required ? (
         <span
           aria-hidden

@@ -159,7 +159,9 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
               </Field>
             ) : (
               <Field flush>
-                <FieldLabel>{t("Submit URL")}</FieldLabel>
+                <FieldLabel info="Full https:// URL the form data POSTs to.">
+                  {t("Submit URL")}
+                </FieldLabel>
                 <input
                   key={`${node.id}:action:${node.props.action ?? ""}`}
                   defaultValue={node.props.action ?? ""}
@@ -174,7 +176,6 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
                     void commitTextInput("action", node.props.action ?? "", true)(value);
                   })}
                 />
-                <Helper>{t("Full https:// URL the form data POSTs to.")}</Helper>
               </Field>
             )}
           </div>
@@ -300,7 +301,9 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
                   {field.type !== "submit" ? (
                     <>
                       <Field flush>
-                        <FieldLabel>{t("Field name")}</FieldLabel>
+                        <FieldLabel info={t("The submission key. Use “email” and “name” for the contact fields.")}>
+                          {t("Field name")}
+                        </FieldLabel>
                         <input
                           key={`${field.id}:name:${field.name}`}
                           defaultValue={field.name}
@@ -316,11 +319,6 @@ export function FormNodeContentInspector({ node }: { node: BuilderFormNode }) {
                             });
                           }}
                         />
-                        <Helper>
-                          {t(
-                            "The submission key. Use “email” and “name” for the contact fields.",
-                          )}
-                        </Helper>
                       </Field>
                       {field.type === "consent" ? (
                         <Field flush>

@@ -463,7 +463,11 @@ export function PageSettingsDrawer() {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="ps-meta-title" meta="SERP / tab override">
+                <FieldLabel
+                  htmlFor="ps-meta-title"
+                  info="Shown in browser tabs and search when set."
+                  meta="SERP / tab override"
+                >
                   Meta title
                 </FieldLabel>
                 <input
@@ -479,9 +483,6 @@ export function PageSettingsDrawer() {
                   style={inputStyle()}
                   placeholder="Optional, defaults to page title when empty"
                 />
-                <Helper>
-                  <span>Shown in browser tabs and search when set.</span>
-                </Helper>
               </Field>
 
               <Field>
@@ -621,7 +622,11 @@ export function PageSettingsDrawer() {
                 </Field>
 
                 <Field flush>
-                  <FieldLabel htmlFor="ps-og-image" meta="1200×630 recommended">
+                  <FieldLabel
+                    htmlFor="ps-og-image"
+                    info="Used on social share cards. Falls back to page title and description when blank."
+                    meta="1200×630 recommended"
+                  >
                     OG image
                   </FieldLabel>
                   <MediaField
@@ -631,12 +636,6 @@ export function PageSettingsDrawer() {
                     emptyLabel="Add share image"
                     aspect="21/9"
                   />
-                  <Helper>
-                    <span>
-                      Used on social share cards. Falls back to page title and
-                      description when blank.
-                    </span>
-                  </Helper>
                 </Field>
               </CardBody>
             </Card>
@@ -1123,7 +1122,19 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
         />
         <CardBody>
           <Field flush>
-            <FieldLabel htmlFor="ps-jsonld" meta="Optional · advanced">
+            <FieldLabel
+              htmlFor="ps-jsonld"
+              info={
+                <>
+                  Emitted as a{" "}
+                  <code style={{ fontFamily: monoFont, fontSize: 11 }}>
+                    &lt;script type=&quot;application/ld+json&quot;&gt;
+                  </code>{" "}
+                  for rich results. One object or an array of objects.
+                </>
+              }
+              meta="Optional · advanced"
+            >
               JSON-LD
             </FieldLabel>
             <textarea
@@ -1147,15 +1158,6 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
                 ...overLimitStyle(Boolean(jsonLdLiveError)),
               }}
             />
-            <Helper>
-              <span>
-                Emitted as a{" "}
-                <code style={{ fontFamily: monoFont, fontSize: 11 }}>
-                  &lt;script type=&quot;application/ld+json&quot;&gt;
-                </code>{" "}
-                for rich results. One object or an array of objects.
-              </span>
-            </Helper>
             {jsonLdLiveError || jsonLdError ? (
               <FieldError message={jsonLdLiveError ?? jsonLdError} />
             ) : jsonLdSavedTick && !jsonLdDirty ? (
@@ -1205,7 +1207,11 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
         <CardHead icon={<LinkIcon />} title={t("Canonical URL")} />
         <CardBody>
           <Field flush>
-            <FieldLabel htmlFor="ps-canonical" meta="Optional override">
+            <FieldLabel
+              htmlFor="ps-canonical"
+              info="Use only when consolidating duplicate URLs to a single destination. Must be absolute (https://…) or root-relative (/path)."
+              meta="Optional override"
+            >
               Canonical link
             </FieldLabel>
             <input
@@ -1216,13 +1222,6 @@ function UrlRobotsTab(props: UrlRobotsTabProps) {
               style={inputStyle()}
               placeholder="Leave blank to use the page's own URL"
             />
-            <Helper>
-              <span>
-                Use only when consolidating duplicate URLs to a single
-                destination. Must be absolute (https://…) or root-relative
-                (/path).
-              </span>
-            </Helper>
           </Field>
         </CardBody>
       </Card>

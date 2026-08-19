@@ -556,6 +556,7 @@ function EditShellInner({
     locale,
     defaultLocale,
     availableLocales,
+    tenantLocales,
     pageSlug,
     liveSitePublishedAt,
     compositionLoaded,
@@ -1154,6 +1155,7 @@ function EditShellInner({
           activeLocale={locale}
           defaultLocale={defaultLocale}
           availableLocales={availableLocales}
+          tenantLocales={tenantLocales}
           liveSitePublishedAt={liveSitePublishedAt}
           onRevisions={openRevisions}
           onPageSettings={openPageSettings}

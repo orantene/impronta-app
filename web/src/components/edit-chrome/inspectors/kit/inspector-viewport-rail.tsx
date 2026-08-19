@@ -19,6 +19,7 @@ import {
 import { useBuilderBreakpoints } from "../../use-builder-breakpoints";
 import { BUILDER_VISUAL } from "./tokens";
 import { InspectorDeviceCards } from "./inspector-ui";
+import { InspectorInfoTip } from "./inspector-info-tip";
 import { useInspectorT } from "./use-inspector-t";
 import type { ViewportDevice } from "../responsive-field-state";
 
@@ -136,6 +137,7 @@ export function InspectorViewportRail({
         }
       >
         <span
+          className="inline-flex items-center gap-1.5"
           style={{
             fontSize: 12,
             fontWeight: 500,
@@ -146,21 +148,15 @@ export function InspectorViewportRail({
           }}
         >
           {t("Hide on this device")}
+          {isBase ? (
+            <InspectorInfoTip
+              content={t("Switch to tablet or mobile to hide this only there.")}
+              title={t("Hide on this device")}
+            />
+          ) : null}
         </span>
         <Toggle on={hideOnDevice} onChange={onHideChange} disabled={isBase} />
       </div>
-      {isBase ? (
-        <p
-          style={{
-            fontSize: 11,
-            color: CHROME.muted2,
-            margin: "-4px 0 0",
-            lineHeight: 1.4,
-          }}
-        >
-          {t("Switch to tablet or mobile to hide this only there.")}
-        </p>
-      ) : null}
       {!isBase ? (
         <div
           className="flex items-center justify-between gap-2"
@@ -190,14 +186,7 @@ export function InspectorViewportRail({
             </button>
           ) : null}
         </div>
-      ) : (
-        <p style={{ fontSize: 11, color: CHROME.muted2, margin: 0, lineHeight: 1.4 }}>
-          {t("{base} is the base, switch tiers to add overrides.").replace(
-            "{base}",
-            baseLabel,
-          )}
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -146,7 +146,7 @@ export function VisibilityRulesCard({
       <CardBody>
         <div className="flex flex-col gap-3" data-builder-visibility-rules>
           <Field flush>
-            <FieldLabel>Language</FieldLabel>
+            <FieldLabel info="Show this block only on the selected storefront language.">Language</FieldLabel>
             <Segmented
               fullWidth
               compact
@@ -159,11 +159,10 @@ export function VisibilityRulesCard({
                 label: option.label,
               }))}
             />
-            <Helper>Show this block only on the selected storefront language.</Helper>
           </Field>
 
           <Field flush>
-            <FieldLabel>Visitor</FieldLabel>
+            <FieldLabel info="Restrict to signed-in or signed-out visitors.">Visitor</FieldLabel>
             <Segmented
               fullWidth
               compact
@@ -176,11 +175,10 @@ export function VisibilityRulesCard({
                 label: option.label,
               }))}
             />
-            <Helper>Restrict to signed-in or signed-out visitors.</Helper>
           </Field>
 
           <Field flush>
-            <FieldLabel>Variant flag</FieldLabel>
+            <FieldLabel info="Optional named flag. The block shows only when the page is rendered for this variant; an unknown variant always shows it.">Variant flag</FieldLabel>
             <input
               type="text"
               className={KIT.input}
@@ -194,10 +192,6 @@ export function VisibilityRulesCard({
                 patch({ variant: raw.trim() ? raw : undefined });
               }}
             />
-            <Helper>
-              Optional named flag. The block shows only when the page is rendered
-              for this variant; an unknown variant always shows it.
-            </Helper>
           </Field>
 
           <p className="text-[11px] leading-snug text-stone-500">

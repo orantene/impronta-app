@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 
-import { Card, CardBody, CardHead, CHROME, ColorRow, Field, FieldLabel, Helper, SelectDropdown } from "./kit";
+import { Card, CardBody, CardHead, CHROME, ColorRow, Field, FieldLabel, SelectDropdown } from "./kit";
 import {
   publishComponentDefaultsPreview,
 } from "./component-defaults-bridge";
@@ -212,7 +212,16 @@ export function ComponentDefaultsTab({
               ];
               return (
                 <Field key={p.prop} flush={i === spec.props.length - 1}>
-                  <FieldLabel htmlFor={`cd-${spec.kind}-${p.prop}`}>{p.label}</FieldLabel>
+                  <FieldLabel
+                    htmlFor={`cd-${spec.kind}-${p.prop}`}
+                    info={
+                      p.type === "color"
+                        ? "Bind to a token so it follows your palette, or pick a custom color."
+                        : undefined
+                    }
+                  >
+                    {p.label}
+                  </FieldLabel>
                   <DefaultControl
                     id={`cd-${spec.kind}-${p.prop}`}
                     type={p.type}
@@ -291,9 +300,6 @@ function DefaultControl({
       />
       {isCustomColor ? (
         <ColorRow value={value} onChange={(v) => onChange(v)} />
-      ) : null}
-      {type === "color" ? (
-        <Helper>Bind to a token so it follows your palette, or pick a custom color.</Helper>
       ) : null}
     </div>
   );
