@@ -47,7 +47,7 @@ export function ActivityFeedItem({
         }}
         aria-hidden
       >
-        {iconName ? <Icon name={iconName} size={12} stroke={1.7} color={COLORS.inkMuted} /> : (icon ?? "\u{1F4CB}")}
+        {iconName ? <Icon name={iconName} size={12} stroke={1.7} color={COLORS.inkMuted} /> : (icon ?? "📋")}
       </div>
 
       {/* Sentence — actor and target carry the ink, the verb stays muted so the
