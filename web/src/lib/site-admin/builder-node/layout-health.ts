@@ -90,6 +90,119 @@ function mergeResponsive(
   return next;
 }
 
+/**
+ * STYLE-AWARE CHECKS.
+ *
+ * Everything above reads structured props. These two read `props.style`,
+ * because both of them describe a layout that is authorable in three clicks
+ * and renders as nothing — each one shipped to production on a live page
+ * before it was caught by eye.
+ */
+
+/** The width beyond which a capped kind's base class silently wins. */
+const CONTAINER_BASE_MAX_WIDTH_PX = 1120;
+
+/**
+ * Kinds whose base class carries `max-width: 1120px`. An authored `width`
+ * larger than that is discarded unless the author ALSO lifts the cap with
+ * `maxWidth: "full"` (or a free max-width) — which nothing in the editor
+ * says out loud.
+ */
+const MAX_WIDTH_CAPPED_KINDS = new Set<BuilderNodeKind>([
+  "container",
+  "card",
+  "cta_group",
+  "split",
+  "carousel",
+  "masonry",
+]);
+
+/** px value of a length, or null when it is not a plain px/rem length. */
+function lengthToPx(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const match = /^(-?\d*\.?\d+)(px|rem)$/.exec(value.trim());
+  if (!match) return null;
+  const n = Number(match[1]);
+  if (!Number.isFinite(n)) return null;
+  return match[2] === "rem" ? n * 16 : n;
+}
+
+/** True when this style lifts the base max-width cap. */
+function liftsMaxWidthCap(style: Record<string, unknown> | undefined): boolean {
+  if (!style) return false;
+  if (style.maxWidth === "full") return true;
+  const free = style.maxWidthFree;
+  if (typeof free !== "string") return false;
+  const trimmed = free.trim();
+  if (trimmed === "100%" || trimmed === "none") return true;
+  const px = lengthToPx(trimmed);
+  return px !== null && px > CONTAINER_BASE_MAX_WIDTH_PX;
+}
+
+/** Does this style give the node a height the layout can use? */
+function hasHeightSource(style: Record<string, unknown> | undefined): boolean {
+  if (!style) return false;
+  if (style.height || style.minHeight) return true;
+  if (style.aspectRatioFree) return true;
+  if (typeof style.aspectRatio === "string" && style.aspectRatio !== "auto") return true;
+  // The escape hatch counts: a scoped rule can supply the height too.
+  if (typeof style.customCss === "string" && /(aspect-ratio|min-height|height)\s*:/.test(style.customCss)) {
+    return true;
+  }
+  return false;
+}
+
+/** A child that is taken out of flow contributes no height to its parent. */
+function isOutOfFlow(node: BuilderNode): boolean {
+  const position = (node.props as { style?: { position?: unknown } } | undefined)?.style?.position;
+  return position === "absolute" || position === "fixed";
+}
+
+function getStyleFindings(
+  node: BuilderNodeLayoutHealthNode,
+): BuilderNodeLayoutFinding[] {
+  const findings: BuilderNodeLayoutFinding[] = [];
+  const style = (node.props as { style?: Record<string, unknown> }).style;
+
+  // 1. An authored width the base class throws away.
+  if (MAX_WIDTH_CAPPED_KINDS.has(node.kind) && !liftsMaxWidthCap(style)) {
+    const widthPx = lengthToPx(style?.width);
+    const wantsFullBleed = typeof style?.width === "string" && style.width.trim() === "100%";
+    if ((widthPx !== null && widthPx > CONTAINER_BASE_MAX_WIDTH_PX) || wantsFullBleed) {
+      findings.push({
+        id: "width-exceeds-container-cap",
+        level: "warning",
+        title: "This width is capped at 1120px",
+        message:
+          "Blocks like this one stop at 1120px wide by default, so the width set here has no visible effect. Set the max width to Full to let it run edge to edge.",
+        quickFixLabel: "Allow full width",
+        quickFixPatch: { style: { ...(style ?? {}), maxWidth: "full" } },
+      });
+    }
+  }
+
+  // 2. A box with nothing to give it height. Every child out of flow + no
+  //    height source = 0px tall, which reads as "my section disappeared".
+  const children = (node as { children?: BuilderNode[] }).children ?? [];
+  if (
+    children.length > 0 &&
+    children.every(isOutOfFlow) &&
+    !hasHeightSource(style)
+  ) {
+    findings.push({
+      id: "absolute-children-no-height",
+      level: "warning",
+      title: "This block will collapse to nothing",
+      message:
+        "Everything inside is positioned freely, so nothing is left to give this block a height and it renders 0px tall. Give it a ratio or a minimum height.",
+      quickFixLabel: "Set a 4:3 ratio",
+      quickFixPatch: { style: { ...(style ?? {}), aspectRatio: "4:3" } },
+    });
+  }
+
+  return findings;
+}
+
 export function getBuilderNodeLayoutFindings(
   node: BuilderNodeLayoutHealthNode,
 ): ReadonlyArray<BuilderNodeLayoutFinding> {
@@ -335,6 +448,8 @@ export function getBuilderNodeLayoutFindings(
       });
     }
   }
+
+  findings.push(...getStyleFindings(node));
 
   return findings;
 }
