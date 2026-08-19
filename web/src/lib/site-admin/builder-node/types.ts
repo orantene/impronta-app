@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- hand-authored BuilderNode type + schema definitions (discriminated union + the full style-value model); inherently large, like the other builder-node data files. */
 import type { BackgroundMediaProps } from "./background-media";
+import type { BuilderIconName } from "./icon-registry";
 import type { BuilderVisibilityCondition } from "./visibility";
 
 export type BuilderNodeKind =
@@ -1038,8 +1039,42 @@ export interface BuilderNavLink {
   id: string;
   label: string;
   href: string;
-  /** Optional one-level submenu. Absent ⇒ a plain flat link (pre-A3 behavior). */
+  /** Optional submenu. Absent ⇒ a plain flat link (pre-A3 behavior). */
   children?: BuilderNavLink[];
+  /** Leading glyph from the operator icon library. */
+  icon?: BuilderIconName;
+  /** Second line inside a dropdown / mega panel and the drawer. Never in the bar. */
+  description?: string;
+  /** Small pill after the label ("New", "2026"). */
+  badge?: string;
+  /** Opens in a new tab and gets an outbound mark. */
+  external?: boolean;
+  /**
+   * Which SURFACE renders this link — not which viewport.
+   *
+   * The bar and the collapsed menu are two mutually exclusive surfaces, and
+   * `collapseAt` already decides which tier shows which. So placement and
+   * viewport are separate questions, and each gets a one-word answer:
+   * `placement: "menu"` is a drawer-only link (Account, Terms); `hideOn:
+   * ["mobile"]` removes a link from phones entirely. Folding them into one
+   * per-tier enum would re-encode `collapseAt` and invent impossible states
+   * ("menu" on desktop, where there is no burger).
+   */
+  placement?: "both" | "bar" | "menu";
+  /** Viewport tiers where the link is dropped from BOTH surfaces. */
+  hideOn?: ReadonlyArray<"desktop" | "tablet" | "mobile">;
+  /**
+   * Promo card in this link's MEGA panel — the one place a menu carries an
+   * image. Top-level links only; ignored elsewhere.
+   */
+  featured?: {
+    title: string;
+    description?: string;
+    href: string;
+    imageMediaId?: string;
+    /** Resolved at render time, same duality as the image node. */
+    imageSrc?: string;
+  };
 }
 
 /**
@@ -1200,6 +1235,23 @@ export interface BuilderNavNode extends BuilderNodeBase {
     menuBackground?: string;
     menuTextColor?: string;
     menuBorderColor?: string;
+    /** Link interaction in the bar. Default "underline". */
+    linkHover?: "underline" | "fade" | "none";
+    /** Mega panel columns. Absent ⇒ auto-fill (pre-v2 behaviour). */
+    megaColumns?: 2 | 3 | 4;
+    /** Anchored under the trigger (default) or full-bleed across the nav. */
+    megaWidth?: "anchored" | "full";
+    /** Mobile drawer furniture — props, not child nodes (see the schema note). */
+    menu?: {
+      ctaLabel?: string;
+      ctaHref?: string;
+      showSocial?: boolean;
+      showLanguageToggle?: boolean;
+      groups?: "inline" | "collapsible";
+      density?: "compact" | "comfortable" | "spacious";
+    };
+    /** Accent for the underline, badges and the drawer CTA (--bn-nav-accent). */
+    accentColor?: string;
     /** Accessible label for the <nav> landmark (default "Primary"). */
     ariaLabel?: string;
     /**

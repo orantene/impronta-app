@@ -49,7 +49,41 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-caret{display:block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:0.7}
 .site-builder-node--nav-links .site-builder-node--nav-submenu{list-style:none;margin:0;padding:0.5rem;display:flex;flex-direction:column;gap:0.15rem;position:absolute;top:calc(100% + 10px);left:0;z-index:40;min-width:200px;background:var(--bn-nav-menu-bg,#ffffff);color:var(--bn-nav-menu-color,#111111);border:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12));border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,0.16);opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity 120ms ease,transform 120ms ease,visibility 0s linear 120ms}
 .site-builder-node--nav-links .site-builder-node--nav-has-sub:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub:focus-within .site-builder-node--nav-submenu{opacity:1;visibility:visible;transform:translateY(0);transition-delay:0s}
-.site-builder-node--nav-links .site-builder-node--nav-submenu[data-bn-submenu="mega"]{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.15rem 1.25rem;min-width:min(620px,80vw)}
+/* MEGA PANEL.
+   Was a single auto-fill rule — the same flat list of text links reflowed into
+   columns, which is why "mega" was a schema value with nothing behind it. A
+   mega panel is a LAYOUT: author-set columns, group headings, room for a
+   featured card.
+
+   --bn-mega-cols comes from the node (2/3/4); the auto-fill fallback keeps
+   an ungrouped legacy mega rendering exactly as it did. */
+.site-builder-node--nav-links .site-builder-node--nav-submenu[data-bn-submenu="mega"]{display:grid;grid-template-columns:repeat(var(--bn-mega-cols,auto-fill),minmax(180px,1fr));gap:0.5rem 1.5rem;min-width:min(620px,80vw);padding:1rem}
+.site-builder-node--nav-submenu[data-bn-submenu="mega"] .site-builder-node--nav-group-heading{padding-left:0.25rem}
+.site-builder-node--nav-submenu[data-bn-submenu="mega"] .site-builder-node--nav-group-links a{padding:0.4rem 0.25rem}
+
+/* Anchored panel: centred UNDER ITS TRIGGER rather than left-aligned off the
+   edge of the viewport, which is what the old left:0 did to a rightmost item. */
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="anchored"] .site-builder-node--nav-submenu{left:50%;right:auto;transform:translateX(-50%) translateY(4px);max-width:min(760px,92vw)}
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="anchored"]:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="anchored"]:focus-within .site-builder-node--nav-submenu{transform:translateX(-50%) translateY(0)}
+
+/* Full-bleed panel, CSS-only: position:static on the LI makes the absolutely
+   positioned panel resolve against the nav (already position:relative) instead
+   of the item. No JS, no measurement. */
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="full"]{position:static}
+.site-builder-node--nav-links .site-builder-node--nav-has-sub[data-bn-mega-width="full"] .site-builder-node--nav-submenu{left:0;right:0;width:100%;max-width:none;border-radius:0 0 14px 14px}
+
+/* Featured card — the one place the menu carries an image. */
+.site-builder-node--nav-featured{display:flex;flex-direction:column;gap:0.5rem;padding:0.25rem;text-decoration:none;color:inherit}
+.site-builder-node--nav-featured img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px;display:block}
+.site-builder-node--nav-featured-title{font-weight:700;font-size:0.95em}
+.site-builder-node--nav-featured-desc{font-size:0.82em;opacity:0.7;line-height:1.4}
+
+/* Close FORGIVENESS. The panel closes on a delay so travelling diagonally from
+   the trigger toward the panel does not shut it mid-move. Opening stays
+   instant — a delay there would read as lag. True hover-intent needs JS, and
+   this menu is deliberately JS-free. */
+.site-builder-node--nav-links .site-builder-node--nav-submenu{transition:opacity 120ms ease 120ms,transform 120ms ease 120ms,visibility 0s linear 240ms}
+.site-builder-node--nav-links .site-builder-node--nav-has-sub:hover .site-builder-node--nav-submenu,.site-builder-node--nav-links .site-builder-node--nav-has-sub:focus-within .site-builder-node--nav-submenu{transition-delay:0s,0s,0s}
 .site-builder-node--nav-links .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-links .site-builder-node--nav-submenu a{display:block;padding:0.5rem 0.65rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.92rem;white-space:nowrap}
 .site-builder-node--nav-menu .site-builder-node--nav-has-sub{display:block}
@@ -57,6 +91,42 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-menu .site-builder-node--nav-submenu{list-style:none;margin:0.1rem 0 0.3rem;padding:0 0 0 0.85rem;display:flex;flex-direction:column;gap:0.1rem;border-left:1px solid var(--bn-nav-menu-border,rgba(17,17,17,0.12))}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu>li{margin:0;padding:0}
 .site-builder-node--nav-menu .site-builder-node--nav-submenu a{display:block;padding:0.45rem 0.6rem;border-radius:8px;text-decoration:none;color:inherit;font-size:0.9rem;opacity:0.92}
+/* DRAWER v2.
+
+   The burger MORPHS INTO AN X while the menu is open. That is the close
+   affordance, and it costs zero new DOM: a details element allows exactly one
+   summary, and the burger already sits above the panel. Middle bar goes
+   transparent, the two pseudo-elements rotate onto each other. Every off-canvas
+   variant gets a working X exactly where the toggle already is. */
+.site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger{background:transparent;transition:background 120ms ease}
+.site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger::before{top:0;transform:rotate(45deg)}
+.site-builder-node--nav-disclosure[open]>summary>.site-builder-node--nav-burger::after{top:0;transform:rotate(-45deg)}
+.site-builder-node--nav-burger::before,.site-builder-node--nav-burger::after{transition:transform 160ms ease,top 160ms ease}
+
+/* Density — how much air each row gets. The default matches what shipped. */
+.site-builder-node--nav-menu[data-bn-density="compact"] a{padding:0.42rem 0.75rem;font-size:0.92em}
+.site-builder-node--nav-menu[data-bn-density="spacious"] a{padding:0.85rem 0.9rem;font-size:1.05em}
+
+/* Collapsible groups: nested details, still no JS. "inline" keeps the shipped
+   markup byte-identical, so this is opt-in per nav. */
+.site-builder-node--nav-menu-group{list-style:none;margin:0}
+.site-builder-node--nav-menu-group>summary{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.6rem 0.75rem;cursor:pointer;font-size:0.72em;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.7;list-style:none}
+.site-builder-node--nav-menu-group>summary::-webkit-details-marker{display:none}
+.site-builder-node--nav-menu-group>summary::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform 160ms ease}
+.site-builder-node--nav-menu-group[open]>summary::after{transform:rotate(-135deg) translateY(-2px)}
+.site-builder-node--nav-menu-group>ul{list-style:none;margin:0;padding:0 0 0.4rem 0.5rem;display:flex;flex-direction:column}
+
+/* Drawer furniture. The panel is already a flex column, so the CTA pins itself
+   to the bottom with margin-top:auto — no fixed offsets to fight the viewport
+   units the geometry depends on. */
+.site-builder-node--nav-menu-footer{margin-top:auto;display:flex;flex-direction:column;gap:0.75rem;padding:0.9rem 0.75rem 0.25rem}
+.site-builder-node--nav-menu-cta{display:flex;align-items:center;justify-content:center;padding:0.8rem 1rem;border-radius:8px;font-weight:700;letter-spacing:0.04em;text-decoration:none;background:var(--bn-nav-accent,currentColor);color:var(--bn-nav-cta-ink,#fff)}
+.site-builder-node--nav-menu-social{display:flex;flex-direction:row;gap:0.9rem;align-items:center;padding:0 0.25rem}
+.site-builder-node--nav-menu-social a{display:inline-flex;padding:0.35rem;font-size:1.15em;opacity:0.85;text-decoration:none;color:inherit}
+.site-builder-node--nav-menu-locales{display:flex;flex-direction:row;gap:0.75rem;padding:0 0.25rem;font-size:0.85em}
+.site-builder-node--nav-menu-locales a{text-decoration:none;color:inherit;opacity:0.6;text-transform:uppercase;letter-spacing:0.08em}
+.site-builder-node--nav-menu-locales a[aria-current="true"]{opacity:1;font-weight:700}
+
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-links .site-builder-node--nav-submenu{transition:none}
 }

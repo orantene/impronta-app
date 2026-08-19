@@ -104,17 +104,38 @@ export const BUDGETS: readonly Budget[] = [
   // renderer, not deleting bloat, so the ceiling is re-tuned to the measured
   // reality (~7% headroom) and the gate is armed (continue-on-error removed from
   // builder-fidelity.yml in the same commit).
-  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 95 * KB, unit: "bytes" },
+  //
+  // RE-TUNED 2026-08-18: 95 KB → 103 KB. Measured 100.5 KB. The +5.5 KB is the
+  // nav's v2 surface, bought deliberately and itemised: link
+  // icons/badges/descriptions, group headings, per-link viewport hiding, hover
+  // + aria-current states, a real mega panel (author-set columns, anchored vs
+  // full-bleed, featured card), and drawer furniture (burger→X, density,
+  // collapsible groups, pinned CTA / social / locale rows).
+  //
+  // Raised in the SAME commit that spends it. The gate caught something worth
+  // catching on the way: the first version applied `display:inline-flex` to
+  // EVERY nav anchor, which changes the baseline and wrapping of a plain text
+  // link — a visual regression on sites setting none of the new fields, and one
+  // no markup-equality test can see, because the markup is identical and only
+  // the stylesheet moved. Scoping it to a `--nav-rich` class fixed the
+  // regression and cut the scoped sheet by ~4 KB.
+  { key: "rendererCssBytes", label: "Renderer CSS size (full sheet)", max: 103 * KB, unit: "bytes" },
   // What a VISITOR actually downloads. REND-2 scopes the sheet to the node-kinds
   // present on the page (`collectPresentNodeKinds` → `buildScopedRendererCss`),
   // and every public render path passes it. This is the number that matters for
   // page weight, and unlike the full-sheet ceiling it attributes growth to the
   // kinds a page really uses. Measured 2026-08-15: 68.9 KB (trivial) → 81.3 KB
   // (store, the heaviest design); 88 KB ceiling ≈ 8% headroom.
+  //
+  // RE-TUNED 2026-08-18: 88 KB → 96 KB. Measured 92.6 KB on the heaviest
+  // fixture. This is the number a VISITOR pays, so the headroom is deliberately
+  // tighter than the full-sheet ceiling's (~3.7%, not 8%): the next thing that
+  // wants space here should have to argue for it rather than find room already
+  // waiting. Uncompressed — over the wire this is roughly 1 KB gzipped.
   {
     key: "rendererCssScopedBytes",
     label: "Renderer CSS size (scoped, shipped)",
-    max: 88 * KB,
+    max: 96 * KB,
     unit: "bytes",
   },
   // The HTML document itself. Rich pages reference images externally, so the

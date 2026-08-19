@@ -98,7 +98,13 @@ test("nav links with a one-level submenu survive validate", () => {
   );
 });
 
-test("nav submenu nesting is capped at one level (grandchildren stripped)", () => {
+test("nav submenu nesting is capped at TWO levels (great-grandchildren stripped)", () => {
+  // The cap moved from one level to two, deliberately: a mega panel needs
+  // column HEADINGS, and a heading with links under it is a third level. So a
+  // child-with-children is now a GROUP rather than an error, and the strip
+  // happens one level deeper. The mechanism is unchanged — the leaf schema
+  // simply declares no `children` key — and the guarantee it protects is the
+  // same: an operator cannot nest a menu into an unnavigable tree.
   const nav = {
     id: "nav-2",
     kind: "nav" as const,
@@ -113,7 +119,7 @@ test("nav submenu nesting is capped at one level (grandchildren stripped)", () =
               id: "c1",
               label: "Photography",
               href: "/work/photo",
-              // A second level — must be stripped by the schema.
+              // A group of links under a heading — now KEPT.
               children: [{ id: "g1", label: "Deep", href: "/deep" }],
             },
           ],
@@ -124,10 +130,13 @@ test("nav submenu nesting is capped at one level (grandchildren stripped)", () =
   const { ok, inner } = validateInner(nav as unknown as BuilderNode);
   assert.equal(ok, true);
   const child = (inner as BuilderNavNode).props.links[0]!.children![0]!;
+  const grandchildren = (child as { children?: Array<{ children?: unknown }> })
+    .children;
+  assert.equal(grandchildren?.length, 1, "a group's links must survive");
   assert.equal(
-    (child as { children?: unknown }).children,
+    grandchildren?.[0]?.children,
     undefined,
-    "grandchildren must not survive validation",
+    "a FOURTH level must not survive validation",
   );
 });
 

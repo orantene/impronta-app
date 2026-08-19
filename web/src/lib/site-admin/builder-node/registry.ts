@@ -967,14 +967,47 @@ const formPropsSchema = z.object({
 // not declared and is stripped on validate. A top-level link's `children` is
 // optional + capped at 12 (matches the top-row cap). No children ⇒ the link
 // object is byte-identical to the pre-A3 shape, so old trees parse unchanged.
-const navChildLinkSchema = z.object({
+// Depth is two levels below the top row: a child-with-children is a GROUP whose
+// label is a column heading. A fourth level is stripped, not rejected.
+/**
+ * Fields any nav link may carry, at any depth. All optional, so a link with
+ * none of them serializes byte-identically to the pre-v2 shape and every
+ * stored tree keeps parsing.
+ */
+const navLinkExtrasSchema = z.object({
+  icon: z.enum(BUILDER_ICON_NAMES).optional(),
+  description: z.string().max(160).optional(),
+  badge: z.string().max(24).optional(),
+  external: z.boolean().optional(),
+  placement: z.enum(["both", "bar", "menu"]).optional(),
+  hideOn: z.array(z.enum(["desktop", "tablet", "mobile"])).max(3).optional(),
+});
+
+/** Depth 3 — a grandchild is a leaf. Declaring no `children` key is what strips
+ *  a fourth level on validate, the same technique that capped depth 2. */
+const navGrandchildLinkSchema = navLinkExtrasSchema.extend({
   id: z.string().min(1).max(120),
   label: z.string().min(1).max(120),
   href: z.string().min(1).max(500),
 });
 
+/** A child with children of its own is a GROUP: its label becomes the column
+ *  heading in a mega panel and the section heading in the drawer. */
+const navChildLinkSchema = navGrandchildLinkSchema.extend({
+  children: z.array(navGrandchildLinkSchema).max(8).optional(),
+});
+
 const navLinkSchema = navChildLinkSchema.extend({
   children: z.array(navChildLinkSchema).max(12).optional(),
+  featured: z
+    .object({
+      title: z.string().min(1).max(80),
+      description: z.string().max(160).optional(),
+      href: z.string().min(1).max(500),
+      imageMediaId: z.string().max(120).optional(),
+      imageSrc: z.string().max(1000).optional(),
+    })
+    .optional(),
 });
 
 const navPropsSchema = z.object({
@@ -994,6 +1027,31 @@ const navPropsSchema = z.object({
   menuBackground: z.string().max(60).optional(),
   menuTextColor: z.string().max(60).optional(),
   menuBorderColor: z.string().max(60).optional(),
+  /** Link interaction. Default "underline" — the bar answered a pointer with
+   *  nothing at all before, which read as broken rather than restrained. */
+  linkHover: z.enum(["underline", "fade", "none"]).optional(),
+  /** Mega panel columns. Absent ⇒ auto-fill, the pre-v2 behaviour. */
+  megaColumns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  /** Anchored under the trigger (default) or full-bleed across the nav. */
+  megaWidth: z.enum(["anchored", "full"]).optional(),
+  /**
+   * Mobile drawer furniture. Props rather than child nodes on purpose: the
+   * panel is a <details> whose CSS-only behaviour and viewport-unit geometry
+   * are pinned by static tests, and arbitrary child nodes would put both at
+   * the mercy of whatever got dropped inside.
+   */
+  menu: z
+    .object({
+      ctaLabel: z.string().max(60).optional(),
+      ctaHref: z.string().max(500).optional(),
+      showSocial: z.boolean().optional(),
+      showLanguageToggle: z.boolean().optional(),
+      groups: z.enum(["inline", "collapsible"]).optional(),
+      density: z.enum(["compact", "comfortable", "spacious"]).optional(),
+    })
+    .optional(),
+  /** Drives --bn-nav-accent: the underline, the badge fill, the drawer CTA. */
+  accentColor: z.string().max(60).optional(),
   ariaLabel: z.string().max(80).optional(),
   // A4 follow-up — optional bind to a collection nav source (`cms_page` /
   // `cms_posts`). When it resolves, the SHELL/server caller passes those
