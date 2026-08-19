@@ -19,6 +19,7 @@ import type { HeaderAccountV1 } from "./schema";
  *   - published shell            → the real auth area.
  */
 export async function HeaderAccountComponent({
+  props,
   preview,
   tenantId,
   locale,
@@ -26,6 +27,7 @@ export async function HeaderAccountComponent({
   if (preview) {
     return (
       <HeaderWidgetPlaceholder
+        icon={props.icon}
         typeKey="header_account"
         label="Account"
         glyph={

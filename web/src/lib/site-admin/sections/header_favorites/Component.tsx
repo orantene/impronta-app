@@ -22,6 +22,7 @@ import type { HeaderFavoritesV1 } from "./schema";
  *   - published shell            → the real bookmark → favorites link.
  */
 export async function HeaderFavoritesComponent({
+  props,
   preview,
   locale,
   publicPathPrefix = "",
@@ -32,6 +33,7 @@ export async function HeaderFavoritesComponent({
   if (preview) {
     return (
       <HeaderWidgetPlaceholder
+        icon={props.icon}
         typeKey="header_favorites"
         label="Favorites"
         glyph={

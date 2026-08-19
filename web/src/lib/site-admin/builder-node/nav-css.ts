@@ -127,6 +127,13 @@ export const BUILDER_NODE_NAV_CSS = `
 .site-builder-node--nav-menu-locales a{text-decoration:none;color:inherit;opacity:0.6;text-transform:uppercase;letter-spacing:0.08em}
 .site-builder-node--nav-menu-locales a[aria-current="true"]{opacity:1;font-weight:700}
 
+/* Button icons. Lives here beside the nav rules because the shell's CTA is the
+   first consumer; the selectors are button-scoped, not nav-scoped. */
+.site-builder-node--button-icon{flex:0 0 auto;font-size:1.05em}
+.site-builder-node--button:has(.site-builder-node--button-icon){display:inline-flex;align-items:center;gap:0.5em}
+.site-builder-node--button[data-bn-icon-only]{gap:0}
+.site-builder-node--button-label-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+
 @media (prefers-reduced-motion:reduce){
   .site-builder-node--nav-links .site-builder-node--nav-submenu{transition:none}
 }

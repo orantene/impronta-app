@@ -19,6 +19,9 @@
  * so an operator sees which interactive control will appear, and that it goes
  * live on publish.
  */
+import { BUILDER_ICON_NAMES } from "@/lib/site-admin/builder-node/icon-registry";
+import type { BuilderIconName } from "@/lib/site-admin/builder-node/icon-registry";
+import { BuilderIconSvg } from "@/lib/site-admin/builder-node/builder-icon-svg";
 import type { ReactNode } from "react";
 import { z } from "zod";
 
@@ -32,6 +35,16 @@ export const headerWidgetSchemaV1 = z
   .object({
     /** Optional operator note (unused at render; future-proofing + parity). */
     label: z.string().max(80).optional(),
+    /**
+     * Override the widget's glyph from the operator icon library.
+     *
+     * Each widget shipped ONE hardcoded icon with no way to change it — the
+     * magnifier, the bookmark, the paper plane were the product's opinion, not
+     * the site's. Additive within v1 (the schema is all-optional and
+     * passthrough), so no migration and no version bump: absent ⇒ the widget
+     * draws exactly what it always drew.
+     */
+    icon: z.enum(BUILDER_ICON_NAMES).optional(),
     presentation: z.record(z.string(), z.unknown()).optional(),
   })
   .passthrough();
@@ -53,10 +66,13 @@ export function HeaderWidgetPlaceholder({
   label,
   glyph,
   typeKey,
+  icon,
 }: {
   label: string;
   glyph: ReactNode;
   typeKey: string;
+  /** Operator override; falls back to the widget's own glyph. */
+  icon?: BuilderIconName;
 }): ReactNode {
   return (
     <span
@@ -79,7 +95,7 @@ export function HeaderWidgetPlaceholder({
       }}
     >
       <span aria-hidden style={{ display: "inline-flex" }}>
-        {glyph}
+        {icon ? <BuilderIconSvg name={icon} /> : glyph}
       </span>
       {label}
     </span>

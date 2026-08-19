@@ -4032,8 +4032,32 @@ function renderBuilderNodeElement(
           className={`site-builder-node site-builder-node--button site-builder-node--button-${node.props.tone ?? "primary"}`}
           href={href}
           style={inlineNodeStyle(node.props.style, cue.style)}
+          {...(node.props.iconOnly
+            ? { "data-bn-icon-only": "", "aria-label": resolvedLabel.value }
+            : {})}
         >
-          {resolvedLabel.value}
+          {node.props.leadingIcon ? (
+            <BuilderIconSvg
+              name={node.props.leadingIcon}
+              className="site-builder-node--button-icon"
+            />
+          ) : null}
+          {/* iconOnly keeps the label in the DOM as the accessible name rather
+              than deleting it — a button whose only content is a glyph is
+              unreachable by screen reader and unsearchable by anyone. */}
+          {node.props.iconOnly ? (
+            <span className="site-builder-node--button-label-sr">
+              {resolvedLabel.value}
+            </span>
+          ) : (
+            resolvedLabel.value
+          )}
+          {node.props.trailingIcon ? (
+            <BuilderIconSvg
+              name={node.props.trailingIcon}
+              className="site-builder-node--button-icon"
+            />
+          ) : null}
         </a>
       );
     }

@@ -20,12 +20,14 @@ import type { HeaderInquiryV1 } from "./schema";
  *   - published shell            → the real interactive discovery cluster.
  */
 export async function HeaderInquiryComponent({
+  props,
   preview,
   locale,
 }: SectionComponentProps<HeaderInquiryV1>) {
   if (preview) {
     return (
       <HeaderWidgetPlaceholder
+        icon={props.icon}
         typeKey="header_inquiry"
         label="Inquiry"
         glyph={

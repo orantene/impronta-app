@@ -255,9 +255,13 @@ export function applyNativeVariant(
       break;
     case "icon-button":
       if (node.kind === "button") {
+        // Was `label: "♥ Save"` — a literal heart CHARACTER standing in for an
+        // icon, because the button node had no icon slot. It inherited the
+        // text font, ignored the icon size control, and could not be changed
+        // to any other glyph. It has a real slot now.
         return {
           ...node,
-          props: { ...node.props, label: "♥ Save" },
+          props: { ...node.props, label: "Save", leadingIcon: "heart" },
         };
       }
       break;

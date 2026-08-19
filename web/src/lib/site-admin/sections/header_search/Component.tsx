@@ -23,6 +23,7 @@ import type { HeaderSearchV1 } from "./schema";
  *     path-prefix resolved like the legacy header.
  */
 export async function HeaderSearchComponent({
+  props,
   preview,
   locale,
   publicPathPrefix = "",
@@ -33,6 +34,7 @@ export async function HeaderSearchComponent({
   if (preview) {
     return (
       <HeaderWidgetPlaceholder
+        icon={props.icon}
         typeKey="header_search"
         label="Search"
         glyph={
