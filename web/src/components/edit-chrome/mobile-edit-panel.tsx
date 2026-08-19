@@ -38,6 +38,7 @@ import { useMaybeEditContext } from "./edit-context";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useSelectedBuilderNodeId } from "./selection-bridge";
 import { MobileHealthPanel } from "./MobileHealthPanel";
+import { MobilePhoneMenuCard } from "./mobile-hud-cards";
 import { layerIcon, LayerKindPill } from "./freeform-layer-row";
 import {
   kindLabel,
@@ -700,6 +701,11 @@ export function MobileEditPanel() {
             already apply to this breakpoint.
           </div>
         )}
+
+        {/* Phone menu — the one part of the header that cannot be seen while
+            it is being edited, because it only exists once a pointer opens a
+            disclosure and the canvas has none. */}
+        {tabletHud ? null : <MobilePhoneMenuCard builderTree={builderTree} />}
 
         {/* (b) Wave-2C mobile-health checker — mobile mode only. */}
         {tabletHud ? null : (
