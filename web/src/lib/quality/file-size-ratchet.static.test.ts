@@ -95,7 +95,13 @@ const BUDGETS: Record<string, number> = {
   //       into EditProvider's signature and its `device` useState initializer,
   //       so a device-preview iframe's own EditProvider can be seeded with the
   //       tier it represents instead of always defaulting to "desktop".
-  "src/components/edit-chrome/edit-context.tsx": 6214,
+  //   +9 (nav-link focus + submenu pin): two pieces of view state a canvas
+  //       click and the nav panel both need — the clicked link id, and which
+  //       submenu is held open while it is edited. Context is the only place
+  //       both sides can read it; the state itself lives in
+  //       `use-editor-chrome.ts` and the rendering in `nav-submenu-pin.tsx`, so
+  //       what lands here is the destructure and the memo entry.
+  "src/components/edit-chrome/edit-context.tsx": 6223,
   // P2 (style-panel reset): D1 deleted the mis-scoped Surface/Custom-color
   // block outright, so this budget goes DOWN, 5896 -> 5809. Lowering locks the
   // reduction in; the guard can never drift back up silently.

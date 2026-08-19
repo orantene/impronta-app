@@ -75,6 +75,7 @@ import { InspectorDock } from "./inspector-dock";
 import { InlineEditor } from "./inline-editor";
 import { SlashCommandCanvasTrigger } from "./slash-command-canvas-trigger";
 import { MobileEditPanel } from "./mobile-edit-panel";
+import { NavSubmenuPin } from "./nav-submenu-pin";
 import { NavigatorPanel } from "./navigator-panel";
 import { AddGalleryPanel } from "./add-gallery/add-gallery-panel";
 import { AllPagesPanel } from "./all-pages-panel";
@@ -1228,6 +1229,7 @@ function EditShellInner({
         {/* Wave 6C — mobile-first editing HUD. Self-guards on mobileEditMode +
             previewing; renders nothing otherwise (fully back-compat). */}
         <MobileEditPanel />
+        <NavSubmenuPin />
         {everOpenedSchedule && <ScheduleDrawer />}
         {everOpenedComments && <CommentsDrawer />}
         {everOpenedPalette && (

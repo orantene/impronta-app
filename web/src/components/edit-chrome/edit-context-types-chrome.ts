@@ -245,6 +245,20 @@ export interface EditContextChromeAndSessionValue {
     | (() => Promise<RevisionsLoadResult>)
     | null;
 
+  /**
+   * "The operator clicked THIS nav link on the canvas." Nav links are props,
+   * not nodes, so a click selects the whole nav; this carries the link id so
+   * the panel can expand and scroll to the matching row instead of leaving the
+   * operator to find it among twelve.
+   */
+  navLinkFocusRequest: { nodeId: string; linkId: string; nonce: number } | null;
+  requestNavLinkFocus: (nodeId: string, linkId: string) => void;
+  /**
+   * Submenu held open on the canvas while it is edited. VIEW STATE — injects a
+   * stylesheet, writes nothing to the tree.
+   */
+  pinnedNavSubmenu: { nodeId: string; linkId: string } | null;
+  setPinnedNavSubmenu: (value: { nodeId: string; linkId: string } | null) => void;
   /** Request the inspector to switch tabs (e.g. floating toolbar Edit/Design). */
   inspectorTabRequest: {
     tab: "content" | "style" | "layout" | "data" | "responsive" | "motion";

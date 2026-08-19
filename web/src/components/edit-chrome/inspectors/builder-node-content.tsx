@@ -356,7 +356,20 @@ export function BuilderNodeContentInspector({
     selectBuilderNode,
     advancedElementLibraryEnabled,
     canInsertRawHtmlElements,
+    navLinkFocusRequest,
+    pinnedNavSubmenu,
+    setPinnedNavSubmenu,
   } = useEditContext();
+
+  /**
+   * The link the operator clicked on the canvas, if it belongs to the nav being
+   * shown. Scoped to this node so a stale request from another nav (two navs on
+   * one page) cannot highlight an unrelated row here.
+   */
+  const navLinkFocus =
+    navLinkFocusRequest && navLinkFocusRequest.nodeId === node.id
+      ? navLinkFocusRequest
+      : null;
 
   async function commitPatch(patch: Record<string, unknown>) {
     // Builder Studio (WS-C) — honor admin per-prop locks in the UI. The server
@@ -2312,7 +2325,20 @@ export function BuilderNodeContentInspector({
                 {(link, linkIndex, handleProps) => (
                 <div
                   key={link.id}
-                  className="rounded-lg border border-stone-200 bg-[#faf9f6] px-3 py-2"
+                  // Clicking a link on the canvas selects the whole nav (links
+                  // are props, not nodes), so the panel finds the row itself
+                  // rather than leaving the operator to scan twelve of them.
+                  ref={(el) => {
+                    if (el && navLinkFocus?.linkId === link.id) {
+                      el.scrollIntoView({ block: "nearest" });
+                    }
+                  }}
+                  data-nav-link-row={link.id}
+                  className={`rounded-lg border px-3 py-2 transition-colors ${
+                    navLinkFocus?.linkId === link.id
+                      ? "border-violet-400 bg-violet-50/60"
+                      : "border-stone-200 bg-[#faf9f6]"
+                  }`}
                 >
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
@@ -2495,13 +2521,47 @@ export function BuilderNodeContentInspector({
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
                           Submenu
                         </span>
-                        <span className="text-[11px] text-stone-400">
-                          {(link.children?.length ?? 0) === 0
-                            ? "Flat link"
-                            : `${link.children!.length} child${
-                                link.children!.length === 1 ? "" : "ren"
-                              }`}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-stone-400">
+                            {(link.children?.length ?? 0) === 0
+                              ? "Flat link"
+                              : `${link.children!.length} child${
+                                  link.children!.length === 1 ? "" : "ren"
+                                }`}
+                          </span>
+                          {/* A submenu only exists under a real pointer, so
+                              editing one meant hovering with one hand and
+                              reaching for the panel with the other. This holds
+                              it open. View state — nothing is written. */}
+                          {(link.children?.length ?? 0) > 0 ? (
+                            <button
+                              type="button"
+                              aria-pressed={
+                                pinnedNavSubmenu?.nodeId === node.id &&
+                                pinnedNavSubmenu?.linkId === link.id
+                              }
+                              className={
+                                pinnedNavSubmenu?.nodeId === node.id &&
+                                pinnedNavSubmenu?.linkId === link.id
+                                  ? "rounded border border-violet-400 bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700"
+                                  : "rounded border border-stone-200 px-1.5 py-0.5 text-[10px] text-stone-500 hover:border-stone-300"
+                              }
+                              onClick={() => {
+                                const isOpen =
+                                  pinnedNavSubmenu?.nodeId === node.id &&
+                                  pinnedNavSubmenu?.linkId === link.id;
+                                setPinnedNavSubmenu(
+                                  isOpen ? null : { nodeId: node.id, linkId: link.id },
+                                );
+                              }}
+                            >
+                              {pinnedNavSubmenu?.nodeId === node.id &&
+                              pinnedNavSubmenu?.linkId === link.id
+                                ? "Close preview"
+                                : "Show on canvas"}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                       {(link.children ?? []).map((child, childIndex) => (
                         <div

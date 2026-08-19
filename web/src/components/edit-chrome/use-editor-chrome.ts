@@ -75,6 +75,39 @@ export function useEditorChrome(input: { canEditTheme: boolean }) {
     tab: "content" | "style" | "layout" | "data" | "responsive" | "motion";
     nonce: number;
   } | null>(null);
+  /**
+   * Nav LINK focus — "the operator clicked this specific link on the canvas".
+   *
+   * Nav links are props, not nodes (one source of truth for the desktop row and
+   * the phone menu), so clicking one selects the whole nav and the operator is
+   * left scrolling a panel of twelve rows to find the link under their cursor.
+   * This carries the link id alongside the selection so the panel can open on it.
+   *
+   * `nonce` is what makes a REPEAT click work: clicking the same link twice
+   * would otherwise be an identical object and the panel would not react.
+   */
+  const [navLinkFocusRequest, setNavLinkFocusRequest] = useState<{
+    nodeId: string;
+    linkId: string;
+    nonce: number;
+  } | null>(null);
+  const requestNavLinkFocus = useCallback((nodeId: string, linkId: string) => {
+    setNavLinkFocusRequest({ nodeId, linkId, nonce: Date.now() });
+  }, []);
+
+  /**
+   * The submenu held open on the canvas while it is being edited.
+   *
+   * A dropdown or mega panel only exists under a real pointer, so editing one
+   * meant hovering with one hand and editing with the other, or publishing to
+   * see it. VIEW STATE ONLY — it injects a stylesheet and writes nothing to
+   * the tree, so previewing a panel can never be published by accident.
+   */
+  const [pinnedNavSubmenu, setPinnedNavSubmenu] = useState<{
+    nodeId: string;
+    linkId: string;
+  } | null>(null);
+
   const [inspectorActiveTab, setInspectorActiveTabState] = useState<
     "content" | "style" | "layout" | "data" | "motion"
   >("content");
@@ -572,6 +605,10 @@ export function useEditorChrome(input: { canEditTheme: boolean }) {
     setCommentsFocusSectionId(null);
   }, []);
   return {
+    navLinkFocusRequest,
+    requestNavLinkFocus,
+    pinnedNavSubmenu,
+    setPinnedNavSubmenu,
     libraryTarget,
     openLibrary,
     closeLibrary,
