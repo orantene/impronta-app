@@ -2,21 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import type { Locale } from "@/i18n/config";
 import { useT } from "@/i18n/use-t";
 import { InfoTip } from "@/components/ui/info-tip";
 import {
   resolveWebsiteEditorBaseUrl,
   resolveWebsiteLiveOrigin,
 } from "@/lib/admin/website-editor-links";
-import { interpolate } from "@/i18n/interpolate";
-import { buildPostPublicPathname } from "@/lib/cms/paths";
-import { EmptyState, Icon } from "../primitives";
+import { Icon } from "../primitives";
 import { COLORS, FONTS, TRANSITION, meetsRole, useAdminShell } from "../state";
-import type { WebsitePost } from "../state";
 import { CardDesignStudio } from "./CardDesignStudio";
 import { ProfilePagesStudio } from "../../../profile-pages/ProfilePagesStudio";
-import { PageStatusChip } from "./SitePage";
 import { WebsiteHealthPanel } from "./WebsiteHealthPanel";
 import { WebsiteAnalyticsPage } from "./WebsiteAnalyticsPage";
 import { WebsiteLaunchpad } from "./WebsiteLaunchpad";
@@ -44,8 +39,9 @@ import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 //   2. Does anything need attention?                   → WebsiteHealthPanel
 //   3. Where do I go next?                             → WebsiteLaunchpad
 //   4. What is my site made of?                        → WebsitePagesPreview
-// Posts close the page. Performance moved to /website/analytics (W2);
-// its launchpad card carries the live 7d visit count.
+// The pages preview closes the page. Performance moved to
+// /website/analytics (W2) and Posts moved to /website/posts (W3, dropped
+// from Overview in W4); their launchpad cards carry the live counts.
 //
 // WHAT LEFT, AND WHERE IT WENT
 //   • The 4 hero stat tiles      → re-expressed as live counts on the
@@ -54,6 +50,8 @@ import { useWebsiteSubnav, type WebsiteSubnavItem } from "./website-nav";
 //   • The read-only Redirects    → `/website/redirects` owns it, and the health
 //     rows                         panel already surfaces redirect problems.
 //   • Configuration              → `/website/setup` (#1244).
+//   • The Posts preview list     → `/website/posts` (W4); the launchpad's
+//                                   Posts card carries the live count.
 // ════════════════════════════════════════════════════════════════════
 
 /**
@@ -144,7 +142,6 @@ export function WebsitePage() {
     state,
     toast,
     effectiveWebsiteState,
-    locale,
     tenantSlug,
     adminBasePath,
   } = useAdminShell();
@@ -175,21 +172,6 @@ export function WebsitePage() {
   // (`/website/design`, WebsiteDesignHub.tsx). They were two of four scattered
   // ways to change how the site looks; the hub is the one place that names the
   // set. Overview links there rather than duplicating any of it.
-
-  const openPostOnLive = useCallback(
-    (post: WebsitePost) => {
-      if (!liveOrigin) {
-        toast(t("dashboard.adminWebsite.toastLiveUrlUnavailable"));
-        return;
-      }
-      const raw = post.slug.trim().replace(/^\/+/u, "");
-      const firstSegment = raw.split("/").filter(Boolean)[0] ?? "";
-      const pathname = buildPostPublicPathname(locale as Locale, firstSegment);
-      window.open(`${liveOrigin}${pathname}`, "_blank", "noopener,noreferrer");
-      toast(t("dashboard.adminWebsite.toastOpeningPost"));
-    },
-    [liveOrigin, locale, t, toast],
-  );
 
   const openHomepageEditor = useCallback(() => {
     if (!editorBaseUrl) {
@@ -388,74 +370,12 @@ export function WebsitePage() {
       {/* Performance moved to its own page (W2): the launchpad's Analytics
           card carries the live 7d visit count and links to /website/analytics.
           The inline WebsitePerformance panel this replaced showed hardcoded-
-          zero deltas and per-page conversions — see WebsiteAnalyticsPage. */}
-
-      {/* Posts. The read-only Redirects column that used to sit beside this is
-          gone: Redirects has its own route, the launchpad links to it with a
-          live count, and the health panel is what surfaces a broken one. */}
-      <section style={{ marginBottom: 22 }}>
-        {/* Posts column */}
-        <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: 16, fontFamily: FONTS.body }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontFamily: FONTS.display, fontSize: 15, fontWeight: 600 }} className="text-admin-ink">
-              {t("dashboard.adminWebsite.postsHeading")} <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginLeft: 6 }} className="text-admin-ink-muted">{w.posts.length}</span>
-            </h3>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {w.posts.length === 0 ? (
-              <EmptyState icon="info" title={t("dashboard.adminWebsite.postsEmptyTitle")} body={t("dashboard.adminWebsite.postsEmptyBody")} compact />
-            ) : (
-              w.posts.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  disabled={!liveOrigin}
-                  aria-label={interpolate(t("dashboard.adminWebsite.postsOpenAria"), { title: p.title })}
-                  onClick={() => openPostOnLive(p)}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr auto",
-                    gap: 10,
-                    alignItems: "center",
-                    padding: "10px 12px",
-                    borderRadius: 9,
-                    border: `1px solid ${COLORS.borderSoft}`,
-                    background: "#fff",
-                    textAlign: "left",
-                    fontFamily: FONTS.body,
-                    cursor: liveOrigin ? "pointer" : "not-allowed",
-                    opacity: liveOrigin ? 1 : 0.65,
-                    transition: `border-color ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!liveOrigin) return;
-                    e.currentTarget.style.borderColor = COLORS.indigoDeep;
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(11,11,13,0.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = COLORS.borderSoft;
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  {/* W3 — fixture author/tags/hits7d were lies (a literal
-                      placeholder, no tags column, no per-post analytics) and
-                      are gone from the row model. The row now shows only what
-                      is real; the full manager lives at /website/posts. */}
-                  <div className="min-w-0">
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                      <PageStatusChip status={p.status} />
-                      <span className="text-admin-ink-dim text-admin-11">{p.lastEditedBy}</span>
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="text-admin-ink">{p.title}</div>
-                    <div style={{ fontSize: 11, marginTop: 2 }} className="text-admin-ink-muted">{p.slug}</div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-
-      </section>
+          zero deltas and per-page conversions — see WebsiteAnalyticsPage.
+          Posts moved to its own page (W3, then W4 removed the Overview
+          preview list): the launchpad's Posts card carries the live
+          published/total count and links to /website/posts. Overview ends
+          at the pages preview above — see the header comment for the
+          section order this surface holds to. */}
     </>
   );
 }
